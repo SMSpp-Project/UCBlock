@@ -411,7 +411,7 @@ void UnitBlockSolution::serialize( const netCDF::NcGroup & group )
 
 UnitBlockSolution * UnitBlockSolution::scale( double factor ) const
 {
- auto *sol = clone();
+ auto sol = clone();
 
  if( factor == 1 )
   return( sol );
@@ -447,7 +447,7 @@ void UnitBlockSolution::sum( const Solution * solution , double multiplier )
  auto UBS = dynamic_cast< const UnitBlockSolution * >( solution );
  if( ! UBS )
   throw( std::invalid_argument(
-	   "UnitBlockSolution::sum: solution is not a UnitBlockSolution" ) );
+	      "UnitBlockSolution::sum: solution not a UnitBlockSolution" ) );
 
  if( f_time_horizon != UBS->f_time_horizon )
   throw( std::invalid_argument(
@@ -485,7 +485,7 @@ void UnitBlockSolution::sum( const Solution * solution , double multiplier )
 
 UnitBlockSolution * UnitBlockSolution::clone( bool empty ) const
 {
- auto *sol = new UnitBlockSolution();
+ auto * sol = new_Solution();
 
  if( ! empty ) {
   sol->f_time_horizon = f_time_horizon;

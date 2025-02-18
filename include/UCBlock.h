@@ -226,10 +226,11 @@ class UCBlock : public Block
  *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
  *   is optional if:
  *
- *   - a NetworkBlock is defined for all necessary intervals so that they
- *     collectively cover the entire "TimeHorizon", and
+ *   = a NetworkBlock is defined for all necessary intervals so that they
+ *     collectively cover the entire "TimeHorizon" (see "NetworkBlock_t"
+ *     bwlow), and
  *
- *   - each defined NetworkBlock has the "ActiveDemand" variable specified
+ *   = each defined NetworkBlock has the "ActiveDemand" variable specified
  *     in the corresponding group.
  *
  *   Otherwise, it is mandatory. When it is defined, the entry
@@ -244,20 +245,28 @@ class UCBlock : public Block
  *   which is ignored.
  *
  * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
- *   with T = NumberNetworks - 1, each containing the constraints of the
- *   transmission or community network for some subset of time intervals in
- *   the horizon. The NetworkBlocks are optional, but if any of them are
- *   missing, then:
+ *   with T = NumberNetworks - 1, each containing the network constraints of
+ *   the for some subset of time intervals in the horizon.
+ *   There are two main scenarios for defining NetworkBlock instances across
+ *   the "TimeHorizon".:
  *
- *   - "ActivePowerDemand" (see above) is mandatory in UCBlock;
+ *   = If "NumberNetworks" is equal to "TimeHorizon", it means that each
+ *     NetworkBlock covers exactly one interval. In this case it is clear
+ *     which time instant each "NetworkBlock_t" covers, and this makes it
+ *     possible to implicitly define the ones that "are all equal" (as it
+ *     often happens since the network may easily not change in the short
+ *     time horizon typical of the UC problem). Hence, in this case the
+ *     NetworkBlocks are optional, but if any of them are missing, then:
  *
- *   - also the NetworkData (see above) is mandatory in UCBlock, unless
- *     the transmission network, i.e., a DCNetworkBlock, is a bus (that is,
- *     "NumberNodes" is not provided, or it is == 1).
+ *     * "ActivePowerDemand" (see above) is mandatory in UCBlock;
  *
- *   In particular, if the NetworkBlock groups provided do not cover the
- *   entire time horizon (the sum of all intervals they declare is less
- *   than "TimeHorizon"), the code will attempt to:
+ *     * also the NetworkData (see above) is mandatory in UCBlock, unless
+ *       the transmission network, i.e., a DCNetworkBlock, is a bus (that is,
+ *       "NumberNodes" is not provided, or it is == 1).
+ *
+ *     In particular, if the NetworkBlock groups provided do not cover the
+ *     entire time horizon (the sum of all intervals they declare is less
+ *     than "TimeHorizon"), the code will attempt to:
  *
  *   (a) use the "ActivePowerDemand" data for those uncovered intervals
  *
@@ -267,14 +276,36 @@ class UCBlock : public Block
  *
  *   (c) raise an exception if some mandatory data (either "ActivePowerDemand"
  *       or "NetworkData", for the multi-node case) is missing.
+
+If all NetworkBlock instances are explicitly defined, they are assumed to
+be arranged in chronological order according to their index in the input,
+specifically as NetworkBlock_i for i ranging from 0 to "NumberNetworks". 
+Each NetworkBlock specifies the number of consecutive intervals it spans
+and the corresponding demand for that specific interval. In this case, the
+sum of intervals covered by all NetworkBlock instances must match
+f_time_horizon; otherwise, an exception is raised. 
+
+If not all NetworkBlock instances are explicitly defined, i.e., some
+NetworkBlock_i for i ranging from 0 to "NumberNetworks" is missing, or
+none are, a global NetworkData instance must be present within UCBlock.
+This global NetworkData acts as the reference point, containing shared
+network data and the demand. So, the explicitly defined NetworkBlock
+instances are taken as they are, while missing ones will be created, and
+they will inherit both the global NetworkData and the corresponding
+demand for the specific intervals spanned by the i-th "NumberNetwork" from
+the "ActivePowerDemand", i.e., [ ActivePowerDemand[ n ][ i ], ...,
+ActivePowerDemand[ n ][ i + number_intervals ] ], given in the UCBlock.
+
+
+
  *
  * - The variable "GeneratorNode", of type netCDF::NcUint and indexed over
  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
  *   tells to which node of the transmission network the specified electrical
  *   generator g belongs. Note that this means that different electrical
  *   generators in the same UnitBlock can belong to different nodes of the
- *   transmission network. This is justified, e.g., by hydro cascade units where
- *   different turbines can be rather far apart geographically, but still
+ *   transmission network. This is justified, e.g., by hydro cascade units
+ *   where different turbines can be rather far apart geographically, but still
  *   linked by (long) stretches of rivers. If NumberElectricalGenerators ==
  *   NumberUnits (all UnitBlock have exactly one electrical generator), then
  *   this variable is indexed over NumberUnits. If NumberNodes == 1 (say, it
@@ -288,18 +319,19 @@ class UCBlock : public Block
  *
  * - The variable "PrimaryZones", of type netCDF::NcUint and indexed over
  *   the dimension "NumberNodes". The entry PrimaryZones[ i ] tells to which
- *   primary zone the node i belongs: if PrimaryZones[ i ] >= NumberPrimaryZones,
- *   this means that node i does not belong to any primary zone, and hence
- *   the corresponding electrical generators are not involved in the primary
- *   reserve constraints. If NumberPrimaryZones == 0 (say, it is not provided
- *   at all) then this variable need not be defined, since it is not loaded.
- *   If NumberPrimaryZones == 1, and this variable is not defined, then there
- *   is only one primary zone and all the nodes belong to it.
+ *   primary zone the node i belongs: if PrimaryZones[ i ] >=
+ *   NumberPrimaryZones, this means that node i does not belong to any primary
+ *   zone, and hence the corresponding electrical generators are not involved
+ *   in the primary reserve constraints. If NumberPrimaryZones == 0 (say, it
+ *   is not provided at all) then this variable need not be defined, since it
+ *   is not loaded. If NumberPrimaryZones == 1, and this variable is not
+ *   defined, then there is only one primary zone and all the nodes belong to
+ *   it.
  *
  * - The variable "PrimaryDemand", of type netCDF::NcDouble and indexed both
  *   over the dimensions "NumberPrimaryZones" and "TimeHorizon": entry
- *   PrimaryDemand[ i , t ] is assumed to contain the primary reserve requirement
- *   specified on the primary reserve zone i in the time t. If
+ *   PrimaryDemand[ i , t ] is assumed to contain the primary reserve
+ *   requirement specified on the primary reserve zone i in the time t. If
  *   NumberPrimaryZones == 0 (say, it is not provided at all), then this
  *   variable need not be defined, since it is not loaded.
  *

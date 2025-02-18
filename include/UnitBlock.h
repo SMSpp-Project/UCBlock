@@ -490,7 +490,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" UnitBlockSolution
  /** Small virtual method that just returns an "empty" UnitBlockSolution
-  * object. It is used by UnitBlock::get_Solution(), with the idea that
+  * object. It is used by get_Solution() and clone(), with the idea that
   * derived classes can override it to make it return a :UnitBlockSolution
   * better suited for the specific :UnitBlock at hand. */
  

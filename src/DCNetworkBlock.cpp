@@ -4,6 +4,9 @@
 /** @file
  * Implementation of the DCNetworkBlock class.
  *
+ * \author Wim van Ackooij \n
+ *         EDF R&D OSIRIS \n
+ *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -12,12 +15,14 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Quentin Jacquet \n
+ *         EDF R&D OSIRIS \n
+ *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                      Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -1205,7 +1210,7 @@ void DCNetworkBlockSolution::serialize( const netCDF::NcGroup & group )
 DCNetworkBlockSolution * DCNetworkBlockSolution::scale( double factor ) const
 {
  // call the method of the base class
- auto * sol = dynamic_cast< DCNetworkBlockSolution * >(
+ auto sol = dynamic_cast< DCNetworkBlockSolution * >(
 				     NetworkBlockSolution::scale( factor ) );
  assert( sol );
 
@@ -1248,7 +1253,7 @@ void DCNetworkBlockSolution::sum( const Solution * solution ,
 DCNetworkBlockSolution * DCNetworkBlockSolution::clone( bool empty ) const
 {
  // call the method of the base class
- auto * sol = dynamic_cast< DCNetworkBlockSolution * >(
+ auto sol = dynamic_cast< DCNetworkBlockSolution * >(
 					     NetworkBlockSolution::clone() );
  assert( sol );
 

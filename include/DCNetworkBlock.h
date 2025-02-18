@@ -7,13 +7,19 @@
  * defines the standard linear constraints corresponding to the "DC model"
  * of the transmission network in the Unit Commitment problem.
  *
- * \author Antonio Frafngioni \n
+ * \author Wim van Ackooij \n
+ *         EDF R&D OSIRIS \n
+ *
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Ali Ghezelsoflu \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
+ *
+ * \author Quentin Jacquet \n
+ *         EDF R&D OSIRIS \n
  *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n

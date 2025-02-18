@@ -191,6 +191,7 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // "NumberNodes" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
 
+ // "NumberInstants" is optional- - - - - - - - - - - - - - - - - - - - - - -
  if( ! ::deserialize_dim( group , "NumberInstants" , f_number_instants ,
 			  true ) )
   f_number_instants = 1;
@@ -257,6 +258,7 @@ void NetworkBlockSolution::serialize( const netCDF::NcGroup & group )
  // "NumberNodes" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto nn = group.addDim( "NumberNodes" , f_number_nodes );
 
+ // "NumberInstants" is optional- - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcDim ni;
  if( f_number_instants > 1 )
   ni = group.addDim( "NumberInstants" , f_number_instants );
@@ -273,7 +275,7 @@ void NetworkBlockSolution::serialize( const netCDF::NcGroup & group )
 
 NetworkBlockSolution * NetworkBlockSolution::scale( double factor ) const
 {
- auto *sol = clone();
+ auto sol = clone();
 
  if( factor == 1 )
   return( sol );
@@ -317,7 +319,7 @@ void NetworkBlockSolution::sum( const Solution * solution ,
 
 NetworkBlockSolution * NetworkBlockSolution::clone( bool empty ) const
 {
- auto * sol = new_Solution();
+ auto sol = new_Solution();
 
  if( ! empty ) {
   sol->f_number_nodes = f_number_nodes;

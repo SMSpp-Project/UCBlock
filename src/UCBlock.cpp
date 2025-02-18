@@ -1123,7 +1123,7 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
 
  if( wsol & 4 )
   sol->v_demand_duals.resize(
-	   mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes() ] );
+	    mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes() ] );
 
  if( wsol & 8 )
   sol->v_primary_duals.resize(
@@ -2012,7 +2012,6 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
  ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
  // deserialize the UnitBlockSolution - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  Index number_units = 0;
  if( ::deserialize_dim( group , "NumberUnits" , number_units ) ) {
   v_unit_Solution.resize( number_units );
@@ -2030,7 +2029,6 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
   }
 
  // deserialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  Index number_networks = 0;
  if( ::deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
   v_network_Solution.resize( number_networks );
@@ -2049,14 +2047,12 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
   }
 
  // deserialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  f_number_nodes = 0;
  if( ::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
   ::deserialize< double , 2 >( group , "ActivePowerDuals" , v_demand_duals ,
 			       false );
 
  // deserialize the PrimaryDuals- - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  f_number_primary_zones = 0;
  if( ::deserialize_dim( group , "NumberPrimaryZones" ,
 			f_number_primary_zones ) )
@@ -2064,7 +2060,6 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
 			       false );
 
  // deserialize the SecondaryDuals- - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  f_number_secondary_zones = 0;
  if( ::deserialize_dim( group , "NumberSecondaryZones" ,
 			f_number_secondary_zones ) )
@@ -2072,7 +2067,6 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
 			       false );
 
  // deserialize the InertiaDuals- - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  f_number_inertia_zones = 0;
  if( ::deserialize_dim( group , "NumberInertiaZones" ,
 			f_number_inertia_zones ) )
@@ -2254,9 +2248,8 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
 {
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto th = group.addDim( "TimeHorizon" , f_time_horizon );
-  
+
  // serialize the UnitBlockSolution - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_unit_Solution.empty() ) {
   auto nu = group.addDim( "NumberUnits" , v_unit_Solution.size() );
 
@@ -2267,7 +2260,6 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
    }
 
  // serialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_network_Solution.empty() ) {
   auto nu = group.addDim( "NumberNetworks" , v_network_Solution.size() );
 
@@ -2280,7 +2272,6 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
   }
 
  // serialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_demand_duals.empty() ) {
   auto nn = group.addDim( "NumberNodes" , v_demand_duals.shape()[ 1 ] );
 
@@ -2289,7 +2280,6 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
   }
 
  // serialize the PrimaryDuals- - - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_primary_duals.empty() ) {
   auto npz = group.addDim( "NumberPrimaryZones" , f_number_primary_zones );
 
@@ -2298,7 +2288,6 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
   }
 
  // serialize the SecondaryDuals- - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_secondary_duals.empty() ) {
   auto nsz = group.addDim( "NumberSecondaryZones" ,
 			   f_number_secondary_zones );
@@ -2308,7 +2297,6 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
   }
 
  // serialize the InertiaDuals- - - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_inertia_duals.empty() ) {
   auto niz = group.addDim( "NumberInertiaZones" , f_number_inertia_zones );
 
@@ -2321,7 +2309,7 @@ void UCBlockSolution::serialize( const netCDF::NcGroup & group )
 
 UCBlockSolution * UCBlockSolution::scale( double factor ) const
 {
- auto *sol = clone();
+ auto sol = clone();
 
  if( factor == 1 )
   return( sol );
@@ -2407,7 +2395,8 @@ void UCBlockSolution::sum( const Solution * solution , double multiplier )
  if( ! v_secondary_duals.empty() )
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
-    v_secondary_duals[ t ][ i ] += UCBS->v_secondary_duals[ t ][ i ] * multiplier;
+    v_secondary_duals[ t ][ i ] +=
+     UCBS->v_secondary_duals[ t ][ i ] * multiplier;
  
  if( ! v_inertia_duals.empty() )
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
@@ -2420,7 +2409,7 @@ void UCBlockSolution::sum( const Solution * solution , double multiplier )
 
 UCBlockSolution * UCBlockSolution::clone( bool empty ) const
 {
- auto *sol = new UCBlockSolution();
+ auto sol = new UCBlockSolution();
 
  if( ! empty ) {
   sol->f_time_horizon = f_time_horizon;
