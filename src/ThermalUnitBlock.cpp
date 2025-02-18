@@ -77,10 +77,6 @@ static constexpr unsigned char SUSDForm = 6;
 static constexpr unsigned char PCuts = 8;
 /// 4th bit of AR == 1 if the perspective cuts are used
 
-
-bool ThermalUnitBlock::f_ignore_netcdf_vars;
-/// this variable indicates which netCDF variables must be ignored
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
