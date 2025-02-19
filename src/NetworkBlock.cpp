@@ -62,6 +62,9 @@ typedef NetworkBlock::NetworkData NetworkData;
 
 SMSpp_insert_in_factory_cpp_0( NetworkData );
 
+// register NetworkBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( NetworkBlockSolution );
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -142,6 +145,12 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys )
  }
 
 /*--------------------------------------------------------------------------*/
+
+NetworkBlockSolution * NetworkBlock::new_Solution( void ) const {
+  return( new NetworkBlockSolution() );
+  }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -217,7 +226,7 @@ void NetworkBlockSolution::read( const Block * block )
  if( ! v_node_injection.empty() )
   // read the node injection variables - - - - - - - - - - - - - - - - - - -
   for( Index t = 0 ; t < f_number_instants ; ++t ) {
-   auto NIt = NB->get_node_injection( t );
+   auto NIt = NB->get_const_node_injection( t );
    for( Index i = 0 ; i < f_number_nodes ; ++i )
     v_node_injection[ t ][ i ] = NIt[ i ].get_value();
    }
@@ -228,7 +237,7 @@ void NetworkBlockSolution::read( const Block * block )
 
 void NetworkBlockSolution::write( Block * block )
 {
- auto NB = dynamic_cast< const NetworkBlock * >( block );
+ auto NB = dynamic_cast< NetworkBlock * >( block );
  if( ! NB )
   throw( std::invalid_argument(
 	      "NetworkBlockSolution::write: block is not a NetworkBlock" ) );
@@ -253,7 +262,7 @@ void NetworkBlockSolution::write( Block * block )
 
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlockSolution::serialize( const netCDF::NcGroup & group )
+void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
  // "NumberNodes" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto nn = group.addDim( "NumberNodes" , f_number_nodes );
@@ -266,8 +275,7 @@ void NetworkBlockSolution::serialize( const netCDF::NcGroup & group )
  // serialize the Node Injection- - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_node_injection.empty() )
   ::serialize< double , 2 >( group , "NodeInjection" , netCDF::NcDouble() ,
-			     { ni , nn } , v_node_injection.data() ,
-			     { f_number_instants , f_number_nodes } );
+			     { ni , nn } , v_node_injection );
 
  }  // end( NetworkBlockSolution::serialize )
 
@@ -319,16 +327,23 @@ void NetworkBlockSolution::sum( const Solution * solution ,
 
 NetworkBlockSolution * NetworkBlockSolution::clone( bool empty ) const
 {
- auto sol = new_Solution();
+ auto sol = new NetworkBlockSolution();
 
- if( ! empty ) {
-  sol->f_number_nodes = f_number_nodes;
-  sol->f_number_instants = f_number_instants;
-
-  sol->v_node_injection = v_node_injection;
-  }
+ if( ! empty )
+  guts_of_clone( sol );
 
  return( sol );
+
+ }  // end( NetworkBlockSolution::clone )
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlockSolution::guts_of_clone( NetworkBlockSolution * sol ) const
+{
+ sol->f_number_nodes = f_number_nodes;
+ sol->f_number_instants = f_number_instants;
+
+ sol->v_node_injection = v_node_injection;
 
  }  // end( NetworkBlockSolution::clone )
 

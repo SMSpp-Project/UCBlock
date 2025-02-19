@@ -52,6 +52,8 @@
 
 #include "OneVarConstraint.h"
 
+#include "Solution.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -60,7 +62,12 @@
 
 namespace SMSpp_di_unipi_it
 {
+/*--------------------------------------------------------------------------*/
+/*------------------------- FORWARD DECLARATIONS ---------------------------*/
+/*--------------------------------------------------------------------------*/
 
+ class NetworkBlockSolution;  // forward definition of NetworkBlockSolution
+ 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -359,8 +366,8 @@ class NetworkBlock : public Block
   *   details. All that is optional, because the NetworkData object can
   *   alternatively be passed to the NetworkBlock via a call to
   *   set_NetworkData(). Note that if set_NetworkData() is called, but
-  *   the representation of a NetworkData object is found in the NcGroup, then
-  *   the NetworkData passed by set_NetworkData() is ignored, and a new
+  *   the representation of a NetworkData object is found in the NcGroup,
+  *   then the NetworkData passed by set_NetworkData() is ignored, and a new
   *   NetworkData object is read from the NcGroup and used instead. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
@@ -375,10 +382,11 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// generate the static constraints of NetworkBlock
- /** The base NetworkBlock class has just the node injection bound constraints.
-  */
+ /** The base NetworkBlock class has just the node injection bound
+  * constraints. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr )
+  override;
 
 /*--------------------------------------------------------------------------*/
  /// loads a NetworkBlock from an input standard stream.
@@ -615,7 +623,18 @@ class NetworkBlock : public Block
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the read-only matrix of node injection variables
+ /** Like get_node_injection(), but returns a const pointer so that the
+  * method itself can be const. */
+ 
+ const ColVariable * get_const_node_injection( Index interval = 0 ) const {
+  if( v_node_injection.empty() )
+   return( nullptr );
+  return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -652,13 +671,11 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" NetworkBlockSolution
  /** Small virtual method that just returns an "empty" NetworkBlockSolution
-  * object. It is used by get_Solution() and clone(), with the idea that
-  * derived classes can override it to make it return a :NetworkBlockSolution
-  * better suited for the specific :UnitBlock at hand. */
+  * object. It is used by get_Solution(), with the idea that derived classes
+  * can override it to make it return a :NetworkBlockSolution better suited
+  * for the specific :NetworkBlock at hand. */
  
- virtual NetworkBlockSolution * new_Solution( void ) const {
-  return( new NetworkBlockSolution() );
-  }
+ virtual NetworkBlockSolution * new_Solution( void ) const;
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
@@ -673,7 +690,7 @@ class NetworkBlock : public Block
 
  virtual void serialize( netCDF::NcGroup& group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -950,12 +967,12 @@ class NetworkBlockSolution : public Solution {
 
 /*----------- CONSTRUCTING AND DESTRUCTING NetworkBlockSolution ------------*/
 
- explicit NetworkBlockSolution( void ) f_number_nodes( 0 ) , 
+ explicit NetworkBlockSolution( void ) : f_number_nodes( 0 ) , 
   f_number_instants( 0 ) { }  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void deserialize( const netCDF::NcGroup & group ) override final;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -963,9 +980,9 @@ class NetworkBlockSolution : public Solution {
 
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
 
- void read( const Block * block ) override final;
+ void read( const Block * block ) override;
 
- void write( Block * block ) override final;
+ void write( Block * block ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a NetworkBlockSolution into a netCDF::NcGroup
@@ -1006,6 +1023,14 @@ class NetworkBlockSolution : public Solution {
   output << "NetworkBlockSolution [" << this << "]: " << std::endl;
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// do the heavy lifting of cloning a non-empty NetworkBlockSolution
+ /** This method does the actualy copying of the fields for an already
+  * existing :NetworkBlockSolution; this is provided to make life easier to
+  * the clone() of derived classes. */
+ 
+ void guts_of_clone( NetworkBlockSolution * sol ) const;
+ 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
  private:

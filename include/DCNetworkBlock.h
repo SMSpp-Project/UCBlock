@@ -59,7 +59,6 @@
 
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DCNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1076,9 +1075,7 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" [DC]NetworkBlockSolution
  
- NetworkBlockSolution * new_Solution( void ) const override {
-  return( new DCNetworkBlockSolution() );
-  }
+ NetworkBlockSolution * new_Solution( void ) const override;
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE DCNetworkBlock -----------------*/

@@ -53,8 +53,10 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register DCNetworkBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_0( DCNetworkBlock );
+
+// register DCNetworkBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( DCNetworkBlockSolution );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -674,16 +676,22 @@ Solution * DCNetworkBlock::get_Solution( Configuration * csolc ,
 
  // call the method of the base class
  auto * sol = dynamic_cast< DCNetworkBlockSolution * >(
-		     NetworkBlockSolution::get_Solution( csolc , emptys ) );
+		               NetworkBlock::get_Solution( csolc , emptys ) );
  assert( sol );
 
  if( wsol & 2 )
-  sol->v_flow.resize( f_number_lines );
+  sol->v_flow.resize( get_number_lines() );
 
  if( ! emptys )
   sol->read( this );
 
  return( sol );
+ }
+
+/*--------------------------------------------------------------------------*/
+ 
+NetworkBlockSolution * DCNetworkBlock::new_Solution( void ) const {
+ return( new DCNetworkBlockSolution() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1138,7 +1146,7 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
  // deserialize the Flow Variables - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double , 2 >( group , "FlowValue" , v_flow , false );
+ ::deserialize< double >( group , "FlowValue" , v_flow , false );
 
  }  // end( DCNetworkBlockSolution::deserialize )
 
@@ -1190,7 +1198,7 @@ void DCNetworkBlockSolution::write( Block * block )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlockSolution::serialize( const netCDF::NcGroup & group )
+void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
  // call the method of the base class
  NetworkBlockSolution::serialize( group );
@@ -1219,7 +1227,7 @@ DCNetworkBlockSolution * DCNetworkBlockSolution::scale( double factor ) const
 
  if( ! v_flow.empty() )
   for( Index l = 0 ; l < f_number_lines ; ++l )
-   sol->v_flow[ l ][ i ] *= factor;
+   sol->v_flow[ l ] *= factor;
 
  return( sol );
 
@@ -1252,12 +1260,11 @@ void DCNetworkBlockSolution::sum( const Solution * solution ,
 
 DCNetworkBlockSolution * DCNetworkBlockSolution::clone( bool empty ) const
 {
- // call the method of the base class
- auto sol = dynamic_cast< DCNetworkBlockSolution * >(
-					     NetworkBlockSolution::clone() );
- assert( sol );
+ auto sol = new DCNetworkBlockSolution();
 
  if( ! empty ) {
+  NetworkBlockSolution::guts_of_clone( sol );
+
   sol->f_number_lines = f_number_lines;
 
   sol->v_flow = v_flow;

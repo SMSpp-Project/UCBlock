@@ -5,10 +5,10 @@
  *
  * Header file for the class UCBlock, which implements the Block concept [see
  * Block.h] for the Unit Commitment (UC) problem in electrical power
- * production. This is typically a short-term (across, for instance, one week or
- * one-day time horizon) *deterministic* problem regarding finding an optimal
- * production schedule of electrical generators satisfying a (large) set of
- * technical constraints.
+ * production. This is typically a short-term (across, for instance, one
+ * week or one-day time horizon) *deterministic* problem regarding finding
+ * an optimal production schedule of electrical generators satisfying a 
+ * (large) set of technical constraints.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -61,7 +61,6 @@
 
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlock --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -91,10 +90,11 @@ namespace SMSpp_di_unipi_it
  *   of the base class UnitBlock.
  *
  * - A set of NetworkBlock that altogether cover (or may be created to cover)
- *   the entire time horizon which represents the constraints on the electricity
- *   demand satisfaction and the technical constraints on the network. These can
- *   be basically "empty" if the capacity of the transmission network is such
- *   as to never really impact generation decisions (a "bus").
+ *   the entire time horizon which represents the constraints on the
+ *   electricity demand satisfaction and the technical constraints on the
+ *   network. These can be basically "empty" if the capacity of the
+ *   transmission network is such as to never really impact generation
+ *   decisions (a "bus").
  *
  * - Constraints linking the production decisions at the units and ensuring:
  *
@@ -1108,57 +1108,112 @@ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the node injection constraints
+ /** This method returns the boost multi_array C containing the node
+  * injection constraints. C[ t ][ n ] is the node injection constraint
+  * associated with time t and node n. */
+
+ boost::multi_array< FRowConstraint , 2 > &
+  get_node_injection_constraints( void ) {
+  return( v_node_injection_Const );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the (const) node injection constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the node injection constraints. C[ t ][ n ] is the node
   * injection constraint associated with time t and node n. */
 
  const boost::multi_array< FRowConstraint , 2 > &
- get_node_injection_constraints( void ) const {
+ get_const_node_injection_constraints( void ) const {
   return( v_node_injection_Const );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the primary demand constraints
+ /** This method returns the boost multi_array C containing the primary
+  * demand constraints. C[ t ][ z ] is the primary demand constraint
+  * associated with time t and primary zone z. */
+
+ boost::multi_array< FRowConstraint , 2 > &
+ get_primary_demand_constraints( void ) {
+  return( v_PrimaryDemand_Const );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the (const) primary demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the primary demand constraints. C[ t ][ z ] is the primary
   * demand constraint associated with time t and primary zone z. */
 
  const boost::multi_array< FRowConstraint , 2 > &
- get_primary_demand_constraints( void ) const {
+ get_const_primary_demand_constraints( void ) const {
   return( v_PrimaryDemand_Const );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the secondary demand constraints
+ /** This method returns the boost multi_array C containing the secondary
+  * demand constraints. C[ t ][ z ] is the secondary demand constraint
+  * associated with time t and secondary zone z. */
+
+ boost::multi_array< FRowConstraint , 2 > &
+ get_secondary_demand_constraints( void ) {
+  return( v_SecondaryDemand_Const );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the (const) secondary demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the secondary demand constraints. C[ t ][ z ] is the secondary
   * demand constraint associated with time t and secondary zone z. */
 
  const boost::multi_array< FRowConstraint , 2 > &
- get_secondary_demand_constraints( void ) {
+ get_const_secondary_demand_constraints( void ) const {
   return( v_SecondaryDemand_Const );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia demand constraints
+ /** This method returns the boost multi_array C containing the inertia
+  * demand constraints. C[ t ][ z ] is the inertia demand constraint
+  * associated with time t and inertia zone z. */
+
+ boost::multi_array< FRowConstraint , 2 > &
+ get_inertia_demand_constraints( void ) {
+  return( v_InertiaDemand_Const );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the (const) inertia demand constraints
  /** This method returns (a const reference to) the boost multi_array C
   * containing the inertia demand constraints. C[ t ][ z ] is the inertia
   * demand constraint associated with time t and inertia zone z. */
 
  const boost::multi_array< FRowConstraint , 2 > &
- get_inertia_demand_constraints( void ) const {
+ get_const_inertia_demand_constraints( void ) const {
   return( v_InertiaDemand_Const );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum pollutant emission constraints
+ /** This method returns the vector C containing the maximum pollutant
+  * emission constraints. C[ p ][ z ] is the maximum pollutant emission
+  * constraint associated with pollutant p and pollutant zone z. */
+
+ std::vector< std::vector< FRowConstraint > > &
+  get_pollutant_constraints( void ) {
+  return( v_PollutantBudget_Const );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the (const) maximum pollutant emission constraints
  /** This method returns (a const reference to) the vector C containing the
   * maximum pollutant emission constraints. C[ p ][ z ] is the maximum
   * pollutant emission constraint associated with pollutant p and pollutant
   * zone z. */
 
  const std::vector< std::vector< FRowConstraint > > &
- get_pollutant_constraints( void ) const {
+ get_const_pollutant_constraints( void ) const {
   return( v_PollutantBudget_Const );
   }
 

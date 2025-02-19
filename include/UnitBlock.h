@@ -53,6 +53,8 @@
 
 #include "ColVariable.h"
 
+#include "Solution.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -61,6 +63,11 @@
 
 namespace SMSpp_di_unipi_it
 {
+/*--------------------------------------------------------------------------*/
+/*------------------------- FORWARD DECLARATIONS ---------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ class UnitBlockSolution;  // forward definition of UnitBlockSolution
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS UnitBlock -------------------------------*/
@@ -114,10 +121,10 @@ class UnitBlock : public Block
  * @{ */
 
  /// constructor, takes the father block
- /** Constructor of UnitBlock, taking possibly a pointer of its father Block. */
+ /** Constructor of UnitBlock, taking possibly a pointer of its father
+  * Block. */
 
- explicit UnitBlock( Block * father = nullptr )
-  : Block( father ) {}
+ explicit UnitBlock( Block * father = nullptr ) : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of UnitBlock
@@ -126,7 +133,7 @@ class UnitBlock : public Block
   for( auto & block : v_Block )
    delete( block );
   v_Block.clear();
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -377,6 +384,19 @@ class UnitBlock : public Block
   return( nullptr );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_commitment(), but returns a const * so that it can be const
+
+ const ColVariable * get_const_commitment( Index generator ) const
+ {
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+  
+  return( const_cast< UnitBlock * >( this )->get_commitment( generator ) );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the array of primary spinning reserve variables
  /** This method returns a pointer to the array containing the primary
@@ -394,6 +414,21 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_primary_spinning_reserve( Index generator ) {
   return( nullptr );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_primary_spinning_reserve(), but returns a const *
+
+ const ColVariable * get_const_primary_spinning_reserve( Index generator )
+  const
+ {
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+  
+  return( const_cast< UnitBlock * >( this )->get_primary_spinning_reserve(
+							       generator ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -415,6 +450,21 @@ class UnitBlock : public Block
   return( nullptr );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_secondary_spinning_reserve(), but returns a const *
+
+ const ColVariable * get_const_secondary_spinning_reserve( Index generator )
+  const
+ {
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+  
+  return( const_cast< UnitBlock * >( this )->get_secondary_spinning_reserve(
+							       generator ) );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the array of active power variables
  /** This method returns a pointer to the array containing the active power
@@ -430,6 +480,19 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_active_power(), but returns a const * so that it can be const
+
+ const ColVariable * get_const_active_power( Index generator ) const
+ {
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+  
+  return( const_cast< UnitBlock * >( this )->get_active_power( generator ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -490,13 +553,11 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" UnitBlockSolution
  /** Small virtual method that just returns an "empty" UnitBlockSolution
-  * object. It is used by get_Solution() and clone(), with the idea that
-  * derived classes can override it to make it return a :UnitBlockSolution
-  * better suited for the specific :UnitBlock at hand. */
+  * object. It is used by get_Solution(), with the idea that derived classes
+  * can override it to make it return a :UnitBlockSolution better suited for
+  * the specific :UnitBlock at hand. */
  
- virtual UnitBlockSolution * new_Solution( void ) const {
-  return( new UnitBlockSolution() );
-  }
+ virtual UnitBlockSolution * new_Solution( void ) const;
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
@@ -912,12 +973,12 @@ class UnitBlockSolution : public Solution {
 
 /*------------- CONSTRUCTING AND DESTRUCTING UnitBlockSolution -------------*/
 
- explicit UnitBlockSolution( void )  f_time_horizon( 0 ) ,
+ explicit UnitBlockSolution( void ) : f_time_horizon( 0 ) ,
   f_number_generators( 0 ) { }  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void deserialize( const netCDF::NcGroup & group ) override final;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -925,9 +986,9 @@ class UnitBlockSolution : public Solution {
 
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A UnitBlockSolution --------*/
 
- void read( const Block * block ) override final;
+ void read( const Block * block ) override;
 
- void write( Block * block ) override final;
+ void write( Block * block ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a UnitBlockSolution into a netCDF::NcGroup
@@ -987,10 +1048,18 @@ class UnitBlockSolution : public Solution {
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
- void print( std::ostream &output ) const override final {
+ void print( std::ostream &output ) const override {
   output << "UnitBlockSolution [" << this << "]: " << std::endl;
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// do the heavy lifting of cloning a non-empty UnitBlockSolution
+ /** This method does the actualy copying of the fields for an already
+  * existing :UnitBlockSolution; this is provided to make life easier to
+  * the clone() of derived classes. */
+ 
+ void guts_of_clone( UnitBlockSolution * sol ) const;
+ 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
  private:

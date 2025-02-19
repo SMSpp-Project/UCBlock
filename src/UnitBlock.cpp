@@ -50,8 +50,10 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register UnitBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( UnitBlock );
+
+// register UnitBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( UnitBlockSolution );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF UnitBlock -------------------------*/
@@ -221,6 +223,12 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
  }
 
 /*--------------------------------------------------------------------------*/
+ 
+UnitBlockSolution * UnitBlock::new_Solution( void ) const {
+  return( new UnitBlockSolution() );
+  }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -284,7 +292,7 @@ void UnitBlockSolution::read( const Block * block )
  if( ! v_active_power.empty() )
   // read the active power variables - - - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i ) {
-   auto APi = UB->get_active_power( i );
+   auto APi = UB->get_const_active_power( i );
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     v_active_power[ i ][ t ] = APi[ t ].get_value();
    }
@@ -292,21 +300,21 @@ void UnitBlockSolution::read( const Block * block )
  if( ! v_commitment.empty() )
   // read the commitment variables - - - - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
-   if( auto Ci = UB->get_commitment( i ) )
+   if( auto Ci = UB->get_const_commitment( i ) )
     for( Index t = 0 ; t < f_time_horizon ; ++t )
      v_commitment[ i ][ t ] = Ci[ t ].get_value();
 
  if( ! v_primary_reserve.empty() )
   // read the primary reserve variables- - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
-   if( auto PRi = UB->get_primary_spinning_reserve( i ) )
+   if( auto PRi = UB->get_const_primary_spinning_reserve( i ) )
     for( Index t = 0 ; t < f_time_horizon ; ++t )
      v_primary_reserve[ i ][ t ] = PRi[ t ].get_value();
 
  if( ! v_secondary_reserve.empty() )
   // read the secondary reserve variables- - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
-   if( auto SRi = UB->get_secondary_spinning_reserve( i ) )
+   if( auto SRi = UB->get_const_secondary_spinning_reserve( i ) )
     for( Index t = 0 ; t < f_time_horizon ; ++t )
      v_secondary_reserve[ i ][ t ] = SRi[ t ].get_value();
 
@@ -316,7 +324,7 @@ void UnitBlockSolution::read( const Block * block )
 
 void UnitBlockSolution::write( Block * block )
 {
- auto UB = dynamic_cast< const UnitBlock * >( block );
+ auto UB = dynamic_cast< UnitBlock * >( block );
  if( ! UB )
   throw( std::invalid_argument(
 		   "UnitBlockSolution::write: block is not a UnitBlock" ) );
@@ -337,7 +345,7 @@ void UnitBlockSolution::write( Block * block )
     APi[ t ].set_value( v_active_power[ i ][ t ] );
    }
 
- if( ! v_commitment.empty() )
+ if( ! v_commitment.empty() ) {
   // write the commitment variables- - - - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
    if( auto Ci = UB->get_commitment( i ) )
@@ -346,8 +354,9 @@ void UnitBlockSolution::write( Block * block )
    else
     throw( std::invalid_argument(
 	  "UnitBlockSolution::write: provided non-existent commitment" ) );
-    
- if( ! v_primary_reserve.empty() )
+  }
+
+ if( ! v_primary_reserve.empty() ) {
   // write the primary reserve variables - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
    if( auto PRi = UB->get_primary_spinning_reserve( i ) )
@@ -356,8 +365,9 @@ void UnitBlockSolution::write( Block * block )
    else
     throw( std::invalid_argument(
 	  "UnitBlockSolution::write: provided non-existent primary" ) );
+  }
 
- if( ! v_secondary_reserve.empty() )
+ if( ! v_secondary_reserve.empty() ) {
   // write the secondary reserve variables - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
    if( auto SRi = UB->get_secondary_spinning_reserve( i ) )
@@ -366,12 +376,12 @@ void UnitBlockSolution::write( Block * block )
    else
     throw( std::invalid_argument(
 	  "UnitBlockSolution::write: provided non-existent secondary" ) );
-
+  }
  }  // end( UnitBlockSolution::write )
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlockSolution::serialize( const netCDF::NcGroup & group )
+void UnitBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto th = group.addDim( "TimeHorizon" , f_time_horizon );
@@ -383,27 +393,23 @@ void UnitBlockSolution::serialize( const netCDF::NcGroup & group )
  // serialize the Active Power- - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_active_power.empty() )
   ::serialize< double , 2 >( group , "ActivePower" , netCDF::NcDouble() ,
-			     { ng , th } , v_active_power.data() ,
-			     { f_number_generators , f_time_horizon } );
+			     { ng , th } , v_active_power );
 
  // serialize the Commitment- - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_commitment.empty() )
   ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
-			     { ng , th } , v_commitment.data() ,
-			     { f_number_generators , f_time_horizon } );
+			     { ng , th } , v_commitment );
 
 
  // serialize the Primary Reserve - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_primary_reserve.empty() )
   ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
-			     { ng , th } , v_primary_reserve.data() ,
-			     { f_number_generators , f_time_horizon } );
+			     { ng , th } , v_primary_reserve );
 
  // serialize the Secondary Reserve - - - - - - - - - - - - - - - - - - - - -
  if( ! v_secondary_reserve.empty() )
   ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
-			     { ng , th } , v_secondary_reserve.data() ,
-			     { f_number_generators , f_time_horizon } );
+			     { ng , th } , v_secondary_reserve );
 
  }  // end( UnitBlockSolution::serialize )
 
@@ -485,19 +491,26 @@ void UnitBlockSolution::sum( const Solution * solution , double multiplier )
 
 UnitBlockSolution * UnitBlockSolution::clone( bool empty ) const
 {
- auto * sol = new_Solution();
+ auto * sol = new UnitBlockSolution();
 
- if( ! empty ) {
-  sol->f_time_horizon = f_time_horizon;
-  sol->f_number_generators = f_number_generators;
-
-  sol->v_active_power = v_active_power;
-  sol->v_commitment = v_commitment;
-  sol->v_primary_reserve = v_primary_reserve;
-  sol->v_secondary_reserve = v_secondary_reserve;
-  }
+ if( ! empty )
+  guts_of_clone( sol );
 
  return( sol );
+
+ }  // end( UnitBlockSolution::clone )
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlockSolution::guts_of_clone( UnitBlockSolution * sol ) const
+{
+ sol->f_time_horizon = f_time_horizon;
+ sol->f_number_generators = f_number_generators;
+
+ sol->v_active_power = v_active_power;
+ sol->v_commitment = v_commitment;
+ sol->v_primary_reserve = v_primary_reserve;
+ sol->v_secondary_reserve = v_secondary_reserve;
 
  }  // end( UnitBlockSolution::clone )
 
