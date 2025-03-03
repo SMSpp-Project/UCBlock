@@ -66,6 +66,21 @@ SMSpp_insert_in_factory_cpp_0( NetworkData );
 SMSpp_insert_in_factory_cpp_0( NetworkBlockSolution );
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+template< class T , std::size_t K >
+static void copy_multi_array( boost::multi_array< T , K > & to ,
+			      const boost::multi_array< T , K > & from )
+{
+ std::vector< size_t > extent;
+ auto shape = from.shape();
+ extent.assign( shape , shape + from.num_dimensions() );
+ to.resize( extent );
+ to = from;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -343,7 +358,7 @@ void NetworkBlockSolution::guts_of_clone( NetworkBlockSolution * sol ) const
  sol->f_number_nodes = f_number_nodes;
  sol->f_number_instants = f_number_instants;
 
- sol->v_node_injection = v_node_injection;
+ copy_multi_array( sol->v_node_injection , v_node_injection );
 
  }  // end( NetworkBlockSolution::clone )
 

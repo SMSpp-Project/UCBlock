@@ -236,19 +236,20 @@ class UCBlock : public Block
  *   Otherwise, it is mandatory. When it is defined, the entry
  *   ActivePowerDemand[ n , t ] is assumed to contain the active power demand
  *   of node n of the transmission network at the given time instant t, where
- *   the first dimension "NumberNodes" can be read via
- *   NetworkBlock::NetworkData::get_number_nodes() from either the
- *   NetworkData object in UCBlock, or those in the NetworkBlock. When
- *   "ActivePowerDemand" is defined, and also the "ActiveDemand" variable
- *   is defined in the group of some NetworkBlock, then "ActiveDemand"
- *   overrules the value in the corresponding row of "ActivePowerDemand",
- *   which is ignored.
+ *   the first dimension "NumberNodes" can be read via get_number_nodes().
+ *   When "ActivePowerDemand" is defined, and also the "ActiveDemand"
+ *   variable is defined in the group of some NetworkBlock, then
+ *   "ActiveDemand" overrules the value in the corresponding row of
+ *   "ActivePowerDemand", which is ignored.
  *
  * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
- *   with T = NumberNetworks - 1, each containing the network constraints of
- *   the for some subset of time intervals in the horizon.
- *   There are two main scenarios for defining NetworkBlock instances across
- *   the "TimeHorizon".:
+ *   with T = NumberNetworks - 1, each containing the network constraints
+ *   for some subset of time intervals in the horizon. These are ignored
+ *   if "NumberNodes" is not provided (or it is == 1), see the NetworkData
+ *   part, but then "ActivePowerDemand" must be provided. If, instead, a
+ *   "true network" is present (i.e., "NumberNodes" > 1), then there are two
+ *   main scenarios for defining NetworkBlock instances across the
+ *   "TimeHorizon":
  *
  *   = If "NumberNetworks" is equal to "TimeHorizon", it means that each
  *     NetworkBlock covers exactly one interval. In this case it is clear
@@ -256,48 +257,28 @@ class UCBlock : public Block
  *     possible to implicitly define the ones that "are all equal" (as it
  *     often happens since the network may easily not change in the short
  *     time horizon typical of the UC problem). Hence, in this case the
- *     NetworkBlocks are optional, but if any of them are missing, then:
+ *     NetworkBlocks are optional, but if any of them are missing, then
+ *     "ActivePowerDemand" (see above) is mandatory in UCBlock. If any
+ *     "NetworkBlock_l" group is not provided, then the NetworkBlock for
+ *     time instant l is automatically built. It is fed the "global"
+ *     NetworkData in UCBlock, if present, and the "ActivePowerDemand" data
+ *     for interval t is used to set its demand. Hence, an exception is
+ *     raised if "ActivePowerDemand" or "NetworkData" is missing.
+ *     Note that the automatically built NetworkBlock can be of any
+ *     class derived from the base NetworkBlock: the specific class is
+ *     dictated by the "NetworkBlockClassname" variable (see below).
  *
- *     * "ActivePowerDemand" (see above) is mandatory in UCBlock;
- *
- *     * also the NetworkData (see above) is mandatory in UCBlock, unless
- *       the transmission network, i.e., a DCNetworkBlock, is a bus (that is,
- *       "NumberNodes" is not provided, or it is == 1).
- *
- *     In particular, if the NetworkBlock groups provided do not cover the
- *     entire time horizon (the sum of all intervals they declare is less
- *     than "TimeHorizon"), the code will attempt to:
- *
- *   (a) use the "ActivePowerDemand" data for those uncovered intervals
- *
- *   (b) automatically build the missing NetworkBlocks (by default, instances
- *       of "DCNetworkBlock") if NumberNodes > 1, resorting to the global
- *       NetworkData in UCBlock if present
- *
- *   (c) raise an exception if some mandatory data (either "ActivePowerDemand"
- *       or "NetworkData", for the multi-node case) is missing.
-
-If all NetworkBlock instances are explicitly defined, they are assumed to
-be arranged in chronological order according to their index in the input,
-specifically as NetworkBlock_i for i ranging from 0 to "NumberNetworks". 
-Each NetworkBlock specifies the number of consecutive intervals it spans
-and the corresponding demand for that specific interval. In this case, the
-sum of intervals covered by all NetworkBlock instances must match
-f_time_horizon; otherwise, an exception is raised. 
-
-If not all NetworkBlock instances are explicitly defined, i.e., some
-NetworkBlock_i for i ranging from 0 to "NumberNetworks" is missing, or
-none are, a global NetworkData instance must be present within UCBlock.
-This global NetworkData acts as the reference point, containing shared
-network data and the demand. So, the explicitly defined NetworkBlock
-instances are taken as they are, while missing ones will be created, and
-they will inherit both the global NetworkData and the corresponding
-demand for the specific intervals spanned by the i-th "NumberNetwork" from
-the "ActivePowerDemand", i.e., [ ActivePowerDemand[ n ][ i ], ...,
-ActivePowerDemand[ n ][ i + number_intervals ] ], given in the UCBlock.
-
-
-
+ *   = If, instead,  "NumberNetworks" < "TimeHorizon", then all the
+ *     "NetworkBlock_0", ..., "NetworkBlock_T" must necessarily be defined.
+ *     They are assumed to be arranged in chronological order according to
+ *     their index. Each NetworkBlock specifies the number of consecutive
+ *     intervals it spans, see NetworkBlock::get_number_intervals().
+ *     Thus, "NetworkBlock_0" covers the intervals 0, ..., t - 1 with t =
+ *     "NetworkBlock_0"->get_number_intervals(). Then, "NetworkBlock_1"
+ *     covers the intervals t, ..., t + w - 1 with w =
+ *     "NetworkBlock_1"->get_number_intervals(), and so on. The last
+ *     "NetworkBlock_T" has to cover the final intervals up to
+ *     "TimeHorizon"; otherwise, an exception is raised. 
  *
  * - The variable "GeneratorNode", of type netCDF::NcUint and indexed over
  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
@@ -305,12 +286,12 @@ ActivePowerDemand[ n ][ i + number_intervals ] ], given in the UCBlock.
  *   generator g belongs. Note that this means that different electrical
  *   generators in the same UnitBlock can belong to different nodes of the
  *   transmission network. This is justified, e.g., by hydro cascade units
- *   where different turbines can be rather far apart geographically, but still
- *   linked by (long) stretches of rivers. If NumberElectricalGenerators ==
- *   NumberUnits (all UnitBlock have exactly one electrical generator), then
- *   this variable is indexed over NumberUnits. If NumberNodes == 1 (say, it
- *   is not provided at all), then this variable need not be defined, since it
- *   is not loaded.
+ *   where different turbines can be rather far apart geographically, but
+ *   still linked by (long) stretches of rivers. If NumberElectricalGenerators
+ *   == NumberUnits (all UnitBlock have exactly one electrical generator),
+ *   then this variable is indexed over NumberUnits. If NumberNodes == 1
+ *   (say, it is not provided at all), then this variable need not be
+ *   defined, since it is not loaded.
  *
  * - The dimension "NumberPrimaryZones" tells how many "primary spinning
  *   reserve zones" are there in the problem. The dimension is optional, if it
@@ -434,14 +415,14 @@ ActivePowerDemand[ n ][ i + number_intervals ] ], given in the UCBlock.
  * - The variable "PollutantRho", of type netCDF::NcDouble and indexed over
  *   three dimensions which are "TimeHorizon" and "NumberPollutants" and
  *   the set { 0, ..., NumberElectricalGenerators - 1 } (see comments above).
- *   The first dimension can have size either 1 or "TimeHorizon". In the former
- *   case the entry PollutantRho[ 0 , p , g ] is assumed to contain the conversion
- *   factor of pollutant p due to the electrical generator g which is equal for
- *   all time instants t. Otherwise, the first dimension has full size
- *   "TimeHorizon" and the entry PollutantRho[ t , p , g ] gives the conversion
- *   factor of pollutant p due to the electrical generator g for time t.
- *   If NumberPollutants == 0 (it is not provided) then this variable need not
- *   be defined, since it's not loaded.
+ *   The first dimension can have size either 1 or "TimeHorizon". In the 
+ *   former case the entry PollutantRho[ 0 , p , g ] is assumed to contain
+ *   the conversion factor of pollutant p due to the electrical generator g
+ *   which is equal for all time instants t. Otherwise, the first dimension
+ *   has full size "TimeHorizon" and the entry PollutantRho[ t , p , g ]
+ *   gives the conversion factor of pollutant p due to the electrical
+ *   generator g for time t. If NumberPollutants == 0 (it is not provided)
+ *   then this variable need not be defined, since it's not loaded.
  *
  * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
  *   indexed over the dimension "NumberNetworks"; the entry
@@ -449,15 +430,15 @@ ActivePowerDemand[ n ][ i + number_intervals ] ], given in the UCBlock.
  *   fixed costs, of the NetworkBlock n.
  *
  * - The variable "NetworkBlockClassname", of type netCDF::NcString specifies
- *   the classname of the specific NetworkBlock to be instantiated, if no one is
- *   explicitly given in input. For backward compatibility reasons w.r.t. the
- *   netCDF input data files already given, the default value is
+ *   the classname of the specific NetworkBlock to be instantiated, if no one
+ *   is explicitly given in input. For backward compatibility reasons w.r.t.
+ *   the netCDF input data files already given, the default value is
  *   "DCNetworkBlock".
  *
  * - The variable "NetworkDataClassname", of type netCDF::NcString specifies
- *   the classname of the specific NetworkData to be instantiated, if no one is
- *   explicitly given in input. For backward compatibility reasons w.r.t. the
- *   netCDF input data files already given, the default value is
+ *   the classname of the specific NetworkData to be instantiated, if no one
+ *   is explicitly given in input. For backward compatibility reasons w.r.t.
+ *   the netCDF input data files already given, the default value is
  *   "DCNetworkData".
  */
 

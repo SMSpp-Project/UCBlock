@@ -56,6 +56,21 @@ SMSpp_insert_in_factory_cpp_1( UnitBlock );
 SMSpp_insert_in_factory_cpp_0( UnitBlockSolution );
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+template< class T , std::size_t K >
+static void copy_multi_array( boost::multi_array< T , K > & to ,
+			      const boost::multi_array< T , K > & from )
+{
+ std::vector< size_t > extent;
+ auto shape = from.shape();
+ extent.assign( shape , shape + from.num_dimensions() );
+ to.resize( extent );
+ to = from;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF UnitBlock -------------------------*/
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -507,10 +522,10 @@ void UnitBlockSolution::guts_of_clone( UnitBlockSolution * sol ) const
  sol->f_time_horizon = f_time_horizon;
  sol->f_number_generators = f_number_generators;
 
- sol->v_active_power = v_active_power;
- sol->v_commitment = v_commitment;
- sol->v_primary_reserve = v_primary_reserve;
- sol->v_secondary_reserve = v_secondary_reserve;
+ copy_multi_array( sol->v_active_power , v_active_power );
+ copy_multi_array( sol->v_commitment , v_commitment );
+ copy_multi_array( sol->v_primary_reserve , v_primary_reserve );
+ copy_multi_array( sol->v_secondary_reserve , v_secondary_reserve );
 
  }  // end( UnitBlockSolution::clone )
 

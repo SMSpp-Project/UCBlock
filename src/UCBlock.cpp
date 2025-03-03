@@ -59,6 +59,21 @@ SMSpp_insert_in_factory_cpp_1( UCBlock );
 SMSpp_insert_in_factory_cpp_0( UCBlockSolution );
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+template< class T , std::size_t K >
+static void copy_multi_array( boost::multi_array< T , K > & to ,
+			      const boost::multi_array< T , K > & from )
+{
+ std::vector< size_t > extent;
+ auto shape = from.shape();
+ extent.assign( shape , shape + from.num_dimensions() );
+ to.resize( extent );
+ to = from;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF UCBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1885,17 +1900,17 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
    const auto node_index = index / f_time_horizon;
    const auto time = index % f_time_horizon;
    const auto demand = *values;
-   v_network_blocks[ time ]->set_active_demand
-    ( values++ , Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
+   v_network_blocks[ time ]->set_active_demand( values++ ,
+	     Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
 
    if( number_nodes == 1 ) {
     assert( node_index == 0 );
     v_active_power_demand[ node_index ][ time ] = demand;
     update_node_injection_constraints( time , node_index , demand );
+    }
    }
-  }
   return;
- }
+  }
 
  // Update the demand present in this UCBlock
 
@@ -1918,21 +1933,19 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
     if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
+    }
    }
   }
- }
 
- // If nothing changes, return
- if( ! changed )
+ if( ! changed )  // if nothing changes, return
   return;
 
- if( issue_pmod( issuePMod ) )
-  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< UCBlockSbstMod >(
-                            this , UCBlockMod::eSetActD , std::move( subset ) ) ,
+ if( issue_pmod( issuePMod ) )  // issue a Physical Modification
+  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
+			       UCBlockMod::eSetActD , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( UCBlock::set_active_power_demand( subset ) )
+ }  // end( UCBlock::set_active_power_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1955,17 +1968,17 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
    const auto node_index = index / f_time_horizon;
    const auto time = index % f_time_horizon;
    const auto demand = *values;
-   v_network_blocks[ time ]->set_active_demand
-    ( values++ , Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
+   v_network_blocks[ time ]->set_active_demand( values++ ,
+	     Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
 
    if( number_nodes == 1 ) {
     assert( node_index == 0 );
     v_active_power_demand[ node_index ][ time ] = demand;
     update_node_injection_constraints( time , node_index , demand );
+    }
    }
-  }
   return;
- }
+  }
 
  // Update the demand present in this UCBlock
 
@@ -1988,21 +2001,19 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
     if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
+    }
    }
   }
- }
 
- // If nothing changes, return
- if( ! changed )
+ if( ! changed )  // if nothing changes, return
   return;
 
- if( issue_pmod( issuePMod ) )
-  // Issue a Physical Modification
+ if( issue_pmod( issuePMod ) )  // issue a Physical Modification
   Block::add_Modification( std::make_shared< UCBlockRngdMod >(
                             this , UCBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( UCBlock::set_active_power_demand( range ) )
+ }  // end( UCBlock::set_active_power_demand( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF UCBlockSolution -------------------------*/
@@ -2436,10 +2447,10 @@ UCBlockSolution * UCBlockSolution::clone( bool empty ) const
      sol->v_network_Solution[ i ] = nullptr;
    }
   
-  sol->v_demand_duals = v_demand_duals;
-  sol->v_primary_duals = v_primary_duals;
-  sol->v_secondary_duals = v_secondary_duals;
-  sol->v_inertia_duals = v_inertia_duals;
+  copy_multi_array( sol->v_demand_duals , v_demand_duals );
+  copy_multi_array( sol->v_primary_duals , v_primary_duals );
+  copy_multi_array( sol->v_secondary_duals , v_secondary_duals );
+  copy_multi_array( sol->v_inertia_duals , v_inertia_duals );
   }
 
  return( sol );
