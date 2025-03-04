@@ -1029,13 +1029,16 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
      v_HVDC_power_flow_limit_const[ i ].set_rhs
       ( v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
     }
+    break;
    }
    case( kAC ): {
     PTDF_matrix = get_PTDF();
     for( auto i : modified_lines ) {
      double constant_term = 0;
-     for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
-        constant_term -= PTDF_matrix( i , node_id ) * v_ActiveDemand[ node_id ];
+     for( Index node_id = 0;
+	  node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
+      constant_term -= PTDF_matrix( i , get_reducedIdx( node_id ) ) *
+	v_ActiveDemand[ node_id ];
      }
      v_AC_power_flow_limit_const[ i ].set_lhs
       ( v_kappa[ i ] * get_min_power_flow( i ) - constant_term, issueAMod );
@@ -1043,14 +1046,17 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
      v_AC_power_flow_limit_const[ i ].set_rhs
       ( v_kappa[ i ] * get_max_power_flow( i ) - constant_term, issueAMod );
     }
+    break;
    }
    case( kAC_HVDC ): {
     std::vector< Index > AC_lines = get_AC_lines();
     PTDF_matrix = get_PTDF( AC_lines );
     for( auto i : modified_lines ) {
      double constant_term = 0;
-     for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
-        constant_term -= PTDF_matrix( i , node_id ) * v_ActiveDemand[ node_id ];
+     for( Index node_id = 0;
+	  node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
+      constant_term -= PTDF_matrix( i , get_reducedIdx( node_id ) ) *
+	v_ActiveDemand[ node_id ];
      }
      v_AC_HVDC_power_flow_limit_const[ i ].set_lhs
       ( v_kappa[ i ] * get_min_power_flow( i ) - constant_term, issueAMod );
@@ -1058,6 +1064,7 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
      v_AC_HVDC_power_flow_limit_const[ i ].set_rhs
       ( v_kappa[ i ] * get_max_power_flow( i ) - constant_term, issueAMod );
     }
+    break;
    }
    default: break;
   }
@@ -1072,7 +1079,7 @@ void DCNetworkBlock::change_relax_abs_constraints(
     for( auto & i : modified_lines ) {
       double constant_term = 0;
       for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
-        constant_term -= PTDF_matrix( i , node_id ) * v_ActiveDemand[ node_id ];
+        constant_term -= PTDF_matrix( i , get_reducedIdx( node_id ) ) * v_ActiveDemand[ node_id ];
       } // for each node
       v_power_flow_relax_abs[ 0 ][ i ].set_lhs( constant_term );
       v_power_flow_relax_abs[ 1 ][ i ].set_lhs( -constant_term );
