@@ -382,7 +382,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     boost::multi_array< double , 2 >::extent_gen()[ 1 ][ f_time_horizon ] );
    for( auto apdit = v_active_power_demand.data() ;
         apdit != v_active_power_demand.data() + f_time_horizon ; )
-    *(apdit++) = 0;
+    *( apdit++ ) = 0;
   }
 
   if( ! v_network_blocks.empty() ) {
