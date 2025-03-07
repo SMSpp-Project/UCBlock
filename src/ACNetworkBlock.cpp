@@ -135,6 +135,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   std::vector<Index> AC_lines = get_AC_lines();
   int nb_ac_lines = AC_lines.size();
   
+  // recover the DC lines
+  std::vector<Index> DC_lines = get_DC_lines();
+  int nb_dc_lines = DC_lines.size();
+  
   double base_mva = f_NetworkData->get_baseMVA();
 
   // ----- Voltage bounds
@@ -228,6 +232,21 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   }
 
   add_static_constraint( v_power_flow_injection_const, "AC_power_flow_injection" );
+
+  // ----- Since the lines have been duplicated we need to add for DC ones the link between the two versions
+  v_flow_dc.resize( nb_dc_lines );
+  int i_dc_line = 0;
+  for( auto& line_id : DC_lines ){
+    Index p = start_line[line_id];
+    Index n = end_line[line_id];
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( & v_power_flow[line_id], 1.0);
+    lfunc->add_variable( & v_power_flow[number_lines + line_id], 1.0);
+    v_flow_dc[ i_dc_line ].set_both(0.0);
+      v_flow_dc[ i_dc_line ].set_function( lfunc );
+    ++i_dc_line;
+  }
+  add_static_constraint( v_flow_dc, "DC_flow_links" );  
 
   // ----- Definition of complex power flow
   /*

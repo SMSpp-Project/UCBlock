@@ -81,6 +81,7 @@ explicit ACNetworkBlock( Block * f_block = nullptr )
  boost::multi_array< FRowConstraint , 2 > v_angle_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_voltage_definition_const;
  std::vector< FRowConstraint > v_thermal_limit;
+ std::vector< FRowConstraint > v_flow_dc;
 
  // ----- Specific constraints for SOCP relaxation
  std::vector< FRowConstraint > v_socp_const;
