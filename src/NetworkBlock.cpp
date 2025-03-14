@@ -279,6 +279,8 @@ void NetworkBlockSolution::write( Block * block )
 
 void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
+ Solution::serialize( group );
+
  // "NumberNodes" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto nn = group.addDim( "NumberNodes" , f_number_nodes );
 

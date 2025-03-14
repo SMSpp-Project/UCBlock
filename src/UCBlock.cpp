@@ -1522,7 +1522,7 @@ void UCBlock::update_node_injection_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_primary_demand_constraints(
- const std::vector< Index > & modified_units )
+                               const std::vector< Index > & modified_units )
 {
  if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -2260,6 +2260,8 @@ void UCBlockSolution::write( Block * block )
 
 void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
+ Solution::serialize( group );
+  
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto th = group.addDim( "TimeHorizon" , f_time_horizon );
 

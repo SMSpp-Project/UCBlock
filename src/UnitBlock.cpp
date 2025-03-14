@@ -394,6 +394,8 @@ void UnitBlockSolution::write( Block * block )
 
 void UnitBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
+ Solution::serialize( group );
+  
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto th = group.addDim( "TimeHorizon" , f_time_horizon );
 
