@@ -227,8 +227,8 @@ class UCBlock : public Block
  *   is optional if:
  *
  *   = a NetworkBlock is defined for all necessary intervals so that they
- *     collectively cover the entire "TimeHorizon" (see "NetworkBlock_t"
- *     bwlow), and
+ *     collectively cover the entire "TimeHorizon" (see "NetworkBlock_i"
+ *     below), and
  *
  *   = each defined NetworkBlock has the "ActiveDemand" variable specified
  *     in the corresponding group.
@@ -243,42 +243,63 @@ class UCBlock : public Block
  *   "ActivePowerDemand", which is ignored.
  *
  * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
- *   with T = NumberNetworks - 1, each containing the network constraints
- *   for some subset of time intervals in the horizon. These are ignored
- *   if "NumberNodes" is not provided (or it is == 1), see the NetworkData
- *   part, but then "ActivePowerDemand" must be provided. If, instead, a
- *   "true network" is present (i.e., "NumberNodes" > 1), then there are two
- *   main scenarios for defining NetworkBlock instances across the
- *   "TimeHorizon":
+ *   with T = NumberNetworks - 1 (or a subset of these, see below), each
+ *   containing the network constraints for some subset of time intervals in
+ *   the horizon. These can be handled in two different ways:
  *
- *   = If "NumberNetworks" is equal to "TimeHorizon", it means that each
- *     NetworkBlock covers exactly one interval. In this case it is clear
- *     which time instant each "NetworkBlock_t" covers, and this makes it
- *     possible to implicitly define the ones that "are all equal" (as it
- *     often happens since the network may easily not change in the short
- *     time horizon typical of the UC problem). Hence, in this case the
- *     NetworkBlocks are optional, but if any of them are missing, then
- *     "ActivePowerDemand" (see above) is mandatory in UCBlock. If any
- *     "NetworkBlock_l" group is not provided, then the NetworkBlock for
- *     time instant l is automatically built. It is fed the "global"
- *     NetworkData in UCBlock, if present, and the "ActivePowerDemand" data
- *     for interval t is used to set its demand. Hence, an exception is
- *     raised if "ActivePowerDemand" or "NetworkData" is missing.
- *     Note that the automatically built NetworkBlock can be of any
- *     class derived from the base NetworkBlock: the specific class is
- *     dictated by the "NetworkBlockClassname" variable (see below).
+ *   = If "NumberNodes" is == 1 (e.g., it is not provided), then the network
+ *     is a "bus", i.e., there are no constraints on how the data flows ("no
+ *     network") and all the units can contribute to satisfy the energy
+ *     demand, which is then a unique value for each time instant t. In this
+ *     case one would assume that the (total) demand for each time instant is
+ *     provided by "ActivePowerDemand", and this would be enough. However,
+ *     there is an extra mechanism: if some "NetworkBlock_i" is still
+ *     provided (see below for details on how they are treated), then they
+ *     are read. This is done in order to get the corresponding matrix of
+ *     active demands (see NetworkBlock::get_active_demand()): if it is
+ *     present (which it may not), then the corresponding values are used as
+ *     active power demand for these intervals, superseeding the values found
+ *     in "ActivePowerDemand". It is therefore possible that then
+ *     "ActivePowerDemand" is not there at all, but this requires that
+ *     "NetworkBlock_i" are given that cover the whole time horizon (this
+ *     is otherwise not necessary, see below) so that active power demand
+ *     data is specified for each time instant; if this fails to happen,
+ *     exception is thrown.
  *
- *   = If, instead,  "NumberNetworks" < "TimeHorizon", then all the
- *     "NetworkBlock_0", ..., "NetworkBlock_T" must necessarily be defined.
- *     They are assumed to be arranged in chronological order according to
- *     their index. Each NetworkBlock specifies the number of consecutive
- *     intervals it spans, see NetworkBlock::get_number_intervals().
- *     Thus, "NetworkBlock_0" covers the intervals 0, ..., t - 1 with t =
- *     "NetworkBlock_0"->get_number_intervals(). Then, "NetworkBlock_1"
- *     covers the intervals t, ..., t + w - 1 with w =
- *     "NetworkBlock_1"->get_number_intervals(), and so on. The last
+ *   = If, instead, "NumberNodes" > 1, then there are constraints (and,
+ *     possibly, variables) limiting how energy flows between producing
+ *     units and demand. Then, the sub-group "NetworkBlock_0",
+ *     "NetworkBlock_1", ..., "NetworkBlock_T" with T = NumberNetworks - 1
+ *     are attempted to be read. They are assumed to be arranged in
+ *     chronological order according to their index. Each NetworkBlock
+ *     specifies the number of consecutive time intervals it spans, see
+ *     NetworkBlock::get_number_intervals(). Thus, "NetworkBlock_0" covers
+ *     the intervals 0, ..., t - 1 with
+ *     t = "NetworkBlock_0"->get_number_intervals(), "NetworkBlock_1" covers
+ *     the intervals t, ..., t + w - 1 with
+ *     w = "NetworkBlock_1"->get_number_intervals(), and so on. The last
  *     "NetworkBlock_T" has to cover the final intervals up to
- *     "TimeHorizon"; otherwise, an exception is raised. 
+ *     "TimeHorizon"; otherwise, an exception is raised. However, it is
+ *     possible that some (or even, in principle, all) "NetworkBlock_i" is
+ *     not specified, which is useful when (as it often happens, since the
+ *     network may easily not change in the short time horizon typical of
+ *     the UC problem) some (or all) of them are "equal". If any 
+ *     "NetworkBlock_i" is missing, a NetworkBlock is automatically built by
+ *     using the "global" NetworkData in UCBlock. The corresponding value of
+ *     NetworkBlock::get_number_intervals() is used to identify the subset of
+ *     time instants it covers (starting from the initial time t identified as
+ *     previously specified), and the "ActivePowerDemand" data for these
+ *     intervals t is used to set its demand. Hence, an exception is raised
+ *     if "ActivePowerDemand" or "NetworkData" are missing. In this way it
+ *     is possible, e.g., to just specify "ActivePowerDemand" and one
+ *     "NetworkData" and have UCBlock to automatically construct all the
+ *     necessary NetworkBlock (which are then identical copies of one another
+ *     save possibly for the active power demand). A typical case is that in
+ *     which "NumberNetworks" is equal to "TimeHorizon", i.e., each
+ *     "NetworkBlock_t" covers exactly one interval. In this case it is clear
+ *     which time instant each "NetworkBlock_t" covers (i.e., "t"), and
+ *     obviously it must be NetworkBlock::get_number_intervals() == 1 (the
+ *     default).
  *
  * - The variable "GeneratorNode", of type netCDF::NcUint and indexed over
  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
@@ -346,13 +367,13 @@ class UCBlock : public Block
  *
  * - The variable "InertiaZones", of type netCDF::NcUint and indexed over
  *   the dimension "NumberNodes"; the entry InertiaZones[ n ] tells to which
- *   inertia zone the node n belongs. If InertiaZones[ n ] >= NumberInertiaZones,
- *   this means that node n does not belong to any inertia zone, and hence
- *   the corresponding units are not involved in the inertia reserve
- *   constraints. If NumberInertiaZones == 0 (say, it is not provided at all)
- *   then this variable need not be defined, since it is not loaded. If
- *   NumberInertiaZones == 1 and this variable is not defined, then there is
- *   only one inertia zone and all the nodes belong to it.
+ *   inertia zone the node n belongs. If InertiaZones[ n ] >=
+ *   NumberInertiaZones, this means that node n does not belong to any
+ *   inertia zone, and hence the corresponding units are not involved in the
+ *   inertia reserve constraints. If NumberInertiaZones == 0 (say, it is not
+ *   provided at all) then this variable need not be defined, since it is not
+ *   loaded. If NumberInertiaZones == 1 and this variable is not defined,
+ *   then there is only one inertia zone and all the nodes belong to it.
  *
  * - The variable "InertiaDemand", of type netCDF::NcDouble and indexed both
  *   over the dimensions "NumberInertiaZones" and "TimeHorizon": entry
@@ -367,13 +388,14 @@ class UCBlock : public Block
  *   the problem.
  *
  * - The variable "NumberPollutantZones" of type netCDF::NcUint and indexed
- *   over the dimension "NumberPollutants": the entry NumberPollutantZones[ p ]
- *   is assumed to contain the number of pollutant zones associated with
- *   pollutant p. If NumberPollutants == 0 (say, it is not provided) then this
- *   variable need not be defined, since it is not loaded. The total number of
- *   pollutant zones is useful (cf. PollutantBudget); it will be referred to
- *   as "TotalNumberPollutantZones", and it is computed simply as
- *   TotalNumberPollutantZones = NumberPollutantZones[ 0 ] + ... +
+ *   over the dimension "NumberPollutants": the entry
+ *   NumberPollutantZones[ p ] is assumed to contain the number of pollutant
+ *   zones associated with pollutant p. If NumberPollutants == 0 (say, it is
+ *   not provided) then this variable need not be defined, since it is not
+ *   loaded. The total number of pollutant zones is useful (cf.
+ *   PollutantBudget); it will be referred to as "TotalNumberPollutantZones",
+ *   and it is computed simply as TotalNumberPollutantZones =
+ *   NumberPollutantZones[ 0 ] + ... +
  *   NumberPollutantZones[ NumberPollutants - 1 ].
  *
  * - The variable "PollutantZones", of type netCDF::NcUint and indexed over
@@ -439,30 +461,30 @@ class UCBlock : public Block
  *   the classname of the specific NetworkData to be instantiated, if no one
  *   is explicitly given in input. For backward compatibility reasons w.r.t.
  *   the netCDF input data files already given, the default value is
- *   "DCNetworkData".
- */
+ *   "DCNetworkData". */
 
-void deserialize( const netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generates the static constraint of the UCBlock
  /** This method generates the abstract constraints of the UCBlock.
   *
   * Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
-  * of arcs connecting the nodes \f$ \mathcal{L} \f$. There are, moreover, given
-  * three partitions of the set of nodes which may or may not be identical:
+  * of arcs connecting the nodes \f$ \mathcal{L} \f$. There are, moreover,
+  * given three partitions of the set of nodes which may or may not be
+  * identical:
   *
-  * (i). \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
-  * in several zones (sets of nodes) each one being associated with one
-  * specific primary spinning reserve requirement;
+  * (i) \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
+  *     in several zones (sets of nodes) each one being associated with one
+  *     specific primary spinning reserve requirement;
   *
-  * (ii). \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
-  * \f$ in several zones, each one being associated with one specific secondary
-  * spinning reserve requirement;
+  * (ii) \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+  *      \f$ in several zones, each one being associated with one specific
+  *      secondary spinning reserve requirement;
   *
-  * (iii). \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
-  * \f$ in several zones, each one being associated with one specific inertia
-  * requirement;
+  * (iii) \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
+  *       \f$ in several zones, each one being associated with one specific
+  *       inertia requirement;
   *
   * Optionally, we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
   * \f$ corresponding to zones which are associated with an emissions
@@ -510,15 +532,15 @@ void deserialize( const netCDF::NcGroup & group ) override;
   *
   * - Node injection Constraints:
   *   In the unit commitment problem, \f$ P^{au}_{t , g} \f$ denotes the fixed
-  *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is the
-  *   node injection variable for each time period \f$ t \in \mathcal{T} \f$
-  *   and each node \f$ n \in \mathcal{N} \f$. Therefore, if the NetworkBlock::
-  *   get_number_nodes() > 0, a boost::multi_array< FRowConstraint , 2 >; with
-  *   two dimensions which are get_time_horizon() and
-  *   NetworkBlock::get_number_nodes() entries, where the entry
-  *   t = 0, ..., f_time_horizon - 1 and the entry
-  *   n = 1, ..., get_number_nodes() being the node injection constraints at
-  *   time t and node n as follows:
+  *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is
+  *   the node injection variable for each time period \f$ t \in \mathcal{T}
+  *   \f$ and each node \f$ n \in \mathcal{N} \f$. Therefore, if the
+  *   NetworkBlock::get_number_nodes() > 0, a
+  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
+  *   get_time_horizon() and NetworkBlock::get_number_nodes() entries, where
+  *   the entry t = 0, ..., f_time_horizon - 1 and the entry n = 1, ...,
+  *   get_number_nodes() being the node injection constraints at time t and
+  *   node n as follows:
   *   \f[
   *    \sum_{ g \in \mathcal{G}_n } ( p^{ac}_{t,g} +
   *                                   P^{au}_{t , g}(1 - u_{t,g}) ) = S_{t,n}
@@ -547,17 +569,16 @@ void deserialize( const netCDF::NcGroup & group ) override;
   *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
   *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
   *   be satisfied. So, if the f_number_secondary_zones > 0,
-  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
-  *   f_time_horizon, and f_number_secondary_zones entries, which the entry
-  *   t = 0, ..., f_time_horizon - 1 and the entry
+  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
+  *   are f_time_horizon, and f_number_secondary_zones entries, which the
+  *   entry t = 0, ..., f_time_horizon - 1 and the entry
   *   \f$ \mathcal{B}\f$ = 0, ..., f_number_secondary_zones - 1 being the
   *   secondary demand constraints at time t and secondary zone
-  *   \f$ \mathcal{B}\f$ as follow;
-  *
+  *   \f$ \mathcal{B}\f$ as follows:
   *   \f[
   *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
   *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
-  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N})         \quad (3)
+  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N})      \quad (3)
   *   \f]
   *
   * - Inertia Demand Constraints:
@@ -566,17 +587,16 @@ void deserialize( const netCDF::NcGroup & group ) override;
   *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
   *   parameters \f$ \alpha_{t , g} \f$ and \f$ \beta_{t , g} \f$ will be
   *   satisfied. Therefore, if the f_number_inertia_zones > 0,
-  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
-  *   f_time_horizon, and f_number_inertia_zones entries, where the entry
-  *   t = 0, ..., f_time_horizon - 1 and the entry
-  *   \f$ \mathcal{B}\f$ = 0, ..., f_number_inertia_zones - 1 being the inertia
-  *   demand constraints at time t and inertia zone \f$ \mathcal{B}\f$ as below;
-  *
+  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
+  *   are f_time_horizon, and f_number_inertia_zones entries, where the entry
+  *   t = 0, ..., f_time_horizon - 1 and the entry \f$ \mathcal{B}\f$ = 0,
+  *   ..., f_number_inertia_zones - 1 being the inertia demand constraints
+  *   at time t and inertia zone \f$ \mathcal{B}\f$ as follows:
   *   \f[
   *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
   *     u_{t,g} + \beta_{t , g} p^{ac}_{t,g}) \geq D^{in}_{\mathcal{B} , t}
   *        \quad t \in \mathcal{T}
-  *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N})        \quad (4)
+  *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N})     \quad (4)
   *   \f]
   */
 
@@ -769,8 +789,7 @@ void deserialize( const netCDF::NcGroup & group ) override;
   * @param zone_id The ID of an inertia zone.
   *
   * @return True if and only if the given node belongs to the given inertia
-  *         zone.
-  */
+  *         zone. */
 
  bool node_belongs_to_inertia_zone( Index node_id , Index zone_id ) const {
   if( ( f_number_inertia_zones > 1 ) &&
@@ -802,12 +821,12 @@ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of (pointers to) NetworkBlock elements.
- /** This vector contains one entry for each NetworkBlock defined or created for
-  * the UCBlock. Its size matches get_number_networks(), and each NetworkBlock
-  * may cover one or more time intervals within the "TimeHorizon".
-  * In scenarios where the network is a transmission network, i.e., a
-  * DCNetworkBlock, with a single bus (NumberNodes == 1), this vector will empty.
-  */
+ /** This vector contains one entry for each NetworkBlock defined or created
+  * for the UCBlock. Its size matches get_number_networks(), and each
+  * NetworkBlock may cover one or more time intervals within the
+  * "TimeHorizon". In scenarios where the network is a transmission network,
+  * i.e., a DCNetworkBlock, with a single bus (NumberNodes == 1), this vector
+  * will be empty. */
 
  const std::vector< NetworkBlock * > & get_network_blocks( void ) const {
   return( v_network_blocks );

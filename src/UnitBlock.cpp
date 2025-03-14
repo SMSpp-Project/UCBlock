@@ -210,26 +210,22 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
 
  auto sol = new_Solution();
 
- using mad2 = boost::multi_array< double , 2 >;
-
+ auto sz = boost::multi_array< double , 2 >::extent_gen()
+                           [ get_number_generators() ][ get_time_horizon() ];
  if( wsol & 1 )
-  sol->v_active_power.resize(
-       mad2::extent_gen()[ get_number_generators() ][ get_time_horizon() ] );
+  sol->v_active_power.resize( sz );
 
  // note: we assume that either all generators have commitment, or none has
  if( ( wsol & 2 ) && get_commitment( 0 ) )
-  sol->v_commitment.resize(
-       mad2::extent_gen()[ get_number_generators() ][ get_time_horizon() ] );
+  sol->v_commitment.resize( sz );
 
  // note: we assume that either all generators have primary, or none has
  if( ( wsol & 4 ) && get_primary_spinning_reserve( 0 ) )
-  sol->v_primary_reserve.resize(
-       mad2::extent_gen()[ get_number_generators() ][ get_time_horizon() ] );
+  sol->v_primary_reserve.resize( sz );
 
  // note: we assume that either all generators have secondary, or none has
  if( ( wsol & 8 ) && get_secondary_spinning_reserve( 0 ) )
-  sol->v_secondary_reserve.resize(
-       mad2::extent_gen()[ get_number_generators() ][ get_time_horizon() ] );
+  sol->v_secondary_reserve.resize( sz );
 
  if( ! emptys )
   sol->read( this );
@@ -402,30 +398,46 @@ void UnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  auto th = group.addDim( "TimeHorizon" , f_time_horizon );
 
  netCDF::NcDim ng;
- if( f_number_generators > 1 )
+ if( f_number_generators > 1 ) {
   ng = group.addDim( "NumberGenerators" , f_number_generators );
 
- // serialize the Active Power- - - - - - - - - - - - - - - - - - - - - - - -
- if( ! v_active_power.empty() )
+  // serialize the Active Power - - - - - - - - - - - - - - - - - - - - - - -
   ::serialize< double , 2 >( group , "ActivePower" , netCDF::NcDouble() ,
 			     { ng , th } , v_active_power );
 
- // serialize the Commitment- - - - - - - - - - - - - - - - - - - - - - - - -
- if( ! v_commitment.empty() )
+  // serialize the Commitment - - - - - - - - - - - - - - - - - - - - - - - -
   ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
 			     { ng , th } , v_commitment );
 
-
- // serialize the Primary Reserve - - - - - - - - - - - - - - - - - - - - - -
- if( ! v_primary_reserve.empty() )
-  ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
+  // serialize the Primary Reserve- - - - - - - - - - - - - - - - - - - - - -
+  ::serialize< double , 2 >( group , "PrimaryReserve" , netCDF::NcDouble() ,
 			     { ng , th } , v_primary_reserve );
 
- // serialize the Secondary Reserve - - - - - - - - - - - - - - - - - - - - -
- if( ! v_secondary_reserve.empty() )
-  ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
+  // serialize the Secondary Reserve- - - - - - - - - - - - - - - - - - - - -
+  ::serialize< double , 2 >( group , "SecondaryReserve" , netCDF::NcDouble(),
 			     { ng , th } , v_secondary_reserve );
+  }
+ else {
+  // serialize the Active Power - - - - - - - - - - - - - - - - - - - - - - -
+  if( ! v_active_power.empty() )
+  group.addVar( "ActivePower" , netCDF::NcDouble() , th ).putVar(
+			{ 0 } , { f_time_horizon } , v_active_power.data() );
 
+  // serialize the Commitment - - - - - - - - - - - - - - - - - - - - - - - -
+  if( ! v_commitment.empty() )
+   group.addVar( "Commitment" , netCDF::NcDouble() , th ).putVar(
+			  { 0 } , { f_time_horizon } , v_commitment.data() );
+
+  // serialize the Primary Reserve- - - - - - - - - - - - - - - - - - - - - -
+  if( ! v_primary_reserve.empty() )
+   group.addVar( "PrimaryReserve" , netCDF::NcDouble() , th ).putVar(
+		     { 0 } , { f_time_horizon } , v_primary_reserve.data() );
+
+  // serialize the Secondary Reserve- - - - - - - - - - - - - - - - - - - - -
+  if( ! v_secondary_reserve.empty() )
+   group.addVar( "SecondaryReserve" , netCDF::NcDouble() , th ).putVar(
+		  { 0 } , { f_time_horizon } , v_secondary_reserve.data() );
+  }
  }  // end( UnitBlockSolution::serialize )
 
 /*--------------------------------------------------------------------------*/

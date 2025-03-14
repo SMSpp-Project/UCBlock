@@ -1174,17 +1174,18 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
  if( f_NetworkData ) {
   f_NetworkData->serialize( group );
   NumberNodes = group.getDim( "NumberNodes" );
- } else
+  }
+ else
   NumberNodes = group.addDim( "NumberNodes" , 1 );
 
  auto TimeHorizon = group.addDim( "TimeHorizon" , f_time_horizon );
  auto NumberUnits = group.addDim( "NumberUnits" , f_number_units );
  auto NumberNetworks = group.addDim( "NumberNetworks" , f_number_networks );
- auto NumberElectricalGenerators = group.addDim( "NumberElectricalGenerators" ,
-                                                 f_number_elc_generators );
+ auto NumberElectricalGenerators = group.addDim(
+		   "NumberElectricalGenerators" , f_number_elc_generators );
 
  auto TotalNumberPollutantZones = group.addDim( "TotalNumberPollutantZones" ,
-                                                f_total_number_pollutant_zones );
+                                            f_total_number_pollutant_zones );
 
  auto NumberPrimaryZones = group.addDim( "NumberPrimaryZones" ,
                                          f_number_primary_zones );
@@ -1228,8 +1229,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
  */
 
  ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
-              { TimeHorizon , NumberPollutants , NumberElectricalGenerators } ,
-              v_pollutant_rho );
+              { TimeHorizon , NumberPollutants ,
+		NumberElectricalGenerators } , v_pollutant_rho );
 
  if( std::any_of( v_network_constant_terms.begin() ,
                   v_network_constant_terms.end() ,
@@ -1254,15 +1255,15 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
   auto sub_block = get_unit_block( i );
   auto sub_group = group.addGroup( "UnitBlock_" + std::to_string( i ) );
   sub_block->serialize( sub_group );
- }
+  }
 
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   if( auto sub_block = get_network_block( t ) ) {
    auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( t ) );
    sub_block->serialize( sub_group );
-  }
+   }
 
-}  // end( UCBlock::serialize )
+ }  // end( UCBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
