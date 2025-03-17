@@ -268,24 +268,61 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
  if( ! ::deserialize_dim( group , "NumberGenerators" , f_time_horizon ,
-			  true ) )
+			  true ) ) {
   f_number_generators = 1;
 
- // deserialize the Active Power- - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double , 2 >( group , "ActivePower" , v_active_power ,
-			      false );
+  using index = boost::multi_array< double , 2 >::index;
+  const std::vector< index > empty = { 0 , 0 };
+  const std::vector< index > full = { 1 , f_time_horizon };
+  
+  auto ncVar = group.getVar( "ActivePower" );
+  if( ncVar.isNull() )
+   v_active_power.resize( empty );
+  else {
+   v_active_power.resize( full );
+   ncVar.getVar( { 0 } , { f_time_horizon } , v_active_power.data() );
+   }
 
- // deserialize the Commitment- - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double , 2 >( group , "Commitment" , v_commitment , true );
+  ncVar = group.getVar( "Commitment" );
+  if( ncVar.isNull() )
+   v_commitment.resize( empty );
+  else {
+   v_commitment.resize( full );
+   ncVar.getVar( { 0 } , { f_time_horizon } , v_commitment.data() );
+   }
 
- // deserialize the Primary Reserve - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double , 2 >( group , "PrimaryReserve" , v_primary_reserve ,
-			      true );
+  ncVar = group.getVar( "PrimaryReserve" );
+  if( ncVar.isNull() )
+   v_primary_reserve.resize( empty );
+  else {
+   v_primary_reserve.resize( full );
+   ncVar.getVar( { 0 } , { f_time_horizon } , v_primary_reserve.data() );
+   }
 
- // deserialize the Secondary Reserve- - - - - - - - - - - - - - - - - - - -
- ::deserialize< double , 2 >( group , "SecondaryReserve" ,
-			      v_secondary_reserve , true );
+  ncVar = group.getVar( "SecondaryReserve" );
+  if( ncVar.isNull() )
+   v_secondary_reserve.resize( empty );
+  else {
+   v_secondary_reserve.resize( full );
+   ncVar.getVar( { 0 } , { f_time_horizon } , v_secondary_reserve.data() );
+   }
+  }
+ else {
+  // deserialize the Active Power - - - - - - - - - - - - - - - - - - - - - -
+  ::deserialize< double , 2 >( group , "ActivePower" , v_active_power ,
+			       false );
 
+  // deserialize the Commitment - - - - - - - - - - - - - - - - - - - - - - -
+  ::deserialize< double , 2 >( group , "Commitment" , v_commitment , true );
+
+  // deserialize the Primary Reserve- - - - - - - - - - - - - - - - - - - - -
+  ::deserialize< double , 2 >( group , "PrimaryReserve" ,
+			       v_primary_reserve , true );
+
+  // deserialize the Secondary Reserve - - - - - - - - - - - - - - - - - - -
+  ::deserialize< double , 2 >( group , "SecondaryReserve" ,
+			       v_secondary_reserve , true );
+  }
  }  // end( UnitBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/
