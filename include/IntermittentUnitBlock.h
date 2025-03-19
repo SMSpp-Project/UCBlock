@@ -178,6 +178,22 @@ class IntermittentUnitBlock : public UnitBlock
   *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
+  * - The variable "LinearTerm", of type netCDF::NcDouble and either of size
+  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+  *   is not provided, then this variable can also be indexed over
+  *   "TimeHorizon"). This is meant to represent the vector B[ t ] that, for
+  *   each time instant t, contains the linear term of power cost function of
+  *   the unit for the corresponding time step. This variable is optional; if
+  *   it is not provided then it is assumed that B[ t ] == 0, i.e., the cost of
+  *   the unit has no linear dependence on the produced power (say, only the
+  *   quadratic one). If "LinearTerm" has length 1 then A[ t ] contains the
+  *   same value for all t. Otherwise, LinearTerm[ i ] is the fixed value of
+  *   B[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
+  *   0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
+  *   the mapping clearly does not require "ChangeIntervals", which in fact is
+  *   not loaded.
+  *
   * - The scalar variable "Gamma", of type netCDF::NcDouble and not indexed
   *   over any dimension. This variable is used to take into account an
   *   uncertainty on the maximal potential production. Note that it must be
@@ -450,6 +466,49 @@ class IntermittentUnitBlock : public UnitBlock
   return( &( v_InertiaPower.front() ) );
  }
 
+ 
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of linear term
+ /** The returned vector contains to linear term at time t. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the linear term of the unit is 0;
+  *
+  * - if the vector has only one element, then the linear term of the unit for
+  *   all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the amount of linear term at time t. */
+
+  const std::vector< double > & get_linear_term( void ) const {
+    return( v_LinearTerm );
+   }
+  
+  /*--------------------------------------------------------------------------*/
+  /// returns the coefficient of the linear term of the power cost function
+  /** This function returns the coefficient of the linear term of the quadratic
+   * function that represents the cost of the power produced by the unit at the
+   * given time instant.
+   *
+   * @param t A time instant between 0 and get_time_horizon() - 1.
+   *
+   * @return The coefficient of the linear term of the quadratic function that
+   *         represents the cost of the power produced by the unit at the given
+   *         time instant. */
+  
+   double get_linear_term( Index t ) const {
+    if( v_LinearTerm.empty() )
+     return( 0 );
+    if( v_LinearTerm.size() == 1 )
+     return( v_LinearTerm.front() );
+    assert( v_LinearTerm.size() == f_time_horizon );
+    if( t >= f_time_horizon )
+     throw( std::logic_error( "IntermittentUnitBlock::get_linear_term: Invalid "
+                              "time index: " + std::to_string( t ) ) );
+    return( v_LinearTerm[ t ] );
+   }
+
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor
 
@@ -675,6 +734,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// the matrix of inertia power of generators
  std::vector< double > v_InertiaPower;
 
+ /// the vector of LinearTerm
+ std::vector< double > v_LinearTerm;
+
 
  /// the investment cost
  double f_InvestmentCost{};
@@ -839,6 +901,7 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  {
   eSetMaxP = eUBModLastParam , ///< set max power values
   eSetKappa ,                  ///< set the kappa constant
+  eSetLinT ,                   ///< set the linear term
   eIUBModLastParam             ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to
    * extend the set of types of IntermittentUnitBlockMod. */
