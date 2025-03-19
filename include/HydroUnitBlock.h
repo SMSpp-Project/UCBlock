@@ -436,6 +436,12 @@ class HydroUnitBlock : public UnitBlock
  *   concave flow-to-active-power function for some unit; see the comments to
  *   "LinearTerm" for details.
  *
+ * - The variable "ActivePowerCost", of type netCDF::NcDouble and either of
+ *   size 1 or indexed over the dimension "NumberArcs". This is meant to
+ *   represent the vector APC[ i ] that describes the cost of producing one
+ *   unit of active power for each arc i. This variable is optional, if it is
+ *   not provided then it's taken to be zero.
+ *
  * - The variable "InertiaPower", of type netCDF::NcDouble and indexed both
  *   over the dimensions "NumberIntervals" and "NumberArcs". The first
  *   dimension may have either size 1 or size "NumberIntervals" (if
@@ -1660,6 +1666,9 @@ class HydroUnitBlock : public UnitBlock
 
  /// the vector of ConstTerm
  std::vector< double > v_ConstTerm;
+
+ /// the vector of ActivePowerCost
+ std::vector< double > v_ActivePowerCost;
 
  /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_InertiaPower;

@@ -106,6 +106,7 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "NumberPieces" ,
                                               "LinearTerm" ,
                                               "ConstantTerm" ,
+                                              "ActivePowerCost",
                                               "InertiaPower" ,
                                               "InitialFlowRate" ,
                                               "InitialVolumetric" ,
@@ -169,6 +170,9 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ConstantTerm" , f_TotalNumberPieces ,
                 v_ConstTerm , true , true );
 
+ ::deserialize( group , "ActivePowerCost" , f_TotalNumberPieces ,
+                v_ActivePowerCost , true , true );
+
  ::deserialize( group , "InertiaPower" , v_InertiaPower , true , true );
  transpose( v_InertiaPower );
 
@@ -206,6 +210,9 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  if( v_ConstTerm.size() == 1 )
   v_ConstTerm.resize( f_NumberArcs , v_ConstTerm[ 0 ] );
+
+ if( v_ActivePowerCost.size() == 1 )
+  v_ActivePowerCost.resize( f_NumberArcs , v_ActivePowerCost[ 0 ] );
 
  UnitBlock::deserialize( group );
 
@@ -926,7 +933,14 @@ void HydroUnitBlock::generate_objective( Configuration * objc )
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
 
- objective.set_function( new LinearFunction() );
+ LinearFunction::v_coeff_pair vars;
+
+ if( !v_ActivePowerCost.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index arc = 0 ; arc < f_TotalNumberPieces ; ++arc )
+    vars.push_back( std::make_pair( get_active_power( arc , t ) , v_ActivePowerCost[ arc ] ));
+
+ objective.set_function( new LinearFunction( std::move( vars ) ) );
 
  // Set Block objective
  this->set_objective( &objective );
@@ -1026,6 +1040,9 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() ,
               TotalNumberPieces , v_ConstTerm , false );
+
+ ::serialize( group , "ActivePowerCost" , netCDF::NcDouble() ,
+              TotalNumberPieces , v_ActivePowerCost , false );
 
  ::serialize( group , "InitialFlowRate" , netCDF::NcDouble() ,
               NumberArcs , v_InitialFlowRate , false );
