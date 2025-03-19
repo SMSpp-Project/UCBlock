@@ -466,9 +466,7 @@ class IntermittentUnitBlock : public UnitBlock
   return( &( v_InertiaPower.front() ) );
  }
 
- 
-
-/*--------------------------------------------------------------------------*/
+ /*--------------------------------------------------------------------------*/
  /// returns the vector of linear term
  /** The returned vector contains to linear term at time t. There are three
   * possible cases:
@@ -901,7 +899,6 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  {
   eSetMaxP = eUBModLastParam , ///< set max power values
   eSetKappa ,                  ///< set the kappa constant
-  eSetLinT ,                   ///< set the linear term
   eIUBModLastParam             ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to
    * extend the set of types of IntermittentUnitBlockMod. */
