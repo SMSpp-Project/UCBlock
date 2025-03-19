@@ -735,9 +735,16 @@ class HydroUnitBlock : public UnitBlock
  /// generate the objective of the HydroUnitBlock
  /** Method that generates the objective of the HydroUnitBlock.
   *
-  * - Objective function: the objective function of the HydroUnitBlock is
-  *   "empty" (a FRealObjective with a LinearFunction inside with no active
-  *   variables) */
+  * - Objective function: the objective function of the HydroUnitBlock
+  *   representing the total power production cost to be minimized has the
+  *   form:
+  *
+  *   \f[
+  *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}], l \in \mathcal{L}^{hy} }
+  *     C^{ac}_l p^{ac}_{t,l}
+  *   \f]
+  *   where \f$ C^{ac}_l \f$ is the active power cost for arc l defined as
+  *   ActivePowerCost. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
