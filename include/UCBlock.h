@@ -680,7 +680,7 @@ class UCBlock : public Block
  Solution * get_Solution( Configuration *solc = nullptr ,
 			  bool emptys = true ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the UCBlock
