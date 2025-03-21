@@ -1623,7 +1623,7 @@ void HydroUnitBlock::decompress_array( boost::multi_array< double , 2 > & array 
  if( num_rows == 1 ) {
   // For each arc, the data is the same for every time instant. For arc r, the
   // data at time t is equal to given_array[ 0 ][ r ] for each t in {0, ...,
-  // time_horizon - 1}. We resize the array so that its dimensions becomes
+  // time_horizon - 1}. We resize the array so that its dimensions become
   // f_time_horizon x f_NumberArcs and copy the given data.
   boost::multi_array< double , 2 > given_array = array;
   array.resize( boost::extents[ f_time_horizon ][ f_NumberArcs ] );
@@ -1644,7 +1644,7 @@ void HydroUnitBlock::decompress_array( boost::multi_array< double , 2 > & array 
   // given_array[ k ][ r ], where k is such that t belongs to the closed
   // interval [i_{k-1} + 1, i_k] and i_k is the k-th element of
   // v_change_intervals (starting from k = 0) and i_{-1} = -1 by
-  // definition. We resize the array so that its dimensions becomes
+  // definition. We resize the array so that its dimensions become
   // f_time_horizon x f_NumberArcs and copy the given data.
 
   boost::multi_array< double , 2 > given_array = array;
