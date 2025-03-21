@@ -465,7 +465,10 @@ class HydroUnitBlock : public UnitBlock
  *
  * - The variable "InitialVolumetric", of type netCDF::NcDouble and indexed
  *   over the dimension "NumberReservoirs". Each entry InV[ r ] indicates the
- *   volumes of water in reservoir r at time instant -1.
+ *   volumes of water in reservoir r at time instant -1. When the value is
+ *   negative, cyclical notation is considered such that the initial volume
+ *   is the same as the last volume of the last "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then "TimeHorizon")
  *
  * - The negative or positive scalar variable "UphillFlow", of type
  *   netCDF::NcInt and indexed over the dimension "NumberArcs". Each entry

@@ -322,8 +322,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
     vars.push_back( std::make_pair( get_volume( n , t - 1 ) , -1.0 ) );
 
    double initial_volume = 0.0;
-   if( t == 0 )
-    initial_volume = v_InitialVolumetric[ n ];
+   if( t == 0 ) {
+    if ( v_InitialVolumetric[ n ] >= 0. )
+     initial_volume = v_InitialVolumetric[ n ];
+    else
+     vars.push_back( std::make_pair( get_volume( n , f_time_horizon - 1 ) , -1.0 ) );
+   }
 
    if( ! v_inflows.empty() )
     FinalVolumeReservoir_Const[ t ][ n ].set_both(
@@ -1131,9 +1135,12 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
-    if( t == 0 )
+    if( t == 0 ) {
+     const auto volume = v_InitialVolumetric[ r ] >= 0. ?
+                          v_InitialVolumetric[ r ] : 0.;
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      v_InitialVolumetric[ r ] + v_inflows[ r ][ t ] , issueAMod );
+      volume + v_inflows[ r ][ t ] , issueAMod );
+    }
     else
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
       v_inflows[ r ][ t ] , issueAMod );
@@ -1191,9 +1198,12 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
-    if( t == 0 )
+    if( t == 0 ) {
+     const auto volume = v_InitialVolumetric[ r ] >= 0. ?
+                          v_InitialVolumetric[ r ] : 0.;
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      v_InitialVolumetric[ r ] + v_inflows[ r ][ t ] , issueAMod );
+      volume + v_inflows[ r ][ t ] , issueAMod );
+    }
     else
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
       v_inflows[ r ][ t ] , issueAMod );
@@ -1362,8 +1372,10 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
      constraints_generated() ) {
   // Change the abstract representation
   for( auto r : subset ) {
+   const auto volume = v_InitialVolumetric[ r ] >= 0. ?
+                         v_InitialVolumetric[ r ] : 0.;
    FinalVolumeReservoir_Const[ 0 ][ r ].set_both
-    ( v_InitialVolumetric[ r ] + v_inflows[ r ][ 0 ] , issueAMod );
+    ( volume + v_inflows[ r ][ 0 ] , issueAMod );
   }
  }
 
@@ -1414,8 +1426,10 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( Index r = rng.first ; r < rng.second ; ++r ) {
+    const auto volume = v_InitialVolumetric[ r ] >= 0. ?
+                          v_InitialVolumetric[ r ] : 0.;
     FinalVolumeReservoir_Const[ 0 ][ r ].set_both
-     ( v_InitialVolumetric[ r ] + v_inflows[ r ][ 0 ] , issueAMod );
+     ( volume + v_inflows[ r ][ 0 ] , issueAMod );
    }
   }
  }
