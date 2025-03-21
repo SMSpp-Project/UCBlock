@@ -539,7 +539,7 @@ function csvEC2nc4(deterministic::Bool=false)
         # scenario_set[:, :] = [ ]
 
         # AbstractPath
-        ap = defGroup(tssb, "AbstractPath")
+        ap = defGroup(tssb, "StaticAbstractPath")
 
         defDim(ap, "PathDim", path_dim)
 

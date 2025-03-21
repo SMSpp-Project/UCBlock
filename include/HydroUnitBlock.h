@@ -62,8 +62,8 @@ namespace SMSpp_di_unipi_it
 /// implementation of the Block concept for the hydro unit problem
 /** The HydroUnitBlock class implements the Block concept [see Block.h] for a
  * "reasonably standard" hydro unit of a Unit Commitment Problem. That is, the
- * class is designed in order to give mathematical formulation to describe the
- * operation of large set of hydro storage. To model complex reservoir systems
+ * class is designed to give mathematical formulation to describe the operation
+ * of a large set of hydro storage. To model complex reservoir systems,
  * several technical parameters have to be considered. These are divided into
  * reservoir-specific parameters, the hydro links connecting the reservoirs
  * and finally the turbine/pump parameters. The values are collected within a
@@ -948,7 +948,7 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  * - if the boost::multi_array<> M is empty() then no minimum power are
+  * - if the boost::multi_array<> M is empty() then no minimum power is
   *   defined, and there are no minimum power constraints;
   *
   * - if the boost::multi_array<> M has only one row which in this case the
@@ -961,7 +961,7 @@ class HydroUnitBlock : public UnitBlock
   *   of M[ t , i ] gives the minimum power at time t and unit i. */
 
  double get_min_power( Index t , Index generator = 0 ) const override {
-  return( *( v_MinPower.data() + generator * f_time_horizon + t ) );
+  return( *( v_MinPower.data() + t * f_NumberArcs + generator ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -971,7 +971,7 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  * - if the boost::multi_array<> M is empty() then no maximum power are
+  * - if the boost::multi_array<> M is empty() then no maximum power is
   *   defined, and there are no maximum power constraints;
   *
   * - if the boost::multi_array<> M has only one row which in this case the
@@ -984,7 +984,7 @@ class HydroUnitBlock : public UnitBlock
   *   of M[ t , i ] gives the maximum power at time t and unit i. */
 
  double get_max_power( Index t , Index generator = 0 ) const override {
-  return( *(v_MaxPower.data() + generator * f_time_horizon + t) );
+  return( *( v_MaxPower.data() + t * f_NumberArcs + generator ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -994,7 +994,7 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  * - if the boost::multi_array<> M is empty() then no minimum flow are
+  * - if the boost::multi_array<> M is empty() then no minimum flow is
   *   defined, and there are no minimum flow constraints;
   *
   * - if the boost::multi_array<> M has only one row which in this case the
@@ -1017,7 +1017,7 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  * - if the boost::multi_array<> M is empty() then no maximum flow are
+  * - if the boost::multi_array<> M is empty() then no maximum flow is
   *   defined, and there are no maximum flow constraints;
   *
   * - if the boost::multi_array<> M has only one row which in this case the
@@ -1873,7 +1873,7 @@ class HydroUnitBlock : public UnitBlock
 };  // end( class( HydroUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- CLASS HydroUnitBlockMod ------------------------*/
+/*------------------------ CLASS HydroUnitBlockMod -------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// derived class from Modification for modifications to a HydroUnitBlock
@@ -1962,7 +1962,7 @@ class HydroUnitBlockRngdMod : public HydroUnitBlockMod
 };  // end( class( HydroUnitBlockRngdMod ) )
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- CLASS HydroUnitBlockSbstMod ---------------------*/
+/*----------------------- CLASS HydroUnitBlockSbstMod ----------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// derived from HydroUnitBlockMod for "subset" modifications

@@ -304,8 +304,7 @@ class HydroSystemUnitBlock : public UnitBlock
    if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
     if( temp < unit_block->get_number_generators() )
      return( unit_block->get_min_power( t, temp ) );
-    else
-     temp = temp - unit_block->get_number_generators();
+    temp = temp - unit_block->get_number_generators();
    }
   return( 0 );
  }
