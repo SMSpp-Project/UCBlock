@@ -178,16 +178,16 @@ class IntermittentUnitBlock : public UnitBlock
   *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
   *
-  * - The variable "LinearTerm", of type netCDF::NcDouble and either of size
+  * - The variable "ActivePowerCost", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector B[ t ] that, for
-  *   each time instant t, contains the linear term of power cost function of
+  *   each time instant t, contains the active power cost of power cost function of
   *   the unit for the corresponding time step. This variable is optional; if
   *   it is not provided then it is assumed that B[ t ] == 0, i.e., the cost of
   *   the unit has no linear dependence on the produced power (say, only the
-  *   quadratic one). If "LinearTerm" has length 1 then A[ t ] contains the
-  *   same value for all t. Otherwise, LinearTerm[ i ] is the fixed value of
+  *   quadratic one). If "ActivePowerCost" has length 1 then A[ t ] contains the
+  *   same value for all t. Otherwise, ActivePowerCost[ i ] is the fixed value of
   *   B[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
   *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
   *   0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
@@ -467,44 +467,44 @@ class IntermittentUnitBlock : public UnitBlock
  }
 
  /*--------------------------------------------------------------------------*/
- /// returns the vector of linear term
- /** The returned vector contains to linear term at time t. There are three
+ /// returns the vector of active power cost
+ /** The returned vector contains to active power cost at time t. There are three
   * possible cases:
   *
-  * - if the vector is empty, then the linear term of the unit is 0;
+  * - if the vector is empty, then the  of the unit is 0;
   *
-  * - if the vector has only one element, then the linear term of the unit for
+  * - if the vector has only one element, then the active power cost of the unit for
   *   all time horizon;
   *
   * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the amount of linear term at time t. */
+  *   of vector represents the amount of active power cost at time t. */
 
-  const std::vector< double > & get_linear_term( void ) const {
-    return( v_LinearTerm );
+  const std::vector< double > & get_active_power_cost( void ) const {
+    return( v_ActivePowerCost );
    }
   
   /*--------------------------------------------------------------------------*/
-  /// returns the coefficient of the linear term of the power cost function
-  /** This function returns the coefficient of the linear term of the quadratic
+  /// returns the coefficient of the active power cost of the power cost function
+  /** This function returns the coefficient of the active power cost of the linear
    * function that represents the cost of the power produced by the unit at the
    * given time instant.
    *
    * @param t A time instant between 0 and get_time_horizon() - 1.
    *
-   * @return The coefficient of the linear term of the quadratic function that
+   * @return The coefficient of the active power cost of the linear function that
    *         represents the cost of the power produced by the unit at the given
    *         time instant. */
   
-   double get_linear_term( Index t ) const {
-    if( v_LinearTerm.empty() )
+   double get_active_power_cost( Index t ) const {
+    if( v_ActivePowerCost.empty() )
      return( 0 );
-    if( v_LinearTerm.size() == 1 )
-     return( v_LinearTerm.front() );
-    assert( v_LinearTerm.size() == f_time_horizon );
+    if( v_ActivePowerCost.size() == 1 )
+     return( v_ActivePowerCost.front() );
+    assert( v_ActivePowerCost.size() == f_time_horizon );
     if( t >= f_time_horizon )
-     throw( std::logic_error( "IntermittentUnitBlock::get_linear_term: Invalid "
+     throw( std::logic_error( "IntermittentUnitBlock::get_active_power_cost: Invalid "
                               "time index: " + std::to_string( t ) ) );
-    return( v_LinearTerm[ t ] );
+    return( v_ActivePowerCost[ t ] );
    }
 
 /*--------------------------------------------------------------------------*/
@@ -732,8 +732,8 @@ class IntermittentUnitBlock : public UnitBlock
  /// the matrix of inertia power of generators
  std::vector< double > v_InertiaPower;
 
- /// the vector of LinearTerm
- std::vector< double > v_LinearTerm;
+ /// the vector of ActivePowerCost
+ std::vector< double > v_ActivePowerCost;
 
 
  /// the investment cost
