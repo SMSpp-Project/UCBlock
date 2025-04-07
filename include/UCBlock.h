@@ -1769,8 +1769,19 @@ class UCBlockSbstMod : public UCBlockMod
 /** The UCBlockSolution class, derived from Solution, represents a solution
  * of a UCBlock, i.e.:
  *
- * TODO: handle duals of pollutant constraints
- */
+ * - [optionally] the [:UnitBlockjSolution for all units
+ *
+ * - [optionally] the [:NetworkBlockjSolution for all networks
+ *
+ * - [optionally] the dual variables of active energy demand constraints
+ *
+ * - [optionally] the dual variables of primary reserve constraints
+ *
+ * - [optionally] the dual variables of secondary reserve constraints
+ *
+ * - [optionally] the dual variables of inertia constraints
+ *
+ * TODO: handle duals of pollutant constraints */
 
 class UCBlockSolution : public Solution {
 
@@ -1801,7 +1812,12 @@ class UCBlockSolution : public Solution {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~UCBlockSolution() = default;  ///< destructor: it is virtual, and empty
+ ~UCBlockSolution() {
+  for( auto ubs : v_unit_Solution )
+   delete ubs;
+  for( auto nbs : v_network_Solution )
+   delete nbs;  
+  }
 
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A UCBlockSolution ---------*/
 
