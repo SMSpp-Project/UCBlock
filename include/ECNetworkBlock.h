@@ -632,15 +632,11 @@ class ECNetworkBlock : public NetworkBlock
   * it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- void set_ActiveDemand(
-  const std::vector< std::vector< double > > & v ) override {
+ void set_ActiveDemand( const boost::multi_array< double , 2 > & v ) override {
   if( v_ActiveDemand.empty() ) {
    v_ActiveDemand.resize( boost::multi_array< double , 2 >::extent_gen()
                           [ get_number_intervals() ][ get_number_nodes() ] );
-   auto demand = v_ActiveDemand.data();
-   for( Index i = 0 ; i < get_number_intervals() ; i++ )
-    for( Index j = 0 ; j < get_number_nodes() ; j++ )
-     *( demand++ ) = v[ i ][ j ];
+   std::copy( v.data() , v.data() + v.num_elements() , v_ActiveDemand.data() );
   }
  }
 

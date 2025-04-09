@@ -66,10 +66,7 @@ UCBlock::~UCBlock()
  Constraint::clear( v_PrimaryDemand_Const );
  Constraint::clear( v_SecondaryDemand_Const );
  Constraint::clear( v_InertiaDemand_Const );
-
- for( auto & v_constraints : v_PollutantBudget_Const )
-  Constraint::clear( v_constraints );
- v_PollutantBudget_Const.clear();
+ Constraint::clear( v_PollutantBudget_Const );
 
  for( auto & block : v_Block )
   delete( block );
@@ -324,16 +321,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "PollutantZones" , v_pollutant_zones , true , true );
 
   /* TODO commented away until this is properly managed
-  ::deserialize( group , "PollutantBudget" ,
-                 { f_total_number_pollutant_zones } ,
-                 v_pollutant_budget , true , false );
+  ::deserialize( group , "PollutantBudget" , v_pollutant_budget , true , false );
   */
 
   ::deserialize( group , "PollutantRho" , v_pollutant_rho , true , true );
  } else {
   v_pollutant_zones.resize(
    boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
-  v_pollutant_budget.clear();
+  v_pollutant_budget.resize( boost::extents[ 0 ][ 0 ] );
   v_pollutant_rho.resize(
    boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
  }
@@ -433,9 +428,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     nbi->set_constant_term( v_network_constant_terms[ n ] );
    }
 
-   std::vector< std::vector< double > > ap_v;
-   ap_v.resize( v_network_blocks[ n ]->get_number_intervals() ,
-                std::vector< double >( number_nodes ) );
+   boost::multi_array< double , 2 > ap_v(
+    boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
 
    for( Index i = 0 ;
         i < v_network_blocks[ n ]->get_number_intervals() ;
@@ -988,7 +982,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
  if( f_number_pollutants > 0 ) {
 
   v_PollutantBudget_Const.resize(
-   v_number_pollutant_zones[ f_total_number_pollutant_zones ] );
+   boost::extents[ v_number_pollutant_zones[ f_total_number_pollutant_zones ] ] );
 
   LinearFunction::v_coeff_pair vars;
 
@@ -1162,7 +1156,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
 
  /* TODO commented away until this is properly managed
  ::serialize( group , "PollutantBudget" , netCDF::NcDouble() ,
-              TotalNumberPollutantZones , v_pollutant_budget );
+              { NumberPollutantZones , NumberPollutants } ,
+              v_pollutant_budget );
  */
 
  ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
