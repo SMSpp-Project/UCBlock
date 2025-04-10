@@ -178,16 +178,16 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "LineSusceptance" ,
                                                      "NetworkCost" ,
                                                      "NodeName" ,
-                                                     "LineName" ,													 
+                                                     "LineName" ,
                                                      // vars for AC Mode
                                                      "ReactivePowerDemand" ,
                                                      "NodeConductance" ,
                                                      "NodeSusceptance" ,
                                                      "NodeVoltageMagnitude" ,
                                                      "NodeVoltageAngle" ,
-                                                     "LineResistance" , 
-                                                     "LineReactance" ,  
-                                                     "LineMinAngle" , 
+                                                     "LineResistance" ,
+                                                     "LineReactance" ,
+                                                     "LineMinAngle" ,
                                                      "LineMaxAngle" ,
                                                      // ECNetworkBlockData
                                                      "BuyPrice" ,
@@ -982,7 +982,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
  if( f_number_pollutants > 0 ) {
 
   v_PollutantBudget_Const.resize(
-   boost::extents[ v_number_pollutant_zones[ f_total_number_pollutant_zones ] ] );
+   v_number_pollutant_zones[ f_total_number_pollutant_zones ] );
 
   LinearFunction::v_coeff_pair vars;
 

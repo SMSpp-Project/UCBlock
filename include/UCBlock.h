@@ -973,7 +973,7 @@ void deserialize( const netCDF::NcGroup & group ) override;
   * pollutant emission constraint associated with pollutant p and pollutant
   * zone z. */
 
- const boost::multi_array< std::vector< FRowConstraint > , 1 > &
+ const std::vector< std::vector< FRowConstraint > > &
  get_pollutant_constraints( void ) const {
   return( v_PollutantBudget_Const );
  }
@@ -1253,7 +1253,7 @@ void deserialize( const netCDF::NcGroup & group ) override;
  boost::multi_array< FRowConstraint , 2 > v_InertiaDemand_Const;
 
  /// pollutant demand constraints for each pollutant and pollutant zone
- boost::multi_array< std::vector< FRowConstraint > , 1 > v_PollutantBudget_Const;
+ std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
