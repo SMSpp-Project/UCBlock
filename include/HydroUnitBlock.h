@@ -436,6 +436,12 @@ class HydroUnitBlock : public UnitBlock
  *   concave flow-to-active-power function for some unit; see the comments to
  *   "LinearTerm" for details.
  *
+ * - The variable "ActivePowerCost", of type netCDF::NcDouble and either of
+ *   size 1 or indexed over the dimension "NumberArcs". This is meant to
+ *   represent the vector APC[ i ] that describes the cost of producing one
+ *   unit of active power for each arc i. This variable is optional, if it is
+ *   not provided then it's taken to be zero.
+ *
  * - The variable "InertiaPower", of type netCDF::NcDouble and indexed both
  *   over the dimensions "NumberIntervals" and "NumberArcs". The first
  *   dimension may have either size 1 or size "NumberIntervals" (if
@@ -732,9 +738,16 @@ class HydroUnitBlock : public UnitBlock
  /// generate the objective of the HydroUnitBlock
  /** Method that generates the objective of the HydroUnitBlock.
   *
-  * - Objective function: the objective function of the HydroUnitBlock is
-  *   "empty" (a FRealObjective with a LinearFunction inside with no active
-  *   variables) */
+  * - Objective function: the objective function of the HydroUnitBlock
+  *   representing the total power production cost to be minimized has the
+  *   form:
+  *
+  *   \f[
+  *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}], l \in \mathcal{L}^{hy} }
+  *     C^{ac}_l p^{ac}_{t,l}
+  *   \f]
+  *   where \f$ C^{ac}_l \f$ is the active power cost for arc l defined as
+  *   ActivePowerCost. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -1663,6 +1676,9 @@ class HydroUnitBlock : public UnitBlock
 
  /// the vector of ConstTerm
  std::vector< double > v_ConstTerm;
+
+ /// the vector of ActivePowerCost
+ std::vector< double > v_ActivePowerCost;
 
  /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_InertiaPower;
