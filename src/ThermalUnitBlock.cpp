@@ -284,7 +284,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  }
 
- // variables forAC elements
+ // variables for AC elements
  ::deserialize( group, "MaxReactivePower", v_MaxReactivePower);
  ::deserialize( group, "MinReactivePower", v_MinReactivePower);
  ::deserialize( group, "VoltageMagnitude", v_VoltageMagnitude);
