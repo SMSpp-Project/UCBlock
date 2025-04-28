@@ -2713,7 +2713,7 @@ class ThermalUnitBlock : public UnitBlock
  double f_scale = 1;
 
  /// this variable indicates which netCDF variables must be ignored
- static bool f_ignore_netcdf_vars;
+ inline static bool f_ignore_netcdf_vars;
 
 /*-------------------------------- variables -------------------------------*/
 

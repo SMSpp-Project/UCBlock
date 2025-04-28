@@ -837,7 +837,7 @@ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the two-dimensional vector of pollutant budget
- /** The method returned a std::vector< std::vector< double > > V such that
+ /** The method returned a two-dimensional boost::multi_array<> V such that
   * V[ p ] contains the pollutant budget (across all the time horizon) for
   * all the pollutant zone of the pollutant p. There are two possible cases:
   *
@@ -855,8 +855,7 @@ void deserialize( const netCDF::NcGroup & group ) override;
   *   which means that node i does not belong to any pollutant zone for
   *   pollutant p. */
 
- const std::vector< std::vector< double >> &
- get_pollutant_budget( void ) const {
+ const boost::multi_array< double , 2 > & get_pollutant_budget( void ) const {
   return( v_pollutant_budget );
  }
 
@@ -1217,18 +1216,18 @@ void deserialize( const netCDF::NcGroup & group ) override;
  /** Indexed over the dimensions "SecondaryZones" and "TimeHorizon". */
  boost::multi_array< double , 2 > v_secondary_demand;
 
- /// the vector InertiaZones
+ /// the vector of InertiaZones
  std::vector< Index > v_inertia_zones;
 
  /// the matrix of InertiaDemand
  /** Indexed over the dimensions "InertiaZones" and "TimeHorizon". */
  boost::multi_array< double , 2 > v_inertia_demand;
 
- /// the vector of PollutantBudget
- /** Indexed over the pair of each NumberPollutantZone and NumberPollutant*/
- std::vector< std::vector< double >> v_pollutant_budget;
+ /// the matrix of PollutantBudget
+ /** Indexed over the pair of each "NumberPollutantZone" and "NumberPollutants". */
+ boost::multi_array< double , 2 > v_pollutant_budget;
 
- /// the PollutantRho matrix
+ /// the matrix of PollutantRho
  /** Indexed over "TimeHorizon", "NumberPollutants", and "NumberElcGenerators". */
  boost::multi_array< double , 3 > v_pollutant_rho;
 

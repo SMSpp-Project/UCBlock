@@ -77,10 +77,6 @@ static constexpr unsigned char SUSDForm = 6;
 static constexpr unsigned char PCuts = 8;
 /// 4th bit of AR == 1 if the perspective cuts are used
 
-
-bool ThermalUnitBlock::f_ignore_netcdf_vars;
-/// this variable indicates which netCDF variables must be ignored
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -289,7 +285,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  }
 
- // variables forAC elements
+ // variables for AC elements
  ::deserialize( group, "MaxReactivePower", v_MaxReactivePower);
  ::deserialize( group, "MinReactivePower", v_MinReactivePower);
  ::deserialize( group, "VoltageMagnitude", v_VoltageMagnitude);

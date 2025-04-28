@@ -476,7 +476,7 @@ class NetworkBlock : public Block
   * otherwise it is left empty so that it can be set by this method. */
 
  virtual void set_ActiveDemand(
-                        const std::vector< std::vector< double > > & v ) = 0;
+                        const boost::multi_array< double , 2 > & v ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection

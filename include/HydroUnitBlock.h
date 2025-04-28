@@ -62,8 +62,8 @@ namespace SMSpp_di_unipi_it
 /// implementation of the Block concept for the hydro unit problem
 /** The HydroUnitBlock class implements the Block concept [see Block.h] for a
  * "reasonably standard" hydro unit of a Unit Commitment Problem. That is, the
- * class is designed in order to give mathematical formulation to describe the
- * operation of large set of hydro storage. To model complex reservoir systems
+ * class is designed to give mathematical formulation to describe the operation
+ * of a large set of hydro storage. To model complex reservoir systems,
  * several technical parameters have to be considered. These are divided into
  * reservoir-specific parameters, the hydro links connecting the reservoirs
  * and finally the turbine/pump parameters. The values are collected within a
@@ -436,6 +436,12 @@ class HydroUnitBlock : public UnitBlock
  *   concave flow-to-active-power function for some unit; see the comments to
  *   "LinearTerm" for details.
  *
+ * - The variable "ActivePowerCost", of type netCDF::NcDouble and either of
+ *   size 1 or indexed over the dimension "NumberArcs". This is meant to
+ *   represent the vector APC[ i ] that describes the cost of producing one
+ *   unit of active power for each arc i. This variable is optional, if it is
+ *   not provided then it's taken to be zero.
+ *
  * - The variable "InertiaPower", of type netCDF::NcDouble and indexed both
  *   over the dimensions "NumberIntervals" and "NumberArcs". The first
  *   dimension may have either size 1 or size "NumberIntervals" (if
@@ -465,7 +471,10 @@ class HydroUnitBlock : public UnitBlock
  *
  * - The variable "InitialVolumetric", of type netCDF::NcDouble and indexed
  *   over the dimension "NumberReservoirs". Each entry InV[ r ] indicates the
- *   volumes of water in reservoir r at time instant -1.
+ *   volumes of water in reservoir r at time instant -1. When the value is
+ *   negative, cyclical notation is considered such that the initial volume
+ *   is the same as the last volume of the last "NumberIntervals" (if
+ *   "NumberIntervals" is not provided, then "TimeHorizon")
  *
  * - The negative or positive scalar variable "UphillFlow", of type
  *   netCDF::NcInt and indexed over the dimension "NumberArcs". Each entry
@@ -729,9 +738,16 @@ class HydroUnitBlock : public UnitBlock
  /// generate the objective of the HydroUnitBlock
  /** Method that generates the objective of the HydroUnitBlock.
   *
-  * - Objective function: the objective function of the HydroUnitBlock is
-  *   "empty" (a FRealObjective with a LinearFunction inside with no active
-  *   variables) */
+  * - Objective function: the objective function of the HydroUnitBlock
+  *   representing the total power production cost to be minimized has the
+  *   form:
+  *
+  *   \f[
+  *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}], l \in \mathcal{L}^{hy} }
+  *     C^{ac}_l p^{ac}_{t,l}
+  *   \f]
+  *   where \f$ C^{ac}_l \f$ is the active power cost for arc l defined as
+  *   ActivePowerCost. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -948,7 +964,7 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  * - if the boost::multi_array<> M is empty() then no minimum power are
+  * - if the boost::multi_array<> M is empty() then no minimum power is
   *   defined, and there are no minimum power constraints;
   *
   * - if the boost::multi_array<> M has only one row which in this case the
@@ -961,7 +977,7 @@ class HydroUnitBlock : public UnitBlock
   *   of M[ t , i ] gives the minimum power at time t and unit i. */
 
  double get_min_power( Index t , Index generator = 0 ) const override {
-  return( *( v_MinPower.data() + generator * f_time_horizon + t ) );
+  return( *( v_MinPower.data() + t * f_NumberArcs + generator ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -971,7 +987,7 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  * - if the boost::multi_array<> M is empty() then no maximum power are
+  * - if the boost::multi_array<> M is empty() then no maximum power is
   *   defined, and there are no maximum power constraints;
   *
   * - if the boost::multi_array<> M has only one row which in this case the
@@ -984,7 +1000,7 @@ class HydroUnitBlock : public UnitBlock
   *   of M[ t , i ] gives the maximum power at time t and unit i. */
 
  double get_max_power( Index t , Index generator = 0 ) const override {
-  return( *(v_MaxPower.data() + generator * f_time_horizon + t) );
+  return( *( v_MaxPower.data() + t * f_NumberArcs + generator ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -994,7 +1010,7 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  * - if the boost::multi_array<> M is empty() then no minimum flow are
+  * - if the boost::multi_array<> M is empty() then no minimum flow is
   *   defined, and there are no minimum flow constraints;
   *
   * - if the boost::multi_array<> M has only one row which in this case the
@@ -1017,7 +1033,7 @@ class HydroUnitBlock : public UnitBlock
   * i. This two-dimensional boost::multi_array<> M considers three possible
   * cases:
   *
-  * - if the boost::multi_array<> M is empty() then no maximum flow are
+  * - if the boost::multi_array<> M is empty() then no maximum flow is
   *   defined, and there are no maximum flow constraints;
   *
   * - if the boost::multi_array<> M has only one row which in this case the
@@ -1661,6 +1677,9 @@ class HydroUnitBlock : public UnitBlock
  /// the vector of ConstTerm
  std::vector< double > v_ConstTerm;
 
+ /// the vector of ActivePowerCost
+ std::vector< double > v_ActivePowerCost;
+
  /// the matrix of inertia power of generators
  boost::multi_array< double , 2 > v_InertiaPower;
 
@@ -1873,7 +1892,7 @@ class HydroUnitBlock : public UnitBlock
 };  // end( class( HydroUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- CLASS HydroUnitBlockMod ------------------------*/
+/*------------------------ CLASS HydroUnitBlockMod -------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// derived class from Modification for modifications to a HydroUnitBlock
@@ -1962,7 +1981,7 @@ class HydroUnitBlockRngdMod : public HydroUnitBlockMod
 };  // end( class( HydroUnitBlockRngdMod ) )
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- CLASS HydroUnitBlockSbstMod ---------------------*/
+/*----------------------- CLASS HydroUnitBlockSbstMod ----------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// derived from HydroUnitBlockMod for "subset" modifications

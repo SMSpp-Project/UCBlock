@@ -87,6 +87,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                      "MaxCapacity" ,
                                                      "MinPower" , "MaxPower" ,
                                                      "InertiaPower" ,
+                                                     "ActivePowerCost",
                                                      "Gamma" , "Kappa" };
  check_variables( group , expected_vars , std::cerr );
 #endif
@@ -110,6 +111,9 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  if( ! ::deserialize( group , "InertiaPower" , v_InertiaPower ) )
   v_InertiaPower.resize( f_time_horizon );
 
+ if( ! ::deserialize( group , "ActivePowerCost" , v_ActivePowerCost ) )
+  v_ActivePowerCost.resize( f_time_horizon );
+
  ::deserialize( group , f_gamma , "Gamma" );
 
  ::deserialize( group , f_kappa , "Kappa" );
@@ -119,6 +123,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  decompress_vector( v_MinPower );
  decompress_vector( v_MaxPower );
  decompress_vector( v_InertiaPower );
+ decompress_vector( v_ActivePowerCost );
 
  if( f_max_power_epsilon > 0 )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -350,6 +355,11 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc )
 
  if( f_InvestmentCost != 0 )
   vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
+ 
+ if( ! v_ActivePowerCost.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_pair( &v_active_power[ t ] ,
+                                    f_scale * v_ActivePowerCost[ t ] ));
 
  objective.set_function( new LinearFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
@@ -478,6 +488,7 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "MinPower" , v_MinPower );
  serialize( "MaxPower" , v_MaxPower );
  serialize( "InertiaPower" , v_InertiaPower );
+ serialize( "ActivePowerCost" , v_ActivePowerCost );
 
 }  // end( IntermittentUnitBlock::serialize )
 

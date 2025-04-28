@@ -1025,7 +1025,7 @@ void DCNetworkBlock::change_relax_abs_constraints
     for( auto& i : modified_lines){
       double constant_term = 0;
       for( Index node_id = 0; node_id < f_NetworkData->get_number_nodes(); ++node_id ) {
-        constant_term -= PTDF_matrix.coeff(i,node_id) * v_ActiveDemand[node_id];
+        constant_term -= PTDF_matrix.coeff( i , node_id ) * v_ActiveDemand[ node_id ];
       } // for each node
       v_power_flow_relax_abs[ 0 ][ i ].set_lhs( constant_term );
       v_power_flow_relax_abs[ 1 ][ i ].set_lhs( -constant_term );

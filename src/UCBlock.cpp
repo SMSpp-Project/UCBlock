@@ -66,10 +66,7 @@ UCBlock::~UCBlock()
  Constraint::clear( v_PrimaryDemand_Const );
  Constraint::clear( v_SecondaryDemand_Const );
  Constraint::clear( v_InertiaDemand_Const );
-
- for( auto & v_constraints : v_PollutantBudget_Const )
-  Constraint::clear( v_constraints );
- v_PollutantBudget_Const.clear();
+ Constraint::clear( v_PollutantBudget_Const );
 
  for( auto & block : v_Block )
   delete( block );
@@ -181,16 +178,16 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "LineSusceptance" ,
                                                      "NetworkCost" ,
                                                      "NodeName" ,
-                                                     "LineName" ,													 
+                                                     "LineName" ,
                                                      // vars for AC Mode
                                                      "ReactivePowerDemand" ,
                                                      "NodeConductance" ,
                                                      "NodeSusceptance" ,
                                                      "NodeVoltageMagnitude" ,
                                                      "NodeVoltageAngle" ,
-                                                     "LineResistance" , 
-                                                     "LineReactance" ,  
-                                                     "LineMinAngle" , 
+                                                     "LineResistance" ,
+                                                     "LineReactance" ,
+                                                     "LineMinAngle" ,
                                                      "LineMaxAngle" ,
                                                      "LineRATEA",
                                                      "LineRatio",
@@ -329,16 +326,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "PollutantZones" , v_pollutant_zones , true , true );
 
   /* TODO commented away until this is properly managed
-  ::deserialize( group , "PollutantBudget" ,
-                 { f_total_number_pollutant_zones } ,
-                 v_pollutant_budget , true , false );
+  ::deserialize( group , "PollutantBudget" , v_pollutant_budget , true , false );
   */
 
   ::deserialize( group , "PollutantRho" , v_pollutant_rho , true , true );
  } else {
   v_pollutant_zones.resize(
    boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
-  v_pollutant_budget.clear();
+  v_pollutant_budget.resize( boost::extents[ 0 ][ 0 ] );
   v_pollutant_rho.resize(
    boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
  }
@@ -387,7 +382,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     boost::multi_array< double , 2 >::extent_gen()[ 1 ][ f_time_horizon ] );
    for( auto apdit = v_active_power_demand.data() ;
         apdit != v_active_power_demand.data() + f_time_horizon ; )
-    *(apdit++) = 0;
+    *( apdit++ ) = 0;
   }
 
   if( ! v_network_blocks.empty() ) {
@@ -438,9 +433,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     nbi->set_constant_term( v_network_constant_terms[ n ] );
    }
 
-   std::vector< std::vector< double > > ap_v;
-   ap_v.resize( v_network_blocks[ n ]->get_number_intervals() ,
-                std::vector< double >( number_nodes ) );
+   boost::multi_array< double , 2 > ap_v(
+    boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
 
    for( Index i = 0 ;
         i < v_network_blocks[ n ]->get_number_intervals() ;
@@ -599,8 +593,8 @@ void UCBlock::generate_node_injection_constraints( void )
      for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
 
       // surely add the contribution of the corresponding active power
-      *(vcit++) = std::pair( &unit_block->get_active_power( g )[ t ] ,
-                             scale );
+      *( vcit++ ) = std::pair( &unit_block->get_active_power( g )[ t ] ,
+                               scale );
 
       // if the generator also has nonzero fixed consumption at t
       // fixed consumption happens when the generator is off, and it
@@ -613,8 +607,8 @@ void UCBlock::generate_node_injection_constraints( void )
         if( auto u = unit_block->get_commitment( g ) ) {
          const auto fixed_consumption = fc[ t ] * scale;
          // add the contribution of the corresponding commitment variables
-         *(vcit++) = std::pair( &u[ t ] , fixed_consumption );
-         rhs += fixed_consumption;    // update the RHS
+         *( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
+         rhs -= fixed_consumption;    // update the RHS
         }
      }  // end( for( g ) )
     }  // end( for( i ) )
@@ -1165,7 +1159,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
 
  /* TODO commented away until this is properly managed
  ::serialize( group , "PollutantBudget" , netCDF::NcDouble() ,
-              TotalNumberPollutantZones , v_pollutant_budget );
+              { NumberPollutantZones , NumberPollutants } ,
+              v_pollutant_budget );
  */
 
  ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
@@ -1862,7 +1857,7 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
  for( auto index : subset ) {
   const auto node_index = index / f_time_horizon;
   const auto time = index % f_time_horizon;
-  const auto demand = *(values++);
+  const auto demand = *( values++ );
 
   if( v_active_power_demand[ node_index ][ time ] != demand ) {
    changed = true;
@@ -1932,7 +1927,7 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
  for( Index index = rng.first ; index < rng.second ; ++index ) {
   const auto node_index = index / f_time_horizon;
   const auto time = index % f_time_horizon;
-  const auto demand = *(values++);
+  const auto demand = *( values++ );
 
   if( v_active_power_demand[ node_index ][ time ] != demand ) {
    changed = true;

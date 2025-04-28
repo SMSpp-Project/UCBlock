@@ -106,6 +106,7 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "NumberPieces" ,
                                               "LinearTerm" ,
                                               "ConstantTerm" ,
+                                              "ActivePowerCost",
                                               "InertiaPower" ,
                                               "InitialFlowRate" ,
                                               "InitialVolumetric" ,
@@ -169,6 +170,9 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ConstantTerm" , f_TotalNumberPieces ,
                 v_ConstTerm , true , true );
 
+ ::deserialize( group , "ActivePowerCost" , f_TotalNumberPieces ,
+                v_ActivePowerCost , true , true );
+
  ::deserialize( group , "InertiaPower" , v_InertiaPower , true , true );
  transpose( v_InertiaPower );
 
@@ -206,6 +210,9 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  if( v_ConstTerm.size() == 1 )
   v_ConstTerm.resize( f_NumberArcs , v_ConstTerm[ 0 ] );
+
+ if( v_ActivePowerCost.size() == 1 )
+  v_ActivePowerCost.resize( f_NumberArcs , v_ActivePowerCost[ 0 ] );
 
  UnitBlock::deserialize( group );
 
@@ -322,8 +329,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
     vars.push_back( std::make_pair( get_volume( n , t - 1 ) , -1.0 ) );
 
    double initial_volume = 0.0;
-   if( t == 0 )
-    initial_volume = v_InitialVolumetric[ n ];
+   if( t == 0 ) {
+    if ( v_InitialVolumetric[ n ] >= 0. )
+     initial_volume = v_InitialVolumetric[ n ];
+    else
+     vars.push_back( std::make_pair( get_volume( n , f_time_horizon - 1 ) , -1.0 ) );
+   }
 
    if( ! v_inflows.empty() )
     FinalVolumeReservoir_Const[ t ][ n ].set_both(
@@ -926,7 +937,14 @@ void HydroUnitBlock::generate_objective( Configuration * objc )
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
 
- objective.set_function( new LinearFunction() );
+ LinearFunction::v_coeff_pair vars;
+
+ if( !v_ActivePowerCost.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index arc = 0 ; arc < f_TotalNumberPieces ; ++arc )
+    vars.push_back( std::make_pair( get_active_power( arc , t ) , v_ActivePowerCost[ arc ] ));
+
+ objective.set_function( new LinearFunction( std::move( vars ) ) );
 
  // Set Block objective
  this->set_objective( &objective );
@@ -1026,6 +1044,9 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() ,
               TotalNumberPieces , v_ConstTerm , false );
+
+ ::serialize( group , "ActivePowerCost" , netCDF::NcDouble() ,
+              TotalNumberPieces , v_ActivePowerCost , false );
 
  ::serialize( group , "InitialFlowRate" , netCDF::NcDouble() ,
               NumberArcs , v_InitialFlowRate , false );
@@ -1131,9 +1152,12 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
-    if( t == 0 )
+    if( t == 0 ) {
+     const auto volume = v_InitialVolumetric[ r ] >= 0. ?
+                          v_InitialVolumetric[ r ] : 0.;
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      v_InitialVolumetric[ r ] + v_inflows[ r ][ t ] , issueAMod );
+      volume + v_inflows[ r ][ t ] , issueAMod );
+    }
     else
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
       v_inflows[ r ][ t ] , issueAMod );
@@ -1191,9 +1215,12 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
-    if( t == 0 )
+    if( t == 0 ) {
+     const auto volume = v_InitialVolumetric[ r ] >= 0. ?
+                          v_InitialVolumetric[ r ] : 0.;
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      v_InitialVolumetric[ r ] + v_inflows[ r ][ t ] , issueAMod );
+      volume + v_inflows[ r ][ t ] , issueAMod );
+    }
     else
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
       v_inflows[ r ][ t ] , issueAMod );
@@ -1362,8 +1389,10 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
      constraints_generated() ) {
   // Change the abstract representation
   for( auto r : subset ) {
+   const auto volume = v_InitialVolumetric[ r ] >= 0. ?
+                         v_InitialVolumetric[ r ] : 0.;
    FinalVolumeReservoir_Const[ 0 ][ r ].set_both
-    ( v_InitialVolumetric[ r ] + v_inflows[ r ][ 0 ] , issueAMod );
+    ( volume + v_inflows[ r ][ 0 ] , issueAMod );
   }
  }
 
@@ -1414,8 +1443,10 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( Index r = rng.first ; r < rng.second ; ++r ) {
+    const auto volume = v_InitialVolumetric[ r ] >= 0. ?
+                          v_InitialVolumetric[ r ] : 0.;
     FinalVolumeReservoir_Const[ 0 ][ r ].set_both
-     ( v_InitialVolumetric[ r ] + v_inflows[ r ][ 0 ] , issueAMod );
+     ( volume + v_inflows[ r ][ 0 ] , issueAMod );
    }
   }
  }
@@ -1609,7 +1640,7 @@ void HydroUnitBlock::decompress_array( boost::multi_array< double , 2 > & array 
  if( num_rows == 1 ) {
   // For each arc, the data is the same for every time instant. For arc r, the
   // data at time t is equal to given_array[ 0 ][ r ] for each t in {0, ...,
-  // time_horizon - 1}. We resize the array so that its dimensions becomes
+  // time_horizon - 1}. We resize the array so that its dimensions become
   // f_time_horizon x f_NumberArcs and copy the given data.
   boost::multi_array< double , 2 > given_array = array;
   array.resize( boost::extents[ f_time_horizon ][ f_NumberArcs ] );
@@ -1630,7 +1661,7 @@ void HydroUnitBlock::decompress_array( boost::multi_array< double , 2 > & array 
   // given_array[ k ][ r ], where k is such that t belongs to the closed
   // interval [i_{k-1} + 1, i_k] and i_k is the k-th element of
   // v_change_intervals (starting from k = 0) and i_{-1} = -1 by
-  // definition. We resize the array so that its dimensions becomes
+  // definition. We resize the array so that its dimensions become
   // f_time_horizon x f_NumberArcs and copy the given data.
 
   boost::multi_array< double , 2 > given_array = array;
