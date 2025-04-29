@@ -257,6 +257,7 @@ function csvEC2nc4(deterministic::Bool=false)
         path_group_idx_data = Int[]
         # path_group_idx_data = String[]
         path_element_idx_data = Int[]
+        path_range_idx_data = Int[]
     end
 
     if n_devices > 0
@@ -311,6 +312,7 @@ function csvEC2nc4(deterministic::Bool=false)
                         append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_intermittent
                         # append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
                         append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_intermittent
+                        append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_intermittent
                     end
 
                     last_g += 1
@@ -425,6 +427,7 @@ function csvEC2nc4(deterministic::Bool=false)
                         append!(path_group_idx_data, [last_g, 0, last_g, 1]) # i.e., last_g wrt B, 0 wrt V x_battery, 1 wrt V x_converter
                         # append!(path_group_idx_data, [string(last_g), "x_battery", string(last_g), "x_converter"]) # i.e., last_g wrt B, V x_battery, x_converter
                         append!(path_element_idx_data, [typemax(UInt32), 0, typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_battery, x_converter
+                        append!(path_range_idx_data, [typemax(UInt32), 1, typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_battery, x_converter
                     end
 
                     last_g += 1
@@ -507,6 +510,7 @@ function csvEC2nc4(deterministic::Bool=false)
                             append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_thermal
                             # append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
                             append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
+                            append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
                         end
 
                         last_g += 1
@@ -559,6 +563,9 @@ function csvEC2nc4(deterministic::Bool=false)
 
         path_element_idx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
         path_element_idx[:] = path_element_idx_data[:]
+
+        path_range_idx = defVar(ap, "PathRangeIndices", UInt32, ("TotalLength",))
+        path_range_idx[:] = path_range_idx_data[:]
 
         # StochasticBlock
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
