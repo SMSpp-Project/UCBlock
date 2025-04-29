@@ -141,15 +141,15 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
   ::deserialize( group , "StartLine" , f_number_lines , v_start_line , false ,
                  true );
-  assert( ("Label of nodes in 'StartLine' must be smaller than number of nodes",
-          *max_element( v_start_line.begin() ,
-                        v_start_line.end() ) < f_number_nodes ) );
+  assert( ( *max_element( v_start_line.begin() ,
+                          v_start_line.end() ) < f_number_nodes ) &&
+   ( "Label of nodes in 'StartLine' must be smaller than number of nodes" ) );
 
   ::deserialize( group , "EndLine" , f_number_lines , v_end_line , false ,
                  true );
-  assert( ("Label of nodes in 'EndLine' must be smaller than number of nodes",
-          *max_element( v_end_line.begin() ,
-                        v_end_line.end() ) < f_number_nodes ) );
+  assert( ( *max_element( v_end_line.begin() ,
+                          v_end_line.end() ) < f_number_nodes ) &&
+   ( "Label of nodes in 'EndLine' must be smaller than number of nodes" ) );
 
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    if( ( v_start_line[ i ] < 0 ) || ( v_start_line[ i ] >= f_number_nodes ) )
