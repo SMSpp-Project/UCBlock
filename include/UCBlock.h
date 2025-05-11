@@ -53,6 +53,8 @@
 
 #include "FRowConstraint.h"
 
+#include "FRealObjective.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -567,6 +569,11 @@ void deserialize( const netCDF::NcGroup & group ) override;
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// generate the objective of the UCBlock
+
+ void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
@@ -1254,6 +1261,10 @@ void deserialize( const netCDF::NcGroup & group ) override;
 
  /// pollutant demand constraints for each pollutant and pollutant zone
  std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
+
+
+ /// the objective function
+ FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

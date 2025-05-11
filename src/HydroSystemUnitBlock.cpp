@@ -74,8 +74,8 @@ void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_dimensions( group , expected_dims , std::cerr );
 #endif
 
- UnitBlock::deserialize_time_horizon( group );
- ::deserialize_dim( group , "NumberHydroUnits" , f_number_hydro_units );
+ deserialize_time_horizon( group );
+ deserialize_dim( group , "NumberHydroUnits" , f_number_hydro_units );
  deserialize_sub_blocks( group );
 
  Block::deserialize( group );

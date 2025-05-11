@@ -73,6 +73,8 @@ UCBlock::~UCBlock()
  v_Block.clear();
 
  delete( f_NetworkData );
+
+ objective.clear();
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1091,6 +1093,25 @@ void UCBlock::generate_pollutant_budget_constraints( void )
  }
 
 }  // end( UCBlock::generate_pollutant_budget_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::generate_objective( Configuration * objc )
+{
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
+
+ for( auto block : v_Block )
+  block->generate_objective();
+
+ objective.set_function( new LinearFunction() );
+
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+} // end( UCBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
