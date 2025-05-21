@@ -143,10 +143,10 @@ class DCNetworkData : public NetworkData
  * @{ */
 
  /// constructor of DCNetworkData, does nothing
- DCNetworkData( void ) {}
+ DCNetworkData( void ) : f_lines_type( -1 ) {}
 
  /// copy constructor of DCNetworkData, does nothing
- explicit DCNetworkData( const NetworkData * ) {}
+ explicit DCNetworkData( const NetworkData * ) : f_lines_type( -1 ) {}
 
  /// destructor of DCNetworkData: it is virtual, and empty
  virtual ~DCNetworkData() override = default;
@@ -433,16 +433,22 @@ class DCNetworkData : public NetworkData
  /// returns the types of lines in the network
  /** This method returns the types of lines present in the network. */
 
- line_type get_lines_type( void ) const {
-  if( get_number_lines() == 0 )
-   return( kNone );
-  if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
-		   []( double s ) { return( s == 0.0 ); } ) )
-   return( kHVDC );
-  if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
-		   []( double s ) { return( s != 0.0 ); } ) )
-   return( kAC );
-  return( kAC_HVDC );
+ line_type get_lines_type( void ) {
+  if( f_lines_type < 0 ) {
+   if( get_number_lines() == 0 )
+    f_lines_type = kNone;
+   else
+    if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
+		     []( double s ) { return( s == 0.0 ); } ) )
+     f_lines_type = kHVDC;
+    else
+     if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
+		      []( double s ) { return( s != 0.0 ); } ) )
+      f_lines_type = kAC;
+     else
+      f_lines_type = kAC_HVDC;
+   }
+  return( line_type( f_lines_type ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -488,6 +494,8 @@ class DCNetworkData : public NetworkData
 
  Index f_number_lines{};    ///< number of lines of the network
 
+ int f_lines_type;         ///< the type of the network
+ 
  Index f_reference_node;    ///< reference node (used in the PTDF matrix)
 
  std::vector< Index > v_start_line;  ///< vector of starting lines
@@ -823,7 +831,7 @@ class DCNetworkData : public NetworkData
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NetworkBlock
@@ -889,6 +897,16 @@ class DCNetworkData : public NetworkData
   if( ! f_NetworkData )
    return( 0 );
   return( f_NetworkData->get_number_lines() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the types of lines in the network
+ /** This method returns the types of lines present in the network. */
+
+ line_type get_lines_type( void ) const {
+  if( ! f_NetworkData )
+   return( kNone );
+  return( f_NetworkData->get_lines_type() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1015,14 +1033,12 @@ class DCNetworkData : public NetworkData
   if( ! f_NetworkData )
    throw( std::logic_error(
 			 "DCNetworkBlock::get_power_flow_limit_constraints:"
-			 " DCNetworkData has not been set." ) );
+			 " DCNetworkData has not been set" ) );
 
   switch( f_NetworkData->get_lines_type() ) {
-   case( kAC ):
-    return( v_AC_power_flow_limit_const );
+   case( kAC ):      return( v_AC_power_flow_limit_const );
    case( kAC_HVDC ):
-   default:
-    return( v_AC_HVDC_power_flow_limit_const );
+   default:          return( v_AC_HVDC_power_flow_limit_const );
    }
   }
 
@@ -1034,10 +1050,38 @@ class DCNetworkData : public NetworkData
   if( ! f_NetworkData )
    throw( std::logic_error(
 			"DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
-			" DCNetworkData has not been set." ) );
+			" DCNetworkData has not been set" ) );
   return( v_HVDC_power_flow_limit_const );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the dual prices of power flow limits, however the network is
+
+ void get_dual_prices( std::vector< double > & dp ) const {
+  auto nl = get_number_lines();
+  if( ! nl ) {
+   dp.clear();
+   return;
+   }
+
+  dp.resize( nl );
+  auto lt = f_NetworkData->get_lines_type();
+  switch( lt ) {
+   case( DCNetworkBlock::kHVDC ):
+    for( Index l = 0 ; l < nl ; ++l )
+     dp[ l ] = v_HVDC_power_flow_limit_const[ l ].get_dual();
+    break;
+   case( DCNetworkBlock::kAC ):
+    for( Index l = 0 ; l < nl ; ++l )
+     dp[ l ] = v_AC_power_flow_limit_const[ l ].get_dual();
+    break;
+   case( DCNetworkBlock::kAC_HVDC ):
+    for( Index l = 0 ; l < nl ; ++l )
+     dp[ l ] = v_AC_HVDC_power_flow_limit_const[ l ].get_dual();
+    break;
+   }
+  }
+ 
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1057,6 +1101,8 @@ class DCNetworkData : public NetworkData
   *
   * - bit 1 (& 2) means "store the flow values"
   *
+  * - bit 2 (& 4) means "store the dual prices"
+  *
   * This value is to be found as:
   *
   * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
@@ -1067,7 +1113,7 @@ class DCNetworkData : public NetworkData
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 3 (save everything). */
+  * - otherwise, it is 3 (save everything but the dual prices). */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
@@ -1118,6 +1164,31 @@ class DCNetworkData : public NetworkData
   override {
   if( v_ActiveDemand.empty() )
    v_ActiveDemand = v[ 0 ];
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the dual prices of power flow limits, however the network is
+
+ void set_dual_prices( const std::vector< double > & dp ) {
+  auto nl = get_number_lines();
+  if( ! nl )
+   return;
+
+  auto lt = f_NetworkData->get_lines_type();
+  switch( lt ) {
+   case( DCNetworkBlock::kHVDC ):
+    for( Index l = 0 ; l < nl ; ++l )
+     v_HVDC_power_flow_limit_const[ l ].set_dual( dp[ l ] );
+    break;
+   case( DCNetworkBlock::kAC ):
+    for( Index l = 0 ; l < nl ; ++l )
+     v_AC_power_flow_limit_const[ l ].set_dual( dp[ l ] );
+    break;
+   case( DCNetworkBlock::kAC_HVDC ):
+    for( Index l = 0 ; l < nl ; ++l )
+     v_AC_HVDC_power_flow_limit_const[ l ].set_dual( dp[ l ] );
+    break;
+   }
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1535,6 +1606,12 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
  *
  * - the flow variables on each link
  *
+ * - [if available] the dual prices of the link capacity constraints; since
+ *   these are typically interpreted as costs and the sign depends on
+ *   whether the "upper" or "lower" capacity is active, but the orientation
+ *   of links is arbitrary, the absolute value of the reduced cost of the
+ *   corresponding constraints is returned
+ *
  * Note that one DCNetworkBlock covers one time instant, so these variables
  * do not need to be indiced over time instants (unlike those of the base
  * NetworkBlockSolution). */
@@ -1583,7 +1660,12 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *
   * - The variable "FlowValue", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; FlowValue[ l ] is the optimal value of
-  *   the power flow on line l. The variable is optional. */
+  *   the power flow on line l. The variable is optional.
+  *
+  * - The variable "DualCost", of type netCDF::NcDouble and indexed over
+  *   the dimension "NumberLines"; DualCost[ l ] is the absolute value of
+  *   the dual variable of the constraint representing the capacity of
+  *   line l. The variable is optional. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1614,6 +1696,10 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  Index f_number_lines;          ///< the number of lines
 
  std::vector< double > v_flow;  ///< v_flow[ l ] = flow variable on line l
+
+ std::vector< double > v_cost;  /**< v_cost[ l ] = absolute value of the
+				 *                 reduced cost of thr
+				 * capacity constraint of line l */
 
 /*--------------------------------------------------------------------------*/
 
