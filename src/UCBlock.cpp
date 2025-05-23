@@ -53,8 +53,25 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register UCBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( UCBlock );
+
+// register UCBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( UCBlockSolution );
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+template< class T , std::size_t K >
+static void copy_multi_array( boost::multi_array< T , K > & to ,
+			      const boost::multi_array< T , K > & from )
+{
+ std::vector< size_t > extent;
+ auto shape = from.shape();
+ extent.assign( shape , shape + from.num_dimensions() );
+ to.resize( extent );
+ to = from;
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF UCBlock ---------------------------*/
@@ -1092,7 +1109,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
    v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
  }
 
-}  // end( UCBlock::generate_pollutant_budget_constraints )
+ }  // end( UCBlock::generate_pollutant_budget_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1111,9 +1128,55 @@ void UCBlock::generate_objective( Configuration * objc )
 
  set_objective_generated();
 
-} // end( UCBlock::generate_objective )
+ } // end( UCBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
+{
+ int wsol = 1;
+ if( ( ! solc ) && f_BlockConfig )
+  solc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto tsolc = dynamic_cast< SimpleConfiguration< int > * >( solc ) )
+  wsol = tsolc->f_value;
+
+ auto *sol = new UCBlockSolution();
+
+ if( wsol & 1 )
+  sol->v_unit_Solution.resize( get_number_units() );
+
+ if( wsol & 2 )
+  sol->v_unit_Solution.resize( get_number_networks() );
+
+ using mad2 = boost::multi_array< double , 2 >;
+
+ if( wsol & 4 )
+  sol->v_demand_duals.resize(
+	    mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes() ] );
+
+ if( wsol & 8 )
+  sol->v_primary_duals.resize(
+    mad2::extent_gen()[ get_time_horizon() ][ get_number_primary_zones() ] );
+
+ if( wsol & 16 )
+  sol->v_secondary_duals.resize(
+  mad2::extent_gen()[ get_time_horizon() ][ get_number_secondary_zones() ] );
+
+ if( wsol & 32 )
+  sol->v_inertia_duals.resize(
+    mad2::extent_gen()[ get_time_horizon() ][ get_number_inertia_zones() ] );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+
+ }  // end( UCBlock::get_Solution )
+
+>>>>>>> feature/UCBlockSolution
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE UCBlock ----------*/
 /*--------------------------------------------------------------------------*/
@@ -1127,17 +1190,18 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
  if( f_NetworkData ) {
   f_NetworkData->serialize( group );
   NumberNodes = group.getDim( "NumberNodes" );
- } else
+  }
+ else
   NumberNodes = group.addDim( "NumberNodes" , 1 );
 
  auto TimeHorizon = group.addDim( "TimeHorizon" , f_time_horizon );
  auto NumberUnits = group.addDim( "NumberUnits" , f_number_units );
  auto NumberNetworks = group.addDim( "NumberNetworks" , f_number_networks );
- auto NumberElectricalGenerators = group.addDim( "NumberElectricalGenerators" ,
-                                                 f_number_elc_generators );
+ auto NumberElectricalGenerators = group.addDim(
+		   "NumberElectricalGenerators" , f_number_elc_generators );
 
  auto TotalNumberPollutantZones = group.addDim( "TotalNumberPollutantZones" ,
-                                                f_total_number_pollutant_zones );
+                                            f_total_number_pollutant_zones );
 
  auto NumberPrimaryZones = group.addDim( "NumberPrimaryZones" ,
                                          f_number_primary_zones );
@@ -1182,8 +1246,8 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
  */
 
  ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
-              { TimeHorizon , NumberPollutants , NumberElectricalGenerators } ,
-              v_pollutant_rho );
+              { TimeHorizon , NumberPollutants ,
+		NumberElectricalGenerators } , v_pollutant_rho );
 
  if( std::any_of( v_network_constant_terms.begin() ,
                   v_network_constant_terms.end() ,
@@ -1208,15 +1272,15 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
   auto sub_block = get_unit_block( i );
   auto sub_group = group.addGroup( "UnitBlock_" + std::to_string( i ) );
   sub_block->serialize( sub_group );
- }
+  }
 
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   if( auto sub_block = get_network_block( t ) ) {
    auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( t ) );
    sub_block->serialize( sub_group );
-  }
+   }
 
-}  // end( UCBlock::serialize )
+ }  // end( UCBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR READING THE DATA OF THE UCBlock --------------*/
@@ -1475,7 +1539,7 @@ void UCBlock::update_node_injection_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_primary_demand_constraints(
- const std::vector< Index > & modified_units )
+                               const std::vector< Index > & modified_units )
 {
  if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -1854,17 +1918,17 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
    const auto node_index = index / f_time_horizon;
    const auto time = index % f_time_horizon;
    const auto demand = *values;
-   v_network_blocks[ time ]->set_active_demand
-    ( values++ , Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
+   v_network_blocks[ time ]->set_active_demand( values++ ,
+	     Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
 
    if( number_nodes == 1 ) {
     assert( node_index == 0 );
     v_active_power_demand[ node_index ][ time ] = demand;
     update_node_injection_constraints( time , node_index , demand );
+    }
    }
-  }
   return;
- }
+  }
 
  // Update the demand present in this UCBlock
 
@@ -1887,21 +1951,19 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
     if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
+    }
    }
   }
- }
 
- // If nothing changes, return
- if( ! changed )
+ if( ! changed )  // if nothing changes, return
   return;
 
- if( issue_pmod( issuePMod ) )
-  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< UCBlockSbstMod >(
-                            this , UCBlockMod::eSetActD , std::move( subset ) ) ,
+ if( issue_pmod( issuePMod ) )  // issue a Physical Modification
+  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
+			       UCBlockMod::eSetActD , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( UCBlock::set_active_power_demand( subset ) )
+ }  // end( UCBlock::set_active_power_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1924,17 +1986,17 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
    const auto node_index = index / f_time_horizon;
    const auto time = index % f_time_horizon;
    const auto demand = *values;
-   v_network_blocks[ time ]->set_active_demand
-    ( values++ , Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
+   v_network_blocks[ time ]->set_active_demand( values++ ,
+	     Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
 
    if( number_nodes == 1 ) {
     assert( node_index == 0 );
     v_active_power_demand[ node_index ][ time ] = demand;
     update_node_injection_constraints( time , node_index , demand );
+    }
    }
-  }
   return;
- }
+  }
 
  // Update the demand present in this UCBlock
 
@@ -1957,21 +2019,463 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
     if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
+    }
    }
   }
- }
 
- // If nothing changes, return
- if( ! changed )
+ if( ! changed )  // if nothing changes, return
   return;
 
- if( issue_pmod( issuePMod ) )
-  // Issue a Physical Modification
+ if( issue_pmod( issuePMod ) )  // issue a Physical Modification
   Block::add_Modification( std::make_shared< UCBlockRngdMod >(
                             this , UCBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
-}  // end( UCBlock::set_active_power_demand( range ) )
+ }  // end( UCBlock::set_active_power_demand( range ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- METHODS OF UCBlockSolution -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
+
+ // deserialize the UnitBlockSolution - - - - - - - - - - - - - - - - - - - -
+ Index number_units = 0;
+ if( ::deserialize_dim( group , "NumberUnits" , number_units ) ) {
+  v_unit_Solution.resize( number_units );
+  for( Index i = 0 ; i < number_units ; ++i ) {
+   std::string sub_group_name = "UnitBlock_" + std::to_string( i );
+   auto sub_group = group.getGroup( sub_group_name );
+   auto USi = dynamic_cast< UnitBlockSolution * >(
+				      Solution::new_Solution( sub_group ) );
+   if( ! USi )
+    throw( std::invalid_argument( "UCBlockSolution::deserialize: UnitBlock_"
+				  + std::to_string( i ) +
+				  " not a valid UnitBlockSolution" ) );
+   v_unit_Solution[ i ] = USi;
+   }
+  }
+
+ // deserialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - -
+ Index number_networks = 0;
+ if( ::deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
+  v_network_Solution.resize( number_networks );
+  for( Index i = 0 ; i < number_networks ; ++i ) {
+   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
+   auto sub_group = group.getGroup( sub_group_name );
+   auto NSi = dynamic_cast< NetworkBlockSolution * >(
+				      Solution::new_Solution( sub_group ) );
+   if( ! NSi )
+    throw( std::invalid_argument( "UCBlockSolution::deserialize: UnitBlock_"
+				  + std::to_string( i ) +
+				  " not a valid NetworkBlockSolution" ) );
+
+   v_network_Solution[ i ] = NSi;
+   }
+  }
+
+ // deserialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - -
+ f_number_nodes = 0;
+ if( ::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
+  ::deserialize< double , 2 >( group , "ActivePowerDuals" , v_demand_duals ,
+			       false );
+
+ // deserialize the PrimaryDuals- - - - - - - - - - - - - - - - - - - - - - -
+ f_number_primary_zones = 0;
+ if( ::deserialize_dim( group , "NumberPrimaryZones" ,
+			f_number_primary_zones ) )
+  ::deserialize< double , 2 >( group , "PrimaryDuals" , v_primary_duals ,
+			       false );
+
+ // deserialize the SecondaryDuals- - - - - - - - - - - - - - - - - - - - - -
+ f_number_secondary_zones = 0;
+ if( ::deserialize_dim( group , "NumberSecondaryZones" ,
+			f_number_secondary_zones ) )
+  ::deserialize< double , 2 >( group , "SecondaryDuals" , v_secondary_duals ,
+			       false );
+
+ // deserialize the InertiaDuals- - - - - - - - - - - - - - - - - - - - - - -
+ f_number_inertia_zones = 0;
+ if( ::deserialize_dim( group , "NumberInertiaZones" ,
+			f_number_inertia_zones ) )
+  ::deserialize< double , 2 >( group , "InertiaDuals" , v_inertia_duals ,
+			       false );
+ 
+ }  // end( UCBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlockSolution::read( const Block * block )
+{
+ auto UCB = dynamic_cast< const UCBlock * >( block );
+ if( ! UCB )
+  throw( std::invalid_argument(
+			 "UCBlockSolution::read: block is not a UCBlock" ) );
+
+ f_time_horizon = UCB->get_time_horizon();
+ f_number_nodes = UCB->get_number_nodes();
+ f_number_primary_zones = UCB->get_number_primary_zones();
+ f_number_secondary_zones = UCB->get_number_secondary_zones();
+ f_number_inertia_zones = UCB->get_number_inertia_zones();
+
+ if( ! v_unit_Solution.empty() ) {
+  // read the UnitBlockSolution - - - - - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i <  v_unit_Solution.size() ; ++i ) {
+   if( v_unit_Solution[ i ] )
+    delete v_unit_Solution[ i ];
+   v_unit_Solution[ i ] = static_cast< UnitBlockSolution * >(
+		 UCB->get_unit_block( i )->get_Solution( nullptr , false ) );
+   }
+  }
+
+ if( ! v_network_Solution.empty() ) {
+  // read the NetworkBlockSolution- - - - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < v_network_Solution.size() ; ++i ) {
+   if( v_network_Solution[ i ] )
+    delete v_network_Solution[ i ];
+   if( auto NBi = UCB->get_network_block( i ) )
+    v_network_Solution[ i ] = static_cast< NetworkBlockSolution * >(
+		                     NBi->get_Solution( nullptr , false ) );
+   else
+    v_network_Solution[ i ] = nullptr;
+   }
+  }
+
+ if( ! v_demand_duals.empty() ) {
+  // read the dual variables of the node injection constraints- - - - - - - -
+  auto & NIC = UCB->get_const_node_injection_constraints();
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index i = 0 ; i < f_number_nodes ; ++i )
+    v_demand_duals[ t ][ i ] = NIC[ t ][ i ].get_dual();
+  }
+
+ if( ! v_primary_duals.empty() ) {
+  // read the dual variables of the primary demand constraints- - - - - - - -
+  auto & PDC = UCB->get_const_primary_demand_constraints();
+  if( PDC.empty() )
+   throw( std::invalid_argument(
+        "UCBlockSolution::read-ing duals of non-existent primary demand" ) );
+   
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_primary_zones ; ++i )
+    v_primary_duals[ t ][ i ] = PDC[ t ][ i ].get_dual();
+  }
+ 
+ if( ! v_secondary_duals.empty() ) {
+  // read the dual variables of the secondary demand constraints- - - - - - -
+  auto & SDC = UCB->get_const_secondary_demand_constraints();
+  if( SDC.empty() )
+   throw( std::invalid_argument(
+      "UCBlockSolution::read-ing duals of non-existent secondary demand" ) );
+   
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
+    v_secondary_duals[ t ][ i ] = SDC[ t ][ i ].get_dual();
+  }
+ 
+ if( ! v_inertia_duals.empty() ) {
+  // read the dual variables of the inertia demand constraints - - - - - - -
+  auto & IDC = UCB->get_const_inertia_demand_constraints();
+  if( IDC.empty() )
+   throw( std::invalid_argument(
+      "UCBlockSolution::read-ing duals of non-existent secondary demand" ) );
+   
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
+    v_inertia_duals[ t ][ i ] = IDC[ t ][ i ].get_dual();
+  }
+ }  // end( UCBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlockSolution::write( Block * block )
+{
+ auto UCB = dynamic_cast< UCBlock * >( block );
+ if( ! UCB )
+  throw( std::invalid_argument(
+			"UCBlockSolution::write: block is not a UCBlock" ) );
+
+ if( f_time_horizon != UCB->get_time_horizon() )
+  throw( std::invalid_argument(
+		     "UCBlockSolution::write: inconsistent time horizon" ) );
+  
+ if( ! v_unit_Solution.empty() ) {
+  // write the UnitBlockSolution- - - - - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i <  v_unit_Solution.size() ; ++i )
+   v_unit_Solution[ i ]->write( UCB->get_unit_block( i ) );
+  }
+
+ if( ! v_network_Solution.empty() ) {
+  // write the NetworkBlockSolution - - - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+   if( v_network_Solution[ i ] )
+    if( auto NBi = UCB->get_network_block( i ) )
+     v_network_Solution[ i ]->write( NBi );
+  }
+
+ if( ! v_demand_duals.empty() ) {
+  // write the dual variables of the node injection constraints - - - - - - -
+  if( f_number_nodes != UCB->get_number_nodes() )
+   throw( std::invalid_argument(
+		      "UCBlockSolution::write: inconsistent node number" ) );
+  auto & NIC = UCB->get_node_injection_constraints();
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index i = 0 ; i < f_number_nodes ; ++i )
+    NIC[ t ][ i ].set_dual( v_demand_duals[ t ][ i ] );
+  }
+
+ if( ! v_primary_duals.empty() ) {
+  // write the dual variables of the primary demand constraints - - - - - - -
+  if( f_number_primary_zones != UCB->get_number_primary_zones() )
+   throw( std::invalid_argument(
+		    "UCBlockSolution::write: inconsistent primary zones" ) );
+  auto & PDC = UCB->get_primary_demand_constraints();
+  if( PDC.empty() )
+   throw( std::invalid_argument(
+       "UCBlockSolution::write-ing duals of non-existent primary demand" ) );
+   
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_primary_zones ; ++i )
+    PDC[ t ][ i ].set_dual( v_primary_duals[ t ][ i ] );
+  }
+ 
+ if( ! v_secondary_duals.empty() ) {
+  // write the dual variables of the secondary demand constraints - - - - - -
+  if( f_number_secondary_zones != UCB->get_number_secondary_zones() )
+   throw( std::invalid_argument(
+		  "UCBlockSolution::write: inconsistent secondary zones" ) );
+  auto & SDC = UCB->get_secondary_demand_constraints();
+  if( SDC.empty() )
+   throw( std::invalid_argument(
+     "UCBlockSolution::write-ing duals of non-existent secondary demand" ) );
+   
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
+    SDC[ t ][ i ].set_dual( v_secondary_duals[ t ][ i ] );
+  }
+ 
+ if( ! v_inertia_duals.empty() ) {
+  // write the dual variables of the inertia demand constraints- - - - - - -
+  if( f_number_inertia_zones != UCB->get_number_inertia_zones() )
+   throw( std::invalid_argument(
+		    "UCBlockSolution::write: inconsistent inertia zones" ) );
+  auto & IDC = UCB->get_inertia_demand_constraints();
+  if( IDC.empty() )
+   throw( std::invalid_argument(
+     "UCBlockSolution::write-ing duals of non-existent secondary demand" ) );
+   
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
+    IDC[ t ][ i ].set_dual( v_inertia_duals[ t ][ i ] );
+  }
+ }  // end( UCBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ Solution::serialize( group );
+  
+ // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ auto th = group.addDim( "TimeHorizon" , f_time_horizon );
+
+ // serialize the UnitBlockSolution - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_unit_Solution.empty() ) {
+  auto nu = group.addDim( "NumberUnits" , v_unit_Solution.size() );
+
+  for( Index i = 0 ; i < v_unit_Solution.size() ; ++i ) {
+   std::string sub_group_name = "UnitBlock_" + std::to_string( i );
+   auto sub_group = group.addGroup( sub_group_name );
+   v_unit_Solution[ i ]->serialize( sub_group );
+   }
+  }
+
+ // serialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - - -
+ if( ! v_network_Solution.empty() ) {
+  auto nu = group.addDim( "NumberNetworks" , v_network_Solution.size() );
+
+  for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+   if( v_network_Solution[ i ] ) {
+    std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
+    auto sub_group = group.addGroup( sub_group_name );
+    v_network_Solution[ i ]->serialize( sub_group );
+   }
+  }
+
+ // serialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_demand_duals.empty() ) {
+  auto nn = group.addDim( "NumberNodes" , v_demand_duals.shape()[ 1 ] );
+
+  ::serialize< double , 2 >( group , "ActivePowerDuals" , netCDF::NcDouble() ,
+			     { th , nn } , v_demand_duals );
+  }
+
+ // serialize the PrimaryDuals- - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_primary_duals.empty() ) {
+  auto npz = group.addDim( "NumberPrimaryZones" , f_number_primary_zones );
+
+  ::serialize< double , 2 >( group , "PrimaryDuals" , netCDF::NcDouble() ,
+			     { th , npz } , v_primary_duals );
+  }
+
+ // serialize the SecondaryDuals- - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_secondary_duals.empty() ) {
+  auto nsz = group.addDim( "NumberSecondaryZones" ,
+			   f_number_secondary_zones );
+
+  ::serialize< double , 2 >( group , "SecondaryDuals" , netCDF::NcDouble() ,
+			     { th , nsz } , v_secondary_duals );
+  }
+
+ // serialize the InertiaDuals- - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_inertia_duals.empty() ) {
+  auto niz = group.addDim( "NumberInertiaZones" , f_number_inertia_zones );
+
+  ::serialize< double , 2 >( group , "InertiaDuals" , netCDF::NcDouble() ,
+			     { th , niz } , v_inertia_duals );
+  }
+ }  // end( UCBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+UCBlockSolution * UCBlockSolution::scale( double factor ) const
+{
+ auto sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ for( auto vi : sol->v_unit_Solution )
+  vi->scale( factor );
+
+ for( auto ni : sol->v_network_Solution )
+  if( ni )
+   ni->scale( factor );
+
+ if( ! v_demand_duals.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index i = 0 ; i < f_number_nodes ; ++i )
+    sol->v_demand_duals[ t ][ i ] *= factor;
+
+ if( ! v_primary_duals.empty() )
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_primary_zones ; ++i )
+    sol->v_primary_duals[ t ][ i ] *= factor;
+ 
+ if( ! v_secondary_duals.empty() )
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
+    sol->v_secondary_duals[ t ][ i ] *= factor;
+ 
+ if( ! v_inertia_duals.empty() )
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
+    sol->v_inertia_duals[ t ][ i ] *= factor;
+
+ return( sol );
+
+ }  // end( UCBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlockSolution::sum( const Solution * solution , double multiplier )
+{
+ auto UCBS = dynamic_cast< const UCBlockSolution * >( solution );
+ if( ! UCBS )
+  throw( std::invalid_argument(
+	       "UCBlockSolution::sum: solution is not a UCBlockSolution" ) );
+
+ if( f_time_horizon != UCBS->f_time_horizon )
+  throw( std::invalid_argument(
+		       "UCBlockSolution::sum: inconsistent time horizon" ) );
+ if( v_unit_Solution.size() != UCBS->v_unit_Solution.size() )
+  throw( std::invalid_argument(
+		     "UCBlockSolution::read: inconsistent unit solution" ) );
+ if( v_network_Solution.size() != UCBS->v_network_Solution.size() )
+  throw( std::invalid_argument(
+		  "UCBlockSolution::read: inconsistent network solution" ) );
+ if( f_number_nodes != UCBS->f_number_nodes )
+  throw( std::invalid_argument(
+		        "UCBlockSolution::sum: inconsistent node number" ) );
+ if( f_number_primary_zones != UCBS->f_number_primary_zones )
+  throw( std::invalid_argument(
+		      "UCBlockSolution::sum: inconsistent primary zones" ) );
+ if( f_number_secondary_zones != UCBS->f_number_secondary_zones )
+  throw( std::invalid_argument(
+		    "UCBlockSolution::sum: inconsistent secondary zones" ) ); 
+ if( f_number_inertia_zones != UCBS->f_number_inertia_zones )
+  throw( std::invalid_argument(
+		     "UCBlockSolution::read: inconsistent inertia zones" ) );
+
+ for( Index i = 0 ; i < v_unit_Solution.size() ; ++i )
+  v_unit_Solution[ i ]->sum( UCBS->v_unit_Solution[ i ] , multiplier );
+
+ for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+  v_network_Solution[ i ]->sum( UCBS->v_network_Solution[ i ] , multiplier );
+
+ if( ! v_demand_duals.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index i = 0 ; i < f_number_nodes ; ++i )
+    v_demand_duals[ t ][ i ] += UCBS->v_demand_duals[ t ][ i ] * multiplier;
+
+ if( ! v_primary_duals.empty() )
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_primary_zones ; ++i )
+    v_primary_duals[ t ][ i ] += UCBS->v_primary_duals[ t ][ i ]  * multiplier;
+ 
+ if( ! v_secondary_duals.empty() )
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
+    v_secondary_duals[ t ][ i ] +=
+     UCBS->v_secondary_duals[ t ][ i ] * multiplier;
+ 
+ if( ! v_inertia_duals.empty() )
+  for( Index t = 0 ; t < f_time_horizon  ; ++t )
+   for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
+    v_inertia_duals[ t ][ i ] += UCBS->v_inertia_duals[ t ][ i ] * multiplier;
+
+ }  // end( UCBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+UCBlockSolution * UCBlockSolution::clone( bool empty ) const
+{
+ auto sol = new UCBlockSolution();
+
+ if( ! empty ) {
+  sol->f_time_horizon = f_time_horizon;
+  sol->f_number_nodes = f_number_nodes;
+  sol->f_number_primary_zones = f_number_primary_zones;
+  sol->f_number_secondary_zones = f_number_secondary_zones;
+  sol->f_number_inertia_zones = f_number_inertia_zones;
+
+  if( ! v_unit_Solution.empty() ) {
+   sol->v_unit_Solution.resize( v_unit_Solution.size() );
+   for( Index i = 0 ; i < v_unit_Solution.size() ; ++i )
+    sol->v_unit_Solution[ i ] = v_unit_Solution[ i ]->clone();
+   }
+
+  if( ! v_network_Solution.empty() ) {
+   sol->v_network_Solution.resize( v_network_Solution.size() );
+   for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+    if( v_network_Solution[ i ] )
+     sol->v_network_Solution[ i ] = v_network_Solution[ i ]->clone();
+    else
+     sol->v_network_Solution[ i ] = nullptr;
+   }
+  
+  copy_multi_array( sol->v_demand_duals , v_demand_duals );
+  copy_multi_array( sol->v_primary_duals , v_primary_duals );
+  copy_multi_array( sol->v_secondary_duals , v_secondary_duals );
+  copy_multi_array( sol->v_inertia_duals , v_inertia_duals );
+  }
+
+ return( sol );
+
+ }  // end( UCBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File UCBlock.cpp ----------------------------*/

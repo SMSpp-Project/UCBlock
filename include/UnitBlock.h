@@ -53,6 +53,8 @@
 
 #include "ColVariable.h"
 
+#include "Solution.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -61,6 +63,11 @@
 
 namespace SMSpp_di_unipi_it
 {
+/*--------------------------------------------------------------------------*/
+/*------------------------- FORWARD DECLARATIONS ---------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ class UnitBlockSolution;  // forward definition of UnitBlockSolution
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS UnitBlock -------------------------------*/
@@ -114,10 +121,10 @@ class UnitBlock : public Block
  * @{ */
 
  /// constructor, takes the father block
- /** Constructor of UnitBlock, taking possibly a pointer of its father Block. */
+ /** Constructor of UnitBlock, taking possibly a pointer of its father
+  * Block. */
 
- explicit UnitBlock( Block * father = nullptr )
-  : Block( father ) {}
+ explicit UnitBlock( Block * father = nullptr ) : Block( father ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of UnitBlock
@@ -126,7 +133,7 @@ class UnitBlock : public Block
   for( auto & block : v_Block )
    delete( block );
   v_Block.clear();
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -287,59 +294,62 @@ class UnitBlock : public Block
 
  virtual const double * get_inertia_power( Index generator ) const {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum power of the given generator at the given time
+ /// returns the minimum power of \p generator at time \p t
 
  virtual double get_min_power( Index t , Index generator = 0 ) const {
   return( 0 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum power of the given generator at the given time
+ /// returns the maximum power of \p generator at time \p t
 
  virtual double get_max_power( Index t , Index generator = 0 ) const {
   return( 0 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum reactive power of the given generator at the given time
+ /// returns the minimum reactive power of \p generator at time \p t
 
-  virtual double get_min_reactive_power( Index t , Index generator = 0 ) const {
+  virtual double get_min_reactive_power( Index t , Index generator = 0 )
+   const {
+   return( 0 );
+   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum reactive power of \p generator at time \p t
+
+ virtual double get_max_reactive_power( Index t , Index generator = 0 )
+  const {
   return( 0 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum reactive power of the given generator at the given time
+ /// returns the voltage magnitude of \p generator at time \p t
 
- virtual double get_max_reactive_power( Index t , Index generator = 0 ) const {
+  virtual double get_voltage_magnitude( Index t , Index generator = 0 )
+   const {
+   return( 0 );
+   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of cost coefficients of \p generator
+
+ virtual Index get_number_cost_coeffs( Index generator = 0 ) { return( 0 ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the i-th cost coefficient of \p generator
+
+ virtual double get_cost_coeff( Index i , Index generator = 0 ) { 
   return( 0 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the voltage magnitude of the given generator at the given time
+ /// returns the cost model of \p generator
 
-  virtual double get_voltage_magnitude( Index t , Index generator = 0 ) const {
-  return( 0 );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the number of cost coefficients of the given generator
-
- virtual Index get_number_cost_coeffs(Index generator = 0) { return( 0 ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the ith cost coefficient of the given generator 
-
- virtual double get_cost_coeff(Index i, Index generator = 0) { 
-    return( 0. );
-}
-
-/*--------------------------------------------------------------------------*/
- /// returns the cost model of the given generator
-
- virtual Index get_cost_model(Index generator = 0) { return( 0 ); }
+ virtual Index get_cost_model( Index generator = 0 ) { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
@@ -372,15 +382,28 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_commitment( Index generator ) {
   return( nullptr );
- }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_commitment(), but returns a const * so that it can be const
+
+ const ColVariable * get_const_commitment( Index generator ) const
+ {
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+  
+  return( const_cast< UnitBlock * >( this )->get_commitment( generator ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the array of primary spinning reserve variables
  /** This method returns a pointer to the array containing the primary
   * spinning reserve variables of the given \p generator at all time
   * instants. Being R the value returned by this method, R[t] is the primary
-  * spinning reserve variable at time t for each t in {0, ..., time_horizon -
-  * 1}.
+  * spinning reserve variable at time t for each t in { 0 , ... ,
+  * time_horizon - 1 }.
   *
   * The default implementation of this method returns nullptr; and derived
   * classes will have to handle the primary spinning reserve variable (if
@@ -391,15 +414,30 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_primary_spinning_reserve( Index generator ) {
   return( nullptr );
- }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_primary_spinning_reserve(), but returns a const *
+
+ const ColVariable * get_const_primary_spinning_reserve( Index generator )
+  const
+ {
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+  
+  return( const_cast< UnitBlock * >( this )->get_primary_spinning_reserve(
+							       generator ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the array of secondary spinning reserve variables
  /** This method returns a pointer to the array containing the secondary
   * spinning reserve variables of the given \p generator at all time
   * instants. Being R the value returned by this method, R[t] is the secondary
-  * spinning reserve variable at time t for each t in {0, ..., time_horizon -
-  * 1}.
+  * spinning reserve variable at time t for each t in { 0 , ... ,
+  * time_horizon - 1 }.
   *
   * The default implementation of this method returns nullptr; and derived
   * classes will have to handle the secondary spinning reserve variable (if
@@ -410,14 +448,29 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_secondary_spinning_reserve( Index generator ) {
   return( nullptr );
- }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_secondary_spinning_reserve(), but returns a const *
+
+ const ColVariable * get_const_secondary_spinning_reserve( Index generator )
+  const
+ {
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+  
+  return( const_cast< UnitBlock * >( this )->get_secondary_spinning_reserve(
+							       generator ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the array of active power variables
  /** This method returns a pointer to the array containing the active power
   * variables of the given \p generator at all time instants. Being P the
   * value returned by this method, P[t] is the active power variable at time t
-  * for each t in {0, ..., time_horizon - 1}.
+  * for each t in { 0 , ... , time_horizon - 1 }.
   *
   * The default implementation of this method returns nullptr; and derived
   * classes will have to handle the active power variable (if any).
@@ -427,7 +480,20 @@ class UnitBlock : public Block
 
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
- }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_active_power(), but returns a const * so that it can be const
+
+ const ColVariable * get_const_active_power( Index generator ) const
+ {
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+  
+  return( const_cast< UnitBlock * >( this )->get_active_power( generator ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor of this UnitBlock
@@ -449,18 +515,20 @@ class UnitBlock : public Block
 
  /// returns a Solution representing the current solution of this UnitBlock
  /** This method must construct and return a (pointer to a) Solution object
-  * representing the current "solution state" of this UnitBlock. The base
-  * UnitBlock class defaults to ColVariableSolution, RowConstraintSolution,
-  * and ColRowSolution, but :UnitBlock may make different choices.
+  * representing the current "solution state" of this UnitBlock. This may
+  * either be a UnitBlockSolution or a further derived class containing more
+  * specific solution information for derived :UnitBlock.
   *
   * The parameter for deciding which kind of Solution must be returned is a
-  * single int value. If this value is:
+  * single int value, coded bitwise:
   *
-  * - 1, then a RowConstraintSolution is returned;
+  * - bit 0 (& 1) means "store the active power"
   *
-  * - 2, then a ColRowSolution is returned;
+  * - bit 1 (& 2) means "store the commitment"
   *
-  * - any other value, then a ColVariable Solution is returned.
+  * - bit 2 (& 4) means "store the primary reserve"
+  *
+  * - bit 3 (& 8) means "store the secondary reserve"
   *
   * This value is to be found as:
   *
@@ -472,10 +540,24 @@ class UnitBlock : public Block
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 0. */
+  * - otherwise, it is 15 (save everything).
+  *
+  * Note, however, that the UnitBlockSolution may not contain some of the
+  * data that ws implies since it may just not be present in the :UnitBlock.
+  * This is true for commitment, primary and secondary reserve that are
+  * optional, but not for active power which is mandatory. */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" UnitBlockSolution
+ /** Small virtual method that just returns an "empty" UnitBlockSolution
+  * object. It is used by get_Solution(), with the idea that derived classes
+  * can override it to make it return a :UnitBlockSolution better suited for
+  * the specific :UnitBlock at hand. */
+ 
+ virtual UnitBlockSolution * new_Solution( void ) const;
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE UnitBlock -------------------*/
@@ -851,6 +933,161 @@ public:
  int f_type;  ///< type of modification
 
 };  // end( class( UnitBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS UnitBlockSolution --------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a Solution of a UnitBlock
+/** The UnitBlockSolution class, derived from Solution, represents a solution
+ * of a "generic" UnitBlock, i.e., the values of
+ *
+ * - active power variables;
+ *
+ * - [possibly] commitment variables;
+ *
+ * - [possibly] primary spinning reserve variables;
+ *
+ * - [possibly] secondary spinning reserve variables
+ *
+ * for every generator of the unit. UnitBlockSolution is not thought to be
+ * "final", since :UnitBlock may want to define and handle their derived
+ * :UnitBlockSolution to store unit-specific solution information. */
+
+class UnitBlockSolution : public Solution {
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ using Index = Block::Index;  // "import" Index
+ 
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend UnitBlock;  ///< make UnitBlock friend
+
+/*------------- CONSTRUCTING AND DESTRUCTING UnitBlockSolution -------------*/
+
+ explicit UnitBlockSolution( void ) : f_time_horizon( 0 ) ,
+  f_number_generators( 0 ) { }  /// constructor, it has nothing to do
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~UnitBlockSolution() = default;  ///< destructor: it is virtual, and empty
+
+/*---------- METHODS DESCRIBING THE BEHAVIOR OF A UnitBlockSolution --------*/
+
+ void read( const Block * block ) override;
+
+ void write( Block * block ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a UnitBlockSolution into a netCDF::NcGroup
+ /** Serialize a UnitBlockSolution into a netCDF::NcGroup, with the following
+  * format:
+  *
+  * - The dimension "TimeHorizon" containing the number of time steps in the
+  *   problem. It is mandatory.
+  *
+  * - The dimension "NumberGenerators" containing the number of generators
+  *   in the unit; the dimension is optional, if it is missing then 1 (one)
+  *   generator is assumed.
+  *
+  * - The variable "ActivePower", of type netCDF::NcDouble. If
+  *   "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". ActivePower[ i , t ] is assumed to
+  *   contain the optimal active power for generator i at the time t. The
+  *   variable is optional.
+  *
+  * - The variable "Commitment", of type netCDF::NcDouble (note that
+  *   commitment variables are generally integer valued, in fact binary,
+  *   but one may want to save the values of continuous relaxations).
+  *   If "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". Commitment[ i , t ] is assumed to
+  *   contain the optimal active power for generator i at the time t. The
+  *   variable is optional.
+  *
+  * - The variable "PrimaryReserve", of type netCDF::NcDouble. If
+  *   "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". PrimaryReserve[ i , t ] is assumed
+  *   to contain the optimal active power for generator i at the time t. The
+  *   variable is optional.
+  *
+  * - The variable "SecondaryReserve", of type netCDF::NcDouble. If
+  *   "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". SecondaryReserve[ i , t ] is assumed
+  *   to contain the optimal active power for generator i at the time t. The
+  *   variable is optional. */
+ 
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ UnitBlockSolution * scale( double factor ) const override;
+
+ void sum( const Solution * solution , double multiplier ) override;
+
+ UnitBlockSolution * clone( bool empty = false ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "UnitBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// do the heavy lifting of cloning a non-empty UnitBlockSolution
+ /** This method does the actualy copying of the fields for an already
+  * existing :UnitBlockSolution; this is provided to make life easier to
+  * the clone() of derived classes. */
+ 
+ void guts_of_clone( UnitBlockSolution * sol ) const;
+ 
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ Index f_time_horizon;            ///< the time horizon
+ Index f_number_generators;       ///< the number of generators
+
+ boost::multi_array< double , 2 > v_active_power;
+ ///< v_active_power[ i ][ t ] = active power of generator i at time t
+
+ boost::multi_array< double , 2 > v_commitment;
+ ///< v_commitment[ i ][ t ] = commitment of generator i at time t
+
+ boost::multi_array< double , 2 > v_primary_reserve;
+ ///< v_primary_reserve[ i ][ t ] = primary reserve of generator i at time t
+
+ boost::multi_array< double , 2 > v_secondary_reserve;
+ ///< v_secondary_reserve[ i ][ t ] = secondary reserve of gen. i at time t
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( UnitBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
