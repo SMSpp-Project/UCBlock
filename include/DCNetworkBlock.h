@@ -1080,7 +1080,7 @@ class DCNetworkData : public NetworkData
      dp[ l ] = v_AC_HVDC_power_flow_limit_const[ l ].get_dual();
     break;
    default:
-    throw( std::logic_error( "unknown or unhnadled get_lines_type()" ) );
+    throw( std::logic_error( "unknown or unhandled get_lines_type()" ) );
    }
   }
  
@@ -1190,6 +1190,8 @@ class DCNetworkData : public NetworkData
     for( Index l = 0 ; l < nl ; ++l )
      v_AC_HVDC_power_flow_limit_const[ l ].set_dual( dp[ l ] );
     break;
+   default:
+    throw( std::logic_error( "unknown or unhandled get_lines_type()" ) );
    }
   }
 
