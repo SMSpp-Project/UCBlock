@@ -1176,7 +1176,6 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
 
  }  // end( UCBlock::get_Solution )
 
->>>>>>> feature/UCBlockSolution
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE UCBlock ----------*/
 /*--------------------------------------------------------------------------*/
