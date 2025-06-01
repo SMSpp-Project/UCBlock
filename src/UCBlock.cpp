@@ -775,7 +775,7 @@ void UCBlock::generate_primary_demand_constraints( void )
     }  // end( for( unit_id ) )
    }  // end( for( node_id ) )
 
-   const auto demand = get_primary_demand()[ zone_id ][ t ];
+   const auto demand = get_primary_demand()[ t ][ zone_id ];
    v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
    v_PrimaryDemand_Const[ t ][ zone_id ].set_function( lf );
