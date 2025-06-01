@@ -864,7 +864,7 @@ void UCBlock::generate_secondary_demand_constraints( void )
     }  // end( for( unit_id ) )
    }  // end( for( node_id ) )
 
-   const auto demand = get_secondary_demand()[ zone_id ][ t ];
+   const auto demand = get_secondary_demand()[ t ][ zone_id ];
    v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_SecondaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
    v_SecondaryDemand_Const[ t ][ zone_id ].set_function( lf );
@@ -978,7 +978,7 @@ void UCBlock::generate_inertia_demand_constraints( void )
     }  // end( for( unit_id ) )
    }  // end( for( node_id ) )
 
-   const auto demand = get_inertia_demand()[ zone_id ][ t ];
+   const auto demand = get_inertia_demand()[ t ][ zone_id ];
    v_InertiaDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_InertiaDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
    v_InertiaDemand_Const[ t ][ zone_id ].set_function( lf );
