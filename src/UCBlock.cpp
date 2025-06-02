@@ -309,22 +309,25 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                 v_primary_zones , true , true );
 
  if( ::deserialize( group , "PrimaryDemand" ,
-                    v_primary_demand , true , false ) )
-
+                    v_primary_demand , true , false ) ) {
+  transpose( v_primary_demand );
   ::deserialize( group , "SecondaryZones" , number_nodes ,
                  v_secondary_zones , true , true );
+ }
 
  if( ::deserialize( group , "SecondaryDemand" ,
-                    v_secondary_demand , true , false ) )
-
+                    v_secondary_demand , true , false ) ) {
+  transpose( v_secondary_demand );
   ::deserialize( group , "InertiaZones" , number_nodes ,
                  v_inertia_zones , true , true );
+ }
 
  if( ::deserialize( group , "InertiaDemand" ,
-                    v_inertia_demand , true , false ) )
-
+                    v_inertia_demand , true , false ) ) {
+  transpose( v_inertia_demand );
   ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
                  v_number_pollutant_zones , true , true );
+ }
 
  if( ! deserialize_dim( group , "TotalNumberPollutantZones" ,
                         f_total_number_pollutant_zones ) ) {
@@ -775,7 +778,7 @@ void UCBlock::generate_primary_demand_constraints( void )
     }  // end( for( unit_id ) )
    }  // end( for( node_id ) )
 
-   const auto demand = get_primary_demand()[ t ][ zone_id ];
+   const auto demand = v_primary_demand[ zone_id ][ t ];
    v_PrimaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_PrimaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
    v_PrimaryDemand_Const[ t ][ zone_id ].set_function( lf );
@@ -864,7 +867,7 @@ void UCBlock::generate_secondary_demand_constraints( void )
     }  // end( for( unit_id ) )
    }  // end( for( node_id ) )
 
-   const auto demand = get_secondary_demand()[ t ][ zone_id ];
+   const auto demand = v_secondary_demand[ zone_id ][ t ];
    v_SecondaryDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_SecondaryDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
    v_SecondaryDemand_Const[ t ][ zone_id ].set_function( lf );
@@ -978,7 +981,7 @@ void UCBlock::generate_inertia_demand_constraints( void )
     }  // end( for( unit_id ) )
    }  // end( for( node_id ) )
 
-   const auto demand = get_inertia_demand()[ t ][ zone_id ];
+   const auto demand = v_inertia_demand[ zone_id ][ t ];
    v_InertiaDemand_Const[ t ][ zone_id ].set_lhs( demand );
    v_InertiaDemand_Const[ t ][ zone_id ].set_rhs( Inf< double >() );
    v_InertiaDemand_Const[ t ][ zone_id ].set_function( lf );
@@ -2031,6 +2034,21 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
                            Observer::par2chnl( issuePMod ) );
 
  }  // end( UCBlock::set_active_power_demand( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+template< typename T >
+void UCBlock::transpose( boost::multi_array< T , 2 > & a )
+{
+ long rows = a.shape()[ 0 ];
+ long cols = a.shape()[ 1 ];
+
+ if( ( rows > 1 ) && ( cols == 1 ) ) {
+  boost::array< typename boost::multi_array< T , 2 >::index , 2 >
+   dims = { { 1 , rows } };
+  a.reshape( dims );
+ }
+}  // end( UCBlock::transpose )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF UCBlockSolution -------------------------*/
