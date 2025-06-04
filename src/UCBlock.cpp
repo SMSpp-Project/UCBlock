@@ -1152,7 +1152,7 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
   sol->v_unit_Solution.resize( get_number_units() );
 
  if( wsol & 2 )
-  sol->v_unit_Solution.resize( get_number_networks() );
+  sol->v_network_Solution.resize( get_number_networks() );
 
  using mad2 = boost::multi_array< double , 2 >;
 

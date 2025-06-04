@@ -221,9 +221,24 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
   f_number_instants = 1;
 
  // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double , 2 >( group , "NodeInjection" , v_node_injection ,
-			      false );
-
+ if( f_number_instants > 1 )
+  ::deserialize< double , 2 >( group , "NodeInjection" , v_node_injection ,
+			       true );
+ else {
+  using index = typename boost::multi_array< double , 2 >::index;
+  std::vector< double > tmp_injection;
+  if( ::deserialize< double >( group , "NodeInjection" , f_number_nodes ,
+			       tmp_injection ) ) {
+   std::vector< index > sizes = { f_number_nodes , 1 };
+   v_node_injection.resize( sizes );
+   for( Index i = 0 ; i < f_number_nodes ; ++i )
+    v_node_injection[ 0 ][ i ] = tmp_injection[ i ];
+   }
+  else {
+   std::vector< index > sizes( 2 , 0 );
+   v_node_injection.resize( sizes );
+   }
+  }
  }  // end( NetworkBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -290,10 +305,18 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   ni = group.addDim( "NumberInstants" , f_number_instants );
 
  // serialize the Node Injection- - - - - - - - - - - - - - - - - - - - - - -
- if( ! v_node_injection.empty() )
-  ::serialize< double , 2 >( group , "NodeInjection" , netCDF::NcDouble() ,
-			     { ni , nn } , v_node_injection );
-
+ if( ! v_node_injection.empty() ) {
+  if( ni.isNull() ) {
+   std::vector< double > tmp_injection( f_number_nodes );
+   for( Index i = 0 ; i < f_number_nodes ; ++i )
+    tmp_injection[ i ] = v_node_injection[ 0 ][ i ];
+   ::serialize< double >( group , "NodeInjection" , netCDF::NcDouble() ,
+			  nn , tmp_injection );
+   }
+  else
+   ::serialize< double , 2 >( group , "NodeInjection" , netCDF::NcDouble() ,
+			      { ni , nn } , v_node_injection );
+  }
  }  // end( NetworkBlockSolution::serialize )
 
 /*--------------------------------------------------------------------------*/

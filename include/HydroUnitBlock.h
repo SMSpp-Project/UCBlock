@@ -1551,6 +1551,20 @@ class HydroUnitBlock : public UnitBlock
   return( nullptr );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the MinFlow of \p arc at instant \p t
+
+ double get_MinFlow( Index t , Index arc ) {
+  return( v_MinFlow.empty() ? 0 :  v_MinFlow[ t ][ arc ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the MaxFlow of \p arc at instant \p t
+
+ double get_MaxFlow( Index t , Index arc ) {
+  return( v_MaxFlow.empty() ? 0 :  v_MaxFlow[ t ][ arc ] );
+  }
+ 
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE HydroUnitBlock------------------*/
 /*--------------------------------------------------------------------------*/
