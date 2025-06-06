@@ -97,7 +97,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Mandatory variables
 
- ::deserialize( group , "MaxPower" , v_MaxPower , false );
+ ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
+                false , true , v_change_intervals );
 
  // Optional variables
 
@@ -105,25 +106,21 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
- if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
+ if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
+                      true , true , v_change_intervals ) )
   v_MinPower.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "InertiaPower" , v_InertiaPower ) )
+ if( ! ::deserialize( group , "InertiaPower" , f_time_horizon , v_InertiaPower ,
+                      true , true , v_change_intervals ) )
   v_InertiaPower.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "ActivePowerCost" , v_ActivePowerCost ) )
+ if( ! ::deserialize( group , "ActivePowerCost" , f_time_horizon ,
+                      v_ActivePowerCost , true , true , v_change_intervals ) )
   v_ActivePowerCost.resize( f_time_horizon );
 
  ::deserialize( group , f_gamma , "Gamma" );
 
  ::deserialize( group , f_kappa , "Kappa" );
-
- // Decompress vectors
-
- decompress_vector( v_MinPower );
- decompress_vector( v_MaxPower );
- decompress_vector( v_InertiaPower );
- decompress_vector( v_ActivePowerCost );
 
  if( f_max_power_epsilon > 0 )
   for( Index t = 0 ; t < f_time_horizon ; ++t )

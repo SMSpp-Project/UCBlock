@@ -110,7 +110,7 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
+ if( ! deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
   f_number_intervals = 1;
 
  // Mandatory variables
@@ -132,8 +132,6 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
  if( ! ::deserialize( group , "RewardPrice" , f_number_intervals ,
                       v_RewardPrice , true , true ) )
   v_RewardPrice.resize( f_number_intervals , 0 );
- else if( v_RewardPrice.size() == 1 )
-  v_RewardPrice.resize( f_number_intervals , v_RewardPrice[ 0 ] );
 
 }  // end( ECNetworkData::deserialize )
 
@@ -161,10 +159,10 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
  // Optional variables
 
  Index NumberNodes, NumberIntervals;
- if( ::deserialize_dim( group , "NumberNodes" , NumberNodes ) &&
-     ::deserialize_dim( group , "NumberIntervals" , NumberIntervals ) ) {
+ if( deserialize_dim( group , "NumberNodes" , NumberNodes ) &&
+     deserialize_dim( group , "NumberIntervals" , NumberIntervals ) ) {
   // Since the dimensions "NumberNodes" and "NumberIntervals" has been provided,
-  // it means that a ECNetworkData has been provided. Thus, the ECNetworkData
+  // it means that an ECNetworkData has been provided. Thus, the ECNetworkData
   // is deserialized, and it is marked as being local
   if( f_local_NetworkData )
    // if the NetworkData has not been passed from UCBlock, then delete it
@@ -179,10 +177,8 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
   f_local_NetworkData = true;
   // An ECNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
-  ::deserialize( group , "ActiveDemand" , v_ActiveDemand );
-  // always check if the demand is given in the correct shape
-  assert( ( v_ActiveDemand.shape()[ 0 ] == NumberIntervals ) &&
-          ( v_ActiveDemand.shape()[ 1 ] == NumberNodes ) );
+  ::deserialize( group , "ActiveDemand" ,
+                 { NumberIntervals , NumberNodes } , v_ActiveDemand );
  }
 }  // end( ECNetworkBlock::deserialize )
 

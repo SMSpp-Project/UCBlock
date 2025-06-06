@@ -122,21 +122,26 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Mandatory variables
 
- ::deserialize( group , "MinStorage" , v_MinStorage , false );
- ::deserialize( group , "MaxStorage" , v_MaxStorage , false );
+ ::deserialize( group , "MinStorage" , f_time_horizon , v_MinStorage ,
+                false , true , v_change_intervals );
+ ::deserialize( group , "MaxStorage" , f_time_horizon , v_MaxStorage ,
+                false , true , v_change_intervals );
 
- ::deserialize( group , "MaxPower" , v_MaxPower , false );
+ ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
+                false , true , v_change_intervals );
 
  // Optional variables
 
- if( ! ::deserialize( group , "MinPower" , v_MinPower ) ) {
+ if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
+                      true , true , v_change_intervals ) ) {
   v_MinPower.resize( v_MaxPower.size() );
   std::copy( v_MaxPower.begin() , v_MaxPower.end() , v_MinPower.begin() );
   std::transform( v_MinPower.cbegin() , v_MinPower.cend() , v_MinPower.begin() ,
                   []( double p ) { return( -p ); } );
  }
 
- if( ! ::deserialize( group , "ConverterMaxPower" , v_ConvMaxPower ) ) {
+ if( ! ::deserialize( group , "ConverterMaxPower" , f_time_horizon ,
+                      v_ConvMaxPower , true , true , v_change_intervals ) ) {
   v_ConvMaxPower.resize( v_MaxPower.size() );
   std::copy( v_MaxPower.begin() , v_MaxPower.end() , v_ConvMaxPower.begin() );
  }
@@ -150,41 +155,33 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_kappa , "Kappa" );
 
- ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryPower );
- ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryPower );
+ ::deserialize( group , "MaxPrimaryPower" , f_time_horizon ,
+                v_MaxPrimaryPower , true , true , v_change_intervals );
+ ::deserialize( group , "MaxSecondaryPower" , f_time_horizon ,
+                v_MaxSecondaryPower , true , true , v_change_intervals );
 
- ::deserialize( group , "DeltaRampUp" , v_DeltaRampUp );
- ::deserialize( group , "DeltaRampDown" , v_DeltaRampDown );
+ ::deserialize( group , "DeltaRampUp" , f_time_horizon , v_DeltaRampUp ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "DeltaRampDown" , f_time_horizon , v_DeltaRampDown ,
+                true , true , v_change_intervals );
 
- ::deserialize( group , "Demand" , v_Demand );
+ ::deserialize( group , "Demand" , f_time_horizon , v_Demand ,
+                true , true , v_change_intervals );
 
- ::deserialize( group , "StoringBatteryRho" , v_StoringBatteryRho );
- ::deserialize( group , "ExtractingBatteryRho" , v_ExtractingBatteryRho );
+ ::deserialize( group , "StoringBatteryRho" , f_time_horizon ,
+                v_StoringBatteryRho , true , true , v_change_intervals );
+ ::deserialize( group , "ExtractingBatteryRho" , f_time_horizon ,
+                v_ExtractingBatteryRho , true , true , v_change_intervals );
 
- if( ! ::deserialize( group , "Cost" , v_Cost ) )
-  v_Cost.resize( 1 );
+ if( ! ::deserialize( group , "Cost" , f_time_horizon , v_Cost ,
+                      true , true , v_change_intervals ) )
+  v_Cost.resize( f_time_horizon , 1 );
 
  ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" );
  ::deserialize( group , f_ConvInvestmentCost , "ConverterInvestmentCost" );
 
  ::deserialize( group , f_BattMaxCapacity , "BatteryMaxCapacity" );
  ::deserialize( group , f_ConvMaxCapacity , "ConverterMaxCapacity" );
-
- // Decompress vectors
-
- decompress_vector( v_MinPower );
- decompress_vector( v_MaxPower );
- decompress_vector( v_ConvMaxPower );
- decompress_vector( v_MinStorage );
- decompress_vector( v_MaxStorage );
- decompress_vector( v_MaxPrimaryPower );
- decompress_vector( v_MaxSecondaryPower );
- decompress_vector( v_DeltaRampUp );
- decompress_vector( v_DeltaRampDown );
- decompress_vector( v_StoringBatteryRho );
- decompress_vector( v_ExtractingBatteryRho );
- decompress_vector( v_Demand );
- decompress_vector( v_Cost );
 
  check_data_consistency();
 

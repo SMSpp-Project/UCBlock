@@ -902,9 +902,9 @@ class HydroUnitBlock : public UnitBlock
   *   defined, and there are no minimum volumetric constraints;
   *
   * - if the boost::multi_array<> M has only one column which in this case the
-  *   boost::multi_array<> M is a (transpose of) vector with size
-  *   get_number_reservoirs(). Each element of M[ n , 0 ] gives the minimum
-  *   volumetric of the each reservoir n for all time instant t;
+  *   boost::multi_array<> M is a vector with size get_number_reservoirs().
+  *   Each element of M[ n , 0 ] gives the minimum volumetric of each reservoir
+  *   n for all time instant t;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_number_reservoirs() row where each row must have size of
@@ -926,9 +926,9 @@ class HydroUnitBlock : public UnitBlock
   *   defined, and there are no minimum volumetric constraints;
   *
   * - if the boost::multi_array<> M has only one column which in this case the
-  *   boost::multi_array<> M is a (transpose of) vector with size
-  *   get_number_reservoirs(). Each element of M[ n , 0 ] gives the maximum
-  *   volumetric of the each reservoir n for all time instant t;
+  *   boost::multi_array<> M is a vector with size get_number_reservoirs().
+  *   Each element of M[ n , 0 ] gives the maximum volumetric of each reservoir
+  *   n for all time instant t;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_number_reservoirs() row where each row must have size of
@@ -1695,46 +1695,47 @@ class HydroUnitBlock : public UnitBlock
  std::vector< double > v_ActivePowerCost;
 
  /// the matrix of inertia power of generators
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_InertiaPower;
 
  /// the matrix of MinVolumetric
- /** Indexed over the dimensions NumberReservoirs and NumberIntervals. */
+ /** Indexed over the dimensions NumberReservoirs and TimeHorizon. */
  boost::multi_array< double , 2 > v_MinVolumetric;
 
  /// the matrix of MaxVolumetric
- /** Indexed over the dimensions NumberReservoirs and NumberIntervals. */
+ /** Indexed over the dimensions NumberReservoirs and TimeHorizon. */
  boost::multi_array< double , 2 > v_MaxVolumetric;
 
  /// the matrix of Inflows
- /** Indexed over the dimensions NumberReservoirs and NumberIntervals. */
+ /** Indexed over the dimensions NumberReservoirs and TimeHorizon. */
  boost::multi_array< double , 2 > v_inflows;
 
  /// the matrix of MinPower
- /** Indexed over the dimensions NumberIntervals and NumberArcs. */
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MinPower;
 
  /// the matrix of MaxPower
- /** Indexed over the dimensions NumberIntervals and NumberArcs. */
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MaxPower;
 
  /// the matrix of MinFlow
- /** Indexed over the dimensions NumberIntervals and NumberArcs. */
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MinFlow;
 
  /// the matrix of MaxFlow
- /** Indexed over the dimensions NumberIntervals and NumberArcs. */
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MaxFlow;
 
  /// the matrix of DeltaRampUp
- /** Indexed over the dimensions NumberIntervals and NumberGenerators. */
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_DeltaRampUp;
 
  /// the matrix of DeltaRampDown
- /** Indexed over the dimensions NumberIntervals and NumberGenerators. */
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_DeltaRampDown;
 
  /// the matrix of PrimaryRho
- /** Indexed over the dimensions NumberIntervals and NumberArcs. */
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_PrimaryRho;
 
  /// the matrix of SecondaryRho
@@ -1816,34 +1817,6 @@ class HydroUnitBlock : public UnitBlock
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// transposes a deserialized multi-array if needed
- /** We deal with two-dimensional arrays that have dimensions ( time horizon per
-  * number of arcs ). When provided by a netCDF variable, the size of the
-  * dimension associated with the time horizon is allowed to be 1 (even if the
-  * time horizon is greater than 1). This means that the given data does not
-  * change over time. Therefore, the dimensions of a given array could be ( 1
-  * x number of arcs ). This can be viewed as a "row vector". This being a
-  * vector, the user may decide to provide a one-dimensional array whose size
-  * is the number of arcs. This, however, is translated into a two-dimensional
-  * array whose dimensions are ( number of arcs x 1 ), i.e., a "column
-  * vector". In this case, the array must be transposed, so that its second
-  * dimension becomes the number of arcs (and therefore compatible with our
-  * data structure).
-  *
-  * @tparam T The type of the boost::multi_array.
-  *
-  * @param a A boost::multi_array that has been just deserialized.
-  */
- template< typename T >
- void transpose( boost::multi_array< T , 2 > & a );
-
- /// decompress a multi_array using the change intervals
- void decompress_array( boost::multi_array< double , 2 > & a );
-
- /// decompress a max/min volumetric multi_array using the change intervals
- void decompress_vol( boost::multi_array< double , 2 > & a );
-
-/*--------------------------------------------------------------------------*/
  /// updates the constraints for the given arcs at time 0
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints associated with the given

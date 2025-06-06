@@ -138,16 +138,12 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  // load mandatory variables ModulationDeltaRampUp and
  // ModulationDeltaRampDown, create the expanded vectors (if needed)
  
- ::deserialize( group , "ModulationDeltaRampUp" , v_modulation_ramp_up ,
-		false );
- ::deserialize( group , "ModulationDeltaRampDown" , v_modulation_ramp_down ,
-		false );
+ ::deserialize( group , "ModulationDeltaRampUp" , f_time_horizon ,
+                v_modulation_ramp_up , false , true , v_change_intervals );
+ ::deserialize( group , "ModulationDeltaRampDown" , f_time_horizon ,
+                v_modulation_ramp_down , false , true , v_change_intervals );
 
- // decompress vectors
- decompress_vector( v_modulation_ramp_up );
- decompress_vector( v_modulation_ramp_down );
-
- // check consistency of v_modulation_ramp_up and v_modulation_ramp_down
+ // check the consistency of v_modulation_ramp_up and v_modulation_ramp_down
  check_modulation_consistency();
 
  }  // end( NuclearUnitBlock::deserialize )

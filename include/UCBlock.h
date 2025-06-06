@@ -1507,12 +1507,6 @@ class UCBlock : public Block
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// transposes a deserialized multi-array if has dimensions ( rows x 1 )
-
- template< typename T >
- void transpose( boost::multi_array< T , 2 > & a );
-
-/*--------------------------------------------------------------------------*/
  /// deserialize the sub-blocks of UCBlock that have the given prefix name
 
  void deserialize_sub_blocks( const netCDF::NcGroup & group ,
