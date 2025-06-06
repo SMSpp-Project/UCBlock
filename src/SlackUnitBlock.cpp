@@ -88,6 +88,9 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
+ // Deserialize data from the base class
+ UnitBlock::deserialize( group );
+
  // Optional variables
  ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
                 true , true , v_change_intervals );
@@ -105,9 +108,6 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
                 true , true , v_change_intervals );
  ::deserialize( group , "MaxInertia" , f_time_horizon , v_MaxInertia ,
                 true , true , v_change_intervals );
-
- // Deserialize data from the base class
- UnitBlock::deserialize( group );
 
 }  // end( SlackUnitBlock::deserialize )
 

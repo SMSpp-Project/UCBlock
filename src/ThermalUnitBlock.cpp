@@ -215,6 +215,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  }
 #endif
 
+ // Deserialize data from the base class
  UnitBlock::deserialize( group );
 
  // Dimensions
@@ -3708,7 +3709,6 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  if( f_InvestmentCost != 0 )
   vars.push_back( std::make_tuple( &design , f_InvestmentCost , 0.0 ) );
 
-
  // add the start-up variables- - - - - - - - - - - - - - - - - - - - - - - -
  // add start-up variables for tbin and T formulations
  //if( ( AR & FormMsk ) == tbinForm || ( AR & FormMsk ) == TForm )
@@ -3749,11 +3749,11 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   if( v_PrimaryRho.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                       0.0 , 0.0 ) );
+                                     0.0 , 0.0 ) );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                       f_scale * v_PrimaryRho[ t ] , 0.0 ) );
+                                     f_scale * v_PrimaryRho[ t ] , 0.0 ) );
  }
 
  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
@@ -3766,11 +3766,11 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   if( v_SecondaryRho.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                       0.0 , 0.0 ) );
+                                     0.0 , 0.0 ) );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                       f_scale * v_SecondaryRho[ t ] , 0.0 ) );
+                                     f_scale * v_SecondaryRho[ t ] , 0.0 ) );
  }
 
  if( AR & PCuts ) {
@@ -3780,30 +3780,30 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
    ( AR & FormMsk ) == ptForm )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_cut[ t ] ,
-                                       f_scale * v_QuadTerm[ t ] , 0.0 ) );
+                                     f_scale * v_QuadTerm[ t ] , 0.0 ) );
   // DP formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == DPForm )
    for( Index i = 0 ; i < v_Z_h_k.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_h_k[ i ] ,
-                                       f_scale *
-                                       v_QuadTerm[ v_Z_h_k[ i ].first ] , 0.0 ) );
+                                     f_scale *
+                                     v_QuadTerm[ v_Z_h_k[ i ].first ] , 0.0 ) );
   // SU formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SUForm )
    for( Index i = 0 ; i < v_Z_h.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_h[ i ] ,
-                                       f_scale * v_QuadTerm[ v_Z_h[ i ].first ] ,
-                                       0.0 ) );
+                                     f_scale * v_QuadTerm[ v_Z_h[ i ].first ] ,
+                                     0.0 ) );
   // SD formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SDForm )
    for( Index i = 0 ; i < v_Z_k.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_k[ i ] ,
-                                       f_scale * v_QuadTerm[ v_Z_k[ i ].first ] ,
-                                       0.0 ) );
+                                     f_scale * v_QuadTerm[ v_Z_k[ i ].first ] ,
+                                     0.0 ) );
   // SUSD formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SUSDForm )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_cut_teta[ t ] ,
-                                       f_scale * v_QuadTerm[ t ] , 0.0 ) );
+                                     f_scale * v_QuadTerm[ t ] , 0.0 ) );
  }
 
  objective.set_function( new DQuadFunction( std::move( vars ) ) );

@@ -115,8 +115,8 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- deserialize_time_horizon( group );
- deserialize_change_intervals( group );
+ // Deserialize data from the base class
+ UnitBlock::deserialize( group );
 
  if( ! deserialize_dim( group , "NumberReservoirs" , f_NumberReservoirs ) )
   f_NumberReservoirs = 1;
@@ -195,8 +195,6 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "MaxVolumetric" ,
                 { f_NumberReservoirs , f_time_horizon } , v_MaxVolumetric ,
                 true , true , v_change_intervals );
-
- UnitBlock::deserialize( group );
 
 }  // end( HydroUnitBlock::deserialize )
 

@@ -298,11 +298,11 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
    for( Index i = 0 ; i < f_number_nodes ; ++i )
     tmp_injection[ i ] = v_node_injection[ 0 ][ i ];
    ::serialize< double >( group , "NodeInjection" , netCDF::NcDouble() ,
-			  nn , tmp_injection );
+                          nn , tmp_injection );
    }
   else
    ::serialize< double , 2 >( group , "NodeInjection" , netCDF::NcDouble() ,
-			      { ni , nn } , v_node_injection );
+                              { ni , nn } , v_node_injection );
   }
  }  // end( NetworkBlockSolution::serialize )
 
