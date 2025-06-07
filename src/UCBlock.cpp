@@ -250,46 +250,12 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   f_NetworkData->deserialize( group );
  }
 
- if( ::deserialize( group , "ActivePowerDemand" , v_active_power_demand ) ) {
-
-  // when the network is a bus, the "ActivePowerDemand" variable in the nc4
-  // input file could be provided as a simple 1D array of `f_time_horizon`
-  // size, so we reshape `v_active_power_demand` in order to make it available
-  // in the expected shape, i.e., `number_nodes` (= 1) x `f_time_horizon`
-  if( ( number_nodes == 1 ) &&
-      // ensure if is in fact provided as a 1D array, ignore if it is given
-      // in the correct shape
-      ( v_active_power_demand.shape()[ 0 ] == f_time_horizon ) ) {
-   using index = decltype( v_active_power_demand )::index;
-   std::vector< index > shape = { 1 , f_time_horizon };
-   v_active_power_demand.reshape( shape );
-  }
-
-  // always check if the demand is given in the correct shape
-  assert( ( v_active_power_demand.shape()[ 0 ] == number_nodes ) &&
-          ( v_active_power_demand.shape()[ 1 ] == f_time_horizon ) );
- }
+ ::deserialize( group , "ActivePowerDemand" ,
+                { number_nodes , f_time_horizon } , v_active_power_demand );
 
  // for AC
- if( ::deserialize( group , "ReactivePowerDemand" , v_reactive_power_demand ) ) {
-
-  // when the network is a bus, the "ActivePowerDemand" variable in the nc4
-  // input file could be provided as a simple 1D array of `f_time_horizon`
-  // size, so we reshape `v_active_power_demand` in order to make it available
-  // in the expected shape, i.e., `number_nodes` (= 1) x `f_time_horizon`
-  if( ( number_nodes == 1 ) &&
-      // ensure if is in fact provided as a 1D array, ignore if it is given
-      // in the correct shape
-      ( v_reactive_power_demand.shape()[ 0 ] == f_time_horizon ) ) {
-   using index = decltype( v_reactive_power_demand )::index;
-   std::vector< index > shape = { 1 , f_time_horizon };
-   v_reactive_power_demand.reshape( shape );
-  }
-
-  // always check if the demand is given in the correct shape
-  assert( ( v_reactive_power_demand.shape()[ 0 ] == number_nodes ) &&
-          ( v_reactive_power_demand.shape()[ 1 ] == f_time_horizon ) );
- }
+ ::deserialize( group , "ReactivePowerDemand" ,
+                { number_nodes , f_time_horizon } , v_reactive_power_demand );
 
  // Optional dimensions
 
@@ -309,25 +275,22 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                 v_primary_zones , true , true );
 
  if( ::deserialize( group , "PrimaryDemand" ,
-                    v_primary_demand , true , false ) ) {
-  transpose( v_primary_demand );
+                    { f_number_primary_zones , f_time_horizon } ,
+                    v_primary_demand , true , false ) )
   ::deserialize( group , "SecondaryZones" , number_nodes ,
                  v_secondary_zones , true , true );
- }
 
  if( ::deserialize( group , "SecondaryDemand" ,
-                    v_secondary_demand , true , false ) ) {
-  transpose( v_secondary_demand );
+                    { f_number_secondary_zones , f_time_horizon } ,
+                    v_secondary_demand , true , false ) )
   ::deserialize( group , "InertiaZones" , number_nodes ,
                  v_inertia_zones , true , true );
- }
 
  if( ::deserialize( group , "InertiaDemand" ,
-                    v_inertia_demand , true , false ) ) {
-  transpose( v_inertia_demand );
+                    { f_number_inertia_zones , f_time_horizon } ,
+                    v_inertia_demand , true , false ) )
   ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
                  v_number_pollutant_zones , true , true );
- }
 
  if( ! deserialize_dim( group , "TotalNumberPollutantZones" ,
                         f_total_number_pollutant_zones ) ) {
@@ -340,14 +303,19 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   f_total_number_pollutant_zones = f_number_pollutants;
 
  if( f_total_number_pollutant_zones ) {
-  ::deserialize( group , "PollutantZones" , v_pollutant_zones , true , true );
+  ::deserialize( group , "PollutantZones" ,
+                 { f_number_pollutants , get_number_nodes() } ,
+                 v_pollutant_zones , true , true );
 
   /* TODO commented away until this is properly managed
   ::deserialize( group , "PollutantBudget" , v_pollutant_budget , true , false );
   */
 
-  ::deserialize( group , "PollutantRho" , v_pollutant_rho , true , true );
- } else {
+  ::deserialize( group , "PollutantRho" ,
+                 { f_number_pollutants , f_number_elc_generators } ,
+                 v_pollutant_rho , true , true );
+ }
+ else {
   v_pollutant_zones.resize(
    boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
   v_pollutant_budget.resize( boost::extents[ 0 ][ 0 ] );
@@ -2036,32 +2004,17 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
  }  // end( UCBlock::set_active_power_demand( range ) )
 
 /*--------------------------------------------------------------------------*/
-
-template< typename T >
-void UCBlock::transpose( boost::multi_array< T , 2 > & a )
-{
- long rows = a.shape()[ 0 ];
- long cols = a.shape()[ 1 ];
-
- if( ( rows > 1 ) && ( cols == 1 ) ) {
-  boost::array< typename boost::multi_array< T , 2 >::index , 2 >
-   dims = { { 1 , rows } };
-  a.reshape( dims );
- }
-}  // end( UCBlock::transpose )
-
-/*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF UCBlockSolution -------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
 {
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
+ deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
  // deserialize the UnitBlockSolution - - - - - - - - - - - - - - - - - - - -
  Index number_units = 0;
- if( ::deserialize_dim( group , "NumberUnits" , number_units ) ) {
+ if( deserialize_dim( group , "NumberUnits" , number_units ) ) {
   v_unit_Solution.resize( number_units );
   for( Index i = 0 ; i < number_units ; ++i ) {
    std::string sub_group_name = "UnitBlock_" + std::to_string( i );
@@ -2078,7 +2031,7 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  // deserialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - -
  Index number_networks = 0;
- if( ::deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
+ if( deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
   v_network_Solution.resize( number_networks );
   for( Index i = 0 ; i < number_networks ; ++i ) {
    std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
@@ -2096,31 +2049,35 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  // deserialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - -
  f_number_nodes = 0;
- if( ::deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
-  ::deserialize< double , 2 >( group , "ActivePowerDuals" , v_demand_duals ,
-			       false );
+ if( deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
+  ::deserialize< double , 2 >( group , "ActivePowerDuals" ,
+                               { f_time_horizon , f_number_nodes } ,
+                               v_demand_duals , false , true );
 
  // deserialize the PrimaryDuals- - - - - - - - - - - - - - - - - - - - - - -
  f_number_primary_zones = 0;
- if( ::deserialize_dim( group , "NumberPrimaryZones" ,
+ if( deserialize_dim( group , "NumberPrimaryZones" ,
 			f_number_primary_zones ) )
-  ::deserialize< double , 2 >( group , "PrimaryDuals" , v_primary_duals ,
-			       false );
+  ::deserialize< double , 2 >( group , "PrimaryDuals" ,
+                               { f_time_horizon , f_number_primary_zones } ,
+                               v_primary_duals , false , true );
 
  // deserialize the SecondaryDuals- - - - - - - - - - - - - - - - - - - - - -
  f_number_secondary_zones = 0;
- if( ::deserialize_dim( group , "NumberSecondaryZones" ,
+ if( deserialize_dim( group , "NumberSecondaryZones" ,
 			f_number_secondary_zones ) )
-  ::deserialize< double , 2 >( group , "SecondaryDuals" , v_secondary_duals ,
-			       false );
+  ::deserialize< double , 2 >( group , "SecondaryDuals" ,
+                               { f_time_horizon , f_number_secondary_zones } ,
+                               v_secondary_duals , false , true );
 
  // deserialize the InertiaDuals- - - - - - - - - - - - - - - - - - - - - - -
  f_number_inertia_zones = 0;
- if( ::deserialize_dim( group , "NumberInertiaZones" ,
+ if( deserialize_dim( group , "NumberInertiaZones" ,
 			f_number_inertia_zones ) )
-  ::deserialize< double , 2 >( group , "InertiaDuals" , v_inertia_duals ,
-			       false );
- 
+  ::deserialize< double , 2 >( group , "InertiaDuals" ,
+                               { f_time_horizon , f_number_inertia_zones } ,
+                               v_inertia_duals , false , true );
+
  }  // end( UCBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/

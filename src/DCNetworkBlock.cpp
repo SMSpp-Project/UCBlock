@@ -99,7 +99,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  if( f_number_nodes > 1 ) {
 
-  ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
+  deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
   ::deserialize( group , "StartLine" , f_number_lines , v_start_line , false ,
                  true );
@@ -133,7 +133,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
                  true , true );
 
-  if( ! ::deserialize_dim( group, "ReferenceNode", f_reference_node, true ) )
+  if( ! deserialize_dim( group, "ReferenceNode", f_reference_node, true ) )
     f_reference_node = 0;
   }
 
@@ -268,7 +268,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  // Optional variables
 
  Index NumberNodes;
- if( ::deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+ if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
   // Since the dimension "NumberNodes" has been provided, it means that a
   // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
   // and it is marked as being local
@@ -1133,7 +1133,7 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  NetworkBlockSolution::deserialize( group );
 
  // "NumberLines" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize_dim( group , "NumberLines" , f_number_lines , false );
+ deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
  // deserialize the Flow Variables - - - - - - - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "FlowValue" , v_flow , false );

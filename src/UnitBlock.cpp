@@ -112,7 +112,7 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
 
 void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
 {
- if( ! ::deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
+ if( ! deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
   f_number_intervals = 1;
  else
   if( ( f_number_intervals < 1 ) || ( f_number_intervals > f_time_horizon ) )
@@ -265,9 +265,9 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const
 void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
 {
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
+ deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
- if( ! ::deserialize_dim( group , "NumberGenerators" , f_time_horizon ,
+ if( ! deserialize_dim( group , "NumberGenerators" , f_time_horizon ,
 			  true ) ) {
   f_number_generators = 1;
 
@@ -309,19 +309,24 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
   }
  else {
   // deserialize the Active Power - - - - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "ActivePower" , v_active_power ,
-			       false );
+  ::deserialize< double , 2 >( group , "ActivePower" ,
+                               { f_number_generators , f_time_horizon } ,
+                               v_active_power , false , true );
 
   // deserialize the Commitment - - - - - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "Commitment" , v_commitment , true );
+  ::deserialize< double , 2 >( group , "Commitment" ,
+                               { f_number_generators , f_time_horizon } ,
+                               v_commitment , true , true );
 
   // deserialize the Primary Reserve- - - - - - - - - - - - - - - - - - - - -
   ::deserialize< double , 2 >( group , "PrimaryReserve" ,
-			       v_primary_reserve , true );
+                               { f_number_generators , f_time_horizon } ,
+                               v_primary_reserve , true , true );
 
   // deserialize the Secondary Reserve - - - - - - - - - - - - - - - - - - -
   ::deserialize< double , 2 >( group , "SecondaryReserve" ,
-			       v_secondary_reserve , true );
+                               { f_number_generators , f_time_horizon } ,
+                               v_secondary_reserve , true , true );
   }
  }  // end( UnitBlockSolution::deserialize )
 

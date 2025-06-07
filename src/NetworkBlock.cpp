@@ -213,31 +213,18 @@ NetworkBlock::NetworkData::f_factory( void )
 void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 {
  // "NumberNodes" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
+ deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
 
  // "NumberInstants" is optional- - - - - - - - - - - - - - - - - - - - - - -
- if( ! ::deserialize_dim( group , "NumberInstants" , f_number_instants ,
-			  true ) )
+ if( ! deserialize_dim( group , "NumberInstants" , f_number_instants , true ) )
   f_number_instants = 1;
 
  // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -
- if( f_number_instants > 1 )
-  ::deserialize< double , 2 >( group , "NodeInjection" , v_node_injection ,
-			       true );
- else {
-  using index = typename boost::multi_array< double , 2 >::index;
-  std::vector< double > tmp_injection;
-  if( ::deserialize< double >( group , "NodeInjection" , f_number_nodes ,
-			       tmp_injection ) ) {
-   std::vector< index > sizes = { f_number_nodes , 1 };
-   v_node_injection.resize( sizes );
-   for( Index i = 0 ; i < f_number_nodes ; ++i )
-    v_node_injection[ 0 ][ i ] = tmp_injection[ i ];
-   }
-  else {
-   std::vector< index > sizes( 2 , 0 );
-   v_node_injection.resize( sizes );
-   }
+ if( ! ::deserialize< double , 2 >( group , "NodeInjection" ,
+                                    { f_number_nodes , f_number_instants } ,
+                                    v_node_injection , true ) ) {
+  std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
+  v_node_injection.resize( sizes );
   }
  }  // end( NetworkBlockSolution::deserialize )
 
@@ -311,11 +298,11 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
    for( Index i = 0 ; i < f_number_nodes ; ++i )
     tmp_injection[ i ] = v_node_injection[ 0 ][ i ];
    ::serialize< double >( group , "NodeInjection" , netCDF::NcDouble() ,
-			  nn , tmp_injection );
+                          nn , tmp_injection );
    }
   else
    ::serialize< double , 2 >( group , "NodeInjection" , netCDF::NcDouble() ,
-			      { ni , nn } , v_node_injection );
+                              { ni , nn } , v_node_injection );
   }
  }  // end( NetworkBlockSolution::serialize )
 
