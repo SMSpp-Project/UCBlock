@@ -117,13 +117,9 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , "BuyPrice" , f_number_intervals , v_BuyPrice ,
                false , true );
- if( v_BuyPrice.size() == 1 )
-  v_BuyPrice.resize( f_number_intervals , v_BuyPrice[ 0 ] );
 
  ::deserialize( group , "SellPrice" , f_number_intervals , v_SellPrice ,
                 false , true );
- if( v_SellPrice.size() == 1 )
-  v_SellPrice.resize( f_number_intervals , v_SellPrice[ 0 ] );
 
  ::deserialize( group , f_PeakTariff , "PeakTariff" , false );
 
@@ -131,7 +127,7 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
  if( ! ::deserialize( group , "RewardPrice" , f_number_intervals ,
                       v_RewardPrice , true , true ) )
-  v_RewardPrice.resize( f_number_intervals , 0 );
+  v_RewardPrice.resize( f_number_intervals );
 
 }  // end( ECNetworkData::deserialize )
 

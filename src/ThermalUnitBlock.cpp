@@ -255,7 +255,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  if( ! ::deserialize( group , "Availability" , f_time_horizon , v_Availability ,
                       true , true , v_change_intervals ) )
-  v_Availability.resize( f_time_horizon , 1.0 );
+  v_Availability.resize( f_time_horizon , 1 );
 
  if( ! ::deserialize( group , "LinearTerm" , f_time_horizon , v_LinearTerm ,
                       true , true , v_change_intervals ) )
