@@ -254,8 +254,8 @@ function csvEC2nc4(deterministic::Bool=false)
     # AbstractPath
     if !deterministic # stochastic model
         path_dim = 0
-        path_group_idx_data = Int[]
-        # path_group_idx_data = String[]
+        # path_group_idx_data = Int[]
+        path_group_idx_data = String[]
         path_element_idx_data = Int[]
         path_range_idx_data = Int[]
     end
@@ -309,8 +309,8 @@ function csvEC2nc4(deterministic::Bool=false)
 
                     if !deterministic # stochastic model
                         path_dim += 1
-                        append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_intermittent
-                        # append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
+                        # append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_intermittent
+                        append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
                         append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_intermittent
                         append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_intermittent
                     end
@@ -424,8 +424,8 @@ function csvEC2nc4(deterministic::Bool=false)
 
                     if !deterministic # stochastic model
                         path_dim += 2
-                        append!(path_group_idx_data, [last_g, 0, last_g, 1]) # i.e., last_g wrt B, 0 wrt V x_battery, 1 wrt V x_converter
-                        # append!(path_group_idx_data, [string(last_g), "x_battery", string(last_g), "x_converter"]) # i.e., last_g wrt B, V x_battery, x_converter
+                        # append!(path_group_idx_data, [last_g, 0, last_g, 1]) # i.e., last_g wrt B, 0 wrt V x_battery, 1 wrt V x_converter
+                        append!(path_group_idx_data, [string(last_g), "x_battery", string(last_g), "x_converter"]) # i.e., last_g wrt B, V x_battery, x_converter
                         append!(path_element_idx_data, [typemax(UInt32), 0, typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_battery, x_converter
                         append!(path_range_idx_data, [typemax(UInt32), 1, typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_battery, x_converter
                     end
@@ -507,8 +507,8 @@ function csvEC2nc4(deterministic::Bool=false)
 
                         if !deterministic # stochastic model
                             path_dim += 1
-                            append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_thermal
-                            # append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
+                            # append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_thermal
+                            append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
                             append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
                             append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
                         end
@@ -557,8 +557,8 @@ function csvEC2nc4(deterministic::Bool=false)
         path_node_types = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
         path_node_types[:] = collect("BV"^path_dim)[:] # repeat BV path_dim times
 
-        path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
-        # path_group_idx = defVar(ap, "PathGroupIndices", String, ("TotalLength",))
+        # path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
+        path_group_idx = defVar(ap, "PathGroupIndices", String, ("TotalLength",))
         path_group_idx[:] = path_group_idx_data[:]
 
         path_element_idx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
@@ -569,30 +569,6 @@ function csvEC2nc4(deterministic::Bool=false)
 
         # StochasticBlock
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
-
-        # SimpleDataMapping
-
-        # number_mappings = n_devices
-        # defDim(sb, "NumberDataMappings", number_mappings)
-
-        # data_type = defVar(sb, "DataType", Char, ("NumberDataMappings",))
-        # data_type[:] = collect("D"^number_mappings)[:] # repeat D number_mappings times
-
-        # function_name = defVar(sb, "FunctionName", String, ("NumberDataMappings",))
-        # function_name[:] = fill("UCBlock::set_active_power_demand", number_mappings)[:]
-
-        # caller = defVar(sb, "Caller", Char, ("NumberDataMappings",))
-        # caller[:] =
-
-        # defDim(sb, "SetSizeSize",)
-
-        # set_size = defVar(sb, "SetSize", UInt32, ("SetSizeSize",))
-        # set_size[:] =
-
-        # defDim(sb, "SetElementSize",)
-
-        # set_element = defVar(sb, "SetElements", UInt32, ("SetElementSize",))
-        # set_element[:] =
 
         # UCBlock nc4 file
         defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))
