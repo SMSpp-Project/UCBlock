@@ -1014,15 +1014,25 @@ class UnitBlockSolution : public Solution {
   * the clone() of derived classes. */
  
  void guts_of_clone( UnitBlockSolution * sol ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// do the heavy lifting of scaling a non-empty UnitBlockSolution
+ /** This method does the actualy scaling of the fields for an already
+  * existing :UnitBlockSolution; this is provided to make life easier to
+  * the scale() of derived classes. */
  
+ void guts_of_scale( UnitBlockSolution * sol , double factor ) const;
+ 
+/*-------------------------- PROTECTED FIELDS ------------------------------*/
+
+ Index f_time_horizon;            ///< the time horizon
+ Index f_number_generators;       ///< the number of generators
+
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
  private:
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
-
- Index f_time_horizon;            ///< the time horizon
- Index f_number_generators;       ///< the number of generators
 
  boost::multi_array< double , 2 > v_active_power;
  ///< v_active_power[ i ][ t ] = active power of generator i at time t

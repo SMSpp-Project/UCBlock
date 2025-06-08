@@ -1092,14 +1092,14 @@ class DCNetworkData : public NetworkData
 
  /// returns a Solution representing the current solution of this NetworkBlock
  /** This method must construct and return a (pointer to a) Solution object
-  * representing the current "solution state" of this NetworkBlock. This may
-  * either be a NetworkBlockSolution or a further derived class containing
-  * more specific solution information for derived :NetworkBlock.
+  * representing the current "solution state" of this NetworkBlock. This is
+  * a DCNetworkBlockSolution extending NetworkBlockSolution with the specific
+  * extra solution information of DCNetworkBlock.
   *
   * The parameter for deciding which kind of Solution must be returned is a
   * single int value, coded bitwise:
   *
-  * - bit 0 (& 1) is "taken" by the base :NetworkBlock
+  * - bit 0 (& 1) is "taken" by the base :NetworkBlock[Solution]
   *
   * - bit 1 (& 2) means "store the flow values"
   *
@@ -1115,7 +1115,7 @@ class DCNetworkData : public NetworkData
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 3 (save everything but the dual prices). */
+  * - otherwise, it is 7 (save everything). */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
@@ -1647,7 +1647,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  ~DCNetworkBlockSolution() = default;
  ///< destructor: it is virtual, and empty
 
-/*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
+/*------ METHODS DESCRIBING THE BEHAVIOR OF A DCNetworkBlockSolution ------*/
 
  void read( const Block * block ) override final;
 

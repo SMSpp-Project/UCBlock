@@ -267,7 +267,7 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
- if( ! deserialize_dim( group , "NumberGenerators" , f_time_horizon ,
+ if( ! deserialize_dim( group , "NumberGenerators" , f_number_generators ,
 			  true ) ) {
   f_number_generators = 1;
 
@@ -493,25 +493,7 @@ UnitBlockSolution * UnitBlockSolution::scale( double factor ) const
  if( factor == 1 )
   return( sol );
 
- if( ! v_active_power.empty() )
-  for( Index i = 0 ; i < f_number_generators ; ++i )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    sol->v_active_power[ i ][ t ] *= factor;
-
- if( ! v_commitment.empty() )
-  for( Index i = 0 ; i < f_number_generators ; ++i )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    sol->v_commitment[ i ][ t ] *= factor;
-
- if( ! v_primary_reserve.empty() )
-  for( Index i = 0 ; i < f_number_generators ; ++i )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    sol->v_primary_reserve[ i ][ t ] *= factor;
-
- if( ! v_secondary_reserve.empty() )
-  for( Index i = 0 ; i < f_number_generators ; ++i )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    sol->v_secondary_reserve[ i ][ t ] *= factor;
+ guts_of_scale( sol , factor );
 
  return( sol );
 
@@ -583,7 +565,34 @@ void UnitBlockSolution::guts_of_clone( UnitBlockSolution * sol ) const
  copy_multi_array( sol->v_primary_reserve , v_primary_reserve );
  copy_multi_array( sol->v_secondary_reserve , v_secondary_reserve );
 
- }  // end( UnitBlockSolution::clone )
+ }  // end( UnitBlockSolution::guts_of_clone )
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlockSolution::guts_of_scale( UnitBlockSolution * sol ,
+				       double factor ) const
+{
+ if( ! v_active_power.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_active_power[ i ][ t ] *= factor;
+
+ if( ! v_commitment.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_commitment[ i ][ t ] *= factor;
+
+ if( ! v_primary_reserve.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_primary_reserve[ i ][ t ] *= factor;
+
+ if( ! v_secondary_reserve.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_secondary_reserve[ i ][ t ] *= factor;
+
+ }  // end( UnitBlockSolution::guts_of_scale )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File UnitBlock.cpp ----------------------------*/

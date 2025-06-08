@@ -641,7 +641,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
 Solution * DCNetworkBlock::get_Solution( Configuration * csolc ,
 					 bool emptys )
 {
- Index wsol = 3;
+ Index wsol = 7;
  if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
 

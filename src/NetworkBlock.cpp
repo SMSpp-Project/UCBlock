@@ -195,7 +195,7 @@ void NetworkBlock::serialize( netCDF::NcGroup& group ) const {
 void NetworkBlock::NetworkData::serialize( netCDF::NcGroup& group ) const {
  if( f_number_nodes > 1 )
   group.addDim( "NumberNodes" , f_number_nodes );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -204,7 +204,7 @@ NetworkBlock::NetworkData::f_factory( void )
 {
  static NetworkDataFactoryMap s_factory;
  return( s_factory );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------- METHODS OF NetworkBlockSolution ----------------------*/
@@ -216,7 +216,8 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
 
  // "NumberInstants" is optional- - - - - - - - - - - - - - - - - - - - - - -
- if( ! deserialize_dim( group , "NumberInstants" , f_number_instants , true ) )
+ if( ! deserialize_dim( group , "NumberInstants" , f_number_instants , true )
+     )
   f_number_instants = 1;
 
  // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -

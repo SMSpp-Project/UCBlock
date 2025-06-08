@@ -95,7 +95,7 @@ class HydroSystemUnitBlock : public UnitBlock
  *
  * @{ */
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -106,14 +106,14 @@ class HydroSystemUnitBlock : public UnitBlock
   * father Block. */
 
  explicit HydroSystemUnitBlock( Block * father_block = nullptr )
-  : UnitBlock( father_block ) {}
+  : UnitBlock( father_block ) , f_number_hydro_units( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of HydroSystemUnitBlock
 
  virtual ~HydroSystemUnitBlock() override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -321,9 +321,50 @@ class HydroSystemUnitBlock : public UnitBlock
      temp = temp - unit_block->get_number_generators();
    }
   return( 0 );
- }
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+ /// returns a Solution storing the current one of this HydroSystemUnitBlock
+ /** This method must construct and return a (pointer to a) Solution object
+  * representing the current "solution state" of this HydroSystemUnitBlock.
+  * This is a HydroSystemUnitBlockSolution extending UnitBlockSolution with
+  * the specific extra solution information of HydroUnitBlock.
+  *
+  * This Solution object is basically none but the collection of a
+  * HydroUnitBlockSolution, one for each of the inner
+  * HydroUnitBlock of this HydroSystemUnitBlock.
+  *
+  * THIS IS THE IDEA, BUT IT DOES NOT REALLY WORK AS IT IS.
+  * 
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value, coded bitwise:
+  *
+  * - the first seven bits (bit 0 to bit 6) are passed verbatim to the
+  *   "inner" HydroUnitBlockSolution
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  *   is solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration< int >, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 63 (save everything). */
+
+ // Solution * get_Solution( Configuration * solc = nullptr ,
+ //                           bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" [HydroSystem]UnitBlockSolution
+ 
+ // UnitBlockSolution * new_Solution( void ) const override;
+
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing & saving the HydroSystemUnitBlock
@@ -336,7 +377,7 @@ class HydroSystemUnitBlock : public UnitBlock
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR MODIFYING THE HydroSystemUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the HydroSystemUnitBlock
@@ -352,15 +393,16 @@ class HydroSystemUnitBlock : public UnitBlock
   * - 1 the unit could have primary spinning reserve variables
   * - 2 the unit could have secondary spinning reserve variables
   *
-  * Note: this method is only to "destroy" the (primary, secondary and inertia)
-  * reserve variables; it cannot create them if they are not there. */
+  * Note: this method is only to "destroy" the (primary, secondary and
+  * inertia) reserve variables; it cannot create them if they are not there.
+ */
 
  void set_reserve_vars( unsigned char what ) override {
   reserve_vars = what;
   for( auto * b : v_Block )
    if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) )
     ub->set_reserve_vars( what );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR INITIALIZING THE HydroSystemUnitBlock -----------*/
@@ -392,11 +434,9 @@ class HydroSystemUnitBlock : public UnitBlock
 /*---------------------------------- data ----------------------------------*/
 
  /// the number of hydro units of the problem
- Index f_number_hydro_units{};
+ Index f_number_hydro_units;
 
 /*-------------------------------- variables -------------------------------*/
-
-
 
 /*------------------------------- constraints ------------------------------*/
 

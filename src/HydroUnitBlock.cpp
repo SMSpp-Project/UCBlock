@@ -36,22 +36,36 @@
 
 #include "OneVarConstraint.h"
 
-#include "UnitBlock.h"
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
 
-
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
 // register HydroUnitBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( HydroUnitBlock );
+
+// register HydroUnitBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( HydroUnitBlockSolution );
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+template< class T , std::size_t K >
+static void copy_multi_array( boost::multi_array< T , K > & to ,
+			      const boost::multi_array< T , K > & from )
+{
+ std::vector< size_t > extent;
+ auto shape = from.shape();
+ extent.assign( shape , shape + from.num_dimensions() );
+ to.resize( extent );
+ to = from;
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS OF HydroUnitBlock -----------------------*/
@@ -827,7 +841,50 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( FinalVolumeReservoir_Const , tol , rel_viol )
   && RowConstraint::is_feasible( VolumetricBounds_Const , tol , rel_viol ) );
 
-} // end( HydroUnitBlock::is_feasible )
+ } // end( HydroUnitBlock::is_feasible )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * HydroUnitBlock::get_Solution( Configuration * csolc ,
+					 bool emptys )
+{
+ Index wsol = 63;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto * sol = dynamic_cast< HydroUnitBlockSolution * >(
+		                  UnitBlock::get_Solution( csolc , emptys ) );
+ assert( sol );
+
+ if( wsol & 16 ) {
+  auto sz = boost::multi_array< double , 2 >::extent_gen()
+                           [ get_number_reservoirs() ][ get_time_horizon() ];
+  sol->v_volume.resize( sz );
+  }
+
+ if( wsol & 32 ) {
+  auto sz = boost::multi_array< double , 2 >::extent_gen()
+                           [ get_number_generators() ][ get_time_horizon() ];
+  sol->v_flow.resize( sz );
+  }
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+ }
+
+/*--------------------------------------------------------------------------*/
+ 
+UnitBlockSolution * HydroUnitBlock::new_Solution( void ) const {
+ return( new HydroUnitBlockSolution() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE HydroUnitBlock -------*/
@@ -1427,6 +1484,216 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( HydroUnitBlock::set_initial_flow_rate( range ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS OF HydroUnitBlockSolution ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ if( ! deserialize_dim( group , "NumberReservoirs" , f_reservoirs ,
+			true ) )
+  f_reservoirs = 1;
+
+ using index = boost::multi_array< double , 2 >::index;
+ const std::vector< index > empty = { 0 , 0 };
+ const std::vector< index > full = { 1 , f_time_horizon };
+
+ if( f_reservoirs == 1 ) {
+  auto ncVar = group.getVar( "VolumetricLevel" );
+  if( ncVar.isNull() )
+   v_volume.resize( empty );
+  else {
+   v_volume.resize( full );
+   ncVar.getVar( { 0 } , { f_time_horizon } , v_volume.data() );
+   }
+  }
+ else
+  ::deserialize< double , 2 >( group , "VolumetricLevel" ,
+                               { f_reservoirs , f_time_horizon } ,
+                               v_volume , true , true );
+
+ if( f_number_generators == 1 ) {
+  auto ncVar = group.getVar( "VolumetricFlow" );
+  if( ncVar.isNull() )
+   v_flow.resize( empty );
+  else {
+   v_flow.resize( full );
+   ncVar.getVar( { 0 } , { f_time_horizon } , v_flow.data() );
+   }
+  }
+ else
+  ::deserialize< double , 2 >( group , "VolumetricFlow" ,
+                               { f_number_generators , f_time_horizon } ,
+                               v_flow , true , true );
+
+ }  // end( HydroUnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlockSolution::read( const Block * block )
+{
+ auto HUB = dynamic_cast< const HydroUnitBlock * >( block );
+ if( ! HUB )
+  throw( std::invalid_argument( "HydroUnitBlockSolution::read: block is "
+				"not a HydroUnitBlock" ) );
+
+ UnitBlockSolution::read( HUB );  // call the method of the base class
+
+ f_reservoirs = HUB->get_number_reservoirs();
+
+ if( ! v_volume.empty() )
+  for( Index i = 0 ; i < f_reservoirs ; ++i ) {
+   auto Vi = HUB->get_const_volumetric( i );
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_volume[ i ][ t ] = Vi[ t ].get_value();
+   }
+
+ if( ! v_flow.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   if( auto Fi = HUB->get_const_flow_rate( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     v_flow[ i ][ t ] = Fi[ t ].get_value();
+
+ }  // end( HydroUnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlockSolution::write( Block * block )
+{
+ UnitBlockSolution::write( block );  // call the method of the base class
+
+ auto HUB = dynamic_cast< HydroUnitBlock * >( block );
+ if( ! HUB )
+  throw( std::invalid_argument( "HydroUnitBlockSolution::write: block is "
+				"not a HydroUnitBlock" ) );
+
+ if(  f_reservoirs != HUB->get_number_reservoirs() )
+  throw( std::invalid_argument( "HydroUnitBlockSolution::write: "
+				"inconsistent number of reservoirs" ) );
+
+ if( ! v_volume.empty() )
+  for( Index i = 0 ; i < f_reservoirs ; ++i ) {
+   auto Vi = HUB->get_volumetric( i );
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    Vi[ t ].set_value( v_volume[ i ][ t ] );
+   }
+
+ if( ! v_flow.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i ) {
+   auto Fi = HUB->get_flow_rate( i );
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    Fi[ t ].set_value( v_flow[ i ][ t ] );
+   }
+
+ }  // end( HydroUnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ UnitBlockSolution::serialize( group );  // call the method of the base class
+
+ // recover the just serialized time horizon
+ netCDF::NcDim th = group.getDim( "TimeHorizon" );
+
+ if( f_reservoirs > 1 ) {
+  auto nr = group.addDim( "NumberReservoirs" , f_reservoirs );
+
+  ::serialize< double , 2 >( group , "ActivePower" , netCDF::NcDouble() ,
+			     { nr , th } , v_volume );
+  }
+ else
+  if( ! v_volume.empty() )
+   group.addVar( "ActivePower" , netCDF::NcDouble() , th ).putVar(
+			      { 0 } , { f_time_horizon } , v_volume.data() );
+
+
+ if( f_number_generators > 1 ) {
+  // recover the just serialized number of generators
+  netCDF::NcDim ng = group.getDim( "NumberGenerators" );
+
+  ng = group.addDim( "NumberGenerators" , f_number_generators );
+ 
+  ::serialize< double , 2 >( group , "VolumetricFlow" , netCDF::NcDouble() ,
+			     { ng , th } , v_flow );
+  }
+ else
+  if( ! v_flow.empty() )
+   group.addVar( "ActivePower" , netCDF::NcDouble() , th ).putVar(
+			        { 0 } , { f_time_horizon } , v_flow.data() );
+
+ }  // end( HydroUnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+HydroUnitBlockSolution * HydroUnitBlockSolution::scale( double factor ) const
+{
+ auto sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ if( ! v_volume.empty() )
+  for( Index i = 0 ; i < f_reservoirs ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_volume[ i ][ t ] *= factor;
+
+ if( ! v_flow.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_flow[ i ][ t ] *= factor;
+
+ return( sol );
+
+ }  // end( HydroUnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlockSolution::sum( const Solution * solution ,
+				  double multiplier )
+{
+ // call the method of the base class
+ UnitBlockSolution::sum( solution , multiplier );
+
+ auto HUBS = dynamic_cast< const HydroUnitBlockSolution * >( solution );
+ if( ! HUBS )
+  throw( std::invalid_argument( "HydroUnitBlockSolution::sum: solution not "
+				"a HydroUnitBlockSolution" ) );
+
+ if( f_reservoirs != HUBS->f_reservoirs )
+  throw( std::invalid_argument( "HydroUnitBlockSolution::sum: inconsistent "
+				"number of reservoirs" ) );
+
+ if( ! v_volume.empty() )
+  for( Index i = 0 ; i < f_reservoirs ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_volume[ i ][ t ] += HUBS->v_volume[ i ][ t ] * multiplier;
+
+ if( ! v_flow.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_flow[ i ][ t ] += HUBS->v_flow[ i ][ t ] * multiplier;
+
+ }  // end( HydroUnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+HydroUnitBlockSolution * HydroUnitBlockSolution::clone( bool empty ) const
+{
+ auto * sol = new HydroUnitBlockSolution();
+
+ if( ! empty ) {
+  guts_of_clone( sol );
+  copy_multi_array( sol->v_volume , v_volume );
+  copy_multi_array( sol->v_flow , v_flow );
+  }
+
+ return( sol );
+
+ }  // end( HydroUnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File HydroUnitBlock.cpp --------------------------*/

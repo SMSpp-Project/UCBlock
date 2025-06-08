@@ -1029,9 +1029,23 @@ class BatteryUnitBlock : public UnitBlock
   * - otherwise, V must have size get_time_horizon() and V[ t ] is the storage
   *   level variable for time step t. */
 
- const std::vector< ColVariable > & get_storage_level( void ) const {
+ std::vector< ColVariable > & get_storage_level( void ) {
   return( v_storage_level );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the const vector of storage level variables
+ /** This method returns a const vector V containing the storage level
+  * variables. There are two possible cases:
+  *
+  * - if V is empty(), then these variables are not defined;
+  *
+  * - otherwise, V must have size get_time_horizon() and V[ t ] is the storage
+  *   level variable for time step t. */
+
+ const std::vector< ColVariable > & get_const_storage_level( void ) const {
+  return( v_storage_level );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of intake level variables
@@ -1043,9 +1057,23 @@ class BatteryUnitBlock : public UnitBlock
   * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
   *   intake level variable for time step t. */
 
- const std::vector< ColVariable > & get_intake_level( void ) const {
+ std::vector< ColVariable > & get_intake_level( void ) {
   return( v_intake_level );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the const vector of intake level variables
+ /** This method returns a const vector V containing the intake level
+  * variables. There are two possible cases:
+  *
+  * - if V is empty(), then these variables are not defined;
+  *
+  * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
+  *   intake level variable for time step t. */
+
+ const std::vector< ColVariable > & get_const_intake_level( void ) const {
+  return( v_intake_level );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of outtake level variables
@@ -1057,9 +1085,23 @@ class BatteryUnitBlock : public UnitBlock
   * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
   *   outtake level variable for time step t. */
 
- const std::vector< ColVariable > & get_outtake_level( void ) const {
+ std::vector< ColVariable > & get_outtake_level( void ) {
   return( v_outtake_level );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the const vector of outtake level variables
+ /** This method returns a const vector V containing the outtake level
+  * variables. There are two possible cases:
+  *
+  * - if V is empty(), then these variables are not defined;
+  *
+  * - otherwise, V must have size of get_time_horizon() and V[ t ] is the
+  *   outtake level variable for time step t. */
+
+ const std::vector< ColVariable > & get_const_outtake_level( void ) const {
+  return( v_outtake_level );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables
@@ -1168,7 +1210,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const[ 0 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints with binary variables
@@ -1178,24 +1220,24 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const.data()[ 1 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the outtake upper bound constraint with binary variables for time t
+ /// returns the outtake upper bound constraint + binary variables for time t
 
  const FRowConstraint * get_max_outtake_binary_constraints( Index t ) const {
   if( intake_outtake_binary_Const.empty() ||
       intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const[ 1 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the storage level bound constraints
 
  const std::vector< BoxConstraint > & get_storage_level_bounds( void ) const {
   return( storage_level_bounds_Const );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraints
@@ -1205,7 +1247,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_bounds_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_bounds_Const.data()[ 0 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraint associated with time t
@@ -1215,7 +1257,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_bounds_Const[ 0 ].empty() )
     return( nullptr );
   return( & ( intake_outtake_bounds_Const[ 0 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints
@@ -1225,7 +1267,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_bounds_Const.data()[ 1 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraint associated with time t
@@ -1235,21 +1277,65 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_bounds_Const[ 1 ].empty() )
     return( nullptr );
   return( & ( intake_outtake_bounds_Const[ 1 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the primary reserve bound constraints
 
- const std::vector< LB0Constraint > & get_primary_reserve_bounds( void ) const {
+ const std::vector< LB0Constraint > & get_primary_reserve_bounds( void )
+  const {
   return( primary_upper_bound_Const );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the secondary reserve bound constraints
 
- const std::vector< LB0Constraint > & get_secondary_reserve_bounds( void ) const {
+ const std::vector< LB0Constraint > & get_secondary_reserve_bounds( void )
+  const {
   return( secondary_upper_bound_Const );
- }
+  }
+
+/** @} ---------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Solution
+ * @{ */
+
+ /// returns a Solution storing the current solution of this BatteryUnitBlock
+ /** This method must construct and return a (pointer to a) Solution object
+  * representing the current "solution state" of this BatteryUnitBlock. This
+  * is a BatteryUnitBlockSolution extending UnitBlockSolution with the
+  * specific extra solution information of BatteryUnitBlock.
+  *
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value, coded bitwise:
+  *
+  * - the first four bits (bit 0 to bit 3) are "taken" by the base
+  *   UnitBlock[Solution]
+  *
+  * - bit 4 (& 16) means "store the storage levels"
+  *
+  * - bit 5 (& 32) means "store the intakes and outtakes"
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  *   is solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration< int >, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 63 (save everything). */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" [Battery]UnitBlockSolution
+ 
+ UnitBlockSolution * new_Solution( void ) const override;
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------- METHODS FOR SAVING THE BatteryUnitBlock------------------*/
@@ -1559,10 +1645,8 @@ class BatteryUnitBlock : public UnitBlock
  /// the demand constraints
  std::vector< FRowConstraint > demand_Const;
 
-
  /// the storage level bound constraints
  std::vector< BoxConstraint > storage_level_bounds_Const;
-
 
  /// the intake and outtake bounds constraints
  boost::multi_array< LB0Constraint , 2 > intake_outtake_bounds_Const;
@@ -1576,7 +1660,6 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the vector of binary bound constraints
  std::vector< ZOConstraint > battery_binary_bound_Const;
-
 
  /// the objective function
  FRealObjective objective;
@@ -1808,6 +1891,115 @@ class BatteryUnitBlockMod : public UnitBlockMod
  Block::Subset f_nms;  ///< the subset
 
 };  // end( class( BatteryUnitBlockSbstMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- CLASS BatteryUnitBlockSolution ----------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a [UnitBlock]Solution of a BatteryUnitBlock
+/** The BatteryUnitBlockSolution class derives from UnitBlockSolution and
+ * adds the "standard" information stored in there (active power, possibly
+ * commitment and primary/secondary reserve) the other information that is
+ * typical of the BatteryUnitBlock, i.e.,
+ *
+ * - [possibly] the storage level of the battery at each time instant
+ *
+ * - [possibly] the intake/outtake in the battery at each time instant;
+ *   since the battery is supposed to never be charged and discharged at
+ *   the same time instant, the value is positive if the battery is being
+ *   charged (intake) and negative if it is being discharged (outtake) */
+
+class BatteryUnitBlockSolution : public UnitBlockSolution
+{
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend BatteryUnitBlock;  ///< make BatteryUnitBlock friend
+
+/*--------- CONSTRUCTING AND DESTRUCTING BatteryUnitBlockSolution ----------*/
+
+ /// constructor, it has nothing to do
+ explicit BatteryUnitBlockSolution( void ) : UnitBlockSolution() {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void deserialize( const netCDF::NcGroup & group ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~BatteryUnitBlockSolution() = default;
+ ///< destructor: it is virtual, and empty
+
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A BatteryUnitBlockSolution -----*/
+
+ void read( const Block * block ) override final;
+
+ void write( Block * block ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a BatteryUnitBlockSolution into a netCDF::NcGroup
+ /** Serialize a BatteryUnitBlockSolution into a netCDF::NcGroup. The format
+  * is the one of UnitBlockSolution [cf. UnitBlockSolution::serialize()],
+  * plus:
+  *
+  * - The variable "StorageLevel", of type netCDF::NcDouble and indexed over
+  *   the dimension "TimeHorizon"; StorageLevel[ t ] is the optimal value of
+  *   the storage level of the battery at time t. The variable is optional.
+  *
+  * - The variable "InOutTake", of type netCDF::NcDouble and indexed over
+  *   the dimension "TimeHorizon"; InOutTake[ t ] is the amount of energy
+  *   being charged in the battery at time t (negative if it is discharged).
+  *   The variable is optional.
+  *
+  * Note that, unless those of the base class, these variable do not need
+  * to be indexed over the dimension "NumberGenerators" since
+  * BatteryUnitBlock always have exactly one generator. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ BatteryUnitBlockSolution * scale( double factor ) const override;
+
+ void sum( const Solution * solution , double multiplier ) override;
+
+ BatteryUnitBlockSolution * clone( bool empty = false ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "BatteryUnitBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ std::vector< double > v_storage;
+ ///< v_storage[ t ] = value of stored energy at time t
+
+ std::vector< double > v_intake;  ///< v_intake[ l ] = intake at time t
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BatteryUnitBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
