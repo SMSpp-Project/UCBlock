@@ -37,6 +37,9 @@ using namespace SMSpp_di_unipi_it;
 // register HydroSystemUnitBlock to the Block factory
 SMSpp_insert_in_factory_cpp_1( HydroSystemUnitBlock );
 
+// register HydroSystemUnitBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( HydroSystemUnitBlockSolution );
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF HydroSystemUnitBlock --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -214,6 +217,47 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc )
 }  // end( HydroSystemUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * HydroSystemUnitBlock::get_Solution( Configuration * csolc ,
+					       bool emptys )
+{
+ Index wsol = 63;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto * sol = dynamic_cast< HydroSystemUnitBlockSolution * >(
+		                UnitBlock::get_Solution( csolc , emptys ) );
+ assert( sol );
+
+ // build a SimpleConfiguration< int > containing the value of wsol with the
+ // first four bits masked (zeroed)
+ SimpleConfiguration< int > iC( wsol & ~15 );
+
+ // build the empty "inner" HydroUnitBlockSolution
+ sol->v_innerSol.resize( get_number_hydro_units() , nullptr );
+ for( std::size_t i = 0 ; i < sol->v_innerSol.size() ; ++i )
+  sol->v_innerSol[ i ] = static_cast< HydroUnitBlockSolution * >(
+	    get_hydro_unit_block( Index( i ) )->get_Solution( &iC , true ) );
+  
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+ }
+
+/*--------------------------------------------------------------------------*/
+ 
+UnitBlockSolution * HydroSystemUnitBlock::new_Solution( void ) const {
+ return( new HydroSystemUnitBlockSolution() );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -233,8 +277,146 @@ void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const
  if( v_Block.size() > f_number_hydro_units ) {
   auto sub_group = group.addGroup( "PolyhedralFunctionBlock" );
   v_Block.back()->serialize( sub_group );
+  }
  }
-}
+
+/*--------------------------------------------------------------------------*/
+/*-------------- METHODS OF HydroSystemUnitBlockSolution -------------------*/
+/*--------------------------------------------------------------------------*/
+
+void HydroSystemUnitBlockSolution::deserialize(
+					     const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ UnitBlockSolution::deserialize( group );
+
+ Index n_units;
+ deserialize_dim( group , "NumberHydroUnits" , n_units , false );
+
+ v_innerSol.resize( n_units , nullptr );
+ for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i ) {
+  std::string sub_group_name = "HydroSystemUnitSolution_" +
+                                                        std::to_string( i );
+  auto sub_group = group.getGroup( sub_group_name );
+  auto HSUSi = dynamic_cast< HydroUnitBlockSolution * >(
+				       Solution::new_Solution( sub_group ) );
+  if( ! HSUSi )
+    throw( std::invalid_argument(
+		              "HydroSystemUnitBlockSolution::deserialize: " +
+			      sub_group_name +
+			      " not a valid HydroUnitBlockSolution" ) );
+
+  v_innerSol[ i ] = HSUSi;
+  }
+ }  // end( HydroSystemUnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroSystemUnitBlockSolution::read( const Block * block )
+{
+ auto HSUB = dynamic_cast< const HydroSystemUnitBlock * >( block );
+ if( ! HSUB )
+  throw( std::invalid_argument( "HydroSystemUnitBlockSolution::read: block"
+				" is not a HydroSystemUnitBlock" ) );
+
+ UnitBlockSolution::read( HSUB );  // call the method of the base class
+
+ for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
+  v_innerSol[ i ]->read( HSUB->get_hydro_unit_block( Index( i ) ) );
+
+ }  // end( HydroSystemUnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroSystemUnitBlockSolution::write( Block * block )
+{
+ UnitBlockSolution::write( block );  // call the method of the base class
+
+ auto HSUB = dynamic_cast< const HydroSystemUnitBlock * >( block );
+ if( ! HSUB )
+  throw( std::invalid_argument( "HydroSystemUnitBlockSolution::write: block"
+				" is not a HydroSystemUnitBlock" ) );
+
+ if(  v_innerSol.size() != HSUB->get_number_hydro_units() )
+  throw( std::invalid_argument( "HydroSystemUnitBlockSolution::write: "
+				"inconsistent number of hydro units" ) );
+
+ for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
+  v_innerSol[ i ]->write( HSUB->get_hydro_unit_block( Index( i ) ) );
+
+ }  // end( HydroSystemUnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroSystemUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ UnitBlockSolution::serialize( group );  // call the method of the base class
+
+ auto nh = group.addDim( "NumberHydroUnits" , v_innerSol.size() );
+
+ for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i ) {
+  std::string sub_group_name = "HydroSystemUnitSolution_" +
+                                                        std::to_string( i );
+  auto sub_group = group.getGroup( sub_group_name );
+  v_innerSol[ i ]->serialize( sub_group );
+  }
+ }  // end( HydroSystemUnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+HydroSystemUnitBlockSolution * HydroSystemUnitBlockSolution::scale(
+						       double factor ) const
+{
+ auto sol = clone();
+
+ if( factor != 1 )
+  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
+   v_innerSol[ i ]->scale( factor );
+
+ return( sol );
+
+ }  // end( HydroSystemUnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroSystemUnitBlockSolution::sum( const Solution * solution ,
+					double multiplier )
+{
+ // call the method of the base class
+ UnitBlockSolution::sum( solution , multiplier );
+
+ auto HSUBS = dynamic_cast< const HydroSystemUnitBlockSolution * >(
+								  solution );
+ if( ! HSUBS )
+  throw( std::invalid_argument( "HydroSystemUnitBlockSolution::sum: solution"
+				" not a HydroSystemUnitBlockSolution" ) );
+
+ if( v_innerSol.size() != HSUBS->v_innerSol.size() )
+  throw( std::invalid_argument( "HydroSystemUnitBlockSolution::sum: "
+				"inconsistent number of hydro units" ) );
+
+ for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
+  v_innerSol[ i ]->sum( HSUBS->v_innerSol[ i ] , multiplier );
+
+ }  // end( HydroSystemUnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+HydroSystemUnitBlockSolution * HydroSystemUnitBlockSolution::clone(
+							  bool empty ) const
+{
+ auto * sol = new HydroSystemUnitBlockSolution();
+
+ if( ! empty ) {
+  guts_of_clone( sol );
+  sol->v_innerSol.resize( v_innerSol.size() );
+  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
+   (sol->v_innerSol)[ i ] = v_innerSol[ i ]->clone( false );
+  }
+
+ return( sol );
+
+ }  // end( HydroSystemUnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File HydroSystemUnitBlock.cpp --------------------*/
