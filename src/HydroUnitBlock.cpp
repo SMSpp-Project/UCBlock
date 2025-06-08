@@ -1491,6 +1491,9 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
 
 void HydroUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
 {
+ // call the method of the base class
+ UnitBlockSolution::deserialize( group );
+
  if( ! deserialize_dim( group , "NumberReservoirs" , f_reservoirs ,
 			true ) )
   f_reservoirs = 1;
@@ -1599,28 +1602,24 @@ void HydroUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
 
  if( f_reservoirs > 1 ) {
   auto nr = group.addDim( "NumberReservoirs" , f_reservoirs );
-
-  ::serialize< double , 2 >( group , "ActivePower" , netCDF::NcDouble() ,
+  ::serialize< double , 2 >( group , "VolumetricLevel" , netCDF::NcDouble() ,
 			     { nr , th } , v_volume );
   }
  else
   if( ! v_volume.empty() )
-   group.addVar( "ActivePower" , netCDF::NcDouble() , th ).putVar(
+   group.addVar( "VolumetricLevel" , netCDF::NcDouble() , th ).putVar(
 			      { 0 } , { f_time_horizon } , v_volume.data() );
 
 
  if( f_number_generators > 1 ) {
   // recover the just serialized number of generators
   netCDF::NcDim ng = group.getDim( "NumberGenerators" );
-
-  ng = group.addDim( "NumberGenerators" , f_number_generators );
- 
   ::serialize< double , 2 >( group , "VolumetricFlow" , netCDF::NcDouble() ,
 			     { ng , th } , v_flow );
   }
  else
   if( ! v_flow.empty() )
-   group.addVar( "ActivePower" , netCDF::NcDouble() , th ).putVar(
+   group.addVar( "VolumetricFlow" , netCDF::NcDouble() , th ).putVar(
 			        { 0 } , { f_time_horizon } , v_flow.data() );
 
  }  // end( HydroUnitBlockSolution::serialize )

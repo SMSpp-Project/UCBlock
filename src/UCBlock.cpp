@@ -2038,11 +2038,6 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
    auto sub_group = group.getGroup( sub_group_name );
    auto NSi = dynamic_cast< NetworkBlockSolution * >(
 				      Solution::new_Solution( sub_group ) );
-   if( ! NSi )
-    throw( std::invalid_argument( "UCBlockSolution::deserialize: UnitBlock_"
-				  + std::to_string( i ) +
-				  " not a valid NetworkBlockSolution" ) );
-
    v_network_Solution[ i ] = NSi;
    }
   }
