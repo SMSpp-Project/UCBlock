@@ -174,43 +174,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "NodeMinVoltage" , f_number_nodes ,
 		 v_node_min_voltage , true , true );
 
- const auto get_string_array =
-  [ &group ]( const std::string & var_name ,
-              std::vector< std::string > & v_string ,
-              Index size = Inf< Index >() ) {
-   v_string.clear();
-   auto netcdf_var = group.getVar( var_name );
-   if( ! netcdf_var.isNull() ) {
-    if( netcdf_var.getDimCount() != 1 )
-     throw( std::logic_error( "DCNetworkData::deserialize: the dimension of "
-                              "variable'" + var_name + "' must be 1" ) );
-
-    if( ( size < Inf< Index >() ) &&
-        ( netcdf_var.getDim( 0 ).getSize() != size ) )
-     throw( std::logic_error( "DCNetworkData::deserialize: the size of "
-                              "variable '" + var_name + "' should be " +
-                              std::to_string( size ) ) );
-
-    const auto var_size = netcdf_var.getDim( 0 ).getSize();
-    v_string.reserve( var_size );
-
-    // TODO The following implementation should change when netCDF provides a
-    // better C++ interface.
-
-    for( Index i = 0 ; i < var_size ; ++i ) {
-     char * fname = nullptr;
-     netcdf_var.getVar( { i } , { 1 } , &fname );
-     v_string.push_back( fname );
-     free( fname );
-    }
-   }
-  };
-
- // ::deserialize( group , "NodeName" , v_node_names );
- // ::deserialize( group , "LineName" , v_line_names );
-
- get_string_array( "NodeName" , v_node_names , f_number_nodes );
- get_string_array( "LineName" , v_line_names );
+ ::deserialize( group , "NodeName" , f_number_nodes , v_node_names );
+ ::deserialize( group , "LineName" , f_number_lines , v_line_names );
 
  f_lines_type = -1;
 
