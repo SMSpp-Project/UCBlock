@@ -537,6 +537,10 @@ function csvEC2nc4(deterministic::Bool=false)
         # defDim(dss, "NumberScenarios", scen_s_sample)
         # defDim(dss, "ScenarioSize", )
 
+        ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are
+        ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions
+        ## will appear reversed when the data is loaded in languages or programs using row-major
+        ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
         ## To store the scenario set in the correct shape, i.e., NumberScenarios x ScenarioSize, we need to store
         ## it transposed, i.e., ScenarioSize x NumberScenarios.
         # scenario_set = defVar(block, "ScenarioSet", Float64, ("ScenarioSize", "NumberScenarios")) # ("NumberScenarios", "ScenarioSize"))
