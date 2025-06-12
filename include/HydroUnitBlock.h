@@ -1708,6 +1708,9 @@ class HydroUnitBlock : public UnitBlock
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_SecondaryRho;
 
+ /// the reference Schedule : optional information to deviate minimally from if there
+ std::vector< double > v_RefSchedule ;
+
 /*-------------------------------- variables -------------------------------*/
 
  /// the matrix of volumetric variables
@@ -1725,7 +1728,13 @@ class HydroUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  boost::multi_array< ColVariable , 2 > v_secondary_spinning_reserve;
 
+  /// the variables for deviation to reference schedule
+ std::vector< ColVariable > v_abs_ref_schedule;
+
 /*------------------------------- constraints ------------------------------*/
+
+ /// the reference schedule constraints
+ std::vector< FRowConstraint > Reference_Schedule_Const;
 
  /// maximum power output according to primary-secondary reserves constraints
  boost::multi_array< FRowConstraint , 2 > MaxPowerPrimarySecondary_Const;
