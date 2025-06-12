@@ -35,8 +35,6 @@
 
 #include "FRowConstraint.h"
 
-#include "OneVarConstraint.h"
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -173,8 +171,8 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Reading the data of the ECNetworkData
  * @{ */
 
-  /// returns the number of nodes of the network
-  /** Method for returning the number of nodes of the network. */
+  /// returns the nodes' number of the network
+  /** Method for returning the nodes' number of the network. */
 
   Index get_number_intervals( void ) const { return( f_number_intervals ); }
 
@@ -214,7 +212,7 @@ class ECNetworkBlock : public NetworkBlock
   /// serialize an ECNetworkData out of a netCDF::NcGroup
   /** Serialize an ECNetworkData out of a netCDF::NcGroup to the specific
    * format of an ECNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
-   * ) for details of the format of the created netCDF group. */
+   * ) for format's details of the created netCDF group. */
 
   virtual void serialize( netCDF::NcGroup & group ) const override;
 
@@ -437,7 +435,7 @@ class ECNetworkBlock : public NetworkBlock
  bool is_cooperative( void ) const {
   auto reward_prices = f_NetworkData->get_reward_price();
   return( std::any_of( reward_prices.begin() , reward_prices.end() ,
-                       []( double cst ) { return cst != 0; } ) );
+                       []( double cst ) { return( cst != 0 ); } ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -634,15 +632,11 @@ class ECNetworkBlock : public NetworkBlock
   * it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- void set_ActiveDemand(
-  const std::vector< std::vector< double > > & v ) override {
+ void set_ActiveDemand( const boost::multi_array< double , 2 > & v ) override {
   if( v_ActiveDemand.empty() ) {
    v_ActiveDemand.resize( boost::multi_array< double , 2 >::extent_gen()
                           [ get_number_intervals() ][ get_number_nodes() ] );
-   auto demand = v_ActiveDemand.data();
-   for( Index i = 0 ; i < get_number_intervals() ; i++ )
-    for( Index j = 0 ; j < get_number_nodes() ; j++ )
-     *(demand++) = v[ i ][ j ];
+   std::copy( v.data() , v.data() + v.num_elements() , v_ActiveDemand.data() );
   }
  }
 
@@ -808,10 +802,6 @@ class ECNetworkBlock : public NetworkBlock
  boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
 
 
- /// the node injection bound constraints
- boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
-
-
  /// the objective function
  FRealObjective objective;
 
@@ -970,7 +960,7 @@ class ECNetworkBlockSbstMod : public ECNetworkBlockMod
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* ECNetworkBlock.h included */
+#endif /* __ECNetworkBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File ECNetworkBlock.h -----------------------*/

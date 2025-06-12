@@ -265,6 +265,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   // p_t - p_{t-1} - \Delta^M_{t+} u_{t-1} -
   // ( \Delta_{t+} - \Delta^M_{t+} ) m_t - \bar{l}_t v_t \leq 0
 
+
   Modulation_RampUp_Constraints.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {

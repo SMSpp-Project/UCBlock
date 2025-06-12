@@ -53,37 +53,6 @@ class ACNetworkBlock : public DCNetworkBlock
 
  public:
 
-  struct ACNetworkData 
-  {
-    // classical quantities for AC Network
-    SpCMat Yff, Yft, Ytf, Ytt;
-
-    // line shunt
-    SpCVec Ys;
-
-    // quantities used in power flow conservation
-    std::vector< std::complex<double> > v_admittance;
-    std::vector< std::complex<double> > v_transformer;
-
-  };
-
-  struct SpVarMat
-  {
-    std::map<std::pair<Index,Index>,Index> _m_indices;
-    std::vector< ColVariable > _v_variables;
-
-    SpVarMat(){};
-
-    void insertVar(Index p, Index n){
-      _m_indices[std::make_pair(p,n)] = _v_variables.size();
-      _v_variables.push_back(ColVariable());
-    };
-
-    ColVariable& coeffRef(Index p, Index n){
-      return _v_variables[_m_indices[std::make_pair(p,n)]];
-    };
-  };
-
 explicit ACNetworkBlock( Block * f_block = nullptr )
   : DCNetworkBlock( f_block ) {}
 
@@ -93,15 +62,11 @@ explicit ACNetworkBlock( Block * f_block = nullptr )
 
  void generate_SOCP_relaxation();
 
-virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index t, Index g ) override;
 
  const std::vector< ColVariable > & get_power_flow_imag( void ) const { return( v_power_flow_imag ); };
 
  
  protected:
-
- // definition of quantities needed in AC version
- ACNetworkData ACdata;
 
  // ----- Variables
  std::vector< ColVariable > v_power_flow_imag; // real part is the standard "v_power_flow" variable
@@ -109,16 +74,14 @@ virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index
  // ----- Generic variables for AC-OPF
  std::vector< ColVariable > v_sum_product_voltages;
  std::vector< ColVariable > v_diff_product_voltages;
- std::vector< ColVariable > v_sqrt_voltages;
-
- // ----- Specific variables for SOCP relaxation
- SpVarMat W_voltage; //< Sparse matrix (only defined for lines and reversed lines)
+ std::vector< ColVariable > v_sqrd_voltages;
 
  // ----- Generic constraints for AC-OPF
  std::vector< BoxConstraint > v_voltage_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_angle_bounds_const;
  boost::multi_array< FRowConstraint , 2 > v_voltage_definition_const;
  std::vector< FRowConstraint > v_thermal_limit;
+ std::vector< FRowConstraint > v_flow_dc;
 
  // ----- Specific constraints for SOCP relaxation
  std::vector< FRowConstraint > v_socp_const;
@@ -147,7 +110,7 @@ virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* ACNetworkBlock.h included */
+#endif /* __ACNetworkBlock */
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- End File ACNetworkBlock.h ---------------------------*/

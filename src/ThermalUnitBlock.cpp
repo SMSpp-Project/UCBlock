@@ -77,10 +77,6 @@ static constexpr unsigned char SUSDForm = 6;
 static constexpr unsigned char PCuts = 8;
 /// 4th bit of AR == 1 if the perspective cuts are used
 
-
-bool ThermalUnitBlock::f_ignore_netcdf_vars;
-/// this variable indicates which netCDF variables must be ignored
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -289,7 +285,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
  }
 
- // variables forAC elements
+ // variables for AC elements
  ::deserialize( group, "MaxReactivePower", v_MaxReactivePower);
  ::deserialize( group, "MinReactivePower", v_MinReactivePower);
  ::deserialize( group, "VoltageMagnitude", v_VoltageMagnitude);
@@ -331,30 +327,50 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  if( ! ::deserialize( group , "MaxRampUpSteps" , v_MaxRampSteps ) ) {
   v_MaxRampSteps.resize( f_time_horizon + 1 );
-  if( f_InitUpDownTime > 0)
-   v_MaxRampSteps[ 0 ] = std::min( int(
-    ( ( get_operational_max_power( 0 ) - f_InitialPower ) /
-      get_delta_ramp_up( 0 ) ) ), int( f_time_horizon - 1 ) );
+  if( f_InitUpDownTime > 0) {
+   const auto delta_ramp_up = get_delta_ramp_up( 0 );
+   if( delta_ramp_up == 0 )
+    v_MaxRampSteps[ 0 ] = int( f_time_horizon - 1 );
+   else
+    v_MaxRampSteps[ 0 ] = std::min( int(
+     ( ( get_operational_max_power( 0 ) - f_InitialPower ) /
+       delta_ramp_up ) ), int( f_time_horizon - 1 ) );
+  }
   else
    v_MaxRampSteps[ 0 ] = -1;
-  for( Index t = 1 ; t <= f_time_horizon ; ++t )
-   v_MaxRampSteps[ t ] = std::min( int(
-    ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
-      get_delta_ramp_up( t - 1 ) ) ), int( f_time_horizon - t ) );
+  for( Index t = 1 ; t <= f_time_horizon ; ++t ) {
+   const auto delta_ramp_up = get_delta_ramp_up( t - 1 );
+   if( delta_ramp_up == 0 )
+    v_MaxRampSteps[ t ] = int( f_time_horizon - t );
+   else
+    v_MaxRampSteps[ t ] = std::min( int(
+     ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
+       delta_ramp_up ) ), int( f_time_horizon - t ) );
+  }
  }
 
  if( ! ::deserialize( group , "MaxRampDownSteps" , v_MaxRampDownSteps ) ) {
   v_MaxRampDownSteps.resize( f_time_horizon + 1 );
-  if( f_InitUpDownTime > 0)
-   v_MaxRampDownSteps[ 0 ] = std::min( int(
-    ( ( f_InitialPower - get_operational_min_power( 0 ) ) /
-      get_delta_ramp_down( 0 ) ) ), int( f_time_horizon - 1 ) );
+  if( f_InitUpDownTime > 0) {
+   const auto delta_ramp_down = get_delta_ramp_down( 0 );
+   if( delta_ramp_down == 0 )
+    v_MaxRampDownSteps[ 0 ] = int( f_time_horizon - 1 );
+   else
+    v_MaxRampDownSteps[ 0 ] = std::min( int(
+     ( ( f_InitialPower - get_operational_min_power( 0 ) ) /
+       delta_ramp_down ) ), int( f_time_horizon - 1 ) );
+  }
   else
    v_MaxRampDownSteps[ 0 ] = -1;
-  for( Index t = 1 ; t <= f_time_horizon ; ++t )
-   v_MaxRampDownSteps[ t ] = std::min( int(
-    ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
-      get_delta_ramp_down( t - 1 ) ) ), int( f_time_horizon - t ) );
+  for( Index t = 1 ; t <= f_time_horizon ; ++t ) {
+   const auto delta_ramp_down = get_delta_ramp_down( t - 1 );
+   if( delta_ramp_down == 0 )
+    v_MaxRampDownSteps[ t ] = f_time_horizon - t;
+   else
+    v_MaxRampDownSteps[ t ] = std::min( int(
+     ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
+       delta_ramp_down ) ), int( f_time_horizon - t ) );
+  }
  }
 
 

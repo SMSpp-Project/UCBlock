@@ -50,6 +50,8 @@
 
 #include "ColVariable.h"
 
+#include "OneVarConstraint.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -372,8 +374,15 @@ class NetworkBlock : public Block
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// loads a NetworkBlock from a input standard stream.
- /** Loads a NetworkBlock from a input standard stream.
+ /// generate the static constraints of NetworkBlock
+ /** The base NetworkBlock class has just the node injection bound constraints.
+  */
+
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// loads a NetworkBlock from an input standard stream.
+ /** Loads a NetworkBlock from an input standard stream.
   *
   * @warning This method is not implemented yet.
   *
@@ -467,18 +476,16 @@ class NetworkBlock : public Block
   * otherwise it is left empty so that it can be set by this method. */
 
  virtual void set_ActiveDemand(
-                        const std::vector< std::vector< double > > & v ) = 0;
+                        const boost::multi_array< double , 2 > & v ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection
 
  void set_min_node_injection( Index interval , Index node ,
-                              const double min_injection )
- {
+                              const double min_injection ) {
   if( v_MinNodeInjection.empty() )
    v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ]
-			      );
+                              [ get_number_intervals() ][ get_number_nodes() ] );
   v_MinNodeInjection[ interval ][ node ] = min_injection;
  }
 
@@ -486,8 +493,7 @@ class NetworkBlock : public Block
  /// method to set the MaxNodeInjection
 
  void set_max_node_injection( Index interval , Index node ,
-                              const double max_injection )
- {
+                              const double max_injection ) {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ] );
@@ -497,8 +503,8 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to add data of a generator to a given node
 
- virtual void add_ACdata(Index i, Index node_id, UnitBlock* unit_block, Index t, Index g ){};
- 
+ virtual void add_ACdata( Index i, Index node_id , UnitBlock * unit_block ,
+                          Index t , Index g ) {};
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -599,7 +605,7 @@ class NetworkBlock : public Block
   *   get_number_nodes(). This will be the default case;
   *
   * - otherwise, the matrix has size get_number_intervals() per
-  *   get_number_nodes(), then the I[ i , u ] represents the node injection
+  *   get_number_nodes(), then I[ i , u ] represents the node injection
   *   for the problem at time t for each user u, e.g., ECNetwork case;
   *
   * @param interval The interval wrt the vector of node injections for each
@@ -760,6 +766,9 @@ class NetworkBlock : public Block
 
 /*------------------------------- constraints ------------------------------*/
 
+ /// the node injection bound constraints
+ boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -908,7 +917,7 @@ class NetworkBlockSbstMod : public NetworkBlockMod
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* NetworkBlock.h included */
+#endif /* __NetworkBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File NetworkBlock.h -------------------------*/
