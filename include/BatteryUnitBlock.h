@@ -1587,6 +1587,9 @@ class BatteryUnitBlock : public UnitBlock
  /// the scale factor
  double f_scale = 1;
 
+ /// the reference Schedule : optional information to deviate minimally from if there
+ std::vector< double > v_RefSchedule ;
+
 /*-------------------------------- variables -------------------------------*/
 
  /// the vector of storage level variables
@@ -1616,7 +1619,13 @@ class BatteryUnitBlock : public UnitBlock
  /// the converter design variable
  ColVariable conv_design;
 
+ /// the variables for deviation to reference schedule
+ std::vector< ColVariable > v_abs_ref_schedule;
+
 /*------------------------------- constraints ------------------------------*/
+
+/// the reference schedule constraints
+ std::vector< FRowConstraint > Reference_Schedule_Const;
 
  /// the active power bounds constraints
  boost::multi_array< FRowConstraint , 2 > active_power_bounds_Const;

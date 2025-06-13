@@ -210,6 +210,9 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                 { f_NumberReservoirs , f_time_horizon } , v_MaxVolumetric ,
                 true , true , v_change_intervals );
 
+ // variables pour la reference schedule
+ ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true, v_change_intervals );
+
 }  // end( HydroUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -766,6 +769,31 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
    }
 
  add_static_constraint( VolumetricBounds_Const , "VolumetricBounds_HydroUnit" );
+
+ if ( !v_RefSchedule.empty() ){
+   Reference_Schedule_Const.resize( 2*f_time_horizon );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+        // | Sum P - Pref | <= v_abs_ref_schedule
+        auto lfunc_1 = new LinearFunction();
+        for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
+          lfunc_1->add_variable( & v_active_power[ g ][ t ], 1.0 );
+        }
+        lfunc_1->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+        Reference_Schedule_Const[ t ].set_lhs( -Inf< double >() );
+        Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[t] );
+        Reference_Schedule_Const[ t ].set_function( lfunc_1 );
+        //
+        auto lfunc_2 = new LinearFunction();
+        for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
+          lfunc_2->add_variable( & v_active_power[ g ][ t ], -1.0 );
+        }
+        lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+        Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
+        Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[t] );
+        Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );      
+   }
+   add_static_constraint( Reference_Schedule_Const, "Norm1_H_Reference_Schedule" );
+ }
 
  // all done- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
