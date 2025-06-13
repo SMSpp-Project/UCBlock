@@ -48,9 +48,83 @@ typedef Eigen::SparseVector< std::complex<double> > SpCVec;
 
 SMSpp_insert_in_factory_cpp_1( ACNetworkBlock );
 
+typedef ACNetworkBlock::ACNetworkData ACNetworkData;
+
+SMSpp_insert_in_factory_cpp_1( ACNetworkData );
+
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- METHODS OF DCNetworkData -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkData::deserialize( const netCDF::NcGroup & group )
+{
+ DCNetworkData::deserialize( group );
+ #ifndef NDEBUG
+  static std::vector< std::string > expected_vars = { "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
+   "NodeVoltageMagnitude" , "NodeVoltageAngle", "NodeMaxVoltage" ,
+   "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio",
+   "LineRATEA" , "LineShiftAngle" , "LineMinAngle", "LineMaxAngle" };
+  check_variables( group , expected_vars , std::cerr );
+ #endif
+
+ if( f_number_nodes > 1 ) {
+
+  ::deserialize( group , "LineReactance" , f_number_lines ,
+     v_line_reactance , true , true );
+
+  ::deserialize( group , "LineResistance" , f_number_lines ,
+     v_line_resistance , true , true );
+
+  ::deserialize( group , "LineRatio" , f_number_lines , v_line_ratio ,
+                 true , true );
+
+  ::deserialize( group , "LineRATEA" , f_number_lines , v_line_rate_A ,
+                 true , true );
+
+  ::deserialize( group , "LineShiftAngle" , f_number_lines , v_line_angle ,
+                 true , true );
+
+  ::deserialize( group , "LineMinAngle" , f_number_lines , v_line_min_angle ,
+                 true , true );
+
+  ::deserialize( group , "LineMaxAngle" , f_number_lines , v_line_max_angle ,
+                 true , true );
+
+  ::deserialize( group , "NodeConductance" , f_number_nodes ,
+     v_node_conductance , true , true );
+
+  ::deserialize( group , "NodeSusceptance" , f_number_nodes ,
+     v_node_susceptance , true , true );
+
+  ::deserialize( group , "NodeMaxVoltage" , f_number_nodes ,
+     v_node_max_voltage , true , true );
+
+  ::deserialize( group , "NodeMinVoltage" , f_number_nodes ,
+     v_node_min_voltage , true , true );
+
+ f_lines_type = -1;
+ }
+
+}  // end( ACNetworkData::deserialize )
+
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ACNetworkBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
+
+void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
+{
+ DCNetworkBlock::deserialize( group );
+ auto ACND = new ACNetworkData();
+  ACND->deserialize( group );
+  if( f_NetworkData &&
+    ( f_NetworkData->get_number_nodes() != ACND->get_number_nodes() ) )
+   throw( std::logic_error(
+    "ACNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
+  f_NetworkData = ACND;
+}  // end( ACNetworkBlock::deserialize )
+
 
 void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {

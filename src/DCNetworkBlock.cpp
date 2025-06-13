@@ -89,15 +89,10 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
   static std::vector< std::string > expected_vars = { "ActiveDemand" ,
    "StartLine" , "EndLine" , "MinPowerFlow" ,"MaxPowerFlow" ,
-   "LineSusceptance" , "NetworkCost" , "NodeName" , "LineName" ,
+   "LineSusceptance" , "NodeSusceptance" , "NetworkCost" , "NodeName" , "LineName" ,
    "ConstantTerm" ,  // if called from UCBlock:
    "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
-   "NetworkBlockClassname" , "NetworkDataClassname",
-   // vars for AC Mode MUST NOT BE HERE!
-   "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
-   "NodeVoltageMagnitude" , "NodeVoltageAngle", "NodeMaxVoltage" ,
-   "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio",
-   "LineRATEA" , "LineShiftAngle" , "LineMinAngle", "LineMaxAngle" };
+   "NetworkBlockClassname" , "NetworkDataClassname"};
   check_variables( group , expected_vars , std::cerr );
  #endif
 
@@ -159,42 +154,11 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   stored_B2 = SpMat(f_number_nodes - 1, f_number_nodes - 1);
   stored_B2_inv = SpMat(f_number_nodes - 1, f_number_nodes - 1);
 
-  // AC vars MUST NOT NE HERE
   ::deserialize( group , "LineSusceptance" , f_number_lines ,
 		 v_line_susceptance , true , true );
 
-  ::deserialize( group , "LineReactance" , f_number_lines ,
-		 v_line_reactance , true , true );
-
-  ::deserialize( group , "LineResistance" , f_number_lines ,
-		 v_line_resistance , true , true );
-
-  ::deserialize( group , "LineRatio" , f_number_lines , v_line_ratio ,
-                 true , true );
-
-  ::deserialize( group , "LineRATEA" , f_number_lines , v_line_rate_A ,
-                 true , true );
-
-  ::deserialize( group , "LineShiftAngle" , f_number_lines , v_line_angle ,
-                 true , true );
-
-  ::deserialize( group , "LineMinAngle" , f_number_lines , v_line_min_angle ,
-                 true , true );
-
-  ::deserialize( group , "LineMaxAngle" , f_number_lines , v_line_max_angle ,
-                 true , true );
-
-  ::deserialize( group , "NodeConductance" , f_number_nodes ,
-		 v_node_conductance , true , true );
-
   ::deserialize( group , "NodeSusceptance" , f_number_nodes ,
 		 v_node_susceptance , true , true );
-
-  ::deserialize( group , "NodeMaxVoltage" , f_number_nodes ,
-		 v_node_max_voltage , true , true );
-
-  ::deserialize( group , "NodeMinVoltage" , f_number_nodes ,
-		 v_node_min_voltage , true , true );
 
  ::deserialize( group , "NodeName" , f_number_nodes , v_node_names );
  ::deserialize( group , "LineName" , f_number_lines , v_line_names );

@@ -53,8 +53,120 @@ class ACNetworkBlock : public DCNetworkBlock
 
  public:
 
+class ACNetworkData : public DCNetworkData
+{
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructor and Destructor
+ * @{ */
+
+ /// constructor of ACNetworkData, does nothing
+ ACNetworkData( void ) {}
+
+ /// copy constructor of ACNetworkData, does nothing
+ explicit ACNetworkData( const NetworkData * ) {}
+
+ /// destructor of ACNetworkData: it is virtual, and empty
+ virtual ~ACNetworkData() override = default;
+
+ virtual void deserialize( const netCDF::NcGroup & group ) override;
+
+ const std::vector< double > & get_node_conductance( void ) const {
+  return( v_node_conductance );
+  }
+
+ const std::vector< double > & get_node_max_voltage( void ) const {
+  return( v_node_max_voltage );
+  }
+
+ const std::vector< double > & get_node_min_voltage( void ) const {
+  return( v_node_min_voltage );
+  }
+
+ const std::vector< double > & get_line_reactance( void ) const {
+  return( v_line_reactance );
+  }
+
+ const std::vector< double > & get_line_resistance( void ) const {
+  return( v_line_resistance );
+  }
+
+ const std::vector< double > & get_line_ratio( void ) const {
+  return( v_line_ratio );
+  }
+
+ const std::vector< double > & get_line_rate_A( void ) const {
+  return( v_line_rate_A );
+  }
+
+ const std::vector< double > & get_line_angle( void ) const {
+  return( v_line_angle );
+  }
+
+ const std::vector< double > & get_line_min_angle( void ) const {
+  return( v_line_min_angle );
+  }
+
+ const std::vector< double > & get_line_max_angle( void ) const {
+  return( v_line_max_angle );
+  }
+
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ std::vector< double > v_line_reactance;
+ std::vector< double > v_line_resistance;
+ std::vector< double > v_line_ratio;
+ std::vector< double > v_line_rate_A;
+ std::vector< double > v_line_angle;
+ std::vector< double > v_line_min_angle;
+ std::vector< double > v_line_max_angle;
+ std::vector< double > v_node_conductance;
+ std::vector< double > v_node_max_voltage; 
+ std::vector< double > v_node_min_voltage;
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ private:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( ACNetworkData ) )
+
 explicit ACNetworkBlock( Block * f_block = nullptr )
   : DCNetworkBlock( f_block ) {}
+
+ void deserialize( const netCDF::NcGroup & group ) override;
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
@@ -67,6 +179,8 @@ explicit ACNetworkBlock( Block * f_block = nullptr )
 
  
  protected:
+
+ ACNetworkData * f_NetworkData;  ///< the ACNetworkData object
 
  // ----- Variables
  std::vector< ColVariable > v_power_flow_imag; // real part is the standard "v_power_flow" variable

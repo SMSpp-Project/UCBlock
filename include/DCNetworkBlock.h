@@ -387,46 +387,6 @@ class DCNetworkData : public NetworkData
   return( v_node_susceptance );
   }
 
- const std::vector< double > & get_node_conductance( void ) const {
-  return( v_node_conductance );
-  }
-
- const std::vector< double > & get_node_max_voltage( void ) const {
-  return( v_node_max_voltage );
-  }
-
- const std::vector< double > & get_node_min_voltage( void ) const {
-  return( v_node_min_voltage );
-  }
-
- const std::vector< double > & get_line_reactance( void ) const {
-  return( v_line_reactance );
-  }
-
- const std::vector< double > & get_line_resistance( void ) const {
-  return( v_line_resistance );
-  }
-
- const std::vector< double > & get_line_ratio( void ) const {
-  return( v_line_ratio );
-  }
-
- const std::vector< double > & get_line_rate_A( void ) const {
-  return( v_line_rate_A );
-  }
-
- const std::vector< double > & get_line_angle( void ) const {
-  return( v_line_angle );
-  }
-
- const std::vector< double > & get_line_min_angle( void ) const {
-  return( v_line_min_angle );
-  }
-
- const std::vector< double > & get_line_max_angle( void ) const {
-  return( v_line_max_angle );
-  }
-
 
  SpMat get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff = 1e-4);
 
@@ -556,17 +516,6 @@ class DCNetworkData : public NetworkData
  std::vector< std::string > v_node_names;  ///< Node names
 
  std::vector< std::string > v_line_names;  ///< Line names
-
- std::vector< double > v_line_reactance;
- std::vector< double > v_line_resistance;
- std::vector< double > v_line_ratio;
- std::vector< double > v_line_rate_A;
- std::vector< double > v_line_angle;
- std::vector< double > v_line_min_angle;
- std::vector< double > v_line_max_angle;
- std::vector< double > v_node_conductance;
- std::vector< double > v_node_max_voltage; 
- std::vector< double > v_node_min_voltage;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
