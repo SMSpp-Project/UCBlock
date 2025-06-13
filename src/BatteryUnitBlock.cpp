@@ -54,8 +54,10 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register BatteryUnitBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( BatteryUnitBlock );
+
+// register BatteryUnitBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( BatteryUnitBlockSolution );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF BatteryUnitBlock ----------------------*/
@@ -122,21 +124,26 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Mandatory variables
 
- ::deserialize( group , "MinStorage" , v_MinStorage , false );
- ::deserialize( group , "MaxStorage" , v_MaxStorage , false );
+ ::deserialize( group , "MinStorage" , f_time_horizon , v_MinStorage ,
+                false , true , v_change_intervals );
+ ::deserialize( group , "MaxStorage" , f_time_horizon , v_MaxStorage ,
+                false , true , v_change_intervals );
 
- ::deserialize( group , "MaxPower" , v_MaxPower , false );
+ ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
+                false , true , v_change_intervals );
 
  // Optional variables
 
- if( ! ::deserialize( group , "MinPower" , v_MinPower ) ) {
+ if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
+                      true , true , v_change_intervals ) ) {
   v_MinPower.resize( v_MaxPower.size() );
   std::copy( v_MaxPower.begin() , v_MaxPower.end() , v_MinPower.begin() );
   std::transform( v_MinPower.cbegin() , v_MinPower.cend() , v_MinPower.begin() ,
                   []( double p ) { return( -p ); } );
  }
 
- if( ! ::deserialize( group , "ConverterMaxPower" , v_ConvMaxPower ) ) {
+ if( ! ::deserialize( group , "ConverterMaxPower" , f_time_horizon ,
+                      v_ConvMaxPower , true , true , v_change_intervals ) ) {
   v_ConvMaxPower.resize( v_MaxPower.size() );
   std::copy( v_MaxPower.begin() , v_MaxPower.end() , v_ConvMaxPower.begin() );
  }
@@ -150,41 +157,33 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_kappa , "Kappa" );
 
- ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryPower );
- ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryPower );
+ ::deserialize( group , "MaxPrimaryPower" , f_time_horizon ,
+                v_MaxPrimaryPower , true , true , v_change_intervals );
+ ::deserialize( group , "MaxSecondaryPower" , f_time_horizon ,
+                v_MaxSecondaryPower , true , true , v_change_intervals );
 
- ::deserialize( group , "DeltaRampUp" , v_DeltaRampUp );
- ::deserialize( group , "DeltaRampDown" , v_DeltaRampDown );
+ ::deserialize( group , "DeltaRampUp" , f_time_horizon , v_DeltaRampUp ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "DeltaRampDown" , f_time_horizon , v_DeltaRampDown ,
+                true , true , v_change_intervals );
 
- ::deserialize( group , "Demand" , v_Demand );
+ ::deserialize( group , "Demand" , f_time_horizon , v_Demand ,
+                true , true , v_change_intervals );
 
- ::deserialize( group , "StoringBatteryRho" , v_StoringBatteryRho );
- ::deserialize( group , "ExtractingBatteryRho" , v_ExtractingBatteryRho );
+ ::deserialize( group , "StoringBatteryRho" , f_time_horizon ,
+                v_StoringBatteryRho , true , true , v_change_intervals );
+ ::deserialize( group , "ExtractingBatteryRho" , f_time_horizon ,
+                v_ExtractingBatteryRho , true , true , v_change_intervals );
 
- if( ! ::deserialize( group , "Cost" , v_Cost ) )
-  v_Cost.resize( 1 );
+ if( ! ::deserialize( group , "Cost" , f_time_horizon , v_Cost ,
+                      true , true , v_change_intervals ) )
+  v_Cost.resize( f_time_horizon , 1 );
 
  ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" );
  ::deserialize( group , f_ConvInvestmentCost , "ConverterInvestmentCost" );
 
  ::deserialize( group , f_BattMaxCapacity , "BatteryMaxCapacity" );
  ::deserialize( group , f_ConvMaxCapacity , "ConverterMaxCapacity" );
-
- // Decompress vectors
-
- decompress_vector( v_MinPower );
- decompress_vector( v_MaxPower );
- decompress_vector( v_ConvMaxPower );
- decompress_vector( v_MinStorage );
- decompress_vector( v_MaxStorage );
- decompress_vector( v_MaxPrimaryPower );
- decompress_vector( v_MaxSecondaryPower );
- decompress_vector( v_DeltaRampUp );
- decompress_vector( v_DeltaRampDown );
- decompress_vector( v_StoringBatteryRho );
- decompress_vector( v_ExtractingBatteryRho );
- decompress_vector( v_Demand );
- decompress_vector( v_Cost );
 
  check_data_consistency();
 
@@ -1096,6 +1095,43 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
 }  // end( BatteryUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * BatteryUnitBlock::get_Solution( Configuration * csolc ,
+					   bool emptys )
+{
+ Index wsol = 63;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto * sol = dynamic_cast< BatteryUnitBlockSolution * >(
+		                  UnitBlock::get_Solution( csolc , emptys ) );
+ assert( sol );
+
+ if( wsol & 16 )
+  sol->v_storage.resize( get_time_horizon() );
+
+ if( wsol & 32 )
+  sol->v_intake.resize( get_time_horizon() );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+ }
+
+/*--------------------------------------------------------------------------*/
+ 
+UnitBlockSolution * BatteryUnitBlock::new_Solution( void ) const {
+ return( new BatteryUnitBlockSolution() );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1571,6 +1607,174 @@ void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) {
                                 Range( 0 , Inf< Index >() ) , issueAMod );
 
 }  // end( BatteryUnitBlock::update_objective )
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS OF BatteryUnitBlockSolution -------------------*/
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ UnitBlockSolution::deserialize( group );
+
+ if( f_number_generators != 1 )
+  throw( std::logic_error( "BatteryUnitBlockSolution::deserialize: "
+			   "batteries have only one generator" ) );
+ 
+ // deserialize the storage levels - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double >( group , "StorageLevel" , v_storage , false );
+
+ // deserialize the intakes- - - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double >( group , "InOutTake" , v_intake , false );
+
+ }  // end( BatteryUnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlockSolution::read( const Block * block )
+{
+ auto BUB = dynamic_cast< const BatteryUnitBlock * >( block );
+ if( ! BUB )
+  throw( std::invalid_argument(
+       "BatteryUnitBlockSolution::read: block is not a BatteryUnitBlock" ) );
+
+ UnitBlockSolution::read( BUB );  // call the method of the base class
+
+ if( ! v_storage.empty() ) {
+  // read the storage levels - - - - - - - - - - - - - - - - - - - - - - - -
+  auto SLit = BUB->get_const_storage_level().begin();
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   v_storage[ t ] = (*(SLit++)).get_value();
+   }
+
+ if( ! v_intake.empty() ) {
+  // read the intakes- - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  auto Iit = BUB->get_const_intake_level().begin();
+  auto Oit = BUB->get_const_outtake_level().begin();
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   v_intake[ t ] = (*(Iit++)).get_value() - (*(Oit++)).get_value();
+  }
+
+ }  // end( BatteryUnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlockSolution::write( Block * block )
+{
+ UnitBlockSolution::write( block );  // call the method of the base class
+
+ auto BUB = dynamic_cast< BatteryUnitBlock * >( block );
+ if( ! BUB )
+  throw( std::invalid_argument(
+       "BatteryUnitBlockSolution::read: block is not a BatteryUnitBlock" ) );
+
+ if( ! v_storage.empty() ) {
+  // write the storage levels- - - - - - - - - - - - - - - - - - - - - - - -
+  auto SLit = BUB->get_storage_level().begin();
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   (*(SLit++)).set_value( v_storage[ t ] );
+  }
+
+ if( ! v_intake.empty() ) {
+  // write the intakes - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  auto Iit = BUB->get_intake_level().begin();
+  auto Oit = BUB->get_outtake_level().begin();
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_intake[ t ] >= 0 ) {
+    (*(Iit++)).set_value( v_intake[ t ] );
+    (*(Oit++)).set_value( 0 );
+    }
+   else {
+    (*(Iit++)).set_value( 0 );
+    (*(Oit++)).set_value( v_intake[ t ] );
+    }
+  }
+ }  // end( BatteryUnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ UnitBlockSolution::serialize( group );  // call the method of the base class
+
+ // recover the just serialized time horizon
+ netCDF::NcDim th = group.getDim( "TimeHorizon" );
+ 
+ // serialize the storage levels- - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_storage.empty() )
+  ::serialize< double >( group , "StorageLevel" , netCDF::NcDouble() , th ,
+			 v_storage );
+
+ // serialize the intake- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_intake.empty() )
+  ::serialize< double >( group , "InOutTake" , netCDF::NcDouble() , th ,
+			 v_intake );
+
+ }  // end( BatteryUnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+BatteryUnitBlockSolution * BatteryUnitBlockSolution::scale( double factor )
+ const
+{
+ auto sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ if( ! v_storage.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   sol->v_storage[ t ] *= factor;
+
+ if( ! v_intake.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   sol->v_intake[ t ] *= factor;
+
+ return( sol );
+
+ }  // end( BatteryUnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlockSolution::sum( const Solution * solution ,
+				    double multiplier )
+{
+ // call the method of the base class
+ UnitBlockSolution::sum( solution , multiplier );
+
+ auto BUBS = dynamic_cast< const BatteryUnitBlockSolution * >( solution );
+ if( ! BUBS )
+  throw( std::invalid_argument( "BatteryUnitBlockSolution::sum: solution "
+				"not a BatteryUnitBlockSolution" ) );
+
+ if( ! v_storage.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   v_storage[ t ] += BUBS->v_storage[ t ] * multiplier;
+
+ if( ! v_intake.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   v_intake[ t ] += BUBS->v_intake[ t ] * multiplier;
+
+ }  // end( BatteryUnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+BatteryUnitBlockSolution * BatteryUnitBlockSolution::clone( bool empty )
+ const
+{
+ auto * sol = new BatteryUnitBlockSolution();
+
+ if( ! empty ) {
+  guts_of_clone( sol );
+  sol->v_storage = v_storage;
+  sol->v_intake = v_intake;
+  }
+
+ return( sol );
+
+ }  // end( BatteryUnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File BatteryUnitBlock.cpp --------------------------*/

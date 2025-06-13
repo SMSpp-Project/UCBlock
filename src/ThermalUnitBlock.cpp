@@ -181,7 +181,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // we only check for unexpected fields if "this" is a "true"
  // ThermalUnitBlock, i.e., not any derived class. this is because derived
- // classes will likely *have* other fields that tha base class does not
+ // classes will likely *have* other fields that the base class does not
  // know about, and therefore it would complain about them. the idea is that
  // derived classes will then have to check for all expected fields,
  // comprised those of the base class
@@ -216,14 +216,16 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  }
 #endif
 
+ // Deserialize data from the base class
  UnitBlock::deserialize( group );
 
  // Dimensions
- ::deserialize_dim( group , "NumberCostCoeffs" , f_number_cost_coeffs );
+ deserialize_dim( group , "NumberCostCoeffs" , f_number_cost_coeffs );
 
  // Mandatory variables
 
- ::deserialize( group , "MaxPower" , v_MaxPower , false );
+ ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
+                false , true , v_change_intervals );
 
  // Optional variables
 
@@ -248,86 +250,74 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
    f_InitUpDownTime = f_MinUpTime;
  }
 
- if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
+ if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
+                      true , true , v_change_intervals ) )
   v_MinPower.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "Availability" , v_Availability ) )
-  v_Availability.resize( f_time_horizon , 1.0 );
+ if( ! ::deserialize( group , "Availability" , f_time_horizon , v_Availability ,
+                      true , true , v_change_intervals ) )
+  v_Availability.resize( f_time_horizon , 1 );
 
- if( ! ::deserialize( group , "LinearTerm" , v_LinearTerm ) )
+ if( ! ::deserialize( group , "LinearTerm" , f_time_horizon , v_LinearTerm ,
+                      true , true , v_change_intervals ) )
   v_LinearTerm.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "QuadTerm" , v_QuadTerm ) )
+ if( ! ::deserialize( group , "QuadTerm" , f_time_horizon , v_QuadTerm ,
+                      true , true , v_change_intervals ) )
   v_QuadTerm.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "ConstTerm" , v_ConstTerm ) )
+ if( ! ::deserialize( group , "ConstTerm" , f_time_horizon , v_ConstTerm ,
+                      true , true , v_change_intervals ) )
   v_ConstTerm.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "StartUpCost" , v_StartUpCost ) )
+ if( ! ::deserialize( group , "StartUpCost" , f_time_horizon , v_StartUpCost ,
+                      true , true , v_change_intervals ) )
   v_StartUpCost.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "MaxRampUpSteps" , v_MaxRampSteps ) )
-  v_MaxRampSteps.resize( f_time_horizon + 1 );
+ ::deserialize( group , "DeltaRampUp" , f_time_horizon , v_DeltaRampUp ,
+                true , true , v_change_intervals );
 
- if( ! ::deserialize( group , "MaxRampDownSteps" , v_MaxRampDownSteps ) )
-  v_MaxRampDownSteps.resize( f_time_horizon + 1 );
+ ::deserialize( group , "DeltaRampDown" , f_time_horizon , v_DeltaRampDown ,
+                true , true , v_change_intervals );
 
- ::deserialize( group , "DeltaRampUp" , v_DeltaRampUp );
+ ::deserialize( group , "FixedConsumption" , f_time_horizon ,
+                v_FixedConsumption , true , true , v_change_intervals );
 
- ::deserialize( group , "DeltaRampDown" , v_DeltaRampDown );
-
- ::deserialize( group , "FixedConsumption" , v_FixedConsumption );
-
- ::deserialize( group , "InertiaCommitment" , v_InertiaCommitment );
+ ::deserialize( group , "InertiaCommitment" , f_time_horizon ,
+                v_InertiaCommitment , true , true , v_change_intervals );
 
  if( ! ( f_ignore_netcdf_vars & 1 ) ) {
-  ::deserialize( group , "PrimaryRho" , v_PrimaryRho );
-  ::deserialize( group , "SecondaryRho" , v_SecondaryRho );
+  ::deserialize( group , "PrimaryRho" , f_time_horizon , v_PrimaryRho ,
+                 true , true , v_change_intervals );
+  ::deserialize( group , "SecondaryRho" , f_time_horizon , v_SecondaryRho ,
+                 true , true , v_change_intervals );
  }
 
  // variables for AC elements
- ::deserialize( group, "MaxReactivePower", v_MaxReactivePower);
- ::deserialize( group, "MinReactivePower", v_MinReactivePower);
- ::deserialize( group, "VoltageMagnitude", v_VoltageMagnitude);
- ::deserialize( group, "PowerCostCoeffs", v_PowerCostCoeffs);
- ::deserialize( group, f_CostModel, "CostModel");
+ ::deserialize( group , "MaxReactivePower" , v_MaxReactivePower );
+ ::deserialize( group , "MinReactivePower" , v_MinReactivePower );
+ ::deserialize( group , "VoltageMagnitude" , v_VoltageMagnitude );
+ ::deserialize( group , "PowerCostCoeffs" , v_PowerCostCoeffs );
+ ::deserialize( group , f_CostModel , "CostModel" );
 
- // variables pour la reference schedule
- ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true );
- 
- // Decompress vectors
- decompress_vector( v_MinPower );
- decompress_vector( v_MaxPower );
- decompress_vector( v_Availability );
- decompress_vector( v_DeltaRampUp );
- decompress_vector( v_DeltaRampDown );
- decompress_vector( v_PrimaryRho );
- decompress_vector( v_SecondaryRho );
- decompress_vector( v_LinearTerm );
- decompress_vector( v_QuadTerm );
- decompress_vector( v_ConstTerm );
- decompress_vector( v_StartUpCost );
- decompress_vector( v_FixedConsumption );
- decompress_vector( v_InertiaCommitment );
- decompress_vector( v_MaxRampSteps );
- decompress_vector( v_MaxRampDownSteps );
- 
-
- if( ! ::deserialize( group , "StartUpLimit" , v_StartUpLimit ) ) {
+ if( ! ::deserialize( group , "StartUpLimit" , f_time_horizon , v_StartUpLimit ,
+                      true , true , v_change_intervals ) ) {
   v_StartUpLimit.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_StartUpLimit[ t ] = get_operational_min_power( t );
  }
 
- if( ! ::deserialize( group , "ShutDownLimit" , v_ShutDownLimit ) ) {
+ if( ! ::deserialize( group , "ShutDownLimit" , f_time_horizon , v_ShutDownLimit ,
+                      true , true , v_change_intervals ) ) {
   v_ShutDownLimit.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_ShutDownLimit[ t ] = get_operational_min_power( t );
  }
 
- if( ! ::deserialize( group , "MaxRampUpSteps" , v_MaxRampSteps ) ) {
+ if( ! ::deserialize( group , "MaxRampUpSteps" , f_time_horizon ,
+                      v_MaxRampSteps , true , true , v_change_intervals ) ) {
   v_MaxRampSteps.resize( f_time_horizon + 1 );
-  if( f_InitUpDownTime > 0) {
+  if( f_InitUpDownTime > 0 ) {
    const auto delta_ramp_up = get_delta_ramp_up( 0 );
    if( delta_ramp_up == 0 )
     v_MaxRampSteps[ 0 ] = int( f_time_horizon - 1 );
@@ -349,9 +339,10 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   }
  }
 
- if( ! ::deserialize( group , "MaxRampDownSteps" , v_MaxRampDownSteps ) ) {
+ if( ! ::deserialize( group , "MaxRampDownSteps" , f_time_horizon ,
+                      v_MaxRampDownSteps , true , true , v_change_intervals ) ) {
   v_MaxRampDownSteps.resize( f_time_horizon + 1 );
-  if( f_InitUpDownTime > 0) {
+  if( f_InitUpDownTime > 0 ) {
    const auto delta_ramp_down = get_delta_ramp_down( 0 );
    if( delta_ramp_down == 0 )
     v_MaxRampDownSteps[ 0 ] = int( f_time_horizon - 1 );
@@ -372,13 +363,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
        delta_ramp_down ) ), int( f_time_horizon - t ) );
   }
  }
-
-
- // Decompress vectors
- decompress_vector( v_StartUpLimit );
- decompress_vector( v_ShutDownLimit );
- decompress_vector( v_MaxRampSteps );
- decompress_vector( v_MaxRampDownSteps );
 
  check_data_consistency();
 
@@ -3755,7 +3739,6 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  if( f_InvestmentCost != 0 )
   vars.push_back( std::make_tuple( &design , f_InvestmentCost , 0.0 ) );
 
-
  // add the start-up variables- - - - - - - - - - - - - - - - - - - - - - - -
  // add start-up variables for tbin and T formulations
  //if( ( AR & FormMsk ) == tbinForm || ( AR & FormMsk ) == TForm )
@@ -3802,11 +3785,11 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   if( v_PrimaryRho.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                       0.0 , 0.0 ) );
+                                     0.0 , 0.0 ) );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
-                                       f_scale * v_PrimaryRho[ t ] , 0.0 ) );
+                                     f_scale * v_PrimaryRho[ t ] , 0.0 ) );
  }
 
  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
@@ -3819,11 +3802,11 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   if( v_SecondaryRho.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                       0.0 , 0.0 ) );
+                                     0.0 , 0.0 ) );
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
-                                       f_scale * v_SecondaryRho[ t ] , 0.0 ) );
+                                     f_scale * v_SecondaryRho[ t ] , 0.0 ) );
  }
 
  if( AR & PCuts ) {
@@ -3833,30 +3816,30 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
    ( AR & FormMsk ) == ptForm )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_cut[ t ] ,
-                                       f_scale * v_QuadTerm[ t ] , 0.0 ) );
+                                     f_scale * v_QuadTerm[ t ] , 0.0 ) );
   // DP formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == DPForm )
    for( Index i = 0 ; i < v_Z_h_k.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_h_k[ i ] ,
-                                       f_scale *
-                                       v_QuadTerm[ v_Z_h_k[ i ].first ] , 0.0 ) );
+                                     f_scale *
+                                     v_QuadTerm[ v_Z_h_k[ i ].first ] , 0.0 ) );
   // SU formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SUForm )
    for( Index i = 0 ; i < v_Z_h.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_h[ i ] ,
-                                       f_scale * v_QuadTerm[ v_Z_h[ i ].first ] ,
-                                       0.0 ) );
+                                     f_scale * v_QuadTerm[ v_Z_h[ i ].first ] ,
+                                     0.0 ) );
   // SD formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SDForm )
    for( Index i = 0 ; i < v_Z_k.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_k[ i ] ,
-                                       f_scale * v_QuadTerm[ v_Z_k[ i ].first ] ,
-                                       0.0 ) );
+                                     f_scale * v_QuadTerm[ v_Z_k[ i ].first ] ,
+                                     0.0 ) );
   // SUSD formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SUSDForm )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_cut_teta[ t ] ,
-                                       f_scale * v_QuadTerm[ t ] , 0.0 ) );
+                                     f_scale * v_QuadTerm[ t ] , 0.0 ) );
  }
 
  objective.set_function( new DQuadFunction( std::move( vars ) ) );
