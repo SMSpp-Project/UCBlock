@@ -513,9 +513,11 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   if( lines_type == kAC_HVDC ) {
     // linking constraints between AC and HVDC
     Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(number_nodes-1, number_lines );
+    double eta = 1.0;
     for( auto & line_id : DC_lines ) {
+      eta = f_NetworkData->get_line_efficiency( line_id ); // efficiency of the HVDC line
       A_DC(get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
-      A_DC(get_reducedIdx( end_line[ line_id ] ) , line_id )   = - get_line_efficiency( line_id ); // QJ_TOCHECK 1 or -1 ?
+      A_DC(get_reducedIdx( end_line[ line_id ] ) , line_id )   = - eta; // QJ_TOCHECK 1 or -1 ?
     }
     linkingMat = - PTDF_matrix * A_DC;
   }
