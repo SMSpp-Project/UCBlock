@@ -163,8 +163,8 @@ class ACNetworkData : public DCNetworkData
 
  };  // end( class( ACNetworkData ) )
 
-explicit ACNetworkBlock( Block * f_block = nullptr )
-  : DCNetworkBlock( f_block ) {}
+ explicit ACNetworkBlock( Block * f_block = nullptr )
+  : DCNetworkBlock( f_block ), f_NetworkData( nullptr ) {}
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -174,10 +174,31 @@ explicit ACNetworkBlock( Block * f_block = nullptr )
 
  void generate_SOCP_relaxation();
 
-
  const std::vector< ColVariable > & get_power_flow_imag( void ) const { return( v_power_flow_imag ); };
 
- 
+/*--------------------------------------------------------------------------*/
+/// returns a pointer to the DCNetworkData
+/** Return a pointer to the DCNetworkData. */
+
+NetworkData * get_NetworkData( void ) const override {
+  return( f_NetworkData );
+}
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------- METHODS FOR MODIFYING THE ACNetworkBlock -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the ACNetworkBlock
+ * @{ */
+
+ void set_NetworkData( NetworkData * nd = nullptr ) override {
+  // if there was a previous ACNetworkData, and it was local, delete it
+  if( f_NetworkData && f_local_NetworkData )
+   delete( f_NetworkData );
+
+  f_NetworkData = dynamic_cast< ACNetworkData * >( nd );
+  f_local_NetworkData = false;
+  }
+
  protected:
 
  ACNetworkData * f_NetworkData;  ///< the ACNetworkData object
