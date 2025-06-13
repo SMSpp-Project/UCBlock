@@ -82,7 +82,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   static std::vector< std::string > expected_vars = { "ActiveDemand" ,
    "StartLine" , "EndLine" , "MinPowerFlow" ,"MaxPowerFlow" ,
    "LineSusceptance" , "NetworkCost" , "NodeName" , "LineName" ,
-   "ConstantTerm" ,  // if called from UCBlock:
+   "ConstantTerm" , "Efficiency", // if called from UCBlock:
    "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
    "NetworkBlockClassname" , "NetworkDataClassname",
    // vars for AC Mode MUST NOT BE HERE!
@@ -132,6 +132,9 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
   ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
                  true , true );
+
+  ::deserialize( group , "Efficiency" , f_number_lines , v_efficiency ,
+                true , true );
 
   if( ! deserialize_dim( group, "ReferenceNode", f_reference_node, true ) )
     f_reference_node = 0;
@@ -224,7 +227,8 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
                                                      "NetworkCost" ,
                                                      "NodeName" ,
                                                      "LineName" ,
-                                                     "ConstantTerm" };
+                                                     "ConstantTerm",
+                                                     "Efficiency" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -508,10 +512,10 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   Eigen::MatrixXd linkingMat;
   if( lines_type == kAC_HVDC ) {
     // linking constraints between AC and HVDC
-    Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(number_nodes-1,number_lines );
+    Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(number_nodes-1, number_lines );
     for( auto & line_id : DC_lines ) {
       A_DC(get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
-      A_DC(get_reducedIdx( end_line[ line_id ] ) , line_id )   = -1.; // QJ_TOCHECK 1 or -1 ?
+      A_DC(get_reducedIdx( end_line[ line_id ] ) , line_id )   = - get_line_efficiency( line_id ); // QJ_TOCHECK 1 or -1 ?
     }
     linkingMat = - PTDF_matrix * A_DC;
   }
@@ -720,6 +724,9 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
 
   ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
                v_network_cost );
+
+  ::serialize( group , "Efficiency" , netCDF::NcDouble() , NumberLines ,
+              v_efficiency );
 
   if( ! v_line_names.empty() ) {
    assert( v_line_names.size() == NumberLines.getSize() );
