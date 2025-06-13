@@ -1319,7 +1319,7 @@ class UCBlock : public Block
 /*---------------------------------- data ----------------------------------*/
 
  /// the specific classname of the networks that need to be instantiated,
- /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, ecc.
+ /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, etc.
  std::string network_block_classname;
  std::string network_data_classname;
 
