@@ -486,9 +486,11 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     auto lfunc = new LinearFunction();
     lfunc->add_variable( & v_node_injection[ 0 ][ n ] , -1.0 );
 
+    double eta = 1.0;
     for( auto & line_id : DC_lines ) {
+      eta = f_NetworkData->get_line_efficiency( line_id ); // efficiency of the HVDC line
       if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
-      if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -1.0 );
+      if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -eta );
     }
     if( lines_type == kHVDC ) {
       v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
