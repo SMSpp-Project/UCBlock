@@ -181,10 +181,31 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
 /*--------------------------------------------------------------------------*/
 
-void ACNetworkBlock::generate_objective( Configuration * objc){
-  // TODO : use the coefficient of the matpower instance
-  DCNetworkBlock::generate_objective(objc);
-};
+void DCNetworkBlock::generate_objective( Configuration * objc )
+{
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
+
+ auto lf = new LinearFunction();
+
+ if( ! f_NetworkData->get_network_cost().empty() )
+  for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
+   lf->add_variable( &v_auxiliary_variable[ line_id ] ,
+                     f_NetworkData->get_network_cost()[ line_id ] ,
+                     eDryRun );
+
+ lf->set_constant_term( f_ConstTerm );
+
+ objective.set_function( lf );
+ objective.set_sense( Objective::eMin );
+
+ // Set Block objective
+ this->set_objective( &objective );
+
+ set_objective_generated();
+
+}  // end( DCNetworkBlock::generate_objective )
+
 
 /*--------------------------------------------------------------------------*/
 
