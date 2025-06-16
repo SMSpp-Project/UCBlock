@@ -208,6 +208,7 @@ NetworkData * get_NetworkData( void ) const override {
    delete( f_NetworkData );
 
   f_NetworkData = dynamic_cast< ACNetworkData * >( nd );
+  DCNetworkBlock::set_NetworkData( nd );
   f_local_NetworkData = false;
   }
 

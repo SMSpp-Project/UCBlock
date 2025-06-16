@@ -122,7 +122,7 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
     ( f_NetworkData->get_number_nodes() != ACND->get_number_nodes() ) )
    throw( std::logic_error(
     "ACNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
-  f_NetworkData = ACND;
+  set_NetworkData(ACND);
 }  // end( ACNetworkBlock::deserialize )
 
 
