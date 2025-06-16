@@ -128,6 +128,10 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
+
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  
   // QJ: print for debug
   std::cout << "LineResistance size : "  << f_NetworkData->get_line_resistance().size() << std::endl;
   std::cout << "LineReactance size : "   << f_NetworkData->get_line_reactance().size() << std::endl;
@@ -141,10 +145,6 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
   // generate first the same variables as in the DCNetwork
   DCNetworkBlock::generate_abstract_variables(stvv);
-
-
-  const auto number_nodes = get_number_nodes();
-  const auto number_lines = get_number_lines();
 
   // ----- complex power flow (real and imaginary part for both directions)
   /*
@@ -206,11 +206,11 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   const auto & start_line = f_NetworkData->get_start_line();
   const auto & end_line = f_NetworkData->get_end_line();
 
-  std::vector<Index> AC_lines = get_AC_lines();
+  std::vector<Index> AC_lines = f_NetworkData->get_AC_lines();
   int nb_ac_lines = AC_lines.size();
   
   // recover the DC lines
-  std::vector<Index> DC_lines = get_DC_lines();
+  std::vector<Index> DC_lines = f_NetworkData->get_DC_lines();
   int nb_dc_lines = DC_lines.size();
   
   double base_mva = f_NetworkData->get_baseMVA();
@@ -437,7 +437,7 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
   const auto & start_line = f_NetworkData->get_start_line();
   const auto & end_line = f_NetworkData->get_end_line();
 
-  std::vector<Index> AC_lines = get_AC_lines();
+  std::vector<Index> AC_lines = f_NetworkData->get_AC_lines();
   int nb_ac_lines = AC_lines.size();
 
   // ----- Voltage relaxation matrix W.

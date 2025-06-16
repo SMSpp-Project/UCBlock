@@ -399,10 +399,10 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  const auto lines_type = f_NetworkData->get_lines_type();
 
  // Splitting AC and DC part
- std::vector<Index> AC_lines = get_AC_lines();
+ std::vector<Index> AC_lines = f_NetworkData->get_AC_lines();
  SpMat PTDF_matrix = f_NetworkData->get_PTDF(AC_lines);
 
- std::vector<Index> DC_lines = get_DC_lines();
+ std::vector<Index> DC_lines = f_NetworkData->get_DC_lines();
 
  // ===== auxiliary variables for nonempty cost
  if( ! f_NetworkData->get_network_cost().empty() ) {
@@ -437,8 +437,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id  ) {
     const auto kappa = get_kappa( line_id );
-    v_power_flow_limit_const[ line_id ].set_lhs( kappa * get_min_power_flow( line_id ) );
-    v_power_flow_limit_const[ line_id ].set_rhs( kappa * get_max_power_flow( line_id ) );
+    v_power_flow_limit_const[ line_id ].set_lhs( kappa * f_NetworkData->get_min_power_flow( line_id ) );
+    v_power_flow_limit_const[ line_id ].set_rhs( kappa * f_NetworkData->get_max_power_flow( line_id ) );
     v_power_flow_limit_const[ line_id ].set_variable( & v_power_flow[ line_id ] );
     add_static_constraint( v_power_flow_limit_const, "Power_flow_limit" );
   }
@@ -950,9 +950,9 @@ void DCNetworkBlock::change_power_flow_limit_constraints
 (const std::vector<Index>& modified_lines, c_ModParam issueAMod){
   for( auto i : modified_lines ) {
    v_power_flow_limit_const[ i ].set_lhs
-    ( v_kappa[ i ] * get_min_power_flow( i ) , issueAMod );
+    ( v_kappa[ i ] * f_NetworkData->get_min_power_flow( i ) , issueAMod );
    v_power_flow_limit_const[ i ].set_rhs
-    ( v_kappa[ i ] * get_max_power_flow( i ) , issueAMod );
+    ( v_kappa[ i ] * f_NetworkData->get_max_power_flow( i ) , issueAMod );
   }
 }
 
@@ -961,7 +961,7 @@ void DCNetworkBlock::change_relax_abs_constraints
 (const std::vector< Index > & modified_lines , c_ModParam issueAMod ) {
  if( ( f_NetworkData->get_lines_type() == kAC ) ||
      ( f_NetworkData->get_lines_type() == kAC_HVDC ) ) {
-  std::vector< Index > AC_lines = get_AC_lines();
+  std::vector< Index > AC_lines = f_NetworkData->get_AC_lines();
   SpMat PTDF_matrix = f_NetworkData->get_PTDF( AC_lines );
   for( auto & i : modified_lines ) {
    double constant_term = 0;

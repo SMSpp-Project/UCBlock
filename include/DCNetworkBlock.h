@@ -357,12 +357,44 @@ class DCNetworkData : public NetworkData
   return( v_max_power_flow[ line ] );
   }
 
-
 /*--------------------------------------------------------------------------*/
   const double get_baseMVA( void ) const {
     return( f_base_mva );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the AC lines
+ /** This function returns the AC lines in the transmission network.
+  * @return the AC lines in the network. */
+
+ std::vector< Index > get_AC_lines( void ) {
+  std::vector< Index > AC_lines;
+  const auto & susceptance = get_line_susceptance();
+  if( AC_lines.empty() )
+   return( AC_lines );
+  for( Index line_id = 0 ; line_id < get_number_lines() ;
+       ++line_id ) {
+   if( susceptance[ line_id ] > 0. )
+    AC_lines.push_back( line_id );
+   }
+  return( AC_lines );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the DC lines
+ /** This function returns the DC lines in the transmission network.
+  * @return the DC lines in the network. */
+
+ std::vector< Index > get_DC_lines( void ) {
+  std::vector< Index > DC_lines;
+  const auto & susceptance = get_line_susceptance();
+  for( Index line_id = 0 ; line_id < get_number_lines() ;
+       ++line_id ) {
+   if( ( susceptance.empty() ) || ( susceptance[ line_id ] == 0. ) )
+    DC_lines.push_back( line_id );
+   }
+  return( DC_lines );
+  }
 /*--------------------------------------------------------------------------*/
 
 
@@ -829,40 +861,6 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the AC lines
- /** This function returns the AC lines in the transmission network.
-  * @return the AC lines in the network. */
-
- std::vector< Index > get_AC_lines( void ) {
-  std::vector< Index > AC_lines;
-  const auto & susceptance = f_NetworkData->get_line_susceptance();
-  if( AC_lines.empty() )
-   return( AC_lines );
-  for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
-       ++line_id ) {
-   if( susceptance[ line_id ] > 0. )
-    AC_lines.push_back( line_id );
-   }
-  return( AC_lines );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the DC lines
- /** This function returns the DC lines in the transmission network.
-  * @return the DC lines in the network. */
-
- std::vector< Index > get_DC_lines( void ) {
-  std::vector< Index > DC_lines;
-  const auto & susceptance = f_NetworkData->get_line_susceptance();
-  for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
-       ++line_id ) {
-   if( ( susceptance.empty() ) || ( susceptance[ line_id ] == 0. ) )
-    DC_lines.push_back( line_id );
-   }
-  return( DC_lines );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns the number of lines of the network
  /** This function returns the number of lines in the transmission network.
   * If get_NetworkData() returns nullptr, this is equivalent to
@@ -874,16 +872,6 @@ class DCNetworkData : public NetworkData
   if( ! f_NetworkData )
    return( 0 );
   return( f_NetworkData->get_number_lines() );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the types of lines in the network
- /** This method returns the types of lines present in the network. */
-
- line_type get_lines_type( void ) const {
-  if( ! f_NetworkData )
-   return( kNone );
-  return( f_NetworkData->get_lines_type() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -903,39 +891,6 @@ class DCNetworkData : public NetworkData
   return( v_kappa[ line ] );
   }
 
-/*--------------------------------------------------------------------------*/
- /// returns the minimum power flow on the given \p line
- /** This function returns the minimum power flow on the given \p line. If
-  * this DCNetworkBlock has no NetworkData, thus function returns
-  * 0. Otherwise, it returns the minimum power flow specified by the
-  * NetworkData object.
-  *
-  * @param line The index of a line.
-  *
-  * @return The minimum power flow on the given \p line. */
-
- double get_min_power_flow( Index line ) const {
-  if( ! f_NetworkData )
-   return( 0 );
-  return( f_NetworkData->get_min_power_flow( line ) );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum power flow on the given \p line
- /** This function returns the maximum power flow on the given \p line. If
-  * this DCNetworkBlock has no NetworkData, thus function returns
-  * 0. Otherwise, it returns the maximum power flow specified by the
-  * NetworkData object.
-  *
-  * @param line The index of a line.
-  *
-  * @return The maximum power flow on the given \p line. */
-
- double get_max_power_flow( Index line ) const {
-  if( ! f_NetworkData )
-   return( 0 );
-  return( f_NetworkData->get_max_power_flow( line ) );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns a pointer to the DCNetworkData
@@ -1007,11 +962,6 @@ class DCNetworkData : public NetworkData
 
 const std::vector< BoxConstraint > &
  get_power_flow_limit_constraints( void ) const {
-  if( ! f_NetworkData )
-   throw( std::logic_error(
-			 "DCNetworkBlock::get_power_flow_limit_constraints:"
-			 " DCNetworkData has not been set" ) );
-
   return( v_power_flow_limit_const );
  }
 
@@ -1020,9 +970,6 @@ const std::vector< BoxConstraint > &
 
  const std::vector< BoxConstraint > &
  get_power_flow_limit_HVDC_bounds( void ) const {
-  if( ! f_NetworkData )
-   throw( std::logic_error( "DCNetworkBlock::get_power_flow_limit_HVDC_bounds:"
-                            " DCNetworkData has not been set." ) );
   return( v_power_flow_limit_const );
  }
 

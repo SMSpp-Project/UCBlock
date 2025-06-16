@@ -172,6 +172,18 @@ class ACNetworkData : public DCNetworkData
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
  void generate_objective( Configuration * objc = nullptr ) override;
 
+  Index get_number_nodes( void ) const override {
+  if( ! f_NetworkData )
+   return( 1 );
+  return( f_NetworkData->get_number_nodes() );
+  }
+
+  Index get_number_lines( void ) const {
+  if( ! f_NetworkData )
+   return( 0 );
+  return( f_NetworkData->get_number_lines() );
+  }
+
  void generate_SOCP_relaxation();
 
  const std::vector< ColVariable > & get_power_flow_imag( void ) const { return( v_power_flow_imag ); };
