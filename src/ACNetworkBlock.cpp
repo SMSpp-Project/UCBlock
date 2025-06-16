@@ -181,7 +181,7 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_objective( Configuration * objc )
+void ACNetworkBlock::generate_objective( Configuration * objc )
 {
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
@@ -204,7 +204,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
 
  set_objective_generated();
 
-}  // end( DCNetworkBlock::generate_objective )
+}  // end( ACNetworkBlock::generate_objective )
 
 
 /*--------------------------------------------------------------------------*/
