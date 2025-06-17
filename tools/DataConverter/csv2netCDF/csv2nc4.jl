@@ -1,3 +1,7 @@
+using Pkg
+Pkg.activate(".")  # Activate environment from Project.toml
+Pkg.instantiate()
+
 using YAML
 # the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl, 
 # does not support (yet) the concept of group :(
@@ -33,7 +37,10 @@ include("Scen_eps_sampler.jl")
 # setting the seed
 Random.seed!(123)
 
-function csvEC2nc4(deterministic::Bool=false)
+function csvEC2nc4(
+    deterministic::Bool=false,
+    sampled_scenarios::Union{Nothing, Vector{Scenario_Load_Renewable}}=nothing,
+)
 
     middle = ""
     if occursin("_CO", file_name)
@@ -634,29 +641,39 @@ end
 # converters, i.e., CONV, are modeled with the corresponding BatteryUnitBlock in SMS++
 SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
 
-# Number of scenarios to be extracted
-scen_s_sample = 3
-scen_eps_sample = 3
 
-scen_s_set = 1:scen_s_sample
-scen_eps_set = 1:scen_eps_sample
+# Preprocessing to create the data structure (sampled_scenarios) for stochastic applications.
+# If the model is deterministic, sampled_scenarios is nothing.
+sampled_scenarios = nothing
+if !is_det
 
-# Standard deviation associated with load and renewable production in long period uncertainty
+    # Number of scenarios to be extracted
+    scen_s_sample = 3
+    scen_eps_sample = 3
 
-sigma_load = 0.4
-sigma_ren = 0.2
+    scen_s_set = 1:scen_s_sample
+    scen_eps_set = 1:scen_eps_sample
 
-# Extraction of the point used to sample the distributions associated to the long period uncertainty
-(point_s_load,
-  point_s_ren,
-  scen_probability) = pem_extraction(scen_s_sample,sigma_load,sigma_ren)
+    # Standard deviation associated with load and renewable production in long period uncertainty
 
-# To define an empty stochastic model we have to declare previously the scenarios
-# sampled_scenarios is a list of Scenario_Load_Renewable defined in Scen_eps_sampler.jl; see definition for more information
-# sampled_scenarios[i].probability : denotes the probability of the scenario
-# sampled_scenarios[i].Load : is a dictionary that denotes the load profiles of each user; e.g. sampled_scenarios[1].Load["user1"][1] is the load of user1 in time 1
-# sampled_scenarios[i].Ren : is a dictionary that denotes the renewable profiles of each user by asset; e.g. sampled_scenarios[1].Ren["user1"]["PV"][1] is the PV production of user1 in time 1
-sampled_scenarios = scenarios_generator(data,point_s_load,point_s_ren,scen_probability,scen_s_sample,scen_eps_sample)
+    sigma_load = 0.4
+    sigma_ren = 0.2
+
+    # Extraction of the point used to sample the distributions associated to the long period uncertainty
+    (point_s_load,
+    point_s_ren,
+    scen_probability) = pem_extraction(scen_s_sample,sigma_load,sigma_ren)
+
+    # To define an empty stochastic model we have to declare previously the scenarios
+    # sampled_scenarios is a list of Scenario_Load_Renewable defined in scenario_definition.jl; see definition for more information
+    # Notable quantities are:
+    #   sampled_scenarios[i].scen_s : scenario s
+    #   sampled_scenarios[i].scen_eps : scenario epsilon
+    #   probability(sampled_scenarios[1]) : denotes the probability of the scenario
+    #   sampled_scenarios[i].Load : is a dictionary that denotes the load profiles of each user; e.g. sampled_scenarios[1].Load["user1"][1] is the load of user1 in time 1
+    #   sampled_scenarios[i].Ren : is a dictionary that denotes the renewable profiles of each user by asset; e.g. sampled_scenarios[1].Ren["user1"]["PV"][1] is the PV production of user1 in time 1
+    sampled_scenarios = scenarios_generator(data,point_s_load,point_s_ren,scen_probability,scen_s_sample,scen_eps_sample)
+end
 
 ## Data aggregation and netCDF files generation
-# csvEC2nc4(is_det)
+csvEC2nc4(is_det, sampled_scenarios)
