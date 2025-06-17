@@ -286,7 +286,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 	
 	++i_line;	
   }
-  add_static_constraint( v_angle_bounds_const, "AC_angle_bounds_limit" );
+  if( i_line > 0 )
+    add_static_constraint( v_angle_bounds_const, "AC_angle_bounds_limit" );
 
   // ----- Active and Reactive Power conservation:
   // Shunt admittance
@@ -411,7 +412,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 	
 	++i_line;
   }
-  add_static_constraint( v_voltage_definition_const, "AC_voltage_defintion_const" );
+  if( i_line > 0 )
+    add_static_constraint( v_voltage_definition_const, "AC_voltage_defintion_const" );
 
   // ----- Thermal limit on lines
   /*
@@ -494,7 +496,8 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
 	
 	++i_line;
   }
-  add_static_constraint(v_socp_const, "AC_socp_const" );
+  if( i_line > 0 )
+    add_static_constraint(v_socp_const, "AC_socp_const" );
   
  };
 
