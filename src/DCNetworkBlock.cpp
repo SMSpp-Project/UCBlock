@@ -167,6 +167,93 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  }  // end( DCNetworkData::deserialize )
 
+ std::vector< Block::Index > DCNetworkData::compute_spanning_tree( ) const{
+      /// A Spanning tree will have exactly nodes - 1 arcs / edges
+      Index nbSpan = get_number_nodes() - 1;
+      std::vector< Index > idx_list ( nbSpan );
+
+      /// Verify if it all possible
+      assert( nbSpan < get_number_lines() );
+
+      ///
+      ///  We will implement Kruskal's Algorithm
+      ///
+
+      /// Some node sorting if needed - for now none assumed
+
+      /// List of visited nodes
+      std::vector< Index > v_nodes_visited( nbSpan + 1 ); // Should never be larger than the total number of nodes
+      int nbCurrent = 0;
+
+      ///
+      Index idx_current_edge = 0;
+      for (int i=0; i <= nbSpan; ++i){
+        /// Check if adding the current edge to the list generates a cycle
+        bool done = false;
+        bool st_visited = false;        
+        bool end_visited= false;
+        while ( !done ){
+            /// check if a cycle is here
+            // this happens when both end-points of the current edge are already in the list of visited nodes
+            
+            ///
+            /// TODO : use quick sorted lists rather than a dumb linear search.
+            for (int jnode=0; jnode < nbCurrent; ++jnode){
+              if ( v_nodes_visited[jnode] == v_start_line[ idx_current_edge ] ){
+                st_visited = true;
+                break;
+              }
+            }
+            /*std::vector<Index>::iterator it;
+            it = std::find (v_nodes_visited.begin(), v_nodes_visited.begin()+nbCurrent, v_start_line[ idx_current_edge ] );
+            st_visited = (it < nbCurrent );*/
+            // 
+            for (int jnode=0; jnode < nbCurrent; ++jnode){
+              if ( v_nodes_visited[jnode] == v_end_line[ idx_current_edge ] ){
+                end_visited = true;
+                break;
+              }
+            }
+            /*it = std::find (v_nodes_visited.begin(), v_nodes_visited.begin()+nbCurrent, v_end_line[ idx_current_edge ] );
+            end_visited = (it < nbCurrent );  */
+
+            if ( st_visited && end_visited ){
+              // A cycle has been generated, go to next arc/edge
+              ++idx_current_edge;
+              /// Check if we do not move beyond the bounds of the total number of available lines...
+              if ( idx_current_edge >= f_number_lines ){
+                std::cout << "[DCNetworkData::compute_spanning_tree] Critical error, the network does not have a spanning tree, something surely went wrong\n";
+                exit(1);
+              }
+            }
+            else{
+              // A good edge was found
+              done = true;
+            }
+        }
+        // insert the edge
+        idx_list[ i ] = idx_current_edge;
+        // Update the list of visited nodes
+        if ( !st_visited ){
+          v_nodes_visited[ nbCurrent ] = v_start_line[ idx_current_edge ];
+          ++nbCurrent; 
+        }
+        if ( !end_visited ){
+          v_nodes_visited[ nbCurrent ] = v_end_line[ idx_current_edge ];
+          ++nbCurrent; 
+        }
+        /// update the arc/edge
+        ++idx_current_edge;
+
+        /// Check if we do not move beyond the bounds of the total number of available lines...
+        if ( idx_current_edge >= f_number_lines ){
+          std::cout << "[DCNetworkData::compute_spanning_tree] Critical error, the network does not have a spanning tree, something surely went wrong\n";
+          exit(1);
+        }
+      }
+      return idx_list;
+ }
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkBlock ------------------------*/
 /*--------------------------------------------------------------------------*/

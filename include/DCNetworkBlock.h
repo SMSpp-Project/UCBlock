@@ -489,6 +489,12 @@ class DCNetworkData : public NetworkData
   return( v_line_names );
   }
 
+ /// Method for computing a spanning tree of the network 
+ /// the spanning tree is a collection of indexes of the appropriate vertices, that is a subselection 
+ /// of v_start_line, v_end_line.
+ ///
+ std::vector< Index > compute_spanning_tree( ) const ;                   
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -838,6 +844,7 @@ class DCNetworkData : public NetworkData
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
+
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
