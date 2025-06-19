@@ -652,7 +652,7 @@ class UCBlock : public Block
   *   f_BlockConfig->f_solution_Configuration != nullptr and it
   *   is a SimpleConfiguration< int >, ws is its f_value
   *
-  * - otherwise ws is 1 (only save the UnitBlock(s) Solution)
+  * - otherwise ws is 3 (only save the UnitBlock(s) and NetworkBlock Solution)
   *
   * The encoding of ws is bit-wise:
   *
