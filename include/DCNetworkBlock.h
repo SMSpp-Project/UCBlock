@@ -1329,6 +1329,8 @@ const std::vector< BoxConstraint > &
 
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
+ /// Mixed HVDC and AC node injection constraints ;
+ std::vector< FRowConstraint > v_AC_HVDC_power_flow_const;
 
  /// HVDC power flow auxiliary variable constraints
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;

@@ -531,32 +531,64 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
   // Power flow and node injection constraints
-  if( lines_type == kHVDC )
+  if( lines_type == kHVDC ){
    v_power_flow_injection_const.resize(number_nodes );
-  //if( lines_type == kAC_HVDC ) v_AC_HVDC_power_flow_constraints.resize( number_nodes );
 
-  for( Index n = 0 ; n < number_nodes ; ++n ) {
-    auto lfunc = new LinearFunction();
-    lfunc->add_variable( & v_node_injection[ 0 ][ n ] , -1.0 );
+    for( Index n = 0 ; n < number_nodes ; ++n ) {
+        auto lfunc = new LinearFunction();
+        lfunc->add_variable( & v_node_injection[ 0 ][ n ] , -1.0 );
 
-    for( auto & line_id : DC_lines ) {
-      if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
-      if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -1.0 );
-    }
-    if( lines_type == kHVDC ) {
-      v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
-      v_power_flow_injection_const[ n ].set_function( lfunc );
-    }
-    /*else {
-      v_AC_HVDC_power_flow_const[ n ].set_both( -v_ActiveDemand[ n ] );
-      v_AC_HVDC_power_flow_const[ n ].set_function( lfunc );
-    }*/
-
-  }
-  if( lines_type == kHVDC )
+        for( auto & line_id : DC_lines ) {
+          if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
+          if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -1.0 );
+        }
+        if( lines_type == kHVDC ) {
+          v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
+          v_power_flow_injection_const[ n ].set_function( lfunc );
+        }
+      }
     add_static_constraint( v_power_flow_injection_const, "HVDC_power_flow_injection" );
-  /*else
-    add_static_constraint(v_AC_HVDC_power_flow_constraints, "AC/HVDC_power_flow_injection");*/
+  }
+  // If we have mixed lines, we have as many as nodes impacted and touched by DC lines
+  if( lines_type == kAC_HVDC ){
+    int nb_DCnodes = 0;
+    std::vector<bool> nodes_vist( number_nodes, false );
+  
+    for( auto & line_id : DC_lines ){
+        nodes_vist[ start_line[ line_id ] ] = true;
+        nodes_vist[ end_line[ line_id ] ] = true;
+    }
+  
+    for( Index n = 0 ; n < number_nodes ; ++n ){
+      if ( nodes_vist[n] )
+        ++nb_DCnodes;
+    }
+    v_AC_HVDC_power_flow_const.resize( nb_DCnodes );
+
+    // Add power balance equations for impacted nodes
+    int iDCnode=0;
+    for( Index n = 0 ; n < number_nodes ; ++n ){
+      if ( nodes_vist[n] ){
+        auto lfunc = new LinearFunction();
+        lfunc->add_variable( & v_node_injection[ 0 ][ n ] , -1.0 );
+
+        for( auto & line_id : DC_lines ) {
+          if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
+          if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -1.0 );
+        }
+        for( auto & line_id : AC_lines ) {
+          if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
+          if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -1.0 );
+        }
+        v_AC_HVDC_power_flow_const[ iDCnode ].set_both( -v_ActiveDemand[ n ] );
+        v_AC_HVDC_power_flow_const[ iDCnode ].set_function( lfunc );
+
+        add_static_constraint(v_AC_HVDC_power_flow_const, "AC/HVDC_power_flow_injection");
+        
+        ++iDCnode; // update the index
+      }
+    }
+  }  
 
  } // ===== end constraints on HVDC part
 
@@ -572,6 +604,19 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    }
    linkingMat = -PTDF_matrix * A_DC;
   }
+
+  // 
+  // const auto & l_names = f_NetworkData->get_line_names();
+  // const auto & n_names = f_NetworkData->get_node_names();
+  // std::cout << "Some output for line " << l_names[1045] << " ";
+  // Eigen::SparseMatrix<double> a_row = PTDF_matrix.block(1045, 0, 1, PTDF_matrix.cols() );
+  // for (int k=0; k < a_row.outerSize(); ++k){
+	  //for (Eigen::SparseMatrix<double>::InnerIterator it(a_row,k); it; ++it){
+		  //std::cout << "(" << it.row() << "," << it.col()+1 << " name=" << n_names[it.col()+1] << " ) = " << it.value();
+//
+ //   }
+  //}
+  //std::cout << "\n";
 
   // Flow limit constraints
   v_power_flow_def.resize( number_lines );

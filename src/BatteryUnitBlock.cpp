@@ -177,7 +177,7 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  if( ! ::deserialize( group , "Cost" , f_time_horizon , v_Cost ,
                       true , true , v_change_intervals ) )
-  v_Cost.resize( f_time_horizon , 1 );
+  v_Cost.resize( f_time_horizon , 0 );
 
  ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" );
  ::deserialize( group , f_ConvInvestmentCost , "ConverterInvestmentCost" );
@@ -963,9 +963,11 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  auto lf = new LinearFunction();
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
-  lf->add_variable( &v_outtake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
+ if ( v_RefSchedule.empty() ){
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+     lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
+     lf->add_variable( &v_outtake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
+   }
  }
 
  if( f_BattInvestmentCost != 0 )
