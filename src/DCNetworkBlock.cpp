@@ -350,6 +350,34 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  }
 }  // end( DCNetworkBlock::deserialize )
 
+int DCNetworkData::get_reducedIdx( int idx ) {
+ if( idx > get_reference_node() )
+  return( idx - 1 );
+ return( idx );
+ }
+
+int DCNetworkData::get_originalIdx( int idx ){
+    if ( idx >= get_reference_node() )
+      return( idx + 1 );
+    return( idx );
+ }
+
+ void DCNetworkData::compute_DCDF( const std::vector< Index > & DC_lines, SpMat & PTDF_matrix ){
+    const auto number_nodes = get_number_nodes();
+    const auto number_lines = get_number_lines();
+    const auto & start_line = get_start_line();
+    const auto & end_line = get_end_line();
+
+    // linking constraints between AC and HVDC
+    SpMat A_DC_transpose( number_nodes - 1 , number_lines );
+    for( auto & line_id : DC_lines ) {
+      A_DC_transpose.coeffRef( get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
+      A_DC_transpose.coeffRef( get_reducedIdx( end_line[ line_id ] ) , line_id ) = -1.; // QJ_TOCHECK 1 or -1 ?
+    }
+    DCDF = -PTDF_matrix * A_DC_transpose;
+    DCDF_was_computed = true;
+ }
+
 SpMat DCNetworkData::get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff){
   // get data
   const auto & susceptance = get_line_susceptance();
@@ -455,12 +483,6 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
 /*--------------------------------------------------------------------------*/
 
-int DCNetworkBlock::get_reducedIdx( int idx ) {
- if( idx > f_NetworkData->get_reference_node() )
-  return( idx - 1 );
- return( idx );
- }
-
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
@@ -468,7 +490,13 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- std::cout << "begin constraint" << std::endl;
+ // In mixed mode we can write all nodal balances, instead of just strictly those needed;
+ // set the following flag to true in that case 
+ bool full_formulation = false;  
+ if ( full_formulation )
+    std::cout << "begin constraint extended" << std::endl;
+ else
+    std::cout << "begin constraint economic" << std::endl;
 
  const auto number_nodes = get_number_nodes();
 
@@ -552,8 +580,11 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // If we have mixed lines, we have as many as nodes impacted and touched by DC lines
   if( lines_type == kAC_HVDC ){
     int nb_DCnodes = 0;
-    std::vector<bool> nodes_vist( number_nodes, false );
+    // Savagely setting all visited nodes to true will generate nodal balances for all nodes
+    // the default and subtle initialization should be with false
+    std::vector<bool> nodes_vist( number_nodes, full_formulation );
   
+    // Flip any visited nodes to true
     for( auto & line_id : DC_lines ){
         nodes_vist[ start_line[ line_id ] ] = true;
         nodes_vist[ end_line[ line_id ] ] = true;
@@ -580,29 +611,26 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
           if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
           if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -1.0 );
         }
-        v_AC_HVDC_power_flow_const[ iDCnode ].set_both( -v_ActiveDemand[ n ] );
+        // v_AC_HVDC_power_flow_const[ iDCnode ].set_both( -1.0*v_ActiveDemand[ n ] );
+        v_AC_HVDC_power_flow_const[ iDCnode ].set_lhs( -1.0*v_ActiveDemand[ n ] - 0.05 ); // allow for a 0.01 MW deviation
+        v_AC_HVDC_power_flow_const[ iDCnode ].set_rhs( -1.0*v_ActiveDemand[ n ] + 0.05 );
         v_AC_HVDC_power_flow_const[ iDCnode ].set_function( lfunc );
-
-        add_static_constraint(v_AC_HVDC_power_flow_const, "AC/HVDC_power_flow_injection");
-        
+       
         ++iDCnode; // update the index
       }
     }
+    // Add the whole vector of constraints at once
+    add_static_constraint(v_AC_HVDC_power_flow_const, "ACdHVDC_power_flow_injection");
   }  
 
  } // ===== end constraints on HVDC part
 
  // ===== constraints on AC Part
  if( lines_type == kAC || lines_type == kAC_HVDC ) {
-  SpMat linkingMat;
+  
   if( lines_type == kAC_HVDC ) {
-   // linking constraints between AC and HVDC
-   SpMat A_DC( number_nodes - 1 , number_lines );
-   for( auto & line_id : DC_lines ) {
-    A_DC.coeffRef( get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
-    A_DC.coeffRef( get_reducedIdx( end_line[ line_id ] ) , line_id ) = -1.; // QJ_TOCHECK 1 or -1 ?
-   }
-   linkingMat = -PTDF_matrix * A_DC;
+   if ( !f_NetworkData->was_DCDF_computed() ) 
+      f_NetworkData->compute_DCDF( DC_lines, PTDF_matrix );     
   }
 
   // 
@@ -621,29 +649,38 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // Flow limit constraints
   v_power_flow_def.resize( number_lines );
   for( auto & line_id : AC_lines ) {
-   auto lfunc = new LinearFunction();
-   lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 );
-   double constant_term = 0;
+    // TODO : verify if this does not entail a copy of the information which would be inefficient
+    Eigen::SparseMatrix<double> a_row = PTDF_matrix.block(line_id, 0, 1, PTDF_matrix.cols() );
+   
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 );
+    double constant_term = 0;
 
-   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-    if( node_id != f_NetworkData->get_reference_node() ) {
-     double coefficient = PTDF_matrix.coeff( line_id ,
-                                             get_reducedIdx( node_id ) );
-     // Distribution Factor Matrix
-     lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , coefficient );
-     constant_term -= coefficient * v_ActiveDemand[ node_id ];
+    // loop over all nodes
+    // for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {   
+    for (int k=0; k < a_row.outerSize(); ++k){
+      for (Eigen::SparseMatrix<double>::InnerIterator it(a_row,k); it; ++it){
+        int node_id = f_NetworkData->get_originalIdx( it.col() );
+        if( node_id != f_NetworkData->get_reference_node() ) {
+          double coefficient = it.value(); //PTDF_matrix.coeff( line_id , f_NetworkData->get_reducedIdx( node_id ) );
+          // Distribution Factor Matrix
+          lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , coefficient );
+          constant_term += coefficient * v_ActiveDemand[ node_id ];
+        }
+      }
+    } // for each node
+    
+    if( lines_type == kAC_HVDC ) {
+      SpMat DCDF_ = f_NetworkData->get_DCDF();
+      // TODO : Also only loop over the non zero entries of DCDF only ...
+      for( auto & dc_line_id : DC_lines )
+        lfunc->add_variable( &v_power_flow[ dc_line_id ] , DCDF_.coeff( line_id , dc_line_id ) );
     }
-   } // for each node
 
-   if( lines_type == kAC_HVDC ) {
-    for( auto & dc_line_id : DC_lines )
-     lfunc->add_variable( &v_power_flow[ dc_line_id ] ,
-                          linkingMat.coeff( line_id , dc_line_id ) );
-   }
     // Set the constraint (AC)
     v_power_flow_def[ line_id ].set_function( lfunc );
-    v_power_flow_def[ line_id ].set_lhs( -constant_term );
-    v_power_flow_def[ line_id ].set_rhs( -constant_term );
+    v_power_flow_def[ line_id ].set_lhs( constant_term );
+    v_power_flow_def[ line_id ].set_rhs( constant_term );
   }
 
   add_static_constraint( v_power_flow_def, "AC/HVDC_powerflow_def" );

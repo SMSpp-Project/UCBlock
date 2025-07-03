@@ -149,10 +149,10 @@ class DCNetworkData : public NetworkData
  * @{ */
 
  /// constructor of DCNetworkData, does nothing
- DCNetworkData( void ) : f_lines_type( -1 ) {}
+ DCNetworkData( void ) : f_lines_type( -1 ), DCDF_was_computed(false) {}
 
  /// copy constructor of DCNetworkData, does nothing
- explicit DCNetworkData( const NetworkData * ) : f_lines_type( -1 ) {}
+ explicit DCNetworkData( const NetworkData * ) : f_lines_type( -1 ), DCDF_was_computed(false) {}
 
  /// destructor of DCNetworkData: it is virtual, and empty
  virtual ~DCNetworkData() override = default;
@@ -418,6 +418,17 @@ class DCNetworkData : public NetworkData
   return( v_node_susceptance );
   }
 
+ int get_reducedIdx( int idx );
+
+ // the inverse of get_reducedIdx
+ int get_originalIdx( int idx );
+
+ void compute_DCDF( const std::vector< Index > & DC_lines, SpMat & PTDF_matrix );
+
+ SpMat get_DCDF(){ return DCDF; }
+ 
+ bool was_DCDF_computed(){ return DCDF_was_computed; }
+ void set_DCDF_computed(){ DCDF_was_computed = true; }
 
  SpMat get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff = 1e-4);
 
@@ -527,6 +538,10 @@ class DCNetworkData : public NetworkData
  Index f_reference_node;    ///< reference node (used in the PTDF matrix)
  SpMat stored_B2;           ///< to not recompute each time the PTDF
  SpMat stored_B2_inv;       ///< to not recompute each time the PTDF
+
+ SpMat DCDF;                /// A SparseMatrix resulting from the product of the PTDF and (A^dc)^T, 
+                            /// where the latter is the incidence matrix of the pure DC lines
+ bool DCDF_was_computed;    /// A boolean to avoid forming A^dc multiple times                          
 
  double f_base_mva;
  int f_lines_type;         ///< the type of the network
@@ -646,8 +661,6 @@ class DCNetworkData : public NetworkData
   *  \f] */
 
 /*--------------------------------------------------------------------------*/
-
- int get_reducedIdx( int idx );
 
  /// generate abstract constraints of DCNetworkBlock
  /** Three different kinds of DCNetworkBlock constraints are defined as below.
