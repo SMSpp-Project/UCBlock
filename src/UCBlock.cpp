@@ -1108,7 +1108,7 @@ void UCBlock::generate_objective( Configuration * objc )
 
 Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
 {
- int wsol = 1;
+ int wsol = 3;
  if( ( ! solc ) && f_BlockConfig )
   solc = f_BlockConfig->f_solution_Configuration;
 
