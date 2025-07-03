@@ -780,6 +780,11 @@ class DCNetworkData : public NetworkData
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
 
+/// A bogus function to round nasty coefficients in the DCOPF equations  
+double round_to(double value, double precision = 1.0){
+    return std::round(value / precision) * precision;
+}
+
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the DCNetworkBlock
  /** Method that generates the objective of the DCNetworkBlock.
