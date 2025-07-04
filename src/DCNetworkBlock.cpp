@@ -180,10 +180,12 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
       ///
 
       /// Some node sorting if needed - for now none assumed
+      /// TODO if desired
 
       /// List of visited nodes
-      std::vector< Index > v_nodes_visited( nbSpan + 1 ); // Should never be larger than the total number of nodes
-      int nbCurrent = 0;
+      std::vector< bool > node_was_visited( nbSpan + 1, false ); 
+      // std::vector< Index > v_nodes_visited( nbSpan + 1 ); // Should never be larger than the total number of nodes
+      // int nbCurrent = 0;
 
       ///
       Index idx_current_edge = 0;
@@ -198,22 +200,25 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
             
             ///
             /// TODO : use quick sorted lists rather than a dumb linear search.
-            for (int jnode=0; jnode < nbCurrent; ++jnode){
+            /*for (int jnode=0; jnode < nbCurrent; ++jnode){
               if ( v_nodes_visited[jnode] == v_start_line[ idx_current_edge ] ){
                 st_visited = true;
                 break;
               }
-            }
+            }*/
             /*std::vector<Index>::iterator it;
             it = std::find (v_nodes_visited.begin(), v_nodes_visited.begin()+nbCurrent, v_start_line[ idx_current_edge ] );
             st_visited = (it < nbCurrent );*/
             // 
-            for (int jnode=0; jnode < nbCurrent; ++jnode){
+            /*for (int jnode=0; jnode < nbCurrent; ++jnode){
               if ( v_nodes_visited[jnode] == v_end_line[ idx_current_edge ] ){
                 end_visited = true;
                 break;
               }
-            }
+            }*/
+            st_visited  = node_was_visited[ v_start_line[ idx_current_edge ] ];
+            end_visited = node_was_visited[ v_end_line[ idx_current_edge ] ];
+            
             /*it = std::find (v_nodes_visited.begin(), v_nodes_visited.begin()+nbCurrent, v_end_line[ idx_current_edge ] );
             end_visited = (it < nbCurrent );  */
 
@@ -235,12 +240,14 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
         idx_list[ i ] = idx_current_edge;
         // Update the list of visited nodes
         if ( !st_visited ){
-          v_nodes_visited[ nbCurrent ] = v_start_line[ idx_current_edge ];
-          ++nbCurrent; 
+          node_was_visited[ v_start_line[ idx_current_edge ] ] = true;
+          //v_nodes_visited[ nbCurrent ] = v_start_line[ idx_current_edge ];
+          //++nbCurrent; 
         }
         if ( !end_visited ){
-          v_nodes_visited[ nbCurrent ] = v_end_line[ idx_current_edge ];
-          ++nbCurrent; 
+          node_was_visited[ v_end_line[ idx_current_edge ] ] = true;
+          //v_nodes_visited[ nbCurrent ] = v_end_line[ idx_current_edge ];
+          //++nbCurrent; 
         }
         /// update the arc/edge
         ++idx_current_edge;
@@ -493,7 +500,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  // In mixed mode we can write all nodal balances, instead of just strictly those needed;
  // set the following flag to true in that case
  double nodal_slack = 0.05;
- double ptdf_slack  = 0.5; 
+ double ptdf_slack  = 1.0; 
  double ptdf_round  = 1e-7; 
  bool full_formulation = true;  
  if ( full_formulation )
