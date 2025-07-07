@@ -189,7 +189,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
       ///
       Index idx_current_edge = 0;
-      for (int i=0; i <= nbSpan; ++i){
+      for (int i=0; i < nbSpan; ++i){
         /// Check if adding the current edge to the list generates a cycle
         bool done = false;
         bool st_visited = false;        
@@ -253,7 +253,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
         ++idx_current_edge;
 
         /// Check if we do not move beyond the bounds of the total number of available lines...
-        if ( idx_current_edge >= f_number_lines ){
+        if ( ( idx_current_edge >= f_number_lines ) && (i < nbSpan - 1) ) {
           std::cout << "[DCNetworkData::compute_spanning_tree] Critical error, the network does not have a spanning tree, something surely went wrong\n";
           exit(1);
         }
