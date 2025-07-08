@@ -452,21 +452,21 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
-/** This method returns the efficiency for a \p line.
- * it returns the value of the efficiency of the \p line if its type is HVDC,
- * otherwise it returns 1.0.
- * 
- * @return the efficiency of the \p line. */
+ /// returns the efficiency of a line \p line
+ /** This method returns the efficiency for a \p line.
+  * it returns the value of the efficiency of the \p line if its type is HVDC,
+  * otherwise it returns 1.0.
+  *
+  * @return the efficiency of the \p line. */
 
  double get_line_efficiency( Index line ) const {
   assert( line < get_number_lines() );
-  if( get_line_susceptance().empty() || get_line_susceptance()[ line ] != 0.0 )
+  if( v_efficiency.empty() || get_line_susceptance().empty() ||
+      ( get_line_susceptance()[ line ] != 0.0 ) )
    return( 1.0 );
-  else
-   return( v_efficiency[ line ] );
+  return( v_efficiency[ line ] );
   }
 
-/// returns the efficiency of a line \p line
 /*--------------------------------------------------------------------------*/
  /// returns the vector containing the name of the nodes
 
