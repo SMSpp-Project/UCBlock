@@ -140,10 +140,10 @@ class NetworkBlock : public Block
  * @{ */
 
   /// constructor of NetworkData, does nothing
-  NetworkData( void ) {}
+ NetworkData( void ) : f_number_nodes( 0 ) {}
 
   /// copy constructor of NetworkData, does nothing
-  explicit NetworkData( const NetworkData * ) {}
+  explicit NetworkData( const NetworkData * ) : f_number_nodes( 0 ) {}
 
   /// destructor of NetworkData: it is virtual, and empty
   virtual ~NetworkData() = default;
@@ -210,16 +210,22 @@ class NetworkBlock : public Block
 /** @name Other initializations
  * @{ */
 
-  /// deserialize a NetworkData out of a netCDF::NcGroup
-  /** Deserialize a DCNetworkData out of a netCDF::NcGroup, which should
-   * contain the following:
-   *
-   * - The dimension "NumberNodes" containing the number of nodes in the
-   *   problem; this dimension is optional, if it is not provided then it is
-   *   taken to be equal to 1.
-   *
-   * No other information is present in the base class, derived ones will
-   * add the information that they need. */
+ /// deserialize a NetworkData out of a netCDF::NcGroup
+ /** Deserialize a DCNetworkData out of a netCDF::NcGroup, which should
+  * contain the following:
+  *
+  * - The dimension "NumberNodes" containing the number of nodes in the
+  *   problem; this dimension is optional, if it is not provided then it is
+  *   taken to be equal to 1.
+  *
+  * - The variable "NodeName", of type netCDF::NcString() and indexed over
+  *   the dimension "NumberNodes". Its i-th entry, namely NodeName[ i ],
+  *   contains the name of the i-th node. This variable is optional, and
+  *   ignored if NumberNodes == 1 (there is only one node, no reason to give
+  *   it a name).
+  *
+  * No other information is present in the base class, derived ones will
+  * add the information that they need. */
 
   virtual void deserialize( const netCDF::NcGroup & group );
 
@@ -233,6 +239,13 @@ class NetworkBlock : public Block
   /** Method for returning the number of nodes of the network. */
 
   Index get_number_nodes( void ) const { return( f_number_nodes ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector containing the name of the nodes
+
+ const std::vector< std::string > & get_node_names( void ) const {
+  return( v_node_names );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
@@ -309,6 +322,8 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 
   Index f_number_nodes{};  ///< number of nodes of the network
+
+  std::vector< std::string > v_node_names;  ///< node names
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

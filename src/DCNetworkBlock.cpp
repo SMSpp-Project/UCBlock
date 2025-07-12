@@ -74,114 +74,150 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 {
  #ifndef NDEBUG
   static std::vector< std::string > expected_dims = { "NumberNodes" ,
-   "NumberLines" ,  // if called from UCBlock:
+   "NumberLines" , "NumberBranches" , "ReferenceNode" ,
+   // if called from UCBlock:
    "TimeHorizon" , "NumberUnits" , "NumberNetworks" ,
    "NumberElectricalGenerators" };
   check_dimensions( group , expected_dims , std::cerr );
 
   static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-   "StartLine" , "EndLine" , "MinPowerFlow" ,"MaxPowerFlow" ,
+   "StartLine" , "EndLine" , "HyperArcID" , "MinPowerFlow" , "MaxPowerFlow" ,
    "LineSusceptance" , "NetworkCost" , "NodeName" , "LineName" ,
-   "ConstantTerm" , "Efficiency", // if called from UCBlock:
+   "ConstantTerm" , "Efficiency" , // if called from UCBlock:
    "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
-   "NetworkBlockClassname" , "NetworkDataClassname",
-   // vars for AC Mode MUST NOT BE HERE!
-   "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
-   "NodeVoltageMagnitude" , "NodeVoltageAngle", "NodeMaxVoltage" ,
-   "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio",
-   "LineRATEA" , "LineShiftAngle" , "LineMinAngle", "LineMaxAngle" };
+   "NetworkBlockClassname" , "NetworkDataClassname" };
   check_variables( group , expected_vars , std::cerr );
  #endif
 
  NetworkData::deserialize( group );
 
- // Optional variables
-
- if( f_number_nodes > 1 ) {
-
-  deserialize_dim( group , "NumberLines" , f_number_lines , false );
-
-  ::deserialize( group , "StartLine" , f_number_lines , v_start_line , false ,
-                 true );
-
-  for( Index i = 0 ; i < f_number_lines ; ++i ) {
-   if( ( v_start_line[ i ] < 0 ) || ( v_start_line[ i ] >= f_number_nodes ) )
-    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-                                  "wrong start node number " +
-                                  std::to_string( v_start_line[ i ] ) ) );
-
-  ::deserialize( group , "EndLine" , f_number_lines , v_end_line , false ,
-                 true );
-
-   if( ( v_end_line[ i ] < 0 ) || ( v_end_line[ i ] >= f_number_nodes ) )
-    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-                                  "wrong end node number " +
-                                  std::to_string( v_end_line[ i ] ) ) );
-
-   if( v_start_line[ i ] == v_end_line[ i ] )
-    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-                                  "start node == end node for line " +
-                                  std::to_string( v_end_line[ i ] ) ) );
-   }
-
-  ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
-                 true , true );
-
-  ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
-                 true , true );
-
-  ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
-                 true , true );
-
-  ::deserialize( group , "Efficiency" , f_number_lines , v_efficiency ,
-                true , true );
-
-  if( ! deserialize_dim( group, "ReferenceNode", f_reference_node, true ) )
-    f_reference_node = 0;
-  }
-
-  // AC vars MUST NOT NE HERE
-  ::deserialize( group , "LineSusceptance" , f_number_lines ,
-		 v_line_susceptance , true , true );
-
-  ::deserialize( group , "LineReactance" , f_number_lines ,
-		 v_line_reactance , true , true );
-
-  ::deserialize( group , "LineResistance" , f_number_lines ,
-		 v_line_resistance , true , true );
-
-  ::deserialize( group , "LineRatio" , f_number_lines , v_line_ratio ,
-                 true , true );
-
-  ::deserialize( group , "LineRATEA" , f_number_lines , v_line_rate_A ,
-                 true , true );
-
-  ::deserialize( group , "LineShiftAngle" , f_number_lines , v_line_angle ,
-                 true , true );
-
-  ::deserialize( group , "LineMinAngle" , f_number_lines , v_line_min_angle ,
-                 true , true );
-
-  ::deserialize( group , "LineMaxAngle" , f_number_lines , v_line_max_angle ,
-                 true , true );
-
-  ::deserialize( group , "NodeConductance" , f_number_nodes ,
-		 v_node_conductance , true , true );
-
-  ::deserialize( group , "NodeSusceptance" , f_number_nodes ,
-		 v_node_susceptance , true , true );
-
-  ::deserialize( group , "NodeMaxVoltage" , f_number_nodes ,
-		 v_node_max_voltage , true , true );
-
-  ::deserialize( group , "NodeMinVoltage" , f_number_nodes ,
-		 v_node_min_voltage , true , true );
-
- ::deserialize( group , "NodeName" , f_number_nodes , v_node_names );
- ::deserialize( group , "LineName" , f_number_lines , v_line_names );
-
  f_lines_type = -1;
 
+ if( f_number_nodes == 1 )
+  return;
+
+ deserialize_dim( group , "NumberLines" , f_number_lines , false );
+
+ if( ! deserialize_dim( group , "NumberBranches" , f_number_branches ,
+			true ) )
+  f_number_branches = f_number_lines;
+
+ if( ! deserialize_dim( group, "ReferenceNode", f_reference_node, true ) )
+  f_reference_node = 0;
+
+ ::deserialize( group , "StartLine" , f_number_branches , v_start_line ,
+		false , false );
+
+ ::deserialize( group , "EndLine" , f_number_branches , v_end_line ,
+		false , false );
+
+ for( Index i = 0 ; i < f_number_branches ; ++i ) {
+  if( ( v_start_line[ i ] < 0 ) || ( v_start_line[ i ] >= f_number_nodes ) )
+   throw( std::invalid_argument( "DCNetworkData::deserialize: "
+				 "wrong start node number " +
+				 std::to_string( v_start_line[ i ] ) ) );
+
+  if( ( v_end_line[ i ] < 0 ) || ( v_end_line[ i ] >= f_number_nodes ) )
+   throw( std::invalid_argument( "DCNetworkData::deserialize: "
+				 "wrong end node number " +
+				 std::to_string( v_end_line[ i ] ) ) );
+
+  if( v_start_line[ i ] == v_end_line[ i ] )
+   throw( std::invalid_argument( "DCNetworkData::deserialize: "
+				 "start node == end node for branch " +
+				 std::to_string( v_end_line[ i ] ) ) );
+  }
+
+ ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
+		false , true );
+
+ ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
+		true , true );
+ if( v_min_power_flow.empty() ) {
+  v_min_power_flow = v_max_power_flow;
+  for( auto & el : v_min_power_flow )
+   el = - el;
+  }
+
+ ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
+		true , true );
+
+ ::deserialize( group , "Efficiency" , f_number_branches , v_efficiency ,
+                true , true );
+ if( v_efficiency.empty() )
+  v_efficiency.resize( f_number_branche , 1 );
+
+ ::deserialize( group , "LineSusceptance" , f_number_lines ,
+		v_line_susceptance , true , true );
+
+ ::deserialize( group , "LineName" , f_number_lines , v_line_names );
+
+ if( is_hypergraph() ) {
+  std::vector< Index > id;
+  ::deserialize( group , "HyperArcID" , f_number_branches , id ,
+		 false , false );
+
+  // < start node , end node , efficiency >
+  std::vector< std::tuple< Index , Index , double > tmp( f_number_lines );
+  for( Index i = 0 ; i < f_number_branches ; ++i ) {
+   if( ( id[ i ] < 0 ) || ( id[ i ] >= f_number_nodes ) )
+    throw( std::invalid_argument( "DCNetworkData::deserialize: "
+				  "wrong hyperarc id " +
+				  std::to_string( id[ i ] ) ) );
+   tmp[ id[ i ] ].push_back( std:: make_tuple( v_start_line[ i ] ,
+					       v_end_line[ i ] ,
+					       v_efficiency[ i ] ) );
+   if( std::get< 0 >( tmp[ id[ i ] ].front() ) !=
+       std::get< 0 >( tmp[ id[ i ] ].back() ) )
+    throw( std::invalid_argument( "DCNetworkData::deserialize: "
+				  "branches for line " +
+				  std::to_string( id[ i ] ) +
+				  " have different start" ) );
+   }
+
+  // sort all tmp[ i ] for increasing end node
+  for( Index i = 0 ; i < f_number_lines ; ++i ) {
+   if( tmp[ i ].empty() )
+    throw( std::invalid_argument( "DCNetworkData::deserialize: "
+				  "no branches for line " +
+				  std::to_string( i ) ) );
+   std::sort( tmp[ i ].begin() , tmp[ i ].end() ,
+	      []( auto & a , auto & b ) { return( std::get< 1 >( a ) <
+						  std::get< 1 >( b ) ); } );
+   for( Index j = 1 ; j < tmp[ i ].size() ; ++j )
+    if( std::get< 1 >( tmp[ i ][ j ] ) ==
+	std::get< 1 >( tmp[ i ][ j - 1 ] ) )
+     throw( std::invalid_argument( "DCNetworkData::deserialize: "
+				   "repeated end node for line " +
+				   std::to_string( i ) ) );
+   }
+
+  // resize v_start_line and put there the right start nodes
+  v_start_line.resize( f_number_lines );
+  for( Index i = 0 ; i < f_number_lines ; ++i )
+   v_start_line[ i ] = std::get< 0 >( tmp[ id[ i ] ].front() );
+
+  // clear v_end_line and v_efficiency
+  v_end_line.clear();
+  v_efficiency.clear();
+
+  // build v_end_lines and v_h_efficiency
+  v_end_lines.resize( f_number_lines );
+  v_h_efficiency.resize( f_number_lines );
+ 
+  for( Index i = 0 ; i < f_number_lines ; ++i ) {
+   if( ( v_line_susceptance[ i ] > 0 ) && ( v_end_line[ i ].size() > 1 ) )
+    throw( std::invalid_argument( "DCNetworkData::deserialize: line " +
+				  std::to_string( id[ i ] ) +
+				  "is a hyperarc but has susceptance" ) );
+   v_end_lines[ i ].resize( tmp[ i ].size() );
+   v_h_efficiency[ i ].resize( tmp[ i ].size() );
+   for( Index j = 0 ; j < tmp[ i ].size() ; ++j ) {
+    v_end_lines[ i ][ j ] = std::get< 1 >( tmp[ i ][ j ] );
+    v_h_efficiency[ i ][ j ] = std::get< 2 >( tmp[ i ][ j ] );
+    }
+   }
+  }
  }  // end( DCNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -200,7 +236,7 @@ DCNetworkBlock::~DCNetworkBlock()
 
  objective.clear();
 
- // Delete the DCNetworkData if it is local.
+ // delete the DCNetworkData if it is local
  if( f_local_NetworkData )
   delete( f_NetworkData );
  }
@@ -211,10 +247,11 @@ DCNetworkBlock::~DCNetworkBlock()
 
 void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
-
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberLines" };
+                                                     "NumberLines" ,
+						     "NumberBranches" ,
+						     "ReferenceNode" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
@@ -222,8 +259,8 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
                                                      "EndLine" ,
                                                      "MinPowerFlow" ,
                                                      "MaxPowerFlow" ,
+						     "HyperArcID" ,
                                                      "LineSusceptance" ,
-                                                     "NodeSusceptance" ,
                                                      "NetworkCost" ,
                                                      "NodeName" ,
                                                      "LineName" ,
@@ -247,16 +284,17 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
   auto DCND = new DCNetworkData();
   DCND->deserialize( group );
   if( f_NetworkData &&
-    ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
-   throw( std::logic_error(
-    "DCNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
+      ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
+   throw( std::logic_error( "DCNetworkBlock::deserialize: NumberNodes "
+			    "not matching between NetworkData" ) );
   f_NetworkData = DCND;
   f_local_NetworkData = true;
   // A DCNetworkData has been provided. So, the size of the given vector of
   // active demand must be equal to the number of nodes.
   ::deserialize( group , "ActiveDemand" , NumberNodes , v_ActiveDemand );
- } else {
-  // A DCNetworkData has not been provided. However, the active demand may still
+  }
+ else {
+  // a DCNetworkData has not been provided, but the active demand may still
   // have been provided.
 
   auto ActiveDemand = group.getVar( "ActiveDemand" );
@@ -278,60 +316,62 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
    // Retrieve the active demand from the netCDF variable.
    ActiveDemand.getVar( v_ActiveDemand.data() );
+   }
   }
- }
-}  // end( DCNetworkBlock::deserialize )
+ }  // end( DCNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
-Eigen::MatrixXd DCNetworkBlock::get_PTDF( const std::vector< Index > & AC_lines ) {
-  // get data
-  const auto & susceptance = f_NetworkData->get_line_susceptance();
-  const auto number_nodes = get_number_nodes();
-  const auto number_lines = get_number_lines();
-  if( number_lines <= 0 ) {
-    throw ( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                              "number of lines of DCNetworkBlock is not set" ) );
+Eigen::MatrixXd DCNetworkBlock::get_PTDF(
+				      const std::vector< Index > & AC_lines )
+{
+ // get data
+ const auto & susceptance = f_NetworkData->get_line_susceptance();
+ const auto number_nodes = get_number_nodes();
+ const auto number_lines = get_number_lines();
+ if( number_lines <= 0 )
+  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
+			   "number of lines of DCNetworkBlock is not set"
+			   ) );
+
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
+
+ // construct the matrix using two sub-matrices B_bar and B_hat
+ Eigen::MatrixXd B_hat = Eigen::MatrixXd::Zero(number_lines,number_nodes );
+ for( auto & line_id : AC_lines ) {
+  B_hat(line_id,start_line[ line_id ]) =   susceptance[ line_id ];
+  B_hat(line_id,end_line[ line_id ])   = - susceptance[ line_id ];
   }
-  const auto & start_line = f_NetworkData->get_start_line();
-  const auto & end_line = f_NetworkData->get_end_line();
-  
-  // construct the matrix using two sub-matrices B_bar and B_hat
-  Eigen::MatrixXd B_hat = Eigen::MatrixXd::Zero(number_lines,number_nodes );
+
+ Eigen::MatrixXd B_bar = Eigen::MatrixXd::Zero(number_nodes,number_nodes );
+ for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
   for( auto & line_id : AC_lines ) {
-    B_hat(line_id,start_line[line_id]) =  susceptance[line_id];
-    B_hat(line_id,end_line[line_id])   = -susceptance[line_id];
-  }
-  
-  Eigen::MatrixXd B_bar = Eigen::MatrixXd::Zero(number_nodes,number_nodes );
-  for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-    for( auto & line_id : AC_lines ) {
-      if( start_line[ line_id ] == node_id ) {
-        B_bar(node_id,end_line[line_id]) = - susceptance[line_id];
-        B_bar(node_id,node_id ) += susceptance[line_id];
-      }
-      if( end_line[ line_id ] == node_id ) {
-        B_bar(node_id,start_line[line_id]) = - susceptance[line_id];
-        B_bar(node_id,node_id ) += susceptance[line_id];
-      }
+   if( start_line[ line_id ] == node_id ) {
+    B_bar(node_id,end_line[line_id]) = - susceptance[line_id];
+    B_bar(node_id,node_id ) += susceptance[line_id];
     }
+   if( end_line[ line_id ] == node_id ) {
+    B_bar(node_id,start_line[line_id]) = - susceptance[line_id];
+    B_bar(node_id,node_id ) += susceptance[line_id];
+    }
+   }
   }
 
-  Index ref_node = f_NetworkData->get_reference_node();
-  Eigen::MatrixXd I_nref = Eigen::MatrixXd::Zero(number_nodes,number_nodes-1);
-  for( Index node_id = 0; node_id < ref_node; ++node_id ) {
-    I_nref( node_id , node_id ) = 1.;
-  }
-  for( Index node_id = ref_node; node_id < number_nodes - 1; ++node_id ) {
-    I_nref( node_id + 1 , node_id ) = 1.;
-  }
+ Index ref_node = f_NetworkData->get_reference_node();
+ Eigen::MatrixXd I_nref = Eigen::MatrixXd::Zero(number_nodes,number_nodes-1);
+ for( Index node_id = 0; node_id < ref_node; ++node_id )
+  I_nref( node_id , node_id ) = 1.;
 
-  Eigen::MatrixXd B1 = B_hat*I_nref;
-  Eigen::MatrixXd B2 = I_nref.transpose()*B_bar*I_nref;
-  Eigen::MatrixXd PTDF_matrix  = B1*B2.inverse();
+ for( Index node_id = ref_node; node_id < number_nodes - 1; ++node_id )
+  I_nref( node_id + 1 , node_id ) = 1.;
 
-  return( PTDF_matrix );
-}
+ Eigen::MatrixXd B1 = B_hat*I_nref;
+ Eigen::MatrixXd B2 = I_nref.transpose()*B_bar*I_nref;
+ Eigen::MatrixXd PTDF_matrix  = B1*B2.inverse();
+
+ return( PTDF_matrix );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -578,7 +618,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  set_constraints_generated();
 
-}  // end( DCNetworkBlock::generate_abstract_constraints )
+ }  // end( DCNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -591,21 +631,20 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
 
  if( ! f_NetworkData->get_network_cost().empty() )
   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
-   lf->add_variable( &v_auxiliary_variable[ line_id ] ,
+   lf->add_variable( & v_auxiliary_variable[ line_id ] ,
                      f_NetworkData->get_network_cost()[ line_id ] ,
-                     eDryRun );
+                     eNoMod );
 
  lf->set_constant_term( f_ConstTerm );
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
- // Set Block objective
- this->set_objective( &objective );
+ this->set_objective( & objective );  // set Block objective
 
  set_objective_generated();
 
-}  // end( DCNetworkBlock::generate_objective )
+ }  // end( DCNetworkBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -704,50 +743,78 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
 {
  NetworkData::serialize( group );
 
- if( f_number_nodes > 1 ) {
-  auto NumberNodes = group.getDim( "NumberNodes" );
-  auto NumberLines = group.addDim( "NumberLines" );
+ if( f_number_nodes == 1 )
+  return;
+  
+ auto NumberLines = group.addDim( "NumberLines" , f_number_lines );
+ if( f_reference_node )
+  group.addDim( "ReferenceNode" , f_reference_node );
 
+ if( is_hypergraph() ) {  // an hypergraph
+  auto NumberBranches = group.addDim( "NumberBranches" , f_number_branches );
+
+  // remap v_start_line, v_end_lines and v_h_efficiency into vectors
+  // f_number_branches-long, build the vector of branches id
+  std::vector< Index > id( f_number_branches );
+  std::vector< Index > sn( f_number_branches );
+  std::vector< Index > en( f_number_branches );
+  std::vector< double > eff( f_number_branches );
+
+  Index curr = 0;
+  for( index i = 0 ; i < f_number_lines ; ++i )
+   for( index j = 0 ; j < v_end_lines[ i ].size() ; ++j , ++curr ) {
+    id[ curr ] = i;
+    sn[ curr ] = v_start_line[ i ];
+    en[ curr ] = v_end_lines[ i ][ j ];
+    eff[ curr ] = v_h_efficiency[ i ][ j ];
+    }
+   
+  ::serialize( group , "StartLine" , netCDF::NcUint() , NumberBranches , sn );
+
+  ::serialize( group , "EndLine" , netCDF::NcUint() , NumberBranches , en );
+
+  ::serialize( group , "Efficiency" , netCDF::NcDouble() , NumberBranches ,
+	       eff );
+
+  ::serialize( group , "HyperArcID" , netCDF::NcUint() , NumberBranches ,
+	       id );
+  }
+ else {  // a regular graph
   ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,
                v_start_line );
 
   ::serialize( group , "EndLine" , netCDF::NcUint() , NumberLines ,
                v_end_line );
 
-  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NumberLines ,
-               v_min_power_flow );
-
-  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NumberLines ,
-               v_max_power_flow );
-
-  ::serialize( group , "LineSusceptance" , netCDF::NcDouble() , NumberLines ,
-               v_line_susceptance );
-
-  ::serialize( group , "NodeSusceptance" , netCDF::NcDouble() , NumberNodes ,
-               v_node_susceptance );
-
-  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
-               v_network_cost );
-
   ::serialize( group , "Efficiency" , netCDF::NcDouble() , NumberLines ,
               v_efficiency );
-
-  if( ! v_line_names.empty() ) {
-   assert( v_line_names.size() == NumberLines.getSize() );
-   auto LineName = group.addVar( "LineName" , netCDF::NcString() ,
-				 NumberLines );
-   for( Index i = 0 ; i < v_line_names.size() ; ++i )
-    LineName.putVar( { i } , v_line_names[ i ] );
-   }
   }
 
- if( ! v_node_names.empty() ) {
-  auto NumberNodes = group.getDim( "NumberNodes" );
-  assert( v_node_names.size() == NumberNodes.getSize() );
-  auto NodeName = group.addVar( "NodeName" , netCDF::NcString() ,
-				NumberNodes );
-  for( Index i = 0 ; i < v_node_names.size() ; ++i )
-   NodeName.putVar( { i } , v_node_names[ i ] );
+ ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NumberLines ,
+	      v_max_power_flow );
+
+ bool is_reverse == true;
+ for( index i = 0 ; i < f_number_lines ; ++i )
+  if( v_max_power_flow[ i ] != - v_min_power_flow[ i ] ) {
+   is_reverse = false;
+   break
+   }
+
+ if( ! is_reverse )
+  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NumberLines ,
+	       v_min_power_flow );
+
+ ::serialize( group , "LineSusceptance" , netCDF::NcDouble() , NumberLines ,
+	      v_line_susceptance );
+
+ ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
+	      v_network_cost );
+
+ if( ! v_line_names.empty() ) {
+  auto LineName = group.addVar( "LineName" , netCDF::NcString() ,
+				NumberLines );
+  for( Index i = 0 ; i < v_line_names.size() ; ++i )
+   LineName.putVar( { i } , v_line_names[ i ] );
   }
  }  // end( DCNetworkData::serialize )
 
