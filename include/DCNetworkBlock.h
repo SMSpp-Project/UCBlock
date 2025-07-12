@@ -226,7 +226,8 @@ class DCNetworkData : public NetworkData
   *   "HyperArcID") the capacity is still one number representing the
   *   maximum amount of flow leaving the tail bus, although then some flow
   *   (not necessarily the same amount, see "Efficiency") can reach more than
-  *   one head bus. The variable is mandatory.
+  *   one head bus. The variable is optional, if not provided it is assumed
+  *   that MxP[ l ] == 0 for all line l.
   *
   * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines". This is meant to represent the vector
@@ -236,9 +237,8 @@ class DCNetworkData : public NetworkData
   *   "HyperArcID") the capacity is still one number representing the
   *   minimum amount of flow leaving the tail bus, although then some flow
   *   (not necessarily the same amount, see "Efficiency") can reach more than
-  *   one head bus. The minimum capacity is a mandatory number, but the
-  *   variable is nonetheless optional: if it is not present, then is is
-  *   assumed that MnP[ l ] = - MxP[ l ] for each line l.
+  *   one head bus. The variable is optional, if not provided it is assumed
+  *   that MnP[ l ] == 0 for all line l.
   *
   * - The variable "LineSusceptance", of type netCDF::NcDouble and indexed
   *   over the dimension "NumberLines". This is meant to represent the

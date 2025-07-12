@@ -129,15 +129,10 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   }
 
  ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
-		false , true );
+		true , true );
 
  ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
 		true , true );
- if( v_min_power_flow.empty() ) {
-  v_min_power_flow = v_max_power_flow;
-  for( auto & el : v_min_power_flow )
-   el = - el;
-  }
 
  ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
 		true , true );
@@ -794,16 +789,8 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NumberLines ,
 	      v_max_power_flow );
 
- bool is_reverse = true;
- for( Index i = 0 ; i < f_number_lines ; ++i )
-  if( v_max_power_flow[ i ] != - v_min_power_flow[ i ] ) {
-   is_reverse = false;
-   break;
-   }
-
- if( ! is_reverse )
-  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NumberLines ,
-	       v_min_power_flow );
+ ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() , NumberLines ,
+	      v_min_power_flow );
 
  ::serialize( group , "LineSusceptance" , netCDF::NcDouble() , NumberLines ,
 	      v_line_susceptance );
