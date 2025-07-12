@@ -327,7 +327,7 @@ class DCNetworkData : public NetworkData
 
  bool is_hyperarc( Index line ) const {
   if( is_hypergraph() )
-   return( v_end_line[ line ].size() > 1 );
+   return( v_end_lines[ line ].size() > 1 );
   else
    return( false );
   }
@@ -380,7 +380,7 @@ class DCNetworkData : public NetworkData
 
  Index get_end_line( Index line ) const {
   if( is_hypergraph() )
-   return( v_end_line[ line ].front() );   
+   return( v_end_lines[ line ].front() );   
   else
    return( v_end_line[ line ] );
   }
@@ -607,7 +607,7 @@ class DCNetworkData : public NetworkData
 
  /** vector to store the network efficiency of each (hyper)line in the
   * hypergraph case, effective only for HVDC lines and ignored otherwise */
- std::vector< double > v_h_efficiency;
+ std::vector< std::vector< double > > v_h_efficiency;
 
  std::vector< std::string > v_line_names;  ///< Line names
 

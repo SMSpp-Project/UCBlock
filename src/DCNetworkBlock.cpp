@@ -145,7 +145,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "Efficiency" , f_number_branches , v_efficiency ,
                 true , true );
  if( v_efficiency.empty() )
-  v_efficiency.resize( f_number_branche , 1 );
+  v_efficiency.resize( f_number_branches , 1 );
 
  ::deserialize( group , "LineSusceptance" , f_number_lines ,
 		v_line_susceptance , true , true );
@@ -158,7 +158,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 		 false , false );
 
   // < start node , end node , efficiency >
-  std::vector< std::tuple< Index , Index , double > tmp( f_number_lines );
+  std::vector< std::vector< std::tuple< Index , Index , double > > >
+   tmp( f_number_lines );
   for( Index i = 0 ; i < f_number_branches ; ++i ) {
    if( ( id[ i ] < 0 ) || ( id[ i ] >= f_number_nodes ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
@@ -206,7 +207,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   v_h_efficiency.resize( f_number_lines );
  
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
-   if( ( v_line_susceptance[ i ] > 0 ) && ( v_end_line[ i ].size() > 1 ) )
+   if( ( v_line_susceptance[ i ] > 0 ) && ( v_end_lines[ i ].size() > 1 ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: line " +
 				  std::to_string( id[ i ] ) +
 				  "is a hyperarc but has susceptance" ) );
@@ -761,8 +762,8 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
   std::vector< double > eff( f_number_branches );
 
   Index curr = 0;
-  for( index i = 0 ; i < f_number_lines ; ++i )
-   for( index j = 0 ; j < v_end_lines[ i ].size() ; ++j , ++curr ) {
+  for( Index i = 0 ; i < f_number_lines ; ++i )
+   for( Index j = 0 ; j < v_end_lines[ i ].size() ; ++j , ++curr ) {
     id[ curr ] = i;
     sn[ curr ] = v_start_line[ i ];
     en[ curr ] = v_end_lines[ i ][ j ];
@@ -793,11 +794,11 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() , NumberLines ,
 	      v_max_power_flow );
 
- bool is_reverse == true;
- for( index i = 0 ; i < f_number_lines ; ++i )
+ bool is_reverse = true;
+ for( Index i = 0 ; i < f_number_lines ; ++i )
   if( v_max_power_flow[ i ] != - v_min_power_flow[ i ] ) {
    is_reverse = false;
-   break
+   break;
    }
 
  if( ! is_reverse )
