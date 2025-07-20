@@ -2034,6 +2034,9 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
  Index number_networks = 0;
  if( deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
   v_network_Solution.resize( number_networks );
+  sub_group = group.getGroup( "NetworkBlock" );
+
+  /*!!
   for( Index i = 0 ; i < number_networks ; ++i ) {
    std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
    auto sub_group = group.getGroup( sub_group_name );
@@ -2041,6 +2044,7 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
 				      Solution::new_Solution( sub_group ) );
    v_network_Solution[ i ] = NSi;
    }
+   !!*/
   }
 
  // deserialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - -

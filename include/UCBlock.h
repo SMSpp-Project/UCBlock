@@ -1860,11 +1860,18 @@ class UCBlockSolution : public Solution {
   *   missing then no network Solution (see "NetworkBlock_i" below) is
   *   present.
   *
-  * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
-  *   with T = NumberNetworks - 1, with "NetworkBlock_t" containing each the
-  *   NetworkBlockSolution corresponding to that network constraints. If
-  *   NumberNetworks is present, it is an error if the corresponding groups
-  *   are not there.
+  * Normally, one would have continued with the groups "NetworkBlock_0",
+  * "NetworkBlock_1", ..., "NetworkBlock_T" with T = NumberNetworks - 1,
+  * with "NetworkBlock_t" containing each the NetworkBlockSolution
+  * corresponding to that network constraints. However, since T may be
+  * large this may create performance problems since netCDF does not like to
+  * have many groups. Therefore, the format is rather
+  *
+  * - The single group "NetworkBlock" that contains all the data of all the
+  *   NetworkBlockSolution corresponding to all the time instants T with
+  *   T = NumberNetworks - 1; see NetworkBlock::serialize( group & , int )
+  *   for a description of the format. If NumberNetworks is present, it is an
+  *   error if the corresponding group is not there.
   *
   * - The dimension "NumberNodes" containing the number of nodes in the
   *   networks, and therefore the number of active power demand constraints
