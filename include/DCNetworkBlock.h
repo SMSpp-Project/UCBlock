@@ -224,10 +224,6 @@ class DCNetworkData : public NetworkData
   *   between nodes or each network. This variable is optional; if it is not
   *   provided then it's taken to be zero.
   *
-  * - The variable "NodeName", of type netCDF::NcString() and indexed over
-  *   the dimension "NumberNodes". Its i-th entry, namely NodeName[ i ],
-  *   contains the name of the i-th node. This variable is optional.
-  *
   * - The variable "LineName", of type netCDF::NcString() and indexed over
   *   the dimension "NumberLines". Its i-th entry, namely LineName[ i ],
   *   contains the name of the i-th transmission line. This variable is
@@ -481,7 +477,7 @@ class DCNetworkData : public NetworkData
   return( v_line_names );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the DCNetworkData
@@ -1660,7 +1656,10 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void deserialize( const netCDF::NcGroup & group ) override final;
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+ void deserialize( const netCDF::NcGroup & group , int start , int count )
+  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1692,6 +1691,10 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   line l. The variable is optional. */
 
  void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void serialize( netCDF::NcGroup & group , int idx ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

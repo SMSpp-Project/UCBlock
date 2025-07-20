@@ -1117,7 +1117,42 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // deserialize the Dual Prices- - - - - - - - - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "DualCost" , v_cost , false );
 
- }  // end( DCNetworkBlockSolution::deserialize )
+ }  // end( DCNetworkBlockSolution::deserialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
+					  int start , int count )
+{
+ // call the method of the base class
+ NetworkBlockSolution::deserialize( group , start , count );
+
+ // "NumberLines" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ deserialize_dim( group , "NumberLines" , f_number_lines , false );
+
+ std::vector< size_t > strt = { start , 0 };
+ std::vector< size_t > cnt = { count , f_number_lines };
+
+ // deserialize the Flow Variables - - - - - - - - - - - - - - - - - - - - -
+ auto ncVar = group.getVar( "FlowValue" );
+ if( ncVar.isNull() ) {
+  std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
+  v_flow.resize( sizes );
+  }
+ else
+  ncVar.getVar( strt , cnt , v_flow.data() );
+
+ // deserialize the Dual Prices- - - - - - - - - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "DualCost" );
+ if( ncVar.isNull() ) {
+  std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
+  v_cost.resize( sizes );
+  return;
+  }
+
+ ncVar.getVar( strt , cnt , v_cost.data() );
+
+ }  // end( DCNetworkBlockSolution::deserialize( NcGroup & , int , int ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1195,7 +1230,50 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   ::serialize< double >( group , "DualCost" , netCDF::NcDouble() , nl ,
 			 v_cost );
 
- }  // end( DCNetworkBlockSolution::serialize )
+ }  // end( DCNetworkBlockSolution::serialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group , int idx )
+ const
+{
+ // call the method of the base class
+ NetworkBlockSolution::serialize( group , idx );
+
+ netCDF::NcVar FV;  // FlowValue
+ netCDF::NcVar DC;  // DualCost
+
+ if( idx < 0 ) {  // first call, have to initialize everything
+  // "NumberLines" is mandatory - - - - - - - - - - - - - - - - - - - - - - -
+  auto nl = group.addDim( "NumberLines" , f_number_lines );
+  auto ni = group.getDim( "NumberInstants" );
+
+  if( ! v_flow.empty() )
+   FV = group.addVar( "FlowValue" , netCDF::NcDouble() , { ni , nl } );
+
+  if( ! v_cost.empty() )
+   DC = group.addVar( "DualCost" , netCDF::NcDouble() , { ni , nl } );
+
+  idx = 0;
+  }
+ else {  // subsequent cqll, read what is supposedly already there
+  if( ! v_flow.empty() )
+   FV = group.getVar( "FlowValue" );
+ 
+  if( ! v_cost.empty() )
+   DC = group.getVar( "DualCost" );
+  }
+ 
+ std::vector< size_t > strt = { 0 , idx };
+ std::vector< size_t > cnt = { f_number_nodes , f_number_instants };
+
+ if( ! FV.isNull() )  // if Flow Variables have to be serialised
+  FV.putVar( strt , cnt , v_flow.data() );
+
+ if( ! DC.isNull() )  // if Flow Variables have to be serialised
+  DC.putVar( strt , cnt , v_cost.data() );
+
+ }  // end( DCNetworkBlockSolution::serialize( NcGroup & , int ) )
 
 /*--------------------------------------------------------------------------*/
 

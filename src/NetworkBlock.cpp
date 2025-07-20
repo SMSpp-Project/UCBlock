@@ -227,7 +227,37 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
   std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
   v_node_injection.resize( sizes );
   }
- }  // end( NetworkBlockSolution::deserialize )
+ }  // end( NetworkBlockSolution::deserialize( NcGroup & )
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
+					int start , int count )
+{
+ // "NumberNodes" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
+
+ // "NumberInstants" is mandatory - - - - - - - - - - - - - - - - - - - - - -
+ Index tot_number_instants;
+ deserialize_dim( group , "NumberInstants" , tot_number_instants , false );
+ if( start + count > tot_number_instants )
+  throw( std::invalid_argument( "NetworkBlockSolution::deserialize: "
+				"start + count > NumberInstants" ) );
+ f_number_instants = count;
+
+ // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -
+ auto ncVar = group.getVar( "NodeInjection" );
+ if( ncVar.isNull() ) {
+  std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
+  v_node_injection.resize( sizes );
+  return;
+  }
+
+ std::vector< size_t > strt = { start , 0 };
+ std::vector< size_t > cnt = { count , f_number_nodes };
+ ncVar.getVar( strt , cnt , v_node_injection.data() );
+
+ }  // end( NetworkBlockSolution::deserialize( NcGroup & , int , int ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -305,7 +335,39 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
    ::serialize< double , 2 >( group , "NodeInjection" , netCDF::NcDouble() ,
                               { ni , nn } , v_node_injection );
   }
- }  // end( NetworkBlockSolution::serialize )
+ }  // end( NetworkBlockSolution::serialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlockSolution::serialize( netCDF::NcGroup & group , int idx )
+  const
+{
+ netCDF::NcVar NI;  // NodeInjection
+ 
+ if( idx < 0 ) {  // first call, have to initialize everything
+  Solution::serialize( group );
+
+  // "NumberNodes" is mandatory - - - - - - - - - - - - - - - - - - - - - - -
+  auto nn = group.addDim( "NumberNodes" , f_number_nodes );
+
+  // "NumberInstants" is mandatory- - - - - - - - - - - - - - - - - - - - - -
+  auto ni = group.addDim( "NumberInstants" , - idx );
+
+  if( ! v_node_injection.empty() )
+   NI = group.addVar( "NodeInjection" , netCDF::NcDouble() , { ni , nn } );
+  idx = 0;
+  }
+ else {  // subsequent cqll, read what is supposedly already there
+  if( ! v_node_injection.empty() )
+   NI = group.getVar( "NodeInjection" );
+  }
+ 
+ if( ! NI.isNull() ) {  // if node injections have to be serialised
+  std::vector< size_t > strt = { idx , 0 };
+  std::vector< size_t > cnt = { f_number_instants , f_number_nodes };
+  NI.putVar( strt , cnt , v_node_injection.data() );
+  } 
+ }  // end( NetworkBlockSolution::serialize( NcGroup & , int ) )
 
 /*--------------------------------------------------------------------------*/
 
