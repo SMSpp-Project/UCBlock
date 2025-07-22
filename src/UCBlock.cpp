@@ -2034,8 +2034,23 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
  Index number_networks = 0;
  if( deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
   v_network_Solution.resize( number_networks );
-  sub_group = group.getGroup( "NetworkBlock" );
+  auto sub_group = group.getGroup( "NetworkBlock" );
+  if( sub_group.isNull() )
+   throw( std::invalid_argument( "UCBlockSolution::deserialize: "
+				 "NetworkBlock not present" ) );
+  std::string tmp;
+  auto gtype = group.getAtt( "type" );
+  if( gtype.isNull() )
+   throw( std::invalid_argument( "UCBlockSolution::deserialize: "
+				 "NetworkBlockSolution type not present" ) );
+  gtype.getValues( tmp );
+  auto result = new_Solution( tmp );
+  auto NS = dynamic_cast< NetworkBlockSolution * >( result );
+  if( ! NS )
+   throw( std::invalid_argument( "UCBlockSolution::deserialize: "
+				 "invalid NetworkBlockSolution" ) );
 
+  v_network_Solution[ 0 ] 
   /*!!
   for( Index i = 0 ; i < number_networks ; ++i ) {
    std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
