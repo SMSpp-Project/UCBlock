@@ -929,8 +929,8 @@ class NetworkBlockSbstMod : public NetworkBlockMod
  * want to define and handle their derived :NetworkBlockSolution to store
  * :NetworkBlock-specific solution information. */
 
-class NetworkBlockSolution : public Solution {
-
+class NetworkBlockSolution : public Solution
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -965,14 +965,9 @@ class NetworkBlockSolution : public Solution {
   * due to the fact that netCDF is not structured to work with a large number
   * of sub-NcGroup in a file); see the corresponding "nonstandard" version
   * serialize( netCDF::NcGroup & , int ) for the description of the format,
-  * except that in this case \p start >= 0 is always taken as the starting
-  * index t in the time-dependent variables where the solution information is
-  * read from, and \p count is the number of timw instants that are read from
-  * there (corresponding to the value of NetworkBlock::get_number_intervals()
-  * for the :NetworkBlock in question). */
+  * except that in this case \p idx is always >= 0. */
 
- void deserialize( const netCDF::NcGroup & group , int start , int count )
-  override;
+ void deserialize( const netCDF::NcGroup & group , int idx ) override;
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1018,41 +1013,74 @@ class NetworkBlockSolution : public Solution {
   * of sub-NcGroup in a file). The format is as follows:
   *
   * - The dimension "NumberNodes" containing the number of nodes in the
-  *   network. It is mandatory.
+  *   network. It is mandatory. Note that
   *
-  * - The dimension "NumberInstants" containing the *total* number of time
-  *   instants that are covered by all the :NetworkBlock that \p group
-  *   represents; unlike in the "standard" case, it is mandatory.
+  *       ALL THE NetworkBlock MUST HAVE THE SAME NUMBER OF NODES
+  *
+  * - The dimension "NumberNetworks" containing the number of :NetworkBlock
+  *   that \p group represents. It is mandatory. Note: this information is
+  *   not known to any NetworkBlockSolution, and therefore it will have to
+  *   be written in \p group by some other "outer" :Solution.
+  *
+  * - The dimension "TotalNumberInstants" containing the *total* number of
+  *   time instants that are covered by all the :NetworkBlock that \p group
+  *   represents. It is optional, if it is not present then it is assumed
+  *   that "TotalNumberInstants" == "NumberNetworks", i.e., each network
+  *   covers exactly one time instant. Note again: this information is not
+  *   known to any NetworkBlockSolution, and therefore it will have to be
+  *   written in \p group by some other "outer" :Solution.
+  *
+  * - The variable "EndInstant", of type netCDF::NcInt and indexed over the
+  *   dimension "NumberNetworks". EndInstant[ n ] = t means that NetworkBlock
+  *   n covers all time instants between EndInstant[ n - 1 ] included and
+  *   EndInstant[ n ] excluded; EndInstant[ n - 1 ] is not defined when
+  *   n == 0 and it is implicitly taken to be == 0, while it must always be
+  *   that EndInstant[ NumberNetworks - 1 ] == TotalNumberInstants. The
+  *   variable is optional if "TotalNumberInstants" == "NumberNetworks",
+  *   which in particular holds if "TotalNumberInstants" is not defined,
+  *   since then each :NetworkBlock covers exactly one time instant and
+  *   therefore EndInstant[ n ] = n + 1. The variable is mandatory otherwise.
+  *   Note that, unlike "NumberNetworks" and "TotalNumberInstants", this
+  *   information can be built incrementally by the NetworkBlockSolution,
+  *   provided that
+  *
+  *       THE [de]serialize( ... , idx ) METHOD IS ALWAYS CALLED IN
+  *       INCREASING ORDER OF idx, WHICH WILL HAVE TO BE ENSURED
   *
   * - The variable "NodeInjection", of type netCDF::NcDouble, indexed both
-  *   over the dimensions "NumberInstants" and "NumberNodes", otherwise only
-  *   over the dimension "NumberNodes". NodeInjection[ i , t ] is assumed to
-  *   contain the optimal active power for node i at the time t (with
-  *   t = 0, ..., NumberInstants - 1). The variable is optional.
+  *   over the dimensions "TotalNumberInstants" (if defined, otherwise
+  *   "NumberNetworks") and "NumberNodes": NodeInjection[ i , t ] is assumed
+  *   to contain the optimal active power for node i at the time t (with
+  *   t = 0, ..., TotalNumberInstants - 1). The variable is optional.
   *
-  * The method uses idx to identify where in the variables the solution
-  * information of this NetworkBlock must be stored, which is basically
-  * identified by its starting index t. There are two cases:
-  *
-  * - if idx < 0, then - idx is taken as the final size of the time-dependent
-  *   variables ("NumberInstants"), and the variables are constructed with
-  *   that size, then t = 0;
-  *
-  * - if idx > 0, then t = idx.
-  *
-  * The method will then write the data of this :NetworkBlockSolution in
-  * positions t, ..., t + NetworkBlock::get_number_intervals() - 1 of the
-  * variables.
+  * The method uses idx to identify the index of the current
+  * NetworkBlockSolution ("n" in the comments above), and by this means
+  * where in the variables the solution information of the corresponding
+  * NetworkBlock must be stored. That is, if "TotalNumberInstants" !=
+  * "NumberNetworks", i.e., "EndInstant" is defined, the NetworkBlockSolution
+  * covers the instants EndInstant[ idx - 1 ] ... EndInstant[ idx ] - 1,
+  * i.e., NetworkBlock::get_number_intervals() == EndInstant[ idx ] -
+  * EndInstant[ idx - 1 ]. Otherwise, the NetworkBlockSolution covers just
+  * the instant idx.
   *
   * Derived classes will add other variables / dimensions to represent the
   * other solution information they contain, but they are assumed to keep the
-  * same organisation w.r.t. the time indices they cover (cf. t above). Note
-  * that
+  * same organisation w.r.t. the time instants they cover. Note that
   *
-  *     IS IS ASSUMED THAT ALL :NetworkBlock serialize()-d IN THIS \p group
+  *     THE OTHER VARIABLES / DIMENSIONS WILL HAVE TO BE ADDED AT THE VERY
+  *     FIRST CALL, I.E., WHEN idx = 0
+  *
+  * However, as a consequence
+  *
+  *     IT IS ASSUMED THAT ALL :NetworkBlock serialize()-d IN THIS \p group
   *     ARE OF THE SAME ACTUAL TYPE, SINCE THE VARIABLE ARE ONLY CONSTRUCTED
-  *     ONCE (when idx < 0) AND MUST BE THERE WHEN NEEDED (idx > 0).
-  */
+  *     ONCE (when idx == 0) AND MUST BE THERE WHEN NEEDED (idx > 0), SO THE
+  *     TYPE THAT DICTATES WHICH VARIABLES / DIMENSIONS ARE THERE IS THAT OF
+  *     THE :NetworkBlockSolution WITH idx == 0
+  *
+  * (although technically if some :NetworkBlockSolution with *less*
+  * information than that appears when idx > 0 the code will not break, but
+  * there will be uninitialised values in the netCDF). */
 
  void serialize( netCDF::NcGroup & group , int idx ) const override;
 

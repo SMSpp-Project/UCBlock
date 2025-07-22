@@ -1655,11 +1655,14 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   f_number_lines( 0 ) { }  ///< constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a DCNetworkBlockSolution from a netCDF::NcGroup
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
- void deserialize( const netCDF::NcGroup & group , int start , int count )
-  override;
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a DCNetworkBlockSolution from a "global" netCDF::NcGroup
+
+ void deserialize( const netCDF::NcGroup & group , int idx ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1675,11 +1678,20 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a DCNetworkBlockSolution into a netCDF::NcGroup
  /** Serialize a DCNetworkBlockSolution into a netCDF::NcGroup. The format is
-  * the one of NetworkBlockSolution [cf. NetworkBlockSolution::serialize()],
-  * plus:
+  * the one of NetworkBlockSolution, cf. the comments in
+  * NetworkBlockSolution::serialize( netCDF::NcGroup & ), except that
+  *
+  *     "NumberNetworks" IS NOT REALLY NEEDED, BECAUSE "TotalNumberInstants"
+  *     AND "EndInstant" ARE NOR REQUIRED SINCE DCNetworkBlock ALWAYS HAS
+  *     DCNetworkBlock::get_number_intervals() == 1, AND ALL THE
+  *     NetworkBlock IN \p group ARE SUPPOSED TO BE DCNetworkBlock
+  *
+  * In addition, \p group must contain:
   *
   * - The dimension "NumberLines" containing the number of lines in the
-  *   transmission network.
+  *   transmission network. It is mandatory. Note that
+  *
+  *       ALL THE DCNetworkBlock MUST HAVE THE SAME NUMBER OF LINES
   *
   * - The variable "FlowValue", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; FlowValue[ l ] is the optimal value of
@@ -1693,6 +1705,45 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  void serialize( netCDF::NcGroup & group ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a DCNetworkBlockSolution into a "global" netCDF::NcGroup
+ /** "nonstandard" version of serialize() that loads a DCNetworkBlockSolution
+  * from a "global" netCDF::NcGroup, i.e., one where the solution information
+  * of multiple DCNetworkBlock are stored together (to avoid performance
+  * issues due to the fact that netCDF is not structured to work with a large
+  * number of sub-NcGroup in a file). The format is the one of
+  * NetworkBlockSolution, cf. the comments in
+  * NetworkBlockSolution::serialize( netCDF::NcGroup & , int ), except that
+  *
+  *     "NumberNetworks" IS NOT REALLY NEEDED, BECAUSE "TotalNumberInstants"
+  *     AND "EndInstant" ARE NOR REQUIRED SINCE DCNetworkBlock ALWAYS HAS
+  *     DCNetworkBlock::get_number_intervals() == 1, AND ALL THE
+  *     NetworkBlock IN \p group ARE SUPPOSED TO BE DCNetworkBlock
+  *
+  * In addition, \p group must contain:
+  *
+  * - The dimension "NumberLines" containing the number of lines in the
+  *   transmission network. It is mandatory. Note that
+  *
+  *       ALL THE DCNetworkBlock MUST HAVE THE SAME NUMBER OF LINES
+  *
+  * - The variable "FlowValue", of type netCDF::NcDouble and indexed both
+  *   over the dimension "NumberNetworks" (which is the same as
+  *   "TotalNumberInstants", that does not exist) and the dimension
+  *   "NumberLines"; FlowValue[ idx ][ l ] is the optimal value of
+  *   the power flow on line l for this DCNetworkBlock. The variable is
+  *   optional.
+  *
+  * - The variable "DualCost", of type netCDF::NcDouble and indexed both
+  *   over the dimension "NumberNetworks" (which is the same as
+  *   "TotalNumberInstants", that does not exist) and the dimension
+  *   "NumberLines"; DualCost[ idx ][ l ] is the optimal value of
+  *   the power flow on line l. The variable is absolute value of
+  *   the dual variable of the constraint representing the capacity of
+  *   line l for this DCNetworkBlock. The variable is optional. */
+
+ the
+  * two variable "FlowValue" and "DualCost" as in the "standard" version of
+  * serialize(). */
 
  void serialize( netCDF::NcGroup & group , int idx ) const override;
 
