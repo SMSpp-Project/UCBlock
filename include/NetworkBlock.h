@@ -1012,6 +1012,15 @@ class NetworkBlockSolution : public Solution
   * due to the fact that netCDF is not structured to work with a large number
   * of sub-NcGroup in a file). The format is as follows:
   *
+  * - The attribute "type", of type netCDF::NcString, containing the typename
+  *   of all the :NetworkBlockSolution that must be created for all time
+  *   instants t, which implies that 
+  *
+  *     ALL :NetworkBlockSolution serialize()-d IN THIS \p group MUST BE OF
+  *     THE SAME ACTUAL TYPE, AND ALL :NetworkBlockSolution MUST BE THERE,
+  *     WHICH IMPLIES THAT ALL :NetworkBlock MUST BE OF THE SAME ACTUAL TYPE
+  *     AND MUST ALL BE THERE
+  *
   * - The dimension "NumberNodes" containing the number of nodes in the
   *   network. It is mandatory. Note that
   *
@@ -1069,14 +1078,6 @@ class NetworkBlockSolution : public Solution
   *
   *     THE OTHER VARIABLES / DIMENSIONS WILL HAVE TO BE ADDED AT THE VERY
   *     FIRST CALL, I.E., WHEN idx = 0
-  *
-  * However, as a consequence
-  *
-  *     IT IS ASSUMED THAT ALL :NetworkBlock serialize()-d IN THIS \p group
-  *     ARE OF THE SAME ACTUAL TYPE, SINCE THE VARIABLE ARE ONLY CONSTRUCTED
-  *     ONCE (when idx == 0) AND MUST BE THERE WHEN NEEDED (idx > 0), SO THE
-  *     TYPE THAT DICTATES WHICH VARIABLES / DIMENSIONS ARE THERE IS THAT OF
-  *     THE :NetworkBlockSolution WITH idx == 0
   *
   * (although technically if some :NetworkBlockSolution with *less*
   * information than that appears when idx > 0 the code will not break, but

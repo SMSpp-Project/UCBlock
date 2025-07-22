@@ -1108,7 +1108,7 @@ void UCBlock::generate_objective( Configuration * objc )
 
 Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
 {
- int wsol = 3;
+ int wsol = 7;
  if( ( ! solc ) && f_BlockConfig )
   solc = f_BlockConfig->f_solution_Configuration;
 
@@ -1123,21 +1123,23 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
  if( wsol & 2 )
   sol->v_network_Solution.resize( get_number_networks() );
 
+ sol->f_compressed_network = wsol & 4;
+ 
  using mad2 = boost::multi_array< double , 2 >;
 
- if( wsol & 4 )
+ if( wsol & 8 )
   sol->v_demand_duals.resize(
 	    mad2::extent_gen()[ get_time_horizon() ][ get_number_nodes() ] );
 
- if( wsol & 8 )
+ if( wsol & 16 )
   sol->v_primary_duals.resize(
     mad2::extent_gen()[ get_time_horizon() ][ get_number_primary_zones() ] );
 
- if( wsol & 16 )
+ if( wsol & 32 )
   sol->v_secondary_duals.resize(
   mad2::extent_gen()[ get_time_horizon() ][ get_number_secondary_zones() ] );
 
- if( wsol & 32 )
+ if( wsol & 64 )
   sol->v_inertia_duals.resize(
     mad2::extent_gen()[ get_time_horizon() ][ get_number_inertia_zones() ] );
 
@@ -2034,32 +2036,37 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
  Index number_networks = 0;
  if( deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
   v_network_Solution.resize( number_networks );
-  auto sub_group = group.getGroup( "NetworkBlock" );
-  if( sub_group.isNull() )
-   throw( std::invalid_argument( "UCBlockSolution::deserialize: "
-				 "NetworkBlock not present" ) );
-  std::string tmp;
-  auto gtype = group.getAtt( "type" );
-  if( gtype.isNull() )
-   throw( std::invalid_argument( "UCBlockSolution::deserialize: "
-				 "NetworkBlockSolution type not present" ) );
-  gtype.getValues( tmp );
-  auto result = new_Solution( tmp );
-  auto NS = dynamic_cast< NetworkBlockSolution * >( result );
-  if( ! NS )
-   throw( std::invalid_argument( "UCBlockSolution::deserialize: "
-				 "invalid NetworkBlockSolution" ) );
 
-  v_network_Solution[ 0 ] 
-  /*!!
-  for( Index i = 0 ; i < number_networks ; ++i ) {
-   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-   auto sub_group = group.getGroup( sub_group_name );
-   auto NSi = dynamic_cast< NetworkBlockSolution * >(
-				      Solution::new_Solution( sub_group ) );
-   v_network_Solution[ i ] = NSi;
+  // differently handle the standard format from the compressed one
+  auto sub_group = group.getGroup( "NetworkBlock" );
+  f_compressed_network = ! sub_group.isNull();
+  if( f_compressed_network ) {  // compressed format
+   std::string tmp;
+   auto gtype = group.getAtt( "type" );
+   if( gtype.isNull() )
+    throw( std::invalid_argument( "UCBlockSolution::deserialize: "
+				  "NetworkBlockSolution type not present" ) );
+   gtype.getValues( tmp );
+
+   for( Index i = 0 ; i < number_networks ; ++i ) {
+    auto result = new_Solution( tmp );
+    auto NSi = dynamic_cast< NetworkBlockSolution * >( result );
+    if( ! NSi )
+     throw( std::invalid_argument( "UCBlockSolution::deserialize: invalid"
+				   "NetworkBlockSolution " +
+				   std::to_string( i ) ) );
+    NSi->deserialize( sub_group , i );
+    v_network_Solution[ i ] = NSi;
+    }
    }
-   !!*/
+  else  // standard format 
+   for( Index i = 0 ; i < number_networks ; ++i ) {
+    std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
+    auto sub_group = group.getGroup( sub_group_name );
+    auto NSi = dynamic_cast< NetworkBlockSolution * >(
+				      Solution::new_Solution( sub_group ) );
+    v_network_Solution[ i ] = NSi;
+    }
   }
 
  // deserialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - -
@@ -2286,12 +2293,33 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
  if( ! v_network_Solution.empty() ) {
   auto nu = group.addDim( "NumberNetworks" , v_network_Solution.size() );
 
-  for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
-   if( v_network_Solution[ i ] ) {
-    std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-    auto sub_group = group.addGroup( sub_group_name );
-    v_network_Solution[ i ]->serialize( sub_group );
+  if( f_compressed_network ) {  // compressed format
+   auto sub_group = group.addGroup( "NetworkBlock" );
+   sub_group.addDim( "NumberNetworks" , v_network_Solution.size() );
+   Index ni = 0;
+   for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+    if( ! v_network_Solution[ i ] )
+     throw( std::invalid_argument( "UCBlockSolution::serialize: missing "
+				   "NetworkBlock " + std::to_string( i ) +
+				   " in compressed format" ) );
+    else
+     ni += v_network_Solution[ i ]->get_number_intervals();
+
+   if( ni > v_network_Solution.size() ) {
+    auto tni = sub_group.addDim( "TotalNumberInstants" , ni );
+    sub_group.addVar( "EndInstant" , netCDF::NcInt() , { tni } );
+    }
+     
+   for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+    v_network_Solution[ i ]->serialize( sub_group , i );
    }
+  else  // standard format 
+   for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+    if( v_network_Solution[ i ] ) {
+     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
+     auto sub_group = group.addGroup( sub_group_name );
+     v_network_Solution[ i ]->serialize( sub_group );
+     }
   }
 
  // serialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - - -
