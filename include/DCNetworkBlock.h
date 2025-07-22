@@ -1741,10 +1741,6 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   the dual variable of the constraint representing the capacity of
   *   line l for this DCNetworkBlock. The variable is optional. */
 
- the
-  * two variable "FlowValue" and "DualCost" as in the "standard" version of
-  * serialize(). */
-
  void serialize( netCDF::NcGroup & group , int idx ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

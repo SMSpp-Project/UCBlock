@@ -652,7 +652,8 @@ class UCBlock : public Block
   *   f_BlockConfig->f_solution_Configuration != nullptr and it
   *   is a SimpleConfiguration< int >, ws is its f_value
   *
-  * - otherwise ws is 3 (only save the UnitBlock(s) and NetworkBlock Solution)
+  * - otherwise ws is 7 (only save the UnitBlock(s) and NetworkBlock Solution,
+  *   with the latter in compressed format)
   *
   * The encoding of ws is bit-wise:
   *
@@ -660,16 +661,18 @@ class UCBlock : public Block
   *
   *   = bit 1 (& 2): means "save the solution of all NetworkBlock"
   *
-  *   = bit 2 (& 4): means "save the dual variables of the node injection
+  *   = bit 2 (& 4): means "save the NetworkBlock in compressed format"
+  *
+  *   = bit 3 (& 8): means "save the dual variables of the node injection
   *     constraints"
   *
-  *   = bit 3 (& 8): means "save the dual variables of the primary demand
+  *   = bit 4 (& 16): means "save the dual variables of the primary demand
   *     constraints"
   *
-  *   = bit 4 (& 16): means "save the dual variables of the secondary demand
+  *   = bit 5 (& 32): means "save the dual variables of the secondary demand
   *     constraints"
   *
-  *   = bit 5 (& 32): means "save the dual variables of the inertia demand
+  *   = bit 6 (& 64): means "save the dual variables of the inertia demand
   *     constraints"
   *
   * Note that UCBlock may not contain some or all of the required solution,
@@ -1816,7 +1819,8 @@ class UCBlockSolution : public Solution {
 
  explicit UCBlockSolution( void ) : f_time_horizon( 0 ) ,
   f_number_nodes( 0 ) , f_number_primary_zones( 0 ) ,
-  f_number_secondary_zones( 0 ) , f_number_inertia_zones( 0 ) { }
+  f_number_secondary_zones( 0 ) , f_number_inertia_zones( 0 ) ,
+  f_compressed_network( true ) { }
  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1857,21 +1861,29 @@ class UCBlockSolution : public Solution {
   *
   * - The dimension "NumberNetworks" containing the number of networks
   *   (NetworkBlock) in the problem; the dimension is optional, if it is
-  *   missing then no network Solution (see "NetworkBlock_i" below) is
+  *   missing then no network Solution (see "NetworkBlock*" below) is
   *   present.
   *
-  * Normally, one would have continued with the groups "NetworkBlock_0",
-  * "NetworkBlock_1", ..., "NetworkBlock_T" with T = NumberNetworks - 1,
-  * with "NetworkBlock_t" containing each the NetworkBlockSolution
-  * corresponding to that network constraints. However, since T may be
-  * large this may create performance problems since netCDF does not like to
-  * have many groups. Therefore, the format is rather
+  * - There are two possible versions of network information:
   *
-  * - The single group "NetworkBlock" that contains all the data of all the
-  *   NetworkBlockSolution corresponding to all the time instants T with
-  *   T = NumberNetworks - 1; see NetworkBlock::serialize( group & , int )
-  *   for a description of the format. If NumberNetworks is present, it is an
-  *   error if the corresponding group is not there.
+  *   = The "standard" one, i.e., groups "NetworkBlock_0", "NetworkBlock_1",
+  *     ..., "NetworkBlock_T" with T = NumberNetworks - 1, with
+  *     "NetworkBlock_t" containing each the NetworkBlockSolution 
+  *     corresponding to that network constraints at time t. This is the
+  *     most flexible case, as it allows to have different types of
+  *     :NetworkBlock for each t. However, since T may be large, this may
+  *     create performance problems since netCDF does not like to have many
+  *     groups.
+  *
+  *   = The single group "NetworkBlock" that contains all the data of all the
+  *     NetworkBlockSolution corresponding to all the time instants T with
+  *     T = NumberNetworks - 1; see NetworkBlock::serialize( group & , int )
+  *     for a description of the format. This has much better performances,
+  *     but requires that all :NetworkBlock are actually of the same type
+  *     for each time instant t.
+  *
+  *   If NumberNetworks is present, it is an error if one of the two
+  *   representations is not there.
   *
   * - The dimension "NumberNodes" containing the number of nodes in the
   *   networks, and therefore the number of active power demand constraints
@@ -1955,6 +1967,9 @@ class UCBlockSolution : public Solution {
  Index f_number_primary_zones;    ///< the number of primary zones
  Index f_number_secondary_zones;  ///< the number of secondary zones
  Index f_number_inertia_zones;    ///< the number of inertia zones
+
+ bool f_compressed_network;
+ ///< true if using the "compressed" format for NetworkBlock
  
  std::vector< UnitBlockSolution * > v_unit_Solution;
  ///< the Solution for each UnitBlock
