@@ -967,7 +967,7 @@ class NetworkBlockSolution : public Solution
   * serialize( netCDF::NcGroup & , int ) for the description of the format,
   * except that in this case \p idx is always >= 0. */
 
- void deserialize( const netCDF::NcGroup & group , int idx ) override;
+ virtual void deserialize( const netCDF::NcGroup & group , size_t idx );
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1083,7 +1083,7 @@ class NetworkBlockSolution : public Solution
   * information than that appears when idx > 0 the code will not break, but
   * there will be uninitialised values in the netCDF). */
 
- void serialize( netCDF::NcGroup & group , int idx ) const override;
+ virtual void serialize( netCDF::NcGroup & group , size_t idx ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
