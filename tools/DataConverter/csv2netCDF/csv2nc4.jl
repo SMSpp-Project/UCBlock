@@ -26,13 +26,13 @@ Random.seed!(123)
 
 function csvEC2nc4(deterministic::Bool=false)
 
-    middle = ""
+    middle = "_"
     if occursin("_CO", file_name)
-        middle = "_CO_"
+        middle = "CO_"
     elseif occursin("_NA", file_name)
-        middle = "_NA_"
+        middle = "NA_"
     elseif occursin("_NC", file_name)
-        middle = "_NC_"
+        middle = "NC_"
     end
 
     last = ""
