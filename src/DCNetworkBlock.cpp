@@ -1122,7 +1122,7 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
-					  int idx )
+					  size_t idx )
 {
  // call the method of the base class
  NetworkBlockSolution::deserialize( group , idx );
@@ -1147,7 +1147,7 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
 
  ncVar.getVar( strt , cnt , v_cost.data() );
 
- }  // end( DCNetworkBlockSolution::deserialize( NcGroup & , int ) )
+ }  // end( DCNetworkBlockSolution::deserialize( NcGroup & , size_t ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1229,7 +1229,8 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group , int idx )
+void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
+					size_t idx )
  const
 {
  // call the method of the base class
@@ -1270,7 +1271,7 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group , int idx )
  if( ! DC.isNull() )  // if Flow Variables have to be serialised
   DC.putVar( strt , cnt , v_cost.data() );
 
- }  // end( DCNetworkBlockSolution::serialize( NcGroup & , int ) )
+ }  // end( DCNetworkBlockSolution::serialize( NcGroup & , size_t ) )
 
 /*--------------------------------------------------------------------------*/
 

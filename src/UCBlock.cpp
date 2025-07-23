@@ -506,8 +506,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                        ? -fixed_consumption[ t ] : 0.0 );
        max_node_injection += std::max( 0.0 ,
                                        unit_block->get_max_power( t , g ) );
-
-       v_network_blocks[ n ]->add_ACdata( i , node_id , unit_block , t , g );
       }
      }
 
@@ -521,7 +519,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // finally call the method of the base class
  Block::deserialize( group );
 
-}  // end( UCBlock::deserialize )
+ }  // end( UCBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 

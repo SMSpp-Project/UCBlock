@@ -1662,7 +1662,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a DCNetworkBlockSolution from a "global" netCDF::NcGroup
 
- void deserialize( const netCDF::NcGroup & group , int idx ) override;
+ void deserialize( const netCDF::NcGroup & group , size_t idx ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1741,7 +1741,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   the dual variable of the constraint representing the capacity of
   *   line l for this DCNetworkBlock. The variable is optional. */
 
- void serialize( netCDF::NcGroup & group , int idx ) const override;
+ void serialize( netCDF::NcGroup & group , size_t idx ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
