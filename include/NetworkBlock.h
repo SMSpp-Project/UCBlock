@@ -486,6 +486,28 @@ class NetworkBlock : public Block
  virtual void set_ActiveDemand(
                         const boost::multi_array< double , 2 > & v ) = 0;
 
+/*--------------------------------------------------------------------------*/
+ /// method to set the MinNodeInjection
+
+ void set_min_node_injection( Index interval , Index node ,
+                              const double min_injection ) {
+  if( v_MinNodeInjection.empty() )
+   v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MinNodeInjection[ interval ][ node ] = min_injection;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxNodeInjection
+
+ void set_max_node_injection( Index interval , Index node ,
+                              const double max_injection ) {
+  if( v_MaxNodeInjection.empty() )
+   v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MaxNodeInjection[ interval ][ node ] = max_injection;
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -973,6 +995,12 @@ class NetworkBlockSolution : public Solution
 
  ~NetworkBlockSolution() = default;  ///< destructor: it is virtual, and empty
 
+/*-------------- READING THE DATA OF THE NetworkBlockSolution --------------*/
+
+ ///< returns the number of instants covered by this NetworkBlockSolution
+
+ Index get_number_instants( void ) { return( f_number_instants ); }
+ 
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
 
  void read( const Block * block ) override;
