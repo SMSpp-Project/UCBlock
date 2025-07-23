@@ -55,7 +55,7 @@ function csvEC2nc4(deterministic::Bool=false)
     defDim(block, "TimeHorizon", n_steps)
 
     # Store the number of `ECNetworkBlock`(s), i.e., the number of peak periods/categories
-    peak_categories = profile(gen_profiles, "peak_categories")[time_set]
+    peak_categories = profile(gen_data, "peak_categories")[time_set]
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
@@ -67,8 +67,8 @@ function csvEC2nc4(deterministic::Bool=false)
     # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
     buy_price_data = [sum(
                           profile(field(market_data, field(users_data[u], "tariff_name")), "buy_price")[t] *
-                          profile(gen_profiles, "energy_weight")[t] *
-                          profile(gen_profiles, "time_res")[t]
+                          profile(gen_data, "energy_weight")[t] *
+                          profile(gen_data, "time_res")[t]
                           for u in user_set)
                       for t in time_set] *
                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
@@ -76,16 +76,16 @@ function csvEC2nc4(deterministic::Bool=false)
     # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
     sell_price_data = [sum(
                           profile(field(market_data, field(users_data[u], "tariff_name")), "sell_price")[t] *
-                          profile(gen_profiles, "energy_weight")[t] *
-                          profile(gen_profiles, "time_res")[t]
+                          profile(gen_data, "energy_weight")[t] *
+                          profile(gen_data, "time_res")[t]
                           for u in user_set)
                       for t in time_set] *
                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
     # `RewardPrice`, i.e., the reward awarded to the community
-    reward_price_data = [profile(gen_profiles, "reward_price")[t] *
-                         profile(gen_profiles, "energy_weight")[t] *
-                         profile(gen_profiles, "time_res")[t]
+    reward_price_data = [profile(gen_data, "reward_price")[t] *
+                         profile(gen_data, "energy_weight")[t] *
+                         profile(gen_data, "time_res")[t]
                          for t in time_set] *
                         sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
@@ -102,8 +102,8 @@ function csvEC2nc4(deterministic::Bool=false)
                           profile(field(market_data, field(users_data[u], "tariff_name")), "consumption_price")[t] *
                           profile_component(users_data[u], l, "load")[t]
                           for u in user_set for l in asset_names(users_data[u], LOAD)) *
-                       profile(gen_profiles, "energy_weight")[t] *
-                       profile(gen_profiles, "time_res")[t]
+                       profile(gen_data, "energy_weight")[t] *
+                       profile(gen_data, "time_res")[t]
                        for t in time_set] *
                       sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
 
@@ -352,7 +352,7 @@ function csvEC2nc4(deterministic::Bool=false)
 
                     # store the minimum storage of the battery
                     min_storage_data = [field_component(users_data[u], g, "min_SOC") /
-                                        profile(gen_profiles, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                        profile(gen_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                         for t in time_set] * field_component(users_data[u], g, "max_capacity")
                     if (allequal(min_storage_data))
                         min_storage = defVar(ub, "MinStorage", Float64, ())
@@ -364,7 +364,7 @@ function csvEC2nc4(deterministic::Bool=false)
 
                     # store the maximum storage of the battery
                     max_storage_data = [field_component(users_data[u], g, "max_SOC") /
-                                        profile(gen_profiles, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                        profile(gen_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                         for t in time_set] * field_component(users_data[u], g, "max_capacity")
                     if (allequal(max_storage_data))
                         max_storage = defVar(ub, "MaxStorage", Float64, ())
@@ -476,8 +476,8 @@ function csvEC2nc4(deterministic::Bool=false)
                         # store the linear term of the thermal
                         linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "slope_map")) *
-                                                profile(gen_profiles, "energy_weight")[t] *
-                                                profile(gen_profiles, "time_res")[t]
+                                                profile(gen_data, "energy_weight")[t] *
+                                                profile(gen_data, "time_res")[t]
                                                 for t in time_set] *
                                                (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
                         if (allequal(linear_term_data))
@@ -492,8 +492,8 @@ function csvEC2nc4(deterministic::Bool=false)
                         const_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
                                                 (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "inter_map"))) *
-                                               profile(gen_profiles, "energy_weight")[t] *
-                                               profile(gen_profiles, "time_res")[t]
+                                               profile(gen_data, "energy_weight")[t] *
+                                               profile(gen_data, "time_res")[t]
                                                for t in time_set] *
                                               (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
                                           field_component(users_data[u], g, "nom_capacity")
