@@ -1054,6 +1054,9 @@ class NetworkBlockSolution : public Solution
   *
   *       ALL THE NetworkBlock MUST HAVE THE SAME NUMBER OF NODES
   *
+  *   (which is of course necessary since they all take their data from
+  *   the same variable where "NumberNodes" is one of the dimensions)
+  *
   * - The dimension "NumberNetworks" containing the number of :NetworkBlock
   *   that \p group represents. It is mandatory. Note: this information is
   *   not known to any NetworkBlockSolution, and therefore it will have to
@@ -1086,12 +1089,12 @@ class NetworkBlockSolution : public Solution
   *
   * - The variable "NodeInjection", of type netCDF::NcDouble, indexed both
   *   over the dimensions "TotalNumberInstants" (if defined, otherwise
-  *   "NumberNetworks") and "NumberNodes": NodeInjection[ i , t ] is assumed
-  *   to contain the optimal active power for node i at the time t (with
-  *   t = 0, ..., TotalNumberInstants - 1). The variable is optional.
+  *   "NumberNetworks") and "NumberNodes": NodeInjection[ t ][ i ] is
+  *   assumed to contain the optimal injection for node i at the time t
+  *   (with t = 0, ..., TotalNumberInstants - 1). The variable is optional.
   *
-  * The method uses idx to identify the index of the current
-  * NetworkBlockSolution ("n" in the comments above), and by this means
+  * The method uses \p idx to identify the index of the current
+  * NetworkBlockSolution ("n" in the comments to "EndInstant"), and by this
   * where in the variables the solution information of the corresponding
   * NetworkBlock must be stored. That is, if "TotalNumberInstants" !=
   * "NumberNetworks", i.e., "EndInstant" is defined, the NetworkBlockSolution
@@ -1107,7 +1110,7 @@ class NetworkBlockSolution : public Solution
   *     THE OTHER VARIABLES / DIMENSIONS WILL HAVE TO BE ADDED AT THE VERY
   *     FIRST CALL, I.E., WHEN idx = 0
   *
-  * (although technically if some :NetworkBlockSolution with *less*
+  * (although, technically, if some :NetworkBlockSolution with *less*
   * information than that appears when idx > 0 the code will not break, but
   * there will be uninitialised values in the netCDF). */
 

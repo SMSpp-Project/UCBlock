@@ -2040,7 +2040,7 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
   f_compressed_network = ! sub_group.isNull();
   if( f_compressed_network ) {  // compressed format
    std::string tmp;
-   auto gtype = group.getAtt( "type" );
+   auto gtype = sub_group.getAtt( "type" );
    if( gtype.isNull() )
     throw( std::invalid_argument( "UCBlockSolution::deserialize: "
 				  "NetworkBlockSolution type not present" ) );
@@ -2050,7 +2050,7 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
     auto result = new_Solution( tmp );
     auto NSi = dynamic_cast< NetworkBlockSolution * >( result );
     if( ! NSi )
-     throw( std::invalid_argument( "UCBlockSolution::deserialize: invalid"
+     throw( std::invalid_argument( "UCBlockSolution::deserialize: invalid "
 				   "NetworkBlockSolution " +
 				   std::to_string( i ) ) );
     NSi->deserialize( sub_group , i );

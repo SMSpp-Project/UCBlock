@@ -1137,16 +1137,19 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
  auto ncVar = group.getVar( "FlowValue" );
  if( ncVar.isNull() )
   v_flow.clear();
- else
+ else {
+  v_flow.resize( f_number_lines );
   ncVar.getVar( strt , cnt , v_flow.data() );
+  }
 
  // deserialize the Dual Prices- - - - - - - - - - - - - - - - - - - - - - -
  ncVar = group.getVar( "DualCost" );
  if( ncVar.isNull() )
   v_cost.clear();
-
- ncVar.getVar( strt , cnt , v_cost.data() );
-
+ else {
+  v_cost.resize( f_number_lines );
+  ncVar.getVar( strt , cnt , v_cost.data() );
+  }
  }  // end( DCNetworkBlockSolution::deserialize( NcGroup & , size_t ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1192,15 +1195,12 @@ void DCNetworkBlockSolution::write( Block * block )
   throw( std::invalid_argument(
 	      "DCNetworkBlockSolution::write: inconsistent lines number" ) );
 
- if( ! v_flow.empty() ) {
-  // write the flow power variables- - - - - - - - - - - - - - - - - - - - -
-  auto Fl = DCNB->get_power_flow();
-  for( Index l = 0 ; l < f_number_lines ; ++l )
-   Fl[ l ].set_value( v_flow[ l ] );
-  }
+ // write the flow power variables - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_flow.empty() )
+  DCNB->set_power_flow( v_flow );
 
+ // write the dual prices- - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_cost.empty() )
-  // write the dual prices - - - - - - - - - - - - - - - - - - - - - - - - -
   DCNB->set_dual_prices( v_cost );
 
  }  // end( DCNetworkBlockSolution::write )
@@ -1254,7 +1254,7 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
   if( ! v_cost.empty() )
    DC = group.addVar( "DualCost" , netCDF::NcDouble() , { nnw , nl } );
   }
- else {  // subsequent cqll, read what is supposedly already there
+ else {  // subsequent call, read what is supposedly already there
   if( ! v_flow.empty() )
    FV = group.getVar( "FlowValue" );
  
@@ -1265,7 +1265,7 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
  std::vector< size_t > strt = { idx , 0 };
  std::vector< size_t > cnt = { 1 , f_number_lines };
 
- if( ! FV.isNull() )  // if Flow Variables have to be serialised
+ if( ! FV.isNull() )  // if power flows have to be serialised
   FV.putVar( strt , cnt , v_flow.data() );
 
  if( ! DC.isNull() )  // if Flow Variables have to be serialised

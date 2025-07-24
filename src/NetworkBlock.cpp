@@ -188,7 +188,7 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group )
 void NetworkBlock::serialize( netCDF::NcGroup& group ) const {
  if( f_ConstTerm != 0 )
   ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -271,12 +271,17 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
   }
 
  // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -
+ using mad2i = boost::multi_array< double , 2 >::index;
+
  auto ncVar = group.getVar( "NodeInjection" );
  if( ncVar.isNull() ) {
-  std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
+  std::vector< mad2i > sizes = { 0 , 0 };
   v_node_injection.resize( sizes );
   return;
   }
+
+ std::vector< mad2i > sizes = { f_number_instants , f_number_nodes };
+ v_node_injection.resize( sizes );
 
  std::vector< size_t > strt = { start , 0 };
  std::vector< size_t > cnt = { f_number_instants , f_number_nodes };
