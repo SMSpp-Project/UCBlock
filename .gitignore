@@ -1,5 +1,7 @@
 ### DataSets
-netCDF_files/plan4res-data
+data/nc4
+data/nc4.tgz
+data/.extracted
 
 ### C/C++ template
 # Prerequisites

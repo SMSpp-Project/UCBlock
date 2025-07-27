@@ -115,6 +115,45 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 # ----- Subdirectories ------------------------------------------------------ #
 add_subdirectory(tools)
 
+# ----- Custom commands and targets ----------------------------------------- #
+
+# Download nc4.tgz from GitLab Package Registry if it doesn't exist
+set(DATA_URL "https://gitlab.com/api/v4/projects/14857791/packages/generic/nc4/latest/nc4.tgz")
+set(DATA_ARCHIVE ${CMAKE_CURRENT_SOURCE_DIR}/data/nc4.tgz)
+set(DATA_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/download_data.cmake)
+
+file(WRITE ${DATA_SCRIPT} "
+file(DOWNLOAD \"${DATA_URL}\" \"${DATA_ARCHIVE}\" SHOW_PROGRESS)
+")
+
+add_custom_command(
+        OUTPUT ${DATA_ARCHIVE}
+        COMMAND ${CMAKE_COMMAND} -E echo "Downloading nc4.tgz from GitLab Package Registry..."
+        COMMAND ${CMAKE_COMMAND} -P ${DATA_SCRIPT}
+        COMMENT "Downloading nc4.tgz"
+        VERBATIM
+)
+
+add_custom_target(download_data
+        DEPENDS ${DATA_ARCHIVE})
+
+# Custom command to extract the nc4.tgz archive if the .extracted file does not exist
+add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted
+        COMMAND tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/data/nc4.tgz
+        COMMAND echo > ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data
+        COMMENT "Extracting nc4.tgz"
+        VERBATIM
+        DEPENDS download_data)
+
+# Create custom targets to run the data extraction
+add_custom_target(extract_data
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted)
+
+# Ensure that extract_data is executed after the download
+add_dependencies(extract_data download_data)
+
 # ----- Install instructions ------------------------------------------------ #
 # The following commands are used when installing the library
 # and its CMake configuration files on the system.

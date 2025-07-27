@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+cd ..
+bash upload-to-package-registry UCBlock/data/nc4.tgz
