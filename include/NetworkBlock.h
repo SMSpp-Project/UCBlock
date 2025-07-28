@@ -508,13 +508,7 @@ class NetworkBlock : public Block
   v_MaxNodeInjection[ interval ][ node ] = max_injection;
  }
 
-/*--------------------------------------------------------------------------*/
- /// method to add data of a generator to a given node
-
- virtual void add_ACdata( Index i, Index node_id , UnitBlock * unit_block ,
-                          Index t , Index g ) {};
-
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NetworkBlock
@@ -528,9 +522,9 @@ class NetworkBlock : public Block
  virtual Index get_number_nodes( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the number of intervals spanned by the network
- /** Method for returning the number of intervals spanned by this network. */
+ /** Method for returning the number of intervals spanned by this network;
+  * by default it is 1. */
 
  virtual Index get_number_intervals( void ) const { return( 1 ); }
 
@@ -940,17 +934,25 @@ class NetworkBlockSbstMod : public NetworkBlockMod
 /*--------------------------------------------------------------------------*/
 /// a Solution of a NetworkBlock
 /** The NetworkBlockSolution class, derived from Solution, represents a
- * solution of a "generic" NetworkBlock, i.e., the values of
+ * solution of a "generic" NetworkBlock, i.e., 
  *
- * - the node injection variables
+ * - the values of the node injection variables for the specific time
+ *   instant covered by the NetworkBlock;
  *
- * for every time instant covered by the NetworkBlock. NetworkBlockSolution
- * is not thought to be "final", since :NetworkBlock may want to define and
- * handle their derived :NetworkBlockSolution to store network-specific
- * solution information. */
+ * - [optionally] the name (a string) of each node.
+ *
+ * However, time instants can be "many", and netCDF does not like files with
+ * very many groups. Therefore, NetworkBlockSolution also supports a special
+ * type of format (with a specific version of the serailize() / deserialize()
+ * methods) that allow to "pack" all the information of a set of NetworkBlock
+ * into a unique group.
+ *
+ * NetworkBlockSolution is not thought to be "final", since :NetworkBlock may
+ * want to define and handle their derived :NetworkBlockSolution to store
+ * :NetworkBlock-specific solution information. */
 
-class NetworkBlockSolution : public Solution {
-
+class NetworkBlockSolution : public Solution
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -971,13 +973,34 @@ class NetworkBlockSolution : public Solution {
   f_number_instants( 0 ) { }  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a NetworkBlockSolution from a netCDF::NcGroup
+ /** Deserialize a NetworkBlockSolution from a netCDF::NcGroup; see
+  * serialize( netCDF::NcGroup & ) for the description of the format. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a NetworkBlockSolution from a "global" netCDF::NcGroup
+ /** "nonstandard" version of deserialize() that loads a NetworkBlockSolution
+  * from a "global" netCDF::NcGroup, i.e., one where the solution information
+  * of multiple :NetworkBlock are stored together (to avoid performance issues
+  * due to the fact that netCDF is not structured to work with a large number
+  * of sub-NcGroup in a file); see the corresponding "nonstandard" version
+  * serialize( netCDF::NcGroup & , int ) for the description of the format,
+  * except that in this case \p idx is always >= 0. */
+
+ virtual void deserialize( const netCDF::NcGroup & group , size_t idx );
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  ~NetworkBlockSolution() = default;  ///< destructor: it is virtual, and empty
 
+/*-------------- READING THE DATA OF THE NetworkBlockSolution --------------*/
+
+ ///< returns the number of instants covered by this NetworkBlockSolution
+
+ Index get_number_instants( void ) { return( f_number_instants ); }
+ 
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
 
  void read( const Block * block ) override;
@@ -993,17 +1016,105 @@ class NetworkBlockSolution : public Solution {
   *   network. It is mandatory.
   *
   * - The dimension "NumberInstants" containing the number of time instants
-  *   covered by this NetworkBlock; the dimension is optional, if it is
-  *   missing then 1 (one) generator is assumed.
+  *   covered by this NetworkBlock (NetworkBlock::get_number_intervals());
+  *   the dimension is optional, if it is missing then 1 (one) instant is
+  *   assumed.
   *
   * - The variable "NodeInjection", of type netCDF::NcDouble. If
   *   "NumberInstants" is defined then it is indexed both over the
   *   dimensions "NumberInstants" and "NumberNodes", otherwise only
   *   over the dimension "NumberNodes". NodeInjection[ i , t ] is assumed to
   *   contain the optimal active power for node i at the time t (with
-  *   t = 0, ..., NumberInstants - 1). The variable is optional. */
+  *   t = 0, ..., NumberInstants - 1). The variable is optional.
+  *
+  * Derived classes will add other variables / dimensions to represent the
+  * other solution information they contain. */
 
  void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a NetworkBlockSolution into a "global" netCDF::NcGroup
+ /** "nonstandard" version of serialize() that loads a NetworkBlockSolution
+  * from a "global" netCDF::NcGroup, i.e., one where the solution information
+  * of multiple :NetworkBlock are stored together (to avoid performance issues
+  * due to the fact that netCDF is not structured to work with a large number
+  * of sub-NcGroup in a file). The format is as follows:
+  *
+  * - The attribute "type", of type netCDF::NcString, containing the typename
+  *   of all the :NetworkBlockSolution that must be created for all time
+  *   instants t, which implies that 
+  *
+  *     ALL :NetworkBlockSolution serialize()-d IN THIS \p group MUST BE OF
+  *     THE SAME ACTUAL TYPE, AND ALL :NetworkBlockSolution MUST BE THERE,
+  *     WHICH IMPLIES THAT ALL :NetworkBlock MUST BE OF THE SAME ACTUAL TYPE
+  *     AND MUST ALL BE THERE
+  *
+  * - The dimension "NumberNodes" containing the number of nodes in the
+  *   network. It is mandatory. Note that
+  *
+  *       ALL THE NetworkBlock MUST HAVE THE SAME NUMBER OF NODES
+  *
+  *   (which is of course necessary since they all take their data from
+  *   the same variable where "NumberNodes" is one of the dimensions)
+  *
+  * - The dimension "NumberNetworks" containing the number of :NetworkBlock
+  *   that \p group represents. It is mandatory. Note: this information is
+  *   not known to any NetworkBlockSolution, and therefore it will have to
+  *   be written in \p group by some other "outer" :Solution.
+  *
+  * - The dimension "TotalNumberInstants" containing the *total* number of
+  *   time instants that are covered by all the :NetworkBlock that \p group
+  *   represents. It is optional, if it is not present then it is assumed
+  *   that "TotalNumberInstants" == "NumberNetworks", i.e., each network
+  *   covers exactly one time instant. Note again: this information is not
+  *   known to any NetworkBlockSolution, and therefore it will have to be
+  *   written in \p group by some other "outer" :Solution.
+  *
+  * - The variable "EndInstant", of type netCDF::NcInt and indexed over the
+  *   dimension "NumberNetworks". EndInstant[ n ] = t means that NetworkBlock
+  *   n covers all time instants between EndInstant[ n - 1 ] included and
+  *   EndInstant[ n ] excluded; EndInstant[ n - 1 ] is not defined when
+  *   n == 0 and it is implicitly taken to be == 0, while it must always be
+  *   that EndInstant[ NumberNetworks - 1 ] == TotalNumberInstants. The
+  *   variable is optional if "TotalNumberInstants" == "NumberNetworks",
+  *   which in particular holds if "TotalNumberInstants" is not defined,
+  *   since then each :NetworkBlock covers exactly one time instant and
+  *   therefore EndInstant[ n ] = n + 1. The variable is mandatory otherwise.
+  *   Note that, unlike "NumberNetworks" and "TotalNumberInstants", this
+  *   information can be built incrementally by the NetworkBlockSolution,
+  *   provided that
+  *
+  *       THE [de]serialize( ... , idx ) METHOD IS ALWAYS CALLED IN
+  *       INCREASING ORDER OF idx, WHICH WILL HAVE TO BE ENSURED
+  *
+  * - The variable "NodeInjection", of type netCDF::NcDouble, indexed both
+  *   over the dimensions "TotalNumberInstants" (if defined, otherwise
+  *   "NumberNetworks") and "NumberNodes": NodeInjection[ t ][ i ] is
+  *   assumed to contain the optimal injection for node i at the time t
+  *   (with t = 0, ..., TotalNumberInstants - 1). The variable is optional.
+  *
+  * The method uses \p idx to identify the index of the current
+  * NetworkBlockSolution ("n" in the comments to "EndInstant"), and by this
+  * where in the variables the solution information of the corresponding
+  * NetworkBlock must be stored. That is, if "TotalNumberInstants" !=
+  * "NumberNetworks", i.e., "EndInstant" is defined, the NetworkBlockSolution
+  * covers the instants EndInstant[ idx - 1 ] ... EndInstant[ idx ] - 1,
+  * i.e., NetworkBlock::get_number_intervals() == EndInstant[ idx ] -
+  * EndInstant[ idx - 1 ]. Otherwise, the NetworkBlockSolution covers just
+  * the instant idx.
+  *
+  * Derived classes will add other variables / dimensions to represent the
+  * other solution information they contain, but they are assumed to keep the
+  * same organisation w.r.t. the time instants they cover. Note that
+  *
+  *     THE OTHER VARIABLES / DIMENSIONS WILL HAVE TO BE ADDED AT THE VERY
+  *     FIRST CALL, I.E., WHEN idx = 0
+  *
+  * (although, technically, if some :NetworkBlockSolution with *less*
+  * information than that appears when idx > 0 the code will not break, but
+  * there will be uninitialised values in the netCDF). */
+
+ virtual void serialize( netCDF::NcGroup & group , size_t idx ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

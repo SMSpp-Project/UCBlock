@@ -1117,7 +1117,40 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // deserialize the Dual Prices- - - - - - - - - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "DualCost" , v_cost , false );
 
- }  // end( DCNetworkBlockSolution::deserialize )
+ }  // end( DCNetworkBlockSolution::deserialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
+					  size_t idx )
+{
+ // call the method of the base class
+ NetworkBlockSolution::deserialize( group , idx );
+
+ // "NumberLines" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ deserialize_dim( group , "NumberLines" , f_number_lines , false );
+
+ std::vector< size_t > strt = { idx , 0 };
+ std::vector< size_t > cnt = { 1 , f_number_lines };
+
+ // deserialize the Flow Variables - - - - - - - - - - - - - - - - - - - - -
+ auto ncVar = group.getVar( "FlowValue" );
+ if( ncVar.isNull() )
+  v_flow.clear();
+ else {
+  v_flow.resize( f_number_lines );
+  ncVar.getVar( strt , cnt , v_flow.data() );
+  }
+
+ // deserialize the Dual Prices- - - - - - - - - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "DualCost" );
+ if( ncVar.isNull() )
+  v_cost.clear();
+ else {
+  v_cost.resize( f_number_lines );
+  ncVar.getVar( strt , cnt , v_cost.data() );
+  }
+ }  // end( DCNetworkBlockSolution::deserialize( NcGroup & , size_t ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1162,15 +1195,12 @@ void DCNetworkBlockSolution::write( Block * block )
   throw( std::invalid_argument(
 	      "DCNetworkBlockSolution::write: inconsistent lines number" ) );
 
- if( ! v_flow.empty() ) {
-  // write the flow power variables- - - - - - - - - - - - - - - - - - - - -
-  auto Fl = DCNB->get_power_flow();
-  for( Index l = 0 ; l < f_number_lines ; ++l )
-   Fl[ l ].set_value( v_flow[ l ] );
-  }
+ // write the flow power variables - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_flow.empty() )
+  DCNB->set_power_flow( v_flow );
 
+ // write the dual prices- - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_cost.empty() )
-  // write the dual prices - - - - - - - - - - - - - - - - - - - - - - - - -
   DCNB->set_dual_prices( v_cost );
 
  }  // end( DCNetworkBlockSolution::write )
@@ -1195,7 +1225,53 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   ::serialize< double >( group , "DualCost" , netCDF::NcDouble() , nl ,
 			 v_cost );
 
- }  // end( DCNetworkBlockSolution::serialize )
+ }  // end( DCNetworkBlockSolution::serialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
+					size_t idx )
+ const
+{
+ // call the method of the base class
+ NetworkBlockSolution::serialize( group , idx );
+
+ // now serialize the data structures - - - - - - - - - - - - - - - - - - - -
+
+ netCDF::NcVar FV;  // FlowValue
+ netCDF::NcVar DC;  // DualCost
+
+ if( idx == 0 ) {  // first call, have to initialize everything
+  // "NumberLines" is mandatory - - - - - - - - - - - - - - - - - - - - - - -
+  auto nl = group.addDim( "NumberLines" , f_number_lines );
+
+  // "NumberNetworks" is mandatory, and it's checked in the base class
+  auto nnw = group.getDim( "NumberNetworks" );
+
+  if( ! v_flow.empty() )
+   FV = group.addVar( "FlowValue" , netCDF::NcDouble() , { nnw , nl } );
+
+  if( ! v_cost.empty() )
+   DC = group.addVar( "DualCost" , netCDF::NcDouble() , { nnw , nl } );
+  }
+ else {  // subsequent call, read what is supposedly already there
+  if( ! v_flow.empty() )
+   FV = group.getVar( "FlowValue" );
+ 
+  if( ! v_cost.empty() )
+   DC = group.getVar( "DualCost" );
+  }
+ 
+ std::vector< size_t > strt = { idx , 0 };
+ std::vector< size_t > cnt = { 1 , f_number_lines };
+
+ if( ! FV.isNull() )  // if power flows have to be serialised
+  FV.putVar( strt , cnt , v_flow.data() );
+
+ if( ! DC.isNull() )  // if Flow Variables have to be serialised
+  DC.putVar( strt , cnt , v_cost.data() );
+
+ }  // end( DCNetworkBlockSolution::serialize( NcGroup & , size_t ) )
 
 /*--------------------------------------------------------------------------*/
 
