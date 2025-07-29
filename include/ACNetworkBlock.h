@@ -80,9 +80,8 @@ explicit ACNetworkBlock( Block * f_block = nullptr )
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
  void generate_objective( Configuration * objc = nullptr ) override;
 
-virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index t, Index g ) override;
+virtual void add_ACdata(Index interval, Index node, UnitBlock* unit_block, Index t, Index g );
 
- 
  protected:
 
  // definition of quantities needed in AC version
