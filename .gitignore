@@ -2,6 +2,7 @@
 data/nc4
 data/nc4.tgz
 data/.extracted
+netCDF
 
 ### C/C++ template
 # Prerequisites
