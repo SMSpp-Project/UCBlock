@@ -309,6 +309,9 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
  NetworkBlock::deserialize( group );
 
+ //TEMP: formulation choice
+ ftype = PTDF; // should be an option somewhere else
+
  // Optional variables
 
  Index NumberNodes;
@@ -453,7 +456,7 @@ SpMat DCNetworkData::get_PTDF(const std::vector<Index>& AC_lines, double tikhono
    }
   }
   PTDF_matrix = B1 * B2_inv;
-
+  
   return( PTDF_matrix );
 }
 
@@ -497,6 +500,18 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
+ if (ftype == PTDF) generate_PTDF_constraints(stcc);
+ else throw( std::logic_error( "Not Implemented yet" ) );
+
+ set_constraints_generated();
+
+}  // end( DCNetworkBlock::generate_abstract_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
+{
  // In mixed mode we can write all nodal balances, instead of just strictly those needed;
  // set the following flag to true in that case
  double nodal_slack = 0.05;
@@ -527,6 +542,22 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  std::vector<Index> AC_lines = f_NetworkData->get_AC_lines();
  SpMat PTDF_matrix = f_NetworkData->get_PTDF(AC_lines);
 
+ /*std::cout << "Debut ecriture" << std::endl;
+ std::cout << "Line" << "\t" << "Node" << "Coefficient" << std::endl; 
+ for( auto & line_id : AC_lines ) {
+    Eigen::SparseMatrix<double> a_row = PTDF_matrix.block(line_id, 0, 1, PTDF_matrix.cols() );
+    for (int k=0; k < a_row.outerSize(); ++k){
+        for (Eigen::SparseMatrix<double>::InnerIterator it(a_row,k); it; ++it){
+          int node_id = f_NetworkData->get_originalIdx( it.col() );
+          if( node_id != f_NetworkData->get_reference_node() ) {
+            double coefficient = round_to( it.value(), 1e-7 ); //PTDF_matrix.coeff( line_id , f_NetworkData->get_reducedIdx( node_id ) );
+            std::cout << f_NetworkData->get_line_names()[line_id] << "\t" <<  f_NetworkData->get_node_names()[node_id] << "\t" << coefficient << std::endl;
+          }
+        }
+      } // for each node
+    }
+ std::cout << "Fichier fermé" << std::endl;
+ exit(0);*/
  std::vector<Index> DC_lines = f_NetworkData->get_DC_lines();
 
  // ===== auxiliary variables for nonempty cost
@@ -712,7 +743,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  set_constraints_generated();
 
-}  // end( DCNetworkBlock::generate_abstract_constraints )
+}  // end( DCNetworkBlock::generate_PTDF_constraints )
 
 /*--------------------------------------------------------------------------*/
 

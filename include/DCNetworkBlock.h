@@ -118,6 +118,13 @@ class DCNetworkBlock : public NetworkBlock
   kAC_HVDC     ///< AC and HVDC lines
   };
 
+ enum formulation_type
+ { 
+  PTDF = 0,
+  CYCLE, 
+  KIRCHOFF,  
+  };
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
 /*--------------------------------------------------------------------------*/
@@ -780,6 +787,8 @@ class DCNetworkData : public NetworkData
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
 
+ void generate_PTDF_constraints( Configuration * stcc = nullptr );
+
 /// A bogus function to round nasty coefficients in the DCOPF equations  
 double round_to(double value, double precision = 1.0){
     return std::round(value / precision) * precision;
@@ -1334,6 +1343,9 @@ const std::vector< BoxConstraint > &
 
  /// the kappa constant for each line
  std::vector< double > v_kappa;
+
+ /// choice of model
+ formulation_type ftype;
 
 /*-------------------------------- variables -------------------------------*/
 

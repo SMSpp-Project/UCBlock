@@ -26,6 +26,8 @@
 
 #include <Eigen/Sparse>
 
+#include <algorithm>
+
 #ifndef PI
  #define PI 3.14159265358979323846
 #endif
@@ -125,6 +127,7 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
   set_NetworkData(ACND);
 }  // end( ACNetworkBlock::deserialize )
 
+/*--------------------------------------------------------------------------*/
 
 void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
@@ -445,7 +448,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   generate_SOCP_relaxation();
  };
 
-// ---------------------------------------
+
+/*--------------------------------------------------------------------------*/
+
  /*
  Links between generic variables 
     v_sum_product_voltages,
@@ -500,6 +505,37 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
     add_static_constraint(v_socp_const, "AC_socp_const" );
   
  };
+
+
+/*--------------------------------------------------------------------------*/
+
+const std::vector< std::pair< double, double > > & ACNetworkBlock::recover_feasible_solution( void ){
+  /*
+  Since the solution provided from the AC OPF relaxation problem is not necessary feasible, 
+  we implement a feasibility recovery algorithm.
+  */
+
+  std::vector< std::pair< double, double > > v_feasible_sol; // Each pair is the real and imaginary part
+
+  // 1) First, get the solution of the relaxation problem
+  std::vector<double> relaxed_power_flow;
+  std::vector<double> relaxed_power_flow_imag;
+  
+  std::transform(v_power_flow.begin(), v_power_flow.end(), relaxed_power_flow.begin(),
+      [](ColVariable v){return v.get_value();}
+    );
+  std::transform(v_power_flow_imag.begin(), v_power_flow_imag.end(), relaxed_power_flow_imag.begin(),
+      [](ColVariable v){return v.get_value();}
+    );
+
+  // 2) Then compute spanning tree
+  std::vector< Index > tree = f_NetworkData->compute_spanning_tree( );
+
+  // 3) Do some magic (TODO)
+
+  return v_feasible_sol;
+
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File ACNetworkBlock.cpp ------------------------*/
