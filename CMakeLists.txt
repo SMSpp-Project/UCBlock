@@ -148,11 +148,11 @@ add_custom_command(
         DEPENDS download_data)
 
 # Create custom targets to run the data extraction
-add_custom_target(extract_data
+add_custom_target(extract_nc4uc
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted)
 
-# Ensure that extract_data is executed after the download
-add_dependencies(extract_data download_data)
+# Ensure that extract_nc4uc is executed after the download
+add_dependencies(extract_nc4uc download_data)
 
 # ----- Install instructions ------------------------------------------------ #
 # The following commands are used when installing the library
