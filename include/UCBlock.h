@@ -659,21 +659,24 @@ class UCBlock : public Block
   *
   *   = bit 0 (& 1): means "save the solution of all UnitBlock"
   *
-  *   = bit 1 (& 2): means "save the solution of all NetworkBlock"
+  *   = bit 1 (& 2): means "save the solution of all NetworkBlock"; note
+  *                  that this bit (and, therefore, the next one) is
+  *                  ignored of the network only has one node, since then
+  *                  there is no real NetworkBlock to be saved
   *
   *   = bit 2 (& 4): means "save the NetworkBlock in compressed format"
   *
   *   = bit 3 (& 8): means "save the dual variables of the node injection
-  *     constraints"
+  *                  constraints"
   *
   *   = bit 4 (& 16): means "save the dual variables of the primary demand
-  *     constraints"
+  *                   constraints"
   *
   *   = bit 5 (& 32): means "save the dual variables of the secondary demand
-  *     constraints"
+  *                   constraints"
   *
   *   = bit 6 (& 64): means "save the dual variables of the inertia demand
-  *     constraints"
+  *                   constraints"
   *
   * Note that UCBlock may not contain some or all of the required solution,
   * if the corresponding Variable/Constraint have not been constructed yet:

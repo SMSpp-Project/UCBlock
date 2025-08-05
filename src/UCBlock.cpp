@@ -1118,7 +1118,7 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
  if( wsol & 1 )
   sol->v_unit_Solution.resize( get_number_units() );
 
- if( wsol & 2 )
+ if( ( wsol & 2 ) && ( get_number_nodes() > 1 ) )
   sol->v_network_Solution.resize( get_number_networks() );
 
  sol->f_compressed_network = wsol & 4;
@@ -2032,7 +2032,8 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  // deserialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - -
  Index number_networks = 0;
- if( deserialize_dim( group , "NumberNetworks" , number_networks ) ) {
+ deserialize_dim( group , "NumberNetworks" , number_networks );
+ if( number_networks ) {
   v_network_Solution.resize( number_networks );
 
   // differently handle the standard format from the compressed one
@@ -2298,8 +2299,7 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
    for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
     if( ! v_network_Solution[ i ] )
      throw( std::invalid_argument( "UCBlockSolution::serialize: missing "
-				   "NetworkBlock " + std::to_string( i ) +
-				   " in compressed format" ) );
+				   "NetworkBlock in compressed format" ) );
     else
      ni += v_network_Solution[ i ]->get_number_instants();
 
