@@ -486,6 +486,9 @@ class NetworkBlock : public Block
  virtual void set_ActiveDemand(
                         const boost::multi_array< double , 2 > & v ) = 0;
 
+ virtual void set_ReactiveDemand(
+                        const boost::multi_array< double , 2 > & v ) = 0;
+
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection
 
@@ -506,6 +509,28 @@ class NetworkBlock : public Block
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ] );
   v_MaxNodeInjection[ interval ][ node ] = max_injection;
+ }
+
+ /*--------------------------------------------------------------------------*/
+ /// method to set the MinReactiveNodeInjection
+
+ void set_min_reactive_node_injection( Index interval , Index node ,
+                              const double min_injection ) {
+  if( v_MinReactiveNodeInjection.empty() )
+   v_MinReactiveNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MinReactiveNodeInjection[ interval ][ node ] = min_injection;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxReactiveNodeInjection
+
+ void set_max_reactive_node_injection( Index interval , Index node ,
+                              const double max_injection ) {
+  if( v_MaxReactiveNodeInjection.empty() )
+   v_MaxReactiveNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MaxReactiveNodeInjection[ interval ][ node ] = max_injection;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -560,6 +585,10 @@ class NetworkBlock : public Block
   *                 returned. */
 
  virtual const double * get_active_demand( Index interval = 0 ) const {
+  return( nullptr );
+  }
+
+ virtual const double * get_reactive_demand( Index interval = 0 ) const {
   return( nullptr );
   }
 
@@ -783,15 +812,27 @@ class NetworkBlock : public Block
  /// maximum production of the electrical generators
  boost::multi_array< double , 2 > v_MaxNodeInjection;
 
+ /// minimum reactive production of the electrical generators
+ boost::multi_array< double , 2 > v_MinReactiveNodeInjection;
+
+ /// maximum reactive production of the electrical generators
+ boost::multi_array< double , 2 > v_MaxReactiveNodeInjection;
+
 /*-------------------------------- variables -------------------------------*/
 
  /// power injection for each interval at each node
  boost::multi_array< ColVariable , 2 > v_node_injection;
 
+ /// power injection for each interval at each node
+ boost::multi_array< ColVariable , 2 > v_reactive_node_injection;
+
 /*------------------------------- constraints ------------------------------*/
 
  /// the node injection bound constraints
  boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
+
+ /// the node injection bound constraints
+ boost::multi_array< BoxConstraint , 2 > reactive_node_injection_bounds_const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

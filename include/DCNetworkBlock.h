@@ -947,6 +947,12 @@ double round_to(double value, double precision = 1.0){
   return( &( v_ActiveDemand.front() ) );
   }
 
+ const double * get_reactive_demand( Index interval = 0 ) const override {
+  if( v_ReactiveDemand.empty() )
+   return( nullptr );
+  return( &( v_ReactiveDemand.front() ) );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -1103,6 +1109,12 @@ const std::vector< BoxConstraint > &
   override {
   if( v_ActiveDemand.empty() )
    v_ActiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
+  }
+
+ void set_ReactiveDemand( const boost::multi_array< double , 2 > & v )
+  override {
+  if( v_ReactiveDemand.empty() )
+   v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1340,6 +1352,9 @@ const std::vector< BoxConstraint > &
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_ActiveDemand;
+
+ /// vector to store the reactive part of the demand of each node of the network
+ std::vector< double > v_ReactiveDemand;
 
  /// the kappa constant for each line
  std::vector< double > v_kappa;

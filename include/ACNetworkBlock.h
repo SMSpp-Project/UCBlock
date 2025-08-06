@@ -182,7 +182,7 @@ class ACNetworkData : public DCNetworkData
 
  void generate_SOCP_relaxation();
 
- const std::vector< ColVariable > & get_power_flow_imag( void ) const { return( v_power_flow_imag ); }; // warning only a relaxed solution
+ const std::vector< ColVariable > & get_reactive_power_flow( void ) const { return( v_reactive_power_flow ); }; // warning only a relaxed solution
  const std::vector< std::pair< double, double > > & recover_feasible_solution( void );
 
 /*--------------------------------------------------------------------------*/
@@ -214,7 +214,7 @@ NetworkData * get_NetworkData( void ) const override {
  ACNetworkData * f_NetworkData;  ///< the ACNetworkData object
 
  // ----- Variables
- std::vector< ColVariable > v_power_flow_imag; // real part is the standard "v_power_flow" variable
+ std::vector< ColVariable > v_reactive_power_flow; // real part is the standard "v_power_flow" variable
 
  // ----- Generic variables for AC-OPF
  std::vector< ColVariable > v_sum_product_voltages;
