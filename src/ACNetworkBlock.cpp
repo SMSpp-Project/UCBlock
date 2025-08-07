@@ -545,7 +545,7 @@ const std::vector< std::pair< double, double > > & ACNetworkBlock::recover_feasi
     );
 
   // 2) Then compute spanning tree
-  std::vector< Index > tree = f_NetworkData->compute_spanning_tree( );
+  auto result = f_NetworkData->get_cycle_basis( );
 
   // 3) Do some magic (TODO)
 

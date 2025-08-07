@@ -167,99 +167,110 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  }  // end( DCNetworkData::deserialize )
 
- std::vector< Block::Index > DCNetworkData::compute_spanning_tree( ) const{
-      /// A Spanning tree will have exactly nodes - 1 arcs / edges
-      Index nbSpan = get_number_nodes() - 1;
-      std::vector< Index > idx_list ( nbSpan );
 
-      /// Verify if it all possible
-      assert( nbSpan < get_number_lines() );
+const std::pair< std::vector<std::vector<int>>, std::map<int, int> > & DCNetworkData::get_cycle_basis(){
+   /*Returns a list of cycles which form a basis for cycles of G.
 
-      ///
-      ///  We will implement Kruskal's Algorithm
-      ///
+    A basis for cycles of a network is a minimal collection of
+    cycles such that any cycle in the network can be written
+    as a sum of cycles in the basis.  Here summation of cycles
+    is defined as "exclusive or" of the edges. Cycle bases are
+    useful, e.g. when deriving equations for electric circuits
+    using Kirchhoff's Laws.
 
-      /// Some node sorting if needed - for now none assumed
-      /// TODO if desired
 
-      /// List of visited nodes
-      std::vector< bool > node_was_visited( nbSpan + 1, false ); 
-      // std::vector< Index > v_nodes_visited( nbSpan + 1 ); // Should never be larger than the total number of nodes
-      // int nbCurrent = 0;
+    Returns
+    -------
+    A list of cycle lists.  Each cycle list is a list of nodes
+    which forms a cycle (loop) in G.
 
-      ///
-      Index idx_current_edge = 0;
-      for (int i=0; i < nbSpan; ++i){
-        /// Check if adding the current edge to the list generates a cycle
-        bool done = false;
-        bool st_visited = false;        
-        bool end_visited= false;
-        while ( !done ){
-            /// check if a cycle is here
-            // this happens when both end-points of the current edge are already in the list of visited nodes
-            
-            ///
-            /// TODO : use quick sorted lists rather than a dumb linear search.
-            /*for (int jnode=0; jnode < nbCurrent; ++jnode){
-              if ( v_nodes_visited[jnode] == v_start_line[ idx_current_edge ] ){
-                st_visited = true;
-                break;
-              }
-            }*/
-            /*std::vector<Index>::iterator it;
-            it = std::find (v_nodes_visited.begin(), v_nodes_visited.begin()+nbCurrent, v_start_line[ idx_current_edge ] );
-            st_visited = (it < nbCurrent );*/
-            // 
-            /*for (int jnode=0; jnode < nbCurrent; ++jnode){
-              if ( v_nodes_visited[jnode] == v_end_line[ idx_current_edge ] ){
-                end_visited = true;
-                break;
-              }
-            }*/
-            st_visited  = node_was_visited[ v_start_line[ idx_current_edge ] ];
-            end_visited = node_was_visited[ v_end_line[ idx_current_edge ] ];
-            
-            /*it = std::find (v_nodes_visited.begin(), v_nodes_visited.begin()+nbCurrent, v_end_line[ idx_current_edge ] );
-            end_visited = (it < nbCurrent );  */
+    Examples
+    --------
+    >>> G = nx.Graph()
+    >>> nx.add_cycle(G, [0, 1, 2, 3])
+    >>> nx.add_cycle(G, [0, 3, 4, 5])
+    >>> nx.cycle_basis(G, 0)
+    [[3, 4, 5, 0], [1, 2, 3, 0]]
 
-            if ( st_visited && end_visited ){
-              // A cycle has been generated, go to next arc/edge
-              ++idx_current_edge;
-              /// Check if we do not move beyond the bounds of the total number of available lines...
-              if ( idx_current_edge >= f_number_lines ){
-                std::cout << "[DCNetworkData::compute_spanning_tree] Critical error, the network does not have a spanning tree, something surely went wrong\n";
-                exit(1);
-              }
+    Notes
+    -----
+    This is adapted from algorithm CACM 491 [1]_.
+
+    References
+    ----------
+    .. [1] Paton, K. An algorithm for finding a fundamental set of
+       cycles of a graph. Comm. ACM 12, 9 (Sept 1969), 514-518.
+  */
+  // get data
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  if( number_lines <= 0 ) {
+    throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
+                             "number of lines of DCNetworkBlock is not set" ) );
+  }
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
+
+  // First, compute neighbors
+  std::vector<std::set<int>> neighbors(number_nodes, std::set<int>());
+  for (int id_line = 0; id_line < number_lines; ++id_line){
+    int i = start_line[id_line];
+    int j = end_line[id_line];
+    neighbors[i].insert(j);
+    neighbors[j].insert(i);
+  }
+
+  std::vector<int> gnodes;
+  for (int i = 0; i < number_nodes; ++i) gnodes.push_back(i);
+  std::vector<std::vector<int>> cycles;
+  std::map<int, int> spanning_tree;
+  int root =-1;
+  while (gnodes.size()){ // loop over connected components
+    if (root < 0){
+        root = gnodes.back();
+        gnodes.pop_back();
+    }
+    std::vector<int> stack = {root};
+    std::map<int, int> pred = {{root,root}};
+    std::map<int, std::set<int>> used;
+    used[root] = std::set<int>();
+    while (stack.size()){ // walk the spanning tree finding cycles
+        int z = stack.back();
+        stack.pop_back(); // use last-in so cycles easier to find
+        std::set<int> zused = used[z];
+        for (auto& nbr : neighbors[z]){
+            if (used.find(nbr) == used.end()){
+                pred[nbr] = z;
+                stack.push_back(nbr);
+                used[nbr] = std::set<int>();
+                used[nbr].insert(z);
             }
-            else{
-              // A good edge was found
-              done = true;
+            else if (nbr == z){
+                cycles.push_back(std::vector<int>(1,z));
+            }
+            else if (zused.find(nbr) == zused.end()){
+                std::set<int> pn = used[nbr];
+                std::vector<int> cycle = {nbr, z};
+                int p = pred[z];
+                while (pn.find(p) == pn.end()){
+                    cycle.push_back(p);
+                    p = pred[p];
+                }
+                cycle.push_back(p);
+                cycles.push_back(cycle);
+                used[nbr].insert(z);
             }
         }
-        // insert the edge
-        idx_list[ i ] = idx_current_edge;
-        // Update the list of visited nodes
-        if ( !st_visited ){
-          node_was_visited[ v_start_line[ idx_current_edge ] ] = true;
-          //v_nodes_visited[ nbCurrent ] = v_start_line[ idx_current_edge ];
-          //++nbCurrent; 
-        }
-        if ( !end_visited ){
-          node_was_visited[ v_end_line[ idx_current_edge ] ] = true;
-          //v_nodes_visited[ nbCurrent ] = v_end_line[ idx_current_edge ];
-          //++nbCurrent; 
-        }
-        /// update the arc/edge
-        ++idx_current_edge;
-
-        /// Check if we do not move beyond the bounds of the total number of available lines...
-        if ( ( idx_current_edge >= f_number_lines ) && (i < nbSpan - 1) ) {
-          std::cout << "[DCNetworkData::compute_spanning_tree] Critical error, the network does not have a spanning tree, something surely went wrong\n";
-          exit(1);
-        }
-      }
-      return idx_list;
- }
+    }
+    for (auto it = pred.begin(); it != pred.end(); ++it){
+        auto it_gnode = std::find(gnodes.begin(), gnodes.end(), it->first);
+        if (it_gnode != gnodes.end()) gnodes.erase(it_gnode);
+    }
+    root = -1;
+    spanning_tree.insert(pred.begin(), pred.end());
+  }
+  return std::make_pair(cycles, spanning_tree);
+}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkBlock ------------------------*/

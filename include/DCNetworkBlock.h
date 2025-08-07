@@ -511,7 +511,7 @@ class DCNetworkData : public NetworkData
  /// the spanning tree is a collection of indexes of the appropriate vertices, that is a subselection 
  /// of v_start_line, v_end_line.
  ///
- std::vector< Index > compute_spanning_tree( ) const ;                   
+ const std::pair< std::vector<std::vector<int>>, std::map<int, int> > & get_cycle_basis();               
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
