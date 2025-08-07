@@ -524,9 +524,21 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
     double eta = 1.0;
     for( auto & line_id : DC_lines ) {
-      eta = f_NetworkData->get_line_efficiency( line_id ); // efficiency of the HVDC line
+      // start node
       if( start_line[ line_id ] == n )  lfunc->add_variable( & v_power_flow[ line_id ] , 1.0 );
-      if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -eta );
+
+      if( ! f_NetworkData->is_hypergraph() ) { // if no hyperarch -> normal behavior from get_line_efficiency
+       eta = f_NetworkData->get_line_efficiency( line_id ); // efficiency of the HVDC line
+       if( end_line[ line_id ] == n )    lfunc->add_variable( & v_power_flow[ line_id ] , -eta );
+      }
+      else { // if hyperarch -> loop over v_end_lines and get_line_efficiency
+       for( Index i = 0; i < f_NetworkData->get_end_lines()[ line_id ].size(); ++i ) {
+        if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
+         eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
+         lfunc->add_variable( & v_power_flow[ line_id ] , -eta );
+         }
+       }
+      }
     }
     if( lines_type == kHVDC ) {
       v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
@@ -553,9 +565,19 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(number_nodes-1, number_lines );
     double eta = 1.0;
     for( auto & line_id : DC_lines ) {
-      eta = f_NetworkData->get_line_efficiency( line_id ); // efficiency of the HVDC line
-      A_DC(get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
-      A_DC(get_reducedIdx( end_line[ line_id ] ) , line_id )   = - eta; // QJ_TOCHECK 1 or -1 ?
+      A_DC(get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;  // start node
+
+      if( ! f_NetworkData->is_hypergraph() ) {  // no hypergraph
+        eta = f_NetworkData->get_line_efficiency( line_id ); // efficiency of the HVDC line
+        A_DC(get_reducedIdx( end_line[ line_id ] ) , line_id )   = - eta;
+      }
+      else {  // with hypergraph
+        for(Index i = 0; i < f_NetworkData->get_end_lines()[ line_id ].size(); ++i ) {
+          eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];  // efficiency of the hyperarc
+          A_DC(get_reducedIdx( f_NetworkData->get_end_lines()[ line_id ][ i ] ) , line_id )   = - eta;
+        }
+      }
+      
     }
     linkingMat = - PTDF_matrix * A_DC;
   }
