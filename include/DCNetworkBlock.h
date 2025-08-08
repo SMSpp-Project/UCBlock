@@ -459,9 +459,10 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
   /// compute the decomposition of the graph into cycles and spanning tree
- /** Method for computing a spanning tree of the network 
-  * the spanning tree is a collection of indexes of the appropriate vertices, that is a subselection 
-  * of v_start_line, v_end_line.*/
+ /** Methods for computing a spanning tree of the network and a cycle basis
+  * The functions get_cycle_basis and get_spanning_tree return quantities in terms of
+  * node ids, not line ids. To access the line ids in the spanning tree (resp. in the cycles),
+  * use get_lines_in_spanning_tree (resp. get_lines_in_cycles)*/
 
  void compute_cycle_basis();   
 
@@ -474,6 +475,80 @@ class DCNetworkData : public NetworkData
   if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
   return( m_spanning_tree );
   }            
+
+
+/*-------------------------------------------------------------*/
+/* Return a map where the keys are the line ids involved in the spanning tree and the 
+value is 1 if the directed line is in the tree and -1 if the reverse directed line is in the tree.*/
+std::map< Index, int > get_lines_in_spanning_tree(){
+  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  if( number_lines <= 0 ) {
+    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
+                             "number of lines of DCNetworkBlock is not set" ) );
+  }
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
+
+  std::map< Index, int > lines_in_spanning_tree;
+  for (Index line_id = 0; line_id < number_lines; ++line_id){
+    Index i = start_line[line_id];
+    Index j = end_line[line_id];
+    if ( this->m_spanning_tree[i] == j) { // line in spanning tree
+      lines_in_spanning_tree[line_id] = 1;
+    }
+    else if ( this->m_spanning_tree[j] == i){ // reverse line in spanning tree
+      lines_in_spanning_tree[line_id] = -1;
+    }
+  }
+  return lines_in_spanning_tree;
+}
+
+/*-------------------------------------------------------------*/
+/* Return a vector of map where the keys are the line ids involved in the cycle and the 
+value is 1 if the directed line is in the cycle and -1 if the reverse directed line is in the cycle.*/
+std::vector< std::map< Index, int > > get_lines_in_cycles(){
+  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  if( number_lines <= 0 ) {
+    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
+                             "number of lines of DCNetworkBlock is not set" ) );
+  }
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
+
+  std::vector< std::map< Index, int>> lines_in_cycles = std::vector<std::map<Index,int>>(this->v_cycle_basis.size());
+  int idx_cycle = 0;
+  for (auto& cycle: this->v_cycle_basis){
+    for (Index line_id = 0; line_id < number_lines; ++line_id){
+      Index i = start_line[line_id];
+      Index j = end_line[line_id];
+      auto it_i = std::find(cycle.begin(), cycle.end(), i);
+      int pos_i = std::distance(cycle.begin(), it_i);
+      if ( it_i != cycle.end()){
+        // the line or reverse line may be in the cycle
+        if ( pos_i < cycle.size()-1 && cycle[pos_i+1] == j){
+          lines_in_cycles[idx_cycle][line_id] = 1; // true line
+        }
+        if ( pos_i == cycle.size()-1 && cycle[0] == j){
+          lines_in_cycles[idx_cycle][line_id] = 1; // true line
+        }
+        if ( pos_i > 0 && cycle[pos_i-1] == j){
+          lines_in_cycles[idx_cycle][line_id] = -1; // reverse line
+        }
+        if ( pos_i == 0 && cycle[cycle.size()-1] == j){
+          lines_in_cycles[idx_cycle][line_id] = -1; // reverse line
+        }
+      }
+    }
+    ++ idx_cycle;
+  }
+  return lines_in_cycles;
+}
 
 
 /*--------------------------------------------------------------------------*/
@@ -812,6 +887,7 @@ class DCNetworkData : public NetworkData
   override;
 
  void generate_PTDF_constraints( Configuration * stcc = nullptr );
+ void generate_CYCLE_constraints( Configuration * stcc = nullptr );
 
 /// A bogus function to round nasty coefficients in the DCOPF equations  
 double round_to(double value, double precision = 1.0){

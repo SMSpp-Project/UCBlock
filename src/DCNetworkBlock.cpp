@@ -381,6 +381,8 @@ void DCNetworkData::compute_cycle_basis(){  // QJ: to move to parent class Netwo
   double time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()
             - start_solve).count()/1000.0;
 
+  cycle_basis_was_computed = true;
+
   std::cout << "Time to compute cycle basis : " << time << " sec." << std::endl;
 }
 
@@ -526,32 +528,47 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if (ftype == PTDF) {
   generate_PTDF_constraints(stcc);
  }
- else if (ftype == CYCLE || ftype == KIRCHOFF){
-
-  // First step: compute the cycle basis and spanning tree
-  std::cout << "Cycle basis:" << std::endl;
-  const auto basis = f_NetworkData->get_cycle_basis();
-  for (auto& cycle: basis){
-    std::cout << "(" ;
-    for (auto& node: cycle){
-      std::cout << node << ", " ;
-    }
-    std::cout << ")" << std::endl;
-  }
-
-  std::cout << "Spanning tree:" << std::endl;
-  const auto tree = f_NetworkData->get_spanning_tree();
-  for (auto it = tree.begin(); it != tree.end(); ++it){
-    std::cout << "(" << it->first << "," << it->second << "),";
-  }
-  std::cout << std::endl;
-
+ else if (ftype == CYCLE){
+  generate_CYCLE_constraints(stcc);
+ }
+ else {
   throw( std::logic_error( "Not Implemented yet" ) );
  }
 
  set_constraints_generated();
 
 }  // end( DCNetworkBlock::generate_abstract_constraints )
+
+
+/*--------------------------------------------------------------------------*/
+void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
+{
+  /**
+   * Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
+   *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown 
+   */
+  // First step: compute the cycle basis and spanning tree
+  std::cout << "Cycle basis:" << std::endl;
+  auto basis = f_NetworkData->get_lines_in_cycles(); // cycle incidence matrices C_{lc} in the paper
+  for (auto& cycle: basis){
+    std::cout << "(" ;
+    for (auto it = cycle.begin(); it != cycle.end(); ++it){
+      std::cout << "line " << it->first << ": " << it->second << ",";
+    }
+    std::cout << ")" << std::endl;
+  }
+
+  std::cout << "Spanning tree:" << std::endl;
+  auto tree = f_NetworkData->get_lines_in_spanning_tree();
+  for (auto it = tree.begin(); it != tree.end(); ++it){
+    std::cout << "(line " << it->first << ":" << it->second << "),";
+  }
+  std::cout << std::endl;
+
+  // Then, create the equations TODO
+
+  throw( std::logic_error( "Not Implemented yet" ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
