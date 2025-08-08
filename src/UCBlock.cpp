@@ -169,6 +169,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "NumberPollutants" ,
                                                      "NumberNodes" ,
                                                      "NumberLines" ,
+                                                     "NumberBranches" ,
                                                      "NumberElectricalGenerators" ,
                                                      "TotalNumberPollutantZones" ,
                                                      "NumberIntervals" };
@@ -197,6 +198,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "LineSusceptance" ,
                                                      "NetworkCost" ,
                                                      "Efficiency" ,
+                                                     "HyperArcID" ,
                                                      "NodeName" ,
                                                      "LineName" ,
                                                      // vars for AC Mode
