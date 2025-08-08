@@ -156,7 +156,7 @@ class DCNetworkData : public NetworkData
  * @{ */
 
  /// constructor of DCNetworkData, does nothing
- DCNetworkData( void ) : f_lines_type( -1 ), DCDF_was_computed(false) {}
+ DCNetworkData( void ) : f_lines_type( -1 ), DCDF_was_computed(false), cycle_basis_was_computed(false) {}
 
  /// copy constructor of DCNetworkData, does nothing
  explicit DCNetworkData( const NetworkData * ) : f_lines_type( -1 ), DCDF_was_computed(false) {}
@@ -454,6 +454,28 @@ class DCNetworkData : public NetworkData
   stored_B2_inv = B2_inv;
  }
 
+ bool was_cycle_basis_computed(){ return cycle_basis_was_computed; }
+ void set_cycle_basis_computed(){ cycle_basis_was_computed = true; }
+
+/*--------------------------------------------------------------------------*/
+  /// compute the decomposition of the graph into cycles and spanning tree
+ /** Method for computing a spanning tree of the network 
+  * the spanning tree is a collection of indexes of the appropriate vertices, that is a subselection 
+  * of v_start_line, v_end_line.*/
+
+ void compute_cycle_basis();   
+
+ const std::vector< std::vector< Index > > & get_cycle_basis( void ) {
+  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+  return( v_cycle_basis );
+  }
+
+ const std::map< Index, Index > & get_spanning_tree( void ) {
+  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+  return( m_spanning_tree );
+  }            
+
+
 /*--------------------------------------------------------------------------*/
  /// returns vector of the network cost
  /** Method for returning the vector of network cost for each line. This
@@ -506,12 +528,6 @@ class DCNetworkData : public NetworkData
  const std::vector< std::string > & get_line_names( void ) const {
   return( v_line_names );
   }
-
- /// Method for computing a spanning tree of the network 
- /// the spanning tree is a collection of indexes of the appropriate vertices, that is a subselection 
- /// of v_start_line, v_end_line.
- ///
- const std::pair< std::vector<std::vector<int>>, std::map<int, int> > & get_cycle_basis();               
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
@@ -575,6 +591,14 @@ class DCNetworkData : public NetworkData
  std::vector< std::string > v_node_names;  ///< Node names
 
  std::vector< std::string > v_line_names;  ///< Line names
+
+ /// vector to store the cycle basis
+ std::vector< std::vector< Index > > v_cycle_basis;
+ 
+ /// vector to store the spanning tree
+ std::map< Index, Index > m_spanning_tree;
+
+ bool cycle_basis_was_computed; // A boolean to avoid recomputing the cycle basis algorithm
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

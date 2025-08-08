@@ -48,6 +48,8 @@
 #include <Eigen/SparseLU>
 #include <Eigen/IterativeLinearSolvers>
 
+#include <chrono>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -167,211 +169,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  }  // end( DCNetworkData::deserialize )
 
-
-const std::pair< std::vector<std::vector<int>>, std::map<int, int> > & DCNetworkData::get_cycle_basis(){
-   /*Returns a list of cycles which form a basis for cycles of G.
-
-    A basis for cycles of a network is a minimal collection of
-    cycles such that any cycle in the network can be written
-    as a sum of cycles in the basis.  Here summation of cycles
-    is defined as "exclusive or" of the edges. Cycle bases are
-    useful, e.g. when deriving equations for electric circuits
-    using Kirchhoff's Laws.
-
-
-    Returns
-    -------
-    A list of cycle lists.  Each cycle list is a list of nodes
-    which forms a cycle (loop) in G.
-
-    Examples
-    --------
-    >>> G = nx.Graph()
-    >>> nx.add_cycle(G, [0, 1, 2, 3])
-    >>> nx.add_cycle(G, [0, 3, 4, 5])
-    >>> nx.cycle_basis(G, 0)
-    [[3, 4, 5, 0], [1, 2, 3, 0]]
-
-    Notes
-    -----
-    This is adapted from algorithm CACM 491 [1]_.
-
-    References
-    ----------
-    .. [1] Paton, K. An algorithm for finding a fundamental set of
-       cycles of a graph. Comm. ACM 12, 9 (Sept 1969), 514-518.
-  */
-  // get data
-  const auto number_nodes = get_number_nodes();
-  const auto number_lines = get_number_lines();
-  if( number_lines <= 0 ) {
-    throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                             "number of lines of DCNetworkBlock is not set" ) );
-  }
-  const auto & start_line = get_start_line();
-  const auto & end_line = get_end_line();
-
-  // First, compute neighbors
-  std::vector<std::set<int>> neighbors(number_nodes, std::set<int>());
-  for (int id_line = 0; id_line < number_lines; ++id_line){
-    int i = start_line[id_line];
-    int j = end_line[id_line];
-    neighbors[i].insert(j);
-    neighbors[j].insert(i);
-  }
-
-  std::vector<int> gnodes;
-  for (int i = 0; i < number_nodes; ++i) gnodes.push_back(i);
-  std::vector<std::vector<int>> cycles;
-  std::map<int, int> spanning_tree;
-  int root =-1;
-  while (gnodes.size()){ // loop over connected components
-    if (root < 0){
-        root = gnodes.back();
-        gnodes.pop_back();
-    }
-    std::vector<int> stack = {root};
-    std::map<int, int> pred = {{root,root}};
-    std::map<int, std::set<int>> used;
-    used[root] = std::set<int>();
-    while (stack.size()){ // walk the spanning tree finding cycles
-        int z = stack.back();
-        stack.pop_back(); // use last-in so cycles easier to find
-        std::set<int> zused = used[z];
-        for (auto& nbr : neighbors[z]){
-            if (used.find(nbr) == used.end()){
-                pred[nbr] = z;
-                stack.push_back(nbr);
-                used[nbr] = std::set<int>();
-                used[nbr].insert(z);
-            }
-            else if (nbr == z){
-                cycles.push_back(std::vector<int>(1,z));
-            }
-            else if (zused.find(nbr) == zused.end()){
-                std::set<int> pn = used[nbr];
-                std::vector<int> cycle = {nbr, z};
-                int p = pred[z];
-                while (pn.find(p) == pn.end()){
-                    cycle.push_back(p);
-                    p = pred[p];
-                }
-                cycle.push_back(p);
-                cycles.push_back(cycle);
-                used[nbr].insert(z);
-            }
-        }
-    }
-    for (auto it = pred.begin(); it != pred.end(); ++it){
-        auto it_gnode = std::find(gnodes.begin(), gnodes.end(), it->first);
-        if (it_gnode != gnodes.end()) gnodes.erase(it_gnode);
-    }
-    root = -1;
-    spanning_tree.insert(pred.begin(), pred.end());
-  }
-  return std::make_pair(cycles, spanning_tree);
-}
-
-/*--------------------------------------------------------------------------*/
-/*----------------------- METHODS OF DCNetworkBlock ------------------------*/
-/*--------------------------------------------------------------------------*/
-
-DCNetworkBlock::~DCNetworkBlock()
-{
- Constraint::clear( v_power_flow_limit_const );
- Constraint::clear( v_power_flow_injection_const );
- Constraint::clear( v_power_flow_relax_abs );
- Constraint::clear( v_power_flow_def);
-
- Constraint::clear( node_injection_bounds_const );
-
- objective.clear();
-
- // Delete the DCNetworkData if it is local.
- if( f_local_NetworkData )
-  delete( f_NetworkData );
- }
-
-/*--------------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
-{
-
-#ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberLines" };
- check_dimensions( group , expected_dims , std::cerr );
-
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "StartLine" ,
-                                                     "EndLine" ,
-                                                     "MinPowerFlow" ,
-                                                     "MaxPowerFlow" ,
-                                                     "LineSusceptance" ,
-                                                     "NodeSusceptance" ,
-                                                     "NetworkCost" ,
-                                                     "NodeName" ,
-                                                     "LineName" ,
-                                                     "ConstantTerm" };
- check_variables( group , expected_vars , std::cerr );
-#endif
-
- NetworkBlock::deserialize( group );
-
- //TEMP: formulation choice
- ftype = PTDF; // should be an option somewhere else
-
- // Optional variables
-
- Index NumberNodes;
- if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
-  // Since the dimension "NumberNodes" has been provided, it means that a
-  // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
-  // and it is marked as being local
-  if( f_local_NetworkData )
-   // if the NetworkData has not been passed from UCBlock, then delete it
-   delete( f_NetworkData );
-  auto DCND = new DCNetworkData();
-  DCND->deserialize( group );
-  if( f_NetworkData &&
-    ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
-   throw( std::logic_error(
-    "DCNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
-  f_NetworkData = DCND;
-  f_local_NetworkData = true;
-  // A DCNetworkData has been provided. So, the size of the given vector of
-  // active demand must be equal to the number of nodes.
-  ::deserialize( group , "ActiveDemand" , NumberNodes , v_ActiveDemand );
- } else {
-  // A DCNetworkData has not been provided. However, the active demand may still
-  // have been provided.
-
-  auto ActiveDemand = group.getVar( "ActiveDemand" );
-
-  if( ! ActiveDemand.isNull() ) {
-   // The active demand has indeed been provided.
-
-   if( ActiveDemand.getDimCount() != 1 )
-    // The active demand must be a one-dimensional array.
-    throw( std::invalid_argument(
-     "DCNetworkBlock::deserialize(): ActiveDemand should have one dimension, "
-     "but it has " + std::to_string( ActiveDemand.getDimCount() ) ) );
-
-   // Retrieve the number of nodes from the size of the given netCDF variable.
-   const auto number_nodes = ActiveDemand.getDim( 0 ).getSize();
-
-   // Resize the vector of active demand.
-   v_ActiveDemand.resize( number_nodes );
-
-   // Retrieve the active demand from the netCDF variable.
-   ActiveDemand.getVar( v_ActiveDemand.data() );
-  }
- }
-}  // end( DCNetworkBlock::deserialize )
-
-int DCNetworkData::get_reducedIdx( int idx ) {
+ int DCNetworkData::get_reducedIdx( int idx ) {
  if( idx > get_reference_node() )
   return( idx - 1 );
  return( idx );
@@ -471,12 +269,226 @@ SpMat DCNetworkData::get_PTDF(const std::vector<Index>& AC_lines, double tikhono
   return( PTDF_matrix );
 }
 
+/* -----------------------------------------------------------------------*/
+void DCNetworkData::compute_cycle_basis(){  // QJ: to move to parent class NetworkData ? As it does not require data of neither DC nor AC
+   /*Compute a list of cycles which form a basis for cycles of G.
+
+    A basis for cycles of a network is a minimal collection of
+    cycles such that any cycle in the network can be written
+    as a sum of cycles in the basis.  Here summation of cycles
+    is defined as "exclusive or" of the edges. Cycle bases are
+    useful, e.g. when deriving equations for electric circuits
+    using Kirchhoff's Laws.
+
+
+    Returns
+    -------
+    A list of cycle lists.  Each cycle list is a list of nodes
+    which forms a cycle (loop) in G.
+
+    Examples
+    --------
+    >>> G = nx.Graph()
+    >>> nx.add_cycle(G, [0, 1, 2, 3])
+    >>> nx.add_cycle(G, [0, 3, 4, 5])
+    >>> nx.cycle_basis(G, 0)
+    [[3, 4, 5, 0], [1, 2, 3, 0]]
+
+    Notes
+    -----
+    This is adapted from algorithm CACM 491 [1]_.
+
+    References
+    ----------
+    .. [1] Paton, K. An algorithm for finding a fundamental set of
+       cycles of a graph. Comm. ACM 12, 9 (Sept 1969), 514-518.
+  */
+
+  if (cycle_basis_was_computed) {
+    std::cout << "Cycle basis already computed" << std::endl;
+    return;
+  }
+
+  // get data
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  if( number_lines <= 0 ) {
+    throw( std::logic_error( "DCNetworkData::compute_cycle_basis: "
+                             "number of lines of DCNetworkBlock is not set" ) );
+  }
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
+
+  // First, compute neighbors // QJ: should be a method, if needed in other graph functions ?
+  std::vector< std::set< Index > > neighbors(number_nodes, std::set<Index>());
+  for (Index id_line = 0; id_line < number_lines; ++id_line){
+    Index i = start_line[id_line];
+    Index j = end_line[id_line];
+    neighbors[i].insert(j);
+    neighbors[j].insert(i);
+  }
+
+  this->v_cycle_basis.clear();
+  this->m_spanning_tree.clear();
+
+  auto start_solve = std::chrono::high_resolution_clock::now();
+
+  std::vector<Index> gnodes;
+  for (Index i = 0; i < number_nodes; ++i) gnodes.push_back(i);
+  Index root;
+  while (gnodes.size()){ // loop over connected components
+    root = gnodes.back();
+    gnodes.pop_back();
+    std::vector<Index> stack = {root};
+    std::map<Index, Index> pred = {{root,root}};
+    std::map<Index, std::set<Index>> used;
+    used[root] = std::set<Index>();
+    while (stack.size()){ // walk the spanning tree finding cycles
+        Index z = stack.back();
+        stack.pop_back(); // use last-in so cycles easier to find
+        std::set<Index> zused = used[z];
+        for (auto& nbr : neighbors[z]){
+            if (used.find(nbr) == used.end()){  // new node
+                pred[nbr] = z;
+                stack.push_back(nbr);
+                used[nbr] = std::set<Index>();
+                used[nbr].insert(z);
+            }
+            else if (nbr == z){ // self loops
+                this->v_cycle_basis.push_back(std::vector<Index>(1,z));
+            }
+            else if (zused.find(nbr) == zused.end()){  // found a cycle
+                std::set<Index> pn = used[nbr];
+                std::vector<Index> cycle = {nbr, z};
+                Index p = pred[z];
+                while (pn.find(p) == pn.end()){
+                    cycle.push_back(p);
+                    p = pred[p];
+                }
+                cycle.push_back(p);
+                this->v_cycle_basis.push_back(cycle);
+                used[nbr].insert(z);
+            }
+        }
+    }
+    for (auto it = pred.begin(); it != pred.end(); ++it){
+        auto it_gnode = std::find(gnodes.begin(), gnodes.end(), it->first);
+        if (it_gnode != gnodes.end()) gnodes.erase(it_gnode);
+    }
+    this->m_spanning_tree.insert(pred.begin(), pred.end());
+  }
+
+  double time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()
+            - start_solve).count()/1000.0;
+
+  std::cout << "Time to compute cycle basis : " << time << " sec." << std::endl;
+}
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- METHODS OF DCNetworkBlock ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+DCNetworkBlock::~DCNetworkBlock()
+{
+ Constraint::clear( v_power_flow_limit_const );
+ Constraint::clear( v_power_flow_injection_const );
+ Constraint::clear( v_power_flow_relax_abs );
+ Constraint::clear( v_power_flow_def);
+
+ Constraint::clear( node_injection_bounds_const );
+
+ objective.clear();
+
+ // Delete the DCNetworkData if it is local.
+ if( f_local_NetworkData )
+  delete( f_NetworkData );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
+{
+
+#ifndef NDEBUG
+ static std::vector< std::string > expected_dims = { "NumberNodes" ,
+                                                     "NumberLines" };
+ check_dimensions( group , expected_dims , std::cerr );
+
+ static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                     "StartLine" ,
+                                                     "EndLine" ,
+                                                     "MinPowerFlow" ,
+                                                     "MaxPowerFlow" ,
+                                                     "LineSusceptance" ,
+                                                     "NodeSusceptance" ,
+                                                     "NetworkCost" ,
+                                                     "NodeName" ,
+                                                     "LineName" ,
+                                                     "ConstantTerm" };
+ check_variables( group , expected_vars , std::cerr );
+#endif
+
+ NetworkBlock::deserialize( group );
+
+ // Optional variables
+
+ Index NumberNodes;
+ if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+  // Since the dimension "NumberNodes" has been provided, it means that a
+  // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
+  // and it is marked as being local
+  if( f_local_NetworkData )
+   // if the NetworkData has not been passed from UCBlock, then delete it
+   delete( f_NetworkData );
+  auto DCND = new DCNetworkData();
+  DCND->deserialize( group );
+  if( f_NetworkData &&
+    ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
+   throw( std::logic_error(
+    "DCNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
+  f_NetworkData = DCND;
+  f_local_NetworkData = true;
+  // A DCNetworkData has been provided. So, the size of the given vector of
+  // active demand must be equal to the number of nodes.
+  ::deserialize( group , "ActiveDemand" , NumberNodes , v_ActiveDemand );
+ } else {
+  // A DCNetworkData has not been provided. However, the active demand may still
+  // have been provided.
+
+  auto ActiveDemand = group.getVar( "ActiveDemand" );
+
+  if( ! ActiveDemand.isNull() ) {
+   // The active demand has indeed been provided.
+
+   if( ActiveDemand.getDimCount() != 1 )
+    // The active demand must be a one-dimensional array.
+    throw( std::invalid_argument(
+     "DCNetworkBlock::deserialize(): ActiveDemand should have one dimension, "
+     "but it has " + std::to_string( ActiveDemand.getDimCount() ) ) );
+
+   // Retrieve the number of nodes from the size of the given netCDF variable.
+   const auto number_nodes = ActiveDemand.getDim( 0 ).getSize();
+
+   // Resize the vector of active demand.
+   v_ActiveDemand.resize( number_nodes );
+
+   // Retrieve the active demand from the netCDF variable.
+   ActiveDemand.getVar( v_ActiveDemand.data() );
+  }
+ }
+}  // end( DCNetworkBlock::deserialize )
+
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
+
+  //TEMP: formulation choice
+ ftype = CYCLE; // should be an option somewhere else
 
  NetworkBlock::generate_abstract_variables( stvv );
 
@@ -511,8 +523,31 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- if (ftype == PTDF) generate_PTDF_constraints(stcc);
- else throw( std::logic_error( "Not Implemented yet" ) );
+ if (ftype == PTDF) {
+  generate_PTDF_constraints(stcc);
+ }
+ else if (ftype == CYCLE || ftype == KIRCHOFF){
+
+  // First step: compute the cycle basis and spanning tree
+  std::cout << "Cycle basis:" << std::endl;
+  const auto basis = f_NetworkData->get_cycle_basis();
+  for (auto& cycle: basis){
+    std::cout << "(" ;
+    for (auto& node: cycle){
+      std::cout << node << ", " ;
+    }
+    std::cout << ")" << std::endl;
+  }
+
+  std::cout << "Spanning tree:" << std::endl;
+  const auto tree = f_NetworkData->get_spanning_tree();
+  for (auto it = tree.begin(); it != tree.end(); ++it){
+    std::cout << "(" << it->first << "," << it->second << "),";
+  }
+  std::cout << std::endl;
+
+  throw( std::logic_error( "Not Implemented yet" ) );
+ }
 
  set_constraints_generated();
 
