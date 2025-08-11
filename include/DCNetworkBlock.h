@@ -582,11 +582,11 @@ class DCNetworkData : public NetworkData
  
  Index f_number_branches;  ///< the number of branches of all hyperarcs
 
- std::vector< Index > v_start_line;  ///< vector of starting lines
+ Subset v_start_line;      ///< vector of starting lines
 
- std::vector< Index > v_end_line;    ///< vector of ending lines
+ Subset v_end_line;        ///< vector of ending lines
 
- std::vector< std::vector< Index > > v_end_lines;
+ std::vector< Subset > v_end_lines;
  ///< vector of (vector of) sets of ending lines for hyperarcs
  
  /// vector to store the susceptance of each line of the network
