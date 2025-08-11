@@ -2712,6 +2712,12 @@ class ThermalUnitBlock : public UnitBlock
  /// the scale factor
  double f_scale = 1;
 
+ /// the flag indicating if we wish to fix production to maximum power output
+ /// currently 0 = default = do nothing special
+ ///           > 0 : fix to MaxPower 
+ /// although a boolean would suffice, an integer is foreseen for possible future modes of working
+ int f_fixToMax = 0;
+
  /// this variable indicates which netCDF variables must be ignored
  inline static bool f_ignore_netcdf_vars;
 
@@ -2776,6 +2782,9 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the reference schedule constraints
  std::vector< FRowConstraint > Reference_Schedule_Const;
+
+ /// the reference schedule constraints
+ std::vector< FRowConstraint > fixed_to_max_Power_Const;
 
  /// the commitment design constraints
  std::vector< FRowConstraint > CommitmentDesign_Const;

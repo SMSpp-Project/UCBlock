@@ -293,6 +293,9 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                  true , true , v_change_intervals );
  }
 
+ if( ::deserialize( group , f_fixToMax , "FixToMaximum" ) )
+    f_fixToMax = std::max( f_fixToMax , 0 );
+
  // variables for AC elements
  ::deserialize( group , "MaxReactivePower" , v_MaxReactivePower );
  ::deserialize( group , "MinReactivePower" , v_MinReactivePower );
@@ -924,6 +927,20 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        v_psi[ j ] = std::max( v_psi[ j ] , get_operational_min_power( t ) );
      }
  
+ /// If the unit is supposed to be fixed to maximum generation, we will now add these constraints
+ if ( f_fixToMax > 0){
+    fixed_to_max_Power_Const.resize( f_time_horizon );
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      // P_t >= Pmax(t)
+      auto lfunck = new LinearFunction();
+      lfunck->add_variable( & v_active_power[ t ], 1.0 );
+      fixed_to_max_Power_Const[ t ].set_lhs( get_operational_max_power(t) );
+      fixed_to_max_Power_Const[ t ].set_rhs( Inf< double >() );
+      fixed_to_max_Power_Const[ t ].set_function( lfunck );
+    }
+    add_static_constraint( fixed_to_max_Power_Const, "FixedGeneration" );
+ }
+
  switch( AR & FormMsk ) {
 
   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
@@ -3762,7 +3779,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  */
 
  // add the active power variables- - - - - - - - - - - - - - - - - - - - - -
- if ( v_RefSchedule.empty() ){
+ //if ( v_RefSchedule.empty() ){
     for( Index t = 0 ; t < f_time_horizon ; ++t )
       vars.push_back( std::make_tuple( &v_active_power[ t ] ,
                                    f_scale * v_LinearTerm[ t ] ,
@@ -3772,8 +3789,9 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
     for( Index t = 0 ; t < f_time_horizon ; ++t )
       vars.push_back( std::make_tuple( &v_commitment[ t ] ,
                                    f_scale * v_ConstTerm[ t ] , 0.0 ) );
-  }
-  else{
+  //}
+  //else{
+  if ( !v_RefSchedule.empty() ){
     for( Index t = 0 ; t < f_time_horizon ; ++t )
       vars.push_back( std::make_tuple( &v_abs_ref_schedule[ t ] , 1.0 , 0.0 ) );
   }
