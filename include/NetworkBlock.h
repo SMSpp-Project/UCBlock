@@ -654,6 +654,12 @@ class NetworkBlock : public Block
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
   }
 
+  ColVariable * get_reactive_node_injection( Index interval = 0 ) {
+  if( v_reactive_node_injection.empty() )
+   return( nullptr );
+  return( &( v_reactive_node_injection.data()[ interval * get_number_nodes() ] ) );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the read-only matrix of node injection variables
  /** Like get_node_injection(), but returns a const pointer so that the

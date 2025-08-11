@@ -564,6 +564,7 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
  // generate the abstract constraints of UCBlock
 
  generate_node_injection_constraints();
+ generate_reactive_node_injection_constraints();
  generate_primary_demand_constraints();
  generate_secondary_demand_constraints();
  generate_inertia_demand_constraints();
@@ -696,6 +697,132 @@ void UCBlock::generate_node_injection_constraints( void )
  }
 
 }  // end( UCBlock::generate_node_injection_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::generate_reactive_node_injection_constraints( void )
+{
+ const auto number_nodes = get_number_nodes();
+
+ v_reactive_node_injection_Const.resize(
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()
+  [ f_time_horizon ][ number_nodes ] );
+
+ if( number_nodes > 0 ) {  // well, that'd be curious, but ...
+
+  if( number_nodes == 1 ) {
+   // special case: in a bus network there are no NetworkBlocks and the node
+   // injection constraints actually are active power demand constraints
+   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
+    // initialise demand as active power
+    auto rhs = v_reactive_power_demand[ 0 ][ t ];
+
+    // each generator surely contributes with active power, but it may also
+    // contribute with fixed consumption linked to commitment status, so
+    // the number of nonzeros can be at most twice the number of generators
+    LinearFunction::v_coeff_pair vc( 2 * f_number_elc_generators );
+    auto vcit = vc.begin();
+
+    for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
+     const auto unit_block = get_unit_block( i );
+     const auto scale = unit_block->get_scale();
+
+     // for each electrical generator within the unit
+     for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
+
+      // surely add the contribution of the corresponding active power
+      *( vcit++ ) = std::pair( &unit_block->get_reactive_power( g )[ t ] ,
+                               scale );
+
+      // if the generator also has nonzero fixed consumption at t
+      // fixed consumption happens when the generator is off, and it
+      // therefore has the form fc[ t ] * ( 1 - u[ t ] ); thus, the
+      // RHS of the constraint also has to be increased by fc[ t ]. note
+      // that a unit with no commitment is always on, and therefore the
+      // fixed consumption is always 0
+      if( auto fc = unit_block->get_fixed_consumption( g ) )
+       if( fc[ t ] )
+        if( auto u = unit_block->get_commitment( g ) ) {
+         const auto fixed_consumption = fc[ t ] * scale;
+         // add the contribution of the corresponding commitment variables
+         *( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
+         rhs -= fixed_consumption;    // update the RHS
+        }
+     }  // end( for( g ) )
+    }  // end( for( i ) )
+
+    // set the final RHS of the constraint (equality constraint)
+    v_reactive_node_injection_Const[ t ][ 0 ].set_both( rhs , eNoMod );
+    // resize vc so that it's of the right length
+    vc.resize( std::distance( vc.begin() , vcit ) );
+    // construct and pass the LinearFunction to the FRowConstraint
+    v_reactive_node_injection_Const[ t ][ 0 ].set_function(
+     new LinearFunction( std::move( vc ) ) , eNoMod );
+   }  // end( for( t ) )
+
+  } else {  // number_nodes > 1
+
+   // Network needs GeneratorNode
+
+   Index t = 0;
+   for( Index n = 0 ; n < f_number_networks ; ++n ) {
+
+    for( Index i = 0 ;
+         i < v_network_blocks[ n ]->get_number_intervals() ;
+         ++i , ++t ) {
+
+     auto node_injection = v_network_blocks[ n ]->get_reactive_node_injection( i );
+
+     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+
+      auto lf = new LinearFunction();
+
+      lf->add_variable( &node_injection[ node_id ] , -1.0 , eNoMod );
+
+      double rhs = 0.0;
+
+      Index elc_generator = 0;
+      for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
+
+       const auto unit_block = get_unit_block( unit_id );
+       const auto scale = unit_block->get_scale();
+
+       for( Index generator = 0 ;
+            generator < unit_block->get_number_generators() ;
+            ++generator , ++elc_generator ) {
+
+        if( node_id != v_generator_node[ elc_generator ] )
+         continue;
+
+        if( auto ap = unit_block->get_reactive_power( generator ) ) {
+         auto reactive_power = &ap[ t ];
+         lf->add_variable( reactive_power , scale , eNoMod );
+        }
+
+        if( auto fc = unit_block->get_fixed_consumption( generator ) )
+         if( auto c = unit_block->get_commitment( generator ) ) {
+          auto fixed_consumption = fc[ t ] * scale;
+          auto commitment = &c[ t ];
+          lf->add_variable( commitment , fixed_consumption , eNoMod );
+          rhs += fixed_consumption;
+         }
+       }
+      }
+      v_reactive_node_injection_Const[ t ][ node_id ].set_both( rhs , eNoMod );
+      v_reactive_node_injection_Const[ t ][ node_id ].set_function( lf );
+     }
+    }
+   }
+  }
+
+  add_static_constraint( v_reactive_node_injection_Const , "reactive_node_injection_c" );
+ }
+
+}  // end( UCBlock::generate_reactive_node_injection_constraints )
 
 /*--------------------------------------------------------------------------*/
 
