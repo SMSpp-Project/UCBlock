@@ -125,7 +125,10 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "InitialFlowRate" ,
                                               "InitialVolumetric" ,
                                               "UphillFlow" ,
-                                              "DownhillFlow" };
+                                              "DownhillFlow", 
+                                              // for specific modes
+                                              "ReferenceSchedule"
+                                              };
  check_variables( group , expected_vars , std::cerr );
 #endif
 

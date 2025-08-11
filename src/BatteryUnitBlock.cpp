@@ -115,7 +115,9 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "MaxIntakePower" ,
                                               "MaxOuttakePower" ,
                                               "BatteryInvestmentCost" ,
-                                              "ConverterInvestmentCost" };
+                                              "ConverterInvestmentCost", 
+                                              // for specific modes
+                                              "ReferenceSchedule" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 

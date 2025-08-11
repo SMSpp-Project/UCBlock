@@ -211,7 +211,13 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                // cost model
                                                "StartUpCost",
                                                "CostModel",
-                                               "PowerCostCoeffs" };
+                                               "PowerCostCoeffs" 
+                                               // Specific computational modes
+                                               "MaxReactivePower",
+                                               "ReferenceSchedule",
+                                               "FixToMaximum",
+                                               "VoltageMagnitude"                                                                                            
+                                              };
   check_variables( group , expected_vars , std::cerr );
  }
 #endif
