@@ -270,7 +270,7 @@ SpMat DCNetworkData::get_PTDF(const std::vector<Index>& AC_lines, double tikhono
 }
 
 /* -----------------------------------------------------------------------*/
-void DCNetworkData::compute_cycle_basis(){  // QJ: to move to parent class NetworkData ? As it does not require data of neither DC nor AC
+void DCNetworkData::compute_cycle_basis(int opt_root){  // QJ: to move to parent class NetworkData ? As it does not require data of neither DC nor AC
    /*Compute a list of cycles which form a basis for cycles of G.
 
     A basis for cycles of a network is a minimal collection of
@@ -328,6 +328,11 @@ void DCNetworkData::compute_cycle_basis(){  // QJ: to move to parent class Netwo
     neighbors[j].insert(i);
   }
 
+  Index root;
+  bool use_root = true;
+  if (opt_root < 0) root = get_reference_node();
+  else root = opt_root;
+
   this->v_cycle_basis.clear();
   this->m_spanning_tree.clear();
 
@@ -335,10 +340,11 @@ void DCNetworkData::compute_cycle_basis(){  // QJ: to move to parent class Netwo
 
   std::vector<Index> gnodes;
   for (Index i = 0; i < number_nodes; ++i) gnodes.push_back(i);
-  Index root;
   while (gnodes.size()){ // loop over connected components
-    root = gnodes.back();
-    gnodes.pop_back();
+    if (use_root) {
+      root = gnodes.back();
+      gnodes.pop_back();
+    }
     std::vector<Index> stack = {root};
     std::map<Index, Index> pred = {{root,root}};
     std::map<Index, std::set<Index>> used;
@@ -375,6 +381,7 @@ void DCNetworkData::compute_cycle_basis(){  // QJ: to move to parent class Netwo
         auto it_gnode = std::find(gnodes.begin(), gnodes.end(), it->first);
         if (it_gnode != gnodes.end()) gnodes.erase(it_gnode);
     }
+    use_root = false; // reinit root
     this->m_spanning_tree.insert(pred.begin(), pred.end());
   }
 
@@ -494,6 +501,29 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
  NetworkBlock::generate_abstract_variables( stvv );
 
+ if (ftype == PTDF) {
+  generate_PTDF_variables(stvv); 
+ }
+ else if (ftype == CYCLE){
+  generate_CYCLE_variables(stvv);
+ }
+ else {
+  throw( std::logic_error( "Not Implemented yet" ) );
+ }
+
+ set_variables_generated();
+
+}  // end( DCNetworkBlock::generate_abstract_variables )
+
+
+/*--------------------------------------------------------------------------*/
+void DCNetworkBlock::generate_PTDF_variables( Configuration * stvv )
+{
+  /**
+   * This formulation corresponds to the "PTDF + FLOW" formulation of
+   * "Linear Optimal Power Flow Using Cycle Flows" of
+   *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown 
+   * */
  const auto number_lines = get_number_lines();
 
  if( number_lines > 0 ) {
@@ -511,12 +541,44 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
    add_static_variable( v_auxiliary_variable , "aux_network" );
   }
  }
-
- set_variables_generated();
-
- }  // end( DCNetworkBlock::generate_abstract_variables )
+}  // end( DCNetworkBlock::generate_PTDF_variables )
 
 /*--------------------------------------------------------------------------*/
+
+
+/*--------------------------------------------------------------------------*/
+void DCNetworkBlock::generate_CYCLE_variables( Configuration * stvv )
+{
+  /**
+  * Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
+  *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown 
+  * 
+  * Here, we opt for the "CYCLE + FLOW" formulation with
+  *   - variables "v_power_flow" as in the PTDF formulation (f_l in the paper)
+  *   - variables "v_cycle_flow" (h_c in the paper)
+  * 
+  */
+
+  generate_PTDF_variables(stvv); // we have the same variables + others
+
+  const auto number_nodes = get_number_nodes();
+  if( number_nodes <= 1 )
+   return;
+  const auto number_lines = get_number_lines();
+  
+  if( number_lines > 0 && number_nodes > 0) {
+   // the power flow variable on cycle basis
+   v_cycle_flow.resize( number_lines - number_nodes + 1); 
+      // we know the number of cycles by the graph theory, see the paper. 
+      // So, no reason to call get_lines_in_cycle()
+   for( auto & var : v_cycle_flow )
+    var.set_type( ColVariable::kContinuous );
+   add_static_variable( v_cycle_flow , "cycle_flow_network" );
+  }
+}  // end( DCNetworkBlock::generate_CYCLE_variables )
+
+/*--------------------------------------------------------------------------*/
+
 
 /*--------------------------------------------------------------------------*/
 
@@ -547,25 +609,43 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
    * Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
    *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown 
    */
+
+ const auto number_nodes = get_number_nodes();
+ if( number_nodes <= 1 )
+  return;
+ const auto number_lines = get_number_lines();
+
+ if( number_lines <= 0 )
+  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
+                           "number of lines of DCNetworkBlock is not set" ) );
+
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
+ const auto lines_type = f_NetworkData->get_lines_type();
+
   // First step: compute the cycle basis and spanning tree
-  std::cout << "Cycle basis:" << std::endl;
+  //std::cout << "Cycle basis:" << std::endl;
   auto basis = f_NetworkData->get_lines_in_cycles(); // cycle incidence matrices C_{lc} in the paper
+  /* for Debug
   for (auto& cycle: basis){
     std::cout << "(" ;
     for (auto it = cycle.begin(); it != cycle.end(); ++it){
       std::cout << "line " << it->first << ": " << it->second << ",";
     }
     std::cout << ")" << std::endl;
-  }
+  }*/
 
-  std::cout << "Spanning tree:" << std::endl;
+  //std::cout << "Spanning tree:" << std::endl;
   auto tree = f_NetworkData->get_lines_in_spanning_tree();
+  /* for debug
   for (auto it = tree.begin(); it != tree.end(); ++it){
     std::cout << "(line " << it->first << ":" << it->second << "),";
   }
   std::cout << std::endl;
+  */
 
-  // Then, create the equations TODO
+  // Then, create the equations
+
 
   throw( std::logic_error( "Not Implemented yet" ) );
  }

@@ -400,6 +400,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    v_Block.resize( f_number_units + f_number_networks );
   }
 
+  
+  Index t = 0;
   for( Index n = 0 ; n < f_number_networks ; ++n ) {
 
    auto nbi = v_network_blocks[ n ];
@@ -428,7 +430,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    boost::multi_array< double , 2 > r_ap_v(
     boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
 
-   Index t = 0;
    for( Index i = 0 ;
         i < v_network_blocks[ n ]->get_number_intervals() ;
         ++i , ++t ) {
@@ -443,13 +444,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
       boost::indices[ range( 0 , number_nodes ) ][ t ] ];
      std::copy( ap_c.begin() , ap_c.end() , ap_v[ i ].begin() );
     }
-   }
-   nbi->set_ActiveDemand( ap_v );
 
-   t = 0;
-   for( Index i = 0 ;
-        i < v_network_blocks[ n ]->get_number_intervals() ;
-        ++i , ++t ) {
     if( ! nbi->get_reactive_demand( i ) ) {
      if( v_reactive_power_demand.num_elements() ) { // TODO: should be an error for AC but optionnal for DC
       typedef boost::multi_array_types::index_range range;
@@ -458,7 +453,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
       std::copy( r_ap_c.begin() , r_ap_c.end() , r_ap_v[ i ].begin() );
      }
     }
+
    }
+   nbi->set_ActiveDemand( ap_v );
    nbi->set_ReactiveDemand( r_ap_v );
   }
 

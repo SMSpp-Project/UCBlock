@@ -464,7 +464,7 @@ class DCNetworkData : public NetworkData
   * node ids, not line ids. To access the line ids in the spanning tree (resp. in the cycles),
   * use get_lines_in_spanning_tree (resp. get_lines_in_cycles)*/
 
- void compute_cycle_basis();   
+ void compute_cycle_basis(int root = -1);  // be carefull -> root is int and not Index, as it can be negative
 
  const std::vector< std::vector< Index > > & get_cycle_basis( void ) {
   if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
@@ -547,6 +547,10 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
     }
     ++ idx_cycle;
   }
+
+  assert( lines_in_cycles.size() == number_lines - number_nodes + 1 );
+    // take advantage of the theory to ensure the size of the cycle basis
+
   return lines_in_cycles;
 }
 
@@ -741,6 +745,8 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   * auxiliary variable and corresponding constraints will not be defined. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+ void generate_PTDF_variables( Configuration * stvv = nullptr );
+ void generate_CYCLE_variables( Configuration * stvv = nullptr );
 
 /*--------------------------------------------------------------------------*/
  ///generate PTDF matrix of DCNetworkBlock
@@ -1071,6 +1077,10 @@ double round_to(double value, double precision = 1.0){
 
  const std::vector< ColVariable > & get_power_flow( void ) const {
   return( v_power_flow );
+  }
+
+ const std::vector< ColVariable > & get_cycle_flow( void ) const {
+  return( v_cycle_flow );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1466,6 +1476,9 @@ const std::vector< BoxConstraint > &
 
  /// the power flow variables
  std::vector< ColVariable > v_power_flow;
+
+ /// the power flow variables on cycle basis (for the "CYCLE + FLOW" formulation)
+ std::vector< ColVariable > v_cycle_flow;
 
  /// the auxiliary network cost variable
  std::vector< ColVariable > v_auxiliary_variable;
