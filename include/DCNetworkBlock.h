@@ -118,6 +118,13 @@ class DCNetworkBlock : public NetworkBlock
   kAC_HVDC     ///< AC and HVDC lines
   };
 
+ enum formulation_type
+ { 
+  PTDF = 0,
+  CYCLE, 
+  KIRCHOFF,  
+  };
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
 /*--------------------------------------------------------------------------*/
@@ -149,7 +156,7 @@ class DCNetworkData : public NetworkData
  * @{ */
 
  /// constructor of DCNetworkData, does nothing
- DCNetworkData( void ) : f_lines_type( -1 ), DCDF_was_computed(false) {}
+ DCNetworkData( void ) : f_lines_type( -1 ), DCDF_was_computed(false), cycle_basis_was_computed(false) {}
 
  /// copy constructor of DCNetworkData, does nothing
  explicit DCNetworkData( const NetworkData * ) : f_lines_type( -1 ), DCDF_was_computed(false) {}
@@ -447,6 +454,103 @@ class DCNetworkData : public NetworkData
   stored_B2_inv = B2_inv;
  }
 
+ bool was_cycle_basis_computed(){ return cycle_basis_was_computed; }
+ void set_cycle_basis_computed(){ cycle_basis_was_computed = true; }
+
+/*--------------------------------------------------------------------------*/
+  /// compute the decomposition of the graph into cycles and spanning tree
+ /** Methods for computing a spanning tree of the network and a cycle basis
+  * The functions get_cycle_basis and get_spanning_tree return quantities in terms of
+  * node ids, not line ids. To access the line ids in the spanning tree (resp. in the cycles),
+  * use get_lines_in_spanning_tree (resp. get_lines_in_cycles)*/
+
+ void compute_cycle_basis();   
+
+ const std::vector< std::vector< Index > > & get_cycle_basis( void ) {
+  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+  return( v_cycle_basis );
+  }
+
+ const std::map< Index, Index > & get_spanning_tree( void ) {
+  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+  return( m_spanning_tree );
+  }            
+
+
+/*-------------------------------------------------------------*/
+/* Return a map where the keys are the line ids involved in the spanning tree and the 
+value is 1 if the directed line is in the tree and -1 if the reverse directed line is in the tree.*/
+std::map< Index, int > get_lines_in_spanning_tree(){
+  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  if( number_lines <= 0 ) {
+    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
+                             "number of lines of DCNetworkBlock is not set" ) );
+  }
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
+
+  std::map< Index, int > lines_in_spanning_tree;
+  for (Index line_id = 0; line_id < number_lines; ++line_id){
+    Index i = start_line[line_id];
+    Index j = end_line[line_id];
+    if ( this->m_spanning_tree[i] == j) { // line in spanning tree
+      lines_in_spanning_tree[line_id] = 1;
+    }
+    else if ( this->m_spanning_tree[j] == i){ // reverse line in spanning tree
+      lines_in_spanning_tree[line_id] = -1;
+    }
+  }
+  return lines_in_spanning_tree;
+}
+
+/*-------------------------------------------------------------*/
+/* Return a vector of map where the keys are the line ids involved in the cycle and the 
+value is 1 if the directed line is in the cycle and -1 if the reverse directed line is in the cycle.*/
+std::vector< std::map< Index, int > > get_lines_in_cycles(){
+  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  if( number_lines <= 0 ) {
+    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
+                             "number of lines of DCNetworkBlock is not set" ) );
+  }
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
+
+  std::vector< std::map< Index, int>> lines_in_cycles = std::vector<std::map<Index,int>>(this->v_cycle_basis.size());
+  int idx_cycle = 0;
+  for (auto& cycle: this->v_cycle_basis){
+    for (Index line_id = 0; line_id < number_lines; ++line_id){
+      Index i = start_line[line_id];
+      Index j = end_line[line_id];
+      auto it_i = std::find(cycle.begin(), cycle.end(), i);
+      int pos_i = std::distance(cycle.begin(), it_i);
+      if ( it_i != cycle.end()){
+        // the line or reverse line may be in the cycle
+        if ( pos_i < cycle.size()-1 && cycle[pos_i+1] == j){
+          lines_in_cycles[idx_cycle][line_id] = 1; // true line
+        }
+        if ( pos_i == cycle.size()-1 && cycle[0] == j){
+          lines_in_cycles[idx_cycle][line_id] = 1; // true line
+        }
+        if ( pos_i > 0 && cycle[pos_i-1] == j){
+          lines_in_cycles[idx_cycle][line_id] = -1; // reverse line
+        }
+        if ( pos_i == 0 && cycle[cycle.size()-1] == j){
+          lines_in_cycles[idx_cycle][line_id] = -1; // reverse line
+        }
+      }
+    }
+    ++ idx_cycle;
+  }
+  return lines_in_cycles;
+}
+
+
 /*--------------------------------------------------------------------------*/
  /// returns vector of the network cost
  /** Method for returning the vector of network cost for each line. This
@@ -499,12 +603,6 @@ class DCNetworkData : public NetworkData
  const std::vector< std::string > & get_line_names( void ) const {
   return( v_line_names );
   }
-
- /// Method for computing a spanning tree of the network 
- /// the spanning tree is a collection of indexes of the appropriate vertices, that is a subselection 
- /// of v_start_line, v_end_line.
- ///
- std::vector< Index > compute_spanning_tree( ) const ;                   
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
@@ -568,6 +666,14 @@ class DCNetworkData : public NetworkData
  std::vector< std::string > v_node_names;  ///< Node names
 
  std::vector< std::string > v_line_names;  ///< Line names
+
+ /// vector to store the cycle basis
+ std::vector< std::vector< Index > > v_cycle_basis;
+ 
+ /// vector to store the spanning tree
+ std::map< Index, Index > m_spanning_tree;
+
+ bool cycle_basis_was_computed; // A boolean to avoid recomputing the cycle basis algorithm
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -780,6 +886,9 @@ class DCNetworkData : public NetworkData
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
 
+ void generate_PTDF_constraints( Configuration * stcc = nullptr );
+ void generate_CYCLE_constraints( Configuration * stcc = nullptr );
+
 /// A bogus function to round nasty coefficients in the DCOPF equations  
 double round_to(double value, double precision = 1.0){
     return std::round(value / precision) * precision;
@@ -938,6 +1047,12 @@ double round_to(double value, double precision = 1.0){
   return( &( v_ActiveDemand.front() ) );
   }
 
+ const double * get_reactive_demand( Index interval = 0 ) const override {
+  if( v_ReactiveDemand.empty() )
+   return( nullptr );
+  return( &( v_ReactiveDemand.front() ) );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -1094,6 +1209,12 @@ const std::vector< BoxConstraint > &
   override {
   if( v_ActiveDemand.empty() )
    v_ActiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
+  }
+
+ void set_ReactiveDemand( const boost::multi_array< double , 2 > & v )
+  override {
+  if( v_ReactiveDemand.empty() )
+   v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1332,8 +1453,14 @@ const std::vector< BoxConstraint > &
  /// vector to store the demand of each node of the network
  std::vector< double > v_ActiveDemand;
 
+ /// vector to store the reactive part of the demand of each node of the network
+ std::vector< double > v_ReactiveDemand;
+
  /// the kappa constant for each line
  std::vector< double > v_kappa;
+
+ /// choice of model
+ formulation_type ftype;
 
 /*-------------------------------- variables -------------------------------*/
 

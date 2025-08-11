@@ -172,21 +172,18 @@ class ACNetworkData : public DCNetworkData
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
  void generate_objective( Configuration * objc = nullptr ) override;
 
+  // We need to override the functions, as the NetworkData is the one of AC and not the one of DC
   Index get_number_nodes( void ) const override {
-  if( ! f_NetworkData )
-   return( 1 );
-  return( f_NetworkData->get_number_nodes() );
+   return ( f_NetworkData ) ? ( f_NetworkData->get_number_nodes() ) : 1;
   }
-
   Index get_number_lines( void ) const {
-  if( ! f_NetworkData )
-   return( 0 );
-  return( f_NetworkData->get_number_lines() );
+   return ( f_NetworkData ) ? ( f_NetworkData->get_number_lines() ) : 0;
   }
 
  void generate_SOCP_relaxation();
 
- const std::vector< ColVariable > & get_power_flow_imag( void ) const { return( v_power_flow_imag ); };
+ const std::vector< ColVariable > & get_reactive_power_flow( void ) const { return( v_reactive_power_flow ); }; // warning only a relaxed solution
+ const std::vector< std::pair< double, double > > & recover_feasible_solution( void );
 
 /*--------------------------------------------------------------------------*/
 /// returns a pointer to the DCNetworkData
@@ -217,7 +214,7 @@ NetworkData * get_NetworkData( void ) const override {
  ACNetworkData * f_NetworkData;  ///< the ACNetworkData object
 
  // ----- Variables
- std::vector< ColVariable > v_power_flow_imag; // real part is the standard "v_power_flow" variable
+ std::vector< ColVariable > v_reactive_power_flow; // real part is the standard "v_power_flow" variable
 
  // ----- Generic variables for AC-OPF
  std::vector< ColVariable > v_sum_product_voltages;

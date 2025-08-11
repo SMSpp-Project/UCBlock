@@ -640,6 +640,12 @@ class ECNetworkBlock : public NetworkBlock
   }
  }
 
+ void set_ReactiveDemand( const boost::multi_array< double , 2 > & v )
+  override {
+  if( v_ReactiveDemand.empty() )
+   v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------------- OTHER INITIALIZATIONS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -768,6 +774,9 @@ class ECNetworkBlock : public NetworkBlock
 
  /// matrix to store, for each interval, the demand of each node of the network
  boost::multi_array< double , 2 > v_ActiveDemand;
+
+ /// matrix to store, for each interval, the reactive part of the demand of each node of the network
+ boost::multi_array< double , 2 > v_ReactiveDemand;
 
 /*-------------------------------- variables -------------------------------*/
 

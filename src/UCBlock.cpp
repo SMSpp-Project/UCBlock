@@ -400,7 +400,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    v_Block.resize( f_number_units + f_number_networks );
   }
 
-  Index t = 0;
   for( Index n = 0 ; n < f_number_networks ; ++n ) {
 
    auto nbi = v_network_blocks[ n ];
@@ -426,7 +425,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
    boost::multi_array< double , 2 > ap_v(
     boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
+   boost::multi_array< double , 2 > r_ap_v(
+    boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
 
+   Index t = 0;
    for( Index i = 0 ;
         i < v_network_blocks[ n ]->get_number_intervals() ;
         ++i , ++t ) {
@@ -443,6 +445,21 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     }
    }
    nbi->set_ActiveDemand( ap_v );
+
+   t = 0;
+   for( Index i = 0 ;
+        i < v_network_blocks[ n ]->get_number_intervals() ;
+        ++i , ++t ) {
+    if( ! nbi->get_reactive_demand( i ) ) {
+     if( v_reactive_power_demand.num_elements() ) { // TODO: should be an error for AC but optionnal for DC
+      typedef boost::multi_array_types::index_range range;
+      auto r_ap_c = v_reactive_power_demand[
+      boost::indices[ range( 0 , number_nodes ) ][ t ] ];
+      std::copy( r_ap_c.begin() , r_ap_c.end() , r_ap_v[ i ].begin() );
+     }
+    }
+   }
+   nbi->set_ReactiveDemand( r_ap_v );
   }
 
   Index sum_intervals = std::accumulate(
@@ -493,6 +510,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
      double min_node_injection = 0.0;
      double max_node_injection = 0.0;
+     double min_reactive_node_injection = 0.0;
+     double max_reactive_node_injection = 0.0;
 
      Index elc_generator = 0;
      for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
@@ -511,6 +530,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                        ? -fixed_consumption[ t ] : 0.0 );
        max_node_injection += std::max( 0.0 ,
                                        unit_block->get_max_power( t , g ) );
+
+       min_reactive_node_injection = unit_block->get_min_reactive_power( t , g );
+       max_reactive_node_injection = unit_block->get_max_reactive_power( t , g );
       }
      }
 
@@ -518,6 +540,11 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                     min_node_injection );
      v_network_blocks[ n ]->set_max_node_injection( i , node_id ,
                                                     max_node_injection );
+
+     v_network_blocks[ n ]->set_min_reactive_node_injection( i , node_id , 
+                                                            min_reactive_node_injection);
+     v_network_blocks[ n ]->set_max_reactive_node_injection( i , node_id , 
+                                                            max_reactive_node_injection);
     }
  }
 

@@ -26,6 +26,8 @@
 
 #include <Eigen/Sparse>
 
+#include <algorithm>
+
 #ifndef PI
  #define PI 3.14159265358979323846
 #endif
@@ -125,6 +127,7 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
   set_NetworkData(ACND);
 }  // end( ACNetworkBlock::deserialize )
 
+/*--------------------------------------------------------------------------*/
 
 void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
@@ -152,13 +155,13 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   (real and imaginary part).
   */
   v_power_flow.resize(2*number_lines);
-  v_power_flow_imag.resize(2*number_lines);
+  v_reactive_power_flow.resize(2*number_lines);
   for( Index line_id = 0 ; line_id < 2*number_lines ; ++line_id ) {
     v_power_flow[ line_id ].set_type( ColVariable::kContinuous );
-    v_power_flow_imag[ line_id ].set_type( ColVariable::kContinuous );
+    v_reactive_power_flow[ line_id ].set_type( ColVariable::kContinuous );
   }
   add_static_variable( v_power_flow , "v_power_flow_real" );
-  add_static_variable( v_power_flow_imag , "v_power_flow_imag" );
+  add_static_variable( v_reactive_power_flow , "v_reactive_power_flow" );
 
   // -----
   v_sum_product_voltages.resize(number_lines);
@@ -308,12 +311,12 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   The complex matrix product <M,W>_F is then decomposed into a real part and an imaginary part.
   */
-  v_power_flow_injection_const.resize(1*number_nodes); // QJ: TODO reactive power conservation
+  v_power_flow_injection_const.resize(2*number_nodes);
 
   // real part of the power flow conservation
   for( Index p = 0 ; p < number_nodes ; ++p ) {
     auto lfunc = new LinearFunction();
-    lfunc->add_variable( & v_node_injection[ 0 ][ p ] , -1.0 );
+    lfunc->add_variable( & v_node_injection[ 0 ][ p ] , -1.0 ); // QJ: why 0 and not the time step ? 
     lfunc->add_variable( & v_sqrd_voltages[ p ] , -Ys.coeff(p).real() / base_mva );
 
     for (Index line_id = 0; line_id < number_lines; ++line_id) {
@@ -325,6 +328,22 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     }
     v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] / base_mva );
     v_power_flow_injection_const[ p ].set_function( lfunc );
+  }
+  // imaginary part of the power flow conservation
+  for( Index p = 0 ; p < number_nodes ; ++p ) {
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( & v_reactive_node_injection[ 0 ][ p ] , -1.0 );
+    lfunc->add_variable( & v_sqrd_voltages[ p ] , -Ys.coeff(p).imag() / base_mva );
+
+    for (Index line_id = 0; line_id < number_lines; ++line_id) {
+      Index i = start_line[line_id];
+      Index j = end_line[line_id];
+
+      if (i == p) lfunc->add_variable( & v_reactive_power_flow[ line_id ], 1.);
+      if (j == p) lfunc->add_variable( & v_reactive_power_flow[ number_lines + line_id ], 1.);
+    }
+    v_power_flow_injection_const[ number_nodes + p ].set_both( -v_ReactiveDemand[ p ] / base_mva );
+    v_power_flow_injection_const[ number_nodes + p ].set_function( lfunc );
   }
 
   add_static_constraint( v_power_flow_injection_const, "AC_power_flow_injection" );
@@ -384,7 +403,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     lfunc_2->add_variable( & v_sqrd_voltages[ p ],  - v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_sum_product_voltages[ line_id ],  v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_diff_product_voltages[ line_id ], -v_admittance[ line_id ].real());
-    lfunc_2->add_variable( & v_power_flow_imag[line_id], -1.0);
+    lfunc_2->add_variable( & v_reactive_power_flow[line_id], -1.0);
     v_voltage_definition_const[1][ i_line ].set_both(0.0);
     v_voltage_definition_const[1][ i_line ].set_function( lfunc_2 );
 	
@@ -406,7 +425,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     lfunc_2->add_variable( & v_sqrd_voltages[ n ],  - v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_sum_product_voltages[ line_id ],  v_admittance[ line_id ].imag());
     lfunc_2->add_variable( & v_diff_product_voltages[ line_id ], v_admittance[ line_id ].real());
-    lfunc_2->add_variable( & v_power_flow_imag[number_lines + line_id], -1.0);
+    lfunc_2->add_variable( & v_reactive_power_flow[number_lines + line_id], -1.0);
     v_voltage_definition_const[1][ nb_ac_lines + i_line ].set_both(0.0);
     v_voltage_definition_const[1][ nb_ac_lines + i_line ].set_function( lfunc_2 );
 	
@@ -428,13 +447,13 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     Index n = end_line[line_id];
     auto qfunc_1 = new DQuadFunction();
     qfunc_1->add_variable( & v_power_flow[line_id], 0.0, 1.0);
-    qfunc_1->add_variable( & v_power_flow_imag[line_id], 0.0, 1.0);
+    qfunc_1->add_variable( & v_reactive_power_flow[line_id], 0.0, 1.0);
     v_thermal_limit[ line_id ].set_lhs( -Inf< double >() );
     v_thermal_limit[ line_id ].set_rhs( pow(rate_A[line_id]/base_mva, 2) );
     v_thermal_limit[ line_id ].set_function( qfunc_1 );
     auto qfunc_2 = new DQuadFunction();
     qfunc_2->add_variable( & v_power_flow[number_lines + line_id], 0.0, 1.0);
-    qfunc_2->add_variable( & v_power_flow_imag[number_lines + line_id], 0.0, 1.0);
+    qfunc_2->add_variable( & v_reactive_power_flow[number_lines + line_id], 0.0, 1.0);
     v_thermal_limit[ number_lines + line_id ].set_lhs( -Inf< double >() );
     v_thermal_limit[ number_lines + line_id ].set_rhs( pow(rate_A[line_id]/base_mva, 2) );
     v_thermal_limit[ number_lines + line_id ].set_function( qfunc_2 );
@@ -445,7 +464,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   generate_SOCP_relaxation();
  };
 
-// ---------------------------------------
+
+/*--------------------------------------------------------------------------*/
+
  /*
  Links between generic variables 
     v_sum_product_voltages,
@@ -500,6 +521,37 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
     add_static_constraint(v_socp_const, "AC_socp_const" );
   
  };
+
+
+/*--------------------------------------------------------------------------*/
+
+const std::vector< std::pair< double, double > > & ACNetworkBlock::recover_feasible_solution( void ){
+  /*
+  Since the solution provided from the AC OPF relaxation problem is not necessary feasible, 
+  we implement a feasibility recovery algorithm.
+  */
+
+  std::vector< std::pair< double, double > > v_feasible_sol; // Each pair is the real and imaginary part
+
+  // 1) First, get the solution of the relaxation problem
+  std::vector<double> relaxed_power_flow;
+  std::vector<double> relaxed_reactive_power_flow;
+  
+  std::transform(v_power_flow.begin(), v_power_flow.end(), relaxed_power_flow.begin(),
+      [](ColVariable v){return v.get_value();}
+    );
+  std::transform(v_reactive_power_flow.begin(), v_reactive_power_flow.end(), relaxed_reactive_power_flow.begin(),
+      [](ColVariable v){return v.get_value();}
+    );
+
+  // 2) Then compute spanning tree
+  auto result = f_NetworkData->get_cycle_basis( );
+
+  // 3) Do some magic (TODO)
+
+  return v_feasible_sol;
+
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File ACNetworkBlock.cpp ------------------------*/

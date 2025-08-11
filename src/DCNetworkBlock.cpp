@@ -48,6 +48,8 @@
 #include <Eigen/SparseLU>
 #include <Eigen/IterativeLinearSolvers>
 
+#include <chrono>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -167,99 +169,222 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  }  // end( DCNetworkData::deserialize )
 
- std::vector< Block::Index > DCNetworkData::compute_spanning_tree( ) const{
-      /// A Spanning tree will have exactly nodes - 1 arcs / edges
-      Index nbSpan = get_number_nodes() - 1;
-      std::vector< Index > idx_list ( nbSpan );
-
-      /// Verify if it all possible
-      assert( nbSpan < get_number_lines() );
-
-      ///
-      ///  We will implement Kruskal's Algorithm
-      ///
-
-      /// Some node sorting if needed - for now none assumed
-      /// TODO if desired
-
-      /// List of visited nodes
-      std::vector< bool > node_was_visited( nbSpan + 1, false ); 
-      // std::vector< Index > v_nodes_visited( nbSpan + 1 ); // Should never be larger than the total number of nodes
-      // int nbCurrent = 0;
-
-      ///
-      Index idx_current_edge = 0;
-      for (int i=0; i < nbSpan; ++i){
-        /// Check if adding the current edge to the list generates a cycle
-        bool done = false;
-        bool st_visited = false;        
-        bool end_visited= false;
-        while ( !done ){
-            /// check if a cycle is here
-            // this happens when both end-points of the current edge are already in the list of visited nodes
-            
-            ///
-            /// TODO : use quick sorted lists rather than a dumb linear search.
-            /*for (int jnode=0; jnode < nbCurrent; ++jnode){
-              if ( v_nodes_visited[jnode] == v_start_line[ idx_current_edge ] ){
-                st_visited = true;
-                break;
-              }
-            }*/
-            /*std::vector<Index>::iterator it;
-            it = std::find (v_nodes_visited.begin(), v_nodes_visited.begin()+nbCurrent, v_start_line[ idx_current_edge ] );
-            st_visited = (it < nbCurrent );*/
-            // 
-            /*for (int jnode=0; jnode < nbCurrent; ++jnode){
-              if ( v_nodes_visited[jnode] == v_end_line[ idx_current_edge ] ){
-                end_visited = true;
-                break;
-              }
-            }*/
-            st_visited  = node_was_visited[ v_start_line[ idx_current_edge ] ];
-            end_visited = node_was_visited[ v_end_line[ idx_current_edge ] ];
-            
-            /*it = std::find (v_nodes_visited.begin(), v_nodes_visited.begin()+nbCurrent, v_end_line[ idx_current_edge ] );
-            end_visited = (it < nbCurrent );  */
-
-            if ( st_visited && end_visited ){
-              // A cycle has been generated, go to next arc/edge
-              ++idx_current_edge;
-              /// Check if we do not move beyond the bounds of the total number of available lines...
-              if ( idx_current_edge >= f_number_lines ){
-                std::cout << "[DCNetworkData::compute_spanning_tree] Critical error, the network does not have a spanning tree, something surely went wrong\n";
-                exit(1);
-              }
-            }
-            else{
-              // A good edge was found
-              done = true;
-            }
-        }
-        // insert the edge
-        idx_list[ i ] = idx_current_edge;
-        // Update the list of visited nodes
-        if ( !st_visited ){
-          node_was_visited[ v_start_line[ idx_current_edge ] ] = true;
-          //v_nodes_visited[ nbCurrent ] = v_start_line[ idx_current_edge ];
-          //++nbCurrent; 
-        }
-        if ( !end_visited ){
-          node_was_visited[ v_end_line[ idx_current_edge ] ] = true;
-          //v_nodes_visited[ nbCurrent ] = v_end_line[ idx_current_edge ];
-          //++nbCurrent; 
-        }
-        /// update the arc/edge
-        ++idx_current_edge;
-
-        /// Check if we do not move beyond the bounds of the total number of available lines...
-        if ( ( idx_current_edge >= f_number_lines ) && (i < nbSpan - 1) ) {
-          std::cout << "[DCNetworkData::compute_spanning_tree] Critical error, the network does not have a spanning tree, something surely went wrong\n";
-          exit(1);
-        }
-      }
-      return idx_list;
+ int DCNetworkData::get_reducedIdx( int idx ) {
+ if( idx > get_reference_node() )
+  return( idx - 1 );
+ return( idx );
  }
+
+int DCNetworkData::get_originalIdx( int idx ){
+    if ( idx >= get_reference_node() )
+      return( idx + 1 );
+    return( idx );
+ }
+
+ void DCNetworkData::compute_DCDF( const std::vector< Index > & DC_lines, SpMat & PTDF_matrix ){
+    const auto number_nodes = get_number_nodes();
+    const auto number_lines = get_number_lines();
+    const auto & start_line = get_start_line();
+    const auto & end_line = get_end_line();
+
+    // linking constraints between AC and HVDC
+    SpMat A_DC_transpose( number_nodes - 1 , number_lines );
+    for( auto & line_id : DC_lines ) {
+      A_DC_transpose.coeffRef( get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
+      A_DC_transpose.coeffRef( get_reducedIdx( end_line[ line_id ] ) , line_id ) = -1.; // QJ_TOCHECK 1 or -1 ?
+    }
+    DCDF = -PTDF_matrix * A_DC_transpose;
+    DCDF_was_computed = true;
+ }
+
+SpMat DCNetworkData::get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff){
+  // get data
+  const auto & susceptance = get_line_susceptance();
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  if( number_lines <= 0 ) {
+    throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
+                             "number of lines of DCNetworkBlock is not set" ) );
+  }
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
+  
+  // construct the matrix using two sub-matrices B_bar and B_hat
+  SpMat B_hat = SpMat( number_lines , number_nodes );
+  for( auto & line_id : AC_lines ) {
+   B_hat.insert( line_id , start_line[ line_id ] ) = susceptance[ line_id ];
+   B_hat.insert( line_id , end_line[ line_id ] ) = -susceptance[ line_id ];
+  }
+
+  SpMat B_bar = SpMat( number_nodes , number_nodes );
+  std::vector< double > B_bar_diag( number_nodes , 0.0 );
+  for( auto & line_id : AC_lines ) {
+   B_bar.insert( start_line[ line_id ] , end_line[ line_id ] ) = -susceptance[ line_id ];
+   B_bar.insert( end_line[ line_id ] , start_line[ line_id ] ) = -susceptance[ line_id ];
+   B_bar_diag[ start_line[ line_id ] ] += susceptance[ line_id ];
+   B_bar_diag[ end_line[ line_id ] ] += susceptance[ line_id ];
+  }
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+   B_bar.insert( node_id , node_id ) = B_bar_diag[ node_id ] + tikhonov_coeff;
+  }
+
+  Index ref_node = get_reference_node();
+  SpMat I_nref = SpMat( number_nodes , number_nodes - 1 );
+  for( Index node_id = 0 ; node_id < ref_node ; ++node_id ) {
+   I_nref.insert( node_id , node_id ) = 1.;
+  }
+  for( Index node_id = ref_node ; node_id < number_nodes - 1 ; ++node_id ) {
+   I_nref.insert( node_id + 1 , node_id ) = 1.;
+  }
+
+  // construction of B1 and B2 (see documentation)
+  SpMat B1 = B_hat * I_nref;
+  SpMat B2 = I_nref.transpose() * B_bar * I_nref;
+
+  // compute inverse of B2 and deduce PTDF
+  SpMat PTDF_matrix;
+  SpMat B2_inv = SpMat( number_nodes - 1 , number_nodes - 1 );
+  std::pair< SpMat , SpMat > t = get_stored_B2();
+  if( B2.isApprox( t.first ) ) {
+   B2_inv = t.second;
+   //std::cout << "stored found" << std::endl;
+  }
+  else {
+   //std::cout << "stored NOT found" << std::endl;
+   // Inversion of sparse matrix with eigen (solve B2*X = I)
+   //Eigen::BiCGSTAB<SpMat> solver;
+   Eigen::SparseLU< SpMat > solver;
+   solver.compute( B2 );
+   SpMat I( number_nodes - 1 , number_nodes - 1 );
+   I.setIdentity();
+   if( solver.info() != Eigen::Success ) std::cout <<
+    "Inversion in PTDF not possible" << std::endl;
+   else {
+    B2_inv = solver.solve( I );
+    set_stored_B2( B2 , B2_inv );
+   }
+  }
+  PTDF_matrix = B1 * B2_inv;
+  
+  return( PTDF_matrix );
+}
+
+/* -----------------------------------------------------------------------*/
+void DCNetworkData::compute_cycle_basis(){  // QJ: to move to parent class NetworkData ? As it does not require data of neither DC nor AC
+   /*Compute a list of cycles which form a basis for cycles of G.
+
+    A basis for cycles of a network is a minimal collection of
+    cycles such that any cycle in the network can be written
+    as a sum of cycles in the basis.  Here summation of cycles
+    is defined as "exclusive or" of the edges. Cycle bases are
+    useful, e.g. when deriving equations for electric circuits
+    using Kirchhoff's Laws.
+
+
+    Returns
+    -------
+    A list of cycle lists.  Each cycle list is a list of nodes
+    which forms a cycle (loop) in G.
+
+    Examples
+    --------
+    >>> G = nx.Graph()
+    >>> nx.add_cycle(G, [0, 1, 2, 3])
+    >>> nx.add_cycle(G, [0, 3, 4, 5])
+    >>> nx.cycle_basis(G, 0)
+    [[3, 4, 5, 0], [1, 2, 3, 0]]
+
+    Notes
+    -----
+    This is adapted from algorithm CACM 491 [1]_.
+
+    References
+    ----------
+    .. [1] Paton, K. An algorithm for finding a fundamental set of
+       cycles of a graph. Comm. ACM 12, 9 (Sept 1969), 514-518.
+  */
+
+  if (cycle_basis_was_computed) {
+    std::cout << "Cycle basis already computed" << std::endl;
+    return;
+  }
+
+  // get data
+  const auto number_nodes = get_number_nodes();
+  const auto number_lines = get_number_lines();
+  if( number_lines <= 0 ) {
+    throw( std::logic_error( "DCNetworkData::compute_cycle_basis: "
+                             "number of lines of DCNetworkBlock is not set" ) );
+  }
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();
+
+  // First, compute neighbors // QJ: should be a method, if needed in other graph functions ?
+  std::vector< std::set< Index > > neighbors(number_nodes, std::set<Index>());
+  for (Index id_line = 0; id_line < number_lines; ++id_line){
+    Index i = start_line[id_line];
+    Index j = end_line[id_line];
+    neighbors[i].insert(j);
+    neighbors[j].insert(i);
+  }
+
+  this->v_cycle_basis.clear();
+  this->m_spanning_tree.clear();
+
+  auto start_solve = std::chrono::high_resolution_clock::now();
+
+  std::vector<Index> gnodes;
+  for (Index i = 0; i < number_nodes; ++i) gnodes.push_back(i);
+  Index root;
+  while (gnodes.size()){ // loop over connected components
+    root = gnodes.back();
+    gnodes.pop_back();
+    std::vector<Index> stack = {root};
+    std::map<Index, Index> pred = {{root,root}};
+    std::map<Index, std::set<Index>> used;
+    used[root] = std::set<Index>();
+    while (stack.size()){ // walk the spanning tree finding cycles
+        Index z = stack.back();
+        stack.pop_back(); // use last-in so cycles easier to find
+        std::set<Index> zused = used[z];
+        for (auto& nbr : neighbors[z]){
+            if (used.find(nbr) == used.end()){  // new node
+                pred[nbr] = z;
+                stack.push_back(nbr);
+                used[nbr] = std::set<Index>();
+                used[nbr].insert(z);
+            }
+            else if (nbr == z){ // self loops
+                this->v_cycle_basis.push_back(std::vector<Index>(1,z));
+            }
+            else if (zused.find(nbr) == zused.end()){  // found a cycle
+                std::set<Index> pn = used[nbr];
+                std::vector<Index> cycle = {nbr, z};
+                Index p = pred[z];
+                while (pn.find(p) == pn.end()){
+                    cycle.push_back(p);
+                    p = pred[p];
+                }
+                cycle.push_back(p);
+                this->v_cycle_basis.push_back(cycle);
+                used[nbr].insert(z);
+            }
+        }
+    }
+    for (auto it = pred.begin(); it != pred.end(); ++it){
+        auto it_gnode = std::find(gnodes.begin(), gnodes.end(), it->first);
+        if (it_gnode != gnodes.end()) gnodes.erase(it_gnode);
+    }
+    this->m_spanning_tree.insert(pred.begin(), pred.end());
+  }
+
+  double time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()
+            - start_solve).count()/1000.0;
+
+  cycle_basis_was_computed = true;
+
+  std::cout << "Time to compute cycle basis : " << time << " sec." << std::endl;
+}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkBlock ------------------------*/
@@ -357,112 +482,15 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  }
 }  // end( DCNetworkBlock::deserialize )
 
-int DCNetworkData::get_reducedIdx( int idx ) {
- if( idx > get_reference_node() )
-  return( idx - 1 );
- return( idx );
- }
-
-int DCNetworkData::get_originalIdx( int idx ){
-    if ( idx >= get_reference_node() )
-      return( idx + 1 );
-    return( idx );
- }
-
- void DCNetworkData::compute_DCDF( const std::vector< Index > & DC_lines, SpMat & PTDF_matrix ){
-    const auto number_nodes = get_number_nodes();
-    const auto number_lines = get_number_lines();
-    const auto & start_line = get_start_line();
-    const auto & end_line = get_end_line();
-
-    // linking constraints between AC and HVDC
-    SpMat A_DC_transpose( number_nodes - 1 , number_lines );
-    for( auto & line_id : DC_lines ) {
-      A_DC_transpose.coeffRef( get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
-      A_DC_transpose.coeffRef( get_reducedIdx( end_line[ line_id ] ) , line_id ) = -1.; // QJ_TOCHECK 1 or -1 ?
-    }
-    DCDF = -PTDF_matrix * A_DC_transpose;
-    DCDF_was_computed = true;
- }
-
-SpMat DCNetworkData::get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff){
-  // get data
-  const auto & susceptance = get_line_susceptance();
-  const auto number_nodes = get_number_nodes();
-  const auto number_lines = get_number_lines();
-  if( number_lines <= 0 ) {
-    throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                             "number of lines of DCNetworkBlock is not set" ) );
-  }
-  const auto & start_line = get_start_line();
-  const auto & end_line = get_end_line();
-  
-  // construct the matrix using two sub-matrices B_bar and B_hat
-  SpMat B_hat = SpMat( number_lines , number_nodes );
-  for( auto & line_id : AC_lines ) {
-   B_hat.insert( line_id , start_line[ line_id ] ) = susceptance[ line_id ];
-   B_hat.insert( line_id , end_line[ line_id ] ) = -susceptance[ line_id ];
-  }
-
-  SpMat B_bar = SpMat( number_nodes , number_nodes );
-  std::vector< double > B_bar_diag( number_nodes , 0.0 );
-  for( auto & line_id : AC_lines ) {
-   B_bar.insert( start_line[ line_id ] , end_line[ line_id ] ) = -susceptance[ line_id ];
-   B_bar.insert( end_line[ line_id ] , start_line[ line_id ] ) = -susceptance[ line_id ];
-   B_bar_diag[ start_line[ line_id ] ] += susceptance[ line_id ];
-   B_bar_diag[ end_line[ line_id ] ] += susceptance[ line_id ];
-  }
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-   B_bar.insert( node_id , node_id ) = B_bar_diag[ node_id ] + tikhonov_coeff;
-  }
-
-  Index ref_node = get_reference_node();
-  SpMat I_nref = SpMat( number_nodes , number_nodes - 1 );
-  for( Index node_id = 0 ; node_id < ref_node ; ++node_id ) {
-   I_nref.insert( node_id , node_id ) = 1.;
-  }
-  for( Index node_id = ref_node ; node_id < number_nodes - 1 ; ++node_id ) {
-   I_nref.insert( node_id + 1 , node_id ) = 1.;
-  }
-
-  // construction of B1 and B2 (see documentation)
-  SpMat B1 = B_hat * I_nref;
-  SpMat B2 = I_nref.transpose() * B_bar * I_nref;
-
-  // compute inverse of B2 and deduce PTDF
-  SpMat PTDF_matrix;
-  SpMat B2_inv = SpMat( number_nodes - 1 , number_nodes - 1 );
-  std::pair< SpMat , SpMat > t = get_stored_B2();
-  if( B2.isApprox( t.first ) ) {
-   B2_inv = t.second;
-   //std::cout << "stored found" << std::endl;
-  }
-  else {
-   //std::cout << "stored NOT found" << std::endl;
-   // Inversion of sparse matrix with eigen (solve B2*X = I)
-   //Eigen::BiCGSTAB<SpMat> solver;
-   Eigen::SparseLU< SpMat > solver;
-   solver.compute( B2 );
-   SpMat I( number_nodes - 1 , number_nodes - 1 );
-   I.setIdentity();
-   if( solver.info() != Eigen::Success ) std::cout <<
-    "Inversion in PTDF not possible" << std::endl;
-   else {
-    B2_inv = solver.solve( I );
-    set_stored_B2( B2 , B2_inv );
-   }
-  }
-  PTDF_matrix = B1 * B2_inv;
-
-  return( PTDF_matrix );
-}
-
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
+
+  //TEMP: formulation choice
+ ftype = CYCLE; // should be an option somewhere else
 
  NetworkBlock::generate_abstract_variables( stvv );
 
@@ -497,6 +525,56 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
+ if (ftype == PTDF) {
+  generate_PTDF_constraints(stcc);
+ }
+ else if (ftype == CYCLE){
+  generate_CYCLE_constraints(stcc);
+ }
+ else {
+  throw( std::logic_error( "Not Implemented yet" ) );
+ }
+
+ set_constraints_generated();
+
+}  // end( DCNetworkBlock::generate_abstract_constraints )
+
+
+/*--------------------------------------------------------------------------*/
+void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
+{
+  /**
+   * Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
+   *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown 
+   */
+  // First step: compute the cycle basis and spanning tree
+  std::cout << "Cycle basis:" << std::endl;
+  auto basis = f_NetworkData->get_lines_in_cycles(); // cycle incidence matrices C_{lc} in the paper
+  for (auto& cycle: basis){
+    std::cout << "(" ;
+    for (auto it = cycle.begin(); it != cycle.end(); ++it){
+      std::cout << "line " << it->first << ": " << it->second << ",";
+    }
+    std::cout << ")" << std::endl;
+  }
+
+  std::cout << "Spanning tree:" << std::endl;
+  auto tree = f_NetworkData->get_lines_in_spanning_tree();
+  for (auto it = tree.begin(); it != tree.end(); ++it){
+    std::cout << "(line " << it->first << ":" << it->second << "),";
+  }
+  std::cout << std::endl;
+
+  // Then, create the equations TODO
+
+  throw( std::logic_error( "Not Implemented yet" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
+{
  // In mixed mode we can write all nodal balances, instead of just strictly those needed;
  // set the following flag to true in that case
  double nodal_slack = 0.05;
@@ -527,6 +605,22 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  std::vector<Index> AC_lines = f_NetworkData->get_AC_lines();
  SpMat PTDF_matrix = f_NetworkData->get_PTDF(AC_lines);
 
+ /*std::cout << "Debut ecriture" << std::endl;
+ std::cout << "Line" << "\t" << "Node" << "Coefficient" << std::endl; 
+ for( auto & line_id : AC_lines ) {
+    Eigen::SparseMatrix<double> a_row = PTDF_matrix.block(line_id, 0, 1, PTDF_matrix.cols() );
+    for (int k=0; k < a_row.outerSize(); ++k){
+        for (Eigen::SparseMatrix<double>::InnerIterator it(a_row,k); it; ++it){
+          int node_id = f_NetworkData->get_originalIdx( it.col() );
+          if( node_id != f_NetworkData->get_reference_node() ) {
+            double coefficient = round_to( it.value(), 1e-7 ); //PTDF_matrix.coeff( line_id , f_NetworkData->get_reducedIdx( node_id ) );
+            std::cout << f_NetworkData->get_line_names()[line_id] << "\t" <<  f_NetworkData->get_node_names()[node_id] << "\t" << coefficient << std::endl;
+          }
+        }
+      } // for each node
+    }
+ std::cout << "Fichier fermé" << std::endl;
+ exit(0);*/
  std::vector<Index> DC_lines = f_NetworkData->get_DC_lines();
 
  // ===== auxiliary variables for nonempty cost
@@ -712,7 +806,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  set_constraints_generated();
 
-}  // end( DCNetworkBlock::generate_abstract_constraints )
+}  // end( DCNetworkBlock::generate_PTDF_constraints )
 
 /*--------------------------------------------------------------------------*/
 
