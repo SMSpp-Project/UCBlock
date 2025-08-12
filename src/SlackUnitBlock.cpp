@@ -118,6 +118,9 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
+  /// Call the parent class 
+  UnitBlock::generate_abstract_variables( stvv );
+
  // Commitment Variable
  if( reserve_vars & 4u ) {  // if UCBlock has inertia demand variables
   if( ! v_MaxInertia.empty() ) {  // if unit produces any inertia reserve
@@ -329,6 +332,11 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
    else
     lf->add_variable( &v_commitment[ t ] , 0.0 , eDryRun );
   }
+  
+  // Add reactive power variables if needed
+  if ( get_max_reactive_power(t) > 0.0 )
+    lf->add_variable( &v_reactive_power[ t ] , 0.7*v_ActivePowerCost[ t ] , eDryRun );
+
  }
 
  objective.set_function( lf );
