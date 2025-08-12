@@ -127,6 +127,9 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "UphillFlow" ,
                                               "DownhillFlow", 
                                               // for specific modes
+                                              "MinReactivePower",
+                                              "MaxReactivePower",
+                                              "VoltageMagnitude",                                               
                                               "ReferenceSchedule"
                                               };
  check_variables( group , expected_vars , std::cerr );
@@ -212,6 +215,16 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "MaxVolumetric" ,
                 { f_NumberReservoirs , f_time_horizon } , v_MaxVolumetric ,
                 true , true , v_change_intervals );
+
+ /// optional AC variables
+ ::deserialize( group , "MinReactivePower" , { f_time_horizon , f_NumberArcs } ,
+                v_MinReactivePower , true , true , v_change_intervals );
+
+ ::deserialize( group , "MaxReactivePower" , { f_time_horizon , f_NumberArcs } ,
+                v_MaxReactivePower , true , true , v_change_intervals );                
+
+ ::deserialize( group , "VoltageMagnitude" , { f_time_horizon , f_NumberArcs } ,
+                v_VoltageMagnitude , true , true , v_change_intervals );                
 
  // variables pour la reference schedule
  ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true, v_change_intervals );

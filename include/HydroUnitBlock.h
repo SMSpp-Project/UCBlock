@@ -1004,6 +1004,29 @@ class HydroUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the minimum reactive power of the given generator at the given time
+
+ double get_min_reactive_power( Index t , Index generator = 0 ) const override {
+    return( *( v_MinReactivePower.data() + t * f_NumberArcs + generator ) );
+ }
+
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum reactive power of the given generator at the given time
+
+ double get_max_reactive_power( Index t , Index generator = 0 ) const override {
+    return( *( v_MaxReactivePower.data() + t * f_NumberArcs + generator ) );
+ }
+
+
+/*--------------------------------------------------------------------------*/
+ /// returns the voltage magnitude of the given generator at the given time
+
+ double get_voltage_magnitude( Index t , Index generator = 0 ) const override {
+    return( *( v_VoltageMagnitude.data() + t * f_NumberArcs + generator ) );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// returns the matrix of minimum flow
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the minimum flow at each time t associated with unit (arc)
@@ -1784,6 +1807,15 @@ class HydroUnitBlock : public UnitBlock
  /// the matrix of MaxPower
  /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MaxPower;
+
+  /// the vector of MinReactivePower
+ boost::multi_array< double , 2 > v_MinReactivePower;
+
+  /// the vector of MaxReactivePower
+  boost::multi_array< double , 2 > v_MaxReactivePower;
+
+  /// the vector of VoltageMagnitude
+  boost::multi_array< double , 2 > v_VoltageMagnitude;
 
  /// the matrix of MinFlow
  /** Indexed over the dimensions TimeHorizon and NumberArcs. */
