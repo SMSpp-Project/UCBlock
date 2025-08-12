@@ -88,7 +88,12 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                      "MinPower" , "MaxPower" ,
                                                      "InertiaPower" ,
                                                      "ActivePowerCost",
-                                                     "Gamma" , "Kappa" };
+                                                     "Gamma" , "Kappa", 
+                                                     // Specific computational modes
+                                                     "MinReactivePower",
+                                                     "MaxReactivePower",
+                                                     "VoltageMagnitude"                                                     
+                                                    };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -121,6 +126,20 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_gamma , "Gamma" );
 
  ::deserialize( group , f_kappa , "Kappa" );
+
+ // variables for AC elements
+ if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MaxReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MinReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
+                      true , true , v_change_intervals ) )
+    v_VoltageMagnitude.resize( f_time_horizon, 0.0 );
+
 
  if( f_max_power_epsilon > 0 )
   for( Index t = 0 ; t < f_time_horizon ; ++t )

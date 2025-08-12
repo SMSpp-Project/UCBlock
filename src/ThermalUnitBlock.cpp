@@ -213,6 +213,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                "CostModel",
                                                "PowerCostCoeffs" 
                                                // Specific computational modes
+                                               "MinReactivePower",
                                                "MaxReactivePower",
                                                "ReferenceSchedule",
                                                "FixToMaximum",
@@ -303,9 +304,18 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
     f_fixToMax = std::max( f_fixToMax , 0 );
 
  // variables for AC elements
- ::deserialize( group , "MaxReactivePower" , v_MaxReactivePower );
- ::deserialize( group , "MinReactivePower" , v_MinReactivePower );
- ::deserialize( group , "VoltageMagnitude" , v_VoltageMagnitude );
+ if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MaxReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MinReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
+                      true , true , v_change_intervals ) )
+    v_VoltageMagnitude.resize( f_time_horizon, 0.0 );    
+
  ::deserialize( group , "PowerCostCoeffs" , v_PowerCostCoeffs );
  ::deserialize( group , f_CostModel , "CostModel" );
 
