@@ -523,6 +523,9 @@ class DCNetworkData : public NetworkData
 
  double get_line_efficiency( Index line ) const {
   assert( line < get_number_lines() );
+  if( is_hypergraph() )
+   throw( std::logic_error(
+		      "get_line_efficiency() called but hypergraph" ) );
   if( v_efficiency.empty() || get_line_susceptance().empty() ||
       ( get_line_susceptance()[ line ] != 0.0 ) )
    return( 1.0 );
