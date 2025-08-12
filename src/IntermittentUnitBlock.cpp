@@ -356,6 +356,28 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
                          "ActivePower_Design_Intermittent" );
  }
 
+ /// Reactive power bounds constraints
+ if( ReactivePower_Bound_Const.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( ReactivePower_Bound_Const.empty() );
+
+  ReactivePower_Bound_Const.resize( f_time_horizon );
+ }
+ 
+ bool something = false;
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  if ( get_max_reactive_power(t) > 0.0 ){
+    something = true;
+    ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
+    ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
+    //
+    ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
+  }
+ }
+ if (something )
+  add_static_constraint( ReactivePower_Bound_Const ,
+                         "ReactivePowerBound" );
+
  set_constraints_generated();
 
 }  // end( IntermittentUnitBlock::generate_abstract_constraints )

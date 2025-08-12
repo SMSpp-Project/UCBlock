@@ -1698,9 +1698,11 @@ class BatteryUnitBlock : public UnitBlock
  /// secondary upper bound constraints
  std::vector< LB0Constraint > secondary_upper_bound_Const;
 
-
  /// the vector of binary bound constraints
  std::vector< ZOConstraint > battery_binary_bound_Const;
+
+ /// the reactive power bound constraints
+ std::vector< BoxConstraint > ReactivePower_Bound_Const;
 
  /// the objective function
  FRealObjective objective;

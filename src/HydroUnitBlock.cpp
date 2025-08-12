@@ -253,6 +253,8 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
  v_flow_rate.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
  v_active_power.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
 
+ v_reactive_power.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
+
  for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    v_flow_rate[ g ][ t ].set_type( ColVariable::kContinuous , eNoMod );
@@ -272,11 +274,22 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
     v_active_power[ g ][ t ].is_positive( true , eNoMod );
    if( v_MaxPower.empty()  || ( v_MaxPower[ t ][ g ] <= 0 ) )
     v_active_power[ g ][ t ].is_negative( true , eNoMod );
+
+   // repeat the work for reactive stuff
+   v_reactive_power[ g ][ t ].set_type( ColVariable::kContinuous , eNoMod );
+   // put sign constraints on the reactive power variables in accordance to
+   // MinReactivePower and MaxReactivePower
+   if( v_MinReactivePower.empty()  || ( v_MinReactivePower[ t ][ g ] >= 0 ) )
+    v_reactive_power[ g ][ t ].is_positive( true , eNoMod );
+   if( v_MaxReactivePower.empty()  || ( v_MaxReactivePower[ t ][ g ] <= 0 ) )
+    v_reactive_power[ g ][ t ].is_negative( true , eNoMod ); 
    }
   }
 
  add_static_variable( v_flow_rate , "f_hydro" );
  add_static_variable( v_active_power , "p_hydro" );
+ add_static_variable( v_reactive_power , "q_hydro" );
+
  if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
   if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
    v_primary_spinning_reserve.resize(
@@ -810,6 +823,28 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
    }
    add_static_constraint( Reference_Schedule_Const, "Norm1_H_Reference_Schedule" );
  }
+
+ // Add the Bounds on the reactive part
+ if( ReactivePower_Bound_Const.empty() ){
+    ReactivePower_Bound_Const.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
+ }
+
+ bool something = false;
+ for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if ( get_max_reactive_power(t, g) > 0.0 ){
+      something = true;
+      ReactivePower_Bound_Const[ g ][ t ].set_rhs( v_MaxReactivePower[ t ][ g ] );
+      ReactivePower_Bound_Const[ g ][ t ].set_lhs( v_MinReactivePower[ t ][ g ] );
+      //
+      ReactivePower_Bound_Const[ g ][ t ].set_variable( &v_reactive_power[ g ][ t ] );
+    }
+  }
+ }
+ if (something )
+  add_static_constraint( ReactivePower_Bound_Const ,
+                         "ReactivePowerBound" );
+
 
  // all done- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

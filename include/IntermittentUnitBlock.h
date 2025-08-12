@@ -815,6 +815,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// the active power bounds constraints
  std::vector< BoxConstraint > active_power_bounds_Const;
 
+ /// the reactive power bound constraints
+ std::vector< BoxConstraint > ReactivePower_Bound_Const;
+
 
  /// the objective function
  FRealObjective objective;

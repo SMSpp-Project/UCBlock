@@ -711,10 +711,11 @@ class SlackUnitBlock : public UnitBlock
  /// the secondary spinning reserve bound constraints
  std::vector< LB0Constraint > Secondary_Spinning_Reserve_Bound_Const;
 
-
  /// the inertia variables bound constraints
  std::vector< ZOConstraint > Inertia_Bound_Const;
 
+ /// the reactive power bound constraints
+ std::vector< BoxConstraint > ReactivePower_Bound_Const;
 
  /// the objective function
  FRealObjective objective;

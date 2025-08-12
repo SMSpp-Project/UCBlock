@@ -2861,10 +2861,11 @@ class ThermalUnitBlock : public UnitBlock
  /// the shut-down binary bound constraints
  std::vector< ZOConstraint > ShutDown_Binary_bound_Const;
 
-
  /// the commitment fixed to one BoxConstraints
  std::vector< BoxConstraint > Commitment_fixed_to_One_Const;
 
+ /// the reactive power bound constraints
+ std::vector< BoxConstraint > ReactivePower_Bound_Const;
 
  /// the objective function
  FRealObjective objective;

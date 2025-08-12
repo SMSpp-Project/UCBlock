@@ -1430,6 +1430,27 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the array of reactive power variables of the given \p generator
+ /** This method returns the array of ColVariable representing the reactive
+  * power of the given \p generator at all time instants t in {0, ...,
+  * time_horizon - 1}.
+  *
+  * @param generator The index of a generator (a number between 0 and
+  *                  get_number_generators() - 1).
+  *
+  * @return The array of ColVariable representing the reactive power of the
+  *         given \p generator. */
+
+ ColVariable * get_reactive_power( Index generator ) override {
+  if( generator < get_number_generators() ) {
+   const auto offset = generator * f_time_horizon;
+   if( offset < v_reactive_power.num_elements() )
+    return( v_reactive_power.data() + offset );
+   }
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the active power of the given generator at the given time
  /** Returns a pointer to the ColVariable representing the active power of the
   * given \p generator at the given \p time.
@@ -1451,6 +1472,30 @@ class HydroUnitBlock : public UnitBlock
    }
   return( nullptr );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the reactive power of the given generator at the given time
+ /** Returns a pointer to the ColVariable representing the reactive power of the
+  * given \p generator at the given \p time.
+  *
+  * @param generator The index of the generator whose reactive power is desired
+  *                  (a number between 0 and get_number_generators() - 1).
+  *
+  * @param time The time at which the reactive power is desired (a number
+  *             between 0 and get_time_horizon() - 1).
+  *
+  * @return A pointer to the ColVariable representing the reactive power of the
+  *         given \p generator at the given \p time. */
+
+ ColVariable * get_reactive_power( Index generator , Index time ) {
+  if( generator < get_number_generators() && time < f_time_horizon ) {
+   const auto offset = generator * f_time_horizon + time;
+   if( offset < v_reactive_power.num_elements() )
+    return( v_reactive_power.data() + offset );
+   }
+  return( nullptr );
+  } 
+
 
 /*--------------------------------------------------------------------------*/
  /// returns the array of flow rate variables along the given \p arc
@@ -1809,12 +1854,15 @@ class HydroUnitBlock : public UnitBlock
  boost::multi_array< double , 2 > v_MaxPower;
 
   /// the vector of MinReactivePower
+  /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MinReactivePower;
 
   /// the vector of MaxReactivePower
+  /** Indexed over the dimensions TimeHorizon and NumberArcs. */
   boost::multi_array< double , 2 > v_MaxReactivePower;
 
   /// the vector of VoltageMagnitude
+  /** Indexed over the dimensions TimeHorizon and NumberArcs. */
   boost::multi_array< double , 2 > v_VoltageMagnitude;
 
  /// the matrix of MinFlow
@@ -1855,6 +1903,9 @@ class HydroUnitBlock : public UnitBlock
  /// the active power variables
  boost::multi_array< ColVariable , 2 > v_active_power;
 
+/// the reactive power variables have to be redefined
+ boost::multi_array< ColVariable , 2 > v_reactive_power;
+
  /// the primary spinning reserve variables
  boost::multi_array< ColVariable , 2 > v_primary_spinning_reserve;
 
@@ -1886,6 +1937,9 @@ class HydroUnitBlock : public UnitBlock
 
  /// active power bounds
  boost::multi_array< FRowConstraint , 2 > ActivePowerBounds_Const;
+
+ /// the reactive power bound constraints
+ boost::multi_array< BoxConstraint, 2 > ReactivePower_Bound_Const;
 
  /// ramp-up constraints
  boost::multi_array< FRowConstraint , 2 > RampUp_Const;
