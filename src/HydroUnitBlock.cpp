@@ -835,7 +835,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
     if ( get_max_reactive_power(t, g) > 0.0 ){
       something = true;
       ReactivePower_Bound_Const[ g ][ t ].set_rhs( v_MaxReactivePower[ t ][ g ] );
-      ReactivePower_Bound_Const[ g ][ t ].set_lhs( v_MinReactivePower[ t ][ g ] );
+      if ( !v_MinReactivePower.empty() )
+        ReactivePower_Bound_Const[ g ][ t ].set_lhs( v_MinReactivePower[ t ][ g ] );
       //
       ReactivePower_Bound_Const[ g ][ t ].set_variable( &v_reactive_power[ g ][ t ] );
     }
