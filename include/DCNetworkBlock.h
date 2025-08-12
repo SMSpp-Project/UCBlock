@@ -1502,6 +1502,16 @@ const std::vector< BoxConstraint > &
  /// injection equals to demand
  FRowConstraint overall_balanced_const;
 
+ /// ---- Constraints for formulation in CYCLE
+
+ /// definition of the flow
+ std::vector< FRowConstraint > v_CYCLE_def_flow_const;
+
+ /// definition of the flow on cycles
+ std::vector< FRowConstraint > v_CYCLE_def_cycle_const;
+
+
+
  /// the objective function
  FRealObjective objective;
 

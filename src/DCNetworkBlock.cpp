@@ -622,10 +622,12 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
  const auto lines_type = f_NetworkData->get_lines_type();
+ const auto & susceptance = f_NetworkData->get_line_susceptance();
 
-  // First step: compute the cycle basis and spanning tree
+  // ----- First step: compute the cycle basis and spanning tree
   //std::cout << "Cycle basis:" << std::endl;
   auto basis = f_NetworkData->get_lines_in_cycles(); // cycle incidence matrices C_{lc} in the paper
+  assert( basis.size() == number_lines - number_nodes + 1);
   /* for Debug
   for (auto& cycle: basis){
     std::cout << "(" ;
@@ -644,10 +646,60 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
   std::cout << std::endl;
   */
 
-  // Then, create the equations
+  // ------ Then, create the equations
 
+  // eq (25): forall line l,  f_l = sum_i T_{li}p_{i}  +  sum_c C_{lc}h_c
+  v_CYCLE_def_flow_const.resize(number_lines);
+  for (Index line_id = 0; line_id < number_lines; ++line_id){
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 );
+    for (Index node_id = 0; node_id < number_nodes; ++node_id){
+      auto it = tree.find(line_id);
+      if (it != tree.end()){
+        lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , it->second ); //it->second = tree[line_id]
+      }
+    }
+    auto it_basis = basis.begin();
+    for (int cycle_id = 0; cycle_id < basis.size(); ++cycle_id, ++it_basis){
+      std::map<Index, int> cycle = *it_basis;
+      auto it = cycle.find(line_id);
+      if (it != cycle.end()){
+        lfunc->add_variable( &v_cycle_flow[ cycle_id ] , it->second ); //it->second = cycle[line_id]
+      }
+    }
+    v_CYCLE_def_flow_const[ line_id ].set_both( 0.0 );
+    v_CYCLE_def_flow_const[ line_id ].set_function( lfunc );
+  }
+  add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
 
-  throw( std::logic_error( "Not Implemented yet" ) );
+  // eq (25): forall cycle c, sum_l C_{lc}x_lf_l = 0
+  v_CYCLE_def_cycle_const.resize(number_lines - number_nodes + 1);
+  auto it_basis = basis.begin();
+  for (int cycle_id = 0; cycle_id < basis.size(); ++cycle_id, ++it_basis){
+    std::map<Index, int> cycle = *it_basis;
+    auto lfunc = new LinearFunction();
+    for (Index line_id = 0; line_id < number_lines; ++line_id){
+      auto it = cycle.find(line_id);
+      if (it != cycle.end()){
+        lfunc->add_variable( &v_power_flow[ line_id ] , it->second/susceptance[ line_id ]); //x_l = 1/susceptance[ line_id ]
+      }
+    }
+    v_CYCLE_def_cycle_const[ cycle_id ].set_both( 0.0 );
+    v_CYCLE_def_cycle_const[ cycle_id ].set_function( lfunc );
+  }
+  add_static_constraint( v_CYCLE_def_cycle_const , "v_CYCLE_def_cycle_const" );
+
+  // eq (25): sum_i p_i = 0
+  auto lfunc = new LinearFunction();
+  double constant_term = 0.;
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+   lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , 1. );
+   constant_term += v_ActiveDemand[ node_id ];
+  }
+  overall_balanced_const.set_function( lfunc );
+  overall_balanced_const.set_lhs( constant_term );
+  overall_balanced_const.set_rhs( constant_term );
+  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
  }
 
 /*--------------------------------------------------------------------------*/
