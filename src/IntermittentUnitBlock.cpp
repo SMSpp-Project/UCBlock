@@ -378,6 +378,20 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   add_static_constraint( ReactivePower_Bound_Const ,
                          "ReactivePowerBound" );
 
+ // Link between active and reactive power
+ Reactive_2_Active_Const.resize( f_time_horizon );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // Q(t) - P(t) <= 0
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( & v_active_power[ t ], -1.0 );
+    lfunc->add_variable( & v_reactive_power[ t ], 1.0 );
+    
+    Reactive_2_Active_Const[ t ].set_lhs( -Inf< double >() );
+    Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
+    Reactive_2_Active_Const[ t ].set_function( lfunc );
+ }
+ add_static_constraint( Reactive_2_Active_Const, "QandP_inter" );
+
  set_constraints_generated();
 
 }  // end( IntermittentUnitBlock::generate_abstract_constraints )

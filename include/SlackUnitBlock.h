@@ -717,6 +717,9 @@ class SlackUnitBlock : public UnitBlock
  /// the reactive power bound constraints
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
 
+ /// Q <= P
+ std::vector< FRowConstraint > Reactive_2_Active_Const;
+
  /// the objective function
  FRealObjective objective;
 

@@ -1950,12 +1950,14 @@ class HydroUnitBlock : public UnitBlock
  /// final volumes fo each reservoir constraints
  boost::multi_array< FRowConstraint , 2 > FinalVolumeReservoir_Const;
 
-
  /// flow rate bounds constraints
  boost::multi_array< BoxConstraint , 2 > FlowRateBounds_Const;
 
  /// volumetric bounds constraints
  boost::multi_array< BoxConstraint , 2 > VolumetricBounds_Const;
+
+ /// Q <= P
+ boost::multi_array< FRowConstraint , 2 > Reactive_2_Active_Const;
 
 
  /// the objective function

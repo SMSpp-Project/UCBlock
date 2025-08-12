@@ -847,6 +847,22 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
                          "ReactivePowerBound" );
 
 
+ // Link between active and reactive power
+ Reactive_2_Active_Const.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
+ for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // Q(g,t) - P(g,t) <= 0
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( & v_active_power[ g ][ t ], -1.0 );
+    lfunc->add_variable( & v_reactive_power[ g ][ t ], 1.0 );
+    
+    Reactive_2_Active_Const[ g ][ t ].set_lhs( -Inf< double >() );
+    Reactive_2_Active_Const[ g ][ t ].set_rhs( 0.0 );
+    Reactive_2_Active_Const[ g ][ t ].set_function( lfunc );
+  }
+ }
+ add_static_constraint( Reactive_2_Active_Const, "QandPhydro" );
+
  // all done- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
