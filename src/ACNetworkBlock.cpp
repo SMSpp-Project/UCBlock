@@ -525,7 +525,7 @@ void ACNetworkBlock::generate_SOCP_relaxation(){
 
 /*--------------------------------------------------------------------------*/
 
-const std::vector< std::pair< double, double > > & ACNetworkBlock::recover_feasible_solution( void ){
+ std::vector< std::pair< double, double > > ACNetworkBlock::recover_feasible_solution( void ){
   /*
   Since the solution provided from the AC OPF relaxation problem is not necessary feasible, 
   we implement a feasibility recovery algorithm.

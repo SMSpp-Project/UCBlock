@@ -183,7 +183,7 @@ class ACNetworkData : public DCNetworkData
  void generate_SOCP_relaxation();
 
  const std::vector< ColVariable > & get_reactive_power_flow( void ) const { return( v_reactive_power_flow ); }; // warning only a relaxed solution
- const std::vector< std::pair< double, double > > & recover_feasible_solution( void );
+ std::vector< std::pair< double, double > > recover_feasible_solution( void );
 
 /*--------------------------------------------------------------------------*/
 /// returns a pointer to the DCNetworkData
