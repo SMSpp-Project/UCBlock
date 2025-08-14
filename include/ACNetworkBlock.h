@@ -180,6 +180,16 @@ class ACNetworkData : public DCNetworkData
    return ( f_NetworkData ) ? ( f_NetworkData->get_number_lines() ) : 0;
   }
 
+ std::vector< double > get_line_losses( void ) override {
+  std::vector< double > losses;
+  Index number_lines = get_number_lines();
+  for (int line_id = 0; line_id < number_lines; ++line_id){
+    losses.push_back(v_power_flow[ line_id ].get_value() 
+                + v_power_flow[ number_lines + line_id ].get_value());
+  }
+  return losses;  
+ };
+
  void generate_SOCP_relaxation();
 
  const std::vector< ColVariable > & get_reactive_power_flow( void ) const { return( v_reactive_power_flow ); }; // warning only a relaxed solution

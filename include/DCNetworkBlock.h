@@ -1123,6 +1123,11 @@ const std::vector< BoxConstraint > &
  }
 
 /*--------------------------------------------------------------------------*/
+ /// return the vector of power losses on lines (will be override in the ACNetworkBlock)
+
+ virtual std::vector< double > get_line_losses( void ) { return std::vector< double>(get_number_lines(), 0.); };
+
+/*--------------------------------------------------------------------------*/
  /// returns the dual prices of power flow limits, however the network is
 
  void get_dual_prices( std::vector< double > & dp ) const {
