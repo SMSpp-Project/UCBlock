@@ -430,7 +430,7 @@ class ECNetworkBlock : public NetworkBlock
                    Configuration * fsbc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// returns true if the the energy is shared between users in the community
+ /// returns true if the energy is shared between users in the community
 
  bool is_cooperative( void ) const {
   auto reward_prices = f_NetworkData->get_reward_price();

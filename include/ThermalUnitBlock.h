@@ -1466,7 +1466,7 @@ class ThermalUnitBlock : public UnitBlock
   * the objective function, their coefficients can be set by the
   * set_primary_spinning_reserve_cost() and
   * set_secondary_spinning_reserve_cost() methods, respectively.
-  * In the the design scenario of the UC problem, an additional cost is
+  * In the design scenario of the UC problem, an additional cost is
   * added to the objective, i.e.:
   *
   * \f[

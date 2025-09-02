@@ -677,7 +677,7 @@ class BatteryUnitBlock : public UnitBlock
   *     \sum_{ t \in \mathcal{T} } C_t (p^+_t +  p^-_t) )
   *   \f]
   *
-  *   where \f$ I_b \f$ and \f$ I_c \f$ are the the investment costs of the
+  *   where \f$ I_b \f$ and \f$ I_c \f$ are the investment costs of the
   *   battery and the converter respectively, \f$ x_b \f$ and \f$ x_c \f$ are
   *   the battery and converter design variable respectively, and \f$ C_t \f$
   *   is a certain proportion cost function. */
