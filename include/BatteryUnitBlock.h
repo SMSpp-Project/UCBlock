@@ -157,8 +157,12 @@ class BatteryUnitBlock : public UnitBlock
  /** Constructor of BatteryUnitBlock, taking possibly a pointer of its father
   * Block. */
 
- explicit BatteryUnitBlock( Block * f_block = nullptr )
-  : UnitBlock( f_block ) {}
+ explicit BatteryUnitBlock( Block * f_block = nullptr ) :
+  UnitBlock( f_block ), f_BattInvestmentCost( 0 ), f_ConvInvestmentCost( 0 ),
+  f_BattMaxCapacityDesign( 1 ), f_ConvMaxCapacityDesign( 1 ),
+  f_BattMaxCapacity( 0 ), f_ConvMaxCapacity( 0 ), f_InitialStorage( 0 ),
+  f_InitialPower( 0 ), f_MaxCRateCharge( 1 ), f_MaxCRateDischarge( 1 ),
+  f_kappa( 1 ), f_scale( 1 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of BatteryUnitBlock
@@ -179,6 +183,14 @@ class BatteryUnitBlock : public UnitBlock
   * netCDF::NcGroup ). In particular, we refer to that description for the
   * crucial dimensions "TimeHorizon", "NumberIntervals" and
   * "ChangeIntervals". The netCDF::NcGroup must then also contain:
+  *
+  * - The scalar variable "BatteryMaxCapacityDesign", of type
+  *   netCDF::NcDouble. Upper bound for the battery design variable x_b.
+  *   Optional; if missing, it is taken as 1.
+  *
+  * - The scalar variable "ConverterMaxCapacityDesign", of type
+  *   netCDF::NcDouble. Upper bound for the converter design variable x_c.
+  *   Optional; if missing, it is taken as 1.
   *
   * - The variable "MinStorage", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
@@ -236,6 +248,14 @@ class BatteryUnitBlock : public UnitBlock
   *   MinP[ t ] < MaxP[ t ] for all t. If NumberIntervals <= 1 or
   *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
   *   "ChangeIntervals", which in fact is not loaded.
+  *
+  * - The variable "ConverterMaxPower", of type netCDF::NcDouble and either
+  *   of size 1 or indexed over "NumberIntervals" (if not provided, it can
+  *   be indexed over "TimeHorizon"). It represents the vector P^{mx,c}_t,
+  *   the converter maximum power at time t. If length is 1 the same value
+  *   applies to all t. Otherwise, ConverterMaxPower[ i ] fixes P^{mx,c}_t
+  *   for t in [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ]. This
+  *   variable is optional; if missing it is taken as 0.
   *
   * - The scalar variable "InitialPower", of type netCDF::NcDouble and not
   *   indexed over any dimension. This variable indicates the amount of the
@@ -660,6 +680,16 @@ class BatteryUnitBlock : public UnitBlock
   *   \f[
   *     p^{sc}_t \leq P^{mx, sc}_t
   *                                          \quad t \in \mathcal{T} \quad (13)
+  *   \f]
+  *
+  * - design bounds for the installation variables:
+  *
+  *   \f[
+  *     0 \le x_b \le \mathrm{BatteryMaxCapacityDesign} \qquad (14)
+  *   \f]
+  *
+  *   \f[
+  *     0 \le x_c \le \mathrm{ConverterMaxCapacityDesign} \qquad (15)
   *   \f]
   */
 
@@ -1558,34 +1588,40 @@ class BatteryUnitBlock : public UnitBlock
 
 
  /// the battery investment cost
- double f_BattInvestmentCost{};
+ double f_BattInvestmentCost;
 
  /// the converter investment cost
- double f_ConvInvestmentCost{};
+ double f_ConvInvestmentCost;
+
+ /// the maximum battery capacity design allowed
+ double f_BattMaxCapacityDesign;
+
+ /// the maximum converter capacity design allowed
+ double f_ConvMaxCapacityDesign;
 
  /// the maximum battery installable capacity by the user
- double f_BattMaxCapacity{};
+ double f_BattMaxCapacity;
 
  /// the maximum converter installable capacity by the user
- double f_ConvMaxCapacity{};
+ double f_ConvMaxCapacity;
 
  /// the InitialStorage value
- double f_InitialStorage{};
+ double f_InitialStorage;
 
  /// the InitialPower value
- double f_InitialPower{};
+ double f_InitialPower;
 
  /// the MaxCRateCharge value
- double f_MaxCRateCharge = 1;
+ double f_MaxCRateCharge;
 
  /// the MaxCRateDischarge value
- double f_MaxCRateDischarge = 1;
+ double f_MaxCRateDischarge;
 
  /// the kappa value
- double f_kappa = 1;
+ double f_kappa;
 
  /// the scale factor
- double f_scale = 1;
+ double f_scale;
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -1620,6 +1656,12 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the active power bounds constraints
  boost::multi_array< FRowConstraint , 2 > active_power_bounds_Const;
+
+ /// the battery design bound constraint
+ BoxConstraint batt_design_bound_Const;
+
+ /// the converter design bound constraint
+ BoxConstraint conv_design_bound_Const;
 
  /// the active power bounds design constraints
  boost::multi_array< FRowConstraint , 2 > active_power_bounds_design_Const;
