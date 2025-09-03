@@ -320,7 +320,8 @@ class IntermittentUnitBlock : public UnitBlock
   * \f$ \mathrm{MaxCapacityDesign} \ge 0 \f$, a box constraint
   * \f$ 0 \le x \le \mathrm{MaxCapacityDesign} \f$ is added. When
   * \f$ \mathrm{MaxCapacityDesign} < 0 \f$ the design variable is binary
-  * (\f$ x \in \{ 0 , 1 \} \f$).
+  * (\f$ x \in \{0,1\} \f$); ; otherwise it is continuous
+  * nonnegative with \f$ 0 \le x_b \le \mathrm{MaxCapacityDesign} \f$.
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )

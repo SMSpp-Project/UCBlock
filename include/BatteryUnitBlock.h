@@ -155,6 +155,7 @@ class BatteryUnitBlock : public UnitBlock
  /// constructor, takes the father block
  /** Constructor of BatteryUnitBlock, taking possibly a pointer of its father
   * Block. */
+
  explicit BatteryUnitBlock( Block * f_block = nullptr ) :
   UnitBlock( f_block ), f_BattInvestmentCost( 0 ), f_ConvInvestmentCost( 0 ),
   f_BattMaxCapacityDesign( 1 ), f_ConvMaxCapacityDesign( 1 ),
@@ -181,13 +182,23 @@ class BatteryUnitBlock : public UnitBlock
   * crucial dimensions "TimeHorizon", "NumberIntervals" and
   * "ChangeIntervals". The netCDF::NcGroup must then also contain:
   *
-  * - The scalar variable "BatteryMaxCapacityDesign", of type
-  *   netCDF::NcDouble. Upper bound for the battery design variable \f$ x_b
-  *   \f$. Optional; if missing, it is taken as 1.
+  * - The scalar variable "BatteryMaxCapacityDesign", of type netCDF::NcDouble
+  *   and not indexed over any dimension. This limits the design variable
+  *   \f$ x_b \f$:
+  *   - if \f$ \mathrm{BatteryMaxCapacityDesign} < 0 \f$ then \f$ x_b \f$ is
+  *     binary;
+  *   - otherwise \f$ x_b \f$ is a nonnegative continuous variable with
+  *     \f$ 0 \le x \le \mathrm{BatteryMaxCapacityDesign} \f$.
+  *   If not provided, the default is 1.
   *
-  * - The scalar variable "ConverterMaxCapacityDesign", of type
-  *   netCDF::NcDouble. Upper bound for the converter design variable
-  *   \f$ x_c \f$. Optional; if missing, it is taken as 1.
+  * - The scalar variable "ConverterMaxCapacityDesign", of type netCDF::NcDouble
+  *   and not indexed over any dimension. This limits the design variable
+  *   \f$ x_c \f$:
+  *   - if \f$ \mathrm{ConverterMaxCapacityDesign} < 0 \f$ then \f$ x_c \f$ is
+  *     binary;
+  *   - otherwise \f$ x_c \f$ is a nonnegative continuous variable with
+  *     \f$ 0 \le x \le \mathrm{ConverterMaxCapacityDesign} \f$.
+  *   If not provided, the default is 1.
   *
   * - The variable "MinStorage", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -466,6 +477,7 @@ class BatteryUnitBlock : public UnitBlock
   *   power, maximum primary and secondary reserve, and the minimum and
   *   maximum storage levels, at each time instant \f$ t \f$. This variable is
   *   optional; if it is not provided it is taken to be \f$ \kappa = 1 \f$. */
+
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -521,8 +533,25 @@ class BatteryUnitBlock : public UnitBlock
   * storage, and the converter responsible for the intake and outtake of the
   * energy from the battery. For this reason, in the design scenario of the UC
   * problem, i.e., if an investment cost is given for both the battery and the
-  * converter, two additional binary variables are needed in order to let the
-  * model infer how much capacity to install of either.
+  * converter, two additional design variables are needed in order to let the
+  * model infer how much capacity to install of either. Denote them by
+  * \f$ x_b \f$ (battery) and \f$ x_c \f$ (converter). Their **domains are
+  * controlled** by the scalar parameters
+  * \f$ \mathrm{BatteryMaxCapacityDesign} \f$ and
+  * \f$ \mathrm{ConverterMaxCapacityDesign} \f$, respectively, as follows:
+  *
+  * - if \f$ \mathrm{BatteryMaxCapacityDesign} < 0 \f$ then \f$ x_b \f$ is
+  *   **binary** (\f$ x_b \in \{0,1\} \f$); otherwise \f$ x_b \f$ is a
+  *   **nonnegative continuous** variable with
+  *   \f$ 0 \le x_b \le \mathrm{BatteryMaxCapacityDesign} \f$;
+  *
+  * - if \f$ \mathrm{ConverterMaxCapacityDesign} < 0 \f$ then \f$ x_c \f$ is
+  *   **binary** (\f$ x_c \in \{0,1\} \f$); otherwise \f$ x_c \f$ is a
+  *   **nonnegative continuous** variable with
+  *   \f$ 0 \le x_c \le \mathrm{ConverterMaxCapacityDesign} \f$.
+  *
+  * This mirrors the behavior used in IntermittentUnitBlock so that the
+  * "design mode" is consistent across unit types.
   *
   * The parameter \p stvv and the Configuration for this function presented in
   * the BlockConfig (namely,
@@ -535,6 +564,7 @@ class BatteryUnitBlock : public UnitBlock
   * SimpleConfiguration< int >, then a nonzero value stored in this
   * Configuration indicates that negative prices may occur. The value zero
   * indicates that negative prices do not occur. */
+
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -719,7 +749,19 @@ class BatteryUnitBlock : public UnitBlock
   *
   *   \f[
   *     0 \le x_c \le \mathrm{ConverterMaxCapacityDesign} \qquad (15)
-  *   \f] */
+  *   \f]
+  *
+  * In addition, when in design mode:
+  *
+  * - if \f$ \mathrm{BatteryMaxCapacityDesign} < 0 \f$ then \f$ x_b \f$ is
+  *   **binary** (\f$ x_b \in \{0,1\} \f$); otherwise it is continuous
+  *   nonnegative with \f$ 0 \le x_b \le \mathrm{BatteryMaxCapacityDesign} \f$;
+  *
+  * - if \f$ \mathrm{ConverterMaxCapacityDesign} < 0 \f$ then \f$ x_c \f$ is
+  *   **binary** (\f$ x_c \in \{0,1\} \f$); otherwise it is continuous
+  *   nonnegative with \f$ 0 \le x_c \le \mathrm{ConverterMaxCapacityDesign} \f$.
+  */
+
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -738,6 +780,7 @@ class BatteryUnitBlock : public UnitBlock
   *   battery and the converter respectively, \f$ x_b \f$ and \f$ x_c \f$ are
   *   the battery and converter design variables respectively, and
   *   \f$ C_t \f$ is a proportional cost coefficient. */
+
  void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -797,6 +840,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
   *             and the type of violation that must be considered. */
+
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
@@ -851,6 +895,7 @@ class BatteryUnitBlock : public UnitBlock
   *   represents the minimum storage value at time t.
   *
   * @return The vector containing the minimum storage. */
+
  const std::vector< double > & get_min_storage( void ) const {
   return( v_MinStorage );
  }
@@ -867,6 +912,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each V[ t ]
   *   represents the maximum storage value at time t. */
+
  const std::vector< double > & get_max_storage( void ) const {
   return( v_MaxStorage );
  }
@@ -883,6 +929,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the minimum power value at time t. */
+
  double get_min_power( Index t , Index generator = 0 ) const override {
   return( v_MinPower[ t ] );
  }
@@ -899,6 +946,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the maximum power value at time t. */
+
  double get_max_power( Index t , Index generator = 0 ) const override {
   return( v_MaxPower[ t ] );
  }
@@ -916,6 +964,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector must have size get_time_horizon() and its t-th
   *   element represents the maximum primary power at time t. */
+
  const std::vector< double > & get_max_primary_power( void ) const {
   return( v_MaxPrimaryPower );
  }
@@ -933,6 +982,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector must have size get_time_horizon() and its t-th
   *   element represents the maximum secondary power at time t. */
+
  const std::vector< double > & get_max_secondary_power( void ) const {
   return( v_MaxSecondaryPower );
  }
@@ -949,6 +999,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the delta ramp up value at time t. */
+
  const std::vector< double > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
  }
@@ -965,6 +1016,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the delta ramp down value at time t. */
+
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
  }
@@ -982,6 +1034,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the storing battery rho value at time t. */
+
  const std::vector< double > & get_storing_battery_rho( void ) const {
   return( v_StoringBatteryRho );
  }
@@ -1000,6 +1053,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the extracting battery rho value at time t. */
+
  const std::vector< double > & get_extracting_battery_rho( void ) const {
   return( v_ExtractingBatteryRho );
  }
@@ -1018,6 +1072,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the cost of the unit at time t. */
+
  const std::vector< double > & get_cost( void ) const {
   return( v_Cost );
  }
@@ -1031,6 +1086,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
   *   V[ t ] represents the demand value at time t. */
+
  const std::vector< double > & get_demand( void ) const {
   return( v_Demand );
  }
@@ -1061,6 +1117,7 @@ class BatteryUnitBlock : public UnitBlock
   * minimum and maximum storage levels.
   *
   * @return The kappa factor. */
+
  double get_kappa( void ) const { return( f_kappa ); }
 
 /*--------------------------------------------------------------------------*/
@@ -1072,6 +1129,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, V must have size get_time_horizon() and V[ t ] is the storage
   *   level variable for time step t. */
+
  std::vector< ColVariable > & get_storage_level( void ) {
   return( v_storage_level );
  }
@@ -1085,6 +1143,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, V must have size get_time_horizon() and V[ t ] is the storage
   *   level variable for time step t. */
+
  const std::vector< ColVariable > & get_const_storage_level( void ) const {
   return( v_storage_level );
  }
@@ -1098,6 +1157,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, V must have size get_time_horizon() and V[ t ] is the intake
   *   level variable for time step t. */
+
  std::vector< ColVariable > & get_intake_level( void ) {
   return( v_intake_level );
  }
@@ -1111,6 +1171,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, V must have size get_time_horizon() and V[ t ] is the intake
   *   level variable for time step t. */
+
  const std::vector< ColVariable > & get_const_intake_level( void ) const {
   return( v_intake_level );
  }
@@ -1124,6 +1185,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, V must have size get_time_horizon() and V[ t ] is the outtake
   *   level variable for time step t. */
+
  std::vector< ColVariable > & get_outtake_level( void ) {
   return( v_outtake_level );
  }
@@ -1137,6 +1199,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - otherwise, V must have size get_time_horizon() and V[ t ] is the outtake
   *   level variable for time step t. */
+
  const std::vector< ColVariable > & get_const_outtake_level( void ) const {
   return( v_outtake_level );
  }
@@ -1341,6 +1404,7 @@ class BatteryUnitBlock : public UnitBlock
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
   * - otherwise, it is 63 (save everything). */
+
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
 
@@ -1358,6 +1422,7 @@ class BatteryUnitBlock : public UnitBlock
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   * BatteryUnitBlock. See BatteryUnitBlock::deserialize( netCDF::NcGroup ) for
   * details of the format of the created netCDF group. */
+
  void serialize( netCDF::NcGroup & group ) const override;
 
 /** @} ---------------------------------------------------------------------*/
@@ -1395,6 +1460,7 @@ class BatteryUnitBlock : public UnitBlock
   * last one is considered, which means that the value for the initial power
   * will be that in the vector pointed by \p it associated with this last
   * zero. */
+
  void set_initial_power( MF_dbl_it it ,
                          Subset && subset ,
                          const bool ordered = false ,
@@ -1409,6 +1475,7 @@ class BatteryUnitBlock : public UnitBlock
   * the initial power will be the one found at position -rng.first in the
   * vector pointed by \p it if this Range contains the 0 index. If the given
   * Range \p rng does not contain the 0 index, this function does nothing. */
+
  void set_initial_power( MF_dbl_it it ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
@@ -1428,6 +1495,7 @@ class BatteryUnitBlock : public UnitBlock
   * @param issuePMod Controls how physical Modifications are issued.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
+
  void scale( MF_dbl_it values ,
              Subset && subset ,
              const bool ordered = false ,
@@ -1451,6 +1519,7 @@ class BatteryUnitBlock : public UnitBlock
   * @param issuePMod Controls how physical Modifications are issued.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
+
  void set_kappa( MF_dbl_it values ,
                  Subset && subset ,
                  const bool ordered = false ,
@@ -1472,6 +1541,7 @@ class BatteryUnitBlock : public UnitBlock
   * @param issuePMod Controls how physical Modifications are issued.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
+
  void set_kappa( MF_dbl_it values ,
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -1489,6 +1559,7 @@ class BatteryUnitBlock : public UnitBlock
   * @param issuePMod Controls how physical Modifications are issued.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
+
  void set_kappa( double value , c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
@@ -1698,6 +1769,7 @@ class BatteryUnitBlock : public UnitBlock
  /// updates the constraints for the current initial storage
  /** This function updates both sides of the demand constraint at time 0
   * (which is the constraint that depends on the initial storage). */
+
  void update_initial_storage_in_cnstrs( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1705,12 +1777,14 @@ class BatteryUnitBlock : public UnitBlock
  /** This function updates the right-hand side of the ramp-up constraints and
   * the left-hand side of the ramp-down constraints at time 0 (which are the
   * constraints that depend on the initial power). */
+
  void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates the constraints for the current kappa
  /** This function updates the constraints to take into account the current
   * value of the kappa constant. */
+
  void update_kappa_in_cnstrs( ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1718,6 +1792,7 @@ class BatteryUnitBlock : public UnitBlock
  /** This method updates the coefficients of the Objective.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
+
  void update_objective( c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
@@ -1746,6 +1821,7 @@ class BatteryUnitBlock : public UnitBlock
   *   reserves is nonnegative.
   *
   * If any of the above conditions are not met, an exception is thrown. */
+
  void check_data_consistency( void ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -1969,6 +2045,7 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
   * Note that, unlike those of the base class, these variables do not need
   * to be indexed over the dimension "NumberGenerators" since
   * BatteryUnitBlock always has exactly one generator. */
+
  void serialize( netCDF::NcGroup & group ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
