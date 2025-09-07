@@ -657,24 +657,33 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Battery" );
 
-  if( f_BattMaxCapacityDesign >= 0 ) {
+  if( abs( f_BattMaxCapacityDesign ) != 1 ) {
    batt_design_bound_Const.set_lhs( 0.0 );
-   batt_design_bound_Const.set_rhs( f_BattMaxCapacityDesign );
+   batt_design_bound_Const.set_rhs( abs( f_BattMaxCapacityDesign ) );
    batt_design_bound_Const.set_variable( &batt_design );
 
    add_static_constraint( batt_design_bound_Const , "BattDesignBound_Battery" );
-  }
+  } else
+   batt_design.is_unitary( true , eNoMod );
+
+  if( f_BattMaxCapacityDesign < 0 )
+   batt_design.is_integer( true , eNoMod );
  }
 
- if( f_ConvInvestmentCost != 0 )
+ if( f_ConvInvestmentCost != 0 ) {
 
-  if( f_ConvMaxCapacityDesign >= 0 ) {
+  if( abs( f_ConvMaxCapacityDesign ) != 1 ) {
    conv_design_bound_Const.set_lhs( 0.0 );
-   conv_design_bound_Const.set_rhs( f_ConvMaxCapacityDesign );
+   conv_design_bound_Const.set_rhs( abs( f_ConvMaxCapacityDesign ) );
    conv_design_bound_Const.set_variable( &conv_design );
 
    add_static_constraint( conv_design_bound_Const , "ConvDesignBound_Battery" );
-  }
+  } else
+   conv_design.is_unitary( true , eNoMod );
+
+  if( f_ConvMaxCapacityDesign < 0 )
+   conv_design.is_integer( true , eNoMod );
+ }
 
  // Initializing power_intake_outtake_Const
 

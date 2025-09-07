@@ -344,13 +344,17 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Intermittent" );
 
-  if( f_MaxCapacityDesign >= 0 ) {
+  if( abs( f_MaxCapacityDesign ) != 1 ) {
    design_bound_Const.set_lhs( 0.0 );
-   design_bound_Const.set_rhs( f_MaxCapacityDesign );
+   design_bound_Const.set_rhs( abs( f_MaxCapacityDesign ) );
    design_bound_Const.set_variable( &design );
 
    add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
-  }
+  } else
+   design.is_unitary( true , eNoMod );
+
+  if( f_MaxCapacityDesign < 0 )
+   design.is_integer( true , eNoMod );
  }
 
  set_constraints_generated();
