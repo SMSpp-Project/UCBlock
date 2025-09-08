@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - tools/DataConverter from Energy Community Julia codebase
 
-- `netCDF_files/EC_Data` test data sets
+- `data/nc4/EC_Data` test data sets
 
 - ECNetworkBlock
 

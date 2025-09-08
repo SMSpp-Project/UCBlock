@@ -82,6 +82,9 @@ BatteryUnitBlock::~BatteryUnitBlock()
 
  Constraint::clear( battery_binary_bound_Const );
 
+ batt_design_bound_Const.clear();
+ conv_design_bound_Const.clear();
+
  objective.clear();
 }
 
@@ -115,7 +118,9 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "MaxIntakePower" ,
                                               "MaxOuttakePower" ,
                                               "BatteryInvestmentCost" ,
-                                              "ConverterInvestmentCost", 
+                                              "ConverterInvestmentCost" ,
+                                              "BatteryMaxCapacityDesign" ,
+                                              "ConverterMaxCapacityDesign" ,
                                               // for specific modes
                                               "MinReactivePower",
                                               "MaxReactivePower",
@@ -182,10 +187,13 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  if( ! ::deserialize( group , "Cost" , f_time_horizon , v_Cost ,
                       true , true , v_change_intervals ) )
-  v_Cost.resize( f_time_horizon , 0 );
+  v_Cost.resize( f_time_horizon );
 
  ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" );
  ::deserialize( group , f_ConvInvestmentCost , "ConverterInvestmentCost" );
+
+ ::deserialize( group , f_BattMaxCapacityDesign , "BatteryMaxCapacityDesign" );
+ ::deserialize( group , f_ConvMaxCapacityDesign , "ConverterMaxCapacityDesign" );
 
  ::deserialize( group , f_BattMaxCapacity , "BatteryMaxCapacity" );
  ::deserialize( group , f_ConvMaxCapacity , "ConverterMaxCapacity" );
@@ -382,13 +390,19 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  // Battery Design Variable
  if( f_BattInvestmentCost != 0 ) {
-  batt_design.set_type( ColVariable::kPosUnitary );
+  if( f_BattMaxCapacityDesign < 0 )
+   batt_design.set_type( ColVariable::kBinary );
+  else
+   batt_design.set_type( ColVariable::kNonNegative );
   add_static_variable( batt_design , "x_battery" );
  }
 
  // Converter Design Variable
  if( f_ConvInvestmentCost != 0 ) {
-  conv_design.set_type( ColVariable::kPosUnitary );
+  if( f_ConvMaxCapacityDesign < 0 )
+   conv_design.set_type( ColVariable::kBinary );
+  else
+   conv_design.set_type( ColVariable::kNonNegative );
   add_static_variable( conv_design , "x_converter" );
  }
 
@@ -672,6 +686,33 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Battery" );
+
+  if( abs( f_BattMaxCapacityDesign ) != 1 ) {
+   batt_design_bound_Const.set_lhs( 0.0 );
+   batt_design_bound_Const.set_rhs( abs( f_BattMaxCapacityDesign ) );
+   batt_design_bound_Const.set_variable( &batt_design );
+
+   add_static_constraint( batt_design_bound_Const , "BattDesignBound_Battery" );
+  } else
+   batt_design.is_unitary( true , eNoMod );
+
+  if( f_BattMaxCapacityDesign < 0 )
+   batt_design.is_integer( true , eNoMod );
+ }
+
+ if( f_ConvInvestmentCost != 0 ) {
+
+  if( abs( f_ConvMaxCapacityDesign ) != 1 ) {
+   conv_design_bound_Const.set_lhs( 0.0 );
+   conv_design_bound_Const.set_rhs( abs( f_ConvMaxCapacityDesign ) );
+   conv_design_bound_Const.set_variable( &conv_design );
+
+   add_static_constraint( conv_design_bound_Const , "ConvDesignBound_Battery" );
+  } else
+   conv_design.is_unitary( true , eNoMod );
+
+  if( f_ConvMaxCapacityDesign < 0 )
+   conv_design.is_integer( true , eNoMod );
  }
 
  // Initializing power_intake_outtake_Const
@@ -1088,6 +1129,8 @@ bool BatteryUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   // Constraints: notice that the ZOConstraint are not checked, since the
   // corresponding check is made on the ColVariable
+  && RowConstraint::is_feasible( batt_design_bound_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( conv_design_bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol )
   && RowConstraint::is_feasible( intake_outtake_upper_bounds_design_Const , tol , rel_viol )
   && RowConstraint::is_feasible( storage_level_bounds_design_Const , tol , rel_viol )
@@ -1117,17 +1160,25 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  ::serialize( group , "InitialStorage" , netCDF::NcDouble() , f_InitialStorage );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
 
- if( f_BattInvestmentCost != 0 )
+ if( f_BattInvestmentCost != 0 ) {
   ::serialize( group , "BatteryInvestmentCost" , netCDF::NcDouble() ,
                f_BattInvestmentCost );
+  if( f_BattMaxCapacityDesign != 1 )
+   ::serialize( group , "BatteryMaxCapacityDesign" , netCDF::NcDouble() ,
+                f_BattMaxCapacityDesign );
+ }
 
  if( f_BattMaxCapacity != 0 )
   ::serialize( group , "BatteryMaxCapacity" , netCDF::NcDouble() ,
                f_BattMaxCapacity );
 
- if( f_ConvInvestmentCost != 0 )
+ if( f_ConvInvestmentCost != 0 ) {
   ::serialize( group , "ConverterInvestmentCost" , netCDF::NcDouble() ,
                f_ConvInvestmentCost );
+  if( f_ConvMaxCapacityDesign != 1 )
+   ::serialize( group , "ConverterMaxCapacityDesign" , netCDF::NcDouble() ,
+                f_ConvMaxCapacityDesign );
+ }
 
  if( f_ConvMaxCapacity != 0 )
   ::serialize( group , "ConverterMaxCapacity" , netCDF::NcDouble() ,

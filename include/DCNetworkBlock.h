@@ -156,10 +156,12 @@ class DCNetworkData : public NetworkData
  * @{ */
 
  /// constructor of DCNetworkData, does nothing
- DCNetworkData( void ) : f_lines_type( -1 ), DCDF_was_computed(false), cycle_basis_was_computed(false) {}
+ DCNetworkData( void ) : f_number_lines( 0 ) , f_reference_node( 0 ) ,
+  f_lines_type( -1 ) , f_number_branches( 0 ) {}
 
  /// copy constructor of DCNetworkData, does nothing
- explicit DCNetworkData( const NetworkData * ) : f_lines_type( -1 ), DCDF_was_computed(false) {}
+ explicit DCNetworkData( const NetworkData * ) : f_number_lines( 0 ) ,
+  f_reference_node( 0 ) , f_lines_type( -1 ) , f_number_branches( 0 ) {}
 
  /// destructor of DCNetworkData: it is virtual, and empty
  virtual ~DCNetworkData() override = default;
@@ -181,37 +183,75 @@ class DCNetworkData : public NetworkData
   * If NumberNodes == 1 (equivalently, it is not provided), the network is
   * a "bus" formed of only one node, and therefore all the subsequent
   * information need not to be present since it is not loaded. If
-  * NumberNodes > 1, then all the subsequent information is mandatory:
+  * NumberNodes > 1, then all the subsequent information is considered:
   *
   * - The dimension "NumberLines" containing the number of lines in the
-  *   transmission network.
+  *   transmission network. Each line can be either a "regular" line / link
+  *   / arc (one head node / bus, one tail node / bus) or a hyperarc (still
+  *   one head node / bus, but possible multiple tail nodes / buses); see
+  *   the (optional) dimension NumberBranches right next. The dimension is
+  *   mandatory.
+  *
+  * - The dimension "NumberBranches" that is used to describe hyperarcs.
+  *   The dimension is optional, if it is not defined then it is assumed that
+  *   "NumberBranches" == "NumberLines", i.e., all lines are "regular".
+  *   Otherwise, "NumberBranches" >= "NumberLines" (in fact, >) must hold
+  *   since one single hyperarc is described by its multiple "branches", as
+  *   detailed in "HyperArcID".
   *
   * - The variable "StartLine", of type netCDF::NcUint and indexed over the
-  *   dimension "NumberLines"; the l-th entry of the variable is the starting
-  *   point of the line (a number in 0, ..., NumberLines - 1). Note that
-  *   lines are not oriented, but the flow of energy is; that is, a positive
-  *   flow along line l means that energy is being taken away from
-  *   StartLine[ l ] and delivered to EndLine[ l ] (see next), a negative
-  *   flow means vice-versa. Note that node names here go from 0 to
-  *   NNodes.getSize() - 1;
+  *   dimension "NumberBranches" (if it is defined, otherwise "NumberLines");
+  *   the l-th entry of the variable is the starting point of the line (a
+  *   number in 0, ..., NumberNodes - 1). Note that lines are not oriented,
+  *   but the flow of energy is; that is, a positive flow along line l means
+  *   that energy is being taken away from StartLine[ l ] and delivered to
+  *   EndLine[ l ] (see next), a negative flow means vice-versa. The variable
+  *   is mandatory.
   *
   * - The variable "EndLine", of type netCDF::NcUint and indexed over the
-  *   dimension "NumberLines"; the l-th entry of the variable is the ending
-  *   point of the line (a number in 0, ..., NumberLines - 1; lines are not
-  *   oriented, but see above). StartLine[ l ] == EndLine[ l ] (a self-loop)
-  *   is not allowed, but multiple lines between the same pair of nodes are.
-  *   Note that node names here go from 0 to NNodes.getSize() - 1;
+  *   dimension "NumberBranches" (if it is defined, otherwise "NumberLines");
+  *   the l-th entry of the variable is the ending point of the line (a number
+  *   in 0, ..., NumberNodes - 1; lines are not oriented, but see above).
+  *   StartLine[ l ] == EndLine[ l ] (a self-loop) is not allowed, but multiple
+  *   lines between the same pair of nodes are. The variable is mandatory.
   *
-  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberLines". This is meant to represent the vector
-  *   MxP[ l ] that, for each line l, contains the minimum power flow at
-  *   line l (note that this is typically a negative number as lines are
-  *   bi-directional, see above).
+  * - The variable "HyperArcID", of type netCDF::NcUint and indexed over the
+  *   dimension "NumberBranches". The variable is mandatory if "NumberBranches"
+  *   exists, and therefore "NumberBranches" > "NumberLines", and ignored
+  *   otherwise. The variable is used to specify which entries of "StartLine"
+  *   and "EndLine" are different "branches" that correspond to the same
+  *   hyperarc. The entries of the variable are a number in 0, ..., 
+  *   NumberLines - 1: HyperArcID[ i ] == l means that StartLine[ i ] and
+  *   EndLine[ i ] describe one of the "branches" of the (hyper)line(arc) l.
+  *   If a (hyper)line(arc) l has only one branch, i.e., HyperArcID[ i ] == l
+  *   happens precisely for one index i, then l is a "regular" line. Note
+  *   that, FOR EACH l = 0, ..., NumberLines - 1, THERE MUST BE AT LEAST ONE
+  *   INDEX i such that HyperArcID[ i ] == l. If HyperArcID[ i ] == l happens
+  *   for more than one index i, then l is a hyperarc (line). It is required
+  *   that StartLine[ i ] == StartLine[ j ] and EndLine[ i ] == EndLine[ j ]
+  *   for all pairs ( i , j ) such that HyperArcID[ i ] == HyperArcID[ j ],
+  *   i.e., ALL "branches" MUST HAVE THE SAME "tail" and different heads.
   *
   * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines". This is meant to represent the vector
   *   MxP[ l ] that, for each line l, contains the maximum power flow at
-  *   line l (a non-negative number).
+  *   line l (a non-negative number). Note that if line l is a hyperarc (see
+  *   "HyperArcID") the capacity is still one number representing the
+  *   maximum amount of flow leaving the tail bus, although then some flow
+  *   (not necessarily the same amount, see "Efficiency") can reach more than
+  *   one head bus. The variable is optional, if not provided it is assumed
+  *   that MxP[ l ] == 0 for all line l.
+  *
+  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
+  *   the dimension "NumberLines". This is meant to represent the vector
+  *   MnP[ l ] that, for each line l, contains the minimum power flow at
+  *   line l (note that this is typically a negative number as lines are
+  *   bi-directional, see above). Note that if line l is a hyperarc (see
+  *   "HyperArcID") the capacity is still one number representing the
+  *   minimum amount of flow leaving the tail bus, although then some flow
+  *   (not necessarily the same amount, see "Efficiency") can reach more than
+  *   one head bus. The variable is optional, if not provided it is assumed
+  *   that MnP[ l ] == 0 for all line l.
   *
   * - The variable "LineSusceptance", of type netCDF::NcDouble and indexed
   *   over the dimension "NumberLines". This is meant to represent the
@@ -222,24 +262,39 @@ class DCNetworkData : public NetworkData
   *   S[ l ] != 0 this corresponds to a model with AC lines, and when for
   *   each line l, it's not defined or S[ l ] == 0, then it corresponds to
   *   a single connected grid composed of HVDC lines only which is also
-  *   known as the Net Transfer Capacity (NTC) model.
+  *   known as the Net Transfer Capacity (NTC) model. Also, note that
+  *   ALL HYPERARCS MUST HAVE 0 SUSCEPTANCE.
   *
-  * - The variable "NodeSusceptance", of type netCDF::NcDouble and indexed
-  *   over the dimension "NumberNodes". This is meant to represent the
-  *   vector S[ n ] that, for each node n contains the susceptance of the
-  *   network for the corresponding node n. Note that this variable is
-  *   optional, for each node n if it is provided then it is assumed that
-  *   S[ n ] != 0, otherwise it is assumed that S[ n ] == 0.
+  * - The dimension "ReferenceNode", that specifies which bus gets 0
+  *   potential in Kirchhoff's equations. This changes the form of the PTDF
+  *   matrix computed for the lines that have a nonzero LineSusceptance;
+  *   although the problem should be mathematically equivalent whatever this
+  *   choice is, numerically it may make a difference. The choice is
+  *   obviously irrelevant for a pure HVDC network (when all LineSusceptance
+  *   are 0), and in fact the dimension is optional: if not specified, the
+  *   reference bus (if at all significant) is chosen as 0.
   *
   * - The variable "NetworkCost", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines". This is meant to represent the vector
-  *   NC[ l ] that, for each line l, contains the monetary cost to exchanges
-  *   between nodes or each network. This variable is optional; if it is not
-  *   provided then it's taken to be zero.
+  *   NC[ l ] that, for each line l, contains the monetary cost to send one
+  *   one unit of flow from StartLine[ l ] to EndLine[ l ]. Note that, if l
+  *   is a hyperarc (see "HyperArcID"), the cost is still one number
+  *   representing the unitary cost of one unit of flow leaving the tail bus,
+  *   although then some flow (not necessarily the same amount, see
+  *   "Efficiency") can reach more than one head bus.
   *
-  * - The variable "NodeName", of type netCDF::NcString() and indexed over
-  *   the dimension "NumberNodes". Its i-th entry, namely NodeName[ i ],
-  *   contains the name of the i-th node. This variable is optional.
+  * - The variable "Efficiency", of type netCDF::NcDouble indexed over the
+  *   dimension "NumberBranches" (if it is defined, otherwise "NumberLines");
+  *   Efficiency[ l ] represents the efficiency of branch l. This means that
+  *   if X is the amount of flow leaving StartLine[ l ], then
+  *   X * Efficiency[ l ] is the amount of flow reaching EndLine[ l ]. Note
+  *   that, if l is a hyperarc (see "HyperArcID"), each branch can have a
+  *   different Efficiency: say, an hyperarc with branches 1 --> 2 with
+  *   Efficiency 0.5 and 1 --> 3 with Efficiency 0.5 means that one unit of
+  *   flow leaves 1 and half of it reaches 2 while the other half reaches 3.
+  *   There is no requirements that the efficiencies of the different branches
+  *   of the same hyperarc sum to 1: in fact, this variable is optional, if it
+  *   is not specified than Efficiency[ l ] == 1 for all branches / lines.
   *
   * - The variable "LineName", of type netCDF::NcString() and indexed over
   *   the dimension "NumberLines". Its i-th entry, namely LineName[ i ],
@@ -248,7 +303,7 @@ class DCNetworkData : public NetworkData
  
  virtual void deserialize( const netCDF::NcGroup & group ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE DCNetworkData -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the DCNetworkData
@@ -268,40 +323,96 @@ class DCNetworkData : public NetworkData
 
  Index get_reference_node( void ) const { return( f_reference_node ); }
 
+ /*--------------------------------------------------------------------------*/
+ /// returns true if the network is a hypergraph
+ /** Method for returning true if the network is a hypergraph, i.e., if it has
+  * at least one line with multiple head buses. When is_hypergraph() == false
+  * the network is a "regular graph" and therefore get_end_line() has to be
+  * used, while if is_hypergraph() == true the network is a hypergraph and
+  * therefore get_end_lines() has to be used. */
+
+ bool is_hypergraph( void ) const {
+  return( f_number_branches > f_number_lines );
+  }
+
 /*--------------------------------------------------------------------------*/
- /// returns the vector of start lines
+ /// returns true if line \p is an hyperarc (more than one head bus)
+
+ bool is_hyperarc( Index line ) const {
+  if( is_hypergraph() )
+   return( v_end_lines[ line ].size() > 1 );
+  else
+   return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of start buses for all lines
  /** Method for returning the vector of starting point of each line. This
   * vector may have empty size (bus network) or the size of number of lines,
   * then there are two possible cases:
   *
-  * - if f_number_nodes == 1, this vector has empty size which means there
-  *   is no line at network (bus network), and this vector is not needed to
-  *   be defined.
+  * - if get_number_nodes() == 1, this vector has empty size which means there
+  *   is no line at network (bus network), and this vector is not needed;
   *
-  * - if f_number_nodes > 1, this vector have size of f_number_lines and
-  *   each element of the vectors gives starting point of each line in the
-  *   network. */
+  * - if get_number_nodes() > 1, this vector have size of f_number_lines and
+  *    get_start_line()[ l ] gives starting (tail) bus of line l. */
 
  const std::vector< Index > & get_start_line( void ) const {
   return( v_start_line );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns vector of end lines
+ /// returns the start bus of line \p line
+
+ Index get_start_line( Index line ) const { return( v_start_line[ line ] ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of end buses for all lines
  /** Method for returning the vector of ending point of each line. This
   * vector may have empty size (bus network) or the size of number of lines,
-  * then there are two possible cases:
+  * then there are three possible cases:
   *
-  * - if f_number_nodes == 1, this vector has empty size which means there
+  * - if get_number_nodes() == 1, this vector has empty size which means there
   *   is no line at network (bus network), and this vector is not needed to
   *   be defined.
   *
-  * - if f_number_nodes > 1, this vector have size of f_number_lines and
-  *   each element of the vectors gives ending point of each line in the
-  *   network. */
+  * - if get_number_nodes() > 1 and get_number_hyperarcs() == 0, then the
+  *   network is a "regular graph", this vector have size of f_number_lines,
+  *   and  get_emd_line()[ l ] gives ending (head) bus of line l.
+  *
+  * - if get_number_nodes() > 1 and get_number_hyperarcs() > 0, then the
+  *   network is a hypergraph and this vector is again empty since
+  *   get_end_lines() must be used to get the set of end buses of the lines. */
 
  const std::vector< Index > & get_end_line( void ) const {
   return( v_end_line );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the end (first, in the hypergraph case) bus of line \p line 
+
+ Index get_end_line( Index line ) const {
+  if( is_hypergraph() )
+   return( v_end_lines[ line ].front() );   
+  else
+   return( v_end_line[ line ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of (sets of) end lines
+ /** Method for returning the vector of sets of ending point of each line.
+  * This vector is empty if get_number_hyperarcs() == 0, i.e., the network is
+  * "regular graph" (which is true in particular if get_number_nodes() == 1),
+  * otherwise  get_end_lines()[ l ] is a (const) std::vector< Index >
+  * containing the end buses / nodes of line l. Line l is a "regular arc" if
+  * get_end_lines()[ l ].size() == 1, and an hyperarc if
+  * get_end_lines()[ l ].size() > 1 (it cannot obviously bo 0). The number of
+  * lines l such that get_end_lines()[ l ].size() > 1 is equal to
+  * get_number_hyperarcs(). Each std::vector< Index > is ordered in increasing
+  * sense and without repeated elements. */ 
+
+ const std::vector< std::vector< Index > > & get_end_lines( void ) const {
+  return( v_end_lines );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -554,7 +665,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   return lines_in_cycles;
 }
 
-
 /*--------------------------------------------------------------------------*/
  /// returns vector of the network cost
  /** Method for returning the vector of network cost for each line. This
@@ -595,10 +705,28 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector containing the name of the nodes
+ /// returns the efficiency of \p line (1 if not specified or not a HVDC line)
 
- const std::vector< std::string > & get_node_names( void ) const {
-  return( v_node_names );
+ double get_line_efficiency( Index line ) const {
+  assert( line < get_number_lines() );
+  if( is_hypergraph() )
+   throw( std::logic_error(
+		      "get_line_efficiency() called but hypergraph" ) );
+  if( v_efficiency.empty() || get_line_susceptance().empty() ||
+      ( get_line_susceptance()[ line ] != 0.0 ) )
+   return( 1.0 );
+  return( v_efficiency[ line ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the set of efficiencies for all heads of hyperline \p line
+
+ const std::vector< double > & get_line_efficiencies( Index line ) const {
+  if( ! is_hypergraph() )
+   throw( std::logic_error(
+		      "get_line_efficiencies() called but no hypergraph" ) );
+
+  return( v_h_efficiency[ line ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -608,7 +736,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   return( v_line_names );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the DCNetworkData
@@ -635,9 +763,10 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- Index f_number_lines{};    ///< number of lines of the network
+ Index f_number_lines;      ///< number of lines of the network
 
  Index f_reference_node;    ///< reference node (used in the PTDF matrix)
+
  SpMat stored_B2;           ///< to not recompute each time the PTDF
  SpMat stored_B2_inv;       ///< to not recompute each time the PTDF
 
@@ -646,12 +775,19 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
  bool DCDF_was_computed;    /// A boolean to avoid forming A^dc multiple times                          
 
  double f_base_mva;
- int f_lines_type;         ///< the type of the network
  
- std::vector< Index > v_start_line;  ///< vector of starting lines
 
- std::vector< Index > v_end_line;    ///< vector of ending lines
+ int f_lines_type;          ///< the type of the network
+ 
+ Index f_number_branches;  ///< the number of branches of all hyperarcs
 
+ Subset v_start_line;      ///< vector of starting lines
+
+ Subset v_end_line;        ///< vector of ending lines
+
+ std::vector< Subset > v_end_lines;
+ ///< vector of (vector of) sets of ending lines for hyperarcs
+ 
  /// vector to store the susceptance of each line of the network
  std::vector< double > v_line_susceptance;
 
@@ -667,7 +803,13 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
  /// vector to store the network cost at each line
  std::vector< double > v_network_cost;
 
- std::vector< std::string > v_node_names;  ///< Node names
+ /** vector to store the network efficiency of each line in the graph case,
+  * effective only for HVDC lines and ignored otherwise */
+ std::vector< double > v_efficiency;
+
+ /** vector to store the network efficiency of each (hyper)line in the
+  * hypergraph case, effective only for HVDC lines and ignored otherwise */
+ std::vector< std::vector< double > > v_h_efficiency;
 
  std::vector< std::string > v_line_names;  ///< Line names
 
@@ -1059,7 +1201,7 @@ double round_to(double value, double precision = 1.0){
   return( &( v_ReactiveDemand.front() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the DCNetworkBlock
@@ -1232,6 +1374,14 @@ const std::vector< BoxConstraint > &
    v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// sets the power flows
+
+ void set_power_flow( const std::vector< double > & pf ) {
+  for( Index l = 0 ; l < v_power_flow.size() ; ++l )
+   v_power_flow[ l ].set_value( pf[ l ] );
+  }
+  
 /*--------------------------------------------------------------------------*/
  /// sets the dual prices of power flow limits, however the network is
 
@@ -1706,8 +1856,14 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   f_number_lines( 0 ) { }  ///< constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a DCNetworkBlockSolution from a netCDF::NcGroup
 
- void deserialize( const netCDF::NcGroup & group ) override final;
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a DCNetworkBlockSolution from a "global" netCDF::NcGroup
+
+ void deserialize( const netCDF::NcGroup & group , size_t idx ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1723,11 +1879,20 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a DCNetworkBlockSolution into a netCDF::NcGroup
  /** Serialize a DCNetworkBlockSolution into a netCDF::NcGroup. The format is
-  * the one of NetworkBlockSolution [cf. NetworkBlockSolution::serialize()],
-  * plus:
+  * the one of NetworkBlockSolution, cf. the comments in
+  * NetworkBlockSolution::serialize( netCDF::NcGroup & ), except that
+  *
+  *     "NumberNetworks" IS NOT REALLY NEEDED, BECAUSE "TotalNumberInstants"
+  *     AND "EndInstant" ARE NOR REQUIRED SINCE DCNetworkBlock ALWAYS HAS
+  *     DCNetworkBlock::get_number_intervals() == 1, AND ALL THE
+  *     NetworkBlock IN \p group ARE SUPPOSED TO BE DCNetworkBlock
+  *
+  * In addition, \p group must contain:
   *
   * - The dimension "NumberLines" containing the number of lines in the
-  *   transmission network.
+  *   transmission network. It is mandatory. Note that
+  *
+  *       ALL THE DCNetworkBlock MUST HAVE THE SAME NUMBER OF LINES
   *
   * - The variable "FlowValue", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; FlowValue[ l ] is the optimal value of
@@ -1739,6 +1904,61 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   line l. The variable is optional. */
 
  void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a DCNetworkBlockSolution into a "global" netCDF::NcGroup
+ /** "nonstandard" version of serialize() that loads a DCNetworkBlockSolution
+  * from a "global" netCDF::NcGroup, i.e., one where the solution information
+  * of multiple DCNetworkBlock are stored together (to avoid performance
+  * issues due to the fact that netCDF is not structured to work with a large
+  * number of sub-NcGroup in a file). The format is the  "nonstandard" one of
+  * NetworkBlockSolution, cf. the comments in
+  * NetworkBlockSolution::serialize( netCDF::NcGroup & , size_t ), except
+  * that
+  *
+  *     "NumberNetworks" IS NOT REALLY NEEDED, BECAUSE "TotalNumberInstants"
+  *     AND "EndInstant" ARE NOT REQUIRED SINCE DCNetworkBlock ALWAYS HAS
+  *     DCNetworkBlock::get_number_intervals() == 1, AND ALL THE
+  *     NetworkBlock IN \p group ARE SUPPOSED TO BE DCNetworkBlock
+  *
+  * In addition, \p group must contain:
+  *
+  * - The dimension "NumberLines" containing the number of lines in the
+  *   transmission network. It is mandatory. Note that there is only one
+  *   copy of the dimension, and as a consequence
+  *
+  *       ALL THE DCNetworkBlock MUST HAVE THE SAME NUMBER OF LINES
+  *
+  *   (which is of course necessary since they all take their data from
+  *   the same variables where "NumberLines" is one of the dimensions)
+  *
+  * - The variable "FlowValue", of type netCDF::NcDouble and indexed both
+  *   over the dimension "NumberNetworks" (which is the same as
+  *   "TotalNumberInstants", that does not exist) and the dimension
+  *   "NumberLines"; FlowValue[ idx ][ l ] is the optimal value of
+  *   the power flow on line l for this DCNetworkBlock. The variable is
+  *   optional.
+  *
+  * - The variable "DualCost", of type netCDF::NcDouble and indexed both
+  *   over the dimension "NumberNetworks" (which is the same as
+  *   "TotalNumberInstants", that does not exist) and the dimension
+  *   "NumberLines"; DualCost[ idx ][ l ] is the absolute value of the
+  *   dual variable of the constraint representing the capacity of line l
+  *   for this DCNetworkBlock. The variable is optional.
+  *
+  * Note that the variable are constructed when \p idx == 0 according to
+  * the fact that the corresponding DCNetworkBlockSolution has or not been
+  * Configure-d to hold them, which means that
+  *
+  *       ALL THE DCNetworkBlockSolution MUST HAVE BEEN Configure-d IN THE
+  *       SAME WAY
+  *
+  * (although, technically, if some of the DCNetworkBlockSolution that
+  * appears when \p idx > 0 is Configure-d with less information than that
+  * when idx == 0 the code will not break, but there will be uninitialised
+  * values in the netCDF). */
+
+ void serialize( netCDF::NcGroup & group , size_t idx ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1769,7 +1989,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  std::vector< double > v_flow;  ///< v_flow[ l ] = flow variable on line l
 
  std::vector< double > v_cost;  /**< v_cost[ l ] = absolute value of the
-				 *                 reduced cost of thr
+				 *                 reduced cost of the
 				 * capacity constraint of line l */
 
 /*--------------------------------------------------------------------------*/

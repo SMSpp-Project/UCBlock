@@ -68,6 +68,8 @@ IntermittentUnitBlock::~IntermittentUnitBlock()
 
  Constraint::clear( active_power_bounds_Const );
 
+ design_bound_Const.clear();
+
  objective.clear();
 }
 
@@ -84,6 +86,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "InvestmentCost" ,
+                                                     "MaxCapacityDesign" ,
                                                      "MaxCapacity" ,
                                                      "MinPower" , "MaxPower" ,
                                                      "InertiaPower" ,
@@ -108,6 +111,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  // Optional variables
 
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
+
+ ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
 
  ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
@@ -210,7 +215,10 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  // Design Variable
  if( f_InvestmentCost != 0 ) {
-  design.set_type( ColVariable::kPosUnitary );
+  if( f_MaxCapacityDesign < 0 )
+   design.set_type( ColVariable::kBinary );
+  else
+   design.set_type( ColVariable::kNonNegative );
   add_static_variable( design , "x_intermittent" );
  }
 
@@ -262,10 +270,10 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   if( f_gamma != 0 ) {  // if unit produces any reserve
    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                              -1.0 ) );
+                                    -1.0 ) );
    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                              -1.0 ) );
+                                    -1.0 ) );
   }
 
   min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
@@ -354,6 +362,18 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Intermittent" );
+
+  if( abs( f_MaxCapacityDesign ) != 1 ) {
+   design_bound_Const.set_lhs( 0.0 );
+   design_bound_Const.set_rhs( abs( f_MaxCapacityDesign ) );
+   design_bound_Const.set_variable( &design );
+
+   add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
+  } else
+   design.is_unitary( true , eNoMod );
+
+  if( f_MaxCapacityDesign < 0 )
+   design.is_integer( true , eNoMod );
  }
 
  /// Reactive power bounds constraints
@@ -479,6 +499,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   // Constraints
   && RowConstraint::is_feasible( min_power_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( design_bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( max_power_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_design_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol ) );
@@ -495,9 +516,13 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  // Serialize scalar variables
 
- if( f_InvestmentCost != 0 )
+ if( f_InvestmentCost != 0 ) {
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
+  if( f_MaxCapacityDesign != 1 )
+   ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
+                f_MaxCapacityDesign );
+ }
 
  if( f_MaxCapacity != 0 )
   ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
