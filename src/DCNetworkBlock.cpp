@@ -45,8 +45,8 @@
 #include "FRealObjective.h"
 
 #include <Eigen/Sparse>
+
 #include <Eigen/SparseLU>
-#include <Eigen/IterativeLinearSolvers>
 
 #include <chrono>
 
@@ -110,7 +110,6 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
     try { f_base_mva = std::stod(tmp_base); }
     catch (...) { f_base_mva = 1.; }
   }
-  
 
  f_lines_type = -1;
 
@@ -385,7 +384,6 @@ void DCNetworkData::compute_cycle_basis( int opt_root ) {
   is defined as "exclusive or" of the edges. Cycle bases are
   useful, e.g. when deriving equations for electric circuits
   using Kirchhoff's Laws.
-
 
   Returns
   -------
