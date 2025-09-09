@@ -61,7 +61,7 @@
 
 /// namespace for the Structured Modeling System++ (SMS++)
 
-typedef Eigen::SparseMatrix<double> SpMat;
+typedef Eigen::SparseMatrix< double > SpMat;
 
 namespace SMSpp_di_unipi_it
 {
@@ -138,7 +138,7 @@ class DCNetworkBlock : public NetworkBlock
   * horizon of UC, it makes sense to allow for this to happen. This means that
   * individual NetworkBlock objects may in principle have different
   * DCNetworkData, but most often they can share the same. By bunching all the
-  * information together we make it easy for this sharing to happen. */
+  * information together, we make it easy for this sharing to happen. */
 
 class DCNetworkData : public NetworkData
 {
@@ -182,7 +182,7 @@ class DCNetworkData : public NetworkData
   *
   * If NumberNodes == 1 (equivalently, it is not provided), the network is
   * a "bus" formed of only one node, and therefore all the subsequent
-  * information need not to be present since it is not loaded. If
+  * information need not be present since it is not loaded. If
   * NumberNodes > 1, then all the subsequent information is considered:
   *
   * - The dimension "NumberLines" containing the number of lines in the
@@ -512,8 +512,6 @@ class DCNetworkData : public NetworkData
   }
   return( DC_lines );
   }
-/*--------------------------------------------------------------------------*/
-
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the susceptances
@@ -543,30 +541,33 @@ class DCNetworkData : public NetworkData
 
  void compute_DCDF( const std::vector< Index > & DC_lines, SpMat & PTDF_matrix );
 
- SpMat get_DCDF(){ return DCDF; }
+ SpMat get_DCDF( void ) { return( DCDF ); }
  
- bool was_DCDF_computed(){ return DCDF_was_computed; }
- void set_DCDF_computed(){ DCDF_was_computed = true; }
+ bool was_DCDF_computed( void ) { return( DCDF_was_computed ); }
 
- SpMat get_PTDF(const std::vector<Index>& AC_lines, double tikhonov_coeff = 1e-4);
+ void set_DCDF_computed( void ) { DCDF_was_computed = true; }
 
- SpMat get_PTDF(){
-    std::vector<Index> all_lines(get_number_lines());
-    std::iota(all_lines.begin(), all_lines.end(), 0);
-    return get_PTDF(all_lines);
+ SpMat get_PTDF( const std::vector< Index > & AC_lines ,
+                 double tikhonov_coeff = 1e-4 );
+
+ SpMat get_PTDF( void ) {
+  std::vector< Index > all_lines( get_number_lines() );
+  std::iota( all_lines.begin() , all_lines.end() , 0 );
+  return( get_PTDF( all_lines ) );
  }
 
- std::pair<SpMat, SpMat> get_stored_B2(){
-  return std::make_pair(stored_B2, stored_B2_inv);
+ std::pair< SpMat , SpMat > get_stored_B2( void ) {
+  return( std::make_pair( stored_B2 , stored_B2_inv ) );
  }
 
- void set_stored_B2(const SpMat& B2, const SpMat& B2_inv){
+ void set_stored_B2( const SpMat & B2 , const SpMat & B2_inv ) {
   stored_B2 = B2;
   stored_B2_inv = B2_inv;
  }
 
- bool was_cycle_basis_computed(){ return cycle_basis_was_computed; }
- void set_cycle_basis_computed(){ cycle_basis_was_computed = true; }
+ bool was_cycle_basis_computed( void ) { return( cycle_basis_was_computed ); }
+
+ void set_cycle_basis_computed( void ) { cycle_basis_was_computed = true; }
 
 /*--------------------------------------------------------------------------*/
   /// compute the decomposition of the graph into cycles and spanning tree
@@ -578,21 +579,20 @@ class DCNetworkData : public NetworkData
  void compute_cycle_basis(int root = -1);  // be carefull -> root is int and not Index, as it can be negative
 
  const std::vector< std::vector< Index > > & get_cycle_basis( void ) {
-  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+  if ( ! cycle_basis_was_computed ) this->compute_cycle_basis();
   return( v_cycle_basis );
   }
 
  const std::map< Index, Index > & get_spanning_tree( void ) {
-  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+  if ( ! cycle_basis_was_computed ) this->compute_cycle_basis();
   return( m_spanning_tree );
-  }            
-
+  }
 
 /*-------------------------------------------------------------*/
 /* Return a map where the keys are the line ids involved in the spanning tree and the 
 value is 1 if the directed line is in the tree and -1 if the reverse directed line is in the tree.*/
-std::map< Index, int > get_lines_in_spanning_tree(){
-  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+std::map< Index, int > get_lines_in_spanning_tree( void ) {
+  if ( ! cycle_basis_was_computed ) this->compute_cycle_basis();
 
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
@@ -604,24 +604,24 @@ std::map< Index, int > get_lines_in_spanning_tree(){
   const auto & end_line = get_end_line();
 
   std::map< Index, int > lines_in_spanning_tree;
-  for (Index line_id = 0; line_id < number_lines; ++line_id){
-    Index i = start_line[line_id];
-    Index j = end_line[line_id];
-    if ( this->m_spanning_tree[i] == j) { // line in spanning tree
-      lines_in_spanning_tree[line_id] = 1;
+  for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+    Index i = start_line[ line_id ];
+    Index j = end_line[ line_id ];
+    if ( this->m_spanning_tree[ i ] == j ) { // line in spanning tree
+      lines_in_spanning_tree[ line_id ] = 1;
     }
-    else if ( this->m_spanning_tree[j] == i){ // reverse line in spanning tree
-      lines_in_spanning_tree[line_id] = -1;
+    else if ( this->m_spanning_tree[ j ] == i ) { // reverse line in spanning tree
+      lines_in_spanning_tree[ line_id ] = -1;
     }
   }
-  return lines_in_spanning_tree;
+  return( lines_in_spanning_tree );
 }
 
 /*-------------------------------------------------------------*/
 /* Return a vector of map where the keys are the line ids involved in the cycle and the 
 value is 1 if the directed line is in the cycle and -1 if the reverse directed line is in the cycle.*/
-std::vector< std::map< Index, int > > get_lines_in_cycles(){
-  if ( !cycle_basis_was_computed ) this->compute_cycle_basis();
+std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
+  if ( ! cycle_basis_was_computed ) this->compute_cycle_basis();
 
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
@@ -632,27 +632,28 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   const auto & start_line = get_start_line();
   const auto & end_line = get_end_line();
 
-  std::vector< std::map< Index, int>> lines_in_cycles = std::vector<std::map<Index,int>>(this->v_cycle_basis.size());
+  std::vector< std::map< Index , int > > lines_in_cycles =
+   std::vector< std::map< Index , int > >( this->v_cycle_basis.size() );
   int idx_cycle = 0;
-  for (auto& cycle: this->v_cycle_basis){
-    for (Index line_id = 0; line_id < number_lines; ++line_id){
-      Index i = start_line[line_id];
-      Index j = end_line[line_id];
-      auto it_i = std::find(cycle.begin(), cycle.end(), i);
+  for (auto& cycle: this->v_cycle_basis ) {
+    for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+      Index i = start_line[ line_id ];
+      Index j = end_line[ line_id ];
+      auto it_i = std::find( cycle.begin() , cycle.end() , i );
       int pos_i = std::distance(cycle.begin(), it_i);
-      if ( it_i != cycle.end()){
+      if ( it_i != cycle.end() ) {
         // the line or reverse line may be in the cycle
-        if ( pos_i < cycle.size()-1 && cycle[pos_i+1] == j){
-          lines_in_cycles[idx_cycle][line_id] = 1; // true line
+        if ( pos_i < cycle.size() - 1 && cycle[ pos_i + 1 ] == j ) {
+         lines_in_cycles[ idx_cycle ][ line_id ] = 1; // true line
         }
-        if ( pos_i == cycle.size()-1 && cycle[0] == j){
-          lines_in_cycles[idx_cycle][line_id] = 1; // true line
+        if( pos_i == cycle.size() - 1 && cycle[ 0 ] == j ) {
+         lines_in_cycles[ idx_cycle ][ line_id ] = 1; // true line
         }
-        if ( pos_i > 0 && cycle[pos_i-1] == j){
-          lines_in_cycles[idx_cycle][line_id] = -1; // reverse line
+        if( pos_i > 0 && cycle[ pos_i - 1 ] == j ) {
+         lines_in_cycles[ idx_cycle ][ line_id ] = -1; // reverse line
         }
-        if ( pos_i == 0 && cycle[cycle.size()-1] == j){
-          lines_in_cycles[idx_cycle][line_id] = -1; // reverse line
+        if( pos_i == 0 && cycle[ cycle.size() - 1 ] == j ) {
+         lines_in_cycles[ idx_cycle ][ line_id ] = -1; // reverse line
         }
       }
     }
@@ -662,7 +663,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   assert( lines_in_cycles.size() == number_lines - number_nodes + 1 );
     // take advantage of the theory to ensure the size of the cycle basis
 
-  return lines_in_cycles;
+  return( lines_in_cycles );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -873,7 +874,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   * Depending on the susceptance for each line of the network, the
   * DCNetworkBlock class may have a power flow variable or not. In other
   * word, if the susceptance is equal to zero (or not defined), the
-  * corresponding line is a HVDC line and it must have the power flow
+  * corresponding line is a HVDC line, and it must have the power flow
   * variable. It means, each HVDC line correspond to a power flow variable,
   * then for the Net Transfer Capacity (NTC) model all lines must have a
   * power flow variable. If the susceptance value is a non-zero value, the
@@ -887,7 +888,9 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   * auxiliary variable and corresponding constraints will not be defined. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+
  void generate_PTDF_variables( Configuration * stvv = nullptr );
+
  void generate_CYCLE_variables( Configuration * stvv = nullptr );
 
 /*--------------------------------------------------------------------------*/
@@ -933,7 +936,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   *   In this special case the susceptance value for each line is equal to
   *   zero. In fact, this corresponds to a model with a single connected grid
   *   composed of HVDC lines only. In this case, the flow limit equations
-  *   define as:
+  *   defined as:
   *
   *   \f[
   *    \kappa_l P^{mn}_l \leq F_l  \leq \kappa_l P^{mx}_l
@@ -1031,16 +1034,16 @@ std::vector< std::map< Index, int > > get_lines_in_cycles(){
   *     which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
   *     \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr )
-  override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
  void generate_PTDF_constraints( Configuration * stcc = nullptr );
+
  void generate_CYCLE_constraints( Configuration * stcc = nullptr );
 
-/// A bogus function to round nasty coefficients in the DCOPF equations  
-double round_to(double value, double precision = 1.0){
-    return std::round(value / precision) * precision;
-}
+ /// A bogus function to round nasty coefficients in the DCOPF equations
+ double round_to( double value , double precision = 1.0 ) {
+  return( std::round( value / precision ) * precision );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the DCNetworkBlock
@@ -1120,7 +1123,6 @@ double round_to(double value, double precision = 1.0){
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
-
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
 /*--------------------------------------------------------------------------*/
@@ -1171,7 +1173,6 @@ double round_to(double value, double precision = 1.0){
   assert( line < v_kappa.size() );
   return( v_kappa[ line ] );
   }
-
 
 /*--------------------------------------------------------------------------*/
  /// returns a pointer to the DCNetworkData
@@ -1265,12 +1266,14 @@ const std::vector< BoxConstraint > &
  }
 
 /*--------------------------------------------------------------------------*/
- /// return the vector of power losses on lines (will be override in the ACNetworkBlock)
+ /// return the vector of power losses on lines
 
- virtual std::vector< double > get_line_losses( void ) { return std::vector< double>(get_number_lines(), 0.); };
+ virtual std::vector< double > get_line_losses( void ) {
+ return( std::vector( get_number_lines() , 0. ) );
+};
 
 /*--------------------------------------------------------------------------*/
- /// returns the dual prices of power flow limits, however the network is
+ /// returns the dual prices of power flow limits, however, the network is
 
  void get_dual_prices( std::vector< double > & dp ) const {
   auto nl = get_number_lines();
@@ -1642,6 +1645,7 @@ const std::vector< BoxConstraint > &
 
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
+
  /// Mixed HVDC and AC node injection constraints ;
  std::vector< FRowConstraint > v_AC_HVDC_power_flow_const;
 
@@ -1664,7 +1668,6 @@ const std::vector< BoxConstraint > &
 
  /// definition of the flow on cycles
  std::vector< FRowConstraint > v_CYCLE_def_cycle_const;
-
 
 
  /// the objective function
@@ -1822,8 +1825,7 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
 /// a [NetworkBlock]Solution of a DCNetworkBlock
 /** The DCNetworkBlockSolution class derives from NetworkBlockSolution and
  * adds the "standard" information stored in there (the node injection
- * variables) the other information that is typical of the DCNetworkBlock,
- * i.e.,
+ * variables) the other information that is typical of the DCNetworkBlock, i.e.,
  *
  * - the flow variables on each link
  *
@@ -1989,8 +1991,8 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  std::vector< double > v_flow;  ///< v_flow[ l ] = flow variable on line l
 
  std::vector< double > v_cost;  /**< v_cost[ l ] = absolute value of the
-				 *                 reduced cost of the
-				 * capacity constraint of line l */
+                                      reduced cost of the capacity constraint
+                                      of line l */
 
 /*--------------------------------------------------------------------------*/
 
