@@ -59,7 +59,9 @@ SMSpp_insert_in_factory_cpp_1( ACNetworkData );
 /*--------------------------------------------------------------------------*/
 
 void ACNetworkData::deserialize( const netCDF::NcGroup & group ) {
+
  DCNetworkData::deserialize( group );
+
 #ifndef NDEBUG
  static std::vector< std::string > expected_vars = {
   "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
@@ -130,24 +132,24 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  const auto number_lines = get_number_lines();
 
  // QJ: print for debug
- std::cout << "LineResistance size : " << f_NetworkData->get_line_resistance().
-  size() << std::endl;
- std::cout << "LineReactance size : " << f_NetworkData->get_line_reactance().
-  size() << std::endl;
- std::cout << "LineSusceptance size : " << f_NetworkData->get_line_susceptance()
-  .size() << std::endl;
- std::cout << "NodeSusceptance size : " << f_NetworkData->get_node_susceptance()
-  .size() << std::endl;
- std::cout << "NodeConductance size : " << f_NetworkData->get_node_conductance()
-  .size() << std::endl;
- std::cout << "NodeMinVoltage size : " << f_NetworkData->get_node_min_voltage().
-  size() << std::endl;
- std::cout << "NodeMaxVoltage size : " << f_NetworkData->get_node_max_voltage().
-  size() << std::endl;
- std::cout << "LineMinAngle size : " << f_NetworkData->get_line_min_angle().
-  size() << std::endl;
- std::cout << "LineMaxAngle size : " << f_NetworkData->get_line_max_angle().
-  size() << std::endl;
+ std::cout << "LineResistance size : " <<
+  f_NetworkData->get_line_resistance().size() << std::endl;
+ std::cout << "LineReactance size : " <<
+  f_NetworkData->get_line_reactance().size() << std::endl;
+ std::cout << "LineSusceptance size : " <<
+  f_NetworkData->get_line_susceptance().size() << std::endl;
+ std::cout << "NodeSusceptance size : " <<
+  f_NetworkData->get_node_susceptance().size() << std::endl;
+ std::cout << "NodeConductance size : " <<
+  f_NetworkData->get_node_conductance().size() << std::endl;
+ std::cout << "NodeMinVoltage size : " <<
+  f_NetworkData->get_node_min_voltage().size() << std::endl;
+ std::cout << "NodeMaxVoltage size : " <<
+  f_NetworkData->get_node_max_voltage().size() << std::endl;
+ std::cout << "LineMinAngle size : " <<
+  f_NetworkData->get_line_min_angle().size() << std::endl;
+ std::cout << "LineMaxAngle size : " <<
+  f_NetworkData->get_line_max_angle().size() << std::endl;
 
  // generate first the same variables as in the DCNetwork
  DCNetworkBlock::generate_abstract_variables( stvv );
@@ -166,7 +168,6 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_power_flow , "v_power_flow_real" );
  add_static_variable( v_reactive_power_flow , "v_reactive_power_flow" );
 
- // -----
  v_sum_product_voltages.resize( number_lines );
  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
   v_sum_product_voltages[ line_id ].set_type( ColVariable::kContinuous );
@@ -266,7 +267,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ nb_ac_lines ] );
  const auto & min_angle = f_NetworkData->get_line_min_angle();
  const auto & max_angle = f_NetworkData->get_line_max_angle();
- //for (Index line_id = 0; line_id < number_lines; ++line_id) {
+ //for ( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
  for( auto & line_id : AC_lines ) {
   double phi_min = PI * min_angle[ line_id ] / 180.;
   double phi_max = PI * max_angle[ line_id ] / 180.;
@@ -401,7 +402,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ 2 ][ 2 * nb_ac_lines ] );
  i_line = 0;
- // for (Index line_id = 0; line_id < number_lines; ++line_id) {
+ // for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
@@ -429,7 +430,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   ++i_line;
  }
  i_line = 0;
- //for (Index line_id = 0; line_id < number_lines; ++line_id) {
+ //for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
@@ -504,7 +505,7 @@ Links between generic variables
    v_sqrd_voltages
  using a SOCP relaxation.
 */
-void ACNetworkBlock::generate_SOCP_relaxation( ) {
+void ACNetworkBlock::generate_SOCP_relaxation( void ) {
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
  const auto & start_line = f_NetworkData->get_start_line();
@@ -530,7 +531,7 @@ void ACNetworkBlock::generate_SOCP_relaxation( ) {
 
  // v_socp_const.resize( number_lines );
  v_socp_const.resize( nb_ac_lines );
- //for (Index line_id = 0; line_id < number_lines; ++line_id) {
+ //for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
  int i_line = 0;
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
