@@ -204,7 +204,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
  // InvestmentCost
 
  if( ( ( f_BattInvestmentCost != 0 ) || ( f_ConvInvestmentCost != 0 ) ) &&
-     ( f_InitialStorage >= 0 ) )
+     ( f_InitialStorage > 0 ) )
   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: the "
                            "presence of the investment cost of the battery "
                            "allows the model to switch into the strategic "
