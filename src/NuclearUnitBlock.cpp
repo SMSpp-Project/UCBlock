@@ -516,8 +516,8 @@ void NuclearUnitBlock::serialize( netCDF::NcGroup & group ) const
   * have any of the following dimensions: TimeHorizon, NumberIntervals,
   * 1. "allow_scalar_var" indicates whether the variable can be serialized as
   * a scalar variable (in which case the variable must have dimension 1). */
- auto serialize = [ & group , & TimeHorizon , & NumberIntervals ](
-	const std::string & var_name , const std::vector< double > & data ,
+ auto serialize = [ &group , &TimeHorizon , &NumberIntervals ]
+  ( const std::string & var_name , const std::vector< double > & data ,
 	const netCDF::NcType & ncType = netCDF::NcDouble() ,
 	bool allow_scalar_var = true ) {
   if( data.empty() )

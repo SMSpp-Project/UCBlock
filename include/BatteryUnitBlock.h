@@ -276,12 +276,13 @@ class BatteryUnitBlock : public UnitBlock
   * - The variable "ConverterMaxPower", of type netCDF::NcDouble and either
   *   of size 1 or indexed over "NumberIntervals" (if not provided, it can be
   *   indexed over "TimeHorizon"). It represents the vector
-  *   \f$ P^{mx,c}_t \f$, the converter maximum power at time \f$ t \f$. If
-  *   length is 1 the same value applies to all \f$ t \f$. Otherwise,
+  *   \f$ P^{mx,c}_t \f$, i.e., the converter maximum power at time \f$ t \f$.
+  *   If length is 1 the same value applies to all \f$ t \f$. Otherwise,
   *   \f$ \mathrm{ConverterMaxPower}[ i ] \f$ fixes \f$ P^{mx,c}_t \f$ for
   *   \f$ t \in [ \mathrm{ChangeIntervals}[ i - 1 ] ,
   *   \mathrm{ChangeIntervals}[ i ] ] \f$. This variable is optional; if
-  *   missing it is taken as 0.
+  *   it is not provided then it is taken to be \f$ P^{mx,c}_t = P^{mx,b}_t \f$
+  *   (i.e., equal to "MaxPower" at each time).
   *
   * - The scalar variable "InitialPower", of type netCDF::NcDouble and not
   *   indexed over any dimension. This variable indicates the amount of power

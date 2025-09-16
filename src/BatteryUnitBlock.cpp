@@ -115,8 +115,6 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "MaxCRateDischarge" ,
                                               "BatteryMaxCapacity" ,
                                               "ConverterMaxCapacity" ,
-                                              "MaxIntakePower" ,
-                                              "MaxOuttakePower" ,
                                               "BatteryInvestmentCost" ,
                                               "ConverterInvestmentCost" ,
                                               "BatteryMaxCapacityDesign" ,
@@ -221,7 +219,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
   if( v_MinPower[ t ] > v_MaxPower[ t ] )
    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: minimum "
                             "power for time " + std::to_string( t ) + " is " +
-                            std::to_string( v_MinPower[ t ] ) + ", which "
+                            std::to_string( v_MinPower[ t ] ) + ", which is "
                             "greater than the maximum power, which is " +
                             std::to_string( v_MaxPower[ t ] ) + "." ) );
 
@@ -328,7 +326,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
 
  if( f_kappa < 0 )
   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: "
-                           "kappa must be nonnegative, but it is" +
+                           "kappa must be nonnegative, but it is " +
                            std::to_string( f_kappa ) + "." ) );
 
 }  // end( BatteryUnitBlock::check_data_consistency )
@@ -744,7 +742,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , -1.0 ) );
 
-   ramp_down_Const[ t ].set_lhs( -v_DeltaRampDown[ 0 ] );
+   ramp_down_Const[ t ].set_lhs( -v_DeltaRampDown[ t ] );
    ramp_down_Const[ t ].set_rhs( Inf< double >() );
    ramp_down_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
   }
@@ -762,15 +760,15 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   vars.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
                                   -1.0 ) );
 
- double outtake_coeff = -1;
- if( ! v_StoringBatteryRho.empty() )
-  outtake_coeff = -v_StoringBatteryRho[ 0 ];
- vars.push_back( std::make_pair( &v_outtake_level[ 0 ] , outtake_coeff ) );
-
  double intake_coeff = 1;
  if( ! v_ExtractingBatteryRho.empty() )
   intake_coeff = v_ExtractingBatteryRho[ 0 ];
  vars.push_back( std::make_pair( &v_intake_level[ 0 ] , intake_coeff ) );
+
+ double outtake_coeff = -1;
+ if( ! v_StoringBatteryRho.empty() )
+  outtake_coeff = -v_StoringBatteryRho[ 0 ];
+ vars.push_back( std::make_pair( &v_outtake_level[ 0 ] , outtake_coeff ) );
 
  if( ! v_Demand.empty() )
   demand_Const[ 0 ].set_both(
@@ -846,8 +844,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the storage level design constraints:
    //
-   //      v_storage_level <= v_MaxPower x
-   // => v_storage_level - v_MaxPower x <= 0
+   //      v_storage_level <= v_MaxStorage x
+   // => v_storage_level - v_MaxStorage x <= 0
 
    vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &batt_design ,
@@ -873,7 +871,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   // v_intake_level <= v_MaxPower b   b \in {0,1}, for all t
+   // v_intake_level <= v_MaxPower b
 
    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
@@ -886,7 +884,6 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    //      v_outtake_level <= - v_MinPower ( 1 - b )
    // => v_outtake_level - v_MinPower b <= - v_MinPower
-   //             b \in [0,1], for all t
 
    vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &v_battery_binary[ t ] ,
@@ -1133,6 +1130,7 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "MaxStorage" , v_MaxStorage );
  serialize( "MinPower" , v_MinPower );
  serialize( "MaxPower" , v_MaxPower );
+ serialize( "ConverterMaxPower" , v_ConvMaxPower );
  serialize( "MaxPrimaryPower" , v_MaxPrimaryPower );
  serialize( "MaxSecondaryPower" , v_MaxSecondaryPower );
  serialize( "DeltaRampUp" , v_DeltaRampUp );
@@ -1694,7 +1692,7 @@ void BatteryUnitBlockSolution::read( const Block * block )
   // read the storage levels - - - - - - - - - - - - - - - - - - - - - - - -
   auto SLit = BUB->get_const_storage_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   v_storage[ t ] = (*(SLit++)).get_value();
+   v_storage[ t ] = ( *( SLit++ ) ).get_value();
    }
 
  if( ! v_intake.empty() ) {
@@ -1702,7 +1700,7 @@ void BatteryUnitBlockSolution::read( const Block * block )
   auto Iit = BUB->get_const_intake_level().begin();
   auto Oit = BUB->get_const_outtake_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   v_intake[ t ] = (*(Iit++)).get_value() - (*(Oit++)).get_value();
+   v_intake[ t ] = ( *( Iit++ ) ).get_value() - ( *( Oit++ ) ).get_value();
   }
 
  }  // end( BatteryUnitBlockSolution::read )
@@ -1722,8 +1720,8 @@ void BatteryUnitBlockSolution::write( Block * block )
   // write the storage levels- - - - - - - - - - - - - - - - - - - - - - - -
   auto SLit = BUB->get_storage_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   (*(SLit++)).set_value( v_storage[ t ] );
-  }
+   ( *( SLit++ ) ).set_value( v_storage[ t ] );
+ }
 
  if( ! v_intake.empty() ) {
   // write the intakes - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1731,12 +1729,12 @@ void BatteryUnitBlockSolution::write( Block * block )
   auto Oit = BUB->get_outtake_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_intake[ t ] >= 0 ) {
-    (*(Iit++)).set_value( v_intake[ t ] );
-    (*(Oit++)).set_value( 0 );
+    ( *( Iit++ ) ).set_value( v_intake[ t ] );
+    ( *( Oit++ ) ).set_value( 0 );
     }
    else {
-    (*(Iit++)).set_value( 0 );
-    (*(Oit++)).set_value( v_intake[ t ] );
+    ( *( Iit++ ) ).set_value( 0 );
+    ( *( Oit++ ) ).set_value( -v_intake[ t ] );
     }
   }
  }  // end( BatteryUnitBlockSolution::write )
