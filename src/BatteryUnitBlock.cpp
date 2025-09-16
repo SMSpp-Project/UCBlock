@@ -537,7 +537,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the intake level design constraints:
    //
-   //      v_intake_level <= - v_MinPower x
+   //     v_intake_level <= - v_MinPower x
    // => v_intake_level + v_MinPower x <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
@@ -654,9 +654,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Battery" );
 
-  if( abs( f_BattMaxCapacityDesign ) != 1 ) {
+  if( std::abs( f_BattMaxCapacityDesign ) != 1 ) {
    batt_design_bound_Const.set_lhs( 0.0 );
-   batt_design_bound_Const.set_rhs( abs( f_BattMaxCapacityDesign ) );
+   batt_design_bound_Const.set_rhs( std::abs( f_BattMaxCapacityDesign ) );
    batt_design_bound_Const.set_variable( &batt_design );
 
    add_static_constraint( batt_design_bound_Const , "BattDesignBound_Battery" );
@@ -669,9 +669,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  if( f_ConvInvestmentCost != 0 ) {
 
-  if( abs( f_ConvMaxCapacityDesign ) != 1 ) {
+  if( std::abs( f_ConvMaxCapacityDesign ) != 1 ) {
    conv_design_bound_Const.set_lhs( 0.0 );
-   conv_design_bound_Const.set_rhs( abs( f_ConvMaxCapacityDesign ) );
+   conv_design_bound_Const.set_rhs( std::abs( f_ConvMaxCapacityDesign ) );
    conv_design_bound_Const.set_variable( &conv_design );
 
    add_static_constraint( conv_design_bound_Const , "ConvDesignBound_Battery" );
