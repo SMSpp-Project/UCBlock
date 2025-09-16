@@ -316,8 +316,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    // Lower bound of the active power design constraints:
    //
-   //      v_MinPower x <= v_active_power     x \in {0,1}, for all t
-   // => 0 <= v_active_power - v_MinPower x   x \in {0,1}, for all t
+   //      v_MinPower x <= v_active_power
+   // => 0 <= v_active_power - v_MinPower x
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &design , -f_kappa * v_MinPower[ t ] ) );
@@ -329,8 +329,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    // Upper bound of the active power design constraints:
    //
-   //      v_active_power <= v_MaxPower x     x \in {0,1}, for all t
-   // => v_active_power - v_MaxPower x <= 0   x \in {0,1}, for all t
+   //      v_active_power <= v_MaxPower x
+   // => v_active_power - v_MaxPower x <= 0
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &design , -f_kappa * v_MaxPower[ t ] ) );

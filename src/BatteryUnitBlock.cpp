@@ -539,8 +539,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the intake level design constraints:
    //
-   //      v_intake_level <= - v_MinPower x   x \in {0,1}, for all t
-   // => v_intake_level + v_MinPower x <= 0   x \in {0,1}, for all t
+   //      v_intake_level <= - v_MinPower x
+   // => v_intake_level + v_MinPower x <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
@@ -556,8 +556,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the outtake level design constraints:
    //
-   //      v_outtake_level <= v_MaxPower x     x \in {0,1}, for all t
-   // => v_outtake_level - v_MaxPower x <= 0   x \in {0,1}, for all t
+   //      v_outtake_level <= v_MaxPower x
+   // => v_outtake_level - v_MaxPower x <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in charge
@@ -575,7 +575,6 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    //
    //      v_intake_level + v_outtake_level <= v_ConvMaxPower x
    // => v_intake_level + v_outtake_level - v_ConvMaxPower x <= 0
-   //                 x \in {0,1}, for all t
 
    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
@@ -601,8 +600,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Lower bound of the active power design constraints:
    //
-   //      v_minimum_power x <= v_active_power     x \in {0,1}, for all t
-   // => 0 <= v_active_power - v_minimum_power x   x \in {0,1}, for all t
+   //      v_minimum_power x <= v_active_power
+   // => 0 <= v_active_power - v_minimum_power x
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
@@ -628,8 +627,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the active power design constraints:
    //
-   //      v_active_power <= v_maximum_power x     x \in {0,1}, for all t
-   // => v_active_power - v_maximum_power x <= 0   x \in {0,1}, for all t
+   //      v_active_power <= v_maximum_power x
+   // => v_active_power - v_maximum_power x <= 0
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
@@ -833,8 +832,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Lower bound of the storage level design constraints:
    //
-   //      v_MinStorage x <= v_storage_level     x \in {0,1}, for all t
-   // => 0 <= v_storage_level - v_MinStorage x   x \in {0,1}, for all t
+   //      v_MinStorage x <= v_storage_level
+   // => 0 <= v_storage_level - v_MinStorage x
 
    vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &batt_design ,
@@ -847,8 +846,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the storage level design constraints:
    //
-   //      v_storage_level <= v_MaxPower x     x \in {0,1}, for all t
-   // => v_storage_level - v_MaxPower x <= 0   x \in {0,1}, for all t
+   //      v_storage_level <= v_MaxPower x
+   // => v_storage_level - v_MaxPower x <= 0
 
    vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &batt_design ,
