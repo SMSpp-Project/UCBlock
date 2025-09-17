@@ -644,12 +644,12 @@ class BatteryUnitBlock : public UnitBlock
   *   outtake levels at each time instant \f$ t \f$:
   *
   *   \f[
-  *     p^+_t \leq \kappa C^- P^{mn,b}_t
+  *     p^+_t \leq \kappa C^+ P^{mx,b}_t
   *                                       \quad t \in \mathcal{T} \quad (6.1)
   *   \f]
   *
   *   \f[
-  *     p^-_t \leq \kappa C^+ P^{mx,b}_t
+  *     p^-_t \leq \kappa C^- ( -P^{mn,b}_t )
   *                                       \quad t \in \mathcal{T} \quad (6.2)
   *   \f]
   *
@@ -657,12 +657,12 @@ class BatteryUnitBlock : public UnitBlock
   *   charge and discharge, respectively; in the design scenario they become:
   *
   *   \f[
-  *     p^+_t \leq \kappa x_b \, ( C^- P^{mn,b}_t )
+  *     p^+_t \leq \kappa x_b \, ( C^+ P^{mx,b}_t )
   *                                       \quad t \in \mathcal{T} \quad (6.3)
   *   \f]
   *
   *   \f[
-  *     p^-_t \leq \kappa x_b \, ( C^+ P^{mx,b}_t )
+  *     p^-_t \leq \kappa x_b \, ( C^- ( -P^{mn,b}_t ) )
   *                                       \quad t \in \mathcal{T} \quad (6.4)
   *   \f]
   *
@@ -680,7 +680,7 @@ class BatteryUnitBlock : public UnitBlock
   *   f_time_horizon:
   *
   *   \f[
-  *     v^{ba}_t = v^{ba}_{t-1} - \rho^+_t p^+_t + \rho^-_t p^-_t - d^{ba}_t
+  *     v^{ba}_t = v^{ba}_{t-1} + ρ^+_t · p^+_t − ρ^-_t · p^-_t − d^{ba}_t
   *                                         \quad t \in \mathcal{T} \quad (7)
   *   \f]
   *
@@ -688,7 +688,7 @@ class BatteryUnitBlock : public UnitBlock
   *   giving (8):
   *
   *   \f[
-  *     v^{ba}_t = v^{ba}_{t-1} - p^{ac}_t - d^{ba}_t
+  *     v^{ba}_t = v^{ba}_{t-1} + p^{ac}_t − d^{ba}_t
   *                                         \quad t \in \mathcal{T} \quad (8)
   *   \f]
   *
@@ -707,7 +707,7 @@ class BatteryUnitBlock : public UnitBlock
   *   \f]
   *
   *   where \f$ \rho^+_t \f$ and \f$ \rho^-_t \f$ are
-  *   ExtractingBatteryRho and StoringBatteryRho, \f$ V^{mn}_t \f$ and
+  *   StoringBatteryRho and ExtractingBatteryRho, \f$ V^{mn}_t \f$ and
   *   \f$ V^{mx}_t \f$ are the minimum and maximum storage levels, and
   *   \f$ x_b \f$ is the battery design variable.
   *

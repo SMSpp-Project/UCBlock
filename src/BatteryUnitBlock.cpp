@@ -537,8 +537,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the intake level design constraints:
    //
-   //     v_intake_level <= ( k CR_ch v_MaxPower ) x_b
-   // => v_intake_level - ( k CR_ch v_MaxPower ) x_b <= 0
+   //     v_intake_level <= ( k C_ch v_MaxPower ) x_b
+   // => v_intake_level - ( k C_ch v_MaxPower ) x_b <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in charge
@@ -553,8 +553,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the outtake level design constraints:
    //
-   //      v_outtake_level <= (k CR_dis -v_MinPower ) x_b
-   // => v_outtake_level + ( k CR_dis v_MinPower ) x_b <= 0
+   //      v_outtake_level <= (k C_dis -v_MinPower ) x_b
+   // => v_outtake_level + ( k C_dis v_MinPower ) x_b <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
