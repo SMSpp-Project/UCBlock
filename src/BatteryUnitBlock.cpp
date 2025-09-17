@@ -117,6 +117,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "ConverterMaxCapacity" ,
                                               "BatteryInvestmentCost" ,
                                               "ConverterInvestmentCost" ,
+                                              "BatteryMinCapacityDesign" ,
+                                              "ConverterMinCapacityDesign" ,
                                               "BatteryMaxCapacityDesign" ,
                                               "ConverterMaxCapacityDesign" };
  check_variables( group , expected_vars , std::cerr );
@@ -182,11 +184,19 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                       true , true , v_change_intervals ) )
   v_Cost.resize( f_time_horizon );
 
- ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" );
- ::deserialize( group , f_ConvInvestmentCost , "ConverterInvestmentCost" );
+ if( ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" ) ) {
 
- ::deserialize( group , f_BattMaxCapacityDesign , "BatteryMaxCapacityDesign" );
- ::deserialize( group , f_ConvMaxCapacityDesign , "ConverterMaxCapacityDesign" );
+  ::deserialize( group , f_BattMinCapacityDesign , "BatteryMinCapacityDesign" );
+
+  ::deserialize( group , f_BattMaxCapacityDesign , "BatteryMaxCapacityDesign" );
+ }
+
+ if( ::deserialize( group , f_ConvInvestmentCost , "ConverterInvestmentCost" ) ) {
+
+  ::deserialize( group , f_ConvMinCapacityDesign , "ConverterMinCapacityDesign" );
+
+  ::deserialize( group , f_ConvMaxCapacityDesign , "ConverterMaxCapacityDesign" );
+ }
 
  ::deserialize( group , f_BattMaxCapacity , "BatteryMaxCapacity" );
  ::deserialize( group , f_ConvMaxCapacity , "ConverterMaxCapacity" );
@@ -209,6 +219,50 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
                            "scenario mode, but the presence of also a positive "
                            "initial storage, typical of the operative "
                            "scenario, is incompatible." ) );
+
+ // Min/Max battery capacity design
+
+ if( f_BattMinCapacityDesign < 0 )
+  throw( std::logic_error( "BatteryMinCapacityDesign must be >= 0." ) );
+
+ if( f_BattMaxCapacityDesign > 0 ) {
+
+  if( f_BattMinCapacityDesign > f_BattMaxCapacityDesign )
+   throw( std::logic_error(
+    "BatteryMinCapacityDesign must be <= BatteryMaxCapacityDesign." ) );
+
+  if( ( std::abs( f_BattMaxCapacityDesign ) == 1 ) && ( f_BattMinCapacityDesign > 1 ) )
+   throw std::logic_error(
+    "BatteryMinCapacityDesign must be <= 1 when |BatteryMaxCapacityDesign| = 1." );
+ }
+
+ if( f_BattMaxCapacityDesign < 0 ) {
+  if( f_BattMinCapacityDesign > 1 )
+   throw( std::logic_error( "BatteryMinCapacityDesign must be <= 1 when "
+                            "BatteryMaxCapacityDesign < 0 (binary design)." ) );
+ }
+
+ // Min/Max converter capacity design
+
+ if( f_ConvMinCapacityDesign < 0 )
+  throw( std::logic_error( "ConverterMinCapacityDesign must be >= 0." ) );
+
+ if( f_ConvMaxCapacityDesign > 0 ) {
+
+  if( f_ConvMinCapacityDesign > f_ConvMaxCapacityDesign )
+   throw( std::logic_error(
+   "ConverterMinCapacityDesign must be <= ConverterMaxCapacityDesign." ) );
+
+  if( ( std::abs( f_ConvMaxCapacityDesign ) == 1 ) && ( f_ConvMinCapacityDesign > 1 ) )
+   throw( std::logic_error( "ConverterMinCapacityDesign must be <= 1 when "
+                            "|ConverterMaxCapacityDesign| = 1." ) );
+ }
+
+ if( f_ConvMaxCapacityDesign < 0 ) {
+  if( f_ConvMinCapacityDesign > 1 )
+   throw( std::logic_error( "ConverterMinCapacityDesign must be <= 1 when "
+                            "ConverterMaxCapacityDesign < 0 (binary design)." ) );
+ }
 
  // Minimum and maximum power
 
@@ -652,13 +706,21 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Battery" );
 
-  if( std::abs( f_BattMaxCapacityDesign ) != 1 ) {
-   batt_design_bound_Const.set_lhs( 0.0 );
-   batt_design_bound_Const.set_rhs( std::abs( f_BattMaxCapacityDesign ) );
+  // Battery design bounds
+
+  const double lb_b = std::max( 0.0 , f_BattMinCapacityDesign );
+  const double ub_b = ( std::abs( f_BattMaxCapacityDesign ) == 1
+                         ? 1.0 : std::abs( f_BattMaxCapacityDesign ) );
+
+  if( ( lb_b > 0.0 ) || ( std::abs( f_BattMaxCapacityDesign ) != 1 ) ) {
+   batt_design_bound_Const.set_lhs( lb_b );
+   batt_design_bound_Const.set_rhs( ub_b );
    batt_design_bound_Const.set_variable( &batt_design );
 
    add_static_constraint( batt_design_bound_Const , "BattDesignBound_Battery" );
-  } else
+
+  }
+  else
    batt_design.is_unitary( true , eNoMod );
 
   if( f_BattMaxCapacityDesign < 0 )
@@ -667,12 +729,19 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  if( f_ConvInvestmentCost != 0 ) {
 
-  if( std::abs( f_ConvMaxCapacityDesign ) != 1 ) {
-   conv_design_bound_Const.set_lhs( 0.0 );
-   conv_design_bound_Const.set_rhs( std::abs( f_ConvMaxCapacityDesign ) );
+  // Converter design bounds
+
+  const double lb_c = std::max( 0.0 , f_ConvMinCapacityDesign );
+  const double ub_c = ( std::abs( f_ConvMaxCapacityDesign ) == 1
+                        ? 1.0 : std::abs( f_ConvMaxCapacityDesign ) );
+
+  if( ( lb_c > 0.0 ) || ( std::abs( f_ConvMaxCapacityDesign ) != 1 ) ) {
+   conv_design_bound_Const.set_lhs( lb_c );
+   conv_design_bound_Const.set_rhs( ub_c );
    conv_design_bound_Const.set_variable( &conv_design );
 
    add_static_constraint( conv_design_bound_Const , "ConvDesignBound_Battery" );
+
   } else
    conv_design.is_unitary( true , eNoMod );
 
@@ -1063,6 +1132,9 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  if( f_BattInvestmentCost != 0 ) {
   ::serialize( group , "BatteryInvestmentCost" , netCDF::NcDouble() ,
                f_BattInvestmentCost );
+  if( f_BattMinCapacityDesign != 0 )
+   ::serialize( group , "BatteryMinCapacityDesign" , netCDF::NcDouble() ,
+                f_BattMinCapacityDesign );
   if( f_BattMaxCapacityDesign != 1 )
    ::serialize( group , "BatteryMaxCapacityDesign" , netCDF::NcDouble() ,
                 f_BattMaxCapacityDesign );
@@ -1075,6 +1147,9 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  if( f_ConvInvestmentCost != 0 ) {
   ::serialize( group , "ConverterInvestmentCost" , netCDF::NcDouble() ,
                f_ConvInvestmentCost );
+  if( f_ConvMinCapacityDesign != 0 )
+   ::serialize( group , "ConverterMinCapacityDesign" , netCDF::NcDouble() ,
+                f_ConvMinCapacityDesign );
   if( f_ConvMaxCapacityDesign != 1 )
    ::serialize( group , "ConverterMaxCapacityDesign" , netCDF::NcDouble() ,
                 f_ConvMaxCapacityDesign );

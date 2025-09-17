@@ -158,7 +158,8 @@ class BatteryUnitBlock : public UnitBlock
 
  explicit BatteryUnitBlock( Block * f_block = nullptr ) :
   UnitBlock( f_block ), f_BattInvestmentCost( 0 ), f_ConvInvestmentCost( 0 ),
-  f_BattMaxCapacityDesign( 1 ), f_ConvMaxCapacityDesign( 1 ),
+  f_BattMinCapacityDesign( 0 ), f_BattMaxCapacityDesign( 1 ),
+  f_ConvMinCapacityDesign( 0 ), f_ConvMaxCapacityDesign( 1 ),
   f_BattMaxCapacity( 0 ), f_ConvMaxCapacity( 0 ), f_InitialStorage( 0 ),
   f_InitialPower( 0 ), f_MaxCRateCharge( 1 ), f_MaxCRateDischarge( 1 ),
   f_kappa( 1 ), f_scale( 1 ) {}
@@ -182,6 +183,14 @@ class BatteryUnitBlock : public UnitBlock
   * crucial dimensions "TimeHorizon", "NumberIntervals" and
   * "ChangeIntervals". The netCDF::NcGroup must then also contain:
   *
+  * - The scalar variable "BatteryInvestmentCost", of type netCDF::NcDouble and
+  *   not indexed over any dimension. When provided and nonzero, a battery design
+  *   variable \( x_b \) is created and contributes \( I_b x_b \) to the objective.
+  *
+  * - The scalar variable "ConverterInvestmentCost", of type netCDF::NcDouble and
+  *   not indexed over any dimension. When provided and nonzero, a converter design
+  *   variable \( x_c \) is created and contributes \( I_c x_c \) to the objective.
+  *
   * - The scalar variable "BatteryMaxCapacityDesign", of type netCDF::NcDouble
   *   and not indexed over any dimension. This limits the design variable
   *   \f$ x_b \f$:
@@ -191,6 +200,16 @@ class BatteryUnitBlock : public UnitBlock
   *     \f$ 0 \le x \le \mathrm{BatteryMaxCapacityDesign} \f$.
   *   If not provided, the default is 1.
   *
+  * - The scalar variable "BatteryMinCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This sets the lower bound of the battery
+  *   design variable \( x_b \) in design mode. If not provided, the default is 0.
+  *   Its meaning depends on "BatteryMaxCapacityDesign":
+  *   - if \( \mathrm{BatteryMaxCapacityDesign} < 0 \) (binary design), then
+  *     \( x_b \in \{0,1\} \) and \( \mathrm{BatteryMinCapacityDesign} > 0 \)
+  *     implies \( x_b = 1 \);
+  *   - otherwise (continuous design), \( x_b \) is nonnegative continuous with
+  *     \( \mathrm{BatteryMinCapacityDesign} \le x_b \le \mathrm{BatteryMaxCapacityDesign} \).
+  *
   * - The scalar variable "ConverterMaxCapacityDesign", of type netCDF::NcDouble
   *   and not indexed over any dimension. This limits the design variable
   *   \f$ x_c \f$:
@@ -199,6 +218,24 @@ class BatteryUnitBlock : public UnitBlock
   *   - otherwise \f$ x_c \f$ is a nonnegative continuous variable with
   *     \f$ 0 \le x \le \mathrm{ConverterMaxCapacityDesign} \f$.
   *   If not provided, the default is 1.
+  *
+  * - The scalar variable "ConverterMinCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This sets the lower bound of the converter
+  *   design variable \( x_c \) in design mode. If not provided, the default is 0.
+  *   Its meaning depends on "ConverterMaxCapacityDesign":
+  *   - if \( \mathrm{ConverterMaxCapacityDesign} < 0 \) (binary design), then
+  *     \( x_c \in \{0,1\} \) and \( \mathrm{ConverterMinCapacityDesign} > 0 \)
+  *     implies \( x_c = 1 \);
+  *   - otherwise (continuous design), \( x_c \) is nonnegative continuous with
+  *     \( \mathrm{ConverterMinCapacityDesign} \le x_c \le \mathrm{ConverterMaxCapacityDesign} \).
+  *
+  * - The scalar variable "BatteryMaxCapacity", of type netCDF::NcDouble and not
+  *   indexed over any dimension. This is the maximum installable battery capacity
+  *   chosen by the user.
+  *
+  * - The scalar variable "ConverterMaxCapacity", of type netCDF::NcDouble and not
+  *   indexed over any dimension. This is the maximum installable converter capacity
+  *   chosen by the user.
   *
   * - The variable "MinStorage", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -554,6 +591,22 @@ class BatteryUnitBlock : public UnitBlock
   * This mirrors the behavior used in IntermittentUnitBlock so that the
   * "design mode" is consistent across unit types.
   *
+  * In the design scenario (i.e., when a nonzero investment cost is provided),
+  * additional design variables are created:
+  * - \( x_b \) (battery), if "BatteryInvestmentCost" ≠ 0;
+  * - \( x_c \) (converter), if "ConverterInvestmentCost" ≠ 0.
+  *
+  * Their domains are controlled by the corresponding *MaxCapacityDesign* and
+  * *MinCapacityDesign* parameters, analogously to IntermittentUnitBlock:
+  *
+  * - if \( \mathrm{BatteryMaxCapacityDesign} < 0 \) then \( x_b \in \{0,1\} \);
+  *   if moreover \( \mathrm{BatteryMinCapacityDesign} > 0 \) then \( x_b = 1 \).
+  *   Otherwise \( \mathrm{BatteryMinCapacityDesign} \le x_b \le \mathrm{BatteryMaxCapacityDesign} \).
+  *
+  * - if \( \mathrm{ConverterMaxCapacityDesign} < 0 \) then \( x_c \in \{0,1\} \);
+  *   if moreover \( \mathrm{ConverterMinCapacityDesign} > 0 \) then \( x_c = 1 \).
+  *   Otherwise \( \mathrm{ConverterMinCapacityDesign} \le x_c \le \mathrm{ConverterMaxCapacityDesign} \).
+  *
   * The parameter \p stvv and the Configuration for this function presented in
   * the BlockConfig (namely,
   * #f_BlockConfig->f_static_variables_Configuration) can be used to indicate
@@ -744,43 +797,50 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - design bounds for the installation variables:
   *
-  *   \f[
-  *     0 \le x_b \le \mathrm{BatteryMaxCapacityDesign} \qquad (14)
-  *   \f]
+  *   Continuous design case:
+  *   \[
+  *     \mathrm{BatteryMinCapacityDesign} \le x_b \le \mathrm{BatteryMaxCapacityDesign} \qquad (14)
+  *   \]
+  *   \[
+  *     \mathrm{ConverterMinCapacityDesign} \le x_c \le \mathrm{ConverterMaxCapacityDesign} \qquad (15)
+  *   \]
   *
-  *   \f[
-  *     0 \le x_c \le \mathrm{ConverterMaxCapacityDesign} \qquad (15)
-  *   \f]
-  *
-  * In addition, when in design mode:
-  *
-  * - if \f$ \mathrm{BatteryMaxCapacityDesign} < 0 \f$ then \f$ x_b \f$ is
-  *   **binary** (\f$ x_b \in \{0,1\} \f$); otherwise it is continuous
-  *   nonnegative with \f$ 0 \le x_b \le \mathrm{BatteryMaxCapacityDesign} \f$;
-  *
-  * - if \f$ \mathrm{ConverterMaxCapacityDesign} < 0 \f$ then \f$ x_c \f$ is
-  *   **binary** (\f$ x_c \in \{0,1\} \f$); otherwise it is continuous
-  *   nonnegative with \f$ 0 \le x_c \le \mathrm{ConverterMaxCapacityDesign} \f$.
+  *   Binary design case (when the corresponding MaxCapacityDesign < 0):
+  *   \[
+  *     x_b \in \{0,1\} \quad (\text{and } \mathrm{BatteryMinCapacityDesign} > 0 \Rightarrow x_b = 1)
+  *   \]
+  *   \[
+  *     x_c \in \{0,1\} \quad (\text{and } \mathrm{ConverterMinCapacityDesign} > 0 \Rightarrow x_c = 1)
+  *   \]
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the BatteryUnitBlock
- /** Method that generates the objective of the BatteryUnitBlock.
+ /** Method that generates the objective of the BatteryUnitBlock. The
+  * objective can include:
   *
-  * - Objective function: the objective function of the BatteryUnitBlock
-  *   is given as follows:
-  *
+  * - a linear term on intake and outtake power, if the vector "Cost" is
+  *   provided:
   *   \f[
-  *     \min \ \big( I_b x_b + I_c x_c +
-  *     \sum_{ t \in \mathcal{T} } C_t \, ( p^+_t + p^-_t ) \big)
+  *     \min \ \sum_{t \in \mathcal{T}} C[t] \cdot (p^+_t + p^-_t)
   *   \f]
+  *   (coefficients are also scaled by the Block scale factor, if any);
   *
-  *   where \f$ I_b \f$ and \f$ I_c \f$ are the investment costs of the
-  *   battery and the converter respectively, \f$ x_b \f$ and \f$ x_c \f$ are
-  *   the battery and converter design variables respectively, and
-  *   \f$ C_t \f$ is a proportional cost coefficient. */
+  * - an investment term in design mode, if "BatteryInvestmentCost" and/or
+  *   "ConverterInvestmentCost" are nonzero:
+  *   \f$ + \ I_b \cdot x_b \;+\; I_c \cdot x_c \f$.
+  *
+  * Hence, in the design scenario the full objective is:
+  * \f[
+  *   \min \ \sum_{t \in \mathcal{T}} C[t] \cdot (p^+_t + p^-_t)
+  *          \;+\; I_b \cdot x_b \;+\; I_c \cdot x_c \; .
+  * \f]
+  * If "Cost" is not provided, \f$ C[t] = 0 \f$ and only the investment terms
+  * remain in design mode. If both investment costs are zero or not provided,
+  * the objective reduces to the operational cost term only.
+  */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -919,37 +979,60 @@ class BatteryUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of minimum power
- /** This method returns a vector V containing the minimum power at all time
-  * instants. There are three possible cases:
+ /// returns the minimum power at a given time
+ /** This method returns the minimum active power of the unit at time t.
   *
-  * - if the vector is empty, then the minimum power of the unit is 0;
+  * There are three possible cases:
   *
-  * - if the vector has only one element, then V[ 0 ] is the minimum power of
-  *   the unit for all time instants;
+  * - if the internal vector is empty, the minimum power is 0 for all t;
   *
-  * - otherwise, the vector V must have size get_time_horizon() and each
-  *   V[ t ] represents the minimum power value at time t. */
+  * - if the internal vector has only one element, that value is the
+  *   minimum power for all time instants;
+  *
+  * - otherwise, the internal vector has size get_time_horizon() and
+  *   the entry at position t represents the minimum power at time t.
+  */
 
  double get_min_power( Index t , Index generator = 0 ) const override {
   return( v_MinPower[ t ] );
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of maximum power
- /** This method returns a vector V containing the maximum power at all time
-  * instants. There are three possible cases:
+ /// returns the maximum power at a given time
+ /** This method returns the maximum active power of the unit at time t.
   *
-  * - if the vector is empty, then the maximum power of the unit is 0;
+  * There are three possible cases:
   *
-  * - if the vector has only one element, then V[ 0 ] is the maximum power of
-  *   the unit for all time instants;
+  * - if the internal vector is empty, the maximum power is 0 for all t;
   *
-  * - otherwise, the vector V must have size get_time_horizon() and each
-  *   V[ t ] represents the maximum power value at time t. */
+  * - if the internal vector has only one element, that value is the
+  *   maximum power for all time instants;
+  *
+  * - otherwise, the internal vector has size get_time_horizon() and
+  *   the entry at position t represents the maximum power at time t.
+  */
 
  double get_max_power( Index t , Index generator = 0 ) const override {
   return( v_MaxPower[ t ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum converter power at a given time
+ /** This method returns the maximum active power of the converter at time t.
+  *
+  * There are three possible cases:
+  *
+  * - if the internal vector is empty, the maximum converter power is 0 for all t;
+  *
+  * - if the internal vector has only one element, that value is the
+  *   maximum converter power for all time instants;
+  *
+  * - otherwise, the internal vector has size get_time_horizon() and
+  *   the entry at position t represents the maximum converter power at time t.
+  */
+
+ const std::vector< double > & get_converter_max_power( ) const {
+  return( v_ConvMaxPower );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1636,10 +1719,20 @@ class BatteryUnitBlock : public UnitBlock
  /// the converter investment cost
  double f_ConvInvestmentCost;
 
+ /// the minimum battery capacity design allowed (lower bound on x_b in design mode); default 0.
+ /// If BatteryMaxCapacityDesign < 0 (binary), BatteryMinCapacityDesign > 0 forces x_b = 1.
+ double f_BattMinCapacityDesign;
+
  /// the maximum battery capacity design allowed
+ /// If < 0, x_b is binary; if > 0, x_b is continuous with bounds [BatteryMinCapacityDesign, BatteryMaxCapacityDesign].
  double f_BattMaxCapacityDesign;
 
+ /// the minimum converter capacity design allowed (lower bound on x_c in design mode); default 0.
+ /// If ConverterMaxCapacityDesign < 0 (binary), ConverterMinCapacityDesign > 0 forces x_c = 1.
+ double f_ConvMinCapacityDesign;
+
  /// the maximum converter capacity design allowed
+ /// If < 0, x_c is binary; if > 0, x_c is continuous with bounds [ConverterMinCapacityDesign, ConverterMaxCapacityDesign].
  double f_ConvMaxCapacityDesign;
 
  /// the maximum battery installable capacity by the user
@@ -1820,6 +1913,26 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - The maximum active power that can be used as primary and secondary
   *   reserves is nonnegative.
+  *
+  * - Design bounds consistency (battery):
+  *   - \( \mathrm{BatteryMinCapacityDesign} \ge 0 \);
+  *   - if \( \mathrm{BatteryMaxCapacityDesign} > 0 \), then
+  *     \( \mathrm{BatteryMinCapacityDesign} \le \mathrm{BatteryMaxCapacityDesign} \);
+  *   - if \( |\mathrm{BatteryMaxCapacityDesign}| = 1 \), then
+  *     \( \mathrm{BatteryMinCapacityDesign} \le 1 \);
+  *   - if \( \mathrm{BatteryMaxCapacityDesign} < 0 \) (binary), then
+  *     \( \mathrm{BatteryMinCapacityDesign} \le 1 \)
+  *     (note: \( \mathrm{BatteryMinCapacityDesign} > 0 \Rightarrow x_b = 1 \)).
+  *
+  * - Design bounds consistency (converter):
+  *   - \( \mathrm{ConverterMinCapacityDesign} \ge 0 \);
+  *   - if \( \mathrm{ConverterMaxCapacityDesign} > 0 \), then
+  *     \( \mathrm{ConverterMinCapacityDesign} \le \mathrm{ConverterMaxCapacityDesign} \);
+  *   - if \( |\mathrm{ConverterMaxCapacityDesign}| = 1 \), then
+  *     \( \mathrm{ConverterMinCapacityDesign} \le 1 \);
+  *   - if \( \mathrm{ConverterMaxCapacityDesign} < 0 \) (binary), then
+  *     \( \mathrm{ConverterMinCapacityDesign} \le 1 \)
+  *     (note: \( \mathrm{ConverterMinCapacityDesign} > 0 \Rightarrow x_c = 1 \)).
   *
   * If any of the above conditions are not met, an exception is thrown. */
 
