@@ -86,6 +86,7 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "InvestmentCost" ,
+                                                     "MinCapacityDesign" ,
                                                      "MaxCapacityDesign" ,
                                                      "MaxCapacity" ,
                                                      "MinPower" , "MaxPower" ,
@@ -105,9 +106,12 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
+ if( ::deserialize( group , f_InvestmentCost , "InvestmentCost" ) ) {
 
- ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
+  ::deserialize( group , f_MinCapacityDesign , "MinCapacityDesign" );
+
+  ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
+ }
 
  ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
@@ -183,6 +187,28 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
                               " must be nonnegative, but it is" +
                               std::to_string( v_InertiaPower[ t ] ) + "." ) );
  }
+
+ // Min/Max capacity design
+
+ if( f_MinCapacityDesign < 0 )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MinCapacityDesign must be nonnegative." ) );
+
+ // Continue case (MaxCapacityDesign > 0): MinCapacityDesign <= MaxCapacityDesign
+ if( ( f_MaxCapacityDesign > 0 ) && ( f_MinCapacityDesign > f_MaxCapacityDesign ) )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MinCapacityDesign > MaxCapacityDesign." ) );
+
+ // Unitary case (|MaxCapacityDesign| == 1): MinCapacityDesign <= 1
+ if( ( std::abs( f_MaxCapacityDesign ) == 1 ) && ( f_MinCapacityDesign > 1.0 ) )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MinCapacityDesign must be <= 1 when |MaxCapacityDesign| == 1." ) );
+
+ // Binary case (max < 0): MinCapacityDesign <= 1
+ if( ( f_MaxCapacityDesign < 0 ) && ( f_MinCapacityDesign > 1.0 ) )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MinCapacityDesign must be <= 1 for binary design." ) );
+
 }  // end( IntermittentUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
@@ -344,12 +370,17 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Intermittent" );
 
-  if( abs( f_MaxCapacityDesign ) != 1 ) {
-   design_bound_Const.set_lhs( 0.0 );
-   design_bound_Const.set_rhs( abs( f_MaxCapacityDesign ) );
+  const double lb = std::max( 0.0 , f_MinCapacityDesign );
+  const double ub = ( std::abs( f_MaxCapacityDesign ) == 1
+                       ? 1.0 : std::abs( f_MaxCapacityDesign ) );
+
+  if( ( lb > 0.0 ) || ( std::abs( f_MaxCapacityDesign ) != 1 ) ) {
+   design_bound_Const.set_lhs( lb );
+   design_bound_Const.set_rhs( ub );
    design_bound_Const.set_variable( &design );
 
    add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
+
   } else
    design.is_unitary( true , eNoMod );
 
@@ -464,6 +495,9 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
  if( f_InvestmentCost != 0 ) {
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
+  if( f_MinCapacityDesign != 0 )
+   ::serialize( group , "MinCapacityDesign" , netCDF::NcDouble() ,
+                f_MinCapacityDesign );
   if( f_MaxCapacityDesign != 1 )
    ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
                 f_MaxCapacityDesign );

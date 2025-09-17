@@ -110,9 +110,9 @@ class IntermittentUnitBlock : public UnitBlock
   * father Block.
   */
  explicit IntermittentUnitBlock( Block * f_block = nullptr )
-  : UnitBlock( f_block ), f_InvestmentCost( 0 ), f_MaxCapacityDesign( 1 ),
-    f_MaxCapacity( 0 ), f_gamma( 0 ), f_kappa( 1 ), f_scale( 1 ),
-    f_max_power_epsilon( 0 ) {}
+  : UnitBlock( f_block ), f_InvestmentCost( 0 ), f_MinCapacityDesign( 0 ),
+    f_MaxCapacityDesign( 1 ), f_MaxCapacity( 0 ), f_gamma( 0 ), f_kappa( 1 ),
+    f_scale( 1 ), f_max_power_epsilon( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of IntermittentUnitBlock
@@ -138,12 +138,24 @@ class IntermittentUnitBlock : public UnitBlock
   *   model enters the design scenario and a design variable \f$ x \f$ is
   *   generated.
   *
+  * - The scalar variable "MinCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This sets the lower bound of the design
+  *   variable \( x \) in design mode (i.e., when InvestmentCost != 0). If not
+  *   provided, the default is 0. Its meaning depends on "MaxCapacityDesign":
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), then
+  *     \( x \in \{0,1\} \) and \( \mathrm{MinCapacityDesign} > 0 \) implies
+  *     \( x = 1 \);
+  *   - otherwise (continuous design), \( x \) is nonnegative continuous with
+  *     \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  *
   * - The scalar variable "MaxCapacityDesign", of type netCDF::NcDouble and
-  *   not indexed over any dimension. This limits the design variable
-  *   \f$ x \f$:
-  *   - if \f$ \mathrm{MaxCapacityDesign} < 0 \f$ then \f$ x \f$ is binary;
-  *   - otherwise \f$ x \f$ is a nonnegative continuous variable with
-  *     \f$ 0 \le x \le \mathrm{MaxCapacityDesign} \f$.
+  *   not indexed over any dimension. This limits the design variable \( x \):
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{0,1\} \) (binary);
+  *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [0,1] \) when
+  *     \( \mathrm{MinCapacityDesign} = 0 \); otherwise
+  *     \( x \in [\,\mathrm{MinCapacityDesign},\,1] \);
+  *   - if \( \mathrm{MaxCapacityDesign} > 0 \) then \( x \) is nonnegative
+  *     continuous with \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
   *   If not provided, the default is 1.
   *
   * - The scalar variable "MaxCapacity", of type netCDF::NcDouble and not
@@ -267,6 +279,12 @@ class IntermittentUnitBlock : public UnitBlock
   * \f$ \mathrm{MaxCapacityDesign} < 0 \f$ then \f$ x \f$ is binary; otherwise
   * \f$ x \f$ is nonnegative continuous and bounded by
   * \f$ 0 \le x \le \mathrm{MaxCapacityDesign} \f$.
+  *
+  * In addition, when \( \mathrm{MaxCapacityDesign} \ge 0 \) a lower bound
+  * \( \mathrm{MinCapacityDesign} \) may be provided, yielding
+  * \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  * When \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), \( x \in \{0,1\} \);
+  * if \( \mathrm{MinCapacityDesign} > 0 \), then \( x \) is effectively forced to 1.
   */
 
  void generate_abstract_variables( Configuration * stvv = nullptr )
@@ -314,14 +332,18 @@ class IntermittentUnitBlock : public UnitBlock
   *     x \, ( \kappa P^{mx}_t ) \quad t \in \mathcal{T} \quad (3b)
   *   \f]
   *
-  *   where \f$ x \f$ is the design variable.
+  *   with the design variable \( x \) constrained as follows:
   *
-  * In addition, when in design mode and
-  * \f$ \mathrm{MaxCapacityDesign} \ge 0 \f$, a box constraint
-  * \f$ 0 \le x \le \mathrm{MaxCapacityDesign} \f$ is added. When
-  * \f$ \mathrm{MaxCapacityDesign} < 0 \f$ the design variable is binary
-  * (\f$ x \in \{0,1\} \f$); ; otherwise it is continuous
-  * nonnegative with \f$ 0 \le x_b \le \mathrm{MaxCapacityDesign} \f$.
+  *   \[
+  *     x \in
+  *     \begin{cases}
+  *       \{0,1\} & \text{if } \mathrm{MaxCapacityDesign} < 0 \\
+  *       [\,\mathrm{MinCapacityDesign},\,\mathrm{MaxCapacityDesign}\,]
+  *         & \text{if } \mathrm{MaxCapacityDesign} \ge 0
+  *     \end{cases}
+  *   \]
+  *
+  *   In the binary case, if \( \mathrm{MinCapacityDesign} > 0 \) then \( x = 1 \).
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
@@ -786,6 +808,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// the investment cost
  double f_InvestmentCost;
 
+ /// the minimum capacity design allowed
+ double f_MinCapacityDesign;
+
  /// the maximum capacity design allowed
  double f_MaxCapacityDesign;
 
@@ -888,6 +913,16 @@ class IntermittentUnitBlock : public UnitBlock
   * - \f$ \kappa \ge 0 \f$.
   *
   * - The inertia power is nonnegative.
+  *
+  * - Design bounds consistency:
+  *   - \( \mathrm{MinCapacityDesign} \ge 0 \);
+  *   - if \( \mathrm{MaxCapacityDesign} > 0 \), then
+  *     \( \mathrm{MinCapacityDesign} \le \mathrm{MaxCapacityDesign} \);
+  *   - if \( |\mathrm{MaxCapacityDesign}| = 1 \), then
+  *     \( \mathrm{MinCapacityDesign} \le 1 \);
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary), then
+  *     \( \mathrm{MinCapacityDesign} \le 1 \)
+  *     (note: \( \mathrm{MinCapacityDesign} > 0 \Rightarrow x = 1 \)).
   *
   * If any of the above conditions are not met, an exception is thrown.
   */
