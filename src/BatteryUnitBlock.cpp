@@ -1036,7 +1036,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
-  lf->add_variable( &v_outtake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
+  lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] , eDryRun );
  }
 
  if( f_BattInvestmentCost != 0 )
