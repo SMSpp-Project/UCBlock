@@ -758,14 +758,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   vars.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
                                   -1.0 ) );
 
- double intake_coeff = -1.0;
+ double intake_coeff = 0.0;
  if( ! v_StoringBatteryRho.empty() )
-  intake_coeff = -v_StoringBatteryRho[ 0 ];
+  intake_coeff = v_StoringBatteryRho[ 0 ];
  vars.push_back( std::make_pair( &v_intake_level[ 0 ] , intake_coeff ) );
 
- double outtake_coeff = 1.0;
+ double outtake_coeff = 0.0;
  if( ! v_ExtractingBatteryRho.empty() )
-  outtake_coeff = v_ExtractingBatteryRho[ 0 ];
+  outtake_coeff = -v_ExtractingBatteryRho[ 0 ];
  vars.push_back( std::make_pair( &v_outtake_level[ 0 ] , outtake_coeff ) );
 
  if( ! v_Demand.empty() )
@@ -782,14 +782,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
   vars.push_back( std::make_pair( &v_storage_level[ t - 1 ] , -1.0 ) );
 
-  double intake_coeff = -1.0;
+  double intake_coeff = 0.0;
   if( ! v_StoringBatteryRho.empty() )
-   intake_coeff = -v_StoringBatteryRho[ t ];
+   intake_coeff = v_StoringBatteryRho[ t ];
   vars.push_back( std::make_pair( &v_intake_level[ t ] , intake_coeff ) );
 
-  double outtake_coeff = 1.0;
+  double outtake_coeff = 0.0;
   if( ! v_ExtractingBatteryRho.empty() )
-   outtake_coeff = v_ExtractingBatteryRho[ t ];
+   outtake_coeff = -v_ExtractingBatteryRho[ t ];
   vars.push_back( std::make_pair( &v_outtake_level[ t ] , outtake_coeff ) );
 
   if( ! v_Demand.empty() )
