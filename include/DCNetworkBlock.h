@@ -192,7 +192,7 @@ class DCNetworkData : public NetworkData
   *   number in 0, ..., NumberNodes - 1). Note that lines are not oriented,
   *   but the flow of energy is; that is, a positive flow along line l means
   *   that energy is being taken away from StartLine[ l ] and delivered to
-  *   EndLine[ l ] (see next), a negative flow means vice-versa. The variable
+  *   EndLine[ l ] (see next), a negative flow means vice versa. The variable
   *   is mandatory.
   *
   * - The variable "EndLine", of type netCDF::NcUint and indexed over the
@@ -718,11 +718,12 @@ class DCNetworkData : public NetworkData
   *      \sum_{l=(n,\cdot)\in L} \mathfrak{S}_{l} 
   *            + \sum_{l=(\cdot,n)\in L} \mathfrak{S}_{l} 
   *      \textnormal{ if } n = n'               \quad n,n' \in N
-  *  \f] */
+  *  \f]
+  */
 
- Eigen::MatrixXd get_PTDF( const std::vector< Index > & AC_lines );
+ Eigen::MatrixXd get_PTDF( const std::vector< Index > & AC_lines ) const;
 
- Eigen::MatrixXd get_PTDF() {
+ Eigen::MatrixXd get_PTDF() const {
   std::vector< Index > all_lines( get_number_lines() );
   std::iota( all_lines.begin() , all_lines.end() , 0 );
   return( get_PTDF( all_lines ) );
@@ -730,7 +731,7 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- int get_reducedIdx( int idx );
+ int get_reducedIdx( int idx ) const;
 
 /*--------------------------------------------------------------------------*/
  /// generate abstract constraints of DCNetworkBlock
@@ -788,7 +789,7 @@ class DCNetworkData : public NetworkData
   *   injections at each node of the grid and active power flows through the
   *   transmission lines.
   *
-  *   The flow limit equations can be written as follow:
+  *   The flow limit equations can be written as follows:
   *
   *   \f[
   *    P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
@@ -965,7 +966,7 @@ class DCNetworkData : public NetworkData
   *
   * @return the AC lines in the network. */
 
- std::vector< Index > get_AC_lines( void ) {
+ std::vector< Index > get_AC_lines( void ) const {
   std::vector< Index > AC_lines;
   const auto & susceptance = f_NetworkData->get_line_susceptance();
   if( AC_lines.empty() )
@@ -984,7 +985,7 @@ class DCNetworkData : public NetworkData
   *
   * @return the DC lines in the network. */
 
- std::vector< Index > get_DC_lines( void ) {
+ std::vector< Index > get_DC_lines( void ) const {
   std::vector< Index > DC_lines;
   const auto & susceptance = f_NetworkData->get_line_susceptance();
   for( Index line_id = 0 ; line_id < f_NetworkData->get_number_lines() ;
@@ -1645,8 +1646,7 @@ class DCNetworkData : public NetworkData
 
  /// verify whether the data in this DCNetworkBlock is consistent
  /** This function checks whether the data in this DCNetworkBlock is
-  * consistent. The data is consistent if all of the following conditions
-  * are met.
+  * consistent. The data is consistent if all the following conditions are met.
   *
   * - Design bounds consistency:
   *   - \( \mathrm{MinCapacityDesign} \ge 0 \);
@@ -1812,7 +1812,7 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
  *   corresponding constraints is returned
  *
  * Note that one DCNetworkBlock covers one time instant, so these variables
- * do not need to be indiced over time instants (unlike those of the base
+ * do not need to be indexed over time instants (unlike those of the base
  * NetworkBlockSolution). */
 
 class DCNetworkBlockSolution : public NetworkBlockSolution

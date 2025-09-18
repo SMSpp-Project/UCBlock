@@ -383,8 +383,7 @@ void DCNetworkBlock::check_data_consistency( void ) const
 /*--------------------------------------------------------------------------*/
 
 Eigen::MatrixXd DCNetworkBlock::get_PTDF(
-				      const std::vector< Index > & AC_lines )
-{
+				      const std::vector< Index > & AC_lines ) const {
  // get data
  const auto & susceptance = f_NetworkData->get_line_susceptance();
  const auto number_nodes = get_number_nodes();
@@ -474,7 +473,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
 /*--------------------------------------------------------------------------*/
 
-int DCNetworkBlock::get_reducedIdx( int idx ) {
+int DCNetworkBlock::get_reducedIdx( int idx ) const {
  if( idx > f_NetworkData->get_reference_node() )
   return( idx - 1 );
  return( idx );
@@ -498,7 +497,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  if( number_lines <= 0 )
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
+   "number of lines of DCNetworkBlock is not set" ) );
 
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
@@ -509,93 +508,108 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  Eigen::MatrixXd PTDF_matrix = get_PTDF( AC_lines );
  std::vector< Index > DC_lines = get_DC_lines();
 
- // ===== auxiliary variables for nonempty cost
+ LinearFunction::v_coeff_pair vars;
+
+ // auxiliary variables for nonempty cost
  if( ! f_NetworkData->get_network_cost().empty() ) {
-   // 0 <= V_l - F_l && 0 <= V_l + F_l
-   v_power_flow_relax_abs.resize(
-    boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
+  // 0 <= V_l - F_l && 0 <= V_l + F_l
+  v_power_flow_relax_abs.resize(
+   boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
 
-   // DC part
-   for( auto & line_id : DC_lines ) {
-    auto lfunc_1 = new LinearFunction();
-    lfunc_1->add_variable( &v_power_flow[ line_id ] , -1.0 );
-    lfunc_1->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
-    v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( 0.0 );
-    v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
-    v_power_flow_relax_abs[ 0 ][ line_id ].set_function( lfunc_1 );
+  // DC part
+  for( auto & line_id : DC_lines ) {
+   vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -1.0 ) );
+   vars.push_back( std::make_pair(  &v_auxiliary_variable[ line_id ] , 1.0 ) );
+   v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( 0.0 );
+   v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
+   v_power_flow_relax_abs[ 0 ][ line_id ].set_function(
+    new LinearFunction( std::move( vars ) ) );
 
-    auto lfunc_2 = new LinearFunction();
-    lfunc_2->add_variable( &v_power_flow[ line_id ] , 1.0 );
-    lfunc_2->add_variable( &v_auxiliary_variable[ line_id ] , 1.0 );
-    v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( 0.0 );
-    v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
-    v_power_flow_relax_abs[ 1 ][ line_id ].set_function( lfunc_2 );
+   vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
+   vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
+   v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( 0.0 );
+   v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
+   v_power_flow_relax_abs[ 1 ][ line_id ].set_function(
+    new LinearFunction( std::move( vars ) ) );
+  }
+
+  // AC part
+  for( auto & line_id : AC_lines ) {
+
+   LinearFunction::v_coeff_pair vars2;
+   double constant_term = 0;
+
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+    if( node_id != f_NetworkData->get_reference_node() ) {
+     double coefficient = PTDF_matrix( line_id , get_reducedIdx( node_id ) );
+     vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] , -coefficient ) );
+     vars2.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] , coefficient ) );
+     constant_term -= coefficient * v_ActiveDemand[ node_id ];
+    }
    }
 
-   // AC part
-   for( auto & line_id : AC_lines ) {
-    auto lfunc_1 = new LinearFunction();
-    auto lfunc_2 = new LinearFunction();
-    double constant_term = 0;
-    for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-      if( node_id != f_NetworkData->get_reference_node() ) {
-       double coefficient = PTDF_matrix( line_id , get_reducedIdx( node_id ) );
-       lfunc_1->add_variable( &v_node_injection[ 0 ][ node_id ] , -coefficient );
-       lfunc_2->add_variable( &v_node_injection[ 0 ][ node_id ] , coefficient );
-       constant_term -= coefficient * v_ActiveDemand[ node_id ];
-     }
-    } // for each node
-    lfunc_1->add_variable( &v_auxiliary_variable[ line_id ] , 1.0);
-    v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( constant_term );
-    v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
-    v_power_flow_relax_abs[ 0 ][ line_id ].set_function( lfunc_1 );
-    lfunc_2->add_variable( &v_auxiliary_variable[ line_id ] , 1.0);
-    v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( -constant_term );
-    v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
-    v_power_flow_relax_abs[ 1 ][ line_id ].set_function( lfunc_2 );
-   }
-   add_static_constraint( v_power_flow_relax_abs , "power_flow_relax_abs" );
-  } // ===== end( cost not empty )
+   vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
+   v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( constant_term );
+   v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
+   v_power_flow_relax_abs[ 0 ][ line_id ].set_function(
+    new LinearFunction( std::move( vars ) ) );
 
- // ===== constraints on the DC part
+   vars2.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
+   v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( -constant_term );
+   v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
+   v_power_flow_relax_abs[ 1 ][ line_id ].set_function(
+    new LinearFunction( std::move( vars2 ) ) );
+  }
+
+  add_static_constraint( v_power_flow_relax_abs , "power_flow_relax_abs" );
+ }
+
+ // constraints on the DC part
+
  if( ( lines_type == kHVDC ) || ( lines_type == kAC_HVDC ) ) {
-
   // Flow limit constraints
   if( lines_type == kHVDC ) {
    if( f_InvestmentCost == 0 ) {
     v_HVDC_power_flow_limit_const.resize( number_lines );
     for( auto & line_id : DC_lines ) {
-      const auto kappa = get_kappa( line_id );
-      v_HVDC_power_flow_limit_const[ line_id ].set_lhs( kappa * get_min_power_flow( line_id ) );
-      v_HVDC_power_flow_limit_const[ line_id ].set_rhs( kappa * get_max_power_flow( line_id ) );
-      v_HVDC_power_flow_limit_const[ line_id ].set_variable( &v_power_flow[ line_id ] );
+     const auto kappa = get_kappa( line_id );
+     v_HVDC_power_flow_limit_const[ line_id ].set_lhs(
+      kappa * get_min_power_flow( line_id ) );
+     v_HVDC_power_flow_limit_const[ line_id ].set_rhs(
+      kappa * get_max_power_flow( line_id ) );
+     v_HVDC_power_flow_limit_const[ line_id ].set_variable(
+      &v_power_flow[ line_id ] );
     }
-    add_static_constraint( v_HVDC_power_flow_limit_const, "HVDC_power_flow_limit" );
+    add_static_constraint( v_HVDC_power_flow_limit_const ,
+                           "HVDC_power_flow_limit" );
    }
    else {
     v_HVDC_power_flow_bounds_design_const.resize(
-      boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
+     boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
 
     for( auto & line_id : DC_lines ) {
-      const auto kappa = get_kappa( line_id );
+     const auto kappa = get_kappa( line_id );
 
-      // x * ( kappa * Min ) <= F_l  =>  F_l - x * ( kappa * Min ) >= 0
-      auto lf = new LinearFunction();
-      lf->add_variable( &v_power_flow[ line_id ] , 1.0 );
-      lf->add_variable( &design , -kappa * get_min_power_flow( line_id ) );
-      v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_lhs( 0.0 );
-      v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_rhs( Inf< double >() );
-      v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_function( lf );
+     // x * ( kappa * Min ) <= F_l  =>  F_l - x * ( kappa * Min ) >= 0
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
+     vars.push_back( std::make_pair( &design ,
+                                     -kappa * get_min_power_flow( line_id ) ) );
+     v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_lhs( 0.0 );
+     v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_rhs( Inf< double >() );
+     v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_function(
+      new LinearFunction( std::move( vars ) ) );
 
-      // F_l <= x * ( kappa * Max )  =>  F_l - x * ( kappa * Max ) <= 0
-      lf = new LinearFunction();
-      lf->add_variable( &v_power_flow[ line_id ] , 1.0 );
-      lf->add_variable( &design , -kappa * get_max_power_flow( line_id ) );
-      v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_lhs( -Inf< double >() );
-      v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_rhs( 0.0 );
-      v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_function( lf );
+     // F_l <= x * ( kappa * Max )  =>  F_l - x * ( kappa * Max ) <= 0
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
+     vars.push_back( std::make_pair( &design ,
+                                     -kappa * get_max_power_flow( line_id ) ) );
+     v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_lhs( -Inf< double >() );
+     v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_rhs( 0.0 );
+     v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_function(
+      new LinearFunction( std::move( vars ) ) );
     }
-    add_static_constraint( v_HVDC_power_flow_bounds_design_const , "HVDC_power_flow_bounds_design" );
+    add_static_constraint( v_HVDC_power_flow_bounds_design_const ,
+                           "HVDC_power_flow_bounds_design" );
    }
   }
 
@@ -604,11 +618,13 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     v_AC_HVDC_power_flow_limit_const.resize( number_lines );
     for( auto & line_id : DC_lines ) {
      const auto kappa = get_kappa( line_id );
-     v_AC_HVDC_power_flow_limit_const[ line_id ].set_lhs( kappa * get_min_power_flow( line_id ) );
-     v_AC_HVDC_power_flow_limit_const[ line_id ].set_rhs( kappa * get_max_power_flow( line_id ) );
-     auto lfunc = new LinearFunction();
-     lfunc->add_variable( &v_power_flow[ line_id ] , 1. );
-     v_AC_HVDC_power_flow_limit_const[ line_id ].set_function( lfunc );
+     v_AC_HVDC_power_flow_limit_const[ line_id ].set_lhs(
+      kappa * get_min_power_flow( line_id ) );
+     v_AC_HVDC_power_flow_limit_const[ line_id ].set_rhs(
+      kappa * get_max_power_flow( line_id ) );
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1. ) );
+     v_AC_HVDC_power_flow_limit_const[ line_id ].set_function(
+      new LinearFunction( std::move( vars ) ) );
     } // power_flow_limit constraints for DC part completed in AC section
    }
    else {
@@ -619,20 +635,22 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
      const auto kappa = get_kappa( line_id );
 
      // F_l - x * ( kappa * Min_l ) >= 0
-     auto lf = new LinearFunction();
-     lf->add_variable( &v_power_flow[ line_id ] , 1.0 );
-     lf->add_variable( &design , -kappa * get_min_power_flow( line_id ) );
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
+     vars.push_back( std::make_pair( &design ,
+                                     -kappa * get_min_power_flow( line_id ) ) );
      v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_lhs( 0.0 );
      v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_rhs( Inf< double >() );
-     v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_function( lf );
+     v_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_function(
+      new LinearFunction( std::move( vars ) ) );
 
      // F_l - x * ( kappa * Max_l ) <= 0
-     lf = new LinearFunction();
-     lf->add_variable( &v_power_flow[ line_id ] , 1.0 );
-     lf->add_variable( &design , -kappa * get_max_power_flow( line_id ) );
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
+     vars.push_back( std::make_pair( &design ,
+                                     -kappa * get_max_power_flow( line_id ) ) );
      v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_lhs( -Inf< double >() );
      v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_rhs( 0.0 );
-     v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_function( lf );
+     v_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_function(
+      new LinearFunction( std::move( vars ) ) );
     }
     add_static_constraint( v_HVDC_power_flow_bounds_design_const ,
                            "HVDC_power_flow_bounds_design" );
@@ -644,171 +662,224 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    v_power_flow_injection_const.resize( number_nodes );
 
   for( Index n = 0 ; n < number_nodes ; ++n ) {
-    auto lfunc = new LinearFunction();
-    lfunc->add_variable( &v_node_injection[ 0 ][ n ] , -1.0 );
+   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
 
-    double eta = 1.0;
-    for( auto & line_id : DC_lines ) {
-      // start node
-      if( start_line[ line_id ] == n )  lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );
+   double eta = 1.0;
+   for( auto & line_id : DC_lines ) {
+    // start node
+    if( start_line[ line_id ] == n )
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
 
-      if( ! f_NetworkData->is_hypergraph() ) { // if no hyperarch -> normal behavior from get_line_efficiency
-       eta = f_NetworkData->get_line_efficiency( line_id ); // efficiency of the HVDC line
-       if( end_line[ line_id ] == n )    lfunc->add_variable( &v_power_flow[ line_id ] , -eta );
-      }
-      else { // if hyperarch -> loop over v_end_lines and get_line_efficiency
-       for( Index i = 0; i < f_NetworkData->get_end_lines()[ line_id ].size(); ++i ) {
-        if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
-         eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
-         lfunc->add_variable( &v_power_flow[ line_id ] , -eta );
-         }
-       }
-      }
+    if( ! f_NetworkData->is_hypergraph() ) {
+     // if no hyperarch -> normal behavior from get_line_efficiency
+     eta = f_NetworkData->get_line_efficiency( line_id );
+     // efficiency of the HVDC line
+     if( end_line[ line_id ] == n )
+      vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
     }
-    if( lines_type == kHVDC ) {
-      v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
-      v_power_flow_injection_const[ n ].set_function( lfunc );
+    else { // if hyperarch -> loop over v_end_lines and get_line_efficiency
+     for( Index i = 0 ; i < f_NetworkData->get_end_lines()[ line_id ].size() ;
+          ++i ) {
+      if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
+       eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
+       vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
+      }
+     }
     }
-    /*else {
-      v_AC_HVDC_power_flow_const[ n ].set_both( -v_ActiveDemand[ n ] );
-      v_AC_HVDC_power_flow_const[ n ].set_function( lfunc );
-    }*/
+   }
+   if( lines_type == kHVDC ) {
+    v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
+    v_power_flow_injection_const[ n ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+   /*else {
+     v_AC_HVDC_power_flow_const[ n ].set_both( -v_ActiveDemand[ n ] );
+   v_AC_HVDC_power_flow_const[ n ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }*/
   }
   if( lines_type == kHVDC )
-    add_static_constraint( v_power_flow_injection_const, "HVDC_power_flow_injection" );
+   add_static_constraint( v_power_flow_injection_const ,
+                          "HVDC_power_flow_injection" );
   /*else
     add_static_constraint(v_AC_HVDC_power_flow_constraints, "AC/HVDC_power_flow_injection");*/
+ }
 
- } // ===== end constraints on HVDC part
+ // constraints on AC part
 
- // ===== constraints on AC Part
  if( ( lines_type == kAC ) || ( lines_type == kAC_HVDC ) ) {
-
   Eigen::MatrixXd linkingMat;
   if( lines_type == kAC_HVDC ) {
-    // linking constraints between AC e HVDC
-    Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero( number_nodes - 1 , number_lines );
-    double eta = 1.0;
-    for( auto & line_id : DC_lines ) {
-      A_DC( get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;  // start node
+   // linking constraints between AC e HVDC
+   Eigen::MatrixXd A_DC = Eigen::MatrixXd::Zero(
+    number_nodes - 1 , number_lines );
+   double eta = 1.0;
+   for( auto & line_id : DC_lines ) {
+    A_DC( get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
+    // start node
 
-      if( ! f_NetworkData->is_hypergraph() ) {  // no hypergraph
-        eta = f_NetworkData->get_line_efficiency( line_id ); // efficiency of the HVDC line
-        A_DC( get_reducedIdx( end_line[ line_id ] ) , line_id ) = - eta;
-      }
-      else {  // with hypergraph
-       for( Index i = 0 ; i < f_NetworkData->get_end_lines()[ line_id ].size() ; ++i ) {
-          eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];  // efficiency of the hyperarc
-          A_DC( get_reducedIdx( f_NetworkData->get_end_lines()[ line_id ][ i ] ) , line_id ) = - eta;
-        }
-      }
+    if( ! f_NetworkData->is_hypergraph() ) { // no hypergraph
+     eta = f_NetworkData->get_line_efficiency( line_id );
+     // efficiency of the HVDC line
+     A_DC( get_reducedIdx( end_line[ line_id ] ) , line_id ) = -eta;
     }
-    linkingMat = - PTDF_matrix * A_DC;
+    else { // with hypergraph
+     for( Index i = 0 ; i < f_NetworkData->get_end_lines()[ line_id ].size() ;
+          ++i ) {
+      eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
+      // efficiency of the hyperarc
+      A_DC( get_reducedIdx( f_NetworkData->get_end_lines()[ line_id ][ i ] ) ,
+            line_id ) = -eta;
+     }
+    }
+   }
+   linkingMat = -PTDF_matrix * A_DC;
   }
 
   // Flow limit constraints
   if( lines_type == kAC )
    v_AC_power_flow_limit_const.resize( number_lines );
+
   for( auto & line_id : AC_lines ) {
-    const auto kappa = get_kappa( line_id );
+   const auto kappa = get_kappa( line_id );
 
-    // base: PTDF*(S-D) [+ linking*Fdc]
-    auto lfunc_base = new LinearFunction();
-    double constant_term = 0.0;
+   // base: PTDF*(S-D) [+ linking*Fdc]
+   double constant_term = 0.0;
 
-    for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-      if( node_id != f_NetworkData->get_reference_node() ) {
-       double coefficient = PTDF_matrix( line_id , get_reducedIdx( node_id ) ); // Distribution Factor Matrix
-       lfunc_base->add_variable( &v_node_injection[ 0 ][ node_id ] , coefficient );
-       constant_term -= coefficient * v_ActiveDemand[ node_id ];
-     }
-    } // for each node
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+    if( node_id == f_NetworkData->get_reference_node() ) continue;
+    const double coeff = PTDF_matrix( line_id , get_reducedIdx( node_id ) );
+    vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] , coeff ) );
+    constant_term -= coeff * v_ActiveDemand[ node_id ];
+   }
 
-    if( lines_type == kAC_HVDC ) {
-      for( auto & dc_line_id : DC_lines )
-        lfunc_base->add_variable( &v_power_flow[ dc_line_id ] , linkingMat( line_id , dc_line_id ) );
+   if( lines_type == kAC_HVDC ) {
+    for( auto & dc_line_id : DC_lines )
+     vars.push_back( std::make_pair( &v_power_flow[ dc_line_id ] ,
+                                     linkingMat( line_id , dc_line_id ) ) );
+   }
+
+   if( f_InvestmentCost == 0 ) {
+    // AC
+    if( lines_type == kAC ) {
+     v_AC_power_flow_limit_const[ line_id ].set_function(
+      new LinearFunction( std::move( vars ) ) );
+     v_AC_power_flow_limit_const[ line_id ].set_lhs(
+      kappa * get_min_power_flow( line_id ) - constant_term );
+     v_AC_power_flow_limit_const[ line_id ].set_rhs(
+      kappa * get_max_power_flow( line_id ) - constant_term );
     }
-
-    if( f_InvestmentCost == 0 ) {
-      if( lines_type == kAC_HVDC ) {
-        v_AC_HVDC_power_flow_limit_const[ line_id ].set_function( lfunc_base );
-        v_AC_HVDC_power_flow_limit_const[ line_id ].set_lhs( kappa * get_min_power_flow( line_id ) - constant_term );
-        v_AC_HVDC_power_flow_limit_const[ line_id ].set_rhs( kappa * get_max_power_flow( line_id ) - constant_term );
-      }
-      else {
-        v_AC_power_flow_limit_const[ line_id ].set_function( lfunc_base );
-        v_AC_power_flow_limit_const[ line_id ].set_lhs( kappa * get_min_power_flow( line_id ) - constant_term );
-        v_AC_power_flow_limit_const[ line_id ].set_rhs( kappa * get_max_power_flow( line_id ) - constant_term );
-      }
-    }
+    // AC/HVDC
     else {
-      if( lines_type == kAC ) {
-        v_AC_power_flow_bounds_design_const.resize(
-          boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
-
-        // ( base - const ) - x * ( kappa * Min ) >= 0
-        auto lf = new LinearFunction( *lfunc_base );
-        lf->set_constant_term( lf->get_constant_term() - constant_term );
-        lf->add_variable( &design , -kappa * get_min_power_flow( line_id ) );
-        v_AC_power_flow_bounds_design_const[ 0 ][ line_id ].set_lhs( 0.0 );
-        v_AC_power_flow_bounds_design_const[ 0 ][ line_id ].set_rhs( Inf< double >() );
-        v_AC_power_flow_bounds_design_const[ 0 ][ line_id ].set_function( lf );
-
-        // ( base - const ) - x * ( kappa * Max ) <= 0
-        lf = new LinearFunction( *lfunc_base );
-        lf->set_constant_term( lf->get_constant_term() - constant_term );
-        lf->add_variable( &design , -kappa * get_max_power_flow( line_id ) );
-        v_AC_power_flow_bounds_design_const[ 1 ][ line_id ].set_lhs( -Inf< double >() );
-        v_AC_power_flow_bounds_design_const[ 1 ][ line_id ].set_rhs( 0.0 );
-        v_AC_power_flow_bounds_design_const[ 1 ][ line_id ].set_function( lf );
-      }
-      else { // kAC_HVDC
-        v_AC_HVDC_power_flow_bounds_design_const.resize(
-          boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
-
-        // ( base - const ) - x * ( kappa * Min ) >= 0
-        auto lf = new LinearFunction( *lfunc_base );
-        lf->set_constant_term( lf->get_constant_term() - constant_term );
-        lf->add_variable( &design , -kappa * get_min_power_flow( line_id ) );
-        v_AC_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_lhs( 0.0 );
-        v_AC_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_rhs( Inf< double >() );
-        v_AC_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].
-         set_function( lf );
-
-        // ( base - const ) - x * ( kappa * Max ) <= 0
-        lf = new LinearFunction( *lfunc_base );
-        lf->set_constant_term( lf->get_constant_term() - constant_term );
-        lf->add_variable( &design , -kappa * get_max_power_flow( line_id ) );
-        v_AC_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_lhs( -Inf< double >() );
-        v_AC_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_rhs( 0.0 );
-        v_AC_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].
-         set_function( lf );
-      }
+     v_AC_HVDC_power_flow_limit_const[ line_id ].set_function(
+      new LinearFunction( std::move( vars ) ) );
+     v_AC_HVDC_power_flow_limit_const[ line_id ].set_lhs(
+      kappa * get_min_power_flow( line_id ) - constant_term );
+     v_AC_HVDC_power_flow_limit_const[ line_id ].set_rhs(
+      kappa * get_max_power_flow( line_id ) - constant_term );
     }
+   }
+   else {
+    if( lines_type == kAC ) {
+     v_AC_power_flow_bounds_design_const.resize(
+      boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
+
+     // (base - const) - x * ( kappa * Min ) >= 0
+     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+      if( node_id == f_NetworkData->get_reference_node() ) continue;
+      const double coeff = PTDF_matrix( line_id , get_reducedIdx( node_id ) );
+      vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] ,
+                                      coeff ) );
+     }
+     v_AC_power_flow_bounds_design_const[ 0 ][ line_id ].set_lhs( 0.0 );
+     v_AC_power_flow_bounds_design_const[ 0 ][ line_id ].set_rhs( Inf< double >() );
+     auto lf = new LinearFunction( std::move( vars ) );
+     lf->set_constant_term( lf->get_constant_term() - constant_term );
+     lf->add_variable( &design , -kappa * get_min_power_flow( line_id ) );
+     v_AC_power_flow_bounds_design_const[ 0 ][ line_id ].set_function( lf );
+
+     // (base - const) - x * ( kappa * Max ) <= 0
+     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+      if( node_id == f_NetworkData->get_reference_node() ) continue;
+      const double coeff = PTDF_matrix( line_id , get_reducedIdx( node_id ) );
+      vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] ,
+                                      coeff ) );
+     }
+     v_AC_power_flow_bounds_design_const[ 1 ][ line_id ].set_lhs( -Inf< double >() );
+     v_AC_power_flow_bounds_design_const[ 1 ][ line_id ].set_rhs( 0.0 );
+     lf = new LinearFunction( std::move( vars ) );
+     lf->set_constant_term( lf->get_constant_term() - constant_term );
+     lf->add_variable( &design , -kappa * get_max_power_flow( line_id ) );
+     v_AC_power_flow_bounds_design_const[ 1 ][ line_id ].set_function( lf );
+    }
+    else { // kAC_HVDC
+     v_AC_HVDC_power_flow_bounds_design_const.resize(
+      boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
+
+     // ( base - const ) - x * ( kappa * Min ) >= 0
+     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+      if( node_id == f_NetworkData->get_reference_node() ) continue;
+      const double coeff = PTDF_matrix( line_id , get_reducedIdx( node_id ) );
+      vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] ,
+                                      coeff ) );
+     }
+     for( auto & dc_line_id : DC_lines )
+      vars.push_back( std::make_pair( &v_power_flow[ dc_line_id ] ,
+                                      linkingMat( line_id , dc_line_id ) ) );
+
+     v_AC_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_lhs( 0.0 );
+     v_AC_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_rhs( Inf< double >() );
+     auto lf = new LinearFunction( std::move( vars ) );
+     lf->set_constant_term( lf->get_constant_term() - constant_term );
+     lf->add_variable( &design , -kappa * get_min_power_flow( line_id ) );
+     v_AC_HVDC_power_flow_bounds_design_const[ 0 ][ line_id ].set_function( lf );
+
+     // (base - const) - x * ( kappa * Max ) <= 0
+     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+      if( node_id == f_NetworkData->get_reference_node() ) continue;
+      const double coeff = PTDF_matrix( line_id , get_reducedIdx( node_id ) );
+      vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] ,
+                                      coeff ) );
+     }
+     for( auto & dc_line_id : DC_lines )
+      vars.push_back( std::make_pair( &v_power_flow[ dc_line_id ] ,
+                                      linkingMat( line_id , dc_line_id ) ) );
+
+     v_AC_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_lhs( -Inf< double >() );
+     v_AC_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].set_rhs( 0.0 );
+     lf = new LinearFunction( std::move( vars ) );
+     lf->set_constant_term( lf->get_constant_term() - constant_term );
+     lf->add_variable( &design , -kappa * get_max_power_flow( line_id ) );
+     v_AC_HVDC_power_flow_bounds_design_const[ 1 ][ line_id ].
+      set_function( lf );
+    }
+   }
   }
 
   if( ( lines_type == kAC ) && ( f_InvestmentCost == 0 ) )
-    add_static_constraint( v_AC_power_flow_limit_const, "AC_power_flow_limits" );
+   add_static_constraint( v_AC_power_flow_limit_const ,
+                          "AC_power_flow_limits" );
   else if( ( lines_type == kAC ) && ( f_InvestmentCost != 0 ) )
-    add_static_constraint( v_AC_power_flow_bounds_design_const, "AC_power_flow_bounds_design" );
+   add_static_constraint( v_AC_power_flow_bounds_design_const ,
+                          "AC_power_flow_bounds_design" );
 
   if( ( lines_type == kAC_HVDC ) && ( f_InvestmentCost == 0 ) )
-    add_static_constraint( v_AC_HVDC_power_flow_limit_const, "AC/HVDC_power_flow_limits" );
+   add_static_constraint( v_AC_HVDC_power_flow_limit_const ,
+                          "AC/HVDC_power_flow_limits" );
   else if( ( lines_type == kAC_HVDC ) && ( f_InvestmentCost != 0 ) )
-    add_static_constraint( v_AC_HVDC_power_flow_bounds_design_const, "AC/HVDC_power_flow_bounds_design" );
+   add_static_constraint( v_AC_HVDC_power_flow_bounds_design_const ,
+                          "AC/HVDC_power_flow_bounds_design" );
 
-  auto lfunc = new LinearFunction();
   double constant_term = 0.;
-  for( Index node_id = 0; node_id < number_nodes; ++node_id ) {
-    lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , 1. );
-    constant_term += v_ActiveDemand[ node_id ];
+  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] , 1. ) );
+   constant_term += v_ActiveDemand[ node_id ];
   }
-  overall_balanced_const.set_function( lfunc );
+  overall_balanced_const.set_function( new LinearFunction( std::move( vars ) ) );
   overall_balanced_const.set_lhs( constant_term );
   overall_balanced_const.set_rhs( constant_term );
-  add_static_constraint( overall_balanced_const, "overall_balanced_const" );
-
- } // ===== end AC and AC-HVDC constraints
+  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
+ }
 
  if( f_InvestmentCost != 0 ) {
 
@@ -824,8 +895,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    design_bound_const.set_variable( &design );
 
    add_static_constraint( design_bound_const , "DesignBound_Network" );
-
-  } else
+  }
+  else
    design.is_unitary( true , eNoMod );
 
   if( f_MaxCapacityDesign < 0 )
@@ -833,8 +904,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  }
 
  set_constraints_generated();
-
- }  // end( DCNetworkBlock::generate_abstract_constraints )
+} // end( DCNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 

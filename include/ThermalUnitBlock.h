@@ -2539,8 +2539,7 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// verify whether the data in this ThermalUnitBlock is consistent
  /** This function checks whether the data in this ThermalUnitBlock is
-  * consistent. The data is consistent if all of the following conditions are
-  * met.
+  * consistent. The data is consistent if all the following conditions are met.
   *
   * - The minimum power is not greater than the maximum power.
   *

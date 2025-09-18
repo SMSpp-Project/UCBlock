@@ -1892,8 +1892,7 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// verify whether the data in this BatteryUnitBlock is consistent
  /** This function checks whether the data in this BatteryUnitBlock is
-  * consistent. The data is consistent if all of the following conditions are
-  * met.
+  * consistent. The data is consistent if all the following conditions are met.
   *
   * - The maximum power is greater than or equal to the minimum power.
   *
