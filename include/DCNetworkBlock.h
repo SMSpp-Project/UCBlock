@@ -79,7 +79,8 @@ namespace SMSpp_di_unipi_it
  *
  * - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines). This
  *   is a combination of first and second cases, where for some lines (not all
- *   of them) may have zero susceptance. */
+ *   of them) may have zero susceptance.
+ */
 
 class DCNetworkBlock : public NetworkBlock
 {
@@ -125,7 +126,8 @@ class DCNetworkBlock : public NetworkBlock
   * horizon of UC, it makes sense to allow for this to happen. This means that
   * individual NetworkBlock objects may in principle have different
   * DCNetworkData, but most often they can share the same. By bunching all the
-  * information together we make it easy for this sharing to happen. */
+  * information together we make it easy for this sharing to happen.
+  */
 
 class DCNetworkData : public NetworkData
 {
@@ -286,7 +288,8 @@ class DCNetworkData : public NetworkData
   * - The variable "LineName", of type netCDF::NcString() and indexed over
   *   the dimension "NumberLines". Its i-th entry, namely LineName[ i ],
   *   contains the name of the i-th transmission line. This variable is
-  *   optional. */
+  *   optional.
+  */
  
  virtual void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -300,7 +303,8 @@ class DCNetworkData : public NetworkData
  /** Method for returning the number of lines of the network. When
   * get_number_nodes() == 1 (the network is a bus), get_number_lines() == 0
   * (no self-loops are allowed, hence there is no line to be made with a
-  * single node). */
+  * single node).
+  */
 
  Index get_number_lines( void ) const { return( f_number_lines ); }
 
@@ -316,7 +320,8 @@ class DCNetworkData : public NetworkData
   * at least one line with multiple head buses. When is_hypergraph() == false
   * the network is a "regular graph" and therefore get_end_line() has to be
   * used, while if is_hypergraph() == true the network is a hypergraph and
-  * therefore get_end_lines() has to be used. */
+  * therefore get_end_lines() has to be used.
+  */
 
  bool is_hypergraph( void ) const {
   return( f_number_branches > f_number_lines );
@@ -342,7 +347,8 @@ class DCNetworkData : public NetworkData
   *   is no line at network (bus network), and this vector is not needed;
   *
   * - if get_number_nodes() > 1, this vector have size of f_number_lines and
-  *    get_start_line()[ l ] gives starting (tail) bus of line l. */
+  *    get_start_line()[ l ] gives starting (tail) bus of line l.
+  */
 
  const std::vector< Index > & get_start_line( void ) const {
   return( v_start_line );
@@ -369,7 +375,8 @@ class DCNetworkData : public NetworkData
   *
   * - if get_number_nodes() > 1 and get_number_hyperarcs() > 0, then the
   *   network is a hypergraph and this vector is again empty since
-  *   get_end_lines() must be used to get the set of end buses of the lines. */
+  *   get_end_lines() must be used to get the set of end buses of the lines.
+  */
 
  const std::vector< Index > & get_end_line( void ) const {
   return( v_end_line );
@@ -396,7 +403,8 @@ class DCNetworkData : public NetworkData
   * get_end_lines()[ l ].size() > 1 (it cannot obviously bo 0). The number of
   * lines l such that get_end_lines()[ l ].size() > 1 is equal to
   * get_number_hyperarcs(). Each std::vector< Index > is ordered in increasing
-  * sense and without repeated elements. */ 
+  * sense and without repeated elements.
+  */
 
  const std::vector< std::vector< Index > > & get_end_lines( void ) const {
   return( v_end_lines );
@@ -413,7 +421,8 @@ class DCNetworkData : public NetworkData
   *
   * - if f_number_lines >= 1, this vector have size of f_number_lines and
   *   each element of the vector gives minimum power flow of each line in
-  *   the network. */
+  *   the network.
+  */
 
  const std::vector< double > & get_min_power_flow( void ) const {
   return( v_min_power_flow );
@@ -423,7 +432,8 @@ class DCNetworkData : public NetworkData
  /// returns minimum power flow of the given \p line
  /** This method returns the minimum power flow of the given \p line.
   *
-  * @return the minimum power flow of the given \p line. */
+  * @return the minimum power flow of the given \p line.
+  */
 
  double get_min_power_flow( Index line ) const {
   assert( line < get_number_lines() );
@@ -443,7 +453,8 @@ class DCNetworkData : public NetworkData
   *
   * - if f_number_lines >= 1, this vector have size of f_number_lines and
   *   each element of the vector gives maximum power flow of each line in
-  *   the network. */
+  *   the network.
+  */
 
  const std::vector< double > & get_max_power_flow( void ) const {
   return( v_max_power_flow );
@@ -453,7 +464,8 @@ class DCNetworkData : public NetworkData
  /// returns maximum power flow of the given \p line
  /** This method returns the maximum power flow of the given \p line.
   *
-  * @return the maximum power flow of the given \p line. */
+  * @return the maximum power flow of the given \p line.
+  */
 
  double get_max_power_flow( Index line ) const {
   assert( line < get_number_lines() );
@@ -473,7 +485,8 @@ class DCNetworkData : public NetworkData
   *
   * - if f_number_lines >= 1, this vector has size of f_number_lines and each
   *   element of the vectors gives the Susceptance value for each line in the
-  *   network. */
+  *   network.
+  */
 
  const std::vector< double > & get_line_susceptance( void ) const {
   return( v_line_susceptance );
@@ -490,7 +503,8 @@ class DCNetworkData : public NetworkData
   *
   * - if f_number_lines >= 1, this vector has size of f_number_lines and each
   *   element of the vectors gives the network cost value for each line in the
-  *   network. */
+  *   network.
+  */
 
  const std::vector< double > & get_network_cost( void ) const {
   return( v_network_cost );
@@ -559,7 +573,8 @@ class DCNetworkData : public NetworkData
  /// serialize a DCNetworkData out of a netCDF::NcGroup
  /** Serialize a DCNetworkData out of a netCDF::NcGroup to the specific
   * format of a DCNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
-  * ) for details of the format of the created netCDF group. */
+  * ) for details of the format of the created netCDF group.
+  */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
@@ -847,7 +862,8 @@ class DCNetworkData : public NetworkData
   *     \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
   *     \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
   *     which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
-  *     \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$. */
+  *     \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
+  */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -935,7 +951,8 @@ class DCNetworkData : public NetworkData
   * @param useabstract This parameter is currently ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
-  *             and the type of violation that must be considered. */
+  *             and the type of violation that must be considered.
+  */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -952,7 +969,8 @@ class DCNetworkData : public NetworkData
   * get_NetworkData()->get_number_nodes(). Otherwise, it assumes the network
   * is a bus and returns 1.
   *
-  * @return the number of nodes in the network. */
+  * @return the number of nodes in the network.
+  */
 
  Index get_number_nodes( void ) const override {
   if( ! f_NetworkData )
@@ -964,7 +982,8 @@ class DCNetworkData : public NetworkData
  /// returns the AC lines
  /** This function returns the AC lines in the transmission network.
   *
-  * @return the AC lines in the network. */
+  * @return the AC lines in the network.
+  */
 
  std::vector< Index > get_AC_lines( void ) const {
   std::vector< Index > AC_lines;
@@ -983,7 +1002,8 @@ class DCNetworkData : public NetworkData
  /// returns the DC lines
  /** This function returns the DC lines in the transmission network.
   *
-  * @return the DC lines in the network. */
+  * @return the DC lines in the network.
+  */
 
  std::vector< Index > get_DC_lines( void ) const {
   std::vector< Index > DC_lines;
@@ -1002,7 +1022,8 @@ class DCNetworkData : public NetworkData
   * If get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_lines(). Otherwise, it returns zero.
   *
-  * @return the number of lines in the network. */
+  * @return the number of lines in the network.
+  */
 
  Index get_number_lines( void ) const {
   if( ! f_NetworkData )
@@ -1028,7 +1049,8 @@ class DCNetworkData : public NetworkData
   *
   * @param line The index of a line (between 0 and get_number_lines() - 1).
   *
-  * @return The kappa constant associated with the given \p line. */
+  * @return The kappa constant associated with the given \p line.
+  */
 
  double get_kappa( Index line ) const {
   if( v_kappa.empty() )
@@ -1046,7 +1068,8 @@ class DCNetworkData : public NetworkData
   *
   * @param line The index of a line.
   *
-  * @return The minimum power flow on the given \p line. */
+  * @return The minimum power flow on the given \p line.
+  */
 
  double get_min_power_flow( Index line ) const {
   if( ! f_NetworkData )
@@ -1063,7 +1086,8 @@ class DCNetworkData : public NetworkData
   *
   * @param line The index of a line.
   *
-  * @return The maximum power flow on the given \p line. */
+  * @return The maximum power flow on the given \p line.
+  */
 
  double get_max_power_flow( Index line ) const {
   if( ! f_NetworkData )
@@ -1085,7 +1109,8 @@ class DCNetworkData : public NetworkData
   * have size by get_number_nodes().
   *
   * @param interval The interval wrt the vector of demands for each user is
-  *                 returned. */
+  *                 returned.
+  */
 
  const double * get_active_demand( Index interval = 0 ) const override {
   if( v_ActiveDemand.empty() )
@@ -1111,7 +1136,8 @@ class DCNetworkData : public NetworkData
   * - if F is empty(), then this variable is not defined;
   *
   * - otherwise, F must have f_number_lines rows and F[ l ] is the power flow
-  *   variable for line l. */
+  *   variable for line l.
+  */
 
  const std::vector< ColVariable > & get_power_flow( void ) const {
   return( v_power_flow );
@@ -1126,7 +1152,8 @@ class DCNetworkData : public NetworkData
   * - if V is empty(), then this variable is not defined;
   *
   * - otherwise, V must have f_number_lines rows and V[ l ] is the auxiliary
-  *   variable for line l. */
+  *   variable for line l.
+  */
 
  const std::vector< ColVariable > & get_auxiliary_variable( void ) const {
   return( v_auxiliary_variable );
@@ -1141,7 +1168,8 @@ class DCNetworkData : public NetworkData
  /// returns the vector of power flow limit constraints
  /** This function returns a const reference to the vector of power flow limit
   * constraints. The i-th element of this vector is a FRowConstraint for the
-  * i-th line of the network. */
+  * i-th line of the network.
+  */
 
  const std::vector< FRowConstraint > &
  get_power_flow_limit_constraints( void ) const {
@@ -1230,7 +1258,8 @@ class DCNetworkData : public NetworkData
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 7 (save everything). */
+  * - otherwise, it is 7 (save everything).
+  */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
@@ -1275,7 +1304,8 @@ class DCNetworkData : public NetworkData
   * When this method is called, if it is empty it is written into, otherwise
   * nothing happens. In deserialize(), if the data is there in the NcGroup 
   *then it is written in v_ActiveDemand (which therefore is no longer empty),
-  * otherwise it is left empty so that it can be set by this method. */
+  * otherwise it is left empty so that it can be set by this method.
+  */
 
  void set_ActiveDemand( const boost::multi_array< double , 2 > & v )
   override {
@@ -1381,14 +1411,16 @@ class DCNetworkData : public NetworkData
   *   each line l in {0, ..., get_number_lines() - 1}.
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
-  *   constant term. */
+  *   constant term.
+  */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// loads the DCNetworkBlock instance from memory
  /** Like load( std::istream & ), if there is any Solver attached to this
-  * DCNetworkBlock then a NBModification (the "nuclear option") is issued. */
+  * DCNetworkBlock then a NBModification (the "nuclear option") is issued.
+  */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
@@ -1403,7 +1435,8 @@ class DCNetworkData : public NetworkData
  /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
-  * details of the format of the created netCDF group. */
+  * details of the format of the created netCDF group.
+  */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1421,13 +1454,14 @@ class DCNetworkData : public NetworkData
   * @param values An iterator to a vector containing the kappa constants.
   *
   * @param subset The indices of the lines whose kappa constants are being
-  *        modified.
+  *               modified.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *
   * @param issuePMod It controls how physical Modification are issued.
   *
-  * @param issueAMod It controls how abstract Modification are issued. */
+  * @param issueAMod It controls how abstract Modification are issued.
+  */
 
  void set_kappa( MF_dbl_it values ,
                  Subset && subset ,
@@ -1446,11 +1480,12 @@ class DCNetworkData : public NetworkData
   * @param values An iterator to a vector containing the kappa constants.
   *
   * @param rng A Range containing the indices of the lines whose kappa
-  *        constants are being modified.
+  *            constants are being modified.
   *
   * @param issuePMod It controls how physical Modification are issued.
   *
-  * @param issueAMod It controls how abstract Modification are issued. */
+  * @param issueAMod It controls how abstract Modification are issued.
+  */
 
  void set_kappa( MF_dbl_it values ,
                  Range rng = Range( 0 , Inf< Index >() ) ,
@@ -1464,9 +1499,10 @@ class DCNetworkData : public NetworkData
   * constraints for indices in \p modified_lines.
   *
   * @param modified_lines A vector of the indices of constraints that 
-  *                         have to be modified. 
+  *                       have to be modified.
   *
-  * @param issueAMod It controls how abstract Modification are issued. */
+  * @param issueAMod It controls how abstract Modification are issued.
+  */
 
  void change_power_flow_limit_constraints( 
                 const std::vector< Index > & modified_lines,
@@ -1479,9 +1515,10 @@ class DCNetworkData : public NetworkData
   * auxiliary variables for indices in \p modified_lines.
   *
   * @param modified_lines A vector of the indices of constraints that 
-  *                         have to be modified. 
+  *                       have to be modified.
   *
-  * @param issueAMod It controls how abstract Modification are issued. */
+  * @param issueAMod It controls how abstract Modification are issued.
+  */
 
  void change_relax_abs_constraints(
         const std::vector< Index > & modified_lines , c_ModParam issueAMod );
@@ -1492,9 +1529,10 @@ class DCNetworkData : public NetworkData
   * injection constraints for indices in \p modified_nodes.
   *
   * @param modified_nodes A vector of the indices of nodes that 
-  *                         have to be modified. 
+  *                       have to be modified.
   *
-  * @param issueAMod It controls how abstract Modification are issued. */
+  * @param issueAMod It controls how abstract Modification are issued.
+  */
 
  void change_DC_power_flow_injection_constraints(
                 const std::vector< Index > & modified_nodes ,
@@ -1511,18 +1549,19 @@ class DCNetworkData : public NetworkData
   * @param values An iterator to a vector containing the active demand.
   *
   * @param subset The indices of the nodes at which the active demand is being
-  *        modified.
+  *               modified.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *
   * @param issuePMod It controls how physical Modification are issued.
   *
-  * @param issueAMod It controls how abstract Modification are issued. */
+  * @param issueAMod It controls how abstract Modification are issued.
+  */
 
  void set_active_demand( MF_dbl_it values , Subset && subset ,
                          bool ordered = false ,
-                         ModParam issuePMod = eNoBlck ,
-                         ModParam issueAMod = eNoBlck ) override final;
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p rng
@@ -1535,16 +1574,17 @@ class DCNetworkData : public NetworkData
   * @param values An iterator to a vector containing the active demand.
   *
   * @param rng A Range containing the indices of the nodes at which the active
-  *        demand is being modified.
+  *            demand is being modified.
   *
   * @param issuePMod It controls how physical Modification are issued.
   *
-  * @param issueAMod It controls how abstract Modification are issued. */
+  * @param issueAMod It controls how abstract Modification are issued.
+  */
 
  void set_active_demand( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
-                         ModParam issuePMod = eNoBlck ,
-                         ModParam issueAMod = eNoBlck ) override final;
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1813,7 +1853,8 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
  *
  * Note that one DCNetworkBlock covers one time instant, so these variables
  * do not need to be indexed over time instants (unlike those of the base
- * NetworkBlockSolution). */
+ * NetworkBlockSolution).
+ */
 
 class DCNetworkBlockSolution : public NetworkBlockSolution
 {
@@ -1879,7 +1920,8 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   * - The variable "DualCost", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; DualCost[ l ] is the absolute value of
   *   the dual variable of the constraint representing the capacity of
-  *   line l. The variable is optional. */
+  *   line l. The variable is optional.
+  */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1934,7 +1976,8 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   * (although, technically, if some of the DCNetworkBlockSolution that
   * appears when \p idx > 0 is Configure-d with less information than that
   * when idx == 0 the code will not break, but there will be uninitialised
-  * values in the netCDF). */
+  * values in the netCDF).
+  */
 
  void serialize( netCDF::NcGroup & group , size_t idx ) const override;
 
