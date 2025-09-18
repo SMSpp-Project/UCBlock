@@ -346,8 +346,7 @@ class IntermittentUnitBlock : public UnitBlock
   *   In the binary case, if \( \mathrm{MinCapacityDesign} > 0 \) then \( x = 1 \).
   */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr )
-  override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the IntermittentUnitBlock

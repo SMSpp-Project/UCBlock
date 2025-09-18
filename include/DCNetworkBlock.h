@@ -749,120 +749,114 @@ class DCNetworkData : public NetworkData
  int get_reducedIdx( int idx ) const;
 
 /*--------------------------------------------------------------------------*/
- /// generate abstract constraints of DCNetworkBlock
- /** Three different kinds of DCNetworkBlock constraints are defined as below.
-  * The topology of the transmission network is defined by a set of nodes
-  * \f$ N \f$ and a set of lines \f$ L \f$. Moreover, it's assumed that
-  * \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$ are minimum and maximum power flows
-  * at each line \f$ l \in L \f$ and \f$ D^{ac}_n \f$ is active power demand
-  * at node \f$ n \in N \f$ in the network respectively. The node injection
-  * variable of each node \f$ n \in N \f$ and the power flows variable and an
-  * auxiliary variable (which is not be defined if there is no network cost),
-  * of each line \f$ l \in L \f$ are defined as \f$ S_n \f$, \f$ F_l \f$ and
-  * \f$ V_l \f$ respectively.
+ /// generate the abstract constraints of the DCNetworkBlock
+ /** Method that generates the abstract constraints of the DCNetworkBlock.
+  * These are:
   *
-  * - DCNetworkBlock with just HVDC lines or the Net Transfer Capacity (NTC)
-  *   model.
-  *   In this special case the susceptance value for each line is equal to
-  *   zero. In fact, this corresponds to a model with a single connected grid
-  *   composed of HVDC lines only. In this case, the flow limit equations
-  *   define as:
+  * - **flow bounds for HVDC lines** (NTC model). Each HVDC line
+  *   \f$ l \in \mathcal{L} \f$ has controllable flow variable \f$ F_l \f$
+  *   with bounds scaled by \f$ \kappa_l \f$:
   *
   *   \f[
-  *    \kappa_l P^{mn}_l \leq F_l  \leq \kappa_l P^{mx}_l
-  *                                     \quad l \in \mathcal{L} \quad (1)
+  *     \kappa_l P^{mn}_l \;\le\; F_l \;\le\; \kappa_l P^{mx}_l
+  *         \quad l \in \mathcal{L} \quad (1a)
   *   \f]
   *
-  *   where in each line \f$ l \f$, \f$ n \f$ and \f$ n' \f$ are supposed to
-  *   be the start and the end point of that respectively. Besides, the
-  *   following link between power flows and injected power at each node of
-  *   the grid:
+  *   In the design scenario these become:
   *
   *   \f[
-  *     \sum_{l=(n,n') } F_l - \sum_{l=(n',n)} F_l = S_n - D_n
-  *                                    \quad n \in \mathcal{N} \quad (2)
+  *     x \, ( \kappa_l P^{mn}_l ) \;\le\; F_l \;\le\;
+  *     x \, ( \kappa_l P^{mx}_l ) \quad l \in \mathcal{L} \quad (1b)
   *   \f]
   *
-  *   Moreover, when NetworkCost for each line is not equal to zero, DCNetwork
-  *   will have an objective function which is equal to multiplying
-  *   NetworkCost by the absolute value of the power flows variable. To relax
-  *   the absolute value, an auxiliary variable and constraints as below are
-  *   needed:
+  *   where \f$ x \f$ is the design variable.
+  *
+  * - **nodal balance equations** for active power injections:
   *
   *   \f[
-  *    F_l \leq V_l             \quad l \in \mathcal{L} \quad (3)
+  *     \sum_{l=(n,\cdot)} F_l \;-\; \sum_{l=(\cdot,n)} F_l
+  *       \;=\; S_n - D^{ac}_n
+  *       \quad n \in \mathcal{N} \quad (2)
+  *   \f]
+  *
+  *   with \f$ S_n \f$ the injection variable and \f$ D^{ac}_n \f$ the demand.
+  *
+  * - **absolute-value linearization** of HVDC flows when network
+  *   costs are active:
+  *
+  *   \f[
+  *     F_l \le V_l \quad l \in \mathcal{L} \quad (3a)
   *   \f]
   *
   *   \f[
-  *    -V_l \leq F_l            \quad l \in \mathcal{L} \quad (4)
+  *     -V_l \le F_l \quad l \in \mathcal{L} \quad (3b)
   *   \f]
   *
-  * - DCNetworkBlock with just AC lines model.
-  *   By considering a \f$ |L| \times |N| \f$ matrix \f$ B \f$ which
-  *   constitutes the so-called Power Transfer Distribution Factor matrix
-  *   (PTDF-matrix) which represents the linear relationship between power
-  *   injections at each node of the grid and active power flows through the
-  *   transmission lines.
+  *   where \f$ V_l \f$ is the auxiliary variable.
   *
-  *   The flow limit equations can be written as follows:
+  * - **flow bounds for AC lines.** With PTDF matrix
+  *   \f$ B \in \mathbb{R}^{|\mathcal{L}|\times|\mathcal{N}|} \f$:
   *
   *   \f[
-  *    P^{mn}_l\leq \sum_{ n \in N} B_{(l , n)}
-  *    (S_n - D^{ac}_n) \leq  P^{mx}_l
-  *                                       \quad l \in \mathcal{L} \quad (5)
+  *     P^{mn}_l \;\le\; \sum_{n \in \mathcal{N}} B_{(l,n)} (S_n - D^{ac}_n)
+  *      \;\le\; P^{mx}_l \quad l \in \mathcal{L} \quad (4a)
   *   \f]
   *
-  * - DCNetworkBlock of an hybrid AC/HVDC grid (both AC and HVDC lines).
-  *   This is the case of an hybrid grid constituted of both AC and HVDC (High
-  *   Voltage Direct Current) lines. The DC lines are characterized by the
-  *   fact that the flow passing through those lines is fully controllable.
-  *   However, this flow still has an impact on the flows passing through
-  *   connected AC lines. To use the matrix formalism, we first introduce some
-  *   additional notations:
+  *   In the design scenario:
   *
-  *   - Lines of the grid are indexed by \f$ l = 1, ..., |L^{ac}| \f$ for AC
-  *     lines, while indexes \f$ l = |L^{ac}| + 1, ..., |L^{ac}|+|L^{dc}| \f$
-  *     refer to DC lines.
+  *   \f[
+  *     x \, P^{mn}_l \;\le\; \sum_{n \in \mathcal{N}} B_{(l,n)} (S_n - D^{ac}_n)
+  *      \;\le\; x \, P^{mx}_l \quad l \in \mathcal{L} \quad (4b)
+  *   \f]
   *
-  *   - For any \f$ l \in \{1,... ,|L^{ac}| \}\f$ and
-  *     \f$ k \in \{1,... ,|L^{dc}| \} \f$, and put \f$ \ell(l) \f$ the pair
-  *     of nodes related by the AC line indexed by \f$ l \f$ and
-  *     \f$ \ell(k+|L^{ac}|) \f$ denotes the pair of nodes related by the DC
-  *     line indexed by \f$ k+|L^{dc}| \f$.
+  * - **hybrid AC/HVDC network.** Let \f$ \mathcal{L}^{ac} \f$ and
+  *   \f$ \mathcal{L}^{dc} \f$ denote AC and HVDC lines, and define
+  *   incidence \f$ A^{dc} \f$ and PTDF \f$ B \f$. Then
   *
-  *   - \f$ A^{dc} \f$ denotes the \f$ |L^{dc}| \times |N| \f$ incidence
-  *     matrix induced by DC lines of the grid and the
-  *     \f$ |L| \times (|L^{dc}| + |N|) \f$ matrix of A, where obtained by
-  *     concatenation of bloc matrices as follows:
+  *   \f[
+  *     A =
+  *     \begin{bmatrix}
+  *       B & - B (A^{dc})^\top \\
+  *       0 & I
+  *     \end{bmatrix} ,
+  *   \f]
   *
-  *     \f[
-  *      A = \left[
-  *      \begin{array}{cc}
-  *      B & -B(A^{dc})^T \\
-  *      0_{|L^{dc}| \times |N|} & I_{|L^{dc}| \times |L^{dc}|}
-  *      \end{array}\right]                                  \quad (6)
-  *     \f]
+  *   and flows satisfy
   *
-  *     where \f$ 0_{|L^{dc}| \times |N|} \f$  denotes the
-  *     \f$ |L^{dc}| \times |N| \f$ zero matrix and
-  *     \f$ I_{|L^{dc}| \times |L^{dc}|}\f$ the \f$|L^{dc}| \times |L^{dc}|\f$
-  *     identity matrix. Therefore, the flow limit equations can be
-  *     transformed into:
+  *   \f[
+  *     P^{mn} \;\le\; A \begin{bmatrix} a \\ b \end{bmatrix}
+  *      \;\le\; P^{mx} \quad (5a)
+  *   \f]
   *
-  *     \f[
-  *      P^{mn} \leq A \left[
-  *      \begin{array}{c}
-  *      a \\
-  *      b
-  *      \end{array}\right]
-  *      \leq  P^{mx}                                          \quad (7)
-  *     \f]
+  *   with injections \f$ a_n = S_n - D^{ac}_n \f$ and HVDC flows
+  *   \f$ b_m = F_{m+|\mathcal{L}^{ac}|} \f$. In design mode:
   *
-  *     where the vector \f$ a = (a_n)_{n = 1, ... , |N| }\f$ and
-  *     \f$ b = (b_m)_{m = 1, ... , |L^{dc}| }\f$ are such that for any
-  *     \f$ n \in \{ 1, ... , |N|\}\f$ and \f$ m \in \{ 1, ... , |L^{dc}|\}\f$
-  *     which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
-  *     \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$.
+  *   \f[
+  *     x \, P^{mn} \;\le\; A \begin{bmatrix} a \\ b \end{bmatrix}
+  *      \;\le\; x \, P^{mx} \quad (5b)
+  *   \f]
+  *
+  * - **overall balance constraint** ensuring that total injection equals
+  *   total demand:
+  *
+  *   \f[
+  *     \sum_{n \in \mathcal{N}} S_n \;=\;
+  *     \sum_{n \in \mathcal{N}} D^{ac}_n \quad (6)
+  *   \f]
+  *
+  * - **design bounds** on \f$ x \f$:
+  *
+  *   \[
+  *     x \in
+  *     \begin{cases}
+  *       \{0,1\} & \text{if } \mathrm{MaxCapacityDesign} < 0 \\
+  *       [\,\mathrm{MinCapacityDesign},\,\mathrm{MaxCapacityDesign}\,]
+  *         & \text{if } \mathrm{MaxCapacityDesign} \ge 0
+  *     \end{cases}
+  *   \]
+  *
+  *   with the convention that if \f$ \mathrm{MinCapacityDesign} > 0 \f$
+  *   and binary design, then \f$ x = 1 \f$.
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
