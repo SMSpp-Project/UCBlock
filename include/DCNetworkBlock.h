@@ -371,7 +371,7 @@ class DCNetworkData : public NetworkData
   *
   * - if get_number_nodes() > 1 and get_number_hyperarcs() == 0, then the
   *   network is a "regular graph", this vector have size of f_number_lines,
-  *   and  get_emd_line()[ l ] gives ending (head) bus of line l.
+  *   and  get_end_line()[ l ] gives ending (head) bus of line l.
   *
   * - if get_number_nodes() > 1 and get_number_hyperarcs() > 0, then the
   *   network is a hypergraph and this vector is again empty since
@@ -400,7 +400,7 @@ class DCNetworkData : public NetworkData
   * otherwise  get_end_lines()[ l ] is a (const) std::vector< Index >
   * containing the end buses / nodes of line l. Line l is a "regular arc" if
   * get_end_lines()[ l ].size() == 1, and an hyperarc if
-  * get_end_lines()[ l ].size() > 1 (it cannot obviously bo 0). The number of
+  * get_end_lines()[ l ].size() > 1 (it cannot obviously be 0). The number of
   * lines l such that get_end_lines()[ l ].size() > 1 is equal to
   * get_number_hyperarcs(). Each std::vector< Index > is ordered in increasing
   * sense and without repeated elements.
@@ -718,7 +718,7 @@ class DCNetworkData : public NetworkData
   * Denoting by \f$\mathfrak{S}_l\f$ the susceptance of the line \f$l\f$, the 
   * PTDF matrix \f$ B \f$ is computed as 
   * \f$ B = (\hat{B}I_{n_0})(I_{n_0}^T\bar{B}I_{n_0})^{-1} \f$, where
-  * f$ n_0 \f$ is the reference node of the network. The matrix
+  * \f$ n_0 \f$ is the reference node of the network. The matrix
   * \f$ \hat{B} \f$ is defined as
   * \f$ (\hat{B})_{(l=(n,n'),n)} = \mathfrak{S}_l \f$, 
   * \f$ (\hat{B})_{(l=(n',n),n)} = -\mathfrak{S}_l \f$ and \f$ 0 \f$
