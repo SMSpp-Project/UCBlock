@@ -643,7 +643,8 @@ class DCNetworkData : public NetworkData
   * father Block. */
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
-  : NetworkBlock( f_block ) , f_NetworkData( nullptr ) {}
+ : NetworkBlock( f_block ) , f_NetworkData( nullptr ) ,
+   f_InvestmentCost( 0 ), f_MinCapacityDesign( 0 ), f_MaxCapacityDesign( 1 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of DCNetworkBlock
@@ -677,7 +678,21 @@ class DCNetworkData : public NetworkData
   * lines. Similarly, depending on the NetworkCost for each line of the
   * network, the DCNetworkBlock class may have an auxiliary variable or not.
   * In other word, if the NetworkCost is equal to zero (or not defined), the
-  * auxiliary variable and corresponding constraints will not be defined. */
+  * auxiliary variable and corresponding constraints will not be defined.
+  *
+  * In the design scenario of the UC problem (i.e., when an investment cost
+  * is provided), an additional design variable \f$ x \f$ is created. Its
+  * type depends on \f$ \mathrm{MaxCapacityDesign} \f$: if
+  * \f$ \mathrm{MaxCapacityDesign} < 0 \f$ then \f$ x \f$ is binary; otherwise
+  * \f$ x \f$ is nonnegative continuous and bounded by
+  * \f$ 0 \le x \le \mathrm{MaxCapacityDesign} \f$.
+  *
+  * In addition, when \( \mathrm{MaxCapacityDesign} \ge 0 \) a lower bound
+  * \( \mathrm{MinCapacityDesign} \) may be provided, yielding
+  * \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  * When \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), \( x \in \{0,1\} \);
+  * if \( \mathrm{MinCapacityDesign} > 0 \), then \( x \) is effectively forced to 1.
+  */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -833,23 +848,33 @@ class DCNetworkData : public NetworkData
   *     which \f$ a_n = \sum_{ i \in I_n} p^{ac}_i - D^{ac}_n \f$ and
   *     \f$ b_m = p_{m + |L^{ac}|} = p^{dc}_{\ell(m + |L^{ac}|)}\f$. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr )
-  override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the DCNetworkBlock
- /** Method that generates the objective of the DCNetworkBlock.
+ /** Method that generates the objective of the DCNetworkBlock. The
+  * objective can include:
   *
-  * - Objective function: the objective function of the DCNetworkBlock
-  *   is given as below:
-  *
+  * - a linear term on the auxiliary variables associated with network
+  *   costs, if the vector "NetworkCost" is provided:
   *   \f[
-  *    \min ( \sum_{ l \in \mathcal{L} } ( NC_l V_l ) )
+  *     \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l
   *   \f]
+  *   where \f$ NC_l \f$ is the unit network cost of line \f$l\f$ and
+  *   \f$ V_l \f$ is the corresponding auxiliary variable
+  *   (coefficients are also scaled by the Block scale factor, if any);
   *
-  *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
-  *   variable. */
-
+  * - an investment term in design mode, if "InvestmentCost" \f$ \ne 0 \f$:
+  *   \f$ + \ I \cdot x \f$, where \f$I\f$ is the investment cost and
+  *   \f$x\f$ is the design variable.
+  *
+  * Hence, in the design scenario the full objective is:
+  * \f[
+  *   \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l \;+\; I \cdot x \; .
+  * \f]
+  * If "NetworkCost" is not provided, \f$ NC_l = 0 \f$ and only the
+  * investment term remains in design mode.
+  */
  void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -937,6 +962,7 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// returns the AC lines
  /** This function returns the AC lines in the transmission network.
+  *
   * @return the AC lines in the network. */
 
  std::vector< Index > get_AC_lines( void ) {
@@ -955,6 +981,7 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// returns the DC lines
  /** This function returns the DC lines in the transmission network.
+  *
   * @return the DC lines in the network. */
 
  std::vector< Index > get_DC_lines( void ) {
@@ -1065,6 +1092,10 @@ class DCNetworkData : public NetworkData
   return( &( v_ActiveDemand.front() ) );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the investment cost
+ double get_investment_cost( void ) const { return( f_InvestmentCost ); }
+
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -1150,15 +1181,15 @@ class DCNetworkData : public NetworkData
   dp.resize( nl );
   auto lt = f_NetworkData->get_lines_type();
   switch( lt ) {
-   case( DCNetworkBlock::kHVDC ):
+   case( kHVDC ):
     for( Index l = 0 ; l < nl ; ++l )
      dp[ l ] = v_HVDC_power_flow_limit_const[ l ].get_dual();
     break;
-   case( DCNetworkBlock::kAC ):
+   case( kAC ):
     for( Index l = 0 ; l < nl ; ++l )
      dp[ l ] = v_AC_power_flow_limit_const[ l ].get_dual();
     break;
-   case( DCNetworkBlock::kAC_HVDC ):
+   case( kAC_HVDC ):
     for( Index l = 0 ; l < nl ; ++l )
      dp[ l ] = v_AC_HVDC_power_flow_limit_const[ l ].get_dual();
     break;
@@ -1269,15 +1300,15 @@ class DCNetworkData : public NetworkData
 
   auto lt = f_NetworkData->get_lines_type();
   switch( lt ) {
-   case( DCNetworkBlock::kHVDC ):
+   case( kHVDC ):
     for( Index l = 0 ; l < nl ; ++l )
      v_HVDC_power_flow_limit_const[ l ].set_dual( dp[ l ] );
     break;
-   case( DCNetworkBlock::kAC ):
+   case( kAC ):
     for( Index l = 0 ; l < nl ; ++l )
      v_AC_power_flow_limit_const[ l ].set_dual( dp[ l ] );
     break;
-   case( DCNetworkBlock::kAC_HVDC ):
+   case( kAC_HVDC ):
     for( Index l = 0 ; l < nl ; ++l )
      v_AC_HVDC_power_flow_limit_const[ l ].set_dual( dp[ l ] );
     break;
@@ -1297,6 +1328,31 @@ class DCNetworkData : public NetworkData
   * contain all the data necessary to describe a NetworkBlock (see
   * NetworkBlock::deserialize()) and possibly the following variable:
   *
+  * - The scalar variable "InvestmentCost", of type netCDF::NcDouble and not
+  *   indexed over any dimension. When provided and different from 0, the
+  *   model enters the design scenario and a design variable \f$ x \f$ is
+  *   generated.
+  *
+  * - The scalar variable "MinCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This sets the lower bound of the design
+  *   variable \( x \) in design mode (i.e., when InvestmentCost != 0). If not
+  *   provided, the default is 0. Its meaning depends on "MaxCapacityDesign":
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), then
+  *     \( x \in \{0,1\} \) and \( \mathrm{MinCapacityDesign} > 0 \) implies
+  *     \( x = 1 \);
+  *   - otherwise (continuous design), \( x \) is nonnegative continuous with
+  *     \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  *
+  * - The scalar variable "MaxCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This limits the design variable \( x \):
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{0,1\} \) (binary);
+  *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [0,1] \) when
+  *     \( \mathrm{MinCapacityDesign} = 0 \); otherwise
+  *     \( x \in [\,\mathrm{MinCapacityDesign},\,1] \);
+  *   - if \( \mathrm{MaxCapacityDesign} > 0 \) then \( x \) is nonnegative
+  *     continuous with \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  *   If not provided, the default is 1.
+  *
   * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberNodes". If the NetworkData object description is
   *   present in the NcGroup this is the dimension "NumberNodes", but the
@@ -1312,7 +1368,7 @@ class DCNetworkData : public NetworkData
   *   this case, it would clearly be preferable to *entirely avoid the
   *   NcGroup to be there*, and in fact UCBlock has provisions for the
   *   NcGroup describing the NetworkBlock to be optional [see the comments to
-  *   UCBlock::deserialize()];
+  *   UCBlock::deserialize()].
   *
   * - The variable "Kappa", of type netCDF::NcDouble and either being a
   *   scalar or indexed over the number of lines. If this variable is a
@@ -1321,7 +1377,7 @@ class DCNetworkData : public NetworkData
   *   get_number_lines() - 1}, Kappa[ l ] is the constant that multiplies the
   *   minimum and maximum flow in the flow limit constraints. This variable is
   *   optional. If it is not provided, it is assumed that Kappa[ l ] == 1 for
-  *   each line l in {0, ..., get_number_lines() - 1};
+  *   each line l in {0, ..., get_number_lines() - 1}.
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
   *   constant term. */
@@ -1507,6 +1563,15 @@ class DCNetworkData : public NetworkData
 
  DCNetworkData * f_NetworkData;  ///< the DCNetworkData object
 
+ /// the investment cost
+ double f_InvestmentCost;
+
+ /// the minimum capacity design allowed
+ double f_MinCapacityDesign;
+
+ /// the maximum capacity design allowed
+ double f_MaxCapacityDesign;
+
  /// vector to store the demand of each node of the network
  std::vector< double > v_ActiveDemand;
 
@@ -1521,13 +1586,31 @@ class DCNetworkData : public NetworkData
  /// the auxiliary network cost variable
  std::vector< ColVariable > v_auxiliary_variable;
 
+ /// the design variable
+ ColVariable design;
+
 /*------------------------------- constraints ------------------------------*/
 
  /// AC power flow limit constraints
  std::vector< FRowConstraint > v_AC_power_flow_limit_const;
 
+ /// AC power flow bounds design constraints
+ boost::multi_array< FRowConstraint , 2 > v_AC_power_flow_bounds_design_const;
+
+
  /// AC/HVDC power flow limit constraints
  std::vector< FRowConstraint > v_AC_HVDC_power_flow_limit_const;
+
+ /// AC/HVDC power flow bounds design constraints
+ boost::multi_array< FRowConstraint , 2 > v_AC_HVDC_power_flow_bounds_design_const;
+
+
+ /// HVDC power flow limit constraints
+ std::vector< BoxConstraint > v_HVDC_power_flow_limit_const;
+
+ /// HVDC power flow bounds design constraints
+ boost::multi_array< FRowConstraint , 2 > v_HVDC_power_flow_bounds_design_const;
+
 
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
@@ -1535,11 +1618,11 @@ class DCNetworkData : public NetworkData
  /// HVDC power flow auxiliary variable constraints
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;
 
- /// HVDC power flow limit constraints
- std::vector< BoxConstraint > v_HVDC_power_flow_limit_const;
-
  /// injection equals to demand
  FRowConstraint overall_balanced_const;
+
+ /// the design bound constraint
+ BoxConstraint design_bound_const;
 
  /// the objective function
  FRealObjective objective;
@@ -1558,6 +1641,27 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// verify whether the data in this DCNetworkBlock is consistent
+ /** This function checks whether the data in this DCNetworkBlock is
+  * consistent. The data is consistent if all of the following conditions
+  * are met.
+  *
+  * - Design bounds consistency:
+  *   - \( \mathrm{MinCapacityDesign} \ge 0 \);
+  *   - if \( \mathrm{MaxCapacityDesign} > 0 \), then
+  *     \( \mathrm{MinCapacityDesign} \le \mathrm{MaxCapacityDesign} \);
+  *   - if \( |\mathrm{MaxCapacityDesign}| = 1 \), then
+  *     \( \mathrm{MinCapacityDesign} \le 1 \);
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary), then
+  *     \( \mathrm{MinCapacityDesign} \le 1 \)
+  *     (note: \( \mathrm{MinCapacityDesign} > 0 \Rightarrow x = 1 \)).
+  *
+  * If any of the above conditions are not met, an exception is thrown.
+  */
+ void check_data_consistency( void ) const;
+
 /*--------------------------------------------------------------------------*/
 
  static void static_initialization( void ) {
