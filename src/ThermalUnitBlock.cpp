@@ -126,8 +126,10 @@ Block::Subset subset_sbtrct( const Block::Subset & sbst , Block::Index dlt ) {
 /*--------------------------------------------------------------------------*/
 
 // register ThermalUnitBlock to the Block factory
-
 SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
+
+// register ThermalUnitBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( ThermalUnitBlockSolution );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ThermalUnitBlock ----------------------*/
@@ -511,7 +513,9 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  if( f_InvestmentCost != 0 ) {
   design.set_type( ColVariable::kBinary );
   add_static_variable( design , "x_thermal" );
- }
+  }
+ else
+  design.set_value( std::numeric_limits< double >::quiet_NaN() );
 
  // Commitment Variables- - - - - - - - - - - - - - - - - - - - - - - - - - -
  v_commitment.resize( f_time_horizon );
@@ -3962,6 +3966,37 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
 }  // end( ThermalUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * ThermalUnitBlock::get_Solution( Configuration * csolc ,
+					   bool emptys )
+{
+ Index wsol = 15;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto * sol = dynamic_cast< ThermalUnitBlockSolution * >(
+		                 UnitBlock::get_Solution( csolc , emptys ) );
+ assert( sol );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+ }
+
+/*--------------------------------------------------------------------------*/
+ 
+UnitBlockSolution * ThermalUnitBlock::new_Solution( void ) const {
+ return( new ThermalUnitBlockSolution() );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -5737,7 +5772,123 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
  throw( std::invalid_argument(
   "ThermalUnitBlock:: unsupported FunctionMod from Objective." ) );
 
-}  // end( ThermalUnitBlock::handle_objective_change )
+ }  // end( ThermalUnitBlock::handle_objective_change )
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS OF ThermalUnitBlockSolution -------------------*/
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ UnitBlockSolution::deserialize( group );
+
+ if( f_number_generators != 1 )
+  throw( std::logic_error( "ThermalUnitBlockSolution::deserialize: "
+			   "thermals have only one generator" ) );
+ 
+ // deserialize the design - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! ::deserialize< double >( group , f_design , "ThermalDesign" ) )
+  f_design = dNaN;
+
+ }  // end( ThermalUnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlockSolution::read( const Block * block )
+{
+ auto TUB = dynamic_cast< const ThermalUnitBlock * >( block );
+ if( ! TUB )
+  throw( std::invalid_argument( "ThermalUnitBlockSolution::read: block "
+				"is not a ThermalUnitBlock" ) );
+
+ UnitBlockSolution::read( TUB );  // call the method of the base class
+
+ // read the design- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ f_design = TUB->get_const_design().get_value();
+
+ }  // end( ThermalUnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlockSolution::write( Block * block )
+{
+ UnitBlockSolution::write( block );  // call the method of the base class
+
+ auto TUB = dynamic_cast< ThermalUnitBlock * >( block );
+ if( ! TUB )
+  throw( std::invalid_argument( "ThermalUnitBlockSolution::read: block "
+				"is not a ThermalUnitBlock" ) );
+
+ // write the design - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ TUB->get_design().set_value( f_design );
+
+ }  // end( ThermalUnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ UnitBlockSolution::serialize( group );  // call the method of the base class
+
+ // serialize the design- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! std::isnan( f_design ) )
+  ::serialize< double >( group , "ThermalDesign" , netCDF::NcDouble() ,
+			 f_design );
+
+ }  // end( ThermalUnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+ThermalUnitBlockSolution * ThermalUnitBlockSolution::scale( double factor )
+ const
+{
+ auto sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ if( ! std::isnan( f_design ) )
+  sol->f_design *= factor;
+
+ return( sol );
+
+ }  // end( ThermalUnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlockSolution::sum( const Solution * solution ,
+					 double multiplier )
+{
+ // call the method of the base class
+ UnitBlockSolution::sum( solution , multiplier );
+
+ auto TUBS = dynamic_cast< const ThermalUnitBlockSolution * >( solution );
+ if( ! TUBS )
+  throw( std::invalid_argument( "ThermalUnitBlockSolution::sum: "
+				"solution not a ThermalUnitBlockSolution" ) );
+
+ if( ! std::isnan( f_design ) )
+  f_design += TUBS->f_design * multiplier;
+
+ }  // end( ThermalUnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+ThermalUnitBlockSolution * ThermalUnitBlockSolution::clone( bool empty ) const
+{
+ auto * sol = new ThermalUnitBlockSolution();
+
+ if( ! empty ) {
+  guts_of_clone( sol );
+  sol->f_design = f_design;
+  }
+
+ return( sol );
+
+ }  // end( ThermalUnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File ThermalUnitBlock.cpp ------------------------*/

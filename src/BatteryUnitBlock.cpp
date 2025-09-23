@@ -419,6 +419,8 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
    }
  }
 
+ static constexpr double dNaN = std::numeric_limits< double >::quiet_NaN();
+
  // Battery Design Variable
  if( f_BattInvestmentCost != 0 ) {
   if( f_BattMaxCapacityDesign < 0 )
@@ -426,7 +428,9 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
   else
    batt_design.set_type( ColVariable::kNonNegative );
   add_static_variable( batt_design , "x_battery" );
- }
+  }
+ else
+  batt_design.set_value( dNaN );
 
  // Converter Design Variable
  if( f_ConvInvestmentCost != 0 ) {
@@ -435,7 +439,9 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
   else
    conv_design.set_type( ColVariable::kNonNegative );
   add_static_variable( conv_design , "x_converter" );
- }
+  }
+ else
+  conv_design.set_value( dNaN );
 
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
@@ -1748,6 +1754,16 @@ void BatteryUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  // deserialize the intakes- - - - - - - - - - - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "InOutTake" , v_intake , false );
 
+ // deserialize the battery design - - - - - - - - - - - - - - - - - - - - -
+
+ if( ! ::deserialize< double >( group , f_b_design , "BatteryDesign" ) )
+  f_b_design = dNaN;
+
+ // deserialize the converter design - - - - - - - - - - - - - - - - - - - -
+
+ if( ! ::deserialize< double >( group , f_c_design , "ConverterDesign" ) )
+  f_c_design = dNaN;
+ 
  }  // end( BatteryUnitBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -1766,7 +1782,7 @@ void BatteryUnitBlockSolution::read( const Block * block )
   auto SLit = BUB->get_const_storage_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_storage[ t ] = ( *( SLit++ ) ).get_value();
-   }
+  }
 
  if( ! v_intake.empty() ) {
   // read the intakes- - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1776,6 +1792,12 @@ void BatteryUnitBlockSolution::read( const Block * block )
    v_intake[ t ] = ( *( Iit++ ) ).get_value() - ( *( Oit++ ) ).get_value();
   }
 
+ // read the battery design- - - - - - - - - - - - - - - - - - - - - - - - -
+ f_b_design = BUB->get_const_batt_design().get_value();
+
+ // read the converter design- - - - - - - - - - - - - - - - - - - - - - - -
+ f_c_design = BUB->get_const_conv_design().get_value();
+ 
  }  // end( BatteryUnitBlockSolution::read )
 
 /*--------------------------------------------------------------------------*/
@@ -1794,7 +1816,7 @@ void BatteryUnitBlockSolution::write( Block * block )
   auto SLit = BUB->get_storage_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    ( *( SLit++ ) ).set_value( v_storage[ t ] );
- }
+  }
 
  if( ! v_intake.empty() ) {
   // write the intakes - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1810,6 +1832,13 @@ void BatteryUnitBlockSolution::write( Block * block )
     ( *( Oit++ ) ).set_value( -v_intake[ t ] );
     }
   }
+
+ // write the battery design - - - - - - - - - - - - - - - - - - - - - - - -
+ BUB->get_batt_design().set_value( f_b_design );
+
+ // write the converter design - - - - - - - - - - - - - - - - - - - - - - -
+ BUB->get_conv_design().set_value( f_c_design );
+
  }  // end( BatteryUnitBlockSolution::write )
 
 /*--------------------------------------------------------------------------*/
@@ -1830,6 +1859,16 @@ void BatteryUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  if( ! v_intake.empty() )
   ::serialize< double >( group , "InOutTake" , netCDF::NcDouble() , th ,
 			 v_intake );
+
+ // serialize the battery design- - - - - - - - - - - - - - - - - - - - - - -
+ if( ! std::isnan( f_b_design ) )
+  ::serialize< double >( group , "BatteryDesign" , netCDF::NcDouble() ,
+			 f_b_design );
+
+ // serialize the converter design- - - - - - - - - - - - - - - - - - - - - -
+ if( ! std::isnan( f_c_design ) )
+  ::serialize< double >( group , "ConverterDesign" , netCDF::NcDouble() ,
+			 f_c_design );
 
  }  // end( BatteryUnitBlockSolution::serialize )
 
@@ -1853,6 +1892,12 @@ BatteryUnitBlockSolution * BatteryUnitBlockSolution::scale( double factor )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    sol->v_intake[ t ] *= factor;
 
+ if( ! std::isnan( f_b_design ) )
+  sol->f_b_design *= factor;
+
+ if( ! std::isnan( f_c_design ) )
+  sol->f_c_design *= factor;
+   
  return( sol );
 
  }  // end( BatteryUnitBlockSolution::scale )
@@ -1878,6 +1923,12 @@ void BatteryUnitBlockSolution::sum( const Solution * solution ,
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_intake[ t ] += BUBS->v_intake[ t ] * multiplier;
 
+ if( ! std::isnan( f_b_design ) )
+  f_b_design += BUBS->f_b_design * multiplier;
+
+ if( ! std::isnan( f_c_design ) )
+  f_c_design += BUBS->f_c_design * multiplier;
+
  }  // end( BatteryUnitBlockSolution::sum )
 
 /*--------------------------------------------------------------------------*/
@@ -1891,6 +1942,8 @@ BatteryUnitBlockSolution * BatteryUnitBlockSolution::clone( bool empty )
   guts_of_clone( sol );
   sol->v_storage = v_storage;
   sol->v_intake = v_intake;
+  sol->f_b_design = f_b_design;
+  sol->f_c_design = f_c_design;
   }
 
  return( sol );

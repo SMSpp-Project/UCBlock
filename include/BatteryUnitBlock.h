@@ -1244,7 +1244,7 @@ class BatteryUnitBlock : public UnitBlock
 
  std::vector< ColVariable > & get_intake_level( void ) {
   return( v_intake_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the const vector of intake level variables
@@ -1290,42 +1290,62 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables
+
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
    return( nullptr );
   return( &( v_active_power.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary spinning reserve variables
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_primary_spinning_reserve.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary spinning reserve variables
+
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_secondary_spinning_reserve.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the battery design variable
+
  ColVariable & get_batt_design( void ) { return( batt_design ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the const battery design variable
+
+ const ColVariable & get_const_batt_design( void ) const {
+  return( batt_design );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the converter design variable
+
  ColVariable & get_conv_design( void ) { return( conv_design ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the const converter design variable
+
+ const ColVariable & get_const_conv_design( void ) const {
+  return( conv_design );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the intake/outtake binary variables
+
  const std::vector< ColVariable > &
  get_intake_outtake_binary_variables( void ) const {
   return( v_battery_binary );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum power output constraints
@@ -1334,7 +1354,7 @@ class BatteryUnitBlock : public UnitBlock
       active_power_bounds_Const[ 0 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const.data()[ 0 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum power output constraint associated with time t
@@ -1494,6 +1514,7 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" [Battery]UnitBlockSolution
+
  UnitBlockSolution * new_Solution( void ) const override;
 
 /** @} ---------------------------------------------------------------------*/
@@ -1656,7 +1677,7 @@ class BatteryUnitBlock : public UnitBlock
  // For the Range version, use the default implementation defined in UnitBlock
  using UnitBlock::scale;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1665,8 +1686,6 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
-
-
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -2105,15 +2124,24 @@ class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod
  * - [possibly] the intake/outtake in the battery at each time instant;
  *   since the battery is supposed to never be charged and discharged at
  *   the same time instant, the value is positive if the battery is being
- *   charged (intake) and negative if it is being discharged (outtake) */
+ *   charged (intake) and negative if it is being discharged (outtake)
+ *
+ * - if defined, the value of the Battery Design Variable
+ *
+ * - if defined, the value of the Converter Design Variable */
+
 class BatteryUnitBlockSolution : public UnitBlockSolution
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  public:
+
+/*----------------------------- CONSTANTS ----------------------------------*/
+
+ static constexpr double dNaN = std::numeric_limits< double >::quiet_NaN();
+ ///< convenience constexpr for "NaN", *not* to be used with ==
 
 /*------------------------------- FRIENDS ----------------------------------*/
 
@@ -2122,7 +2150,8 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
 /*--------- CONSTRUCTING AND DESTRUCTING BatteryUnitBlockSolution ----------*/
 
  /// constructor, it has nothing to do
- explicit BatteryUnitBlockSolution( void ) : UnitBlockSolution() {}
+ explicit BatteryUnitBlockSolution( void ) : UnitBlockSolution() ,
+  f_b_design( dNaN ) , f_c_design( dNaN ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -2157,7 +2186,17 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
   *
   * Note that, unlike those of the base class, these variables do not need
   * to be indexed over the dimension "NumberGenerators" since
-  * BatteryUnitBlock always has exactly one generator. */
+  * BatteryUnitBlock always has exactly one generator.
+  *
+  * - The scalar variable "BatteryDesign", of type netCDF::NcDouble, that
+  *   represent the value of the dimensioning variable of the battery;
+  *   the variable is optional in that the battery may not have any
+  *   dimensioning variable.
+  *
+  * - The scalar variable "ConverterDesign", of type netCDF::NcDouble, that
+  *   represent the value of the dimensioning variable of the converter;
+  *   the variable is optional in that the converter may not have any
+  *   dimensioning variable. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -2190,6 +2229,10 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
 
  std::vector< double > v_intake;  ///< v_intake[ t ] = intake at time t
 
+ double f_b_design;    ///< the value of the battery dimensioning variable
+
+ double f_c_design;    ///< the value of the converter dimensioning variable
+ 
 /*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;

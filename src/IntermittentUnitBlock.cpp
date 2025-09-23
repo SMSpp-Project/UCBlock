@@ -56,6 +56,9 @@ using namespace SMSpp_di_unipi_it;
 // register IntermittentUnitBlock to the Block factory
 SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 
+// register IntermittentUnitBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( IntermittentUnitBlockSolution );
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF IntermittentUnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -227,7 +230,9 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
   else
    design.set_type( ColVariable::kNonNegative );
   add_static_variable( design , "x_intermittent" );
- }
+  }
+ else
+  design.set_value( std::numeric_limits< double >::quiet_NaN() );
 
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
@@ -548,7 +553,38 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "InertiaPower" , v_InertiaPower );
  serialize( "ActivePowerCost" , v_ActivePowerCost );
 
-}  // end( IntermittentUnitBlock::serialize )
+ }  // end( IntermittentUnitBlock::serialize )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * IntermittentUnitBlock::get_Solution( Configuration * csolc ,
+						bool emptys )
+{
+ Index wsol = 15;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto * sol = dynamic_cast< IntermittentUnitBlockSolution * >(
+		                  UnitBlock::get_Solution( csolc , emptys ) );
+ assert( sol );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+ }
+
+/*--------------------------------------------------------------------------*/
+ 
+UnitBlockSolution * IntermittentUnitBlock::new_Solution( void ) const {
+ return( new IntermittentUnitBlockSolution() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -824,6 +860,126 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
  set_kappa( values , std::move( subset ) , true , issuePMod , issueAMod );
 
 }  // end( IntermittentUnitBlock::set_kappa( range ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------- METHODS OF IntermittentUnitBlockSolution -----------------*/
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::deserialize(
+					      const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ UnitBlockSolution::deserialize( group );
+
+ if( f_number_generators != 1 )
+  throw( std::logic_error( "IntermittentUnitBlockSolution::deserialize: "
+			   "intermittents have only one generator" ) );
+ 
+ // deserialize the design - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! ::deserialize< double >( group , f_design , "IntermittentDesign" ) )
+  f_design = dNaN;
+
+ }  // end( IntermittentUnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::read( const Block * block )
+{
+ auto IUB = dynamic_cast< const IntermittentUnitBlock * >( block );
+ if( ! IUB )
+  throw( std::invalid_argument( "IntermittentUnitBlockSolution::read: block "
+				"is not a IntermittentUnitBlock" ) );
+
+ UnitBlockSolution::read( IUB );  // call the method of the base class
+
+ // read the design- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ f_design = IUB->get_const_design().get_value();
+
+ }  // end( IntermittentUnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::write( Block * block )
+{
+ UnitBlockSolution::write( block );  // call the method of the base class
+
+ auto IUB = dynamic_cast< IntermittentUnitBlock * >( block );
+ if( ! IUB )
+  throw( std::invalid_argument( "IntermittentUnitBlockSolution::read: block "
+				"is not a IntermittentUnitBlock" ) );
+
+ // write the design - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ IUB->get_design().set_value( f_design );
+
+ }  // end( IntermittentUnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ UnitBlockSolution::serialize( group );  // call the method of the base class
+
+ // serialize the design- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! std::isnan( f_design ) )
+   ::serialize< double >( group , "IntermittentDesign" , netCDF::NcDouble() ,
+			  f_design );
+
+ }  // end( IntermittentUnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+IntermittentUnitBlockSolution * IntermittentUnitBlockSolution::scale(
+						        double factor ) const
+{
+ auto sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ if( ! std::isnan( f_design ) )
+  sol->f_design *= factor;
+
+ return( sol );
+
+ }  // end( IntermittentUnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::sum( const Solution * solution ,
+					 double multiplier )
+{
+ // call the method of the base class
+ UnitBlockSolution::sum( solution , multiplier );
+
+ auto IUBS = dynamic_cast< const IntermittentUnitBlockSolution * >(
+								 solution );
+ if( ! IUBS )
+  throw( std::invalid_argument( "IntermittentUnitBlockSolution::sum: "
+				"solution not a "
+				"IntermittentUnitBlockSolution" ) );
+
+ if( ! std::isnan( f_design ) )
+  f_design += IUBS->f_design * multiplier;
+
+ }  // end( IntermittentUnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+IntermittentUnitBlockSolution * IntermittentUnitBlockSolution::clone(
+							   bool empty ) const
+{
+ auto * sol = new IntermittentUnitBlockSolution();
+
+ if( ! empty ) {
+  guts_of_clone( sol );
+  sol->f_design = f_design;
+  }
+
+ return( sol );
+
+ }  // end( IntermittentUnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File IntermittentUnitBlock.cpp -------------------*/

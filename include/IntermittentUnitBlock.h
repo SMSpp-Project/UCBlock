@@ -640,7 +640,13 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the design variable
+
  ColVariable & get_design( void ) { return( design ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the const design variable
+
+ const ColVariable & get_const_design( void ) const { return( design ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum total power constraints
@@ -658,6 +664,44 @@ class IntermittentUnitBlock : public UnitBlock
  get_active_power_bound_constraints( void ) const {
   return( active_power_bounds_Const );
  }
+
+/** @} ---------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Solution
+ * @{ */
+
+ /// returns a Solution storing for this IntermittentUnitBlock
+ /** This method must construct and return a (pointer to a) Solution object
+  * representing the current "solution state" of this IntermittentUnitBlock.
+  * This is a IntermittentUnitBlockSolution extending UnitBlockSolution with
+  * the specific extra solution information of BatteryUnitBlock.
+  *
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value, coded bitwise:
+  *
+  * - the first four bits (bit 0 to bit 3) are "taken" by the base
+  *   UnitBlock[Solution]
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  *   is solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration< int >, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 15 (save everything). */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" [Intermittent]UnitBlockSolution
+
+ UnitBlockSolution * new_Solution( void ) const override;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR SAVING THE IntermittentUnitBlock---------------*/
@@ -872,8 +916,6 @@ class IntermittentUnitBlock : public UnitBlock
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-
-
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
@@ -973,10 +1015,10 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------- CLASS IntermittentUnitBlockMod ---------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// derived class from Modification for modifications to an IntermittentUnitBlock
+/// derived class from Modification for changes to an IntermittentUnitBlock
+
 class IntermittentUnitBlockMod : public UnitBlockMod
 {
-
  public:
 
  /// public enum for the types of IntermittentUnitBlockMod
@@ -984,10 +1026,10 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  {
   eSetMaxP = eUBModLastParam , ///< set max power values
   eSetKappa ,                  ///< set the kappa constant
-  eIUBModLastParam            ///< first allowed parameter for derived classes
+  eIUBModLastParam         ///< first allowed parameter for derived classes
   /**< Convenience value to easily allow derived classes to extend the set
    * of types of IntermittentUnitBlockMod. */
- };
+  };
 
  /// constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
@@ -1081,7 +1123,105 @@ class IntermittentUnitBlockSbstMod : public IntermittentUnitBlockMod
 
  Block::Subset f_nms;  ///< the subset
 
-};  // end( class( IntermittentUnitBlockSbstMod ) )
+ };  // end( class( IntermittentUnitBlockSbstMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------ CLASS IntermittentUnitBlockSolution -------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a [UnitBlock]Solution of a IntermittentUnitBlock
+/** The IntermittentUnitBlockSolution class derives from UnitBlockSolution and
+ * adds to the "standard" information stored in there (active power, possibly
+ * commitment and primary/secondary reserve) the other information that is
+ * typical of the IntermittentUnitBlock, i.e.,
+ *
+ * - if defined, the value of the Intermittent Design Variable */
+
+class IntermittentUnitBlockSolution : public UnitBlockSolution
+{
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*----------------------------- CONSTANTS ----------------------------------*/
+
+ static constexpr double dNaN = std::numeric_limits< double >::quiet_NaN();
+ ///< convenience constexpr for "NaN", *not* to be used with ==
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend IntermittentUnitBlock;  ///< make IntermittentUnitBlock friend
+
+/*------- CONSTRUCTING AND DESTRUCTING IntermittentUnitBlockSolution -------*/
+
+ /// constructor, it has nothing to do
+ explicit IntermittentUnitBlockSolution( void ) : UnitBlockSolution() ,
+  f_design( dNaN ) {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void deserialize( const netCDF::NcGroup & group ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~IntermittentUnitBlockSolution() = default;
+ ///< destructor: it is virtual, and empty
+
+/*--- METHODS DESCRIBING THE BEHAVIOR OF A IntermittentUnitBlockSolution --*/
+
+ void read( const Block * block ) override final;
+
+ void write( Block * block ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a IntermittentUnitBlockSolution into a netCDF::NcGroup
+ /** Serialize a IntermittentUnitBlockSolution into a netCDF::NcGroup.
+  * The format is the one of UnitBlockSolution
+  * [cf. UnitBlockSolution::serialize()], plus:
+  *
+  * - The scalar variable "IntermittentDesign", of type netCDF::NcDouble,
+  *   that represent the value of the dimensioning variable; the variable
+  *   is optional in that the intermittent unit may not have any
+  *   dimensioning variable. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ IntermittentUnitBlockSolution * scale( double factor ) const override;
+
+ void sum( const Solution * solution , double multiplier ) override;
+
+ IntermittentUnitBlockSolution * clone( bool empty = false ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream & output ) const override {
+  output << "IntermittentUnitBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ double f_design;    ///< the value of the dimensioning variable
+ 
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( IntermittentUnitBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

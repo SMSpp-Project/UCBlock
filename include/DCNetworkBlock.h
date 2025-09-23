@@ -1646,7 +1646,6 @@ class DCNetworkData : public NetworkData
  /// HVDC power flow bounds design constraints
  boost::multi_array< FRowConstraint , 2 > v_HVDC_power_flow_bounds_design_const;
 
-
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
 
