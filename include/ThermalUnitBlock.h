@@ -1663,7 +1663,7 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the minimum reactive power of the given generator at the given time
 
  double get_min_reactive_power( Index t , Index generator = 0 ) const override {
-    return( (v_MinReactivePower.size() >= t) ? v_MinReactivePower[ t ] : 0. );
+    return( (v_MinReactivePower.size() > t) ? v_MinReactivePower[ t ] : 0. );
  }
 
 
@@ -1671,7 +1671,7 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the maximum reactive power of the given generator at the given time
 
  double get_max_reactive_power( Index t , Index generator = 0 ) const override {
-    return( (v_MaxReactivePower.size() >= t) ? v_MaxReactivePower[ t ] : 0. );
+    return( (v_MaxReactivePower.size() > t) ? v_MaxReactivePower[ t ] : 0. );
  }
 
 
@@ -1679,7 +1679,7 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the voltage magnitude of the given generator at the given time
 
  double get_voltage_magnitude( Index t , Index generator = 0 ) const override {
-    return( (v_VoltageMagnitude.size() >= t) ? v_VoltageMagnitude[ t ] : 0. );
+    return( (v_VoltageMagnitude.size() > t) ? v_VoltageMagnitude[ t ] : 0. );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1691,7 +1691,7 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the ith cost coefficient of the given generator 
 
  double get_cost_coeff(Index i, Index generator = 0) override { 
-    return( (v_PowerCostCoeffs.size() >= i) ? v_PowerCostCoeffs[ i ] : 0. );
+    return( (v_PowerCostCoeffs.size() > i) ? v_PowerCostCoeffs[ i ] : 0. );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2673,6 +2673,9 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of coefficients for the cost
  std::vector< double > v_PowerCostCoeffs;
 
+ /// the reference Schedule : optional information to deviate minimally from if there
+ std::vector< double > v_RefSchedule ;
+
  // the vector for separating PC-cuts
  std::vector< double >  prevpbar;
 
@@ -2749,6 +2752,12 @@ class ThermalUnitBlock : public UnitBlock
  /// the scale factor
  double f_scale = 1;
 
+ /// the flag indicating if we wish to fix production to maximum power output
+ /// currently 0 = default = do nothing special
+ ///           > 0 : fix to MaxPower 
+ /// although a boolean would suffice, an integer is foreseen for possible future modes of working
+ int f_fixToMax = 0;
+
  /// this variable indicates which netCDF variables must be ignored
  inline static bool f_ignore_netcdf_vars;
 
@@ -2769,7 +2778,6 @@ class ThermalUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
-
  /// the commitment binary variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_commitment;
 
@@ -2778,7 +2786,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the y^- commitment binary variables for DP, SU and SD formulations
  std::vector< ColVariable > v_commitment_minus;
-
 
  /// the active power variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_active_power;
@@ -2791,7 +2798,6 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the active power variables for SD model
  std::vector< ColVariable > v_active_power_k;
-
 
  /// the perspective cuts variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_cut;
@@ -2808,7 +2814,17 @@ class ThermalUnitBlock : public UnitBlock
  /// the perspective cuts variables for SUSD model
  std::vector< ColVariable > v_cut_teta;
   
+ /// the variables for deviation to reference schedule
+ std::vector< ColVariable > v_abs_ref_schedule;
+
+
 /*------------------------------- constraints ------------------------------*/
+
+ /// the reference schedule constraints
+ std::vector< FRowConstraint > Reference_Schedule_Const;
+
+ /// the reference schedule constraints
+ std::vector< FRowConstraint > fixed_to_max_Power_Const;
 
  /// the commitment design constraints
  std::vector< FRowConstraint > CommitmentDesign_Const;
@@ -2885,9 +2901,14 @@ class ThermalUnitBlock : public UnitBlock
  /// the shut-down binary bound constraints
  std::vector< ZOConstraint > ShutDown_Binary_bound_Const;
 
-
  /// the commitment fixed to one BoxConstraints
  std::vector< BoxConstraint > Commitment_fixed_to_One_Const;
+
+ /// the reactive power bound constraints
+ std::vector< BoxConstraint > ReactivePower_Bound_Const;
+
+ /// Q <= P
+ std::vector< FRowConstraint > Reactive_2_Active_Const;
 
 
  /// the objective function

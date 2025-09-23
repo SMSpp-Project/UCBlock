@@ -95,7 +95,12 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                      "MinPower" , "MaxPower" ,
                                                      "InertiaPower" ,
                                                      "ActivePowerCost",
-                                                     "Gamma" , "Kappa" };
+                                                     "Gamma" , "Kappa", 
+                                                     // Specific computational modes
+                                                     "MinReactivePower",
+                                                     "MaxReactivePower",
+                                                     "VoltageMagnitude"                                                     
+                                                    };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -133,6 +138,20 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_gamma , "Gamma" );
 
  ::deserialize( group , f_kappa , "Kappa" );
+
+ // variables for AC elements
+ if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MaxReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MinReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
+                      true , true , v_change_intervals ) )
+    v_VoltageMagnitude.resize( f_time_horizon, 0.0 );
+
 
  if( f_max_power_epsilon > 0 )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -394,6 +413,42 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   if( f_MaxCapacityDesign < 0 )
    design.is_integer( true , eNoMod );
  }
+
+ /// Reactive power bounds constraints
+ if( ReactivePower_Bound_Const.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( ReactivePower_Bound_Const.empty() );
+
+  ReactivePower_Bound_Const.resize( f_time_horizon );
+ }
+ 
+ bool something = false;
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  if ( get_max_reactive_power(t) > 0.0 ){
+    something = true;
+    ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
+    ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
+    //
+    ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
+  }
+ }
+ if (something )
+  add_static_constraint( ReactivePower_Bound_Const ,
+                         "ReactivePowerBound" );
+
+ // Link between active and reactive power
+ Reactive_2_Active_Const.resize( f_time_horizon );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // Q(t) - P(t) <= 0
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( & v_active_power[ t ], -1.0 );
+    lfunc->add_variable( & v_reactive_power[ t ], 1.0 );
+    
+    Reactive_2_Active_Const[ t ].set_lhs( -Inf< double >() );
+    Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
+    Reactive_2_Active_Const[ t ].set_function( lfunc );
+ }
+ add_static_constraint( Reactive_2_Active_Const, "QandP_inter" );
 
  set_constraints_generated();
 

@@ -84,7 +84,12 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                      "PrimaryCost" ,
                                                      "SecondaryCost" ,
                                                      "InertiaCost" ,
-                                                     "MaxInertia" };
+                                                     "MaxInertia"
+                                                     // specific modes 
+                                                     "MinReactivePower",
+                                                     "MaxReactivePower",
+                                                     "VoltageMagnitude"
+                                                    };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -109,6 +114,19 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "MaxInertia" , f_time_horizon , v_MaxInertia ,
                 true , true , v_change_intervals );
 
+ // variables for AC elements
+ if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MaxReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MinReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
+                      true , true , v_change_intervals ) )
+    v_VoltageMagnitude.resize( f_time_horizon, 0.0 );
+
 }  // end( SlackUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -117,6 +135,9 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
 {
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
+
+  /// Call the parent class 
+  UnitBlock::generate_abstract_variables( stvv );
 
  // Commitment Variable
  if( reserve_vars & 4u ) {  // if UCBlock has inertia demand variables
@@ -256,6 +277,42 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
   }
  }
 
+ /// Reactive power bounds constraints
+ if( ReactivePower_Bound_Const.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( ReactivePower_Bound_Const.empty() );
+
+  ReactivePower_Bound_Const.resize( f_time_horizon );
+ }
+ 
+ bool something = false;
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  if ( get_max_reactive_power(t) > 0.0 ){
+    something = true;
+    ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
+    ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
+    //
+    ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
+  }
+ }
+ if (something )
+  add_static_constraint( ReactivePower_Bound_Const ,
+                         "ReactivePowerBound" );
+
+ // Link between active and reactive power
+ Reactive_2_Active_Const.resize( f_time_horizon );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // Q(t) - P(t) <= 0
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( & v_active_power[ t ], -1.0 );
+    lfunc->add_variable( & v_reactive_power[ t ], 1.0 );
+    
+    Reactive_2_Active_Const[ t ].set_lhs( -Inf< double >() );
+    Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
+    Reactive_2_Active_Const[ t ].set_function( lfunc );
+ }
+ add_static_constraint( Reactive_2_Active_Const, "QandPslack" );
+
  set_constraints_generated();
 
 }  // end( SlackUnitBlock::generate_abstract_constraints )
@@ -329,6 +386,11 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
    else
     lf->add_variable( &v_commitment[ t ] , 0.0 , eDryRun );
   }
+  
+  // Add reactive power variables if needed
+  if ( get_max_reactive_power(t) > 0.0 )
+    lf->add_variable( &v_reactive_power[ t ] , 0.7*v_ActivePowerCost[ t ] , eDryRun );
+
  }
 
  objective.set_function( lf );

@@ -482,6 +482,17 @@ class UnitBlock : public Block
   return( nullptr );
   }
 
+ /// TEMP: returns the vector of reactive_power variables
+ virtual ColVariable * get_reactive_power( Index generator ) {
+  if( v_reactive_power.empty() )
+   return( nullptr );
+  return( &( v_reactive_power.front() ) );
+ }
+
+  // TEMP :: should not be in parent class but children
+  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like get_active_power(), but returns a const * so that it can be const
 
@@ -796,6 +807,10 @@ class UnitBlock : public Block
  /// the time horizon of the problem
  Index f_time_horizon{};
 
+
+ /// TEMP the active power variables for 3bin, T and pt formulations
+ std::vector< ColVariable > v_reactive_power;
+
  /// the number of intervals
  Index f_number_intervals{};
 
@@ -1035,6 +1050,9 @@ class UnitBlockSolution : public Solution {
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  boost::multi_array< double , 2 > v_active_power;
+ ///< v_active_power[ i ][ t ] = active power of generator i at time t
+
+ boost::multi_array< double , 2 > v_reactive_power;
  ///< v_active_power[ i ][ t ] = active power of generator i at time t
 
  boost::multi_array< double , 2 > v_commitment;
