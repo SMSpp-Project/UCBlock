@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - design variables in ThermalUnitBlock, BatteryUnitBlock,
   IntermittentUnitBlock
 
-- tools/DataConverter from Energy Community Julia codebase
+- `data/nc4/csv2netCDF` from Energy Community Julia codebase
 
 - `data/nc4/EC_Data` test data sets
 

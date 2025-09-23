@@ -140,9 +140,9 @@ We provide some tool to generate input data for UCBlock:
   that can be used to produce netCDF versions of the instances produced by
   [classical random generators](https://commalab.di.unipi.it/datasets/UC)
 
-- [a Matlab-based data generator](tools/DataGenerator/README.md)
+- [a Matlab-based data generator](data/nc4/UC2SMSpp/README.md)
 
-- [a converter from .yml and .csv data files](tools/DataConverter/README.md)
+- [a converter from .yml and .csv data files](data/nc4/csv2netCDF/README.md)
   used to describe UC instances corresponding to Energy Community design
   problems used in the [EnergyCommunity.jl JuMP
   package](https://github.com/SPSUnipi/EnergyCommunity.jl)
