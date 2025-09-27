@@ -205,7 +205,7 @@ class DCNetworkData : public NetworkData
   *   number in 0, ..., NumberNodes - 1). Note that lines are not oriented,
   *   but the flow of energy is; that is, a positive flow along line l means
   *   that energy is being taken away from StartLine[ l ] and delivered to
-  *   EndLine[ l ] (see next), a negative flow means vice-versa. The variable
+  *   EndLine[ l ] (see next), a negative flow means vice versa. The variable
   *   is mandatory.
   *
   * - The variable "EndLine", of type netCDF::NcUint and indexed over the
@@ -333,7 +333,7 @@ class DCNetworkData : public NetworkData
 
  bool is_hypergraph( void ) const {
   return( f_number_branches > f_number_lines );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if line \p is an hyperarc (more than one head bus)
@@ -341,9 +341,8 @@ class DCNetworkData : public NetworkData
  bool is_hyperarc( Index line ) const {
   if( is_hypergraph() )
    return( v_end_lines[ line ].size() > 1 );
-  else
-   return( false );
-  }
+  return( false );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of start buses for all lines
@@ -359,7 +358,7 @@ class DCNetworkData : public NetworkData
 
  const std::vector< Index > & get_start_line( void ) const {
   return( v_start_line );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the start bus of line \p line
@@ -378,7 +377,7 @@ class DCNetworkData : public NetworkData
   *
   * - if get_number_nodes() > 1 and get_number_hyperarcs() == 0, then the
   *   network is a "regular graph", this vector have size of f_number_lines,
-  *   and  get_emd_line()[ l ] gives ending (head) bus of line l.
+  *   and  get_end_line()[ l ] gives ending (head) bus of line l.
   *
   * - if get_number_nodes() > 1 and get_number_hyperarcs() > 0, then the
   *   network is a hypergraph and this vector is again empty since
@@ -386,7 +385,7 @@ class DCNetworkData : public NetworkData
 
  const std::vector< Index > & get_end_line( void ) const {
   return( v_end_line );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the end (first, in the hypergraph case) bus of line \p line
@@ -394,9 +393,8 @@ class DCNetworkData : public NetworkData
  Index get_end_line( Index line ) const {
   if( is_hypergraph() )
    return( v_end_lines[ line ].front() );
-  else
-   return( v_end_line[ line ] );
-  }
+  return( v_end_line[ line ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of (sets of) end lines
@@ -406,14 +404,14 @@ class DCNetworkData : public NetworkData
   * otherwise  get_end_lines()[ l ] is a (const) std::vector< Index >
   * containing the end buses / nodes of line l. Line l is a "regular arc" if
   * get_end_lines()[ l ].size() == 1, and an hyperarc if
-  * get_end_lines()[ l ].size() > 1 (it cannot obviously bo 0). The number of
+  * get_end_lines()[ l ].size() > 1 (it cannot obviously be 0). The number of
   * lines l such that get_end_lines()[ l ].size() > 1 is equal to
   * get_number_hyperarcs(). Each std::vector< Index > is ordered in increasing
   * sense and without repeated elements. */
 
  const std::vector< std::vector< Index > > & get_end_lines( void ) const {
   return( v_end_lines );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the minimum power flow
@@ -431,7 +429,7 @@ class DCNetworkData : public NetworkData
 
  const std::vector< double > & get_min_power_flow( void ) const {
   return( v_min_power_flow );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns minimum power flow of the given \p line
@@ -445,7 +443,7 @@ class DCNetworkData : public NetworkData
   if( v_min_power_flow.empty() )
    return( 0 );
   return( v_min_power_flow[ line ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the maximum power flow
@@ -463,7 +461,7 @@ class DCNetworkData : public NetworkData
 
  const std::vector< double > & get_max_power_flow( void ) const {
   return( v_max_power_flow );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns maximum power flow of the given \p line
@@ -477,45 +475,45 @@ class DCNetworkData : public NetworkData
   if( v_max_power_flow.empty() )
    return( 0 );
   return( v_max_power_flow[ line ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
-  const double get_baseMVA( void ) const {
-    return( f_base_mva );
-  }
+
+ double get_baseMVA( void ) const {
+  return( f_base_mva );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the AC lines
  /** This function returns the AC lines in the transmission network.
   * @return the AC lines in the network. */
 
- std::vector< Index > get_AC_lines( void ) {
+ std::vector< Index > get_AC_lines( void ) const {
   std::vector< Index > AC_lines;
   const auto & susceptance = get_line_susceptance();
   //if( AC_lines.empty() )
   // return( AC_lines );
-  for( Index line_id = 0 ; line_id < get_number_lines() ;
-       ++line_id ) {
+  for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
    if( susceptance[ line_id ] > 0. )
     AC_lines.push_back( line_id );
-   }
-  return( AC_lines );
   }
+  return( AC_lines );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the DC lines
  /** This function returns the DC lines in the transmission network.
   * @return the DC lines in the network. */
 
- std::vector< Index > get_DC_lines( void ) {
+ std::vector< Index > get_DC_lines( void ) const {
   std::vector< Index > DC_lines;
   const auto & susceptance = get_line_susceptance();
   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
-    if( susceptance[ line_id ] == 0. )
-      DC_lines.push_back( line_id );
+   if( susceptance[ line_id ] == 0. )
+    DC_lines.push_back( line_id );
   }
   return( DC_lines );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the susceptances
@@ -532,11 +530,11 @@ class DCNetworkData : public NetworkData
 
  const std::vector< double > & get_line_susceptance( void ) const {
   return( v_line_susceptance );
-  }
+ }
 
  const std::vector< double > & get_node_susceptance( void ) const {
   return( v_node_susceptance );
-  }
+ }
 
  int get_reducedIdx( int idx );
 
@@ -583,12 +581,14 @@ class DCNetworkData : public NetworkData
  void compute_cycle_basis(int root = -1);  // be carefull -> root is int and not Index, as it can be negative
 
  const std::vector< std::vector< Index > > & get_cycle_basis( void ) {
-  if ( ! cycle_basis_was_computed ) this->compute_cycle_basis();
+  if ( ! cycle_basis_was_computed )
+   this->compute_cycle_basis();
   return( v_cycle_basis );
   }
 
  const std::map< Index, Index > & get_spanning_tree( void ) {
-  if ( ! cycle_basis_was_computed ) this->compute_cycle_basis();
+  if( ! cycle_basis_was_computed )
+   this->compute_cycle_basis();
   return( m_spanning_tree );
   }
 
@@ -596,9 +596,9 @@ class DCNetworkData : public NetworkData
 /* Return a map where the keys are the line ids involved in the spanning tree and the
 value is 1 if the directed line is in the tree and -1 if the reverse directed line is in the tree.*/
 std::map< Index, int > get_lines_in_spanning_tree( void ) {
-  if ( ! cycle_basis_was_computed ) this->compute_cycle_basis();
+  if ( ! cycle_basis_was_computed )
+   this->compute_cycle_basis();
 
-  const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
   if( number_lines <= 0 ) {
     throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
@@ -625,7 +625,8 @@ std::map< Index, int > get_lines_in_spanning_tree( void ) {
 /* Return a vector of map where the keys are the line ids involved in the cycle and the
 value is 1 if the directed line is in the cycle and -1 if the reverse directed line is in the cycle.*/
 std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
-  if ( ! cycle_basis_was_computed ) this->compute_cycle_basis();
+  if ( ! cycle_basis_was_computed )
+   this->compute_cycle_basis();
 
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
@@ -639,24 +640,24 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   std::vector< std::map< Index , int > > lines_in_cycles =
    std::vector< std::map< Index , int > >( this->v_cycle_basis.size() );
   int idx_cycle = 0;
-  for (auto& cycle: this->v_cycle_basis ) {
+  for (auto & cycle : this->v_cycle_basis ) {
     for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
       Index i = start_line[ line_id ];
       Index j = end_line[ line_id ];
       auto it_i = std::find( cycle.begin() , cycle.end() , i );
-      int pos_i = std::distance(cycle.begin(), it_i);
+      int pos_i = std::distance( cycle.begin() , it_i );
       if ( it_i != cycle.end() ) {
         // the line or reverse line may be in the cycle
-        if ( pos_i < cycle.size() - 1 && cycle[ pos_i + 1 ] == j ) {
+        if ( ( pos_i < cycle.size() - 1 ) && ( cycle[ pos_i + 1 ] == j ) ) {
          lines_in_cycles[ idx_cycle ][ line_id ] = 1; // true line
         }
-        if( pos_i == cycle.size() - 1 && cycle[ 0 ] == j ) {
+        if( ( pos_i == cycle.size() - 1 ) && ( cycle[ 0 ] == j ) ) {
          lines_in_cycles[ idx_cycle ][ line_id ] = 1; // true line
         }
-        if( pos_i > 0 && cycle[ pos_i - 1 ] == j ) {
+        if( ( pos_i > 0 ) && ( cycle[ pos_i - 1 ] == j ) ) {
          lines_in_cycles[ idx_cycle ][ line_id ] = -1; // reverse line
         }
-        if( pos_i == 0 && cycle[ cycle.size() - 1 ] == j ) {
+        if( ( pos_i == 0 ) && ( cycle[ cycle.size() - 1 ] == j ) ) {
          lines_in_cycles[ idx_cycle ][ line_id ] = -1; // reverse line
         }
       }
@@ -665,7 +666,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   }
 
   assert( lines_in_cycles.size() == number_lines - number_nodes + 1 );
-    // take advantage of the theory to ensure the size of the cycle basis
+  // take advantage of the theory to ensure the size of the cycle basis
 
   return( lines_in_cycles );
 }
@@ -715,8 +716,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
  double get_line_efficiency( Index line ) const {
   assert( line < get_number_lines() );
   if( is_hypergraph() )
-   throw( std::logic_error(
-		      "get_line_efficiency() called but hypergraph" ) );
+   throw( std::logic_error( "get_line_efficiency() called but hypergraph" ) );
   if( v_efficiency.empty() || get_line_susceptance().empty() ||
       ( get_line_susceptance()[ line ] != 0.0 ) )
    return( 1.0 );
@@ -729,17 +729,16 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
  const std::vector< double > & get_line_efficiencies( Index line ) const {
   if( ! is_hypergraph() )
    throw( std::logic_error(
-		      "get_line_efficiencies() called but no hypergraph" ) );
-
+   "get_line_efficiencies() called but no hypergraph" ) );
   return( v_h_efficiency[ line ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector containing the name of the lines
 
  const std::vector< std::string > & get_line_names( void ) const {
   return( v_line_names );
-  }
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
@@ -854,7 +853,8 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * father Block. */
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
-  : NetworkBlock( f_block ) , f_NetworkData( nullptr ) {}
+ : NetworkBlock( f_block ) , f_NetworkData( nullptr ) ,
+  f_InvestmentCost( 0 ), f_MinCapacityDesign( 0 ), f_MaxCapacityDesign( 1 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of DCNetworkBlock
@@ -888,7 +888,21 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * lines. Similarly, depending on the NetworkCost for each line of the
   * network, the DCNetworkBlock class may have an auxiliary variable or not.
   * In other word, if the NetworkCost is equal to zero (or not defined), the
-  * auxiliary variable and corresponding constraints will not be defined. */
+  * auxiliary variable and corresponding constraints will not be defined.
+  *
+  * In the design scenario of the UC problem (i.e., when an investment cost
+  * is provided), an additional design variable \f$ x \f$ is created. Its
+  * type depends on \f$ \mathrm{MaxCapacityDesign} \f$: if
+  * \f$ \mathrm{MaxCapacityDesign} < 0 \f$ then \f$ x \f$ is binary; otherwise
+  * \f$ x \f$ is nonnegative continuous and bounded by
+  * \f$ 0 \le x \le \mathrm{MaxCapacityDesign} \f$.
+  *
+  * In addition, when \( \mathrm{MaxCapacityDesign} \ge 0 \) a lower bound
+  * \( \mathrm{MinCapacityDesign} \) may be provided, yielding
+  * \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  * When \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), \( x \in \{0,1\} \);
+  * if \( \mathrm{MinCapacityDesign} > 0 \), then \( x \) is effectively forced to 1.
+  */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -903,7 +917,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * Denoting by \f$\mathfrak{S}_l\f$ the susceptance of the line \f$l\f$, the
   * PTDF matrix \f$ B \f$ is computed as
   * \f$ B = (\hat{B}I_{n_0})(I_{n_0}^T\bar{B}I_{n_0})^{-1} \f$, where
-  * f$ n_0 \f$ is the reference node of the network. The matrix
+  * \f$ n_0 \f$ is the reference node of the network. The matrix
   * \f$ \hat{B} \f$ is defined as
   * \f$ (\hat{B})_{(l=(n,n'),n)} = \mathfrak{S}_l \f$,
   * \f$ (\hat{B})_{(l=(n',n),n)} = -\mathfrak{S}_l \f$ and \f$ 0 \f$
@@ -1050,17 +1064,30 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the DCNetworkBlock
- /** Method that generates the objective of the DCNetworkBlock.
+ /** Method that generates the objective of the DCNetworkBlock.  The
+  * objective can include:
   *
-  * - Objective function: the objective function of the DCNetworkBlock
-  *   is given as below:
-  *
+  * - a linear term on the auxiliary variables associated with network
+  *   costs, if the vector "NetworkCost" is provided:
   *   \f[
-  *    \min ( \sum_{ l \in \mathcal{L} } ( NC_l V_l ) )
+  *     \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l
   *   \f]
   *
-  *   where \f$ NC_l \f$, is a network cost and \f$ V_l \f$ is the auxiliary
-  *   variable. */
+  *   where \f$ NC_l \f$ is the unit network cost of line \f$l\f$ and
+  *   \f$ V_l \f$ is the corresponding auxiliary variable
+  *   (coefficients are also scaled by the Block scale factor, if any);
+  *
+  * - an investment term in design mode, if "InvestmentCost" \f$ \ne 0 \f$:
+  *   \f$ + \ I \cdot x \f$, where \f$I\f$ is the investment cost and
+  *   \f$x\f$ is the design variable.
+  *
+  * Hence, in the design scenario the full objective is:
+  * \f[
+  *   \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l \;+\; I \cdot x \; .
+  * \f]
+  * If "NetworkCost" is not provided, \f$ NC_l = 0 \f$ and only the
+  * investment term remains in design mode.
+  */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -1235,11 +1262,17 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   return( &( v_ActiveDemand.front() ) );
   }
 
+/*--------------------------------------------------------------------------*/
+
  const double * get_reactive_demand( Index interval = 0 ) const override {
   if( v_ReactiveDemand.empty() )
    return( nullptr );
   return( &( v_ReactiveDemand.front() ) );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the investment cost
+ double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE DCNetworkBlock --------*/
@@ -1261,6 +1294,8 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   return( v_power_flow );
   }
 
+/*--------------------------------------------------------------------------*/
+
  const std::vector< ColVariable > & get_cycle_flow( void ) const {
   return( v_cycle_flow );
   }
@@ -1279,6 +1314,16 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
  const std::vector< ColVariable > & get_auxiliary_variable( void ) const {
   return( v_auxiliary_variable );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the design variable
+
+ ColVariable & get_design( void ) { return( design ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the const design variable
+
+ const ColVariable & get_const_design( void ) const { return( design ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Constraint OF THE DCNetworkBlock -------*/
@@ -1380,7 +1425,7 @@ const std::vector< BoxConstraint > &
 
   f_NetworkData = dynamic_cast< DCNetworkData * >( nd );
   f_local_NetworkData = false;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
@@ -1404,17 +1449,15 @@ const std::vector< BoxConstraint > &
   *then it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- void set_ActiveDemand( const boost::multi_array< double , 2 > & v )
-  override {
+ void set_ActiveDemand( const boost::multi_array< double , 2 > & v ) override {
   if( v_ActiveDemand.empty() )
    v_ActiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
-  }
+ }
 
- void set_ReactiveDemand( const boost::multi_array< double , 2 > & v )
-  override {
+ void set_ReactiveDemand( const boost::multi_array< double , 2 > & v ) override {
   if( v_ReactiveDemand.empty() )
    v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// sets the power flows
@@ -1422,7 +1465,7 @@ const std::vector< BoxConstraint > &
  void set_power_flow( const std::vector< double > & pf ) {
   for( Index l = 0 ; l < v_power_flow.size() ; ++l )
    v_power_flow[ l ].set_value( pf[ l ] );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// sets the dual prices of power flow limits, however the network is
@@ -1433,8 +1476,8 @@ const std::vector< BoxConstraint > &
    return;
 
   for( Index l = 0 ; l < nl ; ++l )
-    v_power_flow_limit_const[ l ].set_dual( dp[ l ] );
-  }
+   v_power_flow_limit_const[ l ].set_dual( dp[ l ] );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1446,6 +1489,31 @@ const std::vector< BoxConstraint > &
  /** Deserialize a DCNetworkBlock out of a netCDF::NcGroup, which should
   * contain all the data necessary to describe a NetworkBlock (see
   * NetworkBlock::deserialize()) and possibly the following variable:
+  *
+  * - The scalar variable "InvestmentCost", of type netCDF::NcDouble and not
+  *   indexed over any dimension. When provided and different from 0, the
+  *   model enters the design scenario and a design variable \f$ x \f$ is
+  *   generated.
+  *
+  * - The scalar variable "MinCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This sets the lower bound of the design
+  *   variable \( x \) in design mode (i.e., when InvestmentCost != 0). If not
+  *   provided, the default is 0. Its meaning depends on "MaxCapacityDesign":
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), then
+  *     \( x \in \{0,1\} \) and \( \mathrm{MinCapacityDesign} > 0 \) implies
+  *     \( x = 1 \);
+  *   - otherwise (continuous design), \( x \) is nonnegative continuous with
+  *     \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  *
+  * - The scalar variable "MaxCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This limits the design variable \( x \):
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{0,1\} \) (binary);
+  *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [0,1] \) when
+  *     \( \mathrm{MinCapacityDesign} = 0 \); otherwise
+  *     \( x \in [\,\mathrm{MinCapacityDesign},\,1] \);
+  *   - if \( \mathrm{MaxCapacityDesign} > 0 \) then \( x \) is nonnegative
+  *     continuous with \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  *   If not provided, the default is 1.
   *
   * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberNodes". If the NetworkData object description is
@@ -1462,7 +1530,7 @@ const std::vector< BoxConstraint > &
   *   this case, it would clearly be preferable to *entirely avoid the
   *   NcGroup to be there*, and in fact UCBlock has provisions for the
   *   NcGroup describing the NetworkBlock to be optional [see the comments to
-  *   UCBlock::deserialize()];
+  *   UCBlock::deserialize()].
   *
   * - The variable "Kappa", of type netCDF::NcDouble and either being a
   *   scalar or indexed over the number of lines. If this variable is a
@@ -1471,7 +1539,7 @@ const std::vector< BoxConstraint > &
   *   get_number_lines() - 1}, Kappa[ l ] is the constant that multiplies the
   *   minimum and maximum flow in the flow limit constraints. This variable is
   *   optional. If it is not provided, it is assumed that Kappa[ l ] == 1 for
-  *   each line l in {0, ..., get_number_lines() - 1};
+  *   each line l in {0, ..., get_number_lines() - 1}.
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
   *   constant term. */
@@ -1657,6 +1725,15 @@ const std::vector< BoxConstraint > &
 
  DCNetworkData * f_NetworkData;  ///< the DCNetworkData object
 
+ /// the investment cost
+ double f_InvestmentCost;
+
+ /// the minimum capacity design allowed
+ double f_MinCapacityDesign;
+
+ /// the maximum capacity design allowed
+ double f_MaxCapacityDesign;
+
  /// vector to store the demand of each node of the network
  std::vector< double > v_ActiveDemand;
 
@@ -1680,6 +1757,9 @@ const std::vector< BoxConstraint > &
  /// the auxiliary network cost variable
  std::vector< ColVariable > v_auxiliary_variable;
 
+ /// the design variable
+ ColVariable design;
+
 /*------------------------------- constraints ------------------------------*/
 
  /// HVDC power flow and node injection constraints
@@ -1697,10 +1777,16 @@ const std::vector< BoxConstraint > &
  /// Power flow limit constraints
  std::vector< BoxConstraint > v_power_flow_limit_const;
 
+ /// Power flow limit design constraints
+ boost::multi_array< FRowConstraint , 2 > v_power_flow_limit_design_const;
+
  /// injection equals to demand
  FRowConstraint overall_balanced_const;
 
- /// ---- Constraints for formulation in CYCLE
+
+ /// the design bound constraint
+ BoxConstraint design_bound_const;
+
 
  /// definition of the flow
  std::vector< FRowConstraint > v_CYCLE_def_flow_const;
@@ -1726,6 +1812,27 @@ const std::vector< BoxConstraint > &
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// verify whether the data in this DCNetworkBlock is consistent
+ /** This function checks whether the data in this DCNetworkBlock is
+  * consistent. The data is consistent if all of the following conditions
+  * are met.
+  *
+  * - Design bounds consistency:
+  *   - \( \mathrm{MinCapacityDesign} \ge 0 \);
+  *   - if \( \mathrm{MaxCapacityDesign} > 0 \), then
+  *     \( \mathrm{MinCapacityDesign} \le \mathrm{MaxCapacityDesign} \);
+  *   - if \( |\mathrm{MaxCapacityDesign}| = 1 \), then
+  *     \( \mathrm{MinCapacityDesign} \le 1 \);
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary), then
+  *     \( \mathrm{MinCapacityDesign} \le 1 \)
+  *     (note: \( \mathrm{MinCapacityDesign} > 0 \Rightarrow x = 1 \)).
+  *
+  * If any of the above conditions are not met, an exception is thrown.
+  */
+ void check_data_consistency( void ) const;
+
 /*--------------------------------------------------------------------------*/
 
  static void static_initialization( void ) {
@@ -1875,7 +1982,7 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
  *   corresponding constraints is returned
  *
  * Note that one DCNetworkBlock covers one time instant, so these variables
- * do not need to be indiced over time instants (unlike those of the base
+ * do not need to be indexed over time instants (unlike those of the base
  * NetworkBlockSolution). */
 
 class DCNetworkBlockSolution : public NetworkBlockSolution
