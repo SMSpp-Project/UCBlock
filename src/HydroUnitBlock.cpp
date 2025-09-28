@@ -846,7 +846,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
 
  // Link between active and reactive power
- Reactive_2_Active_Const.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
+ Reactive_2_Active_Const.resize(
+  boost::extents[ f_NumberArcs ][ f_time_horizon ] );
+
  for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // Q(g,t) - P(g,t) <= 0

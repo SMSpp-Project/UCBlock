@@ -215,6 +215,7 @@ namespace SMSpp_di_unipi_it {
   }
 
  protected:
+
   ACNetworkData * f_NetworkData; ///< the ACNetworkData object
 
   // ----- Variables

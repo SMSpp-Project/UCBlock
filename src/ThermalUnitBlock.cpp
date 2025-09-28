@@ -3461,6 +3461,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  // Link between active and reactive power
  Reactive_2_Active_Const.resize( f_time_horizon );
+
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // Q(t) - P(t) <= 0
     auto lfunc = new LinearFunction();
