@@ -800,7 +800,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  add_static_constraint( VolumetricBounds_Const , "VolumetricBounds_HydroUnit" );
 
  if( ! v_RefSchedule.empty() ) {
-   Reference_Schedule_Const.resize( 2*f_time_horizon );
+   Reference_Schedule_Const.resize( 2 * f_time_horizon );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
         // | Sum P - Pref | <= v_abs_ref_schedule
         auto lfunc_1 = new LinearFunction();

@@ -530,7 +530,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the minimum reactive power of the given generator at the given time
 
  double get_min_reactive_power( Index t , Index generator = 0 ) const override {
-    return( (v_MinReactivePower.size() > t) ? v_MinReactivePower[ t ] : 0. );
+    return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0. );
  }
 
 
@@ -538,7 +538,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the maximum reactive power of the given generator at the given time
 
  double get_max_reactive_power( Index t , Index generator = 0 ) const override {
-    return( (v_MaxReactivePower.size() > t) ? v_MaxReactivePower[ t ] : 0. );
+    return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0. );
  }
 
 
@@ -546,7 +546,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the voltage magnitude of the given generator at the given time
 
  double get_voltage_magnitude( Index t , Index generator = 0 ) const override {
-    return( (v_VoltageMagnitude.size() > t) ? v_VoltageMagnitude[ t ] : 0. );
+    return( ( v_VoltageMagnitude.size() > t ) ? v_VoltageMagnitude[ t ] : 0. );
  }
 
 /*--------------------------------------------------------------------------*/

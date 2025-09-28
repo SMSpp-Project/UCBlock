@@ -1039,7 +1039,7 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the minimum reactive power of the given generator at the given time
 
  double get_min_reactive_power( Index t , Index generator = 0 ) const override {
-    return( (v_MinReactivePower.size() > t) ? v_MinReactivePower[ t ] : 0. );
+    return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0. );
  }
 
 
@@ -1047,7 +1047,7 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the maximum reactive power of the given generator at the given time
 
  double get_max_reactive_power( Index t , Index generator = 0 ) const override {
-    return( (v_MaxReactivePower.size() > t) ? v_MaxReactivePower[ t ] : 0. );
+    return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0. );
  }
 
 
