@@ -1,0 +1,381 @@
+netcdf case14 {
+
+// global attributes:
+		:SMS++_file_type = 1 ;
+		:baseMVA = 100. ;
+
+group: Block_0 {
+  dimensions:
+  	NumberElectricalGenerators = 5 ;
+  	NumberNodes = 14 ;
+  	NumberLines = 20 ;
+  	TimeHorizon = 1 ;
+  	NumberUnits = 5 ;
+  variables:
+  	string NetworkBlockClassname ;
+  	uint GeneratorNode(NumberElectricalGenerators) ;
+  	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	double NodeConductance(NumberNodes) ;
+  	double NodeSusceptance(NumberNodes) ;
+  	double NodeMaxVoltage(NumberNodes) ;
+  	double NodeMinVoltage(NumberNodes) ;
+  	uint StartLine(NumberLines) ;
+  	uint EndLine(NumberLines) ;
+  	double LineResistance(NumberLines) ;
+  	double LineReactance(NumberLines) ;
+  	double LineSusceptance(NumberLines) ;
+  	double LineRATEA(NumberLines) ;
+  	double LineRatio(NumberLines) ;
+  	double LineShiftAngle(NumberLines) ;
+  	double LineMinAngle(NumberLines) ;
+  	double LineMaxAngle(NumberLines) ;
+  	double MinPowerFlow(NumberLines) ;
+  	double MaxPowerFlow(NumberLines) ;
+
+  // group attributes:
+  		:type = "UCBlock" ;
+  		:id = "0" ;
+  data:
+
+   NetworkBlockClassname = "ACNetworkBlock" ;
+
+   GeneratorNode = 0, 1, 2, 5, 7 ;
+
+   ActivePowerDemand =
+  0,
+  21.7,
+  94.2,
+  47.8,
+  7.6,
+  11.2,
+  0,
+  0,
+  29.5,
+  9,
+  3.5,
+  6.1,
+  13.5,
+  14.9 ;
+
+   NodeConductance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   NodeSusceptance = 0, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0 ;
+
+   NodeMaxVoltage = 1.06, 1.06, 1.06, 1.06, 1.06, 1.06, 1.06, 1.06, 1.06, 
+      1.06, 1.06, 1.06, 1.06, 1.06 ;
+
+   NodeMinVoltage = 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 
+      0.94, 0.94, 0.94, 0.94, 0.94 ;
+
+   StartLine = 0, 0, 1, 1, 1, 2, 3, 3, 3, 4, 5, 5, 5, 6, 6, 8, 8, 9, 11, 12 ;
+
+   EndLine = 1, 4, 2, 3, 4, 3, 4, 6, 8, 5, 10, 11, 12, 7, 8, 9, 13, 10, 12, 13 ;
+
+   LineResistance = 0.01938, 0.05403, 0.04699, 0.05811, 0.05695, 0.06701, 
+      0.01335, 0, 0, 0, 0.09498, 0.12291, 0.06615, 0, 0, 0.03181, 0.12711, 
+      0.08205, 0.22092, 0.17093 ;
+
+   LineReactance = 0.05917, 0.22304, 0.19797, 0.17632, 0.17388, 0.17103, 
+      0.04211, 0.20912, 0.55618, 0.25202, 0.1989, 0.25581, 0.13027, 0.17615, 
+      0.11001, 0.0845, 0.27038, 0.19207, 0.19988, 0.34802 ;
+
+   LineSusceptance = 0.0528, 0.0492, 0.0438, 0.034, 0.0346, 0.0128, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineRATEA = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineRatio = 0, 0, 0, 0, 0, 0, 0, 0.978, 0.969, 0.932, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0 ;
+
+   LineShiftAngle = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineMinAngle = -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360, -360, -360, -360, -360, -360, -360 ;
+
+   LineMaxAngle = 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 
+      360, 360, 360, 360, 360, 360, 360, 360 ;
+
+   MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000 ;
+
+   MaxPowerFlow = 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000 ;
+
+  group: UnitBlock_0 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 232.4 ;
+
+     InitialReactivePower = -16.9 ;
+
+     MaxReactivePower = 10 ;
+
+     MinReactivePower = 0 ;
+
+     VoltageMagnitude = 1.06 ;
+
+     MaxPower = 332.4 ;
+
+     MinPower = 0 ;
+
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0.0430292599, 20, 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_0
+
+  group: UnitBlock_1 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 40 ;
+
+     InitialReactivePower = 42.4 ;
+
+     MaxReactivePower = 50 ;
+
+     MinReactivePower = -40 ;
+
+     VoltageMagnitude = 1.045 ;
+
+     MaxPower = 140 ;
+
+     MinPower = 0 ;
+
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0.25, 20, 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_1
+
+  group: UnitBlock_2 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     InitialReactivePower = 23.4 ;
+
+     MaxReactivePower = 40 ;
+
+     MinReactivePower = 0 ;
+
+     VoltageMagnitude = 1.01 ;
+
+     MaxPower = 100 ;
+
+     MinPower = 0 ;
+
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0.01, 40, 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_2
+
+  group: UnitBlock_3 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     InitialReactivePower = 12.2 ;
+
+     MaxReactivePower = 24 ;
+
+     MinReactivePower = -6 ;
+
+     VoltageMagnitude = 1.07 ;
+
+     MaxPower = 100 ;
+
+     MinPower = 0 ;
+
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0.01, 40, 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_3
+
+  group: UnitBlock_4 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     InitialReactivePower = 17.4 ;
+
+     MaxReactivePower = 24 ;
+
+     MinReactivePower = -6 ;
+
+     VoltageMagnitude = 1.09 ;
+
+     MaxPower = 100 ;
+
+     MinPower = 0 ;
+
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0.01, 40, 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_4
+  } // group Block_0
+}

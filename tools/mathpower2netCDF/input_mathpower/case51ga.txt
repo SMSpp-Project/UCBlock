@@ -1,0 +1,233 @@
+netcdf case51ga {
+
+// global attributes:
+		:SMS++_file_type = 1 ;
+		:baseMVA = 1. ;
+
+group: Block_0 {
+  dimensions:
+  	NumberElectricalGenerators = 1 ;
+  	NumberNodes = 51 ;
+  	NumberLines = 50 ;
+  	TimeHorizon = 1 ;
+  	NumberUnits = 1 ;
+  variables:
+  	string NetworkBlockClassname ;
+  	uint GeneratorNode(NumberElectricalGenerators) ;
+  	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	double NodeConductance(NumberNodes) ;
+  	double NodeSusceptance(NumberNodes) ;
+  	double NodeMaxVoltage(NumberNodes) ;
+  	double NodeMinVoltage(NumberNodes) ;
+  	uint StartLine(NumberLines) ;
+  	uint EndLine(NumberLines) ;
+  	double LineResistance(NumberLines) ;
+  	double LineReactance(NumberLines) ;
+  	double LineSusceptance(NumberLines) ;
+  	double LineRATEA(NumberLines) ;
+  	double LineRatio(NumberLines) ;
+  	double LineShiftAngle(NumberLines) ;
+  	double LineMinAngle(NumberLines) ;
+  	double LineMaxAngle(NumberLines) ;
+  	double MinPowerFlow(NumberLines) ;
+  	double MaxPowerFlow(NumberLines) ;
+
+  // group attributes:
+  		:type = "UCBlock" ;
+  		:id = "0" ;
+  data:
+
+   NetworkBlockClassname = "ACNetworkBlock" ;
+
+   GeneratorNode = 0 ;
+
+   ActivePowerDemand =
+  0,
+  0.04,
+  0.06,
+  0.02,
+  0.08,
+  0.038,
+  0.02,
+  0.06,
+  0.07,
+  0.06,
+  0.08,
+  0.01,
+  0.025,
+  0.055,
+  0.12,
+  0.04,
+  0.035,
+  0.06,
+  0.08,
+  0.06,
+  0.05,
+  0.05,
+  0.08,
+  0.045,
+  0.038,
+  0.078,
+  0.016,
+  0.018,
+  0.04,
+  0.04,
+  0.02,
+  0.03,
+  0.036,
+  0.05,
+  0.027,
+  0.033,
+  0.042,
+  0.055,
+  0.044,
+  0.08,
+  0.06,
+  0.045,
+  0.048,
+  0.068,
+  0.077,
+  0.06,
+  0.04,
+  0.045,
+  0.07,
+  0.03,
+  0.035 ;
+
+   NodeConductance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   NodeSusceptance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   NodeMaxVoltage = 1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 
+      1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 
+      1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 
+      1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1 ;
+
+   NodeMinVoltage = 1, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 
+      0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 
+      0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 
+      0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9 ;
+
+   StartLine = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 2, 16, 17, 
+      18, 19, 20, 3, 22, 23, 24, 25, 26, 27, 5, 29, 30, 31, 32, 33, 34, 35, 
+      36, 37, 6, 39, 40, 41, 42, 43, 8, 45, 46, 47, 48, 49 ;
+
+   EndLine = 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 
+      19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 
+      37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 ;
+
+   LineResistance = 0.274, 0.137, 0.3288, 0.1096, 0.54, 0.36, 0.36, 0.72, 
+      2.732, 2.049, 2.049, 0.9562, 1.0928, 1.5026, 3.0052, 2.732, 0.8196, 
+      1.366, 1.366, 2.049, 1.5026, 1.6392, 1.7758, 1.0928, 0.8196, 0.5464, 
+      1.0928, 0.2732, 0.702, 0.648, 0.648, 0.648, 0.54, 0.324, 0.3888, 0.432, 
+      0.594, 0.702, 1.9124, 3.0052, 2.4588, 2.1856, 2.1856, 0.683, 0.9562, 
+      1.0245, 1.2294, 1.7758, 1.6392, 1.366 ;
+
+   LineReactance = 0.356, 0.178, 0.4272, 0.1424, 0.4356, 0.2904, 0.2904, 
+      0.5808, 0.7792, 0.5844, 0.5844, 0.2727, 0.3117, 0.4286, 0.8571, 0.7792, 
+      0.2338, 0.3896, 0.3896, 0.5844, 0.4286, 0.4675, 0.5065, 0.3117, 0.2338, 
+      0.1558, 0.3117, 0.0779, 0.4774, 0.4406, 0.4406, 0.4406, 0.3672, 0.2203, 
+      0.2644, 0.2938, 0.4039, 0.4774, 0.5454, 0.8571, 0.7013, 0.6234, 0.6234, 
+      0.1948, 0.2727, 0.2922, 0.3506, 0.5065, 0.4675, 0.3896 ;
+
+   LineSusceptance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0 ;
+
+   LineRATEA = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0 ;
+
+   LineRatio = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0 ;
+
+   LineShiftAngle = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+      0, 0, 0, 0, 0, 0, 0 ;
+
+   LineMinAngle = -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, -360, 
+      -360, -360, -360, -360 ;
+
+   LineMaxAngle = 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 
+      360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 
+      360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 360, 
+      360, 360, 360, 360, 360, 360, 360, 360, 360, 360 ;
+
+   MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000, -10000, -10000, -10000, -10000, -10000 ;
+
+   MaxPowerFlow = 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000, 10000 ;
+
+  group: UnitBlock_0 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     InitialReactivePower = 0 ;
+
+     MaxReactivePower = 10 ;
+
+     MinReactivePower = -10 ;
+
+     VoltageMagnitude = 1 ;
+
+     MaxPower = 10 ;
+
+     MinPower = 0 ;
+
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 20, 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_0
+  } // group Block_0
+}
