@@ -253,8 +253,8 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
     "BatteryMinCapacityDesign must be <= BatteryMaxCapacityDesign." ) );
 
   if( ( std::abs( f_BattMaxCapacityDesign ) == 1 ) && ( f_BattMinCapacityDesign > 1 ) )
-   throw std::logic_error(
-    "BatteryMinCapacityDesign must be <= 1 when |BatteryMaxCapacityDesign| = 1." );
+   throw( std::logic_error(
+    "BatteryMinCapacityDesign must be <= 1 when |BatteryMaxCapacityDesign| = 1." ) );
  }
 
  if( f_BattMaxCapacityDesign < 0 ) {

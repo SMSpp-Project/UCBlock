@@ -318,7 +318,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
  }
 
  // The variables wrt reference schedule if there
- if ( ! v_RefSchedule.empty() ){
+ if( ! v_RefSchedule.empty() ) {
    v_abs_ref_schedule.resize( f_time_horizon );
    for( auto & var : v_abs_ref_schedule )
      var.set_type( ColVariable::kNonNegative );
@@ -799,7 +799,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  add_static_constraint( VolumetricBounds_Const , "VolumetricBounds_HydroUnit" );
 
- if ( !v_RefSchedule.empty() ){
+ if( ! v_RefSchedule.empty() ) {
    Reference_Schedule_Const.resize( 2*f_time_horizon );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
         // | Sum P - Pref | <= v_abs_ref_schedule
@@ -825,24 +825,23 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  }
 
  // Add the Bounds on the reactive part
- if( ReactivePower_Bound_Const.empty() ){
+ if( ReactivePower_Bound_Const.empty() ) {
     ReactivePower_Bound_Const.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
  }
 
  bool something = false;
  for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if ( get_max_reactive_power(t, g) > 0.0 ){
+    if( get_max_reactive_power( t , g ) > 0.0 ) {
       something = true;
       ReactivePower_Bound_Const[ g ][ t ].set_rhs( v_MaxReactivePower[ t ][ g ] );
-      if ( !v_MinReactivePower.empty() )
+      if( ! v_MinReactivePower.empty() )
         ReactivePower_Bound_Const[ g ][ t ].set_lhs( v_MinReactivePower[ t ][ g ] );
-      //
       ReactivePower_Bound_Const[ g ][ t ].set_variable( &v_reactive_power[ g ][ t ] );
     }
   }
  }
- if (something )
+ if( something )
   add_static_constraint( ReactivePower_Bound_Const ,
                          "ReactivePowerBound" );
 
@@ -880,13 +879,13 @@ void HydroUnitBlock::generate_objective( Configuration * objc )
  // the variables to fill in - only when the reference schedule is there 
   LinearFunction::v_coeff_pair vars;
 
- if( !v_ActivePowerCost.empty() )
+ if( ! v_ActivePowerCost.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    for( Index arc = 0 ; arc < f_TotalNumberPieces ; ++arc )
     vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                     v_ActivePowerCost[ arc ] ) );
 
- if ( !v_RefSchedule.empty() ){
+ if( ! v_RefSchedule.empty() ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t )
       vars.push_back( std::make_pair( &v_abs_ref_schedule[ t ] , 1.0 ) );
  }
