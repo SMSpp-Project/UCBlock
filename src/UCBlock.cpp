@@ -243,9 +243,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   network_block_classname = "DCNetworkBlock";
 
   if( ! ::deserialize( group , network_data_classname ,
-                      "NetworkDataClassname" ) ){
-    network_data_classname = (network_block_classname == "ACNetworkBlock") ? "ACNetworkData" : "DCNetworkData";                        
-  }
+                       "NetworkDataClassname" ) )
+    network_data_classname = ( network_block_classname == "ACNetworkBlock" )
+                              ? "ACNetworkData"
+                              : "DCNetworkData";
 
  Index number_nodes;
  if( ! deserialize_dim( group , "NumberNodes" , number_nodes ) ) {

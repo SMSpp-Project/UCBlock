@@ -867,7 +867,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  }  // end( switch )
 
  // The variables wrt reference schedule if there
- if ( ! v_RefSchedule.empty() ){
+ if ( ! v_RefSchedule.empty() ) {
    v_abs_ref_schedule.resize( f_time_horizon );
    for( auto & var : v_abs_ref_schedule )
      var.set_type( ColVariable::kNonNegative );
@@ -954,7 +954,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       // P_t >= Pmax(t)
       auto lfunck = new LinearFunction();
       lfunck->add_variable( & v_active_power[ t ], 1.0 );
-      fixed_to_max_Power_Const[ t ].set_lhs( get_operational_max_power(t) );
+      fixed_to_max_Power_Const[ t ].set_lhs( get_operational_max_power( t ) );
       fixed_to_max_Power_Const[ t ].set_rhs( Inf< double >() );
       fixed_to_max_Power_Const[ t ].set_function( lfunck );
     }
@@ -3420,7 +3420,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( Eq_PC_Const , "Eq_PC_Const_Thermal" );
  }
 
- if ( !v_RefSchedule.empty() ){
+ if ( ! v_RefSchedule.empty() ) {
    Reference_Schedule_Const.resize( 2*f_time_horizon );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // | P - Pref | <= v_abs_ref_schedule
@@ -3451,17 +3451,15 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
  
  bool something = false;
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if ( get_max_reactive_power(t) > 0.0 ){
+  if ( get_max_reactive_power( t ) > 0.0 ) {
     something = true;
     ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
     ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
-    //
     ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
   }
  }
- if (something )
-  add_static_constraint( ReactivePower_Bound_Const ,
-                         "ReactivePowerBound" );
+ if( something )
+  add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
 
  // Link between active and reactive power
  Reactive_2_Active_Const.resize( f_time_horizon );
@@ -3835,7 +3833,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  */
 
  // add the active power variables- - - - - - - - - - - - - - - - - - - - - -
- //if ( v_RefSchedule.empty() ){
+ //if ( v_RefSchedule.empty() ) {
     for( Index t = 0 ; t < f_time_horizon ; ++t )
       vars.push_back( std::make_tuple( &v_active_power[ t ] ,
                                    f_scale * v_LinearTerm[ t ] ,
@@ -3847,7 +3845,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
                                    f_scale * v_ConstTerm[ t ] , 0.0 ) );
   //}
   //else{
-  if ( !v_RefSchedule.empty() ){
+  if ( ! v_RefSchedule.empty() ) {
     for( Index t = 0 ; t < f_time_horizon ; ++t )
       vars.push_back( std::make_tuple( &v_abs_ref_schedule[ t ] , 1.0 , 0.0 ) );
   }

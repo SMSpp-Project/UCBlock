@@ -424,17 +424,15 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
  
  bool something = false;
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if ( get_max_reactive_power(t) > 0.0 ){
+  if ( get_max_reactive_power( t ) > 0.0 ) {
     something = true;
     ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
     ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
-    //
     ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
   }
  }
- if (something )
-  add_static_constraint( ReactivePower_Bound_Const ,
-                         "ReactivePowerBound" );
+ if( something )
+  add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
 
  // Link between active and reactive power
  Reactive_2_Active_Const.resize( f_time_horizon );

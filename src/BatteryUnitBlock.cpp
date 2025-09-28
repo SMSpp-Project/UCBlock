@@ -514,7 +514,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
 
 
  // The variables wrt reference schedule if there
- if ( ! v_RefSchedule.empty() ){
+ if ( ! v_RefSchedule.empty() ) {
    v_abs_ref_schedule.resize( f_time_horizon );
    for( auto & var : v_abs_ref_schedule )
      var.set_type( ColVariable::kNonNegative );
@@ -1057,7 +1057,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    add_static_constraint( battery_binary_bound_Const , "Binary_Battery" );
   }
 
-  if ( !v_RefSchedule.empty() ){
+  if ( ! v_RefSchedule.empty() ) {
    Reference_Schedule_Const.resize( 2*f_time_horizon );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // | P - Pref | <= v_abs_ref_schedule
@@ -1088,17 +1088,15 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
  
  bool something = false;
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if ( get_max_reactive_power(t) > 0.0 ){
+  if ( get_max_reactive_power( t ) > 0.0 ) {
     something = true;
     ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
     ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
-    //
     ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
   }
  }
- if (something )
-  add_static_constraint( ReactivePower_Bound_Const ,
-                         "ReactivePowerBound" );
+ if( something )
+  add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
 
  // Link between active and reactive power
  Reactive_2_Active_Const.resize( f_time_horizon );
@@ -1140,7 +1138,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  if( f_ConvInvestmentCost != 0 )
   lf->add_variable( &conv_design , f_ConvInvestmentCost );
 
- if ( !v_RefSchedule.empty() ){
+ if ( ! v_RefSchedule.empty() ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t )
       lf->add_variable( &v_abs_ref_schedule[ t ] , 1.0  );
  }
