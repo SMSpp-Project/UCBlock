@@ -867,11 +867,11 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  }  // end( switch )
 
  // The variables wrt reference schedule if there
- if ( ! v_RefSchedule.empty() ) {
-   v_abs_ref_schedule.resize( f_time_horizon );
-   for( auto & var : v_abs_ref_schedule )
-     var.set_type( ColVariable::kNonNegative );
-   add_static_variable( v_abs_ref_schedule , "v_abs_refschd" );
+ if( ! v_RefSchedule.empty() ) {
+  v_abs_ref_schedule.resize( f_time_horizon );
+  for( auto & var : v_abs_ref_schedule )
+   var.set_type( ColVariable::kNonNegative );
+  add_static_variable( v_abs_ref_schedule , "v_abs_refschd" );
  }
  
  set_variables_generated();
@@ -3420,7 +3420,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( Eq_PC_Const , "Eq_PC_Const_Thermal" );
  }
 
- if ( ! v_RefSchedule.empty() ) {
+ if( ! v_RefSchedule.empty() ) {
    Reference_Schedule_Const.resize( 2*f_time_horizon );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // | P - Pref | <= v_abs_ref_schedule
@@ -3428,14 +3428,14 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     lfunc_1->add_variable( & v_active_power[ t ], 1.0 );
     lfunc_1->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
     Reference_Schedule_Const[ t ].set_lhs( -Inf< double >() );
-    Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[t] );
+    Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[ t ] );
     Reference_Schedule_Const[ t ].set_function( lfunc_1 );
     //
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( & v_active_power[ t ], -1.0 );
     lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
     Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
-    Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[t] );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[ t ] );
     Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );
    }
    add_static_constraint( Reference_Schedule_Const, "Norm1_Reference_Schedule" );
@@ -3833,21 +3833,19 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  */
 
  // add the active power variables- - - - - - - - - - - - - - - - - - - - - -
- //if ( v_RefSchedule.empty() ) {
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-      vars.push_back( std::make_tuple( &v_active_power[ t ] ,
-                                   f_scale * v_LinearTerm[ t ] ,
-                                   AR & PCuts ? 0.0 : f_scale * v_QuadTerm[ t ] ) );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+    vars.push_back( std::make_tuple( &v_active_power[ t ] ,
+                                 f_scale * v_LinearTerm[ t ] ,
+                                 AR & PCuts ? 0.0 : f_scale * v_QuadTerm[ t ] ) );
 
-    // add the commitment variables- - - - - - - - - - - - - - - - - - - - - - -
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-      vars.push_back( std::make_tuple( &v_commitment[ t ] ,
-                                   f_scale * v_ConstTerm[ t ] , 0.0 ) );
-  //}
-  //else{
-  if ( ! v_RefSchedule.empty() ) {
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-      vars.push_back( std::make_tuple( &v_abs_ref_schedule[ t ] , 1.0 , 0.0 ) );
+  // add the commitment variables - - - - - - - - - - - - - - - - - - - - - -
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+    vars.push_back( std::make_tuple( &v_commitment[ t ] ,
+                                 f_scale * v_ConstTerm[ t ] , 0.0 ) );
+
+  if( ! v_RefSchedule.empty() ) {
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    vars.push_back( std::make_tuple( &v_abs_ref_schedule[ t ] , 1.0 , 0.0 ) );
   }
 
  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {

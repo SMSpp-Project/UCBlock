@@ -581,7 +581,7 @@ class DCNetworkData : public NetworkData
  void compute_cycle_basis(int root = -1);  // be carefull -> root is int and not Index, as it can be negative
 
  const std::vector< std::vector< Index > > & get_cycle_basis( void ) {
-  if ( ! cycle_basis_was_computed )
+  if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
   return( v_cycle_basis );
   }
@@ -596,7 +596,7 @@ class DCNetworkData : public NetworkData
 /* Return a map where the keys are the line ids involved in the spanning tree and the
 value is 1 if the directed line is in the tree and -1 if the reverse directed line is in the tree.*/
 std::map< Index, int > get_lines_in_spanning_tree( void ) {
-  if ( ! cycle_basis_was_computed )
+  if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
 
   const auto number_lines = get_number_lines();
@@ -625,7 +625,7 @@ std::map< Index, int > get_lines_in_spanning_tree( void ) {
 /* Return a vector of map where the keys are the line ids involved in the cycle and the
 value is 1 if the directed line is in the cycle and -1 if the reverse directed line is in the cycle.*/
 std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
-  if ( ! cycle_basis_was_computed )
+  if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
 
   const auto number_nodes = get_number_nodes();

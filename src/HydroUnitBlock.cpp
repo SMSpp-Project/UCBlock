@@ -809,7 +809,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
         }
         lfunc_1->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
         Reference_Schedule_Const[ t ].set_lhs( -Inf< double >() );
-        Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[t] );
+        Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[ t ] );
         Reference_Schedule_Const[ t ].set_function( lfunc_1 );
         //
         auto lfunc_2 = new LinearFunction();
@@ -818,7 +818,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
         }
         lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
         Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
-        Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[t] );
+        Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[ t ] );
         Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );      
    }
    add_static_constraint( Reference_Schedule_Const, "Norm1_H_Reference_Schedule" );
