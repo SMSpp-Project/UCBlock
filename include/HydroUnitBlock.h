@@ -1887,8 +1887,8 @@ class HydroUnitBlock : public UnitBlock
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_SecondaryRho;
 
- /// the reference Schedule : optional information to deviate minimally from if there
- std::vector< double > v_RefSchedule ;
+ /// the reference Schedule: optional information to deviate minimally from if there
+ std::vector< double > v_RefSchedule;
 
 /*-------------------------------- variables -------------------------------*/
 

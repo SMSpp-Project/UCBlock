@@ -2671,8 +2671,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of coefficients for the cost
  std::vector< double > v_PowerCostCoeffs;
 
- /// the reference Schedule : optional information to deviate minimally from if there
- std::vector< double > v_RefSchedule ;
+ /// the reference Schedule: optional information to deviate minimally from if there
+ std::vector< double > v_RefSchedule;
 
  // the vector for separating PC-cuts
  std::vector< double >  prevpbar;

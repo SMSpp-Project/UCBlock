@@ -1808,8 +1808,8 @@ class BatteryUnitBlock : public UnitBlock
  /// the scale factor
  double f_scale;
 
- /// the reference Schedule : optional information to deviate minimally from if there
- std::vector< double > v_RefSchedule ;
+ /// the reference Schedule: optional information to deviate minimally from if there
+ std::vector< double > v_RefSchedule;
 
 /*-------------------------------- variables -------------------------------*/
 
