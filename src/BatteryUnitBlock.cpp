@@ -1088,7 +1088,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
  
  bool something = false;
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if ( get_max_reactive_power( t ) > 0.0 ) {
+  if( get_max_reactive_power( t ) > 0.0 ) {
     something = true;
     ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
     ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
@@ -1125,7 +1125,7 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  auto lf = new LinearFunction();
 
- if ( v_RefSchedule.empty() ) {
+ if( v_RefSchedule.empty() ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
      lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] , eDryRun );

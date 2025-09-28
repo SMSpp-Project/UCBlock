@@ -303,7 +303,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  }
 
  if( ::deserialize( group , f_fixToMax , "FixToMaximum" ) )
-    f_fixToMax = std::max( f_fixToMax , 0 );
+  f_fixToMax = std::max( f_fixToMax , 0 );
 
  // variables for AC elements
  if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
@@ -321,8 +321,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "PowerCostCoeffs" , v_PowerCostCoeffs );
  ::deserialize( group , f_CostModel , "CostModel" );
 
- // variables pour la reference schedule
- ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true, v_change_intervals );
+ ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule,
+                true, true, v_change_intervals );
  
  if( ! ::deserialize( group , "StartUpLimit" , f_time_horizon , v_StartUpLimit ,
                       true , true , v_change_intervals ) ) {
@@ -948,7 +948,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      }
  
  /// If the unit is supposed to be fixed to maximum generation, we will now add these constraints
- if ( f_fixToMax > 0){
+ if( f_fixToMax > 0 ) {
     fixed_to_max_Power_Const.resize( f_time_horizon );
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       // P_t >= Pmax(t)
@@ -3451,7 +3451,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
  
  bool something = false;
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if ( get_max_reactive_power( t ) > 0.0 ) {
+  if( get_max_reactive_power( t ) > 0.0 ) {
     something = true;
     ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
     ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
