@@ -1383,7 +1383,6 @@ class UCBlock : public Block
  boost::multi_array< double , 2 > v_active_power_demand;
  boost::multi_array< double , 2 > v_reactive_power_demand;
 
-
  /// the vector of PrimaryZones
  std::vector< Index > v_primary_zones;
 

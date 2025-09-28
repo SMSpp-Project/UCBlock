@@ -450,7 +450,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     }
 
     if( ! nbi->get_reactive_demand( i ) ) {
-     if( v_reactive_power_demand.num_elements() ) { // TODO: should be an error for AC but optionnal for DC
+     if( ! v_reactive_power_demand.empty() ) { // TODO: should be an error for AC but optional for DC
       typedef boost::multi_array_types::index_range range;
       auto r_ap_c = v_reactive_power_demand[
       boost::indices[ range( 0 , number_nodes ) ][ t ] ];
@@ -708,6 +708,9 @@ void UCBlock::generate_node_injection_constraints( void )
 
 void UCBlock::generate_reactive_node_injection_constraints( void )
 {
+ if( v_reactive_power_demand.empty() )
+  return;
+
  const auto number_nodes = get_number_nodes();
 
  v_reactive_node_injection_Const.resize(

@@ -97,7 +97,6 @@ void NetworkBlock::generate_abstract_variables( Configuration * stvv )
     v_node_injection[ t ][ node_id ].set_type( ColVariable::kContinuous );
   add_static_variable( v_node_injection , "s_network" );
 
-
   // the node injection variables
   v_reactive_node_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
   for( Index t = 0 ; t < number_intervals ; ++t )

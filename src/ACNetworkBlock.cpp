@@ -127,29 +127,10 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ACNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
+void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
+{
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
-
- // QJ: print for debug
- std::cout << "LineResistance size : " <<
-  f_NetworkData->get_line_resistance().size() << std::endl;
- std::cout << "LineReactance size : " <<
-  f_NetworkData->get_line_reactance().size() << std::endl;
- std::cout << "LineSusceptance size : " <<
-  f_NetworkData->get_line_susceptance().size() << std::endl;
- std::cout << "NodeSusceptance size : " <<
-  f_NetworkData->get_node_susceptance().size() << std::endl;
- std::cout << "NodeConductance size : " <<
-  f_NetworkData->get_node_conductance().size() << std::endl;
- std::cout << "NodeMinVoltage size : " <<
-  f_NetworkData->get_node_min_voltage().size() << std::endl;
- std::cout << "NodeMaxVoltage size : " <<
-  f_NetworkData->get_node_max_voltage().size() << std::endl;
- std::cout << "LineMinAngle size : " <<
-  f_NetworkData->get_line_min_angle().size() << std::endl;
- std::cout << "LineMaxAngle size : " <<
-  f_NetworkData->get_line_max_angle().size() << std::endl;
 
  // generate first the same variables as in the DCNetwork
  DCNetworkBlock::generate_abstract_variables( stvv );
