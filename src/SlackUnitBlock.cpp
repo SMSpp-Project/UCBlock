@@ -279,19 +279,17 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  /// Reactive power bounds constraints
  if( ReactivePower_Bound_Const.size() != f_time_horizon ) {
-  // this should only happen once
   assert( ReactivePower_Bound_Const.empty() );
-
   ReactivePower_Bound_Const.resize( f_time_horizon );
  }
- 
+
  bool something = false;
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( get_max_reactive_power( t ) > 0.0 ) {
-    something = true;
-    ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
-    ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
-    ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
+   something = true;
+   ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
+   ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
+   ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
   }
  }
  if( something )
@@ -302,8 +300,8 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // Q(t) - P(t) <= 0
     auto lfunc = new LinearFunction();
-    lfunc->add_variable( & v_active_power[ t ], -1.0 );
-    lfunc->add_variable( & v_reactive_power[ t ], 1.0 );
+    lfunc->add_variable( &v_active_power[ t ], -1.0 );
+    lfunc->add_variable( &v_reactive_power[ t ], 1.0 );
     
     Reactive_2_Active_Const[ t ].set_lhs( -Inf< double >() );
     Reactive_2_Active_Const[ t ].set_rhs( 0.0 );

@@ -313,26 +313,23 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the minimum reactive power of \p generator at time \p t
 
-  virtual double get_min_reactive_power( Index t , Index generator = 0 )
-   const {
-   return( 0 );
-   }
+ virtual double get_min_reactive_power( Index t , Index generator = 0 ) const {
+  return( 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum reactive power of \p generator at time \p t
 
- virtual double get_max_reactive_power( Index t , Index generator = 0 )
-  const {
+ virtual double get_max_reactive_power( Index t , Index generator = 0 ) const {
   return( 0 );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the voltage magnitude of \p generator at time \p t
 
-  virtual double get_voltage_magnitude( Index t , Index generator = 0 )
-   const {
-   return( 0 );
-   }
+ virtual double get_voltage_magnitude( Index t , Index generator = 0 ) const {
+  return( 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of cost coefficients of \p generator

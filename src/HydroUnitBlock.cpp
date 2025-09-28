@@ -226,8 +226,8 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "VoltageMagnitude" , { f_time_horizon , f_NumberArcs } ,
                 v_VoltageMagnitude , true , true , v_change_intervals );                
 
- // variables pour la reference schedule
- ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true, v_change_intervals );
+ ::deserialize( group , "ReferenceSchedule" , f_time_horizon , v_RefSchedule ,
+                true , true , v_change_intervals );
 
 }  // end( HydroUnitBlock::deserialize )
 
@@ -262,26 +262,26 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
    // and MaxFlow (basically, turbines have >= 0 flows and pumps have <=
    // flows, although note that the funny case in which both happens and
    // the flow is fixed to 0 is not excluded)
-   if( v_MinFlow.empty()  || ( v_MinFlow[ t ][ g ] >= 0 ) )
+   if( v_MinFlow.empty() || ( v_MinFlow[ t ][ g ] >= 0 ) )
     v_flow_rate[ g ][ t ].is_positive( true , eNoMod );
-   if( v_MaxFlow.empty()  || ( v_MaxFlow[ t ][ g ] <= 0 ) )
+   if( v_MaxFlow.empty() || ( v_MaxFlow[ t ][ g ] <= 0 ) )
     v_flow_rate[ g ][ t ].is_negative( true , eNoMod );
 
    v_active_power[ g ][ t ].set_type( ColVariable::kContinuous , eNoMod );
    // put sign constraints on the active power variables in accordance to
    // MinPower and MaxPower
-   if( v_MinPower.empty()  || ( v_MinPower[ t ][ g ] >= 0 ) )
+   if( v_MinPower.empty() || ( v_MinPower[ t ][ g ] >= 0 ) )
     v_active_power[ g ][ t ].is_positive( true , eNoMod );
-   if( v_MaxPower.empty()  || ( v_MaxPower[ t ][ g ] <= 0 ) )
+   if( v_MaxPower.empty() || ( v_MaxPower[ t ][ g ] <= 0 ) )
     v_active_power[ g ][ t ].is_negative( true , eNoMod );
 
    // repeat the work for reactive stuff
    v_reactive_power[ g ][ t ].set_type( ColVariable::kContinuous , eNoMod );
    // put sign constraints on the reactive power variables in accordance to
    // MinReactivePower and MaxReactivePower
-   if( v_MinReactivePower.empty()  || ( v_MinReactivePower[ t ][ g ] >= 0 ) )
+   if( v_MinReactivePower.empty() || ( v_MinReactivePower[ t ][ g ] >= 0 ) )
     v_reactive_power[ g ][ t ].is_positive( true , eNoMod );
-   if( v_MaxReactivePower.empty()  || ( v_MaxReactivePower[ t ][ g ] <= 0 ) )
+   if( v_MaxReactivePower.empty() || ( v_MaxReactivePower[ t ][ g ] <= 0 ) )
     v_reactive_power[ g ][ t ].is_negative( true , eNoMod ); 
    }
   }
@@ -825,25 +825,25 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  }
 
  // Add the Bounds on the reactive part
- if( ReactivePower_Bound_Const.empty() ) {
-    ReactivePower_Bound_Const.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
- }
+ if( ReactivePower_Bound_Const.empty() )
+    ReactivePower_Bound_Const.resize(
+     boost::extents[ f_NumberArcs ][ f_time_horizon ] );
 
  bool something = false;
  for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( get_max_reactive_power( t , g ) > 0.0 ) {
-      something = true;
-      ReactivePower_Bound_Const[ g ][ t ].set_rhs( v_MaxReactivePower[ t ][ g ] );
-      if( ! v_MinReactivePower.empty() )
-        ReactivePower_Bound_Const[ g ][ t ].set_lhs( v_MinReactivePower[ t ][ g ] );
-      ReactivePower_Bound_Const[ g ][ t ].set_variable( &v_reactive_power[ g ][ t ] );
-    }
+   if( ( ! v_MaxReactivePower.empty() ) &&
+       ( get_max_reactive_power( t , g ) > 0.0 ) ) {
+    something = true;
+    ReactivePower_Bound_Const[ g ][ t ].set_rhs( v_MaxReactivePower[ t ][ g ] );
+    if( ! v_MinReactivePower.empty() )
+     ReactivePower_Bound_Const[ g ][ t ].set_lhs( v_MinReactivePower[ t ][ g ] );
+    ReactivePower_Bound_Const[ g ][ t ].set_variable( &v_reactive_power[ g ][ t ] );
+   }
   }
  }
  if( something )
   add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
-
 
  // Link between active and reactive power
  Reactive_2_Active_Const.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
@@ -851,8 +851,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // Q(g,t) - P(g,t) <= 0
     auto lfunc = new LinearFunction();
-    lfunc->add_variable( & v_active_power[ g ][ t ], -1.0 );
-    lfunc->add_variable( & v_reactive_power[ g ][ t ], 1.0 );
+    lfunc->add_variable( &v_active_power[ g ][ t ], -1.0 );
+    lfunc->add_variable( &v_reactive_power[ g ][ t ], 1.0 );
 
     Reactive_2_Active_Const[ g ][ t ].set_lhs( -Inf< double >() );
     Reactive_2_Active_Const[ g ][ t ].set_rhs( 0.0 );
