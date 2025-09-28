@@ -63,12 +63,20 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group ) {
  DCNetworkData::deserialize( group );
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_vars = {
-  "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
-  "NodeVoltageMagnitude" , "NodeVoltageAngle" , "NodeMaxVoltage" ,
-  "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio" ,
-  "LineRATEA" , "LineShiftAngle" , "LineMinAngle" , "LineMaxAngle"
- };
+ static std::vector< std::string > expected_vars = { "ReactivePowerDemand" ,
+                                                     "NodeConductance" ,
+                                                     "NodeSusceptance" ,
+                                                     "NodeVoltageMagnitude" ,
+                                                     "NodeVoltageAngle" ,
+                                                     "NodeMaxVoltage" ,
+                                                     "NodeMinVoltage" ,
+                                                     "LineResistance" ,
+                                                     "LineReactance" ,
+                                                     "LineRatio" ,
+                                                     "LineRATEA" ,
+                                                     "LineShiftAngle" ,
+                                                     "LineMinAngle" ,
+                                                     "LineMaxAngle" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -364,8 +372,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  // v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2*number_lines ] );
 
  // New version without explicit definition of Yff, Yft, Ytf, Ytt
- std::vector< std::complex< double > > v_admittance = std::vector< std::complex<
-  double > >( number_lines , 0. );
+ std::vector< std::complex< double > > v_admittance =
+  std::vector< std::complex< double > >( number_lines , 0. );
  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
   Index i = start_line[ line_id ];
   Index j = end_line[ line_id ];

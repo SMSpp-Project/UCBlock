@@ -219,8 +219,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                "MaxReactivePower",
                                                "ReferenceSchedule",
                                                "FixToMaximum",
-                                               "VoltageMagnitude"                                                                                            
-                                              };
+                                               "VoltageMagnitude" };
   check_variables( group , expected_vars , std::cerr );
  }
 #endif
