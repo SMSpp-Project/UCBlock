@@ -543,9 +543,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                     max_node_injection );
 
      v_network_blocks[ n ]->set_min_reactive_node_injection( i , node_id , 
-                                                            min_reactive_node_injection);
+                                                             min_reactive_node_injection);
      v_network_blocks[ n ]->set_max_reactive_node_injection( i , node_id , 
-                                                            max_reactive_node_injection);
+                                                             max_reactive_node_injection);
     }
  }
 

@@ -819,7 +819,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
         lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
         Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
         Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[ t ] );
-        Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );      
+        Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );
    }
    add_static_constraint( Reference_Schedule_Const, "Norm1_H_Reference_Schedule" );
  }
@@ -842,8 +842,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
   }
  }
  if( something )
-  add_static_constraint( ReactivePower_Bound_Const ,
-                         "ReactivePowerBound" );
+  add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
 
 
  // Link between active and reactive power
@@ -854,7 +853,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
     auto lfunc = new LinearFunction();
     lfunc->add_variable( & v_active_power[ g ][ t ], -1.0 );
     lfunc->add_variable( & v_reactive_power[ g ][ t ], 1.0 );
-    
+
     Reactive_2_Active_Const[ g ][ t ].set_lhs( -Inf< double >() );
     Reactive_2_Active_Const[ g ][ t ].set_rhs( 0.0 );
     Reactive_2_Active_Const[ g ][ t ].set_function( lfunc );

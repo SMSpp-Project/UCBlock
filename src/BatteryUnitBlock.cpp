@@ -209,15 +209,15 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
  // variables for AC elements
  if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
                       true , true , v_change_intervals ) )
-    v_MaxReactivePower.resize( f_time_horizon, 0.0 );
+    v_MaxReactivePower.resize( f_time_horizon , 0.0 );
 
  if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
                       true , true , v_change_intervals ) )
-    v_MinReactivePower.resize( f_time_horizon, 0.0 );
+    v_MinReactivePower.resize( f_time_horizon , 0.0 );
 
  if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
                       true , true , v_change_intervals ) )
-    v_VoltageMagnitude.resize( f_time_horizon, 0.0 );
+    v_VoltageMagnitude.resize( f_time_horizon , 0.0 );
 
  // variables pour la reference schedule
  ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true, v_change_intervals );
