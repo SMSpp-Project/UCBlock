@@ -28,11 +28,11 @@ function csvEC2nc4(deterministic::Bool=false)
 
     middle = "_"
     if occursin("_CO", file_name)
-        middle = "CO_"
+        middle = string(middle, "CO_")
     elseif occursin("_NA", file_name)
-        middle = "NA_"
+        middle = string(middle, "NA_")
     elseif occursin("_NC", file_name)
-        middle = "NC_"
+        middle = string(middle, "NC_")
     end
 
     last = ""
@@ -44,7 +44,7 @@ function csvEC2nc4(deterministic::Bool=false)
     end
 
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset(string("./../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+    ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
     # Store the number of nodes
@@ -526,7 +526,7 @@ function csvEC2nc4(deterministic::Bool=false)
     if !deterministic # stochastic model
 
         # The mode "c" stands for creating a new file (clobber)
-        tssb_ds = NCDataset(string("../EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        tssb_ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
 
         defDim(tssb, "NumberScenarios", scen_s_sample)

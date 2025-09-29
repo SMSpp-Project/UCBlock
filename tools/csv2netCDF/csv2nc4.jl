@@ -28,11 +28,11 @@ function csvEC2nc4(deterministic::Bool=false)
 
     middle = "_"
     if occursin("_CO", file_name)
-        middle = "CO_"
+        middle = string(middle, "CO_")
     elseif occursin("_NA", file_name)
-        middle = "NA_"
+        middle = string(middle, "NA_")
     elseif occursin("_NC", file_name)
-        middle = "NC_"
+        middle = string(middle, "NC_")
     end
 
     last = ""
@@ -44,7 +44,7 @@ function csvEC2nc4(deterministic::Bool=false)
     end
 
     # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset(string("../../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+    ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
     block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
 
     # Store the number of nodes
@@ -526,7 +526,7 @@ function csvEC2nc4(deterministic::Bool=false)
     if !deterministic # stochastic model
 
         # The mode "c" stands for creating a new file (clobber)
-        tssb_ds = NCDataset(string("../../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        tssb_ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
 
         defDim(tssb, "NumberScenarios", scen_s_sample)
@@ -573,6 +573,116 @@ function csvEC2nc4(deterministic::Bool=false)
 
         # StochasticBlock
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+
+        # ------------------------- SimpleDataMapping -------------------------
+        #
+        # We build a vector of SimpleDataMapping for the StochasticBlock so that,
+        # when deserialized by SMS++, each scenario gets its own slice of the
+        # input data and maps it onto the UCBlock "active power demand" target range.
+        #
+        # - We assume 3 scenarios -> 3 mappings (one per scenario).
+        # - Function name (as registered in the C++ methods factory):
+        #       UCBlock::set_active_power_demand
+        # - DataType = 'D' (double)
+        # - Caller    = 'B' (Block)  -> the caller will be the UCBlock itself
+        #   (we provide an *empty* AbstractPath so that the caller resolves to
+        #    the StochasticBlock's inner_block passed as block_reference).
+        # - SetFrom / SetTo are both Ranges (encoded with SetSize = 0),
+        #   with bounds provided in SetElements as concatenated [a,b) intervals.
+        #
+        # Slicing convention (contiguous, non-overlapping):
+        #   Let N be the number of time steps the C++ setter expects.
+        #   We take a single "large" input data vector of length 3N (one chunk per scenario),
+        #   and define:
+        #     mapping 0: SetFrom = [0,   N)  -> SetTo = [0, N)
+        #     mapping 1: SetFrom = [N, 2N)   -> SetTo = [0, N)
+        #     mapping 2: SetFrom = [2N, 3N)  -> SetTo = [0, N)
+        #
+        # IMPORTANT:
+        # - If your C++ setter expects exactly TimeHorizon points, keep N = n_steps (used below).
+        # - If it expects the "NumberIntervals" length instead, replace the N definition with:
+        #       N = dimlen(block, "NumberIntervals")  # (alt)
+        #
+        # At runtime, SMS++ will call set_data(...) on each SimpleDataMapping, passing the
+        # beginning of the large input vector. The mapping extracts the proper N-sized
+        # slice (SetFrom) and forwards it to UCBlock::set_active_power_demand with SetTo = [0,N).
+
+        number_mappings = 3
+
+        # Length per scenario (time steps consumed by the C++ setter).
+        # Default: the full horizon length (TimeHorizon).
+        N = n_steps
+        # (alt) Use the UCBlock "NumberIntervals" instead:
+        # N = dimlen(block, "NumberIntervals")
+
+        # Declare the dimensions required by SMS++ deserialization:
+        # - NumberDataMappings: number of mappings in the vector.
+        # - SetSize_dim: 2 entries per mapping (SetFrom, SetTo).
+        # - SetElements_dim: for Range/Range each mapping contributes 4 UInt32s:
+        #       [from_a, from_b, to_a, to_b]
+        defDim(sb, "NumberDataMappings", number_mappings)
+        defDim(sb, "SetSize_dim", 2 * number_mappings)
+        defDim(sb, "SetElements_dim", 4 * number_mappings)
+
+        # Define the variables that describe the vector of mappings.
+        v_FunctionName = defVar(sb, "FunctionName", String, ("NumberDataMappings",))
+        v_DataType     = defVar(sb, "DataType",     Char,   ("NumberDataMappings",))
+        v_Caller       = defVar(sb, "Caller",       Char,   ("NumberDataMappings",))
+        v_SetSize      = defVar(sb, "SetSize",      UInt32, ("SetSize_dim",))
+        v_SetElements  = defVar(sb, "SetElements",  UInt32, ("SetElements_dim",))
+
+        # Function name (must match the C++ registration exactly).
+        v_FunctionName[:] = fill("UCBlock::set_active_power_demand", number_mappings)
+
+        # Data type for the small vector passed to the function: 'D' = double.
+        # Caller type: 'B' = Block (we'll point to the UCBlock via an empty path).
+        v_DataType[:] = ['D','D','D']
+        v_Caller[:]   = ['B','B','B']
+
+        # SetSize encodes the *types* of SetFrom and SetTo:
+        #   0 -> Range, >0 -> Subset(size)
+        # Here we want Range/Range for all mappings, so the array is:
+        #   [0,0,  0,0,  0,0]
+        v_SetSize[:] = UInt32.([0,0,  0,0,  0,0])
+
+        # Concatenated SetElements for the 3 Range/Range mappings:
+        #   m0: [0, N,  0, N]
+        #   m1: [N, 2N, 0, N]
+        #   m2: [2N,3N, 0, N]
+        setele = UInt32.([ 0,   N,  0, N,
+                           N,  2N,  0, N,
+                           2N, 3N,  0, N ])
+        v_SetElements[:] = setele
+
+        # --------------- AbstractPath vector for the mappings ----------------
+        #
+        # Each mapping needs an AbstractPath telling SMS++ how to reach the caller.
+        # Since Caller = 'B' and we want the *inner UCBlock* (i.e., the reference
+        # passed by the StochasticBlock at deserialization time), we can use an
+        # *empty* path: it resolves to the block_reference itself.
+        #
+        # Vector format:
+        #   - PathDim      = number_mappings
+        #   - TotalLength  = total number of nodes across all paths
+        #                    (0 here, because all paths are empty)
+        #   - PathStart    = offsets in [0, TotalLength) where each path starts
+        #   - PathNodeTypes, PathGroupIndices, PathElementIndices, PathRangeIndices
+        #                    are empty arrays when TotalLength = 0
+        ap = defGroup(sb, "AbstractPath")
+
+        defDim(ap, "PathDim", number_mappings)
+        defDim(ap, "TotalLength", 0)  # empty paths
+
+        v_PathStart        = defVar(ap, "PathStart",         UInt32, ("PathDim",))
+        v_PathNodeTypes    = defVar(ap, "PathNodeTypes",     Char,   ("TotalLength",))
+        v_PathGroupIndices = defVar(ap, "PathGroupIndices",  String, ("TotalLength",))
+        v_PathElementIdx   = defVar(ap, "PathElementIndices",UInt32, ("TotalLength",))
+        v_PathRangeIdx     = defVar(ap, "PathRangeIndices",  UInt32, ("TotalLength",))
+
+        # With empty paths, PathStart can be zero for all entries.
+        v_PathStart[:] = fill(UInt32(0), number_mappings)
+        # The variables sized on TotalLength=0 remain empty.
+        # ---------------------------------------------------------------------
 
         # UCBlock nc4 file
         defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))
