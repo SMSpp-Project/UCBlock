@@ -95,7 +95,7 @@ class HydroSystemUnitBlock : public UnitBlock
  *
  * @{ */
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -106,14 +106,14 @@ class HydroSystemUnitBlock : public UnitBlock
   * father Block. */
 
  explicit HydroSystemUnitBlock( Block * father_block = nullptr )
-  : UnitBlock( father_block ) {}
+  : UnitBlock( father_block ) , f_number_hydro_units( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of HydroSystemUnitBlock
 
  virtual ~HydroSystemUnitBlock() override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -212,7 +212,9 @@ class HydroSystemUnitBlock : public UnitBlock
  * @{ */
 
  /// returns the number of hydro units of the problem
- Index get_number_hydro_units( void ) const { return( f_number_hydro_units ); }
+ Index get_number_hydro_units( void ) const {
+  return( f_number_hydro_units );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the i-th HydroUnitBlock
@@ -241,6 +243,21 @@ class HydroSystemUnitBlock : public UnitBlock
    }
   return( nullptr );
  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive power variables of each HydroUnitBlock
+
+ ColVariable * get_reactive_power( Index generator ) override {
+  auto temp = generator;
+  for( auto sub_block : get_nested_Blocks() )
+   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
+    if( temp < unit_block->get_number_generators() )
+     return( unit_block->get_reactive_power( temp ) );
+    else
+     temp = temp - unit_block->get_number_generators();
+   }
+  return( nullptr );
+ } 
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary spinning reserve variables of each HydroUnitBlock
@@ -321,9 +338,52 @@ class HydroSystemUnitBlock : public UnitBlock
      temp = temp - unit_block->get_number_generators();
    }
   return( 0 );
- }
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+ /// returns a Solution storing the current one of this HydroSystemUnitBlock
+ /** This method must construct and return a (pointer to a) Solution object
+  * representing the current "solution state" of this HydroSystemUnitBlock.
+  * This is a HydroSystemUnitBlockSolution extending UnitBlockSolution with
+  * the specific extra solution information of HydroUnitBlock.
+  *
+  * This Solution object is basically a UnitBlockSolution containing in
+  * addition the collection of HydroUnitBlockSolution, one for each of the
+  * inner HydroUnitBlock of this HydroSystemUnitBlock. However, since the
+  * "root" UnitBlockSolution already contains the active power and other
+  * variables, the "inner" HydroUnitBlockSolution are configured not to
+  * store the same information.
+  * 
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value, coded bitwise:
+  *
+  * - the first seven bits (bit 0 to bit 6) are passed to the "inner"
+  *   HydroUnitBlockSolution with the first four bits masked (set to 0)
+  *   so as to avoid duplicating information
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  *   is solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration< int >, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 63 (save everything). */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+			  bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" [HydroSystem]UnitBlockSolution
+ 
+ UnitBlockSolution * new_Solution( void ) const override;
+
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR SAVING THE HydroSystemUnitBlock --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing & saving the HydroSystemUnitBlock
@@ -336,7 +396,7 @@ class HydroSystemUnitBlock : public UnitBlock
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR MODIFYING THE HydroSystemUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the HydroSystemUnitBlock
@@ -352,15 +412,16 @@ class HydroSystemUnitBlock : public UnitBlock
   * - 1 the unit could have primary spinning reserve variables
   * - 2 the unit could have secondary spinning reserve variables
   *
-  * Note: this method is only to "destroy" the (primary, secondary and inertia)
-  * reserve variables; it cannot create them if they are not there. */
+  * Note: this method is only to "destroy" the (primary, secondary and
+  * inertia) reserve variables; it cannot create them if they are not there.
+ */
 
  void set_reserve_vars( unsigned char what ) override {
   reserve_vars = what;
   for( auto * b : v_Block )
    if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) )
     ub->set_reserve_vars( what );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR INITIALIZING THE HydroSystemUnitBlock -----------*/
@@ -392,11 +453,9 @@ class HydroSystemUnitBlock : public UnitBlock
 /*---------------------------------- data ----------------------------------*/
 
  /// the number of hydro units of the problem
- Index f_number_hydro_units{};
+ Index f_number_hydro_units;
 
 /*-------------------------------- variables -------------------------------*/
-
-
 
 /*------------------------------- constraints ------------------------------*/
 
@@ -444,7 +503,113 @@ class HydroSystemUnitBlock : public UnitBlock
 
  Index get_total_number_reservoirs( void ) const;
 
-};  // end( class( HydroSystemUnitBlock ) )
+ };  // end( class( HydroSystemUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- CLASS HydroSystemUnitBlockSolution ----------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a [UnitBlock]Solution of a HydroSystemUnitBlock
+/** The HydroSystemUnitBlockSolution class derives from UnitBlockSolution and
+ * adds the "standard" information stored in there (active power, possibly
+ * commitment and primary/secondary reserve) the other information that is
+ * typical of the HydroSystemUnitBlock, i.e.,
+ *
+ * - one HydroUnitBlockSolution for each of the "inner" HydroUnitBlock of
+ *   the HydroSystemUnitBlock
+ *
+ * Note, however, that since the "root" UnitBlockSolution contains (if so
+ * required) all the "standard" information, the same is not duplicated in
+ * the "inner" HydroUnitBlockSolution */
+
+class HydroSystemUnitBlockSolution : public UnitBlockSolution
+{
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend HydroSystemUnitBlock;  ///< make HydroSystemUnitBlock friend
+
+/*------ CONSTRUCTING AND DESTRUCTING HydroSystemUnitBlockSolution ---------*/
+
+ /// constructor, it has nothing to do
+ explicit HydroSystemUnitBlockSolution( void ) : UnitBlockSolution() {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void deserialize( const netCDF::NcGroup & group ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~HydroSystemUnitBlockSolution() = default;
+ ///< destructor: it is virtual, and empty
+
+/*--- METHODS DESCRIBING THE BEHAVIOR OF A HydroSystemUnitBlockSolution ---*/
+
+ void read( const Block * block ) override final;
+
+ void write( Block * block ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a HydroSystemUnitBlockSolution into a netCDF::NcGroup
+ /** Serialize a HydroSystemUnitBlockSolution into a netCDF::NcGroup. The
+  * format is the one of UnitBlockSolution
+  * [cf. UnitBlockSolution::serialize()], plus:
+  *
+  * - The dimension "NumberHydroUnits" containing the number of hydro units
+  *   (HydroUnitBlock) in the problem and therefore the number of "inner"
+  *   HydrUnitBlockSolution
+  *
+  * - The groups "HydroUnitBlockSolution_0", "HydroUnitBlockSolution_1", ...,
+  *   "HydroUnitBlockSolution_(n-1)", with n == NumberHydroUnits, containing
+  *   each one HydroUnitBlock.
+  *
+  * Note, however, that since the "root" UnitBlockSolution contains (if so
+  * required) all the "standard" information, the same is not duplicated in
+  * the "inner" HydroUnitBlockSolution */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ HydroSystemUnitBlockSolution * scale( double factor ) const override;
+
+ void sum( const Solution * solution , double multiplier ) override;
+
+ HydroSystemUnitBlockSolution * clone( bool empty = false ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "HydroSystemUnitBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ std::vector< HydroUnitBlockSolution * > v_innerSol;
+ ///< v_innerSol[ i ] = HydroUnitBlockSolution of inner Block i
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( HydroSystemUnitBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

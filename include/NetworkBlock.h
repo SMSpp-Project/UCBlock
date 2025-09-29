@@ -52,6 +52,8 @@
 
 #include "OneVarConstraint.h"
 
+#include "Solution.h"
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -60,7 +62,12 @@
 
 namespace SMSpp_di_unipi_it
 {
+/*--------------------------------------------------------------------------*/
+/*------------------------- FORWARD DECLARATIONS ---------------------------*/
+/*--------------------------------------------------------------------------*/
 
+ class NetworkBlockSolution;  // forward definition of NetworkBlockSolution
+ 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -133,10 +140,10 @@ class NetworkBlock : public Block
  * @{ */
 
   /// constructor of NetworkData, does nothing
-  NetworkData( void ) {}
+ NetworkData( void ) : f_number_nodes( 0 ) {}
 
   /// copy constructor of NetworkData, does nothing
-  explicit NetworkData( const NetworkData * ) {}
+  explicit NetworkData( const NetworkData * ) : f_number_nodes( 0 ) {}
 
   /// destructor of NetworkData: it is virtual, and empty
   virtual ~NetworkData() = default;
@@ -203,16 +210,22 @@ class NetworkBlock : public Block
 /** @name Other initializations
  * @{ */
 
-  /// deserialize a NetworkData out of a netCDF::NcGroup
-  /** Deserialize a DCNetworkData out of a netCDF::NcGroup, which should
-   * contain the following:
-   *
-   * - The dimension "NumberNodes" containing the number of nodes in the
-   *   problem; this dimension is optional, if it is not provided then it is
-   *   taken to be equal to 1.
-   *
-   * No other information is present in the base class, derived ones will
-   * add the information that they need. */
+ /// deserialize a NetworkData out of a netCDF::NcGroup
+ /** Deserialize a DCNetworkData out of a netCDF::NcGroup, which should
+  * contain the following:
+  *
+  * - The dimension "NumberNodes" containing the number of nodes in the
+  *   problem; this dimension is optional, if it is not provided then it is
+  *   taken to be equal to 1.
+  *
+  * - The variable "NodeName", of type netCDF::NcString() and indexed over
+  *   the dimension "NumberNodes". Its i-th entry, namely NodeName[ i ],
+  *   contains the name of the i-th node. This variable is optional, and
+  *   ignored if NumberNodes == 1 (there is only one node, no reason to give
+  *   it a name).
+  *
+  * No other information is present in the base class, derived ones will
+  * add the information that they need. */
 
   virtual void deserialize( const netCDF::NcGroup & group );
 
@@ -226,6 +239,13 @@ class NetworkBlock : public Block
   /** Method for returning the number of nodes of the network. */
 
   Index get_number_nodes( void ) const { return( f_number_nodes ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector containing the name of the nodes
+
+ const std::vector< std::string > & get_node_names( void ) const {
+  return( v_node_names );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkData -----------------*/
@@ -303,6 +323,8 @@ class NetworkBlock : public Block
 
   Index f_number_nodes{};  ///< number of nodes of the network
 
+  std::vector< std::string > v_node_names;  ///< node names
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -359,8 +381,8 @@ class NetworkBlock : public Block
   *   details. All that is optional, because the NetworkData object can
   *   alternatively be passed to the NetworkBlock via a call to
   *   set_NetworkData(). Note that if set_NetworkData() is called, but
-  *   the representation of a NetworkData object is found in the NcGroup, then
-  *   the NetworkData passed by set_NetworkData() is ignored, and a new
+  *   the representation of a NetworkData object is found in the NcGroup,
+  *   then the NetworkData passed by set_NetworkData() is ignored, and a new
   *   NetworkData object is read from the NcGroup and used instead. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
@@ -375,10 +397,11 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// generate the static constraints of NetworkBlock
- /** The base NetworkBlock class has just the node injection bound constraints.
-  */
+ /** The base NetworkBlock class has just the node injection bound
+  * constraints. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr )
+  override;
 
 /*--------------------------------------------------------------------------*/
  /// loads a NetworkBlock from an input standard stream.
@@ -478,6 +501,9 @@ class NetworkBlock : public Block
  virtual void set_ActiveDemand(
                         const boost::multi_array< double , 2 > & v ) = 0;
 
+ virtual void set_ReactiveDemand(
+                        const boost::multi_array< double , 2 > & v ) = 0;
+
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection
 
@@ -500,13 +526,35 @@ class NetworkBlock : public Block
   v_MaxNodeInjection[ interval ][ node ] = max_injection;
  }
 
+ /*--------------------------------------------------------------------------*/
+ /// method to set the MinReactiveNodeInjection
+
+ void set_min_reactive_node_injection( Index interval , Index node ,
+                              const double min_injection ) {
+  if( v_MinReactiveNodeInjection.empty() )
+   v_MinReactiveNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MinReactiveNodeInjection[ interval ][ node ] = min_injection;
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxReactiveNodeInjection
+
+ void set_max_reactive_node_injection( Index interval , Index node ,
+                              const double max_injection ) {
+  if( v_MaxReactiveNodeInjection.empty() )
+   v_MaxReactiveNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
+                              [ get_number_intervals() ][ get_number_nodes() ] );
+  v_MaxReactiveNodeInjection[ interval ][ node ] = max_injection;
+ }
+
 /*--------------------------------------------------------------------------*/
  /// method to add data of a generator to a given node
 
  virtual void add_ACdata( Index i, Index node_id , UnitBlock * unit_block ,
                           Index t , Index g ) {};
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NetworkBlock
@@ -520,9 +568,9 @@ class NetworkBlock : public Block
  virtual Index get_number_nodes( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the number of intervals spanned by the network
- /** Method for returning the number of intervals spanned by this network. */
+ /** Method for returning the number of intervals spanned by this network;
+  * by default it is 1. */
 
  virtual Index get_number_intervals( void ) const { return( 1 ); }
 
@@ -552,6 +600,10 @@ class NetworkBlock : public Block
   *                 returned. */
 
  virtual const double * get_active_demand( Index interval = 0 ) const {
+  return( nullptr );
+  }
+
+ virtual const double * get_reactive_demand( Index interval = 0 ) const {
   return( nullptr );
   }
 
@@ -615,9 +667,26 @@ class NetworkBlock : public Block
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
- }
+  }
 
-/**@} ----------------------------------------------------------------------*/
+  ColVariable * get_reactive_node_injection( Index interval = 0 ) {
+  if( v_reactive_node_injection.empty() )
+   return( nullptr );
+  return( &( v_reactive_node_injection.data()[ interval * get_number_nodes() ] ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the read-only matrix of node injection variables
+ /** Like get_node_injection(), but returns a const pointer so that the
+  * method itself can be const. */
+ 
+ const ColVariable * get_const_node_injection( Index interval = 0 ) const {
+  if( v_node_injection.empty() )
+   return( nullptr );
+  return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
+  }
+
+/** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
@@ -625,18 +694,14 @@ class NetworkBlock : public Block
 
  /// returns a Solution representing the current solution of this NetworkBlock
  /** This method must construct and return a (pointer to a) Solution object
-  * representing the current "solution state" of this NetworkBlock. The base
-  * NetworkBlock class defaults to ColVariableSolution, RowConstraintSolution,
-  * and ColRowSolution, but :NetworkBlock may make different choices.
+  * representing the current "solution state" of this NetworkBlock. This may
+  * either be a NetworkBlockSolution or a further derived class containing
+  * more specific solution information for derived :NetworkBlock.
   *
   * The parameter for deciding which kind of Solution must be returned is a
-  * single int value. If this value is
+  * single int value, coded bitwise:
   *
-  * - 1, then a RowConstraintSolution is returned;
-  *
-  * - 2, then a ColRowSolution is returned;
-  *
-  * - any other value, then a ColVariable Solution is returned.
+  * - bit 0 (& 1) means "store the node injection"
   *
   * This value is to be found as:
   *
@@ -648,10 +713,19 @@ class NetworkBlock : public Block
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 0. */
+  * - otherwise, it is 1 (save everything). */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" NetworkBlockSolution
+ /** Small virtual method that just returns an "empty" NetworkBlockSolution
+  * object. It is used by get_Solution(), with the idea that derived classes
+  * can override it to make it return a :NetworkBlockSolution better suited
+  * for the specific :NetworkBlock at hand. */
+ 
+ virtual NetworkBlockSolution * new_Solution( void ) const;
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SAVING THE NetworkBlock ----------------*/
@@ -666,7 +740,7 @@ class NetworkBlock : public Block
 
  virtual void serialize( netCDF::NcGroup& group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -689,8 +763,8 @@ class NetworkBlock : public Block
   * @param issueAMod It controls how abstract Modification are issued. */
 
  virtual void set_active_demand( MF_dbl_it values , Subset && subset ,
-                                 bool ordered , ModParam issuePMod ,
-                                 ModParam issueAMod ) = 0;
+                                 bool ordered , c_ModParam issuePMod ,
+                                 c_ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p rng
@@ -710,8 +784,8 @@ class NetworkBlock : public Block
   * @param issueAMod It controls how abstract Modification are issued. */
 
  virtual void set_active_demand( MF_dbl_it values , Range rng ,
-                                 ModParam issuePMod ,
-				                             ModParam issueAMod ) = 0;
+                                 c_ModParam issuePMod ,
+                                 c_ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
@@ -759,15 +833,27 @@ class NetworkBlock : public Block
  /// maximum production of the electrical generators
  boost::multi_array< double , 2 > v_MaxNodeInjection;
 
+ /// minimum reactive production of the electrical generators
+ boost::multi_array< double , 2 > v_MinReactiveNodeInjection;
+
+ /// maximum reactive production of the electrical generators
+ boost::multi_array< double , 2 > v_MaxReactiveNodeInjection;
+
 /*-------------------------------- variables -------------------------------*/
 
  /// power injection for each interval at each node
  boost::multi_array< ColVariable , 2 > v_node_injection;
 
+ /// power injection for each interval at each node
+ boost::multi_array< ColVariable , 2 > v_reactive_node_injection;
+
 /*------------------------------- constraints ------------------------------*/
 
  /// the node injection bound constraints
  boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
+
+ /// the node injection bound constraints
+ boost::multi_array< BoxConstraint , 2 > reactive_node_injection_bounds_const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -908,6 +994,241 @@ class NetworkBlockSbstMod : public NetworkBlockMod
  Block::Subset f_nms;  ///< the subset
 
  };  // end( class( NetworkBlockSbstMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS NetworkBlockSolution ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a Solution of a NetworkBlock
+/** The NetworkBlockSolution class, derived from Solution, represents a
+ * solution of a "generic" NetworkBlock, i.e., 
+ *
+ * - the values of the node injection variables for the specific time
+ *   instant covered by the NetworkBlock;
+ *
+ * - [optionally] the name (a string) of each node.
+ *
+ * However, time instants can be "many", and netCDF does not like files with
+ * very many groups. Therefore, NetworkBlockSolution also supports a special
+ * type of format (with a specific version of the serailize() / deserialize()
+ * methods) that allow to "pack" all the information of a set of NetworkBlock
+ * into a unique group.
+ *
+ * NetworkBlockSolution is not thought to be "final", since :NetworkBlock may
+ * want to define and handle their derived :NetworkBlockSolution to store
+ * :NetworkBlock-specific solution information. */
+
+class NetworkBlockSolution : public Solution
+{
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ using Index = Block::Index;  // "import" Index
+ 
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend NetworkBlock;  ///< make NetworkBlock friend
+
+/*----------- CONSTRUCTING AND DESTRUCTING NetworkBlockSolution ------------*/
+
+ explicit NetworkBlockSolution( void ) : f_number_nodes( 0 ) , 
+  f_number_instants( 0 ) { }  /// constructor, it has nothing to do
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a NetworkBlockSolution from a netCDF::NcGroup
+ /** Deserialize a NetworkBlockSolution from a netCDF::NcGroup; see
+  * serialize( netCDF::NcGroup & ) for the description of the format. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a NetworkBlockSolution from a "global" netCDF::NcGroup
+ /** "nonstandard" version of deserialize() that loads a NetworkBlockSolution
+  * from a "global" netCDF::NcGroup, i.e., one where the solution information
+  * of multiple :NetworkBlock are stored together (to avoid performance issues
+  * due to the fact that netCDF is not structured to work with a large number
+  * of sub-NcGroup in a file); see the corresponding "nonstandard" version
+  * serialize( netCDF::NcGroup & , int ) for the description of the format,
+  * except that in this case \p idx is always >= 0. */
+
+ virtual void deserialize( const netCDF::NcGroup & group , size_t idx );
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~NetworkBlockSolution() = default;  ///< destructor: it is virtual, and empty
+
+/*-------------- READING THE DATA OF THE NetworkBlockSolution --------------*/
+
+ ///< returns the number of instants covered by this NetworkBlockSolution
+
+ Index get_number_instants( void ) { return( f_number_instants ); }
+ 
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
+
+ void read( const Block * block ) override;
+
+ void write( Block * block ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a NetworkBlockSolution into a netCDF::NcGroup
+ /** Serialize a NetworkBlockSolution into a netCDF::NcGroup, with the
+  * following format:
+  *
+  * - The dimension "NumberNodes" containing the number of nodes in the
+  *   network. It is mandatory.
+  *
+  * - The dimension "NumberInstants" containing the number of time instants
+  *   covered by this NetworkBlock (NetworkBlock::get_number_intervals());
+  *   the dimension is optional, if it is missing then 1 (one) instant is
+  *   assumed.
+  *
+  * - The variable "NodeInjection", of type netCDF::NcDouble. If
+  *   "NumberInstants" is defined then it is indexed both over the
+  *   dimensions "NumberInstants" and "NumberNodes", otherwise only
+  *   over the dimension "NumberNodes". NodeInjection[ i , t ] is assumed to
+  *   contain the optimal active power for node i at the time t (with
+  *   t = 0, ..., NumberInstants - 1). The variable is optional.
+  *
+  * Derived classes will add other variables / dimensions to represent the
+  * other solution information they contain. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a NetworkBlockSolution into a "global" netCDF::NcGroup
+ /** "nonstandard" version of serialize() that loads a NetworkBlockSolution
+  * from a "global" netCDF::NcGroup, i.e., one where the solution information
+  * of multiple :NetworkBlock are stored together (to avoid performance issues
+  * due to the fact that netCDF is not structured to work with a large number
+  * of sub-NcGroup in a file). The format is as follows:
+  *
+  * - The attribute "type", of type netCDF::NcString, containing the typename
+  *   of all the :NetworkBlockSolution that must be created for all time
+  *   instants t, which implies that 
+  *
+  *     ALL :NetworkBlockSolution serialize()-d IN THIS \p group MUST BE OF
+  *     THE SAME ACTUAL TYPE, AND ALL :NetworkBlockSolution MUST BE THERE,
+  *     WHICH IMPLIES THAT ALL :NetworkBlock MUST BE OF THE SAME ACTUAL TYPE
+  *     AND MUST ALL BE THERE
+  *
+  * - The dimension "NumberNodes" containing the number of nodes in the
+  *   network. It is mandatory. Note that
+  *
+  *       ALL THE NetworkBlock MUST HAVE THE SAME NUMBER OF NODES
+  *
+  *   (which is of course necessary since they all take their data from
+  *   the same variable where "NumberNodes" is one of the dimensions)
+  *
+  * - The dimension "NumberNetworks" containing the number of :NetworkBlock
+  *   that \p group represents. It is mandatory. Note: this information is
+  *   not known to any NetworkBlockSolution, and therefore it will have to
+  *   be written in \p group by some other "outer" :Solution.
+  *
+  * - The dimension "TotalNumberInstants" containing the *total* number of
+  *   time instants that are covered by all the :NetworkBlock that \p group
+  *   represents. It is optional, if it is not present then it is assumed
+  *   that "TotalNumberInstants" == "NumberNetworks", i.e., each network
+  *   covers exactly one time instant. Note again: this information is not
+  *   known to any NetworkBlockSolution, and therefore it will have to be
+  *   written in \p group by some other "outer" :Solution.
+  *
+  * - The variable "EndInstant", of type netCDF::NcInt and indexed over the
+  *   dimension "NumberNetworks". EndInstant[ n ] = t means that NetworkBlock
+  *   n covers all time instants between EndInstant[ n - 1 ] included and
+  *   EndInstant[ n ] excluded; EndInstant[ n - 1 ] is not defined when
+  *   n == 0 and it is implicitly taken to be == 0, while it must always be
+  *   that EndInstant[ NumberNetworks - 1 ] == TotalNumberInstants. The
+  *   variable is optional if "TotalNumberInstants" == "NumberNetworks",
+  *   which in particular holds if "TotalNumberInstants" is not defined,
+  *   since then each :NetworkBlock covers exactly one time instant and
+  *   therefore EndInstant[ n ] = n + 1. The variable is mandatory otherwise.
+  *   Note that, unlike "NumberNetworks" and "TotalNumberInstants", this
+  *   information can be built incrementally by the NetworkBlockSolution,
+  *   provided that
+  *
+  *       THE [de]serialize( ... , idx ) METHOD IS ALWAYS CALLED IN
+  *       INCREASING ORDER OF idx, WHICH WILL HAVE TO BE ENSURED
+  *
+  * - The variable "NodeInjection", of type netCDF::NcDouble, indexed both
+  *   over the dimensions "TotalNumberInstants" (if defined, otherwise
+  *   "NumberNetworks") and "NumberNodes": NodeInjection[ t ][ i ] is
+  *   assumed to contain the optimal injection for node i at the time t
+  *   (with t = 0, ..., TotalNumberInstants - 1). The variable is optional.
+  *
+  * The method uses \p idx to identify the index of the current
+  * NetworkBlockSolution ("n" in the comments to "EndInstant"), and by this
+  * where in the variables the solution information of the corresponding
+  * NetworkBlock must be stored. That is, if "TotalNumberInstants" !=
+  * "NumberNetworks", i.e., "EndInstant" is defined, the NetworkBlockSolution
+  * covers the instants EndInstant[ idx - 1 ] ... EndInstant[ idx ] - 1,
+  * i.e., NetworkBlock::get_number_intervals() == EndInstant[ idx ] -
+  * EndInstant[ idx - 1 ]. Otherwise, the NetworkBlockSolution covers just
+  * the instant idx.
+  *
+  * Derived classes will add other variables / dimensions to represent the
+  * other solution information they contain, but they are assumed to keep the
+  * same organisation w.r.t. the time instants they cover. Note that
+  *
+  *     THE OTHER VARIABLES / DIMENSIONS WILL HAVE TO BE ADDED AT THE VERY
+  *     FIRST CALL, I.E., WHEN idx = 0
+  *
+  * (although, technically, if some :NetworkBlockSolution with *less*
+  * information than that appears when idx > 0 the code will not break, but
+  * there will be uninitialised values in the netCDF). */
+
+ virtual void serialize( netCDF::NcGroup & group , size_t idx ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ NetworkBlockSolution * scale( double factor ) const override;
+
+ void sum( const Solution * solution , double multiplier ) override;
+
+ NetworkBlockSolution * clone( bool empty = false ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "NetworkBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// do the heavy lifting of cloning a non-empty NetworkBlockSolution
+ /** This method does the actualy copying of the fields for an already
+  * existing :NetworkBlockSolution; this is provided to make life easier to
+  * the clone() of derived classes. */
+ 
+ void guts_of_clone( NetworkBlockSolution * sol ) const;
+ 
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ Index f_number_nodes;       ///< the number of nodes
+ Index f_number_instants;    ///< the number of instants
+
+ boost::multi_array< double , 2 > v_node_injection;
+ ///< v_node_injection[ i ][ t ] = node injection at node i at time t
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( NetworkBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -56,6 +56,9 @@ using namespace SMSpp_di_unipi_it;
 // register IntermittentUnitBlock to the Block factory
 SMSpp_insert_in_factory_cpp_1( IntermittentUnitBlock );
 
+// register IntermittentUnitBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( IntermittentUnitBlockSolution );
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF IntermittentUnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -67,6 +70,8 @@ IntermittentUnitBlock::~IntermittentUnitBlock()
  Constraint::clear( active_power_bounds_design_Const );
 
  Constraint::clear( active_power_bounds_Const );
+
+ design_bound_Const.clear();
 
  objective.clear();
 }
@@ -84,11 +89,18 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "InvestmentCost" ,
+                                                     "MinCapacityDesign" ,
+                                                     "MaxCapacityDesign" ,
                                                      "MaxCapacity" ,
                                                      "MinPower" , "MaxPower" ,
                                                      "InertiaPower" ,
                                                      "ActivePowerCost",
-                                                     "Gamma" , "Kappa" };
+                                                     "Gamma" , "Kappa", 
+                                                     // Specific computational modes
+                                                     "MinReactivePower",
+                                                     "MaxReactivePower",
+                                                     "VoltageMagnitude"                                                     
+                                                    };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -97,33 +109,49 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Mandatory variables
 
- ::deserialize( group , "MaxPower" , v_MaxPower , false );
+ ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
+                false , true , v_change_intervals );
 
  // Optional variables
 
- ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
+ if( ::deserialize( group , f_InvestmentCost , "InvestmentCost" ) ) {
+
+  ::deserialize( group , f_MinCapacityDesign , "MinCapacityDesign" );
+
+  ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
+ }
 
  ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
 
- if( ! ::deserialize( group , "MinPower" , v_MinPower ) )
+ if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
+                      true , true , v_change_intervals ) )
   v_MinPower.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "InertiaPower" , v_InertiaPower ) )
+ if( ! ::deserialize( group , "InertiaPower" , f_time_horizon , v_InertiaPower ,
+                      true , true , v_change_intervals ) )
   v_InertiaPower.resize( f_time_horizon );
 
- if( ! ::deserialize( group , "ActivePowerCost" , v_ActivePowerCost ) )
+ if( ! ::deserialize( group , "ActivePowerCost" , f_time_horizon ,
+                      v_ActivePowerCost , true , true , v_change_intervals ) )
   v_ActivePowerCost.resize( f_time_horizon );
 
  ::deserialize( group , f_gamma , "Gamma" );
 
  ::deserialize( group , f_kappa , "Kappa" );
 
- // Decompress vectors
+ // variables for AC elements
+ if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MaxReactivePower.resize( f_time_horizon , 0.0 );
 
- decompress_vector( v_MinPower );
- decompress_vector( v_MaxPower );
- decompress_vector( v_InertiaPower );
- decompress_vector( v_ActivePowerCost );
+ if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MinReactivePower.resize( f_time_horizon , 0.0 );
+
+ if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
+                      true , true , v_change_intervals ) )
+    v_VoltageMagnitude.resize( f_time_horizon , 0.0 );
+
 
  if( f_max_power_epsilon > 0 )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -138,6 +166,27 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 void IntermittentUnitBlock::check_data_consistency( void ) const
 {
+ // Min/Max capacity design
+
+ if( f_MinCapacityDesign < 0 )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MinCapacityDesign must be nonnegative." ) );
+
+ // Continue case (MaxCapacityDesign > 0): MinCapacityDesign <= MaxCapacityDesign
+ if( ( f_MaxCapacityDesign > 0 ) && ( f_MinCapacityDesign > f_MaxCapacityDesign ) )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MinCapacityDesign > MaxCapacityDesign." ) );
+
+ // Unitary case (|MaxCapacityDesign| == 1): MinCapacityDesign <= 1
+ if( ( std::abs( f_MaxCapacityDesign ) == 1 ) && ( f_MinCapacityDesign > 1.0 ) )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MinCapacityDesign must be <= 1 when |MaxCapacityDesign| == 1." ) );
+
+ // Binary case (max < 0): MinCapacityDesign <= 1
+ if( ( f_MaxCapacityDesign < 0 ) && ( f_MinCapacityDesign > 1.0 ) )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MinCapacityDesign must be <= 1 for binary design." ) );
+
  // Minimum and maximum power
 
  assert( v_MinPower.size() == f_time_horizon );
@@ -181,6 +230,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
                               " must be nonnegative, but it is" +
                               std::to_string( v_InertiaPower[ t ] ) + "." ) );
  }
+
 }  // end( IntermittentUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
@@ -194,9 +244,14 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  // Design Variable
  if( f_InvestmentCost != 0 ) {
-  design.set_type( ColVariable::kPosUnitary );
+  if( f_MaxCapacityDesign < 0 )
+   design.set_type( ColVariable::kBinary );
+  else
+   design.set_type( ColVariable::kNonNegative );
   add_static_variable( design , "x_intermittent" );
- }
+  }
+ else
+  design.set_value( std::numeric_limits< double >::quiet_NaN() );
 
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
@@ -246,10 +301,10 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   if( f_gamma != 0 ) {  // if unit produces any reserve
    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                              -1.0 ) );
+                                    -1.0 ) );
    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                              -1.0 ) );
+                                    -1.0 ) );
   }
 
   min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
@@ -311,8 +366,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    // Lower bound of the active power design constraints:
    //
-   //      v_MinPower x <= v_active_power     x \in {0,1}, for all t
-   // => 0 <= v_active_power - v_MinPower x   x \in {0,1}, for all t
+   //      v_MinPower x <= v_active_power
+   // => 0 <= v_active_power - v_MinPower x
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &design , -f_kappa * v_MinPower[ t ] ) );
@@ -324,8 +379,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    // Upper bound of the active power design constraints:
    //
-   //      v_active_power <= v_MaxPower x     x \in {0,1}, for all t
-   // => v_active_power - v_MaxPower x <= 0   x \in {0,1}, for all t
+   //      v_active_power <= v_MaxPower x
+   // => v_active_power - v_MaxPower x <= 0
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &design , -f_kappa * v_MaxPower[ t ] ) );
@@ -338,7 +393,59 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Intermittent" );
+
+  // Design bounds
+
+  const double lb = std::max( 0.0 , f_MinCapacityDesign );
+  const double ub = ( std::abs( f_MaxCapacityDesign ) == 1
+                       ? 1.0 : std::abs( f_MaxCapacityDesign ) );
+
+  if( ( lb > 0.0 ) || ( std::abs( f_MaxCapacityDesign ) != 1 ) ) {
+   design_bound_Const.set_lhs( lb );
+   design_bound_Const.set_rhs( ub );
+   design_bound_Const.set_variable( &design );
+
+   add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
+
+  } else
+   design.is_unitary( true , eNoMod );
+
+  if( f_MaxCapacityDesign < 0 )
+   design.is_integer( true , eNoMod );
  }
+
+ /// Reactive power bounds constraints
+ if( ReactivePower_Bound_Const.size() != f_time_horizon ) {
+  assert( ReactivePower_Bound_Const.empty() );
+  ReactivePower_Bound_Const.resize( f_time_horizon );
+ }
+
+ bool something = false;
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  if( get_max_reactive_power( t ) > 0.0 ) {
+   something = true;
+   ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
+   ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
+   ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
+  }
+ }
+ if( something )
+  add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
+
+ // Link between active and reactive power
+ Reactive_2_Active_Const.resize( f_time_horizon );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // Q(t) - P(t) <= 0
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( &v_active_power[ t ], -1.0 );
+    lfunc->add_variable( &v_reactive_power[ t ], 1.0 );
+
+    Reactive_2_Active_Const[ t ].set_lhs( -Inf< double >() );
+    Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
+    Reactive_2_Active_Const[ t ].set_function( lfunc );
+ }
+ add_static_constraint( Reactive_2_Active_Const, "QandP_inter" );
 
  set_constraints_generated();
 
@@ -427,6 +534,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   // Constraints
   && RowConstraint::is_feasible( min_power_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( design_bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( max_power_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_design_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol ) );
@@ -443,9 +551,16 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  // Serialize scalar variables
 
- if( f_InvestmentCost != 0 )
+ if( f_InvestmentCost != 0 ) {
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
+  if( f_MinCapacityDesign != 0 )
+   ::serialize( group , "MinCapacityDesign" , netCDF::NcDouble() ,
+                f_MinCapacityDesign );
+  if( f_MaxCapacityDesign != 1 )
+   ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
+                f_MaxCapacityDesign );
+ }
 
  if( f_MaxCapacity != 0 )
   ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
@@ -490,7 +605,38 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "InertiaPower" , v_InertiaPower );
  serialize( "ActivePowerCost" , v_ActivePowerCost );
 
-}  // end( IntermittentUnitBlock::serialize )
+ }  // end( IntermittentUnitBlock::serialize )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * IntermittentUnitBlock::get_Solution( Configuration * csolc ,
+						bool emptys )
+{
+ Index wsol = 15;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto * sol = dynamic_cast< IntermittentUnitBlockSolution * >(
+		                  UnitBlock::get_Solution( csolc , emptys ) );
+ assert( sol );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+ }
+
+/*--------------------------------------------------------------------------*/
+ 
+UnitBlockSolution * IntermittentUnitBlock::new_Solution( void ) const {
+ return( new IntermittentUnitBlockSolution() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -766,6 +912,126 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
  set_kappa( values , std::move( subset ) , true , issuePMod , issueAMod );
 
 }  // end( IntermittentUnitBlock::set_kappa( range ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------- METHODS OF IntermittentUnitBlockSolution -----------------*/
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::deserialize(
+					      const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ UnitBlockSolution::deserialize( group );
+
+ if( f_number_generators != 1 )
+  throw( std::logic_error( "IntermittentUnitBlockSolution::deserialize: "
+			   "intermittents have only one generator" ) );
+ 
+ // deserialize the design - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! ::deserialize< double >( group , f_design , "IntermittentDesign" ) )
+  f_design = dNaN;
+
+ }  // end( IntermittentUnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::read( const Block * block )
+{
+ auto IUB = dynamic_cast< const IntermittentUnitBlock * >( block );
+ if( ! IUB )
+  throw( std::invalid_argument( "IntermittentUnitBlockSolution::read: block "
+				"is not a IntermittentUnitBlock" ) );
+
+ UnitBlockSolution::read( IUB );  // call the method of the base class
+
+ // read the design- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ f_design = IUB->get_const_design().get_value();
+
+ }  // end( IntermittentUnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::write( Block * block )
+{
+ UnitBlockSolution::write( block );  // call the method of the base class
+
+ auto IUB = dynamic_cast< IntermittentUnitBlock * >( block );
+ if( ! IUB )
+  throw( std::invalid_argument( "IntermittentUnitBlockSolution::read: block "
+				"is not a IntermittentUnitBlock" ) );
+
+ // write the design - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ IUB->get_design().set_value( f_design );
+
+ }  // end( IntermittentUnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ UnitBlockSolution::serialize( group );  // call the method of the base class
+
+ // serialize the design- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! std::isnan( f_design ) )
+   ::serialize< double >( group , "IntermittentDesign" , netCDF::NcDouble() ,
+			  f_design );
+
+ }  // end( IntermittentUnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+IntermittentUnitBlockSolution * IntermittentUnitBlockSolution::scale(
+						        double factor ) const
+{
+ auto sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ if( ! std::isnan( f_design ) )
+  sol->f_design *= factor;
+
+ return( sol );
+
+ }  // end( IntermittentUnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlockSolution::sum( const Solution * solution ,
+					 double multiplier )
+{
+ // call the method of the base class
+ UnitBlockSolution::sum( solution , multiplier );
+
+ auto IUBS = dynamic_cast< const IntermittentUnitBlockSolution * >(
+								 solution );
+ if( ! IUBS )
+  throw( std::invalid_argument( "IntermittentUnitBlockSolution::sum: "
+				"solution not a "
+				"IntermittentUnitBlockSolution" ) );
+
+ if( ! std::isnan( f_design ) )
+  f_design += IUBS->f_design * multiplier;
+
+ }  // end( IntermittentUnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+IntermittentUnitBlockSolution * IntermittentUnitBlockSolution::clone(
+							   bool empty ) const
+{
+ auto * sol = new IntermittentUnitBlockSolution();
+
+ if( ! empty ) {
+  guts_of_clone( sol );
+  sol->f_design = f_design;
+  }
+
+ return( sol );
+
+ }  // end( IntermittentUnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File IntermittentUnitBlock.cpp -------------------*/
