@@ -595,7 +595,7 @@ function csvEC2nc4(deterministic::Bool=false)
         #   We take a single "large" input data vector of length 3N (one chunk per scenario),
         #   and define:
         #     mapping 0: SetFrom = [0,   N)  -> SetTo = [0, N)
-        #     mapping 1: SetFrom = [N, 2N)   -> SetTo = [0, N)
+        #     mapping 1: SetFrom = [N,  2N)  -> SetTo = [0, N)
         #     mapping 2: SetFrom = [2N, 3N)  -> SetTo = [0, N)
         #
         # IMPORTANT:
