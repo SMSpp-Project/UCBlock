@@ -126,10 +126,9 @@ This builds the following folders:
   UC instances related to optimal planning of the EU-wide energy system
   developed during the [plan4res](https://www.plan4res.eu) project
 
-- [data/nc4/mathpower2netCDF](data/nc4/mathpower2netCDF), which contains
+- [tools/mathpower2netCDF](tools/mathpower2netCDF), which contains
   a converter from instances in the [Matpower](https://matpower.org)
-  format to the netCDF one of SMS++ (this is not in [tools](tools/),
-  where it should reasonably be, since it's somewhat large)
+  format to the netCDF one of SMS++
 
 
 ## Tools
