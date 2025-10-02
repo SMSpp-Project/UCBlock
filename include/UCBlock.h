@@ -133,7 +133,12 @@ class UCBlock : public Block
  /// constructor of UCBlock, taking possibly a pointer of its father Block
 
  explicit UCBlock( Block * father = nullptr )
-  : Block( father ) , f_NetworkData( nullptr ) {}
+  : Block( father ), f_time_horizon( 0 ), f_number_networks( 0 ),
+    f_number_units( 0 ), f_number_elc_generators( 0 ),
+    f_total_number_pollutant_zones( 0 ),
+    f_number_primary_zones( 0 ), f_number_secondary_zones( 0 ),
+    f_number_inertia_zones( 0 ), f_number_pollutants( 0 ), f_ConstTerm( 0 ),
+    f_NetworkData( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of UCBlock
@@ -1324,40 +1329,44 @@ class UCBlock : public Block
 
 /*---------------------------------- data ----------------------------------*/
 
+ /// the NetworkData object
+ NetworkBlock::NetworkData * f_NetworkData;
+
  /// the specific classname of the networks that need to be instantiated,
  /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, ecc.
  std::string network_block_classname;
  std::string network_data_classname;
 
  /// the time horizon of the problem
- Index f_time_horizon{};
+ Index f_time_horizon;
 
  /// the number of the networks of the problem
- Index f_number_networks{};
+ Index f_number_networks;
 
  /// the number of units of the problem
- Index f_number_units{};
+ Index f_number_units;
 
  /// the number of electrical generators of the problem
- Index f_number_elc_generators{};
+ Index f_number_elc_generators;
 
  /// the total number of pollutant zones of the problem
- Index f_total_number_pollutant_zones{};
-
- /// the NetworkData object
- NetworkBlock::NetworkData * f_NetworkData;
+ Index f_total_number_pollutant_zones;
 
  /// the number of nodes in primary zones of the network
- Index f_number_primary_zones{};
+ Index f_number_primary_zones;
 
  /// the number of nodes in secondary zones of the network
- Index f_number_secondary_zones{};
+ Index f_number_secondary_zones;
 
  /// the number of nodes in inertia zones of the network
- Index f_number_inertia_zones{};
+ Index f_number_inertia_zones;
 
  /// the number of pollutants
- Index f_number_pollutants{};
+ Index f_number_pollutants;
+
+ /// the constant term
+ double f_ConstTerm;
+
 
  /// the constant terms of each NetworkBlock
  std::vector< double > v_network_constant_terms;
@@ -1377,7 +1386,6 @@ class UCBlock : public Block
  /** Indexed over the dimensions "NumberNodes" and "TimeHorizon". */
  boost::multi_array< double , 2 > v_active_power_demand;
  boost::multi_array< double , 2 > v_reactive_power_demand;
-
 
  /// the vector of PrimaryZones
  std::vector< Index > v_primary_zones;

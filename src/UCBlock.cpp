@@ -190,6 +190,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "NetworkConstantTerms" ,
                                                      "NetworkBlockClassname" ,
                                                      "NetworkDataClassname" ,
+                                                     "ConstantTerm" ,
                                                      // DCNetworkBlockData
                                                      "StartLine" ,
                                                      "EndLine" ,
@@ -201,7 +202,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "HyperArcID" ,
                                                      "NodeName" ,
                                                      "LineName" ,
-                                                     // vars for AC Mode
+                                                     // ACNetworkBlockData
                                                      "ReactivePowerDemand" ,
                                                      "NodeConductance" ,
                                                      "NodeSusceptance" ,
@@ -1093,7 +1094,11 @@ void UCBlock::generate_objective( Configuration * objc )
  for( auto block : v_Block )
   block->generate_objective();
 
- objective.set_function( new LinearFunction() );
+ auto lf = new LinearFunction();
+
+ lf->set_constant_term( f_ConstTerm );
+
+ objective.set_function( lf );
 
  // Set Block objective
  this->set_objective( &objective );

@@ -358,7 +358,7 @@ class NetworkBlock : public Block
   * Block. */
 
  explicit NetworkBlock( Block * father = nullptr ) :
-  Block( father ) , f_local_NetworkData( false ) {}
+  Block( father ) , f_local_NetworkData( false ) , f_ConstTerm( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of NetworkBlock
@@ -784,7 +784,7 @@ class NetworkBlock : public Block
  bool f_local_NetworkData;
 
  /// the constant term
- double f_ConstTerm{};
+ double f_ConstTerm;
 
  /// minimum production of the electrical generators
  boost::multi_array< double , 2 > v_MinNodeInjection;
