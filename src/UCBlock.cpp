@@ -190,7 +190,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "NetworkConstantTerms" ,
                                                      "NetworkBlockClassname" ,
                                                      "NetworkDataClassname" ,
-                                                     "ConstantTerm" ,
                                                      // DCNetworkBlockData
                                                      "StartLine" ,
                                                      "EndLine" ,
@@ -1094,11 +1093,7 @@ void UCBlock::generate_objective( Configuration * objc )
  for( auto block : v_Block )
   block->generate_objective();
 
- auto lf = new LinearFunction();
-
- lf->set_constant_term( f_ConstTerm );
-
- objective.set_function( lf );
+ objective.set_function( new LinearFunction() );
 
  // Set Block objective
  this->set_objective( &objective );

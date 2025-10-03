@@ -137,7 +137,7 @@ class UCBlock : public Block
     f_number_units( 0 ), f_number_elc_generators( 0 ),
     f_total_number_pollutant_zones( 0 ),
     f_number_primary_zones( 0 ), f_number_secondary_zones( 0 ),
-    f_number_inertia_zones( 0 ), f_number_pollutants( 0 ), f_ConstTerm( 0 ),
+    f_number_inertia_zones( 0 ), f_number_pollutants( 0 ),
     f_NetworkData( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -1363,9 +1363,6 @@ class UCBlock : public Block
 
  /// the number of pollutants
  Index f_number_pollutants;
-
- /// the constant term
- double f_ConstTerm;
 
 
  /// the constant terms of each NetworkBlock
