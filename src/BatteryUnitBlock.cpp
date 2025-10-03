@@ -1040,16 +1040,20 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  auto lf = new LinearFunction();
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
-  lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] , eDryRun );
- }
-
  if( f_BattInvestmentCost != 0 )
   lf->add_variable( &batt_design , f_BattInvestmentCost );
 
  if( f_ConvInvestmentCost != 0 )
   lf->add_variable( &conv_design , f_ConvInvestmentCost );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
+  lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] , eDryRun );
+ }
+
+ // just pay for the extra over the min capacity
+ lf->set_constant_term( -f_BattInvestmentCost * f_BattMinCapacityDesign
+                        -f_ConvInvestmentCost * f_ConvMinCapacityDesign );
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
