@@ -722,8 +722,8 @@ class NetworkBlock : public Block
   * @param issueAMod It controls how abstract Modification are issued. */
 
  virtual void set_active_demand( MF_dbl_it values , Subset && subset ,
-                                 bool ordered , c_ModParam issuePMod ,
-                                 c_ModParam issueAMod ) = 0;
+                                 bool ordered , ModParam issuePMod ,
+                                 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p rng
@@ -743,8 +743,8 @@ class NetworkBlock : public Block
   * @param issueAMod It controls how abstract Modification are issued. */
 
  virtual void set_active_demand( MF_dbl_it values , Range rng ,
-                                 c_ModParam issuePMod ,
-                                 c_ModParam issueAMod ) = 0;
+                                 ModParam issuePMod ,
+                                 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
