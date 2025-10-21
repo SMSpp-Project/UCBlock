@@ -564,7 +564,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
  // generate the abstract constraints of UCBlock
 
  generate_node_injection_constraints();
- generate_reactive_node_injection_constraints();
+ if ( v_reactive_power_demand.num_elements() > 0 ){
+   generate_reactive_node_injection_constraints();
+ }
  generate_primary_demand_constraints();
  generate_secondary_demand_constraints();
  generate_inertia_demand_constraints();
