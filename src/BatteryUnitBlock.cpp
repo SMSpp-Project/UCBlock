@@ -1002,7 +1002,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
     Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
     Reactive_2_Active_Const[ t ].set_function( lfunc );
  }
- add_static_constraint( Reactive_2_Active_Const, "QandPbattery" );
+ //add_static_constraint( Reactive_2_Active_Const, "QandPbattery" );
 
  set_constraints_generated();
 

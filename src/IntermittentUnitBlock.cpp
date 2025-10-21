@@ -390,7 +390,7 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
     Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
     Reactive_2_Active_Const[ t ].set_function( lfunc );
  }
- add_static_constraint( Reactive_2_Active_Const, "QandP_inter" );
+ //add_static_constraint( Reactive_2_Active_Const, "QandP_inter" );
 
  set_constraints_generated();
 

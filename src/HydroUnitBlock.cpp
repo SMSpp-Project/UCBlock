@@ -861,7 +861,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
     Reactive_2_Active_Const[ g ][ t ].set_function( lfunc );
   }
  }
- add_static_constraint( Reactive_2_Active_Const, "QandPhydro" );
+ //add_static_constraint( Reactive_2_Active_Const, "QandPhydro" );
 
  // all done- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
