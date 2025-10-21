@@ -93,6 +93,45 @@ Check the [SMS++ installation wiki](https://gitlab.com/smspp/smspp-project/-/wik
 for further details.
 
 
+## Data
+
+We provide some data sets that are used, among other things, by some of the
+testers of the [test repo](https://gitlab.com/smspp/tests). Since they are
+large they are not included in the repo. They are automatically downloaded
+by Cmake if the test repo is included, but if you are not using Cmake to
+build the system you need to do it by hand, via
+
+```sh
+cd data
+wget https://gitlab.com/api/v4/projects/14857791/packages/generic/nc4/latest/nc4.tgz
+tar xzvf nc4.tgz
+```
+
+This builds the following folders:
+
+- [data/nc4/1UC_Data](data/nc4/1UC_Data), which contains instances of the
+  single-unit thermal UC problem, `ThermalUnitBlock`, useful to test
+  specialised approaches such as the `ThermalUnitDPSolver` for
+
+- [data/nc4/EC_Data](data/nc4/EC_Data), which contains instances of UC
+  related to the optimal design of Energy Communities (and hence in
+  particular containing `ECNetworkBlock`)
+
+- [data/nc4/UC_Data](data/nc4/UC_Data), which contains pure thermal and
+  hydro-thermal instances produced by
+  [classical random generators](https://commalab.di.unipi.it/datasets/UC)
+  and widely used in the literature
+
+- [data/nc4/plan4res-data](data/nc4/plan4res-data), which contains
+  UC instances related to optimal planning of the EU-wide energy system
+  developed during the [plan4res](https://www.plan4res.eu) project
+
+- [data/nc4/mathpower2netCDF](tools/mathpower2netCDF), which contains
+  a converter from instances in the [Matpower](https://matpower.org)
+  format to the netCDF one of SMS++ (this is not in [tools](tools/),
+  where it should reasonably be, since it's somewhat large)
+
+
 ## Tools
 
 We provide some tool to generate input data for UCBlock:
@@ -101,9 +140,9 @@ We provide some tool to generate input data for UCBlock:
   that can be used to produce netCDF versions of the instances produced by
   [classical random generators](https://commalab.di.unipi.it/datasets/UC)
 
-- [a Matlab-based data generator](tools/DataGenerator/README.md)
+- [a Matlab-based data generator](tools/UC2SMSpp/README.md)
 
-- [a converter from .yml and .csv data files](tools/DataConverter/README.md)
+- [a converter from .yml and .csv data files](tools/csv2netCDF/README.md)
   used to describe UC instances corresponding to Energy Community design
   problems used in the [EnergyCommunity.jl JuMP
   package](https://github.com/SPSUnipi/EnergyCommunity.jl)

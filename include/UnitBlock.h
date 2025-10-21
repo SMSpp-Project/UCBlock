@@ -313,26 +313,23 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the minimum reactive power of \p generator at time \p t
 
-  virtual double get_min_reactive_power( Index t , Index generator = 0 )
-   const {
-   return( 0 );
-   }
+ virtual double get_min_reactive_power( Index t , Index generator = 0 ) const {
+  return( 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum reactive power of \p generator at time \p t
 
- virtual double get_max_reactive_power( Index t , Index generator = 0 )
-  const {
+ virtual double get_max_reactive_power( Index t , Index generator = 0 ) const {
   return( 0 );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the voltage magnitude of \p generator at time \p t
 
-  virtual double get_voltage_magnitude( Index t , Index generator = 0 )
-   const {
-   return( 0 );
-   }
+ virtual double get_voltage_magnitude( Index t , Index generator = 0 ) const {
+  return( 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of cost coefficients of \p generator
@@ -482,16 +479,14 @@ class UnitBlock : public Block
   return( nullptr );
   }
 
- /// TEMP: returns the vector of reactive_power variables
+ /// returns the vector of reactive power variables
  virtual ColVariable * get_reactive_power( Index generator ) {
   if( v_reactive_power.empty() )
    return( nullptr );
   return( &( v_reactive_power.front() ) );
  }
 
-  // TEMP :: should not be in parent class but children
   void generate_abstract_variables( Configuration * stvv = nullptr ) override;
-
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like get_active_power(), but returns a const * so that it can be const
@@ -808,7 +803,7 @@ class UnitBlock : public Block
  Index f_time_horizon{};
 
 
- /// TEMP the active power variables for 3bin, T and pt formulations
+ /// the active power variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_reactive_power;
 
  /// the number of intervals

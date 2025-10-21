@@ -1010,14 +1010,12 @@ class HydroUnitBlock : public UnitBlock
     return( *( v_MinReactivePower.data() + t * f_NumberArcs + generator ) );
  }
 
-
 /*--------------------------------------------------------------------------*/
  /// returns the maximum reactive power of the given generator at the given time
 
  double get_max_reactive_power( Index t , Index generator = 0 ) const override {
     return( *( v_MaxReactivePower.data() + t * f_NumberArcs + generator ) );
  }
-
 
 /*--------------------------------------------------------------------------*/
  /// returns the voltage magnitude of the given generator at the given time
@@ -1889,8 +1887,8 @@ class HydroUnitBlock : public UnitBlock
  /** Indexed over the dimensions NumberIntervals and NumberArcs. */
  boost::multi_array< double , 2 > v_SecondaryRho;
 
- /// the reference Schedule : optional information to deviate minimally from if there
- std::vector< double > v_RefSchedule ;
+ /// the reference Schedule: optional information to deviate minimally from if there
+ std::vector< double > v_RefSchedule;
 
 /*-------------------------------- variables -------------------------------*/
 

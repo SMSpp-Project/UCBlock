@@ -1,0 +1,147 @@
+netcdf case10ba {
+
+// global attributes:
+		:SMS++_file_type = 1 ;
+		:baseMVA = 10. ;
+
+group: Block_0 {
+  dimensions:
+  	NumberElectricalGenerators = 1 ;
+  	NumberNodes = 10 ;
+  	NumberLines = 9 ;
+  	TimeHorizon = 1 ;
+  	NumberUnits = 1 ;
+  variables:
+  	string NetworkBlockClassname ;
+  	uint GeneratorNode(NumberElectricalGenerators) ;
+  	double ActivePowerDemand(NumberNodes, TimeHorizon) ;
+  	double NodeConductance(NumberNodes) ;
+  	double NodeSusceptance(NumberNodes) ;
+  	double NodeMaxVoltage(NumberNodes) ;
+  	double NodeMinVoltage(NumberNodes) ;
+  	uint StartLine(NumberLines) ;
+  	uint EndLine(NumberLines) ;
+  	double LineResistance(NumberLines) ;
+  	double LineReactance(NumberLines) ;
+  	double LineSusceptance(NumberLines) ;
+  	double LineRATEA(NumberLines) ;
+  	double LineRatio(NumberLines) ;
+  	double LineShiftAngle(NumberLines) ;
+  	double LineMinAngle(NumberLines) ;
+  	double LineMaxAngle(NumberLines) ;
+  	double MinPowerFlow(NumberLines) ;
+  	double MaxPowerFlow(NumberLines) ;
+
+  // group attributes:
+  		:type = "UCBlock" ;
+  		:id = "0" ;
+  data:
+
+   NetworkBlockClassname = "ACNetworkBlock" ;
+
+   GeneratorNode = 0 ;
+
+   ActivePowerDemand =
+  0,
+  1.84,
+  0.98,
+  1.79,
+  1.598,
+  1.61,
+  0.78,
+  1.15,
+  0.98,
+  1.64 ;
+
+   NodeConductance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   NodeSusceptance = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   NodeMaxVoltage = 1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1 ;
+
+   NodeMinVoltage = 1, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9 ;
+
+   StartLine = 0, 1, 2, 3, 4, 5, 6, 7, 8 ;
+
+   EndLine = 1, 2, 3, 4, 5, 6, 7, 8, 9 ;
+
+   LineResistance = 0.1233, 0.014, 0.7463, 0.6984, 1.9831, 0.9053, 2.0552, 
+      4.7953, 5.3434 ;
+
+   LineReactance = 0.4127, 0.6051, 1.205, 0.6084, 1.7276, 0.7886, 1.164, 
+      2.716, 3.0264 ;
+
+   LineSusceptance = 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineRATEA = 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineRatio = 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineShiftAngle = 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+   LineMinAngle = -360, -360, -360, -360, -360, -360, -360, -360, -360 ;
+
+   LineMaxAngle = 360, 360, 360, 360, 360, 360, 360, 360, 360 ;
+
+   MinPowerFlow = -10000, -10000, -10000, -10000, -10000, -10000, -10000, 
+      -10000, -10000 ;
+
+   MaxPowerFlow = 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 
+      10000 ;
+
+  group: UnitBlock_0 {
+    dimensions:
+    	NumberCostCoeffs = 3 ;
+    variables:
+    	double InitialPower ;
+    	double InitialReactivePower ;
+    	double MaxReactivePower(TimeHorizon) ;
+    	double MinReactivePower(TimeHorizon) ;
+    	double VoltageMagnitude(TimeHorizon) ;
+    	double MaxPower(TimeHorizon) ;
+    	double MinPower(TimeHorizon) ;
+    	uint CostModel ;
+    	double StartupCost ;
+    	double PowerCostCoeffs(NumberCostCoeffs) ;
+    	double LinearTerm ;
+    	double MinUpTime ;
+    	double MinDownTime ;
+    	double InitUpDownTime ;
+    	double InertiaCommitment ;
+
+    // group attributes:
+    		:type = "ThermalUnitBlock" ;
+    data:
+
+     InitialPower = 0 ;
+
+     InitialReactivePower = 0 ;
+
+     MaxReactivePower = 10 ;
+
+     MinReactivePower = -10 ;
+
+     VoltageMagnitude = 1 ;
+
+     MaxPower = 10 ;
+
+     MinPower = 0 ;
+
+     CostModel = 1 ;
+
+     StartupCost = 0 ;
+
+     PowerCostCoeffs = 0, 20, 0 ;
+
+     LinearTerm = 1 ;
+
+     MinUpTime = 1 ;
+
+     MinDownTime = 1 ;
+
+     InitUpDownTime = 1 ;
+
+     InertiaCommitment = 1 ;
+    } // group UnitBlock_0
+  } // group Block_0
+}
