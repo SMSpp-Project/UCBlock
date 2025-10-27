@@ -157,13 +157,13 @@ class DCNetworkData : public NetworkData
 
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_reference_node( 0 ) ,
- f_lines_type( -1 ) , f_number_branches( 0 ), DCDF_was_computed( false ) ,
- f_base_mva( 1.0 ) , cycle_basis_was_computed( false ) {}
+ DCDF_was_computed( false ) , f_base_mva( 1.0 ), f_lines_type( -1 ) ,
+ f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
 
  /// copy constructor of DCNetworkData, does nothing
  explicit DCNetworkData( const NetworkData * ) : f_number_lines( 0 ) ,
- f_reference_node( 0 ) , f_lines_type( -1 ) , f_number_branches( 0 ) ,
- DCDF_was_computed( false ) , f_base_mva( 1.0 ) ,
+ f_reference_node( 0 ) , DCDF_was_computed( false ) , f_base_mva( 1.0 ) ,
+ f_lines_type( -1 ) , f_number_branches( 0 ) ,
  cycle_basis_was_computed( false ) {}
 
  /// destructor of DCNetworkData: it is virtual, and empty
@@ -201,26 +201,6 @@ class DCNetworkData : public NetworkData
   *   Otherwise, "NumberBranches" >= "NumberLines" (in fact, >) must hold
   *   since one single hyperarc is described by its multiple "branches", as
   *   detailed in "HyperArcID".
-  *
-  * - The variable InvestmentCost (`NcDouble`, either scalar or indexed over
-  *   "NumberLines"): per-line investment costs \f$ I_l \f$. If provided as a
-  *   scalar, the value is replicated over all lines. Missing entries default
-  *   to 0.
-  *
-  * - The variable MinCapacityDesign (`NcDouble`, either scalar or indexed over
-  *   "NumberLines"): per-line lower bounds
-  *   \f$ \mathrm{MinCapacityDesign}[l] \f$ for the design variables.
-  *   If provided as a scalar, it is replicated over all lines. Default = 0.
-  *
-  * - The variable MaxCapacityDesign (`NcDouble`, either scalar or indexed over
-  *   "NumberLines"): per-line upper bounds
-  *   \f$ \mathrm{MaxCapacityDesign}[l] \f$ for the design variables.
-  *   If provided as a scalar, it is replicated over all lines. Default = 1.
-  *   The sign determines the nature of \f$ x_l \f$:
-  *     - if \f$ \mathrm{MaxCapacityDesign}[l] < 0 \f$ then \f$ x_l \in \{0,1\} \f$
-  *       (binary);
-  *     - otherwise \f$ x_l \f$ is continuous with
-  *       \f$ \mathrm{MinCapacityDesign}[l] \le x_l \le \mathrm{MaxCapacityDesign}[l] \f$.
   *
   * - The variable "StartLine", of type netCDF::NcUint and indexed over the
   *   dimension "NumberBranches" (if it is defined, otherwise "NumberLines");
@@ -341,30 +321,12 @@ class DCNetworkData : public NetworkData
  Index get_number_lines( void ) const { return( f_number_lines ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns the investment cost for each line
- double get_investment_cost( Index line ) const {
-  return ( v_InvestmentCost[ line ] );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the minimum capacity design for each line
- double get_min_capacity_design( Index line ) const {
-  return ( v_MinCapacityDesign[ line ] );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum capacity design for each line
- double get_max_capacity_design( Index line ) const {
-  return ( v_MaxCapacityDesign[ line ] );
- }
-
-/*--------------------------------------------------------------------------*/
  /// returns the reference node of the network
  /** Method for returning the reference node of the network. */
 
  Index get_reference_node( void ) const { return( f_reference_node ); }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// returns true if the network is a hypergraph
  /** Method for returning true if the network is a hypergraph, i.e., if it has
   * at least one line with multiple head buses. When is_hypergraph() == false
@@ -630,7 +592,7 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- bool was_cycle_basis_computed( void ) { return( cycle_basis_was_computed ); }
+ bool was_cycle_basis_computed( void ) const { return( cycle_basis_was_computed ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -778,7 +740,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
      else
       f_lines_type = kAC_HVDC;
    }
-  return( line_type( f_lines_type ) );
+  return( static_cast< line_type >( f_lines_type ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -840,15 +802,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  /// number of lines of the network
  Index f_number_lines;
-
- /// the investment cost for each line
- std::vector< double > v_InvestmentCost;
-
- /// the minimum capacity design allowed for each line
- std::vector< double > v_MinCapacityDesign;
-
- /// the maximum capacity design allowed for each line
- std::vector< double > v_MaxCapacityDesign;
 
  /// reference node (used in the PTDF matrix)
  Index f_reference_node;
@@ -979,24 +932,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * network, the DCNetworkBlock class may have an auxiliary variable or not.
   * In other words, if the NetworkCost is equal to zero (or not defined), the
   * auxiliary variable and corresponding constraints will not be defined.
-  *
-  * In the design scenario of the UC problem (i.e., when per-line investment
-  * costs are provided), an additional **per-line** design variable
-  * \f$ x_l \f$ is created for each line \f$ l \in \mathcal{L} \f$.
-  * The type and bounds of \f$ x_l \f$ depend on
-  * \f$ \mathrm{MinCapacityDesign}[l] \f$ and
-  * \f$ \mathrm{MaxCapacityDesign}[l] \f$ as follows:
-  *
-  * - if \f$ \mathrm{MaxCapacityDesign}[l] < 0 \f$, then \f$ x_l \in \{0,1\} \f$
-  *   (binary design for line \f$l\f$); if in addition
-  *   \f$ \mathrm{MinCapacityDesign}[l] > 0 \f$ then \f$ x_l \f$ is effectively
-  *   forced to 1;
-  *
-  * - otherwise \f$ x_l \f$ is nonnegative continuous and bounded by
-  *   \f$ \mathrm{MinCapacityDesign}[l] \le x_l \le \mathrm{MaxCapacityDesign}[l] \f$.
-  *
-  * If all lines have zero investment cost, no design variables are created
-  * and the block behaves as a fixed network.
   */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
@@ -1164,39 +1099,21 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 /*--------------------------------------------------------------------------*/
 
  /// A bogus function to round nasty coefficients in the DCOPF equations
- double round_to( double value , double precision = 1.0 ) {
+ static double round_to( double value , double precision = 1.0 ) {
   return( std::round( value / precision ) * precision );
  }
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the DCNetworkBlock
- /** Method that generates the objective of the DCNetworkBlock. The
-  * objective can include:
-  *
-  * - a linear term on the auxiliary variables associated with network
-  *   costs, if the vector "NetworkCost" is provided:
+ /** Method that generates the objective of the DCNetworkBlock. The objective
+  * can include a linear term on the auxiliary variables associated with network
+  * costs, if the vector "NetworkCost" is provided:
   *   \f[
   *     \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l
   *   \f]
   *   where \f$ NC_l \f$ is the unit network cost of line \f$l\f$ and
   *   \f$ V_l \f$ is the corresponding auxiliary variable
-  *   (coefficients are also scaled by the Block scale factor, if any);
-  *
-  * - an investment term in design mode, if (per-line) "InvestmentCost"
-  *   is provided and nonzero:
-  *   \f[
-  *     + \ \sum_{l \in \mathcal{L}} I_l \cdot x_l
-  *   \f]
-  *   where \f$ I_l \f$ is the investment cost of line \f$l\f$ and
-  *   \f$ x_l \f$ is the (per-line) design variable.
-  *
-  * Hence, in the design scenario the full objective is:
-  * \f[
-  *   \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l
-  *        \;+\; \sum_{l \in \mathcal{L}} I_l \cdot x_l \; .
-  * \f]
-  * If "NetworkCost" is not provided, \f$ NC_l = 0 \f$ and only the
-  * investment term remains in design mode.
+  *   (coefficients are also scaled by the Block scale factor, if any).
   */
 
  void generate_objective( Configuration * objc = nullptr ) override;
@@ -1297,51 +1214,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   if( ! f_NetworkData )
    return( 0 );
   return( f_NetworkData->get_number_lines() );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the investment cost associated with the given \p line
- /** This function returns the investment cost associated with the given \p
-  * line.
-  *
-  * @param line The index of a line (between 0 and get_number_lines() - 1).
-  *
-  * @return The investment cost associated with the given \p line. */
-
- double get_investment_cost( Index line ) const {
-  if( ! f_NetworkData )
-   return( 0 );
-  return( f_NetworkData->get_investment_cost( line ) );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the minimum capacity design associated with the given \p line
- /** This function returns the minimum capacity design associated with the
-  * given \p line.
-  *
-  * @param line The index of a line (between 0 and get_number_lines() - 1).
-  *
-  * @return The minimum capacity design associated with the given \p line. */
-
- double get_min_capacity_design( Index line ) const {
-  if( ! f_NetworkData )
-   return( 0 );
-  return( f_NetworkData->get_min_capacity_design( line ) );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum capacity design associated with the given \p line
- /** This function returns the maximum capacity design associated with the
-  * given \p line.
-  *
-  * @param line The index of a line (between 0 and get_number_lines() - 1).
-  *
-  * @return The maximum capacity design associated with the given \p line. */
-
- double get_max_capacity_design( Index line ) const {
-  if( ! f_NetworkData )
-   return( 0 );
-  return( f_NetworkData->get_max_capacity_design( line ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1463,12 +1335,12 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 /*--------------------------------------------------------------------------*/
  /// returns the design variable for the given line
 
- ColVariable & get_design( Index line ) { return( v_design[ line ] ); }
+ ColVariable * get_design( Index line ) const { return( v_design[ line ] ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the const design variable for the given line
 
- const ColVariable & get_const_design( Index line ) const {
+ const ColVariable * get_const_design( Index line ) const {
   return( v_design[ line ] );
  }
 
@@ -1620,6 +1492,14 @@ const std::vector< BoxConstraint > &
   for( Index l = 0 ; l < nl ; ++l )
    v_power_flow_limit_const[ l ].set_dual( dp[ l ] );
  }
+
+/*--------------------------------------------------------------------------*/
+ /// set the (shared) design variables coming from the parent DesignNetworkBlock
+ /** If \p Which is empty, it is assumed that DV[ i ] refers to line i for all
+  *  i = 0 , ... , DV.size() - 1. Otherwise, DV[ i ] refers to line Which[ i ].
+  *  Must be called before DCNetworkBlock::generate_abstract_constraints(). */
+
+ void set_design_variables( std::vector< ColVariable > * DV , Subset Which );
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1866,7 +1746,7 @@ const std::vector< BoxConstraint > &
  std::vector< ColVariable > v_auxiliary_variable;
 
  /// the design variable for each line
- std::vector< ColVariable > v_design;
+ std::vector< ColVariable * > v_design;
 
 /*------------------------------- constraints ------------------------------*/
 
@@ -1890,10 +1770,6 @@ const std::vector< BoxConstraint > &
 
  /// injection equals to demand
  FRowConstraint overall_balanced_const;
-
-
- /// the design bound constraint for each line
- std::vector< BoxConstraint > v_design_bound_const;
 
 
  /// definition of the flow
@@ -1920,28 +1796,6 @@ const std::vector< BoxConstraint > &
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// verify whether the data in this DCNetworkBlock is consistent
- /** This function checks whether the data in this DCNetworkBlock is
-  * consistent. The data is consistent if, **for each line** \f$ l \f$,
-  * all the following conditions are met:
-  *
-  * - Design bounds consistency:
-  *   - \f$ \mathrm{MinCapacityDesign}[l] \ge 0 \f$;
-  *   - if \f$ \mathrm{MaxCapacityDesign}[l] > 0 \f$, then
-  *     \f$ \mathrm{MinCapacityDesign}[l] \le \mathrm{MaxCapacityDesign}[l] \f$;
-  *   - if \f$ |\mathrm{MaxCapacityDesign}[l]| = 1 \f$, then
-  *     \f$ \mathrm{MinCapacityDesign}[l] \le 1 \f$;
-  *   - if \f$ \mathrm{MaxCapacityDesign}[l] < 0 \f$ (binary), then
-  *     \f$ \mathrm{MinCapacityDesign}[l] \le 1 \f$
-  *     (note: \f$ \mathrm{MinCapacityDesign}[l] > 0 \Rightarrow x_l = 1 \f$).
-  *
-  * If any of the above conditions are not met for some line \f$ l \f$,
-  * an exception is thrown.
-  */
- void check_data_consistency( void ) const;
-
 /*--------------------------------------------------------------------------*/
 
  static void static_initialization( void ) {
@@ -2125,7 +1979,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~DCNetworkBlockSolution() = default;
+ ~DCNetworkBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
 /*------ METHODS DESCRIBING THE BEHAVIOR OF A DCNetworkBlockSolution ------*/

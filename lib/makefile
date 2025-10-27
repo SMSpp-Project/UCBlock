@@ -52,6 +52,7 @@ UCBckOBJ = $(UCBckDIR)/obj/BatteryUnitBlock.o \
 UCBckINC = -I$(UCBckDIR)/include
 
 UCBckH = $(UCBckDIR)/include/BatteryUnitBlock.h \
+	$(UCBckDIR)/include/DesignNetworkBlock.h \
 	$(UCBckDIR)/include/DCNetworkBlock.h \
 	$(UCBckDIR)/include/ECNetworkBlock.h \
 	$(UCBckDIR)/include/HydroSystemUnitBlock.h \
@@ -80,7 +81,8 @@ $(UCBckDIR)/obj/BatteryUnitBlock.o: $(UCBckDIR)/src/BatteryUnitBlock.cpp \
 
 $(UCBckDIR)/obj/DCNetworkBlock.o: $(UCBckDIR)/src/DCNetworkBlock.cpp \
 	$(UCBckDIR)/include/DCNetworkBlock.h $(UCBckDIR)/include/UCBlock.h \
-	$(UCBckDIR)/include/NetworkBlock.h $(SMS++OBJ)
+	$(UCBckDIR)/include/NetworkBlock.h $(UCBckDIR)/include/DesignNetworkBlock.h \
+	$(SMS++OBJ)
 	$(CC) -c $(UCBckDIR)/src/DCNetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
 
