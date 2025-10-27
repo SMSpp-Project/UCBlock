@@ -3140,8 +3140,7 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
 /*--------- CONSTRUCTING AND DESTRUCTING ThermalUnitBlockSolution ----------*/
 
  /// constructor, it has nothing to do
- explicit ThermalUnitBlockSolution( void ) : UnitBlockSolution() ,
-  f_design( dNaN ) {}
+ explicit ThermalUnitBlockSolution( void ) : f_design( dNaN ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -3149,7 +3148,7 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~ThermalUnitBlockSolution() = default;
+ ~ThermalUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
 /*----- METHODS DESCRIBING THE BEHAVIOR OF A ThermalUnitBlockSolution -----*/

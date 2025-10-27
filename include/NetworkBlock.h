@@ -985,7 +985,7 @@ class NetworkBlockSolution : public Solution
 /*----------- CONSTRUCTING AND DESTRUCTING NetworkBlockSolution ------------*/
 
  explicit NetworkBlockSolution( void ) : f_number_nodes( 0 ) , 
-  f_number_instants( 0 ) { }  /// constructor, it has nothing to do
+  f_number_instants( 0 ) {}  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a NetworkBlockSolution from a netCDF::NcGroup
@@ -1008,14 +1008,20 @@ class NetworkBlockSolution : public Solution
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~NetworkBlockSolution() = default;  ///< destructor: it is virtual, and empty
+ ~NetworkBlockSolution() override = default;
+ ///< destructor: it is virtual, and empty
 
 /*-------------- READING THE DATA OF THE NetworkBlockSolution --------------*/
 
  ///< returns the number of instants covered by this NetworkBlockSolution
 
- Index get_number_instants( void ) { return( f_number_instants ); }
- 
+ Index get_number_instants( void ) const { return( f_number_instants ); }
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ ///< returns the number of nodes covered by this NetworkBlockSolution
+
+ Index get_number_nodes( void ) const { return( f_number_nodes ); }
+
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
 
  void read( const Block * block ) override;
@@ -1164,6 +1170,7 @@ class NetworkBlockSolution : public Solution
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  Index f_number_nodes;       ///< the number of nodes
+
  Index f_number_instants;    ///< the number of instants
 
  boost::multi_array< double , 2 > v_node_injection;

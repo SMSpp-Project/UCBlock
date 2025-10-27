@@ -117,31 +117,20 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  NetworkData::deserialize( group );
 
- deserialize_dim( group , "NumberLines" , f_number_lines , false );
-
- if( ! deserialize_dim( group , "NumberBranches" , f_number_branches , true ) )
-  f_number_branches = f_number_lines;
-
  if( ! deserialize_dim( group , "ReferenceNode" , f_reference_node , true ) )
   f_reference_node = 0;
 
  // Optional variables
 
- // the baseMVA field is a simple scalar value specifying the system MVA base
- // used for converting power into per unit quantities (see Matpower)
- auto gbaseMVA = group.getAtt( "baseMVA" );
- std::string tmp_base;
- if( gbaseMVA.isNull() ) f_base_mva = 1.;
- else {
-  gbaseMVA.getValues( tmp_base );
-  try { f_base_mva = std::stod( tmp_base ); }
-  catch( ... ) { f_base_mva = 1.; }
- }
-
  f_lines_type = -1;
 
  if( f_number_nodes == 1 )
   return;
+
+ deserialize_dim( group , "NumberLines" , f_number_lines , false );
+
+ if( ! deserialize_dim( group , "NumberBranches" , f_number_branches , true ) )
+  f_number_branches = f_number_lines;
 
  ::deserialize( group , "StartLine" , f_number_branches , v_start_line ,
                 false , false );
@@ -279,7 +268,7 @@ int DCNetworkData::get_originalIdx( int idx ) const {
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkData::compute_DCDF( const std::vector< Index > & DC_lines ,
-                                  SpMat & PTDF_matrix )
+                                  const SpMat & PTDF_matrix )
 {
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
@@ -306,7 +295,6 @@ void DCNetworkData::compute_DCDF( const std::vector< Index > & DC_lines ,
   }
  }
  DCDF = -PTDF_matrix * A_DC_transpose;
- DCDF_was_computed = true;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -470,7 +458,7 @@ void DCNetworkData::compute_cycle_basis( int opt_root ) {
    stack.pop_back(); // use last-in so cycles easier to find
    std::set< Index > zused = used[ z ];
    for( auto & nbr : neighbors[ z ] ) {
-    if( used.find( nbr ) == used.end() ) { // new node
+    if( ! used.contains( nbr ) ) { // new node
      pred[ nbr ] = z;
      stack.push_back( nbr );
      used[ nbr ] = std::set< Index >();
@@ -479,11 +467,11 @@ void DCNetworkData::compute_cycle_basis( int opt_root ) {
     else if( nbr == z ) { // self loops
      this->v_cycle_basis.push_back( std::vector< Index >( 1 , z ) );
     }
-    else if( zused.find( nbr ) == zused.end() ) { // found a cycle
+    else if( ! zused.contains( nbr ) ) { // found a cycle
      std::set< Index > pn = used[ nbr ];
      std::vector< Index > cycle = { nbr , z };
      Index p = pred[ z ];
-     while( pn.find( p ) == pn.end() ) {
+     while( ! pn.contains( p ) ) {
       cycle.push_back( p );
       p = pred[ p ];
      }
@@ -815,7 +803,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
    vars.emplace_back( &v_power_flow[ line_id ] , -1.0 );
 
    /* Σ_i T_{li} p_i : only if l is a tree edge */
-   if( tree.find( line_id ) != tree.end() ) {
+   if( tree.contains( line_id ) ) {
      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
        if( node_id == root )
          continue;
@@ -838,8 +826,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
    for( int cycle_id = 0 ; cycle_id < static_cast< int >( basis.size() ) ;
         ++cycle_id , ++it_basis ) {
      const std::map< Index , int > & cycle = *it_basis;
-     auto it = cycle.find( line_id );
-     if( it != cycle.end() )
+     if( auto it = cycle.find( line_id ) ; it != cycle.end() )
        vars.emplace_back( &v_cycle_flow[ cycle_id ] , it->second );
    }
 
@@ -855,12 +842,10 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  for( int cycle_id = 0 ; cycle_id < basis.size() ; ++cycle_id, ++it_basis ) {
   std::map< Index , int > cycle = *it_basis;
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-   auto it = cycle.find( line_id );
-   if( it != cycle.end() ) {
+   if( auto it = cycle.find( line_id ) ; it != cycle.end() ) {
     vars.push_back(
      std::make_pair( &v_power_flow[ line_id ] ,
                      it->second / f_NetworkData->get_line_susceptance()[ line_id ] ) );
-    //x_l = 1 / f_NetworkData->get_line_susceptance()[ line_id ]
    }
   }
   v_CYCLE_def_cycle_const[ cycle_id ].set_both( 0.0 );
@@ -959,13 +944,6 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
- // In mixed mode we can write all nodal balances, instead of just strictly those needed;
- // set the following flag to true in that case
- double nodal_slack = 0.05;
- double ptdf_slack = 1.0;
- double ptdf_round = 1e-7;
-
- bool full_formulation = true;
 
  const auto number_nodes = get_number_nodes();
 
@@ -1122,11 +1100,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
      v_power_flow_injection_const[ n ].set_function(
       new LinearFunction( std::move( vars ) ) );
     }
-    /*else {
-      v_AC_HVDC_power_flow_const[ n ].set_both( -v_ActiveDemand[ n ] );
-      v_AC_HVDC_power_flow_const[ n ].set_function(
-       new LinearFunction( std::move( vars ) ) );
-    }*/
    }
    if( lines_type == kHVDC )
     add_static_constraint( v_power_flow_injection_const ,
@@ -1134,6 +1107,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
   }
   // If we have mixed lines, we have as many as nodes impacted and touched by DC lines
   if( lines_type == kAC_HVDC ) {
+   bool full_formulation = true;
    int nb_DCnodes = 0;
    // Savagely setting all visited nodes to true will generate nodal balances for all nodes
    // the default and subtle initialization should be with false
@@ -1155,6 +1129,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
    int iDCnode = 0;
    for( Index n = 0 ; n < number_nodes ; ++n ) {
     if( nodes_vist[ n ] ) {
+     double nodal_slack = 0.05;
      vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
 
      double eta = 1.0;
@@ -1197,22 +1172,14 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
     f_NetworkData->compute_DCDF( DC_lines , PTDF_matrix );
   }
 
-  /*const auto & l_names = f_NetworkData->get_line_names();
-  const auto & n_names = f_NetworkData->get_node_names();
-  std::cout << "Some output for line " << l_names[ 1045 ] << " ";
-  Eigen::SparseMatrix< double > a_row = PTDF_matrix.block(
-   1045 , 0 , 1 , PTDF_matrix.cols() );
-  for( int k = 0 ; k < a_row.outerSize() ; ++k ) {
-   for( Eigen::SparseMatrix< double >::InnerIterator it( a_row , k ) ; it ; ++it ) {
-    std::cout << "(" << it.row() << "," << it.col() + 1 << " name=" << n_names[
-     it.col() + 1 ] << " ) = " << it.value();
-   }
-  }
-  std::cout << "\n";*/
-
   // Flow limit constraints
   v_power_flow_def.resize( number_lines );
+
   for( auto & line_id : AC_lines ) {
+
+   double ptdf_round = 1e-7;
+   double ptdf_slack = 1.0;
+
    // TODO : verify if this does not entail a copy of the information which would be inefficient
    Eigen::SparseMatrix< double > a_row = PTDF_matrix.block(
     line_id , 0 , 1 , PTDF_matrix.cols() );
@@ -1719,7 +1686,7 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::set_design_variables( std::vector< ColVariable > * DV ,
-                                           Subset Which ) {
+                                           const Subset & Which ) {
  const Index nl = get_number_lines();
  if( ! nl )
   throw std::logic_error( "DCNetworkBlock::set_design_variables: "
@@ -1762,9 +1729,7 @@ void DCNetworkBlock::change_power_flow_limit_constraints
 
   const double kappa = get_kappa( i );
 
-  ColVariable * x = get_design( i );
-
-  if( x ) {
+  if( ColVariable * x = get_design( i ) ) {
    // lower:  F_i - kappa * MinP_i * x_i >= 0
    vars.push_back( std::make_pair( &v_power_flow[ i ] , 1.0 ) );
    vars.push_back(
@@ -1833,7 +1798,8 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // call the method of the base class
  NetworkBlockSolution::deserialize( group );
 
- // "NumberLines" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ // "NumberLines" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( get_number_nodes() > 1 )
  deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
  // deserialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - -
@@ -1851,7 +1817,8 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
  // call the method of the base class
  NetworkBlockSolution::deserialize( group , idx );
 
- // "NumberLines" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ // "NumberLines"- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( get_number_nodes() > 1 )
  deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
  std::vector< size_t > strt = { idx , 0 };
@@ -1936,7 +1903,7 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
  // call the method of the base class
  NetworkBlockSolution::serialize( group );
 
- // "NumberLines" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
+ // "NumberLines" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto nl = group.addDim( "NumberLines" , f_number_lines );
 
  // serialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - - -
@@ -1964,7 +1931,7 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
  netCDF::NcVar DC;  // DualCost
 
  if( idx == 0 ) {  // first call, have to initialize everything
-  // "NumberLines" is mandatory - - - - - - - - - - - - - - - - - - - - - - -
+  // "NumberLines - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   auto nl = group.addDim( "NumberLines" , f_number_lines );
 
   // "NumberNetworks" is mandatory, and it's checked in the base class

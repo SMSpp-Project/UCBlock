@@ -1828,7 +1828,7 @@ class UCBlockSolution : public Solution {
  explicit UCBlockSolution( void ) : f_time_horizon( 0 ) ,
   f_number_nodes( 0 ) , f_number_primary_zones( 0 ) ,
   f_number_secondary_zones( 0 ) , f_number_inertia_zones( 0 ) ,
-  f_compressed_network( true ) { }
+  f_compressed_network( true ) {}
  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

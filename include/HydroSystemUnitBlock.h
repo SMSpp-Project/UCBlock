@@ -524,7 +524,7 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
 /*------ CONSTRUCTING AND DESTRUCTING HydroSystemUnitBlockSolution ---------*/
 
  /// constructor, it has nothing to do
- explicit HydroSystemUnitBlockSolution( void ) : UnitBlockSolution() {}
+ explicit HydroSystemUnitBlockSolution( void ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -532,7 +532,7 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~HydroSystemUnitBlockSolution() = default;
+ ~HydroSystemUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
 /*--- METHODS DESCRIBING THE BEHAVIOR OF A HydroSystemUnitBlockSolution ---*/

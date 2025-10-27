@@ -157,17 +157,16 @@ class DCNetworkData : public NetworkData
 
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_reference_node( 0 ) ,
- DCDF_was_computed( false ) , f_base_mva( 1.0 ), f_lines_type( -1 ) ,
- f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
+ DCDF_was_computed( false ) , f_lines_type( -1 ) , f_number_branches( 0 ) ,
+ cycle_basis_was_computed( false ) {}
 
  /// copy constructor of DCNetworkData, does nothing
  explicit DCNetworkData( const NetworkData * ) : f_number_lines( 0 ) ,
- f_reference_node( 0 ) , DCDF_was_computed( false ) , f_base_mva( 1.0 ) ,
- f_lines_type( -1 ) , f_number_branches( 0 ) ,
- cycle_basis_was_computed( false ) {}
+ f_reference_node( 0 ) , DCDF_was_computed( false ) , f_lines_type( -1 ) ,
+ f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
 
  /// destructor of DCNetworkData: it is virtual, and empty
- virtual ~DCNetworkData() override = default;
+ ~DCNetworkData() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -481,12 +480,6 @@ class DCNetworkData : public NetworkData
  }
 
 /*--------------------------------------------------------------------------*/
-
- double get_baseMVA( void ) const {
-  return( f_base_mva );
- }
-
-/*--------------------------------------------------------------------------*/
  /// returns the AC lines
  /** This function returns the AC lines in the transmission network.
   * @return the AC lines in the network. */
@@ -550,7 +543,7 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- void compute_DCDF( const std::vector< Index > & DC_lines, SpMat & PTDF_matrix );
+ void compute_DCDF( const std::vector< Index > & DC_lines, const SpMat & PTDF_matrix );
 
 /*--------------------------------------------------------------------------*/
 
@@ -559,10 +552,6 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
 
  bool was_DCDF_computed( void ) const { return( DCDF_was_computed ); }
-
-/*--------------------------------------------------------------------------*/
-
- void set_DCDF_computed( void ) { DCDF_was_computed = true; }
 
 /*--------------------------------------------------------------------------*/
 
@@ -816,8 +805,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  /// A boolean to avoid forming A^dc multiple times
  bool DCDF_was_computed;
-
- double f_base_mva;
 
  /// the type of the network
  int f_lines_type;
@@ -1499,7 +1486,7 @@ const std::vector< BoxConstraint > &
   *  i = 0 , ... , DV.size() - 1. Otherwise, DV[ i ] refers to line Which[ i ].
   *  Must be called before DCNetworkBlock::generate_abstract_constraints(). */
 
- void set_design_variables( std::vector< ColVariable > * DV , Subset Which );
+ void set_design_variables( std::vector< ColVariable > * DV , const Subset & Which );
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1964,8 +1951,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 /*---------- CONSTRUCTING AND DESTRUCTING DCNetworkBlockSolution -----------*/
 
  /// constructor, does nothing
- explicit DCNetworkBlockSolution( void ) : NetworkBlockSolution() ,
-  f_number_lines( 0 ) {}
+ explicit DCNetworkBlockSolution( void ) : f_number_lines( 0 ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a DCNetworkBlockSolution from a netCDF::NcGroup

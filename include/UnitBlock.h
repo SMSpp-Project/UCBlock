@@ -929,7 +929,7 @@ class UnitBlockSolution : public Solution {
 /*------------- CONSTRUCTING AND DESTRUCTING UnitBlockSolution -------------*/
 
  explicit UnitBlockSolution( void ) : f_time_horizon( 0 ) ,
-  f_number_generators( 0 ) { }  /// constructor, it has nothing to do
+  f_number_generators( 0 ) {}  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -937,7 +937,8 @@ class UnitBlockSolution : public Solution {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~UnitBlockSolution() = default;  ///< destructor: it is virtual, and empty
+ ~UnitBlockSolution() override = default;
+ ///< destructor: it is virtual, and empty
 
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A UnitBlockSolution --------*/
 

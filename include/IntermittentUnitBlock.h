@@ -1158,8 +1158,7 @@ class IntermittentUnitBlockSolution : public UnitBlockSolution
 /*------- CONSTRUCTING AND DESTRUCTING IntermittentUnitBlockSolution -------*/
 
  /// constructor, it has nothing to do
- explicit IntermittentUnitBlockSolution( void ) : UnitBlockSolution() ,
-  f_design( dNaN ) {}
+ explicit IntermittentUnitBlockSolution( void ) : f_design( dNaN ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1167,7 +1166,7 @@ class IntermittentUnitBlockSolution : public UnitBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~IntermittentUnitBlockSolution() = default;
+ ~IntermittentUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
 /*--- METHODS DESCRIBING THE BEHAVIOR OF A IntermittentUnitBlockSolution --*/
