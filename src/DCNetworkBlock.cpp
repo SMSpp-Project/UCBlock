@@ -363,10 +363,8 @@ SpMat DCNetworkData::get_PTDF( const std::vector< Index > & AC_lines ,
   std::pair< SpMat , SpMat > t = get_stored_B2();
   if( B2.isApprox( t.first ) ) {
    B2_inv = t.second;
-   //std::cout << "stored found" << std::endl;
   }
   else {
-   //std::cout << "stored NOT found" << std::endl;
    // Inversion of sparse matrix with eigen (solve B2*X = I)
    //Eigen::BiCGSTAB<SpMat> solver;
    Eigen::SparseLU< SpMat > solver;
@@ -388,7 +386,6 @@ SpMat DCNetworkData::get_PTDF( const std::vector< Index > & AC_lines ,
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkData::compute_cycle_basis( int opt_root ) {
- // QJ: to move to parent class NetworkData?
  // As it does not require data of neither DC nor AC
  /* Compute a list of cycles which form a basis for cycles of G.
 
@@ -420,7 +417,7 @@ void DCNetworkData::compute_cycle_basis( int opt_root ) {
   ----------
   .. [1] Paton, K. An algorithm for finding a fundamental set of
      cycles of a graph. Comm. ACM 12, 9 (Sept 1969), 514-518.
-*/
+ */
 
  if( cycle_basis_was_computed ) {
   std::cout << "Cycle basis already computed" << std::endl;
@@ -437,7 +434,7 @@ void DCNetworkData::compute_cycle_basis( int opt_root ) {
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
 
- // First, compute neighbors // QJ: should be a method, if needed in other graph functions ?
+ // First, compute neighbors
  std::vector< std::set< Index > > neighbors( number_nodes ,
                                              std::set< Index >() );
  for( Index id_line = 0 ; id_line < number_lines ; ++id_line ) {
@@ -685,7 +682,6 @@ void DCNetworkBlock::generate_CYCLE_variables( Configuration * stvv )
   * Here, we opt for the "CYCLE + FLOW" formulation with
   *   - variables "v_power_flow" as in the PTDF formulation (f_l in the paper)
   *   - variables "v_cycle_flow" (h_c in the paper)
-  *
   */
 
   generate_PTDF_variables(stvv); // we have the same variables + others
@@ -695,7 +691,7 @@ void DCNetworkBlock::generate_CYCLE_variables( Configuration * stvv )
    return;
   const auto number_lines = get_number_lines();
 
-  if( number_lines > 0 && number_nodes > 0) {
+  if( number_lines > 0 && number_nodes > 0 ) {
    // the power flow variable on cycle basis
    v_cycle_flow.resize( number_lines - number_nodes + 1);
       // we know the number of cycles by the graph theory, see the paper.
@@ -746,27 +742,11 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  LinearFunction::v_coeff_pair vars;
 
  // ----- First step: compute the cycle basis and spanning tree
- //std::cout << "Cycle basis:" << std::endl;
  auto basis = f_NetworkData->get_lines_in_cycles();
  // cycle incidence matrices C_{lc} in the paper
  assert( basis.size() == number_lines - number_nodes + 1 );
- /* for Debug
- for( auto & cycle : basis ) {
-  std::cout << "(";
-  for( auto it = cycle.begin() ; it != cycle.end() ; ++it ) {
-   std::cout << "line " << it->first << ": " << it->second << ",";
-  }
-  std::cout << ")" << std::endl;
- }*/
 
- // std::cout << "Spanning tree:" << std::endl;
  auto tree = f_NetworkData->get_lines_in_spanning_tree();
- /* for debug
- for( auto it = tree.begin() ; it != tree.end() ; ++it ) {
-  std::cout << "(line " << it->first << ":" << it->second << "),";
- }
- std::cout << std::endl;
- */
 
  /* eq (25): for all lines l,  f_l = sum_i T_{li} p_i  +  sum_c C_{lc} h_c */
  const auto & start_line = f_NetworkData->get_start_line();
@@ -1008,26 +988,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
  std::vector< Index > AC_lines = f_NetworkData->get_AC_lines();
  SpMat PTDF_matrix = f_NetworkData->get_PTDF( AC_lines );
 
- /*std::cout << "Debut ecriture" << std::endl;
- std::cout << "Line" << "\t" << "Node" << "Coefficient" << std::endl;
- for( auto & line_id : AC_lines ) {
-  Eigen::SparseMatrix< double > a_row = PTDF_matrix.block(
-   line_id , 0 , 1 , PTDF_matrix.cols() );
-  for( int k = 0 ; k < a_row.outerSize() ; ++k ) {
-   for( Eigen::SparseMatrix< double >::InnerIterator it( a_row , k ) ; it ; ++it ) {
-    int node_id = f_NetworkData->get_originalIdx( it.col() );
-    if( node_id != f_NetworkData->get_reference_node() ) {
-     double coefficient = round_to( it.value() , 1e-7 );
-     //PTDF_matrix.coeff( line_id , f_NetworkData->get_reducedIdx( node_id ) );
-     std::cout << f_NetworkData->get_line_names()[ line_id ] << "\t" <<
-      f_NetworkData->get_node_names()[ node_id ] << "\t" << coefficient <<
-      std::endl;
-    }
-   }
-  } // for each node
- }
- std::cout << "Fichier fermé" << std::endl;
- exit( 0 );*/
  std::vector< Index > DC_lines = f_NetworkData->get_DC_lines();
 
  // Auxiliary variables for nonempty cost
