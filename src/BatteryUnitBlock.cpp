@@ -631,16 +631,47 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    //
    //      v_intake_level + v_outtake_level <= ( k v_ConvMaxPower ) x_c
    // => v_intake_level + v_outtake_level - ( k v_ConvMaxPower ) x_c <= 0
+   //
+   // This constraint is generated only if the converter has a design variable
+   // with a positive maximum power. Otherwise, a numerical bound or a
+   // non-binding constraint is used to avoid disabling the battery.
 
-   vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &conv_design ,
-                                   -f_kappa * v_ConvMaxPower[ t ] ) );
+   if( ( f_ConvInvestmentCost != 0 ) && ( v_ConvMaxPower[ t ] > 0 ) ) {
+    // Case 1: converter is a design variable -> standard constraint with conv_design
+    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
+    vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
+    vars.push_back( std::make_pair( &conv_design ,
+                                    -f_kappa * v_ConvMaxPower[ t ] ) );
 
-   intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs( -Inf< double >() );
-   intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs( 0.0 );
-   intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs(
+     -Inf< double >() );
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs( 0.0 );
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+   else if( ( f_ConvInvestmentCost == 0 ) && ( v_ConvMaxPower[ t ] > 0 ) ) {
+    // Case 2: no converter design variable -> use numerical bound
+    // v_intake_level + v_outtake_level <= k * v_ConvMaxPower[t]
+    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
+    vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
+
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs(
+     -Inf< double >() );
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs(
+     f_kappa * v_ConvMaxPower[ t ] );
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+   else {
+    // Case 3: zero converter power -> deactivate constraint
+    // Avoid generating "il + ol <= 0" which would switch off the battery
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs(
+     -Inf< double >() );
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs(
+     Inf< double >() );
+    intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
   }
 
   add_static_constraint( intake_outtake_upper_bounds_design_Const ,
