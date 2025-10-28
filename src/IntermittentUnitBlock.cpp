@@ -415,9 +415,6 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    lf->add_variable( &v_active_power[ t ] , f_scale * v_ActivePowerCost[ t ] );
 
- // just pay for the extra over the min capacity
- lf->set_constant_term( -f_InvestmentCost * f_MinCapacityDesign );
-
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 

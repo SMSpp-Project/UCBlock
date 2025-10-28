@@ -1051,10 +1051,6 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
   lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] , eDryRun );
  }
 
- // just pay for the extra over the min capacity
- lf->set_constant_term( -f_BattInvestmentCost * f_BattMinCapacityDesign
-                        -f_ConvInvestmentCost * f_ConvMinCapacityDesign );
-
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
