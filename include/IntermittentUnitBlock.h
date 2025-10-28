@@ -111,8 +111,8 @@ class IntermittentUnitBlock : public UnitBlock
   */
  explicit IntermittentUnitBlock( Block * f_block = nullptr )
   : UnitBlock( f_block ), f_InvestmentCost( 0 ), f_MinCapacityDesign( 0 ),
-    f_MaxCapacityDesign( 1 ), f_MaxCapacity( 0 ), f_gamma( 0 ), f_kappa( 1 ),
-    f_scale( 1 ), f_max_power_epsilon( 0 ) {}
+    f_MaxCapacityDesign( 1 ), f_gamma( 0 ), f_kappa( 1 ), f_scale( 1 ),
+    f_max_power_epsilon( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of IntermittentUnitBlock
@@ -431,14 +431,14 @@ class IntermittentUnitBlock : public UnitBlock
   * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * or #f_BlockConfig->f_is_feasible_Configuration, and they are determined as
   * follows:
   *
-  * - If \p fsbc is not nullptr and it is a pointer to a
+  * - If \p fsbc is not nullptr, and it is a pointer to a
   *   SimpleConfiguration< double >, then the tolerance is the value present
   *   in that SimpleConfiguration and the relative violation is considered.
   *
-  * - If \p fsbc is not nullptr and it is a pointer to a
+  * - If \p fsbc is not nullptr, and it is a pointer to a
   *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
   *   fsbc->f_value.first and the type of violation is determined by
   *   fsbc->f_value.second (any nonzero number for relative violation and
@@ -490,7 +490,7 @@ class IntermittentUnitBlock : public UnitBlock
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
  /// returns the maximum installable capacity by the user
- double get_max_capacity( void ) const { return( f_MaxCapacity ); }
+ double get_max_capacity_design( void ) const { return( f_MaxCapacityDesign ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum power
@@ -706,11 +706,11 @@ class IntermittentUnitBlock : public UnitBlock
   *
   * This value is to be found as:
   *
-  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  * - if solc is not nullptr, and it is a SimpleConfiguration< int >, then it
   *   is solc->f_value;
   *
   * - otherwise, if f_BlockConfig is not nullptr,
-  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   f_BlockConfig->f_solution_Configuration is not nullptr, and it is a
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
@@ -886,9 +886,6 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the maximum capacity design allowed
  double f_MaxCapacityDesign;
-
- /// the maximum installable capacity by the user
- double f_MaxCapacity;
 
  /// the gamma value
  double f_gamma;
@@ -1106,7 +1103,7 @@ class IntermittentUnitBlockRngdMod : public IntermittentUnitBlockMod
 
  /// constructor: takes the IntermittentUnitBlock, the type, and the range
  IntermittentUnitBlockRngdMod( IntermittentUnitBlock * const fblock ,
-                               const int type , Block::Range rng )
+                               const int type , const Block::Range & rng )
   : IntermittentUnitBlockMod( fblock , type ) , f_rng( rng ) {}
 
  /// destructor, does nothing

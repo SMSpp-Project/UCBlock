@@ -40,12 +40,6 @@
 
 #include "FRowConstraint.h"
 
-#include "RowConstraintSolution.h"
-
-#include "ColRowSolution.h"
-
-#include "ColVariableSolution.h"
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -441,7 +435,7 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
   
   // now write EndInstant[ idx ]
   std::vector< size_t > vidx = { idx };
-  EI.putVar( vidx , int( start + f_number_instants ) );
+  EI.putVar( vidx , static_cast< int >( start + f_number_instants ) );
   }
 
  // now serialize the data structures - - - - - - - - - - - - - - - - - - - -
