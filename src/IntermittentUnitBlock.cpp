@@ -458,17 +458,16 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc )
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
 
- LinearFunction::v_coeff_pair vars;
+ auto lf = new LinearFunction();
 
  if( f_InvestmentCost != 0 )
-  vars.push_back( std::make_pair( &design , f_InvestmentCost ) );
- 
+  lf->add_variable( &design , f_InvestmentCost );
+
  if( ! v_ActivePowerCost.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_pair( &v_active_power[ t ] ,
-                                    f_scale * v_ActivePowerCost[ t ] ));
+   lf->add_variable( &v_active_power[ t ] , f_scale * v_ActivePowerCost[ t ] );
 
- objective.set_function( new LinearFunction( std::move( vars ) ) );
+ objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
  // Set Block objective

@@ -18,6 +18,7 @@ netCDF
 
 # executables
 tools/nc4generator
+tools/csv2netCDF/Manifest.toml
 
 # Precompiled Headers
 *.gch

@@ -452,7 +452,6 @@ class ECNetworkBlock : public NetworkBlock
 
  Index get_number_nodes( void ) const override {
   if( ! f_NetworkData )
-   //return( 1 );
    throw( std::invalid_argument( "ECNetworkBlock::get_number_nodes: cannot "
                                  "create an Energy Community with just one "
                                  "user" ) );

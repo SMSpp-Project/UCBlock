@@ -70,7 +70,7 @@ target_compile_features(${modName} PUBLIC cxx_std_17)
 target_sources(${modName} PRIVATE
                src/UCBlock.cpp
                src/NetworkBlock.cpp
-               src/ACNetworkBlock.cpp
+               src/DesignNetworkBlock.cpp
                src/DCNetworkBlock.cpp
                src/ECNetworkBlock.cpp
                src/UnitBlock.cpp

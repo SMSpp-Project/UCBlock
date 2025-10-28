@@ -126,11 +126,6 @@ This builds the following folders:
   UC instances related to optimal planning of the EU-wide energy system
   developed during the [plan4res](https://www.plan4res.eu) project
 
-- [data/nc4/mathpower2netCDF](tools/mathpower2netCDF), which contains
-  a converter from instances in the [Matpower](https://matpower.org)
-  format to the netCDF one of SMS++ (this is not in [tools](tools/),
-  where it should reasonably be, since it's somewhat large)
-
 
 ## Tools
 
@@ -140,13 +135,16 @@ We provide some tool to generate input data for UCBlock:
   that can be used to produce netCDF versions of the instances produced by
   [classical random generators](https://commalab.di.unipi.it/datasets/UC)
 
+- [a mathpower2netCDF](tools/mathpower2netCDF/readme.txt), which contains
+  a converter from instances in the [Matpower](https://matpower.org)
+  format to the netCDF one of SMS++
+
 - [a Matlab-based data generator](tools/UC2SMSpp/README.md)
 
 - [a converter from .yml and .csv data files](tools/csv2netCDF/README.md)
   used to describe UC instances corresponding to Energy Community design
   problems used in the [EnergyCommunity.jl JuMP
   package](https://github.com/SPSUnipi/EnergyCommunity.jl)
-
 
 
 ## Getting help

@@ -2195,7 +2195,7 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
 /*--------- CONSTRUCTING AND DESTRUCTING BatteryUnitBlockSolution ----------*/
 
  /// constructor, it has nothing to do
- explicit BatteryUnitBlockSolution( void ) : UnitBlockSolution() ,
+ explicit BatteryUnitBlockSolution( void ) :
   f_b_design( dNaN ) , f_c_design( dNaN ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2204,7 +2204,7 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~BatteryUnitBlockSolution() = default;
+ ~BatteryUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
 /*----- METHODS DESCRIBING THE BEHAVIOR OF A BatteryUnitBlockSolution -----*/

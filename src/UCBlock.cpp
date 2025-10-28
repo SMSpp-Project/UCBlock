@@ -201,7 +201,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                                      "HyperArcID" ,
                                                      "NodeName" ,
                                                      "LineName" ,
-                                                     // vars for AC Mode
+                                                     // ACNetworkBlockData
                                                      "ReactivePowerDemand" ,
                                                      "NodeConductance" ,
                                                      "NodeSusceptance" ,
@@ -2469,8 +2469,8 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
      ni += v_network_Solution[ i ]->get_number_instants();
 
    if( ni > v_network_Solution.size() ) {
-    auto tni = sub_group.addDim( "TotalNumberInstants" , ni );
-    sub_group.addVar( "EndInstant" , netCDF::NcInt() , { tni } );
+    sub_group.addDim( "TotalNumberInstants" , ni );
+    sub_group.addVar( "EndInstant" , netCDF::NcInt() , { nu } );
     }
      
    for( Index i = 0 ; i < v_network_Solution.size() ; ++i )

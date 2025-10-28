@@ -358,7 +358,7 @@ class NetworkBlock : public Block
   * Block. */
 
  explicit NetworkBlock( Block * father = nullptr ) :
-  Block( father ) , f_local_NetworkData( false ) {}
+  Block( father ) , f_local_NetworkData( false ) , f_ConstTerm( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of NetworkBlock
@@ -763,8 +763,8 @@ class NetworkBlock : public Block
   * @param issueAMod It controls how abstract Modification are issued. */
 
  virtual void set_active_demand( MF_dbl_it values , Subset && subset ,
-                                 bool ordered , c_ModParam issuePMod ,
-                                 c_ModParam issueAMod ) = 0;
+                                 bool ordered , ModParam issuePMod ,
+                                 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p rng
@@ -784,8 +784,8 @@ class NetworkBlock : public Block
   * @param issueAMod It controls how abstract Modification are issued. */
 
  virtual void set_active_demand( MF_dbl_it values , Range rng ,
-                                 c_ModParam issuePMod ,
-                                 c_ModParam issueAMod ) = 0;
+                                 ModParam issuePMod ,
+                                 ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
@@ -825,7 +825,7 @@ class NetworkBlock : public Block
  bool f_local_NetworkData;
 
  /// the constant term
- double f_ConstTerm{};
+ double f_ConstTerm;
 
  /// minimum production of the electrical generators
  boost::multi_array< double , 2 > v_MinNodeInjection;
@@ -1038,7 +1038,7 @@ class NetworkBlockSolution : public Solution
 /*----------- CONSTRUCTING AND DESTRUCTING NetworkBlockSolution ------------*/
 
  explicit NetworkBlockSolution( void ) : f_number_nodes( 0 ) , 
-  f_number_instants( 0 ) { }  /// constructor, it has nothing to do
+  f_number_instants( 0 ) {}  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a NetworkBlockSolution from a netCDF::NcGroup
@@ -1061,14 +1061,20 @@ class NetworkBlockSolution : public Solution
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~NetworkBlockSolution() = default;  ///< destructor: it is virtual, and empty
+ ~NetworkBlockSolution() override = default;
+ ///< destructor: it is virtual, and empty
 
 /*-------------- READING THE DATA OF THE NetworkBlockSolution --------------*/
 
  ///< returns the number of instants covered by this NetworkBlockSolution
 
- Index get_number_instants( void ) { return( f_number_instants ); }
- 
+ Index get_number_instants( void ) const { return( f_number_instants ); }
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ ///< returns the number of nodes covered by this NetworkBlockSolution
+
+ Index get_number_nodes( void ) const { return( f_number_nodes ); }
+
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
 
  void read( const Block * block ) override;
@@ -1217,6 +1223,7 @@ class NetworkBlockSolution : public Solution
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  Index f_number_nodes;       ///< the number of nodes
+
  Index f_number_instants;    ///< the number of instants
 
  boost::multi_array< double , 2 > v_node_injection;
