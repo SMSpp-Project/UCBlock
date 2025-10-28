@@ -116,8 +116,6 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
  }
 
- ::deserialize( group , f_MaxCapacity , "MaxCapacity" );
-
  if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
                       true , true , v_change_intervals ) )
   v_MinPower.resize( f_time_horizon );
@@ -508,9 +506,6 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
    ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
                 f_MaxCapacityDesign );
  }
-
- if( f_MaxCapacity != 0 )
-  ::serialize( group , "MaxCapacity" , netCDF::NcDouble() , f_MaxCapacity );
 
  ::serialize( group , "Gamma" , netCDF::NcDouble() , f_gamma );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
