@@ -160,9 +160,8 @@ class BatteryUnitBlock : public UnitBlock
   UnitBlock( f_block ), f_BattInvestmentCost( 0 ), f_ConvInvestmentCost( 0 ),
   f_BattMinCapacityDesign( 0 ), f_BattMaxCapacityDesign( 1 ),
   f_ConvMinCapacityDesign( 0 ), f_ConvMaxCapacityDesign( 1 ),
-  f_BattMaxCapacity( 0 ), f_ConvMaxCapacity( 0 ), f_InitialStorage( 0 ),
-  f_InitialPower( 0 ), f_MaxCRateCharge( 1 ), f_MaxCRateDischarge( 1 ),
-  f_kappa( 1 ), f_scale( 1 ) {}
+  f_InitialStorage( 0 ), f_InitialPower( 0 ), f_MaxCRateCharge( 1 ),
+  f_MaxCRateDischarge( 1 ), f_kappa( 1 ), f_scale( 1 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of BatteryUnitBlock
@@ -601,11 +600,11 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - if \( \mathrm{BatteryMaxCapacityDesign} < 0 \) then \( x_b \in \{0,1\} \);
   *   if moreover \( \mathrm{BatteryMinCapacityDesign} > 0 \) then \( x_b = 1 \).
-  *   Otherwise \( \mathrm{BatteryMinCapacityDesign} \le x_b \le \mathrm{BatteryMaxCapacityDesign} \).
+  *   Otherwise, \( \mathrm{BatteryMinCapacityDesign} \le x_b \le \mathrm{BatteryMaxCapacityDesign} \).
   *
   * - if \( \mathrm{ConverterMaxCapacityDesign} < 0 \) then \( x_c \in \{0,1\} \);
   *   if moreover \( \mathrm{ConverterMinCapacityDesign} > 0 \) then \( x_c = 1 \).
-  *   Otherwise \( \mathrm{ConverterMinCapacityDesign} \le x_c \le \mathrm{ConverterMaxCapacityDesign} \).
+  *   Otherwise, \( \mathrm{ConverterMinCapacityDesign} \le x_c \le \mathrm{ConverterMaxCapacityDesign} \).
   *
   * The parameter \p stvv and the Configuration for this function presented in
   * the BlockConfig (namely,
@@ -937,10 +936,14 @@ class BatteryUnitBlock : public UnitBlock
  }
 
  /// returns the maximum battery installable capacity by the user
- double get_batt_max_capacity( void ) const { return( f_BattMaxCapacity ); }
+ double get_batt_max_capacity_design( void ) const {
+  return ( f_BattMaxCapacityDesign );
+  }
 
  /// returns the maximum converter installable capacity by the user
- double get_conv_max_capacity( void ) const { return( f_ConvMaxCapacity ); }
+ double get_conv_max_capacity_design( void ) const {
+  return ( f_ConvMaxCapacityDesign );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of minimum storage
@@ -1754,12 +1757,6 @@ class BatteryUnitBlock : public UnitBlock
  /// If < 0, x_c is binary; if > 0, x_c is continuous with bounds [ConverterMinCapacityDesign, ConverterMaxCapacityDesign].
  double f_ConvMaxCapacityDesign;
 
- /// the maximum battery installable capacity by the user
- double f_BattMaxCapacity;
-
- /// the maximum converter installable capacity by the user
- double f_ConvMaxCapacity;
-
  /// the InitialStorage value
  double f_InitialStorage;
 
@@ -1906,7 +1903,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void update_objective( c_ModParam issueAMod );
+ void update_objective( c_ModParam issueAMod ) const;
 
 /*--------------------------------------------------------------------------*/
  /// verify whether the data in this BatteryUnitBlock is consistent
@@ -2032,6 +2029,7 @@ class BatteryUnitBlockMod : public UnitBlockMod
    case( eSetKappa ):
     output << "set kappa ";
     break;
+   default: ;
   }
  }
 
@@ -2053,7 +2051,7 @@ class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod
  /// constructor: takes the BatteryUnitBlock, the type, and the range
  BatteryUnitBlockRngdMod( BatteryUnitBlock * const fblock ,
                           const int type ,
-                          Block::Range rng )
+                          const Block::Range & rng )
   : BatteryUnitBlockMod( fblock , type ) , f_rng( rng ) {}
 
  /// destructor, does nothing

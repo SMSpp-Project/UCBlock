@@ -235,11 +235,11 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_Capacity , "Capacity" );
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
-  f_MinUpTime = std::min( std::max( f_MinUpTime , ( Index ) 1 ) ,
+  f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
                           f_time_horizon );
 
  if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) )
-  f_MinDownTime = std::min( std::max( f_MinDownTime , ( Index ) 1 ) ,
+  f_MinDownTime = std::min( std::max( f_MinDownTime , static_cast< Index >( 1 ) ) ,
                             f_time_horizon );
 
  ::deserialize( group , f_InitialPower , "InitialPower" );
@@ -321,22 +321,22 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   if( f_InitUpDownTime > 0 ) {
    const auto delta_ramp_up = get_delta_ramp_up( 0 );
    if( delta_ramp_up == 0 )
-    v_MaxRampSteps[ 0 ] = int( f_time_horizon - 1 );
+    v_MaxRampSteps[ 0 ] = static_cast< int >( f_time_horizon - 1 );
    else
-    v_MaxRampSteps[ 0 ] = std::min( int(
+    v_MaxRampSteps[ 0 ] = std::min( static_cast< int >(
      ( ( get_operational_max_power( 0 ) - f_InitialPower ) /
-       delta_ramp_up ) ), int( f_time_horizon - 1 ) );
+       delta_ramp_up ) ), static_cast< int >( f_time_horizon - 1 ) );
   }
   else
    v_MaxRampSteps[ 0 ] = -1;
   for( Index t = 1 ; t <= f_time_horizon ; ++t ) {
    const auto delta_ramp_up = get_delta_ramp_up( t - 1 );
    if( delta_ramp_up == 0 )
-    v_MaxRampSteps[ t ] = int( f_time_horizon - t );
+    v_MaxRampSteps[ t ] = static_cast< int >( f_time_horizon - t );
    else
-    v_MaxRampSteps[ t ] = std::min( int(
+    v_MaxRampSteps[ t ] = std::min( static_cast< int >(
      ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
-       delta_ramp_up ) ), int( f_time_horizon - t ) );
+       delta_ramp_up ) ), static_cast< int >( f_time_horizon - t ) );
   }
  }
 
@@ -346,11 +346,11 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   if( f_InitUpDownTime > 0 ) {
    const auto delta_ramp_down = get_delta_ramp_down( 0 );
    if( delta_ramp_down == 0 )
-    v_MaxRampDownSteps[ 0 ] = int( f_time_horizon - 1 );
+    v_MaxRampDownSteps[ 0 ] = static_cast< int >( f_time_horizon - 1 );
    else
-    v_MaxRampDownSteps[ 0 ] = std::min( int(
+    v_MaxRampDownSteps[ 0 ] = std::min( static_cast< int >(
      ( ( f_InitialPower - get_operational_min_power( 0 ) ) /
-       delta_ramp_down ) ), int( f_time_horizon - 1 ) );
+       delta_ramp_down ) ), static_cast< int >( f_time_horizon - 1 ) );
   }
   else
    v_MaxRampDownSteps[ 0 ] = -1;
@@ -359,9 +359,9 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
    if( delta_ramp_down == 0 )
     v_MaxRampDownSteps[ t ] = f_time_horizon - t;
    else
-    v_MaxRampDownSteps[ t ] = std::min( int(
+    v_MaxRampDownSteps[ t ] = std::min( static_cast< int >(
      ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
-       delta_ramp_down ) ), int( f_time_horizon - t ) );
+       delta_ramp_down ) ), static_cast< int >( f_time_horizon - t ) );
   }
  }
 
@@ -756,9 +756,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
      if( ( wf & FormMsk ) == SUSDForm )
        AR |= SUSDForm;
 
-    bool check_var;
-    for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
-     check_var = true;
+     for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
+     bool check_var = true;
      if( i > 0 )
       for( Index j = 0 ; j < v_P_h.size() ; ++j )
        if( v_P_h[ j ].second == v_Y_plus[ i ].first )
@@ -803,9 +802,8 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
      AR |= SDForm;
     if( ( wf & FormMsk ) == SUSDForm )
      AR |= SUSDForm;
-    bool check_var;
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
-     check_var = true;
+     bool check_var = true;
      if( i > 0 )
       for( Index j = 0 ; j < v_P_k.size() ; ++j )
        if( v_P_k[ j ].second == v_Y_plus[ i ].second )
@@ -1537,7 +1535,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first )
          if( k + 1 <= v_Y_plus[ i ].second )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          -( int( k + 1 ) * v_DeltaRampUp[ k ] )
+                                          -( static_cast< int >( k + 1 ) *
+                                             v_DeltaRampUp[ k ] )
                                           - f_InitialPower ) );
 
        RampUp_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -1565,7 +1564,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
            if( v_P_h[ j ].second == v_Y_plus[ i ].first ) {
             if( t + k + 1 <= v_Y_plus[ i ].second )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                             -( int( k ) * v_DeltaRampUp[ t ] ) ) );
+                                             -( static_cast< int >( k ) *
+                                                v_DeltaRampUp[ t ] ) ) );
             if( ( t + 1 <= v_Y_plus[ i ].second ) &&
                 ( t + k + 1 > v_Y_plus[ i ].second ) )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
@@ -1678,7 +1678,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second )
          if( 0 == v_Y_plus[ i ].first )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          -( int( k + 1 ) * v_DeltaRampUp[ k ] )
+                                          -( static_cast< int >( k + 1 ) *
+                                             v_DeltaRampUp[ k ] )
                                           - f_InitialPower ) );
 
        RampUp_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -1705,7 +1706,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
            if( v_P_k[ j ].second == v_Y_plus[ i ].second ) {
             if( t + 1 >= v_Y_plus[ i ].first )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                             -( int( k ) * v_DeltaRampUp[ t ] ) ) );
+                                             -( static_cast< int >( k ) *
+                                                v_DeltaRampUp[ t ] ) ) );
             if( ( t + 1 < v_Y_plus[ i ].first ) &&
                 ( t + k + 1 > v_Y_plus[ i ].first ) )
 	      for( Index ss = 0 ; ss < v_P_h_k.size() ; ++ss )
@@ -2010,7 +2012,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
         if( v_P_h[ j ].second == v_Y_plus[ i ].first )
          if( k + 1 <= v_Y_plus[ i ].second )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                         -( int( k + 1 ) * v_DeltaRampDown[ k ] )
+                                         -( static_cast< int >( k + 1 ) *
+                                            v_DeltaRampDown[ k ] )
                                          + f_InitialPower ) );
 
        RampDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2037,7 +2040,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
            {
             if( t + k + 1 <= v_Y_plus[ i ].second )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                             -( int( k ) * v_DeltaRampDown[ t ] ) ) );
+                                             -( static_cast< int >( k ) *
+                                                v_DeltaRampDown[ t ] ) ) );
             if( ( t + 1 < v_Y_plus[ i ].second ) &&
                 ( t + k + 1 > v_Y_plus[ i ].second ) )
              for( Index ss = 0 ; ss < v_P_h_k.size() ; ++ss )
@@ -2101,7 +2105,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 	 if( v_P_k[ j ].second == v_Y_plus[ i ].second )
          if( 0 == v_Y_plus[ i ].first )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          -( int( k + 1 ) * v_DeltaRampDown[ k ] )
+                                          -( static_cast< int >( k + 1 ) *
+                                             v_DeltaRampDown[ k ] )
                                           + f_InitialPower ) );
 	 
 
@@ -2129,7 +2134,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
            if( v_P_k[ j ].second == v_Y_plus[ i ].second ) {
             if( t + 1 >= v_Y_plus[ i ].first )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                             -( int( k ) * v_DeltaRampDown[ t ] ) ) );
+                                             -( static_cast< int >( k ) *
+                                                v_DeltaRampDown[ t ] ) ) );
             if( ( t + 1 < v_Y_plus[ i ].first ) &&
                 ( t + k + 1 >= v_Y_plus[ i ].first ) )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
@@ -2457,11 +2463,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   Index max_power_cnstrs_size = 0;
 
   std::vector< int > v_T_RU;
-  std::vector< int > v_T_RD;
-  std::vector< int > v_K_SD;
   std::vector< int > v_K_SU;
+  std::vector< int > v_K_SD;
 
   if( ( ! v_DeltaRampUp.empty() ) || ( ! v_DeltaRampDown.empty() ) ) {
+   std::vector< int > v_T_RD;
 
    if( ( ! v_DeltaRampUp.empty() ) ) {
     v_T_RU.resize( f_time_horizon );
@@ -2481,15 +2487,16 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      v_T_RD[ t ] = std::floor( ( get_operational_max_power( t ) -
                                  v_StartUpLimit[ t ] ) / v_DeltaRampDown[ t ] );
      v_K_SD[ t ] = std::min( f_InitUpDownTime - 1 , v_T_RD[ t ] );
-     v_K_SD[ t ] = std::min( ( int ) ( f_time_horizon - t ) - 1 , v_K_SD[ t ] );
+     v_K_SD[ t ] = std::min( static_cast< int >( f_time_horizon - t ) - 1 ,
+                             v_K_SD[ t ] );
     }
     if( ( ! v_DeltaRampUp.empty() ) && ( ! v_DeltaRampDown.empty() ) ) {
      v_K_SU[ t ] = std::min( f_InitUpDownTime - 2 -
                              std::max( 0 , v_K_SD[ t ] ) , v_T_RU[ t ] );
-     v_K_SU[ t ] = std::min( ( int ) ( t ) - 1 , v_K_SU[ t ] );
+     v_K_SU[ t ] = std::min( static_cast< int >( t ) - 1 , v_K_SU[ t ] );
     }
     if( ( ! v_DeltaRampUp.empty() ) && ( v_DeltaRampDown.empty() ) )
-     v_K_SU[ t ] = std::min( ( int ) ( t ) - 1 , v_T_RU[ t ] );
+     v_K_SU[ t ] = std::min( static_cast< int >( t ) - 1 , v_T_RU[ t ] );
     
    }
 
@@ -2678,7 +2685,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                      -1.0 ) );
 
-    int min_RU = std::min( ( int ) ( f_MinUpTime ) - 2 , v_T_RU[ t ] );
+    int min_RU = std::min( static_cast< int >( f_MinUpTime ) - 2 , v_T_RU[ t ] );
 
     if( t >= init_t ) {
      if( t < ( f_time_horizon - 1 ) )
@@ -2692,7 +2699,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
         &v_start_up[ t - s - init_t ] ,
         -( get_operational_max_power( t - s ) -
            v_StartUpLimit[ t - s ] -
-           ( double ) ( s + 1 ) * v_DeltaRampUp[ t - s ] ) ) );
+           static_cast< double >( s + 1 ) * v_DeltaRampUp[ t - s ] ) ) );
     }
 
     MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -2720,7 +2727,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                       -1.0 ) );
 
-     int min_RU = std::min( ( int ) ( f_MinUpTime ) - 1 , v_T_RU[ t ] );
+     int min_RU = std::min( static_cast< int >( f_MinUpTime ) - 1 , v_T_RU[ t ] );
 
      if( t >= init_t ) {
       for( int s = 0 ; s < min_RU ; ++s )
@@ -2729,7 +2736,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
          &v_start_up[ t - s - init_t ] ,
          -( get_operational_max_power( t - s ) -
             v_StartUpLimit[ t - s ] -
-            ( double ) ( s + 1 ) * v_DeltaRampUp[ t - s ] ) ) );
+            static_cast< double >( s + 1 ) * v_DeltaRampUp[ t - s ] ) ) );
      }
 
      MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -3262,7 +3269,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( Init_PC_Const , "Init_PC_Const_Thermal" );
 
   // Constraints connecting variables of the SUSD formulations with the
-  // maximum of the perspective funtion of the SU and the SD formulations - -
+  // maximum of the perspective function of the SU and the SD formulations- -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( AR & FormMsk ) == SUSDForm ) {
@@ -3386,9 +3393,9 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
  if( AR & PCuts ) {
   double tol = 1e-6;  // threshold parameter for P/C separation
   double eps = 1e-6;  // tolerance value to consider a binary variable
+
   bool check_loop = false;
-  bool check_cut = false;
-  double part1, pbar, value;
+  double part1;
 
   auto extract_parameters = [ & tol , & eps ]( Configuration * c )
    -> bool {
@@ -3413,6 +3420,8 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 
   // tbin and T formulations- - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == tbinForm || ( AR & FormMsk ) == TForm ) {
+   bool check_cut = false;
+   double pbar;
 
    for( Index t = 0 ; t < f_time_horizon ; ++t )
 
@@ -3422,8 +3431,8 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
 
      if( check_loop ) {
       pbar = v_active_power[ t ].get_value() / v_commitment[ t ].get_value();
-      value = ( v_active_power[ t ].get_value() *
-                v_active_power[ t ].get_value() ) / v_commitment[ t ].get_value();
+      double value = ( v_active_power[ t ].get_value() *
+       v_active_power[ t ].get_value() ) / v_commitment[ t ].get_value();
       if( v_cut[ t ].get_value() < value - tol )
        if( prevpbar[ t ] == 0 || ( prevpbar[ t ] != 0 && std::abs(
          ( prevpbar[ t ] - pbar ) / prevpbar[ t ] ) > eps ) )
@@ -4361,7 +4370,7 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
                                           ModParam issuePMod ,
                                           ModParam issueAMod )
 {
- rng.second = std::min( rng.second , Index( 1 ) );
+ rng.second = std::min( rng.second , static_cast< Index >( 1 ) );
  if( ! ( ( rng.first <= 0 ) && ( 0 < rng.second ) ) )
   return;  // 0 does not belong to the range; return
 
@@ -5303,7 +5312,7 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
                                              ModParam issuePMod ,
                                              ModParam issueAMod )
 {
- rng.second = std::min( rng.second , decltype( rng.second )( 1 ) );
+ rng.second = std::min( rng.second , static_cast< decltype( rng.second ) >( 1 ) );
  if( ! ( ( rng.first <= 0 ) && ( 0 < rng.second ) ) )
   return;  // 0 does not belong to the range; return
 
@@ -5369,7 +5378,7 @@ void ThermalUnitBlock::scale( MF_dbl_it values ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
-                                                  c_ModParam issueAMod )
+                                                  c_ModParam issueAMod ) const
 {
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
@@ -5394,7 +5403,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
-                                                      c_ModParam issueAMod )
+                                                      c_ModParam issueAMod ) const
 {
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
@@ -5417,7 +5426,7 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
-                                                    c_ModParam issueAMod )
+                                                    c_ModParam issueAMod ) const
 {
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
@@ -5439,8 +5448,7 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective( const Subset & subset ,
-                                         c_ModParam issueAMod )
-{
+                                         c_ModParam issueAMod ) const {
  update_objective_start_up( subset , issueAMod );
  update_objective_active_power( subset , issueAMod );
  update_objective_commitment( subset , issueAMod );
@@ -5449,8 +5457,7 @@ void ThermalUnitBlock::update_objective( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective( Range rng ,
-                                         c_ModParam issueAMod )
-{
+                                         c_ModParam issueAMod ) const {
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
