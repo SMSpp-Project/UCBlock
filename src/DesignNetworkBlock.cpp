@@ -76,15 +76,15 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
   v_InvestmentCost.resize( f_number_lines , 0 );
  }
 
- /*--- subset of designed lines: NumDesignLines [+ optional DesignLines] ---*/
+ /*- subset of designed lines: NumberDesignLines [+ optional DesignLines] -*/
  Index nd = 0;
- deserialize_dim( group , "NumDesignLines" , nd , false );  // optional
+ deserialize_dim( group , "NumberDesignLines" , nd , false );  // optional
 
  v_design_lines.clear();
  line2pos.clear();
 
  if( nd == 0 ) {
-  // fallback: if NumDesignLines is absent/zero, assume all lines are designed
+  // fallback: if NumberDesignLines is absent/zero, assume all lines are designed
   nd = f_number_lines;
  }
 
@@ -120,7 +120,7 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
                  v_MaxCapacityDesign , true , true );
 
  if( ! have_Min_over_NumberLines ) {
-  // try "NumDesignLines"-indexed (or scalar replicated over nd)
+  // try "NumberDesignLines"-indexed (or scalar replicated over nd)
   std::vector< double > tmpMin;
   if( ( nd > 0 ) &&
       ::deserialize( group , "MinCapacityDesign" , nd , tmpMin , true , true ) ) {
@@ -133,7 +133,7 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
  }
 
  if( ! have_Max_over_NumberLines ) {
-  // try "NumDesignLines"-indexed (or scalar replicated over nd)
+  // try "NumberDesignLines"-indexed (or scalar replicated over nd)
   std::vector< double > tmpMax;
   if( ( nd > 0 ) &&
       ::deserialize( group , "MaxCapacityDesign" , nd , tmpMax , true , true ) ) {
@@ -335,7 +335,7 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
  // subset info
  const Index nd = static_cast< Index >( v_design_lines.size() );
  if( nd > 0 ) {
-  auto NumDesignLines = group.addDim( "NumDesignLines" , nd );
+  auto NumberDesignLines = group.addDim( "NumberDesignLines" , nd );
 
   // write DesignLines only if not the implicit sequence 0 to nd-1
   bool is_sequential = true;
@@ -343,11 +343,11 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
    if( v_design_lines[ p ] != p ) { is_sequential = false; break; }
 
   if( ! is_sequential ) {
-   ::serialize( group , "DesignLines" , netCDF::NcInt() , NumDesignLines ,
+   ::serialize( group , "DesignLines" , netCDF::NcInt() , NumberDesignLines ,
                 v_design_lines );
   }
 
-  // write Min/Max indexed over NumDesignLines if any relevant info
+  // write Min/Max indexed over NumberDesignLines if any relevant info
   std::vector< double > min_on_nd( nd , 0.0 ) , max_on_nd( nd , 1.0 );
   for( Index p = 0 ; p < nd ; ++p ) {
    const Index l = v_design_lines[ p ];
@@ -357,13 +357,13 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
 
   if( std::any_of( min_on_nd.begin() , min_on_nd.end() ,
                    []( double x ){ return( x != 0.0 ); } ) )
-   ::serialize( group , "MinCapacityDesign" , netCDF::NcDouble() , NumDesignLines ,
-                min_on_nd );
+   ::serialize( group , "MinCapacityDesign" , netCDF::NcDouble() ,
+                NumberDesignLines , min_on_nd );
 
   if( std::any_of( max_on_nd.begin() , max_on_nd.end() ,
                    []( double x ){ return( std::abs( x ) != 1.0 ); } ) )
-   ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() , NumDesignLines ,
-                max_on_nd );
+   ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
+                NumberDesignLines , max_on_nd );
  }
 }  // end( DesignNetworkBlock::serialize )
 

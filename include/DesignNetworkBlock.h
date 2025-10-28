@@ -120,17 +120,17 @@ class DesignNetworkBlock : public NetworkBlock
   *   scalar, the value is replicated over all lines. Missing entries default
   *   to 0.
   *
-  * - **(Subset-based design selection)** The dimension "NumDesignLines"
+  * - **(Subset-based design selection)** The dimension "NumberDesignLines"
   *   containing the number of lines that have a design variable. If present,
   *   the (optional) integer variable "DesignLines", indexed over
-  *   "NumDesignLines", lists the **indices of lines** in \f$[0,\ldots,
+  *   "NumberDesignLines", lists the **indices of lines** in \f$[0,\ldots,
   *   \mathrm{NumberLines}-1]\f$ that are under design.
   *   If "DesignLines" is **absent**, it is assumed that the designed lines
-  *   are exactly \f$ \{ 0 , 1 , \ldots , \mathrm{NumDesignLines}-1 \} \f$
+  *   are exactly \f$ \{ 0 , 1 , \ldots , \mathrm{NumberDesignLines}-1 \} \f$
   *   (in this order).
   *
   * - The variables "MinCapacityDesign" and "MaxCapacityDesign" (`NcDouble`)
-  *   may be provided **indexed over "NumDesignLines"** (one value per
+  *   may be provided **indexed over "NumberDesignLines"** (one value per
   *   designed line, in the same order as "DesignLines" or the implicit order
   *   above), or as scalars (replicated). As a backward-compatible option,
   *   they can still be provided indexed over "NumberLines". Defaults:
