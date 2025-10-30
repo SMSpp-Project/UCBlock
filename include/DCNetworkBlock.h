@@ -957,7 +957,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   */
 
 /*--------------------------------------------------------------------------*/
-
  /// generate abstract constraints of DCNetworkBlock
  /** Three different kinds of DCNetworkBlock constraints are defined as below.
   * The topology of the transmission network is defined by a set of nodes
@@ -1194,8 +1193,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * If get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_lines(). Otherwise, it returns zero.
   *
-  * @return the number of lines in the network.
-  */
+  * @return the number of lines in the network. */
 
  Index get_number_lines( void ) const {
   if( ! f_NetworkData )
@@ -1229,8 +1227,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   *
   * @param line The index of a line.
   *
-  * @return The minimum power flow on the given \p line.
-  */
+  * @return The minimum power flow on the given \p line. */
 
  double get_min_power_flow( Index line ) const {
   if( ! f_NetworkData )
@@ -1247,8 +1244,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   *
   * @param line The index of a line.
   *
-  * @return The maximum power flow on the given \p line.
-  */
+  * @return The maximum power flow on the given \p line. */
 
  double get_max_power_flow( Index line ) const {
   if( ! f_NetworkData )
@@ -1329,7 +1325,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  const ColVariable * get_const_design( Index line ) const {
   return( v_design[ line ] );
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Constraint OF THE DCNetworkBlock -------*/
@@ -1481,12 +1477,18 @@ const std::vector< BoxConstraint > &
  }
 
 /*--------------------------------------------------------------------------*/
- /// set the (shared) design variables coming from the parent DesignNetworkBlock
- /** If \p Which is empty, it is assumed that DV[ i ] refers to line i for all
-  *  i = 0 , ... , DV.size() - 1. Otherwise, DV[ i ] refers to line Which[ i ].
-  *  Must be called before DCNetworkBlock::generate_abstract_constraints(). */
+ /// set the (shared) design variables
+ /** Sets the (shared) design variables, that are used to dimension all the
+  * lines in the network. These are hared since they are typically decided
+  * once and then used throughout all the (short-term) time horizon.
+  *
+  * If \p Which is empty, it is assumed that DV[ i ] refers to line i for all
+  * i = 0 , ... , DV.size() - 1. Otherwise, DV[ i ] refers to line
+  * Which[ i ].
+  * Must be called before DCNetworkBlock::generate_abstract_constraints(). */
 
- void set_design_variables( std::vector< ColVariable > * DV , const Subset & Which );
+ void set_design_variables( std::vector< ColVariable > * DV ,
+			    const Subset & Which );
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
