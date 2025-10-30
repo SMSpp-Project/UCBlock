@@ -1801,7 +1801,7 @@ void BatteryUnitBlockSolution::read( const Block * block )
   // read the storage levels - - - - - - - - - - - - - - - - - - - - - - - -
   auto SLit = BUB->get_const_storage_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   v_storage[ t ] = ( ( SLit++ ) )->get_value();
+   v_storage[ t ] = ( SLit++ )->get_value();
   }
 
  if( ! v_intake.empty() ) {
@@ -1809,7 +1809,7 @@ void BatteryUnitBlockSolution::read( const Block * block )
   auto Iit = BUB->get_const_intake_level().begin();
   auto Oit = BUB->get_const_outtake_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   v_intake[ t ] = ( ( Iit++ ) )->get_value() - ( ( Oit++ ) )->get_value();
+   v_intake[ t ] = ( Iit++ )->get_value() - ( Oit++ )->get_value();
   }
 
  // read the battery design- - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1835,7 +1835,7 @@ void BatteryUnitBlockSolution::write( Block * block )
   // write the storage levels- - - - - - - - - - - - - - - - - - - - - - - -
   auto SLit = BUB->get_storage_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   ( ( SLit++ ) )->set_value( v_storage[ t ] );
+   ( SLit++ )->set_value( v_storage[ t ] );
   }
 
  if( ! v_intake.empty() ) {
@@ -1844,12 +1844,12 @@ void BatteryUnitBlockSolution::write( Block * block )
   auto Oit = BUB->get_outtake_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_intake[ t ] >= 0 ) {
-    ( ( Iit++ ) )->set_value( v_intake[ t ] );
-    ( ( Oit++ ) )->set_value( 0 );
+    ( Iit++ )->set_value( v_intake[ t ] );
+    ( Oit++ )->set_value( 0 );
     }
    else {
-    ( ( Iit++ ) )->set_value( 0 );
-    ( ( Oit++ ) )->set_value( -v_intake[ t ] );
+    ( Iit++ )->set_value( 0 );
+    ( Oit++ )->set_value( -v_intake[ t ] );
     }
   }
 
