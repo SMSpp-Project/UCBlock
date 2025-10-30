@@ -376,21 +376,25 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   // Design bounds
 
   const double lb = std::max( 0.0 , f_MinCapacityDesign );
-  const double ub = ( std::abs( f_MaxCapacityDesign ) == 1
-                       ? 1.0 : std::abs( f_MaxCapacityDesign ) );
+  const bool is_binary = ( f_MaxCapacityDesign < 0.0 );
 
-  if( ( lb > 0.0 ) || ( std::abs( f_MaxCapacityDesign ) != 1 ) ) {
+  const double ub = is_binary
+                     ? 1.0 : ( std::abs( f_MaxCapacityDesign ) == 1.0
+                      ? 1.0 : std::abs( f_MaxCapacityDesign ) );
+
+  if( ( lb == 1.0 ) && ( ub == 1.0 ) ) {
+   design.is_unitary( true , eNoMod );
+  }
+  else {
    design_bound_Const.set_lhs( lb );
    design_bound_Const.set_rhs( ub );
    design_bound_Const.set_variable( &design );
 
    add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
 
-  } else
-   design.is_unitary( true , eNoMod );
-
-  if( f_MaxCapacityDesign < 0 )
-   design.is_integer( true , eNoMod );
+   if( is_binary )
+    design.is_integer( true , eNoMod );
+  }
  }
 
  set_constraints_generated();

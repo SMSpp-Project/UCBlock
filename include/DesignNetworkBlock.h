@@ -13,7 +13,7 @@
  * - MinCapacityDesign
  * - MaxCapacityDesign
  *
- * indexed over the dimension "NumberLines". The Block creates the design
+ * indexed over the dimension "NumberDesignLines". The Block creates the design
  * variables \f$ x_l \f$ and their bound constraints, contributes the
  * investment term to the objective, and exposes / shares the variables with
  * child NetworkBlock objects (e.g., DCNetworkBlock, ACNetworkBlock) so that
@@ -45,8 +45,6 @@
 #include "NetworkBlock.h"
 
 #include "FRealObjective.h"
-
-#include <unordered_map>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -94,7 +92,8 @@ class DesignNetworkBlock : public NetworkBlock
 
  /// constructor of DesignNetworkBlock, taking possibly a pointer of its father
  explicit DesignNetworkBlock( Block * f_block = nullptr )
-  : NetworkBlock( f_block ) , f_number_lines( 0 ) {}
+ : NetworkBlock( f_block ), f_NetworkData( nullptr ),
+   f_number_design_lines( 0 ) {}
 
  /// destructor of DesignNetworkBlock
 
@@ -110,32 +109,29 @@ class DesignNetworkBlock : public NetworkBlock
  /** Deserialize a DesignNetworkBlock out of a netCDF::NcGroup, which should
   * contain the following:
   *
-  * - The dimension "NumberLines" containing the number of lines for which
-  *   design information is provided. The dimension is optional; if it is not
-  *   present then it is assumed to be 0, in which case no design variable is
-  *   created unless the in-memory interface provides the vectors.
+  * - The dimension "NumberDesignLines" containing the number of lines that
+  *   have an associated design variable. The dimension may be zero, in which
+  *   case no design variable is created unless the in-memory interface
+  *   provides the vectors.
+  *
+  * - The (optional) integer variable "DesignLines" (`NcInt`), indexed over
+  *   "NumberDesignLines", listing the **indices of lines** (with respect to
+  *   the underlying NetworkData) that are under design. If "DesignLines" is
+  *   **absent**, it is assumed that the designed lines are exactly
+  *   \f$ \{ 0 , 1 , \ldots , \mathrm{NumberDesignLines}-1 \} \f$ (in this
+  *   order).
   *
   * - The variable "InvestmentCost" (`NcDouble`, either scalar or indexed over
-  *   "NumberLines"): per-line investment costs \f$ I_l \f$. If provided as a
-  *   scalar, the value is replicated over all lines. Missing entries default
-  *   to 0.
-  *
-  * - **(Subset-based design selection)** The dimension "NumberDesignLines"
-  *   containing the number of lines that have a design variable. If present,
-  *   the (optional) integer variable "DesignLines", indexed over
-  *   "NumberDesignLines", lists the **indices of lines** in \f$[0,\ldots,
-  *   \mathrm{NumberLines}-1]\f$ that are under design.
-  *   If "DesignLines" is **absent**, it is assumed that the designed lines
-  *   are exactly \f$ \{ 0 , 1 , \ldots , \mathrm{NumberDesignLines}-1 \} \f$
-  *   (in this order).
+  *   "NumberDesignLines"): per-line investment costs \f$ I_l \f$. If provided
+  *   as a scalar, the value is replicated over all designed lines. Missing
+  *   entries default to 0.
   *
   * - The variables "MinCapacityDesign" and "MaxCapacityDesign" (`NcDouble`)
-  *   may be provided **indexed over "NumberDesignLines"** (one value per
-  *   designed line, in the same order as "DesignLines" or the implicit order
-  *   above), or as scalars (replicated). As a backward-compatible option,
-  *   they can still be provided indexed over "NumberLines". Defaults:
-  *   MinCapacityDesign = 0, MaxCapacityDesign = 1. The sign of the (per-line)
-  *   MaxCapacityDesign determines the nature of \f$ x_l \f$:
+  *   provided **indexed over "NumberDesignLines"** (one value per designed
+  *   line, in the same order as "DesignLines" or the implicit order above),
+  *   or as scalars (replicated). Defaults: MinCapacityDesign = 0,
+  *   MaxCapacityDesign = 1. The sign of the (per-line) MaxCapacityDesign
+  *   determines the nature of \f$ x_l \f$:
   *     - if \f$ \mathrm{MaxCapacityDesign}[l] < 0 \f$ then
   *       \f$ x_l \in \{0,1\} \f$ (binary);
   *     - otherwise \f$ x_l \f$ is continuous with
@@ -190,21 +186,72 @@ class DesignNetworkBlock : public NetworkBlock
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
+/*--------------------------------------------------------------------------*/
+
  Index get_number_nodes( void ) const override { return( 0 ); }
 
- NetworkData * get_NetworkData( void ) const override { return( nullptr ); }
+/*--------------------------------------------------------------------------*/
+ /// returns a pointer to the NetworkData
+ /** Return a pointer to the NetworkData. */
 
- const double * get_active_demand( Index = 0 ) const override { return( nullptr ); }
+ NetworkData * get_NetworkData( void ) const override {
+  return( f_NetworkData );
+  }
 
- void set_ActiveDemand( const boost::multi_array< double , 2 > & ) override {}
+/*--------------------------------------------------------------------------*/
+
+ const double * get_active_demand( Index i ) const override {
+  if( v_network_blocks.empty() )
+   return( nullptr );
+
+  if( i < v_network_blocks.size() )
+   return( v_network_blocks[ i ]->get_active_demand( 0 ) );
+
+  return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_ActiveDemand( const boost::multi_array< double , 2 > & apd ) override {
+  if( v_network_blocks.empty() )
+   return;
+
+  if( v_network_blocks.size() == 1 ) {
+   v_network_blocks[ 0 ]->set_ActiveDemand( apd );
+   return;
+  }
+
+  const Index Ttot = static_cast< Index >( apd.shape()[ 0 ] );
+
+  for( Index i = 0 ; i < v_network_blocks.size() && i < Ttot ; ++i ) {
+   auto * nb = v_network_blocks[ i ];
+   const auto Nnb = nb->get_number_nodes();
+
+   boost::multi_array< double , 2 > ap_v( boost::extents[ 1 ][ Nnb ] );
+   std::copy( apd[ i ].begin() , apd[ i ].begin() + Nnb , ap_v[ 0 ].begin() );
+
+   nb->set_ActiveDemand( ap_v );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 
  void set_active_demand( MF_dbl_it , Subset && , bool ,
-                         ModParam , ModParam ) override {}
+                         ModParam , ModParam ) override final;
+
+/*--------------------------------------------------------------------------*/
 
  void set_active_demand( MF_dbl_it , Range ,
-                         ModParam , ModParam ) override {}
+                         ModParam , ModParam ) override final;
 
- void set_NetworkData( NetworkData * ) override {}
+/*--------------------------------------------------------------------------*/
+
+ void set_NetworkData( NetworkData * nd ) override {
+  f_NetworkData = nd;
+  for( auto * nb : v_network_blocks )
+   if( nb )
+    nb->set_NetworkData( nd );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- Methods for checking the DesignNetworkBlock ---------------*/
@@ -229,14 +276,14 @@ class DesignNetworkBlock : public NetworkBlock
   * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * or #f_BlockConfig->f_is_feasible_Configuration, and they are determined as
   * follows:
   *
-  * - If \p fsbc is not a nullptr and it is a pointer to a
+  * - If \p fsbc is not a nullptr, and it is a pointer to a
   *   SimpleConfiguration< double >, then the tolerance is the value present
   *   in that SimpleConfiguration and the relative violation is considered.
   *
-  * - If \p fsbc is not nullptr and it is a
+  * - If \p fsbc is not nullptr, and it is a
   *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
   *   fsbc->f_value.first and the type of violation is determined by
   *   fsbc->f_value.second (any nonzero number for relative violation and
@@ -275,12 +322,12 @@ class DesignNetworkBlock : public NetworkBlock
  * @{ */
 
  /// returns the number of lines for which design is defined
- Index get_number_lines( void ) const { return( f_number_lines ); }
+ Index get_number_design_lines( void ) const { return( f_number_design_lines ); }
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the investment cost associated with the given \p line
- double get_investment_cost( Index line ) const {
+ double get_investment_cost( const Index line ) const {
   if( v_InvestmentCost.empty() ) return( 0 );
   return( v_InvestmentCost[ line ] );
  }
@@ -288,7 +335,7 @@ class DesignNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 
  /// returns the minimum capacity design associated with the given \p line
- double get_min_capacity_design( Index line ) const {
+ double get_min_capacity_design( const Index line ) const {
   if( v_MinCapacityDesign.empty() ) return( 0 );
   return( v_MinCapacityDesign[ line ] );
  }
@@ -296,7 +343,7 @@ class DesignNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 
  /// returns the maximum capacity design associated with the given \p line
- double get_max_capacity_design( Index line ) const {
+ double get_max_capacity_design( const Index line ) const {
   if( v_MaxCapacityDesign.empty() ) return( 1 );
   return( v_MaxCapacityDesign[ line ] );
  }
@@ -307,16 +354,29 @@ class DesignNetworkBlock : public NetworkBlock
 /** @name Reading the Variable of the DesignNetworkBlock
  * @{ */
 
- /// returns the design variable for the given line
- ColVariable & get_design( Index line ) {
-  return( v_design[ line2pos.at( line ) ] );
- }
+/*--------------------------------------------------------------------------*/
+ /// returns the design variable for the given design-line index
+ /** This function returns a reference to the design variable associated with
+  * the design-line index \p line. The vector #v_design is indexed over the
+  * dimension "NumberDesignLines", so valid indices range from 0 to
+  * get_number_design_lines() – 1.
+  *
+  * @param line The index of the design line (0 ≤ \p line < NumberDesignLines).
+  * @return A reference to the corresponding design variable
+  *         \f$ x_{\mathrm{line}} \f$.
+  */
+
+ ColVariable & get_design( const Index line ) { return( v_design[ line ] ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the (const) design variable for the given design-line index
+ /** Const-qualified counterpart of get_design(). Returns a const reference to
+  * the design variable corresponding to the given design-line index \p line.
+  * See get_design() for details.
+  */
 
- /// returns the const design variable for the given line
- const ColVariable & get_const_design( Index line ) const {
-  return( v_design[ line2pos.at( line ) ] );
+ const ColVariable & get_const_design( const Index line ) const {
+  return( v_design[ line ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -324,13 +384,6 @@ class DesignNetworkBlock : public NetworkBlock
  /// returns the vector of design variables
  const std::vector< ColVariable > & get_design_variables( void ) const {
   return( v_design );
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// returns true iff the given line has a design variable (belongs to the subset)
- bool is_designed_line( Index l ) const {
-  return( line2pos.contains( l ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -373,8 +426,13 @@ class DesignNetworkBlock : public NetworkBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*---------------------------------- data ----------------------------------*/
+
+ /// the NetworkData object
+ NetworkData * f_NetworkData;
+
  /// number of lines for which design is defined
- Index f_number_lines;
+ Index f_number_design_lines;
 
  /// the investment cost for each line
  std::vector< double > v_InvestmentCost;
@@ -385,16 +443,16 @@ class DesignNetworkBlock : public NetworkBlock
  /// the maximum capacity design allowed for each line
  std::vector< double > v_MaxCapacityDesign;
 
+ /// vector of pointers to the NetworkBlock
+ std::vector< NetworkBlock * > v_network_blocks;
+
 /*-------------------------------- variables -------------------------------*/
 
- /// the design variable for each line (only for the lines listed in v_design_lines)
+ /// the design variable for each design line
  std::vector< ColVariable > v_design;
 
  /// the list of line indices that have an associated design variable
  std::vector< Index > v_design_lines;
-
- /// map: line index -> position within v_design / v_design_lines
- std::unordered_map< Index , Index > line2pos;
 
 /*------------------------------- constraints ------------------------------*/
 
@@ -403,7 +461,7 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*-------------------------------- objective -------------------------------*/
 
- /// the objective function (investment term)
+ /// the objective function
  FRealObjective objective;
 
 /*--------------------------------------------------------------------------*/
@@ -422,10 +480,10 @@ class DesignNetworkBlock : public NetworkBlock
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// static initialization for method registration (if needed later)
- static void static_initialization( void ) {}
-
 /*--------------------------------------------------------------------------*/
+ /// deserialize the Network Blocks
+
+ void deserialize_network_blocks( const netCDF::NcGroup & group );
 
 };  // end( class( DesignNetworkBlock ) )
 
