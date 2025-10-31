@@ -255,6 +255,24 @@ class DesignNetworkBlock : public NetworkBlock
     nb->set_NetworkData( nd );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// method to set the MinNodeInjection
+
+ void set_min_node_injection( Index interval , Index node ,
+                              const double min_injection ) override {
+  for( auto * nb : v_network_blocks )
+   nb->set_min_node_injection( interval , node , min_injection );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxNodeInjection
+
+ void set_max_node_injection( Index interval , Index node ,
+                              const double max_injection ) override {
+  for( auto * nb : v_network_blocks )
+   nb->set_max_node_injection( interval , node , max_injection );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------- Methods for checking the DesignNetworkBlock ---------------*/
 /*--------------------------------------------------------------------------*/

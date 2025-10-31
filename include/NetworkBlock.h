@@ -504,8 +504,8 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection
 
- void set_min_node_injection( Index interval , Index node ,
-                              const double min_injection ) {
+ virtual void set_min_node_injection( Index interval , Index node ,
+                                      const double min_injection ) {
   if( v_MinNodeInjection.empty() )
    v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ] );
@@ -515,8 +515,8 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxNodeInjection
 
- void set_max_node_injection( Index interval , Index node ,
-                              const double max_injection ) {
+ virtual void set_max_node_injection( Index interval , Index node ,
+                                      const double max_injection ) {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ] );

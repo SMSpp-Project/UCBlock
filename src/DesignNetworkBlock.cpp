@@ -20,6 +20,8 @@
 
 #include "DesignNetworkBlock.h"
 
+#include "DCNetworkBlock.h"
+
 #include "LinearFunction.h"
 
 #include "OneVarConstraint.h"
@@ -186,6 +188,13 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
     v_design[ p ].set_type( ColVariable::kNonNegative );
    }
   add_static_variable( v_design , "x_network" );
+ }
+
+ // Pass design variables to sub-network blocks
+ for( auto * nb : v_network_blocks ) {
+  if( auto * dcnb = dynamic_cast< DCNetworkBlock * >( nb ) ) {
+   dcnb->set_design_variables( &v_design , &v_design_lines );
+  }
  }
 
  set_variables_generated();
