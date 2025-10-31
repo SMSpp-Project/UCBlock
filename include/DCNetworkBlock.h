@@ -1314,14 +1314,14 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
  /// returns true if there is any design variable associated with some line
 
  bool is_design( void ) const {
-  return( v_design && ( ! (*v_design).empty() ) );
+  return( v_design && ( ! ( *v_design ).empty() ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if all lines have associated design variable 
 
  bool all_design( void ) const {
-  return( is_design() && ( (*v_design).size() == get_number_lines() ) );
+  return( is_design() && ( ( *v_design ).size() == get_number_lines() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1340,16 +1340,16 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   *       modified outside the intended modeling interface. */
 
  ColVariable * get_design( Index line ) const {
-  if( ( ! v_design ) || (*v_design).empty() )
+  if( ( ! v_design ) || ( *v_design ).empty() )
    return( nullptr );
 
-  if( ( ! v_which_design ) || (*v_which_design).empty() )
-   return( line >= (*v_design).size() ? nullptr : & (*v_design)[ line ] );
+  if( ( ! v_which_design ) || ( *v_which_design ).empty() )
+   return( line >= ( *v_design ).size() ? nullptr : & ( *v_design )[ line ] );
 
-  auto it = std::lower_bound( (*v_which_design).begin() ,
-			      (*v_which_design).end() , line );
-  return( it == (*v_which_design).end() ? nullptr :
-	  & (*v_design)[ std::distance( (*v_which_design).begin() , it ) ] );
+  auto it = std::lower_bound( ( *v_which_design ).begin() ,
+			      ( *v_which_design ).end() , line );
+  return( it == ( *v_which_design ).end() ? nullptr :
+	  & ( *v_design )[ std::distance( ( *v_which_design ).begin() , it ) ] );
   }
 
 /*--------------------------------------------------------------------------*/
