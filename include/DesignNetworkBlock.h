@@ -394,9 +394,9 @@ class DesignNetworkBlock : public NetworkBlock
   * given design-line index \p line, or nullptr if the line has no design
   * variable. */
 
- ColVariable * get_design( Index line ) const {
+ const ColVariable * get_design( Index line ) const {
   if( v_design_lines.empty() )
-   return( line >= v_design.size() ? nullptr : v_design[ line ] );
+   return( line >= v_design.size() ? nullptr : &v_design[ line ] );
 
   auto it = std::lower_bound( v_design_lines.begin() ,
 			      v_design_lines.end() , line );
@@ -409,7 +409,7 @@ class DesignNetworkBlock : public NetworkBlock
  /** Const-qualified counterpart of get_design(), see it for details. */
 
  const ColVariable * get_const_design( Index line ) const {
-  return( get_design( line ) ] );
+  return( get_design( line ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -568,7 +568,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
 /*-------- CONSTRUCTING AND DESTRUCTING DesignNetworkBlockSolution ---------*/
 
  /// constructor, does nothing
- explicit DesignNetworkBlockSolution( void ) : f_number_instants( 0 ) {}
+ explicit DesignNetworkBlockSolution( void ) : f_number_lines( 0 ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a DesignNetworkBlockSolution from a netCDF::NcGroup
