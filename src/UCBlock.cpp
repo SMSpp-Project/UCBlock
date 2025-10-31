@@ -2302,8 +2302,12 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
     if( ! v_network_Solution[ i ] )
      throw( std::invalid_argument( "UCBlockSolution::serialize: missing "
 				   "NetworkBlock in compressed format" ) );
-    else
+    else {
+     if( ! i )
+      ::serialize( sub_group , "type" , netCDF::NcString() ,
+		   v_network_Solution[ i ]->classname() );
      ni += v_network_Solution[ i ]->get_number_instants();
+     }
 
    if( ni > v_network_Solution.size() ) {
     sub_group.addDim( "TotalNumberInstants" , ni );

@@ -985,7 +985,7 @@ class NetworkBlockSolution : public Solution
 /*----------- CONSTRUCTING AND DESTRUCTING NetworkBlockSolution ------------*/
 
  explicit NetworkBlockSolution( void ) : f_number_nodes( 0 ) , 
-  f_number_instants( 0 ) {}  /// constructor, it has nothing to do
+  f_number_instants( 1 ) {}  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a NetworkBlockSolution from a netCDF::NcGroup
@@ -1014,6 +1014,8 @@ class NetworkBlockSolution : public Solution
 /*-------------- READING THE DATA OF THE NetworkBlockSolution --------------*/
 
  ///< returns the number of instants covered by this NetworkBlockSolution
+ /**< Returns the number of instants covered by this NetworkBlockSolution;
+  * by default it is 1. */
 
  Index get_number_instants( void ) const { return( f_number_instants ); }
 
@@ -1055,7 +1057,7 @@ class NetworkBlockSolution : public Solution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a NetworkBlockSolution into a "global" netCDF::NcGroup
- /** "nonstandard" version of serialize() that loads a NetworkBlockSolution
+ /** "Nonstandard" version of serialize() that loads a NetworkBlockSolution
   * from a "global" netCDF::NcGroup, i.e., one where the solution information
   * of multiple :NetworkBlock are stored together (to avoid performance issues
   * due to the fact that netCDF is not structured to work with a large number
