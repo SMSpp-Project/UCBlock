@@ -745,6 +745,7 @@ class ECNetworkBlock : public NetworkBlock
   * @param issuePMod It controls how physical Modification are issued.
   *
   * @param issueAMod It controls how abstract Modification are issued. */
+
  void set_active_demand( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,

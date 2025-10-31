@@ -722,14 +722,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
     if( ! v_MaxPrimaryPower.empty() )
      // if this unit produces any primary reserve
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
+      vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                      -1.0 ) );
 
    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
     if( ! v_MaxSecondaryPower.empty() )
      // if unit produces any secondary reserve
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
+      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                      -1.0 ) );
 
    vars.push_back( std::make_pair( &batt_design ,
                                    -f_kappa * v_MinPower[ t ] ) );
@@ -749,14 +749,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
     if( ! v_MaxPrimaryPower.empty() )
      // if this unit produces any primary reserve
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                     1.0 ) );
+      vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                      1.0 ) );
 
    if( reserve_vars & 2u )  // if UCBlock has secondary demand variable
     if( ! v_MaxSecondaryPower.empty() )
      // if this unit produces any secondary reserve
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                     1.0 ) );
+      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                      1.0 ) );
 
    vars.push_back( std::make_pair( &batt_design ,
                                    -f_kappa * v_MaxPower[ t ] ) );
@@ -773,22 +773,25 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // Battery design bounds
 
   const double lb_b = std::max( 0.0 , f_BattMinCapacityDesign );
-  const double ub_b = ( std::abs( f_BattMaxCapacityDesign ) == 1
-                         ? 1.0 : std::abs( f_BattMaxCapacityDesign ) );
+  const bool is_binary_b = ( f_BattMaxCapacityDesign < 0.0 );
 
-  if( ( lb_b > 0.0 ) || ( std::abs( f_BattMaxCapacityDesign ) != 1 ) ) {
+  const double ub_b = is_binary_b
+                       ? 1.0 : ( std::abs( f_BattMaxCapacityDesign ) == 1.0
+                            ? 1.0 : std::abs( f_BattMaxCapacityDesign ) );
+
+  if( ( lb_b == 1.0 ) && ( ub_b == 1.0 ) ) {
+   batt_design.is_unitary( true , eNoMod );
+  }
+  else {
    batt_design_bound_Const.set_lhs( lb_b );
    batt_design_bound_Const.set_rhs( ub_b );
    batt_design_bound_Const.set_variable( &batt_design );
 
    add_static_constraint( batt_design_bound_Const , "BattDesignBound_Battery" );
 
+   if( is_binary_b )
+    batt_design.is_integer( true , eNoMod );
   }
-  else
-   batt_design.is_unitary( true , eNoMod );
-
-  if( f_BattMaxCapacityDesign < 0 )
-   batt_design.is_integer( true , eNoMod );
  }
 
  if( f_ConvInvestmentCost != 0 ) {
@@ -796,21 +799,25 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // Converter design bounds
 
   const double lb_c = std::max( 0.0 , f_ConvMinCapacityDesign );
-  const double ub_c = ( std::abs( f_ConvMaxCapacityDesign ) == 1
-                        ? 1.0 : std::abs( f_ConvMaxCapacityDesign ) );
+  const bool is_binary_c = ( f_ConvMaxCapacityDesign < 0.0 );
 
-  if( ( lb_c > 0.0 ) || ( std::abs( f_ConvMaxCapacityDesign ) != 1 ) ) {
+  const double ub_c = is_binary_c
+                       ? 1.0 : ( std::abs( f_ConvMaxCapacityDesign ) == 1.0
+                            ? 1.0 : std::abs( f_ConvMaxCapacityDesign ) );
+
+  if( ( lb_c == 1.0 ) && ( ub_c == 1.0 ) ) {
+   conv_design.is_unitary( true , eNoMod );
+  }
+  else {
    conv_design_bound_Const.set_lhs( lb_c );
    conv_design_bound_Const.set_rhs( ub_c );
    conv_design_bound_Const.set_variable( &conv_design );
 
    add_static_constraint( conv_design_bound_Const , "ConvDesignBound_Battery" );
 
-  } else
-   conv_design.is_unitary( true , eNoMod );
-
-  if( f_ConvMaxCapacityDesign < 0 )
-   conv_design.is_integer( true , eNoMod );
+   if( is_binary_c )
+    conv_design.is_integer( true , eNoMod );
+  }
  }
 
  // Initializing power_intake_outtake_Const
@@ -1892,7 +1899,7 @@ void BatteryUnitBlockSolution::read( const Block * block )
   // read the storage levels - - - - - - - - - - - - - - - - - - - - - - - -
   auto SLit = BUB->get_const_storage_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   v_storage[ t ] = ( ( SLit++ ) )->get_value();
+   v_storage[ t ] = ( SLit++ )->get_value();
   }
 
  if( ! v_intake.empty() ) {
@@ -1900,7 +1907,7 @@ void BatteryUnitBlockSolution::read( const Block * block )
   auto Iit = BUB->get_const_intake_level().begin();
   auto Oit = BUB->get_const_outtake_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   v_intake[ t ] = ( ( Iit++ ) )->get_value() - ( ( Oit++ ) )->get_value();
+   v_intake[ t ] = ( Iit++ )->get_value() - ( Oit++ )->get_value();
   }
 
  // read the battery design- - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1926,7 +1933,7 @@ void BatteryUnitBlockSolution::write( Block * block )
   // write the storage levels- - - - - - - - - - - - - - - - - - - - - - - -
   auto SLit = BUB->get_storage_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   ( ( SLit++ ) )->set_value( v_storage[ t ] );
+   ( SLit++ )->set_value( v_storage[ t ] );
   }
 
  if( ! v_intake.empty() ) {
@@ -1935,12 +1942,12 @@ void BatteryUnitBlockSolution::write( Block * block )
   auto Oit = BUB->get_outtake_level().begin();
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_intake[ t ] >= 0 ) {
-    ( ( Iit++ ) )->set_value( v_intake[ t ] );
-    ( ( Oit++ ) )->set_value( 0 );
+    ( Iit++ )->set_value( v_intake[ t ] );
+    ( Oit++ )->set_value( 0 );
     }
    else {
-    ( ( Iit++ ) )->set_value( 0 );
-    ( ( Oit++ ) )->set_value( -v_intake[ t ] );
+    ( Iit++ )->set_value( 0 );
+    ( Oit++ )->set_value( -v_intake[ t ] );
     }
   }
 

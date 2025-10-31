@@ -870,8 +870,6 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
  else
   ftype = CYCLE;
 
- v_design.resize( get_number_lines() ); // TODO remove when DesignNetworkBlock will be fixed
-
  if( ftype == PTDF )
   generate_PTDF_variables( stvv );
  else if( ftype == CYCLE )
@@ -1112,104 +1110,17 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] , 1. ) );
   constant_term += v_ActiveDemand[ node_id ];
  }
- overall_balanced_const.set_function( new LinearFunction( std::move( vars ) ) );
+ overall_balanced_const.set_function(
+				  new LinearFunction( std::move( vars ) ) );
  overall_balanced_const.set_lhs( constant_term );
  overall_balanced_const.set_rhs( constant_term );
  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
 
  /*-----------------------------------------------------------------------*/
- /*-------------------- flow limits with/without design ------------------*/
- /*-----------------------------------------------------------------------*/
 
- /* check if there is at least one designed / non-designed line */
- bool any_design = false , any_nondesign = false;
- for( Index l = 0 ; l < number_lines ; ++l ) {
-   if( get_design( l ) ) any_design = true; else any_nondesign = true;
- }
+ generate_bound_constraints();  // generate flow limits
 
- /*-------------------------- with design --------------------------------*/
- /** For lines having a design variable x_l (get_design( l ) != nullptr),
-  *  impose:
-  *
-  *   LOWER: F_l - kappa * MinP_l * x_l >= 0
-  *   UPPER: F_l - kappa * MaxP_l * x_l <= 0
-  */
- if( any_design ) {
-   v_power_flow_limit_design_const.resize(
-    boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
-
-   for( Index l = 0 ; l < number_lines ; ++l ) {
-     ColVariable * x = get_design( l );
-     if( ! x )  // no design on this line: handled in the "without design" block
-      continue;
-
-     const double kappa = get_kappa( l );
-     const double Pmn   = f_NetworkData->get_min_power_flow( l );
-     const double Pmx   = f_NetworkData->get_max_power_flow( l );
-
-     // LOWER:  F_l - kappa * Pmn * x_l >= 0
-     vars.emplace_back( &v_power_flow[ l ] , 1.0 );
-     vars.emplace_back( x , -kappa * Pmn );
-     v_power_flow_limit_design_const[ 0 ][ l ].set_lhs( 0.0 );
-     v_power_flow_limit_design_const[ 0 ][ l ].set_rhs( Inf< double >() );
-     v_power_flow_limit_design_const[ 0 ][ l ].set_function(
-      new LinearFunction( std::move( vars ) ) );
-
-     // UPPER:  F_l - kappa * Pmx * x_l <= 0
-     vars.emplace_back( &v_power_flow[ l ] , 1.0 );
-     vars.emplace_back( x , -kappa * Pmx );
-     v_power_flow_limit_design_const[ 1 ][ l ].set_lhs( -Inf< double >() );
-     v_power_flow_limit_design_const[ 1 ][ l ].set_rhs( 0.0 );
-     v_power_flow_limit_design_const[ 1 ][ l ].set_function(
-      new LinearFunction( std::move( vars ) ) );
-   }
-
-   add_static_constraint( v_power_flow_limit_design_const ,
-                          "Power_flow_limit_design" );
- }
-}  // end( DCNetworkBlock::generate_PTDF_variables )
-
- /*------------------------- without design -------------------------------*/
- /** For lines with no design variable (get_design( l ) == nullptr),
-  *  impose the standard box:
-  *
-  *      kappa * MinP_l  <=  F_l  <=  kappa * MaxP_l
-  */
- if( any_nondesign ) {
-   v_power_flow_limit_const.resize( number_lines );
-
-   for( Index l = 0 ; l < number_lines ; ++l ) {
-     if( get_design( l ) )  // already handled above
-      continue;
-
-     const double kappa = get_kappa( l );
-     v_power_flow_limit_const[ l ].set_lhs(
-      kappa * f_NetworkData->get_min_power_flow( l ) );
-     v_power_flow_limit_const[ l ].set_rhs(
-      kappa * f_NetworkData->get_max_power_flow( l ) );
-     v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
-   }
-
-   add_static_constraint( v_power_flow_limit_const , "Power_flow_limit" );
- }
-}  // end( DCNetworkBlock::generate_CYCLE_constraints )
-
-  const auto number_nodes = get_number_nodes();
-  if( number_nodes <= 1 )
-   return;
-  const auto number_lines = get_number_lines();
-  
-  if( number_lines > 0 && number_nodes > 0) {
-   // the power flow variable on cycle basis
-   v_cycle_flow.resize( number_lines - number_nodes + 1); 
-      // we know the number of cycles by the graph theory, see the paper. 
-      // So, no reason to call get_lines_in_cycle()
-   for( auto & var : v_cycle_flow )
-    var.set_type( ColVariable::kContinuous );
-   add_static_variable( v_cycle_flow , "cycle_flow_network" );
-  }
-}  // end( DCNetworkBlock::generate_CYCLE_variables )
-
+ }  // end( DCNetworkBlock::generate_CYCLE_constraints )
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
@@ -1418,83 +1329,9 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
 
  // Constraints on the DC part
  if( ( lines_type == kHVDC ) || ( lines_type == kAC_HVDC ) ) {
+  /*-----------------------------------------------------------------------*/
 
-  /* check if there is at least one designed / non-designed line */
-  bool any_design = false , any_nondesign = false;
-  for( Index l = 0 ; l < number_lines ; ++l ) {
-   if( get_design( l ) ) any_design = true; else any_nondesign = true;
-  }
-
-  /*-------------------------- with design --------------------------------*/
-  /** For lines having a design variable x_l (get_design( l ) != nullptr),
-   *  impose:
-   *
-   *   LOWER: F_l - kappa * MinP_l * x_l >= 0
-   *   UPPER: F_l - kappa * MaxP_l * x_l <= 0
-   */
-  if( any_design ) {
-   v_power_flow_limit_design_const.resize(
-    boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
-
-   for( Index l = 0 ; l < number_lines ; ++l ) {
-    ColVariable * x = get_design( l );
-    if( ! x )  // no design on this line: handled in the "without design" block
-     continue;
-
-    const double kappa = get_kappa( l );
-    const double Pmn   = f_NetworkData->get_min_power_flow( l );
-    const double Pmx   = f_NetworkData->get_max_power_flow( l );
-
-    // lower:  F_l - kappa * MinP_l * x_l >= 0
-    vars.emplace_back( &v_power_flow[ l ] , 1.0 );
-    vars.emplace_back( x , -kappa * Pmn );
-    v_power_flow_limit_design_const[ 0 ][ l ].set_lhs( 0.0 );
-    v_power_flow_limit_design_const[ 0 ][ l ].set_rhs( Inf< double >() );
-    v_power_flow_limit_design_const[ 0 ][ l ].set_function(
-     new LinearFunction( std::move( vars ) ) );
-
-    // upper:  F_l - kappa * MaxP_l * x_l <= 0
-    vars.emplace_back( &v_power_flow[ l ] , 1.0 );
-    vars.emplace_back( x , -kappa * Pmx );
-    v_power_flow_limit_design_const[ 1 ][ l ].set_lhs( -Inf< double >() );
-    v_power_flow_limit_design_const[ 1 ][ l ].set_rhs( 0.0 );
-    v_power_flow_limit_design_const[ 1 ][ l ].set_function(
-     new LinearFunction( std::move( vars ) ) );
-   }
-
-   add_static_constraint( v_power_flow_limit_design_const ,
-                          "Power_flow_limit_design" );
-  }
-
-  /*------------------------- without design -------------------------------*/
-  /** For lines with no design variable (get_design( l ) == nullptr),
-   *  impose the standard box:
-   *
-   *      kappa * MinP_l  <=  F_l  <=  kappa * MaxP_l
-   */
-  if( any_nondesign ) {
-   v_power_flow_limit_const.resize( number_lines );
-
-   for( Index l = 0 ; l < number_lines ; ++l ) {
-    if( get_design( l ) )  // already handled above
-     continue;
-
-    const double kappa = get_kappa( l );
-    v_power_flow_limit_const[ l ].set_lhs(
-     kappa * f_NetworkData->get_min_power_flow( l ) );
-    v_power_flow_limit_const[ l ].set_rhs(
-     kappa * f_NetworkData->get_max_power_flow( l ) );
-    v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
-   }
-
-   add_static_constraint( v_power_flow_limit_const , "Power_flow_limit" );
-  }
-  // If we have mixed lines, we have as many as nodes impacted and touched by DC lines
-  if( lines_type == kAC_HVDC ) {
-   int nb_DCnodes = 0;
-   // Savagely setting all visited nodes to true will generate nodal balances for all nodes
-   // the default and subtle initialization should be with false
-   std::vector< bool > nodes_vist( number_nodes , full_formulation );
+  generate_bound_constraints();  // generate flow limits
 
   // Power flow and node injection constraints
   if( lines_type == kHVDC ) {
@@ -1666,7 +1503,87 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
 
  set_constraints_generated();
 
-} // end( DCNetworkBlock::generate_PTDF_constraints )
+ }  // end( DCNetworkBlock::generate_PTDF_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::generate_bound_constraints( void )
+{
+ /*-----------------------------------------------------------------------*/
+ /*-------------------- flow limits with/without design ------------------*/
+ /*-----------------------------------------------------------------------*/
+
+ using MAFRC2 = boost::multi_array< FRowConstraint , 2 >;
+
+ LinearFunction::v_coeff_pair vars;
+
+ const auto number_lines = get_number_lines();
+
+ /*-------------------------- with design --------------------------------*/
+ /** For lines having a design variable x_l (get_design( l ) != nullptr),
+  *  impose:
+  *
+  *   LOWER: F_l - kappa * MinP_l * x_l >= 0
+  *   UPPER: F_l - kappa * MaxP_l * x_l <= 0 */
+ 
+ if( is_design() ) {
+  v_power_flow_limit_design_const.resize(
+				MAFRC2::extent_gen()[ 2 ][ number_lines ] );
+
+  for( Index l = 0 ; l < number_lines ; ++l ) {
+   ColVariable * x = get_design( l );
+   if( ! x )   // no design on this line: 
+    continue;  // handled in the "without design" block
+
+   const double kappa = get_kappa( l );
+   const double Pmn   = f_NetworkData->get_min_power_flow( l );
+   const double Pmx   = f_NetworkData->get_max_power_flow( l );
+
+   // LOWER:  F_l - kappa * Pmn * x_l >= 0
+   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
+   vars.emplace_back( x , - kappa * Pmn );
+   v_power_flow_limit_design_const[ 0 ][ l ].set_lhs( 0.0 );
+   v_power_flow_limit_design_const[ 0 ][ l ].set_rhs( Inf< double >() );
+   v_power_flow_limit_design_const[ 0 ][ l ].set_function(
+                                   new LinearFunction( std::move( vars ) ) );
+
+   // UPPER:  F_l - kappa * Pmx * x_l <= 0
+   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
+   vars.emplace_back( x , - kappa * Pmx );
+   v_power_flow_limit_design_const[ 1 ][ l ].set_lhs( -Inf< double >() );
+   v_power_flow_limit_design_const[ 1 ][ l ].set_rhs( 0.0 );
+   v_power_flow_limit_design_const[ 1 ][ l ].set_function(
+                                 new LinearFunction( std::move( vars ) ) );
+   }
+
+  add_static_constraint( v_power_flow_limit_design_const ,
+			 "Power_flow_limit_design" );
+  }
+
+ /*------------------------- without design -------------------------------*/
+ /** For lines with no design variable (get_design( l ) == nullptr),
+  *  impose the standard box:
+  *
+  *      kappa * MinP_l  <=  F_l  <=  kappa * MaxP_l */
+
+ if( ! all_design() ) {
+  v_power_flow_limit_const.resize( number_lines );
+
+  for( Index l = 0 ; l < number_lines ; ++l ) {
+   if( get_design( l ) )  // already handled above
+    continue;
+
+   const double kappa = get_kappa( l );
+   v_power_flow_limit_const[ l ].set_lhs(
+			   kappa * f_NetworkData->get_min_power_flow( l ) );
+   v_power_flow_limit_const[ l ].set_rhs(
+			   kappa * f_NetworkData->get_max_power_flow( l ) );
+   v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
+   }
+
+  add_static_constraint( v_power_flow_limit_const , "Power_flow_limit" );
+  }
+ }  // end( DCNetworkBlock::generate_bound_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2115,43 +2032,8 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_design_variables( std::vector< ColVariable > * DV ,
-                                           const Subset & Which ) {
- const Index nl = get_number_lines();
- if( ! nl )
-  throw std::logic_error( "DCNetworkBlock::set_design_variables: "
-                          "network has zero lines" );
-
- if( ! DV )
-  throw std::invalid_argument( "DCNetworkBlock::set_design_variables: "
-                               "DV is null" );
-
- const bool has_subset = ! Which.empty();
- const Index nd = static_cast< Index >( DV->size() );
-
- if( has_subset && static_cast< Index >( Which.size() ) != nd )
-  throw std::logic_error( "DCNetworkBlock::set_design_variables:"
-                          "size(Which) != DV->size()" );
-
- v_design.assign( nl , nullptr );
-
- for( Index p = 0 ; p < nd ; ++p ) {
-  const Index l = has_subset ? Which[ p ] : p;
-  if( l >= nl )
-   throw std::out_of_range( "DCNetworkBlock::set_design_variables: "
-                            "line index out of range" );
-  if( v_design[ l ] != nullptr )
-   throw std::logic_error( "DCNetworkBlock::set_design_variables: "
-                           "duplicate line in subset" );
-
-  v_design[ l ] = &( ( *DV )[ p ] );
- }
-}  // end( DCNetworkBlock::set_design_variables )
-
-/*--------------------------------------------------------------------------*/
-
-void DCNetworkBlock::change_power_flow_limit_constraints
-( const std::vector< Index > & modified_lines , c_ModParam issueAMod )
+void DCNetworkBlock::change_power_flow_limit_constraints(
+			   c_Subset & modified_lines , c_ModParam issueAMod )
 {
  LinearFunction::v_coeff_pair vars;
 
@@ -2160,39 +2042,53 @@ void DCNetworkBlock::change_power_flow_limit_constraints
   const double kappa = get_kappa( i );
 
   if( ColVariable * x = get_design( i ) ) {
-   // lower:  F_i - kappa * MinP_i * x_i >= 0
-   vars.push_back( std::make_pair( &v_power_flow[ i ] , 1.0 ) );
-   vars.push_back(
-    std::make_pair( x , -kappa * f_NetworkData->get_min_power_flow( i ) ) );
-   v_power_flow_limit_design_const[ 0 ][ i ].set_lhs( 0.0 , issueAMod );
-   v_power_flow_limit_design_const[ 0 ][ i ].set_rhs( Inf< double >() , issueAMod );
-   v_power_flow_limit_design_const[ 0 ][ i ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+   // Constraints *with* design variables: two per line (lower / upper)
 
-   // upper:  F_i - kappa * MaxP_i * x_i <= 0
-   vars.push_back( std::make_pair( &v_power_flow[ i ] , 1.0 ) );
-   vars.push_back(
-    std::make_pair( x , -kappa * f_NetworkData->get_max_power_flow( i ) ) );
-   v_power_flow_limit_design_const[ 1 ][ i ].set_lhs( -Inf< double >() , issueAMod );
-   v_power_flow_limit_design_const[ 1 ][ i ].set_rhs( 0.0 , issueAMod );
-   v_power_flow_limit_design_const[ 1 ][ i ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+   // LOWER bound:  F_i - kappa * MinP_i * x_i >= 0
+   const double lower_coeff_x = -kappa * f_NetworkData->get_min_power_flow( i );
+
+   if( auto * lf = dynamic_cast< LinearFunction * >(
+    v_power_flow_limit_design_const[ 0 ][ i ].get_function() ) ) {
+    lf->add_variable( x , lower_coeff_x , issueAMod );
+   }
+   else {
+    // Minimal fallback reconstruction: only (F_i, 1.0) and (x_i, lower_coeff_x)
+    vars.emplace_back( &v_power_flow[ i ] , 1.0 );
+    vars.emplace_back( x , lower_coeff_x );
+    v_power_flow_limit_design_const[ 0 ][ i ].set_function(
+     new LinearFunction( std::move( vars ) ) , issueAMod );
+   }
+
+   // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
+   const double upper_coeff_x = -kappa * f_NetworkData->get_max_power_flow( i );
+
+   if( auto * lf = dynamic_cast< LinearFunction * >(
+    v_power_flow_limit_design_const[ 1 ][ i ].get_function() ) ) {
+    lf->add_variable( x , upper_coeff_x , issueAMod );
+   }
+   else {
+    // Minimal fallback reconstruction: only (F_i, 1.0) and (x_i, upper_coeff_x)
+    vars.emplace_back( &v_power_flow[ i ] , 1.0 );
+    vars.emplace_back( x , upper_coeff_x );
+    v_power_flow_limit_design_const[ 1 ][ i ].set_function(
+     new LinearFunction( std::move( vars ) ) , issueAMod );
+   }
   }
   else {
-   // Senza design su linea i: box standard
+   // Constraints *without* design variable: simple bounds update
    v_power_flow_limit_const[ i ].set_lhs(
     kappa * f_NetworkData->get_min_power_flow( i ) , issueAMod );
    v_power_flow_limit_const[ i ].set_rhs(
     kappa * f_NetworkData->get_max_power_flow( i ) , issueAMod );
-   // (la variabile del box è già impostata in generazione)
   }
  }
 }  // end( DCNetworkBlock::change_power_flow_limit_constraints )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::change_relax_abs_constraints
-( const std::vector< Index > & modified_lines , c_ModParam issueAMod ) {
+void DCNetworkBlock::change_relax_abs_constraints( c_Subset & modified_lines ,
+						   c_ModParam issueAMod )
+{
  if( ( f_NetworkData->get_lines_type() == kAC ) ||
      ( f_NetworkData->get_lines_type() == kAC_HVDC ) ) {
   std::vector< Index > AC_lines = f_NetworkData->get_AC_lines();
@@ -2204,20 +2100,22 @@ void DCNetworkBlock::change_relax_abs_constraints
      PTDF_matrix.coeff( i , node_id ) * v_ActiveDemand[ node_id ];
    v_power_flow_relax_abs[ 0 ][ i ].set_lhs( constant_term );
    v_power_flow_relax_abs[ 1 ][ i ].set_lhs( -constant_term );
+   }
   }
- }
-}  // end( DCNetworkBlock::change_relax_abs_constraints )
+ }  // end( DCNetworkBlock::change_relax_abs_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::change_DC_power_flow_injection_constraints(
- const std::vector< Index > & modified_nodes , c_ModParam issueAMod ) {
+			   c_Subset & modified_nodes , c_ModParam issueAMod )
+{
  if( f_NetworkData->get_lines_type() != kHVDC )
   return;
 
  for( auto & n : modified_nodes )
   v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
-}  // end( DCNetworkBlock::change_DC_power_flow_injection_constraints )
+
+ }  // end( DCNetworkBlock::change_DC_power_flow_injection_constraints )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS OF DCNetworkBlockSolution ---------------------*/
@@ -2243,11 +2141,12 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
-                                          size_t idx ) {
+                                          size_t idx )
+{
  // call the method of the base class
  NetworkBlockSolution::deserialize( group , idx );
 
- // "NumberLines"- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // "NumberLines" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( get_number_nodes() > 1 )
  deserialize_dim( group , "NumberLines" , f_number_lines , false );
 

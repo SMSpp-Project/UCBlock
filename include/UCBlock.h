@@ -1887,15 +1887,15 @@ class UCBlockSolution : public Solution {
   *   = The "standard" one, i.e., groups "NetworkBlock_0", "NetworkBlock_1",
   *     ..., "NetworkBlock_T" with T = NumberNetworks - 1, with
   *     "NetworkBlock_t" containing each the NetworkBlockSolution 
-  *     corresponding to that network constraints at time t. This is the
-  *     most flexible case, as it allows to have different types of
-  *     :NetworkBlock for each t. However, since T may be large, this may
-  *     create performance problems since netCDF does not like to have many
-  *     groups.
-  *
+  *     corresponding to that network constraints for some specific subset
+  *     of time instants t. This is the most flexible case, as it allows to
+  *     have different types of :NetworkBlock for each t. However, since T
+  *     may be large, this may create performance problems since netCDF does
+  *     not like to have many groups.
+ *
   *   = The single group "NetworkBlock" that contains all the data of all the
-  *     NetworkBlockSolution corresponding to all the time instants T with
-  *     T = NumberNetworks - 1; see NetworkBlock::serialize( group & , int )
+  *     NetworkBlockSolution corresponding to all the time instants t in
+  *     0, ..., TimeHorizon - 1; see NetworkBlock::serialize( group & , int )
   *     for a description of the format. This has much better performances,
   *     but requires that all :NetworkBlock are actually of the same type
   *     for each time instant t.
