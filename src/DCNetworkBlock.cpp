@@ -1627,55 +1627,36 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::change_power_flow_limit_constraints(
-			   c_Subset & modified_lines , c_ModParam issueAMod )
+  c_Subset & modified_lines , c_ModParam issueAMod )
 {
- LinearFunction::v_coeff_pair vars;
+  for( auto i : modified_lines ) {
 
- for( auto i : modified_lines ) {
+    const double kappa = get_kappa( i );
 
-  const double kappa = get_kappa( i );
+    if( get_design( i ) ) {
+      // Constraints *with* design variables: two per line (LOWER / UPPER).
+      // We only update the coefficient of x_i (which is the second variable in the LF).
 
-  if( ColVariable * x = get_design( i ) ) {
-   // Constraints *with* design variables: two per line (lower / upper)
+      // LOWER bound:  F_i - kappa * MinP_i * x_i >= 0
+      const double lower_coeff_x = -kappa * f_NetworkData->get_min_power_flow( i );
+      auto * lf_low = static_cast< LinearFunction * >(
+        v_power_flow_limit_design_const[ 0 ][ i ].get_function() );
+      lf_low->modify_coefficient( 1 , lower_coeff_x , issueAMod );
 
-   // LOWER bound:  F_i - kappa * MinP_i * x_i >= 0
-   const double lower_coeff_x = -kappa * f_NetworkData->get_min_power_flow( i );
-
-   if( auto * lf = dynamic_cast< LinearFunction * >(
-    v_power_flow_limit_design_const[ 0 ][ i ].get_function() ) ) {
-    lf->add_variable( x , lower_coeff_x , issueAMod );
-   }
-   else {
-    // Minimal fallback reconstruction: only (F_i, 1.0) and (x_i, lower_coeff_x)
-    vars.emplace_back( &v_power_flow[ i ] , 1.0 );
-    vars.emplace_back( x , lower_coeff_x );
-    v_power_flow_limit_design_const[ 0 ][ i ].set_function(
-     new LinearFunction( std::move( vars ) ) , issueAMod );
-   }
-
-   // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
-   const double upper_coeff_x = -kappa * f_NetworkData->get_max_power_flow( i );
-
-   if( auto * lf = dynamic_cast< LinearFunction * >(
-    v_power_flow_limit_design_const[ 1 ][ i ].get_function() ) ) {
-    lf->add_variable( x , upper_coeff_x , issueAMod );
-   }
-   else {
-    // Minimal fallback reconstruction: only (F_i, 1.0) and (x_i, upper_coeff_x)
-    vars.emplace_back( &v_power_flow[ i ] , 1.0 );
-    vars.emplace_back( x , upper_coeff_x );
-    v_power_flow_limit_design_const[ 1 ][ i ].set_function(
-     new LinearFunction( std::move( vars ) ) , issueAMod );
-   }
+      // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
+      const double upper_coeff_x = -kappa * f_NetworkData->get_max_power_flow( i );
+      auto * lf_up = static_cast< LinearFunction * >(
+        v_power_flow_limit_design_const[ 1 ][ i ].get_function() );
+      lf_up->modify_coefficient( 1 , upper_coeff_x , issueAMod );
+    }
+    else {
+      // Constraints *without* design variable: simple bounds update
+      v_power_flow_limit_const[ i ].set_lhs(
+        kappa * f_NetworkData->get_min_power_flow( i ) , issueAMod );
+      v_power_flow_limit_const[ i ].set_rhs(
+        kappa * f_NetworkData->get_max_power_flow( i ) , issueAMod );
+    }
   }
-  else {
-   // Constraints *without* design variable: simple bounds update
-   v_power_flow_limit_const[ i ].set_lhs(
-    kappa * f_NetworkData->get_min_power_flow( i ) , issueAMod );
-   v_power_flow_limit_const[ i ].set_rhs(
-    kappa * f_NetworkData->get_max_power_flow( i ) , issueAMod );
-  }
- }
 }  // end( DCNetworkBlock::change_power_flow_limit_constraints )
 
 /*--------------------------------------------------------------------------*/
