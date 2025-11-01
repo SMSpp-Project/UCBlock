@@ -749,9 +749,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
                        ? 1.0 : ( std::abs( f_BattMaxCapacityDesign ) == 1.0
                             ? 1.0 : std::abs( f_BattMaxCapacityDesign ) );
 
-  if( ( lb_b == 1.0 ) && ( ub_b == 1.0 ) ) {
+  if( ( lb_b == 1.0 ) && ( ub_b == 1.0 ) )
    batt_design.is_unitary( true , eNoMod );
-  }
   else {
    batt_design_bound_Const.set_lhs( lb_b );
    batt_design_bound_Const.set_rhs( ub_b );
@@ -775,9 +774,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
                        ? 1.0 : ( std::abs( f_ConvMaxCapacityDesign ) == 1.0
                             ? 1.0 : std::abs( f_ConvMaxCapacityDesign ) );
 
-  if( ( lb_c == 1.0 ) && ( ub_c == 1.0 ) ) {
+  if( ( lb_c == 1.0 ) && ( ub_c == 1.0 ) )
    conv_design.is_unitary( true , eNoMod );
-  }
   else {
    conv_design_bound_Const.set_lhs( lb_c );
    conv_design_bound_Const.set_rhs( ub_c );

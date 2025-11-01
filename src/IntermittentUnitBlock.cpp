@@ -382,9 +382,8 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
                      ? 1.0 : ( std::abs( f_MaxCapacityDesign ) == 1.0
                       ? 1.0 : std::abs( f_MaxCapacityDesign ) );
 
-  if( ( lb == 1.0 ) && ( ub == 1.0 ) ) {
+  if( ( lb == 1.0 ) && ( ub == 1.0 ) )
    design.is_unitary( true , eNoMod );
-  }
   else {
    design_bound_Const.set_lhs( lb );
    design_bound_Const.set_rhs( ub );
