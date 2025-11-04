@@ -20,6 +20,8 @@
 
 #include "DesignNetworkBlock.h"
 
+#include "DCNetworkBlock.h"
+
 #include "LinearFunction.h"
 
 #include "OneVarConstraint.h"
@@ -107,13 +109,13 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
   if( ::deserialize( group , "DesignLines" , f_number_design_lines ,
                      tmp_design_lines , false , true ) ) {
    v_design_lines = std::move( tmp_design_lines );
-  }
+   }
   else {
    v_design_lines.resize( f_number_design_lines );
    for( Index p = 0 ; p < f_number_design_lines ; ++p )
     v_design_lines[ p ] = p;
+   }
   }
- }
 
  if( ! ::deserialize( group , "MinCapacityDesign" , f_number_design_lines ,
                       v_MinCapacityDesign , true , true ) )
@@ -129,20 +131,21 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
  NetworkBlock::deserialize( group );
 
  check_data_consistency();
-}  // end( DesignNetworkBlock::deserialize )
+
+ }  // end( DesignNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
 void DesignNetworkBlock::check_data_consistency( void ) const
 {
  for( Index l = 0 ; l < f_number_design_lines ; ++l ) {
-
   // Min/Max capacity design
   if( get_min_capacity_design( l ) < 0 )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
                             "MinCapacityDesign must be nonnegative." ) );
 
-  // Continuous case (MaxCapacityDesign > 0): MinCapacityDesign <= MaxCapacityDesign
+  // Continuous case (MaxCapacityDesign > 0):
+  // MinCapacityDesign <= MaxCapacityDesign
   if( ( get_max_capacity_design( l ) > 0 ) &&
       ( get_min_capacity_design( l ) > get_max_capacity_design( l ) ) )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
@@ -152,15 +155,17 @@ void DesignNetworkBlock::check_data_consistency( void ) const
   if( ( std::abs( get_max_capacity_design( l ) ) == 1 ) &&
       ( get_min_capacity_design( l ) > 1.0 ) )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
-                            "MinCapacityDesign must be <= 1 when |MaxCapacityDesign| == 1." ) );
+                            "MinCapacityDesign must be <= 1 when "
+			                         "|MaxCapacityDesign| == 1" ) );
 
   // Binary case (max < 0): MinCapacityDesign <= 1
   if( ( get_max_capacity_design( l ) < 0 ) &&
       ( get_min_capacity_design( l ) > 1.0 ) )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
-                            "MinCapacityDesign must be <= 1 for binary design." ) );
- }
-}  // end( DesignNetworkBlock::check_data_consistency )
+                            "MinCapacityDesign must be <= 1 for binary "
+			                         "design." ) );
+  }
+ }  // end( DesignNetworkBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- GENERATION METHODS -------------------------------*/
@@ -181,8 +186,15 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
     v_design[ p ].set_type( ColVariable::kBinary );
    else
     v_design[ p ].set_type( ColVariable::kNonNegative );
-  }
+   }
   add_static_variable( v_design , "x_network" );
+ }
+
+ // Pass design variables to sub-network blocks
+ for( auto * nb : v_network_blocks ) {
+  if( auto * dcnb = dynamic_cast< DCNetworkBlock * >( nb ) ) {
+   dcnb->set_design_variables( &v_design , &v_design_lines );
+  }
  }
 
  set_variables_generated();
