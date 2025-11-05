@@ -240,7 +240,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_investment_cost( Index line ) const {
   if( v_InvestmentCost.empty() )
    return( 0 );
-  if( auto ind = get_design_index( line ) < Inf< Index >() )
+  if( const auto ind = get_design_index( line ) < Inf< Index >() )
    return( v_InvestmentCost[ ind ] );
   else
    return( 0 );
@@ -252,7 +252,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_min_capacity_design( Index line ) const {
   if( v_MinCapacityDesign.empty() )
    return( 0 );
-  if( auto ind = get_design_index( line ) < Inf< Index >() )
+  if( const auto ind = get_design_index( line ) < Inf< Index >() )
    return( v_MinCapacityDesign[ ind ] );
   else
    return( 0 );
@@ -264,7 +264,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_max_capacity_design( Index line ) const {
   if( v_MaxCapacityDesign.empty() )
    return( 1 );
-  if( auto ind = get_design_index( line ) < Inf< Index >() )
+  if( const auto ind = get_design_index( line ) < Inf< Index >() )
    return( v_MaxCapacityDesign[ ind ] );
   else
    return( 1 );
@@ -455,7 +455,7 @@ class DesignNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" [Design]NetworkBlockSolution
 
- NetworkBlockSolution * new_Solution( void ) override;
+ NetworkBlockSolution * new_Solution( void ) const override;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------- Methods for checking the DesignNetworkBlock ---------------*/
