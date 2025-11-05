@@ -198,11 +198,6 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
                              ", which is greater than the maximum power, which "
                              "is " + std::to_string( v_MaxPower[ t ] ) + "." ) );
 
-  if( v_MinPower[ t ] < 0 )
-   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
-                             "minimum power at time " + std::to_string( t ) +
-                             " is " + std::to_string( v_MinPower[ t ] ) +
-                             ", which is negative." ) );
  }
 
  // Gamma
@@ -254,7 +249,7 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
-  var.set_type( ColVariable::kNonNegative );
+  var.set_type( ColVariable::kContinuous );
  add_static_variable( v_active_power , "p_intermittent" );
 
  // Primary Spinning Reserve Variable

@@ -83,9 +83,6 @@ target_sources(${modName} PRIVATE
                src/SlackUnitBlock.cpp
                src/HydroSystemUnitBlock.cpp)
 
-FILE(GLOB_RECURSE SOURCE_FILES flow_cutter/*.cpp flow_cutter/*.h)
-include_directories(flow_cutter)
-
 # When using target_include_directories(), PUBLIC means that any targets
 # that link to this target also need that include directory.
 # Other options are PRIVATE (only affect the current target, not dependencies),
