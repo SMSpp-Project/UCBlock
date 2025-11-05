@@ -250,13 +250,13 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
 
  // "NumberInstants" is optional- - - - - - - - - - - - - - - - - - - - - - -
- if( ! deserialize_dim( group , "NumberInstants" , f_number_instants , true )
+ if( ! deserialize_dim( group , "NumberInstants" , f_number_intervals , true )
      )
-  f_number_instants = 1;
+  f_number_intervals = 1;
 
  // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -
  if( ! ::deserialize< double , 2 >( group , "NodeInjection" ,
-                                    { f_number_nodes , f_number_instants } ,
+                                    { f_number_nodes , f_number_intervals } ,
                                     v_node_injection , true ) ) {
   std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
   v_node_injection.resize( sizes );
@@ -286,7 +286,7 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
   auto EI = group.getVar( "EndInstant" );
   if( EI.isNull() )
    throw( std::invalid_argument(
-	         "NetworkBlockSolution::serialize: missing EndInstant" ) );
+	          "NetworkBlockSolution::serialize: missing EndInstant" ) );
   start = 0;
   if( idx > 0 ) {
    std::vector< size_t > vidx = { idx - 1 };
@@ -296,10 +296,10 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
   int ei;
   std::vector< size_t > vidx = { idx };
   EI.getVar( vidx , & ei );
-  f_number_instants = ei - start;
+  f_number_intervals = ei - start;
   }
  else {  // each NetworkBlockSolution covers one instant
-  f_number_instants = 1;
+  f_number_intervals = 1;
   start = idx;
   tni = nnw; 
   }
@@ -314,14 +314,41 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
   return;
   }
 
- std::vector< mad2i > sizes = { f_number_instants , f_number_nodes };
+ std::vector< mad2i > sizes = { f_number_intervals , f_number_nodes };
  v_node_injection.resize( sizes );
 
  std::vector< size_t > strt = { start , 0 };
- std::vector< size_t > cnt = { f_number_instants , f_number_nodes };
+ std::vector< size_t > cnt = { f_number_intervals , f_number_nodes };
  ncVar.getVar( strt , cnt , v_node_injection.data() );
 
  }  // end( NetworkBlockSolution::deserialize( NcGroup & , size_t ) )
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlockSolution::deserialize( netCDF::NcGroup & group ,
+		  std::vector< NetworkBlockSolution * > & sols , size_t idx )
+{
+ // get the type of all NetworkBlockSolution
+ std::string tmp;
+ auto gtype = group.getAtt( "NBSType" );
+ if( gtype.isNull() )
+  throw( std::invalid_argument( "NetworkBlockSolution::deserialize: NBSType "
+				"not present" ) );
+ gtype.getValues( tmp );
+
+ // now deserialize them all
+ for( auto & soli : sols ) {
+  auto result = new_Solution( tmp );
+  auto NSi = dynamic_cast< NetworkBlockSolution * >( result );
+  if( ! NSi )
+   throw( std::invalid_argument( "NetworkBlockSolution::deserialize: "
+				 "invalid NetworkBlockSolution " +
+				 std::to_string( idx ) ) );
+  NSi->deserialize( group , idx++ );
+  soli = NSi;
+  }
+ }  // end( NetworkBlockSolution::deserialize( netCDF::NcGroup & group ,
+    //		           std::vector< NetworkBlockSolution * > , size_t ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -333,11 +360,11 @@ void NetworkBlockSolution::read( const Block * block )
 	       "NetworkBlockSolution::read: block is not a NetworkBlock" ) );
 
  f_number_nodes = NB->get_number_nodes();
- f_number_instants = NB->get_number_intervals();
+ f_number_intervals = NB->get_number_intervals();
 
  if( ! v_node_injection.empty() )
   // read the node injection variables - - - - - - - - - - - - - - - - - - -
-  for( Index t = 0 ; t < f_number_instants ; ++t ) {
+  for( Index t = 0 ; t < f_number_intervals ; ++t ) {
    auto NIt = NB->get_const_node_injection( t );
    for( Index i = 0 ; i < f_number_nodes ; ++i )
     v_node_injection[ t ][ i ] = NIt[ i ].get_value();
@@ -358,13 +385,13 @@ void NetworkBlockSolution::write( Block * block )
   throw( std::invalid_argument(
 		  "NetworkBlockSolution::write: inconsistent node number" ) );
 
- if( f_number_instants != NB->get_number_intervals() )
+ if( f_number_intervals != NB->get_number_intervals() )
   throw( std::invalid_argument(
 	      "NetworkBlockSolution::write: inconsistent instants number" ) );
 
  if( ! v_node_injection.empty() )
   // write the node injection variables- - - - - - - - - - - - - - - - - - -
-  for( Index t = 0 ; t < f_number_instants ; ++t ) {
+  for( Index t = 0 ; t < f_number_intervals ; ++t ) {
    auto NIt = NB->get_node_injection( t );
    for( Index i = 0 ; i < f_number_nodes ; ++i )
     NIt[ i ].set_value( v_node_injection[ t ][ i ] );
@@ -383,8 +410,8 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 
  // "NumberInstants" is optional- - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcDim ni;
- if( f_number_instants > 1 )
-  ni = group.addDim( "NumberInstants" , f_number_instants );
+ if( f_number_intervals > 1 )
+  ni = group.addDim( "NumberInstants" , f_number_intervals );
 
  // serialize the Node Injection- - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_node_injection.empty() ) {
@@ -404,7 +431,7 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
-  const
+ const
 {
  // "NumberNetworks" is mandatory, and it must be there already - - - - - - -
  auto nnw = group.getDim( "NumberNetworks" );
@@ -414,7 +441,18 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
 
  if( idx >= nnw.getSize() )
   throw( std::invalid_argument(
-	                 "NetworkBlockSolution::serialize: invalid idx" ) );
+	                  "NetworkBlockSolution::serialize: invalid idx" ) );
+
+ // "NumberNodes" is mandatory, and if it is not there already it must be
+ // created right now - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ auto nn = group.getDim( "NumberNodes" );
+ if( nn.isNull() ) {
+  if( idx == 0 )  // first call, initialize it
+   nn = group.addDim( "NumberNodes" , f_number_nodes );
+  else
+   throw( std::invalid_argument(
+	          "NetworkBlockSolution::serialize: missing NumberNodes" ) );
+  }
 
  size_t start = idx;
  // "TotalNumberInstants" is optional, but it must be there already - - - - -
@@ -422,11 +460,20 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
  if( tni.isNull() )
   tni = nnw;
  else {
+  if( tni.getSize() < nnw.getSize() )
+   throw( std::invalid_argument( "NetworkBlockSolution::serialize: less "
+				 "instants than networks" ) );
+
   // if TotalNumberInstants > NumberNetworks, EndInstant is mandatory
   auto EI = group.getVar( "EndInstant" );
-  if( EI.isNull() )
-   throw( std::invalid_argument(
-	         "NetworkBlockSolution::serialize: missing EndInstant" ) );
+  if( EI.isNull() ) {  // if it's not there
+   if( idx == 0 )      // and idx == 0, create it now
+    EI = group.addVar( "EndInstant" , netCDF::NcInt() , { nnw } );
+   else
+    throw( std::invalid_argument( "NetworkBlockSolution::serialize: "
+				  "missing EndInstant" ) );
+   }
+
   start = 0;
   if( idx > 0 ) {
    std::vector< size_t > vidx = { idx - 1 };
@@ -435,33 +482,63 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
   
   // now write EndInstant[ idx ]
   std::vector< size_t > vidx = { idx };
-  EI.putVar( vidx , static_cast< int >( start + f_number_instants ) );
+  EI.putVar( vidx , static_cast< int >( start + f_number_intervals ) );
   }
 
  // now serialize the data structures - - - - - - - - - - - - - - - - - - - -
 
- netCDF::NcVar NI;  // NodeInjection
+ if( ! v_node_injection.empty() ) {  // node injections have to be serialised
+  netCDF::NcVar NI;  // NodeInjection
  
- if( idx == 0 ) {  // first call, have to initialize everything
-  Solution::serialize( group );
-
-  // "NumberNodes" is mandatory - - - - - - - - - - - - - - - - - - - - - - -
-  auto nn = group.addDim( "NumberNodes" , f_number_nodes );
-
-  if( ! v_node_injection.empty() )
+  if( idx == 0 )  // first call, have to initialize
    NI = group.addVar( "NodeInjection" , netCDF::NcDouble() , { tni , nn } );
-  }
- else {  // subsequent cqll, read what is supposedly already there
-  if( ! v_node_injection.empty() )
+  else            // subsequent cqll, read what is supposedly already there
    NI = group.getVar( "NodeInjection" );
-  }
  
- if( ! NI.isNull() ) {  // if node injections have to be serialised
   std::vector< size_t > strt = { start , 0 };
-  std::vector< size_t > cnt = { f_number_instants , f_number_nodes };
+  std::vector< size_t > cnt = { f_number_intervals , f_number_nodes };
   NI.putVar( strt , cnt , v_node_injection.data() );
-  } 
+  }
  }  // end( NetworkBlockSolution::serialize( NcGroup & , size_t ) )
+
+/*--------------------------------------------------------------------------*/
+
+void NetworkBlockSolution::serialize( netCDF::NcGroup & group ,
+	    const std::vector< NetworkBlockSolution * > & sols , size_t idx )
+{
+ // ensure NumberNetworks is there
+ auto nnw = group.getDim( "NumberNetworks" );
+ if( nnw.isNull() )
+  nnw = group.addDim( "NumberNetworks" , sols.size() );
+
+ if( idx >= nnw.getSize() )
+  throw( std::invalid_argument( "NetworkBlockSolution::serialize: invalid "
+				"idx" ) );
+
+ // ensure TotalNumberInstants is there, if needed
+ Index ni = 0;
+ for( auto nbsi : sols )
+  ni += nbsi->get_number_intervals();
+
+ if( ni < nnw.getSize() )
+  throw( std::invalid_argument( "NetworkBlockSolution::serialize: less "
+				"instants than networks" ) );
+
+ auto tni = group.getDim( "TotalNumberInstants" );
+ if( tni.isNull() && ( ni > nnw.getSize() ) )
+  group.addDim( "TotalNumberInstants" , ni );
+
+ // ensure type is there
+ auto ty = group.getAtt( "NBSType" );
+ if( ty.isNull() )
+  group.putAtt( "NBSType" , (sols.front())->classname() );
+
+ // finally, serialize all NetworkBlockSolution
+ for( auto nbsi : sols )
+  nbsi->serialize( group , idx++ );
+
+ }  // end( NetworkBlockSolution::serialize( NcGroup & ,
+    //                   std::vector< NetworkBlockSolution * > & , size_t ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -473,7 +550,7 @@ NetworkBlockSolution * NetworkBlockSolution::scale( double factor ) const
   return( sol );
 
  if( ! v_node_injection.empty() )
-  for( Index t = 0 ; t < f_number_instants ; ++t )
+  for( Index t = 0 ; t < f_number_intervals ; ++t )
    for( Index i = 0 ; i < f_number_nodes ; ++i )
     sol->v_node_injection[ t ][ i ] *= factor;
 
@@ -495,12 +572,12 @@ void NetworkBlockSolution::sum( const Solution * solution ,
   throw( std::invalid_argument(
 		    "NetworkBlockSolution::sum: inconsistent node number" ) );
 
- if( f_number_instants != NBS->f_number_instants )
+ if( f_number_intervals != NBS->f_number_intervals )
   throw( std::invalid_argument(
 	        "NetworkBlockSolution::sum: inconsistent instants number" ) );
 
  if( ! v_node_injection.empty() )
-  for( Index t = 0 ; t < f_number_instants ; ++t )
+  for( Index t = 0 ; t < f_number_intervals ; ++t )
    for( Index i = 0 ; i < f_number_nodes ; ++i )
     v_node_injection[ t ][ i ] +=
      NBS->v_node_injection[ t ][ i ] * multiplier;
@@ -525,7 +602,7 @@ NetworkBlockSolution * NetworkBlockSolution::clone( bool empty ) const
 void NetworkBlockSolution::guts_of_clone( NetworkBlockSolution * sol ) const
 {
  sol->f_number_nodes = f_number_nodes;
- sol->f_number_instants = f_number_instants;
+ sol->f_number_intervals = f_number_intervals;
 
  copy_multi_array( sol->v_node_injection , v_node_injection );
 

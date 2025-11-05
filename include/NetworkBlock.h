@@ -418,7 +418,7 @@ class NetworkBlock : public Block
   throw( std::logic_error( "NetworkBlock::load() not implemented yet" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE NetworkBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the NetworkBlock
@@ -499,7 +499,7 @@ class NetworkBlock : public Block
   * otherwise it is left empty so that it can be set by this method. */
 
  virtual void set_ActiveDemand(
-                        const boost::multi_array< double , 2 > & v ) = 0;
+                            const boost::multi_array< double , 2 > & v ) = 0;
 
  virtual void set_ReactiveDemand(
                         const boost::multi_array< double , 2 > & v ) = 0;
@@ -567,7 +567,7 @@ class NetworkBlock : public Block
 
  virtual Index get_number_nodes( void ) const = 0;
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of intervals spanned by the network
  /** Method for returning the number of intervals spanned by this network;
   * by default it is 1. */
@@ -640,7 +640,7 @@ class NetworkBlock : public Block
 
  const double & get_const_term( void ) const { return( f_ConstTerm ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the NetworkBlock
@@ -882,11 +882,10 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS NetworkBlockMod --------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// derived class from Modification for modifications to a NetworkBlock
+
 class NetworkBlockMod : public Modification
 {
-
  public:
 
  /// public enum for the types of NetworkBlockMod
@@ -932,11 +931,10 @@ class NetworkBlockMod : public Modification
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS NetworkBlockRngdMod ------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// derived from NetworkBlockMod for "ranged" modifications
+
 class NetworkBlockRngdMod : public NetworkBlockMod
 {
-
  public:
 
  /// constructor: takes the NetworkBlock, the type, and the range
@@ -965,11 +963,10 @@ class NetworkBlockRngdMod : public NetworkBlockMod
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS NetworkBlockSbstMod -----------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// derived from NetworkBlockMod for "subset" modifications
+
 class NetworkBlockSbstMod : public NetworkBlockMod
 {
-
  public:
 
  /// constructor: takes the NetworkBlock, the type, and the subset
@@ -1038,7 +1035,7 @@ class NetworkBlockSolution : public Solution
 /*----------- CONSTRUCTING AND DESTRUCTING NetworkBlockSolution ------------*/
 
  explicit NetworkBlockSolution( void ) : f_number_nodes( 0 ) , 
-  f_number_instants( 1 ) {}  /// constructor, it has nothing to do
+  f_number_intervals( 1 ) {}  ///< constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a NetworkBlockSolution from a netCDF::NcGroup
@@ -1054,15 +1051,28 @@ class NetworkBlockSolution : public Solution
   * of multiple :NetworkBlock are stored together (to avoid performance issues
   * due to the fact that netCDF is not structured to work with a large number
   * of sub-NcGroup in a file); see the corresponding "nonstandard" version
-  * serialize( netCDF::NcGroup & , int ) for the description of the format,
-  * except that in this case \p idx is always >= 0. */
+  * serialize( netCDF::NcGroup & , size_t , size_t ) for the description of
+  * the format. */
 
  virtual void deserialize( const netCDF::NcGroup & group , size_t idx );
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// static method to deserialize a std::vector of (*)NetworkBlockSolution
+ /** Reference static implementation of the way in which a std::vector of
+  * (*)NetworkBlockSolution can be deserialised from a netCDF::NcGroup in
+  * "nonstandard" format, see the comments to
+  * serialize( netCDF::NcGroup & , size_t ). It assumes that sols is
+  * already properly sized and initializes its elements with the assumption
+  * that sols.front gets index \p idx. */
+ 
+ static void deserialize( netCDF::NcGroup & group ,
+			  std::vector< NetworkBlockSolution * > & sols ,
+			  size_t idx = 0 );
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// destructor: it is virtual, and empty
 
  ~NetworkBlockSolution() override = default;
- ///< destructor: it is virtual, and empty
 
 /*-------------- READING THE DATA OF THE NetworkBlockSolution --------------*/
 
@@ -1070,9 +1080,9 @@ class NetworkBlockSolution : public Solution
  /**< Returns the number of instants covered by this NetworkBlockSolution;
   * by default it is 1. */
 
- Index get_number_instants( void ) const { return( f_number_instants ); }
+ Index get_number_intervals( void ) const { return( f_number_intervals ); }
 
- /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  ///< returns the number of nodes covered by this NetworkBlockSolution
 
  Index get_number_nodes( void ) const { return( f_number_nodes ); }
@@ -1116,15 +1126,6 @@ class NetworkBlockSolution : public Solution
   * due to the fact that netCDF is not structured to work with a large number
   * of sub-NcGroup in a file). The format is as follows:
   *
-  * - The attribute "type", of type netCDF::NcString, containing the typename
-  *   of all the :NetworkBlockSolution that must be created for all time
-  *   instants t, which implies that 
-  *
-  *     ALL :NetworkBlockSolution serialize()-d IN THIS \p group MUST BE OF
-  *     THE SAME ACTUAL TYPE, AND ALL :NetworkBlockSolution MUST BE THERE,
-  *     WHICH IMPLIES THAT ALL :NetworkBlock MUST BE OF THE SAME ACTUAL TYPE
-  *     AND MUST ALL BE THERE
-  *
   * - The dimension "NumberNodes" containing the number of nodes in the
   *   network. It is mandatory. Note that
   *
@@ -1133,10 +1134,18 @@ class NetworkBlockSolution : public Solution
   *   (which is of course necessary since they all take their data from
   *   the same variable where "NumberNodes" is one of the dimensions)
   *
-  * - The dimension "NumberNetworks" containing the number of :NetworkBlock
-  *   that \p group represents. It is mandatory. Note: this information is
-  *   not known to any NetworkBlockSolution, and therefore it will have to
-  *   be written in \p group by some other "outer" :Solution.
+  * - The mandatory dimension "NumberNetworks" containing the number of
+  *   :NetworkBlock that \p group represents. Note: this information is not
+  *   known to any NetworkBlockSolution, and therefore it will have to be
+  *   written in \p group by some other "outer" :Solution.
+  *
+  * - The "NBSType" attribute containing the typename of all the
+  *   :NetworkBlockSolution that must be created, which implies that 
+  *
+  *     ALL :NetworkBlockSolution serialize()-d IN THIS \p group MUST BE OF
+  *     THE SAME ACTUAL TYPE, AND ALL :NetworkBlockSolution MUST BE THERE,
+  *     WHICH IMPLIES THAT ALL :NetworkBlock MUST BE OF THE SAME ACTUAL TYPE
+  *     AND MUST ALL BE THERE
   *
   * - The dimension "TotalNumberInstants" containing the *total* number of
   *   time instants that are covered by all the :NetworkBlock that \p group
@@ -1147,8 +1156,9 @@ class NetworkBlockSolution : public Solution
   *   written in \p group by some other "outer" :Solution.
   *
   * - The variable "EndInstant", of type netCDF::NcInt and indexed over the
-  *   dimension "NumberNetworks". EndInstant[ n ] = t means that NetworkBlock
-  *   n covers all time instants between EndInstant[ n - 1 ] included and
+  *   dimension "TotalNumberNetworks" if it exists, "NumberNetworks"
+  *   otherwise EndInstant[ n ] = t means that NetworkBlock n covers all
+  *   time instants between EndInstant[ n - 1 ] included and
   *   EndInstant[ n ] excluded; EndInstant[ n - 1 ] is not defined when
   *   n == 0 and it is implicitly taken to be == 0, while it must always be
   *   that EndInstant[ NumberNetworks - 1 ] == TotalNumberInstants. The
@@ -1156,12 +1166,6 @@ class NetworkBlockSolution : public Solution
   *   which in particular holds if "TotalNumberInstants" is not defined,
   *   since then each :NetworkBlock covers exactly one time instant and
   *   therefore EndInstant[ n ] = n + 1. The variable is mandatory otherwise.
-  *   Note that, unlike "NumberNetworks" and "TotalNumberInstants", this
-  *   information can be built incrementally by the NetworkBlockSolution,
-  *   provided that
-  *
-  *       THE [de]serialize( ... , idx ) METHOD IS ALWAYS CALLED IN
-  *       INCREASING ORDER OF idx, WHICH WILL HAVE TO BE ENSURED
   *
   * - The variable "NodeInjection", of type netCDF::NcDouble, indexed both
   *   over the dimensions "TotalNumberInstants" (if defined, otherwise
@@ -1179,18 +1183,38 @@ class NetworkBlockSolution : public Solution
   * EndInstant[ idx - 1 ]. Otherwise, the NetworkBlockSolution covers just
   * the instant idx.
   *
-  * Derived classes will add other variables / dimensions to represent the
+  * Derived classes may add other variables / dimensions to represent the
   * other solution information they contain, but they are assumed to keep the
   * same organisation w.r.t. the time instants they cover. Note that
   *
   *     THE OTHER VARIABLES / DIMENSIONS WILL HAVE TO BE ADDED AT THE VERY
-  *     FIRST CALL, I.E., WHEN idx = 0
+  *     FIRST CALL, I.E., WHEN idx == 0
   *
-  * (although, technically, if some :NetworkBlockSolution with *less*
-  * information than that appears when idx > 0 the code will not break, but
-  * there will be uninitialised values in the netCDF). */
+  * As a consequence,
+  *
+  *     THE [de]serialize( ... , idx , t ) METHOD MUST ALWAYS BE CALLED
+  *     IN INCREASING ORDER OF idx, WHICH WILL HAVE TO BE ENSURED SO THAT
+  *     EndInstant (IF NEEDED) CAN BE ITERATIVELY CONSTRUCTED. 
+  */
 
  virtual void serialize( netCDF::NcGroup & group , size_t idx ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// static method to serialize a std::vector of (*)NetworkBlockSolution
+ /** Reference static implementation of the way in which a std::vector of
+  * (*)NetworkBlockSolution can be serialised in "nonstandard" format,
+  * see the comments to serialize( netCDF::NcGroup & , size_t ).
+  * The method checks if dimensions "NumberNetworks" and
+  * "TotalNumberInstants" and the variable "type" are already present in
+  * \p group, if not it initializes them as if \p sols are all and only the
+  * NetworkBlockSolution to be serialised. Then it and proceeds to
+  * serialize the contents of \p sols starting from the given \p idx,
+  * which must of course be compatible with the values of the dimensions.
+  * "NumberNodes" is written if \p idx == 0, unless it is already there. */
+ 
+ static void serialize( netCDF::NcGroup & group ,
+			const std::vector< NetworkBlockSolution * > & sols ,
+			size_t idx = 0 );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1224,9 +1248,9 @@ class NetworkBlockSolution : public Solution
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
- Index f_number_nodes;       ///< the number of nodes
+ Index f_number_nodes;        ///< the number of nodes
 
- Index f_number_instants;    ///< the number of instants
+ Index f_number_intervals;    ///< the number of instants
 
  boost::multi_array< double , 2 > v_node_injection;
  ///< v_node_injection[ i ][ t ] = node injection at node i at time t

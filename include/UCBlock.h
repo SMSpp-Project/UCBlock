@@ -1851,7 +1851,7 @@ class UCBlockSolution : public Solution {
   for( auto ubs : v_unit_Solution )
    delete ubs;
   for( auto nbs : v_network_Solution )
-   delete nbs;  
+   delete nbs;
   }
 
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A UCBlockSolution ---------*/
@@ -1892,7 +1892,7 @@ class UCBlockSolution : public Solution {
   *     have different types of :NetworkBlock for each t. However, since T
   *     may be large, this may create performance problems since netCDF does
   *     not like to have many groups.
- *
+  *
   *   = The single group "NetworkBlock" that contains all the data of all the
   *     NetworkBlockSolution corresponding to all the time instants t in
   *     0, ..., TimeHorizon - 1; see NetworkBlock::serialize( group & , int )

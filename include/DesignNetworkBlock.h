@@ -20,11 +20,15 @@
  * all children operate on the very same \f$ x_l \f$ without additional
  * coupling constraints.
  *
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Donato Meoli
+ * \copyright &copy; by Antonio Frangioni, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -93,8 +97,7 @@ class DesignNetworkBlock : public NetworkBlock
  /// constructor of DesignNetworkBlock, taking a pointer of its father
 
  explicit DesignNetworkBlock( Block * f_block = nullptr )
-  : NetworkBlock( f_block ) , f_NetworkData( nullptr ) ,
-    f_number_design_lines( 0 ) {}
+  : NetworkBlock( f_block ) , f_NetworkData( nullptr ) {}
 
  /// destructor of DesignNetworkBlock
 
@@ -187,9 +190,21 @@ class DesignNetworkBlock : public NetworkBlock
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
+/** @} ---------------------------------------------------------------------*/
+/*-------- METHODS FOR READING THE DATA OF THE DesignNetworkBlock ----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the NetworkBlock
+ * @{ */
+
 /*--------------------------------------------------------------------------*/
 
- Index get_number_nodes( void ) const override { return( 0 ); }
+ Index get_number_intervals( void ) const override {
+  Index ni = 0;
+  for( auto bi : v_Blocks )
+   ni +=  static_cast< NetworkBlock * >( bi )->get_mumber_intervals();
+
+  return( ni );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns a pointer to the NetworkData
@@ -212,139 +227,10 @@ class DesignNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
-
- void set_ActiveDemand( const boost::multi_array< double , 2 > & apd )
-  override {
-  if( v_network_blocks.empty() )
-   return;
-
-  if( v_network_blocks.size() == 1 ) {
-   v_network_blocks[ 0 ]->set_ActiveDemand( apd );
-   return;
-   }
-
-  const Index Ttot = static_cast< Index >( apd.shape()[ 0 ] );
-
-  for( Index i = 0 ; i < v_network_blocks.size() && i < Ttot ; ++i ) {
-   auto * nb = v_network_blocks[ i ];
-   const auto Nnb = nb->get_number_nodes();
-
-   boost::multi_array< double , 2 > ap_v( boost::extents[ 1 ][ Nnb ] );
-   std::copy( apd[ i ].begin() , apd[ i ].begin() + Nnb , ap_v[ 0 ].begin() );
-
-   nb->set_ActiveDemand( ap_v );
-   }
-  }
-
-/*--------------------------------------------------------------------------*/
-
- void set_active_demand( MF_dbl_it , Subset && , bool ,
-                         ModParam , ModParam ) override final;
-
-/*--------------------------------------------------------------------------*/
-
- void set_active_demand( MF_dbl_it , Range ,
-                         ModParam , ModParam ) override final;
-
-/*--------------------------------------------------------------------------*/
-
- void set_NetworkData( NetworkData * nd ) override {
-  f_NetworkData = nd;
-  for( auto * nb : v_network_blocks )
-   if( nb )
-    nb->set_NetworkData( nd );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// method to set the MinNodeInjection
-
- void set_min_node_injection( Index interval , Index node ,
-                              const double min_injection ) override {
-  for( auto * nb : v_network_blocks )
-   nb->set_min_node_injection( interval , node , min_injection );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// method to set the MaxNodeInjection
-
- void set_max_node_injection( Index interval , Index node ,
-                              const double max_injection ) override {
-  for( auto * nb : v_network_blocks )
-   nb->set_max_node_injection( interval , node , max_injection );
-  }
-
-/** @} ---------------------------------------------------------------------*/
-/*-------------- Methods for checking the DesignNetworkBlock ---------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for checking solution information in the DesignNetworkBlock
- * @{ */
-
- /// returns true if the current solution is (approximately) feasible
- /** This function returns true if and only if the solution encoded in the
-  * current value of the Variable of this DesignNetworkBlock is approximately
-  * feasible within the given tolerance. That is, a solution is considered
-  * feasible if and only if
-  *
-  * -# each ColVariable is feasible; and
-  *
-  * -# the violation of each Constraint of this DesignNetworkBlock is not
-  *    greater than the tolerance.
-  *
-  * Every Constraint of this DesignNetworkBlock is a RowConstraint and its
-  * violation is given by either the relative (see RowConstraint::rel_viol())
-  * or the absolute violation (see RowConstraint::abs_viol()), depending on
-  * the Configuration that is provided.
-  *
-  * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration, and they are determined as
-  * follows:
-  *
-  * - If \p fsbc is not a nullptr, and it is a pointer to a
-  *   SimpleConfiguration< double >, then the tolerance is the value present
-  *   in that SimpleConfiguration and the relative violation is considered.
-  *
-  * - If \p fsbc is not nullptr, and it is a
-  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
-  *   fsbc->f_value.first and the type of violation is determined by
-  *   fsbc->f_value.second (any nonzero number for relative violation and
-  *   zero for absolute violation);
-  *
-  * - Otherwise, if both #f_BlockConfig and
-  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
-  *   latter is a pointer to either a SimpleConfiguration< double > or to a
-  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
-  *   parameters are obtained analogously as above;
-  *
-  * - Otherwise, by default, the tolerance is 0 and the relative violation
-  *   is considered.
-  *
-  * This function currently considers only the abstract representation to
-  * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, then this
-  * function returns true. Moreover, if no abstract Constraint has been
-  * generated, the solution is considered to be feasible with respect to the
-  * set of Variable only. Notice also that, before checking if the solution
-  * satisfies a Constraint, the Constraint is computed
-  * (Constraint::compute()).
-  *
-  * @param useabstract This parameter is currently ignored.
-  *
-  * @param fsbc The pointer to a Configuration that specifies the tolerance
-  *             and the type of violation that must be considered. */
-
- bool is_feasible( bool useabstract = false ,
-                   Configuration * fsbc = nullptr ) override;
-
-/** @} ---------------------------------------------------------------------*/
-/*-------------------------- READING THE DATA ------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Reading the data of the DesignNetworkBlock
- * @{ */
-
  /// returns the number of lines for which design is defined
 
  Index get_number_design_lines( void ) const {
-  return( f_number_design_lines );
+  return( v_design_lines.size() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -431,9 +317,16 @@ class DesignNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the (const) vector of design variables
+
+ const std::vector< ColVariable > & get_const_design( void ) const {
+  return( v_design );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of design variables
 
- const std::vector< ColVariable > & get_design_variables( void ) const {
+ std::vector< ColVariable > & get_design( void ) const {
   return( v_design );
   }
 
@@ -447,6 +340,188 @@ class DesignNetworkBlock : public NetworkBlock
   * get_design_variables()[ i ] is the design variable of line i. */
 
  c_Subset & get_design_lines( void ) const { return( v_design_lines ); }
+
+/** @} ---------------------------------------------------------------------*/
+/*------------ METHODS FOR MODIFYING THE DesignNetworkBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the NetworkBlock
+ * @{ */
+
+ void set_ActiveDemand( const boost::multi_array< double , 2 > & apd )
+  override {
+  if( v_network_blocks.empty() )
+   return;
+
+  if( v_network_blocks.size() == 1 ) {
+   v_network_blocks[ 0 ]->set_ActiveDemand( apd );
+   return;
+   }
+
+  const Index Ttot = static_cast< Index >( apd.shape()[ 0 ] );
+
+  for( Index i = 0 ; i < v_network_blocks.size() && i < Ttot ; ++i ) {
+   auto * nb = v_network_blocks[ i ];
+   const auto Nnb = nb->get_number_nodes();
+
+   boost::multi_array< double , 2 > ap_v( boost::extents[ 1 ][ Nnb ] );
+   std::copy( apd[ i ].begin() , apd[ i ].begin() + Nnb , ap_v[ 0 ].begin() );
+
+   nb->set_ActiveDemand( ap_v );
+   }
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_active_demand( MF_dbl_it , Subset && , bool ,
+                         ModParam , ModParam ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void set_active_demand( MF_dbl_it , Range ,
+                         ModParam , ModParam ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void set_NetworkData( NetworkData * nd ) override {
+  f_NetworkData = nd;
+  for( auto * nb : v_network_blocks )
+   if( nb )
+    nb->set_NetworkData( nd );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MinNodeInjection
+
+ void set_min_node_injection( Index interval , Index node ,
+                              const double min_injection ) override {
+  for( auto * nb : v_network_blocks )
+   nb->set_min_node_injection( interval , node , min_injection );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxNodeInjection
+
+ void set_max_node_injection( Index interval , Index node ,
+                              const double max_injection ) override {
+  for( auto * nb : v_network_blocks )
+   nb->set_max_node_injection( interval , node , max_injection );
+  }
+
+/** @} ---------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Solution
+ * @{ */
+
+ /// returns a Solution representing the current solution of this NetworkBlock
+ /** This method must construct and return a (pointer to a) Solution object
+  * representing the current "solution state" of this NetworkBlock.ì, i.e., a
+  * DesignNetworkBlockSolution.
+  *
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value, coded bitwise:
+  *
+  * - bit 0 (& 1) means "store the node injection"
+  * - bit 1 (& 2) means "store the design variables"
+  * - bit 2 (& 4) means "store the sub-Networks": note that if this is 0
+  *               then bit 0 is ignored since the node injections are saved
+  *               in the sub-NetworkBlockSolutio
+  * - bit 3 (& 8) means "store the sub-Networks in compressed format"
+  * - all subsequent bits, if nonzero, are used to configure the
+  *   sub-NetworkBlockSolution of the DesignNetworkBlockSolution. This
+  *   requires an int value, that is generated as follows: the first bit
+  *   is copied over from [bit 0], i.e., if the  node injections have to be
+  *   saved then they are saved in the sub-NetworkBlockSolution; then, all
+  *   bits 4 - ... from the int are copied as the bits 1 - ... of the values
+  *   passed to the sub-objects.
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  *   is solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration< int >, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 15 (save everything in compressed format). */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" [Design]NetworkBlockSolution
+ 
+ NetworkBlockSolution * new_Solution( void ) override;
+
+/** @} ---------------------------------------------------------------------*/
+/*-------------- Methods for checking the DesignNetworkBlock ---------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for checking solution information in the DesignNetworkBlock
+ * @{ */
+
+ /// returns true if the current solution is (approximately) feasible
+ /** This function returns true if and only if the solution encoded in the
+  * current value of the Variable of this DesignNetworkBlock is approximately
+  * feasible within the given tolerance. That is, a solution is considered
+  * feasible if and only if
+  *
+  * -# each ColVariable is feasible; and
+  *
+  * -# the violation of each Constraint of this DesignNetworkBlock is not
+  *    greater than the tolerance.
+  *
+  * Every Constraint of this DesignNetworkBlock is a RowConstraint and its
+  * violation is given by either the relative (see RowConstraint::rel_viol())
+  * or the absolute violation (see RowConstraint::abs_viol()), depending on
+  * the Configuration that is provided.
+  *
+  * The tolerance and the type of violation can be provided by either \p fsbc
+  * or #f_BlockConfig->f_is_feasible_Configuration, and they are determined as
+  * follows:
+  *
+  * - If \p fsbc is not a nullptr, and it is a pointer to a
+  *   SimpleConfiguration< double >, then the tolerance is the value present
+  *   in that SimpleConfiguration and the relative violation is considered.
+  *
+  * - If \p fsbc is not nullptr, and it is a
+  *   SimpleConfiguration< std::pair< double , int > >, then the tolerance is
+  *   fsbc->f_value.first and the type of violation is determined by
+  *   fsbc->f_value.second (any nonzero number for relative violation and
+  *   zero for absolute violation);
+  *
+  * - Otherwise, if both #f_BlockConfig and
+  *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
+  *   latter is a pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
+  *   parameters are obtained analogously as above;
+  *
+  * - Otherwise, by default, the tolerance is 0 and the relative violation
+  *   is considered.
+  *
+  * This function currently considers only the abstract representation to
+  * determine if the solution is feasible. So, the parameter \p useabstract is
+  * currently ignored. If no abstract Variable has been generated, then this
+  * function returns true. Moreover, if no abstract Constraint has been
+  * generated, the solution is considered to be feasible with respect to the
+  * set of Variable only. Notice also that, before checking if the solution
+  * satisfies a Constraint, the Constraint is computed
+  * (Constraint::compute()).
+  *
+  * @param useabstract This parameter is currently ignored.
+  *
+  * @param fsbc The pointer to a Configuration that specifies the tolerance
+  *             and the type of violation that must be considered. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
+
+/** @} ---------------------------------------------------------------------*/
+/*-------------------------- READING THE DATA ------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the DesignNetworkBlock
+ * @{ */
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -483,11 +558,9 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*---------------------------------- data ----------------------------------*/
 
- /// the NetworkData object
- NetworkData * f_NetworkData;
+ NetworkData * f_NetworkData;            ///< the NetworkData object
 
- /// number of lines for which design is defined
- Index f_number_design_lines;
+ Index f_number_subnetworks;             ///< number of subnetworks
 
  /// the investment cost for each line
  std::vector< double > v_InvestmentCost;
@@ -497,9 +570,6 @@ class DesignNetworkBlock : public NetworkBlock
 
  /// the maximum capacity design allowed for each line
  std::vector< double > v_MaxCapacityDesign;
-
- /// vector of pointers to the NetworkBlock
- std::vector< NetworkBlock * > v_network_blocks;
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -599,9 +669,14 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
  void deserialize( const netCDF::NcGroup & group , size_t idx ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// destructor: it is virtual
 
- ~DesignNetworkBlockSolution() override = default;
- ///< destructor: it is virtual, and empty
+ ~DesignNetworkBlockSolution() override  {
+   for( auto nbs : v_network_Solution )
+    delete nbs;
+   }
+
+/*----------- READING THE DATA OF THE DesignNetworkBlockSolution ----------*/
 
 /*---- METHODS DESCRIBING THE BEHAVIOR OF A DesignNetworkBlockSolution ----*/
 
@@ -615,85 +690,54 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
   * format is the one of NetworkBlockSolution, cf. the comments in
   * NetworkBlockSolution::serialize( netCDF::NcGroup & ), plus
   *
+  * - The dimension "NumberDesignLines" containing the number of lines in
+  *   the transmission network that have design variables. It is opitonal,
+  *   but if it's not there then "DesignValue" must not be there.
   *
-
-except that
+  * - The variable "DesignValue", of type netCDF::NcDouble and indexed over
+  *   the dimension "NumberDesignLines"; DesignValue[ l ] is the optimal
+  *   value of the design variable l. The variable is optional, but if
+  *   "NumberDesignLines" is there then it must also be there.
   *
-  *     "NumberNetworks" IS NOT REALLY NEEDED, BECAUSE "TotalNumberInstants"
-  *     AND "EndInstant" ARE NOT REQUIRED SINCE DCNetworkBlock ALWAYS HAS
-  *     DCNetworkBlock::get_number_intervals() == 1, AND ALL THE
-  *     NetworkBlock IN \p group ARE SUPPOSED TO BE DCNetworkBlock
+  * - All the information relative to the sub-NetworkBlock, either in
+  *   "standard" format, i.e.,
   *
-  * In addition, \p group must contain:
+  *   = The dimension "NumberSubNetwork" containing the number of
+  *     sub-NetworkBlock (and, therefore, their NetworkBlockSolution) in the
+  *     DesignNetworkBlock (and therefore DesignNetworkBlockSolution). It is
+  *     optional, but if it's not there then then the sub-groups (see below)
+  *     cannot be there.
   *
-  * - The dimension "NumberLines" containing the number of lines in the
-  *   transmission network. It is mandatory. Note that
+  *   = Sub-groups "SubNetworkBlock_0", "SubNetworkBlock_1", ...,
+  *     "SubNetworkBlock_T" with T = NumberSubNetworks - 1, with
+  *     "SubNetworkBlock_i" containing each the NetworkBlockSolution
+  *     corresponding to that network constraints for some specific subset
+  *     of time instants.
   *
-  *       ALL THE DCNetworkBlock MUST HAVE THE SAME NUMBER OF LINES
-  *
-  * - The variable "FlowValue", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberLines"; FlowValue[ l ] is the optimal value of
-  *   the power flow on line l. The variable is optional.
-  *
-  * - The variable "DualCost", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberLines"; DualCost[ l ] is the absolute value of
-  *   the dual variable of the constraint representing the capacity of
-  *   line l. The variable is optional. */
+  *   or in "nonstandard" format, cf. the comments to
+  *   NetworkBlockSolution::serialize( netCDF::NcGroup & , * size_t ), where
+  *   the sub-NetworkBlock are all serialisze()-d in \p group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a DesignNetworkBlockSolution into a "global" netCDF::NcGroup
- /** "nonstandard" version of serialize() that loads a DesignNetworkBlockSolution
-  * from a "global" netCDF::NcGroup, i.e., one where the solution information
-  * of multiple DCNetworkBlock are stored together (to avoid performance
-  * issues due to the fact that netCDF is not structured to work with a large
-  * number of sub-NcGroup in a file). The format is the  "nonstandard" one of
-  * NetworkBlockSolution, cf. the comments in
-  * NetworkBlockSolution::serialize( netCDF::NcGroup & , size_t ), except
-  * that
+ /** fake "nonstandard" version of serialize() that loads a
+  * DesignNetworkBlockSolution from a "global" netCDF::NcGroup, i.e., one 
+  * where supposedly the solution information of multiple DesignNetworkBlock
+  * are stored together. However, this is "fake" in the sense that the
+  * format is the "nonstandard" one of NetworkBlockSolution, cf. the
+  * comments to NetworkBlockSolution::serialize( netCDF::NcGroup & ,
+  * size_t ), plus:
   *
-  *     "NumberNetworks" IS NOT REALLY NEEDED, BECAUSE "TotalNumberInstants"
-  *     AND "EndInstant" ARE NOT REQUIRED SINCE DCNetworkBlock ALWAYS HAS
-  *     DCNetworkBlock::get_number_intervals() == 1, AND ALL THE
-  *     NetworkBlock IN \p group ARE SUPPOSED TO BE DCNetworkBlock
+  * - A single new sub-group "DesignNetworkBlock_<idx>" containing all the
+  *   information in the same format as serialize( netCDF::NcGroup & ).
   *
-  * In addition, \p group must contain:
-  *
-  * - The dimension "NumberLines" containing the number of lines in the
-  *   transmission network. It is mandatory. Note that there is only one
-  *   copy of the dimension, and as a consequence
-  *
-  *       ALL THE DCNetworkBlock MUST HAVE THE SAME NUMBER OF LINES
-  *
-  *   (which is of course necessary since they all take their data from
-  *   the same variables where "NumberLines" is one of the dimensions)
-  *
-  * - The variable "FlowValue", of type netCDF::NcDouble and indexed both
-  *   over the dimension "NumberNetworks" (which is the same as
-  *   "TotalNumberInstants", that does not exist) and the dimension
-  *   "NumberLines"; FlowValue[ idx ][ l ] is the optimal value of
-  *   the power flow on line l for this DCNetworkBlock. The variable is
-  *   optional.
-  *
-  * - The variable "DualCost", of type netCDF::NcDouble and indexed both
-  *   over the dimension "NumberNetworks" (which is the same as
-  *   "TotalNumberInstants", that does not exist) and the dimension
-  *   "NumberLines"; DualCost[ idx ][ l ] is the absolute value of the
-  *   dual variable of the constraint representing the capacity of line l
-  *   for this DCNetworkBlock. The variable is optional.
-  *
-  * Note that the variables are constructed when \p idx == 0 according to
-  * the fact that the corresponding DesignNetworkBlockSolution has or not been
-  * Configure-d to hold them, which means that
-  *
-  *       ALL THE DesignNetworkBlockSolution MUST HAVE BEEN Configure-d IN THE
-  *       SAME WAY
-  *
-  * (although, technically, if some of the DesignNetworkBlockSolution that
-  * appears when \p idx > 0 is Configure-d with less information than that
-  * when idx == 0 the code will not break, but there will be uninitialised
-  * values in the netCDF). */
+  * That is, in the DesignNetworkBlockSolution case the "nonstandard" format
+  * is group-based basically ad the "standard" one. Note, however, that
+  * inside the group the sub-NetworkBlockSolution can be stored in the
+  * "truly nonstanard" (compressed) form -- but this is true even for the
+  * "standard" case. */
 
  void serialize( netCDF::NcGroup & group , size_t idx ) const override;
 
@@ -721,13 +765,18 @@ except that
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
- Index f_number_lines;          ///< the number of lines
+ Index f_design_lines;          ///< the number of lines with design variables
 
- std::vector< double > v_flow;  ///< v_flow[ l ] = flow variable on line l
+ Index f_number_subnetworks;    ///< the number of sub-NetworkBlockSolution
 
- std::vector< double > v_cost;  /**< v_cost[ l ] = absolute value of the
-                                      reduced cost of the capacity constraint
-                                      of line l */
+ bool f_compressed;
+ ///< true if sub-NetworkBlockSolution are stored in compressed format
+
+ std::vector< double > v_design;
+ ///< v_design[ l ] = design variable on constructable line l
+
+ std::vector< NetworkBlockSolution * > v_network_Solution;
+ ///< the Solution for each sub-NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
