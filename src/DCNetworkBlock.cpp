@@ -1147,7 +1147,7 @@ void DCNetworkBlock::generate_bound_constraints( void )
    v_power_flow_limit_design_const[ 1 ][ l ].set_lhs( -Inf< double >() );
    v_power_flow_limit_design_const[ 1 ][ l ].set_rhs( 0.0 );
    v_power_flow_limit_design_const[ 1 ][ l ].set_function(
-                                 new LinearFunction( std::move( vars ) ) );
+                                   new LinearFunction( std::move( vars ) ) );
    }
 
   add_static_constraint( v_power_flow_limit_design_const ,
@@ -1234,6 +1234,7 @@ Solution * DCNetworkBlock::get_Solution( Configuration * csolc ,
   sol->read( this );
 
  return( sol );
+
  }  // end( DCNetworkBlock::get_Solution )
 
 /*--------------------------------------------------------------------------*/
@@ -1260,14 +1261,15 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
    tol = tc->f_value;
    return( true );
-  }
-  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
+   }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+                                     std::pair< double , int > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
-  }
+   }
   return( false );
- };
+  };
 
  if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
   // if the given Configuration is not valid, try the one from the BlockConfig
@@ -1281,15 +1283,20 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_auxiliary_variable , tol )
   // Constraints
   && RowConstraint::is_feasible( v_power_flow_limit_const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_power_flow_limit_design_const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_power_flow_injection_const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_power_flow_limit_design_const , tol ,
+				 rel_viol )
+  && RowConstraint::is_feasible( v_power_flow_injection_const , tol ,
+				 rel_viol )
   && RowConstraint::is_feasible( v_power_flow_def , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_relax_abs , tol , rel_viol )
   && RowConstraint::is_feasible( overall_balanced_const , tol , rel_viol )
-  && RowConstraint::is_feasible( node_injection_bounds_const , tol , rel_viol )
+  && RowConstraint::is_feasible( node_injection_bounds_const , tol ,
+				 rel_viol )
   && RowConstraint::is_feasible( v_CYCLE_def_flow_const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_CYCLE_def_cycle_const , tol , rel_viol ) );
-} // end( DCNetworkBlock::is_feasible )
+  && RowConstraint::is_feasible( v_CYCLE_def_cycle_const , tol , rel_viol )
+	);
+
+ }  // end( DCNetworkBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE DCNetworkBlock ------*/
@@ -1329,9 +1336,11 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
 
   ::serialize( group , "EndLine" , netCDF::NcUint() , NumberBranches , en );
 
-  ::serialize( group , "Efficiency" , netCDF::NcDouble() , NumberBranches , eff );
+  ::serialize( group , "Efficiency" , netCDF::NcDouble() , NumberBranches ,
+	       eff );
 
-  ::serialize( group , "HyperArcID" , netCDF::NcUint() , NumberBranches , id );
+  ::serialize( group , "HyperArcID" , netCDF::NcUint() , NumberBranches ,
+	       id );
   }
  else {  // a regular graph
   ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,

@@ -150,15 +150,15 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
   v_Block.resize( f_number_units + f_number_networks );
   std::copy( v_network_blocks.begin() , v_network_blocks.end() ,
              std::next( v_Block.begin() , f_number_units ) );
- } else
+  }
+ else
   v_network_blocks.clear();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize( const netCDF::NcGroup & group )
 {
-
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberUnits" ,
@@ -1850,7 +1850,7 @@ void UCBlock::update_inertia_demand_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints( Index time ,
-                                                 Index node_index ,
+						 Index node_index ,
                                                  double demand )
 {
  auto rhs = demand;
@@ -1875,7 +1875,7 @@ void UCBlock::update_node_injection_constraints( Index time ,
 
 void UCBlock::set_active_power_demand( MF_dbl_it values ,
                                        Block::Subset && subset ,
-                                       const bool ordered ,
+				       bool ordered ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
 {
@@ -1940,8 +1940,7 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand( MF_dbl_it values ,
-                                       Block::Range rng ,
+void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
 {
@@ -2041,25 +2040,8 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
   // differently handle the standard format from the compressed one
   auto sub_group = group.getGroup( "NetworkBlock" );
   f_compressed_network = ! sub_group.isNull();
-  if( f_compressed_network ) {  // compressed format
-   std::string tmp;
-   auto gtype = sub_group.getAtt( "type" );
-   if( gtype.isNull() )
-    throw( std::invalid_argument( "UCBlockSolution::deserialize: "
-				  "NetworkBlockSolution type not present" ) );
-   gtype.getValues( tmp );
-
-   for( Index i = 0 ; i < number_networks ; ++i ) {
-    auto result = new_Solution( tmp );
-    auto NSi = dynamic_cast< NetworkBlockSolution * >( result );
-    if( ! NSi )
-     throw( std::invalid_argument( "UCBlockSolution::deserialize: invalid "
-				   "NetworkBlockSolution " +
-				   std::to_string( i ) ) );
-    NSi->deserialize( sub_group , i );
-    v_network_Solution[ i ] = NSi;
-    }
-   }
+  if( f_compressed_network )  // compressed format
+   NetworkBlockSolution::deserialize( sub_group , v_network_Solution );
   else  // standard format 
    for( Index i = 0 ; i < number_networks ; ++i ) {
     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
@@ -2292,30 +2274,11 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
 
  // serialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - - -
  if( ! v_network_Solution.empty() ) {
-  auto nu = group.addDim( "NumberNetworks" , v_network_Solution.size() );
+  group.addDim( "NumberNetworks" , v_network_Solution.size() );
 
   if( f_compressed_network ) {  // compressed format
    auto sub_group = group.addGroup( "NetworkBlock" );
-   sub_group.addDim( "NumberNetworks" , v_network_Solution.size() );
-   Index ni = 0;
-   for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
-    if( ! v_network_Solution[ i ] )
-     throw( std::invalid_argument( "UCBlockSolution::serialize: missing "
-				   "NetworkBlock in compressed format" ) );
-    else {
-     if( ! i )
-      ::serialize( sub_group , "type" , netCDF::NcString() ,
-		   v_network_Solution[ i ]->classname() );
-     ni += v_network_Solution[ i ]->get_number_instants();
-     }
-
-   if( ni > v_network_Solution.size() ) {
-    sub_group.addDim( "TotalNumberInstants" , ni );
-    sub_group.addVar( "EndInstant" , netCDF::NcInt() , { nu } );
-    }
-     
-   for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
-    v_network_Solution[ i ]->serialize( sub_group , i );
+   NetworkBlockSolution::serialize( sub_group , v_network_Solution );
    }
   else  // standard format 
    for( Index i = 0 ; i < v_network_Solution.size() ; ++i )

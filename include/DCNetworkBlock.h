@@ -1536,6 +1536,9 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  void set_design_variables( std::vector< ColVariable > * DV = nullptr ,
 			    c_Subset * WDV = nullptr ) {
+  if( constraints_generated() )
+   throw( std::logic_error( "DCNetworkBlock::set_design_variables: called "
+			    "when constraints are already generated" ) );  
   v_design = DV;
   v_which_design = WDV;
   }
