@@ -594,13 +594,13 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the intake level design constraints:
    //
-   //     v_intake_level <= ( k C_ch v_MaxPower ) x_c
-   // => v_intake_level - ( k C_ch v_MaxPower ) x_c <= 0
+   //     v_intake_level <= ( k C_ch v_MaxPower ) x_b
+   // => v_intake_level - ( k C_ch v_MaxPower ) x_b <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in charge
    vars.push_back( std::make_pair( &v_intake_level[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &conv_design ,
+   vars.push_back( std::make_pair( &batt_design ,
                                    -f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
@@ -610,13 +610,13 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the outtake level design constraints:
    //
-   //      v_outtake_level <= (k C_dis -v_MinPower ) x_c
-   // => v_outtake_level + ( k C_dis v_MinPower ) x_c <= 0
+   //      v_outtake_level <= (k C_dis -v_MinPower ) x_b
+   // => v_outtake_level + ( k C_dis v_MinPower ) x_b <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
    vars.push_back( std::make_pair( &v_outtake_level[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &conv_design ,
+   vars.push_back( std::make_pair( &batt_design ,
                                    f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
@@ -1518,28 +1518,28 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    auto f0 = static_cast< LinearFunction * >(
     intake_outtake_upper_bounds_design_Const[ 0 ][ t ].get_function() );
 
-   const auto conv_design_idx0 = f0->is_active( &conv_design );
+   const auto batt_design_idx0 = f0->is_active( &batt_design );
 
-   if( conv_design_idx0 == Inf< Index >() )
+   if( batt_design_idx0 == Inf< Index >() )
     throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
                              "expected Variable not found in "
                              "intake_outtake_upper_bounds_design_Const." ) );
 
-   f0->modify_coefficient( conv_design_idx0 ,
+   f0->modify_coefficient( batt_design_idx0 ,
                            -f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] ,
                            issueAMod );
 
    auto f1 = static_cast< LinearFunction * >(
     intake_outtake_upper_bounds_design_Const[ 1 ][ t ].get_function() );
 
-   const auto conv_design_idx1 = f1->is_active( &conv_design );
+   const auto batt_design_idx1 = f1->is_active( &batt_design );
 
-   if( conv_design_idx1 == Inf< Index >() )
+   if( batt_design_idx1 == Inf< Index >() )
     throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
                              "expected Variable not found in "
                              "intake_outtake_upper_bounds_design_Const." ) );
 
-   f1->modify_coefficient( conv_design_idx1 ,
+   f1->modify_coefficient( batt_design_idx1 ,
                            f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] ,
                            issueAMod );
 
