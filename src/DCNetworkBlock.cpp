@@ -1119,14 +1119,14 @@ void DCNetworkBlock::generate_bound_constraints( void )
   *
   *   LOWER: F_l - kappa * MinP_l * x_l >= 0
   *   UPPER: F_l - kappa * MaxP_l * x_l <= 0 */
- 
+
  if( is_design() ) {
   v_power_flow_limit_design_const.resize(
 				MAFRC2::extent_gen()[ 2 ][ number_lines ] );
 
   for( Index l = 0 ; l < number_lines ; ++l ) {
    ColVariable * x = get_design( l );
-   if( ! x )   // no design on this line: 
+   if( ! x )   // no design on this line:
     continue;  // handled in the "without design" block
 
    const double kappa = get_kappa( l );

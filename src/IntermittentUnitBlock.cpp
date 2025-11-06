@@ -573,7 +573,7 @@ Solution * IntermittentUnitBlock::get_Solution( Configuration * csolc ,
  }
 
 /*--------------------------------------------------------------------------*/
- 
+
 UnitBlockSolution * IntermittentUnitBlock::new_Solution( void ) const {
  return( new IntermittentUnitBlockSolution() );
  }
@@ -866,7 +866,7 @@ void IntermittentUnitBlockSolution::deserialize(
  if( f_number_generators != 1 )
   throw( std::logic_error( "IntermittentUnitBlockSolution::deserialize: "
 			   "intermittents have only one generator" ) );
- 
+
  // deserialize the design - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! ::deserialize< double >( group , f_design , "IntermittentDesign" ) )
   f_design = dNaN;

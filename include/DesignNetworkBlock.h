@@ -334,7 +334,7 @@ class DesignNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the (ordered) list of line indices that have a design variable
  /** Returns the vector of indices of lines that have a design variable,
-  * ordered in increasing sense. If it is non-empty, then 
+  * ordered in increasing sense. If it is non-empty, then
   * get_design_variables()[ i ] is the design variable of line
   * get_design_lines()[ i ]. If it is empty, then all lines 0, ...,
   * get_design_variables().size - 1 have a design variable, and
@@ -726,7 +726,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a DesignNetworkBlockSolution into a "global" netCDF::NcGroup
  /** fake "nonstandard" version of serialize() that loads a
-  * DesignNetworkBlockSolution from a "global" netCDF::NcGroup, i.e., one 
+  * DesignNetworkBlockSolution from a "global" netCDF::NcGroup, i.e., one
   * where supposedly the solution information of multiple DesignNetworkBlock
   * are stored together. However, this is "fake" in the sense that the
   * format is the "nonstandard" one of NetworkBlockSolution, cf. the

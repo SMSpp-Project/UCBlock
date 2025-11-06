@@ -106,7 +106,7 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // call the method of the base class 
+ // call the method of the base class
  ThermalUnitBlock::deserialize( group );
 
  // check that DeltaRampUp/Down are defined
@@ -127,7 +127,7 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  if( f_modulation_interval < 2 )
   throw( std::invalid_argument(
 		    "NuclearUnitBlock::deserialize: ModulationTime < 2" ) );
- 
+
  if( ! ::deserialize( group , f_initial_modulation , "InitModulation" ) )
   f_initial_modulation = f_modulation_interval;
 
@@ -137,7 +137,7 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // load mandatory variables ModulationDeltaRampUp and
  // ModulationDeltaRampDown, create the expanded vectors (if needed)
- 
+
  ::deserialize( group , "ModulationDeltaRampUp" , f_time_horizon ,
                 v_modulation_ramp_up , false , true , v_change_intervals );
  ::deserialize( group , "ModulationDeltaRampDown" , f_time_horizon ,
@@ -233,7 +233,6 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    v_modulation[ t ].set_value( 0.0 );
    v_modulation[ t++ ].is_fixed( true , eNoMod );
    }
- 
  } // end( NuclearUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -258,7 +257,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // - v_ShutDownLimit, the maximum power on shutdown
  // - v_DeltaRampUp, the ramp-up delta
  // - v_DeltaRampDown, the ramp-down delta
- 
+
  // construct the modulation ramp-up constraint - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // p_t - p_{t-1} - \Delta^M_{t+} u_{t-1} -
@@ -294,7 +293,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // similarly, the "- \Delta^M_{t+} u_{t-1}" term is fixed, and it is
    // equal to - v_modulation_ramp_up[ t ] if u_{t-1} = 1 (i.e.,
    // f_InitUpDownTime > 0) and 0 otherwise, so this has to be added to RHS
-   // (changing the sign) 
+   // (changing the sign)
    if( f_InitUpDownTime > 0 )
     RHS += v_modulation_ramp_up[ 0 ];
    }
@@ -345,7 +344,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // the corresponding shut-down variables are not even defined
   if( t >= init_t )
    *cfit = coeff_pair( & v_shut_down[ t - init_t ] , v_ShutDownLimit[ t ] );
- 
+
   Modulation_RampDown_Constraints[ t ].set_lhs( - Inf< double >() );
   // if t == 0, the "p_{t-1}" term is fixed and equal to f_InitialPower, so
   // there is no explicit term in the constraint (since the variable does
@@ -364,7 +363,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // note: these only have to be constructed for t >= init_t, as for
  // t < init_t either u_t is fixed to 1, and the constraint is redundant, or
  // u_t is fixed to 0 and m_t has been fixed in generate_abstract_variables()
- 
+
  NoDownModulation.resize( f_time_horizon - init_t );
 
  for( Index t = init_t ; t < f_time_horizon ; ++t ) {
@@ -372,7 +371,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
   cf[ 1 ] = coeff_pair( & v_commitment[ t ] , -1.0 );
- 
+
   NoDownModulation[ t - init_t ].set_lhs( - Inf< double >() );
   NoDownModulation[ t - init_t ].set_rhs( 0 );
   NoDownModulation[ t - init_t ].set_function(
@@ -400,7 +399,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
   cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , -1.0 );
- 
+
   NoStartUpModulation[ t - init_t ].set_lhs( - Inf< double >() );
   NoStartUpModulation[ t - init_t ].set_rhs( 1.0 );
   NoStartUpModulation[ t - init_t ].set_function(
@@ -595,7 +594,6 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
 			    std::to_string( mrut ) + "> ramp up = " +
 			    std::to_string( v_DeltaRampUp[ t ] ) ) );
   }
- 
 
  if( not_dry_run( issuePMod ) )  // change the physical representation
   assign( v_modulation_ramp_up , subset , values );
@@ -762,7 +760,6 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
 			    std::to_string( mrdt ) + "> ramp down = " +
 			    std::to_string( v_DeltaRampDown[ t ] ) ) );
   }
- 
 
  if( not_dry_run( issuePMod ) )  // change the physical representation
   assign( v_modulation_ramp_down , subset , values );

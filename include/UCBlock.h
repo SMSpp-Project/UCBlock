@@ -7,7 +7,7 @@
  * Block.h] for the Unit Commitment (UC) problem in electrical power
  * production. This is typically a short-term (across, for instance, one
  * week or one-day time horizon) *deterministic* problem regarding finding
- * an optimal production schedule of electrical generators satisfying a 
+ * an optimal production schedule of electrical generators satisfying a
  * (large) set of technical constraints.
  *
  * \author Antonio Frangioni \n
@@ -290,7 +290,7 @@ class UCBlock : public Block
  *     possible that some (or even, in principle, all) "NetworkBlock_i" is
  *     not specified, which is useful when (as it often happens, since the
  *     network may easily not change in the short time horizon typical of
- *     the UC problem) some (or all) of them are "equal". If any 
+ *     the UC problem) some (or all) of them are "equal". If any
  *     "NetworkBlock_i" is missing, a NetworkBlock is automatically built by
  *     using the "global" NetworkData in UCBlock. The corresponding value of
  *     NetworkBlock::get_number_intervals() is used to identify the subset of
@@ -444,7 +444,7 @@ class UCBlock : public Block
  * - The variable "PollutantRho", of type netCDF::NcDouble and indexed over
  *   three dimensions which are "TimeHorizon" and "NumberPollutants" and
  *   the set { 0, ..., NumberElectricalGenerators - 1 } (see comments above).
- *   The first dimension can have size either 1 or "TimeHorizon". In the 
+ *   The first dimension can have size either 1 or "TimeHorizon". In the
  *   former case the entry PollutantRho[ 0 , p , g ] is assumed to contain
  *   the conversion factor of pollutant p due to the electrical generator g
  *   which is equal for all time instants t. Otherwise, the first dimension
@@ -693,7 +693,7 @@ class UCBlock : public Block
   * formally the return type is Solution *. This is because it is not
   * possible to forward declare UCBlockSolution as a derived class from
   * Solution, nor to define UCBlockSolution before UCBlock because the former
-  * uses some type information declared in the latter. */ 
+  * uses some type information declared in the latter. */
 
  Solution * get_Solution( Configuration *solc = nullptr ,
 			  bool emptys = true ) override;
@@ -1818,7 +1818,7 @@ class UCBlockSolution : public Solution {
 /*------------------------------- FRIENDS ----------------------------------*/
 
  using Index = Block::Index;  // "import" Index
- 
+
 /*------------------------------- FRIENDS ----------------------------------*/
 
  friend UCBlock;  ///< make UCBlock friend
@@ -1876,7 +1876,7 @@ class UCBlockSolution : public Solution {
   *
   *   = The "standard" one, i.e., groups "NetworkBlock_0", "NetworkBlock_1",
   *     ..., "NetworkBlock_T" with T = NumberNetworks - 1, with
-  *     "NetworkBlock_t" containing each the NetworkBlockSolution 
+  *     "NetworkBlock_t" containing each the NetworkBlockSolution
   *     corresponding to that network constraints for some specific subset
   *     of time instants t. This is the most flexible case, as it allows to
   *     have different types of :NetworkBlock for each t. However, since T
@@ -1903,7 +1903,7 @@ class UCBlockSolution : public Solution {
   *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
   *   is only required to be present if  "NumberNodes" is present, otherwise
   *   it is optional (since it is ignored). ActivePowerDuals[ n , t ] is
-  *   assumed to contain the dual of the active power demand constraint 
+  *   assumed to contain the dual of the active power demand constraint
   *   corresponding to node n of the transmission network at the time t
   *
   * - The dimension "NumberPrimaryZones" tells how many "primary spinning
@@ -1943,7 +1943,7 @@ class UCBlockSolution : public Solution {
   *   present, otherwise it is optional (since it is ignored). Entry
   *   InertiaDuals[ i , t ] is assumed to contain the dual of the inertia
   *   reserve constraints for zone i in the time t. */
- 
+
  void serialize( netCDF::NcGroup & group ) const override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1978,10 +1978,10 @@ class UCBlockSolution : public Solution {
 
  bool f_compressed_network;
  ///< true if using the "compressed" format for NetworkBlock
- 
+
  std::vector< UnitBlockSolution * > v_unit_Solution;
  ///< the Solution for each UnitBlock
- 
+
  std::vector< NetworkBlockSolution * > v_network_Solution;
  ///< the Solution for each NetworkBlock
 
