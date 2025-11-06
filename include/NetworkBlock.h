@@ -1012,7 +1012,7 @@ class NetworkBlockSolution : public Solution
   * already properly sized and initializes its elements with the assumption
   * that sols.front gets index \p idx. */
  
- static void deserialize( netCDF::NcGroup & group ,
+ static void deserialize( const netCDF::NcGroup & group ,
 			  std::vector< NetworkBlockSolution * > & sols ,
 			  size_t idx = 0 );
 
@@ -1188,12 +1188,8 @@ class NetworkBlockSolution : public Solution
   * the clone() of derived classes. */
  
  void guts_of_clone( NetworkBlockSolution * sol ) const;
- 
-/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
- private:
-
-/*---------------------------- PRIVATE FIELDS ------------------------------*/
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
 
  Index f_number_nodes;        ///< the number of nodes
 
@@ -1201,6 +1197,10 @@ class NetworkBlockSolution : public Solution
 
  boost::multi_array< double , 2 > v_node_injection;
  ///< v_node_injection[ i ][ t ] = node injection at node i at time t
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
 
 /*--------------------------------------------------------------------------*/
 

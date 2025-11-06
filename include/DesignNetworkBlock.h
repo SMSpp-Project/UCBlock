@@ -197,6 +197,13 @@ class DesignNetworkBlock : public NetworkBlock
 /** @name Reading the data of the NetworkBlock
  * @{ */
 
+ Index get_number_nodes( void ) const override {
+  if( v_Block.empty() )
+   return( 0 );
+  return( static_cast< NetworkBlock * >( v_Block.front()
+					 )->get_number_nodes() );
+  }
+
 /*--------------------------------------------------------------------------*/
 
  Index get_number_intervals( void ) const override {

@@ -296,7 +296,7 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
 
 /*--------------------------------------------------------------------------*/
 
-void NetworkBlockSolution::deserialize( netCDF::NcGroup & group ,
+void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
 		  std::vector< NetworkBlockSolution * > & sols , size_t idx )
 {
  // get the type of all NetworkBlockSolution

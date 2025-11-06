@@ -43,7 +43,10 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 // register DesignNetworkBlock to the Block factory
-SMSpp_insert_in_factory_cpp_0( DesignNetworkBlock );
+SMSpp_insert_in_factory_cpp_1( DesignNetworkBlock );
+
+// register DesignNetworkBlockSolution to the Solution factory
+SMSpp_insert_in_factory_cpp_0( DesignNetworkBlockSolution );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DesignNetworkBlock --------------------*/
@@ -103,33 +106,34 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- deserialize_dim( group , "NumberDesignLines" , f_number_design_lines , false );
+ int design_lines;
+ deserialize_dim( group , "NumberDesignLines" , design_lines , false );
 
- if( ! ::deserialize( group , "InvestmentCost" , f_number_design_lines ,
+ if( ! ::deserialize( group , "InvestmentCost" , design_lines ,
                       v_InvestmentCost , true , true ) ) {
-  v_InvestmentCost.resize( f_number_design_lines );
+  v_InvestmentCost.resize( design_lines );
  }
 
- if( f_number_design_lines > 0 ) {
+ if( design_lines > 0 ) {
   std::vector< Index > tmp_design_lines;
-  if( ::deserialize( group , "DesignLines" , f_number_design_lines ,
+  if( ::deserialize( group , "DesignLines" , design_lines ,
                      tmp_design_lines , false , true ) ) {
    v_design_lines = std::move( tmp_design_lines );
    }
   else {
-   v_design_lines.resize( f_number_design_lines );
-   for( Index p = 0 ; p < f_number_design_lines ; ++p )
+   v_design_lines.resize( design_lines );
+   for( Index p = 0 ; p < design_lines ; ++p )
     v_design_lines[ p ] = p;
    }
   }
 
- if( ! ::deserialize( group , "MinCapacityDesign" , f_number_design_lines ,
+ if( ! ::deserialize( group , "MinCapacityDesign" , design_lines ,
                       v_MinCapacityDesign , true , true ) )
-  v_MinCapacityDesign.resize( f_number_design_lines );
+  v_MinCapacityDesign.resize( design_lines );
 
- if( ! ::deserialize( group , "MaxCapacityDesign" , f_number_design_lines ,
+ if( ! ::deserialize( group , "MaxCapacityDesign" , design_lines ,
                       v_MaxCapacityDesign , true , true ) )
-  v_MaxCapacityDesign.resize( f_number_design_lines , 1 );
+  v_MaxCapacityDesign.resize( design_lines , 1 );
 
  deserialize_network_blocks( group );
 
@@ -144,7 +148,7 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 void DesignNetworkBlock::check_data_consistency( void ) const
 {
- for( Index l = 0 ; l < f_number_design_lines ; ++l ) {
+ for( Index l = 0 ; l < v_InvestmentCost.size() ; ++l ) {
   // Min/Max capacity design
   if( get_min_capacity_design( l ) < 0 )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
@@ -199,7 +203,7 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  // Pass design variables to sub-network blocks
  for( auto * nb : v_Block ) {
   if( auto * dcnb = dynamic_cast< DCNetworkBlock * >( nb ) ) {
-   dcnb->set_design_variables( &v_design , &v_design_lines );
+   dcnb->set_design_variables( &v_design , & v_design_lines );
   }
  }
 
@@ -281,26 +285,36 @@ Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
  if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
   wsol = config->f_value;
 
- auto sol = new DesignNetworkBlockSolution();
+ // call the method of the mase class to construct an empty
+ // DesignNetworkBlockSolution (due to the new_Solution() trick set *not*
+ // to store the node injections
+ SimpleConfiguration< int > snc( 0 );
+ auto sol = static_cast< DesignNetworkBlockSolution * >(
+			      NetworkBlock::get_Solution( & snc , true ) );
 
  if( wsol & 2 )
-  sol->v_design_lines.resize( v_design_lines.size() );
+  sol->v_design.resize( v_design_lines.size() );
 
  if( wsol & 4 ) {
   sol->v_network_Solution.resize( v_Block.size() );
   int swsol = wsol & 1;  // copy the first bit of wsol
   swsol |= wsol >> 3;    // copy the bits 4 - ... shifted by 3
   SimpleConfiguration< int > snc;
-  snc->value = swsol;
-  for( Index i = 0 ; i < v_Block.size() ; ++i )
-   sol->v_network_Solution[ i ] = v_Block[ i ]->get_Solution( & snc );
+  snc.f_value = swsol;
+  for( Index i = 0 ; i < v_Block.size() ; ++i ) {
+   auto Si = v_Block[ i ]->get_Solution( & snc );
+   if( auto NBSi = dynamic_cast< NetworkBlockSolution * >( Si ) )
+    sol->v_network_Solution[ i ] = NBSi;
+   else {
+    delete Si;
+    throw( std::invalid_argument( "DesignNetworkBlock::get_Solution: "
+				  " sub-Solution " + std::to_string( i ) +
+				  " not a NetworkBlockSolution" ) );
+    }
+   }
   }
 
  sol->f_compressed = ( wsol & 8 );
-
- // ensure that node injections are not saved in the "root" Solution
- using mad2 = boost::multi_array< double , 2 >;
- sol->v_node_injection.resize( mad2::extent_gen()[ 0 ][ 0 ] );
 
  if( ! emptys )
   sol->read( this );
@@ -363,7 +377,7 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
  NetworkBlock::serialize( group );
 
  auto NumberDesignLines = group.addDim( "NumberDesignLines" ,
-                                        f_number_design_lines );
+                                         v_design_lines.size() );
  if( ! v_InvestmentCost.empty() )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
 	       NumberDesignLines , v_InvestmentCost );
@@ -410,23 +424,19 @@ void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
 {
-  if( v_Block.empty() || subset.empty() )
-   return;
+ if( v_Block.empty() || subset.empty() )
+  return;
 
-  std::vector< double > vals( subset.size() );
-  std::copy( values , values + subset.size() , vals.begin() );
-
-  const Subset base_subset = subset;
-  for( auto * nb : v_Block ) {
-   if( ! nb ) continue;
-   Subset sb = base_subset;
-   nb->set_active_demand( vals.begin() ,
-                          std::move( sb ) ,
-                          ordered ,
-                          issuePMod ,
-                          issueAMod );
+ if( subset.empty() )
+  return;
+ 
+ for( auto bi : v_Block ) {
+  auto nbi = static_cast< NetworkBlock * >( bi );
+  Subset sb = subset;
+  nbi->set_active_demand( values , std::move( sb ) , ordered ,
+			  issuePMod , issueAMod );
   }
-}  // end( DesignNetworkBlock::set_active_demand( subset ) )
+ }  // end( DesignNetworkBlock::set_active_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -440,14 +450,9 @@ void DesignNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
  if( rng.second <= rng.first )
   return;
 
- const Index len = rng.second - rng.first;
-
- std::vector<double> vals( len );
- std::copy( values , values + len , vals.begin() );
-
- for( auto * nb : v_Block ) {
-  if( ! nb ) continue;
-   nb->set_active_demand( vals.begin() , rng , issuePMod , issueAMod );
+ for( auto bi : v_Block ) {
+  auto nbi = static_cast< NetworkBlock * >( bi );
+  nbi->set_active_demand( values , rng , issuePMod , issueAMod );
   }
  }  // end( DesignNetworkBlock::set_active_demand( range ) )
 
@@ -463,12 +468,12 @@ void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // "NumberDesignLines" - - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto NDL = group.getDim( "NumberDesignLines" );
  if( NDL.isNull() ) {
-  f_number_design_lines = 0;
+  f_design_lines = 0;
   v_design.clear();
   }
  else {
-  f_number_design_lines = NDL.getSize();
-  v_design.resize( f_number_design_lines );
+  f_design_lines = NDL.getSize();
+  v_design.resize( f_design_lines );
 
   // deserialize the Design Variables- - - - - - - - - - - - - - - - - - - - -
   ::deserialize< double >( group , "DesignValue" , v_design , false );
@@ -554,7 +559,7 @@ void DesignNetworkBlockSolution::read( const Block * block )
  if( ! v_design.empty() ) {
   // read the design variables - - - - - - - - - - - - - - - - - - - - - - -
   auto & DV = DCNB->get_const_design();
-  for( Index l = 0 ; l < f_number_design_lines ; ++l )
+  for( Index l = 0 ; l < f_design_lines ; ++l )
    v_design[ l ] = DV[ l ].get_value();
   }
 
@@ -578,7 +583,7 @@ void DesignNetworkBlockSolution::write( Block * block )
   throw( std::invalid_argument( "DesignNetworkBlockSolution::write: block is "
 				"not a DesignNetworkBlock" ) );
 
- if( f_design_lines != DCNB->get_design_lines() )
+ if( f_design_lines != DCNB->get_number_design_lines() )
   throw( std::invalid_argument( "DesignNetworkBlockSolution::write: "
 				"inconsistent design_lines number" ) );
 
@@ -593,7 +598,7 @@ void DesignNetworkBlockSolution::write( Block * block )
  // write the design variables - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_design.empty() ) {
   auto & DV = DCNB->get_design();
-  for( Index l = 0 ; l < f_number_design_lines ; ++l )
+  for( Index l = 0 ; l < f_design_lines ; ++l )
    DV[ l ].set_value( v_design[ l ] );
   }
 
@@ -614,7 +619,7 @@ void DesignNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 
  // serialize the Design Variables- - - - - - - - - - - - - - - - - - - - - -
  if( ! v_design.empty() ) {
-  auto NDL = group.addDim( "NumberDesignLines" , f_number_design_lines );
+  auto NDL = group.addDim( "NumberDesignLines" , f_design_lines );
 
   ::serialize< double >( group , "DesignValue" , netCDF::NcDouble() , NDL ,
 			 v_design );
@@ -623,9 +628,9 @@ void DesignNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
  // serialize the sub-Network Solution - - - - - - - - - - - - - - - - - - -
  if( ! v_network_Solution.empty() ) {
   if( f_compressed )  // compressed format
-   NetworkBlockSolution::serialize( sub_group , v_network_Solution );
+   NetworkBlockSolution::serialize( group , v_network_Solution );
   else {              // standard format
-   group.addDim( "NumberSubNetwork" , f_number_design_lines );
+   group.addDim( "NumberSubNetwork" , f_design_lines );
 
    for( Index i = 0 ; i < f_number_subnetworks ; ++i ) {
     std::string sub_group_name = "SubNetworkBlock_" + std::to_string( i );
@@ -663,11 +668,11 @@ DesignNetworkBlockSolution * DesignNetworkBlockSolution::scale(
 
  if( ! v_design.empty() )
   for( Index l = 0 ; l < f_design_lines ; ++l )
-   v_design[ l ] *= factor;
+   sol->v_design[ l ] *= factor;
 
  if( ! v_network_Solution.empty() )
   for( Index i = 0 ; i < f_number_subnetworks ; ++i )
-   v_network_Solution[ i ]->scale( factor );
+   sol->v_network_Solution[ i ]->scale( factor );
 
  return( sol );
 
@@ -686,7 +691,7 @@ void DesignNetworkBlockSolution::sum( const Solution * solution ,
   throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: solution "
 				"not a DesignNetworkBlockSolution" ) );
 
- if( f_number_design_lines != DCNBS->f_number_design_lines )
+ if( f_design_lines != DCNBS->f_design_lines )
   throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: "
 				"inconsistent design_lines number" ) );
 
