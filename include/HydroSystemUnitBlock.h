@@ -340,7 +340,7 @@ class HydroSystemUnitBlock : public UnitBlock
   * "root" UnitBlockSolution already contains the active power and other
   * variables, the "inner" HydroUnitBlockSolution are configured not to
   * store the same information.
-  * 
+  *
   * The parameter for deciding which kind of Solution must be returned is a
   * single int value, coded bitwise:
   *
@@ -365,7 +365,7 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" [HydroSystem]UnitBlockSolution
- 
+
  UnitBlockSolution * new_Solution( void ) const override;
 
 /** @} ---------------------------------------------------------------------*/

@@ -946,7 +946,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * nodes \f$ \mathcal{N} \f$ and a set of lines \f$ \mathcal{L} \f$. For each
   * line \f$ l \in \mathcal{L} \f$, let \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$
   * denote the minimum and maximum admissible power flows, and
-  * \f$ \kappa_l \f$ a line-specific scaling factor. For each node 
+  * \f$ \kappa_l \f$ a line-specific scaling factor. For each node
   * \f$ n \in \mathcal{N} \f$, \f$ D^{ac}_n \f$ is the active power demand.
   *
   * The Block defines:
@@ -1318,7 +1318,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns true if all lines have associated design variable 
+ /// returns true if all lines have associated design variable
 
  bool all_design( void ) const {
   return( is_design() && ( ( *v_design ).size() == get_number_lines() ) );
@@ -1538,7 +1538,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 			    c_Subset * WDV = nullptr ) {
   if( constraints_generated() )
    throw( std::logic_error( "DCNetworkBlock::set_design_variables: called "
-			    "when constraints are already generated" ) );  
+			    "when constraints are already generated" ) );
   v_design = DV;
   v_which_design = WDV;
   }
@@ -1793,7 +1793,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  /// which lines have design variables
  c_Subset * v_which_design;
- 
+
 /*------------------------------- constraints ------------------------------*/
 
  /// HVDC power flow and node injection constraints

@@ -263,7 +263,7 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
    std::vector< size_t > vidx = { idx - 1 };
    EI.getVar( vidx , & start );
    }
-  
+
   int ei;
   std::vector< size_t > vidx = { idx };
   EI.getVar( vidx , & ei );
@@ -272,7 +272,7 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
  else {  // each NetworkBlockSolution covers one instant
   f_number_intervals = 1;
   start = idx;
-  tni = nnw; 
+  tni = nnw;
   }
 
  // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -
@@ -450,7 +450,7 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
    std::vector< size_t > vidx = { idx - 1 };
    EI.getVar( vidx , & start );
    }
-  
+
   // now write EndInstant[ idx ]
   std::vector< size_t > vidx = { idx };
   EI.putVar( vidx , static_cast< int >( start + f_number_intervals ) );
@@ -460,12 +460,12 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
 
  if( ! v_node_injection.empty() ) {  // node injections have to be serialised
   netCDF::NcVar NI;  // NodeInjection
- 
+
   if( idx == 0 )  // first call, have to initialize
    NI = group.addVar( "NodeInjection" , netCDF::NcDouble() , { tni , nn } );
   else            // subsequent cqll, read what is supposedly already there
    NI = group.getVar( "NodeInjection" );
- 
+
   std::vector< size_t > strt = { start , 0 };
   std::vector< size_t > cnt = { f_number_intervals , f_number_nodes };
   NI.putVar( strt , cnt , v_node_injection.data() );

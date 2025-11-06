@@ -234,7 +234,7 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
  }
 
 /*--------------------------------------------------------------------------*/
- 
+
 UnitBlockSolution * UnitBlock::new_Solution( void ) const {
   return( new UnitBlockSolution() );
   }
@@ -274,7 +274,7 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
   using index = boost::multi_array< double , 2 >::index;
   const std::vector< index > empty = { 0 , 0 };
   const std::vector< index > full = { 1 , f_time_horizon };
-  
+
   auto ncVar = group.getVar( "ActivePower" );
   if( ncVar.isNull() )
    v_active_power.resize( empty );
@@ -437,7 +437,7 @@ void UnitBlockSolution::write( Block * block )
 void UnitBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
  Solution::serialize( group );
-  
+
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto th = group.addDim( "TimeHorizon" , f_time_horizon );
 

@@ -1278,7 +1278,7 @@ Solution * BatteryUnitBlock::get_Solution( Configuration * csolc ,
  }
 
 /*--------------------------------------------------------------------------*/
- 
+
 UnitBlockSolution * BatteryUnitBlock::new_Solution( void ) const {
  return( new BatteryUnitBlockSolution() );
  }
@@ -1772,7 +1772,7 @@ void BatteryUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  if( f_number_generators != 1 )
   throw( std::logic_error( "BatteryUnitBlockSolution::deserialize: "
 			   "batteries have only one generator" ) );
- 
+
  // deserialize the storage levels - - - - - - - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "StorageLevel" , v_storage , false );
 
@@ -1788,7 +1788,7 @@ void BatteryUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  if( ! ::deserialize< double >( group , f_c_design , "ConverterDesign" ) )
   f_c_design = dNaN;
- 
+
  }  // end( BatteryUnitBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -1822,7 +1822,7 @@ void BatteryUnitBlockSolution::read( const Block * block )
 
  // read the converter design- - - - - - - - - - - - - - - - - - - - - - - -
  f_c_design = BUB->get_const_conv_design().get_value();
- 
+
  }  // end( BatteryUnitBlockSolution::read )
 
 /*--------------------------------------------------------------------------*/
@@ -1874,7 +1874,7 @@ void BatteryUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
 
  // recover the just serialized time horizon
  netCDF::NcDim th = group.getDim( "TimeHorizon" );
- 
+
  // serialize the storage levels- - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_storage.empty() )
   ::serialize< double >( group , "StorageLevel" , netCDF::NcDouble() , th ,
@@ -1922,7 +1922,7 @@ BatteryUnitBlockSolution * BatteryUnitBlockSolution::scale( double factor )
 
  if( ! std::isnan( f_c_design ) )
   sol->f_c_design *= factor;
-   
+
  return( sol );
 
  }  // end( BatteryUnitBlockSolution::scale )

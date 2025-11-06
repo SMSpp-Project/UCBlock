@@ -244,7 +244,7 @@ Solution * HydroSystemUnitBlock::get_Solution( Configuration * csolc ,
  for( std::size_t i = 0 ; i < sol->v_innerSol.size() ; ++i )
   sol->v_innerSol[ i ] = static_cast< HydroUnitBlockSolution * >(
 	    get_hydro_unit_block( Index( i ) )->get_Solution( &iC , true ) );
-  
+
  if( ! emptys )
   sol->read( this );
 
@@ -252,7 +252,7 @@ Solution * HydroSystemUnitBlock::get_Solution( Configuration * csolc ,
  }
 
 /*--------------------------------------------------------------------------*/
- 
+
 UnitBlockSolution * HydroSystemUnitBlock::new_Solution( void ) const {
  return( new HydroSystemUnitBlockSolution() );
  }

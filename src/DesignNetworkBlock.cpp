@@ -535,7 +535,7 @@ void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
  if( sub_group.isNull() )
   throw( std::invalid_argument( "DesignNetworkBlockSolution::deserialize: "
 				+ sub_group_name + " missing" ) );
-  
+
  this->deserialize( sub_group );
 
  }  // end( DesignNetworkBlockSolution::deserialize( NcGroup & , size_t ) )

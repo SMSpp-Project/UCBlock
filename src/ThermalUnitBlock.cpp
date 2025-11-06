@@ -615,7 +615,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  if( f_cuts ) {
 
   AR |= PCuts;
-  
+
   prevpbar.resize( f_time_horizon , 0 );
   v_cut.resize( f_time_horizon );
   for( auto & var : v_cut )
@@ -648,7 +648,7 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   case( SDForm ):  // SD formulation- - - - - - - - - - - - - - - - - - - - -
 
   case( SUSDForm ):  // SUSD formulation- - - - - - - - - - - - - - - - - - -
-    
+
    if( f_InitUpDownTime > 0 ) {  // if initial committed, OFF_0
 
     for( Index k = init_t ; k <= f_time_horizon + 1 ; ++k ) {
@@ -913,7 +913,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
        v_psi[ j ] = std::max( v_psi[ j ] , get_operational_min_power( t ) );
      }
- 
+
  switch( AR & FormMsk ) {
 
   case( tbinForm ):  // 3bin formulation- - - - - - - - - - - - - - - - - - -
@@ -1032,7 +1032,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      Eq_ActivePower_Const.resize( 2 * f_time_horizon );
     else
      Eq_ActivePower_Const.resize( f_time_horizon );
-    
+
     if( ( AR & FormMsk ) == DPForm ) {  // DP formulation - - - - - - - - - -
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
@@ -1504,13 +1504,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
           ( AR & FormMsk ) == SUSDForm ) {  // SUSD formulation - - - - - - -
 
    auto ramp_up_cnstrs_size = 0;
-   
+
    if( f_InitUpDownTime > 0 )
     for( Index k = 0 ; k < v_MaxRampSteps[ 0 ] ; ++k )
      for( Index j = 0 ; j < v_P_h.size() ; ++j )
       if( ( v_P_h[ j ].first == k ) && ( v_P_h[ j ].second  == 0 ) )
        ramp_up_cnstrs_size++;
-   
+
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     for( Index j = 0 ; j < v_P_h.size() ; ++j )
      if( v_P_h[ j ].first == t )
@@ -1519,11 +1519,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
         for( Index k = 1 ; k <= v_MaxRampSteps[ t + 1 ] ; ++k )
          if( v_P_h[ s ].first == t + k )
           ramp_up_cnstrs_size++;
-   
+
    RampUp_Const.resize( ramp_up_cnstrs_size );
 
    auto cnstr_idx = 0;
-  
+
    if( f_InitUpDownTime > 0 )
     for( Index k = 0 ; k < v_MaxRampSteps[ 0 ] ; ++k )
      for( Index j = 0 ; j < v_P_h.size() ; ++j )
@@ -1545,10 +1545,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
         new LinearFunction( std::move( vars ) ) );
 
        cnstr_idx++;
-
       }
-   
-   
+
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     for( Index j = 0 ; j < v_P_h.size() ; ++j )
      if( v_P_h[ j ].first == t )
@@ -1673,7 +1671,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
       if( v_P_k[ j ].first == k ) {
 
        vars.push_back( std::make_pair( &v_active_power_k[ j ] , 1.0 ) );
- 
+
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
         if( v_P_k[ j ].second == v_Y_plus[ i ].second )
          if( 0 == v_Y_plus[ i ].first )
@@ -1752,7 +1750,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    RampDown_Const.resize( f_time_horizon );
 
    auto cnstr_idx = 0;
-   
+
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
     vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
@@ -2062,7 +2060,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                              -std::min( v_StartUpLimit[ t ] ,
                                               v_ShutDownLimit[ t ] ) ) );
            }
- 
+
           RampDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
           RampDown_Const[ cnstr_idx ].set_rhs( 0.0 );
           RampDown_Const[ cnstr_idx ].set_function(
@@ -2074,13 +2072,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   if( ( ( ( AR & FormMsk ) == SDForm ) && ( new_SD == 1 ) ) ||
           ( AR & FormMsk ) == SUSDForm ) {  // SUSD formulation - - - - - - -
    auto ramp_down_cnstrs_size = 0;
-   
+
    if( f_InitUpDownTime > 0 )
     for( Index k = 0 ; k < v_MaxRampDownSteps[ 0 ] ; ++k )
      for( Index j = 0 ; j < v_P_k.size() ; ++j )
       if( v_P_k[ j ].first == k )
        ramp_down_cnstrs_size++;
-   
+
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     for( Index j = 0 ; j < v_P_k.size() ; ++j )
      if( v_P_k[ j ].first == t )
@@ -2093,7 +2091,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    RampDown_Const.resize( ramp_down_cnstrs_size );
 
    auto cnstr_idx = 0;
-   
+
    if( f_InitUpDownTime > 0 )
     for( Index k = 0 ; k < v_MaxRampDownSteps[ 0 ] ; ++k )
      for( Index j = 0 ; j < v_P_k.size() ; ++j )
@@ -2108,7 +2106,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                           -( static_cast< int >( k + 1 ) *
                                              v_DeltaRampDown[ k ] )
                                           + f_InitialPower ) );
-	 
 
        RampDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
        RampDown_Const[ cnstr_idx ].set_rhs( 0.0 );
@@ -2306,7 +2303,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    MinPower_Const.resize( v_P_h.size() + v_P_k.size() );
   else
    MinPower_Const.resize( v_P_h.size() );
- 
+
   for( Index j = 0 ; j < v_P_h.size() ; ++j ) {
 
    auto t = v_P_h[ j ].first;
@@ -2497,7 +2494,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     }
     if( ( ! v_DeltaRampUp.empty() ) && ( v_DeltaRampDown.empty() ) )
      v_K_SU[ t ] = std::min( static_cast< int >( t ) - 1 , v_T_RU[ t ] );
-    
    }
 
    if( ( ! v_DeltaRampUp.empty() ) ) {
@@ -2666,7 +2662,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
   if( ( ! v_DeltaRampUp.empty() ) || ( ! v_DeltaRampDown.empty() ) ) {
-    
+
    // Bound constraints 4 - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( ! v_DeltaRampUp.empty() ) )
    for( Index t = init_t ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
@@ -3310,7 +3306,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  
   // Constraints connecting perspective cuts variables of 3bin with those of
   // DP, SU and SD formulations- - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4000,7 +3995,7 @@ Solution * ThermalUnitBlock::get_Solution( Configuration * csolc ,
  }
 
 /*--------------------------------------------------------------------------*/
- 
+
 UnitBlockSolution * ThermalUnitBlock::new_Solution( void ) const {
  return( new ThermalUnitBlockSolution() );
  }
@@ -5793,7 +5788,7 @@ void ThermalUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  if( f_number_generators != 1 )
   throw( std::logic_error( "ThermalUnitBlockSolution::deserialize: "
 			   "thermals have only one generator" ) );
- 
+
  // deserialize the design - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! ::deserialize< double >( group , f_design , "ThermalDesign" ) )
   f_design = dNaN;

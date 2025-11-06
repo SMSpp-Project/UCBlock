@@ -2230,7 +2230,7 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
  double f_b_design;    ///< the value of the battery dimensioning variable
 
  double f_c_design;    ///< the value of the converter dimensioning variable
- 
+
 /*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;
