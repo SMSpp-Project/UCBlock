@@ -256,7 +256,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ActivePowerDemand" ,
                 { number_nodes , f_time_horizon } , v_active_power_demand );
 
- // for AC
  ::deserialize( group , "ReactivePowerDemand" ,
                 { number_nodes , f_time_horizon } , v_reactive_power_demand );
 
@@ -418,8 +417,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     nbi->set_NetworkData( f_NetworkData );
     // assert that the global NetworkData passed is of the right type
     assert( nbi->get_NetworkData() != nullptr );
-    nbi->set_constant_term( v_network_constant_terms[ n ] );
    }
+
+   nbi->set_constant_term( v_network_constant_terms[ n ] );
 
    boost::multi_array< double , 2 > ap_v(
     boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
@@ -531,11 +531,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   return;                       // nothing to do
 
  // generate abstract constraints in all the sub-Block
-
  Block::generate_abstract_constraints( stcc );
 
  // generate the abstract constraints of UCBlock
-
  generate_node_injection_constraints();
  generate_primary_demand_constraints();
  generate_secondary_demand_constraints();

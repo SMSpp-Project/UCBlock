@@ -472,7 +472,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the constant term
 
- void set_constant_term( const double const_term ) {
+ virtual void set_constant_term( const double const_term ) {
   f_ConstTerm = const_term;
   }
 

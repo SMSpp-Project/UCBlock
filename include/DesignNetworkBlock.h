@@ -386,22 +386,8 @@ class DesignNetworkBlock : public NetworkBlock
   if( v_Block.empty() )
    return;
 
-  if( v_Block.size() == 1 ) {
-   static_cast< NetworkBlock * >( v_Block[ 0 ] )->set_ActiveDemand( apd );
-   return;
-   }
-
-  const Index Ttot = static_cast< Index >( apd.shape()[ 0 ] );
-
-  for( Index i = 0 ; i < v_Block.size() && i < Ttot ; ++i ) {
-   auto * nb = static_cast< NetworkBlock * >( v_Block[ i ] );
-   const auto Nnb = nb->get_number_nodes();
-
-   boost::multi_array< double , 2 > ap_v( boost::extents[ 1 ][ Nnb ] );
-   std::copy( apd[ i ].begin() , apd[ i ].begin() + Nnb , ap_v[ 0 ].begin() );
-
-   nb->set_ActiveDemand( ap_v );
-   }
+  for( auto * nb : v_Block )
+   static_cast< NetworkBlock * >( nb )->set_ActiveDemand( apd );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -420,6 +406,13 @@ class DesignNetworkBlock : public NetworkBlock
   f_NetworkData = nd;
   for( auto * nb : v_Block )
    static_cast< NetworkBlock * >( nb )->set_NetworkData( nd );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_constant_term( const double const_term ) override {
+  for( auto * nb : v_Block )
+   static_cast< NetworkBlock * >( nb )->set_constant_term( const_term );
   }
 
 /*--------------------------------------------------------------------------*/

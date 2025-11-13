@@ -1431,7 +1431,7 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
    throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
                                  "invalid value in subset." ) );
 
-  auto demand = *(values++);
+  auto demand = *( values++ );
   if( v_ActiveDemand[ i ] != demand ) {
    identical = false;
 
@@ -1559,7 +1559,7 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
    throw( std::invalid_argument( "DCNetworkBlock::set_kappa: invalid value in"
                                  " subset: " + std::to_string( i ) ) );
 
-  const auto kappa = *(values++);
+  const auto kappa = *( values++ );
   if( v_kappa[ i ] != kappa ) {
    identical = false;
    if( not_dry_run( issuePMod ) )

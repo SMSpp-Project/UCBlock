@@ -149,11 +149,23 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
  }
 
  for( Index n = 0 ; n < f_number_subnetworks ; ++n ) {
-  // NetworkBlock n does not exist: create a NetworkBlock
-  if( auto nbi = static_cast< NetworkBlock * >( v_Block[ n ] ) ; ! nbi ) {
+  auto nbi = static_cast< NetworkBlock * >( v_Block[ n ] ) ;
+  if( ! nbi ) {  // NetworkBlock n does not exist: create a NetworkBlock
    nbi = dynamic_cast< NetworkBlock * >(
     new_Block( "DCNetworkBlock" , this ) );
    v_Block[ n ] = nbi;
+  }
+
+  // if the NetworkBlock does not have its own NetworkData...
+  if( ! nbi->get_NetworkData() ) {
+   if( ! f_NetworkData )
+    throw( std::invalid_argument( "DesignNetworkBlock::deserialize: NetworkData "
+                                  "missing in NetworkBlock " +
+                                  std::to_string( n ) + " and in UCBlock" ) );
+   // ... then set the UCBlock global one
+   nbi->set_NetworkData( f_NetworkData );
+   // assert that the global NetworkData passed is of the right type
+   assert( nbi->get_NetworkData() != nullptr );
   }
  }
 
@@ -203,6 +215,9 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
+ // generate abstract constraints in all the sub-Block
+ Block::generate_abstract_variables( stvv );
+
  // Create design variables only for the selected ("designed") lines
  if( const auto nd = static_cast< Index >( v_design_lines.size() ) ) {
   v_design.resize( nd );
@@ -216,11 +231,9 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  }
 
  // Pass design variables to sub-network blocks
- for( auto * nb : v_Block ) {
-  if( auto * dcnb = dynamic_cast< DCNetworkBlock * >( nb ) ) {
+ for( auto * nb : v_Block )
+  if( auto * dcnb = dynamic_cast< DCNetworkBlock * >( nb ) )
    dcnb->set_design_variables( &v_design , &v_design_lines );
-  }
- }
 
  set_variables_generated();
 
