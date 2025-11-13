@@ -306,7 +306,7 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
 Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
 					     bool emptys )
 {
- Index wsol = 1;
+ Index wsol = 15;
  if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
 
