@@ -69,7 +69,7 @@ void DesignNetworkBlock::deserialize_network_blocks(
  v_Block.clear();
  Index found = 0;
 
- for( Index i = 0 ; ; ++i ) {
+ for( Index i = 0 ; i < f_number_subnetworks ; ++i ) {
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
   auto sub_group = group.getGroup( sub_group_name );
   if( sub_group.isNull() )
@@ -98,16 +98,21 @@ void DesignNetworkBlock::deserialize_network_blocks(
 void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberDesignLines" };
+ static std::vector< std::string > expected_dims = {
+  "NumberDesignLines" , "NumberSubNetwork"
+ };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = {
-  "InvestmentCost" , "MinCapacityDesign" , "MaxCapacityDesign" };
+  "InvestmentCost" , "DesignLines" , "MinCapacityDesign" , "MaxCapacityDesign"
+ };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
  int design_lines;
  deserialize_dim( group , "NumberDesignLines" , design_lines , false );
+
+ deserialize_dim( group , "NumberSubNetwork" , f_number_subnetworks );
 
  if( ! ::deserialize( group , "InvestmentCost" , design_lines ,
                       v_InvestmentCost , true , true ) ) {
@@ -135,10 +140,22 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
                       v_MaxCapacityDesign , true , true ) )
   v_MaxCapacityDesign.resize( design_lines , 1 );
 
+ // load all NetworkBlock, if any
  deserialize_network_blocks( group );
 
- // finally call the method of the base class
- NetworkBlock::deserialize( group );
+ // if they don't exist, create them now as NetworkBlock
+ if( v_Block.empty() ) {
+  v_Block.resize( f_number_subnetworks );
+ }
+
+ for( Index n = 0 ; n < f_number_subnetworks ; ++n ) {
+  // NetworkBlock n does not exist: create a NetworkBlock
+  if( auto nbi = static_cast< NetworkBlock * >( v_Block[ n ] ) ; ! nbi ) {
+   nbi = dynamic_cast< NetworkBlock * >(
+    new_Block( "DCNetworkBlock" , this ) );
+   v_Block[ n ] = nbi;
+  }
+ }
 
  check_data_consistency();
 
@@ -186,8 +203,6 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
- NetworkBlock::generate_abstract_variables( stvv );
-
  // Create design variables only for the selected ("designed") lines
  if( const auto nd = static_cast< Index >( v_design_lines.size() ) ) {
   v_design.resize( nd );
@@ -203,7 +218,7 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  // Pass design variables to sub-network blocks
  for( auto * nb : v_Block ) {
   if( auto * dcnb = dynamic_cast< DCNetworkBlock * >( nb ) ) {
-   dcnb->set_design_variables( &v_design , & v_design_lines );
+   dcnb->set_design_variables( &v_design , &v_design_lines );
   }
  }
 
@@ -232,7 +247,7 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    else {
     v_design_bound_const[ p ].set_lhs( lb , eNoMod );
     v_design_bound_const[ p ].set_rhs( ub , eNoMod );
-    v_design_bound_const[ p ].set_variable( & v_design[ p ] , eNoMod );
+    v_design_bound_const[ p ].set_variable( &v_design[ p ] , eNoMod );
     }
 
    if( is_binary )
@@ -265,7 +280,7 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
- this->set_objective( & objective );  // set Block objective
+ this->set_objective( &objective );  // set Block objective
 
  set_objective_generated();
 

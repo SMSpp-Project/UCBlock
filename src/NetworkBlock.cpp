@@ -164,7 +164,7 @@ NetworkBlockSolution * NetworkBlock::new_Solution( void ) const {
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
- SMSpp_di_unipi_it::deserialize( group , f_ConstTerm , "ConstantTerm" );
+ ::deserialize( group , f_ConstTerm , "ConstantTerm" );
  }
 
 /*--------------------------------------------------------------------------*/

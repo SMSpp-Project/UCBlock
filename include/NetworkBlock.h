@@ -504,8 +504,9 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection
 
- virtual void set_min_node_injection( Index interval , Index node ,
-                                      const double min_injection ) {
+ virtual void set_min_node_injection( const double min_injection ,
+                                      Index node ,
+                                      Index interval = 0 ) {
   if( v_MinNodeInjection.empty() )
    v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ] );
@@ -515,8 +516,9 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxNodeInjection
 
- virtual void set_max_node_injection( Index interval , Index node ,
-                                      const double max_injection ) {
+ virtual void set_max_node_injection( const double max_injection ,
+                                      Index node ,
+                                      Index interval = 0 ) {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ] );
@@ -628,7 +630,7 @@ class NetworkBlock : public Block
   * @param interval The interval wrt the vector of node injections for each
   *                 user is returned. */
 
- ColVariable * get_node_injection( Index interval = 0 ) {
+ virtual ColVariable * get_node_injection( Index interval = 0 ) {
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
@@ -639,7 +641,8 @@ class NetworkBlock : public Block
  /** Like get_node_injection(), but returns a const pointer so that the
   * method itself can be const. */
 
- const ColVariable * get_const_node_injection( Index interval = 0 ) const {
+ virtual const ColVariable * get_const_node_injection( Index interval = 0 )
+ const {
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );

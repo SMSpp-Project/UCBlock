@@ -197,11 +197,38 @@ class DesignNetworkBlock : public NetworkBlock
 /** @name Reading the data of the NetworkBlock
  * @{ */
 
+ ColVariable * get_node_injection( Index interval = 0 ) override {
+  if( v_Block.empty() )
+   return( nullptr );
+
+  if( interval < v_Block.size() )
+   return( static_cast< NetworkBlock * >(
+    v_Block[ interval ] )->get_node_injection() );
+
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ const ColVariable * get_const_node_injection( Index interval = 0 )
+ const override {
+  if( v_Block.empty() )
+   return( nullptr );
+
+  if( interval < v_Block.size() )
+   return( static_cast< NetworkBlock * >(
+    v_Block[ interval ] )->get_const_node_injection() );
+
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  Index get_number_nodes( void ) const override {
   if( v_Block.empty() )
    return( 0 );
-  return( static_cast< NetworkBlock * >( v_Block.front()
-					 )->get_number_nodes() );
+  return( static_cast< NetworkBlock * >(
+   v_Block.front() )->get_number_nodes() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -215,8 +242,6 @@ class DesignNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns a pointer to the NetworkData
- /** Return a pointer to the NetworkData. */
 
  NetworkData * get_NetworkData( void ) const override {
   return( f_NetworkData );
@@ -224,12 +249,13 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- const double * get_active_demand( Index i ) const override {
+ const double * get_active_demand( Index interval ) const override {
   if( v_Block.empty() )
    return( nullptr );
 
-  if( i < v_Block.size() )
-   return( static_cast< NetworkBlock * >( v_Block[ i ] )->get_active_demand( 0 ) );
+  if( interval < v_Block.size() )
+   return( static_cast< NetworkBlock * >(
+    v_Block[ interval ] )->get_active_demand( 0 ) );
 
   return( nullptr );
   }
@@ -297,7 +323,7 @@ class DesignNetworkBlock : public NetworkBlock
   const auto it = std::lower_bound( v_design_lines.begin() ,
 			      v_design_lines.end() , line );
   return( it == v_design_lines.end() ? Inf< Index >() :
-	  std::distance( v_design_lines.begin() , it ) );
+	  std::distance( v_design_lines.begin() , it ) - 1 );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -313,7 +339,7 @@ class DesignNetworkBlock : public NetworkBlock
   const auto it = std::lower_bound( v_design_lines.begin() ,
 			      v_design_lines.end() , line );
   return( it == v_design_lines.end() ? nullptr :
-	  & v_design[ std::distance( v_design_lines.begin() , it ) ] );
+	  & v_design[ std::distance( v_design_lines.begin() , it ) - 1 ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -394,27 +420,33 @@ class DesignNetworkBlock : public NetworkBlock
   f_NetworkData = nd;
   for( auto * nb : v_Block )
    static_cast< NetworkBlock * >( nb )->set_NetworkData( nd );
-   }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// method to set the MinNodeInjection
 
- void set_min_node_injection( Index interval , Index node ,
-                              const double min_injection ) override {
-  for( auto * nb : v_Block )
-   static_cast< NetworkBlock * >( nb )->set_min_node_injection( interval ,
-    node , min_injection );
-   }
+ void set_min_node_injection( const double min_injection ,
+                              Index node ,
+                              Index interval = 0 ) override {
+  if( v_Block.empty() )
+   return;
+
+  if( interval < v_Block.size() )
+   static_cast< NetworkBlock * >(
+    v_Block[ interval ] )->set_min_node_injection( min_injection , node );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// method to set the MaxNodeInjection
 
- void set_max_node_injection( Index interval , Index node ,
-                              const double max_injection ) override {
-  for( auto * nb : v_Block )
-   static_cast< NetworkBlock * >( nb )->set_max_node_injection( interval ,
-    node , max_injection );
-   }
+ void set_max_node_injection( const double max_injection ,
+                              Index node ,
+                              Index interval = 0 ) override {
+  if( v_Block.empty() )
+   return;
+
+  if( interval < v_Block.size() )
+   static_cast< NetworkBlock * >(
+    v_Block[ interval ] )->set_min_node_injection( max_injection , node );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/

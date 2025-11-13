@@ -511,10 +511,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
       }
      }
 
-     v_network_blocks[ n ]->set_min_node_injection( i , node_id ,
-                                                    min_node_injection );
-     v_network_blocks[ n ]->set_max_node_injection( i , node_id ,
-                                                    max_node_injection );
+     v_network_blocks[ n ]->set_min_node_injection( min_node_injection ,
+                                                    node_id , i );
+     v_network_blocks[ n ]->set_max_node_injection( max_node_injection ,
+                                                    node_id , i );
     }
  }
 
@@ -866,8 +866,8 @@ void UCBlock::generate_inertia_demand_constraints( void )
   ( boost::multi_array< Index , 2 >::
     extent_gen()[ f_number_units ][ f_number_inertia_zones ] );
 
- std::fill( inertia_var_index.data() , inertia_var_index.data() +
-                                       inertia_var_index.num_elements() ,
+ std::fill( inertia_var_index.data() ,
+            inertia_var_index.data() + inertia_var_index.num_elements() ,
             Inf< Index >() );
 
  const auto number_nodes = get_number_nodes();

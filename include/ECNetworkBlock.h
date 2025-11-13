@@ -448,7 +448,7 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the number of nodes in the community network. If
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_nodes(). Otherwise, it throws an exception
-  * since cannot exists an Energy Community with just one user. */
+  * since cannot exist an Energy Community with just one user. */
 
  Index get_number_nodes( void ) const override {
   if( ! f_NetworkData )
