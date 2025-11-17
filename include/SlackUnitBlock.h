@@ -409,7 +409,29 @@ class SlackUnitBlock : public UnitBlock
  *   of vector represents the maximum power value at time t. */
 
  double get_max_power( Index t , Index generator = 0 ) const override {
+ if ( v_MaxPower[ t ] >= 0.0 )
   return( v_MaxPower[ t ] );
+ else
+  return 0.0;
+ }
+
+ /// returns the vector of minimum power
+ /** The returned vector contains to maximum power at time t. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the maximum power of the unit is 0;
+  *
+  * - if the vector has only one element, then the maximum power of the unit
+  *   for all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the maximum power value at time t. */
+ 
+ double get_min_power( Index t , Index generator = 0 ) const override {
+  if ( v_MaxPower[ t ] >= 0.0 )
+   return( 0.0 );
+  else
+   return v_MaxPower[ t ];
  }
 
 /*--------------------------------------------------------------------------*/
