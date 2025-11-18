@@ -273,8 +273,8 @@ class DesignNetworkBlock : public NetworkBlock
  double get_investment_cost( Index line ) const {
   if( v_InvestmentCost.empty() )
    return( 0 );
-  if( const auto ind = get_design_index( line ) < Inf< Index >() )
-   return( v_InvestmentCost[ ind ] );
+  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+   return( v_InvestmentCost[ idx ] );
   else
    return( 0 );
   }
@@ -285,8 +285,8 @@ class DesignNetworkBlock : public NetworkBlock
  double get_min_capacity_design( Index line ) const {
   if( v_MinCapacityDesign.empty() )
    return( 0 );
-  if( const auto ind = get_design_index( line ) < Inf< Index >() )
-   return( v_MinCapacityDesign[ ind ] );
+  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+   return( v_MinCapacityDesign[ idx ] );
   else
    return( 0 );
   }
@@ -297,8 +297,8 @@ class DesignNetworkBlock : public NetworkBlock
  double get_max_capacity_design( Index line ) const {
   if( v_MaxCapacityDesign.empty() )
    return( 1 );
-  if( const auto ind = get_design_index( line ) < Inf< Index >() )
-   return( v_MaxCapacityDesign[ ind ] );
+  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+   return( v_MaxCapacityDesign[ idx ] );
   else
    return( 1 );
   }
@@ -321,9 +321,10 @@ class DesignNetworkBlock : public NetworkBlock
    return( line );
 
   const auto it = std::lower_bound( v_design_lines.begin() ,
-			      v_design_lines.end() , line );
-  return( it == v_design_lines.end() ? Inf< Index >() :
-	  std::distance( v_design_lines.begin() , it ) - 1 );
+                                    v_design_lines.end() , line );
+  if( ( it == v_design_lines.end() ) || ( *it != line ) )
+   return( Inf< Index >() );
+  return( static_cast< Index >( std::distance( v_design_lines.begin() , it ) ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -337,9 +338,13 @@ class DesignNetworkBlock : public NetworkBlock
    return( line >= v_design.size() ? nullptr : &v_design[ line ] );
 
   const auto it = std::lower_bound( v_design_lines.begin() ,
-			      v_design_lines.end() , line );
-  return( it == v_design_lines.end() ? nullptr :
-	  & v_design[ std::distance( v_design_lines.begin() , it ) - 1 ] );
+                                    v_design_lines.end() , line );
+
+  if( ( it == v_design_lines.end() ) || ( *it != line ) )
+   return( nullptr );
+
+  return( &v_design[ static_cast< Index >(
+   std::distance( v_design_lines.begin() , it ) ) ] );
   }
 
 /*--------------------------------------------------------------------------*/

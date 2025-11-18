@@ -215,7 +215,7 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
- // generate abstract constraints in all the sub-Block
+ // generate abstract variables in all the sub-Block
  Block::generate_abstract_variables( stvv );
 
  // Create design variables only for the selected ("designed") lines
@@ -245,6 +245,9 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 {
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
+
+ // generate abstract constraints in all the sub-Block
+ Block::generate_abstract_constraints( stcc );
 
  if( const auto nd = static_cast< Index >( v_design_lines.size() ) ) {
   v_design_bound_const.resize( nd );
