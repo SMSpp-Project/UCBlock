@@ -203,8 +203,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
-    v_Block[ interval ] )->get_node_injection() );
-
+			       v_Block[ interval ] )->get_node_injection() );
   return( nullptr );
   }
 
@@ -217,8 +216,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
-    v_Block[ interval ] )->get_const_node_injection() );
-
+			 v_Block[ interval ] )->get_const_node_injection() );
   return( nullptr );
   }
 
@@ -228,7 +226,7 @@ class DesignNetworkBlock : public NetworkBlock
   if( v_Block.empty() )
    return( 0 );
   return( static_cast< NetworkBlock * >(
-   v_Block.front() )->get_number_nodes() );
+				     v_Block.front() )->get_number_nodes() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -697,8 +695,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
 /*-------- CONSTRUCTING AND DESTRUCTING DesignNetworkBlockSolution ---------*/
 
  /// constructor, does nothing
- explicit DesignNetworkBlockSolution( void )
- : f_design_lines( 0 ), f_number_subnetworks( 0 ), f_compressed( false ) {}
+ explicit DesignNetworkBlockSolution( void ) : f_compressed( false ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a DesignNetworkBlockSolution from a netCDF::NcGroup
@@ -713,12 +710,10 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// destructor: it is virtual
 
- ~DesignNetworkBlockSolution() override  {
-   for( auto nbs : v_network_Solution )
-    delete nbs;
-   }
-
-/*----------- READING THE DATA OF THE DesignNetworkBlockSolution ----------*/
+ ~DesignNetworkBlockSolution() override {
+  for( auto nbs : v_network_Solution )
+   delete nbs;
+  }
 
 /*---- METHODS DESCRIBING THE BEHAVIOR OF A DesignNetworkBlockSolution ----*/
 
@@ -776,7 +771,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
   *   information in the same format as serialize( netCDF::NcGroup & ).
   *
   * That is, in the DesignNetworkBlockSolution case the "nonstandard" format
-  * is group-based basically ad the "standard" one. Note, however, that
+  * is group-based basically as the "standard" one. Note, however, that
   * inside the group the sub-NetworkBlockSolution can be stored in the
   * "truly nonstandard" (compressed) form -- but this is true even for the
   * "standard" case. */
@@ -806,10 +801,6 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
  private:
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
-
- Index f_design_lines;          ///< the number of lines with design variables
-
- Index f_number_subnetworks;    ///< the number of sub-NetworkBlockSolution
 
  bool f_compressed;
  ///< true if sub-NetworkBlockSolution are stored in compressed format

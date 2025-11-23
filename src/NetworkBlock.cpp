@@ -80,18 +80,18 @@ static void copy_multi_array( boost::multi_array< T , K > & to ,
 
 void NetworkBlock::generate_abstract_variables( Configuration * stvv )
 {
- const auto number_nodes = get_number_nodes();
- const auto number_intervals = get_number_intervals();
+ const auto nn = get_number_nodes();
+ const auto ni = get_number_intervals();
 
- if( number_nodes > 1 ) {
+ if( nn > 1 ) {
   // the node injection variables
-  v_node_injection.resize( boost::extents[ number_intervals ][ number_nodes ] );
-  for( Index t = 0 ; t < number_intervals ; ++t )
-   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
-    v_node_injection[ t ][ node_id ].set_type( ColVariable::kContinuous );
+  v_node_injection.resize( boost::extents[ ni ][ nn ] );
+  for( Index t = 0 ; t < ni ; ++t )
+   for( Index i = 0 ; i < nn ; ++i )
+    v_node_injection[ t ][ i ].set_type( ColVariable::kContinuous );
   add_static_variable( v_node_injection , "s_network" );
- }
-}  // end( NetworkBlock::generate_abstract_variables )
+  }
+ }  // end( NetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -100,26 +100,23 @@ void NetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- const auto number_nodes = get_number_nodes();
- const auto number_intervals = get_number_intervals();
+ const auto nn = get_number_nodes();
+ const auto ni = get_number_intervals();
 
  // node injection bound constraints
 
  node_injection_bounds_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ number_nodes ][ number_intervals ] );
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ nn ][ ni ] );
 
- for( Index i = 0 ; i < number_intervals ; ++i )
-
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-   node_injection_bounds_const[ node_id ][ i ].set_lhs(
-    v_MinNodeInjection[ i ][ node_id ] );
-   node_injection_bounds_const[ node_id ][ i ].set_rhs(
-    v_MaxNodeInjection[ i ][ node_id ] );
-   node_injection_bounds_const[ node_id ][ i ].set_variable(
-    &v_node_injection[ i ][ node_id ] );
-  }
+ for( Index t = 0 ; t < ni ; ++t )
+  for( Index i = 0 ; i < nn ; ++i ) {
+   node_injection_bounds_const[ i ][ t ].set_lhs(
+                                               v_MinNodeInjection[ t ][ i ] );
+   node_injection_bounds_const[ i ][ t ].set_rhs(
+                                               v_MaxNodeInjection[ t ][ i ] );
+   node_injection_bounds_const[ i ][ t ].set_variable(
+                                              & v_node_injection[ t ][ i ] );
+   }
 
  add_static_constraint( node_injection_bounds_const ,
                         "Node_Injection_Bound_Const_Network" );
@@ -227,7 +224,7 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -
  if( ! ::deserialize< double , 2 >( group , "NodeInjection" ,
-                                    { f_number_nodes , f_number_intervals } ,
+                                    { f_number_intervals , f_number_nodes } ,
                                     v_node_injection , true ) ) {
   std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
   v_node_injection.resize( sizes );
@@ -389,7 +386,7 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   if( ni.isNull() ) {
    std::vector< double > tmp_injection( f_number_nodes );
    for( Index i = 0 ; i < f_number_nodes ; ++i )
-    tmp_injection[ i ] = v_node_injection[ 0 ][ i ];
+    tmp_injection[ i ] = v_node_injection[ i ][ 0 ];
    ::serialize< double >( group , "NodeInjection" , netCDF::NcDouble() ,
                           nn , tmp_injection );
    }
@@ -551,7 +548,7 @@ void NetworkBlockSolution::sum( const Solution * solution ,
   for( Index t = 0 ; t < f_number_intervals ; ++t )
    for( Index i = 0 ; i < f_number_nodes ; ++i )
     v_node_injection[ t ][ i ] +=
-     NBS->v_node_injection[ t ][ i ] * multiplier;
+                                NBS->v_node_injection[ t ][ i ] * multiplier;
 
  }  // end( NetworkBlockSolution::sum )
 
