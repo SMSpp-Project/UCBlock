@@ -126,10 +126,12 @@ class SlackUnitBlock : public UnitBlock
  *   is the fixed value of MxP[ t ] for all t in the interval [
  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. This variable is optional, if is not
- *   provided then MxP[ t ] == 0 for all t. Note that it must be MxP[ t ] >= 0
- *   for all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
- *   then the mapping clearly does not require "ChangeIntervals", which in
- *   fact is not loaded.
+ *   provided then MxP[ t ] == 0 for all t. The value MxP[ t ] >= 0
+ *   can be positive or negative; when negative, it means that the slack unit
+ *   is actually a "dump" unit that can absorb power rather than produce it.
+ *   If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
  * - The variable "MaxPrimaryPower", of type netCDF::NcDouble and either of
  *   size 1 or indexed over the dimension "NumberIntervals" (if
@@ -274,19 +276,24 @@ class SlackUnitBlock : public UnitBlock
  * The operations of the slack generating unit are described on a discrete
  * time horizon as dictated by the UnitBlock interface. In this description
  * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
- * This unit just contains the bounds constraint on the ActivePower, Primary
- * and Secondary spinning reserve variables as below:
+ * This unit just contains the bounds constraint on the ActivePower for
+ * positive (1) and negative (2) value of P^{mx}_t, Primary and Secondary 
+ * spinning reserve variables as below:
  *
  * \f[
- *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}         \quad (1)
+ *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}, P^{mx}_t >= 0  \quad (1)
  * \f]
  *
  * \f[
- *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}        \quad (2)
+ *      P^{mx}_t \leq p^{ac}_t \leq 0 \quad t \in \mathcal{T}, P^{mx}_t >= 0  \quad (2)
  * \f]
  *
  * \f[
- *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}        \quad (3)
+ *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}                \quad (3)
+ * \f]
+ *
+ * \f[
+ *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}                \quad (4)
  * \f]
  *
  * Note that the inertia is "produced" by the commitment variable u_t, which
