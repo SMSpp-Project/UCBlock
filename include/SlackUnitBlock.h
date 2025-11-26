@@ -693,7 +693,7 @@ class SlackUnitBlock : public UnitBlock
 /*------------------------------- constraints ------------------------------*/
 
  /// the active power bound constraints
- std::vector< LB0Constraint > ActivePower_Bound_Const;
+ std::vector< BoxConstraint > ActivePower_Bound_Const;
 
  /// the primary spinning reserve bound constraints
  std::vector< LB0Constraint > Primary_Spinning_Reserve_Bound_Const;
