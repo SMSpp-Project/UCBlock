@@ -126,10 +126,12 @@ class SlackUnitBlock : public UnitBlock
  *   is the fixed value of MxP[ t ] for all t in the interval [
  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
  *   that ChangeIntervals[ - 1 ] = 0. This variable is optional, if is not
- *   provided then MxP[ t ] == 0 for all t. Note that it must be MxP[ t ] >= 0
- *   for all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
- *   then the mapping clearly does not require "ChangeIntervals", which in
- *   fact is not loaded.
+ *   provided then MxP[ t ] == 0 for all t. The value MxP[ t ] >= 0
+ *   can be positive or negative; when negative, it means that the slack unit
+ *   is actually a "dump" unit that can absorb power rather than produce it.
+ *   If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+ *   mapping clearly does not require "ChangeIntervals", which in fact is not
+ *   loaded.
  *
  * - The variable "MaxPrimaryPower", of type netCDF::NcDouble and either of
  *   size 1 or indexed over the dimension "NumberIntervals" (if
@@ -274,19 +276,24 @@ class SlackUnitBlock : public UnitBlock
  * The operations of the slack generating unit are described on a discrete
  * time horizon as dictated by the UnitBlock interface. In this description
  * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
- * This unit just contains the bounds constraint on the ActivePower, Primary
- * and Secondary spinning reserve variables as below:
+ * This unit just contains the bounds constraint on the ActivePower for
+ * positive (1) and negative (2) value of P^{mx}_t, Primary and Secondary 
+ * spinning reserve variables as below:
  *
  * \f[
- *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}         \quad (1)
+ *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}, P^{mx}_t >= 0  \quad (1)
  * \f]
  *
  * \f[
- *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}        \quad (2)
+ *      P^{mx}_t \leq p^{ac}_t \leq 0 \quad t \in \mathcal{T}, P^{mx}_t >= 0  \quad (2)
  * \f]
  *
  * \f[
- *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}        \quad (3)
+ *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}                \quad (3)
+ * \f]
+ *
+ * \f[
+ *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}                \quad (4)
  * \f]
  *
  * Note that the inertia is "produced" by the commitment variable u_t, which
@@ -409,7 +416,29 @@ class SlackUnitBlock : public UnitBlock
  *   of vector represents the maximum power value at time t. */
 
  double get_max_power( Index t , Index generator = 0 ) const override {
+ if ( v_MaxPower[ t ] >= 0.0 )
   return( v_MaxPower[ t ] );
+ else
+  return 0.0;
+ }
+
+ /// returns the vector of minimum power
+ /** The returned vector contains to maximum power at time t. There are three
+  * possible cases:
+  *
+  * - if the vector is empty, then the maximum power of the unit is 0;
+  *
+  * - if the vector has only one element, then the maximum power of the unit
+  *   for all time horizon;
+  *
+  * - otherwise, the vector must have size get_time_horizon() and each element
+  *   of vector represents the maximum power value at time t. */
+ 
+ double get_min_power( Index t , Index generator = 0 ) const override {
+  if ( v_MaxPower[ t ] >= 0.0 )
+   return( 0.0 );
+  else
+   return v_MaxPower[ t ];
  }
 
 /*--------------------------------------------------------------------------*/
@@ -671,7 +700,7 @@ class SlackUnitBlock : public UnitBlock
 /*------------------------------- constraints ------------------------------*/
 
  /// the active power bound constraints
- std::vector< LB0Constraint > ActivePower_Bound_Const;
+ std::vector< BoxConstraint > ActivePower_Bound_Const;
 
  /// the primary spinning reserve bound constraints
  std::vector< LB0Constraint > Primary_Spinning_Reserve_Bound_Const;

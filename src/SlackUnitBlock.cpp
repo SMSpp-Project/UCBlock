@@ -131,7 +131,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
-  var.set_type( ColVariable::kNonNegative );
+  var.set_type( ColVariable::kContinuous );
  add_static_variable( v_active_power , "p_slack" );
 
  // Primary Spinning Reserve Variable
@@ -182,9 +182,18 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
   if( ! v_MaxPower.empty() )
-   ActivePower_Bound_Const[ t ].set_rhs( v_MaxPower[ t ] );
-  else
+   if ( v_MaxPower[ t ] >= 0.0 ) {
+    ActivePower_Bound_Const[ t ].set_rhs( v_MaxPower[ t ] );
+    ActivePower_Bound_Const[ t ].set_lhs( 0.0 );
+   }
+   else {
+    ActivePower_Bound_Const[ t ].set_rhs( 0.0 );
+    ActivePower_Bound_Const[ t ].set_lhs( v_MaxPower[ t ] );
+   }
+  else {
    ActivePower_Bound_Const[ t ].set_rhs( 0.0 );
+   ActivePower_Bound_Const[ t ].set_lhs( 0.0 );
+  }
 
   ActivePower_Bound_Const[ t ].set_variable( &v_active_power[ t ] );
  }
