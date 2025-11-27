@@ -215,7 +215,7 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
- // generate abstract constraints in all the sub-Block
+ // generate abstract variables in all the sub-Block
  Block::generate_abstract_variables( stvv );
 
  // Create design variables only for the selected ("designed") lines
@@ -245,6 +245,9 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 {
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
+
+ // generate abstract constraints in all the sub-Block
+ Block::generate_abstract_constraints( stcc );
 
  if( const auto nd = static_cast< Index >( v_design_lines.size() ) ) {
   v_design_bound_const.resize( nd );
@@ -306,7 +309,7 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
 Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
 					     bool emptys )
 {
- Index wsol = 15;
+ Index wsol = 31;
  if( ( ! csolc ) && f_BlockConfig )
   csolc = f_BlockConfig->f_solution_Configuration;
 
@@ -315,7 +318,7 @@ Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
 
  // call the method of the mase class to construct an empty
  // DesignNetworkBlockSolution (due to the new_Solution() trick set *not*
- // to store the node injections
+ // to store the node injections)
  SimpleConfiguration< int > snc( 0 );
  auto sol = static_cast< DesignNetworkBlockSolution * >(
 			      NetworkBlock::get_Solution( & snc , true ) );
@@ -495,13 +498,10 @@ void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  // "NumberDesignLines" - - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto NDL = group.getDim( "NumberDesignLines" );
- if( NDL.isNull() ) {
-  f_design_lines = 0;
+ if( NDL.isNull() )
   v_design.clear();
-  }
  else {
-  f_design_lines = NDL.getSize();
-  v_design.resize( f_design_lines );
+  v_design.resize( NDL.getSize() );
 
   // deserialize the Design Variables- - - - - - - - - - - - - - - - - - - - -
   ::deserialize< double >( group , "DesignValue" , v_design , false );
@@ -579,22 +579,25 @@ void DesignNetworkBlockSolution::read( const Block * block )
  if( ! DCNB )
   throw( std::invalid_argument( "DesignNetworkBlockSolution::read: block is "
 				"not a DesignNetworkBlock" ) );
-
- f_design_lines = DCNB->get_number_design_lines();
- f_number_intervals = DCNB->get_number_intervals();
- f_number_subnetworks = DCNB->get_number_nested_Blocks();
-
  if( ! v_design.empty() ) {
   // read the design variables - - - - - - - - - - - - - - - - - - - - - - -
+  if( v_design.size() != DCNB->get_number_design_lines() )
+   throw( std::invalid_argument( "DesignNetworkBlockSolution::read: "
+				 "inconsistent design_lines number" ) );  
+
   auto & DV = DCNB->get_const_design();
-  for( Index l = 0 ; l < f_design_lines ; ++l )
+  for( Index l = 0 ; l < DCNB->get_number_design_lines() ; ++l )
    v_design[ l ] = DV[ l ].get_value();
   }
 
  if( ! v_network_Solution.empty() ) {
   // read the sub-Network Solution - - - - - - - - - - - - - - - - - - - - -
+  if( v_network_Solution.size() != DCNB->get_number_nested_Blocks() )
+   throw( std::invalid_argument( "DesignNetworkBlockSolution::read: "
+				 "inconsistent subnetworks number" ) );
+
   auto & NB = DCNB->get_nested_Blocks();
-  for( Index i = 0 ; i < f_number_subnetworks ; ++i )
+  for( Index i = 0 ; i < DCNB->get_number_nested_Blocks() ; ++i )
    v_network_Solution[ i ]->read( NB[ i ] );
   }
  }  // end( DesignNetworkBlockSolution::read )
@@ -611,29 +614,24 @@ void DesignNetworkBlockSolution::write( Block * block )
   throw( std::invalid_argument( "DesignNetworkBlockSolution::write: block is "
 				"not a DesignNetworkBlock" ) );
 
- if( f_design_lines != DCNB->get_number_design_lines() )
-  throw( std::invalid_argument( "DesignNetworkBlockSolution::write: "
-				"inconsistent design_lines number" ) );
-
- if( f_number_intervals != DCNB->get_number_intervals() )
-  throw( std::invalid_argument( "DesignNetworkBlockSolution::write: "
-				"inconsistent intervals number" ) );
-
- if( f_number_subnetworks != DCNB->get_number_nested_Blocks() )
-  throw( std::invalid_argument( "DesignNetworkBlockSolution::write: "
-				"inconsistent subnetworks number" ) );
-
  // write the design variables - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_design.empty() ) {
+  if( v_design.size() != DCNB->get_number_design_lines() )
+   throw( std::invalid_argument( "DesignNetworkBlockSolution::write: "
+				 "inconsistent design_lines number" ) );  
   auto & DV = DCNB->get_design();
-  for( Index l = 0 ; l < f_design_lines ; ++l )
+  for( Index l = 0 ; l < DCNB->get_number_design_lines() ; ++l )
    DV[ l ].set_value( v_design[ l ] );
   }
 
  // write the sub-Network Solution - - - - - - - - - - - - - - - - - - - - -
  if( ! v_network_Solution.empty() ) {
+  if( v_network_Solution.size() != DCNB->get_number_nested_Blocks() )
+   throw( std::invalid_argument( "DesignNetworkBlockSolution::write: "
+				 "inconsistent subnetworks number" ) );
+
   auto & NB = DCNB->get_nested_Blocks();
-  for( Index i = 0 ; i < f_number_subnetworks ; ++i )
+  for( Index i = 0 ; i < DCNB->get_number_nested_Blocks() ; ++i )
    v_network_Solution[ i ]->write( NB[ i ] );
   }
  }  // end( DesignNetworkBlockSolution::write )
@@ -647,7 +645,7 @@ void DesignNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 
  // serialize the Design Variables- - - - - - - - - - - - - - - - - - - - - -
  if( ! v_design.empty() ) {
-  auto NDL = group.addDim( "NumberDesignLines" , f_design_lines );
+  auto NDL = group.addDim( "NumberDesignLines" , v_design.size() );
 
   ::serialize< double >( group , "DesignValue" , netCDF::NcDouble() , NDL ,
 			 v_design );
@@ -658,9 +656,9 @@ void DesignNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   if( f_compressed )  // compressed format
    NetworkBlockSolution::serialize( group , v_network_Solution );
   else {              // standard format
-   group.addDim( "NumberSubNetwork" , f_design_lines );
+   group.addDim( "NumberSubNetwork" , v_network_Solution.size() );
 
-   for( Index i = 0 ; i < f_number_subnetworks ; ++i ) {
+   for( std::size_t i = 0 ; i < v_network_Solution.size() ; ++i ) {
     std::string sub_group_name = "SubNetworkBlock_" + std::to_string( i );
     auto sub_group = group.addGroup( sub_group_name );
     v_network_Solution[ i ]->serialize( sub_group );
@@ -695,12 +693,12 @@ DesignNetworkBlockSolution * DesignNetworkBlockSolution::scale(
   return( sol );
 
  if( ! v_design.empty() )
-  for( Index l = 0 ; l < f_design_lines ; ++l )
-   sol->v_design[ l ] *= factor;
+  for( auto & el : sol->v_design )
+   el *= factor;
 
  if( ! v_network_Solution.empty() )
-  for( Index i = 0 ; i < f_number_subnetworks ; ++i )
-   sol->v_network_Solution[ i ]->scale( factor );
+  for( auto ni : sol->v_network_Solution )
+   ni->scale( factor );
 
  return( sol );
 
@@ -719,27 +717,24 @@ void DesignNetworkBlockSolution::sum( const Solution * solution ,
   throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: solution "
 				"not a DesignNetworkBlockSolution" ) );
 
- if( f_design_lines != DCNBS->f_design_lines )
-  throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: "
-				"inconsistent design_lines number" ) );
+ if( ! v_design.empty() ) {
+  if( v_design.size() != DCNBS-> v_design.size() )
+   throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: "
+				 "inconsistent design_lines number" ) );
 
- if( f_number_intervals != DCNBS->f_number_intervals )
-  throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: "
-				"inconsistent intervals number" ) );
+  for( std::size_t l = 0 ; v_design.size() ; ++l )
+   v_design[ l ] += DCNBS->v_design[ l ] * multiplier;
+  }
 
- if( f_number_subnetworks != DCNBS->f_number_subnetworks )
+ if( ! v_network_Solution.empty() ) {
+  if( v_network_Solution.size() != DCNBS->v_network_Solution.size() )
   throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: "
 				"inconsistent subnetworks number" ) );
 
- if( ! v_design.empty() )
-  for( Index l = 0 ; l < f_design_lines ; ++l )
-   v_design[ l ]  += DCNBS->v_design[ l ] * multiplier;
-
- if( ! v_network_Solution.empty() )
-  for( Index i = 0 ; i < f_number_subnetworks ; ++i )
+  for( std::size_t i = 0 ; i < v_network_Solution.size() ; ++i )
    v_network_Solution[ i ]->sum( DCNBS->v_network_Solution[ i ] ,
 				 multiplier );
-
+  }
  }  // end( DesignNetworkBlockSolution::sum )
 
 /*--------------------------------------------------------------------------*/
@@ -752,14 +747,10 @@ DesignNetworkBlockSolution * DesignNetworkBlockSolution::clone( bool empty )
  if( ! empty ) {
   NetworkBlockSolution::guts_of_clone( sol );
 
-  sol->f_design_lines = f_design_lines;
-  sol->f_number_intervals = f_number_intervals;
-  sol->f_number_subnetworks = f_number_subnetworks;
-
   sol->v_design = v_design;
 
   if( ! v_network_Solution.empty() )
-   for( Index i = 0 ; i < f_number_subnetworks ; ++i )
+   for( std::size_t i = 0 ; i < v_network_Solution.size() ; ++i )
     sol->v_network_Solution[ i ] = v_network_Solution[ i ]->clone( empty );
   }
 

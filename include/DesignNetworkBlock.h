@@ -203,8 +203,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
-    v_Block[ interval ] )->get_node_injection() );
-
+			       v_Block[ interval ] )->get_node_injection() );
   return( nullptr );
   }
 
@@ -217,8 +216,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
-    v_Block[ interval ] )->get_const_node_injection() );
-
+			 v_Block[ interval ] )->get_const_node_injection() );
   return( nullptr );
   }
 
@@ -228,7 +226,7 @@ class DesignNetworkBlock : public NetworkBlock
   if( v_Block.empty() )
    return( 0 );
   return( static_cast< NetworkBlock * >(
-   v_Block.front() )->get_number_nodes() );
+				     v_Block.front() )->get_number_nodes() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -273,8 +271,8 @@ class DesignNetworkBlock : public NetworkBlock
  double get_investment_cost( Index line ) const {
   if( v_InvestmentCost.empty() )
    return( 0 );
-  if( const auto ind = get_design_index( line ) < Inf< Index >() )
-   return( v_InvestmentCost[ ind ] );
+  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+   return( v_InvestmentCost[ idx ] );
   else
    return( 0 );
   }
@@ -285,8 +283,8 @@ class DesignNetworkBlock : public NetworkBlock
  double get_min_capacity_design( Index line ) const {
   if( v_MinCapacityDesign.empty() )
    return( 0 );
-  if( const auto ind = get_design_index( line ) < Inf< Index >() )
-   return( v_MinCapacityDesign[ ind ] );
+  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+   return( v_MinCapacityDesign[ idx ] );
   else
    return( 0 );
   }
@@ -297,8 +295,8 @@ class DesignNetworkBlock : public NetworkBlock
  double get_max_capacity_design( Index line ) const {
   if( v_MaxCapacityDesign.empty() )
    return( 1 );
-  if( const auto ind = get_design_index( line ) < Inf< Index >() )
-   return( v_MaxCapacityDesign[ ind ] );
+  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+   return( v_MaxCapacityDesign[ idx ] );
   else
    return( 1 );
   }
@@ -321,9 +319,10 @@ class DesignNetworkBlock : public NetworkBlock
    return( line );
 
   const auto it = std::lower_bound( v_design_lines.begin() ,
-			      v_design_lines.end() , line );
-  return( it == v_design_lines.end() ? Inf< Index >() :
-	  std::distance( v_design_lines.begin() , it ) - 1 );
+                                    v_design_lines.end() , line );
+  if( ( it == v_design_lines.end() ) || ( *it != line ) )
+   return( Inf< Index >() );
+  return( static_cast< Index >( std::distance( v_design_lines.begin() , it ) ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -337,9 +336,13 @@ class DesignNetworkBlock : public NetworkBlock
    return( line >= v_design.size() ? nullptr : &v_design[ line ] );
 
   const auto it = std::lower_bound( v_design_lines.begin() ,
-			      v_design_lines.end() , line );
-  return( it == v_design_lines.end() ? nullptr :
-	  & v_design[ std::distance( v_design_lines.begin() , it ) - 1 ] );
+                                    v_design_lines.end() , line );
+
+  if( ( it == v_design_lines.end() ) || ( *it != line ) )
+   return( nullptr );
+
+  return( &v_design[ static_cast< Index >(
+   std::distance( v_design_lines.begin() , it ) ) ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -386,8 +389,41 @@ class DesignNetworkBlock : public NetworkBlock
   if( v_Block.empty() )
    return;
 
-  for( auto * nb : v_Block )
-   static_cast< NetworkBlock * >( nb )->set_ActiveDemand( apd );
+  const Index total_intervals = static_cast< Index >( apd.shape()[ 0 ] );
+  const Index number_nodes = static_cast< Index >( apd.shape()[ 1 ] );
+
+  Index offset = 0;
+
+  for( auto * nb_ptr : v_Block ) {
+   auto * nb = static_cast< NetworkBlock * >( nb_ptr );
+   const Index ni = nb->get_number_intervals();
+
+#ifndef NDEBUG
+   if( offset + ni > total_intervals )
+    throw std::logic_error(
+      "DesignNetworkBlock::set_ActiveDemand: "
+      "inconsistent number of intervals between UCBlock and subnetworks"
+    );
+#endif
+
+   boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ] );
+
+   for( Index i = 0 ; i < ni ; ++i , ++offset ) {
+    auto src_row = apd[ boost::indices[ offset ]
+                      [ boost::multi_array_types::index_range( 0 , number_nodes ) ] ];
+    std::copy( src_row.begin() , src_row.end() , sub[ i ].begin() );
+   }
+
+   nb->set_ActiveDemand( sub );
+  }
+
+#ifndef NDEBUG
+  if( offset != total_intervals )
+   throw std::logic_error(
+     "DesignNetworkBlock::set_ActiveDemand: "
+     "unused intervals in ActiveDemand matrix"
+   );
+#endif
   }
 
 /*--------------------------------------------------------------------------*/
@@ -479,7 +515,9 @@ class DesignNetworkBlock : public NetworkBlock
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 15 (save everything in compressed format). */
+  * - otherwise, it is 15 + 24 = 31 (save everything in compressed format
+  *   and set bit 1 and 2 of the sub-Networks, which corresponds to the
+  *   default value in DCNetworkBlock). */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
@@ -690,8 +728,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
 /*-------- CONSTRUCTING AND DESTRUCTING DesignNetworkBlockSolution ---------*/
 
  /// constructor, does nothing
- explicit DesignNetworkBlockSolution( void )
- : f_design_lines( 0 ), f_number_subnetworks( 0 ), f_compressed( false ) {}
+ explicit DesignNetworkBlockSolution( void ) : f_compressed( false ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a DesignNetworkBlockSolution from a netCDF::NcGroup
@@ -706,12 +743,10 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// destructor: it is virtual
 
- ~DesignNetworkBlockSolution() override  {
-   for( auto nbs : v_network_Solution )
-    delete nbs;
-   }
-
-/*----------- READING THE DATA OF THE DesignNetworkBlockSolution ----------*/
+ ~DesignNetworkBlockSolution() override {
+  for( auto nbs : v_network_Solution )
+   delete nbs;
+  }
 
 /*---- METHODS DESCRIBING THE BEHAVIOR OF A DesignNetworkBlockSolution ----*/
 
@@ -769,7 +804,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
   *   information in the same format as serialize( netCDF::NcGroup & ).
   *
   * That is, in the DesignNetworkBlockSolution case the "nonstandard" format
-  * is group-based basically ad the "standard" one. Note, however, that
+  * is group-based basically as the "standard" one. Note, however, that
   * inside the group the sub-NetworkBlockSolution can be stored in the
   * "truly nonstandard" (compressed) form -- but this is true even for the
   * "standard" case. */
@@ -799,10 +834,6 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
  private:
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
-
- Index f_design_lines;          ///< the number of lines with design variables
-
- Index f_number_subnetworks;    ///< the number of sub-NetworkBlockSolution
 
  bool f_compressed;
  ///< true if sub-NetworkBlockSolution are stored in compressed format

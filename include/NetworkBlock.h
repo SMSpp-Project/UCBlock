@@ -1199,7 +1199,7 @@ class NetworkBlockSolution : public Solution
  Index f_number_intervals;    ///< the number of instants
 
  boost::multi_array< double , 2 > v_node_injection;
- ///< v_node_injection[ i ][ t ] = node injection at node i at time t
+ ///< v_node_injection[ t ][ i ] = node injection at node i at time t
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
