@@ -545,7 +545,7 @@ function csvEC2nc4(deterministic::Bool=false)
         #   dim NumberScenarios
         #   dim ScenarioSize
         #   var Scenarios(NumberScenarios, ScenarioSize)
-        #   var poolWeights(NumberScenarios)
+        #   var PoolWeights(NumberScenarios)
         #
         # As Julia stores arrays in column-major order, the data is written
         # as (ScenarioSize, NumberScenarios) so that C++ will see it as
@@ -611,7 +611,7 @@ function csvEC2nc4(deterministic::Bool=false)
         # Scenario weights (probabilities)
         pool_weights_var = defVar(
             dss,
-            "poolWeights",
+            "PoolWeights",
             Float64,
             ("NumberScenarios",),
         )
