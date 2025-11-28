@@ -450,16 +450,18 @@ function csvEC2nc4(deterministic::Bool=false)
 
                         # store the maximum power of the thermal
                         thermal_max_power = defVar(ub, "MaxPower", Float64, ())
-                        thermal_max_power[:] = (field_component(users_data[u], g, "max_technical") *
-                                                field_component(users_data[u], g, "nom_capacity"))
+                        thermal_max_power_val =
+                            field_component(users_data[u], g, "max_technical") *
+                            field_component(users_data[u], g, "nom_capacity")
+                        thermal_max_power[:] = thermal_max_power_val
 
                         # store the start-up limit
                         thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
-                        thermal_start_up_limit[:] = thermal_max_power
+                        thermal_start_up_limit[:] = thermal_max_power_val
 
                         # store the shut-down limit
                         thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
-                        thermal_shut_up_limit[:] = thermal_max_power
+                        thermal_shut_up_limit[:] = thermal_max_power_val
 
                         # store the Net Present Value of the thermal
                         investment_cost = defVar(ub, "InvestmentCost", Float64, ())
@@ -529,22 +531,91 @@ function csvEC2nc4(deterministic::Bool=false)
         tssb_ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
 
-        defDim(tssb, "NumberScenarios", scen_s_sample)
+        ## Number of scenarios in the TwoStageStochasticBlock.
+        ## We use the number of sampled_scenarios, which already encodes
+        ## the (s, eps) combinations returned by scenarios_generator.
+        n_scen = length(sampled_scenarios)
+        defDim(tssb, "NumberScenarios", n_scen)
 
-        # ScenarioGenerator
-        # dss = defGroup(tssb, "ScenarioGenerator", attrib=OrderedDict("type" => "DiscreteScenarioSet"))
+        # ===================== DiscreteScenarioSet =====================
+        #
+        # This group will be read by DiscreteScenarioSet::deserialize().
+        # Expected layout in C++ (row-major):
+        #
+        #   dim NumberScenarios
+        #   dim ScenarioSize
+        #   var Scenarios(NumberScenarios, ScenarioSize)
+        #   var poolWeights(NumberScenarios)
+        #
+        # As Julia stores arrays in column-major order, the data is written
+        # as (ScenarioSize, NumberScenarios) so that C++ will see it as
+        # [NumberScenarios][ScenarioSize].
+        #
+        dss = defGroup(
+            tssb,
+            "DiscreteScenarioSet",
+            attrib = OrderedDict("type" => "DiscreteScenarioSet"),
+        )
 
-        # defDim(dss, "NumberScenarios", scen_s_sample)
-        # defDim(dss, "ScenarioSize", )
+        # ScenarioSize = number of entries in each scenario vector.
+        # Here we take the active power demand of all users on the whole
+        # time horizon, flattened in (t, u) order, consistent with the
+        # way ActivePowerDemand is written in UCBlock.
+        n_users = length(user_set)
+        scenario_size = n_steps * n_users
 
-        ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are
-        ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions
-        ## will appear reversed when the data is loaded in languages or programs using row-major
-        ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
-        ## To store the scenario set in the correct shape, i.e., NumberScenarios x ScenarioSize, we need to store
-        ## it transposed, i.e., ScenarioSize x NumberScenarios.
-        # scenario_set = defVar(block, "ScenarioSet", Float64, ("ScenarioSize", "NumberScenarios")) # ("NumberScenarios", "ScenarioSize"))
-        # scenario_set[:, :] = [ ]
+        defDim(dss, "NumberScenarios", n_scen)
+        defDim(dss, "ScenarioSize", scenario_size)
+        # For "NumberScenarios" we re-use the dimension already defined
+        # in the parent group, by referring to it by name in defVar.
+
+        ## A T T E N T I O N: The data is stored in the NetCDF file in the
+        ## same order as they are stored in memory. As Julia uses the
+        ## column-major ordering for arrays, the order of dimensions
+        ## will appear reversed when the data is loaded in languages or
+        ## programs using row-major ordering such as C/C++, Python/NumPy
+        ## or the tools ncdump/ncgen.
+        ## To store the scenario set in the correct shape, i.e.,
+        ## NumberScenarios x ScenarioSize in C++, we store it here as
+        ## ScenarioSize x NumberScenarios in Julia.
+        scen_mat = Array{Float64}(undef, scenario_size, n_scen)
+        weights  = Array{Float64}(undef, n_scen)
+
+        for (k, scen) in enumerate(sampled_scenarios)
+            vec = Array{Float64}(undef, scenario_size)
+            idx = 1
+
+            # Flatten scenario Load in (time, user) order, consistent
+            # with ActivePowerDemand written as [t, u].
+            for t in time_set
+                for u in user_set
+                    vec[idx] = scen.Load[u][t]
+                    idx += 1
+                end
+            end
+
+            scen_mat[:, k] = vec
+            weights[k] = probability(scen)
+        end
+
+        # Scenarios: stored as (ScenarioSize, NumberScenarios) in Julia
+        # so that C++ sees [NumberScenarios][ScenarioSize].
+        scenarios_var = defVar(
+            dss,
+            "Scenarios",
+            Float64,
+            ("ScenarioSize", "NumberScenarios"),
+        )
+        scenarios_var[:, :] = scen_mat
+
+        # Scenario weights (probabilities)
+        pool_weights_var = defVar(
+            dss,
+            "poolWeights",
+            Float64,
+            ("NumberScenarios",),
+        )
+        pool_weights_var[:] = weights
 
         # AbstractPath
         ap = defGroup(tssb, "StaticAbstractPath")
