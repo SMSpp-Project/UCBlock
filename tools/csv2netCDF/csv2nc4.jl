@@ -553,7 +553,7 @@ function csvEC2nc4(
         n_scen = length(sampled_scenarios)
         defDim(tssb, "NumberScenarios", n_scen)
 
-        # ===================== DiscreteScenarioSet =====================
+        # DiscreteScenarioSet
         #
         # This group will be read by DiscreteScenarioSet::deserialize().
         # Expected layout in C++ (row-major):
@@ -661,7 +661,7 @@ function csvEC2nc4(
         # StochasticBlock
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
 
-        # ------------------------- SimpleDataMapping -------------------------
+        # SimpleDataMapping
         #
         # We build a vector of SimpleDataMapping for the StochasticBlock so that,
         # when deserialized by SMS++, each scenario gets its own slice of the
@@ -694,13 +694,11 @@ function csvEC2nc4(
         # beginning of the large input vector. The mapping extracts the proper N-sized
         # slice (SetFrom) and forwards it to UCBlock::set_active_power_demand with SetTo = [0,N).
 
-        number_mappings = 3
+        number_mappings = n_scen
 
         # Length per scenario (time steps consumed by the C++ setter).
         # Default: the full horizon length (TimeHorizon).
-        N = n_steps
-        # (alt) Use the UCBlock "NumberIntervals" instead:
-        # N = dimlen(block, "NumberIntervals")
+        N = n_steps * n_users   # = ScenarioSize
 
         # Declare the dimensions required by SMS++ deserialization:
         # - NumberDataMappings: number of mappings in the vector.
@@ -723,25 +721,19 @@ function csvEC2nc4(
 
         # Data type for the small vector passed to the function: 'D' = double.
         # Caller type: 'B' = Block (we'll point to the UCBlock via an empty path).
-        v_DataType[:] = ['D','D','D']
-        v_Caller[:]   = ['B','B','B']
+        v_DataType[:]     = fill('D', number_mappings)
+        v_Caller[:]       = fill('B', number_mappings)
 
         # SetSize encodes the *types* of SetFrom and SetTo:
         #   0 -> Range, >0 -> Subset(size)
         # Here we want Range/Range for all mappings, so the array is:
         #   [0,0,  0,0,  0,0]
-        v_SetSize[:] = UInt32.([0,0,  0,0,  0,0])
+        v_SetSize[:]      = fill(UInt32(0), 2 * number_mappings)
 
-        # Concatenated SetElements for the 3 Range/Range mappings:
-        #   m0: [0, N,  0, N]
-        #   m1: [N, 2N, 0, N]
-        #   m2: [2N,3N, 0, N]
-        setele = UInt32.([ 0,   N,  0, N,
-                           N,  2N,  0, N,
-                           2N, 3N,  0, N ])
-        v_SetElements[:] = setele
+        # mapping i: always [0,N) -> [0,N)
+        v_SetElements[:] = repeat(UInt32.([0, N, 0, N]), number_mappings)
 
-        # --------------- AbstractPath vector for the mappings ----------------
+        # AbstractPath vector for the mappings
         #
         # Each mapping needs an AbstractPath telling SMS++ how to reach the caller.
         # Since Caller = 'B' and we want the *inner UCBlock* (i.e., the reference
@@ -769,7 +761,6 @@ function csvEC2nc4(
         # With empty paths, PathStart can be zero for all entries.
         v_PathStart[:] = fill(UInt32(0), number_mappings)
         # The variables sized on TotalLength=0 remain empty.
-        # ---------------------------------------------------------------------
 
         # UCBlock nc4 file
         defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))

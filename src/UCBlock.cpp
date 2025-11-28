@@ -1848,7 +1848,7 @@ void UCBlock::update_inertia_demand_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints( Index time ,
-						 Index node_index ,
+						                                           Index node_index ,
                                                  double demand )
 {
  auto rhs = demand;
@@ -1873,7 +1873,7 @@ void UCBlock::update_node_injection_constraints( Index time ,
 
 void UCBlock::set_active_power_demand( MF_dbl_it values ,
                                        Block::Subset && subset ,
-				                                   bool ordered ,
+                                       bool ordered ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
 {
@@ -1883,23 +1883,48 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
  const auto number_nodes = get_number_nodes();
 
  if( ! v_network_blocks.empty() ) {
-  // Update the demand of the NetworkBlocks
-  // TODO Optimize
   for( auto index : subset ) {
    const auto node_index = index / f_time_horizon;
    const auto time = index % f_time_horizon;
    const auto demand = *values;
-   v_network_blocks[ time ]->set_active_demand( values++ ,
-	     Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
 
-   if( number_nodes == 1 ) {
-    assert( node_index == 0 );
-    v_active_power_demand[ node_index ][ time ] = demand;
-    update_node_injection_constraints( time , node_index , demand );
+   Index rem = time;
+   NetworkBlock * nb = nullptr;
+   Index nb_nodes = 0;
+   Index local_interval = 0;
+
+   for( Index n = 0 ; n < f_number_networks ; ++n ) {
+    auto cand = v_network_blocks[ n ];
+    if( ! cand )
+     continue;
+
+    const auto nint = cand->get_number_intervals();
+    if( rem < nint ) {
+     nb = cand;
+     nb_nodes = cand->get_number_nodes();
+     local_interval = rem;
+     break;
     }
+
+    rem -= nint;
    }
-  return;
+
+   if( ! nb )
+    throw std::logic_error(
+     "UCBlock::set_active_power_demand(subset): "
+     "time index out of range of NetworkBlocks" );
+
+   assert( node_index < nb_nodes );
+
+   const Index flat = local_interval * nb_nodes + node_index;
+
+   nb->set_active_demand( values++ ,
+                          Range( flat , flat + 1 ) ,
+                          issuePMod , issueAMod );
   }
+
+  return;
+ }
 
  // Update the demand present in this UCBlock
 
@@ -1922,19 +1947,22 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
     if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
-    }
    }
   }
+ }
 
- if( ! changed )  // if nothing changes, return
+ if( ! changed ) // if nothing changes, return
   return;
 
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
-  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
-			       UCBlockMod::eSetActD , std::move( subset ) ) ,
-                           Observer::par2chnl( issuePMod ) );
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
 
- }  // end( UCBlock::set_active_power_demand( subset ) )
+  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
+                            UCBlockMod::eSetActD , std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+} // end( UCBlock::set_active_power_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1950,23 +1978,48 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
   return;
 
  if( ! v_network_blocks.empty() ) {
-  // Update the demand of the NetworkBlocks
-  // TODO Optimize
   for( Index index = rng.first ; index < rng.second ; ++index ) {
    const auto node_index = index / f_time_horizon;
    const auto time = index % f_time_horizon;
    const auto demand = *values;
-   v_network_blocks[ time ]->set_active_demand( values++ ,
-	     Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
 
-   if( number_nodes == 1 ) {
-    assert( node_index == 0 );
-    v_active_power_demand[ node_index ][ time ] = demand;
-    update_node_injection_constraints( time , node_index , demand );
+   Index rem = time;
+   NetworkBlock * nb = nullptr;
+   Index nb_nodes = 0;
+   Index local_interval = 0;
+
+   for( Index n = 0 ; n < f_number_networks ; ++n ) {
+    auto cand = v_network_blocks[ n ];
+    if( ! cand )
+     continue;
+
+    const auto nint = cand->get_number_intervals();
+    if( rem < nint ) {
+     nb = cand;
+     nb_nodes = cand->get_number_nodes();
+     local_interval = rem;
+     break;
     }
+
+    rem -= nint;
    }
-  return;
+
+   if( ! nb )
+    throw std::logic_error(
+     "UCBlock::set_active_power_demand: time index out of range "
+     "of NetworkBlocks" );
+
+   assert( node_index < nb_nodes );
+
+   const Index flat = local_interval * nb_nodes + node_index;
+
+   nb->set_active_demand( values++ ,
+                          Range( flat , flat + 1 ) ,
+                          issuePMod , issueAMod );
   }
+
+  return;
+ }
 
  // Update the demand present in this UCBlock
 
@@ -1989,9 +2042,9 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
     if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
-    }
    }
   }
+ }
 
  if( ! changed )  // if nothing changes, return
   return;
