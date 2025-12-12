@@ -46,7 +46,7 @@ namespace SMSpp_di_unipi_it
  * "modulation constraints" that limit the number of time instants in which
  * the energy production can (significantly) change.
  *
- * The class makes some assumptions about the behavour and implementation of
+ * The class makes some assumptions about the behaviour and implementation of
  * the base class:
  *
  * - whatever formulation is implemented in ThermalUnitBlock, it comprises
@@ -59,7 +59,7 @@ namespace SMSpp_di_unipi_it
  *   in which the commitment variables are free to be chosen (while in all
  *   instants 0 <= t < init_t, if any, they are fixed to either 0 or 1
  *   depending on the state of the unit prior to the beginning of time
- *   (instant 0) due to the minumum up- or down-time constraints
+ *   (instant 0) due to the minimum up- or down-time constraints
  *
  * - variables_generated() and constraints_generated() can be used to assess
  *   whether or not (static) Variable and Constraint have already been
@@ -119,7 +119,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  * information needed to handle modulation constraints:
  *
  * - The scalar variable "ModulationTime" of type netCDF::NcUint for the
- *   modulationinterval, i.e., the number of consecutive time instants
+ *   modulation interval, i.e., the number of consecutive time instants
  *   within which at most one modulation is allowed. The value must be >= 2,
  *   as otherwise the modulation constraint is useless and one can use an
  *   original ThermalUnitBlock. Note that, like with "MinUpTime" and
@@ -152,7 +152,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  *   modulations, hence for a modulation to be performed the unit necessarily
  *   had to be producing power at t - 1). This variable is optional; if it is
  *   not provided then it is assumed that MDP[ t ] == 0, i.e., the unit cannot
- *   increase its power output unless a modulation is perofrmed. Note that the
+ *   increase its power output unless a modulation is performed. Note that the
  *   value of the variable must always be such that 0 <= MDP[ t ] <= DP[ t ],
  *   where DP[ t ] is the vector of original ramp-up values fot the unit (see
  *   "DeltaRampUp" in the original ThermalUnitBlock). If
@@ -176,7 +176,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  *   necessarily had to be producing power at t - 1). This variable is
  *   optional; if it is not provided then it is assumed that MDM[ t ] == 0,
  *   i.e., the unit cannot decrease its power output unless a modulation is
- *   perofrmed. Note that the value of the variable must always be such that
+ *   performed. Note that the value of the variable must always be such that
  *   0 <= MDM[ t ] <= DM[ t ], where DM[ t ] is the vector of original
  *   ramp-down values fot the unit (see "DeltaRampDown" in the original
  *   ThermalUnitBlock). If "ModulationDeltaRampDown" has length 1, then
@@ -260,12 +260,11 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  * the method of the base ThermalUnitBlock class that is called first thing
  * here inside. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr )
-  override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 // generate the Objective of the NuclearUnitBlock
-/* Not necessary, NuclearUnitBlock does not change the Objective of 
+/* Not necessary, NuclearUnitBlock does not change the Objective of
  * ThermalUnitBlock. */
 
 // void generate_objective( Configuration * objc = nullptr ) override;
@@ -379,7 +378,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  ColVariable * get_modulation( void ) {
   if( v_modulation.empty() )
    return( nullptr );
-  return &( v_modulation.front() );
+  return( &( v_modulation.front() ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -739,7 +738,7 @@ class NuclearUnitBlockSbstMod : public NuclearUnitBlockMod {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* NuclearUnitBlock.h included */
+#endif /* __NuclearUnitBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File NuclearUnitBlock.h --------------------------*/

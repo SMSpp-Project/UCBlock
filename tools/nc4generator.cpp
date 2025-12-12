@@ -15,13 +15,8 @@
  * \copyright &copy; by Antonio Frangioni, Niccolo' Iardella
  */
 
-//#include <iostream>
-//#include <iomanip>
-//#include <vector>
+#include <iomanip>
 #include <getopt.h>
-
-//#include <netcdf>
-//#include <ncByte.h>
 
 #include <SMSTypedefs.h>
 

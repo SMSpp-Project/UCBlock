@@ -88,28 +88,26 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // Optional variables
- ::deserialize( group , "MaxPower" , v_MaxPower );
- ::deserialize( group , "MaxPrimaryPower" , v_MaxPrimaryPower );
- ::deserialize( group , "MaxSecondaryPower" , v_MaxSecondaryPower );
- ::deserialize( group , "ActivePowerCost" , v_ActivePowerCost );
- ::deserialize( group , "PrimaryCost" , v_PrimaryCost );
- ::deserialize( group , "SecondaryCost" , v_SecondaryCost );
- ::deserialize( group , "InertiaCost" , v_InertiaCost );
- ::deserialize( group , "MaxInertia" , v_MaxInertia );
-
  // Deserialize data from the base class
  UnitBlock::deserialize( group );
 
- // Decompress vectors
- decompress_vector( v_MaxPower );
- decompress_vector( v_MaxPrimaryPower );
- decompress_vector( v_MaxSecondaryPower );
- decompress_vector( v_ActivePowerCost );
- decompress_vector( v_PrimaryCost );
- decompress_vector( v_SecondaryCost );
- decompress_vector( v_InertiaCost );
- decompress_vector( v_MaxInertia );
+ // Optional variables
+ ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "MaxPrimaryPower" , f_time_horizon , v_MaxPrimaryPower ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "MaxSecondaryPower" , f_time_horizon , v_MaxSecondaryPower ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "ActivePowerCost" , f_time_horizon , v_ActivePowerCost ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "PrimaryCost" , f_time_horizon , v_PrimaryCost ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "SecondaryCost" , f_time_horizon , v_SecondaryCost ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "InertiaCost" , f_time_horizon , v_InertiaCost ,
+                true , true , v_change_intervals );
+ ::deserialize( group , "MaxInertia" , f_time_horizon , v_MaxInertia ,
+                true , true , v_change_intervals );
 
 }  // end( SlackUnitBlock::deserialize )
 
@@ -133,7 +131,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
  // Active Power Variable
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
-  var.set_type( ColVariable::kNonNegative );
+  var.set_type( ColVariable::kContinuous );
  add_static_variable( v_active_power , "p_slack" );
 
  // Primary Spinning Reserve Variable
@@ -184,9 +182,16 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
   if( ! v_MaxPower.empty() )
-   ActivePower_Bound_Const[ t ].set_rhs( v_MaxPower[ t ] );
+   if( v_MaxPower[ t ] >= 0.0 ) {
+    ActivePower_Bound_Const[ t ].set_rhs( v_MaxPower[ t ] );
+    ActivePower_Bound_Const[ t ].set_lhs( 0.0 );
+   }
+   else {
+    ActivePower_Bound_Const[ t ].set_rhs( 0.0 );
+    ActivePower_Bound_Const[ t ].set_lhs( v_MaxPower[ t ] );
+   }
   else
-   ActivePower_Bound_Const[ t ].set_rhs( 0.0 );
+   ActivePower_Bound_Const[ t ].set_both( 0.0 );
 
   ActivePower_Bound_Const[ t ].set_variable( &v_active_power[ t ] );
  }

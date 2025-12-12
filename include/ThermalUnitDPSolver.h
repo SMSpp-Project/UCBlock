@@ -121,7 +121,7 @@ namespace SMSpp_di_unipi_it
  * - From each ON node ( i , 1 ) there always is one arc to the destination
  *   d, meaning that the unit remains on in all the time instants between i
  *   and n - 1, and it is *not* shut down at the end of the period. The
- *   cost of this arc is the optimal cost of a "special" ED( i , n - 1 ), 
+ *   cost of this arc is the optimal cost of a "special" ED( i , n - 1 ),
  *   deciding on all variables  p[ h ], p[ h + 1 ], ..., p[ n - 1 ] and
  *   *not* (implicitly) fixing p[ n - 1 ] = 0 as ED( i , n - 2 ),
  *   corresponding to the arc ( i , 1 ) --> ( n - 1 , 0 ) does. The reason
@@ -218,7 +218,7 @@ namespace SMSpp_di_unipi_it
  *
  * ThermalUnitDPSolver first builds the graph, then uses one EDSolver for
  * each ON node (comprised s if the unit is on at the beginning, and therefore
- * is it equivalent to a ON node) to solve EDs to compute the arc costs, then 
+ * is it equivalent to a ON node) to solve EDs to compute the arc costs, then
  * uses a( acyclic) min-path algorithm to solve the problem. */
 
 class ThermalUnitDPSolver : public Solver
@@ -244,7 +244,7 @@ class ThermalUnitDPSolver : public Solver
 /** @name Constructor and destructor
  * @{ */
 
- ThermalUnitDPSolver( void ) : Solver() {};
+ ThermalUnitDPSolver( void ) {};
 
  ~ThermalUnitDPSolver() override = default;
 

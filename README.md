@@ -10,13 +10,13 @@ base class `UnitBlock`; several of these are available, such as
 `ThermalUnitBlock`, `HydroUnitBlock`, `BatteryUnitBlock` and others. Also,
 `UCBlock` knows that energy must flow between generating units and consumption
 points through an energy network, represented by concrete class deriving from
-the abstract base class `NetworkBlock` (unless there is no networ, i.e., the
+the abstract base class `NetworkBlock` (unless there is no network, i.e., the
 "bus" case, which is handled directly by `UCBlock`); some of these are
 available, such as `DCNetworkBlock` for the linear DC or HVDC (or hybrid)
 cases and `ECNetworkBlock` for Energy Communities having to share the
 energy between users and then with the external grid. Other kinds of
 units and networks can easily be added, and specialised solution methods for
-certaint units and networks (e.g., `ThermalUnitDPSolver` for
+certain units and networks (e.g., `ThermalUnitDPSolver` for
 `ThermalUnitBlock`) can be developed.
 
 
@@ -36,7 +36,7 @@ Configure and build the library with:
 mkdir build
 cd build
 cmake ..
-make
+cmake --build .
 ```
 
 The library has the same configuration options of
@@ -45,7 +45,7 @@ The library has the same configuration options of
 Optionally, install the library in the system with:
 
 ```sh
-sudo make install
+cmake --install .
 ```
 
 ### Usage with CMake
@@ -93,6 +93,40 @@ Check the [SMS++ installation wiki](https://gitlab.com/smspp/smspp-project/-/wik
 for further details.
 
 
+## Data
+
+We provide some data sets that are used, among other things, by some of the
+testers of the [test repo](https://gitlab.com/smspp/tests). Since they are
+large they are not included in the repo. They are automatically downloaded
+by Cmake if the test repo is included, but if you are not using Cmake to
+build the system you need to do it by hand, via
+
+```sh
+cd data
+wget https://gitlab.com/api/v4/projects/14857791/packages/generic/nc4/latest/nc4.tgz
+tar xzvf nc4.tgz
+```
+
+This builds the following folders:
+
+- [data/nc4/1UC_Data](data/nc4/1UC_Data), which contains instances of the
+  single-unit thermal UC problem, `ThermalUnitBlock`, useful to test
+  specialised approaches such as the `ThermalUnitDPSolver` for
+
+- [data/nc4/EC_Data](data/nc4/EC_Data), which contains instances of UC
+  related to the optimal design of Energy Communities (and hence in
+  particular containing `ECNetworkBlock`)
+
+- [data/nc4/UC_Data](data/nc4/UC_Data), which contains pure thermal and
+  hydro-thermal instances produced by
+  [classical random generators](https://commalab.di.unipi.it/datasets/UC)
+  and widely used in the literature
+
+- [data/nc4/plan4res-data](data/nc4/plan4res-data), which contains
+  UC instances related to optimal planning of the EU-wide energy system
+  developed during the [plan4res](https://www.plan4res.eu) project
+
+
 ## Tools
 
 We provide some tool to generate input data for UCBlock:
@@ -101,13 +135,16 @@ We provide some tool to generate input data for UCBlock:
   that can be used to produce netCDF versions of the instances produced by
   [classical random generators](https://commalab.di.unipi.it/datasets/UC)
 
-- [a Matlab-based data generator](tools/DataGenerator/README.md)
+- [a mathpower2netCDF](tools/mathpower2netCDF/readme.txt), which contains
+  a converter from instances in the [Matpower](https://matpower.org)
+  format to the netCDF one of SMS++
 
-- [a converter from .yml and .csv data files](tools/DataConverter/README.md)
+- [a Matlab-based data generator](tools/UC2SMSpp/README.md)
+
+- [a converter from .yml and .csv data files](tools/csv2netCDF/README.md)
   used to describe UC instances corresponding to Energy Community design
   problems used in the [EnergyCommunity.jl JuMP
   package](https://github.com/SPSUnipi/EnergyCommunity.jl)
-
 
 
 ## Getting help
@@ -126,21 +163,26 @@ conduct, and the process for submitting merge requests to us.
 
 ### Current Lead Authors
 
-- **Antonio Frangioni**  
+- **Tiziano Bacci**  
+  Istituto di Analisi dei Sistemi ed Informatica "A. Ruberti"  
+  Consiglio Nazionale delle Ricerche
+
+- **Rafael Durbano Lobato**  
   Dipartimento di Informatica  
   Università di Pisa
 
-- **Rafael Durbano Lobato**  
+- **Davide Fioriti**  
+  Dipartimento di Ingegneria dell'Energia, dei Sistemi, del Territorio
+  e delle Costruzioni  
+  Università di Pisa
+
+- **Antonio Frangioni**  
   Dipartimento di Informatica  
   Università di Pisa
 
 - **Donato Meoli**  
   Dipartimento di Informatica  
   Università di Pisa
-
-- **Tiziano Bacci**  
-  Istituto di Analisi dei Sistemi ed Informatica "A. Ruberti"  
-  Consiglio Nazionale delle Ricerche
 
 ### Previous Contributors
 

@@ -35,8 +35,6 @@
 
 #include "FRowConstraint.h"
 
-#include "OneVarConstraint.h"
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -96,7 +94,7 @@ class ECNetworkBlock : public NetworkBlock
   * bunching all the information together we make it easy for this sharing to
   * happen. */
 
- class ECNetworkData : public NetworkBlock::NetworkData
+ class ECNetworkData : public NetworkData
  {
 
 /*--------------------------------------------------------------------------*/
@@ -112,13 +110,13 @@ class ECNetworkBlock : public NetworkBlock
  * @{ */
 
   /// constructor of ECNetworkData, does nothing
-  ECNetworkData( void ) : NetworkBlock::NetworkData() {}
+  ECNetworkData( void ) {}
 
   /// copy constructor of ECNetworkData, does nothing
-  ECNetworkData( NetworkData * ec_network_data ) {}
+  explicit ECNetworkData( const NetworkData * ) {}
 
   /// destructor of ECNetworkData: it is virtual, and empty
-  virtual ~ECNetworkData() = default;
+  virtual ~ECNetworkData() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -132,19 +130,35 @@ class ECNetworkBlock : public NetworkBlock
    * problem, so they were given just one time in the netCDF, at the head of
    * the hierarchy, which should contain the following:
    *
-   * - The dimension "NumberNodes" containing the number of nodes in the
-   *   problem; this dimension is mandatory and it cannot be equals to 1
-   *   since cannot exists an Energy Community with just one user;
+   *  - The dimension "NumberIntervals" containing the number of intervals
+   *   spanned by this network block; this dimension is optional, if it is
+   *   not provided then it is taken to be equal to 1;
    *
-   * - The variable "BuyPrice", of type netCDF::NcDouble and containing the
-   *   tariff that the user pays to buy electricity from the public market;
+   * - The variable "BuyPrice", of type netCDF::NcDouble and either of size 1
+   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+   *   is not provided, then this variable must be of size 1). This is meant to
+   *   represent the vector BuyP[ t ] that, for each time instant t, contains
+   *   the tariff that the user pays to buy electricity from the public market
+   *   for the corresponding time step. If "BuyPrice" has length 1 then
+   *   BuyP[ t ] contains the same value for all t;
    *
-   * - The variable "SellPrice", of type netCDF::NcDouble and containing the
-   *   tariff that the user gains to sell electricity to the public market;
+   * - The variable "SellPrice", of type netCDF::NcDouble and either of size
+   *   1 or indexed over the dimension "NumberIntervals" (if
+   *   "NumberIntervals" is not provided, then this variable must be of size
+   *   1). This is meant to represent the vector SellP[ t ] that, for each
+   *   time instant t, contains the tariff that the user gains to sell
+   *   electricity to the public market for the corresponding time step. If
+   *   "SellPrice" has length 1 then SellP[ t ] contains the same value for
+   *   all t;
    *
-   * - The variable "RewardPrice", of type netCDF::NcDouble and containing the
-   *   reward benefit awarded to the energy community for the energy consumed
-   *   within the community itself;
+   * - The variable "RewardPrice", of type netCDF::NcDouble and either of size
+   *   1 or indexed over the dimension "NumberIntervals" (if
+   *   "NumberIntervals" is not provided, then this variable must be of size
+   *   1). This is meant to represent the vector RewardP[ t ] that, for each
+   *   time instant t, contains the reward benefit awarded to the energy
+   *   community for the energy consumed within the community itself, for the
+   *   corresponding time step. If "RewardPrice" has length 1 then
+   *   RewardP[ t ] contains the same value for all t;
    *
    * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
    *   tariff that the user pays due to the peak power. */
@@ -157,25 +171,31 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Reading the data of the ECNetworkData
  * @{ */
 
+  /// returns the nodes' number of the network
+  /** Method for returning the nodes' number of the network. */
+
+  Index get_number_intervals( void ) const { return( f_number_intervals ); }
+
+/*--------------------------------------------------------------------------*/
   /// returns the energy sell price
   /** Returns the tariff that the user gains to sell electricity to the
    * public market. */
 
-  double get_sell_price( void ) const { return( f_SellPrice ); }
+  std::vector< double > get_sell_price( void ) const { return( v_SellPrice ); }
 
 /*--------------------------------------------------------------------------*/
   /// returns the energy buy price
   /** Returns the tariff that the user pays to buy electricity from the public
    * market. */
 
-  double get_buy_price( void ) const { return( f_BuyPrice ); }
+  std::vector< double > get_buy_price( void ) const { return( v_BuyPrice ); }
 
 /*--------------------------------------------------------------------------*/
   /// returns the energy reward price
   /** Returns the tariff that the user gains when it absorbs power from the
    * microgrid market / network (instead of from the public grid). */
 
-  double get_reward_price( void ) const { return( f_RewardPrice ); }
+  std::vector< double > get_reward_price( void ) const { return( v_RewardPrice ); }
 
 /*--------------------------------------------------------------------------*/
   /// returns the peak tariff
@@ -192,7 +212,7 @@ class ECNetworkBlock : public NetworkBlock
   /// serialize an ECNetworkData out of a netCDF::NcGroup
   /** Serialize an ECNetworkData out of a netCDF::NcGroup to the specific
    * format of an ECNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup
-   * ) for details of the format of the created netCDF group. */
+   * ) for format's details of the created netCDF group. */
 
   virtual void serialize( netCDF::NcGroup & group ) const override;
 
@@ -212,15 +232,17 @@ class ECNetworkBlock : public NetworkBlock
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+  Index f_number_intervals{};  ///< number of intervals
+
   /// tariff that the user pays to buy electricity at each time horizon
-  double f_BuyPrice{};
+  std::vector< double > v_BuyPrice;
 
   /// tariff that the user gains to sell electricity at each time horizon
-  double f_SellPrice{};
+  std::vector< double > v_SellPrice;
 
   /// tariff that the user gains when it absorbs power from the microgrid
   /// (instead of from the public grid) at each time horizon
-  double f_RewardPrice{};
+  std::vector< double > v_RewardPrice;
 
   /// tariff that the user pays due to the peak power
   double f_PeakTariff{};
@@ -408,13 +430,12 @@ class ECNetworkBlock : public NetworkBlock
                    Configuration * fsbc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// returns true if the the energy is shared between users in the community
+ /// returns true if the energy is shared between users in the community
 
- bool is_cooperative( void ) {
-  if( ! f_NetworkData )
-   return( std::any_of( v_RewardPrice.begin() , v_RewardPrice.end() ,
-                        []( double cst ) { return( cst != 0 ); } ) );
-  return( f_NetworkData->get_reward_price() != 0 );
+ bool is_cooperative( void ) const {
+  auto reward_prices = f_NetworkData->get_reward_price();
+  return( std::any_of( reward_prices.begin() , reward_prices.end() ,
+                       []( double cst ) { return( cst != 0 ); } ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -427,7 +448,7 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the number of nodes in the community network. If
   * get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_nodes(). Otherwise, it throws an exception
-  * since cannot exists an Energy Community with just one user. */
+  * since cannot exist an Energy Community with just one user. */
 
  Index get_number_nodes( void ) const override {
   if( ! f_NetworkData )
@@ -435,6 +456,17 @@ class ECNetworkBlock : public NetworkBlock
                                  "create an Energy Community with just one "
                                  "user" ) );
   return( f_NetworkData->get_number_nodes() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of intervals spanned by the network
+ /** Method for returning the number of intervals spanned by this network. */
+
+ Index get_number_intervals( void ) const override {
+  if( ! f_NetworkData )
+   return( 1 );
+  return( f_NetworkData->get_number_intervals() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -469,9 +501,7 @@ class ECNetworkBlock : public NetworkBlock
   */
 
  double get_sell_price( Index interval ) const {
-  if( ! f_NetworkData )
-   return( v_SellPrice[ interval ] );
-  return( f_NetworkData->get_sell_price() );
+  return( f_NetworkData->get_sell_price()[ interval ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -482,9 +512,7 @@ class ECNetworkBlock : public NetworkBlock
   * @param interval The interval wrt the buy price of the energy is returned. */
 
  double get_buy_price( Index interval ) const {
-  if( ! f_NetworkData )
-   return( v_BuyPrice[ interval ] );
-  return( f_NetworkData->get_buy_price() );
+  return( f_NetworkData->get_buy_price()[ interval ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -498,9 +526,7 @@ class ECNetworkBlock : public NetworkBlock
   */
 
  double get_reward_price( Index interval ) const {
-  if( ! f_NetworkData )
-   return( v_RewardPrice[ interval ] );
-  return( f_NetworkData->get_reward_price() );
+  return( f_NetworkData->get_reward_price()[ interval ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -508,8 +534,6 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the tariff that the user pays due to the peak power. */
 
  double get_peak_tariff( void ) const {
-  if( ! f_NetworkData )
-   return( f_PeakTariff );
   return( f_NetworkData->get_peak_tariff() );
  }
 
@@ -576,20 +600,13 @@ class ECNetworkBlock : public NetworkBlock
 /** @name Methods for modifying the ECNetworkBlock
  * @{ */
 
- void set_NetworkData( NetworkBlock::NetworkData * nd = nullptr ) override {
+ void set_NetworkData( NetworkData * nd = nullptr ) override {
   // if there was a previous ECNetworkData, and it was local, delete it
   if( f_NetworkData && f_local_NetworkData )
    delete( f_NetworkData );
 
-  f_NetworkData = static_cast< ECNetworkData * >( nd );
+  f_NetworkData = dynamic_cast< ECNetworkData * >( nd );
   f_local_NetworkData = false;
- }
-
-/*--------------------------------------------------------------------------*/
- /// method to set the number of intervals
-
- void set_number_intervals( const Index i ) override {
-  f_number_intervals = i;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -614,15 +631,11 @@ class ECNetworkBlock : public NetworkBlock
   * it is written in v_ActiveDemand (which therefore is no longer empty),
   * otherwise it is left empty so that it can be set by this method. */
 
- void set_ActiveDemand(
-  const std::vector< std::vector< double > > & v ) override {
+ void set_ActiveDemand( const boost::multi_array< double , 2 > & v ) override {
   if( v_ActiveDemand.empty() ) {
    v_ActiveDemand.resize( boost::multi_array< double , 2 >::extent_gen()
                           [ get_number_intervals() ][ get_number_nodes() ] );
-   auto demand = v_ActiveDemand.data();
-   for( Index i = 0 ; i < get_number_intervals() ; i++ )
-    for( Index j = 0 ; j < get_number_nodes() ; j++ )
-     *(demand++) = v[ i ][ j ];
+   std::copy( v.data() , v.data() + v.num_elements() , v_ActiveDemand.data() );
   }
  }
 
@@ -637,10 +650,6 @@ class ECNetworkBlock : public NetworkBlock
   * following variables are different for each ECNetworkBlock of the problem,
   * so they were explicitly given in each netCDF, each of which should contain
   * the following:
-  *
-  * - The dimension "NumberIntervals" containing the number of intervals
-  *   spanned by this network block; this dimension is optional, if it is
-  *   not provided then it is taken to be equal to 1;
   *
   * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
   *   the dimensions "NumberIntervals" and "NumberNodes".
@@ -658,35 +667,6 @@ class ECNetworkBlock : public NetworkBlock
   *   to be there*, and in fact UCBlock has provisions for the NcGroup
   *   describing the NetworkBlock to be optional [see the comments to
   *   UCBlock::deserialize()];
-  *
-  * - The variable "BuyPrice", of type netCDF::NcDouble and either of size 1
-  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable must be of size 1). This is meant to
-  *   represent the vector BuyP[ t ] that, for each time instant t, contains
-  *   the tariff that the user pays to buy electricity from the public market
-  *   for the corresponding time step. If "BuyPrice" has length 1 then
-  *   BuyP[ t ] contains the same value for all t;
-  *
-  * - The variable "SellPrice", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable must be of size
-  *   1). This is meant to represent the vector SellP[ t ] that, for each
-  *   time instant t, contains the tariff that the user gains to sell
-  *   electricity to the public market for the corresponding time step. If
-  *   "SellPrice" has length 1 then SellP[ t ] contains the same value for
-  *   all t;
-  *
-  * - The variable "RewardPrice", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable must be of size
-  *   1). This is meant to represent the vector RewardP[ t ] that, for each
-  *   time instant t, contains the reward benefit awarded to the energy
-  *   community for the energy consumed within the community itself, for the
-  *   corresponding time step. If "RewardPrice" has length 1 then
-  *   RewardP[ t ] contains the same value for all t;
-  *
-  * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
-  *   tariff that the user pays due to the peak power;
   *
   * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
   *   constant term, i.e., typically the fixed costs. */
@@ -759,6 +739,7 @@ class ECNetworkBlock : public NetworkBlock
   * @param issuePMod It controls how physical Modification are issued.
   *
   * @param issueAMod It controls how abstract Modification are issued. */
+
  void set_active_demand( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
@@ -787,19 +768,6 @@ class ECNetworkBlock : public NetworkBlock
 
  /// matrix to store, for each interval, the demand of each node of the network
  boost::multi_array< double , 2 > v_ActiveDemand;
-
- /// tariff that the user pays to buy electricity at each time horizon
- std::vector< double > v_BuyPrice;
-
- /// tariff that the user gains to sell electricity at each time horizon
- std::vector< double > v_SellPrice;
-
- /// tariff that the user gains when it absorbs power from the microgrid
- /// (instead of from the public grid) at each time horizon
- std::vector< double > v_RewardPrice;
-
- /// tariff that the user pays due to the peak power
- double f_PeakTariff{};
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -832,10 +800,6 @@ class ECNetworkBlock : public NetworkBlock
  /// the peak power flow limit constraints, i.e., the constraints
  /// on the peak power at user PoD
  boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
-
-
- /// the node injection bound constraints
- boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
 
 
  /// the objective function
@@ -996,7 +960,7 @@ class ECNetworkBlockSbstMod : public ECNetworkBlockMod
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* ECNetworkBlock.h included */
+#endif /* __ECNetworkBlock */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File ECNetworkBlock.h -----------------------*/

@@ -11,18 +11,14 @@
 #                                                                             #
 #        $ cmake --build <build-path> --target install                        #
 #                                                                             #
-#    Note: this file tries to respect the principles of Modern CMake,         #
-#          keep it in mind when editing it.                                   #
-#                                                                             #
-#                              Niccolo' Iardella                              #
 #                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.19)
-cmake_policy(VERSION 3.12)
+cmake_minimum_required(VERSION 3.16)
+cmake_policy(VERSION 3.15)
 project(UCBlock
-        VERSION 0.6.2
+        VERSION 0.7.0
         DESCRIPTION "SMS++ UCBlock module"
         HOMEPAGE_URL https://gitlab.com/smspp/ucblock
         LANGUAGES C CXX)
@@ -74,10 +70,10 @@ target_compile_features(${modName} PUBLIC cxx_std_17)
 target_sources(${modName} PRIVATE
                src/UCBlock.cpp
                src/NetworkBlock.cpp
+               src/DesignNetworkBlock.cpp
                src/DCNetworkBlock.cpp
                src/ECNetworkBlock.cpp
                src/UnitBlock.cpp
-               #src/HeatBlock.cpp
                src/BatteryUnitBlock.cpp
                src/NuclearUnitBlock.cpp
                src/ThermalUnitBlock.cpp
@@ -116,6 +112,45 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 # ----- Subdirectories ------------------------------------------------------ #
 add_subdirectory(tools)
 
+# ----- Custom commands and targets ----------------------------------------- #
+
+# Download nc4.tgz from GitLab Package Registry if it doesn't exist
+set(DATA_URL "https://gitlab.com/api/v4/projects/14857791/packages/generic/nc4/latest/nc4.tgz")
+set(DATA_ARCHIVE ${CMAKE_CURRENT_SOURCE_DIR}/data/nc4.tgz)
+set(DATA_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/download_nc4.cmake)
+
+file(WRITE ${DATA_SCRIPT} "
+file(DOWNLOAD \"${DATA_URL}\" \"${DATA_ARCHIVE}\" SHOW_PROGRESS)
+")
+
+add_custom_command(
+        OUTPUT ${DATA_ARCHIVE}
+        COMMAND ${CMAKE_COMMAND} -E echo "Downloading nc4.tgz from GitLab Package Registry..."
+        COMMAND ${CMAKE_COMMAND} -P ${DATA_SCRIPT}
+        COMMENT "Downloading nc4.tgz"
+        VERBATIM
+)
+
+add_custom_target(download_nc4
+        DEPENDS ${DATA_ARCHIVE})
+
+# Custom command to extract the nc4.tgz archive if the .extracted file does not exist
+add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted
+        COMMAND tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/data/nc4.tgz
+        COMMAND echo > ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data
+        COMMENT "Extracting nc4.tgz"
+        VERBATIM
+        DEPENDS download_nc4)
+
+# Create custom targets to run the data extraction
+add_custom_target(extract_nc4uc
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted)
+
+# Ensure that extract_nc4uc is executed after the download
+add_dependencies(extract_nc4uc download_nc4)
+
 # ----- Install instructions ------------------------------------------------ #
 # The following commands are used when installing the library
 # and its CMake configuration files on the system.
@@ -126,11 +161,12 @@ include(GNUInstallDirs)
 # Install the library
 install(TARGETS ${modName}
         EXPORT ${modName}Targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so .dylib
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}) # .lib
 
 # Install the headers
-install(DIRECTORY include
+install(DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
 
 # Install the auto-generated configuration header (see above).
@@ -186,7 +222,7 @@ endif ()
 # Using this with the umbrella project is too messy.
 if (NOT hasParent)
     set(CPACK_PACKAGE_VENDOR "SMS++ Team")
-    set(CPACK_PACKAGE_CONTACT "Niccolo' Iardella")
+    set(CPACK_PACKAGE_CONTACT "Donato Meoli")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_DESCRIPTION})
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")

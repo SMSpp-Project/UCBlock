@@ -106,7 +106,7 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_variables( group , expected_vars , std::cerr );
 #endif
 
- // call the method of the base class 
+ // call the method of the base class
  ThermalUnitBlock::deserialize( group );
 
  // check that DeltaRampUp/Down are defined
@@ -127,7 +127,7 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  if( f_modulation_interval < 2 )
   throw( std::invalid_argument(
 		    "NuclearUnitBlock::deserialize: ModulationTime < 2" ) );
- 
+
  if( ! ::deserialize( group , f_initial_modulation , "InitModulation" ) )
   f_initial_modulation = f_modulation_interval;
 
@@ -137,17 +137,13 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // load mandatory variables ModulationDeltaRampUp and
  // ModulationDeltaRampDown, create the expanded vectors (if needed)
- 
- ::deserialize( group , "ModulationDeltaRampUp" , v_modulation_ramp_up ,
-		false );
- ::deserialize( group , "ModulationDeltaRampDown" , v_modulation_ramp_down ,
-		false );
 
- // decompress vectors
- decompress_vector( v_modulation_ramp_up );
- decompress_vector( v_modulation_ramp_down );
+ ::deserialize( group , "ModulationDeltaRampUp" , f_time_horizon ,
+                v_modulation_ramp_up , false , true , v_change_intervals );
+ ::deserialize( group , "ModulationDeltaRampDown" , f_time_horizon ,
+                v_modulation_ramp_down , false , true , v_change_intervals );
 
- // check consistency of v_modulation_ramp_up and v_modulation_ramp_down
+ // check the consistency of v_modulation_ramp_up and v_modulation_ramp_down
  check_modulation_consistency();
 
  }  // end( NuclearUnitBlock::deserialize )
@@ -237,15 +233,20 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    v_modulation[ t ].set_value( 0.0 );
    v_modulation[ t++ ].is_fixed( true , eNoMod );
    }
- 
  } // end( NuclearUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
-
+void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() )
   return; // constraints have already been generated
+
+ // call the method of the base class - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // note that set_constraints_generated() is called there inside, so that it
+ // does not need to be done again
+ ThermalUnitBlock::generate_abstract_constraints( stcc );
 
  // important information from the base class:
  // - if f_InitUpDownTime > 0 then the unit was on before the initial time
@@ -256,7 +257,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // - v_ShutDownLimit, the maximum power on shutdown
  // - v_DeltaRampUp, the ramp-up delta
  // - v_DeltaRampDown, the ramp-down delta
- 
+
  // construct the modulation ramp-up constraint - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // p_t - p_{t-1} - \Delta^M_{t+} u_{t-1} -
@@ -292,7 +293,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
    // similarly, the "- \Delta^M_{t+} u_{t-1}" term is fixed, and it is
    // equal to - v_modulation_ramp_up[ t ] if u_{t-1} = 1 (i.e.,
    // f_InitUpDownTime > 0) and 0 otherwise, so this has to be added to RHS
-   // (changing the sign) 
+   // (changing the sign)
    if( f_InitUpDownTime > 0 )
     RHS += v_modulation_ramp_up[ 0 ];
    }
@@ -343,10 +344,10 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
   // the corresponding shut-down variables are not even defined
   if( t >= init_t )
    *cfit = coeff_pair( & v_shut_down[ t - init_t ] , v_ShutDownLimit[ t ] );
- 
+
   Modulation_RampDown_Constraints[ t ].set_lhs( - Inf< double >() );
   // if t == 0, the "p_{t-1}" term is fixed and equal to f_InitialPower, so
-  // so there is no explicit term in the constraint (since the variable does
+  // there is no explicit term in the constraint (since the variable does
   // not exist) and the RHS becomes - f_InitialPower
   Modulation_RampDown_Constraints[ t ].set_rhs( t ? 0 : - f_InitialPower );
   Modulation_RampDown_Constraints[ t ].set_function(
@@ -362,7 +363,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // note: these only have to be constructed for t >= init_t, as for
  // t < init_t either u_t is fixed to 1, and the constraint is redundant, or
  // u_t is fixed to 0 and m_t has been fixed in generate_abstract_variables()
- 
+
  NoDownModulation.resize( f_time_horizon - init_t );
 
  for( Index t = init_t ; t < f_time_horizon ; ++t ) {
@@ -370,7 +371,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
   cf[ 1 ] = coeff_pair( & v_commitment[ t ] , -1.0 );
- 
+
   NoDownModulation[ t - init_t ].set_lhs( - Inf< double >() );
   NoDownModulation[ t - init_t ].set_rhs( 0 );
   NoDownModulation[ t - init_t ].set_function(
@@ -384,7 +385,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
  // the unit is not modulating while starting up
  // note: these only have to be constructed for t >= init_t, as for
  // t < init_t u_t is fixed (no matter if to 0 or 1) and therefore no
- // start-up can ever occur; in facy, the start-up variables are not even
+ // start-up can ever occur; in fact, the start-up variables are not even
  // defined for t < init_t. it may also be that the m_t are fixed for those
  // t: this happens if u_t is fixed to 0, but not if u_t is fixed to 1, in
  // which case modulations can occur within the first init_t periods unless
@@ -398,7 +399,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc ) {
 
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
   cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , -1.0 );
- 
+
   NoStartUpModulation[ t - init_t ].set_lhs( - Inf< double >() );
   NoStartUpModulation[ t - init_t ].set_rhs( 1.0 );
   NoStartUpModulation[ t - init_t ].set_function(
@@ -514,8 +515,8 @@ void NuclearUnitBlock::serialize( netCDF::NcGroup & group ) const
   * have any of the following dimensions: TimeHorizon, NumberIntervals,
   * 1. "allow_scalar_var" indicates whether the variable can be serialized as
   * a scalar variable (in which case the variable must have dimension 1). */
- auto serialize = [ & group , & TimeHorizon , & NumberIntervals ](
-	const std::string & var_name , const std::vector< double > & data ,
+ auto serialize = [ &group , &TimeHorizon , &NumberIntervals ]
+  ( const std::string & var_name , const std::vector< double > & data ,
 	const netCDF::NcType & ncType = netCDF::NcDouble() ,
 	bool allow_scalar_var = true ) {
   if( data.empty() )
@@ -593,7 +594,6 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
 			    std::to_string( mrut ) + "> ramp up = " +
 			    std::to_string( v_DeltaRampUp[ t ] ) ) );
   }
- 
 
  if( not_dry_run( issuePMod ) )  // change the physical representation
   assign( v_modulation_ramp_up , subset , values );
@@ -601,8 +601,8 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && constraints_generated() ) {
   // change the abstract representation
   // now change the corresponding Modulation_RampUp_Constraint[ t ]. note
-  // that the \Delta^M_{t+} appears as the coeeficient of u_{t-1} (if t > 0),
-  // with opposite sign, and in the coeeficient
+  // that the \Delta^M_{t+} appears as the coefficient of u_{t-1} (if t > 0),
+  // with opposite sign, and in the coefficient
   // ( \Delta_{t+} - \Delta^M_{t+} ) of m_t, again with opposite sign
   // these are respectively the coefficient 1 and 3 (the latter, only if
   // t > 0) of the LinearFunction in the FRowConstraint
@@ -760,7 +760,6 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
 			    std::to_string( mrdt ) + "> ramp down = " +
 			    std::to_string( v_DeltaRampDown[ t ] ) ) );
   }
- 
 
  if( not_dry_run( issuePMod ) )  // change the physical representation
   assign( v_modulation_ramp_down , subset , values );
@@ -768,8 +767,8 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && constraints_generated() ) {
   // change the abstract representation
   // now change the corresponding Modulation_RampDown_Constraint[ t ]. note
-  // that the \Delta^M_{t-} appears as the coeeficient of u_t, with opposite
-  // sign, and in the coeeficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
+  // that the \Delta^M_{t-} appears as the coefficient of u_t, with opposite
+  // sign, and in the coefficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
   // again with opposite sign. these are respectively the coefficient 1 and 2
   // of the LinearFunction in the FRowConstraint
 
@@ -841,8 +840,8 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && constraints_generated() ) {
   // change the abstract representation
   // now change the corresponding Modulation_RampDown_Constraint[ t ]. note
-  // that the \Delta^M_{t-} appears as the coeeficient of u_t, with opposite
-  // sign, and in the coeeficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
+  // that the \Delta^M_{t-} appears as the coefficient of u_t, with opposite
+  // sign, and in the coefficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
   // again with opposite sign. these are respectively the coefficient 1 and 2
   // of the LinearFunction in the FRowConstraint
 
@@ -885,7 +884,7 @@ void NuclearUnitBlock::update_initial_power_in_cnstrs( ModParam issueAMod )
  //   ( f_InitUpDownTime > 0 ? v_modulation_ramp_up[ 0 ] : 0 );
  // - the RHS of Modulation_RampDown_Constraints[ 0 ] is - f_InitialPower
 
- // TODO: pack the two Modificaton into a GroupModification
+ // TODO: pack the two Modification into a GroupModification
  Modulation_RampUp_Constraints[ 0 ].set_rhs( f_InitialPower +
       ( f_InitUpDownTime > 0 ? v_modulation_ramp_up[ 0 ] : 0 ) , issueAMod );
 

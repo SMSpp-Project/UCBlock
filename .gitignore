@@ -1,5 +1,8 @@
 ### DataSets
-netCDF_files/plan4res-data
+data/nc4
+data/nc4.tgz
+data/.extracted
+netCDF
 
 ### C/C++ template
 # Prerequisites
@@ -15,6 +18,7 @@ netCDF_files/plan4res-data
 
 # executables
 tools/nc4generator
+tools/csv2netCDF/Manifest.toml
 
 # Precompiled Headers
 *.gch

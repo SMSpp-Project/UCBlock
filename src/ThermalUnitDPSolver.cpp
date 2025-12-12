@@ -599,9 +599,9 @@ void ThermalUnitDPSolver::load_parameters( void )
  else
   delta_ramp_down = b->get_delta_ramp_down();
 
- retrieve_term( quad_term, b->get_quad_term() );
- retrieve_term( linear_term, b->get_linear_term() );
- retrieve_term( const_term, b->get_const_term() );
+ retrieve_term( quad_term , b->get_quad_term() );
+ retrieve_term( linear_term , b->get_linear_term() );
+ retrieve_term( const_term , b->get_const_term() );
 
  // unlock the Block
  if( ! owned )
@@ -704,19 +704,19 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      return( false );
 
     case( ThermalUnitBlockMod::eSetLinT ):
-     retrieve_term( linear_term, b->get_linear_term() );
+     retrieve_term( linear_term , b->get_linear_term() );
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
 
     case( ThermalUnitBlockMod::eSetQuadT ):
-     retrieve_term( quad_term, b->get_quad_term() );
+     retrieve_term( quad_term , b->get_quad_term() );
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
 
     case( ThermalUnitBlockMod::eSetConstT ):
-     retrieve_term( const_term, b->get_const_term() );
+     retrieve_term( const_term , b->get_const_term() );
      stage = start;
      return( false );
 
