@@ -696,95 +696,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 }
 
 /*--------------------------------------------------------------------------*/
-
- const std::map< Index, Index > & get_spanning_tree( void ) {
-  if( ! cycle_basis_was_computed )
-   this->compute_cycle_basis();
-  return( m_spanning_tree );
-  }
-
-/*--------------------------------------------------------------------------*/
-
-/* Return a map where the keys are the line ids involved in the spanning tree and the
-value is 1 if the directed line is in the tree and -1 if the reverse directed line is in the tree.*/
-std::map< Index, int > get_lines_in_spanning_tree( void ) {
-  if( ! cycle_basis_was_computed )
-   this->compute_cycle_basis();
-
-  const auto number_lines = get_number_lines();
-  if( number_lines <= 0 ) {
-    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
-                             "number of lines of DCNetworkBlock is not set" ) );
-  }
-  const auto & start_line = get_start_line();
-  const auto & end_line = get_end_line();
-
-  std::map< Index, int > lines_in_spanning_tree;
-  for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-    Index i = start_line[ line_id ];
-    Index j = end_line[ line_id ];
-    if ( this->m_spanning_tree[ i ] == j ) { // line in spanning tree
-      lines_in_spanning_tree[ line_id ] = 1;
-    }
-    else if ( this->m_spanning_tree[ j ] == i ) { // reverse line in spanning tree
-      lines_in_spanning_tree[ line_id ] = -1;
-    }
-  }
-  return( lines_in_spanning_tree );
-}
-
-/*--------------------------------------------------------------------------*/
-
-/* Return a vector of map where the keys are the line ids involved in the cycle and the
-value is 1 if the directed line is in the cycle and -1 if the reverse directed line is in the cycle.*/
-std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
-  if( ! cycle_basis_was_computed )
-   this->compute_cycle_basis();
-
-  const auto number_nodes = get_number_nodes();
-  const auto number_lines = get_number_lines();
-  if( number_lines <= 0 ) {
-    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
-                             "number of lines of DCNetworkBlock is not set" ) );
-  }
-  const auto & start_line = get_start_line();
-  const auto & end_line = get_end_line();
-
-  std::vector< std::map< Index , int > > lines_in_cycles =
-   std::vector< std::map< Index , int > >( this->v_cycle_basis.size() );
-  int idx_cycle = 0;
-  for (auto & cycle : this->v_cycle_basis ) {
-    for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-      Index i = start_line[ line_id ];
-      Index j = end_line[ line_id ];
-      auto it_i = std::find( cycle.begin() , cycle.end() , i );
-      int pos_i = std::distance( cycle.begin() , it_i );
-      if ( it_i != cycle.end() ) {
-        // the line or reverse line may be in the cycle
-        if ( ( pos_i < cycle.size() - 1 ) && ( cycle[ pos_i + 1 ] == j ) ) {
-         lines_in_cycles[ idx_cycle ][ line_id ] = 1; // true line
-        }
-        if( ( pos_i == cycle.size() - 1 ) && ( cycle[ 0 ] == j ) ) {
-         lines_in_cycles[ idx_cycle ][ line_id ] = 1; // true line
-        }
-        if( ( pos_i > 0 ) && ( cycle[ pos_i - 1 ] == j ) ) {
-         lines_in_cycles[ idx_cycle ][ line_id ] = -1; // reverse line
-        }
-        if( ( pos_i == 0 ) && ( cycle[ cycle.size() - 1 ] == j ) ) {
-         lines_in_cycles[ idx_cycle ][ line_id ] = -1; // reverse line
-        }
-      }
-    }
-    ++ idx_cycle;
-  }
-
-  assert( lines_in_cycles.size() == number_lines - number_nodes + 1 );
-  // take advantage of the theory to ensure the size of the cycle basis
-
-  return( lines_in_cycles );
-}
-
-/*--------------------------------------------------------------------------*/
  /// returns vector of the network cost
  /** Method for returning the vector of network cost for each line. This
   * vector may have empty size (bus network) or the size of number of lines,
@@ -1015,10 +926,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
- void generate_PTDF_variables( Configuration * stvv = nullptr );
-
- void generate_CYCLE_variables( Configuration * stvv = nullptr );
-
 /*--------------------------------------------------------------------------*/
 
  void generate_PTDF_variables( Configuration * stvv = nullptr );
@@ -1154,15 +1061,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * design variable \f$ x_l \f$ exists. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
-
- void generate_PTDF_constraints( Configuration * stcc = nullptr );
-
- void generate_CYCLE_constraints( Configuration * stcc = nullptr );
-
- /// A bogus function to round nasty coefficients in the DCOPF equations
- double round_to( double value , double precision = 1.0 ) {
-  return( std::round( value / precision ) * precision );
- }
 
 /*--------------------------------------------------------------------------*/
 
