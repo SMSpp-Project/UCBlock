@@ -173,7 +173,7 @@ namespace SMSpp_di_unipi_it {
    return( f_NetworkData ) ? ( f_NetworkData->get_number_lines() ) : 0;
   }
 
-  std::vector< double > get_line_losses( void ) override {
+  std::vector< double > get_line_losses( void ) {
    std::vector< double > losses;
    Index number_lines = get_number_lines();
    for( int line_id = 0 ; line_id < number_lines ; ++line_id ) {

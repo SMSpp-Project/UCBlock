@@ -264,7 +264,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 // generate the Objective of the NuclearUnitBlock
-/* Not necessary, NuclearUnitBlock does not change the Objective of 
+/* Not necessary, NuclearUnitBlock does not change the Objective of
  * ThermalUnitBlock. */
 
 // void generate_objective( Configuration * objc = nullptr ) override;

@@ -263,7 +263,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ActivePowerDemand" ,
                 { number_nodes , f_time_horizon } , v_active_power_demand );
 
- // for AC
  ::deserialize( group , "ReactivePowerDemand" ,
                 { number_nodes , f_time_horizon } , v_reactive_power_demand );
 
@@ -426,8 +425,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     nbi->set_NetworkData( f_NetworkData );
     // assert that the global NetworkData passed is of the right type
     assert( nbi->get_NetworkData() != nullptr );
-    nbi->set_constant_term( v_network_constant_terms[ n ] );
    }
+
+   nbi->set_constant_term( v_network_constant_terms[ n ] );
 
    boost::multi_array< double , 2 > ap_v(
     boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
@@ -562,11 +562,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
   return;                       // nothing to do
 
  // generate abstract constraints in all the sub-Block
-
  Block::generate_abstract_constraints( stcc );
 
  // generate the abstract constraints of UCBlock
-
  generate_node_injection_constraints();
  if ( v_reactive_power_demand.num_elements() > 0 ){
    generate_reactive_node_injection_constraints();
@@ -1029,8 +1027,8 @@ void UCBlock::generate_inertia_demand_constraints( void )
   ( boost::multi_array< Index , 2 >::
     extent_gen()[ f_number_units ][ f_number_inertia_zones ] );
 
- std::fill( inertia_var_index.data() , inertia_var_index.data() +
-                                       inertia_var_index.num_elements() ,
+ std::fill( inertia_var_index.data() ,
+            inertia_var_index.data() + inertia_var_index.num_elements() ,
             Inf< Index >() );
 
  const auto number_nodes = get_number_nodes();
@@ -1287,7 +1285,7 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
   sol->v_network_Solution.resize( get_number_networks() );
 
  sol->f_compressed_network = wsol & 4;
- 
+
  using mad2 = boost::multi_array< double , 2 >;
 
  if( wsol & 8 )
@@ -2013,7 +2011,7 @@ void UCBlock::update_inertia_demand_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints( Index time ,
-						 Index node_index ,
+						                                           Index node_index ,
                                                  double demand )
 {
  auto rhs = demand;
@@ -2038,7 +2036,7 @@ void UCBlock::update_node_injection_constraints( Index time ,
 
 void UCBlock::set_active_power_demand( MF_dbl_it values ,
                                        Block::Subset && subset ,
-				       bool ordered ,
+                                       bool ordered ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
 {
@@ -2048,23 +2046,48 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
  const auto number_nodes = get_number_nodes();
 
  if( ! v_network_blocks.empty() ) {
-  // Update the demand of the NetworkBlocks
-  // TODO Optimize
   for( auto index : subset ) {
    const auto node_index = index / f_time_horizon;
    const auto time = index % f_time_horizon;
    const auto demand = *values;
-   v_network_blocks[ time ]->set_active_demand( values++ ,
-	     Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
 
-   if( number_nodes == 1 ) {
-    assert( node_index == 0 );
-    v_active_power_demand[ node_index ][ time ] = demand;
-    update_node_injection_constraints( time , node_index , demand );
+   Index rem = time;
+   NetworkBlock * nb = nullptr;
+   Index nb_nodes = 0;
+   Index local_interval = 0;
+
+   for( Index n = 0 ; n < f_number_networks ; ++n ) {
+    auto cand = v_network_blocks[ n ];
+    if( ! cand )
+     continue;
+
+    const auto nint = cand->get_number_intervals();
+    if( rem < nint ) {
+     nb = cand;
+     nb_nodes = cand->get_number_nodes();
+     local_interval = rem;
+     break;
     }
+
+    rem -= nint;
    }
-  return;
+
+   if( ! nb )
+    throw std::logic_error(
+     "UCBlock::set_active_power_demand(subset): "
+     "time index out of range of NetworkBlocks" );
+
+   assert( node_index < nb_nodes );
+
+   const Index flat = local_interval * nb_nodes + node_index;
+
+   nb->set_active_demand( values++ ,
+                          Range( flat , flat + 1 ) ,
+                          issuePMod , issueAMod );
   }
+
+  return;
+ }
 
  // Update the demand present in this UCBlock
 
@@ -2087,19 +2110,22 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
     if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
-    }
    }
   }
+ }
 
- if( ! changed )  // if nothing changes, return
+ if( ! changed ) // if nothing changes, return
   return;
 
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
-  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
-			       UCBlockMod::eSetActD , std::move( subset ) ) ,
-                           Observer::par2chnl( issuePMod ) );
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
 
- }  // end( UCBlock::set_active_power_demand( subset ) )
+  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
+                            UCBlockMod::eSetActD , std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+} // end( UCBlock::set_active_power_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2115,23 +2141,48 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
   return;
 
  if( ! v_network_blocks.empty() ) {
-  // Update the demand of the NetworkBlocks
-  // TODO Optimize
   for( Index index = rng.first ; index < rng.second ; ++index ) {
    const auto node_index = index / f_time_horizon;
    const auto time = index % f_time_horizon;
    const auto demand = *values;
-   v_network_blocks[ time ]->set_active_demand( values++ ,
-	     Range( node_index , node_index + 1 ) , issuePMod , issueAMod );
 
-   if( number_nodes == 1 ) {
-    assert( node_index == 0 );
-    v_active_power_demand[ node_index ][ time ] = demand;
-    update_node_injection_constraints( time , node_index , demand );
+   Index rem = time;
+   NetworkBlock * nb = nullptr;
+   Index nb_nodes = 0;
+   Index local_interval = 0;
+
+   for( Index n = 0 ; n < f_number_networks ; ++n ) {
+    auto cand = v_network_blocks[ n ];
+    if( ! cand )
+     continue;
+
+    const auto nint = cand->get_number_intervals();
+    if( rem < nint ) {
+     nb = cand;
+     nb_nodes = cand->get_number_nodes();
+     local_interval = rem;
+     break;
     }
+
+    rem -= nint;
    }
-  return;
+
+   if( ! nb )
+    throw std::logic_error(
+     "UCBlock::set_active_power_demand: time index out of range "
+     "of NetworkBlocks" );
+
+   assert( node_index < nb_nodes );
+
+   const Index flat = local_interval * nb_nodes + node_index;
+
+   nb->set_active_demand( values++ ,
+                          Range( flat , flat + 1 ) ,
+                          issuePMod , issueAMod );
   }
+
+  return;
+ }
 
  // Update the demand present in this UCBlock
 
@@ -2154,9 +2205,9 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
     if( not_dry_run( issueAMod ) && constraints_generated() )
      // Change the abstract representation
      update_node_injection_constraints( time , node_index , demand );
-    }
    }
   }
+ }
 
  if( ! changed )  // if nothing changes, return
   return;
@@ -2205,7 +2256,7 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
   f_compressed_network = ! sub_group.isNull();
   if( f_compressed_network )  // compressed format
    NetworkBlockSolution::deserialize( sub_group , v_network_Solution );
-  else  // standard format 
+  else  // standard format
    for( Index i = 0 ; i < number_networks ; ++i ) {
     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
     auto sub_group = group.getGroup( sub_group_name );
@@ -2300,31 +2351,31 @@ void UCBlockSolution::read( const Block * block )
   if( PDC.empty() )
    throw( std::invalid_argument(
         "UCBlockSolution::read-ing duals of non-existent primary demand" ) );
-   
+
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_primary_zones ; ++i )
     v_primary_duals[ t ][ i ] = PDC[ t ][ i ].get_dual();
   }
- 
+
  if( ! v_secondary_duals.empty() ) {
   // read the dual variables of the secondary demand constraints- - - - - - -
   auto & SDC = UCB->get_const_secondary_demand_constraints();
   if( SDC.empty() )
    throw( std::invalid_argument(
       "UCBlockSolution::read-ing duals of non-existent secondary demand" ) );
-   
+
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
     v_secondary_duals[ t ][ i ] = SDC[ t ][ i ].get_dual();
   }
- 
+
  if( ! v_inertia_duals.empty() ) {
   // read the dual variables of the inertia demand constraints - - - - - - -
   auto & IDC = UCB->get_const_inertia_demand_constraints();
   if( IDC.empty() )
    throw( std::invalid_argument(
       "UCBlockSolution::read-ing duals of non-existent secondary demand" ) );
-   
+
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
     v_inertia_duals[ t ][ i ] = IDC[ t ][ i ].get_dual();
@@ -2343,7 +2394,7 @@ void UCBlockSolution::write( Block * block )
  if( f_time_horizon != UCB->get_time_horizon() )
   throw( std::invalid_argument(
 		     "UCBlockSolution::write: inconsistent time horizon" ) );
-  
+
  if( ! v_unit_Solution.empty() ) {
   // write the UnitBlockSolution- - - - - - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i <  v_unit_Solution.size() ; ++i )
@@ -2378,12 +2429,12 @@ void UCBlockSolution::write( Block * block )
   if( PDC.empty() )
    throw( std::invalid_argument(
        "UCBlockSolution::write-ing duals of non-existent primary demand" ) );
-   
+
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_primary_zones ; ++i )
     PDC[ t ][ i ].set_dual( v_primary_duals[ t ][ i ] );
   }
- 
+
  if( ! v_secondary_duals.empty() ) {
   // write the dual variables of the secondary demand constraints - - - - - -
   if( f_number_secondary_zones != UCB->get_number_secondary_zones() )
@@ -2393,12 +2444,12 @@ void UCBlockSolution::write( Block * block )
   if( SDC.empty() )
    throw( std::invalid_argument(
      "UCBlockSolution::write-ing duals of non-existent secondary demand" ) );
-   
+
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
     SDC[ t ][ i ].set_dual( v_secondary_duals[ t ][ i ] );
   }
- 
+
  if( ! v_inertia_duals.empty() ) {
   // write the dual variables of the inertia demand constraints- - - - - - -
   if( f_number_inertia_zones != UCB->get_number_inertia_zones() )
@@ -2408,7 +2459,7 @@ void UCBlockSolution::write( Block * block )
   if( IDC.empty() )
    throw( std::invalid_argument(
      "UCBlockSolution::write-ing duals of non-existent secondary demand" ) );
-   
+
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
     IDC[ t ][ i ].set_dual( v_inertia_duals[ t ][ i ] );
@@ -2420,7 +2471,7 @@ void UCBlockSolution::write( Block * block )
 void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
  Solution::serialize( group );
-  
+
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  auto th = group.addDim( "TimeHorizon" , f_time_horizon );
 
@@ -2443,7 +2494,7 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
    auto sub_group = group.addGroup( "NetworkBlock" );
    NetworkBlockSolution::serialize( sub_group , v_network_Solution );
    }
-  else  // standard format 
+  else  // standard format
    for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
     if( v_network_Solution[ i ] ) {
      std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
@@ -2511,12 +2562,12 @@ UCBlockSolution * UCBlockSolution::scale( double factor ) const
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_primary_zones ; ++i )
     sol->v_primary_duals[ t ][ i ] *= factor;
- 
+
  if( ! v_secondary_duals.empty() )
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
     sol->v_secondary_duals[ t ][ i ] *= factor;
- 
+
  if( ! v_inertia_duals.empty() )
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
@@ -2552,7 +2603,7 @@ void UCBlockSolution::sum( const Solution * solution , double multiplier )
 		      "UCBlockSolution::sum: inconsistent primary zones" ) );
  if( f_number_secondary_zones != UCBS->f_number_secondary_zones )
   throw( std::invalid_argument(
-		    "UCBlockSolution::sum: inconsistent secondary zones" ) ); 
+		    "UCBlockSolution::sum: inconsistent secondary zones" ) );
  if( f_number_inertia_zones != UCBS->f_number_inertia_zones )
   throw( std::invalid_argument(
 		     "UCBlockSolution::read: inconsistent inertia zones" ) );
@@ -2572,13 +2623,13 @@ void UCBlockSolution::sum( const Solution * solution , double multiplier )
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_primary_zones ; ++i )
     v_primary_duals[ t ][ i ] += UCBS->v_primary_duals[ t ][ i ]  * multiplier;
- 
+
  if( ! v_secondary_duals.empty() )
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_secondary_zones ; ++i )
     v_secondary_duals[ t ][ i ] +=
      UCBS->v_secondary_duals[ t ][ i ] * multiplier;
- 
+
  if( ! v_inertia_duals.empty() )
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
@@ -2613,7 +2664,7 @@ UCBlockSolution * UCBlockSolution::clone( bool empty ) const
     else
      sol->v_network_Solution[ i ] = nullptr;
    }
-  
+
   copy_multi_array( sol->v_demand_duals , v_demand_duals );
   copy_multi_array( sol->v_primary_duals , v_primary_duals );
   copy_multi_array( sol->v_secondary_duals , v_secondary_duals );

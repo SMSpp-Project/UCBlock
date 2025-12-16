@@ -650,7 +650,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       }
      continue;
      }
- 
+
     vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
 
     if( ( MaxF <= 0 ) && ( MinF < 0 ) )  // Pumps
@@ -992,7 +992,7 @@ Solution * HydroUnitBlock::get_Solution( Configuration * csolc ,
  }
 
 /*--------------------------------------------------------------------------*/
- 
+
 UnitBlockSolution * HydroUnitBlock::new_Solution( void ) const {
  return( new HydroUnitBlockSolution() );
  }

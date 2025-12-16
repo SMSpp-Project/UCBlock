@@ -427,7 +427,7 @@ void DCNetworkData::compute_cycle_basis( int opt_root, bool only_AC_lines) {
                                              std::set< Index >() );
  const auto & susceptance = get_line_susceptance();
  for( Index id_line = 0 ; id_line < number_lines ; ++id_line ) {
-  if( only_AC_lines && susceptance[ line_id ] == 0. ) continue;
+  if( only_AC_lines && susceptance[ id_line ] == 0. ) continue;
   Index i = start_line[ id_line ];
   Index j = end_line[ id_line ];
   neighbors[ i ].insert( j );

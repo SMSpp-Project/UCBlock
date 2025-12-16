@@ -1695,7 +1695,7 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" [Hydro]UnitBlockSolution
- 
+
  UnitBlockSolution * new_Solution( void ) const override;
 
 /** @} ---------------------------------------------------------------------*/
@@ -2253,7 +2253,7 @@ class HydroUnitBlockSolution : public UnitBlockSolution
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  Index f_reservoirs;   ///< the number of reservoirs
- 
+
  boost::multi_array< double , 2 > v_volume;
  ///< v_volume[ i ][ t ] = volume of reservoir i at time t
 

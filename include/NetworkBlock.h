@@ -67,7 +67,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 
  class NetworkBlockSolution;  // forward definition of NetworkBlockSolution
- 
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -472,7 +472,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the constant term
 
- void set_constant_term( const double const_term ) {
+ virtual void set_constant_term( const double const_term ) {
   f_ConstTerm = const_term;
   }
 
@@ -507,8 +507,9 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection
 
- virtual void set_min_node_injection( Index interval , Index node ,
-                                      const double min_injection ) {
+ virtual void set_min_node_injection( const double min_injection ,
+                                      Index node ,
+                                      Index interval = 0 ) {
   if( v_MinNodeInjection.empty() )
    v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ] );
@@ -518,8 +519,9 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxNodeInjection
 
- virtual void set_max_node_injection( Index interval , Index node ,
-                                      const double max_injection ) {
+ virtual void set_max_node_injection( const double max_injection ,
+                                      Index node ,
+                                      Index interval = 0 ) {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ] );
@@ -663,7 +665,7 @@ class NetworkBlock : public Block
   * @param interval The interval wrt the vector of node injections for each
   *                 user is returned. */
 
- ColVariable * get_node_injection( Index interval = 0 ) {
+ virtual ColVariable * get_node_injection( Index interval = 0 ) {
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
@@ -679,8 +681,9 @@ class NetworkBlock : public Block
  /// returns the read-only matrix of node injection variables
  /** Like get_node_injection(), but returns a const pointer so that the
   * method itself can be const. */
- 
- const ColVariable * get_const_node_injection( Index interval = 0 ) const {
+
+ virtual const ColVariable * get_const_node_injection( Index interval = 0 )
+ const {
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
@@ -724,7 +727,7 @@ class NetworkBlock : public Block
   * object. It is used by get_Solution(), with the idea that derived classes
   * can override it to make it return a :NetworkBlockSolution better suited
   * for the specific :NetworkBlock at hand. */
- 
+
  virtual NetworkBlockSolution * new_Solution( void ) const;
 
 /** @} ---------------------------------------------------------------------*/
@@ -999,7 +1002,7 @@ class NetworkBlockSbstMod : public NetworkBlockMod
 /*--------------------------------------------------------------------------*/
 /// a Solution of a NetworkBlock
 /** The NetworkBlockSolution class, derived from Solution, represents a
- * solution of a "generic" NetworkBlock, i.e., 
+ * solution of a "generic" NetworkBlock, i.e.,
  *
  * - the values of the node injection variables for the specific time
  *   instant covered by the NetworkBlock;
@@ -1027,14 +1030,14 @@ class NetworkBlockSolution : public Solution
 /*------------------------------- FRIENDS ----------------------------------*/
 
  using Index = Block::Index;  // "import" Index
- 
+
 /*------------------------------- FRIENDS ----------------------------------*/
 
  friend NetworkBlock;  ///< make NetworkBlock friend
 
 /*----------- CONSTRUCTING AND DESTRUCTING NetworkBlockSolution ------------*/
 
- explicit NetworkBlockSolution( void ) : f_number_nodes( 0 ) , 
+ explicit NetworkBlockSolution( void ) : f_number_nodes( 0 ) ,
   f_number_intervals( 1 ) {}  ///< constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1059,13 +1062,13 @@ class NetworkBlockSolution : public Solution
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// static method to deserialize a std::vector of (*)NetworkBlockSolution
  /** Reference static implementation of the way in which a std::vector of
-  * (*)NetworkBlockSolution can be deserialised from a netCDF::NcGroup in
+  * (*)NetworkBlockSolution can be deserialized from a netCDF::NcGroup in
   * "nonstandard" format, see the comments to
   * serialize( netCDF::NcGroup & , size_t ). It assumes that sols is
   * already properly sized and initializes its elements with the assumption
   * that sols.front gets index \p idx. */
  
- static void deserialize( netCDF::NcGroup & group ,
+ static void deserialize( const netCDF::NcGroup & group ,
 			  std::vector< NetworkBlockSolution * > & sols ,
 			  size_t idx = 0 );
 
@@ -1140,7 +1143,7 @@ class NetworkBlockSolution : public Solution
   *   written in \p group by some other "outer" :Solution.
   *
   * - The "NBSType" attribute containing the typename of all the
-  *   :NetworkBlockSolution that must be created, which implies that 
+  *   :NetworkBlockSolution that must be created, which implies that
   *
   *     ALL :NetworkBlockSolution serialize()-d IN THIS \p group MUST BE OF
   *     THE SAME ACTUAL TYPE, AND ALL :NetworkBlockSolution MUST BE THERE,
@@ -1194,7 +1197,7 @@ class NetworkBlockSolution : public Solution
   *
   *     THE [de]serialize( ... , idx , t ) METHOD MUST ALWAYS BE CALLED
   *     IN INCREASING ORDER OF idx, WHICH WILL HAVE TO BE ENSURED SO THAT
-  *     EndInstant (IF NEEDED) CAN BE ITERATIVELY CONSTRUCTED. 
+  *     EndInstant (IF NEEDED) CAN BE ITERATIVELY CONSTRUCTED.
   */
 
  virtual void serialize( netCDF::NcGroup & group , size_t idx ) const;
@@ -1211,7 +1214,7 @@ class NetworkBlockSolution : public Solution
   * serialize the contents of \p sols starting from the given \p idx,
   * which must of course be compatible with the values of the dimensions.
   * "NumberNodes" is written if \p idx == 0, unless it is already there. */
- 
+
  static void serialize( netCDF::NcGroup & group ,
 			const std::vector< NetworkBlockSolution * > & sols ,
 			size_t idx = 0 );
@@ -1236,24 +1239,24 @@ class NetworkBlockSolution : public Solution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// do the heavy lifting of cloning a non-empty NetworkBlockSolution
- /** This method does the actualy copying of the fields for an already
+ /** This method does the actually copying of the fields for an already
   * existing :NetworkBlockSolution; this is provided to make life easier to
   * the clone() of derived classes. */
- 
+
  void guts_of_clone( NetworkBlockSolution * sol ) const;
- 
-/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
- private:
-
-/*---------------------------- PRIVATE FIELDS ------------------------------*/
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
 
  Index f_number_nodes;        ///< the number of nodes
 
  Index f_number_intervals;    ///< the number of instants
 
  boost::multi_array< double , 2 > v_node_injection;
- ///< v_node_injection[ i ][ t ] = node injection at node i at time t
+ ///< v_node_injection[ t ][ i ] = node injection at node i at time t
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
 
 /*--------------------------------------------------------------------------*/
 

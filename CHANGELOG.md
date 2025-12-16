@@ -13,6 +13,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed 
 
+## [0.7.0] - 2025-12-12
+
+### Added 
+
+- DesignNetworkBlockSolution
+
+- [big] DesignNetworkBlock allowing to do desing of lines across the
+  time horizon
+
+- simple stochastic case in csv2netcdf
+
+- constant term to UCBlock
+
+- design variables in Solution for BatteryUnitBlock,
+  IntermittentUnitBlock, ThermalUnitBlock
+
+- MinCapacityDesign for IntermittentUnitBlock and BatteryUnitBlock
+
+- capacity expansion for Intermittent and Battery units
+
+- [big] "compact" NetworkBlockSolution to avoid issue with netCDF
+  files being very slow when writing many small sub-group
+
+- [huge] hyperarcs in DCNetworkBlock, our quick-and-dirty solution
+  to multi-energy modelling
+
+- [big] efficiency of lines in DCNetworkBlock
+
+- HydroUnitBlockSolution, BatteryUnitBlockSolution,
+  HydroSystemUnitBlockSolution
+
+- cycling for hydro (volume at the end of the interval equal to that
+  at the beginning)
+
+- add ActivePowerCost to HydroUnitBlock
+
+- Include LinearTerm to IntermittentUnitBlock
+
+- DCNetworkBlockSolution
+
+- UCBlockSolution, UnitBlockSolution, NetworkBlockSolution
+
+### Changed 
+
+- type of ActivePower\_Bound\_Const for slack unit
+
+- allow negative IntermittentUB and negative loads
+
+- major data handling upgrade whereby instances are no longer included
+  in the repo but can be downloaded
+
+- refactored messy HydroUnitBlock constraints building
+
+- checked the value of delta ramp-up/down
+
+- moved node injection bound constraints to NetworkBlock
+
+### Fixed 
+
+- UCBlock::set\_active_power\_demand methods
+
+- separated battery desing from converter design in BatteryUnitBlock
+
+- IntakeOuttake\_Design\_Battery constraint in BatteryUnitBlock
+
+- Demand Battery constraints in BatteryUnitBlock
+
+- issue in secondary and inertia demand constraints
+
+- get\_min\_power() and get\_max\_power-89 in HydroUnitBlock
+
+- bug in DCNetworkBlock::change\_power\_flow\_limit\_constraints()
+
+- catastrophic blunder in NuclearUnitBlock
+
+- bugs when getting AC/DC lines
+
+- issue in HydroUnitBlock when having 0 pieces
+
+- is\_cooperative in ECNB
+
+- cleaned up factory issue in NetworkBlock
+
+- objective in ECNB
+
+- many minor fixes
+
 ## [0.6.3] - 2024-02-29
 
 ### Added 
@@ -41,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - bugs when retrieving and checking constraints in BatteryUnitBlock
 
-- bug in ThermalUnitBlock::update_objective_start_up()
+- bug in ThermalUnitBlock::update\_objective\_start\_up()
 
 - separation of Perspective Cuts in ThermalUnitBlock
 
@@ -176,7 +263,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.6.3...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.7.0...develop
+[0.7.0]: https://gitlab.com/smspp/ucblock/-/compare/0.6.3...0.7.0
 [0.6.3]: https://gitlab.com/smspp/ucblock/-/compare/0.6.2...0.6.3
 [0.6.2]: https://gitlab.com/smspp/ucblock/-/compare/0.6.1...0.6.2
 [0.6.1]: https://gitlab.com/smspp/ucblock/-/compare/0.6.0...0.6.1

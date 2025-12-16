@@ -163,21 +163,26 @@ conduct, and the process for submitting merge requests to us.
 
 ### Current Lead Authors
 
-- **Antonio Frangioni**  
+- **Tiziano Bacci**  
+  Istituto di Analisi dei Sistemi ed Informatica "A. Ruberti"  
+  Consiglio Nazionale delle Ricerche
+
+- **Rafael Durbano Lobato**  
   Dipartimento di Informatica  
   Università di Pisa
 
-- **Rafael Durbano Lobato**  
+- **Davide Fioriti**  
+  Dipartimento di Ingegneria dell'Energia, dei Sistemi, del Territorio
+  e delle Costruzioni  
+  Università di Pisa
+
+- **Antonio Frangioni**  
   Dipartimento di Informatica  
   Università di Pisa
 
 - **Donato Meoli**  
   Dipartimento di Informatica  
   Università di Pisa
-
-- **Tiziano Bacci**  
-  Istituto di Analisi dei Sistemi ed Informatica "A. Ruberti"  
-  Consiglio Nazionale delle Ricerche
 
 ### Previous Contributors
 

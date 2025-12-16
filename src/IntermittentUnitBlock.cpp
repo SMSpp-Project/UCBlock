@@ -283,56 +283,58 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
  LinearFunction::v_coeff_pair vars;
 
- // Minimum power constraints
+ if( f_InvestmentCost == 0 ) {
 
- min_power_Const.resize( f_time_horizon );
+  // Minimum power constraints
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-  vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-
-  if( f_gamma != 0 ) {  // if unit produces any reserve
-   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
-   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
-  }
-
-  min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
-  min_power_Const[ t ].set_rhs( Inf< double >() );
-  min_power_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
- }
-
- add_static_constraint( min_power_Const , "MinPower_Intermittent" );
-
- // Maximum power constraints
-
- if( f_gamma != 0 ) {  // if unit produces any reserve
-
-  max_power_Const.resize( f_time_horizon );
+  min_power_Const.resize( f_time_horizon );
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
+   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    1.0 ) );
-   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    1.0 ) );
+   if( f_gamma != 0 ) {  // if unit produces any reserve
+    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+   }
 
-   max_power_Const[ t ].set_lhs( -Inf< double >() );
-   max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] );
-   max_power_Const[ t ].set_function( new LinearFunction( std::move( vars ) ) );
+   min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
+   min_power_Const[ t ].set_rhs( Inf< double >() );
+   min_power_Const[ t ].set_function(
+    new LinearFunction( std::move( vars ) ) );
   }
 
-  add_static_constraint( max_power_Const , "MaxPower_Intermittent" );
- }
+  add_static_constraint( min_power_Const , "MinPower_Intermittent" );
 
- if( f_InvestmentCost == 0 ) {
+  // Maximum power constraints
+
+  if( f_gamma != 0 ) {  // if unit produces any reserve
+
+   max_power_Const.resize( f_time_horizon );
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+
+    vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
+
+    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+
+    max_power_Const[ t ].set_lhs( -Inf< double >() );
+    max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] );
+    max_power_Const[ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+   }
+
+   add_static_constraint( max_power_Const , "MaxPower_Intermittent" );
+  }
 
   // Active power bounds constraints
 
@@ -625,7 +627,7 @@ Solution * IntermittentUnitBlock::get_Solution( Configuration * csolc ,
  }
 
 /*--------------------------------------------------------------------------*/
- 
+
 UnitBlockSolution * IntermittentUnitBlock::new_Solution( void ) const {
  return( new IntermittentUnitBlockSolution() );
  }
@@ -918,7 +920,7 @@ void IntermittentUnitBlockSolution::deserialize(
  if( f_number_generators != 1 )
   throw( std::logic_error( "IntermittentUnitBlockSolution::deserialize: "
 			   "intermittents have only one generator" ) );
- 
+
  // deserialize the design - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! ::deserialize< double >( group , f_design , "IntermittentDesign" ) )
   f_design = dNaN;

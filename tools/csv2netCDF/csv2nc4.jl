@@ -466,16 +466,18 @@ function csvEC2nc4(
 
                         # store the maximum power of the thermal
                         thermal_max_power = defVar(ub, "MaxPower", Float64, ())
-                        thermal_max_power[:] = (field_component(users_data[u], g, "max_technical") *
-                                                field_component(users_data[u], g, "nom_capacity"))
+                        thermal_max_power_val =
+                            field_component(users_data[u], g, "max_technical") *
+                            field_component(users_data[u], g, "nom_capacity")
+                        thermal_max_power[:] = thermal_max_power_val
 
                         # store the start-up limit
                         thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
-                        thermal_start_up_limit[:] = thermal_max_power
+                        thermal_start_up_limit[:] = thermal_max_power_val
 
                         # store the shut-down limit
                         thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
-                        thermal_shut_up_limit[:] = thermal_max_power
+                        thermal_shut_up_limit[:] = thermal_max_power_val
 
                         # store the Net Present Value of the thermal
                         investment_cost = defVar(ub, "InvestmentCost", Float64, ())
@@ -545,22 +547,91 @@ function csvEC2nc4(
         tssb_ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
 
-        defDim(tssb, "NumberScenarios", scen_s_sample)
+        ## Number of scenarios in the TwoStageStochasticBlock.
+        ## We use the number of sampled_scenarios, which already encodes
+        ## the (s, eps) combinations returned by scenarios_generator.
+        n_scen = length(sampled_scenarios)
+        defDim(tssb, "NumberScenarios", n_scen)
 
-        # ScenarioGenerator
-        # dss = defGroup(tssb, "ScenarioGenerator", attrib=OrderedDict("type" => "DiscreteScenarioSet"))
+        # DiscreteScenarioSet
+        #
+        # This group will be read by DiscreteScenarioSet::deserialize().
+        # Expected layout in C++ (row-major):
+        #
+        #   dim NumberScenarios
+        #   dim ScenarioSize
+        #   var Scenarios(NumberScenarios, ScenarioSize)
+        #   var PoolWeights(NumberScenarios)
+        #
+        # As Julia stores arrays in column-major order, the data is written
+        # as (ScenarioSize, NumberScenarios) so that C++ will see it as
+        # [NumberScenarios][ScenarioSize].
+        #
+        dss = defGroup(
+            tssb,
+            "DiscreteScenarioSet",
+            attrib = OrderedDict("type" => "DiscreteScenarioSet"),
+        )
 
-        # defDim(dss, "NumberScenarios", scen_s_sample)
-        # defDim(dss, "ScenarioSize", )
+        # ScenarioSize = number of entries in each scenario vector.
+        # Here we take the active power demand of all users on the whole
+        # time horizon, flattened in (t, u) order, consistent with the
+        # way ActivePowerDemand is written in UCBlock.
+        n_users = length(user_set)
+        scenario_size = n_steps * n_users
 
-        ## A T T E N T I O N: The data is stored in the NetCDF file in the same order as they are
-        ## stored in memory. As Julia uses the column-major ordering for arrays, the order of dimensions
-        ## will appear reversed when the data is loaded in languages or programs using row-major
-        ## ordering such as C/C++, Python/NumPy or the tools ncdump/ncgen.
-        ## To store the scenario set in the correct shape, i.e., NumberScenarios x ScenarioSize, we need to store
-        ## it transposed, i.e., ScenarioSize x NumberScenarios.
-        # scenario_set = defVar(block, "ScenarioSet", Float64, ("ScenarioSize", "NumberScenarios")) # ("NumberScenarios", "ScenarioSize"))
-        # scenario_set[:, :] = [ ]
+        defDim(dss, "NumberScenarios", n_scen)
+        defDim(dss, "ScenarioSize", scenario_size)
+        # For "NumberScenarios" we re-use the dimension already defined
+        # in the parent group, by referring to it by name in defVar.
+
+        ## A T T E N T I O N: The data is stored in the NetCDF file in the
+        ## same order as they are stored in memory. As Julia uses the
+        ## column-major ordering for arrays, the order of dimensions
+        ## will appear reversed when the data is loaded in languages or
+        ## programs using row-major ordering such as C/C++, Python/NumPy
+        ## or the tools ncdump/ncgen.
+        ## To store the scenario set in the correct shape, i.e.,
+        ## NumberScenarios x ScenarioSize in C++, we store it here as
+        ## ScenarioSize x NumberScenarios in Julia.
+        scen_mat = Array{Float64}(undef, scenario_size, n_scen)
+        weights  = Array{Float64}(undef, n_scen)
+
+        for (k, scen) in enumerate(sampled_scenarios)
+            vec = Array{Float64}(undef, scenario_size)
+            idx = 1
+
+            # Flatten scenario Load in (time, user) order, consistent
+            # with ActivePowerDemand written as [t, u].
+            for t in time_set
+                for u in user_set
+                    vec[idx] = scen.Load[u][t]
+                    idx += 1
+                end
+            end
+
+            scen_mat[:, k] = vec
+            weights[k] = probability(scen)
+        end
+
+        # Scenarios: stored as (ScenarioSize, NumberScenarios) in Julia
+        # so that C++ sees [NumberScenarios][ScenarioSize].
+        scenarios_var = defVar(
+            dss,
+            "Scenarios",
+            Float64,
+            ("ScenarioSize", "NumberScenarios"),
+        )
+        scenarios_var[:, :] = scen_mat
+
+        # Scenario weights (probabilities)
+        pool_weights_var = defVar(
+            dss,
+            "PoolWeights",
+            Float64,
+            ("NumberScenarios",),
+        )
+        pool_weights_var[:] = weights
 
         # AbstractPath
         ap = defGroup(tssb, "StaticAbstractPath")
@@ -590,7 +661,7 @@ function csvEC2nc4(
         # StochasticBlock
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
 
-        # ------------------------- SimpleDataMapping -------------------------
+        # SimpleDataMapping
         #
         # We build a vector of SimpleDataMapping for the StochasticBlock so that,
         # when deserialized by SMS++, each scenario gets its own slice of the
@@ -623,13 +694,11 @@ function csvEC2nc4(
         # beginning of the large input vector. The mapping extracts the proper N-sized
         # slice (SetFrom) and forwards it to UCBlock::set_active_power_demand with SetTo = [0,N).
 
-        number_mappings = 3
+        number_mappings = n_scen
 
         # Length per scenario (time steps consumed by the C++ setter).
         # Default: the full horizon length (TimeHorizon).
-        N = n_steps
-        # (alt) Use the UCBlock "NumberIntervals" instead:
-        # N = dimlen(block, "NumberIntervals")
+        N = n_steps * n_users   # = ScenarioSize
 
         # Declare the dimensions required by SMS++ deserialization:
         # - NumberDataMappings: number of mappings in the vector.
@@ -652,25 +721,19 @@ function csvEC2nc4(
 
         # Data type for the small vector passed to the function: 'D' = double.
         # Caller type: 'B' = Block (we'll point to the UCBlock via an empty path).
-        v_DataType[:] = ['D','D','D']
-        v_Caller[:]   = ['B','B','B']
+        v_DataType[:]     = fill('D', number_mappings)
+        v_Caller[:]       = fill('B', number_mappings)
 
         # SetSize encodes the *types* of SetFrom and SetTo:
         #   0 -> Range, >0 -> Subset(size)
         # Here we want Range/Range for all mappings, so the array is:
         #   [0,0,  0,0,  0,0]
-        v_SetSize[:] = UInt32.([0,0,  0,0,  0,0])
+        v_SetSize[:]      = fill(UInt32(0), 2 * number_mappings)
 
-        # Concatenated SetElements for the 3 Range/Range mappings:
-        #   m0: [0, N,  0, N]
-        #   m1: [N, 2N, 0, N]
-        #   m2: [2N,3N, 0, N]
-        setele = UInt32.([ 0,   N,  0, N,
-                           N,  2N,  0, N,
-                           2N, 3N,  0, N ])
-        v_SetElements[:] = setele
+        # mapping i: always [0,N) -> [0,N)
+        v_SetElements[:] = repeat(UInt32.([0, N, 0, N]), number_mappings)
 
-        # --------------- AbstractPath vector for the mappings ----------------
+        # AbstractPath vector for the mappings
         #
         # Each mapping needs an AbstractPath telling SMS++ how to reach the caller.
         # Since Caller = 'B' and we want the *inner UCBlock* (i.e., the reference
@@ -698,7 +761,6 @@ function csvEC2nc4(
         # With empty paths, PathStart can be zero for all entries.
         v_PathStart[:] = fill(UInt32(0), number_mappings)
         # The variables sized on TotalLength=0 remain empty.
-        # ---------------------------------------------------------------------
 
         # UCBlock nc4 file
         defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))

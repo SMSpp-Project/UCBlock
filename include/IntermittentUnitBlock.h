@@ -1246,7 +1246,7 @@ class IntermittentUnitBlockSolution : public UnitBlockSolution
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  double f_design;    ///< the value of the dimensioning variable
- 
+
 /*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;

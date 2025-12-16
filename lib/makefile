@@ -36,6 +36,7 @@
 # macros to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 UCBckOBJ = $(UCBckDIR)/obj/BatteryUnitBlock.o \
+	$(UCBckDIR)/obj/DesignNetworkBlock.o \
 	$(UCBckDIR)/obj/DCNetworkBlock.o \
 	$(UCBckDIR)/obj/ECNetworkBlock.o \
 	$(UCBckDIR)/obj/HydroSystemUnitBlock.o \
@@ -78,6 +79,13 @@ $(UCBckDIR)/obj/BatteryUnitBlock.o: $(UCBckDIR)/src/BatteryUnitBlock.cpp \
 	$(SMS++OBJ) 
 	$(CC) -c $(UCBckDIR)/src/BatteryUnitBlock.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
+
+$(UCBckDIR)/obj/DesignNetworkBlock.o: $(UCBckDIR)/src/DesignNetworkBlock.cpp \
+	$(UCBckDIR)/include/DesignNetworkBlock.h $(UCBckDIR)/include/UCBlock.h \
+	$(UCBckDIR)/include/NetworkBlock.h $(UCBckDIR)/include/DCNetworkBlock.h \
+	$(SMS++OBJ)
+	$(CC) -c $(UCBckDIR)/src/DesignNetworkBlock.cpp -o $@ $(SMS++INC) \
+	$(UCBckINC) $(SW)
 
 $(UCBckDIR)/obj/DCNetworkBlock.o: $(UCBckDIR)/src/DCNetworkBlock.cpp \
 	$(UCBckDIR)/include/DCNetworkBlock.h $(UCBckDIR)/include/UCBlock.h \

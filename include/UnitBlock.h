@@ -339,7 +339,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the i-th cost coefficient of \p generator
 
- virtual double get_cost_coeff( Index i , Index generator = 0 ) { 
+ virtual double get_cost_coeff( Index i , Index generator = 0 ) {
   return( 0 );
   }
 
@@ -390,7 +390,7 @@ class UnitBlock : public Block
   // standard version of the method; however, this allows to avoid to
   // redefine the *const_* version in derived classes, assuming of course
   // that their methods will do nothing except returning the pointer
-  
+
   return( const_cast< UnitBlock * >( this )->get_commitment( generator ) );
   }
 
@@ -423,7 +423,7 @@ class UnitBlock : public Block
   // standard version of the method; however, this allows to avoid to
   // redefine the *const_* version in derived classes, assuming of course
   // that their methods will do nothing except returning the pointer
-  
+
   return( const_cast< UnitBlock * >( this )->get_primary_spinning_reserve(
 							       generator ) );
   }
@@ -457,7 +457,7 @@ class UnitBlock : public Block
   // standard version of the method; however, this allows to avoid to
   // redefine the *const_* version in derived classes, assuming of course
   // that their methods will do nothing except returning the pointer
-  
+
   return( const_cast< UnitBlock * >( this )->get_secondary_spinning_reserve(
 							       generator ) );
   }
@@ -497,7 +497,7 @@ class UnitBlock : public Block
   // standard version of the method; however, this allows to avoid to
   // redefine the *const_* version in derived classes, assuming of course
   // that their methods will do nothing except returning the pointer
-  
+
   return( const_cast< UnitBlock * >( this )->get_active_power( generator ) );
   }
 
@@ -562,7 +562,7 @@ class UnitBlock : public Block
   * object. It is used by get_Solution(), with the idea that derived classes
   * can override it to make it return a :UnitBlockSolution better suited for
   * the specific :UnitBlock at hand. */
- 
+
  virtual UnitBlockSolution * new_Solution( void ) const;
 
 /** @} ---------------------------------------------------------------------*/
@@ -931,7 +931,7 @@ class UnitBlockSolution : public Solution {
 /*------------------------------- FRIENDS ----------------------------------*/
 
  using Index = Block::Index;  // "import" Index
- 
+
 /*------------------------------- FRIENDS ----------------------------------*/
 
  friend UnitBlock;  ///< make UnitBlock friend
@@ -997,7 +997,7 @@ class UnitBlockSolution : public Solution {
   *   over the dimension "TimeHorizon". SecondaryReserve[ i , t ] is assumed
   *   to contain the optimal active power for generator i at the time t. The
   *   variable is optional. */
- 
+
  void serialize( netCDF::NcGroup & group ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1023,17 +1023,17 @@ class UnitBlockSolution : public Solution {
  /** This method does the actually copying of the fields for an already
   * existing :UnitBlockSolution; this is provided to make life easier to
   * the clone() of derived classes. */
- 
+
  void guts_of_clone( UnitBlockSolution * sol ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// do the heavy lifting of scaling a non-empty UnitBlockSolution
- /** This method does the actualy scaling of the fields for an already
+ /** This method does the actually scaling of the fields for an already
   * existing :UnitBlockSolution; this is provided to make life easier to
   * the scale() of derived classes. */
- 
+
  void guts_of_scale( UnitBlockSolution * sol , double factor ) const;
- 
+
 /*-------------------------- PROTECTED FIELDS ------------------------------*/
 
  Index f_time_horizon;            ///< the time horizon
