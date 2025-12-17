@@ -1541,6 +1541,10 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 			    "when constraints are already generated" ) );
   v_design = DV;
   v_which_design = WDV;
+  if( ( ! v_which_design->empty() ) &&
+      ( v_which_design->back() > get_number_lines() - 1 ) )
+   throw( std::invalid_argument( "DCNetworkBlock::set_design_variables: "
+				 "invalid line number" ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
