@@ -284,6 +284,9 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
 
+ for( auto block : v_Block )
+  block->generate_objective();
+
  auto lf = new LinearFunction();
 
  // Investment term only over the selected ("designed") lines
