@@ -48,10 +48,15 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- CONSTANTS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-//
-static constexpr unsigned char FormMsk = 7;
-// mask for removing all but the first three bits and only leaving the formulation
 
+static constexpr unsigned char FormMsk = 7;
+// mask for the first three bits, i.e., the formulation
+
+static constexpr unsigned char PCuts = 8;
+// mask for the 4th bit, == 1 if the perspective cuts are used
+
+static constexpr unsigned char ZWCont = 16;
+// mask for the 5th bit, == 1 if z_t and w_t are continuous (not binary)
 
 static constexpr unsigned char tbinForm = 0;
 /// the "three binaries" (3bin) formulation is used
@@ -74,8 +79,6 @@ static constexpr unsigned char SDForm = 5;
 static constexpr unsigned char SUSDForm = 6;
 /// the "start-up shut-down" (SUSD) formulation is used
 
-static constexpr unsigned char PCuts = 8;
-/// 4th bit of AR == 1 if the perspective cuts are used
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -535,17 +538,18 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  auto startup_shutdown_size = f_time_horizon - init_t;
 
  if( startup_shutdown_size > 0 ) {
-
+  auto vartype = ( wf & ZWCont ) ? ColVariable::kPosUnitary
+                                 : ColVariable::kBinary;
   v_start_up.resize( startup_shutdown_size );
   for( auto & var : v_start_up )
-   var.set_type( ColVariable::kBinary );
+   var.set_type( vartype );
   add_static_variable( v_start_up , "v_thermal" );
 
   v_shut_down.resize( startup_shutdown_size );
   for( auto & var : v_shut_down )
-   var.set_type( ColVariable::kBinary );
+   var.set_type( vartype );
   add_static_variable( v_shut_down , "w_thermal" );
- }
+  }
 
  // Primary Spinning Reserve Variables- - - - - - - - - - - - - - - - - - - -
  if( reserve_vars & 1u )  // if UCBlock has primary demand variables
