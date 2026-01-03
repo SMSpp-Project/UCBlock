@@ -83,7 +83,6 @@ namespace SMSpp_di_unipi_it
 
 class ThermalUnitBlock : public UnitBlock
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -120,8 +119,8 @@ class ThermalUnitBlock : public UnitBlock
   * the group must contain all the data required by the base UnitBlock, as
   * described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
   * In particular, we refer to that description for the crucial dimensions
-  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
-  * must then also contain:
+  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals".
+  * The netCDF::NcGroup must then also contain:
   *
   * - The variable "MinPower", of type netCDF::NcDouble and either of size 1
   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -148,8 +147,8 @@ class ThermalUnitBlock : public UnitBlock
   *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
   *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MxP[ t ] >= MnP[ t
   *   ] >= 0 for all t. If NumberIntervals <= 1 or NumberIntervals >=
-  *   TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
-  *   which in fact is not loaded.
+  *   TimeHorizon, then the mapping clearly does not require
+  *   "ChangeIntervals", which in fact is not loaded.
   *
   * - The variable "Availability", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -158,16 +157,16 @@ class ThermalUnitBlock : public UnitBlock
   *   each time instant t, contains the availability of the unit for the
   *   corresponding time step. If "Availability" has length 1 then Av[ t ] is
   *   equal to the single given value in "Availability" for all t. Otherwise,
-  *   Availability[ i ] is the fixed value of Av[ t ] for all t in the interval
-  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
-  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
-  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
-  *   "ChangeIntervals", which in fact is not loaded.
+  *   Availability[ i ] is the fixed value of Av[ t ] for all t in the
+  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+  *   require "ChangeIntervals", which in fact is not loaded.
   *
   *   The availability of the unit is given by a number between 0 and 1. Let t
   *   be a time instant in {0, ..., TimeHorizon - 1}. The operational
-  *   (effective) maximum active power output of the unit at time t is given by
-  *   Av[ t ] * MxP[ t ] (see the variable "MaxPower" for the definition of
+  *   (effective) maximum active power output of the unit at time t is given
+  *   by Av[ t ] * MxP[ t ] (see the variable "MaxPower" for the definition of
   *   MxP). The operational minimum active power output of the unit at time t
   *   is zero if Av[ t ] == 0 and it is MnP[ t ] if Av[ t ] > 0 (see the
   *   variable "MinPower" for the definition of MnP).
@@ -187,11 +186,12 @@ class ThermalUnitBlock : public UnitBlock
   *   is assumed that DP[ t ] == MxP[ t ], i.e., the unit can ramp up by an
   *   arbitrary amount, i.e., there are no ramp-up constraints. If
   *   "DeltaRampUp" has length 1 then DP[ t ] contains the same value for all
-  *   t. Otherwise, DeltaRampUp[ i ] is the fixed value of DP[ t ] for all t in
-  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
-  *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
-  *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded.
+  *   t. Otherwise, DeltaRampUp[ i ] is the fixed value of DP[ t ] for all t
+  *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ],
+  *   with the assumption that ChangeIntervals[ - 1 ] = 0. If
+  *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
+  *   mapping clearly does not require "ChangeIntervals", which in fact is
+  *   not loaded.
   *
   * - The variable "DeltaRampDown", of type netCDF::NcDouble and either of
   *   size 1 or indexed over the dimension "NumberIntervals" (if
@@ -217,15 +217,16 @@ class ThermalUnitBlock : public UnitBlock
   *   "TimeHorizon"). This is meant to represent the vector PR[ t ] that, for
   *   each time instant t, contains the maximum possible fraction of active
   *   power that can be used as primary reserve value of the unit for the
-  *   corresponding time step. This variable is optional; if it is not provided
-  *   then it is assumed that this unit may not be capable of producing any
-  *   primary reserve, which correspond to PR[ t ] == 0 for all t. If
-  *   "PrimaryRho" has length 1 then PR[ t ] contains the same value for all
-  *   t. Otherwise, PrimaryRho[ i ] is the fixed value of PR[ t ] for all t in
-  *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
-  *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
-  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded.
+  *   corresponding time step. This variable is optional; if it is not
+  *   provided then it is assumed that this unit may not be capable of
+  *   producing any primary reserve, which correspond to PR[ t ] == 0 for all
+  *   t. If "PrimaryRho" has length 1 then PR[ t ] contains the same value
+  *   for all t. Otherwise, PrimaryRho[ i ] is the fixed value of PR[ t ] for
+  *   all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ]
+  *   ] with the assumption that ChangeIntervals[ - 1 ] = 0. If
+  *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
+  *   mapping clearly does not require "ChangeIntervals", which in fact is
+  *   not loaded.
   *
   * - The variable "SecondaryRho", of type netCDF::NcDouble and either of
   *   size 1 or indexed over the dimension "NumberIntervals" (if
@@ -250,29 +251,29 @@ class ThermalUnitBlock : public UnitBlock
   *   "TimeHorizon"). This is meant to represent the vector A[ t ] that, for
   *   each time instant t, contains the quadratic term of power cost function
   *   of the unit for the corresponding time step. This variable is optional;
-  *   if it is not provided then it is assumed that A[ t ] == 0, i.e., the cost
-  *   of the unit is linear in the produced power. If "QuadTerm" has length 1
-  *   then A[ t ] contains the same value for all t. Otherwise, QuadTerm[ i ]
-  *   is the fixed value of A[ t ] for all t in the interval [ ChangeIntervals[
-  *   i - 1 ] , ChangeIntervals[ i ] ], with the assumption that
-  *   ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
-  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+  *   if it is not provided then it is assumed that A[ t ] == 0, i.e., the
+  *   cost of the unit is linear in the produced power. If "QuadTerm" has
+  *   length 1 then A[ t ] contains the same value for all t. Otherwise,
+  *   QuadTerm[ i ] is the fixed value of A[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1
+  *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
   *   require "ChangeIntervals", which in fact is not loaded.
   *
   * - The variable "StartUpCost", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
   *   is not provided, then this variable can also be indexed over
   *   "TimeHorizon"). This is meant to represent the vector SC[ t ] that, for
-  *   each time instant t, contains the start-up cost value of the unit for the
-  *   corresponding time step. This variable is optional; if it is not provided
-  *   then it is assumed that SC[ t ] == 0, i.e., this unit may not have any
-  *   start-up cost. If "StartUpCost" has length 1 then SC[ t ] contains the
-  *   same value for all t. Otherwise, StartUpCost[ i ] is the fixed value of
-  *   SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
-  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
-  *   0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
-  *   the mapping clearly does not require "ChangeIntervals", which in fact is
-  *   not loaded.
+  *   each time instant t, contains the start-up cost value of the unit for
+  *   the corresponding time step. This variable is optional; if it is not
+  *   provided then it is assumed that SC[ t ] == 0, i.e., this unit may not
+  *   have any start-up cost. If "StartUpCost" has length 1 then SC[ t ]
+  *   contains the same value for all t. Otherwise, StartUpCost[ i ] is the
+  *   fixed value of SC[ t ] for all t in the interval
+  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
+  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
+  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
+  *   require "ChangeIntervals", which in fact is not loaded.
   *
   * - The variable "LinearTerm", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -280,15 +281,15 @@ class ThermalUnitBlock : public UnitBlock
   *   "TimeHorizon"). This is meant to represent the vector B[ t ] that, for
   *   each time instant t, contains the linear term of power cost function of
   *   the unit for the corresponding time step. This variable is optional; if
-  *   it is not provided then it is assumed that B[ t ] == 0, i.e., the cost of
-  *   the unit has no linear dependence on the produced power (say, only the
-  *   quadratic one). If "LinearTerm" has length 1 then A[ t ] contains the
-  *   same value for all t. Otherwise, LinearTerm[ i ] is the fixed value of
-  *   B[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
-  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
-  *   0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then
-  *   the mapping clearly does not require "ChangeIntervals", which in fact is
-  *   not loaded.
+  *   it is not provided then it is assumed that B[ t ] == 0, i.e., the cost
+  *   of the unit has no linear dependence on the produced power (say, only
+  *   the quadratic one). If "LinearTerm" has length 1 then A[ t ] contains
+  *   the same value for all t. Otherwise, LinearTerm[ i ] is the fixed value
+  *   of B[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
+  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
+  *   = 0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
+  *   then the mapping clearly does not require "ChangeIntervals", which in
+  *   fact is not loaded.
   *
   * - The variable "ConstTerm", of type netCDF::NcDouble and to be either of
   *   size 1 or indexed over the dimension "NumberIntervals" (if
@@ -345,8 +346,8 @@ class ThermalUnitBlock : public UnitBlock
   *
   * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
   *   not indexed over any dimension, which indicates the minimum allowed down
-  *   time in this unit. This variable is optional, if it is not provided it is
-  *   taken to be MinDownTime == 1. Since MinDownTime == 0 is actually
+  *   time in this unit. This variable is optional, if it is not provided it
+  *   is taken to be MinDownTime == 1. Since MinDownTime == 0 is actually
   *   possible, which means that the unit can start-up in the very same
   *   timestamp in which it shuts down, we also know that shutting down a
   *   unit only to power it up again immediately is never a good idea, so
@@ -391,11 +392,11 @@ class ThermalUnitBlock : public UnitBlock
   *   SC[ t ] == MnP[ t ], i.e., the power produced at time t by the unit is
   *   equal to the minimum power allowed at time t. If "StartUpLimit"
   *   has length 1 then SC[ t ] contains the same value for all t. Otherwise,
-  *   StartUpLimit[ i ] is the fixed value of SC[ t ] for all t in the interval
-  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
-  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or NumberIntervals
-  *    >= TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
-  *    which in fact is not loaded.
+  *   StartUpLimit[ i ] is the fixed value of SC[ t ] for all t in the
+  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+  *   require "ChangeIntervals",  which in fact is not loaded.
   *
   * - The variable "ShutDownLimit", of type netCDF::NcDouble and either of
   *   size 1 or indexed over the dimension "NumberIntervals" (if
@@ -403,17 +404,16 @@ class ThermalUnitBlock : public UnitBlock
   *   indexed over "TimeHorizon"). This is meant to represent the vector
   *   SD[ t ] that, for each time instant t, contains the shut-down limit of
   *   the unit for the corresponding time step, i.e., the maximum possible
-  *   power production when the unit shuts down at time period t. This variable
-  *   is optional; if it is not provided then it is assumed that
+  *   power production when the unit shuts down at time period t. This
+  *   variable is optional; if it is not provided then it is assumed that
   *   SD[ t ] == MnP[ t ], i.e., the power produced at time t by the unit is
   *   equal to the minimum power allowed at time t. If "ShutDownLimit"
   *   has length 1 then SD[ t ] contains the same value for all t. Otherwise,
-  *   ShutDownLimit[ i ] is the fixed value of SD[ t ] for all t in the interval
-  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
-  *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or NumberIntervals
-  *    >= TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
-  *    which in fact is not loaded.
-  */
+  *   ShutDownLimit[ i ] is the fixed value of SD[ t ] for all t in the
+  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
+  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
+  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
+  *   require "ChangeIntervals", which in fact is not loaded. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -421,9 +421,9 @@ class ThermalUnitBlock : public UnitBlock
  /// generate the abstract variables of the ThermalUnitBlock
  /** Method that generates the abstract Variable of the ThermalUnitBlock,
   * meanwhile deciding which of the different formulations of the problem is
-  * produced as the "abstract representation" of the block.
-  * The different possible formulations are represented by a single int value
-  * "wf" that is obtained as follows:
+  * produced as the "abstract representation" of the Block. The different
+  * possible formulations are represented by a single int value "wf" that is
+  * obtained as follows:
   *
   * - if either \p stvv is not nullptr and it is a SimpleConfiguration< int >,
   *   or f_BlockConfig is not nullptr,
@@ -431,153 +431,186 @@ class ThermalUnitBlock : public UnitBlock
   *   and it is a SimpleConfiguration< int >, then wf is the f_value of the
   *   SimpleConfiguration< int >
   *
-  * - otherwise, wf is 0, i.e., the default is the T formulation.
+  * - otherwise, wf is 1 (T formulation with no Perspective Cuts and
+  *   binary startup / shutdown variables, see below for details).
+  *
+  * The integer is coded bit-wise, as follows:
+  *
+  * - the first three bits (wf & 7) choose which formulation is used;
+  *
+  * - the fourth bit (wf & 8) decides if Perspective Cuts are used;
+  *
+  * - the fifth bit (wf & 16) decides whether start-up and shut-down variables
+  *   are declared as binary or continuous.
   *
   * The list of supported formulations is:
   *
-  * - wf & 3 == 0 is the "three binaries" (3bin) formulation. This
-  * formulation of the ThermalUnitBlock class has six different variables:
+  * - wf & 7 == 0 is the "three binaries" (3bin) formulation, which has six
+  *   different variables:
   *
-  * - the binary commitment variables \f$ u_t \f$ which takes the value of
-  *   1 if unit is ON at time instant t and 0 otherwise;
+  *   = the binary commitment variables \f$ u_t \f$ which takes the value of
+  *     1 if unit is ON at time instant t and 0 otherwise;
   *
-  * - the primary spinning reserve variables;
+  *   = the primary spinning reserve variables;
   *
-  * - the secondary spinning reserve variables;
+  *   = the secondary spinning reserve variables;
   *
-  * - the active power variables \f$ p_t \f$ denoting the power production
-  * of the unit at time instant t.
+  *   = the active power variables \f$ p_t \f$ denoting the power production
+  *     of the unit at time instant t.
   *
-  * All of those variables are optional except the active power variables in
-  * the sense that the model may just not have them and whenever a group of
-  * above variables is created, its size will be the time horizon. Moreover,
-  * ThermalUnitBlock is defined more groups of variables as follow:
+  *   All of those variables are optional except the active power variables,
+  *   in the sense that the model may just not have them and whenever a
+  *   group of above variables is created, its size will be the time horizon.
+  *   Moreover, ThermalUnitBlock defines more groups of variables as follow:
   *
-  * - the binary variable start_up status \f$ v_t \f$ of the unit which takes
-  * the value of 1 if the unit starts up at time instant t and 0 otherwise;
+  *   = the binary variable start-up status \f$ v_t \f$ of the unit which
+  *     takes the value of 1 if the unit starts up at time instant t and 0
+  *     otherwise;
   *
-  * - the binary variable shut_down status \f$ w_t \f$ of the unit which takes
-  * the value of 1 if the unit shuts down at time instant t and 0 otherwise;
+  *   = the binary variable shut-down status \f$ w_t \f$ of the unit which
+  *     takes the value of 1 if the unit shuts down at time instant t and 0
+  *     otherwise.
   *
-  * These two groups of variables have size f_time_horizon - init_t, and
-  * provide the unit commitment problem with a tight 3-binary MIP formulation.
-  * Since these two variables may have shorter size (when init_t > 0), the
-  * commitment variable needs to be fixed to 0 or 1 for the first init_t time
-  * steps 0, ..., init_t - 1 (see initial time step concept in the
-  * generate_abstract_constraints()).
+  *   These two groups of variables have size f_time_horizon - init_t, and
+  *   provide the unit commitment problem with a tight 3-binary MIP
+  *   formulation. Since these two variables may have shorter size (when
+  *   init_t > 0), the commitment variable needs to be fixed to 0 or 1 for
+  *   the first init_t time steps 0, ..., init_t - 1 (see initial time step
+  *   concept in the generate_abstract_constraints()). Note that the
+  *   flow-like constraints that link the startup / shutdown variable with
+  *   the commitment ones (see generate_abstract_constraints()) are such that
+  *   \f$ v_t \f$ and  \f$ w_t \f$ will naturally be integer if the
+  *   \f$ u_t \f$ are; there is a way to con
   *
-  * - wf & 3 == 1 is the "model T" (T) formulation. This formulation of the
-  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation
-  * (wf & 3 == 0).
+  * - wf & 7 == 1 is the "model T" (T) formulation, which has exactly the
+  *   same variables of the 3bin formulation (wf & 7 == 0).
   *
-  * - wf & 3 == 2 is the "dynamic programming" inspired formulation (DP). This
-  * formulation of the ThermalUnitBlock class has exactly the same variables of the
-  * 3bin formulation (wf & 3 == 0), plus three different variables:
+  * - wf & 7 == 2 is the "dynamic programming" inspired formulation (DP).
+  *   This formulation of the ThermalUnitBlock class has exactly the same
+  *   variables of the 3bin formulation (wf & 7 == 0), plus three different
+  *   variables:
   *
-  * - binary commitment variables \f$ y_+^{hk} \f$ which takes the value of
-  * 1 if unit starts-up at time instant h, shuts-down at time instant k and is ON
-  * from time instant h up to time instant k, and 0 otherwise;
+  *   = binary commitment variables \f$ y_+^{hk} \f$ which takes the value of
+  *     1 if the unit starts-up at time instant h, shuts-down at time instant
+  *     k, and is continuously ON from time instant h up to time instant k,
+  *     and 0 otherwise;
   *
-  * - binary commitment variable \f$ y_-^{hk} \f$ which takes the value of
-  * 1 if unit shuts-down at time instant k, starts-up at time instant h and is OFF
-  * from time instant k+1 up to time instant h-1, and 0 otherwise;
+  *   = binary commitment variable \f$ y_-^{hk} \f$ which takes the value of
+  *     1 if unit shuts-down at time instant k, starts-up at time instant h,
+  *     and is continuously OFF from time instant k + 1 up to time instant
+  *     h - 1, and 0 otherwise;
   *
-  * - the active power variables \f$ p_t^{hk} \f$ denoting the power production
-  * of the unit at time instant t when it starts-up at time instant h and
-  * shuts-down
-  * at time instant k.
+  *   = the active power variables \f$ p_t^{hk} \f$ denoting the power
+  *     production of the unit at time instant t when it starts-up at time
+  *     instant h and shuts-down at time instant k.
   *
-  * - wf & 3 == 3: the p_t formulation. This formulation of the
-  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation
-  * (wf & 3 == 0) and the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP
-  * formulation (wf & 3 == 2)
+  * - wf & 7 == 3: the p_t formulation, which has:
   *
-  * - wf & 3 == 4: the "start-up" formulation (SU). This formulation of the
-  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation
-  * (wf & 3 == 0) and the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP
-  * formulation (wf & 3 == 2), plus
+  *   = the same variables of the 3bin formulation (wf & 7 == 0);
   *
-  * - the active power variables \f$ p_t^h \f$ denoting the power production
-  * of the unit at time instant t when it starts-up at time instant h
+  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP formulation
+  *     (wf & 7 == 2).
   *
-  * - wf & 3 == 5: the "shut-down" formulation (SD). This formulation of the
-  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation
-  * (wf & 3 == 0) and the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP
-  * formulation (wf & 3 == 2), plus
+  * - wf & 7 == 4: the "start-up" formulation (SU), which has:
   *
-  * - the active power variables \f$ \tilde p_t^k \f$ denoting the power production
-  * of the unit at time instant t when it shuts-down at time instant k
+  *   = the same variables of the 3bin formulation (wf & 7 == 0);
   *
-  * - wf & 3 == 6: the "start-up/shut-down" formulation (SUSD). This formulation of the
-  * ThermalUnitBlock class has exactly the same variables of the  3bin formulation
-  * (wf & 3 == 0), the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP
-  * formulation (wf & 3 == 4), the \f$ p_t^h \f$ of the SU formulation (wf & 3 == 2) and
-  * the \f$ \tilde p_t^k \f$ of the SD formulation (wf & 3 == 5)
+  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
+  *     formulation (wf & 7 == 2);
   *
-  * The value wf also regulates the use of the perspective cuts and the relative
-  * perspective function in the objective function. Precisely, the above listed values
-  * of wf set formulations without the use of the perspective cuts. By adding 8 to
-  * the above listed values the corresponding formulation uses the perspective cuts
-  * and new variables are added.
+  *   = active power variables \f$ p_t^h \f$ denoting the power production
+  *     of the unit at time instant t if it starts-up at time instant h.
   *
-  * - wf & 3 == 8 is the "three binaries" (3bin) formulation with perspective cuts.
-  * This formulation of the ThermalUnitBlock class has exactly the same variables of the
-  * 3bin formulation (wf & 3 == 0), plus
+  * - wf & 7 == 5: the "shut-down" formulation (SD), which has:
   *
-  * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
-  * objective function of the power variable \f$ p_t \f$
+  *   = the same variables of the 3bin formulation (wf & 7 == 0);
   *
-  * - wf & 3 == 9 is the "model T" (T) formulation with perspective cuts. This formulation
-  *  of the ThermalUnitBlock class has exactly the same variables of the T formulation
-  * (wf & 3 == 1), plus
+  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
+  *     formulation (wf & 7 == 2);
   *
-  * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
-  * objective function of the power variable \f$ p_t \f$
+  *   = active power variables \f$ \tilde p_t^k \f$ denoting the power
+  *     production of the unit at time instant t if it shuts-down at time
+  *     instant k.
   *
-  * - wf & 3 == 10 is the "dynamic programming" inspired formulation (DP) with perspective
-  * cuts. This formulation of the ThermalUnitBlock class has exactly the same variables of
-  * the DP formulation (wf & 3 == 2), plus
+  * - wf & 7 == 6: the "start-up/shut-down" formulation (SUSD), which has:
   *
-  * - the perspective cuts variables \f$ z_t^{hk} \f$ that regulates the quadratic part in the
-  * objective function of the power variable \f$ p_t^{hk} \f$
+  *   = the same variables of the 3bin formulation (wf & 7 == 0);
   *
-  * - wf & 3 == 11 is the p_t formulation with perspective cuts. This formulation
-  *  of the ThermalUnitBlock class has exactly the same variables of the pt formulation
-  * (wf & 3 == 3), plus
+  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
+  *     formulation (wf & 7 == 4);
   *
-  * - the perspective cuts variables \f$ z_t \f$ that regulates the quadratic part in the
-  * objective function of the power variable \f$ p_t \f$
+  *   = the \f$ p_t^h \f$ variables of the SU formulation (wf & 7 == 2);
   *
-  * - wf & 3 == 12 is the "start-up" formulation (SU) with perspective cuts. This formulation
-  *  of the ThermalUnitBlock class has exactly the same variables of the SU formulation
-  * (wf & 3 == 4), plus
+  *   = the \f$ \tilde p_t^k \f$ variables of the SD formulation
+  *     (wf & 7 == 5).
   *
-  * - the perspective cuts variables \f$ z_t^h \f$ that regulates the quadratic part in the
-  * objective function of the power variable \f$ p_t^h \f$
+  * The value wf also regulates the use of the perspective cuts and the
+  * relative perspective function in the objective function. Precisely, the
+  * above listed values of wf set formulations without the use of the
+  * perspective cuts. By adding 8 to the above listed values the
+  * corresponding formulation uses the perspective cuts and new variables
+  * are added.
   *
-  * - wf & 3 == 13 is the "shut-down" formulation (SD) with perspective cuts. This formulation
-  *  of the ThermalUnitBlock class has exactly the same variables of the SD formulation
-  * (wf & 3 == 5), plus
+  * - wf & 7 == 8 is the "three binaries" formulation with perspective cuts
+  *   cuts (3binPC), which has the same variables of the 3bin formulation 
+  *   (wf & 7 == 0), plus the perspective cuts variables \f$ z_t \f$ that
+  *   regulates the quadratic part in the objective function of the power
+  *   variable \f$ p_t \f$.
   *
-  * - the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
-  * objective function of the power variable \f$ \tilde p_t^k \f$
+  * - wf & 7 == 9 is the "model T"formulation with perspective cuts (TPC),
+  *   which has exactly the same variables of the (3binPC) formulation;
   *
-  * - wf & 3 == 14 is the "start-up/shut-down" formulation (SUSD) with perspective cuts. This
-  * formulation of the ThermalUnitBlock class has exactly the same variables of the SUSD formulation
-  * (wf & 3 == 6), plus
+  * - wf & 7 == 10 is the "dynamic programming" inspired formulation with
+  *   perspective cuts (DPPC), which has the same variables of the DP
+  *   formulation (wf & 7 == 2), plus the perspective cuts variables
+  *   \f$ z_t^{hk} \f$ that regulates the quadratic part in the
+  *   objective function of the power variable \f$ p_t^{hk} \f$;
   *
-  * - the perspective cuts variables \f$ z_t^h \f$ that regulates the quadratic part in the
-  * objective function of the power variable \f$ p_t^h \f$
+  * - wf & 7 == 11 is the p_t formulation with perspective cuts (p_tPC),
+  *   which has the same variables of the pt formulation (wf & 7 == 3) plus
+  *   the perspective cuts variables \f$ z_t \f$ that regulates the
+  *   quadratic part in the objective function of the power variable
+  *   \f$ p_t \f$;
   *
-  * - the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
-  * objective function of the power variable \f$ \tilde p_t^k \f$
+  * - wf & 7 == 12 is the "start-up" formulation with perspective cuts
+  *   (SUPC), which has exactly the same variables of the SU formulation
+  *   (wf & 7 == 4), plus the perspective cuts variables \f$ z_t^h \f$ that
+  *   regulates the quadratic part in the objective function of the power
+  *   variable \f$ p_t^h \f$;
   *
-  * - the variables \f$\theta_t\f$ for each time period \f$t\f$. These variables substitute \f$z_t^h\f$
-  *   and \f$\tilde z_t^k\f$ for regulating the quadratic part of variables
-  *   \f$p_t = \sum_{h : h \leq t} p_t^h = \sum_{k : t \leq k} \tilde p_t^k\f$. In fact, variables
-  *   \f$\theta_t\f$ measure the maximum between \f$\sum_{h : h \leq t} p_t^h\f$ and
-  *   \f$\sum_{k : t \leq k} \tilde p_t^k\f$ (see method 'generate_abstract_constraints')
-  */
+  * - wf & 7 == 13 is the "shut-down" formulation with perspective cuts
+  *   (SDPC), which has exactly the same variables of the SD formulation
+  *   (wf & 7 == 5), plus the perspective cuts variables 
+  *   \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
+  *   objective function of the power variable \f$ \tilde p_t^k \f$;
+  *
+  * - wf & 7 == 14 is the "start-up/shut-down" formulation with perspective
+  *   cuts (SUSDPC), which has exactly the same variables of the SUSD
+  *   formulation (wf & 7 == 6), plus
+  *
+  *   = the perspective cuts variables \f$ z_t^h \f$ that regulates the
+  *     quadratic part in the objective function of the power variable
+  *     \f$ p_t^h \f$ (as in SUPC, wf & 7 == 12);
+  *
+  *   = the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates
+  *     the quadratic part in the objective function of the power variable
+  *     \f$ \tilde p_t^k \f$ (as in SDPC, wf & 7 == 13);
+  *
+  *   = the variables \f$\theta_t\f$ for each time period \f$t\f$, that
+  *     substitute \f$z_t^h\f$ and \f$\tilde z_t^k\f$ for regulating the
+  *     quadratic part of variables 
+  *     \f$p_t = \sum_{h : h \leq t} p_t^h =
+  *              \sum_{k : t \leq k} \tilde p_t^k\f$. In fact, variables
+  *     \f$\theta_t\f$ measure the maximum between
+  *     \f$\sum_{h : h \leq t} p_t^h\f$ and
+  *     \f$\sum_{k : t \leq k} \tilde p_t^k\f$ (see method
+  *     'generate_abstract_constraints').
+  *
+  * Finally, the value wf also regulates whether the start-up variables
+  * \f$ v_t \f$ and shut-down variable \f$ w_t \f are declared as binary or
+  * continuous (which should not change the results, but it may have some
+  * impacts on the solution process). The variables are defined as binary
+  * if (wf & 16 == 0), and as continuous otherwise. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -1546,7 +1579,7 @@ class ThermalUnitBlock : public UnitBlock
   f_ignore_netcdf_vars |= 1;
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- Methods for checking the ThermalUnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the ThermalUnitBlock
@@ -1607,7 +1640,7 @@ class ThermalUnitBlock : public UnitBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE ThermalUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the ThermalUnitBlock
@@ -1648,115 +1681,138 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_min_power( void ) const {
   return( v_MinPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum power of the given generator at the given time
+ /// returns the minimum power of the \p generator at time \p t
 
  double get_min_power( Index t , Index generator = 0 ) const override {
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_min_power: "
+			    "invalid time index " + std::to_string( t ) ) );
   return( v_MinPower[ t ] );
- }
-
-
-/*--------------------------------------------------------------------------*/
- /// returns the minimum reactive power of the given generator at the given time
-
- double get_min_reactive_power( Index t , Index generator = 0 ) const override {
-    return( ( v_MinReactivePower.size() >= t ) ? v_MinReactivePower[ t ] : 0. );
- }
-
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum reactive power of the given generator at the given time
+ /// returns the minimum reactive power of the \p generator at time \p t
 
- double get_max_reactive_power( Index t , Index generator = 0 ) const override {
-    return( ( v_MaxReactivePower.size() >= t ) ? v_MaxReactivePower[ t ] : 0. );
- }
-
-
-/*--------------------------------------------------------------------------*/
- /// returns the voltage magnitude of the given generator at the given time
-
- double get_voltage_magnitude( Index t , Index generator = 0 ) const override {
-    return( ( v_VoltageMagnitude.size() >= t ) ? v_VoltageMagnitude[ t ] : 0. );
- }
+ double get_min_reactive_power( Index t , Index generator = 0 )
+  const override {
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_min_reactive_power: "
+			    "invalid time index " + std::to_string( t ) ) );
+  return( ( v_MinReactivePower.size() >= t ) ? v_MinReactivePower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the number of cost coefficients of the given generator
+ /// returns the maximum reactive power of the \p generator at time \p t
 
- Index get_number_cost_coeffs(Index generator = 0) override { return( f_number_cost_coeffs ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the ith cost coefficient of the given generator
-
- double get_cost_coeff(Index i, Index generator = 0) override {
-    return( ( v_PowerCostCoeffs.size() >= i ) ? v_PowerCostCoeffs[ i ] : 0. );
-}
-
-/*--------------------------------------------------------------------------*/
- /// returns the cost model of the given generator
-
- Index get_cost_model(Index generator = 0) override { return( f_CostModel ); }
+ double get_max_reactive_power( Index t , Index generator = 0 )
+  const override {
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_max_reactive_power: "
+			    "invalid time index " + std::to_string( t ) ) );
+  return( ( v_MaxReactivePower.size() >= t ) ? v_MaxReactivePower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the operational minimum active power output at the given time
+ /// returns the voltage magnitude of the \p generator at time \p t
+
+ double get_voltage_magnitude( Index t , Index generator = 0 )
+  const override {
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_voltage_magnitude: "
+			    "invalid time index " + std::to_string( t ) ) );
+  return( ( v_VoltageMagnitude.size() >= t ) ? v_VoltageMagnitude[ t ] : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of cost coefficients of the \p generator
+
+ Index get_number_cost_coeffs( Index generator = 0 ) override {
+  return( f_number_cost_coeffs );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the ith cost coefficient of the \p generator
+
+ double get_cost_coeff( Index i , Index generator = 0 ) override {
+  return( ( v_PowerCostCoeffs.size() >= i ) ? v_PowerCostCoeffs[ i ] : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the cost model of the \p generator
+
+ Index get_cost_model( Index generator = 0 ) override {
+  return( f_CostModel );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the operational minimum active power output at the time \t
  /** This method returns the operational minimum active power output of the
-  * unit at the given time. See get_availability() for the definition of
+  * unit at time \p t. See get_availability() for the definition of
   * operational minimum power.
   *
   * @param t A time instant between 0 and get_time_horizon() - 1.
   *
   * @return The operational minimum active power output of the unit at the
-  *         given time.
-  */
+  *         given time. */
+
  double get_operational_min_power( Index t ) const {
-  assert( t < get_time_horizon() );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_operational_min_power: "
+			    "invalid time index " + std::to_string( t ) ) );
   return( compute_operational_min_power( v_MinPower[ t ] ,
                                          get_availability( t ) ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of nominal maximum active power output
  /** This method returns (a const reference to) the vector containing the
   * nominal maximum active power output of the unit for all time steps. When
-  * the unit is fully available, get_min_power()[ t ] gives the maximum active
-  * power output of the unit at time t, for each t in {0, ...,
-  * get_time_horizon() - 1}. See get_availability() to understand the
+  * the unit is fully available, get_min_power()[ t ] gives the maximum
+  * active power output of the unit at time t, for each t in { 0 , ... ,
+  * get_time_horizon() - 1 }. See get_availability() to understand the
   * difference between nominal and operational maximum active power. */
 
  const std::vector< double > & get_max_power( void ) const {
   return( v_MaxPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum power of the given generator at the given time
+ /// returns the maximum power of the \p generator at time \p t
 
  double get_max_power( Index t , Index generator = 0 ) const override {
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_max_power: "
+			    "invalid time index " + std::to_string( t ) ) );
   return( v_MaxPower[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the operational maximum active power output at the given time
+ /// returns the operational maximum active power output at time \p t
  /** This method returns the operational maximum active power output of the
-  * unit at the given time. See get_availability() for the definition of
+  * unit at time \p t. See get_availability() for the definition of
   * operational maximum power.
   *
   * @param t A time instant between 0 and get_time_horizon() - 1.
   *
   * @return The operational maximum active power output of the unit at the
-  *         given time.
-  */
+  *         given time. */
+
  double get_operational_max_power( Index t ) const {
-  assert( t < get_time_horizon() );
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_operational_max_power: "
+			    "invalid time index " + std::to_string( t ) ) );
   return( compute_operational_max_power( v_MaxPower[ t ] ,
                                          get_availability( t ) ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the availability of the unit at all time instants
  /** This method returns (a const reference to) the vector containing the
-  * availability of the unit at all time instants. For each t in {0, ...,
-  * get_time_horizon() - 1}, get_availability()[ t ] is the availability of
+  * availability of the unit at all time instants. For each t in { 0 , ... ,
+  * get_time_horizon() - 1 }, get_availability()[ t ] is the availability of
   * the unit at time t, which is a number between 0 and 1. When the
   * availability of the unit is zero, the unit is not under operation (for
   * instance, due to an outage or maintenance). When the availability of the
@@ -1783,17 +1839,19 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_availability( void ) const {
   return( v_Availability );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the availability of the unit at the given time
+ /// returns the availability of the unit at time \p t
 
  double get_availability( Index t ) const {
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_availability: invalid "
+                            "time index " + std::to_string( t ) ) );
   if( v_Availability.empty() )
    return( 1.0 );
-  assert( t < get_time_horizon() );
   return( v_Availability[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary rho
@@ -1802,7 +1860,7 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_primary_rho( void ) const {
   return( v_PrimaryRho );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary rho
@@ -1811,7 +1869,7 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_secondary_rho( void ) const {
   return( v_SecondaryRho );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-up
@@ -1820,18 +1878,21 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the delta ramp-up at the given time instant
- /** This function return the delta ramp-up at the given time instant,
-  * which is assumed to be between 0 and get_time_horizon() - 1. */
+ /// returns the delta ramp-up at the time \p t
+ /** This function return the delta ramp-up at time \p t, which is assumed
+  * to be between 0 and get_time_horizon() - 1. */
 
  double get_delta_ramp_up( Index t ) const {
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_delta_ramp_up: invalid "
+                            "time index " + std::to_string( t ) ) );
   if( v_DeltaRampUp.empty() )
    return( get_max_power( t ) );
   return( v_DeltaRampUp[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-down
@@ -1840,41 +1901,44 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the delta ramp-down at the given time instant
- /** This function return the delta ramp-down at the given time instant,
-  * which is assumed to be between 0 and get_time_horizon() - 1. */
+ /// returns the delta ramp-down at the time \p t
+ /** This function return the delta ramp-down at the time \p t, which is
+  * assumed to be between 0 and get_time_horizon() - 1. */
 
  double get_delta_ramp_down( Index t ) const {
+  if( t >= f_time_horizon )
+   throw( std::logic_error( "ThermalUnitBlock::get_delta_ramp_down: invalid "
+                            "time index " + std::to_string( t ) ) );
   if( v_DeltaRampDown.empty() )
    return( get_max_power( t ) );
   return( v_DeltaRampDown[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of quadratic term
- /** The returned vector contains to quadratic term at time t. There are three
-  * possible cases:
+ /** The returned vector contains to quadratic term at time t. There are
+  * three possible cases:
   *
   * - if the vector is empty, then the quadratic term of the unit is 0;
   *
   * - if the vector has only one element, then the quadratic term of the unit
   *   for all time horizon;
   *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the amount of quadratic term at time t. */
+  * - otherwise, the vector must have size get_time_horizon() and each
+  *   element of vector represents the amount of quadratic term at time t. */
 
  const std::vector< double > & get_quad_term( void ) const {
   return( v_QuadTerm );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 /// returns the coefficient of the quadratic term of the power cost function
 /** This function returns the coefficient of the quadratic term of the
  * quadratic function that represents the cost of the power produced by the
- * unit at the given time instant.
+ * unit at the time \p t.
  *
  * @param t A time instant between 0 and get_time_horizon() - 1.
  *
@@ -1887,12 +1951,11 @@ class ThermalUnitBlock : public UnitBlock
    return( 0 );
   if( v_QuadTerm.size() == 1 )
    return( v_QuadTerm.front() );
-  assert( v_QuadTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_quad_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
+   throw( std::logic_error( "ThermalUnitBlock::get_quad_term: invalid "
+                            "time index " + std::to_string( t ) ) );
   return( v_QuadTerm[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of linear term
@@ -1915,7 +1978,7 @@ class ThermalUnitBlock : public UnitBlock
 /// returns the coefficient of the linear term of the power cost function
 /** This function returns the coefficient of the linear term of the quadratic
  * function that represents the cost of the power produced by the unit at the
- * given time instant.
+ * time \p t.
  *
  * @param t A time instant between 0 and get_time_horizon() - 1.
  *
@@ -1930,10 +1993,10 @@ class ThermalUnitBlock : public UnitBlock
    return( v_LinearTerm.front() );
   assert( v_LinearTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_linear_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
+   throw( std::logic_error( "ThermalUnitBlock::get_linear_term: invalid "
+                            "time index " + std::to_string( t ) ) );
   return( v_LinearTerm[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of constant term
@@ -1950,13 +2013,13 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 /// returns the constant term of the power cost function
 /** This function returns the constant term of the function that represents
  * the cost of the power produced by the unit at the given time instant. This
- * is the fixed cost incurred when the unit is committed at time instant \p t.
+ * is the fixed cost incurred when the unit is committed at time \p t.
  *
  * @param t A time instant between 0 and get_time_horizon() - 1.
  *
@@ -1970,15 +2033,15 @@ class ThermalUnitBlock : public UnitBlock
    return( v_ConstTerm.front() );
   assert( v_ConstTerm.size() == f_time_horizon );
   if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_const_term: Invalid "
-                            "time index: " + std::to_string( t ) ) );
+   throw( std::logic_error( "ThermalUnitBlock::get_const_term: invalid "
+                            "time index " + std::to_string( t ) ) );
   return( v_ConstTerm[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of start-up cost
- /** The returned vector contains to start-up cost at time t. There are three
-  * possible cases:
+ /// returns the vector of start-up costs
+ /** The returned vector contains to start-up cost at all time instants.
+  * There are three possible cases:
   *
   * - if the vector is empty, then the start-up cost of the unit is 0;
   *
@@ -1990,7 +2053,7 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_start_up_cost( void ) const {
   return( v_StartUpCost );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of fixed consumption
@@ -2005,14 +2068,14 @@ class ThermalUnitBlock : public UnitBlock
   * - if the vector only has one element, then the fixed consumption for the
   *   fixed consumption of the unit for all t;
   *
-  * - otherwise, the vector must have size get_time_horizon(), and each element
-  *   of vector represents the fixed consumption at time t. */
+  * - otherwise, the vector must have size get_time_horizon(), and each
+  *   element of vector represents the fixed consumption at time t. */
 
  const double * get_fixed_consumption( Index generator ) const override {
   if( v_FixedConsumption.empty() )
    return( nullptr );
   return( &( v_FixedConsumption.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inertia commitment
@@ -2027,29 +2090,32 @@ class ThermalUnitBlock : public UnitBlock
   * - if the vector only has one element, then the inertia commitment for the
   *   fixed consumption of the unit for all t;
   *
-  * - otherwise, the vector must have size get_time_horizon(), and each element
-  *   of vector represents the inertia commitment at time t. */
+  * - otherwise, the vector must have size get_time_horizon(), and each
+  *   element of vector represents the inertia commitment at time t. */
 
  const double * get_inertia_commitment( Index generator ) const override {
   if( v_InertiaCommitment.empty() )
    return( nullptr );
   return( &( v_InertiaCommitment.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the start-up limit
+
  const std::vector< double > & get_start_up_limit( void ) const {
   return( v_StartUpLimit );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the shut-down limit
+
  const std::vector< double > & get_shut_down_limit( void ) const {
   return( v_ShutDownLimit );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor
+
  double get_scale( void ) const override { return( f_scale ); }
 
 /**@} ----------------------------------------------------------------------*/
@@ -2074,11 +2140,12 @@ class ThermalUnitBlock : public UnitBlock
  * @{ */
 
  /// returns the vector of commitment variables
+
  ColVariable * get_commitment( Index generator ) override {
   if( v_commitment.empty() )
    return( nullptr );
   return( &( v_commitment.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
