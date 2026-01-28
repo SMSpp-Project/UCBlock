@@ -471,6 +471,15 @@ class DCNetworkData : public NetworkData
   return( v_max_power_flow );
  }
 
+ /*--------------------------------------------------------------------------*/
+  /// returns the reference unit (see Matpower)
+ /** */
+  const double get_baseMVA( void ) const {
+    return( f_base_mva );
+  }
+/*--------------------------------------------------------------------------*/
+
+
 /*--------------------------------------------------------------------------*/
  /// returns maximum power flow of the given \p line
  /** This method returns the maximum power flow of the given \p line.
@@ -802,6 +811,9 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
  /// to not recompute each time the PTDF
  SpMat stored_B2;
  SpMat stored_B2_inv;
+
+ /// to store the reference mva of the instance
+ double f_base_mva;
 
  /** A SparseMatrix resulting from the product of the PTDF and (A^dc)^T,
   * where the latter is the incidence matrix of the pure DC lines */

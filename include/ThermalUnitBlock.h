@@ -2725,6 +2725,9 @@ class ThermalUnitBlock : public UnitBlock
  /// the installable capacity by the user
  double f_Capacity{};
 
+ // total MVA base of this machine
+ double f_MBase{};
+
  /// the InitialPower value
  double f_InitialPower{};
 

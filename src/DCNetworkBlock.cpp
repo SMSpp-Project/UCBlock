@@ -117,6 +117,17 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  NetworkData::deserialize( group );
 
+ // the baseMVA field is a simple scalar value specifying the system MVA base 
+ //   used for converting power into per unit quantities (see Matpower)
+ auto gbaseMVA = group.getAtt( "baseMVA" );
+ std::string tmp_base;
+ if(gbaseMVA.isNull()) f_base_mva = 1.;
+ else {
+   gbaseMVA.getValues(tmp_base);
+   try { f_base_mva = std::stod(tmp_base); }
+   catch (...) { f_base_mva = 1.; }
+ }
+
  if( ! deserialize_dim( group , "ReferenceNode" , f_reference_node , true ) )
   f_reference_node = 0;
 

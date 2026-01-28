@@ -372,7 +372,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  // v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2*number_lines ] );
 
  // New version without explicit definition of Yff, Yft, Ytf, Ytt
- std::vector< std::complex< double > > v_admittance =
+ std::vector< std::complex< double > > Y =
   std::vector< std::complex< double > >( number_lines , 0. );
  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
   Index i = start_line[ line_id ];
@@ -380,11 +380,11 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   double r = f_NetworkData->get_line_resistance().at( line_id );
   double x = f_NetworkData->get_line_reactance().at( line_id );
   double b = f_NetworkData->get_line_susceptance().at( line_id );
-  double tau = 1.; //f_NetworkData->get_line_ratio().at(line_id);
-  if( abs( tau ) < 1e-4 ) tau = 1.0;
+  double ratio = f_NetworkData->get_line_ratio().at(line_id);
   double theta = PI * f_NetworkData->get_line_angle().at( line_id ) / 180;
-  v_admittance[ line_id ] = ( 1. / ( r + 1i * x ) + 1i * b / 2. ) / pow(
-   tau , 2 );
+
+  T[ line_id ] = ratio * exp(1i* theta);
+  Y[ line_id ] = 1. / ( r + 1i * x ) 
  }
 
  v_voltage_definition_const.resize(
@@ -397,21 +397,21 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   Index n = end_line[ line_id ];
   auto lfunc_1 = new LinearFunction();
   lfunc_1->add_variable( &v_sqrd_voltages[ p ] ,
-                         v_admittance[ line_id ].real() );
+                         Y[ line_id ].real() );
   lfunc_1->add_variable( &v_sum_product_voltages[ line_id ] ,
-                         -v_admittance[ line_id ].real() );
+                         -Y[ line_id ].real() );
   lfunc_1->add_variable( &v_diff_product_voltages[ line_id ] ,
-                         -v_admittance[ line_id ].imag() );
+                         -Y[ line_id ].imag() );
   lfunc_1->add_variable( &v_power_flow[ line_id ] , -1.0 );
   v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
   v_voltage_definition_const[ 0 ][ i_line ].set_function( lfunc_1 );
   auto lfunc_2 = new LinearFunction();
   lfunc_2->add_variable( &v_sqrd_voltages[ p ] ,
-                         -v_admittance[ line_id ].imag() );
+                         -Y[ line_id ].imag() );
   lfunc_2->add_variable( &v_sum_product_voltages[ line_id ] ,
-                         v_admittance[ line_id ].imag() );
+                         Y[ line_id ].imag() );
   lfunc_2->add_variable( &v_diff_product_voltages[ line_id ] ,
-                         -v_admittance[ line_id ].real() );
+                         -Y[ line_id ].real() );
   lfunc_2->add_variable( &v_reactive_power_flow[ line_id ] , -1.0 );
   v_voltage_definition_const[ 1 ][ i_line ].set_both( 0.0 );
   v_voltage_definition_const[ 1 ][ i_line ].set_function( lfunc_2 );
@@ -425,22 +425,22 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   Index n = end_line[ line_id ];
   auto lfunc_1 = new LinearFunction();
   lfunc_1->add_variable( &v_sqrd_voltages[ n ] ,
-                         v_admittance[ line_id ].real() );
+                         Y[ line_id ].real() );
   lfunc_1->add_variable( &v_sum_product_voltages[ line_id ] ,
-                         -v_admittance[ line_id ].real() );
+                         -Y[ line_id ].real() );
   lfunc_1->add_variable( &v_diff_product_voltages[ line_id ] ,
-                         v_admittance[ line_id ].imag() );
+                         Y[ line_id ].imag() );
   lfunc_1->add_variable( &v_power_flow[ number_lines + line_id ] , -1.0 );
   v_voltage_definition_const[ 0 ][ nb_ac_lines + i_line ].set_both( 0.0 );
   v_voltage_definition_const[ 0 ][ nb_ac_lines + i_line ].set_function(
    lfunc_1 );
   auto lfunc_2 = new LinearFunction();
   lfunc_2->add_variable( &v_sqrd_voltages[ n ] ,
-                         -v_admittance[ line_id ].imag() );
+                         -Y[ line_id ].imag() );
   lfunc_2->add_variable( &v_sum_product_voltages[ line_id ] ,
-                         v_admittance[ line_id ].imag() );
+                         Y[ line_id ].imag() );
   lfunc_2->add_variable( &v_diff_product_voltages[ line_id ] ,
-                         v_admittance[ line_id ].real() );
+                         Y[ line_id ].real() );
   lfunc_2->add_variable( &v_reactive_power_flow[ number_lines + line_id ] ,
                          -1.0 );
   v_voltage_definition_const[ 1 ][ nb_ac_lines + i_line ].set_both( 0.0 );

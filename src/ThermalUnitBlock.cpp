@@ -210,6 +210,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                "MaxReactivePower",
                                                "MinReactivePower",
                                                "VoltageMagnitude",
+                                               "MBase",
                                                // cost model
                                                "CostModel",
                                                "PowerCostCoeffs" };
@@ -233,6 +234,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
 
  ::deserialize( group , f_Capacity , "Capacity" );
+
+ ::deserialize( group , f_MBase , "Mbase" );
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
