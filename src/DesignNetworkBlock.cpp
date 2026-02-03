@@ -740,7 +740,7 @@ void DesignNetworkBlockSolution::sum( const Solution * solution ,
    throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: "
 				 "inconsistent design_lines number" ) );
 
-  for( std::size_t l = 0 ; v_design.size() ; ++l )
+  for( std::size_t l = 0 ; l < v_design.size() ; ++l )
    v_design[ l ] += DCNBS->v_design[ l ] * multiplier;
   }
 
@@ -767,9 +767,11 @@ DesignNetworkBlockSolution * DesignNetworkBlockSolution::clone( bool empty )
 
   sol->v_design = v_design;
 
-  if( ! v_network_Solution.empty() )
+  if( ! v_network_Solution.empty() ) {
+   sol->v_network_Solution.resize( v_network_Solution.size() );
    for( std::size_t i = 0 ; i < v_network_Solution.size() ; ++i )
     sol->v_network_Solution[ i ] = v_network_Solution[ i ]->clone( empty );
+   }
   }
 
  return( sol );
