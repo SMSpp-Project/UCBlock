@@ -1264,6 +1264,54 @@ void UCBlock::generate_objective( Configuration * objc )
  } // end( UCBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
+/*---------------- METHODS FOR CHECKING THE UCBlock ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+bool UCBlock::is_feasible( bool useabstract , Configuration * fsbc )
+{
+ // Retrieve the tolerance and the type of violation.
+ double tol = 1e-6;
+ bool rel_viol = true;
+
+ // Try to extract, from "c", the parameters that determine feasibility.
+ // If it succeeds, it sets the values of the parameters and returns
+ // true. Otherwise, it returns false.
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+  }
+  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+  }
+  return( false );
+ };
+
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  // if the given Configuration is not valid, try the one from the BlockConfig
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ for( const auto & sbi : this->get_nested_Blocks() )
+  if( ! sbi->is_feasible() ){
+    return( false );
+  }
+
+ return(
+  // Constraints: notice that the ZOConstraints are not checked, since the
+  // corresponding check is made on the ColVariable
+  RowConstraint::is_feasible( v_node_injection_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_PrimaryDemand_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_SecondaryDemand_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_InertiaDemand_Const , tol , rel_viol )
+  //&& RowConstraint::is_feasible( v_PollutantBudget_Const , tol , rel_viol )
+);
+
+}  // end( UClUnitBlock::is_feasible )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 

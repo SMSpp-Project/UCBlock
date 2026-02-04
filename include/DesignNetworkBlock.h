@@ -13,8 +13,8 @@
  * - MinCapacityDesign
  * - MaxCapacityDesign
  *
- * indexed over the dimension "NumberDesignLines". The Block creates the design
- * variables \f$ x_l \f$ and their bound constraints, contributes the
+ * indexed over the dimension "NumberDesignLines". The Block creates the
+ * design variables \f$ x_l \f$ and their bound constraints, contributes the
  * investment term to the objective, and exposes / shares the variables with
  * child NetworkBlock objects (e.g., DCNetworkBlock, ACNetworkBlock) so that
  * all children operate on the very same \f$ x_l \f$ without additional
@@ -398,13 +398,12 @@ class DesignNetworkBlock : public NetworkBlock
    auto * nb = static_cast< NetworkBlock * >( nb_ptr );
    const Index ni = nb->get_number_intervals();
 
-#ifndef NDEBUG
-   if( offset + ni > total_intervals )
-    throw std::logic_error(
-      "DesignNetworkBlock::set_ActiveDemand: "
-      "inconsistent number of intervals between UCBlock and subnetworks"
-    );
-#endif
+   #ifndef NDEBUG
+    if( offset + ni > total_intervals )
+     throw( std::logic_error( "DesignNetworkBlock::set_ActiveDemand: "
+			      "inconsistent number of intervals between "
+			      "UCBlock and subnetworks" ) );
+   #endif
 
    boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ] );
 
@@ -415,7 +414,7 @@ class DesignNetworkBlock : public NetworkBlock
    }
 
    nb->set_ActiveDemand( sub );
-  }
+   }
 
 #ifndef NDEBUG
   if( offset != total_intervals )

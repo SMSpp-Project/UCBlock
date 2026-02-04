@@ -97,17 +97,16 @@ void DesignNetworkBlock::deserialize_network_blocks(
 
 void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- static std::vector< std::string > expected_dims = {
-  "NumberDesignLines" , "NumberSubNetwork"
- };
- check_dimensions( group , expected_dims , std::cerr );
+ #ifndef NDEBUG
+  static std::vector< std::string > expected_dims = { "NumberDesignLines" ,
+						      "NumberSubNetwork" };
+  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = {
-  "InvestmentCost" , "DesignLines" , "MinCapacityDesign" , "MaxCapacityDesign"
- };
- check_variables( group , expected_vars , std::cerr );
-#endif
+  static std::vector< std::string > expected_vars = {
+   "InvestmentCost" , "DesignLines" , "MinCapacityDesign" ,
+   "MaxCapacityDesign" };
+  check_variables( group , expected_vars , std::cerr );
+ #endif
 
  int design_lines;
  deserialize_dim( group , "NumberDesignLines" , design_lines , false );
@@ -117,7 +116,7 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
  if( ! ::deserialize( group , "InvestmentCost" , design_lines ,
                       v_InvestmentCost , true , true ) ) {
   v_InvestmentCost.resize( design_lines );
- }
+  }
 
  if( design_lines > 0 ) {
   std::vector< Index > tmp_design_lines;
@@ -144,9 +143,8 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
  deserialize_network_blocks( group );
 
  // if they don't exist, create them now as NetworkBlock
- if( v_Block.empty() ) {
+ if( v_Block.empty() )
   v_Block.resize( f_number_subnetworks );
- }
 
  for( Index n = 0 ; n < f_number_subnetworks ; ++n ) {
   auto nbi = static_cast< NetworkBlock * >( v_Block[ n ] ) ;
@@ -154,20 +152,20 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
    nbi = dynamic_cast< NetworkBlock * >(
     new_Block( "DCNetworkBlock" , this ) );
    v_Block[ n ] = nbi;
-  }
+   }
 
   // if the NetworkBlock does not have its own NetworkData...
   if( ! nbi->get_NetworkData() ) {
    if( ! f_NetworkData )
-    throw( std::invalid_argument( "DesignNetworkBlock::deserialize: NetworkData "
-                                  "missing in NetworkBlock " +
+    throw( std::invalid_argument( "DesignNetworkBlock::deserialize: "
+				  "NetworkData missing in NetworkBlock " +
                                   std::to_string( n ) + " and in UCBlock" ) );
    // ... then set the UCBlock global one
    nbi->set_NetworkData( f_NetworkData );
    // assert that the global NetworkData passed is of the right type
    assert( nbi->get_NetworkData() != nullptr );
+   }
   }
- }
 
  check_data_consistency();
 
@@ -204,6 +202,23 @@ void DesignNetworkBlock::check_data_consistency( void ) const
                             "MinCapacityDesign must be <= 1 for binary "
                                "design." ) );
   }
+
+ // check consistency between lines and design lines
+ Index nl = Inf< Index >();
+ for( auto * nb : v_Block )
+  if( auto * dcnb = dynamic_cast< DCNetworkBlock * >( nb ) ) {
+   if( nl == Inf< Index >() )
+    nl = dcnb->get_number_lines();
+   else
+    if( nl != dcnb->get_number_lines() )
+     throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
+			      "inconsistent number of lines" ) );
+   }
+
+ if( nl < get_number_design_lines() )
+  throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
+			   "more design lines than lines" ) );
+
  }  // end( DesignNetworkBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
@@ -228,7 +243,7 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
     v_design[ p ].set_type( ColVariable::kNonNegative );
    }
   add_static_variable( v_design , "x_network" );
- }
+  }
 
  // Pass design variables to sub-network blocks
  for( auto * nb : v_Block )
@@ -283,6 +298,9 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
 {
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
+
+ for( auto block : v_Block )
+  block->generate_objective();
 
  auto lf = new LinearFunction();
 
@@ -722,7 +740,7 @@ void DesignNetworkBlockSolution::sum( const Solution * solution ,
    throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: "
          "inconsistent design_lines number" ) );
 
-  for( std::size_t l = 0 ; v_design.size() ; ++l )
+  for( std::size_t l = 0 ; l < v_design.size() ; ++l )
    v_design[ l ] += DCNBS->v_design[ l ] * multiplier;
   }
 
@@ -749,9 +767,11 @@ DesignNetworkBlockSolution * DesignNetworkBlockSolution::clone( bool empty )
 
   sol->v_design = v_design;
 
-  if( ! v_network_Solution.empty() )
+  if( ! v_network_Solution.empty() ) {
+   sol->v_network_Solution.resize( v_network_Solution.size() );
    for( std::size_t i = 0 ; i < v_network_Solution.size() ; ++i )
     sol->v_network_Solution[ i ] = v_network_Solution[ i ]->clone( empty );
+   }
   }
 
  return( sol );
