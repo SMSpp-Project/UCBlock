@@ -220,11 +220,13 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 #endif
 
  // Mandatory variables
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
  deserialize_dim( group , "NumberUnits" , f_number_units , false );
 
  // Optional variables
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( ! deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
@@ -260,6 +262,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                 { number_nodes , f_time_horizon } , v_reactive_power_demand );
 
  // Optional dimensions
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  f_number_primary_zones = 0;
  deserialize_dim( group , "NumberPrimaryZones" , f_number_primary_zones );
@@ -294,12 +297,54 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
                  v_number_pollutant_zones , true , true );
 
+
+ // reset all existing sub-Block, if any - - - - - - - - - - - - - - - - - - -
+ for( auto block : v_Block )
+  delete( block );
+ v_Block.clear();
+
+ // load all UnitBlock - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ deserialize_sub_blocks( group , "UnitBlock_" , f_number_units );
+
+ // Generate UnitBlock primary spinning reserve variables- - - - - - - - - - -
+ unsigned int what = 0;
+ if( f_number_primary_zones > 0 )
+  what += 1;
+
+ // Generate UnitBlock secondary spinning reserve variables- - - - - - - - - -
+ if( f_number_secondary_zones > 0 )
+  what += 2;
+
+ // Generate UnitBlock inertia reserve variables - - - - - - - - - - - - - - -
+ if( f_number_inertia_zones > 0 )
+  what += 4;
+
+ if( what > 0 )
+  for( auto * b : v_Block )
+   if( auto ub = dynamic_cast< UnitBlock * >( b ) )
+    ub->set_reserve_vars( what );
+
+ // read / compute "NumberElectricalGenerators"- - - - - - - - - - - - - - - -
+ // this may require the UnitBlock to be there, hence it can only be done
+ // after they have been read
+
+ if( ! deserialize_dim( group , "NumberElectricalGenerators" ,
+                        f_number_elc_generators ) ) {
+  f_number_elc_generators = 0;
+  for( Index i = 0 ; i < f_number_units ; ++i )
+   f_number_elc_generators +=
+    static_cast< UnitBlock * >( v_Block[ i ] )->get_number_generators();
+  }
+
+ // read Pollutant* information- - - - - - - - - - - - - - - - - - - - - - - -
+ // this depends on f_number_elc_generators, hence can only be done now
+
  if( ! deserialize_dim( group , "TotalNumberPollutantZones" ,
                         f_total_number_pollutant_zones ) ) {
   f_total_number_pollutant_zones = 0;
   for( const auto & n : v_number_pollutant_zones )
    f_total_number_pollutant_zones += n;
- }
+  }
 
  if( ! f_total_number_pollutant_zones )
   f_total_number_pollutant_zones = f_number_pollutants;
@@ -310,48 +355,24 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                  v_pollutant_zones , true , true );
 
   /* TODO commented away until this is properly managed
-  ::deserialize( group , "PollutantBudget" , v_pollutant_budget , true , false );
-  */
+  ::deserialize( group , "PollutantBudget" , v_pollutant_budget , true ,
+                false );
+   */
 
   ::deserialize( group , "PollutantRho" ,
-                 { f_number_pollutants , f_number_elc_generators } ,
-                 v_pollutant_rho , true , true );
- }
+		 { f_time_horizon , f_number_pollutants ,
+		   f_number_elc_generators } ,
+		 v_pollutant_rho , true , false );
+  }
  else {
   v_pollutant_zones.resize(
-   boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
+		   boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
   v_pollutant_budget.resize( boost::extents[ 0 ][ 0 ] );
   v_pollutant_rho.resize(
-   boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
- }
+             boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
+  }
 
- // reset all existing sub-Block, if any
- for( auto block : v_Block )
-  delete( block );
- v_Block.clear();
-
- // load all UnitBlock
- deserialize_sub_blocks( group , "UnitBlock_" , f_number_units );
-
- // Generate UnitBlock primary spinning reserve variables
- unsigned int what = 0;
- if( f_number_primary_zones > 0 )
-  what += 1;
-
- // Generate UnitBlock secondary spinning reserve variables
- if( f_number_secondary_zones > 0 )
-  what += 2;
-
- // Generate UnitBlock inertia reserve variables
- if( f_number_inertia_zones > 0 )
-  what += 4;
-
- if( what > 0 )
-  for( auto * b : v_Block )
-   if( auto ub = dynamic_cast< UnitBlock * >( b ) )
-    ub->set_reserve_vars( what );
-
- // load all NetworkBlock, if any
+ // load all NetworkBlock, if any- - - - - - - - - - - - - - - - - - - - - - -
  deserialize_network_blocks( group );
 
  if( v_network_blocks.empty() && ( ! v_active_power_demand.num_elements() ) )
@@ -373,7 +394,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   }
 
   if( ! v_network_blocks.empty() ) {
-
    Index t = 0;
    for( Index n = 0 ; n < f_number_networks ; ++n )
     if( v_network_blocks[ n ] ) {
@@ -386,43 +406,43 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     }
    v_network_blocks.clear();
    v_Block.resize( f_number_units );
+   }
   }
-
- } else {  // number_nodes > 1
-
+ else {  // number_nodes > 1
   // if they don't exist, create them now as NetworkBlock
   if( v_network_blocks.empty() ) {
    v_network_blocks.resize( f_number_networks );
    v_Block.resize( f_number_units + f_number_networks );
-  }
+   }
 
   Index t = 0;
   for( Index n = 0 ; n < f_number_networks ; ++n ) {
-
    auto nbi = v_network_blocks[ n ];
    if( ! nbi ) {  // NetworkBlock n does not exist: create a NetworkBlock
     nbi = dynamic_cast< NetworkBlock * >(
      new_Block( network_block_classname , this ) );
     v_network_blocks[ n ] = nbi;
     v_Block[ f_number_units + n ] = nbi;
-   }
+    }
 
    // if the NetworkBlock does not have its own NetworkData...
    if( ! nbi->get_NetworkData() ) {
     if( ! f_NetworkData )
      throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
                                    "missing in NetworkBlock " +
-                                   std::to_string( n ) + " and in UCBlock" ) );
+                                   std::to_string( n ) + " and in UCBlock" )
+	    );
     // ... then set the UCBlock global one
     nbi->set_NetworkData( f_NetworkData );
     // assert that the global NetworkData passed is of the right type
     assert( nbi->get_NetworkData() != nullptr );
-   }
+    }
 
    nbi->set_constant_term( v_network_constant_terms[ n ] );
 
    boost::multi_array< double , 2 > ap_v(
-    boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
+    boost::extents[ v_network_blocks[ n ]->get_number_intervals() ]
+                  [ number_nodes ] );
 
    for( Index i = 0 ;
         i < v_network_blocks[ n ]->get_number_intervals() ;
@@ -437,10 +457,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
      auto ap_c = v_active_power_demand[
       boost::indices[ range( 0 , number_nodes ) ][ t ] ];
      std::copy( ap_c.begin() , ap_c.end() , ap_v[ i ].begin() );
+     }
     }
-   }
    nbi->set_ActiveDemand( ap_v );
-  }
+   }
 
   Index sum_intervals = std::accumulate(
    v_network_blocks.begin() , v_network_blocks.end() , 0 ,
@@ -450,55 +470,39 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
   // sum_intervals == f_time_horizon, i.e., we receive in input / we create n
   // `NetworkBlock`(s) and the sum of intervals spanned by each of
-  // them is equal to the time horizon of the problem, throw exception otherwise
+  // them is equal to the time horizon of the problem, throw exception
+  // otherwise
   if( sum_intervals != f_time_horizon )
-   throw( std::invalid_argument( "UCBlock::deserialize: The sum of the number "
+   throw( std::invalid_argument( "UCBlock::deserialize: the total number "
                                  "of intervals spanned by each NetworkBlock "
-                                 "must be equal to the number of time horizon." ) );
+                                 "must span the whole time horizon." ) );
 
   // v_active_power_demand used up, disband it
   v_active_power_demand.resize(
-   boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
+                   boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
 
- }  // end( else( number_nodes > 1 ) )
-
- if( ! deserialize_dim( group , "NumberElectricalGenerators" ,
-                        f_number_elc_generators ) ) {
-  f_number_elc_generators = 0;
-  for( Index i = 0 ; i < f_number_units ; ++i )
-   f_number_elc_generators +=
-    static_cast< UnitBlock * >( v_Block[ i ] )->get_number_generators();
- }
+  }  // end( else( number_nodes > 1 ) )
 
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
                 v_generator_node , true , true );
 
- // store the min and max node injection into each NetworkBlock
+ // store the min and max node injection into each NetworkBlock- - - - - - - -
 
  if( ! v_network_blocks.empty() ) {
-
   Index t = 0;
   for( Index n = 0 ; n < f_number_networks ; ++n )
-
-   for( Index i = 0 ;
-        i < v_network_blocks[ n ]->get_number_intervals() ;
+   for( Index i = 0 ; i < v_network_blocks[ n ]->get_number_intervals() ;
         ++i , ++t )
-
     for( Index node_id = 0 ;
-         node_id < v_network_blocks[ n ]->get_number_nodes() ;
-         ++node_id ) {
-
+	 node_id < v_network_blocks[ n ]->get_number_nodes() ; ++node_id ) {
      double min_node_injection = 0.0;
      double max_node_injection = 0.0;
-
      Index elc_generator = 0;
      for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
-
       const auto unit_block = get_unit_block( unit_id );
 
       for( Index g = 0 ; g < unit_block->get_number_generators() ;
            ++g , ++elc_generator ) {
-
        if( node_id != v_generator_node[ elc_generator ] )
         continue;
 
@@ -508,17 +512,17 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                                        ? -fixed_consumption[ t ] : 0.0 );
        max_node_injection += std::max( 0.0 ,
                                        unit_block->get_max_power( t , g ) );
+       }
       }
-     }
 
      v_network_blocks[ n ]->set_min_node_injection( min_node_injection ,
                                                     node_id , i );
      v_network_blocks[ n ]->set_max_node_injection( max_node_injection ,
                                                     node_id , i );
-    }
- }
+     }
+  }
 
- // finally call the method of the base class
+ // finally call the method of the base class- - - - - - - - - - - - - - - - -
  Block::deserialize( group );
 
  }  // end( UCBlock::deserialize )
