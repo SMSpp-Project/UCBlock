@@ -111,6 +111,19 @@ namespace SMSpp_di_unipi_it {
     return( v_line_max_angle );
    }
 
+   std::vector< std::pair< std::set< Index >, std::set< Index > > > get_direct_and_reverse_AClines( void ) const {
+        std::vector< std::pair< std::set< Index >, std::set< Index > > > v(get_number_nodes());
+        const auto & start_line = get_start_line();
+        const auto & end_line = get_end_line();
+        for (auto& line_id: get_AC_lines()){
+            Index p = start_line[ line_id ];
+            Index n = end_line[ line_id ];
+            v[p].first.insert( line_id );
+            v[n].second.insert( line_id );
+        }
+        return v;
+   }
+
 
    /*--------------------------------------------------------------------------*/
    /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
