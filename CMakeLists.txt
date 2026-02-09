@@ -71,6 +71,7 @@ target_sources(${modName} PRIVATE
                src/UCBlock.cpp
                src/NetworkBlock.cpp
                src/DesignNetworkBlock.cpp
+			   src/ACNetworkBlock.cpp
                src/DCNetworkBlock.cpp
                src/ECNetworkBlock.cpp
                src/UnitBlock.cpp

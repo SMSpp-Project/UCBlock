@@ -423,7 +423,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     // 2.1) real part
     auto lfunc_1 = new LinearFunction();
-    lfunc_1->add_variable( &v_sqrd_voltages[ line_id ] ,
+    lfunc_1->add_variable( &v_sqrd_voltages[ p ] ,
                            Ytt(line_id).real() );
     lfunc_1->add_variable( &v_sum_product_voltages[ line_id ] ,
                            Ytf(line_id).real() );
@@ -435,7 +435,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     // 2.2) imag part
     auto lfunc_2 = new LinearFunction();
-    lfunc_2->add_variable( &v_sqrd_voltages[ line_id ] ,
+    lfunc_2->add_variable( &v_sqrd_voltages[ p ] ,
                            -Ytt(line_id).imag() );
     lfunc_2->add_variable( &v_sum_product_voltages[ line_id ] ,
                            -Ytf(line_id).imag() );
