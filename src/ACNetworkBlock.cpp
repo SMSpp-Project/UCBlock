@@ -48,11 +48,11 @@ typedef Eigen::SparseVector< std::complex< double > > SpCVec;
 
 // register ACNetworkBlock to the Block factory
 
-SMSpp_insert_in_factory_cpp_1( ACNetworkBlock );
+SMSpp_insert_in_factory_cpp_0( ACNetworkBlock );
 
 typedef ACNetworkBlock::ACNetworkData ACNetworkData;
 
-SMSpp_insert_in_factory_cpp_1( ACNetworkData );
+SMSpp_insert_in_factory_cpp_0( ACNetworkData );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkData -------------------------*/
@@ -368,17 +368,19 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  */
  
  // shortcut to recover mathematic notation
- auto r     = [f_NetworkData](int line_id) {return f_NetworkData->get_line_resistance().at( line_id );};
- auto x     = [f_NetworkData](int line_id) {return f_NetworkData->get_line_reactance().at( line_id );};
- auto b     = [f_NetworkData](int line_id) {return f_NetworkData->get_line_susceptance().at( line_id );};
- auto tau   = [f_NetworkData](int line_id) {return f_NetworkData->get_line_ratio().at(line_id);};
- auto theta = [f_NetworkData](int line_id) {return PI * f_NetworkData->get_line_angle().at( line_id ) / 180;};
+ auto* f_net = f_NetworkData;
+
+ auto r     = [f_net](int line_id) {return f_net->get_line_resistance().at( line_id );};
+ auto x     = [f_net](int line_id) {return f_net->get_line_reactance().at( line_id );};
+ auto b     = [f_net](int line_id) {return f_net->get_line_susceptance().at( line_id );};
+ auto tau   = [f_net](int line_id) {return f_net->get_line_ratio().at(line_id);};
+ auto theta = [f_net](int line_id) {return PI * f_net->get_line_angle().at( line_id ) / 180;};
  
- auto Y   = [] (int l){ return 1/(r(l)+1i*x(l)); }; // common base of matrix (angle = 0, ratio = 1)
- auto Ytt = [] (int l){ return Y(l) + 0.5i*b(l); };
- auto Yff = [] (int l){ return Ytt(l) / tau(l)^2; };
- auto Yft = [] (int l){ return Y(l) / ( tau(l)*exp(-1i*theta(l)) ); };
- auto Ytf = [] (int l){ return Y(l) / ( tau(l)*exp(1i*theta(l)) ); };
+ auto Y   = [r,x] (int l){ return 1.0/(r(l)+1i*x(l)); }; // common base of matrix (angle = 0, ratio = 1)
+ auto Ytt = [Y,b] (int l){ return Y(l) + 0.5i*b(l); };
+ auto Yff = [Ytt,tau] (int l){ return Ytt(l) / std::pow(tau(l),2.0); };
+ auto Yft = [Y,theta,tau] (int l){ return Y(l) / ( tau(l)*std::exp(-1i*theta(l)) ); };
+ auto Ytf = [Y,theta,tau] (int l){ return Y(l) / ( tau(l)*std::exp(1i*theta(l)) ); };
 
  v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2 * nb_ac_lines ] );
  i_line = 0;
@@ -421,7 +423,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     // 2.1) real part
     auto lfunc_1 = new LinearFunction();
-    lfunc_1->add_variable( &v_sqrd_voltages[ n ] ,
+    lfunc_1->add_variable( &v_sqrd_voltages[ line_id ] ,
                            Ytt(line_id).real() );
     lfunc_1->add_variable( &v_sum_product_voltages[ line_id ] ,
                            Ytf(line_id).real() );
@@ -433,7 +435,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
     // 2.2) imag part
     auto lfunc_2 = new LinearFunction();
-    lfunc_2->add_variable( &v_sqrd_voltages[ n ] ,
+    lfunc_2->add_variable( &v_sqrd_voltages[ line_id ] ,
                            -Ytt(line_id).imag() );
     lfunc_2->add_variable( &v_sum_product_voltages[ line_id ] ,
                            -Ytf(line_id).imag() );
