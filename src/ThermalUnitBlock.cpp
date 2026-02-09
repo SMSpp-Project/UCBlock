@@ -216,7 +216,14 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                "MBase",
                                                // cost model
                                                "CostModel",
-                                               "PowerCostCoeffs" };
+                                               "PowerCostCoeffs" 
+                                               // Specific computational modes
+                                               "MinReactivePower",
+                                               "MaxReactivePower",
+                                               "ReferenceSchedule",
+                                               "FixToMaximum",
+                                               "VoltageMagnitude"
+};
   check_variables( group , expected_vars , std::cerr );
  }
 #endif
@@ -300,12 +307,18 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                  true , true , v_change_intervals );
  }
 
+ if( ::deserialize( group , f_fixToMax , "FixToMaximum" ) )
+    f_fixToMax = std::max( f_fixToMax , 0 );
+
  // variables for AC elements
  ::deserialize( group , "MaxReactivePower" , v_MaxReactivePower );
  ::deserialize( group , "MinReactivePower" , v_MinReactivePower );
  ::deserialize( group , "VoltageMagnitude" , v_VoltageMagnitude );
  ::deserialize( group , "PowerCostCoeffs" , v_PowerCostCoeffs );
  ::deserialize( group , f_CostModel , "CostModel" );
+
+ // variables pour la reference schedule
+ ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true, v_change_intervals );
 
  if( ! ::deserialize( group , "StartUpLimit" , f_time_horizon , v_StartUpLimit ,
                       true , true , v_change_intervals ) ) {
@@ -848,6 +861,14 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  }  // end( switch )
 
+ // The variables wrt reference schedule if there
+ if ( ! v_RefSchedule.empty() ){
+   v_abs_ref_schedule.resize( f_time_horizon );
+   for( auto & var : v_abs_ref_schedule )
+     var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_abs_ref_schedule , "v_abs_refschd" );
+ }
+
  set_variables_generated();
 
 }  // end( ThermalUnitBlock::generate_abstract_variables )
@@ -920,6 +941,20 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
        v_psi[ j ] = std::max( v_psi[ j ] , get_operational_min_power( t ) );
      }
+
+ /// If the unit is supposed to be fixed to maximum generation, we will now add these constraints
+ if ( f_fixToMax > 0){
+    fixed_to_max_Power_Const.resize( f_time_horizon );
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      // P_t >= Pmax(t)
+      auto lfunck = new LinearFunction();
+      lfunck->add_variable( & v_active_power[ t ], 1.0 );
+      fixed_to_max_Power_Const[ t ].set_lhs( get_operational_max_power(t) );
+      fixed_to_max_Power_Const[ t ].set_rhs( Inf< double >() );
+      fixed_to_max_Power_Const[ t ].set_function( lfunck );
+    }
+    add_static_constraint( fixed_to_max_Power_Const, "FixedGeneration" );
+ }
 
  switch( AR & FormMsk ) {
 
@@ -3382,6 +3417,27 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   }
 
   add_static_constraint( Eq_PC_Const , "Eq_PC_Const_Thermal" );
+ }
+
+ if ( !v_RefSchedule.empty() ){
+   Reference_Schedule_Const.resize( 2*f_time_horizon );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // | P - Pref | <= v_abs_ref_schedule
+    auto lfunc_1 = new LinearFunction();
+    lfunc_1->add_variable( & v_active_power[ t ], 1.0 );
+    lfunc_1->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+    Reference_Schedule_Const[ t ].set_lhs( -Inf< double >() );
+    Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[t] );
+    Reference_Schedule_Const[ t ].set_function( lfunc_1 );
+    //
+    auto lfunc_2 = new LinearFunction();
+    lfunc_2->add_variable( & v_active_power[ t ], -1.0 );
+    lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[t] );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );
+   }
+   add_static_constraint( Reference_Schedule_Const, "Norm1_Reference_Schedule" );
  }
 
  set_constraints_generated();
