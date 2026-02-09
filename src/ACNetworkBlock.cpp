@@ -52,7 +52,7 @@ SMSpp_insert_in_factory_cpp_1( ACNetworkBlock );
 
 typedef ACNetworkBlock::ACNetworkData ACNetworkData;
 
-SMSpp_insert_in_factory_cpp_1( ACNetworkData );
+SMSpp_insert_in_factory_cpp_0( ACNetworkData );
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkData -------------------------*/
