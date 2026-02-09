@@ -3841,6 +3841,11 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   vars.push_back( std::make_tuple( &v_commitment[ t ] ,
                                    f_scale * v_ConstTerm[ t ] , 0.0 ) );
 
+ if ( !v_RefSchedule.empty() ){
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+      vars.push_back( std::make_tuple( &v_abs_ref_schedule[ t ] , 1.0 , 0.0 ) );
+ }
+
  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
   // add the primary spinning reserve variables - - - - - - - - - - - - - - -
   if( v_primary_spinning_reserve.size() != f_time_horizon )
