@@ -418,12 +418,14 @@ class DesignNetworkBlock : public NetworkBlock
 
 #ifndef NDEBUG
   if( offset != total_intervals )
-   throw std::logic_error(
+   throw( std::logic_error(
      "DesignNetworkBlock::set_ActiveDemand: "
      "unused intervals in ActiveDemand matrix"
-   );
+   ) );
 #endif
   }
+
+/*--------------------------------------------------------------------------*/
 
  void set_ReactiveDemand( const boost::multi_array< double , 2 > & apd )
   override {
@@ -441,10 +443,10 @@ class DesignNetworkBlock : public NetworkBlock
 
 #ifndef NDEBUG
    if( offset + ni > total_intervals )
-    throw std::logic_error(
+    throw( std::logic_error(
       "DesignNetworkBlock::set_ActiveDemand: "
       "inconsistent number of intervals between UCBlock and subnetworks"
-    );
+    ) );
 #endif
 
    boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ] );
@@ -460,10 +462,10 @@ class DesignNetworkBlock : public NetworkBlock
 
 #ifndef NDEBUG
   if( offset != total_intervals )
-   throw std::logic_error(
+   throw( std::logic_error(
      "DesignNetworkBlock::set_ActiveDemand: "
      "unused intervals in ActiveDemand matrix"
-   );
+   ) );
 #endif
   }
 

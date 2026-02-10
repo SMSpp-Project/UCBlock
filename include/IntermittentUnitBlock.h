@@ -287,8 +287,7 @@ class IntermittentUnitBlock : public UnitBlock
   * if \( \mathrm{MinCapacityDesign} > 0 \), then \( x \) is effectively forced to 1.
   */
 
- void generate_abstract_variables( Configuration * stvv = nullptr )
-  override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the static constraints of the IntermittentUnitBlock

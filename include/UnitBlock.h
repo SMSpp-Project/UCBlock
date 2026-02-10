@@ -201,6 +201,10 @@ class UnitBlock : public Block
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
+/*--------------------------------------------------------------------------*/
+
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -479,15 +483,6 @@ class UnitBlock : public Block
   return( nullptr );
   }
 
- /// returns the vector of reactive power variables
- virtual ColVariable * get_reactive_power( Index generator ) {
-  if( v_reactive_power.empty() )
-   return( nullptr );
-  return( &( v_reactive_power.front() ) );
- }
-
-  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
-
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like get_active_power(), but returns a const * so that it can be const
 
@@ -501,7 +496,16 @@ class UnitBlock : public Block
   return( const_cast< UnitBlock * >( this )->get_active_power( generator ) );
   }
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// returns the vector of reactive power variables
+ virtual ColVariable * get_reactive_power( Index generator ) {
+  if( v_reactive_power.empty() )
+   return( nullptr );
+  return( &( v_reactive_power.front() ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the scale factor of this UnitBlock
  /** This method returns the scale factor of this UnitBlock. Since not every
   * UnitBlock may support the notion of scaling, this method has a default

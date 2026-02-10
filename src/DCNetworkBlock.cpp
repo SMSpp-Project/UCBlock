@@ -384,7 +384,7 @@ SpMat DCNetworkData::get_PTDF( const std::vector< Index > & AC_lines ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkData::compute_cycle_basis( int opt_root, bool only_AC_lines) {
+void DCNetworkData::compute_cycle_basis( int opt_root , bool only_AC_lines ) {
  // As it does not require data of neither DC nor AC
  /* Compute a list of cycles which form a basis for cycles of G.
 

@@ -3428,7 +3428,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( Eq_PC_Const , "Eq_PC_Const_Thermal" );
  }
 
- if ( !v_RefSchedule.empty() ){
+ if ( ! v_RefSchedule.empty() ){
    Reference_Schedule_Const.resize( 2*f_time_horizon );
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     // | P - Pref | <= v_abs_ref_schedule
@@ -3841,7 +3841,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   vars.push_back( std::make_tuple( &v_commitment[ t ] ,
                                    f_scale * v_ConstTerm[ t ] , 0.0 ) );
 
- if ( !v_RefSchedule.empty() ){
+ if ( ! v_RefSchedule.empty() ){
     for( Index t = 0 ; t < f_time_horizon ; ++t )
       vars.push_back( std::make_tuple( &v_abs_ref_schedule[ t ] , 1.0 , 0.0 ) );
  }

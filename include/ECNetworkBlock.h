@@ -639,6 +639,8 @@ class ECNetworkBlock : public NetworkBlock
   }
  }
 
+/*--------------------------------------------------------------------------*/
+
  void set_ReactiveDemand( const boost::multi_array< double , 2 > & v )
   override {
   if( v_ReactiveDemand.empty() )

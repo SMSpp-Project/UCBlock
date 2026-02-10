@@ -2119,9 +2119,9 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
    }
 
    if( ! nb )
-    throw std::logic_error(
+    throw( std::logic_error(
      "UCBlock::set_active_power_demand(subset): "
-     "time index out of range of NetworkBlocks" );
+     "time index out of range of NetworkBlocks" ) );
 
    assert( node_index < nb_nodes );
 
@@ -2214,9 +2214,9 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
    }
 
    if( ! nb )
-    throw std::logic_error(
+    throw( std::logic_error(
      "UCBlock::set_active_power_demand: time index out of range "
-     "of NetworkBlocks" );
+     "of NetworkBlocks" ) );
 
    assert( node_index < nb_nodes );
 
