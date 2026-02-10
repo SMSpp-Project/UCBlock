@@ -379,8 +379,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  auto Y   = [r,x] (int l){ return 1.0/(r(l)+1i*x(l)); }; // common base of matrix (angle = 0, ratio = 1)
  auto Ytt = [Y,b] (int l){ return Y(l) + 0.5i*b(l); };
  auto Yff = [Ytt,tau] (int l){ return Ytt(l) / std::pow(tau(l),2.0); };
- auto Yft = [Y,theta,tau] (int l){ return Y(l) / ( tau(l)*std::exp(-1i*theta(l)) ); };
- auto Ytf = [Y,theta,tau] (int l){ return Y(l) / ( tau(l)*std::exp(1i*theta(l)) ); };
+ auto Yft = [Y,theta,tau] (int l){ return -1.0*Y(l) / ( tau(l)*std::exp(-1i*theta(l)) ); };
+ auto Ytf = [Y,theta,tau] (int l){ return -1.0*Y(l) / ( tau(l)*std::exp(1i*theta(l)) ); };
 
  v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2 * nb_ac_lines ] );
  i_line = 0;
@@ -429,7 +429,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
                            Ytf(line_id).real() );
     lfunc_1->add_variable( &v_diff_product_voltages[ line_id ] ,
                            -Ytf(line_id).imag() ); // be carefull, diff is antisymetric
-    lfunc_1->add_variable( &v_power_flow[ line_id ] , -1.0 );
+    lfunc_1->add_variable( &v_power_flow[ number_lines + line_id ] , -1.0 );
     v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
     v_voltage_definition_const[ 0 ][ i_line ].set_function( lfunc_1 );
 
@@ -441,7 +441,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
                            -Ytf(line_id).imag() );
     lfunc_2->add_variable( &v_diff_product_voltages[ line_id ] ,
                            -Ytf(line_id).real() ); // be carefull, diff is antisymetric
-    lfunc_2->add_variable( &v_reactive_power_flow[ line_id ] ,
+    lfunc_2->add_variable( &v_reactive_power_flow[ number_lines + line_id ] ,
                            -1.0 );
     v_voltage_definition_const[ 1 ][ i_line ].set_both( 0.0 );
     v_voltage_definition_const[ 1 ][ i_line ].set_function( lfunc_2 );  
