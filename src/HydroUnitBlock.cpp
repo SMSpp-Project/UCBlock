@@ -125,7 +125,13 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "InitialFlowRate" ,
                                               "InitialVolumetric" ,
                                               "UphillFlow" ,
-                                              "DownhillFlow" };
+                                              "DownhillFlow", 
+                                              // for specific modes
+                                              "MinReactivePower",
+                                              "MaxReactivePower",
+                                              "VoltageMagnitude",                                               
+                                              "ReferenceSchedule"
+                                              };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -210,6 +216,19 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                 { f_NumberReservoirs , f_time_horizon } , v_MaxVolumetric ,
                 true , true , v_change_intervals );
 
+ /// optional AC variables
+ ::deserialize( group , "MinReactivePower" , { f_time_horizon , f_NumberArcs } ,
+                v_MinReactivePower , true , true , v_change_intervals );
+
+ ::deserialize( group , "MaxReactivePower" , { f_time_horizon , f_NumberArcs } ,
+                v_MaxReactivePower , true , true , v_change_intervals );                
+
+ ::deserialize( group , "VoltageMagnitude" , { f_time_horizon , f_NumberArcs } ,
+                v_VoltageMagnitude , true , true , v_change_intervals );                
+
+ ::deserialize( group , "ReferenceSchedule" , f_time_horizon , v_RefSchedule ,
+                true , true , v_change_intervals );
+
 }  // end( HydroUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -234,6 +253,8 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
  v_flow_rate.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
  v_active_power.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
 
+ v_reactive_power.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
+
  for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    v_flow_rate[ g ][ t ].set_type( ColVariable::kContinuous , eNoMod );
@@ -241,23 +262,34 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
    // and MaxFlow (basically, turbines have >= 0 flows and pumps have <=
    // flows, although note that the funny case in which both happens and
    // the flow is fixed to 0 is not excluded)
-   if( v_MinFlow.empty()  || ( v_MinFlow[ t ][ g ] >= 0 ) )
+   if( v_MinFlow.empty() || ( v_MinFlow[ t ][ g ] >= 0 ) )
     v_flow_rate[ g ][ t ].is_positive( true , eNoMod );
-   if( v_MaxFlow.empty()  || ( v_MaxFlow[ t ][ g ] <= 0 ) )
+   if( v_MaxFlow.empty() || ( v_MaxFlow[ t ][ g ] <= 0 ) )
     v_flow_rate[ g ][ t ].is_negative( true , eNoMod );
 
    v_active_power[ g ][ t ].set_type( ColVariable::kContinuous , eNoMod );
    // put sign constraints on the active power variables in accordance to
    // MinPower and MaxPower
-   if( v_MinPower.empty()  || ( v_MinPower[ t ][ g ] >= 0 ) )
+   if( v_MinPower.empty() || ( v_MinPower[ t ][ g ] >= 0 ) )
     v_active_power[ g ][ t ].is_positive( true , eNoMod );
-   if( v_MaxPower.empty()  || ( v_MaxPower[ t ][ g ] <= 0 ) )
+   if( v_MaxPower.empty() || ( v_MaxPower[ t ][ g ] <= 0 ) )
     v_active_power[ g ][ t ].is_negative( true , eNoMod );
+
+   // repeat the work for reactive stuff
+   v_reactive_power[ g ][ t ].set_type( ColVariable::kContinuous , eNoMod );
+   // put sign constraints on the reactive power variables in accordance to
+   // MinReactivePower and MaxReactivePower
+   if( v_MinReactivePower.empty() || ( v_MinReactivePower[ t ][ g ] >= 0 ) )
+    v_reactive_power[ g ][ t ].is_positive( true , eNoMod );
+   if( v_MaxReactivePower.empty() || ( v_MaxReactivePower[ t ][ g ] <= 0 ) )
+    v_reactive_power[ g ][ t ].is_negative( true , eNoMod ); 
    }
   }
 
  add_static_variable( v_flow_rate , "f_hydro" );
  add_static_variable( v_active_power , "p_hydro" );
+ add_static_variable( v_reactive_power , "q_hydro" );
+
  if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
   if( ! v_PrimaryRho.empty() ) {  // if unit produces any primary reserve
    v_primary_spinning_reserve.resize(
@@ -283,6 +315,14 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
    }
    add_static_variable( v_secondary_spinning_reserve , "sr_hydro" );
   }
+ }
+
+ // The variables wrt reference schedule if there
+ if( ! v_RefSchedule.empty() ) {
+   v_abs_ref_schedule.resize( f_time_horizon );
+   for( auto & var : v_abs_ref_schedule )
+     var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_abs_ref_schedule , "v_absh_refschd" );
  }
 
  set_variables_generated();
@@ -759,6 +799,70 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  add_static_constraint( VolumetricBounds_Const , "VolumetricBounds_HydroUnit" );
 
+ if( ! v_RefSchedule.empty() ) {
+   Reference_Schedule_Const.resize( 2 * f_time_horizon );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+        // | Sum P - Pref | <= v_abs_ref_schedule
+        auto lfunc_1 = new LinearFunction();
+        for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
+          lfunc_1->add_variable( & v_active_power[ g ][ t ], 1.0 );
+        }
+        lfunc_1->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+        Reference_Schedule_Const[ t ].set_lhs( -Inf< double >() );
+        Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[ t ] );
+        Reference_Schedule_Const[ t ].set_function( lfunc_1 );
+        //
+        auto lfunc_2 = new LinearFunction();
+        for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
+          lfunc_2->add_variable( & v_active_power[ g ][ t ], -1.0 );
+        }
+        lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+        Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
+        Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[ t ] );
+        Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );
+   }
+   add_static_constraint( Reference_Schedule_Const, "Norm1_H_Reference_Schedule" );
+ }
+
+ // Add the Bounds on the reactive part
+ if( ReactivePower_Bound_Const.empty() )
+    ReactivePower_Bound_Const.resize(
+     boost::extents[ f_NumberArcs ][ f_time_horizon ] );
+
+ bool something = false;
+ for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   if( ( ! v_MaxReactivePower.empty() ) &&
+       ( get_max_reactive_power( t , g ) > 0.0 ) ) {
+    something = true;
+    ReactivePower_Bound_Const[ g ][ t ].set_rhs( v_MaxReactivePower[ t ][ g ] );
+    if( ! v_MinReactivePower.empty() )
+     ReactivePower_Bound_Const[ g ][ t ].set_lhs( v_MinReactivePower[ t ][ g ] );
+    ReactivePower_Bound_Const[ g ][ t ].set_variable( &v_reactive_power[ g ][ t ] );
+   }
+  }
+ }
+ if( something )
+  add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
+
+ // Link between active and reactive power
+ Reactive_2_Active_Const.resize(
+  boost::extents[ f_NumberArcs ][ f_time_horizon ] );
+
+ for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // Q(g,t) - P(g,t) <= 0
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( &v_active_power[ g ][ t ], -1.0 );
+    lfunc->add_variable( &v_reactive_power[ g ][ t ], 1.0 );
+
+    Reactive_2_Active_Const[ g ][ t ].set_lhs( -Inf< double >() );
+    Reactive_2_Active_Const[ g ][ t ].set_rhs( 0.0 );
+    Reactive_2_Active_Const[ g ][ t ].set_function( lfunc );
+  }
+ }
+ //add_static_constraint( Reactive_2_Active_Const, "QandPhydro" );
+
  // all done- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -773,15 +877,22 @@ void HydroUnitBlock::generate_objective( Configuration * objc )
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
 
- LinearFunction::v_coeff_pair vars;
+ // the variables to fill in - only when the reference schedule is there 
+  LinearFunction::v_coeff_pair vars;
 
- if( !v_ActivePowerCost.empty() )
+ if( ! v_ActivePowerCost.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    for( Index arc = 0 ; arc < f_TotalNumberPieces ; ++arc )
     vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                     v_ActivePowerCost[ arc ] ) );
 
+ if( ! v_RefSchedule.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+      vars.push_back( std::make_pair( &v_abs_ref_schedule[ t ] , 1.0 ) );
+ }
+
  objective.set_function( new LinearFunction( std::move( vars ) ) );
+ objective.set_sense( Objective::eMin );
 
  // Set Block objective
  this->set_objective( &objective );

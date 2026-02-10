@@ -117,6 +117,17 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  NetworkData::deserialize( group );
 
+ // the baseMVA field is a simple scalar value specifying the system MVA base 
+ //   used for converting power into per unit quantities (see Matpower)
+ auto gbaseMVA = group.getAtt( "baseMVA" );
+ std::string tmp_base;
+ if(gbaseMVA.isNull()) f_base_mva = 1.;
+ else {
+   gbaseMVA.getValues(tmp_base);
+   try { f_base_mva = std::stod(tmp_base); }
+   catch (...) { f_base_mva = 1.; }
+ }
+
  if( ! deserialize_dim( group , "ReferenceNode" , f_reference_node , true ) )
   f_reference_node = 0;
 
@@ -373,7 +384,7 @@ SpMat DCNetworkData::get_PTDF( const std::vector< Index > & AC_lines ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkData::compute_cycle_basis( int opt_root ) {
+void DCNetworkData::compute_cycle_basis( int opt_root, bool only_AC_lines) {
  // As it does not require data of neither DC nor AC
  /* Compute a list of cycles which form a basis for cycles of G.
 
@@ -425,7 +436,9 @@ void DCNetworkData::compute_cycle_basis( int opt_root ) {
  // First, compute neighbors
  std::vector< std::set< Index > > neighbors( number_nodes ,
                                              std::set< Index >() );
+ const auto & susceptance = get_line_susceptance();
  for( Index id_line = 0 ; id_line < number_lines ; ++id_line ) {
+  if( only_AC_lines && susceptance[ id_line ] == 0. ) continue;
   Index i = start_line[ id_line ];
   Index j = end_line[ id_line ];
   neighbors[ i ].insert( j );
@@ -443,7 +456,9 @@ void DCNetworkData::compute_cycle_basis( int opt_root ) {
  auto start_solve = std::chrono::high_resolution_clock::now();
 
  std::vector< Index > gnodes;
- for( Index i = 0 ; i < number_nodes ; ++i ) gnodes.push_back( i );
+ for( Index i = 0 ; i < number_nodes ; ++i ) {
+  if( neighbors[i].size() ) gnodes.push_back( i );
+ }
  while( gnodes.size() ) { // loop over connected components
   if( use_root ) {
    root = gnodes.back();
@@ -569,7 +584,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
   if( f_NetworkData &&
       ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
    throw( std::logic_error( "DCNetworkBlock::deserialize: NumberNodes "
-			    "not matching between NetworkData" ) );
+          "not matching between NetworkData" ) );
   f_NetworkData = DCND;
   f_local_NetworkData = true;
   // A DCNetworkData has been provided. So, the size of the given vector of
@@ -859,7 +874,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
   constant_term += v_ActiveDemand[ node_id ];
  }
  overall_balanced_const.set_function(
-				  new LinearFunction( std::move( vars ) ) );
+          new LinearFunction( std::move( vars ) ) );
  overall_balanced_const.set_lhs( constant_term );
  overall_balanced_const.set_rhs( constant_term );
  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
@@ -1122,7 +1137,7 @@ void DCNetworkBlock::generate_bound_constraints( void )
 
  if( is_design() ) {
   v_power_flow_limit_design_const.resize(
-				MAFRC2::extent_gen()[ 2 ][ number_lines ] );
+        MAFRC2::extent_gen()[ 2 ][ number_lines ] );
 
   for( Index l = 0 ; l < number_lines ; ++l ) {
    ColVariable * x = get_design( l );
@@ -1151,7 +1166,7 @@ void DCNetworkBlock::generate_bound_constraints( void )
    }
 
   add_static_constraint( v_power_flow_limit_design_const ,
-			 "Power_flow_limit_design" );
+       "Power_flow_limit_design" );
   }
 
  /*------------------------- without design -------------------------------*/
@@ -1169,9 +1184,9 @@ void DCNetworkBlock::generate_bound_constraints( void )
 
    const double kappa = get_kappa( l );
    v_power_flow_limit_const[ l ].set_lhs(
-			   kappa * f_NetworkData->get_min_power_flow( l ) );
+         kappa * f_NetworkData->get_min_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_rhs(
-			   kappa * f_NetworkData->get_max_power_flow( l ) );
+         kappa * f_NetworkData->get_max_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
    }
 
@@ -1210,7 +1225,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
 /*--------------------------------------------------------------------------*/
 
 Solution * DCNetworkBlock::get_Solution( Configuration * csolc ,
-					 bool emptys )
+           bool emptys )
 {
  Index wsol = 7;
  if( ( ! csolc ) && f_BlockConfig )
@@ -1221,7 +1236,7 @@ Solution * DCNetworkBlock::get_Solution( Configuration * csolc ,
 
  // call the method of the base class
  auto * sol = dynamic_cast< DCNetworkBlockSolution * >(
-		               NetworkBlock::get_Solution( csolc , emptys ) );
+                   NetworkBlock::get_Solution( csolc , emptys ) );
  assert( sol );
 
  if( wsol & 2 )
@@ -1284,17 +1299,17 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // Constraints
   && RowConstraint::is_feasible( v_power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_limit_design_const , tol ,
-				 rel_viol )
+         rel_viol )
   && RowConstraint::is_feasible( v_power_flow_injection_const , tol ,
-				 rel_viol )
+         rel_viol )
   && RowConstraint::is_feasible( v_power_flow_def , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_relax_abs , tol , rel_viol )
   && RowConstraint::is_feasible( overall_balanced_const , tol , rel_viol )
   && RowConstraint::is_feasible( node_injection_bounds_const , tol ,
-				 rel_viol )
+         rel_viol )
   && RowConstraint::is_feasible( v_CYCLE_def_flow_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_CYCLE_def_cycle_const , tol , rel_viol )
-	);
+  );
 
  }  // end( DCNetworkBlock::is_feasible )
 
@@ -1337,10 +1352,10 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "EndLine" , netCDF::NcUint() , NumberBranches , en );
 
   ::serialize( group , "Efficiency" , netCDF::NcDouble() , NumberBranches ,
-	       eff );
+         eff );
 
   ::serialize( group , "HyperArcID" , netCDF::NcUint() , NumberBranches ,
-	       id );
+         id );
   }
  else {  // a regular graph
   ::serialize( group , "StartLine" , netCDF::NcUint() , NumberLines ,
@@ -1367,7 +1382,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
 
  if( ! v_line_names.empty() ) {
   auto LineName = group.addVar( "LineName" , netCDF::NcString() ,
-				NumberLines );
+        NumberLines );
   for( Index i = 0 ; i < v_line_names.size() ; ++i )
    LineName.putVar( { i } , v_line_names[ i ] );
   }
@@ -1586,7 +1601,7 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
    std::sort( subset.begin() , subset.end() );
 
   Block::add_Modification( std::make_shared< DCNetworkBlockSbstMod >( this ,
-		       DCNetworkBlockMod::eSetKappa , std::move( subset ) ) ,
+           DCNetworkBlockMod::eSetKappa , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
   }
  }  // end( DCNetworkBlock::set_kappa( subset ) )
@@ -1628,7 +1643,7 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 
  if( issue_pmod( issuePMod ) )  // issue a Physical Modification
   Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >( this ,
-				       DCNetworkBlockMod::eSetKappa , rng ) ,
+               DCNetworkBlockMod::eSetKappa , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
  }  // end( DCNetworkBlock::set_kappa( range ) )
@@ -1671,7 +1686,7 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::change_relax_abs_constraints( c_Subset & modified_lines ,
-						   c_ModParam issueAMod )
+               c_ModParam issueAMod )
 {
  if( ( f_NetworkData->get_lines_type() == kAC ) ||
      ( f_NetworkData->get_lines_type() == kAC_HVDC ) ) {
@@ -1691,7 +1706,7 @@ void DCNetworkBlock::change_relax_abs_constraints( c_Subset & modified_lines ,
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkBlock::change_DC_power_flow_injection_constraints(
-			   c_Subset & modified_nodes , c_ModParam issueAMod )
+         c_Subset & modified_nodes , c_ModParam issueAMod )
 {
  if( f_NetworkData->get_lines_type() != kHVDC )
   return;
@@ -1766,7 +1781,7 @@ void DCNetworkBlockSolution::read( const Block * block )
  auto DCNB = dynamic_cast< const DCNetworkBlock * >( block );
  if( ! DCNB )
   throw( std::invalid_argument(
-	  "DCNetworkBlockSolution::read: block is not a DCNetworkBlock" ) );
+    "DCNetworkBlockSolution::read: block is not a DCNetworkBlock" ) );
 
  f_number_lines = DCNB->get_number_lines();
 
@@ -1793,11 +1808,11 @@ void DCNetworkBlockSolution::write( Block * block )
  auto DCNB = dynamic_cast< DCNetworkBlock * >( block );
  if( ! DCNB )
   throw( std::invalid_argument(
-	  "DCNetworkBlockSolution::write: block is not a DCNetworkBlock" ) );
+    "DCNetworkBlockSolution::write: block is not a DCNetworkBlock" ) );
 
  if( f_number_lines != DCNB->get_number_lines() )
   throw( std::invalid_argument(
-	      "DCNetworkBlockSolution::write: inconsistent lines number" ) );
+        "DCNetworkBlockSolution::write: inconsistent lines number" ) );
 
  // write the flow power variables - - - - - - - - - - - - - - - - - - - - -
  if( ! v_flow.empty() )
@@ -1822,12 +1837,12 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
  // serialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_flow.empty() )
   ::serialize< double >( group , "FlowValue" , netCDF::NcDouble() , nl ,
-			 v_flow );
+       v_flow );
 
  // serialize the Dual Prices - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_cost.empty() )
   ::serialize< double >( group , "DualCost" , netCDF::NcDouble() , nl ,
-			 v_cost );
+       v_cost );
 
  }  // end( DCNetworkBlockSolution::serialize( NcGroup & ) )
 
@@ -1881,7 +1896,7 @@ DCNetworkBlockSolution * DCNetworkBlockSolution::scale( double factor ) const
 {
  // call the method of the base class
  auto sol = dynamic_cast< DCNetworkBlockSolution * >(
-				     NetworkBlockSolution::scale( factor ) );
+             NetworkBlockSolution::scale( factor ) );
  assert( sol );
 
  if( factor == 1 )
@@ -1914,7 +1929,7 @@ void DCNetworkBlockSolution::sum( const Solution * solution ,
 
  if( f_number_lines != DCNBS->f_number_lines )
   throw( std::invalid_argument(
-		"DCNetworkBlockSolution::sum: inconsistent lines number" ) );
+    "DCNetworkBlockSolution::sum: inconsistent lines number" ) );
 
  if( ! v_flow.empty() )
   for( Index l = 0 ; l < f_number_lines ; ++l )

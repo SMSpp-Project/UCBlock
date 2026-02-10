@@ -313,26 +313,23 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the minimum reactive power of \p generator at time \p t
 
-  virtual double get_min_reactive_power( Index t , Index generator = 0 )
-   const {
-   return( 0 );
-   }
+ virtual double get_min_reactive_power( Index t , Index generator = 0 ) const {
+  return( 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum reactive power of \p generator at time \p t
 
- virtual double get_max_reactive_power( Index t , Index generator = 0 )
-  const {
+ virtual double get_max_reactive_power( Index t , Index generator = 0 ) const {
   return( 0 );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the voltage magnitude of \p generator at time \p t
 
-  virtual double get_voltage_magnitude( Index t , Index generator = 0 )
-   const {
-   return( 0 );
-   }
+ virtual double get_voltage_magnitude( Index t , Index generator = 0 ) const {
+  return( 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the number of cost coefficients of \p generator
@@ -481,6 +478,15 @@ class UnitBlock : public Block
  virtual ColVariable * get_active_power( Index generator ) {
   return( nullptr );
   }
+
+ /// returns the vector of reactive power variables
+ virtual ColVariable * get_reactive_power( Index generator ) {
+  if( v_reactive_power.empty() )
+   return( nullptr );
+  return( &( v_reactive_power.front() ) );
+ }
+
+  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like get_active_power(), but returns a const * so that it can be const
@@ -796,6 +802,10 @@ class UnitBlock : public Block
  /// the time horizon of the problem
  Index f_time_horizon{};
 
+
+ /// the active power variables for 3bin, T and pt formulations
+ std::vector< ColVariable > v_reactive_power;
+
  /// the number of intervals
  Index f_number_intervals{};
 
@@ -1036,6 +1046,9 @@ class UnitBlockSolution : public Solution {
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  boost::multi_array< double , 2 > v_active_power;
+ ///< v_active_power[ i ][ t ] = active power of generator i at time t
+
+ boost::multi_array< double , 2 > v_reactive_power;
  ///< v_active_power[ i ][ t ] = active power of generator i at time t
 
  boost::multi_array< double , 2 > v_commitment;

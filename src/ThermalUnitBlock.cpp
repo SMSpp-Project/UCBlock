@@ -213,9 +213,17 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                "MaxReactivePower",
                                                "MinReactivePower",
                                                "VoltageMagnitude",
+                                               "MBase",
                                                // cost model
                                                "CostModel",
-                                               "PowerCostCoeffs" };
+                                               "PowerCostCoeffs" 
+                                               // Specific computational modes
+                                               "MinReactivePower",
+                                               "MaxReactivePower",
+                                               "ReferenceSchedule",
+                                               "FixToMaximum",
+                                               "VoltageMagnitude"
+};
   check_variables( group , expected_vars , std::cerr );
  }
 #endif
@@ -236,6 +244,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
 
  ::deserialize( group , f_Capacity , "Capacity" );
+
+ ::deserialize( group , f_MBase , "Mbase" );
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
@@ -297,12 +307,27 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                  true , true , v_change_intervals );
  }
 
+ if( ::deserialize( group , f_fixToMax , "FixToMaximum" ) )
+    f_fixToMax = std::max( f_fixToMax , 0 );
+
  // variables for AC elements
- ::deserialize( group , "MaxReactivePower" , v_MaxReactivePower );
- ::deserialize( group , "MinReactivePower" , v_MinReactivePower );
- ::deserialize( group , "VoltageMagnitude" , v_VoltageMagnitude );
+ if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MaxReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MinReactivePower.resize( f_time_horizon, 0.0 );
+
+ if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
+                      true , true , v_change_intervals ) )
+    v_VoltageMagnitude.resize( f_time_horizon, 0.0 ); 
+
  ::deserialize( group , "PowerCostCoeffs" , v_PowerCostCoeffs );
  ::deserialize( group , f_CostModel , "CostModel" );
+
+ // variables pour la reference schedule
+ ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true, v_change_intervals );
 
  if( ! ::deserialize( group , "StartUpLimit" , f_time_horizon , v_StartUpLimit ,
                       true , true , v_change_intervals ) ) {
@@ -845,6 +870,14 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  }  // end( switch )
 
+ // The variables wrt reference schedule if there
+ if ( ! v_RefSchedule.empty() ){
+   v_abs_ref_schedule.resize( f_time_horizon );
+   for( auto & var : v_abs_ref_schedule )
+     var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_abs_ref_schedule , "v_abs_refschd" );
+ }
+
  set_variables_generated();
 
 }  // end( ThermalUnitBlock::generate_abstract_variables )
@@ -896,27 +929,41 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
        if( v_P_h_k[ j ].second.second <= f_time_horizon )
 
-	 if( ! v_DeltaRampDown.empty() )
-	   if( v_P_h_k[ j ].second.first > 0 )
-	     v_psi[ j ] = std::min( v_psi[ j ] ,
-				    v_ShutDownLimit[ t ] +
-				    v_DeltaRampDown[ t ] *
-				    ( v_P_h_k[ j ].second.second - ( t + 1 ) ) );
+   if( ! v_DeltaRampDown.empty() )
+     if( v_P_h_k[ j ].second.first > 0 )
+       v_psi[ j ] = std::min( v_psi[ j ] ,
+            v_ShutDownLimit[ t ] +
+            v_DeltaRampDown[ t ] *
+            ( v_P_h_k[ j ].second.second - ( t + 1 ) ) );
 
        if( ! v_DeltaRampUp.empty() ) {
-	 if( ( v_P_h_k[ j ].second.first == 0 ) && ( f_InitUpDownTime > 0 ) )
-	   v_psi[ j ] = std::min( v_psi[ j ] ,
-				  f_InitialPower + v_DeltaRampUp[ t ] * ( t + 1 ) );
+   if( ( v_P_h_k[ j ].second.first == 0 ) && ( f_InitUpDownTime > 0 ) )
+     v_psi[ j ] = std::min( v_psi[ j ] ,
+          f_InitialPower + v_DeltaRampUp[ t ] * ( t + 1 ) );
 
-	 if( v_P_h_k[ j ].second.first > 0 )
-	   v_psi[ j ] = std::min( v_psi[ j ] ,
-				  v_StartUpLimit[ t ] +
-				  v_DeltaRampUp[ t ] *
-				  ( ( t + 1 ) - v_P_h_k[ j ].second.first ) );
+   if( v_P_h_k[ j ].second.first > 0 )
+     v_psi[ j ] = std::min( v_psi[ j ] ,
+          v_StartUpLimit[ t ] +
+          v_DeltaRampUp[ t ] *
+          ( ( t + 1 ) - v_P_h_k[ j ].second.first ) );
        }
 
        v_psi[ j ] = std::max( v_psi[ j ] , get_operational_min_power( t ) );
      }
+
+ /// If the unit is supposed to be fixed to maximum generation, we will now add these constraints
+ if ( f_fixToMax > 0){
+    fixed_to_max_Power_Const.resize( f_time_horizon );
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      // P_t >= Pmax(t)
+      auto lfunck = new LinearFunction();
+      lfunck->add_variable( & v_active_power[ t ], 1.0 );
+      fixed_to_max_Power_Const[ t ].set_lhs( get_operational_max_power(t) );
+      fixed_to_max_Power_Const[ t ].set_rhs( Inf< double >() );
+      fixed_to_max_Power_Const[ t ].set_function( lfunck );
+    }
+    add_static_constraint( fixed_to_max_Power_Const, "FixedGeneration" );
+ }
 
  switch( AR & FormMsk ) {
 
@@ -1712,23 +1759,23 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                                 v_DeltaRampUp[ t ] ) ) );
             if( ( t + 1 < v_Y_plus[ i ].first ) &&
                 ( t + k + 1 > v_Y_plus[ i ].first ) )
-	      for( Index ss = 0 ; ss < v_P_h_k.size() ; ++ss )
-		if( ( t + k == v_P_h_k[ ss ].first ) &&
-		    ( v_P_h_k[ ss ].second.first == v_Y_plus[ i ].first ) &&
-		    ( v_P_h_k[ ss ].second.second == v_Y_plus[ i ].second ) )
-		  vars.push_back( std::make_pair( &v_commitment_plus[ i ] , -v_psi[ ss ] ) );
+        for( Index ss = 0 ; ss < v_P_h_k.size() ; ++ss )
+    if( ( t + k == v_P_h_k[ ss ].first ) &&
+        ( v_P_h_k[ ss ].second.first == v_Y_plus[ i ].first ) &&
+        ( v_P_h_k[ ss ].second.second == v_Y_plus[ i ].second ) )
+      vars.push_back( std::make_pair( &v_commitment_plus[ i ] , -v_psi[ ss ] ) );
 
             if( ( t + k + 1 == v_Y_plus[ i ].first ) &&
                 ( t + k + 1 < v_Y_plus[ i ].second ) )
             vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
                                              -v_StartUpLimit[ t + k + 1 ] ) );
 
-	     if( ( t + k + 1 == v_Y_plus[ i ].first ) &&
+       if( ( t + k + 1 == v_Y_plus[ i ].first ) &&
           ( t + k + 1 == v_Y_plus[ i ].second ) )
             vars.push_back(
              std::make_pair( &v_commitment_plus[ i ] ,
-					                          -std::min( v_StartUpLimit[ t + k + 1 ],
-					                                     v_ShutDownLimit[ t + k + 1 ] ) ) );
+                                    -std::min( v_StartUpLimit[ t + k + 1 ],
+                                               v_ShutDownLimit[ t + k + 1 ] ) ) );
            }
 
           RampUp_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2071,7 +2118,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
            new LinearFunction( std::move( vars ) ) );
 
           cnstr_idx++;
-	 }
+   }
  }
   if( ( ( ( AR & FormMsk ) == SDForm ) && ( new_SD == 1 ) ) ||
           ( AR & FormMsk ) == SUSDForm ) {  // SUSD formulation - - - - - - -
@@ -2104,7 +2151,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        vars.push_back( std::make_pair( &v_active_power_k[ j ] , -1.0 ) );
 
        for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-	 if( v_P_k[ j ].second == v_Y_plus[ i ].second )
+   if( v_P_k[ j ].second == v_Y_plus[ i ].second )
          if( 0 == v_Y_plus[ i ].first )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
                                           -( static_cast< int >( k + 1 ) *
@@ -3381,6 +3428,49 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( Eq_PC_Const , "Eq_PC_Const_Thermal" );
  }
 
+ if ( !v_RefSchedule.empty() ){
+   Reference_Schedule_Const.resize( 2*f_time_horizon );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // | P - Pref | <= v_abs_ref_schedule
+    auto lfunc_1 = new LinearFunction();
+    lfunc_1->add_variable( & v_active_power[ t ], 1.0 );
+    lfunc_1->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+    Reference_Schedule_Const[ t ].set_lhs( -Inf< double >() );
+    Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[t] );
+    Reference_Schedule_Const[ t ].set_function( lfunc_1 );
+    //
+    auto lfunc_2 = new LinearFunction();
+    lfunc_2->add_variable( & v_active_power[ t ], -1.0 );
+    lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[t] );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );
+   }
+   add_static_constraint( Reference_Schedule_Const, "Norm1_Reference_Schedule" );
+ }
+
+ /// Reactive power bounds constraints
+ if( ReactivePower_Bound_Const.size() != f_time_horizon ) {
+  // this should only happen once
+  assert( ReactivePower_Bound_Const.empty() );
+
+  ReactivePower_Bound_Const.resize( f_time_horizon );
+ }
+
+ bool something = false;
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  if ( get_max_reactive_power(t) > 0.0 ){
+    something = true;
+    ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
+    ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
+    //
+    ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
+  }
+ }
+ if (something )
+  add_static_constraint( ReactivePower_Bound_Const ,
+                         "ReactivePowerBound" );
+
  set_constraints_generated();
 
 }  // end( ThermalUnitBlock::generate_abstract_constraints )
@@ -3751,6 +3841,11 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   vars.push_back( std::make_tuple( &v_commitment[ t ] ,
                                    f_scale * v_ConstTerm[ t ] , 0.0 ) );
 
+ if ( !v_RefSchedule.empty() ){
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+      vars.push_back( std::make_tuple( &v_abs_ref_schedule[ t ] , 1.0 , 0.0 ) );
+ }
+
  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
   // add the primary spinning reserve variables - - - - - - - - - - - - - - -
   if( v_primary_spinning_reserve.size() != f_time_horizon )
@@ -3978,7 +4073,7 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
 /*--------------------------------------------------------------------------*/
 
 Solution * ThermalUnitBlock::get_Solution( Configuration * csolc ,
-					   bool emptys )
+             bool emptys )
 {
  Index wsol = 15;
  if( ( ! csolc ) && f_BlockConfig )
@@ -3989,7 +4084,7 @@ Solution * ThermalUnitBlock::get_Solution( Configuration * csolc ,
 
  // call the method of the base class
  auto * sol = dynamic_cast< ThermalUnitBlockSolution * >(
-		                 UnitBlock::get_Solution( csolc , emptys ) );
+                     UnitBlock::get_Solution( csolc , emptys ) );
  assert( sol );
 
  if( ! emptys )
@@ -5791,7 +5886,7 @@ void ThermalUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  if( f_number_generators != 1 )
   throw( std::logic_error( "ThermalUnitBlockSolution::deserialize: "
-			   "thermals have only one generator" ) );
+         "thermals have only one generator" ) );
 
  // deserialize the design - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! ::deserialize< double >( group , f_design , "ThermalDesign" ) )
@@ -5806,7 +5901,7 @@ void ThermalUnitBlockSolution::read( const Block * block )
  auto TUB = dynamic_cast< const ThermalUnitBlock * >( block );
  if( ! TUB )
   throw( std::invalid_argument( "ThermalUnitBlockSolution::read: block "
-				"is not a ThermalUnitBlock" ) );
+        "is not a ThermalUnitBlock" ) );
 
  UnitBlockSolution::read( TUB );  // call the method of the base class
 
@@ -5824,7 +5919,7 @@ void ThermalUnitBlockSolution::write( Block * block )
  auto TUB = dynamic_cast< ThermalUnitBlock * >( block );
  if( ! TUB )
   throw( std::invalid_argument( "ThermalUnitBlockSolution::read: block "
-				"is not a ThermalUnitBlock" ) );
+        "is not a ThermalUnitBlock" ) );
 
  // write the design - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  TUB->get_design().set_value( f_design );
@@ -5840,7 +5935,7 @@ void ThermalUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  // serialize the design- - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! std::isnan( f_design ) )
   ::serialize< double >( group , "ThermalDesign" , netCDF::NcDouble() ,
-			 f_design );
+       f_design );
 
  }  // end( ThermalUnitBlockSolution::serialize )
 
@@ -5866,7 +5961,7 @@ ThermalUnitBlockSolution * ThermalUnitBlockSolution::scale( double factor )
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlockSolution::sum( const Solution * solution ,
-					 double multiplier )
+           double multiplier )
 {
  // call the method of the base class
  UnitBlockSolution::sum( solution , multiplier );
@@ -5874,7 +5969,7 @@ void ThermalUnitBlockSolution::sum( const Solution * solution ,
  auto TUBS = dynamic_cast< const ThermalUnitBlockSolution * >( solution );
  if( ! TUBS )
   throw( std::invalid_argument( "ThermalUnitBlockSolution::sum: "
-				"solution not a ThermalUnitBlockSolution" ) );
+        "solution not a ThermalUnitBlockSolution" ) );
 
  if( ! std::isnan( f_design ) )
   f_design += TUBS->f_design * multiplier;

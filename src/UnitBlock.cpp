@@ -186,6 +186,21 @@ void UnitBlock::scale( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+void UnitBlock::generate_abstract_variables( Configuration * stvv )
+{
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
+
+ // Reactive Power Variables- - - - - - - - - - - - - - - - - - - - - - - - -
+ v_reactive_power.resize( f_time_horizon );
+ for( auto & var : v_reactive_power )
+  var.set_type( ColVariable::kNonNegative );
+ add_static_variable( v_reactive_power , "q_generalUnit" );
+
+}  // end( UnitBlock::generate_abstract_variables )
+
+/*--------------------------------------------------------------------------*/
+
 void UnitBlock::scale( double scale_factor ,
                        c_ModParam issuePMod ,
                        c_ModParam issueAMod )

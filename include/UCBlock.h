@@ -1139,6 +1139,11 @@ class UCBlock : public Block
   get_node_injection_constraints( void ) {
   return( v_node_injection_Const );
   }
+ 
+ boost::multi_array< FRowConstraint , 2 > &
+  get_reactive_node_injection_constraints( void ) {
+  return( v_reactive_node_injection_Const );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the (const) node injection constraints
@@ -1336,7 +1341,7 @@ class UCBlock : public Block
  NetworkBlock::NetworkData * f_NetworkData;
 
  /// the specific classname of the networks that need to be instantiated,
- /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, ecc.
+ /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, etc.
  std::string network_block_classname;
  std::string network_data_classname;
 
@@ -1427,6 +1432,9 @@ class UCBlock : public Block
 
  /// node injection constraints for each time and node
  boost::multi_array< FRowConstraint , 2 > v_node_injection_Const;
+
+ /// node injection constraints for each time and node
+ boost::multi_array< FRowConstraint , 2 > v_reactive_node_injection_Const;
 
  /// primary demand constraints for each time and primary zone
  boost::multi_array< FRowConstraint , 2 > v_PrimaryDemand_Const;
@@ -1536,6 +1544,8 @@ class UCBlock : public Block
  /// generate the node injection constraints
 
  void generate_node_injection_constraints( void );
+
+ void generate_reactive_node_injection_constraints( void );
 
 /*--------------------------------------------------------------------------*/
  /// generate the primary demand constraints

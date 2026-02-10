@@ -245,6 +245,21 @@ class HydroSystemUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive power variables of each HydroUnitBlock
+
+ ColVariable * get_reactive_power( Index generator ) override {
+  auto temp = generator;
+  for( auto sub_block : get_nested_Blocks() )
+   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
+    if( temp < unit_block->get_number_generators() )
+     return( unit_block->get_reactive_power( temp ) );
+    else
+     temp = temp - unit_block->get_number_generators();
+   }
+  return( nullptr );
+ } 
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of primary spinning reserve variables of each HydroUnitBlock
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {

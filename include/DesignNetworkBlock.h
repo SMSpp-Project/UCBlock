@@ -203,7 +203,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
-			       v_Block[ interval ] )->get_node_injection() );
+             v_Block[ interval ] )->get_node_injection() );
   return( nullptr );
   }
 
@@ -216,7 +216,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
-			 v_Block[ interval ] )->get_const_node_injection() );
+       v_Block[ interval ] )->get_const_node_injection() );
   return( nullptr );
   }
 
@@ -226,7 +226,7 @@ class DesignNetworkBlock : public NetworkBlock
   if( v_Block.empty() )
    return( 0 );
   return( static_cast< NetworkBlock * >(
-				     v_Block.front() )->get_number_nodes() );
+             v_Block.front() )->get_number_nodes() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -415,6 +415,48 @@ class DesignNetworkBlock : public NetworkBlock
 
    nb->set_ActiveDemand( sub );
    }
+
+#ifndef NDEBUG
+  if( offset != total_intervals )
+   throw std::logic_error(
+     "DesignNetworkBlock::set_ActiveDemand: "
+     "unused intervals in ActiveDemand matrix"
+   );
+#endif
+  }
+
+ void set_ReactiveDemand( const boost::multi_array< double , 2 > & apd )
+  override {
+  if( v_Block.empty() )
+   return;
+
+  const Index total_intervals = static_cast< Index >( apd.shape()[ 0 ] );
+  const Index number_nodes = static_cast< Index >( apd.shape()[ 1 ] );
+
+  Index offset = 0;
+
+  for( auto * nb_ptr : v_Block ) {
+   auto * nb = static_cast< NetworkBlock * >( nb_ptr );
+   const Index ni = nb->get_number_intervals();
+
+#ifndef NDEBUG
+   if( offset + ni > total_intervals )
+    throw std::logic_error(
+      "DesignNetworkBlock::set_ActiveDemand: "
+      "inconsistent number of intervals between UCBlock and subnetworks"
+    );
+#endif
+
+   boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ] );
+
+   for( Index i = 0 ; i < ni ; ++i , ++offset ) {
+    auto src_row = apd[ boost::indices[ offset ]
+                      [ boost::multi_array_types::index_range( 0 , number_nodes ) ] ];
+    std::copy( src_row.begin() , src_row.end() , sub[ i ].begin() );
+   }
+
+   nb->set_ReactiveDemand( sub );
+  }
 
 #ifndef NDEBUG
   if( offset != total_intervals )

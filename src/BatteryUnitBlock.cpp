@@ -120,7 +120,12 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "BatteryMinCapacityDesign" ,
                                               "ConverterMinCapacityDesign" ,
                                               "BatteryMaxCapacityDesign" ,
-                                              "ConverterMaxCapacityDesign" };
+                                              "ConverterMaxCapacityDesign" ,
+                                              // for specific modes
+                                              "MinReactivePower",
+                                              "MaxReactivePower",
+                                              "VoltageMagnitude",                                              
+                                              "ReferenceSchedule" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -198,6 +203,22 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , f_ConvMaxCapacityDesign , "ConverterMaxCapacityDesign" );
  }
 
+ // variables for AC elements
+ if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MaxReactivePower.resize( f_time_horizon , 0.0 );
+
+ if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
+                      true , true , v_change_intervals ) )
+    v_MinReactivePower.resize( f_time_horizon , 0.0 );
+
+ if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
+                      true , true , v_change_intervals ) )
+    v_VoltageMagnitude.resize( f_time_horizon , 0.0 );
+
+ ::deserialize( group , "ReferenceSchedule" , f_time_horizon , v_RefSchedule ,
+                true , true , v_change_intervals );
+
  check_data_consistency();
 
 }  // end( BatteryUnitBlock::deserialize )
@@ -229,8 +250,8 @@ void BatteryUnitBlock::check_data_consistency( void ) const {
     "BatteryMinCapacityDesign must be <= BatteryMaxCapacityDesign." ) );
 
   if( ( std::abs( f_BattMaxCapacityDesign ) == 1 ) && ( f_BattMinCapacityDesign > 1 ) )
-   throw std::logic_error(
-    "BatteryMinCapacityDesign must be <= 1 when |BatteryMaxCapacityDesign| = 1." );
+   throw( std::logic_error(
+    "BatteryMinCapacityDesign must be <= 1 when |BatteryMaxCapacityDesign| = 1." ) );
  }
 
  if( f_BattMaxCapacityDesign < 0 ) {
@@ -487,6 +508,15 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
     var.set_type( ColVariable::kNonNegative );
    add_static_variable( v_secondary_spinning_reserve , "sc_battery" );
   }
+
+
+ // The variables wrt reference schedule if there
+ if( ! v_RefSchedule.empty() ) {
+   v_abs_ref_schedule.resize( f_time_horizon );
+   for( auto & var : v_abs_ref_schedule )
+     var.set_type( ColVariable::kNonNegative );
+   add_static_variable( v_abs_ref_schedule , "v_absb_refschd" );
+ }
 
  set_variables_generated();
 
@@ -1060,6 +1090,60 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    add_static_constraint( battery_binary_bound_Const , "Binary_Battery" );
   }
 
+  if( ! v_RefSchedule.empty() ) {
+   Reference_Schedule_Const.resize( 2 * f_time_horizon );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // | P - Pref | <= v_abs_ref_schedule
+    auto lfunc_1 = new LinearFunction();
+    lfunc_1->add_variable( & v_active_power[ t ], 1.0 );
+    lfunc_1->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+    Reference_Schedule_Const[ t ].set_lhs( -Inf< double >() );
+    Reference_Schedule_Const[ t ].set_rhs( v_RefSchedule[ t ] );
+    Reference_Schedule_Const[ t ].set_function( lfunc_1 );
+    //
+    auto lfunc_2 = new LinearFunction();
+    lfunc_2->add_variable( & v_active_power[ t ], -1.0 );
+    lfunc_2->add_variable( & v_abs_ref_schedule[ t ], -1.0 );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_lhs( -Inf< double >() );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_rhs( -v_RefSchedule[ t ] );
+    Reference_Schedule_Const[ f_time_horizon + t ].set_function( lfunc_2 );
+   }
+   add_static_constraint( Reference_Schedule_Const, "Norm1B_Reference_Schedule" );
+ }
+
+ /// Reactive power bounds constraints
+ if( ReactivePower_Bound_Const.size() != f_time_horizon ) {
+  assert( ReactivePower_Bound_Const.empty() );
+  ReactivePower_Bound_Const.resize( f_time_horizon );
+ }
+
+ bool something = false;
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  if( get_max_reactive_power( t ) > 0.0 ) {
+   something = true;
+   ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
+   ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
+   ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
+  }
+ }
+ if( something )
+  add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
+
+ // Link between active and reactive power
+ Reactive_2_Active_Const.resize( f_time_horizon );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // Q(t) - P(t) <= 0
+    auto lfunc = new LinearFunction();
+    lfunc->add_variable( &v_active_power[ t ], -1.0 );
+    lfunc->add_variable( &v_reactive_power[ t ], 1.0 );
+    
+    Reactive_2_Active_Const[ t ].set_lhs( -Inf< double >() );
+    Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
+    Reactive_2_Active_Const[ t ].set_function( lfunc );
+ }
+ //add_static_constraint( Reactive_2_Active_Const, "QandPbattery" );
+
  set_constraints_generated();
 
 }  // end( BatteryUnitBlock::generate_abstract_constraints )
@@ -1073,15 +1157,22 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  auto lf = new LinearFunction();
 
+ if( v_RefSchedule.empty() ) {
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+     lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
+     lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] , eDryRun );
+   }
+ }
+
  if( f_BattInvestmentCost != 0 )
   lf->add_variable( &batt_design , f_BattInvestmentCost );
 
  if( f_ConvInvestmentCost != 0 )
   lf->add_variable( &conv_design , f_ConvInvestmentCost );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
-  lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] , eDryRun );
+ if( ! v_RefSchedule.empty() ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   lf->add_variable( &v_abs_ref_schedule[ t ] , 1.0 );
  }
 
  objective.set_function( lf );

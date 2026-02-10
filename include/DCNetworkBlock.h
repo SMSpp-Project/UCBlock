@@ -471,6 +471,15 @@ class DCNetworkData : public NetworkData
   return( v_max_power_flow );
  }
 
+ /*--------------------------------------------------------------------------*/
+  /// returns the reference unit (see Matpower)
+ /** */
+  const double get_baseMVA( void ) const {
+    return( f_base_mva );
+  }
+/*--------------------------------------------------------------------------*/
+
+
 /*--------------------------------------------------------------------------*/
  /// returns maximum power flow of the given \p line
  /** This method returns the maximum power flow of the given \p line.
@@ -600,7 +609,7 @@ class DCNetworkData : public NetworkData
   * node ids, not line ids. To access the line ids in the spanning tree (resp. in the cycles),
   * use get_lines_in_spanning_tree (resp. get_lines_in_cycles)*/
 
- void compute_cycle_basis(int root = -1);  // be careful -> root is int and not Index, as it can be negative
+ void compute_cycle_basis(int root = -1, bool only_AC_lines = true);  // be careful -> root is int and not Index, as it can be negative
 
 /*--------------------------------------------------------------------------*/
 
@@ -610,16 +619,13 @@ class DCNetworkData : public NetworkData
   return( v_cycle_basis );
   }
 
-/*--------------------------------------------------------------------------*/
-
  const std::map< Index, Index > & get_spanning_tree( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
   return( m_spanning_tree );
   }
 
-/*--------------------------------------------------------------------------*/
-
+/*-------------------------------------------------------------*/
 /* Return a map where the keys are the line ids involved in the spanning tree and the
 value is 1 if the directed line is in the tree and -1 if the reverse directed line is in the tree.*/
 std::map< Index, int > get_lines_in_spanning_tree( void ) {
@@ -648,8 +654,7 @@ std::map< Index, int > get_lines_in_spanning_tree( void ) {
   return( lines_in_spanning_tree );
 }
 
-/*--------------------------------------------------------------------------*/
-
+/*-------------------------------------------------------------*/
 /* Return a vector of map where the keys are the line ids involved in the cycle and the
 value is 1 if the directed line is in the cycle and -1 if the reverse directed line is in the cycle.*/
 std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
@@ -806,6 +811,9 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
  /// to not recompute each time the PTDF
  SpMat stored_B2;
  SpMat stored_B2_inv;
+
+ /// to store the reference mva of the instance
+ double f_base_mva;
 
  /** A SparseMatrix resulting from the product of the PTDF and (A^dc)^T,
   * where the latter is the incidence matrix of the pure DC lines */
@@ -1093,6 +1101,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   *   \f[
   *     \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l
   *   \f]
+  *
   *   where \f$ NC_l \f$ is the unit network cost of line \f$l\f$ and
   *   \f$ V_l \f$ is the corresponding auxiliary variable
   *   (coefficients are also scaled by the Block scale factor, if any). */
@@ -1174,8 +1183,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * get_NetworkData()->get_number_nodes(). Otherwise, it assumes the network
   * is a bus and returns 1.
   *
-  * @return the number of nodes in the network.
-  */
+  * @return the number of nodes in the network. */
 
  Index get_number_nodes( void ) const override {
   if( ! f_NetworkData )
@@ -1189,8 +1197,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   * If get_NetworkData() returns nullptr, this is equivalent to
   * get_NetworkData()->get_number_lines(). Otherwise, it returns zero.
   *
-  * @return the number of lines in the network.
-  */
+  * @return the number of lines in the network. */
 
  Index get_number_lines( void ) const {
   if( ! f_NetworkData )
@@ -1490,6 +1497,11 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
  void set_ActiveDemand( const boost::multi_array< double , 2 > & v ) override {
   if( v_ActiveDemand.empty() )
    v_ActiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
+ }
+
+ void set_ReactiveDemand( const boost::multi_array< double , 2 > & v ) override {
+  if( v_ReactiveDemand.empty() )
+   v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
  }
 
 /*--------------------------------------------------------------------------*/
