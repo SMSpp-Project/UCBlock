@@ -186,6 +186,17 @@ namespace SMSpp_di_unipi_it {
    return( f_NetworkData ) ? ( f_NetworkData->get_number_lines() ) : 0;
   }
 
+  // A rounding function
+  inline double round_sig(double value, int digits = 16){
+    if (value == 0.0) return 0.0;
+
+    double abs_v = std::fabs(value);
+    int exponent = static_cast<int>(std::floor(std::log10(abs_v)));
+    double factor = std::pow(10.0, digits - 1 - exponent);
+
+    return std::round(value * factor) / factor;
+  }
+
   std::vector< double > get_line_losses( void ) {
    std::vector< double > losses;
    Index number_lines = get_number_lines();
