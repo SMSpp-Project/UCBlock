@@ -229,6 +229,15 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  int nb_dc_lines = DC_lines.size();
 
  double base_mva = f_NetworkData->get_baseMVA();
+ // --- scaling the v_power_flow and v_reactive_power_flow to improve numerical stability
+ //     effectively we are swapping out v_power_flow for v_power_flow_tilde with
+ //                    v_power_flow_tilde = C * v_power_flow
+ //     and likewise v_reactive_power_flow
+ constexpr double C_v_scal = 0.01; /* e.g. 100.0 */
+ // --- scaling constant for the AC_voltage_defintion_const equations (to improve numeric stability)
+ constexpr double f_scale = 10.0;
+ // --- Slack for AC_voltage_defintion_const
+ constexpr double f_ACvS = 0.0;
 
  // ----- Voltage bounds
  /*
@@ -239,8 +248,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  const auto & min_voltage = f_NetworkData->get_node_min_voltage();
  const auto & max_voltage = f_NetworkData->get_node_max_voltage();
  for( Index n = 0 ; n < number_nodes ; ++n ) {
-  v_voltage_bounds_const[ n ].set_lhs( pow( min_voltage[ n ] , 2 ) );
-  v_voltage_bounds_const[ n ].set_rhs( pow( max_voltage[ n ] , 2 ) );
+  v_voltage_bounds_const[ n ].set_lhs( pow( C_v_scal*min_voltage[ n ] , 2 ) );
+  v_voltage_bounds_const[ n ].set_rhs( pow( C_v_scal*max_voltage[ n ] , 2 ) );
   v_voltage_bounds_const[ n ].set_variable( &v_sqrd_voltages[ n ] );
  }
  add_static_constraint( v_voltage_bounds_const , "AC_voltage_bounds_limit" );
@@ -312,10 +321,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    Index i = start_line[ line_id ];
    Index j = end_line[ line_id ];
 
-   if( i == p ) lfunc->add_variable( &v_power_flow[ line_id ] , 1. );
+   if( i == p ) lfunc->add_variable( &v_power_flow[ line_id ] , 1./C_v_scal );
    if( j == p )
     lfunc->add_variable( &v_power_flow[ number_lines + line_id ] ,
-                         1. );
+                         1./C_v_scal );
   }
   v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] / base_mva );
   v_power_flow_injection_const[ p ].set_function( lfunc );
@@ -331,10 +340,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
    Index i = start_line[ line_id ];
    Index j = end_line[ line_id ];
 
-   if( i == p ) lfunc->add_variable( &v_reactive_power_flow[ line_id ] , 1. );
+   if( i == p ) lfunc->add_variable( &v_reactive_power_flow[ line_id ] , 1./C_v_scal );
    if( j == p )
     lfunc->add_variable(
-     &v_reactive_power_flow[ number_lines + line_id ] , 1. );
+     &v_reactive_power_flow[ number_lines + line_id ] , 1./C_v_scal );
   }
   v_power_flow_injection_const[ number_nodes + p ].set_both(
    -v_ReactiveDemand[ p ] / base_mva );
@@ -351,8 +360,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );
-  lfunc->add_variable( &v_power_flow[ number_lines + line_id ] , 1.0 );
+  lfunc->add_variable( &v_power_flow[ line_id ] , 1.0/C_v_scal );
+  lfunc->add_variable( &v_power_flow[ number_lines + line_id ] , 1.0/C_v_scal );
   v_flow_dc[ i_dc_line ].set_both( 0.0 );
   v_flow_dc[ i_dc_line ].set_function( lfunc );
   ++i_dc_line;
@@ -379,8 +388,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  auto Y   = [r,x] (int l){ return 1.0/(r(l)+1i*x(l)); }; // common base of matrix (angle = 0, ratio = 1)
  auto Ytt = [Y,b] (int l){ return Y(l) + 0.5i*b(l); };
  auto Yff = [Ytt,tau] (int l){ return Ytt(l) / std::pow(tau(l),2.0); };
- auto Yft = [Y,theta,tau] (int l){ return Y(l) / ( tau(l)*std::exp(-1i*theta(l)) ); };
- auto Ytf = [Y,theta,tau] (int l){ return Y(l) / ( tau(l)*std::exp(1i*theta(l)) ); };
+ auto Yft = [Y,theta,tau] (int l){ return -1.0*Y(l) / ( tau(l)*std::exp(-1i*theta(l)) ); };
+ auto Ytf = [Y,theta,tau] (int l){ return -1.0*Y(l) / ( tau(l)*std::exp(1i*theta(l)) ); };
 
  v_voltage_definition_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2 * nb_ac_lines ] );
  i_line = 0;
@@ -393,25 +402,29 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     // 1.1) real part
     auto lfunc_1 = new LinearFunction();
     lfunc_1->add_variable( &v_sqrd_voltages[ p ] ,
-                           Yff(line_id).real() );
+                           round_sig(Yff(line_id).real()*f_scale) );
     lfunc_1->add_variable( &v_sum_product_voltages[ line_id ] ,
-                           Yft(line_id).real() );
+                           round_sig(Yft(line_id).real()*f_scale) );
     lfunc_1->add_variable( &v_diff_product_voltages[ line_id ] ,
-                           Yft(line_id).imag() );
-    lfunc_1->add_variable( &v_power_flow[ line_id ] , -1.0 );
-    v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
+                           round_sig(Yft(line_id).imag()*f_scale) );
+    lfunc_1->add_variable( &v_power_flow[ line_id ] , -(1.0/C_v_scal)*f_scale );
+    //v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
+    v_voltage_definition_const[ 0 ][ i_line ].set_lhs( -f_ACvS );
+    v_voltage_definition_const[ 0 ][ i_line ].set_rhs( f_ACvS );
     v_voltage_definition_const[ 0 ][ i_line ].set_function( lfunc_1 );
 
     // 1.2) imag part
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( &v_sqrd_voltages[ p ] ,
-                           -Yff(line_id).imag() );
+                           round_sig(-Yff(line_id).imag()*f_scale) );
     lfunc_2->add_variable( &v_sum_product_voltages[ line_id ] ,
-                           -Yft(line_id).imag() );
+                           round_sig(-Yft(line_id).imag()*f_scale) );
     lfunc_2->add_variable( &v_diff_product_voltages[ line_id ] ,
-                           Yft(line_id).real() );
-    lfunc_2->add_variable( &v_reactive_power_flow[ line_id ] , -1.0 );
-    v_voltage_definition_const[ 1 ][ i_line ].set_both( 0.0 );
+                           round_sig(Yft(line_id).real()*f_scale) );
+    lfunc_2->add_variable( &v_reactive_power_flow[ line_id ] , -(1.0/C_v_scal)*f_scale );
+    //v_voltage_definition_const[ 1 ][ i_line ].set_both( 0.0 );
+    v_voltage_definition_const[ 1 ][ i_line ].set_lhs( -f_ACvS );
+    v_voltage_definition_const[ 1 ][ i_line ].set_rhs( f_ACvS );
     v_voltage_definition_const[ 1 ][ i_line ].set_function( lfunc_2 );
 
     ++i_line;
@@ -424,26 +437,30 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     // 2.1) real part
     auto lfunc_1 = new LinearFunction();
     lfunc_1->add_variable( &v_sqrd_voltages[ p ] ,
-                           Ytt(line_id).real() );
+                           round_sig(Ytt(line_id).real()*f_scale) );
     lfunc_1->add_variable( &v_sum_product_voltages[ line_id ] ,
-                           Ytf(line_id).real() );
+                           round_sig(Ytf(line_id).real()*f_scale) );
     lfunc_1->add_variable( &v_diff_product_voltages[ line_id ] ,
-                           -Ytf(line_id).imag() ); // be carefull, diff is antisymetric
-    lfunc_1->add_variable( &v_power_flow[ line_id ] , -1.0 );
-    v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
+                           round_sig(-Ytf(line_id).imag()*f_scale) ); // be carefull, diff is antisymetric
+    lfunc_1->add_variable( &v_power_flow[ number_lines + line_id ] , -(1.0/C_v_scal)*f_scale );
+    //v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
+    v_voltage_definition_const[ 0 ][ i_line ].set_lhs( -f_ACvS );
+    v_voltage_definition_const[ 0 ][ i_line ].set_rhs( f_ACvS );
     v_voltage_definition_const[ 0 ][ i_line ].set_function( lfunc_1 );
 
     // 2.2) imag part
     auto lfunc_2 = new LinearFunction();
     lfunc_2->add_variable( &v_sqrd_voltages[ p ] ,
-                           -Ytt(line_id).imag() );
+                           round_sig(-Ytt(line_id).imag()*f_scale) );
     lfunc_2->add_variable( &v_sum_product_voltages[ line_id ] ,
-                           -Ytf(line_id).imag() );
+                           round_sig(-Ytf(line_id).imag()*f_scale) );
     lfunc_2->add_variable( &v_diff_product_voltages[ line_id ] ,
-                           -Ytf(line_id).real() ); // be carefull, diff is antisymetric
-    lfunc_2->add_variable( &v_reactive_power_flow[ line_id ] ,
-                           -1.0 );
-    v_voltage_definition_const[ 1 ][ i_line ].set_both( 0.0 );
+                           round_sig(-Ytf(line_id).real()*f_scale) ); // be carefull, diff is antisymetric
+    lfunc_2->add_variable( &v_reactive_power_flow[ number_lines + line_id ] ,
+                           -(1.0/C_v_scal)*f_scale );
+    //v_voltage_definition_const[ 1 ][ i_line ].set_both( 0.0 );
+    v_voltage_definition_const[ 1 ][ i_line ].set_lhs( -f_ACvS );
+    v_voltage_definition_const[ 1 ][ i_line ].set_rhs( f_ACvS );
     v_voltage_definition_const[ 1 ][ i_line ].set_function( lfunc_2 );  
 
     ++i_line; 
@@ -469,7 +486,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
   qfunc_1->add_variable( &v_power_flow[ line_id ] , 0.0 , 1.0 );
   qfunc_1->add_variable( &v_reactive_power_flow[ line_id ] , 0.0 , 1.0 );
   v_thermal_limit[ line_id ].set_lhs( -Inf< double >() );
-  v_thermal_limit[ line_id ].set_rhs( pow( rate_A[ line_id ] / base_mva , 2 ) );
+  v_thermal_limit[ line_id ].set_rhs( pow( C_v_scal*rate_A[ line_id ] / base_mva , 2 ) );
   v_thermal_limit[ line_id ].set_function( qfunc_1 );
   auto qfunc_2 = new DQuadFunction();
   qfunc_2->add_variable( &v_power_flow[ number_lines + line_id ] , 0.0 , 1.0 );
@@ -477,7 +494,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
                          0.0 , 1.0 );
   v_thermal_limit[ number_lines + line_id ].set_lhs( -Inf< double >() );
   v_thermal_limit[ number_lines + line_id ].set_rhs(
-   pow( rate_A[ line_id ] / base_mva , 2 ) );
+   pow( C_v_scal*rate_A[ line_id ] / base_mva , 2 ) );
   v_thermal_limit[ number_lines + line_id ].set_function( qfunc_2 );
  }
  add_static_constraint( v_thermal_limit , "AC_thermal_limit_const" );
@@ -565,6 +582,10 @@ ACNetworkBlock::recover_feasible_solution( void ) {
                  relaxed_reactive_power_flow.begin() ,
                  []( ColVariable v ) { return( v.get_value() ); }
  );
+
+ // 1b) Multiply back the obtained solutions by the earlier scale factor since indeed we have computed v_power_flow_tilde
+ //     and we care for v_power_flow -> the relation is
+ //     v_power_flow_tilde = C * v_power_flow
 
  // 2) Then compute spanning tree
  auto result = f_NetworkData->get_cycle_basis();
