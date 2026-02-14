@@ -191,7 +191,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   std::vector< std::vector< std::tuple< Index , Index , double > > >
    tmp( f_number_lines );
   for( Index i = 0 ; i < f_number_branches ; ++i ) {
-   if( ( id[ i ] < 0 ) || ( id[ i ] >= f_number_nodes ) )
+   if( ( id[ i ] < 0 ) || ( id[ i ] >= f_number_lines ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
      "wrong hyperarc id " +
      std::to_string( id[ i ] ) ) );
