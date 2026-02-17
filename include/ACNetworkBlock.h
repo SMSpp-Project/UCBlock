@@ -15,7 +15,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ACNetworkBlock
- #define __ACNetworkBlock
+#define __ACNetworkBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -23,8 +23,6 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
-
-#include "LinearFunction.h"
 
 #include "FRowConstraint.h"
 
@@ -111,17 +109,19 @@ namespace SMSpp_di_unipi_it {
     return( v_line_max_angle );
    }
 
-   std::vector< std::pair< std::set< Index >, std::set< Index > > > get_direct_and_reverse_AClines( void ) const {
-        std::vector< std::pair< std::set< Index >, std::set< Index > > > v(get_number_nodes());
-        const auto & start_line = get_start_line();
-        const auto & end_line = get_end_line();
-        for (auto& line_id: get_AC_lines()){
-            Index p = start_line[ line_id ];
-            Index n = end_line[ line_id ];
-            v[p].first.insert( line_id );
-            v[n].second.insert( line_id );
-        }
-        return v;
+   std::vector< std::pair< std::set< Index > , std::set< Index > > >
+   get_direct_and_reverse_AClines( void ) const {
+    std::vector< std::pair< std::set< Index > , std::set< Index > > > v(
+     get_number_nodes() );
+    const auto & start_line = get_start_line();
+    const auto & end_line = get_end_line();
+    for( auto & line_id : get_AC_lines() ) {
+     Index p = start_line[ line_id ];
+     Index n = end_line[ line_id ];
+     v[ p ].first.insert( line_id );
+     v[ n ].second.insert( line_id );
+    }
+    return( v );
    }
 
 
@@ -187,14 +187,14 @@ namespace SMSpp_di_unipi_it {
   }
 
   // A rounding function
-  inline double round_sig(double value, int digits = 16){
-    if (value == 0.0) return 0.0;
+  inline double round_sig( double value , int digits = 16 ) {
+   if( value == 0.0 ) return( 0.0 );
 
-    double abs_v = std::fabs(value);
-    int exponent = static_cast<int>(std::floor(std::log10(abs_v)));
-    double factor = std::pow(10.0, digits - 1 - exponent);
+   double abs_v = std::fabs( value );
+   int exponent = static_cast< int >( std::floor( std::log10( abs_v ) ) );
+   double factor = std::pow( 10.0 , digits - 1 - exponent );
 
-    return std::round(value * factor) / factor;
+   return( std::round( value * factor ) / factor );
   }
 
   std::vector< double > get_line_losses( void ) {
