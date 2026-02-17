@@ -564,9 +564,9 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
 
  // generate the abstract constraints of UCBlock
  generate_node_injection_constraints();
- if ( v_reactive_power_demand.num_elements() > 0 ){
+ if ( v_reactive_power_demand.num_elements() > 0 )
    generate_reactive_node_injection_constraints();
- }
+
  generate_primary_demand_constraints();
  generate_secondary_demand_constraints();
  generate_inertia_demand_constraints();
@@ -1293,9 +1293,8 @@ bool UCBlock::is_feasible( bool useabstract , Configuration * fsbc )
   extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
  for( const auto & sbi : this->get_nested_Blocks() )
-  if( ! sbi->is_feasible() ){
+  if( ! sbi->is_feasible() )
     return( false );
-  }
 
  return(
   // Constraints: notice that the ZOConstraints are not checked, since the
