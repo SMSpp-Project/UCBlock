@@ -59,27 +59,46 @@ SMSpp_insert_in_factory_cpp_0( ACNetworkData );
 /*--------------------------------------------------------------------------*/
 
 void ACNetworkData::deserialize( const netCDF::NcGroup & group ) {
- DCNetworkData::deserialize( group );
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_vars = {
-  "ReactivePowerDemand" ,
-  "NodeConductance" ,
-  "NodeSusceptance" ,
-  "NodeVoltageMagnitude" ,
-  "NodeVoltageAngle" ,
-  "NodeMaxVoltage" ,
-  "NodeMinVoltage" ,
-  "LineResistance" ,
-  "LineReactance" ,
-  "LineRatio" ,
-  "LineRATEA" ,
-  "LineShiftAngle" ,
-  "LineMinAngle" ,
-  "LineMaxAngle"
+ // check all expected variables, comprised those of the base class: see
+ // DCNetworkData::deserialize() for the rationale
+ static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                     "StartLine" , "EndLine" ,
+                                                     "HyperArcID" ,
+                                                     "MinPowerFlow" ,
+                                                     "MaxPowerFlow" ,
+                                                     "LineSusceptance" ,
+                                                     "NetworkCost" ,
+                                                     "NodeName" , "LineName" ,
+                                                     "ConstantTerm" ,
+                                                     "Efficiency" ,
+                                                     // ACNetworkData
+                                                     "ReactivePowerDemand" ,
+                                                     "NodeConductance" ,
+                                                     "NodeSusceptance" ,
+                                                     "NodeVoltageMagnitude" ,
+                                                     "NodeVoltageAngle" ,
+                                                     "NodeMaxVoltage" ,
+                                                     "NodeMinVoltage" ,
+                                                     "LineResistance" ,
+                                                     "LineReactance" ,
+                                                     "LineRatio" ,
+                                                     "LineRATEA" ,
+                                                     "LineShiftAngle" ,
+                                                     "LineMinAngle" ,
+                                                     "LineMaxAngle" ,
+                                                     // if called from UCBlock:
+                                                     "ActivePowerDemand" ,
+                                                     "GeneratorNode" ,
+                                                     "NetworkConstantTerms" ,
+                                                     "NetworkBlockClassname" ,
+                                                     "NetworkDataClassname"
  };
  check_variables( group , expected_vars , std::cerr );
 #endif
+
+ DCNetworkData::deserialize( group );
 
  if( f_number_nodes > 1 ) {
   ::deserialize( group , "LineReactance" , f_number_lines ,

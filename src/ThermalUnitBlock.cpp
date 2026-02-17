@@ -217,7 +217,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                                                // cost model
                                                "CostModel",
                                                "PowerCostCoeffs" 
-                                               // Specific computational modes
+                                               // specific computational modes
                                                "MinReactivePower",
                                                "MaxReactivePower",
                                                "ReferenceSchedule",

@@ -95,24 +95,34 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   };
   check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "StartLine" , "EndLine" ,
-                                                     "HyperArcID" ,
-                                                     "MinPowerFlow" ,
-                                                     "MaxPowerFlow" ,
-                                                     "LineSusceptance" ,
-                                                     "NetworkCost" ,
-                                                     "NodeName" , "LineName" ,
-                                                     "ConstantTerm" ,
-                                                     "Efficiency" ,
-                                                     // if called from UCBlock:
-                                                     "ActivePowerDemand" ,
-                                                     "GeneratorNode" ,
-                                                     "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" ,
-                                                     "NetworkDataClassname"
-  };
+ // we only check for unexpected fields if "this" is a "true"
+ // DCNetworkData, i.e., not any derived class. this is because derived
+ // classes will likely *have* other fields that the base class does not
+ // know about, and therefore it would complain about them. the idea is that
+ // derived classes will then have to check for all expected fields,
+ // comprised those of the base class
+ // we don't do the same for dimensions as it's unlikely that derived
+ // classes will introduce entirely new dimensions
+ if( typeid( DCNetworkData ) == typeid( *this ) ) {
+  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
+                                                      "StartLine" , "EndLine" ,
+                                                      "HyperArcID" ,
+                                                      "MinPowerFlow" ,
+                                                      "MaxPowerFlow" ,
+                                                      "LineSusceptance" ,
+                                                      "NetworkCost" ,
+                                                      "NodeName" , "LineName" ,
+                                                      "ConstantTerm" ,
+                                                      "Efficiency" ,
+                                                      // if called from UCBlock:
+                                                      "ActivePowerDemand" ,
+                                                      "GeneratorNode" ,
+                                                      "NetworkConstantTerms" ,
+                                                      "NetworkBlockClassname" ,
+                                                      "NetworkDataClassname"
+   };
   check_variables( group , expected_vars , std::cerr );
+ }
 #endif
 
  NetworkData::deserialize( group );
