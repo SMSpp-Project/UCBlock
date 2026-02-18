@@ -404,33 +404,33 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  // shortcut to recover mathematical notation
  auto * f_net = f_NetworkData;
 
- auto r = [f_net]( int line_id ) {
-  return f_net->get_line_resistance().at( line_id );
+ auto r = [ f_net ]( int line_id ) {
+  return( f_net->get_line_resistance().at( line_id ) );
  };
- auto x = [f_net]( int line_id ) {
-  return f_net->get_line_reactance().at( line_id );
+ auto x = [ f_net ]( int line_id ) {
+  return( f_net->get_line_reactance().at( line_id ) );
  };
- auto b = [f_net]( int line_id ) {
-  return f_net->get_line_susceptance().at( line_id );
+ auto b = [ f_net ]( int line_id ) {
+  return( f_net->get_line_susceptance().at( line_id ) );
  };
- auto tau = [f_net]( int line_id ) {
-  return f_net->get_line_ratio().at( line_id );
+ auto tau = [ f_net ]( int line_id ) {
+  return( f_net->get_line_ratio().at( line_id ) );
  };
- auto theta = [f_net]( int line_id ) {
-  return PI * f_net->get_line_angle().at( line_id ) / 180;
+ auto theta = [ f_net ]( int line_id ) {
+  return( PI * f_net->get_line_angle().at( line_id ) / 180 );
  };
 
- auto Y = [r,x]( int l ) { return 1.0 / ( r( l ) + 1i * x( l ) ); };
+ auto Y = [ r , x ]( int l ) { return( 1.0 / ( r( l ) + 1i * x( l ) ) ); };
  // common base of matrix (angle = 0, ratio = 1)
- auto Ytt = [Y,b]( int l ) { return Y( l ) + 0.5i * b( l ); };
- auto Yff = [Ytt,tau]( int l ) {
-  return Ytt( l ) / std::pow( tau( l ) , 2.0 );
+ auto Ytt = [ Y , b ]( int l ) { return( Y( l ) + 0.5i * b( l ) ); };
+ auto Yff = [ Ytt , tau ]( int l ) {
+  return( Ytt( l ) / std::pow( tau( l ) , 2.0 ) );
  };
- auto Yft = [Y,theta,tau]( int l ) {
-  return -1.0 * Y( l ) / ( tau( l ) * std::exp( -1i * theta( l ) ) );
+ auto Yft = [ Y , theta , tau ]( int l ) {
+  return( -1.0 * Y( l ) / ( tau( l ) * std::exp( -1i * theta( l ) ) ) );
  };
- auto Ytf = [Y,theta,tau]( int l ) {
-  return -1.0 * Y( l ) / ( tau( l ) * std::exp( 1i * theta( l ) ) );
+ auto Ytf = [ Y , theta , tau ]( int l ) {
+  return( -1.0 * Y( l ) / ( tau( l ) * std::exp( 1i * theta( l ) ) ) );
  };
 
  v_voltage_definition_const.resize(
