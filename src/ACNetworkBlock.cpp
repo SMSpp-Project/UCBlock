@@ -155,12 +155,15 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ACNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
+void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
+{
+ if( variables_generated() )  // variables have already been generated
+  return;                     // nothing to do
+
+ DCNetworkBlock::generate_abstract_variables( stvv );
+
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
-
- // generate first the same variables as in the DCNetwork
- DCNetworkBlock::generate_abstract_variables( stvv );
 
  // ----- complex power flow (real and imaginary part for both directions)
  /*
@@ -193,13 +196,17 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
  add_static_variable( v_sum_product_voltages , "v_sum_product_voltages" );
  add_static_variable( v_diff_product_voltages , "v_diff_product_voltages" );
  add_static_variable( v_sqrd_voltages , "v_sqrd_voltages" );
-}
+
+} // end( ACNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
-void ACNetworkBlock::generate_objective( Configuration * objc ) {
+void ACNetworkBlock::generate_objective( Configuration * objc )
+{
  if( objective_generated() ) // Objective has already been generated
-  return; // nothing to do
+  return;                    // nothing to do
+
+ DCNetworkBlock::generate_objective( objc );
 
  auto lf = new LinearFunction();
 
@@ -217,14 +224,15 @@ void ACNetworkBlock::generate_objective( Configuration * objc ) {
  // Set Block objective
  this->set_objective( &objective );
 
- set_objective_generated();
 } // end( ACNetworkBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 
 void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( constraints_generated() ) // constraints have already been generated
-  return; // nothing to do
+  return;                      // nothing to do
+
+ DCNetworkBlock::generate_abstract_constraints( stcc );
 
  const auto number_nodes = get_number_nodes();
 
@@ -422,8 +430,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  };
 
  v_voltage_definition_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2 *
-   nb_ac_lines ] );
+  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ 2 * nb_ac_lines ] );
  i_line = 0;
  const auto splitted_lines = f_NetworkData->get_direct_and_reverse_AClines();
  for( Index p = 0 ; p < number_nodes ; ++p ) {
@@ -537,7 +544,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
 
  // up to now, only SOCP relaxation is available, but it could be replaced by something else
  generate_SOCP_relaxation();
-}
+} // end( ACNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
