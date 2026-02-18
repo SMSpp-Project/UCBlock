@@ -142,8 +142,10 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group ) {
 /*----------------------- METHODS OF ACNetworkBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ACNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
+void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
+{
  DCNetworkBlock::deserialize( group );
+
  auto ACND = new ACNetworkData();
  ACND->deserialize( group );
  if( f_NetworkData &&
@@ -151,6 +153,7 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group ) {
   throw( std::logic_error(
    "ACNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
  set_NetworkData( ACND );
+
 } // end( ACNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -228,7 +231,8 @@ void ACNetworkBlock::generate_objective( Configuration * objc )
 
 /*--------------------------------------------------------------------------*/
 
-void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
+void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() ) // constraints have already been generated
   return;                      // nothing to do
 
@@ -597,7 +601,7 @@ void ACNetworkBlock::generate_SOCP_relaxation( void ) {
  }
  if( i_line > 0 )
   add_static_constraint( v_socp_const , "AC_socp_const" );
-}
+} // end( ACNetworkBlock::generate_SOCP_relaxation )
 
 /*--------------------------------------------------------------------------*/
 
@@ -624,9 +628,9 @@ ACNetworkBlock::recover_feasible_solution( void ) {
                  []( const ColVariable & v ) { return( v.get_value() ); }
  );
 
- // 1b) Multiply back the obtained solutions by the earlier scale factor since indeed we have computed v_power_flow_tilde
- //     and we care for v_power_flow -> the relation is
- //     v_power_flow_tilde = C * v_power_flow
+ // 1b) Multiply back the obtained solutions by the earlier scale factor since
+ //     indeed we have computed v_power_flow_tilde, and we care for
+ //     v_power_flow -> the relation is v_power_flow_tilde = C * v_power_flow
 
  // 2) Then compute spanning tree
  auto result = f_NetworkData->get_cycle_basis();
@@ -634,7 +638,7 @@ ACNetworkBlock::recover_feasible_solution( void ) {
  // 3) Do some magic (TODO)
 
  return( v_feasible_sol );
-}
+} // end( ACNetworkBlock::recover_feasible_solution )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File ACNetworkBlock.cpp ------------------------*/
