@@ -6,7 +6,7 @@
 
 #include <complex>
 
-# include <cmath>
+#include <cmath>
 
 #include "NetworkBlock.h"
 
@@ -37,6 +37,7 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
 using namespace std::complex_literals;
 
 typedef Eigen::SparseMatrix< std::complex< double > > SpCMat;
@@ -247,7 +248,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  if( number_lines <= 0 )
   throw( std::logic_error( "ACNetworkBlock::generate_abstract_constraints: "
-   "number of lines of DCNetworkBlock is not set" ) );
+                           "number of lines of DCNetworkBlock is not set" ) );
 
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
