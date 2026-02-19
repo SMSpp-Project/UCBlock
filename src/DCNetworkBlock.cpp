@@ -1226,13 +1226,17 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
 
  auto lf = new LinearFunction();
 
- if( ! f_NetworkData->get_network_cost().empty() )
-  for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
-   lf->add_variable( &v_auxiliary_variable[ line_id ] ,
-                     f_NetworkData->get_network_cost()[ line_id ] ,
-                     eNoMod );
+ switch( ftype ) {
+  case( PTDF ) :
+    if( ! f_NetworkData->get_network_cost().empty() )
+      for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
+        lf->add_variable( &v_auxiliary_variable[ line_id ] , f_NetworkData->get_network_cost()[ line_id ] , eNoMod );
+      lf->set_constant_term( f_ConstTerm );
+    break;
+  default :
+    break;
+ }
 
- lf->set_constant_term( f_ConstTerm );
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );

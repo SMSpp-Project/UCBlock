@@ -212,6 +212,7 @@ void ACNetworkBlock::generate_objective( Configuration * objc )
 
  DCNetworkBlock::generate_objective( objc );
 
+ /* -- This is potentially done in DCNetwork already, no need to duplicate it here:
  auto lf = new LinearFunction();
 
  if( ! f_NetworkData->get_network_cost().empty() )
@@ -227,6 +228,7 @@ void ACNetworkBlock::generate_objective( Configuration * objc )
 
  // Set Block objective
  this->set_objective( &objective );
+ */
 
 } // end( ACNetworkBlock::generate_objective )
 
