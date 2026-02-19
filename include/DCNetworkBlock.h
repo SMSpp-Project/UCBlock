@@ -124,6 +124,7 @@ class DCNetworkBlock : public NetworkBlock
   PTDF = 0,
   CYCLE,
   KIRCHOFF,
+  NONE
   };
 
 /*--------------------------------------------------------------------------*/

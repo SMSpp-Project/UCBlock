@@ -640,21 +640,28 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( ( f_NetworkData->get_lines_type() == kHVDC ) ||
      ( f_NetworkData->get_lines_type() == kAC_HVDC ) )
   ftype = PTDF;
+ else if( f_NetworkData->get_lines_type() == kAC )
+  ftype = NONE;
  else
   ftype = CYCLE;
 
- if( ftype == PTDF )
+ switch( ftype ) {
+ case( PTDF ) :
   generate_PTDF_variables( stvv );
- else if( ftype == CYCLE )
+  break;
+ case( CYCLE ) :
   generate_CYCLE_variables( stvv );
- else
+  break;
+ case( KIRCHOFF ) :
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_variables: "
                            "line type not implemented yet" ) );
+ default :
+  break;
+ }
 
  set_variables_generated();
 
 }  // end( DCNetworkBlock::generate_abstract_variables )
-
 
 /*--------------------------------------------------------------------------*/
 void DCNetworkBlock::generate_PTDF_variables( Configuration * stvv )
@@ -695,7 +702,7 @@ void DCNetworkBlock::generate_CYCLE_variables( Configuration * stvv )
   *   - variables "v_cycle_flow" (h_c in the paper)
   */
 
-  generate_PTDF_variables(stvv); // we have the same variables + others
+  generate_PTDF_variables( stvv ); // we have the same variables + others
 
   const auto number_nodes = get_number_nodes();
   if( number_nodes <= 1 )
@@ -720,13 +727,19 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- if( ftype == PTDF )
+ switch( ftype ) {
+ case( PTDF ) :
   generate_PTDF_constraints( stcc );
- else if( ftype == CYCLE )
+  break;
+ case( CYCLE ) :
   generate_CYCLE_constraints( stcc );
- else
+  break;
+ case( KIRCHOFF ) :
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                            "line type not implemented yet" ) );
+ default :
+  break;
+ }
 
  set_constraints_generated();
 

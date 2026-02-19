@@ -174,30 +174,30 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
  (real and imaginary part).
  */
  v_power_flow.resize( 2 * number_lines );
- v_reactive_power_flow.resize( 2 * number_lines );
- for( Index line_id = 0 ; line_id < 2 * number_lines ; ++line_id ) {
+ for( Index line_id = 0 ; line_id < 2 * number_lines ; ++line_id )
   v_power_flow[ line_id ].set_type( ColVariable::kContinuous );
-  v_reactive_power_flow[ line_id ].set_type( ColVariable::kContinuous );
- }
  add_static_variable( v_power_flow , "v_power_flow_real" );
+
+ v_reactive_power_flow.resize( 2 * number_lines );
+ for( Index line_id = 0 ; line_id < 2 * number_lines ; ++line_id )
+  v_reactive_power_flow[ line_id ].set_type( ColVariable::kContinuous );
  add_static_variable( v_reactive_power_flow , "v_reactive_power_flow" );
 
  // be careful, we do not define the reverse value
  // since the sum is symmetric and the diff is anti-symmetric
  v_sum_product_voltages.resize( number_lines );
- for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+ for( Index line_id = 0 ; line_id < number_lines ; ++line_id )
   v_sum_product_voltages[ line_id ].set_type( ColVariable::kContinuous );
- }
- v_diff_product_voltages.resize( number_lines );
- for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-  v_diff_product_voltages[ line_id ].set_type( ColVariable::kContinuous );
- }
- v_sqrd_voltages.resize( number_nodes );
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-  v_sqrd_voltages[ node_id ].set_type( ColVariable::kContinuous );
- }
  add_static_variable( v_sum_product_voltages , "v_sum_product_voltages" );
+
+ v_diff_product_voltages.resize( number_lines );
+ for( Index line_id = 0 ; line_id < number_lines ; ++line_id )
+  v_diff_product_voltages[ line_id ].set_type( ColVariable::kContinuous );
  add_static_variable( v_diff_product_voltages , "v_diff_product_voltages" );
+
+ v_sqrd_voltages.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+  v_sqrd_voltages[ node_id ].set_type( ColVariable::kContinuous );
  add_static_variable( v_sqrd_voltages , "v_sqrd_voltages" );
 
 } // end( ACNetworkBlock::generate_abstract_variables )
@@ -445,7 +445,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // 1) direct lines
   for( auto & line_id : splitted_lines[ p ].first ) {
    // 1.0) Verification that line ratio is not zero as this implies NaN coefficients
-   if( ! std::isfinite( Yff( line_id ).real() ) ) throw( std::logic_error( "Non-finite coefficient, possibly line ratio is zero for an AC line" ) );
+   if( ! std::isfinite( Yff( line_id ).real() ) )
+    throw( std::logic_error( "Non-finite coefficient, possibly line ratio is "
+                             "zero for an AC line" ) );
 
    // 1.1) real part
    auto lfunc_1 = new LinearFunction();
