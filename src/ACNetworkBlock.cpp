@@ -444,6 +444,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   constexpr double f_scale = 10.0;
   // 1) direct lines
   for( auto & line_id : splitted_lines[ p ].first ) {
+   // 1.0) Verification that line ratio is not zero as this implies NaN coefficients
+   if( ! std::isfinite( Yff( line_id ).real() ) ) throw( std::logic_error( "Non-finite coefficient, possibly line ratio is zero for an AC line" ) );
+
    // 1.1) real part
    auto lfunc_1 = new LinearFunction();
    lfunc_1->add_variable( &v_sqrd_voltages[ p ] ,
