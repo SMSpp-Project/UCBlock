@@ -666,11 +666,11 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 /*--------------------------------------------------------------------------*/
 void DCNetworkBlock::generate_PTDF_variables( Configuration * stvv )
 {
-  /**
-   * This formulation corresponds to the "PTDF + FLOW" formulation of
-   * "Linear Optimal Power Flow Using Cycle Flows" of
-   *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown
-   * */
+ /**
+  * This formulation corresponds to the "PTDF + FLOW" formulation of
+  * "Linear Optimal Power Flow Using Cycle Flows" of
+  *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown
+  */
  const auto number_lines = get_number_lines();
 
  if( number_lines > 0 ) {
@@ -709,9 +709,9 @@ void DCNetworkBlock::generate_CYCLE_variables( Configuration * stvv )
    return;
   const auto number_lines = get_number_lines();
 
-  if( number_lines > 0 && number_nodes > 0 ) {
+  if( ( number_lines > 0 ) && ( number_nodes > 0 ) ) {
    // the power flow variable on cycle basis
-   v_cycle_flow.resize( number_lines - number_nodes + 1);
+   v_cycle_flow.resize( number_lines - number_nodes + 1 );
       // we know the number of cycles by the graph theory, see the paper.
       // So, no reason to call get_lines_in_cycle()
    for( auto & var : v_cycle_flow )
@@ -747,7 +747,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
+void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
+{
  /**
   * Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
   *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown
@@ -910,7 +911,13 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc ) {
+void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
+{
+ /**
+  * This formulation corresponds to the "PTDF + FLOW" formulation of
+  * "Linear Optimal Power Flow Using Cycle Flows" of
+  *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown
+  */
 
  const auto number_nodes = get_number_nodes();
 
@@ -1230,13 +1237,15 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
   case( PTDF ) :
     if( ! f_NetworkData->get_network_cost().empty() )
       for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
-        lf->add_variable( &v_auxiliary_variable[ line_id ] , f_NetworkData->get_network_cost()[ line_id ] , eNoMod );
-      lf->set_constant_term( f_ConstTerm );
+        lf->add_variable( &v_auxiliary_variable[ line_id ] ,
+                          f_NetworkData->get_network_cost()[ line_id ] ,
+                          eNoMod );
     break;
   default :
     break;
  }
 
+ lf->set_constant_term( f_ConstTerm );
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );

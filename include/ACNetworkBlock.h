@@ -175,8 +175,6 @@ namespace SMSpp_di_unipi_it {
 
   void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
-  void generate_objective( Configuration * objc = nullptr ) override;
-
   // We need to override the functions, as the NetworkData is the one of AC and not the one of DC
   Index get_number_nodes( void ) const override {
    return( f_NetworkData ? f_NetworkData->get_number_nodes() : 1 );
