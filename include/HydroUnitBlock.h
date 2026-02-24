@@ -1901,7 +1901,7 @@ class HydroUnitBlock : public UnitBlock
  /// the active power variables
  boost::multi_array< ColVariable , 2 > v_active_power;
 
-/// the reactive power variables have to be redefined
+ /// the reactive power variables have to be redefined
  boost::multi_array< ColVariable , 2 > v_reactive_power;
 
  /// the primary spinning reserve variables

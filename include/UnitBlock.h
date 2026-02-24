@@ -807,7 +807,7 @@ class UnitBlock : public Block
  Index f_time_horizon{};
 
 
- /// the active power variables for 3bin, T and pt formulations
+ /// the reactive power variables
  std::vector< ColVariable > v_reactive_power;
 
  /// the number of intervals
@@ -1053,7 +1053,7 @@ class UnitBlockSolution : public Solution {
  ///< v_active_power[ i ][ t ] = active power of generator i at time t
 
  boost::multi_array< double , 2 > v_reactive_power;
- ///< v_active_power[ i ][ t ] = active power of generator i at time t
+ ///< v_reactive_power[ i ][ t ] = reactive power of generator i at time t
 
  boost::multi_array< double , 2 > v_commitment;
  ///< v_commitment[ i ][ t ] = commitment of generator i at time t
