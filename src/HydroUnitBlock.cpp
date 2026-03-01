@@ -830,18 +830,16 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
      boost::extents[ f_NumberArcs ][ f_time_horizon ] );
 
  bool something = false;
- for( Index g = 0 ; g < f_NumberArcs ; ++g ) {
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+ for( Index g = 0 ; g < f_NumberArcs ; ++g )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( ( ! v_MaxReactivePower.empty() ) &&
        ( get_max_reactive_power( t , g ) > 0.0 ) ) {
     something = true;
     ReactivePower_Bound_Const[ g ][ t ].set_rhs( v_MaxReactivePower[ t ][ g ] );
     if( ! v_MinReactivePower.empty() )
      ReactivePower_Bound_Const[ g ][ t ].set_lhs( v_MinReactivePower[ t ][ g ] );
-    ReactivePower_Bound_Const[ g ][ t ].set_variable( &v_reactive_power[ g ][ t ] );
+     ReactivePower_Bound_Const[ g ][ t ].set_variable( &v_reactive_power[ g ][ t ] );
    }
-  }
- }
  if( something )
   add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
 
