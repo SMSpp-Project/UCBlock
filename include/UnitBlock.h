@@ -486,8 +486,7 @@ class UnitBlock : public Block
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like get_active_power(), but returns a const * so that it can be const
 
- const ColVariable * get_const_active_power( Index generator ) const
- {
+ const ColVariable * get_const_active_power( Index generator ) const {
   // this is a dirty trick: casting away const-ness to be able to call the
   // standard version of the method; however, this allows to avoid to
   // redefine the *const_* version in derived classes, assuming of course
@@ -497,13 +496,26 @@ class UnitBlock : public Block
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// returns the vector of reactive power variables
+
  virtual ColVariable * get_reactive_power( Index generator ) {
   if( v_reactive_power.empty() )
    return( nullptr );
   return( &( v_reactive_power.front() ) );
- }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_reactive_power(), but returns a const * so that it can be const
+
+ const ColVariable * get_const_reactive_power( Index generator ) const { 
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+
+  return( const_cast< UnitBlock * >( this )->get_reactive_power( generator )
+	  );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the scale factor of this UnitBlock
@@ -532,7 +544,9 @@ class UnitBlock : public Block
   * The parameter for deciding which kind of Solution must be returned is a
   * single int value, coded bitwise:
   *
-  * - bit 0 (& 1) means "store the active power"
+  * - bit 0 (& 1) means "store the power", which surely is the active one and
+  *         also the reactive one if any of the generators of the unit
+  *         produces it (the others will produce 0 reactive power)
   *
   * - bit 1 (& 2) means "store the commitment"
   *
@@ -806,7 +820,6 @@ class UnitBlock : public Block
  /// the time horizon of the problem
  Index f_time_horizon{};
 
-
  /// the reactive power variables
  std::vector< ColVariable > v_reactive_power;
 
@@ -912,7 +925,7 @@ public:
 /** The UnitBlockSolution class, derived from Solution, represents a solution
  * of a "generic" UnitBlock, i.e., the values of
  *
- * - active power variables;
+ * - active [and possibly reactive] power variables;
  *
  * - [possibly] commitment variables;
  *
@@ -978,6 +991,17 @@ class UnitBlockSolution : public Solution {
   *   over the dimension "TimeHorizon". ActivePower[ i , t ] is assumed to
   *   contain the optimal active power for generator i at the time t. The
   *   variable is optional.
+  *
+  * - The variable "ReactivePower", of type netCDF::NcDouble. If
+  *   "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". ReactivePower[ i , t ] is assumed to
+  *   contain the optimal active power for generator i at the time t. The
+  *   variable is optional: it is in principle there if "ActivePower" is
+  *   defined, but only if at least one of the generators of the unit
+  *   actually produces it (if only a subset of the generators do, the
+  *   variable is still defined for all of ones and will be filled with
+  *   zeros for those who do not).
   *
   * - The variable "Commitment", of type netCDF::NcDouble (note that
   *   commitment variables are generally integer valued, in fact binary,

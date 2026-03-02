@@ -8,10 +8,6 @@
 
 #include <cmath>
 
-#include "NetworkBlock.h"
-
-#include "DCNetworkBlock.h"
-
 #include "ACNetworkBlock.h"
 
 #include "LinearFunction.h"
@@ -19,8 +15,6 @@
 #include "OneVarConstraint.h"
 
 #include "FRealObjective.h"
-
-#include "DQuadFunction.h"
 
 #include "QuadFunction.h"
 
@@ -40,27 +34,45 @@ using namespace SMSpp_di_unipi_it;
 
 using namespace std::complex_literals;
 
-typedef Eigen::SparseMatrix< std::complex< double > > SpCMat;
-typedef Eigen::SparseVector< std::complex< double > > SpCVec;
+using SpCMat = Eigen::SparseMatrix< std::complex< double > >;
+using SpCVec = Eigen::SparseVector< std::complex< double > >;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
-
 // register ACNetworkBlock to the Block factory
 
-SMSpp_insert_in_factory_cpp_0( ACNetworkBlock );
+SMSpp_insert_in_factory_cpp_1( ACNetworkBlock );
 
-typedef ACNetworkBlock::ACNetworkData ACNetworkData;
+/*--------------------------------------------------------------------------*/
+// register ACNetworkBlock::ACNetworkData to the NetworkData factory
+
+using ACNetworkData = ACNetworkBlock::ACNetworkData ;
 
 SMSpp_insert_in_factory_cpp_0( ACNetworkData );
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- METHODS OF DCNetworkData -------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ACNetworkData::deserialize( const netCDF::NcGroup & group ) {
+// A rounding function
+static inline double round_sig( double value , int digits = 16 )
+{
+ if( value == 0.0 ) return( 0.0 );
 
+ double abs_v = std::fabs( value );
+ int exponent = static_cast< int >( std::floor( std::log10( abs_v ) ) );
+ double factor = std::pow( 10.0 , digits - 1 - exponent );
+
+ return( std::round( value * factor ) / factor );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- METHODS OF ACNetworkData -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkData::deserialize( const netCDF::NcGroup & group )
+{
 #ifndef NDEBUG
  // check all expected variables, comprised those of the base class: see
  // DCNetworkData::deserialize() for the rationale
@@ -136,8 +148,8 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group ) {
                  v_node_min_voltage , true , true );
 
   f_lines_type = -1;
- }
-} // end( ACNetworkData::deserialize )
+  }
+ }  // end( ACNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ACNetworkBlock ------------------------*/
@@ -151,11 +163,11 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
  ACND->deserialize( group );
  if( f_NetworkData &&
   ( f_NetworkData->get_number_nodes() != ACND->get_number_nodes() ) )
-  throw( std::logic_error(
-   "ACNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
+  throw( std::logic_error( "ACNetworkBlock::deserialize: NumberNodes not "
+			   "matching between NetworkData" ) );
  set_NetworkData( ACND );
 
-} // end( ACNetworkBlock::deserialize )
+ }  // end( ACNetworkBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -168,6 +180,13 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
+
+ // the node injection variables
+ v_reactive_node_injection.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+  v_reactive_node_injection[ node_id ].set_type( ColVariable::kContinuous );
+
+ add_static_variable( v_reactive_node_injection , "reactive_s_network" );
 
  // ----- complex power flow (real and imaginary part for both directions)
  /*
@@ -201,14 +220,14 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   v_sqrd_voltages[ node_id ].set_type( ColVariable::kContinuous );
  add_static_variable( v_sqrd_voltages , "v_sqrd_voltages" );
 
-} // end( ACNetworkBlock::generate_abstract_variables )
+ }  // end( ACNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
 void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 {
- if( constraints_generated() ) // constraints have already been generated
-  return;                      // nothing to do
+ if( constraints_generated() )  // constraints have already been generated
+  return;                       // nothing to do
 
  DCNetworkBlock::generate_abstract_constraints( stcc );
 
@@ -221,8 +240,24 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  if( number_lines <= 0 )
   throw( std::logic_error( "ACNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
+                           "number of lines of DCNetworkBlock is not set" )
+	 );
 
+ // node injection bound constraints
+ reactive_node_injection_bounds_const.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+  reactive_node_injection_bounds_const[ node_id ].set_lhs(
+				   v_MinReactiveNodeInjection[ node_id ] );
+  reactive_node_injection_bounds_const[ node_id ].set_rhs(
+				   v_MaxReactiveNodeInjection[ node_id ] );
+  reactive_node_injection_bounds_const[ node_id ].set_variable(
+				  & v_reactive_node_injection[ node_id ] );
+  }
+
+ add_static_constraint( reactive_node_injection_bounds_const ,
+                        "Reactive_Node_Injection_Bound_Const_Network" );
+
+ // now start processing lines
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
 
@@ -376,7 +411,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  */
 
  // shortcut to recover mathematical notation
- auto * f_net = f_NetworkData;
+ auto * f_net = static_cast< ACNetworkData * >( f_NetworkData );
 
  auto r = [ f_net ]( int line_id ) {
   return( f_net->get_line_resistance().at( line_id ) );
@@ -530,7 +565,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 } // end( ACNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
-
 /*
 Links between generic variables
    v_sum_product_voltages,
@@ -538,7 +572,9 @@ Links between generic variables
    v_sqrd_voltages
  using a SOCP relaxation.
 */
-void ACNetworkBlock::generate_SOCP_relaxation( void ) {
+
+void ACNetworkBlock::generate_SOCP_relaxation( void )
+{
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
 
@@ -585,7 +621,8 @@ void ACNetworkBlock::generate_SOCP_relaxation( void ) {
 /*--------------------------------------------------------------------------*/
 
 std::vector< std::pair< double , double > >
-ACNetworkBlock::recover_feasible_solution( void ) {
+                            ACNetworkBlock::recover_feasible_solution( void )
+{
  /*
  Since the solution provided from the AC OPF relaxation problem is not necessary feasible,
  we implement a feasibility recovery algorithm.
@@ -617,7 +654,271 @@ ACNetworkBlock::recover_feasible_solution( void ) {
  // 3) Do some magic (TODO)
 
  return( v_feasible_sol );
-} // end( ACNetworkBlock::recover_feasible_solution )
+
+ } // end( ACNetworkBlock::recover_feasible_solution )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * ACNetworkBlock::get_Solution( Configuration * csolc , bool emptys )
+{
+ Index wsol = 7;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto * sol = dynamic_cast< ACNetworkBlockSolution * >(
+			    DCNetworkBlock::get_Solution( csolc , emptys ) );
+ assert( sol );
+
+ using mad2 = boost::multi_array< double , 2 >;
+
+ if( wsol & 1 )
+  sol->v_node_injection_reactive.resize(
+        mad2::extent_gen()[ get_number_intervals() ][ get_number_nodes() ] );
+
+ if( wsol & 2 ) {
+  sol->v_reactive_flow_from.resize( get_number_lines() );
+  sol->v_reactive_flow_to.resize( get_number_lines() );
+  }
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+
+ }  // end( ACNetworkBlock::get_Solution )
+
+/*--------------------------------------------------------------------------*/
+
+NetworkBlockSolution * ACNetworkBlock::new_Solution( void ) const {
+ return( new ACNetworkBlockSolution() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS OF ACNetworkBlockSolution ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ DCNetworkBlockSolution::deserialize( group );
+
+ // "NumberLines" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( get_number_nodes() > 1 )
+ deserialize_dim( group , "NumberLines" , f_number_lines , false );
+
+ // deserialize the (reactive) Flow Variables - - - - - - - - - - - - - - - -
+ ::deserialize< double >( group , "ReactiveFlowFromValue" ,
+			  v_reactive_flow_from , false );
+
+ ::deserialize< double >( group , "ReactiveFlowToValue" ,
+			  v_reactive_flow_to , false );
+
+ }  // end( ACNetworkBlockSolution::deserialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
+                                          size_t idx )
+{
+ // call the method of the base class
+ DCNetworkBlockSolution::deserialize( group , idx );
+
+ std::vector< size_t > strt = { idx , 0 };
+ std::vector< size_t > cnt = { 1 , f_number_lines };
+
+ // deserialize the (reactive) Flow Variables- - - - - - - - - - - - - - - -
+ auto ncVar = group.getVar( "ReactiveFlowFromValue" );
+ if( ncVar.isNull() ) {
+  v_reactive_flow_from.clear();
+  v_reactive_flow_to.clear();
+  }
+ else {
+  v_reactive_flow_from.resize( f_number_lines );
+  v_reactive_flow_to.resize( f_number_lines );
+  ncVar.getVar( strt , cnt , v_reactive_flow_from.data() );
+
+  ncVar = group.getVar( "ReactiveFlowToValue" );
+  if( ncVar.isNull() )
+   throw( std::logic_error( "DCNetworkBlockSolution::deserialize( idx ): "
+			    "ReactiveFlowFromValue present but "
+			    "ReactiveFlowToValue not" ) );
+
+  ncVar.getVar( strt , cnt , v_reactive_flow_to.data() );
+  }
+ }  // end( ACNetworkBlockSolution::deserialize( NcGroup & , size_t ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlockSolution::read( const Block * block )
+{
+ // call the method of the base class
+ ACNetworkBlockSolution::read( block );
+
+ auto ACNB = dynamic_cast< const ACNetworkBlock * >( block );
+ if( ! ACNB )
+  throw( std::invalid_argument(
+           "ACNetworkBlockSolution::read: block is not a ACNetworkBlock" ) );
+
+ if( ! v_reactive_flow_from.empty() ) {
+  // read the (reactive) flow power variables- - - - - - - - - - - - - - - -
+  auto RFli = ACNB->get_reactive_power_flow().begin();
+  for( Index l = 0 ; l < f_number_lines ; ++l )
+   v_reactive_flow_from[ l ] = (*(RFli++)).get_value();
+  for( Index l = 0 ; l < f_number_lines ; ++l )
+   v_reactive_flow_to[ l ] = (*(RFli++)).get_value();
+  }
+ }  // end( ACNetworkBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlockSolution::write( Block * block )
+{
+ // call the method of the base class
+ DCNetworkBlockSolution::write( block );
+
+ auto ACNB = dynamic_cast< ACNetworkBlock * >( block );
+ if( ! ACNB )
+  throw( std::invalid_argument(
+          "ACNetworkBlockSolution::write: block is not a DCNetworkBlock" ) );
+
+ if( ! v_reactive_flow_from.empty() ) {
+  // write the (reactive) flow power variables - - - - - - - - - - - - - - -
+  auto RFli = ACNB->get_reactive_power_flow().begin();
+  for( Index l = 0 ; l < f_number_lines ; ++l )
+   (*(RFli++)).set_value( v_reactive_flow_from[ l ] );
+  for( Index l = 0 ; l < f_number_lines ; ++l )
+   (*(RFli++)).set_value( v_reactive_flow_to[ l ] );
+  }
+ }  // end( ACNetworkBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ // call the method of the base class
+ DCNetworkBlockSolution::serialize( group );
+
+ // serialize the (reactive) Flow Variables - - - - - - - - - - - - - - - - -
+ if( ! v_reactive_flow_from.empty() ) {
+  ::serialize< double >( group , "ReactiveFlowFromValue" ,
+			 netCDF::NcDouble() , nl , v_reactive_flow_from );
+  ::serialize< double >( group , "ReactiveFlowTOValue" ,
+			 netCDF::NcDouble() , nl , v_reactive_flow_to );
+  }
+ }  // end( ACNetworkBlockSolution::serialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
+                                        size_t idx ) const {
+ // call the method of the base class
+ DCNetworkBlockSolution::serialize( group , idx );
+
+ // now serialize the data structures - - - - - - - - - - - - - - - - - - - -
+
+ netCDF::NcVar RFFV;  // ReactiveFlowFromValue
+ netCDF::NcVar RFTV;  // ReactiveFlowToValue
+
+ if( idx == 0 ) {  // first call, have to initialize everything
+  // "NumberNetworks" is mandatory, and it's checked in the base class
+  auto nnw = group.getDim( "NumberNetworks" );
+
+  if( ! v_reactive_flow_from.empty() ) {
+   RFFV = group.addVar( "ReactiveFlowFromValue" , netCDF::NcDouble() ,
+			{ nnw , nl } );
+   RFTV = group.addVar( "ReactiveFlowToValue" , netCDF::NcDouble() ,
+			{ nnw , nl } );
+   }
+  }
+ else {  // subsequent call, read what is supposedly already there
+  if( ! v_reactive_flow_from.empty() ) {
+   RFFV = group.getVar( "ReactiveFlowFromValue" );
+   RFTV = group.getVar( "ReactiveFlowToValue" );
+   }
+  }
+
+ std::vector< size_t > strt = { idx , 0 };
+ std::vector< size_t > cnt = { 1 , f_number_lines };
+
+ if( ! RFFV.isNull() ) {  // if reactive power flows have to be serialised
+  RFFV.putVar( strt , cnt , v_reactive_flow_from.data() );
+  RFTV.putVar( strt , cnt , v_reactive_flow_to.data() );
+  }
+ }  // end( ACNetworkBlockSolution::serialize( NcGroup & , size_t ) )
+
+/*--------------------------------------------------------------------------*/
+
+ACNetworkBlockSolution * ACNetworkBlockSolution::scale( double factor ) const
+{
+ // call the method of the base class, which calls that of
+ // NetworkBlockSolution which calls clone() and therefore returns a
+ // ACNetworkBlockSolution
+ auto sol = dynamic_cast< ACNetworkBlockSolution * >(
+                                   DCNetworkBlockSolution::scale( factor ) );
+ assert( sol );
+
+ if( factor == 1 )
+  return( sol );
+
+ if( ! v_reactive_flow_from.empty() )
+  for( Index l = 0 ; l < f_number_lines ; ++l ) {
+   sol->v_reactive_flow_from[ l ] *= factor;
+   sol->v_reactive_flow_to[ l ] *= factor;
+   }
+
+ return( sol );
+
+ }  // end( ACNetworkBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlockSolution::sum( const Solution * solution ,
+                                  double multiplier )
+{
+ // call the method of the base class
+ DCNetworkBlockSolution::sum( solution , multiplier );
+
+ auto ACNBS = dynamic_cast< const ACNetworkBlockSolution * >( solution );
+ if( ! ACNBS )
+  throw( std::invalid_argument(
+    "ACNetworkBlockSolution::sum: solution not a ACNetworkBlockSolution" ) );
+
+ if( ! v_reactive_flow_from.empty() )
+  for( Index l = 0 ; l < f_number_lines ; ++l ) {
+   v_reactive_flow_from[ l ] += ACNBS->v_reactive_flow_from[ l ] * multiplier;
+   v_reactive_flow_to[ l ] += ACNBS->v_reactive_flow_to[ l ] * multiplier;
+   }
+
+ }  // end( ACNetworkBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+ACNetworkBlockSolution * ACNetworkBlockSolution::clone( bool empty ) const
+{
+ auto sol = new ACNetworkBlockSolution();
+
+ if( ! empty ) {
+  NetworkBlockSolution::guts_of_clone( sol );
+
+  //!! kludge: just copy-paste the relevant lines of
+  //!! DCNetworkBlockSolution::clone(), better solution needed
+  sol->f_number_lines = f_number_lines;
+  sol->v_flow = v_flow;
+  sol->v_cost = v_cost;
+
+  sol->v_reactive_flow_from = v_reactive_flow_from;
+  sol->v_reactive_flow_to = v_reactive_flow_to;
+  }
+
+ return( sol );
+
+ }  // end( ACNetworkBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File ACNetworkBlock.cpp ------------------------*/

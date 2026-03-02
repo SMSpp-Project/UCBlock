@@ -607,51 +607,28 @@ class ECNetworkBlock : public NetworkBlock
 
   f_NetworkData = dynamic_cast< ECNetworkData * >( nd );
   f_local_NetworkData = false;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
- /** This method can be called either before or after that deserialize() is
-  * called to provide the NetworkBlock with the ActiveDemand data. This allows
-  * all Active Power Demand data corresponding to some UC problem to be
-  * "grouped" together (typically, in UCBlock) rather than "spread" among the
-  * different NetworkBlock, which may be convenient for some user.
-  *
-  * If this method is called *before* deserialize(), the data is just copied.
-  * However, when deserialize() is called, if ActiveDemand data is present in
-  * the NcGroup then this data is used, replacing (and therefore ignoring) the
-  * data set by this method.
-  *
-  * Similarly, if this method is called *after* deserialize(), but some the
-  * ActiveDemand was already present in the NcGroup, then that data is kept and
-  * the call to this method does nothing.
-  *
-  * When this method is called, if it is empty it is written into, otherwise
-  * nothing happens. In deserialize(), if the data is there in the NcGroup then
-  * it is written in v_ActiveDemand (which therefore is no longer empty),
-  * otherwise it is left empty so that it can be set by this method. */
+ /** The method is actually implemented since ECNetworkBlock is a concrete
+  * class. */
 
- void set_ActiveDemand( const boost::multi_array< double , 2 > & v ) override {
+ void set_ActiveDemand( const boost::multi_array< double , 2 > & v )
+  override {
   if( v_ActiveDemand.empty() ) {
    v_ActiveDemand.resize( boost::multi_array< double , 2 >::extent_gen()
                           [ get_number_intervals() ][ get_number_nodes() ] );
-   std::copy( v.data() , v.data() + v.num_elements() , v_ActiveDemand.data() );
-  }
- }
-
-/*--------------------------------------------------------------------------*/
-
- void set_ReactiveDemand( const boost::multi_array< double , 2 > & v )
-  override {
-  if( v_ReactiveDemand.empty() )
-   v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
+   std::copy( v.data() , v.data() + v.num_elements() , v_ActiveDemand.data()
+	      );
+   }
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------- OTHER INITIALIZATIONS --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
-* @{ */
+ * @{ */
 
  /// deserialize an ECNetworkBlock out of a netCDF::NcGroup
  /** Deserialize an ECNetworkBlock out of a netCDF::NcGroup in case the
@@ -774,11 +751,8 @@ class ECNetworkBlock : public NetworkBlock
  /// the ECNetworkData object
  ECNetworkData * f_NetworkData;
 
- /// matrix to store, for each interval, the demand of each node of the network
+ /// matrix to store the demand of each node of the network for each interval
  boost::multi_array< double , 2 > v_ActiveDemand;
-
- /// matrix to store, for each interval, the reactive part of the demand of each node of the network
- boost::multi_array< double , 2 > v_ReactiveDemand;
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -811,7 +785,6 @@ class ECNetworkBlock : public NetworkBlock
  /// the peak power flow limit constraints, i.e., the constraints
  /// on the peak power at user PoD
  boost::multi_array< FRowConstraint , 3 > power_flow_limit_const;
-
 
  /// the objective function
  FRealObjective objective;

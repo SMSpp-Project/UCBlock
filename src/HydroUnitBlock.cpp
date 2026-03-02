@@ -120,16 +120,16 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                                               "NumberPieces" ,
                                               "LinearTerm" ,
                                               "ConstantTerm" ,
-                                              "ActivePowerCost",
+                                              "ActivePowerCost" ,
                                               "InertiaPower" ,
                                               "InitialFlowRate" ,
                                               "InitialVolumetric" ,
                                               "UphillFlow" ,
-                                              "DownhillFlow", 
+                                              "DownhillFlow" ,
                                               // for specific modes
                                               "MinReactivePower",
                                               "MaxReactivePower",
-                                              "VoltageMagnitude",                                               
+                                              "VoltageMagnitude",
                                               "ReferenceSchedule"
                                               };
  check_variables( group , expected_vars , std::cerr );
@@ -147,11 +147,13 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "NumberPieces" , f_NumberArcs ,
                 v_NumberPieces , true , true );
 
- if( ! deserialize_dim( group , "TotalNumberPieces" , f_TotalNumberPieces ) ) {
+ if( ! deserialize_dim( group , "TotalNumberPieces" , f_TotalNumberPieces )
+     ) {
   f_TotalNumberPieces = 0;
   for( const auto & n : v_NumberPieces )
    f_TotalNumberPieces += n;
- }
+  }
+
  f_TotalNumberPieces = f_TotalNumberPieces ?
                        f_TotalNumberPieces : f_NumberArcs;
 
@@ -212,19 +214,23 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "MinVolumetric" ,
                 { f_NumberReservoirs , f_time_horizon } , v_MinVolumetric ,
                 true , true , v_change_intervals );
+
  ::deserialize( group , "MaxVolumetric" ,
                 { f_NumberReservoirs , f_time_horizon } , v_MaxVolumetric ,
                 true , true , v_change_intervals );
 
  /// optional AC variables
- ::deserialize( group , "MinReactivePower" , { f_time_horizon , f_NumberArcs } ,
+ ::deserialize( group , "MinReactivePower" ,
+		{ f_time_horizon , f_NumberArcs } ,
                 v_MinReactivePower , true , true , v_change_intervals );
 
- ::deserialize( group , "MaxReactivePower" , { f_time_horizon , f_NumberArcs } ,
-                v_MaxReactivePower , true , true , v_change_intervals );                
-
- ::deserialize( group , "VoltageMagnitude" , { f_time_horizon , f_NumberArcs } ,
-                v_VoltageMagnitude , true , true , v_change_intervals );                
+ ::deserialize( group , "MaxReactivePower" ,
+		{ f_time_horizon , f_NumberArcs } ,
+                v_MaxReactivePower , true , true , v_change_intervals );
+ 
+ ::deserialize( group , "VoltageMagnitude" ,
+		{ f_time_horizon , f_NumberArcs } ,
+                v_VoltageMagnitude , true , true , v_change_intervals );
 
  ::deserialize( group , "ReferenceSchedule" , f_time_horizon , v_RefSchedule ,
                 true , true , v_change_intervals );
@@ -244,7 +250,9 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
   // there are no variables to be generated
   return;
 
- v_volumetric.resize( boost::extents[ f_NumberReservoirs ][ f_time_horizon ] );
+ v_volumetric.resize( boost::extents[ f_NumberReservoirs ][ f_time_horizon ]
+		      );
+
  for( Index g = 0 ; g < f_NumberReservoirs ; ++g )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_volumetric[ g ][ t ].set_type( ColVariable::kNonNegative );
@@ -252,7 +260,6 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  v_flow_rate.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
  v_active_power.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
-
  v_reactive_power.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
 
  for( Index g = 0 ; g < f_NumberArcs ; ++g ) {

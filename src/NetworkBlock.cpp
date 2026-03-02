@@ -90,16 +90,8 @@ void NetworkBlock::generate_abstract_variables( Configuration * stvv )
    for( Index i = 0 ; i < nn ; ++i )
     v_node_injection[ t ][ i ].set_type( ColVariable::kContinuous );
   add_static_variable( v_node_injection , "s_network" );
-
-  // the node injection variables
-  v_reactive_node_injection.resize(
-   boost::extents[ ni ][ nn ] );
-  for( Index t = 0 ; t < ni ; ++t )
-   for( Index node_id = 0 ; node_id < nn ; ++node_id )
-    v_reactive_node_injection[ t ][ node_id ].set_type( ColVariable::kContinuous );
-  add_static_variable( v_reactive_node_injection , "reactive_s_network" );
- }
-}  // end( NetworkBlock::generate_abstract_variables )
+  }
+ }  // end( NetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -128,27 +120,6 @@ void NetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  add_static_constraint( node_injection_bounds_const ,
                         "Node_Injection_Bound_Const_Network" );
-
- // node injection bound constraints
-
- reactive_node_injection_bounds_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ nn ][ ni ] );
-
- for( Index i = 0 ; i < ni ; ++i )
-
-  for( Index node_id = 0 ; node_id < nn ; ++node_id ) {
-
-   reactive_node_injection_bounds_const[ node_id ][ i ].set_lhs(
-    v_MinReactiveNodeInjection[ i ][ node_id ] );
-   reactive_node_injection_bounds_const[ node_id ][ i ].set_rhs(
-    v_MaxReactiveNodeInjection[ i ][ node_id ] );
-   reactive_node_injection_bounds_const[ node_id ][ i ].set_variable(
-    &v_reactive_node_injection[ i ][ node_id ] );
-  }
-
- add_static_constraint( reactive_node_injection_bounds_const ,
-                        "Reactive_Node_Injection_Bound_Const_Network" );
 
  }  // end( NetworkBlock::generate_abstract_constraints )
 

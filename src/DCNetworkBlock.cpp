@@ -1261,7 +1261,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
 /*--------------------------------------------------------------------------*/
 
 Solution * DCNetworkBlock::get_Solution( Configuration * csolc ,
-           bool emptys )
+					 bool emptys )
 {
  Index wsol = 7;
  if( ( ! csolc ) && f_BlockConfig )
@@ -1272,7 +1272,7 @@ Solution * DCNetworkBlock::get_Solution( Configuration * csolc ,
 
  // call the method of the base class
  auto * sol = dynamic_cast< DCNetworkBlockSolution * >(
-                   NetworkBlock::get_Solution( csolc , emptys ) );
+			     NetworkBlock::get_Solution( csolc , emptys ) );
  assert( sol );
 
  if( wsol & 2 )
@@ -1930,9 +1930,10 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
 
 DCNetworkBlockSolution * DCNetworkBlockSolution::scale( double factor ) const
 {
- // call the method of the base class
+ // call the method of the base class, which calls clone() and therefore
+ // returns a DCNetworkBlockSolution
  auto sol = dynamic_cast< DCNetworkBlockSolution * >(
-             NetworkBlockSolution::scale( factor ) );
+                                     NetworkBlockSolution::scale( factor ) );
  assert( sol );
 
  if( factor == 1 )

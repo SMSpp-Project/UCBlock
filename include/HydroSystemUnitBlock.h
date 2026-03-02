@@ -199,9 +199,9 @@ class HydroSystemUnitBlock : public UnitBlock
  /// generate the objective of the HydroSystemUnitBlock
  /** Method that generates the objective of the HydroSystemUnitBlock.
   *
-  * - Objective function: the objective function of the HydroSystemUnitBlock is
-  *   "empty" (a FRealObjective with a LinearFunction inside with no active
-  *   variables). */
+  * - Objective function: the objective function of the HydroSystemUnitBlock
+  *   is "empty" (a FRealObjective with a LinearFunction inside with no
+  *   active variables). */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -227,7 +227,7 @@ class HydroSystemUnitBlock : public UnitBlock
  PolyhedralFunctionBlock * get_polyhedral_function_block( void ) const {
   assert( ! v_Block.empty() );
   return( static_cast< PolyhedralFunctionBlock * >( v_Block.back() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables of each HydroUnitBlock
@@ -242,7 +242,7 @@ class HydroSystemUnitBlock : public UnitBlock
      temp = temp - unit_block->get_number_generators();
    }
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of reactive power variables of each HydroUnitBlock
@@ -297,7 +297,7 @@ class HydroSystemUnitBlock : public UnitBlock
    if( auto unit_block = dynamic_cast< UnitBlock * >( sub_block ) )
     number_generators += unit_block->get_number_generators();
   return( number_generators );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 

@@ -501,60 +501,80 @@ class NetworkBlock : public Block
  virtual void set_ActiveDemand(
                             const boost::multi_array< double , 2 > & v ) = 0;
 
- virtual void set_ReactiveDemand(
-                        const boost::multi_array< double , 2 > & v ) = 0;
+/*--------------------------------------------------------------------------*/
+ /// method to set the ReactiveDemand
+ /** Works as set_ActiveDemand() but for the reactive part of the power. Since
+  *  not all :NetworkBlock will handle reactive power, unlike
+  *  set_ActiveDemand() the method is not pure virtual but it is given a
+  *  default implementation throwing exceptiom. */
+
+ virtual void set_ReactiveDemand( const boost::multi_array< double , 2 > & )
+ {
+  throw( std::logic_error( "set_ReactiveDemand called for a :NetworkBlock "
+			   "not handling reactive power" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MinNodeInjection
+ /** Externally provides the lower bound (maybe negative) \p min_injection
+  *  to the minimum value that the power injection at node \p node can
+  *  possibly have on interval \p interval.
+  *  This data depends on the generation and therefore cannot possibly be
+  *  autonomously found by the :NewtorkData, but it can stll be of use when
+  *  writing down the constraints as it bounds variables that otherwise may
+  *  be ubounded (which is especially bad in the design case). */
 
- virtual void set_min_node_injection( const double min_injection ,
-                                      Index node ,
-                                      Index interval = 0 ) {
+ virtual void set_min_node_injection( double min_injection , Index node ,
+				      Index interval = 0 ) {
   if( v_MinNodeInjection.empty() )
    v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
+                              [ get_number_intervals() ][ get_number_nodes() ]
+			      );
   v_MinNodeInjection[ interval ][ node ] = min_injection;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxNodeInjection
+ /** Externally provides the upper bound (typically positive) \p max_injection
+  *  to the maximum value that the power injection at node \p node can
+  *  possibly have on interval \p interval.
+  *  This data depends on the generation and therefore cannot possibly be
+  *  autonomously found by the :NewtorkData, but it can stll be of use when
+  *  writing down the constraints as it bounds variables that otherwise may
+  *  be ubounded (which is especially bad in the design case). */
 
- virtual void set_max_node_injection( const double max_injection ,
-                                      Index node ,
-                                      Index interval = 0 ) {
+ virtual void set_max_node_injection( double max_injection , Index node ,
+				      Index interval = 0 ) {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
+                              [ get_number_intervals() ][ get_number_nodes() ]
+			      );
   v_MaxNodeInjection[ interval ][ node ] = max_injection;
- }
+  }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// method to set the MinReactiveNodeInjection
+ /** Works as set_min_node_injection( but for the reactive part of the power.
+  *  Since not all :NetworkBlock will handle reactive power, the method is 
+  *  given an empty default implementation. */
 
- void set_min_reactive_node_injection( Index interval , Index node ,
-                              const double min_injection ) {
-  if( v_MinReactiveNodeInjection.empty() )
-   v_MinReactiveNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
-  v_MinReactiveNodeInjection[ interval ][ node ] = min_injection;
- }
+ void set_min_reactive_node_injection( double min_injection ,
+				       Index interval , Index node ) {}
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxReactiveNodeInjection
+ /** Works as set_max_node_injection( but for the reactive part of the power.
+  *  Since not all :NetworkBlock will handle reactive power, the method is 
+  *  given an empty default implementation. */
 
- void set_max_reactive_node_injection( Index interval , Index node ,
-                              const double max_injection ) {
-  if( v_MaxReactiveNodeInjection.empty() )
-   v_MaxReactiveNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
-  v_MaxReactiveNodeInjection[ interval ][ node ] = max_injection;
- }
+ void set_max_reactive_node_injection( double max_injection ,
+				       Index interval , Index node ) {}
 
 /*--------------------------------------------------------------------------*/
  /// method to add data of a generator to a given node
 
- virtual void add_ACdata( Index i, Index node_id , UnitBlock * unit_block ,
-                          Index t , Index g ) {};
+ //!!virtual void add_ACdata( Index i, Index node_id , UnitBlock * unit_block ,
+ //!!                         Index t , Index g ) {};
 
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -599,11 +619,18 @@ class NetworkBlock : public Block
   *   for the problem at time t for each user u, e.g., ECNetwork case;
   *
   * @param interval The interval wrt the vector of demands for each user is
-  *                 returned. */
+  *                 returned.
+  *
+  * Since the base class does not handle this data, the method is given a
+  * default implementation returning nullptr. */
 
  virtual const double * get_active_demand( Index interval = 0 ) const {
   return( nullptr );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the matrix of reactive demands
+ /** Like get_active_demand() for the reactive part of the demand. */
 
  virtual const double * get_reactive_demand( Index interval = 0 ) const {
   return( nullptr );
@@ -648,9 +675,9 @@ class NetworkBlock : public Block
 /** @name Reading the Variable of the NetworkBlock
  * @{ */
 
- /// returns the matrix of node injection variables
- /** Method for returning the node injection variables for the given interval,
-  * which is assumed to have size get_number_intervals() by
+ /// returns the node injection active power variables
+ /** Method for returning the node active power injection variables for the
+  * given interval, which is assumed to have size get_number_intervals() by
   * get_number_nodes(). There are two possible cases:
   *
   * - if the matrix only has one row (i.e., the first dimension has size 1),
@@ -671,10 +698,14 @@ class NetworkBlock : public Block
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
   }
 
-  ColVariable * get_reactive_node_injection( Index interval = 0 ) {
-  if( v_reactive_node_injection.empty() )
-   return( nullptr );
-  return( &( v_reactive_node_injection.data()[ interval * get_number_nodes() ] ) );
+/*--------------------------------------------------------------------------*/
+ /// returns the node injection reactive power variables
+ /** Works as get_node_injection() but for the reactive part of the power.
+  *  Since not all :NetworkBlock will handle reactive power, the method is 
+  *  given a default implementation throwing exceptiom returning nullptr. */
+
+ virtual ColVariable * get_reactive_node_injection( Index interval = 0 ) {
+  return( nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -836,27 +867,15 @@ class NetworkBlock : public Block
  /// maximum production of the electrical generators
  boost::multi_array< double , 2 > v_MaxNodeInjection;
 
- /// minimum reactive production of the electrical generators
- boost::multi_array< double , 2 > v_MinReactiveNodeInjection;
-
- /// maximum reactive production of the electrical generators
- boost::multi_array< double , 2 > v_MaxReactiveNodeInjection;
-
 /*-------------------------------- variables -------------------------------*/
 
  /// power injection for each interval at each node
  boost::multi_array< ColVariable , 2 > v_node_injection;
 
- /// power injection for each interval at each node
- boost::multi_array< ColVariable , 2 > v_reactive_node_injection;
-
 /*------------------------------- constraints ------------------------------*/
 
  /// the node injection bound constraints
  boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
-
- /// the node injection bound constraints
- boost::multi_array< BoxConstraint , 2 > reactive_node_injection_bounds_const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

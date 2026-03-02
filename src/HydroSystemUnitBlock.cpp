@@ -357,7 +357,7 @@ void HydroSystemUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i ) {
   std::string sub_group_name = "HydroSystemUnitSolution_" +
                                                         std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
+  auto sub_group = group.addGroup( sub_group_name );
   v_innerSol[ i ]->serialize( sub_group );
   }
  }  // end( HydroSystemUnitBlockSolution::serialize )

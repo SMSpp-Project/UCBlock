@@ -61,10 +61,10 @@
 
 /// namespace for the Structured Modeling System++ (SMS++)
 
-typedef Eigen::SparseMatrix< double > SpMat;
-
 namespace SMSpp_di_unipi_it
 {
+ using SpMat = Eigen::SparseMatrix< double >;
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DCNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -128,11 +128,11 @@ class DCNetworkBlock : public NetworkBlock
   };
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- CLASS NetworkBlock::NetworkData ---------------------*/
+/*------------------- CLASS DCNetworkBlock::DCNetworkData ------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
- /// auxiliary class holding basic data about the transmission network
+ /// auxiliary class holding basic data about the (DC) transmission network
  /** The DCNetworkData class is a nested sub-class which only serves to have a
   * quick way to load all the basic data (topology and electrical
   * characteristics) that describe the transmission network. The rationale is
@@ -152,7 +152,7 @@ class DCNetworkData : public NetworkData
 
  public:
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -171,7 +171,7 @@ class DCNetworkData : public NetworkData
  /// destructor of DCNetworkData: it is virtual, and empty
  ~DCNetworkData() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -557,7 +557,8 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- void compute_DCDF( const std::vector< Index > & DC_lines, const SpMat & PTDF_matrix );
+ void compute_DCDF( const std::vector< Index > & DC_lines ,
+		    const SpMat & PTDF_matrix );
 
 /*--------------------------------------------------------------------------*/
 
@@ -781,11 +782,11 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  /// serialize a DCNetworkData out of a netCDF::NcGroup
  /** Serialize a DCNetworkData out of a netCDF::NcGroup to the specific
-  * format of a DCNetworkData. See NetworkBlock::deserialize( netCDF::NcGroup )
-  * for details of the format of the created netCDF group.
-  */
+  * format of a DCNetworkData. See
+  * DCNetworkBlock::deserialize( netCDF::NcGroup ) for details of the format
+  * of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -886,7 +887,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  };  // end( class( DCNetworkData ) )
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -1107,7 +1108,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------- Methods for checking the DCNetworkBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the DCNetworkBlock
@@ -1473,37 +1474,15 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
 /*--------------------------------------------------------------------------*/
  /// method to set the ActiveDemand
- /** This method can be called either before or after that deserialize() is
-  * called to provide the NetworkBlock with the ActiveDemand data. This allows
-  * all Active Power Demand data corresponding to some UC problem to be
-  * "grouped" together (typically, in UCBlock) rather than "spread" among the
-  * different NetworkBlock, which may be convenient for some user.
-  *
-  * If this method is called *before* deserialize(), the data is just copied.
-  * However, when deserialize() is called, if ActiveDemand data is present in
-  * the NcGroup then this data is used, replacing (and therefore ignoring)
-  * the data set by this method.
-  *
-  * Similarly, if this method is called *after* deserialize(), but if the
-  * ActiveDemand was already present in the NcGroup, then that data is kept
-  * and the call to this method does nothing.
-  *
-  * When this method is called, if it is empty it is written into, otherwise
-  * nothing happens. In deserialize(), if the data is there in the NcGroup
-  * then it is written in v_ActiveDemand (which therefore is no longer empty),
-  * otherwise it is left empty so that it can be set by this method. */
+ /** The method is actually implemented since DCNetworkBlock is a concrete
+  * class. Note that DCNetworkBlock always covers one interval only,
+  * hence we expect v[] to contain just get_number_nodes() elements. */
 
- void set_ActiveDemand( const boost::multi_array< double , 2 > & v ) override {
+ void set_ActiveDemand( const boost::multi_array< double , 2 > & v )
+  override {
   if( v_ActiveDemand.empty() )
    v_ActiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
- }
-
-/*--------------------------------------------------------------------------*/
-
- void set_ReactiveDemand( const boost::multi_array< double , 2 > & v ) override {
-  if( v_ReactiveDemand.empty() )
-   v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// sets the power flows
@@ -1549,6 +1528,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  void set_design_variables( std::vector< ColVariable > * DV = nullptr ,
 			    c_Subset * WDV = nullptr ) {
+
   if( constraints_generated() )
    throw( std::logic_error( "DCNetworkBlock::set_design_variables: called "
 			    "when constraints are already generated" ) );
@@ -1630,7 +1610,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
-
  /// set the kappa constants for the lines specified by \p subset
  /** This function sets the kappa constant of each line in the given \p
   * subset. The kappa constant of each line whose index is specified by the
@@ -1784,9 +1763,6 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  /// vector to store the demand of each node of the network
  std::vector< double > v_ActiveDemand;
-
- /// vector to store the reactive part of the demand of each node of the network
- std::vector< double > v_ReactiveDemand;
 
  /// the kappa constant for each line
  std::vector< double > v_kappa;
@@ -2027,7 +2003,8 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 /*---------- CONSTRUCTING AND DESTRUCTING DCNetworkBlockSolution -----------*/
 
  /// constructor, does nothing
- explicit DCNetworkBlockSolution( void ) : f_number_lines( 0 ) {}
+ explicit DCNetworkBlockSolution( void ) : NetworkBlockSolution() ,
+  f_number_lines( 0 ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a DCNetworkBlockSolution from a netCDF::NcGroup
@@ -2154,19 +2131,21 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   output << "DCNetworkBlockSolution [" << this << "]: " << std::endl;
   }
 
-/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
-
- private:
-
-/*---------------------------- PRIVATE FIELDS ------------------------------*/
+/*-------------------------- PROTECTED FIELDS ------------------------------*/
 
  Index f_number_lines;          ///< the number of lines
 
  std::vector< double > v_flow;  ///< v_flow[ l ] = flow variable on line l
 
  std::vector< double > v_cost;  /**< v_cost[ l ] = absolute value of the
-                                      reduced cost of the capacity constraint
-                                      of line l */
+                                 *   reduced cost of the capacity constraint
+                                 *   of line l */
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 
