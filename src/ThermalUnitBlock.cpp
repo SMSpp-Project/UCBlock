@@ -327,7 +327,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_CostModel , "CostModel" );
 
  // variables pour la reference schedule
- ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule, true, true, v_change_intervals );
+ ::deserialize( group, "ReferenceSchedule", f_time_horizon, v_RefSchedule,
+                true, true, v_change_intervals );
 
  if( ! ::deserialize( group , "StartUpLimit" , f_time_horizon , v_StartUpLimit ,
                       true , true , v_change_intervals ) ) {

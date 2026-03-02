@@ -1003,18 +1003,20 @@ class HydroUnitBlock : public UnitBlock
   return( *( v_MaxPower.data() + t * f_NumberArcs + generator ) );
  }
 
-/*--------------------------------------------------------------------------*/
+ /*--------------------------------------------------------------------------*/
  /// returns the minimum reactive power of the given generator at the given time
 
  double get_min_reactive_power( Index t , Index generator = 0 ) const override {
-    return( *( v_MinReactivePower.data() + t * f_NumberArcs + generator ) );
+  return( v_MinReactivePower.size() > t ?
+   *( v_MinReactivePower.data() + t * f_NumberArcs + generator ) : 0. );
  }
 
-/*--------------------------------------------------------------------------*/
+ /*--------------------------------------------------------------------------*/
  /// returns the maximum reactive power of the given generator at the given time
 
  double get_max_reactive_power( Index t , Index generator = 0 ) const override {
-    return( *( v_MaxReactivePower.data() + t * f_NumberArcs + generator ) );
+  return( v_MaxReactivePower.size() > t ?
+   *( v_MaxReactivePower.data() + t * f_NumberArcs + generator ) : 0. );
  }
 
 /*--------------------------------------------------------------------------*/
