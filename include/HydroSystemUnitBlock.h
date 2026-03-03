@@ -51,7 +51,6 @@
 
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS HydroSystemUnitBlock -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -79,7 +78,6 @@ namespace SMSpp_di_unipi_it
 
 class HydroSystemUnitBlock : public UnitBlock
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -233,98 +231,66 @@ class HydroSystemUnitBlock : public UnitBlock
  /// returns the vector of active power variables of each HydroUnitBlock
 
  ColVariable * get_active_power( Index generator ) override {
-  auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() )
-   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() )
-     return( unit_block->get_active_power( temp ) );
-    else
-     temp = temp - unit_block->get_number_generators();
-   }
-  return( nullptr );
+  if( generator >= v_gen_map.size() )
+   return( nullptr );
+  return( HUB( v_gen_map[ generator ].first )->get_active_power(
+					   v_gen_map[ generator ].second ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of reactive power variables of each HydroUnitBlock
 
  ColVariable * get_reactive_power( Index generator ) override {
-  auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() )
-   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() )
-     return( unit_block->get_reactive_power( temp ) );
-    else
-     temp = temp - unit_block->get_number_generators();
-   }
-  return( nullptr );
+  if( ( ! f_reactive_power ) || ( generator >= v_gen_map.size() ) )
+   return( nullptr );
+  return( HUB( v_gen_map[ generator ].first )->get_reactive_power(
+					   v_gen_map[ generator ].second ) );
  } 
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of primary spinning reserve variables of each HydroUnitBlock
+ /// returns the vector of primary reserve variables of each HydroUnitBlock
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
-  auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() )
-   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() )
-     return( unit_block->get_primary_spinning_reserve( temp ) );
-    else
-     temp = temp - unit_block->get_number_generators();
-   }
-  return( nullptr );
- }
+  if( generator >= v_gen_map.size() )
+   return( nullptr );
+  return( HUB( v_gen_map[ generator ].first )->get_primary_spinning_reserve(
+					   v_gen_map[ generator ].second ) );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of secondary spinning reserve variables of each HydroUnitBlock
+ /// returns the vector of secondary reserve variables of each HydroUnitBlock
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
-  auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() )
-   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() )
-     return( unit_block->get_secondary_spinning_reserve( temp ) );
-    else
-     temp = temp - unit_block->get_number_generators();
-   }
-  return( nullptr );
+  if( generator >= v_gen_map.size() )
+   return( nullptr );
+  return( HUB( v_gen_map[ generator ].first
+	       )->get_secondary_spinning_reserve(
+					   v_gen_map[ generator ].second ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
- virtual Index get_number_generators( void ) const override {
-  Index number_generators = 0;
-  for( auto sub_block : get_nested_Blocks() )
-   if( auto unit_block = dynamic_cast< UnitBlock * >( sub_block ) )
-    number_generators += unit_block->get_number_generators();
-  return( number_generators );
+ Index get_number_generators( void ) const override {
+  return( v_gen_map.size() );
   }
 
 /*--------------------------------------------------------------------------*/
 
  const double * get_inertia_power( Index generator ) const override {
-  auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() )
-   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() )
-     return( unit_block->get_inertia_power( temp ) );
-    else
-     temp = temp - unit_block->get_number_generators();
-   }
-  return( nullptr );
- }
+  if( generator >= v_gen_map.size() )
+   return( nullptr );
+  return( HUB( v_gen_map[ generator ].first )->get_inertia_power(
+					   v_gen_map[ generator ].second ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  double get_min_power( Index t , Index generator = 0 ) const override {
-  auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() )
-   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() )
-     return( unit_block->get_min_power( t, temp ) );
-    temp = temp - unit_block->get_number_generators();
-   }
-  return( 0 );
- }
+  if( generator >= v_gen_map.size() )
+   return( nullptr );
+  return( HUB( v_gen_map[ generator ].first )->get_min_power( t , 
+					   v_gen_map[ generator ].second ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -402,25 +368,25 @@ class HydroSystemUnitBlock : public UnitBlock
 /** @name Methods for modifying the HydroSystemUnitBlock
  * @{ */
 
- /// sets reserve vars method
- /** This method can be called *after* that deserialize() and before
-  * generate_abstract_variables() and generate_abstract_constraints(). This is
-  * called to provide the UCBlock with the reserve variables if it's needed.
-  * The input parameter is a bitwise value that allows to specify which unit
-  * could have the reserve variables:
-  *
-  * - 1 the unit could have primary spinning reserve variables
-  * - 2 the unit could have secondary spinning reserve variables
-  *
-  * Note: this method is only to "destroy" the (primary, secondary and
-  * inertia) reserve variables; it cannot create them if they are not there.
- */
+ /// sets which reserve variables should be there
+ /** Basically just calls the method in all the sub-Block. */
 
- void set_reserve_vars( unsigned char what ) override {
-  reserve_vars = what;
+ void set_reserve_vars( unsigned char what = 0 ) override {
+  UnitBlock:set_reserve_vars( what );
   for( auto * b : v_Block )
    if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) )
     ub->set_reserve_vars( what );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets whether or not reactive power variables should be there
+ /** Basically just calls the method in all the sub-Block. */
+
+ void set_reactive_power( bool reactive = false ) override {
+  UnitBlock:set_reactive_power( reactive );
+  for( auto * b : v_Block )
+   if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) )
+    ub->set_reactive_power( reactive );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -431,8 +397,8 @@ class HydroSystemUnitBlock : public UnitBlock
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error(
-   "HydroSystemUnitBlock::load() not implemented  yet" ) );
- }
+		    "HydroSystemUnitBlock::load() not implemented  yet" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -444,23 +410,28 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
-
-
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
 /*---------------------------------- data ----------------------------------*/
 
- /// the number of hydro units of the problem
- Index f_number_hydro_units;
+ Index f_number_hydro_units;  ///< the number of hydro units of the problem
 
 /*-------------------------------- variables -------------------------------*/
 
 /*------------------------------- constraints ------------------------------*/
 
- /// the objective function
- FRealObjective objective;
+ FRealObjective objective;  ///< the objective function
+
+/*----------------------------- data structures ----------------------------*/
+
+ std::vector< std::pair< Index , Index > > v_gen_map;
+ ///< the map between total generators and those in the inner HydroUnitBlock
+ /**< v_gen_map[ i ].first  = index of sub-Block in which generator i is
+  *   v_gen_map[ i ].second = index of the generator in sub-Block
+  *                           v_gen_map[ i ].first to which generator i
+  *                           corresponds */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -471,8 +442,6 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
-
-
 
  SMSpp_insert_in_factory_h;
 
@@ -495,18 +464,21 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// deserialize the PolyhedralFunctionBlock
 
- void deserialize_polyhedral_function_block
-  ( const netCDF::NcGroup & group , const std::string & sub_group_name );
+ void deserialize_polyhedral_function_block( const netCDF::NcGroup & group ,
+					const std::string & sub_group_name );
 
 /*--------------------------------------------------------------------------*/
  /// compute the total number of reservoirs
 
  Index get_total_number_reservoirs( void ) const;
 
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
  };  // end( class( HydroSystemUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- CLASS HydroSystemUnitBlockSolution ----------------------*/
+/*------------------ CLASS HydroSystemUnitBlockSolution --------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/

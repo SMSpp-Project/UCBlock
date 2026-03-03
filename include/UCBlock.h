@@ -1402,7 +1402,6 @@ class UCBlock : public Block
  /// the number of pollutants
  Index f_number_pollutants;
 
-
  /// the constant terms of each NetworkBlock
  std::vector< double > v_network_constant_terms;
 

@@ -535,18 +535,17 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     std::vector< double > min_node_injection( number_nodes , 0 );
     std::vector< double > max_node_injection( number_nodes , 0 );
 
-    Index elc_generator = 0;
+    Index gen = 0;
     for( Index u = 0 ; u < f_number_units ; ++u ) {
-     const auto unit_block = get_unit_block( u );
-     for( Index g = 0 ; g < unit_block->get_number_generators() ;
-           ++g , ++elc_generator ) {
-      auto node = v_generator_node[ elc_generator ];
-      auto fixed_consumption = unit_block->get_fixed_consumption( g );
-      min_node_injection[ node ] +=
-       std::min( unit_block->get_min_power( t , g ) ,
-		 fixed_consumption ? - fixed_consumption[ t ] : 0 );
-      max_node_injection[ node ] +=
-       std::max( 0 , unit_block->get_max_power( t , g ) );
+     const auto ub = get_unit_block( u );
+     for( Index g = 0 ; g < ub->get_number_generators() ; ++g ) {
+      auto node = v_generator_node[ gen++ ];
+      auto fixed_consumption = ub->get_fixed_consumption( g );
+      min_node_injection[ node ] += std::min( ub->get_min_power( t , g ) ,
+					      fixed_consumption ?
+					      - fixed_consumption[ t ] : 0 );
+      max_node_injection[ node ] += std::max( 0 , ub->get_max_power( t , g )
+					      );
       }
      }
 
@@ -568,17 +567,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
      std::vector< double > min_node_injection( number_nodes , 0 );
      std::vector< double > max_node_injection( number_nodes , 0 );
 
-     Index elc_generator = 0;
+     Index gen = 0;
      for( Index u = 0 ; u < f_number_units ; ++u ) {
-      const auto unit_block = get_unit_block( u );
-      for( Index g = 0 ; g < unit_block->get_number_generators() ;
-           ++g , ++elc_generator ) {
-       auto node = v_generator_node[ elc_generator ];
-       auto fixed_consumption = unit_block->get_fixed_consumption( g );
-       min_node_injection[ node ] +=
-	                   unit_block->get_min_reactive_power( t , g );
-       max_node_injection[ node ] +=
-                           unit_block->get_max_reactive_power( t , g );
+      const auto ub = get_unit_block( u );
+      for( Index g = 0 ; g < ub->get_number_generators() ; ++g ) {
+       auto node = v_generator_node[ gen++ ];
+       auto fixed_consumption = ub->get_fixed_consumption( g );
+       min_node_injection[ node ] += ub->get_min_reactive_power( t , g );
+       max_node_injection[ node ] += ub->get_max_reactive_power( t , g );
        }
       }
 

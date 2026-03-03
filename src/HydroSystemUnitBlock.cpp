@@ -31,6 +31,14 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- FUNCTIONS ------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+static inline HydroUnitBlock * HUB( UnitBlock * b ) {
+ return( static_cast< HydroUnitBlock * >( b ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -51,14 +59,20 @@ HydroSystemUnitBlock::~HydroSystemUnitBlock()
  v_Block.clear();
 
  objective.clear();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
 HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const
 {
- return( dynamic_cast< HydroUnitBlock * >( v_Block[ i ] ) );
-}
+ #ifndef NDEBUG
+ if( i > f_number_hydro_units )
+  throw( std::invalid_argument( "HydroSystemUnitBlock::get_hydro_unit_block:"
+				" invalid index " + std::to_string( i ) ) );
+ #endif
+
+ return( HUB( v_Block[ i ] ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -92,6 +106,17 @@ void HydroSystemUnitBlock::deserialize_sub_blocks(
  v_Block.reserve( f_number_hydro_units + 1 );
 
  deserialize_sub_blocks( group , "HydroUnitBlock_" , f_number_hydro_units );
+ // meanwhile, compute the number of generators and the map
+ Index ngen = 0;
+ for( auto bi : v_Block )
+  ngen += HUB( bi )->get_number_generators();
+
+ // ... and build the map
+ v_gen_map.resize( ngen );
+ for( Index i = ngen = 0 ; i < f_number_hydro_units ; ++i )
+  for( Index g = 0 ; g < HUB( v_Block[ i ] )->get_number_generators() ; )
+   v_gen_map[ ngen++ ] = std::make_pair( i , g++ );
+
  deserialize_polyhedral_function_block( group , "PolyhedralFunctionBlock" );
  }
 
@@ -102,9 +127,7 @@ Block::Index HydroSystemUnitBlock::get_total_number_reservoirs( void ) const
  Index total_number_reservoirs = 0;
  assert( v_Block.size() >= f_number_hydro_units );
  for( Index i = 0 ; i < f_number_hydro_units ; ++i )
-  if( auto hydro_unit_block = dynamic_cast< HydroUnitBlock * >( v_Block[ i ]
-								) )
-   total_number_reservoirs += hydro_unit_block->get_number_reservoirs();
+  total_number_reservoirs += HUB( v_Block[ i ] )->get_number_reservoirs();
  return( total_number_reservoirs );
  }
 
@@ -214,7 +237,7 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc )
 
  set_objective_generated();
 
-}  // end( HydroSystemUnitBlock::generate_objective )
+ }  // end( HydroSystemUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
