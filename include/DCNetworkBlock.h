@@ -85,12 +85,10 @@ namespace SMSpp_di_unipi_it
  *
  * - DCNetworkBlock of a hybrid AC/HVDC grid (both AC and HVDC lines). This
  *   is a combination of first and second cases, where for some lines (not all
- *   of them) may have zero susceptance.
- */
+ *   of them) may have zero susceptance. */
 
 class DCNetworkBlock : public NetworkBlock
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -119,11 +117,13 @@ class DCNetworkBlock : public NetworkBlock
   kAC_HVDC     ///< AC and HVDC lines
   };
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  enum formulation_type
  {
-  PTDF = 0,
-  CYCLE,
-  KIRCHOFF,
+  PTDF = 0 ,
+  CYCLE ,
+  KIRCHOFF ,
   NONE
   };
 
@@ -217,8 +217,9 @@ class DCNetworkData : public NetworkData
   *   dimension "NumberBranches" (if it is defined, otherwise "NumberLines");
   *   the l-th entry of the variable is the ending point of the line (a number
   *   in 0, ..., NumberNodes - 1; lines are not oriented, but see above).
-  *   StartLine[ l ] == EndLine[ l ] (a self-loop) is not allowed, but multiple
-  *   lines between the same pair of nodes are. The variable is mandatory.
+  *   StartLine[ l ] == EndLine[ l ] (a self-loop) is not allowed, but
+  *   multiple lines between the same pair of nodes are. The variable is
+  *   mandatory.
   *
   * - The variable "HyperArcID", of type netCDF::NcUint and indexed over the
   *   dimension "NumberBranches". The variable is mandatory if "NumberBranches"
@@ -304,8 +305,7 @@ class DCNetworkData : public NetworkData
   * - The variable "LineName", of type netCDF::NcString() and indexed over
   *   the dimension "NumberLines". Its i-th entry, namely LineName[ i ],
   *   contains the name of the i-th transmission line. This variable is
-  *   optional.
-  */
+  *   optional. */
 
  virtual void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -336,12 +336,11 @@ class DCNetworkData : public NetworkData
   * at least one line with multiple head buses. When is_hypergraph() == false
   * the network is a "regular graph" and therefore get_end_line() has to be
   * used, while if is_hypergraph() == true the network is a hypergraph and
-  * therefore get_end_lines() has to be used.
-  */
+  * therefore get_end_lines() has to be used. */
 
  bool is_hypergraph( void ) const {
   return( f_number_branches > f_number_lines );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if \p line is an hyperarc (more than one head bus)
@@ -362,12 +361,11 @@ class DCNetworkData : public NetworkData
   *   is no line at network (bus network), and this vector is not needed;
   *
   * - if get_number_nodes() > 1, this vector have size of f_number_lines and
-  *    get_start_line()[ l ] gives starting (tail) bus of line l.
-  */
+  *    get_start_line()[ l ] gives starting (tail) bus of line l. */
 
  const std::vector< Index > & get_start_line( void ) const {
   return( v_start_line );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the start bus of line \p line
@@ -397,7 +395,7 @@ class DCNetworkData : public NetworkData
 
  const std::vector< Index > & get_end_line( void ) const {
   return( v_end_line );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the end (first, in the hypergraph case) bus of line \p line
@@ -406,7 +404,7 @@ class DCNetworkData : public NetworkData
   if( is_hypergraph() )
    return( v_end_lines[ line ].front() );
   return( v_end_line[ line ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of (sets of) end lines
@@ -423,7 +421,7 @@ class DCNetworkData : public NetworkData
 
  const std::vector< std::vector< Index > > & get_end_lines( void ) const {
   return( v_end_lines );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the minimum power flow
@@ -440,7 +438,7 @@ class DCNetworkData : public NetworkData
 
  const std::vector< double > & get_min_power_flow( void ) const {
   return( v_min_power_flow );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns minimum power flow of the given \p line
@@ -453,7 +451,7 @@ class DCNetworkData : public NetworkData
   if( v_min_power_flow.empty() )
    return( 0 );
   return( v_min_power_flow[ line ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the maximum power flow
@@ -470,14 +468,12 @@ class DCNetworkData : public NetworkData
 
  const std::vector< double > & get_max_power_flow( void ) const {
   return( v_max_power_flow );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
   /// returns the reference unit (see Matpower)
 
-  double get_baseMVA( void ) const {
-    return( f_base_mva );
-  }
+ double get_baseMVA( void ) const { return( f_base_mva ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns maximum power flow of the given \p line
@@ -490,7 +486,7 @@ class DCNetworkData : public NetworkData
   if( v_max_power_flow.empty() )
    return( 0 );
   return( v_max_power_flow[ line ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the AC lines
@@ -503,9 +499,9 @@ class DCNetworkData : public NetworkData
   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
    if( susceptance[ line_id ] != 0. )
     AC_lines.push_back( line_id );
-  }
+   }
   return( AC_lines );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the DC lines
@@ -518,9 +514,9 @@ class DCNetworkData : public NetworkData
   for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
    if( susceptance[ line_id ] == 0. )
     DC_lines.push_back( line_id );
-  }
+   }
   return( DC_lines );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the susceptances
@@ -533,26 +529,25 @@ class DCNetworkData : public NetworkData
   *
   * - if f_number_lines >= 1, this vector has size of f_number_lines and each
   *   element of the vectors gives the Susceptance value for each line in the
-  *   network.
-  */
+  *   network. */
 
  const std::vector< double > & get_line_susceptance( void ) const {
   return( v_line_susceptance );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  const std::vector< double > & get_node_susceptance( void ) const {
   return( v_node_susceptance );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  int get_reducedIdx( int idx ) const;
 
 /*--------------------------------------------------------------------------*/
-
  // the inverse of get_reducedIdx
+
  int get_originalIdx( int idx ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -579,37 +574,41 @@ class DCNetworkData : public NetworkData
   std::vector< Index > all_lines( get_number_lines() );
   std::iota( all_lines.begin() , all_lines.end() , 0 );
   return( get_PTDF( all_lines ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  std::pair< SpMat , SpMat > get_stored_B2( void ) {
   return( std::make_pair( stored_B2 , stored_B2_inv ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  void set_stored_B2( const SpMat & B2 , const SpMat & B2_inv ) {
   stored_B2 = B2;
   stored_B2_inv = B2_inv;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
- bool was_cycle_basis_computed( void ) const { return( cycle_basis_was_computed ); }
+ bool was_cycle_basis_computed( void ) const {
+  return( cycle_basis_was_computed );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  void set_cycle_basis_computed( void ) { cycle_basis_was_computed = true; }
 
 /*--------------------------------------------------------------------------*/
-  /// compute the decomposition of the graph into cycles and spanning tree
+ /// compute the decomposition of the graph into cycles and spanning tree
  /** Methods for computing a spanning tree of the network and a cycle basis
-  * The functions get_cycle_basis and get_spanning_tree return quantities in terms of
-  * node ids, not line ids. To access the line ids in the spanning tree (resp. in the cycles),
-  * use get_lines_in_spanning_tree (resp. get_lines_in_cycles)*/
+  * The functions get_cycle_basis and get_spanning_tree return quantities
+  * in terms of node ids, not line ids. To access the line ids in the
+  * spanning tree (resp. in the cycles), use get_lines_in_spanning_tree
+  * (resp. get_lines_in_cycles). */
 
- void compute_cycle_basis( int root = -1 , bool only_AC_lines = true );  // be careful -> root is int and not Index, as it can be negative
+ void compute_cycle_basis( int root = -1 , bool only_AC_lines = true );
+ // be careful -> root is int and not Index, as it can be negative
 
 /*--------------------------------------------------------------------------*/
 
@@ -619,54 +618,61 @@ class DCNetworkData : public NetworkData
   return( v_cycle_basis );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::map< Index, Index > & get_spanning_tree( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
   return( m_spanning_tree );
   }
 
-/*-------------------------------------------------------------*/
-/* Return a map where the keys are the line ids involved in the spanning tree and the
-value is 1 if the directed line is in the tree and -1 if the reverse directed line is in the tree.*/
-std::map< Index, int > get_lines_in_spanning_tree( void ) {
+/*--------------------------------------------------------------------------*/
+/* Return a map where the keys are the line ids involved in the spanning
+ * tree and the value is 1 if the directed line is in the tree and -1 if 
+ * the reverse directed line is in the tree.*/
+
+ std::map< Index , int > get_lines_in_spanning_tree( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
 
   const auto number_lines = get_number_lines();
-  if( number_lines <= 0 ) {
-    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
-                             "number of lines of DCNetworkBlock is not set" ) );
-  }
+  if( number_lines <= 0 )
+   throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
+			    "number of lines of DCNetworkBlock is not set" )
+	  );
+
   const auto & start_line = get_start_line();
   const auto & end_line = get_end_line();
 
-  std::map< Index, int > lines_in_spanning_tree;
-  for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-    Index i = start_line[ line_id ];
-    Index j = end_line[ line_id ];
-    if ( this->m_spanning_tree[ i ] == j ) { // line in spanning tree
-      lines_in_spanning_tree[ line_id ] = 1;
-    }
-    else if ( this->m_spanning_tree[ j ] == i ) { // reverse line in spanning tree
+  std::map< Index , int > lines_in_spanning_tree;
+  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+   Index i = start_line[ line_id ];
+   Index j = end_line[ line_id ];
+   if( this->m_spanning_tree[ i ] == j )  // line in spanning tree
+    lines_in_spanning_tree[ line_id ] = 1;
+   else
+    if( this->m_spanning_tree[ j ] == i )  // reverse line in spanning tree
       lines_in_spanning_tree[ line_id ] = -1;
-    }
-  }
+   }
   return( lines_in_spanning_tree );
-}
+  }
 
-/*-------------------------------------------------------------*/
-/* Return a vector of map where the keys are the line ids involved in the cycle and the
-value is 1 if the directed line is in the cycle and -1 if the reverse directed line is in the cycle.*/
-std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
+/*--------------------------------------------------------------------------*/
+/* Return a vector of map where the keys are the line ids involved in the
+ * cycle and the value is 1 if the directed line is in the cycle and -1 if
+ * the reverse directed line is in the cycle. */
+
+ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
 
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
-  if( number_lines <= 0 ) {
-    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
-                             "number of lines of DCNetworkBlock is not set" ) );
-  }
+  if( number_lines <= 0 )
+   throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
+			    "number of lines of DCNetworkBlock is not set" )
+	  );
+
   const auto & start_line = get_start_line();
   const auto & end_line = get_end_line();
 
@@ -702,7 +708,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   // take advantage of the theory to ensure the size of the cycle basis
 
   return( lines_in_cycles );
-}
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the network cost
@@ -715,8 +721,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
   *
   * - if f_number_lines >= 1, this vector has size of f_number_lines and each
   *   element of the vectors gives the network cost value for each line in the
-  *   network.
-  */
+  *   network. */
 
  const std::vector< double > & get_network_cost( void ) const {
   return( v_network_cost );
@@ -731,11 +736,13 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
    if( get_number_lines() == 0 )
     f_lines_type = kNone;
    else
-    if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
+    if( std::all_of( v_line_susceptance.cbegin() ,
+		     v_line_susceptance.cend() ,
 		     []( double s ) { return( s == 0.0 ); } ) )
      f_lines_type = kHVDC;
     else
-     if( std::all_of( v_line_susceptance.cbegin() , v_line_susceptance.cend() ,
+     if( std::all_of( v_line_susceptance.cbegin() ,
+		      v_line_susceptance.cend() ,
 		      []( double s ) { return( s != 0.0 ); } ) )
       f_lines_type = kAC;
      else
@@ -765,14 +772,14 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
    throw( std::logic_error(
    "get_line_efficiencies() called but no hypergraph" ) );
   return( v_h_efficiency[ line ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector containing the name of the lines
 
  const std::vector< std::string > & get_line_names( void ) const {
   return( v_line_names );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
@@ -824,9 +831,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
 
  int f_lines_type;            ///< the type of the network
 
-
- /// the number of branches of all hyperarcs
- Index f_number_branches;
+ Index f_number_branches;     /// the number of branches of all hyperarcs
 
  Subset v_start_line;         ///< vector of starting lines
 
@@ -864,7 +869,7 @@ std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
  std::vector< Subset > v_cycle_basis;
 
  /// vector to store the spanning tree
- std::map< Index, Index > m_spanning_tree;
+ std::map< Index , Index > m_spanning_tree;
 
  /// A boolean to avoid recomputing the cycle basis algorithm
  bool cycle_basis_was_computed;

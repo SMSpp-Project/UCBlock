@@ -80,11 +80,11 @@ class ACNetworkBlock : public DCNetworkBlock
 
  class ACNetworkData : public DCNetworkData
  {
- /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+ /*----------------------- PUBLIC PART OF THE CLASS ------------------------*/
 
  public:
 
- /*---------------------- CONSTRUCTOR AND DESTRUCTOR ------------------------*/
+ /*---------------------- CONSTRUCTOR AND DESTRUCTOR -----------------------*/
  /** @name Constructor and Destructor
   * @{ */
 
@@ -273,6 +273,11 @@ class ACNetworkBlock : public DCNetworkBlock
    return( losses );
    }
 
+/*--------------------------------------------------------------------------*/
+ /// returns true since ACNetworkBlock handles reactive power
+
+ virtual bool handles_reactive( void ) const { return( true ); }
+
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ACNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -288,7 +293,7 @@ class ACNetworkBlock : public DCNetworkBlock
  ColVariable * get_reactive_node_injection( Index interval = 0 ) override {
   if( v_reactive_node_injection.empty() )
    return( nullptr );
-  return( &( v_reactive_node_injection.data()[ 0 ] ) );
+  return( v_reactive_node_injection.data() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -663,7 +668,7 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
  ///< v_reactive_flow_from[ l ] = reactive power "from" on line l
 
  std::vector< double > v_reactive_flow_to;
- ///< v_reactive_flow_from[ l ] = reactive power "to" on line l
+ ///< v_reactive_flow_to[ l ] = reactive power "to" on line l
 
 /*--------------------------------------------------------------------------*/
 

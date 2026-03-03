@@ -133,9 +133,9 @@ class UCBlock : public Block
  /// constructor of UCBlock, taking possibly a pointer of its father Block
 
  explicit UCBlock( Block * father = nullptr )
-  : Block( father ), f_time_horizon( 0 ), f_number_networks( 0 ),
-    f_number_units( 0 ), f_number_elc_generators( 0 ),
-    f_total_number_pollutant_zones( 0 ),
+  : Block( father ) , f_time_horizon( 0 ) , f_has_reactive( false ) ,
+    f_number_networks( 0 ) , f_number_units( 0 ) ,
+    f_number_elc_generators( 0 ), f_total_number_pollutant_zones( 0 ) ,
     f_number_primary_zones( 0 ), f_number_secondary_zones( 0 ),
     f_number_inertia_zones( 0 ), f_number_pollutants( 0 ),
     f_NetworkData( nullptr ) {}
@@ -506,53 +506,83 @@ class UCBlock : public Block
   * \f$ g \in \mathcal{G} \f$ and the set \f$ \mathcal{G}_n \f$ will indicate
   * electrical generators connected to node \f$ n \in \mathcal{N} \f$.
   *
-  * In the UCBlock there is not defined any variable but the decision
-  * variables here are present by using method get_variable() from UnitBlock
-  * and NetworkBlock as follow:
+  * UCBlock does not have any Variable of its own, but it defines Constraint
+  * on theVariable from UnitBlock and NetworkBlock as follows:
   *
   * - \f$ p^{ac}_{t,g} \f$ : the active power variable for each time period
   *   \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_active_power()
-  *   method;
+  *   \f$ g \in \mathcal{G} \f$, obtained from
+  *   UnitBlock::get_active_power();
   *
-  * - \f$ S_{t,n} \f$ : the node injection variable for each time period
-  *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$ is
-  *   called from NetworkBlock by get_node_injection() method;
+  * - \f$ p^{rc}_{t,g} \f$ : the reactive power variable for each time period
+  *   \f$ t \in \mathcal{T} \f$ and each electrical generator
+  *   \f$ g \in \mathcal{G} \f$ obtained from UnitBlock by
+  *   get_reactive_power() method (may not be defined);
+  *
+  * - \f$ S_{t,n} \f$ : the active power node injection variable for each
+  *   time period \f$ t \in \mathcal{T} \f$ and each node
+  *   \f$ n \in \mathcal{N} \f$ obtained from
+  *   NetworkBlock::get_node_injection();
+  *
+  * - \f$ R_{t,n} \f$ : the reactive power node injection variable for each
+  *   time period \f$ t \in \mathcal{T} \f$ and each node
+  *   \f$ n \in \mathcal{N} \f$ obtained from
+  *   NetworkBlock::get_reactive_node_injection() (may not be defined);
   *
   * - \f$ p^{pr}_{t,g} \f$ : the primary spinning reserves variable for each
   *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
-  *   get_primary_spinning_reserve() method;
+  *   \f$ g \in \mathcal{G} \f$ obtained from
+  *   UnitBlock::get_primary_spinning_reserve() (may not be defined);
   *
   * - \f$ p^{sc}_{t,g} \f$ : the secondary spinning reserves variable for each
   *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
-  *   get_secondary_spinning_reserve() method;
+  *   \f$ g \in \mathcal{G} \f$ obtained from
+  *   UnitBlock by::get_secondary_spinning_reserve() (may not be defined);
   *
   * - \f$ u_{t,g}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
   *   \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_commitment()
-  *   method;
+  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock::get_commitment()
+  *   (may not be defined).
   *
   * The global constraints of unit commitment problem, on the time horizon
   * \f$ \mathcal{T} \f$ write as follow:
   *
-  * - Node injection Constraints:
+  * - Active power node injection Constraints:
   *   In the unit commitment problem, \f$ P^{au}_{t , g} \f$ denotes the fixed
   *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is
   *   the node injection variable for each time period \f$ t \in \mathcal{T}
   *   \f$ and each node \f$ n \in \mathcal{N} \f$. Therefore, if the
   *   NetworkBlock::get_number_nodes() > 0, a
-  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
-  *   get_time_horizon() and NetworkBlock::get_number_nodes() entries, where
-  *   the entry t = 0, ..., f_time_horizon - 1 and the entry n = 1, ...,
-  *   get_number_nodes() being the node injection constraints at time t and
-  *   node n as follows:
+  *   boost::multi_array< FRowConstraint , 2 > is defined with the two
+  *   dimensions being get_time_horizon() and
+  *   NetworkBlock::get_number_nodes(). The entry [ t , n ] with t = 0, ...,
+  *   f_time_horizon - 1 and n = 1, ...,  get_number_nodes() contains the
+  *   active power node injection constraint at time t and node n
   *   \f[
   *    \sum_{ g \in \mathcal{G}_n } ( p^{ac}_{t,g} +
   *                                   P^{au}_{t , g}(1 - u_{t,g}) ) = S_{t,n}
   *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
   *   \f]
+  *
+  * - Reactive power node injection Constraints:
+  *   These are only defined if NetworkBlock::get_number_nodes() > 0 and
+  *   NetworkBlock::handles_reactive() == true: thus, \f$ S_{t,n} \f$ is
+  *   the reactive power node injection variable for each time period
+  *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$.
+  *   A boost::multi_array< FRowConstraint , 2 > is defined with the two
+  *   dimensions being get_time_horizon() and
+  *   NetworkBlock::get_number_nodes(). The entry [ t , n ] with t = 0, ...,
+  *   f_time_horizon - 1 and n = 1, ...,  get_number_nodes() contains the
+  *   re active power node injection constraint at time t and node n
+  *   \f[
+  *    \sum_{ g \in \mathcal{G}_n } p^{rc}_{t,g} = R_{t,n}
+  *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
+  *   \f]
+  *   Note that
+  *
+  *       IT IS ASSUMED THAT EITHER ALL :NetworkBlock HANDLE REACTIVE
+  *       POWER OR NONE DOES, HENCE NetworkBlock::handles_reactive() IS
+  *       ONLY CALLED TO THE FIRST ONE OF THEM
   *
   * - Primary Demand Constraints:
   *   In the unit commitment problem, the primary demand
@@ -1989,6 +2019,9 @@ class UCBlockSolution : public Solution {
  Index f_number_secondary_zones;  ///< the number of secondary zones
  Index f_number_inertia_zones;    ///< the number of inertia zones
 
+ bool f_has_reactive;
+ ///< true if reactive power constraints have to be managed
+ 
  bool f_compressed_network;
  ///< true if using the "compressed" format for NetworkBlock
 

@@ -137,10 +137,11 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
      classname() + "::deserialize: invalid value in ChangeIntervals: " +
      std::to_string( t ) + ". All values must be between 0 and " +
      "TimeHorizon - 1 and in strictly increasing order." ) );
+   }
   }
- } else
+ else
   v_change_intervals.clear();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -150,16 +151,14 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group )
 
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::scale( MF_dbl_it values ,
-                       Range rng ,
-                       c_ModParam issuePMod ,
-                       c_ModParam issueAMod )
+void UnitBlock::scale( MF_dbl_it values , Range rng ,
+                       c_ModParam issuePMod , c_ModParam issueAMod )
 {
  if( rng.first >= rng.second )
   return;  // An empty Range was given: no operation is performed.
@@ -175,14 +174,14 @@ void UnitBlock::scale( MF_dbl_it values ,
   // number of generators. Alternatively, we could have scale_generators() and
   // leave scale() for scaling the whole unit.
   subset.resize( 1 , 0 );
- }
+  }
  else {
   subset.resize( rng.second - rng.first );
   std::iota( subset.begin() , subset.end() , rng.first );
- }
+  }
 
  scale( values , std::move( subset ) , true , issuePMod , issueAMod );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -202,13 +201,13 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv )
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::scale( double scale_factor ,
-                       c_ModParam issuePMod ,
-                       c_ModParam issueAMod )
+                       c_ModParam issuePMod , c_ModParam issueAMod )
 {
  Subset subset = { 0 };
  std::vector< double > values = { scale_factor };
- scale( values.cbegin() , std::move( subset ) , true , issuePMod , issueAMod );
-}
+ scale( values.cbegin() , std::move( subset ) , true , issuePMod ,
+	issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/

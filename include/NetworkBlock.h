@@ -467,7 +467,7 @@ class NetworkBlock : public Block
   * no data structures to hold the NetworkData pointer, so it is demanded
   * to derived classes. */
 
- virtual void set_NetworkData( NetworkData * nd = nullptr ) {}
+ virtual void set_NetworkData( NetworkData * nd = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// method to set the constant term
@@ -570,12 +570,6 @@ class NetworkBlock : public Block
  void set_max_reactive_node_injection( double max_injection ,
 				       Index interval , Index node ) {}
 
-/*--------------------------------------------------------------------------*/
- /// method to add data of a generator to a given node
-
- //!!virtual void add_ACdata( Index i, Index node_id , UnitBlock * unit_block ,
- //!!                         Index t , Index g ) {};
-
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
 /*--------------------------------------------------------------------------*/
@@ -604,19 +598,25 @@ class NetworkBlock : public Block
  virtual NetworkData * get_NetworkData( void ) const { return( nullptr ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns whether or not the :NetworkBlock handles reactive power
+ /** Method for returning true if the :NetworkBlock handles reactive power.
+  * The base class implementation returns false. */
+
+ virtual bool handles_reactive( void ) const { return( false ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns the matrix of active demands
  /** Method for returning the active demand for the given interval, which is
   * assumed to have size get_number_intervals() by get_number_nodes().
   * There are two possible cases:
   *
   * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the active demand for each user u is D[ 0 , u ] for all intervals
-  *   t, which means that the second dimension has size get_number_nodes().
-  *   This will be the default case;
+  *   then the active demand for each node n is D[ 0 , n ] for all intervals
+  *   t, which means that the second dimension has size get_number_nodes();
   *
   * - otherwise, the matrix has size get_number_intervals() per
-  *   get_number_nodes(), then the D[ i , u ] represents the active demand
-  *   for the problem at time t for each user u, e.g., ECNetwork case;
+  *   get_number_nodes(), then the D[ i , n ] represents the active demand
+  *   for the problem at interval i for each node n.
   *
   * @param interval The interval wrt the vector of demands for each user is
   *                 returned.
@@ -637,12 +637,12 @@ class NetworkBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum production of the electrical generators
- /** Returns the minimum production for the given interval, which is assumed
-  * to have size get_number_nodes().
+ /// returns the minimum node injection of the electrical generators
+ /** Returns the minimum node injection for the given interval, which is
+  * assumed to have size get_number_nodes().
   *
-  * @param interval The interval wrt the vector of minimum productions for
-  *                 each user is returned. */
+  * @param interval The interval wrt the vector of minimum node injection is
+  *                 returned. */
 
  const double * get_min_node_injection( Index interval = 0 ) const {
   if( v_MinNodeInjection.empty() )
@@ -651,12 +651,12 @@ class NetworkBlock : public Block
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum production of the electrical generators
- /** Returns the maximum production for the given interval, which is assumed
-  * to have size get_number_nodes().
+ /// returns the maximum node injection of the electrical generators
+ /** Returns the maximum node injection for the given interval, which is
+  * assumed to have size get_number_nodes().
   *
-  * @param interval The interval wrt the vector of maximum productions for
-                    each user is returned. */
+  * @param interval The interval wrt the vector of maximum node injection is
+  *                 returned. */
 
  const double * get_max_node_injection( Index interval = 0 ) const {
   if( v_MaxNodeInjection.empty() )
@@ -667,7 +667,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the constant term
 
- const double & get_const_term( void ) const { return( f_ConstTerm ); }
+ const double get_const_term( void ) const { return( f_ConstTerm ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
@@ -702,7 +702,7 @@ class NetworkBlock : public Block
  /// returns the node injection reactive power variables
  /** Works as get_node_injection() but for the reactive part of the power.
   *  Since not all :NetworkBlock will handle reactive power, the method is 
-  *  given a default implementation throwing exceptiom returning nullptr. */
+  *  given a default implementation returning nullptr. */
 
  virtual ColVariable * get_reactive_node_injection( Index interval = 0 ) {
   return( nullptr );
@@ -718,6 +718,18 @@ class NetworkBlock : public Block
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the read-only node injection reactive power variables
+ /** Like get_reactive_node_node_injection(), but returns a const pointer so
+  * that the method itself can be const. Since not all :NetworkBlock will
+  * handle reactive power, the method is  given a default implementation
+  * returning nullptr. */
+
+ virtual const ColVariable * get_const_reactive_node_injection(
+						      Index interval = 0 ) {
+  return( nullptr );
   }
 
 /** @} ---------------------------------------------------------------------*/
