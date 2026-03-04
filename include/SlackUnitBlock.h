@@ -416,12 +416,11 @@ class SlackUnitBlock : public UnitBlock
  *   of vector represents the maximum power value at time t. */
 
  double get_max_power( Index t , Index generator = 0 ) const override {
- if ( v_MaxPower[ t ] >= 0.0 )
-  return( v_MaxPower[ t ] );
- else
-  return 0.0;
- }
+  return( ( v_MaxPower.size() > t ) ?
+	  ( ( v_MaxPower[ t ] >= 0 ) ? v_MaxPower[ t ] : 0 ) : 0 );
+  }
 
+/*--------------------------------------------------------------------------*/
  /// returns the vector of minimum power
  /** The returned vector contains to maximum power at time t. There are three
   * possible cases:
@@ -435,37 +434,30 @@ class SlackUnitBlock : public UnitBlock
   *   of vector represents the maximum power value at time t. */
  
  double get_min_power( Index t , Index generator = 0 ) const override {
-  if ( v_MaxPower[ t ] >= 0.0 )
-   return( 0.0 );
-  else
-   return v_MaxPower[ t ];
- }
-
- /*--------------------------------------------------------------------------*/
- /// returns the minimum reactive power of the given generator at the given time
-
- double get_min_reactive_power( Index t , Index generator = 0 ) const override {
-    return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0. );
- }
+  return( ( v_MaxPower.size() > t ) ?
+	  ( ( v_MaxPower[ t ] >= 0 ) ? 0 : v_MaxPower[ t ] ) : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum reactive power of the given generator at the given time
+ /// returns the minimum reactive power of \p generator at time \t
 
- double get_max_reactive_power( Index t , Index generator = 0 ) const override {
-    return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0. );
- }
+ double get_min_reactive_power( Index t , Index generator = 0 )
+  const override {
+  return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the voltage magnitude of the given generator at the given time
+ /// returns the maximum reactive power of \p generator at time \t
 
- double get_voltage_magnitude( Index t , Index generator = 0 ) const override {
-    return( ( v_VoltageMagnitude.size() > t ) ? v_VoltageMagnitude[ t ] : 0. );
- }
+ double get_max_reactive_power( Index t , Index generator = 0 )
+  const override {
+  return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum primary power
- /** The returned vector contains to maximum primary power at time t. There are
-  * three possible cases:
+ /** The returned vector contains to maximum primary power at time t.
+  * There are three possible cases:
   *
   * - if the vector is empty, then the maximum primary power of the unit is 0;
   *
@@ -477,7 +469,7 @@ class SlackUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_primary_power( void ) const {
   return( v_MaxPrimaryPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active power cost
@@ -494,7 +486,7 @@ class SlackUnitBlock : public UnitBlock
 
  const std::vector< double > & get_active_power_cost( void ) const {
   return( v_ActivePowerCost );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum secondary power
@@ -512,7 +504,7 @@ class SlackUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_secondary_power( void ) const {
   return( v_MaxSecondaryPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary cost
@@ -529,7 +521,7 @@ class SlackUnitBlock : public UnitBlock
 
  const std::vector< double > & get_primary_cost( void ) const {
   return( v_PrimaryCost );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary cost
@@ -541,12 +533,12 @@ class SlackUnitBlock : public UnitBlock
   * - if the vector has only one element, then the secondary cost of the unit
   *   for all time horizon;
   *
-  * - otherwise, the vector must have size get_time_horizon() and each element
+  * - otherwise the vector must have size get_time_horizon() and each element
   *   of vector represents the secondary cost value at time t. */
 
  const std::vector< double > & get_secondary_cost( void ) const {
   return( v_SecondaryCost );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inertia commitment
@@ -561,7 +553,7 @@ class SlackUnitBlock : public UnitBlock
   * - if the vector only has one element, then the inertia commitment for the
   *   fixed consumption of the unit for all t;
   *
-  * - otherwise, the vector must have size get_time_horizon(), and each element
+  * - otherwise the vector must have size get_time_horizon() and each element
   *   of vector represents the inertia commitment at time t. */
 
  const double * get_inertia_commitment( Index generator ) const override {
@@ -580,14 +572,14 @@ class SlackUnitBlock : public UnitBlock
   * - if the vector has only one element, then the inertia cost of the unit
   *   for all time horizon;
   *
-  * - otherwise, the vector must have size get_time_horizon() and each element
+  * - otherwise the vector must have size get_time_horizon() and each element
   *   of vector represents the inertia cost value at time t. */
 
  const std::vector< double > & get_inertia_cost( void ) const {
   return( v_InertiaCost );
- }
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Variable OF THE SlackUnitBlock ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the SlackUnitBlock
@@ -692,9 +684,6 @@ class SlackUnitBlock : public UnitBlock
  /// the vector of MaxReactivePower
  std::vector< double > v_MaxReactivePower;
 
- /// the vector of VoltageMagnitude
- std::vector< double > v_VoltageMagnitude;
-
  /// the vector of MaxPrimaryPower
  std::vector< double > v_MaxPrimaryPower;
 
@@ -744,8 +733,9 @@ class SlackUnitBlock : public UnitBlock
  /// the reactive power bound constraints
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
 
- /// Q <= P
+ /*!! Q <= P
  std::vector< FRowConstraint > Reactive_2_Active_Const;
+ !!*/
 
  /// the objective function
  FRealObjective objective;

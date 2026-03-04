@@ -295,15 +295,10 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  double get_max_power( Index t , Index generator = 0 ) const override {
-  auto temp = generator;
-  for( auto sub_block : get_nested_Blocks() )
-   if( auto unit_block = dynamic_cast< HydroUnitBlock * >( sub_block ) ) {
-    if( temp < unit_block->get_number_generators() )
-     return( unit_block->get_max_power( t, temp ) );
-    else
-     temp = temp - unit_block->get_number_generators();
-   }
-  return( 0 );
+  if( generator >= v_gen_map.size() )
+   return( nullptr );
+  return( HUB( v_gen_map[ generator ].first )->get_max_power( t , 
+					   v_gen_map[ generator ].second ) );
   }
 
 /*--------------------------------------------------------------------------*/

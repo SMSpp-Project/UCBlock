@@ -341,14 +341,6 @@ class UnitBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the voltage magnitude of \p generator at time \p t
-
- virtual double get_voltage_magnitude( Index t , Index generator = 0 )
-  const {
-  return( 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns the number of cost coefficients of \p generator
 
  virtual Index get_number_cost_coeffs( Index generator = 0 ) { return( 0 ); }
@@ -510,11 +502,11 @@ class UnitBlock : public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the vector of reactive power variables
+ /** The base UnitBlock class does not handle reactive power variables, so
+  *  this method always returns nullptr. */
 
  virtual ColVariable * get_reactive_power( Index generator ) {
-  if( v_reactive_power.empty() )
-   return( nullptr );
-  return( &( v_reactive_power.front() ) );
+  return( nullptr );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -865,9 +857,6 @@ class UnitBlock : public Block
 
  /// the time horizon of the problem
  Index f_time_horizon;
-
- /// the reactive power variables
- std::vector< ColVariable > v_reactive_power;
 
  /// the number of intervals
  Index f_number_intervals;

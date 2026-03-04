@@ -71,25 +71,15 @@ SlackUnitBlock::~SlackUnitBlock()
 
 void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-
 #ifndef NDEBUG
  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
                                                      "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
  static std::vector< std::string > expected_vars = { "MaxPower" ,
-                                                     "MaxPrimaryPower" ,
-                                                     "MaxSecondaryPower" ,
-                                                     "ActivePowerCost" ,
-                                                     "PrimaryCost" ,
-                                                     "SecondaryCost" ,
-                                                     "InertiaCost" ,
-                                                     "MaxInertia"
-                                                     // specific modes 
-                                                     "MinReactivePower",
-                                                     "MaxReactivePower",
-                                                     "VoltageMagnitude"
-                                                    };
+  "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
+  "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia"
+  "MinReactivePower" , "MaxReactivePower" };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -99,35 +89,42 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
  // Optional variables
  ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
                 true , true , v_change_intervals );
- ::deserialize( group , "MaxPrimaryPower" , f_time_horizon , v_MaxPrimaryPower ,
-                true , true , v_change_intervals );
- ::deserialize( group , "MaxSecondaryPower" , f_time_horizon , v_MaxSecondaryPower ,
-                true , true , v_change_intervals );
- ::deserialize( group , "ActivePowerCost" , f_time_horizon , v_ActivePowerCost ,
-                true , true , v_change_intervals );
+
+ ::deserialize( group , "MaxPrimaryPower" , f_time_horizon ,
+		v_MaxPrimaryPower , true , true , v_change_intervals );
+
+ ::deserialize( group , "MaxSecondaryPower" , f_time_horizon ,
+		v_MaxSecondaryPower , true , true , v_change_intervals );
+
+ ::deserialize( group , "ActivePowerCost" , f_time_horizon ,
+		v_ActivePowerCost , true , true , v_change_intervals );
+
  ::deserialize( group , "PrimaryCost" , f_time_horizon , v_PrimaryCost ,
                 true , true , v_change_intervals );
+
  ::deserialize( group , "SecondaryCost" , f_time_horizon , v_SecondaryCost ,
                 true , true , v_change_intervals );
+
  ::deserialize( group , "InertiaCost" , f_time_horizon , v_InertiaCost ,
                 true , true , v_change_intervals );
+
  ::deserialize( group , "MaxInertia" , f_time_horizon , v_MaxInertia ,
                 true , true , v_change_intervals );
 
  // variables for AC elements
- if( ! ::deserialize( group , "MaxReactivePower" , f_time_horizon , v_MaxReactivePower ,
-                      true , true , v_change_intervals ) )
-    v_MaxReactivePower.resize( f_time_horizon , 0.0 );
+ if( ::deserialize( group , "MaxReactivePower" , f_time_horizon ,
+		    v_MaxReactivePower , true , true , v_change_intervals ) )
+  if( std::all_of( v_MaxReactivePower.begin() , v_MaxReactivePower.end() ,
+		   []( double i ) { return( i == 0 ); } ) )
+   v_MaxReactivePower.clear();
 
- if( ! ::deserialize( group , "MinReactivePower" , f_time_horizon , v_MinReactivePower ,
-                      true , true , v_change_intervals ) )
-    v_MinReactivePower.resize( f_time_horizon , 0.0 );
+ if( ::deserialize( group , "MinReactivePower" , f_time_horizon ,
+		    v_MinReactivePower , true , true , v_change_intervals ) )
+  if( std::all_of( v_MinReactivePower.begin() , v_MinReactivePower.end() ,
+		   []( double i ) { return( i == 0 ); } ) )
+   v_MinReactivePower.clear();
 
- if( ! ::deserialize( group , "VoltageMagnitude" , f_time_horizon , v_VoltageMagnitude ,
-                      true , true , v_change_intervals ) )
-    v_VoltageMagnitude.resize( f_time_horizon , 0.0 );
-
-}  // end( SlackUnitBlock::deserialize )
+ }  // end( SlackUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -192,135 +189,114 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stcc ) )
   generate_ZOConstraints = sci->f_value;
 
- // Initializing active power bounds constraints
- if( ActivePower_Bound_Const.size() != f_time_horizon ) {
-  // this should only happen once
-  assert( ActivePower_Bound_Const.empty() );
+ // active power bounds constraints - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ if( ActivePower_Bound_Const.empty() )
   ActivePower_Bound_Const.resize( f_time_horizon );
- }
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-  if( ! v_MaxPower.empty() )
-   if( v_MaxPower[ t ] >= 0.0 ) {
-    ActivePower_Bound_Const[ t ].set_rhs( v_MaxPower[ t ] );
-    ActivePower_Bound_Const[ t ].set_lhs( 0.0 );
-   }
-   else {
-    ActivePower_Bound_Const[ t ].set_rhs( 0.0 );
-    ActivePower_Bound_Const[ t ].set_lhs( v_MaxPower[ t ] );
-   }
-  else
-   ActivePower_Bound_Const[ t ].set_both( 0.0 );
-
-  ActivePower_Bound_Const[ t ].set_variable( &v_active_power[ t ] );
- }
+  ActivePower_Bound_Const[ t ].set_rhs( get_max_power( t ) );
+  ActivePower_Bound_Const[ t ].set_lhs( get_min_power( t ) );
+  ActivePower_Bound_Const[ t ].set_variable( & v_active_power[ t ] );
+  }
 
  add_static_constraint( ActivePower_Bound_Const ,
                         "ActivePowerBound_Slack" );
 
- /*--------------------------------------------------------------------------*/
+ // primary spinning reserve bounds constraints - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- // Initializing primary spinning reserve bounds constraints
- if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
+ if( reserve_vars & 1u )            // if UCBlock has primary demand variables
   if( ! v_MaxPrimaryPower.empty() ) {  // if unit produces any primary reserve
-
-   if( Primary_Spinning_Reserve_Bound_Const.size() != f_time_horizon ) {
-    // this should only happen once
-    assert( Primary_Spinning_Reserve_Bound_Const.empty() );
-
+   if( Primary_Spinning_Reserve_Bound_Const.empty() )
     Primary_Spinning_Reserve_Bound_Const.resize( f_time_horizon );
-   }
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     Primary_Spinning_Reserve_Bound_Const[ t ].set_rhs(
-     v_MaxPrimaryPower[ t ] );
+						   v_MaxPrimaryPower[ t ] );
     Primary_Spinning_Reserve_Bound_Const[ t ].set_variable(
-     &v_primary_spinning_reserve[ t ] );
-   }
+					& v_primary_spinning_reserve[ t ] );
+    }
 
    add_static_constraint( Primary_Spinning_Reserve_Bound_Const ,
                           "PrimarySpinningReserveBound_Slack" );
-  }
- }
-
- /*--------------------------------------------------------------------------*/
-
- // Initializing secondary spinning reserve bounds constraints
- if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
-  if( ! v_MaxSecondaryPower.empty() ) {  // if unit produces any secondary reserve
-   if( Secondary_Spinning_Reserve_Bound_Const.size() != f_time_horizon ) {
-    // this should only happen once
-    assert( Secondary_Spinning_Reserve_Bound_Const.empty() );
-
-    Secondary_Spinning_Reserve_Bound_Const.resize( f_time_horizon );
    }
+
+ // secondary spinning reserve bounds constraints - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( reserve_vars & 2u )         // if UCBlock has secondary demand variables
+  if( ! v_MaxSecondaryPower.empty() ) {
+                                    // if unit produces any secondary reserve
+   if( Secondary_Spinning_Reserve_Bound_Const.empty() )
+    Secondary_Spinning_Reserve_Bound_Const.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     Secondary_Spinning_Reserve_Bound_Const[ t ].set_rhs(
-     v_MaxSecondaryPower[ t ] );
+						 v_MaxSecondaryPower[ t ] );
     Secondary_Spinning_Reserve_Bound_Const[ t ].set_variable(
-     &v_secondary_spinning_reserve[ t ] );
-   }
+				      & v_secondary_spinning_reserve[ t ] );
+    }
 
    add_static_constraint( Secondary_Spinning_Reserve_Bound_Const ,
                           "SecondarySpinningReserveBound_Slack" );
-  }
- }
+   }
 
- /*------------------------------ ZOConstraint ------------------------------*/
+ // ZOConstraint- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // these are useless, but some approaches do require the bounds to be
+ // "physically" there, e.g., to compute dual variables
 
- if( generate_ZOConstraints ) {
-
-  // the commitment bound constraints
+ if( generate_ZOConstraints )  // the commitment bound constraints
   if( reserve_vars & 4u ) {
    Inertia_Bound_Const.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    Inertia_Bound_Const[ t ].set_variable( &v_commitment[ t ] );
+    Inertia_Bound_Const[ t ].set_variable( & v_commitment[ t ] );
 
    add_static_constraint( Inertia_Bound_Const , "Inertia_bound_Slack" );
+   }
+
+ // reactive power bounds constraints (if any) - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( f_reactive_power && 
+     ( ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) )
+     ) {
+  if( ReactivePower_Bound_Const.empty() )
+   ReactivePower_Bound_Const.resize( f_time_horizon );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   ReactivePower_Bound_Const[ t ].set_rhs( get_max_reactive_power( t ) );
+   ReactivePower_Bound_Const[ t ].set_lhs( get_min_reactive_power( t ) );
+   ReactivePower_Bound_Const[ t ].set_variable( & v_reactive_power[ t ] );
+   }
+
+  add_static_constraint( ReactivePower_Bound_Const ,
+                         "ReactivePowerBound_thermal" );
+
+  /*!! Link between active and reactive power
+  Reactive_2_Active_Const.resize( f_time_horizon );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   // Q(t) - P(t) <= 0
+   auto lfunc = new LinearFunction();
+   lfunc->add_variable( &v_active_power[ t ], -1.0 );
+   lfunc->add_variable( &v_reactive_power[ t ], 1.0 );
+ 
+   Reactive_2_Active_Const[ t ].set_lhs( -Inf< double >() );
+   Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
+   Reactive_2_Active_Const[ t ].set_function( lfunc );
+   }
+
+  add_static_constraint( Reactive_2_Active_Const, "QandPslack" );
+  !!*/
   }
- }
-
- /// Reactive power bounds constraints
- if( ReactivePower_Bound_Const.size() != f_time_horizon ) {
-  assert( ReactivePower_Bound_Const.empty() );
-  ReactivePower_Bound_Const.resize( f_time_horizon );
- }
-
- bool something = false;
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if( get_max_reactive_power( t ) > 0.0 ) {
-   something = true;
-   ReactivePower_Bound_Const[ t ].set_rhs( v_MaxReactivePower[ t ] );
-   ReactivePower_Bound_Const[ t ].set_lhs( v_MinReactivePower[ t ] );
-   ReactivePower_Bound_Const[ t ].set_variable( &v_reactive_power[ t ] );
-  }
- }
- if( something )
-  add_static_constraint( ReactivePower_Bound_Const , "ReactivePowerBound" );
-
- // Link between active and reactive power
- Reactive_2_Active_Const.resize( f_time_horizon );
-
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    // Q(t) - P(t) <= 0
-    auto lfunc = new LinearFunction();
-    lfunc->add_variable( &v_active_power[ t ], -1.0 );
-    lfunc->add_variable( &v_reactive_power[ t ], 1.0 );
-    
-    Reactive_2_Active_Const[ t ].set_lhs( -Inf< double >() );
-    Reactive_2_Active_Const[ t ].set_rhs( 0.0 );
-    Reactive_2_Active_Const[ t ].set_function( lfunc );
- }
- add_static_constraint( Reactive_2_Active_Const, "QandPslack" );
 
  set_constraints_generated();
 
-}  // end( SlackUnitBlock::generate_abstract_constraints )
-
+ }  // end( SlackUnitBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 

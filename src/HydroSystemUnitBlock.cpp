@@ -144,7 +144,7 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block(
  if( sub_group.isNull() )
   return;
 
- // Create the PolyhedralFunctionBlock
+ // create the PolyhedralFunctionBlock
  std::string class_name = "PolyhedralFunctionBlock";
  auto class_name_attribute = sub_group.getAtt( "type" );
  if( ! class_name_attribute.isNull() )
@@ -156,11 +156,11 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block(
  if( ! polyhedral_function_block )
   throw( std::logic_error( "HydroSystemUnitBlock::deserialize: the type "
                            "attribute of group " + sub_group_name +
-                           " must be either 'PolyhedralFunctionBlock' or the "
-                           "name of a class derived from "
-                           "PolyhedralFunctionBlock." ) );
+                           " must be either 'PolyhedralFunctionBlock'"
+                           " or the name of a class derived from "
+                           "PolyhedralFunctionBlock" ) );
 
- // Deserialize the PolyhedralFunctionBlock
+ // deserialize the PolyhedralFunctionBlock
  polyhedral_function_block->deserialize( sub_group );
 
  v_Block.push_back( polyhedral_function_block );
@@ -177,12 +177,10 @@ void HydroSystemUnitBlock::deserialize_sub_blocks(
   std::string sub_group_name = sub_group_name_prefix + std::to_string( i );
   auto sub_group = group.getGroup( sub_group_name );
   auto sub_block = new_Block( sub_group , this );
-
   if( ! sub_block )
    throw( std::invalid_argument( "HydroSystemUnitBlock::deserialize: error "
                                  "when creating Block from group " +
-                                 sub_group_name + "." ) );
-
+                                 sub_group_name ) );
   v_Block.push_back( sub_block );
   }
  }
@@ -197,8 +195,8 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv )
  for( auto block : v_Block )
   block->generate_abstract_variables();
 
- // Collect the active Variables of the PolyhedralFunction: these are the
- // variables representing the final volume of each reservoir.
+ // collect the active Variables of the PolyhedralFunction: these are the
+ // variables representing the final volume of each reservoir
 
  std::vector< ColVariable * > x;
  x.reserve( get_total_number_reservoirs() );
@@ -212,10 +210,9 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv )
    x.push_back( hydro_unit_block->get_volume( r , f_time_horizon - 1 ) );
   }
 
- // Set the active Variable of the PolyhedralFunction
- get_polyhedral_function_block()->get_PolyhedralFunction().
-  set_variables( std::move( x ) );
-
+ // set the active Variable of the PolyhedralFunction
+ get_polyhedral_function_block()->get_PolyhedralFunction().set_variables(
+							    std::move( x ) );
  set_variables_generated();
 
  }  // end( HydroSystemUnitBlock::generate_abstract_variables )
@@ -290,13 +287,14 @@ void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  auto dim_number_hydro_units = group.addDim( "NumberHydroUnits" ,
                                              f_number_hydro_units );
- // Serialize sub-blocks
+ // serialize all the sub-HydroUnitBlock
  for( Index i = 0 ; i < f_number_hydro_units ; ++i ) {
   auto sub_block = get_hydro_unit_block( i );
   auto sub_group = group.addGroup( "HydroUnitBlock_" + std::to_string( i ) );
   sub_block->serialize( sub_group );
- }
+  }
 
+ // serialize the PolyhedralFunctionBlock
  if( v_Block.size() > f_number_hydro_units ) {
   auto sub_group = group.addGroup( "PolyhedralFunctionBlock" );
   v_Block.back()->serialize( sub_group );
@@ -324,7 +322,7 @@ void HydroSystemUnitBlockSolution::deserialize(
   auto HSUSi = dynamic_cast< HydroUnitBlockSolution * >(
 				       Solution::new_Solution( sub_group ) );
   if( ! HSUSi )
-    throw( std::invalid_argument(
+   throw( std::invalid_argument(
 		              "HydroSystemUnitBlockSolution::deserialize: " +
 			      sub_group_name +
 			      " not a valid HydroUnitBlockSolution" ) );

@@ -1031,33 +1031,28 @@ class BatteryUnitBlock : public UnitBlock
   *   maximum converter power for all time instants;
   *
   * - otherwise, the internal vector has size get_time_horizon() and
-  *   the entry at position t represents the maximum converter power at time t.
-  */
+  *   the entry at position t represents the maximum converter power at
+  *   time t. */
 
- const std::vector< double > & get_converter_max_power( ) const {
+ const std::vector< double > & get_converter_max_power( void ) const {
   return( v_ConvMaxPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum reactive power of the given generator at the given time
+ /// returns the minimum reactive power of the \p generator at time \p t
 
- double get_min_reactive_power( Index t , Index generator = 0 ) const override {
-    return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0. );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum reactive power of the given generator at the given time
-
- double get_max_reactive_power( Index t , Index generator = 0 ) const override {
-    return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0. );
- }
+ double get_min_reactive_power( Index t , Index generator = 0 )
+  const override {
+  return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the voltage magnitude of the given generator at the given time
+ /// returns the maximum reactive power of the \p generator at time \p t
 
- double get_voltage_magnitude( Index t , Index generator = 0 ) const override {
-    return( ( v_VoltageMagnitude.size() > t) ? v_VoltageMagnitude[ t ] : 0. );
- } 
+ double get_max_reactive_power( Index t , Index generator = 0 )
+  const override {
+  return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum primary reserve power
@@ -1127,7 +1122,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inefficiency of storing energy
@@ -1145,7 +1140,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_storing_battery_rho( void ) const {
   return( v_StoringBatteryRho );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inefficiency of extracting energy of the unit
@@ -1164,7 +1159,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_extracting_battery_rho( void ) const {
   return( v_ExtractingBatteryRho );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of storage and extraction cost of energy
@@ -1183,7 +1178,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_cost( void ) const {
   return( v_Cost );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of E-mobility demand
@@ -1197,10 +1192,11 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_demand( void ) const {
   return( v_Demand );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor of this BatteryUnitBlock
+
  double get_scale( void ) const override { return( f_scale ); }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1240,7 +1236,7 @@ class BatteryUnitBlock : public UnitBlock
 
  std::vector< ColVariable > & get_storage_level( void ) {
   return( v_storage_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the const vector of storage level variables
@@ -1254,7 +1250,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_const_storage_level( void ) const {
   return( v_storage_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of intake level variables
@@ -1282,7 +1278,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_const_intake_level( void ) const {
   return( v_intake_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of outtake level variables
@@ -1296,7 +1292,7 @@ class BatteryUnitBlock : public UnitBlock
 
  std::vector< ColVariable > & get_outtake_level( void ) {
   return( v_outtake_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the const vector of outtake level variables
@@ -1310,7 +1306,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_const_outtake_level( void ) const {
   return( v_outtake_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables
@@ -1319,6 +1315,15 @@ class BatteryUnitBlock : public UnitBlock
   if( v_active_power.empty() )
    return( nullptr );
   return( &( v_active_power.front() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive power variables
+
+ ColVariable * get_reactive_power( Index generator ) override {
+  if( v_reactive_power.empty() )
+   return( nullptr );
+  return( &( v_reactive_power.front() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1735,9 +1740,6 @@ class BatteryUnitBlock : public UnitBlock
  /// the vector of MaxReactivePower
  std::vector< double > v_MaxReactivePower;
 
- /// the vector of VoltageMagnitude
- std::vector< double > v_VoltageMagnitude;
-
  /// the vector of ConverterMaxPower
  std::vector< double > v_ConvMaxPower;
 
@@ -1771,20 +1773,26 @@ class BatteryUnitBlock : public UnitBlock
  /// the converter investment cost
  double f_ConvInvestmentCost;
 
- /// the minimum battery capacity design allowed (lower bound on x_b in design mode); default 0.
- /// If BatteryMaxCapacityDesign < 0 (binary), BatteryMinCapacityDesign > 0 forces x_b = 1.
+ /** the minimum battery capacity design allowed (lower bound on x_b in
+  * design mode); default 0.
+  * If BatteryMaxCapacityDesign < 0 (binary), BatteryMinCapacityDesign > 0 
+  * forces x_b = 1 */
  double f_BattMinCapacityDesign;
 
  /// the maximum battery capacity design allowed
- /// If < 0, x_b is binary; if > 0, x_b is continuous with bounds [BatteryMinCapacityDesign, BatteryMaxCapacityDesign].
+ /** If < 0, x_b is binary; if > 0, x_b is continuous with bounds
+  * [BatteryMinCapacityDesign, BatteryMaxCapacityDesign]. */
  double f_BattMaxCapacityDesign;
 
- /// the minimum converter capacity design allowed (lower bound on x_c in design mode); default 0.
- /// If ConverterMaxCapacityDesign < 0 (binary), ConverterMinCapacityDesign > 0 forces x_c = 1.
+ /** the minimum converter capacity design allowed (lower bound on x_c in
+  * design mode); default 0.
+  * If ConverterMaxCapacityDesign < 0 (binary),
+  * ConverterMinCapacityDesign > 0 forces x_c = 1 */
  double f_ConvMinCapacityDesign;
 
- /// the maximum converter capacity design allowed
- /// If < 0, x_c is binary; if > 0, x_c is continuous with bounds [ConverterMinCapacityDesign, ConverterMaxCapacityDesign].
+ /** the maximum converter capacity design allowed
+  * If < 0, x_c is binary; if > 0, x_c is continuous with bounds
+  * [ConverterMinCapacityDesign, ConverterMaxCapacityDesign] */
  double f_ConvMaxCapacityDesign;
 
  /// the InitialStorage value
@@ -1805,7 +1813,7 @@ class BatteryUnitBlock : public UnitBlock
  /// the scale factor
  double f_scale;
 
- /// the reference Schedule: optional information to deviate minimally from if there
+ /// the reference Schedule to deviate minimally from if there
  std::vector< double > v_RefSchedule;
 
 /*-------------------------------- variables -------------------------------*/
@@ -1824,6 +1832,9 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the active power variables
  std::vector< ColVariable > v_active_power;
+
+ /// the reactive power variables
+ std::vector< ColVariable > v_reactive_power;
 
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
@@ -1859,7 +1870,7 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the intake outtake upper bounds design constraints
  boost::multi_array< FRowConstraint , 2 >
-  intake_outtake_upper_bounds_design_Const;
+                                   intake_outtake_upper_bounds_design_Const;
 
  /// the storage level bounds design constraints
  boost::multi_array< FRowConstraint , 2 > storage_level_bounds_design_Const;
@@ -1897,8 +1908,9 @@ class BatteryUnitBlock : public UnitBlock
  /// the reactive power bound constraints
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
 
- /// Q <= P
+ /*!! Q <= P
  std::vector< FRowConstraint > Reactive_2_Active_Const;
+ */
 
  /// the objective function
  FRealObjective objective;

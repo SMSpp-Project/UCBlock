@@ -74,6 +74,24 @@ static void copy_multi_array( boost::multi_array< T , K > & to ,
  }
 
 /*--------------------------------------------------------------------------*/
+
+static inline UnitBlock * UB( UnitBlock * b ) {
+ return( static_cast< UnitBlock * >( b ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static inline NetworkBlock * NB( UnitBlock * b ) {
+ return( static_cast< NetworkBlock * >( b ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static inline LinearFunction * LF( Function * f ) {
+ return( static_cast< LinearFunction * >( f ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF UCBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -506,7 +524,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  if( f_has_reactive )
   for( Index u = 0 ; u < f_number_units ; ++u ) {
-   static_cast< UnitBlock * >( v_Block[ i ] )->set_reactive_power( true );
+   UB( v_Block[ i ] )->set_reactive_power( true );
 
  // recover the generator --> node mapping- - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -515,8 +533,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                         f_number_elc_generators ) ) {
   f_number_elc_generators = 0;
   for( Index i = 0 ; i < f_number_units ; ++i )
-   f_number_elc_generators +=
-    static_cast< UnitBlock * >( v_Block[ i ] )->get_number_generators();
+   f_number_elc_generators += UB( v_Block[ i ] )->get_number_generators();
   }
 
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
@@ -608,8 +625,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
 
  // generate the abstract constraints of UCBlock
  generate_node_injection_constraints();
- if ( v_reactive_power_demand.num_elements() > 0 )
-   generate_reactive_node_injection_constraints();
+ if( f_has_reactive )
+  generate_reactive_node_injection_constraints();
 
  generate_primary_demand_constraints();
  generate_secondary_demand_constraints();
@@ -746,8 +763,6 @@ void UCBlock::generate_node_injection_constraints( void )
 
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------*/
-
 void UCBlock::generate_reactive_node_injection_constraints( void )
 {
  if( v_reactive_power_demand.empty() )
@@ -760,7 +775,6 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
   [ f_time_horizon ][ number_nodes ] );
 
  if( number_nodes > 0 ) {  // well, that'd be curious, but ...
-
   if( number_nodes == 1 ) {
    // special case: in a bus network there are no NetworkBlocks and the node
    // injection constraints actually are active power demand constraints
@@ -868,10 +882,10 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
    }
   }
 
-  add_static_constraint( v_reactive_node_injection_Const , "reactive_node_injection_c" );
- }
-
-}  // end( UCBlock::generate_reactive_node_injection_constraints )
+  add_static_constraint( v_reactive_node_injection_Const ,
+			 "reactive_node_injection_c" );
+  }
+ }  // end( UCBlock::generate_reactive_node_injection_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1652,13 +1666,12 @@ void UCBlock::update_node_injection_constraints(
     constraint.set_both( rhs , eNoBlck );
 
     // update the coefficients
-    static_cast< LinearFunction * >
-    ( constraint.get_function() )->modify_coefficients
-     ( std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
+    LF( constraint.get_function() )->modify_coefficients(
+	 std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
 
-   }  // end( for( t ) )
-
-  } else {  // number_nodes > 1
+    }  // end( for( t ) )
+   }
+  else {  // number_nodes > 1
 
    // Network needs GeneratorNode
 
@@ -1748,9 +1761,8 @@ void UCBlock::update_node_injection_constraints(
      constraint.set_both( rhs , eNoBlck );
 
      // update the coefficients
-     static_cast< LinearFunction * >( constraint.get_function() )->
-      modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                           true , eNoBlck );
+     LF( constraint.get_function() )->modify_coefficients(
+	  std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
 
     }  // end( for( node_id ) )
    }  // end( for( t ) )
@@ -1849,19 +1861,17 @@ void UCBlock::update_primary_demand_constraints(
    }  // end( for( modified_units ) )
 
    // Update the coefficients of the active variables
-   static_cast< LinearFunction * >( constraint.get_function() )->
-    modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                         false , eNoBlck );
+   LF( constraint.get_function() )->modify_coefficients(
+	 std::move( coefficients ) , std::move( subset ) , false , eNoBlck );
 
-  }  // end( for( zone_id ) )
- }  // end( for( t ) )
-
-}  // end( UCBlock::update_primary_demand_constraints )
+   }  // end( for( zone_id ) )
+  }  // end( for( t ) )
+ }  // end( UCBlock::update_primary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_secondary_demand_constraints(
- const std::vector< Index > & modified_units )
+			        const std::vector< Index > & modified_units )
 {
  if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -1949,19 +1959,17 @@ void UCBlock::update_secondary_demand_constraints(
    }  // end( for( modified_units ) )
 
    // Update the coefficients of the active variables
-   static_cast< LinearFunction * >( constraint.get_function() )->
-    modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                         false , eNoBlck );
+   LF( constraint.get_function() )->modify_coefficients(
+	 std::move( coefficients ) , std::move( subset ) , false , eNoBlck );
 
-  }  // end( for( zone_id ) )
- }  // end( for( t ) )
-
-}  // end( UCBlock::update_secondary_demand_constraints )
+   }  // end( for( zone_id ) )
+  }  // end( for( t ) )
+ }  // end( UCBlock::update_secondary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_inertia_demand_constraints(
- const std::vector< Index > & modified_units )
+			        const std::vector< Index > & modified_units )
 {
  if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -2087,25 +2095,23 @@ void UCBlock::update_inertia_demand_constraints(
     }  // end( for( unit_id ) )
 
     // Update the coefficients of the active variables
-    static_cast< LinearFunction * >( constraint.get_function() )->
-     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                          true , eNoBlck );
+    LF( constraint.get_function() )->modify_coefficients(
+	  std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
 
-   }  // end( for( node_id ) )
-  }  // end( for( zone_id ) )
- }  // end( for( t ) )
-
-}  // end( UCBlock::update_inertia_demand_constraints )
+    }  // end( for( node_id ) )
+   }  // end( for( zone_id ) )
+  }  // end( for( t ) )
+ }  // end( UCBlock::update_inertia_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints( Index time ,
-						                                           Index node_index ,
+						 Index node_index ,
                                                  double demand )
 {
  auto rhs = demand;
  for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
-  const auto unit_block = static_cast< UnitBlock * >( v_Block[ i ] );
+  const auto unit_block = UB( v_Block[ i ] );
   const auto scale = unit_block->get_scale();
   // for each electrical generator within the unit
   for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {

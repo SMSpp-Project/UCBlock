@@ -1569,16 +1569,6 @@ class ThermalUnitBlock : public UnitBlock
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
-/*--------------------------------------------------------------------------*/
- /// ignore reserve netCDF variables when a ThermalUnitBlock is deserialized
- /** This function instructs the ThermalUnitBlock to ignore the reserve netCDF
-  * variables, namely "PrimaryRho" and "SecondaryRho", when it is
-  * deserialized. */
-
- static void ignore_reserve() {
-  f_ignore_netcdf_vars |= 1;
- }
-
 /** @} ---------------------------------------------------------------------*/
 /*--------------- Methods for checking the ThermalUnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -1676,75 +1666,51 @@ class ThermalUnitBlock : public UnitBlock
  /** This method returns (a const reference to) the vector containing the
   * nominal minimum active power output of the unit for all time steps. When
   * the unit is available, get_min_power()[ t ] gives the minimum active power
-  * output of the unit at time t, for each t in {0, ..., get_time_horizon() -
-  * 1}. */
+  * output of the unit at time t in { 0, ..., get_time_horizon() - 1}. */
 
  const std::vector< double > & get_min_power( void ) const {
   return( v_MinPower );
   }
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the minimum power of the \p generator at time \p t
 
  double get_min_power( Index t , Index generator = 0 ) const override {
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_min_power: "
-			    "invalid time index " + std::to_string( t ) ) );
-  return( v_MinPower[ t ] );
+  return( ( v_MinPower.size() > t ) ? v_MinPower[ t ] : 0 );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum reactive power of the \p generator at time \p t
+ /// returns the vector of nominal minimum active power output
+ /** This method returns (a const reference to) the vector containing the
+  * nominal maximum active power output of the unit for all time steps. When
+  * the unit is available, get_max_power()[ t ] gives the maximum active power
+  * output of the unit at time t in { 0 , ..., get_time_horizon() - 1 }. */
+
+ const std::vector< double > & get_max_power( void ) const {
+  return( v_MaxPower );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the maximum power of \p generator at time \p t
+
+ double get_max_power( Index t , Index generator = 0 ) const override {
+  return( ( v_MaxPower.size() > t ) ? v_MaxPower[ t ] : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum reactive power of \p generator at time \t
 
  double get_min_reactive_power( Index t , Index generator = 0 )
   const override {
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_min_reactive_power: "
-			    "invalid time index " + std::to_string( t ) ) );
-  return( ( v_MinReactivePower.size() >= t ) ? v_MinReactivePower[ t ] : 0 );
+  return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0 );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum reactive power of the \p generator at time \p t
+ /// returns the maximum reactive power of \p generator at time \t
 
  double get_max_reactive_power( Index t , Index generator = 0 )
   const override {
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_max_reactive_power: "
-			    "invalid time index " + std::to_string( t ) ) );
-  return( ( v_MaxReactivePower.size() >= t ) ? v_MaxReactivePower[ t ] : 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the voltage magnitude of the \p generator at time \p t
-
- double get_voltage_magnitude( Index t , Index generator = 0 )
-  const override {
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_voltage_magnitude: "
-			    "invalid time index " + std::to_string( t ) ) );
-  return( ( v_VoltageMagnitude.size() >= t ) ? v_VoltageMagnitude[ t ] : 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the number of cost coefficients of the \p generator
-
- Index get_number_cost_coeffs( Index generator = 0 ) override {
-  return( f_number_cost_coeffs );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the ith cost coefficient of the \p generator
-
- double get_cost_coeff( Index i , Index generator = 0 ) override {
-  return( ( v_PowerCostCoeffs.size() >= i ) ? v_PowerCostCoeffs[ i ] : 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the cost model of the \p generator
-
- Index get_cost_model( Index generator = 0 ) override {
-  return( f_CostModel );
+  return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0 );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2128,15 +2094,15 @@ class ThermalUnitBlock : public UnitBlock
  *
  * - commitment variables;
  *
- * - active_power variables;
+ * - active and reactive power variables;
  *
- * - primary_spinning_reserve variables;
+ * - primary spinning reserve variables;
  *
- * - secondary_spinning_reserve variables;
+ * - secondary spinning reserve variables;
  *
- * - start_up variables;
+ * - start up variables;
  *
- * - shut_down variables.
+ * - shut down variables.
  * @{ */
 
  /// returns the vector of commitment variables
@@ -2149,19 +2115,30 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active_power variables
+
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
    return( nullptr );
   return( &( v_active_power.front() ) );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive power variables
+
+ ColVariable * get_reactive_power( Index generator ) override {
+  if( v_reactive_power.empty() )
+   return( nullptr );
+  return( &( v_reactive_power.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_primary_spinning_reserve.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
@@ -2733,17 +2710,11 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of MaxReactivePower
  std::vector< double > v_MaxReactivePower;
 
- /// the vector of VoltageMagnitude
- std::vector< double > v_VoltageMagnitude;
-
- /// the vector of coefficients for the cost
- std::vector< double > v_PowerCostCoeffs;
-
- /// the reference Schedule: optional information to deviate minimally from if there
+ /// the reference Schedule to deviate minimally from if there
  std::vector< double > v_RefSchedule;
 
  // the vector for separating PC-cuts
- std::vector< double >  prevpbar;
+ std::vector< double > prevpbar;
 
  /// the vector of index of the variables \f$p_t^{hk} of the DP formulation.
  /// In particular, v_P_h_k.fist = t, v_P_h_k.second.fist = h,
@@ -2809,26 +2780,18 @@ class ThermalUnitBlock : public UnitBlock
  /// the MinDownTime value
  Index f_MinDownTime = 1;
 
- /// Number of coefficients for cost
- Index f_number_cost_coeffs = 0;
-
- /// Type of cost model
- Index f_CostModel = 0;
-
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
 
  /// the scale factor
  double f_scale = 1;
 
- /// the flag indicating if we wish to fix production to maximum power output
- /// currently 0 = default = do nothing special
- ///           > 0 : fix to MaxPower 
- /// although a boolean would suffice, an integer is foreseen for possible future modes of working
+ /** the flag indicating if we wish to fix production to maximum power output
+  * currently 0 = default = do nothing special
+  *           > 0 : fix to MaxPower 
+  * although a boolean would suffice, an integer is foreseen for possible
+  * future modes of working */
  int f_fixToMax = 0;
-
- /// this variable indicates which netCDF variables must be ignored
- inline static bool f_ignore_netcdf_vars;
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -2858,6 +2821,9 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the active power variables for 3bin, T and pt formulations
  std::vector< ColVariable > v_active_power;
+
+ /// the reactive power variables
+ std::vector< ColVariable > v_reactive_power;
 
  /// the active power variables for DP model
  std::vector< ColVariable > v_active_power_h_k;
@@ -2924,41 +2890,38 @@ class ThermalUnitBlock : public UnitBlock
  /// the SecondaryRho fraction constraints
  std::vector< FRowConstraint > SecondaryRho_Const;
 
-
- /// the constraints connecting power variables of 3bin, T and
- /// pt formulations with those of DP, SU, SD and SUSD formulations
+ /* Constraints connecting power variables of 3bin, T and pt
+  * formulations with those of DP, SU, SD and SUSD formulations */
  std::vector< FRowConstraint > Eq_ActivePower_Const;
 
- /// the constraints connecting commitment variables of 3bin and T
- /// formulations with those of pt, DP, SU, SD and SUSD formulations
+ /** Constraints connecting commitment variables of 3bin and T
+  * formulations with those of pt, DP, SU, SD and SUSD formulations */
  std::vector< FRowConstraint > Eq_Commitment_Const;
 
- /// the constraints connecting start-up variables of 3bin and T
- /// formulations with those of pt, DP, SU, SD and SUSD formulations
+ /** Constraints connecting start-up variables of 3bin and T
+  * formulations with those of pt, DP, SU, SD and SUSD formulations */
  std::vector< FRowConstraint > Eq_StartUp_Const;
 
- /// the constraints connecting shut-down variables of 3bin and T
- /// formulations with those of pt, DP, SU, SD and SUSD formulations
+ /** Constraints connecting shut-down variables of 3bin and T
+  * formulations with those of pt, DP, SU, SD and SUSD formulations */
  std::vector< FRowConstraint > Eq_ShutDown_Const;
 
  /// the network constraints of the pt, DP, SU, SD and SUSD formulations
  std::vector< FRowConstraint > Network_Const;
 
-
  /// the initial perspective cuts constraints
  std::vector< FRowConstraint > Init_PC_Const;
 
- /// the constraints connecting perspective cuts variables of 3bin, T
- /// and pt formulations with those of DP, SU, SD and SUSD formulations
+ /** Constraints connecting perspective cuts variables of 3bin, T and pt
+  * formulations with those of DP, SU, SD and SUSD formulations */
  std::vector< FRowConstraint > Eq_PC_Const;
 
- //// Constraints connecting variables of the SUSD formulations with the
- //// maximum of the perspective function of the SU and the SD formulations
+ /** Constraints connecting variables of the SUSD formulations with the
+  * maximum of the perspective function of the SU and the SD formulations */
  std::vector< FRowConstraint > Max_SUSD_PC_Const;
 
  /// the perspective dynamic cuts constraints
  std::list< FRowConstraint > PC_cuts;
-
 
  /// the commitment bound constraints
  std::vector< ZOConstraint > Commitment_bound_Const;
@@ -2975,9 +2938,8 @@ class ThermalUnitBlock : public UnitBlock
  /// the reactive power bound constraints
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
 
- /// Q <= P
- std::vector< FRowConstraint > Reactive_2_Active_Const;
-
+ //!! Q <= P
+ //!! std::vector< FRowConstraint > Reactive_2_Active_Const;
 
  /// the objective function
  FRealObjective objective;
@@ -2992,8 +2954,6 @@ class ThermalUnitBlock : public UnitBlock
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-
-
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
@@ -3001,57 +2961,59 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  static void static_initialization( void ) {
-
   /* Warning: Not all C++ compilers enjoy the template wizardry behind the
    * three-args version of register_method<> with the compact MS_*_*::args(),
    *
-   * register_method< ThermalUnitBlock >( "ThermalUnitBlock::set_availability",
-   *                                      &ThermalUnitBlock::set_availability,
-   *                                      MS_dbl_sbst::args() );
+   * register_method< ThermalUnitBlock >(
+   *                                    "ThermalUnitBlock::set_availability" ,
+   *                                    & ThermalUnitBlock::set_availability ,
+   *                                    MS_dbl_sbst::args() );
    *
    * so we just use the slightly less compact one with the explicit argument
    * and be done with it. */
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::set_availability" ,
-   &ThermalUnitBlock::set_availability );
+                                      "ThermalUnitBlock::set_availability" ,
+                                      & ThermalUnitBlock::set_availability );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::set_availability" ,
-   &ThermalUnitBlock::set_availability );
+                                      "ThermalUnitBlock::set_availability" ,
+                                      & ThermalUnitBlock::set_availability );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::set_maximum_power" ,
-   &ThermalUnitBlock::set_maximum_power );
+                                      "ThermalUnitBlock::set_maximum_power" ,
+                                      & ThermalUnitBlock::set_maximum_power );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::set_maximum_power" ,
-   &ThermalUnitBlock::set_maximum_power );
+                                      "ThermalUnitBlock::set_maximum_power" ,
+                                      & ThermalUnitBlock::set_maximum_power );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::set_initial_power" ,
-   &ThermalUnitBlock::set_initial_power );
+                                      "ThermalUnitBlock::set_initial_power" ,
+                                      & ThermalUnitBlock::set_initial_power );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::set_initial_power" ,
-   &ThermalUnitBlock::set_initial_power );
+                                      "ThermalUnitBlock::set_initial_power" ,
+                                      & ThermalUnitBlock::set_initial_power );
 
   register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
-   "ThermalUnitBlock::set_init_updown_time" ,
-   &ThermalUnitBlock::set_init_updown_time );
+                                   "ThermalUnitBlock::set_init_updown_time" ,
+                                   & ThermalUnitBlock::set_init_updown_time );
 
   register_method< ThermalUnitBlock , MF_int_it , Range >(
-   "ThermalUnitBlock::set_init_updown_time" ,
-   &ThermalUnitBlock::set_init_updown_time );
+                                   "ThermalUnitBlock::set_init_updown_time" ,
+                                   & ThermalUnitBlock::set_init_updown_time );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
+                      "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::scale" , &ThermalUnitBlock::scale );
- }
+                      "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
+  }
 
-};  // end( class( ThermalUnitBlock ) )
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( ThermalUnitBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS ThermalUnitBlockMod ------------------------*/
@@ -3060,7 +3022,6 @@ class ThermalUnitBlock : public UnitBlock
 /// derived class from Modification for modifications to a ThermalUnitBlock
 class ThermalUnitBlockMod : public UnitBlockMod
 {
-
  public:
 
  /// public enum for the types of ThermalUnitBlockMod
@@ -3074,13 +3035,12 @@ class ThermalUnitBlockMod : public UnitBlockMod
   eSetLinT ,                   ///< set linear term
   eSetQuadT ,                  ///< set quad term
   eSetConstT ,                 ///< set constant term
-  eSetPrSpResCost ,            ///< set primary spinning reserve (linear) costs
-  eSetSecSpResCost ,
-  ///< set secondary spinning reserve (linear) costs
-  eTUBBModLastParam       ///< first allowed parameter value for derived classes
+  eSetPrSpResCost ,            ///< set primary spinning reserve costs
+  eSetSecSpResCost ,           ///< set secondary spinning reserve costs
+  eTUBBModLastParam   ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ThermalUnitBlockMod. */
- };
+  };
 
  /// constructor, takes the ThermalUnitBlock and the type
  ThermalUnitBlockMod( ThermalUnitBlock * const fblock , const int type )
@@ -3123,10 +3083,9 @@ class ThermalUnitBlockMod : public UnitBlockMod
     output << "Set constant term";
     break;
    default:;
+   }
   }
- }
-
-};  // end( class( ThermalUnitBlockMod ) )
+ };  // end( class( ThermalUnitBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CLASS ThermalUnitBlockRngdMod ----------------------*/
@@ -3135,7 +3094,6 @@ class ThermalUnitBlockMod : public UnitBlockMod
 /// derived from ThermalUnitBlockMod for "ranged" modifications
 class ThermalUnitBlockRngdMod : public ThermalUnitBlockMod
 {
-
  public:
 
  /// constructor: takes the ThermalUnitBlock, the type, and the range
@@ -3156,11 +3114,11 @@ class ThermalUnitBlockRngdMod : public ThermalUnitBlockMod
  void print( std::ostream & output ) const override {
   ThermalUnitBlockMod::print( output );
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
- }
+  }
 
  Block::Range f_rng;  ///< the range
 
-};  // end( class( ThermalUnitBlockRngdMod ) )
+ };  // end( class( ThermalUnitBlockRngdMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS ThermalUnitBlockSbstMod ---------------------*/
