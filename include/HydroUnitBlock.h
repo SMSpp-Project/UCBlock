@@ -1060,8 +1060,7 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the minimum flow of \p generator at time \p t
 
- double get_min_flow( Index t , Index generator = 0 )
-  const override {
+ double get_min_flow( Index t , Index generator = 0 ) const {
   if( v_MinFlow.empty() )
    return( 0 );
   else
@@ -1074,8 +1073,7 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the maximum flow of \p generator at time \p t
 
- double get_max_flow( Index t , Index generator = 0 )
-  const override {
+ double get_max_flow( Index t , Index generator = 0 ) const {
   if( v_MaxFlow.empty() )
    return( 0 );
   else
@@ -1088,9 +1086,9 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of delta ramp up
  /** The method returned a two-dimensional boost::multi_array<> M such that
-  * M[ t , i ] gives the delta ramp up at each time t associated with unit (arc)
-  * i. This two-dimensional boost::multi_array<> M considers three possible
-  * cases:
+  * M[ t , i ] gives the delta ramp up at each time t associated with unit
+  * (arc) i. This two-dimensional boost::multi_array<> M considers three
+  * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no ramping constraints;
   *

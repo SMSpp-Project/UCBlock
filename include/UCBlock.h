@@ -1340,6 +1340,16 @@ class UCBlock : public Block
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using MAdouble = boost::multi_array< double , 2 >;
+ using MAdouble_ext = MAdouble::extent_gen;
+
+ using MAFRC = boost::multi_array< FRowConstraint , 2 >;
+ using MAFRC_ext = MAdouble::extent_gen;
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1387,6 +1397,9 @@ class UCBlock : public Block
  /// the number of electrical generators of the problem
  Index f_number_elc_generators;
 
+ /// true if reactive power constraints have to be managed
+ bool f_has_reactive;
+ 
  /// the total number of pollutant zones of the problem
  Index f_total_number_pollutant_zones;
 
@@ -1455,8 +1468,6 @@ class UCBlock : public Block
 
 /*-------------------------------- variables -------------------------------*/
 
-
-
 /*------------------------------- constraints ------------------------------*/
 
  /// node injection constraints for each time and node
@@ -1477,9 +1488,7 @@ class UCBlock : public Block
  /// pollutant demand constraints for each pollutant and pollutant zone
  std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
 
-
- /// the objective function
- FRealObjective objective;
+ FRealObjective objective;  ///< the objective function
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1549,8 +1558,10 @@ class UCBlock : public Block
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has commitment variable, inertia
-  * commitment, inertia power, or active power variable, for some time instant,
-  * then it has the same thing for all time instants. */
+  * commitment, inertia power, or active power variable, for some time
+  * instant, then it has the same thing for all time instants. */
+
+/*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;
 
@@ -1605,8 +1616,8 @@ class UCBlock : public Block
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered. */
 
- void update_node_injection_constraints
-  ( const std::vector< Index > & modified_units );
+ void update_node_injection_constraints(
+			       const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the primary demand constraints
@@ -1617,32 +1628,32 @@ class UCBlock : public Block
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered. */
 
- void update_primary_demand_constraints
-  ( const std::vector< Index > & modified_units );
+ void update_primary_demand_constraints(
+			       const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the secondary demand constraints
- /** This function updates the secondary demand constraints considering that the
-  * scale factors of the given units may have been modified. The vector \p
-  * modified_units is assumed to be ordered.
+ /** This function updates the secondary demand constraints considering that
+  * the scale factors of the given units may have been modified. The vector
+  * \p modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered. */
 
- void update_secondary_demand_constraints
-  ( const std::vector< Index > & modified_units );
+ void update_secondary_demand_constraints(
+			       const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the inertia demand constraints
- /** This function updates the inertia demand constraints considering that the
-  * scale factors of the given units may have been modified. The vector \p
-  * modified_units is assumed to be ordered.
+ /** This function updates the inertia demand constraints considering that
+  * the scale factors of the given units may have been modified. The vector
+  * \p modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered. */
 
- void update_inertia_demand_constraints
-  ( const std::vector< Index > & modified_units );
+ void update_inertia_demand_constraints(
+			       const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand
@@ -1659,7 +1670,7 @@ class UCBlock : public Block
                                          double demand );
 
 /*--------------------------------------------------------------------------*/
- /// returns the primary zone to which the given electrical generator belongs
+ /// returns the primary zone to which the given generator belongs
 
  Index get_primary_zone( Index elc_generator ) const {
   if( f_number_primary_zones == 0 )
@@ -1671,10 +1682,10 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_primary_zones[ node ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the secondary zone to which the given electrical generator belongs
+ /// returns the secondary zone to which the given generator belongs
 
  Index get_secondary_zone( Index elc_generator ) const {
   if( f_number_secondary_zones == 0 )
@@ -1686,10 +1697,10 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_secondary_zones[ node ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the inertia zone to which the given electrical generator belongs
+ /// returns the inertia zone to which the given generator belongs
 
  Index get_inertia_zone( Index elc_generator ) const {
   if( f_number_inertia_zones == 0 )
@@ -1701,7 +1712,7 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_inertia_zones[ node ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1711,25 +1722,27 @@ class UCBlock : public Block
 
   register_method< UCBlock , MF_dbl_it , Range >(
    "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
- }
+  }
 
-};  // end( class( UCBlock ) )
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( UCBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- CLASS UCBlockMod ----------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// derived class from Modification for modifications to a UCBlock
-class UCBlockMod : public Modification
-{
 
+ class UCBlockMod : public Modification
+{
  public:
 
  /// public enum for the types of UCBlockMod
  enum UCB_mod_type
  {
   eSetActD = 0    ///< set active power demand
- };
+  };
 
  /// constructor, takes the UCBlock and the type
  UCBlockMod( UCBlock * const fblock , const int type )
@@ -1752,24 +1765,23 @@ class UCBlockMod : public Modification
   switch( f_type ) {
    default:
     output << "Set active power demand";
+   }
   }
- }
 
  UCBlock * f_Block{};
  ///< pointer to the Block to which the Modification refers
 
  int f_type;  ///< type of modification
 
-};  // end( class( UCBlockMod ) )
+ };  // end( class( UCBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS UCBlockRngdMod ---------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// derived from UCBlockMod for "ranged" modifications
+
 class UCBlockRngdMod : public UCBlockMod
 {
-
  public:
 
  /// constructor: takes the UCBlock, the type, and the range
@@ -1788,11 +1800,11 @@ class UCBlockRngdMod : public UCBlockMod
  void print( std::ostream & output ) const override {
   UCBlockMod::print( output );
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
- }
+  }
 
  Block::Range f_rng;  ///< the range
 
-};  // end( class( UCBlockRngdMod ) )
+ };  // end( class( UCBlockRngdMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlockSbstMod -------------------------*/
@@ -1820,7 +1832,7 @@ class UCBlockSbstMod : public UCBlockMod
  void print( std::ostream & output ) const override {
   UCBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
- }
+  }
 
  Block::Subset f_nms;  ///< the subset
 
@@ -2018,9 +2030,6 @@ class UCBlockSolution : public Solution {
  Index f_number_secondary_zones;  ///< the number of secondary zones
  Index f_number_inertia_zones;    ///< the number of inertia zones
 
- bool f_has_reactive;
- ///< true if reactive power constraints have to be managed
- 
  bool f_compressed_network;
  ///< true if using the "compressed" format for NetworkBlock
 

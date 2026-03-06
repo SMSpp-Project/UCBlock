@@ -976,11 +976,12 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    storage_level_bounds_Const[ t ].set_variable( &v_storage_level[ t ] );
    }
 
-  add_static_constraint( storage_level_bounds_Const , "StorageLevel_Battery" );
+  add_static_constraint( storage_level_bounds_Const ,
+			 "StorageLevel_Battery" );
   }
  else {
   // no battery design variables- - - - - - - - - - - - - - - - - - - - - - -
-  / - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   // Storage level bound design constraints - - - - - - - - - - - - - - - - -
 

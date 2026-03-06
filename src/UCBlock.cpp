@@ -75,13 +75,13 @@ static void copy_multi_array( boost::multi_array< T , K > & to ,
 
 /*--------------------------------------------------------------------------*/
 
-static inline UnitBlock * UB( UnitBlock * b ) {
+static inline UnitBlock * UB( Block * b ) {
  return( static_cast< UnitBlock * >( b ) );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-static inline NetworkBlock * NB( UnitBlock * b ) {
+static inline NetworkBlock * NB( Block * b ) {
  return( static_cast< NetworkBlock * >( b ) );
  }
 
@@ -375,15 +375,10 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   if( v_active_power_demand.empty() ) {
    // if active power demand is not defined, do it now and preload it with
    // zeros in case some NetworkBlock is not there
-   v_active_power_demand.resize( boost::extent_gen()[ 1 ][ f_time_horizon ] );
-   //!!  boost::multi_array< double , 2 >::extent_gen()[ 1 ][ f_time_horizon ] );
-
-   std::fill( v_active_power_demand.begin() , v_active_power_demand.end() ,
-	      0 );
-   /*!!
+   v_active_power_demand.resize( MAdouble_ext()[ 1 ][ f_time_horizon ] );
    for( auto apdit = v_active_power_demand.data() ;
         apdit != v_active_power_demand.data() + f_time_horizon ; )
-	*( apdit++ ) = 0; !!*/
+	*( apdit++ ) = 0;
    }
 
   if( ! v_network_blocks.empty() ) {
@@ -481,8 +476,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     }
 
    // v_active_power_demand used up, disband it
-   v_active_power_demand.resize( boost::extent_gen()[ 0 ][ 0 ] );
-   //!! boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
+   v_active_power_demand.resize( MAdouble_ext()[ 0 ][ 0 ] );
    }
 
   // if reactive power is considered, do the same for it
@@ -513,8 +507,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
      }
 
     // v_reactive_power_demand used up, disband it
-    v_reactive_power_demand.resize( boost::extent_gen()[ 0 ][ 0 ] );
-    //!! boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
+    v_reactive_power_demand.resize( MAdouble_ext()[ 0 ][ 0 ] );
     }
    }  // end( if( f_has_reactive ) )
   }  // end( else( number_nodes > 1 ) )- - - - - - - - - - - - - - - - - - -
@@ -523,8 +516,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( f_has_reactive )
-  for( Index u = 0 ; u < f_number_units ; ++u ) {
-   UB( v_Block[ i ] )->set_reactive_power( true );
+  for( Index u = 0 ; u < f_number_units ; ++u )
+   UB( v_Block[ u ] )->set_reactive_power( true );
 
  // recover the generator --> node mapping- - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -561,8 +554,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
       min_node_injection[ node ] += std::min( ub->get_min_power( t , g ) ,
 					      fixed_consumption ?
 					      - fixed_consumption[ t ] : 0 );
-      max_node_injection[ node ] += std::max( 0 , ub->get_max_power( t , g )
-					      );
+      max_node_injection[ node ] += std::max( 0.0 ,
+					      ub->get_max_power( t , g ) );
       }
      }
 
@@ -757,9 +750,8 @@ void UCBlock::generate_node_injection_constraints( void )
   }
 
   add_static_constraint( v_node_injection_Const , "node_injection_c" );
- }
-
-}  // end( UCBlock::generate_node_injection_constraints )
+  }
+ }  // end( UCBlock::generate_node_injection_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -771,8 +763,7 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
  const auto number_nodes = get_number_nodes();
 
  v_reactive_node_injection_Const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ f_time_horizon ][ number_nodes ] );
+			    MAFRC_ext()[ f_time_horizon ][ number_nodes ] );
 
  if( number_nodes > 0 ) {  // well, that'd be curious, but ...
   if( number_nodes == 1 ) {
@@ -895,8 +886,7 @@ void UCBlock::generate_primary_demand_constraints( void )
   return;
 
  v_PrimaryDemand_Const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ f_time_horizon ][ f_number_primary_zones ] );
+		   MAFRC_ext()[ f_time_horizon ][ f_number_primary_zones ] );
 
  // We assume that, if a generator has primary spinning reserve for a time
  // instant, then it has primary spinning reserve for all time instants.

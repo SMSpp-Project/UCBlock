@@ -2028,9 +2028,9 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 
 /*------ METHODS DESCRIBING THE BEHAVIOR OF A DCNetworkBlockSolution ------*/
 
- void read( const Block * block ) override final;
+ void read( const Block * block ) override;
 
- void write( Block * block ) override final;
+ void write( Block * block ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a DCNetworkBlockSolution into a netCDF::NcGroup

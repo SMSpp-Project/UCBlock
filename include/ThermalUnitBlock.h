@@ -1733,29 +1733,6 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of nominal maximum active power output
- /** This method returns (a const reference to) the vector containing the
-  * nominal maximum active power output of the unit for all time steps. When
-  * the unit is fully available, get_min_power()[ t ] gives the maximum
-  * active power output of the unit at time t, for each t in { 0 , ... ,
-  * get_time_horizon() - 1 }. See get_availability() to understand the
-  * difference between nominal and operational maximum active power. */
-
- const std::vector< double > & get_max_power( void ) const {
-  return( v_MaxPower );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the maximum power of the \p generator at time \p t
-
- double get_max_power( Index t , Index generator = 0 ) const override {
-  if( t >= f_time_horizon )
-   throw( std::logic_error( "ThermalUnitBlock::get_max_power: "
-			    "invalid time index " + std::to_string( t ) ) );
-  return( v_MaxPower[ t ] );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns the operational maximum active power output at time \p t
  /** This method returns the operational maximum active power output of the
   * unit at time \p t. See get_availability() for the definition of

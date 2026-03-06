@@ -1763,7 +1763,7 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  // "NumberLines" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( get_number_nodes() > 1 )
- deserialize_dim( group , "NumberLines" , f_number_lines , false );
+  deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
  // deserialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "FlowValue" , v_flow , false );
@@ -1783,7 +1783,7 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
 
  // "NumberLines" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( get_number_nodes() > 1 )
- deserialize_dim( group , "NumberLines" , f_number_lines , false );
+  deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
  std::vector< size_t > strt = { idx , 0 };
  std::vector< size_t > cnt = { 1 , f_number_lines };

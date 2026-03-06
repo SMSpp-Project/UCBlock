@@ -53,6 +53,10 @@
 
 #include "ColVariable.h"
 
+#include "FRowConstraint.h"
+
+#include "OneVarConstraint.h"
+
 #include "Solution.h"
 
 /*--------------------------------------------------------------------------*/
@@ -822,6 +826,22 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using MAdouble = boost::multi_array< double , 2 >;
+ using MAdouble_ext = MAdouble::extent_gen;
+ 
+ using MACV = boost::multi_array< ColVariable , 2 >;
+ using MACV_ext = MAdouble::extent_gen;
+
+ using MABC = boost::multi_array< BoxConstraint , 2 >;
+ using MABC_ext = MAdouble::extent_gen;
+
+ using MAFRC = boost::multi_array< FRowConstraint , 2 >;
+ using MAFRC_ext = MAdouble::extent_gen;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/

@@ -203,7 +203,7 @@ class HydroSystemUnitBlock : public UnitBlock
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the HydroSystemUnitBlock
@@ -230,43 +230,22 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables of each HydroUnitBlock
 
- ColVariable * get_active_power( Index generator ) override {
-  if( generator >= v_gen_map.size() )
-   return( nullptr );
-  return( HUB( v_gen_map[ generator ].first )->get_active_power(
-					   v_gen_map[ generator ].second ) );
-  }
+ ColVariable * get_active_power( Index generator ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of reactive power variables of each HydroUnitBlock
 
- ColVariable * get_reactive_power( Index generator ) override {
-  if( ( ! f_reactive_power ) || ( generator >= v_gen_map.size() ) )
-   return( nullptr );
-  return( HUB( v_gen_map[ generator ].first )->get_reactive_power(
-					   v_gen_map[ generator ].second ) );
- } 
+ ColVariable * get_reactive_power( Index generator ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary reserve variables of each HydroUnitBlock
 
- ColVariable * get_primary_spinning_reserve( Index generator ) override {
-  if( generator >= v_gen_map.size() )
-   return( nullptr );
-  return( HUB( v_gen_map[ generator ].first )->get_primary_spinning_reserve(
-					   v_gen_map[ generator ].second ) );
-  }
+ ColVariable * get_primary_spinning_reserve( Index generator ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary reserve variables of each HydroUnitBlock
 
- ColVariable * get_secondary_spinning_reserve( Index generator ) override {
-  if( generator >= v_gen_map.size() )
-   return( nullptr );
-  return( HUB( v_gen_map[ generator ].first
-	       )->get_secondary_spinning_reserve(
-					   v_gen_map[ generator ].second ) );
- }
+ ColVariable * get_secondary_spinning_reserve( Index generator ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -276,30 +255,15 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- const double * get_inertia_power( Index generator ) const override {
-  if( generator >= v_gen_map.size() )
-   return( nullptr );
-  return( HUB( v_gen_map[ generator ].first )->get_inertia_power(
-					   v_gen_map[ generator ].second ) );
-  }
+ const double * get_inertia_power( Index generator ) const override;
 
 /*--------------------------------------------------------------------------*/
 
- double get_min_power( Index t , Index generator = 0 ) const override {
-  if( generator >= v_gen_map.size() )
-   return( nullptr );
-  return( HUB( v_gen_map[ generator ].first )->get_min_power( t , 
-					   v_gen_map[ generator ].second ) );
-  }
+ double get_min_power( Index t , Index generator = 0 ) const override;
 
 /*--------------------------------------------------------------------------*/
 
- double get_max_power( Index t , Index generator = 0 ) const override {
-  if( generator >= v_gen_map.size() )
-   return( nullptr );
-  return( HUB( v_gen_map[ generator ].first )->get_max_power( t , 
-					   v_gen_map[ generator ].second ) );
-  }
+ double get_max_power( Index t , Index generator = 0 ) const override;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/

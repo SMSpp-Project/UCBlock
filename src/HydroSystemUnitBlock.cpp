@@ -31,10 +31,10 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------- FUNCTIONS ------------------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-static inline HydroUnitBlock * HUB( UnitBlock * b ) {
+static inline HydroUnitBlock * HUB( Block * b ) {
  return( static_cast< HydroUnitBlock * >( b ) );
  }
 
@@ -235,6 +235,89 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc )
  set_objective_generated();
 
  }  // end( HydroSystemUnitBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/
+/*--------------------------------------------------------------------------*/
+
+ColVariable * HydroSystemUnitBlock::get_active_power( Index generator )
+{
+ if( generator >= v_gen_map.size() )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_active_power(
+					   v_gen_map[ generator ].second ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable * HydroSystemUnitBlock::get_reactive_power( Index generator )
+{
+ if( ( ! f_reactive_power ) || ( generator >= v_gen_map.size() ) )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_reactive_power(
+					   v_gen_map[ generator ].second ) );
+ } 
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of primary reserve variables of each HydroUnitBlock
+
+ColVariable * HydroSystemUnitBlock::get_primary_spinning_reserve(
+							    Index generator )
+{
+ if( generator >= v_gen_map.size() )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_primary_spinning_reserve(
+					   v_gen_map[ generator ].second ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of secondary reserve variables of each HydroUnitBlock
+
+ColVariable * HydroSystemUnitBlock::get_secondary_spinning_reserve(
+							    Index generator )
+{
+ if( generator >= v_gen_map.size() )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_secondary_spinning_reserve(
+					   v_gen_map[ generator ].second ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+const double * HydroSystemUnitBlock::get_inertia_power( Index generator )
+ const {
+ if( generator >= v_gen_map.size() )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_inertia_power(
+					   v_gen_map[ generator ].second ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double HydroSystemUnitBlock::get_min_power( Index t , Index generator )
+ const {
+ if( generator >= v_gen_map.size() )
+  return( 0 );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_min_power( t , 
+					   v_gen_map[ generator ].second ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double HydroSystemUnitBlock::get_max_power( Index t , Index generator )
+ const {
+ if( generator >= v_gen_map.size() )
+  return( 0 );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_max_power( t , 
+					   v_gen_map[ generator ].second ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/

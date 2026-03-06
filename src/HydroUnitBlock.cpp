@@ -57,14 +57,25 @@ SMSpp_insert_in_factory_cpp_0( HydroUnitBlockSolution );
 /*--------------------------------------------------------------------------*/
 
 template< class T , std::size_t K >
-static void copy_multi_array( boost::multi_array< T , K > & to ,
-			      const boost::multi_array< T , K > & from )
+static inline void copy_multi_array( boost::multi_array< T , K > & to ,
+			       const boost::multi_array< T , K > & from )
 {
  std::vector< size_t > extent;
  auto shape = from.shape();
  extent.assign( shape , shape + from.num_dimensions() );
  to.resize( extent );
  to = from;
+ }
+
+/*--------------------------------------------------------------------------*/
+// should have worked with begin() and end(), but it seems boost::multi_array
+// dramatically flunks these definitions somehow
+
+template< class T , std::size_t K >
+static inline bool all0( boost::multi_array< T , K > & v )
+{
+ return( std::all_of( v.data() , v.data() + v.num_elements() ,
+		      []( T i ) { return( i == 0 ); } ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -202,16 +213,14 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  if( ::deserialize( group , "MinReactivePower" ,
 		    { f_time_horizon , f_NumberArcs } ,
 		    v_MinReactivePower , true , true , v_change_intervals ) )
-  if( std::all_of( v_MinReactivePower.begin() , v_MinReactivePower.end() ,
-		   []( double i ) { return( i == 0 ); } ) )
-   v_MinReactivePower.resize( bool::extens()[ 0 ][ 0 ] );
+  if( all0( v_MinReactivePower ) )
+   v_MinReactivePower.resize( MAdouble_ext()[ 0 ][ 0 ] );
 
  if( ::deserialize( group , "MaxReactivePower" ,
 		    { f_time_horizon , f_NumberArcs } ,
 		    v_MaxReactivePower , true , true , v_change_intervals ) )
-  if( std::all_of( v_MaxReactivePower.begin() , v_MaxReactivePower.end() ,
-		   []( double i ) { return( i == 0 ); } ) )
-   v_MaxReactivePower.resize( bool::extens()[ 0 ][ 0 ] );
+  if( all0( v_MaxReactivePower ) )
+   v_MaxReactivePower.resize( MAdouble_ext()[ 0 ][ 0 ] );
  
  ::deserialize( group , "ReferenceSchedule" , f_time_horizon , v_RefSchedule ,
                 true , true , v_change_intervals );

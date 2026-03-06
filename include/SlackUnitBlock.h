@@ -710,6 +710,9 @@ class SlackUnitBlock : public UnitBlock
  /// the active power variables
  std::vector< ColVariable > v_active_power;
 
+ /// the reactive power variables
+ std::vector< ColVariable > v_reactive_power;
+
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
 

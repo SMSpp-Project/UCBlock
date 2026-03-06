@@ -44,15 +44,11 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Block.h"
-
 #include "UnitBlock.h"
 
-#include "ColVariable.h"
+#include "FRowConstraint.h"
 
 #include "OneVarConstraint.h"
-
-#include "Solution.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -728,7 +724,8 @@ class NetworkBlock : public Block
   * returning nullptr. */
 
  virtual const ColVariable * get_const_reactive_node_injection(
-						      Index interval = 0 ) {
+						      Index interval = 0 )
+  const{
   return( nullptr );
   }
 
@@ -840,6 +837,22 @@ class NetworkBlock : public Block
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using MAdouble = boost::multi_array< double , 2 >;
+ using MAdouble_ext = MAdouble::extent_gen;
+ 
+ using MACV = boost::multi_array< ColVariable , 2 >;
+ using MACV_ext = MAdouble::extent_gen;
+
+ using MABC = boost::multi_array< BoxConstraint , 2 >;
+ using MABC_ext = MAdouble::extent_gen;
+
+ using MAFRC = boost::multi_array< FRowConstraint , 2 >;
+ using MAFRC_ext = MAdouble::extent_gen;
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -874,20 +887,20 @@ class NetworkBlock : public Block
  double f_ConstTerm;
 
  /// minimum production of the electrical generators
- boost::multi_array< double , 2 > v_MinNodeInjection;
+ MAdouble v_MinNodeInjection;
 
  /// maximum production of the electrical generators
- boost::multi_array< double , 2 > v_MaxNodeInjection;
+ MAdouble v_MaxNodeInjection;
 
 /*-------------------------------- variables -------------------------------*/
 
  /// power injection for each interval at each node
- boost::multi_array< ColVariable , 2 > v_node_injection;
+ MACV v_node_injection;
 
 /*------------------------------- constraints ------------------------------*/
 
  /// the node injection bound constraints
- boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
+ MABC node_injection_bounds_const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -1262,6 +1275,11 @@ class NetworkBlockSolution : public Solution
 
  protected:
 
+/*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
+
+ using MAdouble = boost::multi_array< double , 2 >;
+ using MAdouble_ext = MAdouble::extent_gen;
+ 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  void print( std::ostream &output ) const override {

@@ -276,7 +276,7 @@ class ACNetworkBlock : public DCNetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns true since ACNetworkBlock handles reactive power
 
- virtual bool handles_reactive( void ) const { return( true ); }
+ virtual bool handles_reactive( void ) const override { return( true ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ACNetworkBlock --------*/
@@ -284,7 +284,6 @@ class ACNetworkBlock : public DCNetworkBlock
 /** @name Reading the Variable of the ACNetworkBlock
  * @{ */
 
-/*--------------------------------------------------------------------------*/
  /// returns the node injection reactive power variables
  /** ACNetworkBlock does handle reactive power, so the method is actually
   *  implemented here. Note that interval is ignored since ACNetworkBlock
@@ -305,9 +304,17 @@ class ACNetworkBlock : public DCNetworkBlock
   *  is the "from" reactive power variable of line l, otherwise it is the
   *  "to" reactive power variable of line l - get_number_lines(). */
   
- const std::vector< ColVariable > & get_reactive_power_flow( void ) const {
-   return( v_reactive_power_flow );
-   }
+ std::vector< ColVariable > & get_reactive_power_flow( void ) {
+  return( v_reactive_power_flow );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// const version of get_reactive_power_flow()
+
+ const std::vector< ColVariable > & get_const_reactive_power_flow( void )
+  const {
+  return( v_reactive_power_flow );
+  }
 
 /*--------------------------------------------------------------------------*/
   // warning only a relaxed solution
@@ -381,7 +388,7 @@ class ACNetworkBlock : public DCNetworkBlock
   *  implemented here. Note that ACNetworkBlock always covers one interval
   *  only, hence we expect v[] to contain just get_number_nodes() elements. */
 
- void set_ReactiveDemand( const boost::multi_array< double , 2 > & )
+ void set_ReactiveDemand( const boost::multi_array< double , 2 > & v )
   override {
   if( v_ReactiveDemand.empty() )
    v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
@@ -394,8 +401,7 @@ class ACNetworkBlock : public DCNetworkBlock
   *  only, hence we expect v[] to contain just get_number_nodes() elements. */
 
  void set_min_reactive_node_injection( double min_injection ,
-				       Index interval , Index node )
-  override {
+				       Index interval , Index node ) {
   if( v_MinReactiveNodeInjection.empty() )
    v_MinReactiveNodeInjection.resize( get_number_nodes() );
   v_MinReactiveNodeInjection[ node ] = min_injection;
@@ -408,8 +414,7 @@ class ACNetworkBlock : public DCNetworkBlock
   *  only, hence we expect v[] to contain just get_number_nodes() elements. */
 
  void set_max_reactive_node_injection( double max_injection ,
-				       Index interval , Index node )
-  override {
+				       Index interval , Index node ) {
   if( v_MaxReactiveNodeInjection.empty() )
    v_MaxReactiveNodeInjection.resize( get_number_nodes() );
   v_MaxReactiveNodeInjection[ node ] = max_injection;
@@ -437,6 +442,9 @@ class ACNetworkBlock : public DCNetworkBlock
  /// maximum reactive production of the electrical generators
  std::vector< double > v_MaxReactiveNodeInjection;
 
+ /// reactive demand
+ std::vector< double > v_ReactiveDemand;
+
 /*-------------------------------- variables -------------------------------*/
 
   /// reactive power injection for each interval at each node
@@ -457,8 +465,8 @@ class ACNetworkBlock : public DCNetworkBlock
 
   // ----- Generic constraints for AC-OPF
   std::vector< BoxConstraint > v_voltage_bounds_const;
-  boost::multi_array< FRowConstraint , 2 > v_angle_bounds_const;
-  boost::multi_array< FRowConstraint , 2 > v_voltage_definition_const;
+  MAFRC v_angle_bounds_const;
+  MAFRC v_voltage_definition_const;
   std::vector< FRowConstraint > v_thermal_limit;
   std::vector< FRowConstraint > v_flow_dc;
 
@@ -479,6 +487,12 @@ class ACNetworkBlock : public DCNetworkBlock
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ ACNetworkData * ND( void ) {
+  return( static_cast< ACNetworkData * >( f_NetworkData ) );
+  }
+
 /*--------------------------------------------------------------------------*/
 
  static void static_initialization( void ) {
@@ -573,6 +587,11 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
   * Furthermore,  \p group must contain the ACNetworkBlock-specific
   * information:
   *
+  * - The variable "NodeInjectionReactive", of type netCDF::NcDouble and
+  *   indexed over the dimension "NumberNodes"; NodeInjectionReactive[ n ] 
+  *   is the optimal value of the reactive node injection on node (bus) n.
+  *   The variable is optional.
+  *
   * - The variable "ReactiveFlowFromValue", of type netCDF::NcDouble and
   *   indexed over the dimension "NumberLines"; ReactiveFlowFromValue[ l ] 
   *   is the optimal value of the reactive power "from" on line l. The
@@ -611,6 +630,13 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
   * Furthermore,  \p group must contain the ACNetworkBlock-specific
   * information:
   *
+  * - The variable "NodeInjectionReactive", of type netCDF::NcDouble and
+  *   indexed over the both the dimension "NumberNetworks" (which is the same
+  *   as "TotalNumberInstants", that does not exist) and the dimension
+  *   "NumberNodes"; NodeInjectionReactive[ idx ][ n ] is the optimal value
+  *   of reactivenode injection on node (bus) n for this ACNetworkBlock. The
+  *   variable is optional.
+  *
   * - The variable "ReactiveFlowFromValue", of type netCDF::NcDouble and
   *   indexed over both the dimension "NumberNetworks" (which is the same
   *   as "TotalNumberInstants", that does not exist) and the dimension
@@ -642,11 +668,11 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- DCNetworkBlockSolution * scale( double factor ) const override;
+ ACNetworkBlockSolution * scale( double factor ) const override;
 
  void sum( const Solution * solution , double multiplier ) override;
 
- DCNetworkBlockSolution * clone( bool empty = false ) const override;
+ ACNetworkBlockSolution * clone( bool empty = false ) const override;
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
@@ -664,11 +690,14 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
+ /// injection of reactive power at each node
+ std::vector< double > v_node_injection_reactive;
+  
+ /// v_reactive_flow_from[ l ] = reactive power "from" on line l
  std::vector< double > v_reactive_flow_from;
- ///< v_reactive_flow_from[ l ] = reactive power "from" on line l
 
+ /// v_reactive_flow_to[ l ] = reactive power "to" on line l
  std::vector< double > v_reactive_flow_to;
- ///< v_reactive_flow_to[ l ] = reactive power "to" on line l
 
 /*--------------------------------------------------------------------------*/
 
@@ -676,7 +705,7 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( DCNetworkBlockSolution ) )
+ };  // end( class( ACNetworkBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 
