@@ -344,23 +344,6 @@ class UnitBlock : public Block
   return( 0 );
   }
 
-/*--------------------------------------------------------------------------*/
- /// returns the number of cost coefficients of \p generator
-
- virtual Index get_number_cost_coeffs( Index generator = 0 ) { return( 0 ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the i-th cost coefficient of \p generator
-
- virtual double get_cost_coeff( Index i , Index generator = 0 ) {
-  return( 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the cost model of \p generator
-
- virtual Index get_cost_model( Index generator = 0 ) { return( 0 ); }
-
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
 /*--------------------------------------------------------------------------*/
