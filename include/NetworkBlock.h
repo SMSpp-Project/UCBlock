@@ -725,7 +725,7 @@ class NetworkBlock : public Block
 
  virtual const ColVariable * get_const_reactive_node_injection(
 						      Index interval = 0 )
-  const{
+  const {
   return( nullptr );
   }
 

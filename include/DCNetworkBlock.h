@@ -1406,7 +1406,7 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the dual prices of power flow limits, however, the network is
+ /// returns the dual prices of power flow limits
 
  void get_dual_prices( std::vector< double > & dp ) const {
   auto nl = get_number_lines();
@@ -1416,8 +1416,16 @@ class DCNetworkData : public NetworkData
    }
 
   dp.resize( nl );
-  for( Index l = 0 ; l < nl ; ++l )
-   dp[ l ] = v_power_flow_limit_const[ l ].get_dual();
+  for( Index l = 0 ; l < nl ; ++l ) {
+   if( is_design() && get_design( l ) )  {  // design on this line
+    dp[ l ] = v_power_flow_limit_design_const[ 1 ][ l ].get_dual() -
+              v_power_flow_limit_design_const[ 0 ][ l ].get_dual();
+    continue;
+    }
+
+   dp[ l ] = v_power_flow_limit_const.empty() ? 0 :
+             v_power_flow_limit_const[ l ].get_dual();
+   }
   }
 
 /** @} ---------------------------------------------------------------------*/

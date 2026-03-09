@@ -295,6 +295,16 @@ class ACNetworkBlock : public DCNetworkBlock
   return( v_reactive_node_injection.data() );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// const version of get_reactive_node_injection()
+
+ const ColVariable * get_const_reactive_node_injection( Index interval = 0 )
+  const override {
+  if( v_reactive_node_injection.empty() )
+   return( nullptr );
+  return( v_reactive_node_injection.data() );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// returns the reactive power flow variables
  /** Returns the reactive power flow variables. Since in the AC formulation
@@ -303,7 +313,7 @@ class ACNetworkBlock : public DCNetworkBlock
   *  2 * get_number_lines() variables: for l <  get_number_lines(), RPF[ l ]
   *  is the "from" reactive power variable of line l, otherwise it is the
   *  "to" reactive power variable of line l - get_number_lines(). */
-  
+
  std::vector< ColVariable > & get_reactive_power_flow( void ) {
   return( v_reactive_power_flow );
   }

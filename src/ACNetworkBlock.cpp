@@ -757,7 +757,7 @@ void ACNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
 void ACNetworkBlockSolution::read( const Block * block )
 {
  // call the method of the base class
- ACNetworkBlockSolution::read( block );
+ DCNetworkBlockSolution::read( block );
 
  auto ACNB = dynamic_cast< const ACNetworkBlock * >( block );
  if( ! ACNB )
