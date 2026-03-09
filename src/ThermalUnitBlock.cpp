@@ -273,11 +273,13 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "InertiaCommitment" , f_time_horizon ,
                 v_InertiaCommitment , true , true , v_change_intervals );
 
- ::deserialize( group , "PrimaryRho" , f_time_horizon , v_PrimaryRho ,
-		true , true , v_change_intervals );
+ if( ! ( f_ignore_netcdf_vars & 1 ) ) {
+  ::deserialize( group , "PrimaryRho" , f_time_horizon , v_PrimaryRho ,
+		 true , true , v_change_intervals );
 
- ::deserialize( group , "SecondaryRho" , f_time_horizon , v_SecondaryRho ,
-		true , true , v_change_intervals );
+  ::deserialize( group , "SecondaryRho" , f_time_horizon , v_SecondaryRho ,
+		 true , true , v_change_intervals );
+  }
 
  if( ::deserialize( group , f_fixToMax , "FixToMaximum" ) )
   f_fixToMax = std::max( f_fixToMax , 0 );
