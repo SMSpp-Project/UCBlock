@@ -272,7 +272,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
    // MinPower and MaxPower
    if( get_min_power( t , g ) >= 0 )
     v_active_power[ g ][ t ].is_positive( true , eNoMod );
-   if( get_max_power( t , g ) >= 0 )
+   if( get_max_power( t , g ) <= 0 )
     v_active_power[ g ][ t ].is_negative( true , eNoMod );
    }
 

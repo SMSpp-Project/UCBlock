@@ -91,7 +91,6 @@ namespace SMSpp_di_unipi_it
 
 class HydroUnitBlock : public UnitBlock
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -523,14 +522,16 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the HydroUnitBlock
- /** The HydroUnitBlock class has five boost::multi_array< ColVariable , 2 >
+ /** The HydroUnitBlock class has six boost::multi_array< ColVariable , 2 >
   * variables where the first four are:
   *
-  * - the primary spinning reserve variables;
+  * - the primary spinning reserve variables (if defined);
   *
-  * - the secondary spinning reserve variables;
+  * - the secondary spinning reserve variables (if defined);
   *
   * - the active power variables;
+  *
+  * - the reactive power variables (if defined);
   *
   * - the flow rate variables
   *
@@ -553,9 +554,9 @@ class HydroUnitBlock : public UnitBlock
   * to see a cascading system as a graph. Let \f$ \mathcal{N}^{hy}\f$ be the
   * set of reservoirs (nodes) and \f$ \mathcal{L}^{hy}\f$ be the set of arcs
   * connecting these reservoirs respectively. Attached to each
-  * \f$ l \in \mathcal{L}^{hy}\f$ are one or several plants (turbines or pumps).
-  * This system is described on a discrete time horizon as dictated by the
-  * UnitBlock interface. In this description we indicate it with
+  * \f$ l \in \mathcal{L}^{hy}\f$ are one or several plants (turbines or
+  * pumps). This system is described on a discrete time horizon as dictated
+  * by the UnitBlock interface. In this description we indicate it with
   * \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$. Each reservoir
   * \f$ n \in \mathcal{N}^{hy}\f$ has a continuous volumetric variables
   * \f$ v^{hy}_{n,t}\f$ in \f$ m^3 \f$ for \f$ t \in \mathcal{T}\f$ with
@@ -568,9 +569,8 @@ class HydroUnitBlock : public UnitBlock
   * \f$ \Delta^{up}_{t,l} \f$ and \f$ \Delta^{dn}_{t,l} \f$ in
   * \f$ (m^3 /s)/h \f$ are disposed. The flow rate variable will be subject to
   * bounds \f$ F^{mn}_{t,l} \f$ and \f$ F^{mx}_{t,l} \f$ and it's assumed
-  * moreover given a cutting plane model describing power as a function of flow
-  * rate as below:
-  *
+  * moreover given a cutting plane model describing power as a function of
+  * flow rate as below:
   * \f[
   *  p^{ac}_{t,l}(f) := min \{ P_l + \rho^{hy}_{l}f_{t,l}\}
   * \f]
@@ -582,35 +582,37 @@ class HydroUnitBlock : public UnitBlock
   * to bounds \f$ P^{mn}_{t,l} \f$ and \f$ P^{mx}_{t,l} \f$ respectively.
   * Besides, we emphasize that reserve requirements are specified in order to
   * be symmetrically available to increase or decrease power injected into the
-  * grid. For some of the constraints we will need to distinguish between pumps
-  * and turbines. The distinction is made by considering the set of feasible
-  * flow rates. Whenever \f$ [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_- \f$
+  * grid. For some of the constraints we will need to distinguish between
+  * pumps and turbines. The distinction is made by considering the set of
+  * feasible flow rates. Whenever
+  * \f[
+  *   [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-
+  * \f]
   * for each arc and each time, the unit is considered a pump, and whenever
-  * \f$ [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+ \f$ the unit is considered
-  * a turbine. Any possible mixed situation can be accounted for by
-  * artificially splitting the unit into “two units”, which should be done at
-  * the data processing stage (see deserialize() comments). With above
-  * description the mathematical constraint of hydro unit may present as below:
+  * \f[
+  *  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+
+  * \f] the unit is considered a turbine. Any possible mixed situation can be
+  * accounted for by artificially splitting the unit into “two units”, which
+  * should be done at the data processing stage (see deserialize() comments).
+  * With above description the mathematical constraint of hydro unit may
+  * present as below:
   *
   * - maximum and minimum power output constraints according to primary and
   *   secondary spinning reserves are are presented in (1)-(2). Each of them
   *   is a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
-  *   are
-  *   f_time_horizon, and f_NumberArcs entries, where the entry
+  *   are f_time_horizon, and f_NumberArcs entries, where the entry
   *   t = 0, ...,f_time_horizon - 1 and the entry l = 0, ...,f_NumberArcs - 1
-  *   being the maximum and minimum power output value according to the primary
-  *   and the secondary spinning reserves at time t and arc l. these ensure the
-  *   maximum (or minimum) amount of energy that unit can produce (or use) when
-  *   it is on (or off).
-  *
+  *   being the maximum and minimum power output value according to the
+  *   primary and the secondary spinning reserves at time t and arc l. these
+  *   ensure the maximum (or minimum) amount of energy that unit can produce
+  *   (or use) when it is on (or off).
   *   \f[
-  *      p^{ac}_{t,l} + p^{pr}_{t,l} + p^{sc}_{t,l} \leq P^{mx}_{t,l}
-  *                   \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad (1)
+  *     p^{ac}_{t,l} + p^{pr}_{t,l} + p^{sc}_{t,l} \leq P^{mx}_{t,l}
+  *                 \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad (1)
   *   \f]
-  *
   *   \f[
   *     P^{mn}_{t,l} \leq p^{ac}_{t,l} - p^{pr}_{t,l} - p^{sc}_{t,l}
-  *                   \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad (2)
+  *                 \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad (2)
   *   \f]
   *
   * - primary and secondary spinning reserves relation with active power at
@@ -620,22 +622,19 @@ class HydroUnitBlock : public UnitBlock
   *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_NumberArcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
-  *
   *   \f[
-  *      p^{pr}_{t,l} \leq \rho^{pr}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
-  *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+         \quad (3)
+  *     p^{pr}_{t,l} \leq \rho^{pr}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
+  *       l \in \mathcal{L}^{hy} \quad with
+  *      \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+         \quad (3)
   *   \f]
-  *
   *   \f[
-  *      p^{sc}_{t,l} \leq \rho^{sc}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
+  *     p^{sc}_{t,l} \leq \rho^{sc}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
   *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+         \quad (4)
+  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (4)
   *   \f]
-  *
-  * where \f$ \rho^{pr}_{t,l} \f$ and \f$ \rho^{sc}_{t,l}\f$ are the maximum
-  * possible fraction of active power at each time and each arc that can be
-  * used as primary and secondary reserve respectively.
+  *   where \f$ \rho^{pr}_{t,l} \f$ and \f$ \rho^{sc}_{t,l}\f$ are the maximum
+  *   possible fraction of active power at each time and each arc that can be
+  *   used as primary and secondary reserve respectively.
   *
   * - primary and secondary spinning reserves at each time and for each pump:
   *   these equalities (5)-(6) ensure that the primary and secondary spinning
@@ -643,17 +642,15 @@ class HydroUnitBlock : public UnitBlock
   *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_NumberArcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
-  *
   *   \f[
-  *      p^{pr}_{t,l} = 0 \quad t \in \mathcal{T},
-  *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-         \quad (5)
+  *     p^{pr}_{t,l} = 0 \quad t \in \mathcal{T},
+  *       l \in \mathcal{L}^{hy} \quad with
+  *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (5)
   *   \f]
-  *
   *   \f[
-  *      p^{sc}_{t,l} = 0 \quad t \in \mathcal{T},
-  *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-         \quad (6)
+  *     p^{sc}_{t,l} = 0 \quad t \in \mathcal{T},
+  *       l \in \mathcal{L}^{hy} \quad with
+  *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (6)
   *   \f]
   *
   * - flow to active power function at each time and for each pump: this
@@ -661,19 +658,17 @@ class HydroUnitBlock : public UnitBlock
   *   pump at time t. This is a boost::multi_array< FRowConstraint , 2 >; with
   *   two dimensions which are f_time_horizon, and f_NumberArcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
-  *
   *   \f[
-  *      p^{ac}_{t,l} = \rho^{hy}_{l}f_{t,l} \quad t \in \mathcal{T},
-  *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-         \quad (7)
+  *     p^{ac}_{t,l} = \rho^{hy}_{l}f_{t,l} \quad t \in \mathcal{T},
+  *       l \in \mathcal{L}^{hy} \quad with
+  *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (7)
   *   \f]
   *
   * - flow-to-active-power function at each time and for each turbine ;
-  *
   *   \f[
-  *      p^{ac}_{t,l} \leq P_j + \rho^{hy}_{j}f_{t,l} \quad j \in \mathcal{J}_l
-  *        \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad with
-  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+         \quad (8)
+  *     p^{ac}_{t,l} \leq P_j + \rho^{hy}_{j}f_{t,l} \quad j \in \mathcal{J}_l
+  *       \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad with
+  *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (8)
   *   \f]
   *
   * - flow rate variable bounds: This inequality (9) indicates upper and lower
@@ -681,41 +676,36 @@ class HydroUnitBlock : public UnitBlock
   *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_NumberArcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
-  *
   *   \f[
-  *      f_{t,l} \in [ F^{mn}_{t,l} , F^{mx}_{t,l}]  \quad t \in \mathcal{T},
-  *           l \in \mathcal{L}^{hy}                                  \quad (9)
+  *     f_{t,l} \in [ F^{mn}_{t,l} , F^{mx}_{t,l}]  \quad t \in \mathcal{T},
+  *           l \in \mathcal{L}^{hy}                               \quad (9)
   *   \f]
   *
   * - ramp-up and ramp-down constraints: These inequality (10)-(11) indicate
-  *   ramp-up and ramp-down constraints at time t and for ach arc l, so each of
-  *   them is a boost::multi_array< FRowConstraint , 2 >; with two dimensions
-  *   which are f_time_horizon, and f_NumberArcs entries, where
+  *   ramp-up and ramp-down constraints at time t and for ach arc l, so each
+  *   of them is a boost::multi_array< FRowConstraint , 2 >; with two
+  *   dimensions which are f_time_horizon, and f_NumberArcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
-  *
   *   \f[
-  *      f_{t,l} - f_{t-1,l} \leq \Delta^{up}_{t,l} \quad t \in \mathcal{T},
-  *           l \in \mathcal{L}^{hy}                                 \quad (10)
+  *     f_{t,l} - f_{t-1,l} \leq \Delta^{up}_{t,l} \quad t \in \mathcal{T},
+  *          l \in \mathcal{L}^{hy}                               \quad (10)
   *   \f]
-  *
   *   \f[
   *      f_{t-1,l} - f_{t,l} \leq \Delta^{dn}_{t,l} \quad t \in \mathcal{T},
-  *           l \in \mathcal{L}^{hy}                                 \quad (11)
+  *          l \in \mathcal{L}^{hy}                               \quad (11)
   *   \f]
   *
-  * - final volumes of each reservoir constraints: this equality (12) gives the
-  *   final volumes of each reservoir r at time t. This is a
+  * - final volumes of each reservoir constraints: this equality (12) gives
+  *   the final volumes of each reservoir r at time t. This is a
   *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_NumberReservoirs, and f_time_horizon entries, where
   *   n = 0, ...,f_NumberReservoirs - 1 and t = 0, ...,f_time_horizon - 1
-  *
   *   \f[
   *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + A_{n,t} + (\sum_{l=(n',n) \in
   *      \mathcal{L}^{hy} } f_{t - \tau^{dn}_l , l } - \sum_{l=(n,n') \in
   *      \mathcal{L}^{hy} } f_{t - \tau^{up}_l , l }) \quad t \in \mathcal{T},
-  *      \quad n \in \mathcal{N}^{hy}                                \quad (12)
+  *      \quad n \in \mathcal{N}^{hy}                              \quad (12)
   *   \f]
-  *
   *   where in each arc \f$ l=(n,n') \in \mathcal{L}^{hy} \f$, \f$ n \f$ and
   *   \f$ n' \f$ are supposed to be the start and the end point of that
   *   respectively.
@@ -724,15 +714,16 @@ class HydroUnitBlock : public UnitBlock
   *   lower bound of volumetric variables of each reservoir for each time t,
   *   thus that is a boost::multi_array< FRowConstraint , 2 >; with two
   *   dimensions which are f_NumberReservoirs, and f_time_horizon entries,
-  *   where n = 0, ...,f_NumberReservoirs - 1 and t = 0, ...,f_time_horizon - 1
-  *
+  *   where n = 0, ...,f_NumberReservoirs - 1 and t = 0, ...,
+  *   f_time_horizon - 1
   *   \f[
-  *      v^{hy}_{n,t} \in [ V^{hy,mn}_{n,t} , V^{hy,mx}_{n,t}]  \quad
-  *        n \in \mathcal{N}^{hy}, t \in \mathcal{T}                 \quad (13)
+  *     v^{hy}_{n,t} \in [ V^{hy,mn}_{n,t} , V^{hy,mx}_{n,t}]  \quad
+  *        n \in \mathcal{N}^{hy}, t \in \mathcal{T}               \quad (13)
   *   \f]
   */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr )
+  override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the HydroUnitBlock
@@ -741,7 +732,6 @@ class HydroUnitBlock : public UnitBlock
   * - Objective function: the objective function of the HydroUnitBlock
   *   representing the total power production cost to be minimized has the
   *   form:
-  *
   *   \f[
   *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}], l \in \mathcal{L}^{hy} }
   *     C^{ac}_l p^{ac}_{t,l}
@@ -802,7 +792,8 @@ class HydroUnitBlock : public UnitBlock
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
   * set of Variable only. Notice also that, before checking if the solution
-  * satisfies a Constraint, the Constraint is computed (Constraint::compute()).
+  * satisfies a Constraint, the Constraint is computed (with
+  * Constraint::compute()).
   *
   * @param useabstract This parameter is currently ignored.
   *
@@ -812,7 +803,7 @@ class HydroUnitBlock : public UnitBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE HydroUnitBlock -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the HydroUnitBlock
@@ -824,10 +815,10 @@ class HydroUnitBlock : public UnitBlock
  /// returns the number of reservoirs
  Index get_number_reservoirs( void ) const {
   return( f_NumberReservoirs ? f_NumberReservoirs : 1 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the number of arcs/generators
+ /// returns the number of arcs / generators
 
  Index get_number_generators( void ) const override {
   return( f_NumberArcs ? f_NumberArcs : 1 );
@@ -835,9 +826,9 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of start arcs
- /** Method for returning the vector of starting point of each arc. This vector
-  * may have size of 1 (single hydro unit with just one arc between two
-  * reservoirs) or the size of number of reservoirs, then there are two
+ /** Method for returning the vector of starting point of each arc. This
+  * vector may have size of 1 (single hydro unit with just one arc between
+  * two reservoirs) or the size of number of reservoirs, then there are two
   * possible cases:
   *
   * - if f_NumberReservoirs == 2, this vector has size of 1 which means there
@@ -897,15 +888,11 @@ class HydroUnitBlock : public UnitBlock
  /// returns the matrix of minimum volumetric
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ n , t ] gives the minimum volumetric of the reservoir n at the time
-  * instant t. This two-dimensional boost::multi_array<> M considers three
+  * instant t. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no minimum volumetric are
   *   defined, and there are no minimum volumetric constraints;
-  *
-  * - if the boost::multi_array<> M has only one column, i.e., is a vector
-  *   with size get_number_reservoirs(),  M[ n , 0 ] gives the minimum
-  *   volumetric of reservoir n for all time instants t;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_number_reservoirs() row where each row must have size of
@@ -914,21 +901,17 @@ class HydroUnitBlock : public UnitBlock
 
  const boost::multi_array< double , 2 > & get_min_volumetric( void ) const {
   return( v_MinVolumetric );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of maximum volumetric
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ n , t ] gives the maximum volumetric of the reservoir n at the time
-  * instant t. This two-dimensional boost::multi_array<> M considers three
+  * instant t. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no maximum volumetric are
   *   defined, and there are no minimum volumetric constraints;
-  *
-  * - if the boost::multi_array<> M has only one column, i.e., is a vector
-  *   with size get_number_reservoirs(), M[ n , 0 ] gives the maximum
-  *  volumetric of reservoir n for all time instant t;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_number_reservoirs() row where each row must have size of
@@ -961,26 +944,16 @@ class HydroUnitBlock : public UnitBlock
  /// returns the minimum power of \p generator at time \t
 
  double get_min_power( Index t , Index generator = 0 ) const override {
-  if( v_MinPower.empty() )
-   return( 0 );
-  else
-   if( v_MinPower.shape()[ 1 ] < get_number_generators() )
-    return( *( v_MinPower.data() + t ) );
-   else
-    return( *( v_MinPower.data() + t * f_NumberArcs + generator ) );
+  return( v_MinPower.empty() ? 0  :
+	  *( v_MinPower.data() + t * f_NumberArcs + generator ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power of \p generator at time \t
 
  double get_max_power( Index t , Index generator = 0 ) const override {
-  if( v_MaxPower.empty() )
-   return( 0 );
-  else
-   if( v_MaxPower.shape()[ 1 ] < get_number_generators() )
-    return( *( v_MaxPower.data() + t ) );
-   else
-    return( *( v_MaxPower.data() + t * f_NumberArcs + generator ) );
+  return( v_MaxPower.empty() ? 0 :
+	  *( v_MaxPower.data() + t * f_NumberArcs + generator ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -988,13 +961,8 @@ class HydroUnitBlock : public UnitBlock
 
  double get_min_reactive_power( Index t , Index generator = 0 )
   const override {
-  if( v_MinReactivePower.empty() )
-   return( 0 );
-  else
-   if( v_MinReactivePower.shape()[ 1 ] < get_number_generators() )
-    return( *( v_MinReactivePower.data() + t ) );
-   else
-    return( *( v_MinReactivePower.data() + t * f_NumberArcs + generator ) );
+  return( v_MinReactivePower.empty() ? 0 :
+	  *( v_MinReactivePower.data() + t * f_NumberArcs + generator ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1002,29 +970,19 @@ class HydroUnitBlock : public UnitBlock
 
  double get_max_reactive_power( Index t , Index generator = 0 )
   const override {
-  if( v_MaxReactivePower.empty() )
-   return( 0 );
-  else
-   if( v_MaxReactivePower.shape()[ 1 ] < get_number_generators() )
-    return( *( v_MaxReactivePower.data() + t ) );
-   else
-    return( *( v_MaxReactivePower.data() + t * f_NumberArcs + generator ) );
+  return( v_MaxReactivePower.empty() ? 0 :
+	  *( v_MaxReactivePower.data() + t * f_NumberArcs + generator ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of minimum flow
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the minimum flow at each time t associated with unit
-  * (arc) i. This two-dimensional boost::multi_array<> M considers three
+  * (arc) i. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no minimum flow is
   *   defined, and there are no minimum flow constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *   element of M[ 0 , i ] gives the minimum flow for all time instant t of
-  *   each unit i;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_time_horizon() rows and get_number_arcs() columns and each element
@@ -1037,17 +995,12 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of maximum flow
  /** The method returned a two-dimensional boost::multi_array<> M such that
-  * M[ t , i ] gives the maximum flow at each time t associated with unit (arc)
-  * i. This two-dimensional boost::multi_array<> M considers three possible
-  * cases:
+  * M[ t , i ] gives the maximum flow at each time t associated with unit
+  * (arc) i. This two-dimensional boost::multi_array<> M considers two
+  * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no maximum flow is
   *   defined, and there are no maximum flow constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *   element of M[ 0 , i ] gives the maximum flow for all time instant t of
-  *   each unit i;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_time_horizon() rows and get_number_arcs() columns and each element
@@ -1061,41 +1014,26 @@ class HydroUnitBlock : public UnitBlock
  /// returns the minimum flow of \p generator at time \p t
 
  double get_min_flow( Index t , Index generator = 0 ) const {
-  if( v_MinFlow.empty() )
-   return( 0 );
-  else
-   if( v_MinFlow.shape()[ 1 ] < get_number_generators() )
-    return( *( v_MinFlow.data() + t ) );
-   else
-    return( *( v_MinFlow.data() + t * f_NumberArcs + generator ) );
+  return( v_MinFlow.empty() ? 0 :
+	  *( v_MinFlow.data() + t * f_NumberArcs + generator ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum flow of \p generator at time \p t
 
  double get_max_flow( Index t , Index generator = 0 ) const {
-  if( v_MaxFlow.empty() )
-   return( 0 );
-  else
-   if( v_MaxFlow.shape()[ 1 ] < get_number_generators() )
-    return( *( v_MaxFlow.data() + t ) );
-   else
-    return( *( v_MaxFlow.data() + t * f_NumberArcs + generator ) );
+  return( v_MaxFlow.empty() ? 0 :
+	  *( v_MaxFlow.data() + t * f_NumberArcs + generator ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of delta ramp up
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the delta ramp up at each time t associated with unit
-  * (arc) i. This two-dimensional boost::multi_array<> M considers three
+  * (arc) i. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no ramping constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *   element of M[ 0 , i ] gives the delta ramp up value for all time instant
-  *   t of each unit i;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_time_horizon() rows and get_number_arcs() columns and each element
@@ -1103,21 +1041,16 @@ class HydroUnitBlock : public UnitBlock
 
  const boost::multi_array< double , 2 > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of delta ramp down
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the delta ramp down at each time t associated with unit
-  * (arc) i. This two-dimensional boost::multi_array<> M considers three
+  * (arc) i. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no ramping constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *   element of M[ 0 , i ] gives the delta ramp down value for all time
-  *   instant t of each unit i;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_time_horizon() rows and get_number_arcs() columns and each element
@@ -1125,22 +1058,17 @@ class HydroUnitBlock : public UnitBlock
 
  const boost::multi_array< double , 2 > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of primary rho
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the primary rho at each time t associated with unit
-  * (arc) i. This two-dimensional boost::multi_array<> M considers three
+  * (arc) i. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no primary reserve
   *   constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *   element of M[ 0 , i ] gives the primary rho value for all time instant t
-  *   of each unit i;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_time_horizon() rows and get_number_arcs() columns and each element
@@ -1148,22 +1076,17 @@ class HydroUnitBlock : public UnitBlock
 
  const boost::multi_array< double , 2 > & get_primary_rho( void ) const {
   return( v_PrimaryRho );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of secondary rho
  /** The method returned a two-dimensional boost::multi_array<> M such that
   * M[ t , i ] gives the secondary rho at each time t associated with unit
-  * (arc) i. This two-dimensional boost::multi_array<> M considers three
+  * (arc) i. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
   * - if the boost::multi_array<> M is empty() then no secondary reserve
   *   constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size get_number_arcs(). Each
-  *   element of M[ 0 , i ] gives the secondary rho value for all time instant
-  *   t of each unit i;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_time_horizon() rows and get_number_arcs() columns and each element
@@ -1171,7 +1094,7 @@ class HydroUnitBlock : public UnitBlock
 
  const boost::multi_array< double , 2 > & get_secondary_rho( void ) const {
   return( v_SecondaryRho );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of number pieces
@@ -1188,7 +1111,7 @@ class HydroUnitBlock : public UnitBlock
 
  const std::vector< Index > & get_number_pieces( void ) const {
   return( v_NumberPieces );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of constant term
@@ -1201,13 +1124,13 @@ class HydroUnitBlock : public UnitBlock
   * - if the vector has only one element, then V[ 0 ] presents the const term
   *   value for all the pieces;
   *
-  * - otherwise, the returned V is a std::vector < double > and
-  *   V.sized == TotalNumberPieces and each element of V[ h ] represents the
-  *   const term value of each piece h. */
+  * - otherwise, the returned V is a std::vector < double > with V.size() ==
+  *   TotalNumberPieces and each element of V[ h ] represents the const term
+  *   value of each piece h. */
 
  const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of linear term
@@ -1235,8 +1158,8 @@ class HydroUnitBlock : public UnitBlock
   *
   * - if the vector is empty, then the uphill delay for each unit is 0;
   *
-  * - if the vector has only one element, then V[ 0 ] presents the uphill delay
-  *   for all units;
+  * - if the vector has only one element, then V[ 0 ] presents the uphill
+  *   delay for all units;
   *
   * - otherwise, the vector must have size get_number_arcs() and each element
   *   of V[ i ] represents the uphill delay for each unit i. */
@@ -1252,10 +1175,7 @@ class HydroUnitBlock : public UnitBlock
   * @return The uphill delay for the given \p arc. */
 
  int get_uphill_delay( Index arc ) const {
-  if( v_UphillDelay.empty() )
-   return( 0 );
-  assert( arc < v_UphillDelay.size() );
-  return( v_UphillDelay[ arc ] );
+  return( v_UphillDelay.empty() ? 0 : v_UphillDelay[ arc ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1282,10 +1202,7 @@ class HydroUnitBlock : public UnitBlock
   * @return The downhill delay for the given \p arc. */
 
  Index get_downhill_delay( Index arc ) const {
-  if( v_DownhillDelay.empty() )
-   return( 0 );
-  assert( arc < v_DownhillDelay.size() );
-  return( v_DownhillDelay[ arc ] );
+  return( v_DownhillDelay.empty() ? 0 : v_DownhillDelay[ arc ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1339,7 +1256,7 @@ class HydroUnitBlock : public UnitBlock
             v_InitialFlowRate[ arc ] ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE HydroUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the HydroUnitBlock
@@ -1658,14 +1575,14 @@ class HydroUnitBlock : public UnitBlock
  /// returns the MinFlow of \p arc at instant \p t
 
  double get_MinFlow( Index t , Index arc ) {
-  return( v_MinFlow.empty() ? 0 :  v_MinFlow[ t ][ arc ] );
+  return( v_MinFlow.empty() ? 0 : v_MinFlow[ t ][ arc ] );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the MaxFlow of \p arc at instant \p t
 
  double get_MaxFlow( Index t , Index arc ) {
-  return( v_MaxFlow.empty() ? 0 :  v_MaxFlow[ t ][ arc ] );
+  return( v_MaxFlow.empty() ? 0 : v_MaxFlow[ t ][ arc ] );
   }
 
 /** @} ---------------------------------------------------------------------*/
