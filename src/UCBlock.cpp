@@ -757,9 +757,6 @@ void UCBlock::generate_node_injection_constraints( void )
 
 void UCBlock::generate_reactive_node_injection_constraints( void )
 {
- if( v_reactive_power_demand.empty() )
-  return;
-
  const auto number_nodes = get_number_nodes();
  if( number_nodes == 0 )  // well, that'd be curious, but ...
   return;
