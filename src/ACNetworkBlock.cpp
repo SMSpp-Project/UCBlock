@@ -287,9 +287,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     tan(min_angle_{line}) Real(W_{start,end})<= Imag(W_{start,end}) <= max_angle_{line} Real(W_{start,end})
  */
  int i_line = 0;
- //v_angle_bounds_const.resize(boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
- v_angle_bounds_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ nb_ac_lines ] );
+ v_angle_bounds_const.resize( MAFRC_ext()[ 2 ][ nb_ac_lines ] );
  const auto & min_angle = ND()->get_line_min_angle();
  const auto & max_angle = ND()->get_line_max_angle();
 
@@ -298,16 +296,16 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   double phi_max = PI * max_angle[ line_id ] / 180.;
   // --
   auto lfunc_1 = new LinearFunction();
-  lfunc_1->add_variable( &v_diff_product_voltages[ line_id ] , 1.0 );
-  lfunc_1->add_variable( &v_sum_product_voltages[ line_id ] ,
+  lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
+  lfunc_1->add_variable( & v_sum_product_voltages[ line_id ] ,
 			 -tan( phi_min ) );
   v_angle_bounds_const[ 0 ][ i_line ].set_lhs( 0.0 );
   v_angle_bounds_const[ 0 ][ i_line ].set_rhs( Inf< double >() );
   v_angle_bounds_const[ 0 ][ i_line ].set_function( lfunc_1 );
   // --
   auto lfunc_2 = new LinearFunction();
-  lfunc_2->add_variable( &v_diff_product_voltages[ line_id ] , 1.0 );
-  lfunc_2->add_variable( &v_sum_product_voltages[ line_id ] ,
+  lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
+  lfunc_2->add_variable( & v_sum_product_voltages[ line_id ] ,
 			 -tan( phi_max ) );
   v_angle_bounds_const[ 1 ][ i_line ].set_lhs( -Inf< double >() );
   v_angle_bounds_const[ 1 ][ i_line ].set_rhs( 0.0 );
@@ -347,12 +345,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    Index i = start_line[ line_id ];
    Index j = end_line[ line_id ];
 
-   if( i == p ) lfunc->add_variable( &v_power_flow[ line_id ] , 1. / C_v_scal );
+   if( i == p )
+    lfunc->add_variable( &v_power_flow[ line_id ] , 1. / C_v_scal );
    if( j == p )
     lfunc->add_variable( &v_power_flow[ number_lines + line_id ] ,
                          1. / C_v_scal );
-  }
-  v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] / base_mva );
+   }
+  v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] /
+					      base_mva );
   v_power_flow_injection_const[ p ].set_function( lfunc );
   }
 

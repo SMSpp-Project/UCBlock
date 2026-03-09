@@ -1569,6 +1569,16 @@ class ThermalUnitBlock : public UnitBlock
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// ignore reserve netCDF variables when a ThermalUnitBlock is deserialized
+ /** This function instructs the ThermalUnitBlock to ignore the reserve netCDF
+  * variables, namely "PrimaryRho" and "SecondaryRho", when it is
+  * deserialized. */
+
+ static void ignore_reserve( void ) {
+  f_ignore_netcdf_vars |= 1;
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------- Methods for checking the ThermalUnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -2769,6 +2779,9 @@ class ThermalUnitBlock : public UnitBlock
   * although a boolean would suffice, an integer is foreseen for possible
   * future modes of working */
  int f_fixToMax = 0;
+
+ // this variable indicates which netCDF variables must be ignored
+ inline static bool f_ignore_netcdf_vars;
 
 /*-------------------------------- variables -------------------------------*/
 
