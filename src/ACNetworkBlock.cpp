@@ -260,7 +260,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  //     effectively we are swapping out v_power_flow for v_power_flow_tilde with
  //                    v_power_flow_tilde = C * v_power_flow
  //     and likewise v_reactive_power_flow
- constexpr double C_v_scal = 0.01; /* e.g. 100.0 */
+ constexpr double C_v_scal = 1.0; /* e.g. 100.0 */
 
  // ----- Voltage bounds
  /*
@@ -442,7 +442,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // --- Slack for AC_voltage_definition_const
   constexpr double f_ACvS = 0.0;
   // --- scaling constant for the AC_voltage_definition_const equations (to improve numeric stability)
-  constexpr double f_scale = 10.0;
+  constexpr double f_scale = 1.0;
   // 1) direct lines
   for( auto & line_id : splitted_lines[ p ].first ) {
    // 1.0) Verification that line ratio is not zero as this implies NaN coefficients
