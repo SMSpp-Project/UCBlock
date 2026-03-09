@@ -229,8 +229,8 @@ class ACNetworkBlock : public DCNetworkBlock
 /** @name Constructor and Destructor
  * @{ */
 
-  explicit ACNetworkBlock( Block * f_block = nullptr )
-   : DCNetworkBlock( f_block ) {}
+ explicit ACNetworkBlock( Block * f_block = nullptr )
+  : DCNetworkBlock( f_block ) {}
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -238,24 +238,24 @@ class ACNetworkBlock : public DCNetworkBlock
 /** @name Other initializations
  * @{ */
 
-  void deserialize( const netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the ACNetworkBlock
  /** TODO: comment */
 
-  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract constraints of the ACNetworkBlock
  /** TODO: comment */
 
-  void generate_abstract_constraints( Configuration * stcc = nullptr )
-   override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr )
+  override;
 
 /*--------------------------------------------------------------------------*/
 
-  void generate_SOCP_relaxation( void );
+ void generate_SOCP_relaxation( void );
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
@@ -263,20 +263,20 @@ class ACNetworkBlock : public DCNetworkBlock
 /** @name Reading the data of the NetworkBlock
  * @{ */
 
-  std::vector< double > get_line_losses( void ) {
-   std::vector< double > losses;
-   Index number_lines = get_number_lines();
-   for( int line_id = 0 ; line_id < number_lines ; ++line_id ) {
-    losses.push_back( v_power_flow[ line_id ].get_value()
-     + v_power_flow[ number_lines + line_id ].get_value() );
+ std::vector< double > get_line_losses( void ) {
+  std::vector< double > losses;
+  Index number_lines = get_number_lines();
+  for( int line_id = 0 ; line_id < number_lines ; ++line_id ) {
+   losses.push_back( v_power_flow[ line_id ].get_value()
+		     + v_power_flow[ number_lines + line_id ].get_value() );
    }
-   return( losses );
-   }
+  return( losses );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true since ACNetworkBlock handles reactive power
 
- virtual bool handles_reactive( void ) const override { return( true ); }
+ bool handles_reactive( void ) const override { return( true ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ACNetworkBlock --------*/
@@ -400,11 +400,11 @@ class ACNetworkBlock : public DCNetworkBlock
   *  implemented here. Note that ACNetworkBlock always covers one interval
   *  only, hence we expect v[] to contain just get_number_nodes() elements. */
 
- void set_min_reactive_node_injection( double min_injection ,
-				       Index interval , Index node ) {
+ void set_min_reactive_node_injection( double min_inj , Index t ,
+				       Index node ) override {
   if( v_MinReactiveNodeInjection.empty() )
    v_MinReactiveNodeInjection.resize( get_number_nodes() );
-  v_MinReactiveNodeInjection[ node ] = min_injection;
+  v_MinReactiveNodeInjection[ node ] = min_inj;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -413,11 +413,11 @@ class ACNetworkBlock : public DCNetworkBlock
   *  implemented here. Note that ACNetworkBlock always covers one interval
   *  only, hence we expect v[] to contain just get_number_nodes() elements. */
 
- void set_max_reactive_node_injection( double max_injection ,
-				       Index interval , Index node ) {
+ void set_max_reactive_node_injection( double max_inj , Index t ,
+				       Index node ) override {
   if( v_MaxReactiveNodeInjection.empty() )
    v_MaxReactiveNodeInjection.resize( get_number_nodes() );
-  v_MaxReactiveNodeInjection[ node ] = max_injection;
+  v_MaxReactiveNodeInjection[ node ] = max_inj;
   }
 
 /*--------------------------------------------------------------------------*/
