@@ -520,13 +520,13 @@ class NetworkBlock : public Block
   *  writing down the constraints as it bounds variables that otherwise may
   *  be ubounded (which is especially bad in the design case). */
 
- virtual void set_min_node_injection( double min_injection , Index node ,
+ virtual void set_min_node_injection( double min_inj , Index node ,
 				      Index interval = 0 ) {
   if( v_MinNodeInjection.empty() )
    v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ]
 			      );
-  v_MinNodeInjection[ interval ][ node ] = min_injection;
+  v_MinNodeInjection[ interval ][ node ] = min_inj;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -539,13 +539,13 @@ class NetworkBlock : public Block
   *  writing down the constraints as it bounds variables that otherwise may
   *  be ubounded (which is especially bad in the design case). */
 
- virtual void set_max_node_injection( double max_injection , Index node ,
+ virtual void set_max_node_injection( double max_inj , Index node ,
 				      Index interval = 0 ) {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
                               [ get_number_intervals() ][ get_number_nodes() ]
 			      );
-  v_MaxNodeInjection[ interval ][ node ] = max_injection;
+  v_MaxNodeInjection[ interval ][ node ] = max_inj;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -554,8 +554,8 @@ class NetworkBlock : public Block
   *  Since not all :NetworkBlock will handle reactive power, the method is 
   *  given an empty default implementation. */
 
- virtual void set_min_reactive_node_injection( double min_inj , Index t ,
-					       Index node ) {}
+ virtual void set_min_reactive_node_injection( double min_inj , Index node ,
+					       Index t ) {}
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxReactiveNodeInjection
@@ -563,8 +563,8 @@ class NetworkBlock : public Block
   *  Since not all :NetworkBlock will handle reactive power, the method is 
   *  given an empty default implementation. */
 
- virtual void set_max_reactive_node_injection( double max_inj , Index t ,
-					       Index node ) {}
+ virtual void set_max_reactive_node_injection( double max_inj , Index node ,
+					       Index t ) {}
 
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/

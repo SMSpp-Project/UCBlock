@@ -582,7 +582,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
       const auto ub = get_unit_block( u );
       for( Index g = 0 ; g < ub->get_number_generators() ; ++g ) {
        auto node = v_generator_node[ gen++ ];
-       auto fixed_consumption = ub->get_fixed_consumption( g );
        min_node_injection[ node ] += ub->get_min_reactive_power( t , g );
        max_node_injection[ node ] += ub->get_max_reactive_power( t , g );
        }

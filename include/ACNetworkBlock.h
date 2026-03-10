@@ -408,10 +408,10 @@ class ACNetworkBlock : public DCNetworkBlock
  /// method to set the MinReactiveNodeInjection
  /** ACNetworkBlock does handle reactive power, so the method is actually
   *  implemented here. Note that ACNetworkBlock always covers one interval
-  *  only, hence we expect v[] to contain just get_number_nodes() elements. */
+  *  only, hence \p t is ignored. */
 
- void set_min_reactive_node_injection( double min_inj , Index t ,
-				       Index node ) override {
+ void set_min_reactive_node_injection( double min_inj , Index node ,
+				       Index t ) override {
   if( v_MinReactiveNodeInjection.empty() )
    v_MinReactiveNodeInjection.resize( get_number_nodes() );
   v_MinReactiveNodeInjection[ node ] = min_inj;
@@ -421,10 +421,10 @@ class ACNetworkBlock : public DCNetworkBlock
  /// method to set the MaxReactiveNodeInjection
  /** ACNetworkBlock does handle reactive power, so the method is actually
   *  implemented here. Note that ACNetworkBlock always covers one interval
-  *  only, hence we expect v[] to contain just get_number_nodes() elements. */
+  *  only, hence \p t is ignored.  */
 
- void set_max_reactive_node_injection( double max_inj , Index t ,
-				       Index node ) override {
+ void set_max_reactive_node_injection( double max_inj , Index node ,
+				       Index t ) override {
   if( v_MaxReactiveNodeInjection.empty() )
    v_MaxReactiveNodeInjection.resize( get_number_nodes() );
   v_MaxReactiveNodeInjection[ node ] = max_inj;
