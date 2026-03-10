@@ -600,6 +600,7 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
   qfunc->add_variable( &v_sqrd_voltages[ n ] , 0.0 , 0.0 );
   qfunc->add_nd_term( &v_sqrd_voltages[ p ] , &v_sqrd_voltages[ n ] , -1.0 );
   qfunc->add_variable( &v_sum_product_voltages[ line_id ] , 0.0 , 1.0 );
+  qfunc->add_variable( &v_diff_product_voltages[ line_id ] , 0.0 , 1.0 );
   v_socp_const[ i_line ].set_lhs( -Inf< double >() );
   v_socp_const[ i_line ].set_rhs( 0.0 );
   v_socp_const[ i_line ].set_function( qfunc );
