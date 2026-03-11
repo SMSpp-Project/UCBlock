@@ -1320,7 +1320,8 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// update the active power demand
-
+ /** TODO: COMMENT THE FORMAT OF \p values, DAMMIT!!
+  */
  void set_active_power_demand( MF_dbl_it values , Subset && subset = { 0 } ,
 			       bool ordered = false ,
                                ModParam issuePMod = eNoBlck ,
@@ -1328,6 +1329,8 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// update the active power demand
+ /** TODO: COMMENT THE FORMAT OF \p values, DAMMIT!!
+  */
 
  void set_active_power_demand( MF_dbl_it values , Range rng = Range( 0 , 1 ) ,
                                ModParam issuePMod = eNoBlck ,
