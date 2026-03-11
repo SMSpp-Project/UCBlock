@@ -480,6 +480,8 @@ class ACNetworkBlock : public DCNetworkBlock
   std::vector< FRowConstraint > v_thermal_limit;
   std::vector< FRowConstraint > v_flow_dc;
 
+  MAFRC v_basic_bounds_const;
+
   // ----- Specific constraints for SOCP relaxation
   std::vector< FRowConstraint > v_socp_const;
 

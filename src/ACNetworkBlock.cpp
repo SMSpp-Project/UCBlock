@@ -285,9 +285,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    min_angle_{line} <= angle(V_{end}) - angle(V_{start}) <= max_angle_{line}
  This constraint can be taken into account using:
     tan(min_angle_{line}) Real(W_{start,end})<= Imag(W_{start,end}) <= max_angle_{line} Real(W_{start,end})
+
+    Furthermore we will induce basic bounds on v_diff_product_voltages and v_sum_product_voltages by leveraging
+    the minimum voltages, maximum voltages and angle bounds
  */
  int i_line = 0;
  v_angle_bounds_const.resize( MAFRC_ext()[ 2 ][ nb_ac_lines ] );
+ v_basic_bounds_const.resize( MAFRC_ext()[ 2 ][ nb_ac_lines ] );
+
  const auto & min_angle = ND()->get_line_min_angle();
  const auto & max_angle = ND()->get_line_max_angle();
 
@@ -311,11 +316,28 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_angle_bounds_const[ 1 ][ i_line ].set_rhs( 0.0 );
   v_angle_bounds_const[ 1 ][ i_line ].set_function( lfunc_2 );
 
+  // -- bounds on v_sum_product_voltages
+  auto lfunc_3 = new LinearFunction();
+  lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
+  v_basic_bounds_const[ 0 ][ i_line ].set_lhs( std::min( cos(std::abs(phi_min)), cos(std::abs(phi_max)) )*min_voltage[ start_line[ line_id ] ]*min_voltage[ end_line[ line_id ] ] );
+  v_basic_bounds_const[ 0 ][ i_line ].set_rhs( max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ] );
+  v_basic_bounds_const[ 0 ][ i_line ].set_function( lfunc_3 );
+
+  // -- bounds on v_diff_product_voltages
+  auto lfunc_4 = new LinearFunction();
+  double s_sin = std::max( sin(phi_min), sin(phi_max) );
+  lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
+  v_basic_bounds_const[ 1 ][ i_line ].set_lhs( -1.0*s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ] );
+  v_basic_bounds_const[ 1 ][ i_line ].set_rhs( s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ] );
+  v_basic_bounds_const[ 1 ][ i_line ].set_function( lfunc_4 );
+
   ++i_line;
   }
 
- if( i_line > 0 )
+ if( i_line > 0 ){
   add_static_constraint( v_angle_bounds_const , "AC_angle_bounds_limit" );
+  add_static_constraint( v_basic_bounds_const , "AC_elem_bounds" ); 
+}
 
  // ----- Active and Reactive Power conservation:
  // Shunt admittance
@@ -600,6 +622,7 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
   qfunc->add_variable( &v_sqrd_voltages[ n ] , 0.0 , 0.0 );
   qfunc->add_nd_term( &v_sqrd_voltages[ p ] , &v_sqrd_voltages[ n ] , -1.0 );
   qfunc->add_variable( &v_sum_product_voltages[ line_id ] , 0.0 , 1.0 );
+  qfunc->add_variable( &v_diff_product_voltages[ line_id ] , 0.0 , 1.0 );
   v_socp_const[ i_line ].set_lhs( -Inf< double >() );
   v_socp_const[ i_line ].set_rhs( 0.0 );
   v_socp_const[ i_line ].set_function( qfunc );
