@@ -83,16 +83,12 @@ SMSpp_insert_in_factory_cpp_0( DCNetworkData );
 void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 {
 #ifndef NDEBUG
-  static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                      "NumberLines" ,
-                                                      "NumberBranches" ,
-                                                      "ReferenceNode" ,
-                                                      // if called from UCBlock:
-                                                      "TimeHorizon" ,
-                                                      "NumberUnits" ,
-                                                      "NumberNetworks" ,
-                                                      "NumberElectricalGenerators"
-  };
+  static const std::vector< std::string > expected_dims =
+  { "NumberNodes" , "NumberLines" , "NumberBranches" , "ReferenceNode" ,
+    // if called from UCBlock:
+    "TimeHorizon" , "NumberUnits" , "NumberNetworks" ,
+    "NumberElectricalGenerators"
+    };
   check_dimensions( group , expected_dims , std::cerr );
 
  // we only check for unexpected fields if "this" is a "true"
@@ -104,23 +100,14 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  // we don't do the same for dimensions as it's unlikely that derived
  // classes will introduce entirely new dimensions
  if( typeid( DCNetworkData ) == typeid( *this ) ) {
-  static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                      "StartLine" , "EndLine" ,
-                                                      "HyperArcID" ,
-                                                      "MinPowerFlow" ,
-                                                      "MaxPowerFlow" ,
-                                                      "LineSusceptance" ,
-                                                      "NetworkCost" ,
-                                                      "NodeName" , "LineName" ,
-                                                      "ConstantTerm" ,
-                                                      "Efficiency" ,
-                                                      // if called from UCBlock:
-                                                      "ActivePowerDemand" ,
-                                                      "GeneratorNode" ,
-                                                      "NetworkConstantTerms" ,
-                                                      "NetworkBlockClassname" ,
-                                                      "NetworkDataClassname"
-   };
+  static const std::vector< std::string > expected_vars =
+  { "ActiveDemand" , "StartLine" , "EndLine" , "HyperArcID" ,
+    "MinPowerFlow" , "MaxPowerFlow" , "LineSusceptance" , "NetworkCost" ,
+    "NodeName" , "LineName" , "ConstantTerm" , "Efficiency" ,
+    // if called from UCBlock:
+    "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
+    "NetworkBlockClassname" , "NetworkDataClassname"
+    };
   check_variables( group , expected_vars , std::cerr );
  }
 #endif
@@ -556,24 +543,16 @@ DCNetworkBlock::~DCNetworkBlock()
 void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberLines" ,
-                                                     "NumberBranches" ,
-                                                     "ReferenceNode" };
+ static const std::vector< std::string > expected_dims =
+ { "NumberNodes" , "NumberLines" , "NumberBranches" , "ReferenceNode" };
+
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "StartLine" ,
-                                                     "EndLine" ,
-                                                     "MinPowerFlow" ,
-                                                     "MaxPowerFlow" ,
-                                                     "HyperArcID" ,
-                                                     "LineSusceptance" ,
-                                                     "NetworkCost" ,
-                                                     "NodeName" ,
-                                                     "LineName" ,
-                                                     "ConstantTerm",
-                                                     "Efficiency" };
+ static const std::vector< std::string > expected_vars =
+ { "ActiveDemand" , "StartLine" , "EndLine" , "MinPowerFlow" ,
+   "MaxPowerFlow" , "HyperArcID" , "LineSusceptance" , "NetworkCost" ,
+   "NodeName" , "LineName" , "ConstantTerm" , "Efficiency"
+   };
  check_variables( group , expected_vars , std::cerr );
 #endif
 
@@ -738,12 +717,12 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                            "line type not implemented yet" ) );
  default :
-  break;
+  generate_bound_constraints();  // generate flow limits
  }
 
  set_constraints_generated();
 
-}  // end( DCNetworkBlock::generate_abstract_constraints )
+ }  // end( DCNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 

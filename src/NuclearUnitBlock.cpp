@@ -96,12 +96,13 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 #ifndef NDEBUG
  // check all expected variables, comprised those of the base class: see
  // ThermalUnitBlock::deserialize() for the rationale
- const std::vector< std::string > expected_vars = { "MinPower" , "MaxPower" ,
-  "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
-  "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
-  "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
-  "MinDownTime" , "InitUpDownTime" , "Availability" , "ModulationTime" ,
-  "InitModulation" , "ModulationDeltaRampUp" , "ModulationDeltaRampDown" };
+ static const std::vector< std::string > expected_vars =
+ { "MinPower" , "MaxPower" , "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" ,
+   "SecondaryRho" , "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
+   "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
+   "MinDownTime" , "InitUpDownTime" , "Availability" , "ModulationTime" ,
+   "InitModulation" , "ModulationDeltaRampUp" , "ModulationDeltaRampDown"
+   };
 
  check_variables( group , expected_vars , std::cerr );
 #endif

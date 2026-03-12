@@ -72,14 +72,17 @@ SlackUnitBlock::~SlackUnitBlock()
 void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "TimeHorizon" ,
-                                                     "NumberIntervals" };
+ static const std::vector< std::string > expected_dims =
+ { "TimeHorizon" , "NumberIntervals" };
+
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "MaxPower" ,
-  "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
-  "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia"
-  "MinReactivePower" , "MaxReactivePower" };
+ static const std::vector< std::string > expected_vars =
+ { "MaxPower" , "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
+   "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia"
+   "MinReactivePower" , "MaxReactivePower"
+   };
+
  check_variables( group , expected_vars , std::cerr );
 #endif
 

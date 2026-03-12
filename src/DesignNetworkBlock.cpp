@@ -98,13 +98,15 @@ void DesignNetworkBlock::deserialize_network_blocks(
 void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
  #ifndef NDEBUG
-  static std::vector< std::string > expected_dims = { "NumberDesignLines" ,
-						      "NumberSubNetwork" };
+  static const std::vector< std::string > expected_dims =
+  { "NumberDesignLines" , "NumberSubNetwork" };
+
   check_dimensions( group , expected_dims , std::cerr );
 
-  static std::vector< std::string > expected_vars = {
-   "InvestmentCost" , "DesignLines" , "MinCapacityDesign" ,
-   "MaxCapacityDesign" };
+  static const std::vector< std::string > expected_vars =
+  { "InvestmentCost" , "DesignLines" , "MinCapacityDesign" ,
+    "MaxCapacityDesign" };
+
   check_variables( group , expected_vars , std::cerr );
  #endif
 

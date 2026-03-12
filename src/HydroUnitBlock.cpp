@@ -108,20 +108,22 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
 
 #ifndef NDEBUG
- std::vector< std::string > expected_dims = { "TimeHorizon" ,
-  "NumberIntervals" , "NumberReservoirs" , "NumberArcs" ,
-  "TotalNumberPieces" };
+ static const std::vector< std::string > expected_dims =
+ { "TimeHorizon" , "NumberIntervals" , "NumberReservoirs" , "NumberArcs" ,
+   "TotalNumberPieces"
+  };
 
  check_dimensions( group , expected_dims , std::cerr );
 
- std::vector< std::string > expected_vars = { "StartArc" , "EndArc" ,
-  "MinFlow" , "MaxFlow" , "MinVolumetric" , "MaxVolumetric" , "Inflows" ,
-  "MinPower" , "MaxPower" , "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" ,
-  "SecondaryRho" , "NumberPieces" , "LinearTerm" , "ConstantTerm" ,
-  "ActivePowerCost" , "InertiaPower" , "InitialFlowRate" ,
-  "InitialVolumetric" , "UphillFlow" , "DownhillFlow" , "MinReactivePower",
-  "MaxReactivePower", "ReferenceSchedule"
-                                              };
+ static const std::vector< std::string > expected_vars =
+ { "StartArc" , "EndArc" , "MinFlow" , "MaxFlow" , "MinVolumetric" ,
+   "MaxVolumetric" , "Inflows" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
+   "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "NumberPieces" ,
+   "LinearTerm" , "ConstantTerm" , "ActivePowerCost" , "InertiaPower" ,
+   "InitialFlowRate" , "InitialVolumetric" , "UphillFlow" , "DownhillFlow" ,
+   "MinReactivePower", "MaxReactivePower", "ReferenceSchedule"
+   };
+
  check_variables( group , expected_vars , std::cerr );
 #endif
 

@@ -81,19 +81,19 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
 #ifndef NDEBUG
  // check all expected variables, comprised those of the base class: see
  // DCNetworkData::deserialize() for the rationale
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-  "StartLine" , "EndLine" , "HyperArcID" , "MinPowerFlow" , "MaxPowerFlow" ,
-  "LineSusceptance" , "NetworkCost" , "NodeName" , "LineName" ,
-  "ConstantTerm" , "Efficiency" ,
-  // ACNetworkData
-  "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
-  "NodeVoltageMagnitude" , "NodeVoltageAngle" , "NodeMaxVoltage" ,
-  "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio" ,
-  "LineRATEA" , "LineShiftAngle" , "LineMinAngle" , "LineMaxAngle" ,
-  // if called from UCBlock:
-  "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
-  "NetworkBlockClassname" , "NetworkDataClassname"
-  };
+ static const std::vector< std::string > expected_vars =
+  { "ActiveDemand" , "StartLine" , "EndLine" , "HyperArcID" ,
+    "MinPowerFlow" , "MaxPowerFlow" , "LineSusceptance" , "NetworkCost" ,
+    "NodeName" , "LineName" , "ConstantTerm" , "Efficiency" ,
+    // ACNetworkData
+    "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
+    "NodeVoltageMagnitude" , "NodeVoltageAngle" , "NodeMaxVoltage" ,
+    "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio" ,
+    "LineRATEA" , "LineShiftAngle" , "LineMinAngle" , "LineMaxAngle" ,
+    // if called from UCBlock:
+    "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
+    "NetworkBlockClassname" , "NetworkDataClassname"
+    };
 
  check_variables( group , expected_vars , std::cerr );
 #endif

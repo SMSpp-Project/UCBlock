@@ -179,8 +179,9 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
 
 #ifndef NDEBUG
- static const std::vector< std::string > expected_dims = {
-  "TimeHorizon" , "NumberIntervals" };
+ static const std::vector< std::string > expected_dims =
+ { "TimeHorizon" , "NumberIntervals" };
+
  check_dimensions( group , expected_dims , std::cerr );
 
  // we only check for unexpected fields if "this" is a "true"
@@ -202,6 +203,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
     "MaxReactivePower" , "MinReactivePower" , "ReferenceSchedule" ,
     "FixToMaximum"
     };
+
   check_variables( group , expected_vars , std::cerr );
   }
 #endif

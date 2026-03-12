@@ -77,27 +77,22 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 {
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberIntervals" ,
-                                                     // if called from UCBlock:
-                                                     "TimeHorizon" ,
-                                                     "NumberUnits" ,
-                                                     "NumberNetworks" ,
-                                                     "NumberElectricalGenerators" };
+ static const std::vector< std::string > expected_dims =
+ { "NumberNodes" , "NumberIntervals" ,
+   // if called from UCBlock:
+   "TimeHorizon" , "NumberUnits" , "NumberNetworks" ,
+   "NumberElectricalGenerators"
+   };
+
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "BuyPrice" ,
-                                                     "SellPrice" ,
-                                                     "RewardPrice" ,
-                                                     "PeakTariff" ,
-                                                     "ConstantTerm" ,
-                                                     // if called from UCBlock:
-                                                     "ActivePowerDemand" ,
-                                                     "GeneratorNode" ,
-                                                     "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" ,
-                                                     "NetworkDataClassname" };
+ static const std::vector< std::string > expected_vars =
+ { "ActiveDemand" , "BuyPrice" , "SellPrice" , "RewardPrice" , "PeakTariff" ,
+   "ConstantTerm" ,
+   // if called from UCBlock:
+   "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
+   "NetworkBlockClassname" , "NetworkDataClassname"
+   };
 
  check_variables( group , expected_vars , std::cerr );
 #endif
@@ -137,16 +132,16 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberIntervals" };
+ static const std::vector< std::string > expected_dims =
+ { "NumberNodes" , "NumberIntervals" };
+
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "BuyPrice" ,
-                                                     "SellPrice" ,
-                                                     "RewardPrice" ,
-                                                     "PeakTariff" ,
-                                                     "ConstantTerm" };
+ static const std::vector< std::string > expected_vars =
+ { "ActiveDemand" , "BuyPrice" , "SellPrice" , "RewardPrice" ,
+   "PeakTariff" , "ConstantTerm"
+   };
+
  check_variables( group , expected_vars , std::cerr );
 #endif
 

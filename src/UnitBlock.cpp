@@ -287,7 +287,7 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
  if( ! deserialize_dim( group , "NumberGenerators" , f_number_generators ,
-			  true ) ) {
+			true ) ) {
   f_number_generators = 1;
 
   using index = boost::multi_array< double , 2 >::index;

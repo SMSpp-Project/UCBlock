@@ -183,7 +183,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = {
+ static const std::vector< std::string > expected_dims = {
   "TimeHorizon" , "NumberUnits" ,"NumberNetworks" , "NumberPrimaryZones" ,
   "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" ,
   "NumberNodes" , "NumberLines" , "NumberBranches" ,
@@ -192,7 +192,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = {
+ static const std::vector< std::string > expected_vars = {
   "ActivePowerDemand" , "GeneratorNode" , "PrimaryZones" , "PrimaryDemand" ,
   "SecondaryZones" , "SecondaryDemand" , "InertiaZones" , "InertiaDemand" ,
   "NumberPollutantZones" , "PollutantZones" , "PollutantBudget" ,

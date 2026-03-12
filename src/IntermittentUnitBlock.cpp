@@ -84,15 +84,17 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
 
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "TimeHorizon" ,
-                                                     "NumberIntervals" };
+ static const std::vector< std::string > expected_dims =
+ { "TimeHorizon" , "NumberIntervals" };
+
  check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "InvestmentCost" ,
-  "MinCapacityDesign" , "MaxCapacityDesign" , "MaxCapacity" , "MinPower" ,
-  "MaxPower" , "InertiaPower" , "ActivePowerCost", "Gamma" , "Kappa", 
-  "MinReactivePower", "MaxReactivePower"
-  };
+ static const std::vector< std::string > expected_vars =
+ { "InvestmentCost" , "MinCapacityDesign" , "MaxCapacityDesign" ,
+   "MaxCapacity" , "MinPower" , "MaxPower" , "InertiaPower" ,
+   "ActivePowerCost", "Gamma" , "Kappa", "MinReactivePower",
+   "MaxReactivePower"
+   };
 
  check_variables( group , expected_vars , std::cerr );
 #endif
