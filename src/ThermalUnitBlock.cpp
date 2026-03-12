@@ -179,8 +179,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
 
 #ifndef NDEBUG
- std::vector< std::string > expected_dims = { "TimeHorizon" ,
-                                              "NumberIntervals" };
+ static const std::vector< std::string > expected_dims = {
+  "TimeHorizon" , "NumberIntervals" };
  check_dimensions( group , expected_dims , std::cerr );
 
  // we only check for unexpected fields if "this" is a "true"
@@ -192,16 +192,16 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  // we don't do the same for dimensions as it's unlikely that derived
  // classes will introduce entirely new dimensions
  if( typeid( ThermalUnitBlock ) == typeid( *this ) ) {
-  std::vector< std::string > expected_vars = { "InvestmentCost" , "Capacity" ,
-   "MinPower" , "MaxPower" , "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" ,
-   "SecondaryRho" , "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
-   "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
-   "MinDownTime" , "InitUpDownTime" , "Availability" , "StartUpLimit" ,
-   "ShutDownLimit" , "MaxRampUpSteps" , "MaxRampDownSteps" ,
-   "MaxReactivePower", "MinReactivePower",
-   // specific computational modes
-   "ReferenceSchedule" , "FixToMaximum"
-   };
+  static const std::vector< std::string > expected_vars =
+  { "InvestmentCost" , "Capacity" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
+    "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "LinearTerm" ,
+    "QuadTerm" , "ConstTerm" , "StartUpCost" , "FixedConsumption" ,
+    "InertiaCommitment" , "InitialPower" , "MinUpTime" ,  "MinDownTime" ,
+    "InitUpDownTime" , "Availability" , "StartUpLimit" , "ShutDownLimit" ,
+    "MaxRampUpSteps" , "MaxRampDownSteps" , "InitialReactivePower",
+    "MaxReactivePower" , "MinReactivePower" , "ReferenceSchedule" ,
+    "FixToMaximum"
+    };
   check_variables( group , expected_vars , std::cerr );
   }
 #endif
@@ -276,9 +276,15 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  if( ! ( f_ignore_netcdf_vars & 1 ) ) {
   ::deserialize( group , "PrimaryRho" , f_time_horizon , v_PrimaryRho ,
 		 true , true , v_change_intervals );
+  if( std::all_of( v_PrimaryRho.begin() , v_PrimaryRho.end() ,
+		   []( double i ) { return( i == 0 ); } ) )
+   v_PrimaryRho.clear();
 
   ::deserialize( group , "SecondaryRho" , f_time_horizon , v_SecondaryRho ,
-		 true , true , v_change_intervals );
+                 true , true , v_change_intervals );
+  if( std::all_of( v_SecondaryRho.begin() , v_SecondaryRho.end() ,
+		   []( double i ) { return( i == 0 ); } ) )
+   v_SecondaryRho.clear();
   }
 
  if( ::deserialize( group , f_fixToMax , "FixToMaximum" ) )
@@ -3044,11 +3050,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    PrimaryRho_Const.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( ! v_PrimaryRho.empty() )
-     vars.push_back( std::make_pair( & v_active_power[ t ] ,
-                                     v_PrimaryRho[ t ] ) );
-    else
-     vars.push_back( std::make_pair( & v_active_power[ t ] , 0.0 ) );
+    vars.push_back( std::make_pair( & v_active_power[ t ] ,
+				    v_PrimaryRho[ t ] ) );
 
     vars.push_back( std::make_pair( & v_primary_spinning_reserve[ t ] ,
 				    -1.0 ) );
@@ -3056,10 +3059,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     PrimaryRho_Const[ t ].set_lhs( 0.0 );
     PrimaryRho_Const[ t ].set_rhs( Inf< double >() );
     PrimaryRho_Const[ t ].set_function(
-                                   new LinearFunction( std::move( vars ) ) );
-   }
+				   new LinearFunction( std::move( vars ) ) );
+    }
 
-   add_static_constraint( PrimaryRho_Const , "PrimaryRho_Const_Thermal" );
+   add_static_constraint( PrimaryRho_Const ,
+                          "PrimaryRho_Const_Thermal" );
    }
 
  if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
@@ -3070,11 +3074,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    SecondaryRho_Const.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( ! v_SecondaryRho.empty() )
-     vars.push_back( std::make_pair( & v_active_power[ t ] ,
-                                     v_SecondaryRho[ t ] ) );
-    else
-     vars.push_back( std::make_pair( & v_active_power[ t ] , 0.0 ) );
+    vars.push_back( std::make_pair( & v_active_power[ t ] ,
+				    v_SecondaryRho[ t ] ) );
 
     vars.push_back( std::make_pair( & v_secondary_spinning_reserve[ t ] ,
                                     -1.0 ) );
@@ -3082,10 +3083,11 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     SecondaryRho_Const[ t ].set_lhs( 0.0 );
     SecondaryRho_Const[ t ].set_rhs( Inf< double >() );
     SecondaryRho_Const[ t ].set_function(
-                                    new LinearFunction( std::move( vars ) ) );
+				   new LinearFunction( std::move( vars ) ) );
    }
 
-   add_static_constraint( SecondaryRho_Const , "SecondaryRho_Const_Thermal" );
+   add_static_constraint( SecondaryRho_Const ,
+			  "SecondaryRho_Const_Thermal" );
    }
 
  // ZOConstraints - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5067,7 +5069,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
    return;  // The given values are zero: nothing to do
 
   v_PrimaryRho.assign( f_time_horizon , 0 );
- }
+  }
 
  if( ! ordered )
   std::sort( subset.begin() , subset.end() );
