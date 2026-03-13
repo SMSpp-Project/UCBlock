@@ -70,10 +70,10 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// a transmission NetworkBlock, i.e., a "DC" transmission network
+/// a "DC" transmission NetworkBlock
 /** The DCNetworkBlock class derives from NetworkBlock, and defines the
- * standard linear constraints corresponding to the "DC model" of the
- * transmission network in the Unit Commitment problem. Generally, there exist
+ * linear constraints corresponding to the "DC model" of the transmission
+ * network in the Unit Commitment problem. Generally, there exist
  * three different kinds of DCNetworkBlock:
  *
  * - DCNetworkBlock with just HVDC lines; where the susceptance for all lines
@@ -85,7 +85,13 @@ namespace SMSpp_di_unipi_it
  *
  * - DCNetworkBlock of a hybrid AC/HVDC grid (both AC and HVDC lines). This
  *   is a combination of first and second cases, where for some lines (not all
- *   of them) may have zero susceptance. */
+ *   of them) may have zero susceptance.
+ *
+ * These can be implemented with three different formulations:
+ *
+
+
+ */
 
 class DCNetworkBlock : public NetworkBlock
 {
@@ -133,19 +139,17 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
  /// auxiliary class holding basic data about the (DC) transmission network
- /** The DCNetworkData class is a nested sub-class which only serves to have a
-  * quick way to load all the basic data (topology and electrical
-  * characteristics) that describe the transmission network. The rationale is
-  * that while often the network does not change during the (short) time
-  * horizon of UC, it makes sense to allow for this to happen. This means that
-  * individual NetworkBlock objects may in principle have different
-  * DCNetworkData, but most often they can share the same. By bunching all the
-  * information together, we make it easy for this sharing to happen.
-  */
+ /** The DCNetworkData class is a nested sub-class which only serves to have
+  * a quick way to load all the basic data (topology and electrical
+  * characteristics) that describe the transmission network. The rationale
+  * is that, while often the network does not change during the (short) time
+  * horizon of UC, it makes sense to allow for this to happen. This means
+  * that individual NetworkBlock objects may in principle have different
+  * DCNetworkData, but most often they can share the same. By bunching all
+  * the information together, we make it easy for this sharing to happen. */
 
 class DCNetworkData : public NetworkData
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -469,11 +473,6 @@ class DCNetworkData : public NetworkData
  const std::vector< double > & get_max_power_flow( void ) const {
   return( v_max_power_flow );
   }
-
-/*--------------------------------------------------------------------------*/
-  /// returns the reference unit (see Matpower)
-
- double get_baseMVA( void ) const { return( f_base_mva ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns maximum power flow of the given \p line
@@ -818,9 +817,6 @@ class DCNetworkData : public NetworkData
  /// to not recompute each time the PTDF
  SpMat stored_B2;
  SpMat stored_B2_inv;
-
- /// to store the reference mva of the instance
- double f_base_mva;
 
  /** A SparseMatrix resulting from the product of the PTDF and (A^dc)^T,
   * where the latter is the incidence matrix of the pure DC lines */

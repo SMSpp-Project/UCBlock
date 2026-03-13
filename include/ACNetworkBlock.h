@@ -108,6 +108,12 @@ class ACNetworkBlock : public DCNetworkBlock
   *
   * TO BE COMPLETED
   *
+  * - the "baseMVA" scalar variable, of type netCDF::NcDouble, 
+  *                                          ^^^^^^^^^^^^^^^^
+  *   THAT'S WHAT ONE WOULD EXPECT, BUT IS SEEMS IT'S RATHER A STRING???
+  *   specifying the
+  *   system MVA base used for converting power into per unit quantities 
+  *   (see Matpower)
   */
 
  virtual void deserialize( const netCDF::NcGroup & group ) override;
@@ -116,45 +122,69 @@ class ACNetworkBlock : public DCNetworkBlock
  /** @name Reading the data of the DCNetworkData
   * @{ */
 
+ double get_baseMVA( void ) const { return( f_base_mva ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::vector< double > & get_node_conductance( void ) const {
   return( v_node_conductance );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  const std::vector< double > & get_node_max_voltage( void ) const {
   return( v_node_max_voltage );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::vector< double > & get_node_min_voltage( void ) const {
   return( v_node_min_voltage );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  const std::vector< double > & get_line_reactance( void ) const {
   return( v_line_reactance );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::vector< double > & get_line_resistance( void ) const {
   return( v_line_resistance );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  const std::vector< double > & get_line_ratio( void ) const {
   return( v_line_ratio );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::vector< double > & get_line_rate_A( void ) const {
   return( v_line_rate_A );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  const std::vector< double > & get_line_angle( void ) const {
   return( v_line_angle );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::vector< double > & get_line_min_angle( void ) const {
   return( v_line_min_angle );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::vector< double > & get_line_max_angle( void ) const {
   return( v_line_max_angle );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  std::vector< std::pair< std::set< Index > , std::set< Index > > >
   get_direct_and_reverse_AClines( void ) const {
@@ -171,9 +201,9 @@ class ACNetworkBlock : public DCNetworkBlock
   return( v );
   }
 
- /** @} -------------- METHODS FOR SAVING THE ACNetworkData ----------------*/
- /** @name Methods for loading, printing & saving the ACNetworkData
-  * @{ */
+/** @} -------------- METHODS FOR SAVING THE ACNetworkData ----------------*/
+/** @name Methods for loading, printing & saving the ACNetworkData
+ * @{ */
 
  /// serialize a ACNetworkData out of a netCDF::NcGroup
  /** Serialize a ACNetworkData out of a netCDF::NcGroup to the specific
@@ -196,6 +226,8 @@ class ACNetworkBlock : public DCNetworkBlock
  /*-------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 
  /*-------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ double f_base_mva;  ///< the reference mva of the instance
 
  std::vector< double > v_line_reactance;
  std::vector< double > v_line_resistance;

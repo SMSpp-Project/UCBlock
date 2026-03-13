@@ -100,6 +100,16 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
 
  DCNetworkData::deserialize( group );
 
+ auto gbaseMVA = group.getAtt( "baseMVA" );
+ if( gbaseMVA.isNull() )
+  f_base_mva = 1.;
+ else {
+  std::string tmp_base;
+  gbaseMVA.getValues( tmp_base );
+  try { f_base_mva = std::stod( tmp_base ); }
+  catch (...) { f_base_mva = 1.; }
+  }
+
  if( f_number_nodes > 1 ) {
   ::deserialize( group , "LineReactance" , f_number_lines ,
                  v_line_reactance , true , true );
@@ -149,7 +159,7 @@ void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
  auto ACND = new ACNetworkData();
  ACND->deserialize( group );
  if( f_NetworkData &&
-  ( f_NetworkData->get_number_nodes() != ACND->get_number_nodes() ) )
+     ( f_NetworkData->get_number_nodes() != ACND->get_number_nodes() ) )
   throw( std::logic_error( "ACNetworkBlock::deserialize: NumberNodes not "
 			   "matching between NetworkData" ) );
  set_NetworkData( ACND );
@@ -255,18 +265,18 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  std::vector< Index > DC_lines = f_NetworkData->get_DC_lines();
  int nb_dc_lines = DC_lines.size();
 
- double base_mva = f_NetworkData->get_baseMVA();
- // --- scaling the v_power_flow and v_reactive_power_flow to improve numerical stability
- //     effectively we are swapping out v_power_flow for v_power_flow_tilde with
- //                    v_power_flow_tilde = C * v_power_flow
- //     and likewise v_reactive_power_flow
- constexpr double C_v_scal = 1.0; /* e.g. 100.0 */
+ double base_mva =  ND()->get_baseMVA();
+ /* scaling the v_power_flow and v_reactive_power_flow to improve numerical
+  * stability; effectively we are swapping out v_power_flow for
+  * v_power_flow_tilde with v_power_flow_tilde = C * v_power_flow
+  * and likewise v_reactive_power_flow */
+ constexpr double C_v_scal = 1.0;  /* e.g. 100.0 */
 
  // ----- Voltage bounds
- /*
- We ensure that the voltage magnitude is bounded between min_voltage and max_voltage.
- To this aim, W_{n,n} = (V_n).(V_n)^H = |V_n|^2 so we impose the bounds directly on W_{n,n}.
- */
+ /* We ensure that the voltage magnitude is bounded between min_voltage 
+  * and max_voltage. To this aim,
+  *    W_{n,n} = (V_n).(V_n)^H = |V_n|^2
+  * so we impose the bounds directly on W_{n,n}. */
  v_voltage_bounds_const.resize( number_nodes );
  const auto & min_voltage = ND()->get_node_min_voltage();
  const auto & max_voltage = ND()->get_node_max_voltage();

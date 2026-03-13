@@ -83,13 +83,13 @@ SMSpp_insert_in_factory_cpp_0( DCNetworkData );
 void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 {
 #ifndef NDEBUG
-  static const std::vector< std::string > expected_dims =
-  { "NumberNodes" , "NumberLines" , "NumberBranches" , "ReferenceNode" ,
-    // if called from UCBlock:
-    "TimeHorizon" , "NumberUnits" , "NumberNetworks" ,
-    "NumberElectricalGenerators"
-    };
-  check_dimensions( group , expected_dims , std::cerr );
+ static const std::vector< std::string > expected_dims =
+ { "NumberNodes" , "NumberLines" , "NumberBranches" , "ReferenceNode" ,
+   // if called from UCBlock:
+   "TimeHorizon" , "NumberUnits" , "NumberNetworks" ,
+   "NumberElectricalGenerators"
+   };
+ check_dimensions( group , expected_dims , std::cerr );
 
  // we only check for unexpected fields if "this" is a "true"
  // DCNetworkData, i.e., not any derived class. this is because derived
@@ -109,21 +109,10 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
     "NetworkBlockClassname" , "NetworkDataClassname"
     };
   check_variables( group , expected_vars , std::cerr );
- }
+  }
 #endif
 
  NetworkData::deserialize( group );
-
- // the baseMVA field is a simple scalar value specifying the system MVA base 
- //   used for converting power into per unit quantities (see Matpower)
- auto gbaseMVA = group.getAtt( "baseMVA" );
- std::string tmp_base;
- if(gbaseMVA.isNull()) f_base_mva = 1.;
- else {
-   gbaseMVA.getValues(tmp_base);
-   try { f_base_mva = std::stod(tmp_base); }
-   catch (...) { f_base_mva = 1.; }
- }
 
  if( ! deserialize_dim( group , "ReferenceNode" , f_reference_node , true ) )
   f_reference_node = 0;
@@ -149,17 +138,19 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  for( Index i = 0 ; i < f_number_branches ; ++i ) {
   if( ( v_start_line[ i ] < 0 ) || ( v_start_line[ i ] >= f_number_nodes ) )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-    "wrong start node number " + std::to_string( v_start_line[ i ] ) ) );
+				 "wrong start node number " +
+				 std::to_string( v_start_line[ i ] ) ) );
 
   if( ( v_end_line[ i ] < 0 ) || ( v_end_line[ i ] >= f_number_nodes ) )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-    "wrong end node number " + std::to_string( v_end_line[ i ] ) ) );
+				 "wrong end node number " +
+				 std::to_string( v_end_line[ i ] ) ) );
 
   if( v_start_line[ i ] == v_end_line[ i ] )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-    "start node == end node for branch " + std::to_string(
-     v_end_line[ i ] ) ) );
- }
+				 "start node == end node for branch " +
+				 std::to_string( v_end_line[ i ] ) ) );
+  }
 
  ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
                 true , true );
@@ -190,35 +181,34 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   for( Index i = 0 ; i < f_number_branches ; ++i ) {
    if( ( id[ i ] < 0 ) || ( id[ i ] >= f_number_lines ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-     "wrong hyperarc id " +
-     std::to_string( id[ i ] ) ) );
+				  "wrong hyperarc id " +
+				  std::to_string( id[ i ] ) ) );
    tmp[ id[ i ] ].push_back( std::make_tuple( v_start_line[ i ] ,
                                               v_end_line[ i ] ,
                                               v_efficiency[ i ] ) );
    if( std::get< 0 >( tmp[ id[ i ] ].front() ) !=
-    std::get< 0 >( tmp[ id[ i ] ].back() ) )
+       std::get< 0 >( tmp[ id[ i ] ].back() ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-     "branches for line " +
-     std::to_string( id[ i ] ) +
-     " have different start" ) );
-  }
+				  "branches for line " +
+				  std::to_string( id[ i ] ) +
+				  " have different start" ) );
+   }
 
   // sort all tmp[ i ] for increasing end node
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    if( tmp[ i ].empty() )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-     "no branches for line " + std::to_string( i ) ) );
+				  "no branches for line " +
+				  std::to_string( i ) ) );
    std::sort( tmp[ i ].begin() , tmp[ i ].end() ,
               []( auto & a , auto & b ) {
-               return ( std::get< 1 >( a ) <
-                std::get< 1 >( b ) );
-              } );
+               return ( std::get< 1 >( a ) < std::get< 1 >( b ) ); } );
    for( Index j = 1 ; j < tmp[ i ].size() ; ++j )
-    if( std::get< 1 >( tmp[ i ][ j ] ) ==
-     std::get< 1 >( tmp[ i ][ j - 1 ] ) )
+    if( std::get< 1 >( tmp[ i ][ j ] ) == std::get< 1 >( tmp[ i ][ j - 1 ] ) )
      throw( std::invalid_argument( "DCNetworkData::deserialize: "
-      "repeated end node for line " + std::to_string( i ) ) );
-  }
+				   "repeated end node for line " +
+				   std::to_string( i ) ) );
+   }
 
   // resize v_start_line and put there the right start nodes
   v_start_line.resize( f_number_lines );
@@ -236,16 +226,16 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    if( ( v_line_susceptance[ i ] > 0 ) && ( v_end_lines[ i ].size() > 1 ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: line " +
-     std::to_string( id[ i ] ) +
-     "is a hyperarc but has susceptance" ) );
+				  std::to_string( id[ i ] ) +
+				  "is a hyperarc but has susceptance" ) );
    v_end_lines[ i ].resize( tmp[ i ].size() );
    v_h_efficiency[ i ].resize( tmp[ i ].size() );
    for( Index j = 0 ; j < tmp[ i ].size() ; ++j ) {
     v_end_lines[ i ][ j ] = std::get< 1 >( tmp[ i ][ j ] );
     v_h_efficiency[ i ][ j ] = std::get< 2 >( tmp[ i ][ j ] );
+    }
    }
   }
- }
 
  stored_B2 = SpMat( f_number_nodes - 1 , f_number_nodes - 1 );
  stored_B2_inv = SpMat( f_number_nodes - 1 , f_number_nodes - 1 );
@@ -255,23 +245,19 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , "NodeName" , f_number_nodes , v_node_names );
 
-} // end( DCNetworkData::deserialize )
+ } // end( DCNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
 int DCNetworkData::get_reducedIdx( int idx ) const {
- if( idx > get_reference_node() )
-  return( idx - 1 );
- return( idx );
-}
+ return( idx > get_reference_node() ?idx - 1 : idx );
+ }
 
 /*--------------------------------------------------------------------------*/
 
 int DCNetworkData::get_originalIdx( int idx ) const {
- if( idx >= get_reference_node() )
-  return( idx + 1 );
- return( idx );
-}
+ return( idx >= get_reference_node() ? idx + 1 : idx );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -287,101 +273,104 @@ void DCNetworkData::compute_DCDF( const std::vector< Index > & DC_lines ,
  SpMat A_DC_transpose( number_nodes - 1 , number_lines );
  double eta = 1.0;
  for( auto & line_id : DC_lines ) {
-  A_DC_transpose.coeffRef(
-   get_reducedIdx( start_line[ line_id ] ) , line_id ) = 1.;
+  A_DC_transpose.coeffRef( get_reducedIdx( start_line[ line_id ] ) ,
+			   line_id ) = 1.;
   if( ! is_hypergraph() ) { // no hypergraph
    eta = get_line_efficiency( line_id ); // efficiency of the HVDC line
-   A_DC_transpose.coeffRef(
-    get_reducedIdx( end_line[ line_id ] ) , line_id ) = -eta;
-  }
+   A_DC_transpose.coeffRef( get_reducedIdx( end_line[ line_id ] ) ,
+			    line_id ) = -eta;
+   }
   else { // with hypergraph
    for( Index i = 0 ; i < get_end_lines()[ line_id ].size() ; ++i ) {
     eta = get_line_efficiencies( line_id )[ i ]; // efficiency of the hyperarc
     A_DC_transpose.coeffRef(
-    get_reducedIdx( get_end_lines()[ line_id ][ i ] ) , line_id ) = -eta;
+	get_reducedIdx( get_end_lines()[ line_id ][ i ] ) , line_id ) = -eta;
+    }
    }
   }
- }
+
  DCDF = -PTDF_matrix * A_DC_transpose;
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
 SpMat DCNetworkData::get_PTDF( const std::vector< Index > & AC_lines ,
                                double tikhonov_coeff )
 {
-  // get data
-  const auto & susceptance = get_line_susceptance();
-  const auto number_nodes = get_number_nodes();
-  const auto number_lines = get_number_lines();
-  if( number_lines <= 0 ) {
-    throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                             "number of lines of DCNetworkBlock is not set" ) );
-  }
-  const auto & start_line = get_start_line();
-  const auto & end_line = get_end_line();
+ // get data
+ const auto & susceptance = get_line_susceptance();
+ const auto number_nodes = get_number_nodes();
+ const auto number_lines = get_number_lines();
+ if( number_lines <= 0 )
+  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
+			   "number of lines of DCNetworkBlock is not set" ) );
 
-  // construct the matrix using two sub-matrices B_bar and B_hat
-  SpMat B_hat = SpMat( number_lines , number_nodes );
-  for( auto & line_id : AC_lines ) {
-   B_hat.insert( line_id , start_line[ line_id ] ) = susceptance[ line_id ];
-   B_hat.insert( line_id , end_line[ line_id ] ) = -susceptance[ line_id ];
-  }
+ const auto & start_line = get_start_line();
+ const auto & end_line = get_end_line();
 
-  SpMat B_bar = SpMat( number_nodes , number_nodes );
-  std::vector< double > B_bar_diag( number_nodes , 0.0 );
-  for( auto & line_id : AC_lines ) {
-   B_bar.insert( start_line[ line_id ] , end_line[ line_id ] ) = -susceptance[ line_id ];
-   B_bar.insert( end_line[ line_id ] , start_line[ line_id ] ) = -susceptance[ line_id ];
-   B_bar_diag[ start_line[ line_id ] ] += susceptance[ line_id ];
-   B_bar_diag[ end_line[ line_id ] ] += susceptance[ line_id ];
-  }
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-   B_bar.insert( node_id , node_id ) = B_bar_diag[ node_id ] + tikhonov_coeff;
+ // construct the matrix using two sub-matrices B_bar and B_hat
+ SpMat B_hat = SpMat( number_lines , number_nodes );
+ for( auto & line_id : AC_lines ) {
+  B_hat.insert( line_id , start_line[ line_id ] ) = susceptance[ line_id ];
+  B_hat.insert( line_id , end_line[ line_id ] ) = -susceptance[ line_id ];
   }
 
-  Index ref_node = get_reference_node();
-  SpMat I_nref = SpMat( number_nodes , number_nodes - 1 );
-  for( Index node_id = 0 ; node_id < ref_node ; ++node_id ) {
-   I_nref.insert( node_id , node_id ) = 1.;
-  }
-  for( Index node_id = ref_node ; node_id < number_nodes - 1 ; ++node_id ) {
-   I_nref.insert( node_id + 1 , node_id ) = 1.;
+ SpMat B_bar = SpMat( number_nodes , number_nodes );
+ std::vector< double > B_bar_diag( number_nodes , 0.0 );
+ for( auto & line_id : AC_lines ) {
+  B_bar.insert( start_line[ line_id ] , end_line[ line_id ] ) =
+                                                     - susceptance[ line_id ];
+  B_bar.insert( end_line[ line_id ] , start_line[ line_id ] ) =
+                                                     - susceptance[ line_id ];
+  B_bar_diag[ start_line[ line_id ] ] += susceptance[ line_id ];
+  B_bar_diag[ end_line[ line_id ] ] += susceptance[ line_id ];
   }
 
-  // construction of B1 and B2 (see documentation)
-  SpMat B1 = B_hat * I_nref;
-  SpMat B2 = I_nref.transpose() * B_bar * I_nref;
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+  B_bar.insert( node_id , node_id ) = B_bar_diag[ node_id ] + tikhonov_coeff;
 
-  // compute inverse of B2 and deduce PTDF
-  SpMat PTDF_matrix;
-  SpMat B2_inv = SpMat( number_nodes - 1 , number_nodes - 1 );
-  std::pair< SpMat , SpMat > t = get_stored_B2();
-  if( B2.isApprox( t.first ) ) {
-   B2_inv = t.second;
-  }
+ Index ref_node = get_reference_node();
+ SpMat I_nref = SpMat( number_nodes , number_nodes - 1 );
+ for( Index node_id = 0 ; node_id < ref_node ; ++node_id )
+  I_nref.insert( node_id , node_id ) = 1.;
+
+ for( Index node_id = ref_node ; node_id < number_nodes - 1 ; ++node_id )
+  I_nref.insert( node_id + 1 , node_id ) = 1.;
+
+ // construction of B1 and B2 (see documentation)
+ SpMat B1 = B_hat * I_nref;
+ SpMat B2 = I_nref.transpose() * B_bar * I_nref;
+
+ // compute inverse of B2 and deduce PTDF
+ SpMat PTDF_matrix;
+ SpMat B2_inv = SpMat( number_nodes - 1 , number_nodes - 1 );
+ std::pair< SpMat , SpMat > t = get_stored_B2();
+ if( B2.isApprox( t.first ) )
+  B2_inv = t.second;
+ else {
+  // Inversion of sparse matrix with eigen (solve B2*X = I)
+  //Eigen::BiCGSTAB<SpMat> solver;
+  Eigen::SparseLU< SpMat > solver;
+  solver.compute( B2 );
+  SpMat I( number_nodes - 1 , number_nodes - 1 );
+  I.setIdentity();
+  if( solver.info() != Eigen::Success )
+   std::cout << "Inversion in PTDF not possible" << std::endl;
   else {
-   // Inversion of sparse matrix with eigen (solve B2*X = I)
-   //Eigen::BiCGSTAB<SpMat> solver;
-   Eigen::SparseLU< SpMat > solver;
-   solver.compute( B2 );
-   SpMat I( number_nodes - 1 , number_nodes - 1 );
-   I.setIdentity();
-   if( solver.info() != Eigen::Success )
-    std::cout << "Inversion in PTDF not possible" << std::endl;
-   else {
-    B2_inv = solver.solve( I );
-    set_stored_B2( B2 , B2_inv );
+   B2_inv = solver.solve( I );
+   set_stored_B2( B2 , B2_inv );
    }
   }
-  PTDF_matrix = B1 * B2_inv;
 
-  return( PTDF_matrix );
-}
+ PTDF_matrix = B1 * B2_inv;
+
+ return( PTDF_matrix );
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkData::compute_cycle_basis( int opt_root , bool only_AC_lines ) {
+void DCNetworkData::compute_cycle_basis( int opt_root , bool only_AC_lines )
+{
  // As it does not require data of neither DC nor AC
  /* Compute a list of cycles which form a basis for cycles of G.
 
@@ -415,18 +404,16 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_AC_lines ) {
      cycles of a graph. Comm. ACM 12, 9 (Sept 1969), 514-518.
  */
 
- if( cycle_basis_was_computed ) {
-  std::cout << "Cycle basis already computed" << std::endl;
+ if( cycle_basis_was_computed )
   return;
- }
 
  // get data
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
- if( number_lines <= 0 ) {
+ if( number_lines <= 0 )
   throw( std::logic_error( "DCNetworkData::compute_cycle_basis: "
-   "number of lines of DCNetworkBlock is not set" ) );
- }
+			   "number of lines of DCNetworkBlock is not set" ) );
+
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
 
@@ -435,12 +422,13 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_AC_lines ) {
                                              std::set< Index >() );
  const auto & susceptance = get_line_susceptance();
  for( Index id_line = 0 ; id_line < number_lines ; ++id_line ) {
-  if( only_AC_lines && susceptance[ id_line ] == 0. ) continue;
+  if( only_AC_lines && susceptance[ id_line ] == 0. )
+   continue;
   Index i = start_line[ id_line ];
   Index j = end_line[ id_line ];
   neighbors[ i ].insert( j );
   neighbors[ j ].insert( i );
- }
+  }
 
  Index root;
  bool use_root = true;
@@ -450,17 +438,18 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_AC_lines ) {
  this->v_cycle_basis.clear();
  this->m_spanning_tree.clear();
 
- auto start_solve = std::chrono::high_resolution_clock::now();
+ //!! auto start_solve = std::chrono::high_resolution_clock::now();
 
  std::vector< Index > gnodes;
- for( Index i = 0 ; i < number_nodes ; ++i ) {
-  if( neighbors[i].size() ) gnodes.push_back( i );
- }
- while( gnodes.size() ) { // loop over connected components
+ for( Index i = 0 ; i < number_nodes ; ++i )
+  if( neighbors[ i ].size() )
+   gnodes.push_back( i );
+
+ while( gnodes.size() ) {  // loop over connected components
   if( use_root ) {
    root = gnodes.back();
    gnodes.pop_back();
-  }
+   }
   std::vector< Index > stack = { root };
   std::map< Index , Index > pred = { { root , root } };
   std::map< Index , std::set< Index > > used;
@@ -475,39 +464,44 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_AC_lines ) {
      stack.push_back( nbr );
      used[ nbr ] = std::set< Index >();
      used[ nbr ].insert( z );
-    }
-    else if( nbr == z ) { // self loops
-     this->v_cycle_basis.push_back( std::vector< Index >( 1 , z ) );
-    }
-    else if( ! zused.contains( nbr ) ) { // found a cycle
-     std::set< Index > pn = used[ nbr ];
-     std::vector< Index > cycle = { nbr , z };
-     Index p = pred[ z ];
-     while( ! pn.contains( p ) ) {
-      cycle.push_back( p );
-      p = pred[ p ];
      }
-     cycle.push_back( p );
-     this->v_cycle_basis.push_back( cycle );
-     used[ nbr ].insert( z );
+    else
+     if( nbr == z )  // self loops
+      this->v_cycle_basis.push_back( std::vector< Index >( 1 , z ) );
+     else
+      if( ! zused.contains( nbr ) ) { // found a cycle
+       std::set< Index > pn = used[ nbr ];
+       std::vector< Index > cycle = { nbr , z };
+       Index p = pred[ z ];
+       while( ! pn.contains( p ) ) {
+	cycle.push_back( p );
+	p = pred[ p ];
+        }
+       cycle.push_back( p );
+       this->v_cycle_basis.push_back( cycle );
+       used[ nbr ].insert( z );
+       }
     }
    }
-  }
+
   for( auto it = pred.begin() ; it != pred.end() ; ++it ) {
    auto it_gnode = std::find( gnodes.begin() , gnodes.end() , it->first );
-   if( it_gnode != gnodes.end() ) gnodes.erase( it_gnode );
-  }
+   if( it_gnode != gnodes.end() )
+    gnodes.erase( it_gnode );
+   }
   use_root = false; // reinit root
   this->m_spanning_tree.insert( pred.begin() , pred.end() );
- }
+  }
 
+ /*!!
  double time = std::chrono::duration_cast< std::chrono::milliseconds >(
   std::chrono::high_resolution_clock::now() - start_solve ).count() / 1000.0;
 
+ std::cout << "Time to compute cycle basis : " << time << " sec." << std::endl;
+ !!*/
  cycle_basis_was_computed = true;
 
- std::cout << "Time to compute cycle basis : " << time << " sec." << std::endl;
-}
+ }  // end( DCNetworkData::compute_cycle_basis )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkBlock ------------------------*/
@@ -619,18 +613,15 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( ( f_NetworkData->get_lines_type() == kHVDC ) ||
      ( f_NetworkData->get_lines_type() == kAC_HVDC ) )
   ftype = PTDF;
- else if( f_NetworkData->get_lines_type() == kAC )
-  ftype = NONE;
  else
-  ftype = CYCLE;
+  if( f_NetworkData->get_lines_type() == kAC )
+   ftype = NONE;
+  else
+   ftype = CYCLE;
 
  switch( ftype ) {
- case( PTDF ) :
-  generate_PTDF_variables( stvv );
-  break;
- case( CYCLE ) :
-  generate_CYCLE_variables( stvv );
-  break;
+ case( PTDF ) :  generate_PTDF_variables( stvv ); break;
+ case( CYCLE ) : generate_CYCLE_variables( stvv ); break;
  case( KIRCHOFF ) :
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_variables: "
                            "line type not implemented yet" ) );
@@ -640,13 +631,13 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
  set_variables_generated();
 
-}  // end( DCNetworkBlock::generate_abstract_variables )
+ }  // end( DCNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
+
 void DCNetworkBlock::generate_PTDF_variables( Configuration * stvv )
 {
- /**
-  * This formulation corresponds to the "PTDF + FLOW" formulation of
+ /** This formulation corresponds to the "PTDF + FLOW" formulation of
   * "Linear Optimal Power Flow Using Cycle Flows" of
   *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown
   */
@@ -665,15 +656,15 @@ void DCNetworkBlock::generate_PTDF_variables( Configuration * stvv )
    for( auto & var : v_auxiliary_variable )
     var.set_type( ColVariable::kContinuous );
    add_static_variable( v_auxiliary_variable , "aux_network" );
+   }
   }
- }
-}  // end( DCNetworkBlock::generate_PTDF_variables )
+ }  // end( DCNetworkBlock::generate_PTDF_variables )
 
 /*--------------------------------------------------------------------------*/
+
 void DCNetworkBlock::generate_CYCLE_variables( Configuration * stvv )
 {
-  /**
-  * Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
+ /** Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
   *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown
   *
   * Here, we opt for the "CYCLE + FLOW" formulation with
@@ -696,8 +687,9 @@ void DCNetworkBlock::generate_CYCLE_variables( Configuration * stvv )
    for( auto & var : v_cycle_flow )
     var.set_type( ColVariable::kContinuous );
    add_static_variable( v_cycle_flow , "cycle_flow_network" );
-  }
-}  // end( DCNetworkBlock::generate_CYCLE_variables )
+   }
+
+ }  // end( DCNetworkBlock::generate_CYCLE_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -707,16 +699,12 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   return;                       // nothing to do
 
  switch( ftype ) {
- case( PTDF ) :
-  generate_PTDF_constraints( stcc );
-  break;
- case( CYCLE ) :
-  generate_CYCLE_constraints( stcc );
-  break;
+ case( PTDF ) :  generate_PTDF_constraints( stcc ); break;
+ case( CYCLE ) : generate_CYCLE_constraints( stcc ); break;
  case( KIRCHOFF ) :
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                            "line type not implemented yet" ) );
- default :
+ default :  // the NONE case: something will be generated in derived classes
   generate_bound_constraints();  // generate flow limits
  }
 
