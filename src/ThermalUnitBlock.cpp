@@ -403,15 +403,14 @@ void ThermalUnitBlock::check_data_consistency( void ) const
                             "minimum power at time " + std::to_string( t ) +
                             " is " + std::to_string( v_MinPower[ t ] ) +
                             ", which is greater than the maximum power, which "
-                            "is " + std::to_string( v_MaxPower[ t ] ) + "." ) );
+                            "is " + std::to_string( v_MaxPower[ t ] ) ) );
 
   if( v_MinPower[ t ] < 0 )
    throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                            "minimum power for time step "
-                            + std::to_string( t ) + " is " +
-                            std::to_string( v_MinPower[ t ] ) +
-                            ", but it must be nonnegative." ) );
- }
+                            "minimum power at time " + std::to_string( t ) +
+			    " is " + std::to_string( v_MinPower[ t ] ) +
+                            ", but it must be nonnegative" ) );
+  }
 
  // Availability- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_Availability.empty() ) {
@@ -419,11 +418,10 @@ void ThermalUnitBlock::check_data_consistency( void ) const
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( ( v_Availability[ t ] < 0 ) || ( v_Availability[ t ] > 1 ) )
     throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                             "availability for time step " +
-                             std::to_string( t ) + " is " +
-                             std::to_string( v_Availability[ t ] ) +
-                             ", but it must be between 0 and 1." ) );
- }
+                             "availability at time " + std::to_string( t ) +
+			     " is " + std::to_string( v_Availability[ t ] ) +
+                             ", but it must be between 0 and 1" ) );
+  }
 
  // Delta ramp-up - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_DeltaRampUp.empty() ) {
@@ -431,11 +429,11 @@ void ThermalUnitBlock::check_data_consistency( void ) const
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_DeltaRampUp[ t ] < 0 )
     throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                             "delta ramp-up for time step " +
+                             "delta ramp-up at time " +
                              std::to_string( t ) + " is " +
                              std::to_string( v_DeltaRampUp[ t ] ) +
-                             ", but it must be nonnegative." ) );
- }
+                             ", but it must be nonnegative" ) );
+  }
 
  // Delta ramp-down - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_DeltaRampDown.empty() ) {
@@ -443,11 +441,11 @@ void ThermalUnitBlock::check_data_consistency( void ) const
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_DeltaRampDown[ t ] < 0 )
     throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                             "delta ramp-down for time step " +
+                             "delta ramp-down at time " +
                              std::to_string( t ) + " is " +
                              std::to_string( v_DeltaRampDown[ t ] ) +
-                             ", but it must be nonnegative." ) );
- }
+                             ", but it must be nonnegative" ) );
+  }
 
  // QuadTerm - - - - - - - - - - - - - - - -- - - - - - - - - - - - - - - - -
  if( ! v_QuadTerm.empty() ) {
@@ -455,48 +453,48 @@ void ThermalUnitBlock::check_data_consistency( void ) const
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_QuadTerm[ t ] < 0 )
     throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                             "quadratic term for time " +
+                             "quadratic term at time " +
                              std::to_string( t ) + " is " +
                              std::to_string( v_QuadTerm[ t ] ) +
-                             ", but it must be nonnegative." ) );
- }
+                             ", but it must be nonnegative" ) );
+  }
 
  // InitialPower- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( f_InitialPower < 0 )
   throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
                            "initial power is " +
                            std::to_string( f_InitialPower ) +
-                           ", but it must be nonnegative." ) );
+                           ", but it must be nonnegative" ) );
 
  // StartUpLimit- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   if( ( v_StartUpLimit[ t ] < get_operational_min_power( t ) ) ||
       ( v_StartUpLimit[ t ] > get_operational_max_power( t ) ) )
    throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                            "start-up limit for time step " +
+                            "start-up limit at time " +
                             std::to_string( t ) + " is " +
                             std::to_string( v_StartUpLimit[ t ] ) +
                             ", but it must be between " +
                             std::to_string( get_operational_min_power( t ) )
                             + " and " +
                             std::to_string( get_operational_max_power( t ) )
-                            + "." ) );
+			    ) );
 
  // ShutDownLimit - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   if( ( v_ShutDownLimit[ t ] < get_operational_min_power( t ) ) ||
       ( v_ShutDownLimit[ t ] > get_operational_max_power( t ) ) )
    throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                            "shut-down limit for time step " +
+                            "shut-down limit at time " +
                             std::to_string( t ) + " is " +
                             std::to_string( v_ShutDownLimit[ t ] ) +
                             ", but it must be between " +
                             std::to_string( get_operational_min_power( t ) )
                             + " and " +
                             std::to_string( get_operational_max_power( t ) )
-                            + "." ) );
+                            ) );
 
-}  // end( ThermalUnitBlock::check_data_consistency )
+ }  // end( ThermalUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
 

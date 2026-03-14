@@ -56,7 +56,7 @@
 
 using namespace SMSpp_di_unipi_it;
 
-typedef Eigen::SparseMatrix< double > SpMat;
+using SpMat = Eigen::SparseMatrix< double >;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -213,7 +213,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   // resize v_start_line and put there the right start nodes
   v_start_line.resize( f_number_lines );
   for( Index i = 0 ; i < f_number_lines ; ++i )
-   v_start_line[ i ] = std::get< 0 >( tmp[ id[ i ] ].front() );
+   v_start_line[ i ] = std::get< 0 >( tmp[ i ].front() );
 
   // clear v_end_line and v_efficiency
   v_end_line.clear();
@@ -912,8 +912,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  // Auxiliary variables for nonempty cost
  if( ! f_NetworkData->get_network_cost().empty() ) {
   // 0 <= V_l - F_l && 0 <= V_l + F_l
-  v_power_flow_relax_abs.resize(
-   boost::multi_array< FRowConstraint , 2 >::extent_gen()[ 2 ][ number_lines ] );
+  v_power_flow_relax_abs.resize( MAFRC_ext()[ 2 ][ number_lines ] );
 
   // Definition of absolute value of power flow
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
@@ -922,17 +921,18 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
    v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( 0.0 );
    v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
    v_power_flow_relax_abs[ 0 ][ line_id ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+                                    new LinearFunction( std::move( vars ) ) );
 
    vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
    vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
    v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( 0.0 );
    v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
    v_power_flow_relax_abs[ 1 ][ line_id ].set_function(
-    new LinearFunction( std::move( vars ) ) );
-  }
+                                    new LinearFunction( std::move( vars ) ) );
+   }
+
   add_static_constraint( v_power_flow_relax_abs , "power_flow_relax_abs" );
- }
+  }
 
  // Constraints on the DC part
  if( ( lines_type == kHVDC ) || ( lines_type == kAC_HVDC ) ) {
@@ -940,7 +940,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
 
   generate_bound_constraints();  // generate flow limits
 
-  // Power flow and node injection constraints
+  // power flow and node injection constraints
   if( lines_type == kHVDC ) {
    v_power_flow_injection_const.resize( number_nodes );
 
@@ -959,7 +959,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
       if( end_line[ line_id ] == n )
        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
      }
-     else { // if hyperarch -> loop over v_end_lines and get_line_efficiency
+     else { // if hyperarch -> loop over v_end_lines and get_line_efficiencies
       for( Index i = 0 ; i < f_NetworkData->get_end_lines()[ line_id ].size() ; ++i ) {
        if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
         eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
@@ -968,21 +968,23 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
       }
      }
     }
-    if( lines_type == kHVDC ) {
-     v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
-     v_power_flow_injection_const[ n ].set_function(
-      new LinearFunction( std::move( vars ) ) );
+
+    v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
+    v_power_flow_injection_const[ n ].set_function(
+				   new LinearFunction( std::move( vars ) ) );
     }
+
+   add_static_constraint( v_power_flow_injection_const ,
+			  "HVDC_power_flow_injection" );
    }
-   if( lines_type == kHVDC )
-    add_static_constraint( v_power_flow_injection_const ,
-                           "HVDC_power_flow_injection" );
-  }
-  // If we have mixed lines, we have as many as nodes impacted and touched by DC lines
+ 
+  // if we have mixed lines, we have as many as nodes impacted and touched
+  // by DC lines
   if( lines_type == kAC_HVDC ) {
    bool full_formulation = true;
    int nb_DCnodes = 0;
-   // Savagely setting all visited nodes to true will generate nodal balances for all nodes
+   // savagely setting all visited nodes to true will generate nodal
+   // balances for all nodes
    // the default and subtle initialization should be with false
    std::vector< bool > nodes_vist( number_nodes , full_formulation );
 
@@ -990,7 +992,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
    for( auto & line_id : DC_lines ) {
     nodes_vist[ start_line[ line_id ] ] = true;
     nodes_vist[ end_line[ line_id ] ] = true;
-   }
+    }
 
    for( Index n = 0 ; n < number_nodes ; ++n ) {
     if( nodes_vist[ n ] )

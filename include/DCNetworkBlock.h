@@ -601,13 +601,13 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// compute the decomposition of the graph into cycles and spanning tree
  /** Methods for computing a spanning tree of the network and a cycle basis
-  * The functions get_cycle_basis and get_spanning_tree return quantities
+  * The functions get_cycle_basis() and get_spanning_tree() return results
   * in terms of node ids, not line ids. To access the line ids in the
-  * spanning tree (resp. in the cycles), use get_lines_in_spanning_tree
-  * (resp. get_lines_in_cycles). */
+  * spanning tree (resp. in the cycles), use get_lines_in_spanning_tree()
+  * (resp. get_lines_in_cycles()). Note that \p root is int and not Index,
+  * as it can be negative. */
 
  void compute_cycle_basis( int root = -1 , bool only_AC_lines = true );
- // be careful -> root is int and not Index, as it can be negative
 
 /*--------------------------------------------------------------------------*/
 
