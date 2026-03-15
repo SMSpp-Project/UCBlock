@@ -236,7 +236,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   // resize v_start_line and put there the right start nodes
   v_start_line.resize( f_number_lines );
   for( Index i = 0 ; i < f_number_lines ; ++i )
-   v_start_line[ i ] = std::get< 0 >( tmp[ id[ i ] ].front() );
+   v_start_line[ i ] = std::get< 0 >( tmp[ i ].front() );
 
   // clear v_end_line and v_efficiency
   v_end_line.clear();
