@@ -646,18 +646,21 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
 
 /*--------------------------------------------------------------------------*/
 void ACNetworkBlock::strengthen_SOCP_relaxation( void ){
- const auto & start_line = f_NetworkData->get_start_line();
- const auto & end_line = f_NetworkData->get_end_line();
+  
+ // shortcut to recover mathematical notation
+ auto * f_net = static_cast< ACNetworkData * >( f_NetworkData );
+ const auto & start_line = f_net->get_start_line();
+ const auto & end_line = f_net->get_end_line();
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
 
- const auto & min_voltage = f_NetworkData->get_node_min_voltage();
- const auto & max_voltage = f_NetworkData->get_node_max_voltage();
+ const auto & min_voltage = f_net->get_node_min_voltage();
+ const auto & max_voltage = f_net->get_node_max_voltage();
 
- const auto & v_line_min_angle = f_NetworkData->get_line_min_angle();
- const auto & v_line_max_angle = f_NetworkData->get_line_max_angle();
+ const auto & v_line_min_angle = f_net->get_line_min_angle();
+ const auto & v_line_max_angle = f_net->get_line_max_angle();
 
- std::vector< Index > AC_lines = f_NetworkData->get_AC_lines();
+ std::vector< Index > AC_lines = f_net->get_AC_lines();
  int nb_ac_lines = AC_lines.size();
  int i_line;
 
