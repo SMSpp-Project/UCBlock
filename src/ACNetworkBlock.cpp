@@ -586,6 +586,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // up to now, only SOCP relaxation is available, but it could be replaced by something else
  generate_SOCP_relaxation();
+ strengthen_SOCP_relaxation();
 } // end( ACNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -642,6 +643,410 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
  if( i_line > 0 )
   add_static_constraint( v_socp_const , "AC_socp_const" );
 } // end( ACNetworkBlock::generate_SOCP_relaxation )
+
+/*--------------------------------------------------------------------------*/
+void ACNetworkBlock::strengthen_SOCP_relaxation( void ){
+  
+ // shortcut to recover mathematical notation
+ auto * f_net = static_cast< ACNetworkData * >( f_NetworkData );
+ const auto & start_line = f_net->get_start_line();
+ const auto & end_line = f_net->get_end_line();
+ const auto number_nodes = get_number_nodes();
+ const auto number_lines = get_number_lines();
+
+ const auto & min_voltage = f_net->get_node_min_voltage();
+ const auto & max_voltage = f_net->get_node_max_voltage();
+
+ const auto & v_line_min_angle = f_net->get_line_min_angle();
+ const auto & v_line_max_angle = f_net->get_line_max_angle();
+
+ std::vector< Index > AC_lines = f_net->get_AC_lines();
+ int nb_ac_lines = AC_lines.size();
+ int i_line;
+
+ // ===== generate auxiliary variables
+ std::vector< ColVariable > v_voltage;
+ v_voltage.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+  v_voltage[ node_id ].set_type( ColVariable::kContinuous );
+ }
+ add_static_variable( v_voltage , "v_voltage" );
+
+ // -----
+ std::vector< ColVariable > v_theta;
+ v_theta.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+  v_theta[ node_id ].set_type( ColVariable::kContinuous );
+ }
+ add_static_variable( v_theta , "v_theta" );
+
+ // -----
+ std::vector< ColVariable > v_alpha;
+ v_alpha.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  v_alpha[ i_line ].set_type( ColVariable::kContinuous );
+  ++i_line;
+ }
+ add_static_variable( v_alpha , "v_alpha" );
+
+ // -----
+ std::vector< ColVariable > v_beta;
+ v_beta.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  v_beta[ i_line ].set_type( ColVariable::kContinuous );
+  ++i_line;
+ }
+ add_static_variable( v_beta , "v_beta" );
+
+ // -----
+ std::vector< ColVariable > v_z;
+ v_z.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  v_z[ i_line ].set_type( ColVariable::kContinuous );
+  ++i_line;
+ }
+ add_static_variable( v_z , "v_z" );
+
+
+ // ===== generate auxiliary constraints
+ std::vector< FRowConstraint > v_diag_const_1;
+ v_diag_const_1.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+   auto qfunc = new QuadFunction();
+   qfunc->add_variable( &v_sqrd_voltages[ node_id ] , -1.0 , 0.0 );
+   qfunc->add_variable( &v_voltage[ node_id ] , 0.0 , 1.0 );
+   v_diag_const_1[ node_id ].set_lhs( -Inf< double >() );
+   v_diag_const_1[ node_id ].set_rhs( 0.0 );
+   v_diag_const_1[ node_id ].set_function( qfunc );
+ }
+ add_static_constraint( v_diag_const_1 , "v_diag_const_1" );
+
+ // ----
+ std::vector< FRowConstraint > v_diag_const_2;
+ v_diag_const_2.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+   auto lfunc = new LinearFunction();
+   lfunc->add_variable( &v_sqrd_voltages[ node_id ] , -1.0 );
+   lfunc->add_variable( &v_voltage[ node_id ] , 
+     min_voltage[ node_id ] + max_voltage[ node_id ] );
+   v_diag_const_2[ node_id ].set_rhs( Inf< double >() );
+   v_diag_const_2[ node_id ].set_lhs( min_voltage[ node_id ] * max_voltage[ node_id ] );
+   v_diag_const_2[ node_id ].set_function( lfunc );
+ }
+ add_static_constraint( v_diag_const_2 , "v_diag_const_2" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_alpha_1;
+ v_def_alpha_1.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff = (1 - cos(delta_theta)) / pow(delta_theta, 2);
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_alpha[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_theta[ p ] , coeff );
+  lfunc->add_variable( &v_theta[ n ] , - coeff );
+  v_def_alpha_1[ i_line ].set_rhs( 1.0 );
+  v_def_alpha_1[ i_line ].set_lhs( - Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_alpha_1 , "v_def_alpha_1" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_alpha_2;
+ v_def_alpha_2.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_alpha[ i_line ] , 1.0 );
+  v_def_alpha_2[ i_line ].set_lhs( cos(delta_theta) );
+  v_def_alpha_2[ i_line ].set_rhs( Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_alpha_2 , "v_def_alpha_2" );
+
+
+ // -----
+ std::vector< FRowConstraint > v_def_beta_1;
+ v_def_beta_1.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff_cos = cos(delta_theta / 2.0 );
+  double coeff_sin = sin(delta_theta / 2.0 );
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_beta[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_theta[ p ] , - coeff_cos );
+  lfunc->add_variable( &v_theta[ n ] , coeff_cos );
+  v_def_beta_1[ i_line ].set_rhs( coeff_sin - coeff_cos * delta_theta / 2.0 );
+  v_def_beta_1[ i_line ].set_lhs( - Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_beta_1 , "v_def_beta_1" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_beta_2;
+ v_def_beta_2.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff_cos = cos(delta_theta / 2.0 );
+  double coeff_sin = sin(delta_theta / 2.0 );
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_beta[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_theta[ p ] , - coeff_cos );
+  lfunc->add_variable( &v_theta[ n ] , coeff_cos );
+  v_def_beta_2[ i_line ].set_lhs( - coeff_sin + coeff_cos * delta_theta / 2.0 );
+  v_def_beta_2[ i_line ].set_rhs( Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_beta_2 , "v_def_beta_2" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_z_1;
+ v_def_z_1.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_z[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_voltage[ p ] , - min_voltage[ n ] );
+  lfunc->add_variable( &v_voltage[ n ] , - min_voltage[ p ] );
+  v_def_z_1[ i_line ].set_lhs( - min_voltage[ n ] * min_voltage[ p ] );
+  v_def_z_1[ i_line ].set_rhs( Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_z_1 , "v_def_z_1" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_z_2;
+ v_def_z_2.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_z[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_voltage[ p ] , - max_voltage[ n ] );
+  lfunc->add_variable( &v_voltage[ n ] , - max_voltage[ p ] );
+  v_def_z_2[ i_line ].set_lhs( - max_voltage[ n ] * max_voltage[ p ] );
+  v_def_z_2[ i_line ].set_rhs( Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_z_2 , "v_def_z_2" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_z_3;
+ v_def_z_3.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_z[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_voltage[ p ] , - max_voltage[ n ] );
+  lfunc->add_variable( &v_voltage[ n ] , - min_voltage[ p ] );
+  v_def_z_3[ i_line ].set_rhs( - min_voltage[ p ] * max_voltage[ n ] );
+  v_def_z_3[ i_line ].set_lhs( - Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_z_3 , "v_def_z_3" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_z_4;
+ v_def_z_4.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_z[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_voltage[ n ] , - max_voltage[ p ] );
+  lfunc->add_variable( &v_voltage[ p ] , - min_voltage[ n ] );
+  v_def_z_4[ i_line ].set_rhs( - min_voltage[ n ] * max_voltage[ p ] );
+  v_def_z_4[ i_line ].set_lhs( - Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_z_4 , "v_def_z_4" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_c_1;
+ v_def_c_1.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff_cos = cos(delta_theta);
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] );
+  lfunc->add_variable( &v_z[ i_line ] , -coeff_cos );
+  v_def_c_1[ i_line ].set_lhs( - coeff_cos * min_voltage[ n ] * min_voltage[ p ] );
+  v_def_c_1[ i_line ].set_rhs( Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_c_1 , "v_def_c_1" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_c_2;
+ v_def_c_2.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] );
+  lfunc->add_variable( &v_z[ i_line ] , -1.0 );
+  v_def_c_2[ i_line ].set_lhs( -  max_voltage[ n ] * max_voltage[ p ] );
+  v_def_c_2[ i_line ].set_rhs( Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_c_2 , "v_def_c_2" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_c_3;
+ v_def_c_3.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff_cos = cos(delta_theta);
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] );
+  lfunc->add_variable( &v_z[ i_line ] , -coeff_cos );
+  v_def_c_3[ i_line ].set_rhs( - coeff_cos * max_voltage[ n ] * max_voltage[ p ] );
+  v_def_c_3[ i_line ].set_lhs( - Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_c_3 , "v_def_c_3" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_c_4;
+ v_def_c_4.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] );
+  lfunc->add_variable( &v_z[ i_line ] , -1.0 );
+  v_def_c_4[ i_line ].set_rhs( -  min_voltage[ n ] * min_voltage[ p ] );
+  v_def_c_4[ i_line ].set_lhs( - Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_c_4 , "v_def_c_4" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_s_1;
+ v_def_s_1.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff_sin = sin(delta_theta);
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] );
+  lfunc->add_variable( &v_z[ i_line ] , coeff_sin );
+  v_def_s_1[ i_line ].set_lhs( coeff_sin * min_voltage[ n ] * min_voltage[ p ] );
+  v_def_s_1[ i_line ].set_rhs( Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_s_1 , "v_def_s_1" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_s_2;
+ v_def_s_2.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff_sin = sin(delta_theta);
+  
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] );
+  lfunc->add_variable( &v_z[ i_line ] , - coeff_sin );
+  v_def_s_2[ i_line ].set_lhs( - coeff_sin * max_voltage[ n ] * max_voltage[ p ] );
+  v_def_s_2[ i_line ].set_rhs( Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_s_2 , "v_def_s_2" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_s_3;
+ v_def_s_3.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff_sin = sin(delta_theta);
+
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] );
+  lfunc->add_variable( &v_z[ i_line ] , - coeff_sin );
+  v_def_s_3[ i_line ].set_rhs( - coeff_sin * max_voltage[ n ] * max_voltage[ p ] );
+  v_def_s_3[ i_line ].set_lhs( - Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_s_3 , "v_def_s_3" );
+
+ // -----
+ std::vector< FRowConstraint > v_def_s_4;
+ v_def_s_4.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  Index p = start_line[ line_id ];
+  Index n = end_line[ line_id ];
+  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double coeff_sin = sin(delta_theta);
+  
+  auto lfunc = new LinearFunction();
+  lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] );
+  lfunc->add_variable( &v_z[ i_line ] , coeff_sin );
+  v_def_s_4[ i_line ].set_rhs( coeff_sin * max_voltage[ n ] * max_voltage[ p ] );
+  v_def_s_4[ i_line ].set_lhs( - Inf< double >() );
+  ++i_line;
+ }
+ add_static_constraint( v_def_s_4 , "v_def_s_4" );
+
+}
 
 /*--------------------------------------------------------------------------*/
 
