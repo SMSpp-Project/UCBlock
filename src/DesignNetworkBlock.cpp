@@ -195,14 +195,14 @@ void DesignNetworkBlock::check_data_consistency( void ) const
       ( get_min_capacity_design( l ) > 1.0 ) )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
                             "MinCapacityDesign must be <= 1 when "
-                               "|MaxCapacityDesign| == 1" ) );
+                            "|MaxCapacityDesign| == 1" ) );
 
   // Binary case (max < 0): MinCapacityDesign <= 1
   if( ( get_max_capacity_design( l ) < 0 ) &&
       ( get_min_capacity_design( l ) > 1.0 ) )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
                             "MinCapacityDesign must be <= 1 for binary "
-                               "design." ) );
+                            "design." ) );
   }
 
  // check consistency between lines and design lines

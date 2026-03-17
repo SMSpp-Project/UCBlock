@@ -1206,16 +1206,16 @@ void ACNetworkBlockSolution::read( const Block * block )
   // read the (reactive) node injection variables- - - - - - - - - - - - - -
   auto RNI = ACNB->get_const_reactive_node_injection();
   for( Index n = 0 ; n < f_number_nodes ; ++n )
-   v_node_injection_reactive[ n ] = (*(RNI++)).get_value();
+   v_node_injection_reactive[ n ] = ( *( RNI++ ) ).get_value();
   }
 
  if( ! v_reactive_flow_from.empty() ) {
   // read the (reactive) flow power variables- - - - - - - - - - - - - - - -
   auto RFli = ACNB->get_const_reactive_power_flow().begin();
   for( Index l = 0 ; l < f_number_lines ; ++l )
-   v_reactive_flow_from[ l ] = (*(RFli++)).get_value();
+   v_reactive_flow_from[ l ] = ( *( RFli++ ) ).get_value();
   for( Index l = 0 ; l < f_number_lines ; ++l )
-   v_reactive_flow_to[ l ] = (*(RFli++)).get_value();
+   v_reactive_flow_to[ l ] = ( *( RFli++ ) ).get_value();
   }
  }  // end( ACNetworkBlockSolution::read )
 
@@ -1235,16 +1235,16 @@ void ACNetworkBlockSolution::write( Block * block )
   // write the (reactive) node injection variables - - - - - - - - - - - - -
   auto RNI = ACNB->get_reactive_node_injection();
   for( Index n = 0 ; n < f_number_nodes ; ++n )
-   (*(RNI++)).set_value( v_node_injection_reactive[ n ] );
+   ( *( RNI++ ) ).set_value( v_node_injection_reactive[ n ] );
   }
 
  if( ! v_reactive_flow_from.empty() ) {
   // write the (reactive) flow power variables - - - - - - - - - - - - - - -
   auto RFli = ACNB->get_reactive_power_flow().begin();
   for( Index l = 0 ; l < f_number_lines ; ++l )
-   (*(RFli++)).set_value( v_reactive_flow_from[ l ] );
+   ( *( RFli++ ) ).set_value( v_reactive_flow_from[ l ] );
   for( Index l = 0 ; l < f_number_lines ; ++l )
-   (*(RFli++)).set_value( v_reactive_flow_to[ l ] );
+   ( *( RFli++ ) ).set_value( v_reactive_flow_to[ l ] );
   }
  }  // end( ACNetworkBlockSolution::write )
 

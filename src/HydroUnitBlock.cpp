@@ -1136,7 +1136,7 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
    throw( std::invalid_argument( "HydroUnitBlock::set_inflow: "
                                  "invalid value in subset." ) );
 
-  if( *( v_inflows.data() + i ) != *(values++) )
+  if( *( v_inflows.data() + i ) != *( values++ ) )
    identical = false;
  }
 
@@ -1149,7 +1149,7 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
   for( auto i : subset ) {
    Index t = i % f_time_horizon;
    Index r = i / f_time_horizon;
-   v_inflows[ r ][ t ] = *(values++);
+   v_inflows[ r ][ t ] = *( values++ );
   }
 
   if( constraints_generated() )
@@ -1269,7 +1269,7 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
    throw( std::invalid_argument( "HydroUnitBlock::set_inertia_power: "
                                  "invalid value in subset." ) );
 
-  if( *( v_InertiaPower.data() + i ) != *(values++) )
+  if( *( v_InertiaPower.data() + i ) != *( values++ ) )
    identical = false;
  }
 
@@ -1282,7 +1282,7 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
   for( auto i : subset ) {
    Index a = i % f_NumberArcs;
    Index t = i / f_NumberArcs;
-   v_InertiaPower[ t ][ a ] = *(values++);
+   v_InertiaPower[ t ][ a ] = *( values++ );
   }
 
   if( constraints_generated() ) {
@@ -1376,7 +1376,7 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: invalid "
                                  "index in subset: " + std::to_string( r ) ) );
 
-  const auto volume = *(values++);
+  const auto volume = *( values++ );
   if( v_InitialVolumetric[ r ] != volume ) {
    identical = false;
 
@@ -1541,7 +1541,7 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
   if( i >= v_InitialFlowRate.size() )
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_flow_rate: "
                                   "invalid value in subset." ) );
-  auto flow_rate = *(values++);
+  auto flow_rate = *( values++ );
   if( v_InitialFlowRate[ i ] != flow_rate ) {
    identical = false;
    if( not_dry_run( issuePMod ) )

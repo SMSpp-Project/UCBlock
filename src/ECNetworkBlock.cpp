@@ -542,7 +542,7 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
    throw( std::invalid_argument( "ECNetworkBlock::set_active_demand: "
                                  "invalid value in subset." ) );
 
-  auto demand = *(values++);
+  auto demand = *( values++ );
   if( *( v_ActiveDemand.data() + i ) != demand ) {
    identical = false;
 

@@ -667,7 +667,7 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
 
 void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
                                                Subset && subset ,
-					       bool ordered ,
+					                                          bool ordered ,
                                                ModParam issuePMod ,
                                                ModParam issueAMod )
 {
@@ -691,7 +691,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
   if( t >= v_MaxPower.size() )
    throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power:"
                                  " invalid value in subset." ) );
-  auto max_power = *(values++);
+  auto max_power = *( values++ );
   if( v_MaxPower[ t ] != max_power ) {
    identical = false;
    if( not_dry_run( issuePMod ) )
