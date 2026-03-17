@@ -46,7 +46,7 @@ namespace SMSpp_di_unipi_it
 /// implementation of the NetworkBlock concept for AC equations
 /** The ACNetworkBlock class derives from DCNetworkBlock and adds it the
  * numerous Variable and Constraint necessary to represent the AC version
- * of Kirchoff's laws ...
+ * of Kirchhoff's laws ...
  *
  * TO BE COMPLETED
  *
@@ -72,7 +72,7 @@ class ACNetworkBlock : public DCNetworkBlock
   * quick way to load all the basic data (topology and electrical
   * characteristics) that describe the transmission network. It extends
   * DCNetworkBlock::DCNetworkData with the (numerous) data necessary to
-  * epresent the AC version of Kirchoff's laws ...
+  * epresent the AC version of Kirchhoff's laws ...
   *
   * TO BE COMPLETED
   *

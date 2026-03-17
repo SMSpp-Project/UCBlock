@@ -610,6 +610,14 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
  NetworkBlock::generate_abstract_variables( stvv );
 
+ // read Configuration to set the formulation
+
+ Index wf = 1; // 0: PTDF, 1: cycle, 2: Kirchhoff, cycle by default
+ if( ( ! stvv ) && f_BlockConfig )
+  stvv = f_BlockConfig->f_static_variables_Configuration;
+ if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
+  wf = sci->f_value;
+
  if( ( f_NetworkData->get_lines_type() == kHVDC ) ||
      ( f_NetworkData->get_lines_type() == kAC_HVDC ) )
   ftype = PTDF;
@@ -622,9 +630,9 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
  switch( ftype ) {
  case( PTDF ) :  generate_PTDF_variables( stvv ); break;
  case( CYCLE ) : generate_CYCLE_variables( stvv ); break;
- case( KIRCHOFF ) :
+ case( KIRCHHOFF ) :
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_variables: "
-                           "line type not implemented yet" ) );
+                           "Kirchhoff line type not implemented yet" ) );
  default :
   break;
  }
@@ -701,7 +709,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  switch( ftype ) {
  case( PTDF ) :  generate_PTDF_constraints( stcc ); break;
  case( CYCLE ) : generate_CYCLE_constraints( stcc ); break;
- case( KIRCHOFF ) :
+ case( KIRCHHOFF ) :
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                            "line type not implemented yet" ) );
  default :  // the NONE case: something will be generated in derived classes
