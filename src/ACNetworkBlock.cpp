@@ -645,8 +645,9 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
 } // end( ACNetworkBlock::generate_SOCP_relaxation )
 
 /*--------------------------------------------------------------------------*/
-void ACNetworkBlock::strengthen_SOCP_relaxation( void ){
-  
+
+void ACNetworkBlock::strengthen_SOCP_relaxation( void )
+{
  // shortcut to recover mathematical notation
  auto * f_net = static_cast< ACNetworkData * >( f_NetworkData );
  const auto & start_line = f_net->get_start_line();
@@ -709,7 +710,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void ){
   ++i_line;
  }
  add_static_variable( v_z , "v_z" );
-
 
  // ===== generate auxiliary constraints
  std::vector< FRowConstraint > v_diag_const_1;
@@ -774,7 +774,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void ){
   ++i_line;
  }
  add_static_constraint( v_def_alpha_2 , "v_def_alpha_2" );
-
 
  // -----
  std::vector< FRowConstraint > v_def_beta_1;
@@ -1045,8 +1044,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void ){
   ++i_line;
  }
  add_static_constraint( v_def_s_4 , "v_def_s_4" );
-
-}
+} // end( ACNetworkBlock::strengthen_SOCP_relaxation )
 
 /*--------------------------------------------------------------------------*/
 
