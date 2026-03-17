@@ -702,7 +702,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void ){
 
  // -----
  std::vector< ColVariable > v_z;
- v_beta.resize( nb_ac_lines );
+ v_z.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
   v_z[ i_line ].set_type( ColVariable::kContinuous );
