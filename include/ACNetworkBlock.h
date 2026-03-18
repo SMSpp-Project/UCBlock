@@ -280,7 +280,41 @@ class ACNetworkBlock : public DCNetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract constraints of the ACNetworkBlock
- /** TODO: comment */
+ /** TODO: comment
+  *
+  * The above nonlinear constraints in the formulation are way more
+  * numerically instable than standard linear constraints, and therefore
+  * careful scaling is needed. This is accomplished by defining
+  * four numerical quantities:
+  *
+  * TODO: COMMENT BETTER WHAT EACH OF THESE DOES
+  *
+  * - C_v_scal => default 1.0
+  *
+  * - f_ACvS => default 0.0 (Slack for AC_voltage_definition_const)
+  *
+  * - f_scale => default 1.0 (scaling constant for the
+  *              AC_voltage_definition_const equations)
+  *
+  * - f_digits => (default 16) the # of digits in round_sig (default?)
+  *
+  * Setting these to non-default values is possible with the Configuration
+  * parameter, that is either \p stcc or, if f_BlockConfig is not nullptr,
+  * f_BlockConfig->f_static_constraints_Configuration. If the result is not
+  * nullptr, then is is a SimpleConfiguration< ... > which can contain up
+  * to four numbers, i.e.,
+  *
+  * - a SimpleConfiguration< double > for setting C_v_scal alone;
+  *
+  * - a SimpleConfiguration< std::pair< double , double > > for setting
+  *   C_v_scal and f_ACvS;
+  *
+  * - a SimpleConfiguration< std::vector< double > > of lenght up to 4 so
+  *   that its first element is C_v_scal, the second f_ACvS, the third
+  *   f_scale and the fourth f_digits (if the vector is shorter than 4
+  *   the non-present parameters are kept to their default value, if it is
+  *   longer the extra numbers are ignored).
+  */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
