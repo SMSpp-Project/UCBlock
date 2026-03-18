@@ -501,6 +501,13 @@ class ACNetworkBlock : public DCNetworkBlock
   std::vector< ColVariable > v_diff_product_voltages;
   std::vector< ColVariable > v_sqrd_voltages;
 
+  /// ----- Variables for stenghtening the SOCP relaxation by adding McCormick like inequalities
+  std::vector< ColVariable > v_voltage;
+  std::vector< ColVariable > v_theta;
+  std::vector< ColVariable > v_alpha;
+  std::vector< ColVariable > v_beta;
+  std::vector< ColVariable > v_z;
+
 /*------------------------------- constraints ------------------------------*/
 
   /// the node injection reactive power bound constraints
@@ -517,6 +524,26 @@ class ACNetworkBlock : public DCNetworkBlock
 
   // ----- Specific constraints for SOCP relaxation
   std::vector< FRowConstraint > v_socp_const;
+
+  /// ----- Variables for stenghtening the SOCP relaxation by adding McCormick like inequalities
+  std::vector< FRowConstraint > v_diag_const_1;
+  std::vector< FRowConstraint > v_diag_const_2;
+  std::vector< FRowConstraint > v_def_alpha_1;
+  std::vector< FRowConstraint > v_def_alpha_2;
+  std::vector< FRowConstraint > v_def_beta_1;
+  std::vector< FRowConstraint > v_def_beta_2;
+  std::vector< FRowConstraint > v_def_z_1;
+  std::vector< FRowConstraint > v_def_z_2;
+  std::vector< FRowConstraint > v_def_z_3;
+  std::vector< FRowConstraint > v_def_z_4;
+  std::vector< FRowConstraint > v_def_c_1;
+  std::vector< FRowConstraint > v_def_c_2;
+  std::vector< FRowConstraint > v_def_c_3;
+  std::vector< FRowConstraint > v_def_c_4;
+  std::vector< FRowConstraint > v_def_s_1;
+  std::vector< FRowConstraint > v_def_s_2;
+  std::vector< FRowConstraint > v_def_s_3;
+  std::vector< FRowConstraint > v_def_s_4;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

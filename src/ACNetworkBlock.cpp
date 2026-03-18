@@ -665,8 +665,8 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  int nb_ac_lines = AC_lines.size();
  int i_line;
 
- // ===== generate auxiliary variables
- std::vector< ColVariable > v_voltage;
+ // ===== generate auxiliary variables 
+ // 
  v_voltage.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
   v_voltage[ node_id ].set_type( ColVariable::kContinuous );
@@ -674,7 +674,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_variable( v_voltage , "v_voltage" );
 
  // -----
- std::vector< ColVariable > v_theta;
  v_theta.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
   v_theta[ node_id ].set_type( ColVariable::kContinuous );
@@ -682,7 +681,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_variable( v_theta , "v_theta" );
 
  // -----
- std::vector< ColVariable > v_alpha;
  v_alpha.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -692,7 +690,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_variable( v_alpha , "v_alpha" );
 
  // -----
- std::vector< ColVariable > v_beta;
  v_beta.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -701,8 +698,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  }
  add_static_variable( v_beta , "v_beta" );
 
- // -----
- std::vector< ColVariable > v_z;
+ // ----- 
  v_z.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -712,7 +708,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_variable( v_z , "v_z" );
 
  // ===== generate auxiliary constraints
- std::vector< FRowConstraint > v_diag_const_1;
+ // 
  v_diag_const_1.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
    auto qfunc = new QuadFunction();
@@ -725,7 +721,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_diag_const_1 , "v_diag_const_1" );
 
  // ----
- std::vector< FRowConstraint > v_diag_const_2;
  v_diag_const_2.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
    auto lfunc = new LinearFunction();
@@ -739,7 +734,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_diag_const_2 , "v_diag_const_2" );
 
  // -----
- std::vector< FRowConstraint > v_def_alpha_1;
  v_def_alpha_1.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -759,7 +753,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_alpha_1 , "v_def_alpha_1" );
 
  // -----
- std::vector< FRowConstraint > v_def_alpha_2;
  v_def_alpha_2.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -776,7 +769,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_alpha_2 , "v_def_alpha_2" );
 
  // -----
- std::vector< FRowConstraint > v_def_beta_1;
  v_def_beta_1.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -797,7 +789,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_beta_1 , "v_def_beta_1" );
 
  // -----
- std::vector< FRowConstraint > v_def_beta_2;
  v_def_beta_2.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -818,7 +809,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_beta_2 , "v_def_beta_2" );
 
  // -----
- std::vector< FRowConstraint > v_def_z_1;
  v_def_z_1.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -836,7 +826,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_z_1 , "v_def_z_1" );
 
  // -----
- std::vector< FRowConstraint > v_def_z_2;
  v_def_z_2.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -854,7 +843,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_z_2 , "v_def_z_2" );
 
  // -----
- std::vector< FRowConstraint > v_def_z_3;
  v_def_z_3.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -872,7 +860,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_z_3 , "v_def_z_3" );
 
  // -----
- std::vector< FRowConstraint > v_def_z_4;
  v_def_z_4.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -890,7 +877,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_z_4 , "v_def_z_4" );
 
  // -----
- std::vector< FRowConstraint > v_def_c_1;
  v_def_c_1.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -910,7 +896,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_c_1 , "v_def_c_1" );
 
  // -----
- std::vector< FRowConstraint > v_def_c_2;
  v_def_c_2.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -928,7 +913,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_c_2 , "v_def_c_2" );
 
  // -----
- std::vector< FRowConstraint > v_def_c_3;
  v_def_c_3.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -948,7 +932,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_c_3 , "v_def_c_3" );
 
  // -----
- std::vector< FRowConstraint > v_def_c_4;
  v_def_c_4.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -966,7 +949,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_c_4 , "v_def_c_4" );
 
  // -----
- std::vector< FRowConstraint > v_def_s_1;
  v_def_s_1.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -986,7 +968,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_s_1 , "v_def_s_1" );
 
  // -----
- std::vector< FRowConstraint > v_def_s_2;
  v_def_s_2.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -1006,7 +987,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_s_2 , "v_def_s_2" );
 
  // -----
- std::vector< FRowConstraint > v_def_s_3;
  v_def_s_3.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -1026,7 +1006,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_s_3 , "v_def_s_3" );
 
  // -----
- std::vector< FRowConstraint > v_def_s_4;
  v_def_s_4.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
