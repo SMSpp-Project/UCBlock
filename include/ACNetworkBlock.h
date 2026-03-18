@@ -278,6 +278,8 @@ class ACNetworkBlock : public DCNetworkBlock
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
+ void generate_strengthened_variables( void ); 
+
 /*--------------------------------------------------------------------------*/
  /// generate the abstract constraints of the ACNetworkBlock
  /** TODO: comment
