@@ -118,7 +118,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// destructor of IntermittentUnitBlock
  virtual ~IntermittentUnitBlock() override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -142,20 +142,28 @@ class IntermittentUnitBlock : public UnitBlock
   *   not indexed over any dimension. This sets the lower bound of the design
   *   variable \( x \) in design mode (i.e., when InvestmentCost != 0). If not
   *   provided, the default is 0. Its meaning depends on "MaxCapacityDesign":
+  *
   *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), then
-  *     \( x \in \{0,1\} \) and \( \mathrm{MinCapacityDesign} > 0 \) implies
-  *     \( x = 1 \);
+  *     \( x \in \{ 0 , 1 \} \) and \( \mathrm{MinCapacityDesign} > 0 \)
+  *     implies \( x = 1 \);
+  *
   *   - otherwise (continuous design), \( x \) is nonnegative continuous with
   *     \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
   *
   * - The scalar variable "MaxCapacityDesign", of type netCDF::NcDouble and
   *   not indexed over any dimension. This limits the design variable \( x \):
-  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{0,1\} \) (binary);
-  *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [0,1] \) when
-  *     \( \mathrm{MinCapacityDesign} = 0 \); otherwise
+  *
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{ 0 , 1\} \)
+  *     (binary);
+  *
+  *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [ 0 , 1 ] \)
+  *     when \( \mathrm{MinCapacityDesign} = 0 \); otherwise
   *     \( x \in [\,\mathrm{MinCapacityDesign},\,1] \);
+  *
   *   - if \( \mathrm{MaxCapacityDesign} > 0 \) then \( x \) is nonnegative
-  *     continuous with \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  *     continuous with \( \mathrm{MinCapacityDesign} \le x \le
+  *     \mathrm{MaxCapacityDesign} \).
+  *
   *   If not provided, the default is 1.
   *
   * - The scalar variable "MaxCapacity", of type netCDF::NcDouble and not
@@ -165,14 +173,15 @@ class IntermittentUnitBlock : public UnitBlock
   * - The variable "MinPower", of type netCDF::NcDouble and either of size 1
   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
   *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector \f$ \mathrm{MinP}
-  *   [ t ] \f$ that, for each time instant \f$ t \f$, contains the minimum
-  *   potential production value of the unit for the corresponding time step.
-  *   If "MinPower" has length 1 then \f$ \mathrm{MinP}[ t ] \f$ contains the
-  *   same value for all \f$ t \f$. Otherwise, \f$ \mathrm{MinPower}[ i ] \f$
-  *   is the fixed value of \f$ \mathrm{MinP}[ t ] \f$ for all \f$ t \f$ in
-  *   the interval \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
-  *   \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
+  *   "TimeHorizon"). This is meant to represent the vector
+  *   \f$ \mathrm{MinP} [ t ] \f$ that, for each time instant \f$ t \f$,
+  *   contains the minimum potential production value of the unit for the
+  *   corresponding time step. If "MinPower" has length 1 then
+  *   \f$ \mathrm{MinP}[ t ] \f$ contains the same value for all \f$ t \f$.
+  *   Otherwise, \f$ \mathrm{MinPower}[ i ] \f$  is the fixed value of
+  *   \f$ \mathrm{MinP}[ t ] \f$ for all \f$ t \f$ in the interval
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *         \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. If
   *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
@@ -216,8 +225,8 @@ class IntermittentUnitBlock : public UnitBlock
   *   for this unit and all time instants \f$ t \f$. Otherwise,
   *   \f$ \mathrm{InertiaPower}[ i ] \f$ is the fixed value of
   *   \f$ \mathrm{IP}[ t ] \f$ for all \f$ t \f$ in the interval
-  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}
-  *   [ i ] ] \f$, with the assumption that
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *         \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. If
   *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$ then the
@@ -237,8 +246,8 @@ class IntermittentUnitBlock : public UnitBlock
   *   contains the same value for all \f$ t \f$. Otherwise,
   *   \f$ \mathrm{ActivePowerCost}[ i ] \f$ is the fixed value of
   *   \f$ B[ t ] \f$ for all \f$ t \f$ in the interval
-  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}
-  *   [ i ] ] \f$, with the assumption that
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *         \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. If
   *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$ then the
@@ -254,8 +263,7 @@ class IntermittentUnitBlock : public UnitBlock
   * - The scalar variable "Kappa", of type netCDF::NcDouble and not indexed
   *   over any dimension. This variable multiplies the minimum and maximum
   *   power at each time instant \f$ t \f$. This variable is optional; if it
-  *   is not provided it is taken to be \f$ \kappa = 1 \f$.
-  */
+  *   is not provided it is taken to be \f$ \kappa = 1 \f$. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -283,9 +291,9 @@ class IntermittentUnitBlock : public UnitBlock
   * In addition, when \( \mathrm{MaxCapacityDesign} \ge 0 \) a lower bound
   * \( \mathrm{MinCapacityDesign} \) may be provided, yielding
   * \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
-  * When \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), \( x \in \{0,1\} \);
-  * if \( \mathrm{MinCapacityDesign} > 0 \), then \( x \) is effectively forced to 1.
-  */
+  * When \( \mathrm{MaxCapacityDesign} < 0 \) (binary design),
+  * \( x \in \{ 0 , 1 \} \); if \( \mathrm{MinCapacityDesign} > 0 \), then
+  * \( x \) is effectively forced to 1. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
