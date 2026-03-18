@@ -765,7 +765,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  // 
  v_diag_const_1.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
-   auto qfunc = new QuadFunction();
+   auto qfunc = new DQuadFunction();
    qfunc->add_variable( &v_sqrd_voltages[ node_id ] , -1.0 , 0.0 );
    qfunc->add_variable( &v_voltage[ node_id ] , 0.0 , 1.0 );
    v_diag_const_1[ node_id ].set_lhs( -Inf< double >() );
@@ -793,7 +793,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta =  PI * (v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ]) / 180.0;
   double coeff = (1 - cos(delta_theta)) / pow(delta_theta, 2);
 
   auto lfunc = new LinearFunction();
@@ -813,7 +813,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0;
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_alpha[ i_line ] , 1.0 );
@@ -830,7 +830,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0;
   double coeff_cos = cos(delta_theta / 2.0 );
   double coeff_sin = sin(delta_theta / 2.0 );
 
@@ -851,7 +851,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_cos = cos(delta_theta / 2.0 );
   double coeff_sin = sin(delta_theta / 2.0 );
 
@@ -982,7 +982,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_cos = cos(delta_theta);
 
   auto lfunc = new LinearFunction();
@@ -1040,7 +1040,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_sin = sin(delta_theta);
   
   auto lfunc = new LinearFunction();
@@ -1060,7 +1060,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_sin = sin(delta_theta);
 
   auto lfunc = new LinearFunction();
@@ -1080,7 +1080,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_sin = sin(delta_theta);
   
   auto lfunc = new LinearFunction();
