@@ -324,7 +324,7 @@ class ACNetworkBlock : public DCNetworkBlock
 /*--------------------------------------------------------------------------*/
 
  void generate_SOCP_relaxation( void );
- void strengthen_SOCP_relaxation( void );
+ void strengthen_SOCP_relaxation( double & C_v_scal );
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
@@ -562,6 +562,8 @@ class ACNetworkBlock : public DCNetworkBlock
   std::vector< FRowConstraint > v_socp_const;
 
   /// ----- Variables for stenghtening the SOCP relaxation by adding McCormick like inequalities
+  std::vector< FRowConstraint > v_volt_bounds;
+
   std::vector< FRowConstraint > v_diag_const_1;
   std::vector< FRowConstraint > v_diag_const_2;
   std::vector< FRowConstraint > v_def_alpha_1;

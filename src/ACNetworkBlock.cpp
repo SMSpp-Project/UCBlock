@@ -268,6 +268,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     }
  
  const auto number_nodes = get_number_nodes();
+ std::cout << " Found a config file yes or no " << f_digits << "\n";
+
 
  if( number_nodes <= 1 )
   return;
@@ -349,34 +351,34 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   double phi_max = PI * max_angle[ line_id ] / 180.;
   // --
   auto lfunc_1 = new LinearFunction();
-  lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
+  lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] , 1.0*pow(C_v_scal, 2) );
   lfunc_1->add_variable( & v_sum_product_voltages[ line_id ] ,
-			 -tan( phi_min ) );
+			 -tan( phi_min )*pow(C_v_scal, 2) );
   v_angle_bounds_const[ 0 ][ i_line ].set_lhs( 0.0 );
   v_angle_bounds_const[ 0 ][ i_line ].set_rhs( Inf< double >() );
   v_angle_bounds_const[ 0 ][ i_line ].set_function( lfunc_1 );
   // --
   auto lfunc_2 = new LinearFunction();
-  lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
+  lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] , 1.0*pow(C_v_scal, 2) );
   lfunc_2->add_variable( & v_sum_product_voltages[ line_id ] ,
-			 -tan( phi_max ) );
+			 -tan( phi_max )*pow(C_v_scal, 2) );
   v_angle_bounds_const[ 1 ][ i_line ].set_lhs( -Inf< double >() );
   v_angle_bounds_const[ 1 ][ i_line ].set_rhs( 0.0 );
   v_angle_bounds_const[ 1 ][ i_line ].set_function( lfunc_2 );
 
   // -- bounds on v_sum_product_voltages
   auto lfunc_3 = new LinearFunction();
-  lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
-  v_basic_bounds_const[ 0 ][ i_line ].set_lhs( std::min( cos(std::abs(phi_min)), cos(std::abs(phi_max)) )*min_voltage[ start_line[ line_id ] ]*min_voltage[ end_line[ line_id ] ] );
-  v_basic_bounds_const[ 0 ][ i_line ].set_rhs( max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ] );
+  lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0*pow(C_v_scal, 2) );
+  v_basic_bounds_const[ 0 ][ i_line ].set_lhs( std::min( cos(std::abs(phi_min)), cos(std::abs(phi_max)) )*min_voltage[ start_line[ line_id ] ]*min_voltage[ end_line[ line_id ] ]*pow(C_v_scal, 2) );
+  v_basic_bounds_const[ 0 ][ i_line ].set_rhs( max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(C_v_scal, 2) );
   v_basic_bounds_const[ 0 ][ i_line ].set_function( lfunc_3 );
 
   // -- bounds on v_diff_product_voltages
   auto lfunc_4 = new LinearFunction();
   double s_sin = std::max( sin(phi_min), sin(phi_max) );
-  lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
-  v_basic_bounds_const[ 1 ][ i_line ].set_lhs( -1.0*s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ] );
-  v_basic_bounds_const[ 1 ][ i_line ].set_rhs( s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ] );
+  lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0*pow(C_v_scal, 2) );
+  v_basic_bounds_const[ 1 ][ i_line ].set_lhs( -1.0*s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(C_v_scal, 2) );
+  v_basic_bounds_const[ 1 ][ i_line ].set_rhs( s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(C_v_scal, 2) );
   v_basic_bounds_const[ 1 ][ i_line ].set_function( lfunc_4 );
 
   ++i_line;
@@ -406,45 +408,44 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  // real part of the power flow conservation
  for( Index p = 0 ; p < number_nodes ; ++p ) {
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_node_injection[ 0 ][ p ] , -1.0 );
+  lfunc->add_variable( &v_node_injection[ 0 ][ p ] , -1.0 * C_v_scal );
   // why 0 and not the time step ?
   lfunc->add_variable( &v_sqrd_voltages[ p ] ,
-                       -Ys.coeff( p ).real() / base_mva );
+                       -Ys.coeff( p ).real() / C_v_scal );
 
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
    Index i = start_line[ line_id ];
    Index j = end_line[ line_id ];
 
    if( i == p )
-    lfunc->add_variable( &v_power_flow[ line_id ] , 1. / C_v_scal );
+    lfunc->add_variable( &v_power_flow[ line_id ] , 1.0  );
    if( j == p )
     lfunc->add_variable( &v_power_flow[ number_lines + line_id ] ,
-                         1. / C_v_scal );
+                         1.0 );
    }
-  v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] /
-					      base_mva );
+  v_power_flow_injection_const[ p ].set_both( -v_ActiveDemand[ p ] * C_v_scal );
   v_power_flow_injection_const[ p ].set_function( lfunc );
   }
 
  // imaginary part of the power flow conservation
  for( Index p = 0 ; p < number_nodes ; ++p ) {
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_reactive_node_injection[ p ] , -1.0 );
+  lfunc->add_variable( & v_reactive_node_injection[ p ] , -1.0 * C_v_scal );
   lfunc->add_variable( & v_sqrd_voltages[ p ] ,
-                       -Ys.coeff( p ).imag() / base_mva );
+                       -Ys.coeff( p ).imag() / C_v_scal );
 
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
    Index i = start_line[ line_id ];
    Index j = end_line[ line_id ];
 
    if( i == p ) lfunc->add_variable( &v_reactive_power_flow[ line_id ] ,
-                                     1. / C_v_scal );
+                                     1.0 );
    if( j == p )
     lfunc->add_variable(
-     &v_reactive_power_flow[ number_lines + line_id ] , 1. / C_v_scal );
+     &v_reactive_power_flow[ number_lines + line_id ] , 1.0 );
   }
   v_power_flow_injection_const[ number_nodes + p ].set_both(
-   -v_ReactiveDemand[ p ] / base_mva );
+   -v_ReactiveDemand[ p ] * C_v_scal );
   v_power_flow_injection_const[ number_nodes + p ].set_function( lfunc );
  }
 
@@ -456,9 +457,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  int i_dc_line = 0;
  for( auto & line_id : DC_lines ) {
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 / C_v_scal );
+  lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );
   lfunc->add_variable( &v_power_flow[ number_lines + line_id ] ,
-                       1.0 / C_v_scal );
+                       1.0 );
   v_flow_dc[ i_dc_line ].set_both( 0.0 );
   v_flow_dc[ i_dc_line ].set_function( lfunc );
   ++i_dc_line;
@@ -528,7 +529,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
                           round_sig( Yft( line_id ).imag() * f_scale ,
 				     f_digits ) );
    lfunc_1->add_variable( &v_power_flow[ line_id ] ,
-                          -( 1.0 / C_v_scal ) * f_scale );
+                          - 1.0 * C_v_scal * f_scale );
    //v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
    v_voltage_definition_const[ 0 ][ i_line ].set_lhs( -f_ACvS );
    v_voltage_definition_const[ 0 ][ i_line ].set_rhs( f_ACvS );
@@ -546,7 +547,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
                           round_sig( Yft( line_id ).real() * f_scale ,
 				     f_digits ) );
    lfunc_2->add_variable( &v_reactive_power_flow[ line_id ] ,
-                          -( 1.0 / C_v_scal ) * f_scale );
+                          - 1.0 * C_v_scal * f_scale );
    //v_voltage_definition_const[ 1 ][ i_line ].set_both( 0.0 );
    v_voltage_definition_const[ 1 ][ i_line ].set_lhs( -f_ACvS );
    v_voltage_definition_const[ 1 ][ i_line ].set_rhs( f_ACvS );
@@ -570,7 +571,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 				     f_digits ) );
    // be careful, diff is antisymmetric
    lfunc_1->add_variable( &v_power_flow[ number_lines + line_id ] ,
-                          -( 1.0 / C_v_scal ) * f_scale );
+                          - 1.0 * C_v_scal * f_scale );
    //v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
    v_voltage_definition_const[ 0 ][ i_line ].set_lhs( -f_ACvS );
    v_voltage_definition_const[ 0 ][ i_line ].set_rhs( f_ACvS );
@@ -589,7 +590,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 				     f_digits ) );
    // be careful, diff is antisymmetric
    lfunc_2->add_variable( &v_reactive_power_flow[ number_lines + line_id ] ,
-                          -( 1.0 / C_v_scal ) * f_scale );
+                          - 1.0 * C_v_scal * f_scale );
    //v_voltage_definition_const[ 1 ][ i_line ].set_both( 0.0 );
    v_voltage_definition_const[ 1 ][ i_line ].set_lhs( -f_ACvS );
    v_voltage_definition_const[ 1 ][ i_line ].set_rhs( f_ACvS );
@@ -632,7 +633,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // up to now, only SOCP relaxation is available, but it could be replaced by something else
  generate_SOCP_relaxation();
- strengthen_SOCP_relaxation();
+ // strengthen_SOCP_relaxation( C_v_scal );
 } // end( ACNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -743,7 +744,7 @@ void ACNetworkBlock::generate_strengthened_variables( void ){
  add_static_variable( v_z , "v_z" );
 }
 
-void ACNetworkBlock::strengthen_SOCP_relaxation( void )
+void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
 {
  auto * f_net = static_cast< ACNetworkData * >( f_NetworkData ); 
  const auto & start_line = f_net->get_start_line();
@@ -760,6 +761,17 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  std::vector< Index > AC_lines = f_net->get_AC_lines();
  int nb_ac_lines = AC_lines.size();
  int i_line;
+
+ // -- Add simple bounds
+ v_volt_bounds.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+   auto lfunc = new LinearFunction();
+   lfunc->add_variable( &v_voltage[ node_id ] , 1.0 );
+   v_volt_bounds[ node_id ].set_lhs( min_voltage[ node_id ] * C_v_scal );
+   v_volt_bounds[ node_id ].set_rhs( max_voltage[ node_id ] * C_v_scal );
+   v_volt_bounds[ node_id ].set_function( lfunc );
+ }
+ add_static_constraint( v_volt_bounds , "v_volt_bounds" );
 
  // ===== generate auxiliary constraints
  // 
@@ -780,9 +792,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
    auto lfunc = new LinearFunction();
    lfunc->add_variable( &v_sqrd_voltages[ node_id ] , -1.0 );
    lfunc->add_variable( &v_voltage[ node_id ] , 
-     min_voltage[ node_id ] + max_voltage[ node_id ] );
+     min_voltage[ node_id ]* C_v_scal + max_voltage[ node_id ]* C_v_scal );
    v_diag_const_2[ node_id ].set_rhs( Inf< double >() );
-   v_diag_const_2[ node_id ].set_lhs( min_voltage[ node_id ] * max_voltage[ node_id ] );
+   v_diag_const_2[ node_id ].set_lhs( min_voltage[ node_id ] * max_voltage[ node_id ]* pow(C_v_scal,2) );
    v_diag_const_2[ node_id ].set_function( lfunc );
  }
  add_static_constraint( v_diag_const_2 , "v_diag_const_2" );
@@ -792,8 +804,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  i_line = 0;
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta =  PI * (v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ]) / 180.0;
+  Index n = end_line[ line_id ];  
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  //double delta_theta =  PI * (v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ]) / 180.0;
   double coeff = (1 - cos(delta_theta)) / pow(delta_theta, 2);
 
   auto lfunc = new LinearFunction();
@@ -813,7 +826,8 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0;
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  //double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0;
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_alpha[ i_line ] , 1.0 );
@@ -830,7 +844,8 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0;
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  //double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0;
   double coeff_cos = cos(delta_theta / 2.0 );
   double coeff_sin = sin(delta_theta / 2.0 );
 
@@ -851,7 +866,8 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  //double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_cos = cos(delta_theta / 2.0 );
   double coeff_sin = sin(delta_theta / 2.0 );
 
@@ -875,10 +891,10 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_z[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_voltage[ p ] , - min_voltage[ n ] );
-  lfunc->add_variable( &v_voltage[ n ] , - min_voltage[ p ] );
+  lfunc->add_variable( &v_voltage[ p ] , - min_voltage[ n ]* C_v_scal );
+  lfunc->add_variable( &v_voltage[ n ] , - min_voltage[ p ]* C_v_scal );
   v_def_z_1[ i_line ].set_function( lfunc );
-  v_def_z_1[ i_line ].set_lhs( - min_voltage[ n ] * min_voltage[ p ] );
+  v_def_z_1[ i_line ].set_lhs( - min_voltage[ n ] * min_voltage[ p ] * pow(C_v_scal,2) );
   v_def_z_1[ i_line ].set_rhs( Inf< double >() );
   ++i_line;
  }
@@ -893,10 +909,10 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_z[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_voltage[ p ] , - max_voltage[ n ] );
-  lfunc->add_variable( &v_voltage[ n ] , - max_voltage[ p ] );
+  lfunc->add_variable( &v_voltage[ p ] , - max_voltage[ n ]* C_v_scal );
+  lfunc->add_variable( &v_voltage[ n ] , - max_voltage[ p ]* C_v_scal );
   v_def_z_2[ i_line ].set_function( lfunc );
-  v_def_z_2[ i_line ].set_lhs( - max_voltage[ n ] * max_voltage[ p ] );
+  v_def_z_2[ i_line ].set_lhs( - max_voltage[ n ] * max_voltage[ p ]*pow(C_v_scal,2) );
   v_def_z_2[ i_line ].set_rhs( Inf< double >() );
   ++i_line;
  }
@@ -911,11 +927,11 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_z[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_voltage[ p ] , - max_voltage[ n ] );
-  lfunc->add_variable( &v_voltage[ n ] , - min_voltage[ p ] );
+  lfunc->add_variable( &v_voltage[ p ] , - max_voltage[ n ] * C_v_scal );
+  lfunc->add_variable( &v_voltage[ n ] , - min_voltage[ p ] * C_v_scal );
   v_def_z_3[ i_line ].set_function( lfunc );
   v_def_z_3[ i_line ].set_lhs( - Inf< double >() );
-  v_def_z_3[ i_line ].set_rhs( - min_voltage[ p ] * max_voltage[ n ] );
+  v_def_z_3[ i_line ].set_rhs( - min_voltage[ p ] * max_voltage[ n ] * pow(C_v_scal,2) );
   ++i_line;
  }
  add_static_constraint( v_def_z_3 , "v_def_z_3" );
@@ -929,11 +945,11 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_z[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_voltage[ n ] , - max_voltage[ p ] );
-  lfunc->add_variable( &v_voltage[ p ] , - min_voltage[ n ] );
+  lfunc->add_variable( &v_voltage[ n ] , - max_voltage[ p ]* C_v_scal );
+  lfunc->add_variable( &v_voltage[ p ] , - min_voltage[ n ]* C_v_scal );
   v_def_z_4[ i_line ].set_function( lfunc );
   v_def_z_4[ i_line ].set_lhs( - Inf< double >() );
-  v_def_z_4[ i_line ].set_rhs( - min_voltage[ n ] * max_voltage[ p ] );
+  v_def_z_4[ i_line ].set_rhs( - min_voltage[ n ] * max_voltage[ p ]* pow(C_v_scal,2) );
   ++i_line;
  }
  add_static_constraint( v_def_z_4 , "v_def_z_4" );
@@ -944,15 +960,16 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  // double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0;
   double coeff_cos = cos(delta_theta);
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] );
+  lfunc->add_variable( &v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ]* pow(C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , -coeff_cos );
   v_def_c_1[ i_line ].set_function( lfunc );
-  v_def_c_1[ i_line ].set_lhs( - coeff_cos * min_voltage[ n ] * min_voltage[ p ] );
+  v_def_c_1[ i_line ].set_lhs( - coeff_cos * min_voltage[ n ] * min_voltage[ p ]* pow(C_v_scal,2) );
   v_def_c_1[ i_line ].set_rhs( Inf< double >() );
   ++i_line;
  }
@@ -967,10 +984,10 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] );
+  lfunc->add_variable( &v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ]* pow(C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , -1.0 );
   v_def_c_2[ i_line ].set_function( lfunc );
-  v_def_c_2[ i_line ].set_lhs( -  max_voltage[ n ] * max_voltage[ p ] );
+  v_def_c_2[ i_line ].set_lhs( -  max_voltage[ n ] * max_voltage[ p ] * pow(C_v_scal,2) );
   v_def_c_2[ i_line ].set_rhs( Inf< double >() );
   ++i_line;
  }
@@ -982,16 +999,17 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  // double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_cos = cos(delta_theta);
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] );
+  lfunc->add_variable( &v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ]* pow(C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , -coeff_cos );
   v_def_c_3[ i_line ].set_function( lfunc );
   v_def_c_3[ i_line ].set_lhs( - Inf< double >() );
-  v_def_c_3[ i_line ].set_rhs( - coeff_cos * max_voltage[ n ] * max_voltage[ p ] );
+  v_def_c_3[ i_line ].set_rhs( - coeff_cos * max_voltage[ n ] * max_voltage[ p ]* pow(C_v_scal,2) );
   ++i_line;
  }
  add_static_constraint( v_def_c_3 , "v_def_c_3" );
@@ -1005,11 +1023,11 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] );
+  lfunc->add_variable( &v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ]* pow(C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , -1.0 );
   v_def_c_4[ i_line ].set_function( lfunc );
   v_def_c_4[ i_line ].set_lhs( - Inf< double >() );
-  v_def_c_4[ i_line ].set_rhs( -  min_voltage[ n ] * min_voltage[ p ] );  
+  v_def_c_4[ i_line ].set_rhs( -  min_voltage[ n ] * min_voltage[ p ]* pow(C_v_scal,2) );  
   ++i_line;
  }
  add_static_constraint( v_def_c_4 , "v_def_c_4" );
@@ -1020,15 +1038,16 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ];
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  // double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0;
   double coeff_sin = sin(delta_theta);
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] );
+  lfunc->add_variable( &v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ]* pow(C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , coeff_sin );
   v_def_s_1[ i_line ].set_function( lfunc );
-  v_def_s_1[ i_line ].set_lhs( coeff_sin * min_voltage[ n ] * min_voltage[ p ] );
+  v_def_s_1[ i_line ].set_lhs( coeff_sin * min_voltage[ n ] * min_voltage[ p ] * pow(C_v_scal,2));
   v_def_s_1[ i_line ].set_rhs( Inf< double >() );
   ++i_line;
  }
@@ -1040,15 +1059,16 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  // double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_sin = sin(delta_theta);
   
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] );
+  lfunc->add_variable( &v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * pow(C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , - coeff_sin );
   v_def_s_2[ i_line ].set_function( lfunc );
-  v_def_s_2[ i_line ].set_lhs( - coeff_sin * max_voltage[ n ] * max_voltage[ p ] );
+  v_def_s_2[ i_line ].set_lhs( - coeff_sin * max_voltage[ n ] * max_voltage[ p ] * pow(C_v_scal,2) );
   v_def_s_2[ i_line ].set_rhs( Inf< double >() );
   ++i_line;
  }
@@ -1060,16 +1080,17 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  // double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_sin = sin(delta_theta);
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] );
+  lfunc->add_variable( &v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * pow(C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , - coeff_sin );
   v_def_s_3[ i_line ].set_function( lfunc );
   v_def_s_3[ i_line ].set_lhs( - Inf< double >() );
-  v_def_s_3[ i_line ].set_rhs( - coeff_sin * max_voltage[ n ] * max_voltage[ p ] );
+  v_def_s_3[ i_line ].set_rhs( - coeff_sin * max_voltage[ n ] * max_voltage[ p ] * pow(C_v_scal,2) );
   ++i_line;
  }
  add_static_constraint( v_def_s_3 , "v_def_s_3" );
@@ -1080,16 +1101,17 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : AC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
-  double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
+  double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
+  // double delta_theta = PI * ( v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ] ) / 180.0 ;
   double coeff_sin = sin(delta_theta);
   
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] );
+  lfunc->add_variable( &v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * pow(C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , coeff_sin );
   v_def_s_4[ i_line ].set_function( lfunc );
   v_def_s_4[ i_line ].set_lhs( - Inf< double >() );
-  v_def_s_4[ i_line ].set_rhs( coeff_sin * max_voltage[ n ] * max_voltage[ p ] );
+  v_def_s_4[ i_line ].set_rhs( coeff_sin * max_voltage[ n ] * max_voltage[ p ] * pow(C_v_scal,2) );
   ++i_line;
  }
  add_static_constraint( v_def_s_4 , "v_def_s_4" );
