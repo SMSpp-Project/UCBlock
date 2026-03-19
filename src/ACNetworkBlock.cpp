@@ -235,7 +235,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // read the Configuration (if any) - - - - - - - - - - - - - - - - - - - - -
 
- double C_v_scal = 1.0;  /* e.g. 100.0 */
+ double C_v_scal = 0.01;  /* e.g. 100.0 */
   // --- Slack for AC_voltage_definition_const
  double f_ACvS = 0.0;
   // --- scaling constant for the AC_voltage_definition_const equations
@@ -351,24 +351,24 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   double phi_max = PI * max_angle[ line_id ] / 180.;
   // --
   auto lfunc_1 = new LinearFunction();
-  lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] , 1.0*pow(C_v_scal, 2) );
+  lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
   lfunc_1->add_variable( & v_sum_product_voltages[ line_id ] ,
-			 -tan( phi_min )*pow(C_v_scal, 2) );
+			 -tan( phi_min ) );
   v_angle_bounds_const[ 0 ][ i_line ].set_lhs( 0.0 );
   v_angle_bounds_const[ 0 ][ i_line ].set_rhs( Inf< double >() );
   v_angle_bounds_const[ 0 ][ i_line ].set_function( lfunc_1 );
   // --
   auto lfunc_2 = new LinearFunction();
-  lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] , 1.0*pow(C_v_scal, 2) );
+  lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
   lfunc_2->add_variable( & v_sum_product_voltages[ line_id ] ,
-			 -tan( phi_max )*pow(C_v_scal, 2) );
+			 -tan( phi_max ) );
   v_angle_bounds_const[ 1 ][ i_line ].set_lhs( -Inf< double >() );
   v_angle_bounds_const[ 1 ][ i_line ].set_rhs( 0.0 );
   v_angle_bounds_const[ 1 ][ i_line ].set_function( lfunc_2 );
 
   // -- bounds on v_sum_product_voltages
   auto lfunc_3 = new LinearFunction();
-  lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0*pow(C_v_scal, 2) );
+  lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
   v_basic_bounds_const[ 0 ][ i_line ].set_lhs( std::min( cos(std::abs(phi_min)), cos(std::abs(phi_max)) )*min_voltage[ start_line[ line_id ] ]*min_voltage[ end_line[ line_id ] ]*pow(C_v_scal, 2) );
   v_basic_bounds_const[ 0 ][ i_line ].set_rhs( max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(C_v_scal, 2) );
   v_basic_bounds_const[ 0 ][ i_line ].set_function( lfunc_3 );
@@ -376,7 +376,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // -- bounds on v_diff_product_voltages
   auto lfunc_4 = new LinearFunction();
   double s_sin = std::max( sin(phi_min), sin(phi_max) );
-  lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0*pow(C_v_scal, 2) );
+  lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
   v_basic_bounds_const[ 1 ][ i_line ].set_lhs( -1.0*s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(C_v_scal, 2) );
   v_basic_bounds_const[ 1 ][ i_line ].set_rhs( s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(C_v_scal, 2) );
   v_basic_bounds_const[ 1 ][ i_line ].set_function( lfunc_4 );

@@ -713,7 +713,28 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                            "line type not implemented yet" ) );
  default :  // the NONE case: something will be generated in derived classes
-  generate_bound_constraints();  // generate flow limits
+  
+  // Uncover a Blockconfig if scaling is needed
+  double C_v_scal = 0.01;  /* e.g. 100.0 */
+  if( ( ! stcc ) && f_BlockConfig )
+  stcc = f_BlockConfig->f_static_variables_Configuration;
+
+  if( auto SCdd = dynamic_cast< SimpleConfiguration< double > * >( stcc ) )
+      C_v_scal = SCdd->f_value;
+  else
+    if( auto SCdd = dynamic_cast< SimpleConfiguration< std::pair< double ,
+                                                                double > >
+                                                     * >( stcc ) ) {
+      C_v_scal = SCdd->f_value.first;
+    }
+    else
+      if( auto SCvd = dynamic_cast< SimpleConfiguration< std::vector< double > >
+                                                      * >( stcc ) ) {
+        if( SCvd->f_value.size() > 0 )
+          C_v_scal = SCvd->f_value[ 0 ];
+      }  
+  
+  generate_bound_constraints( C_v_scal );  // generate flow limits
  }
 
  set_constraints_generated();
@@ -878,9 +899,8 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  overall_balanced_const.set_rhs( constant_term );
  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
 
- /*-----------------------------------------------------------------------*/
-
- generate_bound_constraints();  // generate flow limits
+ /*-----------------------------------------------------------------------*/ 
+ generate_bound_constraints( );  // generate flow limits
 
  }  // end( DCNetworkBlock::generate_CYCLE_constraints )
 
@@ -1123,7 +1143,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_bound_constraints( void )
+void DCNetworkBlock::generate_bound_constraints( double C_v_scal )
 {
  /*-----------------------------------------------------------------------*/
  /*-------------------- flow limits with/without design ------------------*/
@@ -1191,9 +1211,9 @@ void DCNetworkBlock::generate_bound_constraints( void )
 
    const double kappa = get_kappa( l );
    v_power_flow_limit_const[ l ].set_lhs(
-         kappa * f_NetworkData->get_min_power_flow( l ) );
+         kappa * C_v_scal * f_NetworkData->get_min_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_rhs(
-         kappa * f_NetworkData->get_max_power_flow( l ) );
+         kappa * C_v_scal * f_NetworkData->get_max_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
    }
 

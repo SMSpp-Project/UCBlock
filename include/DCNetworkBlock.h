@@ -1085,7 +1085,7 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- void generate_bound_constraints( void );
+ void generate_bound_constraints( double C_v_scal = 1.0 );
 
 /*--------------------------------------------------------------------------*/
  /// a bogus function to round nasty coefficients in the DCOPF equations
