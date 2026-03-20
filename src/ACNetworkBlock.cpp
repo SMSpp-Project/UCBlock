@@ -790,6 +790,32 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  }
  add_static_constraint( v_theta_bounds , "v_theta_bounds" );
 
+ // -- Add bounds on v_alpha
+ v_alpha_bounds.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  auto lfunc = new LinearFunction();  
+  lfunc->add_variable( &v_alpha[ i_line ] , 1.0 );
+  v_alpha_bounds[ i_line ].set_lhs( -1.0 );
+  v_alpha_bounds[ i_line ].set_rhs(  1.0  );
+  v_alpha_bounds[ i_line ].set_function( lfunc );
+  ++i_line;
+ }
+ add_static_constraint( v_alpha_bounds , "v_alpha_bounds" );
+
+ // -- Add bounds on v_beta
+ v_beta_bounds.resize( nb_ac_lines );
+ i_line = 0;
+ for( auto & line_id : AC_lines ) {
+  auto lfunc = new LinearFunction();  
+  lfunc->add_variable( &v_beta[ i_line ] , 1.0 );
+  v_beta_bounds[ i_line ].set_lhs( -1.0 );
+  v_beta_bounds[ i_line ].set_rhs(  1.0  );
+  v_beta_bounds[ i_line ].set_function( lfunc );
+  ++i_line;
+ }
+ add_static_constraint( v_beta_bounds , "v_beta_bounds" );
+
  // ===== generate auxiliary constraints
  // 
  v_diag_const_1.resize( number_nodes );
@@ -889,6 +915,8 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  add_static_constraint( v_def_z_4 , "v_def_z_4" );
 
  // -----
+ // \alpha_{n,n'} \leq 1-\frac{1-\cos(\theta^\Delta _{n,n'})}{(\theta^\Delta _{n,n'})^2}(\theta_n - \theta_{n'})^2
+ // 
  v_def_alpha_1.resize( nb_ac_lines );
  i_line = 0;
  for( auto & line_id : AC_lines ) {
@@ -898,11 +926,13 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
   //double delta_theta =  PI * (v_line_max_angle[ line_id ] - v_line_min_angle[ line_id ]) / 180.0;
   double coeff = (1 - cos(delta_theta)) / pow(delta_theta, 2);
 
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_alpha[ i_line ] , 1.0 );
-  lfunc->add_variable( &v_theta[ p ] , coeff );
-  lfunc->add_variable( &v_theta[ n ] , - coeff );
-  v_def_alpha_1[ i_line ].set_function( lfunc );
+  auto qfunc = new QuadFunction();
+  qfunc->add_variable( &v_alpha[ i_line ] , 1.0, 0.0 );
+  qfunc->add_variable( &v_theta[ p ] , 0.0, coeff );
+  qfunc->add_variable( &v_theta[ n ] , 0.0, coeff );
+  qfunc->add_nd_term( &v_theta[ p ], &v_theta[ n ], -2.0*coeff );
+  //
+  v_def_alpha_1[ i_line ].set_function( qfunc );
   v_def_alpha_1[ i_line ].set_lhs( - Inf< double >() );
   v_def_alpha_1[ i_line ].set_rhs( 1.0 );
   ++i_line;
@@ -1049,7 +1079,6 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  }
  add_static_constraint( v_def_beta_2 , "v_def_beta_2" );
 
- /*
  // -----
  v_def_s_1.resize( nb_ac_lines );
  i_line = 0;
@@ -1108,7 +1137,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
   lfunc->add_variable( &v_z[ i_line ] , - coeff_sin );
   v_def_s_3[ i_line ].set_function( lfunc );
   v_def_s_3[ i_line ].set_lhs( - Inf< double >() );
-  v_def_s_3[ i_line ].set_rhs( - coeff_sin * max_voltage[ n ] * max_voltage[ p ] * pow(C_v_scal,2) );
+  v_def_s_3[ i_line ].set_rhs( - coeff_sin * min_voltage[ n ] * min_voltage[ p ] * pow(C_v_scal,2) );
   ++i_line;
  }
  add_static_constraint( v_def_s_3 , "v_def_s_3" );
@@ -1133,7 +1162,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
   ++i_line;
  }
  add_static_constraint( v_def_s_4 , "v_def_s_4" );
- */
+ 
 
 } // end( ACNetworkBlock::strengthen_SOCP_relaxation )
 

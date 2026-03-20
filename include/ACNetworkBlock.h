@@ -562,8 +562,10 @@ class ACNetworkBlock : public DCNetworkBlock
   std::vector< FRowConstraint > v_socp_const;
 
   /// ----- Variables for stenghtening the SOCP relaxation by adding McCormick like inequalities
-  std::vector< FRowConstraint > v_volt_bounds;
-  std::vector< FRowConstraint > v_theta_bounds;
+  std::vector< FRowConstraint > v_volt_bounds;  
+  std::vector< FRowConstraint > v_theta_bounds;  
+  std::vector< FRowConstraint > v_alpha_bounds; // alpha ~ cos( theta_i - theta_j )
+  std::vector< FRowConstraint > v_beta_bounds;  // beta  ~ sin( theta_i - theta_j )
 
   std::vector< FRowConstraint > v_diag_const_1;
   std::vector< FRowConstraint > v_diag_const_2;
