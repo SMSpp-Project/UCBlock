@@ -76,21 +76,26 @@ namespace SMSpp_di_unipi_it
  * network in the Unit Commitment problem. Generally, there exist
  * three different kinds of DCNetworkBlock:
  *
- * - DCNetworkBlock with just HVDC lines; where the susceptance for all lines
- *   is equal to zero. It's also known as the Net Transfer Capacity (NTC)
- *   model.
+ * - DCNetworkBlock with just HVDC lines, i.e., where the susceptance for
+ *   all lines is equal to zero. It's also known as the Net Transfer
+ *   Capacity (NTC) model.
  *
- * - DCNetworkBlock with just AC lines; where the susceptance for all lines
- *   is a non-zero value.
+ * - DCNetworkBlock with just DC lines, i.e., where the susceptance for all
+ *   lines is a non-zero value.
  *
- * - DCNetworkBlock of a hybrid AC/HVDC grid (both AC and HVDC lines). This
- *   is a combination of first and second cases, where for some lines (not all
- *   of them) may have zero susceptance.
+ * - DCNetworkBlock of a hybrid DC-HVDC grid (both DC and HVDC lines).
+ *   This is a combination of first and second cases, where some lines but
+ *   not all of them have zero susceptance.
  *
- * These can be implemented with three different formulations:
+ * These can be implemented with at least three different formulations:
  *
-
-
+ * - The PTDF formulation using the Power Transfer Distribution Factor
+ *   matrix for the DC lines and standard flow conservation constraints
+ *   for the HVDC lines.
+ *
+ * - The CYCLE formulation ... TODO: DESCRIBE
+ *
+ * - The KIRCHHOFF formulation ... TODO: DESCRIBE
  */
 
 class DCNetworkBlock : public NetworkBlock
@@ -108,20 +113,9 @@ class DCNetworkBlock : public NetworkBlock
  *
  * NetworkBlock defines two main public types:
  *
- * - line_type, an enum defining the types of lines present in the network.
- *
  * - DCNetworkData, a small auxiliary class to bunch the basic electrical data
  *   of the transmission network.
  * @{ */
-
- /// public enum for defining the types of lines of the network
- enum line_type
- {
-  kNone = 0 ,  ///< no line
-  kAC ,        ///< AC lines
-  kHVDC ,      ///< HVDC lines
-  kAC_HVDC     ///< AC and HVDC lines
-  };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -129,8 +123,7 @@ class DCNetworkBlock : public NetworkBlock
  {
   PTDF = 0 ,
   CYCLE ,
-  KIRCHHOFF ,
-  NONE
+  KIRCHHOFF
   };
 
 /*--------------------------------------------------------------------------*/
@@ -163,14 +156,15 @@ class DCNetworkData : public NetworkData
  * @{ */
 
  /// constructor of DCNetworkData, does nothing
- DCNetworkData( void ) : f_number_lines( 0 ) , f_reference_node( 0 ) ,
- DCDF_was_computed( false ) , f_lines_type( -1 ) , f_number_branches( 0 ) ,
- cycle_basis_was_computed( false ) {}
+ DCNetworkData( void ) : f_number_lines( 0 ) , f_number_HVDC_lines( 0 ) ,
+  f_reference_node( 0 ) , DCDF_was_computed( false ) ,
+  f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
 
- /// copy constructor of DCNetworkData, does nothing
+ /*!! copy constructor of DCNetworkData, does nothing
  explicit DCNetworkData( const NetworkData * ) : f_number_lines( 0 ) ,
  f_reference_node( 0 ) , DCDF_was_computed( false ) , f_lines_type( -1 ) ,
  f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
+ !!*/
 
  /// destructor of DCNetworkData: it is virtual, and empty
  ~DCNetworkData() override = default;
@@ -320,14 +314,41 @@ class DCNetworkData : public NetworkData
  * @{ */
 
  /// returns the number of lines of the network
- /** Method for returning the number of lines of the network. When
+ /** Method for returning the total number of lines of the network. When
   * get_number_nodes() == 1 (the network is a bus), get_number_lines() == 0
   * (no self-loops are allowed, hence there is no line to be made with a
-  * single node).
-  */
+  * single node). */
 
  Index get_number_lines( void ) const { return( f_number_lines ); }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the number of HVDC lines of the network
+ /** Method for returning the number of HVDC lines of the network, i.e.,
+  * those with 0 susceptance. Clearly, get_number_HVDC_lines() <=
+  * get_number_lines(): when the two are equal this is a HVDC grid, when
+  * get_number_HVDC_lines() == 0 this is a DC grid, in between this is a
+  * DC-HVDC grid. */
+
+ Index get_number_HVDC_lines( void ) const { return( f_number_HVDC_lines ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this is a pure HVDC grid
+
+ bool is_HVDC( void ) { return( v_line_susceptance.empty() ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this is a pure DC grid
+
+ bool is_DC( void ) { return( f_number_HVDC_lines == 0 ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this is a mixed DC - HVDC grid
+
+ bool is_DC_HVDC( void ) {
+  return( ( ! v_line_susceptance.empty() ) &&
+	  ( f_number_lines > f_number_HVDC_lines ) );
+  }
+ 
 /*--------------------------------------------------------------------------*/
  /// returns the reference node of the network
  /** Method for returning the reference node of the network. */
@@ -451,7 +472,7 @@ class DCNetworkData : public NetworkData
   * @return the minimum power flow of the given \p line. */
 
  double get_min_power_flow( Index line ) const {
-  assert( line < get_number_lines() );
+  assert( line < f_number_lines );
   if( v_min_power_flow.empty() )
    return( 0 );
   return( v_min_power_flow[ line ] );
@@ -481,40 +502,54 @@ class DCNetworkData : public NetworkData
   * @return the maximum power flow of the given \p line. */
 
  double get_max_power_flow( Index line ) const {
-  assert( line < get_number_lines() );
+  assert( line < f_number_lines );
   if( v_max_power_flow.empty() )
    return( 0 );
   return( v_max_power_flow[ line ] );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the AC lines
- /** This function returns the AC lines in the transmission network.
+ /// returns the DC lines
+ /** This function returns the DC lines in the transmission network, i.e.,
+  * those with nonzero susceptance.
   * @return the AC lines in the network. */
 
- std::vector< Index > get_AC_lines( void ) const {
-  std::vector< Index > AC_lines;
-  const auto & susceptance = get_line_susceptance();
-  for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
-   if( susceptance[ line_id ] != 0. )
-    AC_lines.push_back( line_id );
+ const Subset & get_DC_lines( void ) {
+  if( v_DC_lines.empty() && f_number_HVDC_lines ) {
+   if( v_line_susceptance.empty() ) {
+    v_DC_lines.resize( f_number_lines );
+    std::iota( v_DC_lines.begin() , v_DC_lines.end() , 0 );
+    }
+   else {
+    v_DC_lines.reserve( f_number_lines - f_number_HVDC_lines );
+    for( Index line_id = 0 ; line_id < f_number_lines ; ++line_id )
+     if( v_line_susceptance[ line_id ] != 0 )
+      v_DC_lines.push_back( line_id );
+    }
    }
-  return( AC_lines );
+  return( v_DC_lines );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the DC lines
- /** This function returns the DC lines in the transmission network.
-  * @return the DC lines in the network. */
+ /// returns the HVDC lines
+ /** This function returns the HVDC lines in the transmission network, i.e.,
+  * those with zero susceptance.
+  * @return the HVDC lines in the network. */
 
- std::vector< Index > get_DC_lines( void ) const {
-  std::vector< Index > DC_lines;
-  const auto & susceptance = get_line_susceptance();
-  for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id ) {
-   if( susceptance[ line_id ] == 0. )
-    DC_lines.push_back( line_id );
+ const Subset & get_HVDC_lines( void ) {
+  if( v_HVDC_lines.empty() && ( ! v_line_susceptance.empty() ) ) {
+   if( f_number_HVDC_lines ) {
+    v_HVDC_lines.reserve( f_number_HVDC_lines );
+    for( Index line_id = 0 ; line_id < f_number_lines ; ++line_id )
+     if( v_line_susceptance[ line_id ] == 0 )
+      v_HVDC_lines.push_back( line_id );
+    }
+   else {
+    v_HVDC_lines.resize( f_number_lines );
+    std::iota( v_HVDC_lines.begin() , v_HVDC_lines.end() , 0 );
+    }
    }
-  return( DC_lines );
+  return( v_HVDC_lines );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -536,12 +571,6 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- const std::vector< double > & get_node_susceptance( void ) const {
-  return( v_node_susceptance );
-  }
-
-/*--------------------------------------------------------------------------*/
-
  int get_reducedIdx( int idx ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -551,12 +580,11 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- void compute_DCDF( const std::vector< Index > & DC_lines ,
-		    const SpMat & PTDF_matrix );
+ void compute_DCDF( c_Subset & HVDC_lines , const SpMat & PTDF_matrix );
 
 /*--------------------------------------------------------------------------*/
 
- const SpMat & get_DCDF() const { return( DCDF ); }
+ const SpMat & get_DCDF( void ) const { return( DCDF ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -564,13 +592,12 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- SpMat get_PTDF( const std::vector< Index > & AC_lines ,
-                 double tikhonov_coeff = 1e-4 );
+ SpMat get_PTDF( c_Subset & DC_lines , double tikhonov_coeff = 1e-4 );
 
 /*--------------------------------------------------------------------------*/
 
  SpMat get_PTDF( void ) {
-  std::vector< Index > all_lines( get_number_lines() );
+  Subset all_lines( f_number_lines );
   std::iota( all_lines.begin() , all_lines.end() , 0 );
   return( get_PTDF( all_lines ) );
   }
@@ -607,7 +634,7 @@ class DCNetworkData : public NetworkData
   * (resp. get_lines_in_cycles()). Note that \p root is int and not Index,
   * as it can be negative. */
 
- void compute_cycle_basis( int root = -1 , bool only_AC_lines = true );
+ void compute_cycle_basis( int root = -1 , bool only_DC_lines = true );
 
 /*--------------------------------------------------------------------------*/
 
@@ -727,38 +754,14 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the types of lines in the network
- /** This method returns the types of lines present in the network. */
-
- line_type get_lines_type( void ) {
-  if( f_lines_type < 0 ) {
-   if( get_number_lines() == 0 )
-    f_lines_type = kNone;
-   else
-    if( std::all_of( v_line_susceptance.cbegin() ,
-		     v_line_susceptance.cend() ,
-		     []( double s ) { return( s == 0.0 ); } ) )
-     f_lines_type = kHVDC;
-    else
-     if( std::all_of( v_line_susceptance.cbegin() ,
-		      v_line_susceptance.cend() ,
-		      []( double s ) { return( s != 0.0 ); } ) )
-      f_lines_type = kAC;
-     else
-      f_lines_type = kAC_HVDC;
-   }
-  return( static_cast< line_type >( f_lines_type ) );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns the efficiency of \p line (1 if not specified or not a HVDC line)
 
  double get_line_efficiency( Index line ) const {
-  assert( line < get_number_lines() );
+  assert( line < f_number_lines );
   if( is_hypergraph() )
    throw( std::logic_error( "get_line_efficiency() called but hypergraph" ) );
-  if( v_efficiency.empty() || get_line_susceptance().empty() ||
-      ( get_line_susceptance()[ line ] != 0.0 ) )
+  if( v_efficiency.empty() || v_line_susceptance.empty() ||
+      ( v_line_susceptance[ line ] != 0.0 ) )
    return( 1.0 );
   return( v_efficiency[ line ] );
   }
@@ -769,7 +772,7 @@ class DCNetworkData : public NetworkData
  const std::vector< double > & get_line_efficiencies( Index line ) const {
   if( ! is_hypergraph() )
    throw( std::logic_error(
-   "get_line_efficiencies() called but no hypergraph" ) );
+                      "get_line_efficiencies() called but no hypergraph" ) );
   return( v_h_efficiency[ line ] );
   }
 
@@ -808,26 +811,19 @@ class DCNetworkData : public NetworkData
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// number of lines of the network
- Index f_number_lines;
+ Index f_number_lines;           ///< number of lines of the network
+ Index f_number_HVDC_lines;      ///< number of HVDC lines of the network
 
  /// reference node (used in the PTDF matrix)
  Index f_reference_node;
 
- /// to not recompute each time the PTDF
- SpMat stored_B2;
- SpMat stored_B2_inv;
-
- /** A SparseMatrix resulting from the product of the PTDF and (A^dc)^T,
-  * where the latter is the incidence matrix of the pure DC lines */
- SpMat DCDF;
-
  /// A boolean to avoid forming A^dc multiple times
  bool DCDF_was_computed;
 
- int f_lines_type;            ///< the type of the network
+ /// A boolean to avoid recomputing the cycle basis algorithm
+ bool cycle_basis_was_computed;
 
- Index f_number_branches;     /// the number of branches of all hyperarcs
+ Index f_number_branches;     ///< the number of branches of all hyperarcs
 
  Subset v_start_line;         ///< vector of starting lines
 
@@ -838,9 +834,6 @@ class DCNetworkData : public NetworkData
 
  /// vector to store the susceptance of each line of the network
  std::vector< double > v_line_susceptance;
-
- /// vector to store the susceptance of each node of the network
- std::vector< double > v_node_susceptance;
 
  /// vector to store the minimum power flow at each line
  std::vector< double > v_min_power_flow;
@@ -861,14 +854,22 @@ class DCNetworkData : public NetworkData
 
  std::vector< std::string > v_line_names;  ///< Line names
 
+ Subset v_DC_lines;      ///< the indices of DC lines (susceptance > 0)
+ Subset v_HVDC_lines;    ///< the indices of HVDC lines (susceptance == 0)
+
  /// vector to store the cycle basis
  std::vector< Subset > v_cycle_basis;
 
  /// vector to store the spanning tree
  std::map< Index , Index > m_spanning_tree;
 
- /// A boolean to avoid recomputing the cycle basis algorithm
- bool cycle_basis_was_computed;
+ /// to not recompute each time the PTDF
+ SpMat stored_B2;
+ SpMat stored_B2_inv;
+
+ /** A SparseMatrix resulting from the product of the PTDF and (A^dc)^T,
+  * where the latter is the incidence matrix of the pure DC lines */
+ SpMat DCDF;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -911,15 +912,8 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the DCNetworkBlock
  /** The size of node injection variable is the number of intervals spanned
-  * this DCNetworkBlock, i.e., 1, by the number of nodes, which can be read:
-  *
-  * - if NetworkData object is not provided (basically, "NumberNodes" is not
-  *   provided or it is == 1) then the network is taken to have only one node
-  *   (a bus) and there is only one node injection variable.
-  *
-  * - if the NetworkData object is present (either in the NcGroup or because
-  *   it has been passed and NumberNodes > 1) then this variable has size
-  *   "NumberNodes", which can be read via NetworkData::get_number_nodes().
+  * this DCNetworkBlock, i.e., 1, by the number of nodes, which can be read
+  * via NetworkData::get_number_nodes().
   *
   * Depending on the susceptance for each line of the network, the
   * DCNetworkBlock class may have a power flow variable or not. In other
@@ -928,24 +922,49 @@ class DCNetworkData : public NetworkData
   * variable. It means, each HVDC line corresponds to a power flow variable,
   * then for the Net Transfer Capacity (NTC) model all lines must have a
   * power flow variable. If the susceptance value is a non-zero value, the
-  * corresponding line is called AC and there is no need to define the
-  * power flow variable for that line. Therefore, in the case of pure AC lines
+  * corresponding line is called DC and there is no need to define the
+  * power flow variable for that line. Therefore, in the case of pure DC lines
   * there is no need to define power flow variables. Consequently, for the
-  * mixed case AC-HVDC, the power flow variable must be defined only for HVDC
+  * mixed case DC-HVDC, the power flow variable must be defined only for HVDC
   * lines. Similarly, depending on the NetworkCost for each line of the
   * network, the DCNetworkBlock class may have an auxiliary variable or not.
   * In other words, if the NetworkCost is equal to zero (or not defined), the
-  * auxiliary variable and corresponding constraints will not be defined. */
+  * auxiliary variable and corresponding constraints will not be defined.
+  *
+  * TODO: IF THE ABOVE DESCRIPTION ONLY APPLIES TO SOME OF THE FORMULATIONS,
+  *       MOVE / REFACTOR AS APPROPRIATE 
+  *
+  * DCNetworkBlock supports three possible different formulations:
+  *
+  * - The PTDF formulation, whereby ... TODO: COMPLETE
+  *
+  * - The CYCLE formulation, whereby ... TODO: COMPLETE
+  *
+  * - The KIRCHHOFF formulation, whereby ... TODO: COMPLETE
+  *
+  * The different possible formulations are represented by a the int value
+  * "wf" that is obtained as follows:
+  *
+  * - if either \p stvv is not nullptr and it is a SimpleConfiguration< int >,
+  *   or f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_static_variables_Configuration is not nullptr,
+  *   and it is a SimpleConfiguration< int >, then wf is the f_value of the
+  *   SimpleConfiguration< int >
+  *
+  * - otherwise, wf is 0
+  *
+  * The chosen formulation is CYCLE if wf == 1,KIRCHHOFF if wf == 2,
+  * is PTDF in all other cases (default). */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 
- void generate_PTDF_variables( Configuration * stvv = nullptr );
+ void generate_PTDF_variables( void );
 
 /*--------------------------------------------------------------------------*/
 
- void generate_CYCLE_variables( Configuration * stvv = nullptr );
+ void generate_CYCLE_variables( void );
 
 /*--------------------------------------------------------------------------*/
  /// generate abstract constraints of DCNetworkBlock
@@ -1015,8 +1034,8 @@ class DCNetworkData : public NetworkData
   * different for each branch in hypergraph topologies). Capacity limits
   * follow (1) or (1a)–(1b).
   *
-  * \b Hybrid \b AC/HVDC \b (PTDF) \b formulation.
-  * AC flows are expressed as a linear combination of nodal injections via the
+  * \b Hybrid \b DC/HVDC \b (PTDF) \b formulation.
+  * DC flows are expressed as a linear combination of nodal injections via the
   * PTDF matrix \f$ B \f$, with coupling to DC flows through a DCDF matrix:
   * \f[
   *   F_l
@@ -1204,6 +1223,15 @@ class DCNetworkData : public NetworkData
   if( ! f_NetworkData )
    return( 0 );
   return( f_NetworkData->get_number_lines() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the susceptance of each lines of the network
+
+ double get_line_susceptance( Index l ) const {
+  if( ! ( f_NetworkData ) || f_NetworkData->get_line_susceptance().empty() )
+   return( 0 );
+  return( f_NetworkData->get_line_susceptance()[ l ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1665,7 +1693,6 @@ class DCNetworkData : public NetworkData
                  c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-
  /// change the abstract representation of the power flow limit constraints
  /** This function changes the abstract representation of the power flow limit
   * constraints for indices in \p modified_lines.
@@ -1801,8 +1828,8 @@ class DCNetworkData : public NetworkData
  /// HVDC power flow and node injection constraints
  std::vector< FRowConstraint > v_power_flow_injection_const;
 
- /// Mixed HVDC/AC node injection constraints
- std::vector< FRowConstraint > v_AC_HVDC_power_flow_const;
+ /// Mixed DC - HVDC node injection constraints
+ std::vector< FRowConstraint > v_DC_HVDC_power_flow_const;
 
  /// HVDC power flow auxiliary variable constraints
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;

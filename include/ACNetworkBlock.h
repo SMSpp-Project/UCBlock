@@ -132,6 +132,12 @@ class ACNetworkBlock : public DCNetworkBlock
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
+ const std::vector< double > & get_node_susceptance( void ) const {
+  return( v_node_susceptance );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::vector< double > & get_node_max_voltage( void ) const {
   return( v_node_max_voltage );
   }
@@ -187,12 +193,12 @@ class ACNetworkBlock : public DCNetworkBlock
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  std::vector< std::pair< std::set< Index > , std::set< Index > > >
-  get_direct_and_reverse_AClines( void ) const {
+  get_direct_and_reverse_AClines( void ) {
   std::vector< std::pair< std::set< Index > , std::set< Index > > > v(
 							get_number_nodes() );
   const auto & start_line = get_start_line();
   const auto & end_line = get_end_line();
-  for( auto & line_id : get_AC_lines() ) {
+  for( auto & line_id : get_DC_lines() ) {
    Index p = start_line[ line_id ];
    Index n = end_line[ line_id ];
    v[ p ].first.insert( line_id );
@@ -237,6 +243,7 @@ class ACNetworkBlock : public DCNetworkBlock
  std::vector< double > v_line_min_angle;
  std::vector< double > v_line_max_angle;
  std::vector< double > v_node_conductance;
+ std::vector< double > v_node_susceptance;
  std::vector< double > v_node_max_voltage;
  std::vector< double > v_node_min_voltage;
 
@@ -263,6 +270,10 @@ class ACNetworkBlock : public DCNetworkBlock
 
  explicit ACNetworkBlock( Block * f_block = nullptr )
   : DCNetworkBlock( f_block ) {}
+
+/*--------------------------------------------------------------------------*/
+
+ virtual ~ACNetworkBlock() override;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -327,9 +338,9 @@ class ACNetworkBlock : public DCNetworkBlock
  void strengthen_SOCP_relaxation( double & C_v_scal );
 
 /** @} ---------------------------------------------------------------------*/
-/*---------- METHODS FOR READING THE DATA OF THE DCNetworkBlock ------------*/
+/*---------- METHODS FOR READING THE DATA OF THE ACNetworkBlock ------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Reading the data of the NetworkBlock
+/** @name Reading the data of the ACNetworkBlock
  * @{ */
 
  std::vector< double > get_line_losses( void ) {
