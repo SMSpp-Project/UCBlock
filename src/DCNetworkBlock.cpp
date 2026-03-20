@@ -170,7 +170,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 				      v_line_susceptance.end() ,
 				      []( auto s ){ return( s == 0 ); }
 				      );
- if( ! f_number_HVDC_lines )
+ if( f_number_HVDC_lines == f_number_lines )
   v_line_susceptance.clear();
 
  ::deserialize( group , "LineName" , f_number_lines , v_line_names );
