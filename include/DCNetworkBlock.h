@@ -515,18 +515,13 @@ class DCNetworkData : public NetworkData
   * @return the AC lines in the network. */
 
  const Subset & get_DC_lines( void ) {
-  if( v_DC_lines.empty() && f_number_HVDC_lines ) {
-   if( v_line_susceptance.empty() ) {
-    v_DC_lines.resize( f_number_lines );
-    std::iota( v_DC_lines.begin() , v_DC_lines.end() , 0 );
+  if( v_DC_lines.empty() && ( ! v_line_susceptance.empty() ) ) {
+   v_DC_lines.reserve( f_number_lines - f_number_HVDC_lines );
+   for( Index line_id = 0 ; line_id < f_number_lines ; ++line_id )
+    if( v_line_susceptance[ line_id ] != 0 )
+     v_DC_lines.push_back( line_id );
     }
-   else {
-    v_DC_lines.reserve( f_number_lines - f_number_HVDC_lines );
-    for( Index line_id = 0 ; line_id < f_number_lines ; ++line_id )
-     if( v_line_susceptance[ line_id ] != 0 )
-      v_DC_lines.push_back( line_id );
-    }
-   }
+
   return( v_DC_lines );
   }
 
@@ -537,8 +532,8 @@ class DCNetworkData : public NetworkData
   * @return the HVDC lines in the network. */
 
  const Subset & get_HVDC_lines( void ) {
-  if( v_HVDC_lines.empty() && ( ! v_line_susceptance.empty() ) ) {
-   if( f_number_HVDC_lines ) {
+  if( v_HVDC_lines.empty() && ( f_number_HVDC_lines > 0 ) ) {
+   if( ! v_line_susceptance.empty() ) {
     v_HVDC_lines.reserve( f_number_HVDC_lines );
     for( Index line_id = 0 ; line_id < f_number_lines ; ++line_id )
      if( v_line_susceptance[ line_id ] == 0 )
