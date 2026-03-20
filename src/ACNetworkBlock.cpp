@@ -818,9 +818,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  add_static_constraint( v_volt_bounds , "v_volt_bounds" );
 
  // -- Add simple bounds on v_theta's 
- v_theta_bounds.resize( nb_ac_lines );
+ v_theta_bounds.resize( nb_dc_lines );
  i_line = 0;
- for( auto & line_id : AC_lines ) {
+ for( auto & line_id : DC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];  
   //
@@ -835,9 +835,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  add_static_constraint( v_theta_bounds , "v_theta_bounds" );
 
  // -- Add bounds on v_alpha
- v_alpha_bounds.resize( nb_ac_lines );
+ v_alpha_bounds.resize( nb_dc_lines );
  i_line = 0;
- for( auto & line_id : AC_lines ) {
+ for( auto & line_id : DC_lines ) {
   auto lfunc = new LinearFunction();  
   lfunc->add_variable( &v_alpha[ i_line ] , 1.0 );
   v_alpha_bounds[ i_line ].set_lhs( -1.0 );
@@ -848,9 +848,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  add_static_constraint( v_alpha_bounds , "v_alpha_bounds" );
 
  // -- Add bounds on v_beta
- v_beta_bounds.resize( nb_ac_lines );
+ v_beta_bounds.resize( nb_dc_lines );
  i_line = 0;
- for( auto & line_id : AC_lines ) {
+ for( auto & line_id : DC_lines ) {
   auto lfunc = new LinearFunction();  
   lfunc->add_variable( &v_beta[ i_line ] , 1.0 );
   v_beta_bounds[ i_line ].set_lhs( -1.0 );
@@ -904,9 +904,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  add_static_constraint( v_def_z_1 , "v_def_z_1" );
 
 // -----
- v_def_z_2.resize( nb_ac_lines );
+ v_def_z_2.resize( nb_dc_lines );
  i_line = 0;
- for( auto & line_id : AC_lines ) {
+ for( auto & line_id : DC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
 
@@ -922,9 +922,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  add_static_constraint( v_def_z_2 , "v_def_z_2" );
 
  // -----
- v_def_z_3.resize( nb_ac_lines );
+ v_def_z_3.resize( nb_dc_lines );
  i_line = 0;
- for( auto & line_id : AC_lines ) {
+ for( auto & line_id : DC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
 
@@ -940,9 +940,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  add_static_constraint( v_def_z_3 , "v_def_z_3" );
 
  // -----
- v_def_z_4.resize( nb_ac_lines );
+ v_def_z_4.resize( nb_dc_lines );
  i_line = 0;
- for( auto & line_id : AC_lines ) {
+ for( auto & line_id : DC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
 
@@ -960,9 +960,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  // -----
  // \alpha_{n,n'} \leq 1-\frac{1-\cos(\theta^\Delta _{n,n'})}{(\theta^\Delta _{n,n'})^2}(\theta_n - \theta_{n'})^2
  // 
- v_def_alpha_1.resize( nb_ac_lines );
+ v_def_alpha_1.resize( nb_dc_lines );
  i_line = 0;
- for( auto & line_id : AC_lines ) {
+ for( auto & line_id : DC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];  
   double delta_theta =  PI * ( (std::max)( v_line_max_angle[ line_id ], - v_line_min_angle[ line_id ] ) ) / 180.0;
