@@ -82,36 +82,6 @@ SMSpp_insert_in_factory_cpp_0( DCNetworkData );
 
 void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- static const std::vector< std::string > expected_dims =
- { "NumberNodes" , "NumberLines" , "NumberBranches" , "ReferenceNode" ,
-   // if called from UCBlock:
-   "TimeHorizon" , "NumberUnits" , "NumberNetworks" ,
-   "NumberElectricalGenerators"
-   };
- check_dimensions( group , expected_dims , std::cerr );
-
- // we only check for unexpected fields if "this" is a "true"
- // DCNetworkData, i.e., not any derived class. this is because derived
- // classes will likely *have* other fields that the base class does not
- // know about, and therefore it would complain about them. the idea is that
- // derived classes will then have to check for all expected fields,
- // comprised those of the base class
- // we don't do the same for dimensions as it's unlikely that derived
- // classes will introduce entirely new dimensions
- if( typeid( DCNetworkData ) == typeid( *this ) ) {
-  static const std::vector< std::string > expected_vars =
-  { "ActiveDemand" , "StartLine" , "EndLine" , "HyperArcID" ,
-    "MinPowerFlow" , "MaxPowerFlow" , "LineSusceptance" , "NetworkCost" ,
-    "NodeName" , "LineName" , "ConstantTerm" , "Efficiency" ,
-    // if called from UCBlock:
-    "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
-    "NetworkBlockClassname" , "NetworkDataClassname"
-    };
-  check_variables( group , expected_vars , std::cerr );
-  }
-#endif
-
  NetworkData::deserialize( group );
 
  if( ! deserialize_dim( group , "ReferenceNode" , f_reference_node , true ) )
@@ -249,6 +219,35 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "NodeName" , f_number_nodes , v_node_names );
 
  } // end( DCNetworkData::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > DCNetworkData::expected_dims( void ) const {
+ static const std::vector< std::string > ed =
+ { "NumberLines" , "NumberBranches" , "ReferenceNode" };
+
+ auto ret = DCNetworkData::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+
+ return( ret );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+std::vector< std::string > DCNetworkData::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "StartLine" , "EndLine" , "HyperArcID" , "MinPowerFlow" , "MaxPowerFlow" ,
+   "LineSusceptance" , "NetworkCost" , "LineName" , "Efficiency" };
+
+ auto ret = NetworkData::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -535,70 +534,74 @@ DCNetworkBlock::~DCNetworkBlock()
 
 void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- static const std::vector< std::string > expected_dims =
- { "NumberNodes" , "NumberLines" , "NumberBranches" , "ReferenceNode" };
-
- check_dimensions( group , expected_dims , std::cerr );
-
- static const std::vector< std::string > expected_vars =
- { "ActiveDemand" , "StartLine" , "EndLine" , "MinPowerFlow" ,
-   "MaxPowerFlow" , "HyperArcID" , "LineSusceptance" , "NetworkCost" ,
-   "NodeName" , "LineName" , "ConstantTerm" , "Efficiency"
-   };
- check_variables( group , expected_vars , std::cerr );
-#endif
-
- NetworkBlock::deserialize( group );
-
- // Optional variables
+ // deal with the DCNetworkData first
 
  Index NumberNodes;
  if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
-  // Since the dimension "NumberNodes" has been provided, it means that a
-  // DCNetworkData has been provided. Thus, the DCNetworkData is deserialized,
-  // and it is marked as being local
-  if( f_local_NetworkData )
-   // if the NetworkData has not been passed from UCBlock, then delete it
-   delete( f_NetworkData );
-  auto DCND = new DCNetworkData();
+  // since the dimension "NumberNodes" has been provided, a DCNetworkData
+  // is there: deserialize is and mark it as being local
+  if( f_local_NetworkData ) {   // if the NetworkData has not been passed
+   delete( f_NetworkData );     // from UCBlock, then delete it
+   f_NetworkData = nullptr;
+   }
+  auto DCND = get_new_NetworkData();
   DCND->deserialize( group );
   if( f_NetworkData &&
       ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
    throw( std::logic_error( "DCNetworkBlock::deserialize: NumberNodes "
-          "not matching between NetworkData" ) );
+			    "not matching between NetworkData" ) );
   f_NetworkData = DCND;
   f_local_NetworkData = true;
-  // A DCNetworkData has been provided. So, the size of the given vector of
-  // active demand must be equal to the number of nodes.
+  // a [DC]NetworkData has been provided, so the size of the given vector
+  // of active demand must be equal to the number of nodes.
   ::deserialize( group , "ActiveDemand" , NumberNodes , v_ActiveDemand );
   }
  else {
   // a DCNetworkData has not been provided, but the active demand may still
-  // have been provided.
+  // have been provided
 
   auto ActiveDemand = group.getVar( "ActiveDemand" );
 
   if( ! ActiveDemand.isNull() ) {
-   // The active demand has indeed been provided.
+   // the active demand has indeed been provided.
 
    if( ActiveDemand.getDimCount() != 1 )
-    // The active demand must be a one-dimensional array.
+    // the active demand must be a one-dimensional array
     throw( std::invalid_argument(
      "DCNetworkBlock::deserialize(): ActiveDemand should have one dimension, "
      "but it has " + std::to_string( ActiveDemand.getDimCount() ) ) );
 
-   // Retrieve the number of nodes from the size of the given netCDF variable.
-   const auto number_nodes = ActiveDemand.getDim( 0 ).getSize();
+   // retrieve the number of nodes from the size of the given netCDF variable
+   NumberNodes = ActiveDemand.getDim( 0 ).getSize();
 
-   // Resize the vector of active demand.
-   v_ActiveDemand.resize( number_nodes );
+   // resize the vector of active demand.
+   v_ActiveDemand.resize( NumberNodes );
 
-   // Retrieve the active demand from the netCDF variable.
+   // retrieve the active demand from the netCDF variable.
    ActiveDemand.getVar( v_ActiveDemand.data() );
    }
   }
+
+ // note: NetworkBlock::deserialize() is called after dealing with the
+ //       DCNetworkData, so that it's there when the list of expected stuff
+ //       is constructed and checked
+ NetworkBlock::deserialize( group );
+
  }  // end( DCNetworkBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > DCNetworkBlock::expected_vars( void ) const {
+ auto ret = NetworkBlock::expected_vars();
+ ret.push_back( "ActiveDemand" );
+ ret.push_back( "Kappa" );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

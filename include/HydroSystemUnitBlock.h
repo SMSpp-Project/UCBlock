@@ -191,6 +191,21 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
+#ifndef NDEBUG
+ // extends UnitBlock::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /* extends UnitBlock::expected_vars()
+  * not necessary, no new variables
+
+ std::vector< std::string > expected_vars( void ) const override;
+ */
+#endif
+
+/*--------------------------------------------------------------------------*/
+
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/

@@ -68,13 +68,12 @@ IntermittentUnitBlock::~IntermittentUnitBlock()
  Constraint::clear( min_power_Const );
  Constraint::clear( max_power_Const );
  Constraint::clear( active_power_bounds_design_Const );
-
  Constraint::clear( active_power_bounds_Const );
 
  design_bound_Const.clear();
 
  objective.clear();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -82,23 +81,6 @@ IntermittentUnitBlock::~IntermittentUnitBlock()
 
 void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-
-#ifndef NDEBUG
- static const std::vector< std::string > expected_dims =
- { "TimeHorizon" , "NumberIntervals" };
-
- check_dimensions( group , expected_dims , std::cerr );
-
- static const std::vector< std::string > expected_vars =
- { "InvestmentCost" , "MinCapacityDesign" , "MaxCapacityDesign" ,
-   "MaxCapacity" , "MinPower" , "MaxPower" , "InertiaPower" ,
-   "ActivePowerCost", "Gamma" , "Kappa", "MinReactivePower",
-   "MaxReactivePower"
-   };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  // Deserialize data from the base class
  UnitBlock::deserialize( group );
 
@@ -151,6 +133,40 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_data_consistency();
 
  }  // end( IntermittentUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+/*
+std::vector< std::string > IntermittentUnitBlock::expected_dims( void )
+ const {
+ static const std::vector< std::string > ed = { };
+
+ auto ret = UnitBlock::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+
+ return( ret );
+ }
+
+----------------------------------------------------------------------------*/
+
+std::vector< std::string > IntermittentUnitBlock::expected_vars( void )
+ const {
+ static const std::vector< std::string > ev =
+ { "InvestmentCost" , "MinCapacityDesign" , "MaxCapacityDesign" ,
+   "MaxCapacity" , "MinPower" , "MaxPower" , "InertiaPower" ,
+   "ActivePowerCost", "Gamma" , "Kappa", "MinReactivePower",
+   "MaxReactivePower"
+   };
+
+ auto ret = UnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

@@ -94,27 +94,6 @@ BatteryUnitBlock::~BatteryUnitBlock()
 
 void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- static const std::vector< std::string > expected_dims =
- { "TimeHorizon" , "NumberIntervals" };
-
- check_dimensions( group , expected_dims , std::cerr );
-
- static const std::vector< std::string > expected_vars =
- { "MinStorage" , "MaxStorage" , "InitialStorage" , "MinPower" , "MaxPower" ,
-   "InitialPower" , "ConverterMaxPower" , "MaxPrimaryPower" ,
-   "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
-   "StoringBatteryRho" , "ExtractingBatteryRho" , "Cost" , "Demand" ,
-   "Kappa" , "MaxCRateCharge" , "MaxCRateDischarge" , "BatteryMaxCapacity" ,
-   "ConverterMaxCapacity" , "BatteryInvestmentCost" ,
-   "ConverterInvestmentCost" , "BatteryMinCapacityDesign" ,
-   "ConverterMinCapacityDesign" , "BatteryMaxCapacityDesign" ,
-   "ConverterMaxCapacityDesign" , "MinReactivePower", "MaxReactivePower",
-   "ReferenceSchedule" };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  // Deserialize data from the base class
  UnitBlock::deserialize( group );
 
@@ -208,6 +187,40 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_data_consistency();  // final checks
 
  }  // end( BatteryUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > BatteryUnitBlock::expected_dims( void ) const {
+ auto ret = UnitBlock::expected_dims();
+ ret.push_back( "NumberIntervals" );
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > BatteryUnitBlock::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "MinStorage" , "MaxStorage" , "InitialStorage" , "MinPower" , "MaxPower" ,
+   "InitialPower" , "ConverterMaxPower" , "MaxPrimaryPower" ,
+   "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
+   "StoringBatteryRho" , "ExtractingBatteryRho" , "Cost" , "Demand" ,
+   "Kappa" , "MaxCRateCharge" , "MaxCRateDischarge" , "BatteryMaxCapacity" ,
+   "ConverterMaxCapacity" , "BatteryInvestmentCost" ,
+   "ConverterInvestmentCost" , "BatteryMinCapacityDesign" ,
+   "ConverterMinCapacityDesign" , "BatteryMaxCapacityDesign" ,
+   "ConverterMaxCapacityDesign" , "MinReactivePower", "MaxReactivePower",
+   "ReferenceSchedule" };
+
+ auto ret = UnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

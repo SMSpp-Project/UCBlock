@@ -71,21 +71,6 @@ SlackUnitBlock::~SlackUnitBlock()
 
 void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- static const std::vector< std::string > expected_dims =
- { "TimeHorizon" , "NumberIntervals" };
-
- check_dimensions( group , expected_dims , std::cerr );
-
- static const std::vector< std::string > expected_vars =
- { "MaxPower" , "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
-   "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia"
-   "MinReactivePower" , "MaxReactivePower"
-   };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  // Deserialize data from the base class
  UnitBlock::deserialize( group );
 
@@ -128,6 +113,39 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
    v_MinReactivePower.clear();
 
  }  // end( SlackUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+/*
+std::vector< std::string > SlackUnitBlock::expected_dims( void )
+ const {
+ static const std::vector< std::string > ed = { };
+
+ auto ret = UnitBlock::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+
+ return( ret );
+ }
+
+----------------------------------------------------------------------------*/
+
+std::vector< std::string > SlackUnitBlock::expected_vars( void )
+ const {
+ static const std::vector< std::string > ev =
+ { "MaxPower" , "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
+   "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia"
+   "MinReactivePower" , "MaxReactivePower"
+   };
+
+ auto ret = UnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

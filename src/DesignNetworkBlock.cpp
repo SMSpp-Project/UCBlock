@@ -64,7 +64,7 @@ DesignNetworkBlock::~DesignNetworkBlock()
 /*--------------------------------------------------------------------------*/
 
 void DesignNetworkBlock::deserialize_network_blocks(
-                const netCDF::NcGroup & group )
+					      const netCDF::NcGroup & group )
 {
  v_Block.clear();
  Index found = 0;
@@ -97,19 +97,6 @@ void DesignNetworkBlock::deserialize_network_blocks(
 
 void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
- #ifndef NDEBUG
-  static const std::vector< std::string > expected_dims =
-  { "NumberDesignLines" , "NumberSubNetwork" };
-
-  check_dimensions( group , expected_dims , std::cerr );
-
-  static const std::vector< std::string > expected_vars =
-  { "InvestmentCost" , "DesignLines" , "MinCapacityDesign" ,
-    "MaxCapacityDesign" };
-
-  check_variables( group , expected_vars , std::cerr );
- #endif
-
  int design_lines;
  deserialize_dim( group , "NumberDesignLines" , design_lines , false );
 
@@ -172,6 +159,33 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
  check_data_consistency();
 
  }  // end( DesignNetworkBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > DesignNetworkBlock::expected_dims( void ) const {
+ auto ret = NetworkBlock::expected_dims();
+ ret.push_back( "NumberDesignLines" );
+ ret.push_back( "NumberSubNetwork" );
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > DesignNetworkBlock::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "InvestmentCost" , "DesignLines" , "MinCapacityDesign" ,
+    "MaxCapacityDesign" };
+
+ auto ret = NetworkBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

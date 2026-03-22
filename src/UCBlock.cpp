@@ -179,40 +179,6 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
 
 void UCBlock::deserialize( const netCDF::NcGroup & group )
 {
- // check format of the netCDF::NcGroup - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-#ifndef NDEBUG
- static const std::vector< std::string > expected_dims = {
-  "TimeHorizon" , "NumberUnits" ,"NumberNetworks" , "NumberPrimaryZones" ,
-  "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" ,
-  "NumberNodes" , "NumberLines" , "NumberBranches" ,
-  "NumberElectricalGenerators" , "TotalNumberPollutantZones" ,
-  "NumberIntervals" };
-
- check_dimensions( group , expected_dims , std::cerr );
-
- static const std::vector< std::string > expected_vars = {
-  "ActivePowerDemand" , "GeneratorNode" , "PrimaryZones" , "PrimaryDemand" ,
-  "SecondaryZones" , "SecondaryDemand" , "InertiaZones" , "InertiaDemand" ,
-  "NumberPollutantZones" , "PollutantZones" , "PollutantBudget" ,
-  "PollutantRho" , "NetworkConstantTerms" , "NetworkBlockClassname" ,
-  "NetworkDataClassname" ,
-  // DCNetworkBlockData
-  "StartLine" , "EndLine" , "MinPowerFlow" , "MaxPowerFlow" ,
-  "LineSusceptance" , "NetworkCost" , "Efficiency" , "HyperArcID" ,
-  "NodeName" , "LineName" ,
-  // ACNetworkBlockData
-  "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
-  "NodeVoltageMagnitude" , "NodeVoltageAngle" , "LineResistance" ,
-  "LineReactance" , "LineMinAngle" , "LineMaxAngle" , "LineRATEA",
-  "LineRatio", "LineShiftAngle", "NodeMaxVoltage", "NodeMinVoltage",
-  // ECNetworkBlockData
-  "BuyPrice" , "SellPrice" , "RewardPrice" , "PeakTariff" };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  // mandatory dimensions- - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -601,9 +567,57 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  // finally call the method of the base class - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // note that by calling this last we ensure that the NetworkData (if any) is
+ // properly initialised so that its expected stuff can be counted when it
+ // is checked there inside
  Block::deserialize( group );
 
  }  // end( UCBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > UCBlock::expected_dims( void ) const {
+ static const std::vector< std::string > ed =
+ { "TimeHorizon" , "NumberUnits" ,"NumberNetworks" , "NumberPrimaryZones" ,
+   "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" ,
+   "NumberNodes" , "NumberLines" , "NumberBranches" ,
+   "NumberElectricalGenerators" , "TotalNumberPollutantZones" ,
+   "NumberIntervals" };
+
+ auto ret = Block::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+ if( f_NetworkData ) {
+  auto ndev = f_NetworkData->expected_dims();
+  ret.insert( ret.end() , ndev.begin() , ndev.end() );
+  }
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > UCBlock::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "ActivePowerDemand" , "GeneratorNode" , "PrimaryZones" , "PrimaryDemand" ,
+   "SecondaryZones" , "SecondaryDemand" , "InertiaZones" , "InertiaDemand" ,
+   "NumberPollutantZones" , "PollutantZones" , "PollutantBudget" ,
+   "PollutantRho" , "NetworkConstantTerms" , "NetworkBlockClassname" ,
+   "NetworkDataClassname"
+   };
+
+ auto ret = Block::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+ if( f_NetworkData ) {
+  auto nded = f_NetworkData->expected_dims();
+  ret.insert( ret.end() , nded.begin() , nded.end() );
+  }
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

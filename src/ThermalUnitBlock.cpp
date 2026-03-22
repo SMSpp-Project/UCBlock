@@ -177,37 +177,6 @@ ThermalUnitBlock::~ThermalUnitBlock()
 
 void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-
-#ifndef NDEBUG
- static const std::vector< std::string > expected_dims =
- { "TimeHorizon" , "NumberIntervals" };
-
- check_dimensions( group , expected_dims , std::cerr );
-
- // we only check for unexpected fields if "this" is a "true"
- // ThermalUnitBlock, i.e., not any derived class. this is because derived
- // classes will likely *have* other fields that the base class does not
- // know about, and therefore it would complain about them. the idea is that
- // derived classes will then have to check for all expected fields,
- // comprised those of the base class
- // we don't do the same for dimensions as it's unlikely that derived
- // classes will introduce entirely new dimensions
- if( typeid( ThermalUnitBlock ) == typeid( *this ) ) {
-  static const std::vector< std::string > expected_vars =
-  { "InvestmentCost" , "Capacity" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
-    "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "LinearTerm" ,
-    "QuadTerm" , "ConstTerm" , "StartUpCost" , "FixedConsumption" ,
-    "InertiaCommitment" , "InitialPower" , "MinUpTime" ,  "MinDownTime" ,
-    "InitUpDownTime" , "Availability" , "StartUpLimit" , "ShutDownLimit" ,
-    "MaxRampUpSteps" , "MaxRampDownSteps" , "InitialReactivePower",
-    "MaxReactivePower" , "MinReactivePower" , "ReferenceSchedule" ,
-    "FixToMaximum"
-    };
-
-  check_variables( group , expected_vars , std::cerr );
-  }
-#endif
-
  // Deserialize data from the base class
  UnitBlock::deserialize( group );
 
@@ -379,6 +348,44 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_data_consistency();
 
 }  // end( ThermalUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+/*
+std::vector< std::string > ThermalUnitBlock::expected_dims( void )
+ const {
+ static const std::vector< std::string > ed = { };
+
+ auto ret = UnitBlock::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+
+ return( ret );
+ }
+
+----------------------------------------------------------------------------*/
+
+std::vector< std::string > ThermalUnitBlock::expected_vars( void )
+ const {
+ static const std::vector< std::string > ev =
+  { "InvestmentCost" , "Capacity" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
+    "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "LinearTerm" ,
+    "QuadTerm" , "ConstTerm" , "StartUpCost" , "FixedConsumption" ,
+    "InertiaCommitment" , "InitialPower" , "MinUpTime" ,  "MinDownTime" ,
+    "InitUpDownTime" , "Availability" , "StartUpLimit" , "ShutDownLimit" ,
+    "MaxRampUpSteps" , "MaxRampDownSteps" , "InitialReactivePower",
+    "MaxReactivePower" , "MinReactivePower" , "ReferenceSchedule" ,
+    "FixToMaximum"
+    };
+
+ auto ret = UnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

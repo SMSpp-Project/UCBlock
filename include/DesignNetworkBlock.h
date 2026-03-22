@@ -150,6 +150,20 @@ class DesignNetworkBlock : public NetworkBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ // extends UnitBlock::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends UnitBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
+
+/*--------------------------------------------------------------------------*/
  /// serialize a DesignNetworkBlock into a netCDF::NcGroup
  /** Serialize a DesignNetworkBlock into a netCDF::NcGroup to the specific
   * format of a design data provider. See
@@ -203,7 +217,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
-             v_Block[ interval ] )->get_node_injection() );
+			       v_Block[ interval ] )->get_node_injection() );
   return( nullptr );
   }
 
@@ -216,7 +230,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
-       v_Block[ interval ] )->get_const_node_injection() );
+			 v_Block[ interval ] )->get_const_node_injection() );
   return( nullptr );
   }
 
@@ -226,7 +240,7 @@ class DesignNetworkBlock : public NetworkBlock
   if( v_Block.empty() )
    return( 0 );
   return( static_cast< NetworkBlock * >(
-             v_Block.front() )->get_number_nodes() );
+				     v_Block.front() )->get_number_nodes() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -271,7 +285,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_investment_cost( Index line ) const {
   if( v_InvestmentCost.empty() )
    return( 0 );
-  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+  if( auto idx = get_design_index( line ); idx < Inf< Index >() )
    return( v_InvestmentCost[ idx ] );
   else
    return( 0 );
@@ -283,7 +297,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_min_capacity_design( Index line ) const {
   if( v_MinCapacityDesign.empty() )
    return( 0 );
-  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+  if( auto idx = get_design_index( line ); idx < Inf< Index >() )
    return( v_MinCapacityDesign[ idx ] );
   else
    return( 0 );
@@ -295,7 +309,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_max_capacity_design( Index line ) const {
   if( v_MaxCapacityDesign.empty() )
    return( 1 );
-  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+  if( auto idx = get_design_index( line ); idx < Inf< Index >() )
    return( v_MaxCapacityDesign[ idx ] );
   else
    return( 1 );
@@ -322,7 +336,8 @@ class DesignNetworkBlock : public NetworkBlock
                                     v_design_lines.end() , line );
   if( ( it == v_design_lines.end() ) || ( *it != line ) )
    return( Inf< Index >() );
-  return( static_cast< Index >( std::distance( v_design_lines.begin() , it ) ) );
+  return( static_cast< Index >( std::distance( v_design_lines.begin() , it )
+				) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -363,9 +378,7 @@ class DesignNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of design variables
 
- std::vector< ColVariable > & get_design( void ) {
-  return( v_design );
-  }
+ std::vector< ColVariable > & get_design( void ) { return( v_design ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the (ordered) list of line indices that have a design variable
@@ -416,13 +429,11 @@ class DesignNetworkBlock : public NetworkBlock
    nb->set_ActiveDemand( sub );
    }
 
-#ifndef NDEBUG
-  if( offset != total_intervals )
-   throw( std::logic_error(
-     "DesignNetworkBlock::set_ActiveDemand: "
-     "unused intervals in ActiveDemand matrix"
-   ) );
-#endif
+  #ifndef NDEBUG
+   if( offset != total_intervals )
+    throw( std::logic_error( "DesignNetworkBlock::set_ActiveDemand: "
+			     "unused intervals in ActiveDemand matrix" ) );
+  #endif
   }
 
 /*--------------------------------------------------------------------------*/
@@ -436,20 +447,19 @@ class DesignNetworkBlock : public NetworkBlock
   const Index number_nodes = static_cast< Index >( apd.shape()[ 1 ] );
 
   Index offset = 0;
-
   for( auto * nb_ptr : v_Block ) {
    auto * nb = static_cast< NetworkBlock * >( nb_ptr );
    const Index ni = nb->get_number_intervals();
 
-#ifndef NDEBUG
-   if( offset + ni > total_intervals )
-    throw( std::logic_error(
-      "DesignNetworkBlock::set_ActiveDemand: "
-      "inconsistent number of intervals between UCBlock and subnetworks"
-    ) );
-#endif
+   #ifndef NDEBUG
+    if( offset + ni > total_intervals )
+     throw( std::logic_error( "DesignNetworkBlock::set_ActiveDemand: "
+			      "inconsistent number of intervals between "
+			      "UCBlock and subnetworks" ) );
+   #endif
 
-   boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ] );
+   boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ]
+					 );
 
    for( Index i = 0 ; i < ni ; ++i , ++offset ) {
     auto src_row = apd[ boost::indices[ offset ]
@@ -458,26 +468,24 @@ class DesignNetworkBlock : public NetworkBlock
    }
 
    nb->set_ReactiveDemand( sub );
-  }
+   }
 
-#ifndef NDEBUG
-  if( offset != total_intervals )
-   throw( std::logic_error(
-     "DesignNetworkBlock::set_ActiveDemand: "
-     "unused intervals in ActiveDemand matrix"
-   ) );
-#endif
+  #ifndef NDEBUG
+   if( offset != total_intervals )
+    throw( std::logic_error( "DesignNetworkBlock::set_ActiveDemand: "
+			     "unused intervals in ActiveDemand matrix" ) );
+  #endif
   }
 
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( MF_dbl_it , Subset && , bool ,
-                         ModParam , ModParam ) override final;
+ void set_active_demand( MF_dbl_it , Subset && , bool , ModParam , ModParam )
+  override final;
 
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( MF_dbl_it , Range ,
-                         ModParam , ModParam ) override final;
+ void set_active_demand( MF_dbl_it , Range , ModParam , ModParam )
+  override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -489,15 +497,14 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_constant_term( const double const_term ) override {
+ void set_constant_term( double const_term ) override {
   for( auto * nb : v_Block )
    static_cast< NetworkBlock * >( nb )->set_constant_term( const_term );
   }
 
 /*--------------------------------------------------------------------------*/
 
- void set_min_node_injection( const double min_injection ,
-                              Index node ,
+ void set_min_node_injection( double min_injection , Index node ,
                               Index interval = 0 ) override {
   if( v_Block.empty() )
    return;
@@ -509,8 +516,7 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_max_node_injection( const double max_injection ,
-                              Index node ,
+ void set_max_node_injection( double max_injection , Index node ,
                               Index interval = 0 ) override {
   if( v_Block.empty() )
    return;

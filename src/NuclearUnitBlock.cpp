@@ -93,20 +93,6 @@ NuclearUnitBlock::~NuclearUnitBlock()
 
 void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- // check all expected variables, comprised those of the base class: see
- // ThermalUnitBlock::deserialize() for the rationale
- static const std::vector< std::string > expected_vars =
- { "MinPower" , "MaxPower" , "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" ,
-   "SecondaryRho" , "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
-   "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
-   "MinDownTime" , "InitUpDownTime" , "Availability" , "ModulationTime" ,
-   "InitModulation" , "ModulationDeltaRampUp" , "ModulationDeltaRampDown"
-   };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  // call the method of the base class
  ThermalUnitBlock::deserialize( group );
 
@@ -148,6 +134,38 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_modulation_consistency();
 
  }  // end( NuclearUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+/*
+std::vector< std::string > NuclearUnitBlock::expected_dims( void )
+ const {
+ static const std::vector< std::string > ed = { };
+
+ auto ret = UnitBlock::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+
+ return( ret );
+ }
+
+----------------------------------------------------------------------------*/
+
+std::vector< std::string > NuclearUnitBlock::expected_vars( void )
+ const {
+ static const std::vector< std::string > ev =
+ { "ModulationTime" , "InitModulation" , "ModulationDeltaRampUp" ,
+   "ModulationDeltaRampDown"
+   };
+
+ auto ret = ThermalUnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

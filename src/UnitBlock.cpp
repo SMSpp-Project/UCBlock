@@ -92,7 +92,7 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
    else
     throw( std::invalid_argument(
      classname() + "::deserialize: TimeHorizon is not present in the "
-                   "netCDF input and UnitBlock does not have a father." ) );
+                   "netCDF input and UnitBlock does not have a father" ) );
   }
  } else {
   // dimension TimeHorizon is present in the netCDF input
@@ -104,9 +104,9 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
    throw( std::logic_error(
     classname() + "::deserialize: TimeHorizon is not present in the "
                   "netCDF. The (nonzero) time horizon of UnitBlock is different "
-                  "from that of its father, but they should be equal." ) );
+                  "from that of its father, but they should be equal" ) );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
@@ -152,6 +152,29 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group )
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
  }
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > UnitBlock::expected_dims( void ) const {
+ auto ret = Block::expected_dims();
+ ret.push_back( "TimeHorizon" );
+ ret.push_back( "NumberIntervals" );
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > UnitBlock::expected_vars( void ) const {
+ auto ret = Block::expected_vars();
+ ret.push_back( "ChangeIntervals" );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/

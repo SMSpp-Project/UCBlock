@@ -106,27 +106,6 @@ HydroUnitBlock::~HydroUnitBlock()
 
 void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-
-#ifndef NDEBUG
- static const std::vector< std::string > expected_dims =
- { "TimeHorizon" , "NumberIntervals" , "NumberReservoirs" , "NumberArcs" ,
-   "TotalNumberPieces"
-  };
-
- check_dimensions( group , expected_dims , std::cerr );
-
- static const std::vector< std::string > expected_vars =
- { "StartArc" , "EndArc" , "MinFlow" , "MaxFlow" , "MinVolumetric" ,
-   "MaxVolumetric" , "Inflows" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
-   "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "NumberPieces" ,
-   "LinearTerm" , "ConstantTerm" , "ActivePowerCost" , "InertiaPower" ,
-   "InitialFlowRate" , "InitialVolumetric" , "UphillFlow" , "DownhillFlow" ,
-   "MinReactivePower", "MaxReactivePower", "ReferenceSchedule"
-   };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  // Deserialize data from the base class
  UnitBlock::deserialize( group );
 
@@ -228,6 +207,40 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
                 true , true , v_change_intervals );
 
  }  // end( HydroUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > HydroUnitBlock::expected_dims( void ) const {
+ static const std::vector< std::string > ed =
+ { "NumberReservoirs" , "NumberArcs" , "TotalNumberPieces" };
+
+ auto ret = UnitBlock::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > HydroUnitBlock::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "StartArc" , "EndArc" , "MinFlow" , "MaxFlow" , "MinVolumetric" ,
+   "MaxVolumetric" , "Inflows" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
+   "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "NumberPieces" ,
+   "LinearTerm" , "ConstantTerm" , "ActivePowerCost" , "InertiaPower" ,
+   "InitialFlowRate" , "InitialVolumetric" , "UphillFlow" , "DownhillFlow" ,
+   "MinReactivePower", "MaxReactivePower", "ReferenceSchedule"
+   };
+
+ auto ret = UnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

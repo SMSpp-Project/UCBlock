@@ -113,10 +113,25 @@ class ACNetworkBlock : public DCNetworkBlock
   *   THAT'S WHAT ONE WOULD EXPECT, BUT IS SEEMS IT'S RATHER A STRING???
   *   specifying the
   *   system MVA base used for converting power into per unit quantities 
-  *   (see Matpower)
-  */
+  *   (see Matpower) */
 
  virtual void deserialize( const netCDF::NcGroup & group ) override;
+
+ /*-------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ // extends [DC]NetworkData::expected_dims()
+ /* not necessary since ACNetworkData does not have any new dimensions
+
+ std::vector< std::string > expected_dims( void ) const override;
+ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends [DC]NetworkData::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
  /** @} ------- METHODS FOR READING THE DATA OF THE ACNetworkData ----------*/
  /** @name Reading the data of the DCNetworkData
@@ -284,6 +299,25 @@ class ACNetworkBlock : public DCNetworkBlock
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ // extends [DC]NetworkBlock::expected_dims()
+ /* not necessary since ACNetworkBlock does not have any new dims save those
+  * of the ACNetworkData that are automatically taken into account.
+
+ std::vector< std::string > expected_dims( void ) const override;
+ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ // extends [DC]NetworkBlock::expected_vars()
+ /* not necessary since ACNetworkBlock does not have any new vars save those
+  * of the ACNetworkData that are automatically taken into account.
+
+ std::vector< std::string > expected_vars( void ) const override;
+ */
+#endif
+
+/*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the ACNetworkBlock
  /** TODO: comment */
 
@@ -326,8 +360,7 @@ class ACNetworkBlock : public DCNetworkBlock
   *   that its first element is C_v_scal, the second f_ACvS, the third
   *   f_scale and the fourth f_digits (if the vector is shorter than 4
   *   the non-present parameters are kept to their default value, if it is
-  *   longer the extra numbers are ignored).
-  */
+  *   longer the extra numbers are ignored). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
@@ -335,6 +368,7 @@ class ACNetworkBlock : public DCNetworkBlock
 /*--------------------------------------------------------------------------*/
 
  void generate_SOCP_relaxation( void );
+
  void strengthen_SOCP_relaxation( double & C_v_scal );
 
 /** @} ---------------------------------------------------------------------*/
@@ -519,6 +553,10 @@ class ACNetworkBlock : public DCNetworkBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+
+ ACNetworkData * get_new_NetworkData( void ) const override {
+  return( new ACNetworkData() );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/

@@ -78,26 +78,6 @@ static inline double round_sig( double value , int digits = 16 )
 
 void ACNetworkData::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- // check all expected variables, comprised those of the base class: see
- // DCNetworkData::deserialize() for the rationale
- static const std::vector< std::string > expected_vars =
-  { "ActiveDemand" , "StartLine" , "EndLine" , "HyperArcID" ,
-    "MinPowerFlow" , "MaxPowerFlow" , "LineSusceptance" , "NetworkCost" ,
-    "NodeName" , "LineName" , "ConstantTerm" , "Efficiency" ,
-    // ACNetworkData
-    "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
-    "NodeVoltageMagnitude" , "NodeVoltageAngle" , "NodeMaxVoltage" ,
-    "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio" ,
-    "LineRATEA" , "LineShiftAngle" , "LineMinAngle" , "LineMaxAngle" ,
-    // if called from UCBlock:
-    "ActivePowerDemand" , "GeneratorNode" , "NetworkConstantTerms" ,
-    "NetworkBlockClassname" , "NetworkDataClassname"
-    };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  DCNetworkData::deserialize( group );
 
  auto gbaseMVA = group.getAtt( "baseMVA" );
@@ -147,6 +127,33 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
  }  // end( ACNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+/*
+  std::vector< std::string > ACNetworkData::expected_dims( void ) const {
+  return( DCNetworkData::expected_dims() );
+  }
+*/
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+std::vector< std::string > ACNetworkData::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
+   "NodeVoltageMagnitude" , "NodeVoltageAngle" , "NodeMaxVoltage" ,
+   "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio" ,
+   "LineRATEA" , "LineShiftAngle" , "LineMinAngle" , "LineMaxAngle"
+   };
+
+ auto ret = DCNetworkData::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ACNetworkBlock ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -185,15 +192,10 @@ ACNetworkBlock::~ACNetworkBlock()
 
 void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
+ // just have to call the method of the base class: all the difference lies
+ // in the [AC]NetworkData, which is automatically deserialize()-d there
+ // thanks to get_new_NetworkData();
  DCNetworkBlock::deserialize( group );
-
- auto ACND = new ACNetworkData();
- ACND->deserialize( group );
- if( f_NetworkData &&
-     ( f_NetworkData->get_number_nodes() != ACND->get_number_nodes() ) )
-  throw( std::logic_error( "ACNetworkBlock::deserialize: NumberNodes not "
-			   "matching between NetworkData" ) );
- set_NetworkData( ACND );
 
  }  // end( ACNetworkBlock::deserialize )
 

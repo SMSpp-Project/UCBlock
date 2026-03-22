@@ -217,6 +217,20 @@ class UnitBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
+#ifndef NDEBUG
+ // extends Block::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Block::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
+
+/*--------------------------------------------------------------------------*/
+
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /** @} ---------------------------------------------------------------------*/

@@ -182,13 +182,15 @@ class BatteryUnitBlock : public UnitBlock
   * crucial dimensions "TimeHorizon", "NumberIntervals" and
   * "ChangeIntervals". The netCDF::NcGroup must then also contain:
   *
-  * - The scalar variable "BatteryInvestmentCost", of type netCDF::NcDouble and
-  *   not indexed over any dimension. When provided and nonzero, a battery design
-  *   variable \( x_b \) is created and contributes \( I_b x_b \) to the objective.
+  * - The scalar variable "BatteryInvestmentCost", of type netCDF::NcDouble
+  *   and not indexed over any dimension. When provided and nonzero, a
+  *   battery design variable \( x_b \) is created and contributes
+  *   \( I_b x_b \) to the objective.
   *
-  * - The scalar variable "ConverterInvestmentCost", of type netCDF::NcDouble and
-  *   not indexed over any dimension. When provided and nonzero, a converter design
-  *   variable \( x_c \) is created and contributes \( I_c x_c \) to the objective.
+  * - The scalar variable "ConverterInvestmentCost", of type netCDF::NcDouble
+  *   and not indexed over any dimension. When provided and nonzero, a 
+  *   converter design variable \( x_c \) is created and contributes
+  *   \( I_c x_c \) to the objective.
   *
   * - The scalar variable "BatteryMaxCapacityDesign", of type netCDF::NcDouble
   *   and not indexed over any dimension. This limits the design variable
@@ -199,42 +201,59 @@ class BatteryUnitBlock : public UnitBlock
   *     \f$ 0 \le x \le \mathrm{BatteryMaxCapacityDesign} \f$.
   *   If not provided, the default is 1.
   *
-  * - The scalar variable "BatteryMinCapacityDesign", of type netCDF::NcDouble and
-  *   not indexed over any dimension. This sets the lower bound of the battery
-  *   design variable \( x_b \) in design mode. If not provided, the default is 0.
-  *   Its meaning depends on "BatteryMaxCapacityDesign":
-  *   - if \( \mathrm{BatteryMaxCapacityDesign} < 0 \) (binary design), then
-  *     \( x_b \in \{0,1\} \) and \( \mathrm{BatteryMinCapacityDesign} > 0 \)
-  *     implies \( x_b = 1 \);
-  *   - otherwise (continuous design), \( x_b \) is nonnegative continuous with
-  *     \( \mathrm{BatteryMinCapacityDesign} \le x_b \le \mathrm{BatteryMaxCapacityDesign} \).
+  * - The scalar variable "BatteryMinCapacityDesign", of type
+  *   netCDF::NcDouble and not indexed over any dimension. This sets the
+  *   lower bound of the battery design variable \( x_b \) in design mode.
+  *   If not provided, the default is 0. Its meaning depends on
+  *   "BatteryMaxCapacityDesign":
   *
-  * - The scalar variable "ConverterMaxCapacityDesign", of type netCDF::NcDouble
-  *   and not indexed over any dimension. This limits the design variable
-  *   \f$ x_c \f$:
-  *   - if \f$ \mathrm{ConverterMaxCapacityDesign} < 0 \f$ then \f$ x_c \f$ is
-  *     binary;
+  *   - if \( \mathrm{BatteryMaxCapacityDesign} < 0 \) (binary design), then
+  *     \( x_b \in \{ 0 , 1 \} \) and
+  *     \( \mathrm{BatteryMinCapacityDesign} > 0 \) implies \( x_b = 1 \);
+  *
+  *   - otherwise (continuous design), \( x_b \) is nonnegative continuous
+  *     with
+  *     \$[
+  *       \mathrm{BatteryMinCapacityDesign} \le x_b \le
+  *       \mathrm{BatteryMaxCapacityDesign}
+  *     \$]
+  *
+  * - The scalar variable "ConverterMaxCapacityDesign", of type 
+  *   netCDF::NcDouble and not indexed over any dimension. This limits the
+  *   design variable \f$ x_c \f$:
+  *
+  *   - if \f$ \mathrm{ConverterMaxCapacityDesign} < 0 \f$ then \f$ x_c \f$
+  *     is binary;
+  *
   *   - otherwise \f$ x_c \f$ is a nonnegative continuous variable with
   *     \f$ 0 \le x \le \mathrm{ConverterMaxCapacityDesign} \f$.
+  *
   *   If not provided, the default is 1.
   *
-  * - The scalar variable "ConverterMinCapacityDesign", of type netCDF::NcDouble and
-  *   not indexed over any dimension. This sets the lower bound of the converter
-  *   design variable \( x_c \) in design mode. If not provided, the default is 0.
-  *   Its meaning depends on "ConverterMaxCapacityDesign":
-  *   - if \( \mathrm{ConverterMaxCapacityDesign} < 0 \) (binary design), then
-  *     \( x_c \in \{0,1\} \) and \( \mathrm{ConverterMinCapacityDesign} > 0 \)
-  *     implies \( x_c = 1 \);
-  *   - otherwise (continuous design), \( x_c \) is nonnegative continuous with
-  *     \( \mathrm{ConverterMinCapacityDesign} \le x_c \le \mathrm{ConverterMaxCapacityDesign} \).
+  * - The scalar variable "ConverterMinCapacityDesign", of type
+  *   netCDF::NcDouble and not indexed over any dimension. This sets the
+  *   lower bound of the converter design variable \( x_c \) in design mode.
+  *   If not provided, the default is 0. Its meaning depends on
+  *   "ConverterMaxCapacityDesign":
   *
-  * - The scalar variable "BatteryMaxCapacity", of type netCDF::NcDouble and not
-  *   indexed over any dimension. This is the maximum installable battery capacity
-  *   chosen by the user.
+  *   - if \( \mathrm{ConverterMaxCapacityDesign} < 0 \) (binary design),
+  *     then \( x_c \in \{ 0 , 1 \} \) and
+  *     \( \mathrm{ConverterMinCapacityDesign} > 0 \) implies \( x_c = 1 \);
   *
-  * - The scalar variable "ConverterMaxCapacity", of type netCDF::NcDouble and not
-  *   indexed over any dimension. This is the maximum installable converter capacity
-  *   chosen by the user.
+  *   - otherwise (continuous design), \( x_c \) is nonnegative continuous
+  *     with
+  *     \$[
+  *       \mathrm{ConverterMinCapacityDesign} \le x_c \le
+  *       \mathrm{ConverterMaxCapacityDesign}
+  *     \$]
+  *
+  * - The scalar variable "BatteryMaxCapacity", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This is the maximum installable battery
+  *   capacity chosen by the user.
+  *
+  * - The scalar variable "ConverterMaxCapacity", of type netCDF::NcDouble
+  *   and not indexed over any dimension. This is the maximum installable
+  *   converter capacity chosen by the user.
   *
   * - The variable "MinStorage", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -340,11 +359,11 @@ class BatteryUnitBlock : public UnitBlock
   *   \f$ \mathrm{MaxPP}[ t ] \f$ contains the same value for all \f$ t \f$.
   *   Otherwise, \f$ \mathrm{MaxPrimaryPower}[ i ] \f$ is the fixed value of
   *   \f$ \mathrm{MaxPP}[ t ] \f$ for all \f$ t \f$ in the interval
-  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}[ i ] ]
-  *   \f$, with the assumption that \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$.
-  *   This variable is optional; if it is not provided then
-  *   \f$ \mathrm{MaxPP}[ t ] = 0 \f$ for all \f$ t \f$. If
-  *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *         \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
+  *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. This variable is optional;
+  *   if it is not provided then \f$ \mathrm{MaxPP}[ t ] = 0 \f$ for all
+  *   \f$ t \f$. If \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
   *   mapping clearly does not require "ChangeIntervals", which in fact is not
   *   loaded.
@@ -382,11 +401,12 @@ class BatteryUnitBlock : public UnitBlock
   *   has length 1 then \f$ \mathrm{DP}[ t ] \f$ contains the same value for
   *   all \f$ t \f$. Otherwise, \f$ \mathrm{DeltaRampUp}[ i ] \f$ is the fixed
   *   value of \f$ \mathrm{DP}[ t ] \f$ for all \f$ t \f$ in the interval
-  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}[ i ] ]
-  *   \f$, with the assumption that \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$.
-  *   This variable is optional; if it is not provided then it is assumed that
-  *   \f$ \mathrm{DP}[ t ] = \mathrm{MaxP}[ t ] \f$, i.e., the unit can ramp up
-  *   by an arbitrary amount (no ramp-up constraints). If
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *        \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that 
+  *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. This variable is optional;
+  *   if it is not provided then it is assumed that
+  *   \f$ \mathrm{DP}[ t ] = \mathrm{MaxP}[ t ] \f$, i.e., the unit can ramp
+  *   up by an arbitrary amount (no ramp-up constraints). If
   *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
   *   mapping clearly does not require "ChangeIntervals", which in fact is not
@@ -516,6 +536,20 @@ class BatteryUnitBlock : public UnitBlock
   *   optional; if it is not provided it is taken to be \f$ \kappa = 1 \f$. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ // extends UnitBlock::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends UnitBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the BatteryUnitBlock

@@ -89,7 +89,6 @@ namespace SMSpp_di_unipi_it
 
 class NetworkBlock : public Block
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -122,14 +121,13 @@ class NetworkBlock : public Block
 
  class NetworkData
  {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
   public:
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -200,7 +198,7 @@ class NetworkBlock : public Block
    return( ( it->second )() );
    }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -224,6 +222,51 @@ class NetworkBlock : public Block
   * add the information that they need. */
 
   virtual void deserialize( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+ /// mimic Block::expected_dims()
+ /** Like Block::expected_dims(), returns the names of the dimensions that
+  * can be expected in the netCDF::NcGroup from where the NetworkData is
+  * being deserialized(). It is virtual since NetworkData is expected to
+  * be extended via derived classes, and so this set of names will grow.
+  * However, note that these names are *not* checked in 
+  * NetworkData::deserialize() since the object is not "alone" in that
+  * group but together with a NetworkBlock (or a UCBlock), so the
+  * assumption is that it will be the deserialize() that will do the
+  * checking (this is why the method is public).
+  *
+  * The base class version returns the set of dimensions expected by the
+  * base class. */
+  
+ virtual std::vector< std::string > expected_dims( void ) const {
+  static const std::vector< std::string > ed( { "NumberNodes" } );
+  return( ed );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// mimic Block::expected_vars()
+ /** Like Block::expected_vars(), returns the names of the variables that
+  * can be expected in the netCDF::NcGroup from where the NetworkData is
+  * being deserialized(). It is virtual since NetworkData is expected to
+  * be extended via derived classes, and so this set of names will grow.
+  * However, note that these names are *not* checked in 
+  * NetworkData::deserialize() since the object is not "alone" in that
+  * group but together with a NetworkBlock (or a UCBlock), so the
+  * assumption is that it will be the deserialize() that will do the
+  * checking (this is why the method is public).
+  *
+  * The base class version returns the set of variables expected by the
+  * base class. */
+
+ virtual std::vector< std::string > expected_vars( void ) const {
+  static const std::vector< std::string > ev( { "NodeName" } );
+  return( ev );
+  }
+
+#endif
 
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
@@ -317,7 +360,7 @@ class NetworkBlock : public Block
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  Index f_number_nodes{};  ///< number of nodes of the network
+  Index f_number_nodes;  ///< number of nodes of the network
 
   std::vector< std::string > v_node_names;  ///< node names
 
@@ -381,9 +424,51 @@ class NetworkBlock : public Block
   *   set_NetworkData(). Note that if set_NetworkData() is called, but
   *   the representation of a NetworkData object is found in the NcGroup,
   *   then the NetworkData passed by set_NetworkData() is ignored, and a new
-  *   NetworkData object is read from the NcGroup and used instead. */
+  *   NetworkData object is read from the NcGroup and used instead.
+  *
+  * - The scalar variable "ConstantTerm", of type netCDF::NcDouble,
+  *   representing the constant term in the objective value of this
+  *   NetowrkBlock. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+ /// extends Block::expected_dims()
+ /** extends Block::expected_dims() by concatenating the expected dimensions
+  * found there (if any) with those of the NetworkData (if any), since the
+  * base NetworkBlock class does not have any dimensions of its own. */
+
+ std::vector< std::string > expected_dims( void ) const override {
+  auto ret = Block::expected_dims();
+  if( auto nd = get_NetworkData() ) {
+   auto nded = nd->expected_dims();
+   ret.insert( ret.end() , nded.begin() , nded.end() );
+   }
+
+  return( ret );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Block::expected_vars()
+ /** extends Block::expected_vars() by concatenating the expected variables
+  * found there (if any) with those of the NetworkData (if any), and those
+  * of the base NetworkBlock class. */
+
+ std::vector< std::string > expected_vars( void ) const override {
+  auto ret = Block::expected_vars();
+  ret.push_back( "ConstantTerm" );
+  if( auto nd = get_NetworkData() ) {
+   auto nded = nd->expected_vars();
+   ret.insert( ret.end() , nded.begin() , nded.end() );
+   }
+
+  return( ret );
+  }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
@@ -646,7 +731,7 @@ class NetworkBlock : public Block
   if( v_MinNodeInjection.empty() )
    return( nullptr );
   return( &( v_MinNodeInjection.data()[ interval * get_number_nodes() ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum node injection of the electrical generators
@@ -856,6 +941,17 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// returns the "right" NetworkData for this NetworkBlock
+ /** Derived classew will have to extend NetworkData to add their own data;
+  * this method can be called at any level of the hierarchy to generate the
+  * "right" (bottom-most) NetworkData for the object. */
+ 
+ virtual NetworkData * get_new_NetworkData( void ) const {
+  return( new NetworkData() );
+  }
+
 /*--------------------------------------------------------------------------*/
 
  /// states that the Variable of the NetworkBlock have been generated

@@ -143,15 +143,11 @@ class DCNetworkBlock : public NetworkBlock
 
 class DCNetworkData : public NetworkData
 {
-/*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
 
  public:
 
-/** @} ---------------------------------------------------------------------*/
-/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
-/*--------------------------------------------------------------------------*/
+/** @} ---------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /** @name Constructor and Destructor
  * @{ */
 
@@ -169,9 +165,7 @@ class DCNetworkData : public NetworkData
  /// destructor of DCNetworkData: it is virtual, and empty
  ~DCNetworkData() override = default;
 
-/** @} ---------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
+/** @} --------------------- OTHER INITIALIZATIONS -------------------------*/
 /** @name Other initializations
  * @{ */
 
@@ -307,9 +301,21 @@ class DCNetworkData : public NetworkData
 
  virtual void deserialize( const netCDF::NcGroup & group ) override;
 
-/** @} ---------------------------------------------------------------------*/
-/*------------ METHODS FOR READING THE DATA OF THE DCNetworkData -----------*/
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /// extends NetworkData::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends NetworkData::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
+
+/** @} ------- METHODS FOR READING THE DATA OF THE DCNetworkData -----------*/
 /** @name Reading the data of the DCNetworkData
  * @{ */
 
@@ -779,9 +785,7 @@ class DCNetworkData : public NetworkData
   return( v_line_names );
   }
 
-/** @} ---------------------------------------------------------------------*/
-/*-------------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
-/*--------------------------------------------------------------------------*/
+/** @} --------------- METHODS FOR SAVING THE DCNetworkData ----------------*/
 /** @name Methods for loading, printing & saving the DCNetworkData
  * @{ */
 
@@ -793,19 +797,13 @@ class DCNetworkData : public NetworkData
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-/*--------------------------------------------------------------------------*/
 
  protected:
 
-/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
-/*--------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
-/*--------------------------------------------------------------------------*/
 
  Index f_number_lines;           ///< number of lines of the network
  Index f_number_HVDC_lines;      ///< number of HVDC lines of the network
@@ -867,21 +865,15 @@ class DCNetworkData : public NetworkData
   * where the latter is the incidence matrix of the pure DC lines */
  SpMat DCDF;
 
-/*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
-/*--------------------------------------------------------------------------*/
 
  private:
 
-/*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;
 
-/*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
-/*--------------------------------------------------------------------------*/
 
  };  // end( class( DCNetworkData ) )
 
@@ -904,6 +896,72 @@ class DCNetworkData : public NetworkData
  /// destructor of DCNetworkBlock
 
  virtual ~DCNetworkBlock() override;
+
+/** @} ---------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ * @{ */
+
+ /// deserialize a DCNetworkBlock out of a netCDF::NcGroup
+ /** Deserialize a DCNetworkBlock out of a netCDF::NcGroup, which should
+  * contain all the data necessary to describe a NetworkBlock (see
+  * NetworkBlock::deserialize()) and possibly the following variables:
+  *
+  * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
+  *   the dimension "NumberNodes". If the NetworkData object description is
+  *   present in the NcGroup this is the dimension "NumberNodes", but the
+  *   NetworkData object is optional and it may not be there. Thus, if
+  *   "NumberNodes" is not there and "ActiveDemand" is, then the NetworkData
+  *   object must have been passed by set_NetworkData(), and the number of
+  *   nodes can be read via NetworkData::get_number_nodes(). However,
+  *   "ActiveDemand" itself is optional. If it is not found in the NcGroup,
+  *   then it *must* be passed (either before or after the call to
+  *   deserialize()) by calling set_active_demand(). Since both groups of data
+  *   are optional, the NcGroup  can actually be empty which implies that all
+  *   the data will be (or have been) passed by the in-memory interface. In
+  *   this case, it would clearly be preferable to *entirely avoid the
+  *   NcGroup to be there*, and in fact UCBlock has provisions for the
+  *   NcGroup describing the NetworkBlock to be optional [see the comments to
+  *   UCBlock::deserialize()].
+  *
+  * - The variable "Kappa", of type netCDF::NcDouble and either being a
+  *   scalar or indexed over the number of lines. If this variable is a
+  *   scalar, let's say k, then it is assumed that Kappa[ l ] = k for each line
+  *   l in {0, ..., get_number_lines() - 1}. For each line l in {0, ...,
+  *   get_number_lines() - 1}, Kappa[ l ] is the constant that multiplies the
+  *   minimum and maximum flow in the flow limit constraints. This variable is
+  *   optional. If it is not provided, it is assumed that Kappa[ l ] == 1 for
+  *   each line l in {0, ..., get_number_lines() - 1}. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ // extends NetworkBlock::expected_dims()
+ /* not necessary since DCNetworkBlock does not have any new dims save those
+  * of the DCNetworkData that are automatically taken into account.
+
+ std::vector< std::string > expected_dims( void ) const override;
+ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends NetworkBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
+
+/*--------------------------------------------------------------------------*/
+ /// loads the DCNetworkBlock instance from a stream
+ /** Like load( std::istream & ), if there is any Solver attached to this
+  * DCNetworkBlock then a NBModification (the "nuclear option") is issued.
+  */
+
+ void load( std::istream & input , char frmt = 0 ) override {
+  throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the DCNetworkBlock
@@ -1574,59 +1632,6 @@ class DCNetworkData : public NetworkData
   }
 
 /** @} ---------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- * @{ */
-
- /// deserialize a DCNetworkBlock out of a netCDF::NcGroup
- /** Deserialize a DCNetworkBlock out of a netCDF::NcGroup, which should
-  * contain all the data necessary to describe a NetworkBlock (see
-  * NetworkBlock::deserialize()) and possibly the following variables:
-  *
-  * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberNodes". If the NetworkData object description is
-  *   present in the NcGroup this is the dimension "NumberNodes", but the
-  *   NetworkData object is optional and it may not be there. Thus, if
-  *   "NumberNodes" is not there and "ActiveDemand" is, then the NetworkData
-  *   object must have been passed by set_NetworkData(), and the number of
-  *   nodes can be read via NetworkData::get_number_nodes(). However,
-  *   "ActiveDemand" itself is optional. If it is not found in the NcGroup,
-  *   then it *must* be passed (either before or after the call to
-  *   deserialize()) by calling set_active_demand(). Since both groups of data
-  *   are optional, the NcGroup  can actually be empty which implies that all
-  *   the data will be (or have been) passed by the in-memory interface. In
-  *   this case, it would clearly be preferable to *entirely avoid the
-  *   NcGroup to be there*, and in fact UCBlock has provisions for the
-  *   NcGroup describing the NetworkBlock to be optional [see the comments to
-  *   UCBlock::deserialize()].
-  *
-  * - The variable "Kappa", of type netCDF::NcDouble and either being a
-  *   scalar or indexed over the number of lines. If this variable is a
-  *   scalar, let's say k, then it is assumed that Kappa[ l ] = k for each line
-  *   l in {0, ..., get_number_lines() - 1}. For each line l in {0, ...,
-  *   get_number_lines() - 1}, Kappa[ l ] is the constant that multiplies the
-  *   minimum and maximum flow in the flow limit constraints. This variable is
-  *   optional. If it is not provided, it is assumed that Kappa[ l ] == 1 for
-  *   each line l in {0, ..., get_number_lines() - 1}.
-  *
-  * - The variable "ConstantTerm", of type netCDF::NcDouble and containing the
-  *   constant term.
-  */
-
- void deserialize( const netCDF::NcGroup & group ) override;
-
-/*--------------------------------------------------------------------------*/
- /// loads the DCNetworkBlock instance from memory
- /** Like load( std::istream & ), if there is any Solver attached to this
-  * DCNetworkBlock then a NBModification (the "nuclear option") is issued.
-  */
-
- void load( std::istream & input , char frmt = 0 ) override {
-  throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
-  }
-
-/**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR SAVING THE DCNetworkBlock ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the DCNetworkBlock
@@ -1783,6 +1788,10 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+
+ DCNetworkData * get_new_NetworkData( void ) const override {
+  return( new DCNetworkData() );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
