@@ -228,7 +228,7 @@ std::vector< std::string > DCNetworkData::expected_dims( void ) const {
  static const std::vector< std::string > ed =
  { "NumberLines" , "NumberBranches" , "ReferenceNode" };
 
- auto ret = DCNetworkData::expected_dims();
+ auto ret = NetworkData::expected_dims();
  ret.insert( ret.end() , ed.begin() , ed.end() );
 
  return( ret );

@@ -888,7 +888,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( double & C_v_scal )
  }
  add_static_constraint( v_diag_const_2 , "v_diag_const_2" );
  
- v_def_alpha_1.resize( nb_dc_lines );
+ v_def_z_1.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {
   Index p = start_line[ line_id ];

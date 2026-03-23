@@ -119,7 +119,7 @@ std::vector< std::string > ECNetworkData::expected_dims( void ) const {
 
 std::vector< std::string > ECNetworkData::expected_vars( void ) const {
  static const std::vector< std::string > ev =
- {"BuyPrice" , "SellPrice" , "RewardPrice" , "PeakTariff"  };
+ { "BuyPrice" , "SellPrice" , "RewardPrice" , "PeakTariff" };
 
  auto ret = NetworkData::expected_vars();
  ret.insert( ret.end() , ev.begin() , ev.end() );

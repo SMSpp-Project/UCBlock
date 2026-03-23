@@ -295,21 +295,19 @@ class SlackUnitBlock : public UnitBlock
  * This unit just contains the bounds constraint on the ActivePower for
  * positive (1) and negative (2) value of P^{mx}_t, Primary and Secondary 
  * spinning reserve variables as below:
- *
  * \f[
- *      0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}, P^{mx}_t >= 0  \quad (1)
+ *   0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}, P^{mx}_t >= 0
+ *   \quad (1)
  * \f]
- *
  * \f[
- *      P^{mx}_t \leq p^{ac}_t \leq 0 \quad t \in \mathcal{T}, P^{mx}_t >= 0  \quad (2)
+ *   P^{mx}_t \leq p^{ac}_t \leq 0 \quad t \in \mathcal{T}, P^{mx}_t >= 0
+ *   \quad (2)
  * \f]
- *
  * \f[
- *      0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}                \quad (3)
+ *   0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}      \quad (3)
  * \f]
- *
  * \f[
- *      0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}                \quad (4)
+ *   0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}      \quad (4)
  * \f]
  *
  * Note that the inertia is "produced" by the commitment variable u_t, which

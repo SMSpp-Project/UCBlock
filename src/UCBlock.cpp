@@ -610,7 +610,7 @@ std::vector< std::string > UCBlock::expected_vars( void ) const {
  auto ret = Block::expected_vars();
  ret.insert( ret.end() , ev.begin() , ev.end() );
  if( f_NetworkData ) {
-  auto nded = f_NetworkData->expected_dims();
+  auto nded = f_NetworkData->expected_vars();
   ret.insert( ret.end() , nded.begin() , nded.end() );
   }
 
