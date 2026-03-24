@@ -346,7 +346,7 @@ class HydroSystemUnitBlock : public UnitBlock
  /** Basically just calls the method in all the sub-Block. */
 
  void set_reserve_vars( unsigned char what = 0 ) override {
-  UnitBlock:set_reserve_vars( what );
+  UnitBlock::set_reserve_vars( what );
   for( auto * b : v_Block )
    if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) )
     ub->set_reserve_vars( what );
@@ -357,7 +357,7 @@ class HydroSystemUnitBlock : public UnitBlock
  /** Basically just calls the method in all the sub-Block. */
 
  void set_reactive_power( bool reactive = false ) override {
-  UnitBlock:set_reactive_power( reactive );
+  UnitBlock::set_reactive_power( reactive );
   for( auto * b : v_Block )
    if( auto ub = dynamic_cast< HydroUnitBlock * >( b ) )
     ub->set_reactive_power( reactive );

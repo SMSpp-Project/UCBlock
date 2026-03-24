@@ -154,48 +154,69 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
-  /// Call the parent class 
-  UnitBlock::generate_abstract_variables( stvv );
+ // call the parent class - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- // Commitment Variable
+ UnitBlock::generate_abstract_variables( stvv );
+
+ // Commitment Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  if( reserve_vars & 4u ) {  // if UCBlock has inertia demand variables
   if( ! v_MaxInertia.empty() ) {  // if unit produces any inertia reserve
    v_commitment.resize( f_time_horizon );
    for( auto & i : v_commitment )
     i.set_type( ColVariable::kPosUnitary );
    add_static_variable( v_commitment , "u_slack" );
+   }
   }
- }
 
- // Active Power Variable
+ // Active Power Variable - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  v_active_power.resize( f_time_horizon );
  for( auto & var : v_active_power )
   var.set_type( ColVariable::kContinuous );
  add_static_variable( v_active_power , "p_slack" );
 
- // Primary Spinning Reserve Variable
+ // Reactive Power Variable, if any - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( f_reactive_power ) {
+  v_reactive_power.resize( f_time_horizon );
+  for( auto & var : v_reactive_power )
+   var.set_type( ColVariable::kNonNegative );
+  add_static_variable( v_reactive_power , "q_intermittent" );
+  }
+
+ // Primary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
   if( ! v_MaxPrimaryPower.empty() ) {  // if unit produces any primary reserve
    v_primary_spinning_reserve.resize( f_time_horizon );
    for( auto & var : v_primary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
    add_static_variable( v_primary_spinning_reserve , "pr_slack" );
+   }
   }
- }
 
- // Secondary Spinning Reserve Variable
+ // Secondary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
-  if( ! v_MaxSecondaryPower.empty() ) {  // if unit produces any secondary reserve
-   v_secondary_spinning_reserve.resize( f_time_horizon );
+  if( ! v_MaxSecondaryPower.empty() ) {  // if unit produces any secondary
+   v_secondary_spinning_reserve.resize( f_time_horizon );  // reserve
    for( auto & var : v_secondary_spinning_reserve )
     var.set_type( ColVariable::kNonNegative );
    add_static_variable( v_secondary_spinning_reserve , "sr_slack" );
+   }
   }
- }
+
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  set_variables_generated();
 
-}  // end( SlackUnitBlock::generate_abstract_variables )
+ }  // end( SlackUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
