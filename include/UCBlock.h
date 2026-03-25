@@ -133,7 +133,6 @@ class UCBlock : public Block
  /// constructor of UCBlock, taking possibly a pointer of its father Block
 
  explicit UCBlock( Block * father = nullptr )
-    f_total_number_pollutant_zones( 0 ),
   : Block( father ) , f_time_horizon( 0 ) , f_has_reactive( false ) ,
     f_number_networks( 0 ) , f_number_units( 0 ) ,
     f_number_elc_generators( 0 ), f_total_number_pollutant_zones( 0 ) ,
