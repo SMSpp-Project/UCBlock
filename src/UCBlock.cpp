@@ -100,6 +100,7 @@ static inline LinearFunction * LF( Function * f ) {
 UCBlock::~UCBlock()
 {
  Constraint::clear( v_node_injection_Const );
+ Constraint::clear( v_reactive_node_injection_Const );
  Constraint::clear( v_PrimaryDemand_Const );
  Constraint::clear( v_SecondaryDemand_Const );
  Constraint::clear( v_InertiaDemand_Const );
