@@ -696,36 +696,21 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- switch( ftype ) {
- case( PTDF ) :  generate_PTDF_constraints( stcc ); break;
- case( CYCLE ) : generate_CYCLE_constraints( stcc ); break;
- case( KIRCHHOFF ) :
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                           "line type not implemented yet" ) );
- default :  // the NONE case: something will be generated in derived classes
-  
-  // Uncover a Blockconfig if scaling is needed
-  double C_v_scal = 0.01;  /* e.g. 100.0 */
-  if( ( ! stcc ) && f_BlockConfig )
+ f_C_v_scal = 1;
+ if( ( ! stcc ) && f_BlockConfig )
   stcc = f_BlockConfig->f_static_variables_Configuration;
 
-  if( auto SCdd = dynamic_cast< SimpleConfiguration< double > * >( stcc ) )
-      C_v_scal = SCdd->f_value;
-  else
-    if( auto SCdd = dynamic_cast< SimpleConfiguration< std::pair< double ,
-                                                                double > >
-                                                     * >( stcc ) ) {
-      C_v_scal = SCdd->f_value.first;
-    }
-    else
-      if( auto SCvd = dynamic_cast< SimpleConfiguration< std::vector< double > >
-                                                      * >( stcc ) ) {
-        if( SCvd->f_value.size() > 0 )
-          C_v_scal = SCvd->f_value[ 0 ];
-      }  
-  
-  generate_bound_constraints( C_v_scal );  // generate flow limits
- }
+ if( auto SCdd = dynamic_cast< SimpleConfiguration< double > * >( stcc ) )
+  f_C_v_scal = SCdd->f_value;
+
+ switch( ftype ) {
+  case( PTDF ) :  generate_PTDF_constraints( stcc ); break;
+  case( CYCLE ) : generate_CYCLE_constraints( stcc ); break;
+  case( KIRCHHOFF ) :
+  default :
+   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
+			    "line type not implemented yet" ) );
+  }
 
  set_constraints_generated();
 
@@ -1140,7 +1125,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::generate_bound_constraints( double C_v_scal )
+void DCNetworkBlock::generate_bound_constraints( void )
 {
  /*-----------------------------------------------------------------------*/
  /*-------------------- flow limits with/without design ------------------*/

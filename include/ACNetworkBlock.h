@@ -369,7 +369,7 @@ class ACNetworkBlock : public DCNetworkBlock
 
  void generate_SOCP_relaxation( void );
 
- void strengthen_SOCP_relaxation( double & C_v_scal );
+ void strengthen_SOCP_relaxation( void );
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE ACNetworkBlock ------------*/

@@ -156,12 +156,6 @@ class DCNetworkData : public NetworkData
   f_reference_node( 0 ) , DCDF_was_computed( false ) ,
   f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
 
- /*!! copy constructor of DCNetworkData, does nothing
- explicit DCNetworkData( const NetworkData * ) : f_number_lines( 0 ) ,
- f_reference_node( 0 ) , DCDF_was_computed( false ) , f_lines_type( -1 ) ,
- f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
- !!*/
-
  /// destructor of DCNetworkData: it is virtual, and empty
  ~DCNetworkData() override = default;
 
@@ -890,7 +884,7 @@ class DCNetworkData : public NetworkData
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
   : NetworkBlock( f_block ) , f_NetworkData( nullptr ) , ftype( PTDF ) ,
-    v_design( nullptr ) , v_which_design( nullptr ) {}
+    v_design( nullptr ) , v_which_design( nullptr ) , f_C_v_scal( 1 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of DCNetworkBlock
@@ -956,8 +950,7 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// loads the DCNetworkBlock instance from a stream
  /** Like load( std::istream & ), if there is any Solver attached to this
-  * DCNetworkBlock then a NBModification (the "nuclear option") is issued.
-  */
+  * DCNetworkBlock then a NBModification (the "nuclear option") is issued. */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "DCNetworkBlock::load() not implemented yet" ) );
@@ -1144,7 +1137,20 @@ class DCNetworkData : public NetworkData
   *   \qquad (9)
   * \f]
   * Capacity limits (1) or (1a)–(1b) apply to each line depending on whether a
-  * design variable \f$ x_l \f$ exists. */
+  * design variable \f$ x_l \f$ exists.
+  *
+  * Flow balance constraints may have to be scaled for numerical stability
+  * reasons.
+  *
+  *   TODO: PUT THE SCALING FACTOR IN THE RIGTH EQUATIONS OR AT LEAST TELL
+  *   WHICH ONES THEY ARE
+  *
+  * This is why the scaling constant C_v_scal is defined, with default value
+  * of 1 (no scaling). Setting it to a non-default value is possible with
+  * the Configuration parameter, that is either \p stcc or, if f_BlockConfig
+  * is not nullptr, f_BlockConfig->f_static_constraints_Configuration. If the
+  * result is not nullptr and it is a SimpleConfiguration< double >, its
+  * f_value is used to set C_v_scal. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -1158,7 +1164,7 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- void generate_bound_constraints( double C_v_scal = 1.0 );
+ void generate_bound_constraints( void );
 
 /*--------------------------------------------------------------------------*/
  /// a bogus function to round nasty coefficients in the DCOPF equations
@@ -1805,12 +1811,12 @@ class DCNetworkData : public NetworkData
  /// vector to store the demand of each node of the network
  std::vector< double > v_ActiveDemand;
 
- /// the kappa constant for each line
- std::vector< double > v_kappa;
+ std::vector< double > v_kappa;   ///< the kappa constant for each line
 
- /// choice of model
- formulation_type ftype;
+ formulation_type ftype;          ///< choice of model
 
+ double f_C_v_scal;               ///< scaling factor for flow bounds
+ 
 /*-------------------------------- variables -------------------------------*/
 
  /// the power flow variables
