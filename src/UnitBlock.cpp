@@ -92,7 +92,7 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
    else
     throw( std::invalid_argument(
      classname() + "::deserialize: TimeHorizon is not present in the "
-                   "netCDF input and UnitBlock does not have a father." ) );
+                   "netCDF input and UnitBlock does not have a father" ) );
   }
  } else {
   // dimension TimeHorizon is present in the netCDF input
@@ -104,9 +104,9 @@ void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
    throw( std::logic_error(
     classname() + "::deserialize: TimeHorizon is not present in the "
                   "netCDF. The (nonzero) time horizon of UnitBlock is different "
-                  "from that of its father, but they should be equal." ) );
+                  "from that of its father, but they should be equal" ) );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
@@ -137,10 +137,11 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
      classname() + "::deserialize: invalid value in ChangeIntervals: " +
      std::to_string( t ) + ". All values must be between 0 and " +
      "TimeHorizon - 1 and in strictly increasing order." ) );
+   }
   }
- } else
+ else
   v_change_intervals.clear();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -150,16 +151,37 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group )
 
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
-}
+ }
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > UnitBlock::expected_dims( void ) const {
+ auto ret = Block::expected_dims();
+ ret.push_back( "TimeHorizon" );
+ ret.push_back( "NumberIntervals" );
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > UnitBlock::expected_vars( void ) const {
+ auto ret = Block::expected_vars();
+ ret.push_back( "ChangeIntervals" );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::scale( MF_dbl_it values ,
-                       Range rng ,
-                       c_ModParam issuePMod ,
-                       c_ModParam issueAMod )
+void UnitBlock::scale( MF_dbl_it values , Range rng ,
+                       c_ModParam issuePMod , c_ModParam issueAMod )
 {
  if( rng.first >= rng.second )
   return;  // An empty Range was given: no operation is performed.
@@ -175,14 +197,14 @@ void UnitBlock::scale( MF_dbl_it values ,
   // number of generators. Alternatively, we could have scale_generators() and
   // leave scale() for scaling the whole unit.
   subset.resize( 1 , 0 );
- }
+  }
  else {
   subset.resize( rng.second - rng.first );
   std::iota( subset.begin() , subset.end() , rng.first );
- }
+  }
 
  scale( values , std::move( subset ) , true , issuePMod , issueAMod );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -192,23 +214,19 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv )
   return;                     // nothing to do
 
  // Reactive Power Variables- - - - - - - - - - - - - - - - - - - - - - - - -
- v_reactive_power.resize( f_time_horizon );
- for( auto & var : v_reactive_power )
-  var.set_type( ColVariable::kNonNegative );
- add_static_variable( v_reactive_power , "q_generalUnit" );
 
 }  // end( UnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
 void UnitBlock::scale( double scale_factor ,
-                       c_ModParam issuePMod ,
-                       c_ModParam issueAMod )
+                       c_ModParam issuePMod , c_ModParam issueAMod )
 {
  Subset subset = { 0 };
  std::vector< double > values = { scale_factor };
- scale( values.cbegin() , std::move( subset ) , true , issuePMod , issueAMod );
-}
+ scale( values.cbegin() , std::move( subset ) , true , issuePMod ,
+	issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -227,8 +245,17 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
 
  auto sz = boost::multi_array< double , 2 >::extent_gen()
                            [ get_number_generators() ][ get_time_horizon() ];
- if( wsol & 1 )
+ if( wsol & 1 ) {
   sol->v_active_power.resize( sz );
+  bool have_reactive = false;
+  for( Index i = 0 ; i < get_number_generators() ; ++i )
+   if( get_reactive_power( i ) ) {
+    have_reactive = true;
+    break;
+    }
+  if( have_reactive )
+   sol->v_reactive_power.resize( sz );
+  }
 
  // note: we assume that either all generators have commitment, or none has
  if( ( wsol & 2 ) && get_commitment( 0 ) )
@@ -283,7 +310,7 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
  if( ! deserialize_dim( group , "NumberGenerators" , f_number_generators ,
-			  true ) ) {
+			true ) ) {
   f_number_generators = 1;
 
   using index = boost::multi_array< double , 2 >::index;
@@ -296,6 +323,14 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
   else {
    v_active_power.resize( full );
    ncVar.getVar( { 0 } , { f_time_horizon } , v_active_power.data() );
+   }
+
+  ncVar = group.getVar( "ReactivePower" );
+  if( ncVar.isNull() )
+   v_reactive_power.resize( empty );
+  else {
+   v_reactive_power.resize( full );
+   ncVar.getVar( { 0 } , { f_time_horizon } , v_reactive_power.data() );
    }
 
   ncVar = group.getVar( "Commitment" );
@@ -326,7 +361,11 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
   // deserialize the Active Power - - - - - - - - - - - - - - - - - - - - - -
   ::deserialize< double , 2 >( group , "ActivePower" ,
                                { f_number_generators , f_time_horizon } ,
-                               v_active_power , false , true );
+                               v_active_power , true , true );
+
+  ::deserialize< double , 2 >( group , "ReactivePower" ,
+                               { f_number_generators , f_time_horizon } ,
+                               v_reactive_power , true , true );
 
   // deserialize the Commitment - - - - - - - - - - - - - - - - - - - - - - -
   ::deserialize< double , 2 >( group , "Commitment" ,
@@ -363,6 +402,17 @@ void UnitBlockSolution::read( const Block * block )
    auto APi = UB->get_const_active_power( i );
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     v_active_power[ i ][ t ] = APi[ t ].get_value();
+   }
+
+ if( ! v_reactive_power.empty() )
+  // read the active power variables - - - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i ) {
+   if( auto RPi = UB->get_const_reactive_power( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     v_reactive_power[ i ][ t ] = RPi[ t ].get_value();
+   else
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     v_reactive_power[ i ][ t ] = 0;
    }
 
  if( ! v_commitment.empty() )
@@ -413,6 +463,14 @@ void UnitBlockSolution::write( Block * block )
     APi[ t ].set_value( v_active_power[ i ][ t ] );
    }
 
+ if( ! v_reactive_power.empty() )
+  // write the reactive power variables- - - - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_number_generators ; ++i ) {
+   if( auto RPi = UB->get_reactive_power( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     RPi[ t ].set_value( v_reactive_power[ i ][ t ] );
+   }
+
  if( ! v_commitment.empty() ) {
   // write the commitment variables- - - - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
@@ -421,7 +479,7 @@ void UnitBlockSolution::write( Block * block )
      Ci[ t ].set_value( v_commitment[ i ][ t ] );
    else
     throw( std::invalid_argument(
-	  "UnitBlockSolution::write: provided non-existent commitment" ) );
+	   "UnitBlockSolution::write: provided non-existent commitment" ) );
   }
 
  if( ! v_primary_reserve.empty() ) {
@@ -464,6 +522,10 @@ void UnitBlockSolution::serialize( netCDF::NcGroup & group ) const
   ::serialize< double , 2 >( group , "ActivePower" , netCDF::NcDouble() ,
 			     { ng , th } , v_active_power );
 
+  // serialize the Reactive Power - - - - - - - - - - - - - - - - - - - - - -
+  ::serialize< double , 2 >( group , "ReactivePower" , netCDF::NcDouble() ,
+			     { ng , th } , v_reactive_power );
+
   // serialize the Commitment - - - - - - - - - - - - - - - - - - - - - - - -
   ::serialize< double , 2 >( group , "Commitment" , netCDF::NcDouble() ,
 			     { ng , th } , v_commitment );
@@ -479,8 +541,13 @@ void UnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  else {
   // serialize the Active Power - - - - - - - - - - - - - - - - - - - - - - -
   if( ! v_active_power.empty() )
-  group.addVar( "ActivePower" , netCDF::NcDouble() , th ).putVar(
+   group.addVar( "ActivePower" , netCDF::NcDouble() , th ).putVar(
 			{ 0 } , { f_time_horizon } , v_active_power.data() );
+
+  // serialize the Reactive Power - - - - - - - - - - - - - - - - - - - - - -
+  if( ! v_reactive_power.empty() )
+   group.addVar( "ReactivePower" , netCDF::NcDouble() , th ).putVar(
+		      { 0 } , { f_time_horizon } , v_reactive_power.data() );
 
   // serialize the Commitment - - - - - - - - - - - - - - - - - - - - - - - -
   if( ! v_commitment.empty() )
@@ -531,28 +598,58 @@ void UnitBlockSolution::sum( const Solution * solution , double multiplier )
   throw( std::invalid_argument(
 	        "UnitBlockSolution::sum: inconsistent generators number" ) );
 
- if( ! v_active_power.empty() )
+ if( ! v_active_power.empty() ) {
+  if( UBS->v_active_power.empty() )
+   throw( std::invalid_argument(
+	             "UnitBlockSolution::sum: inconsistent active power" ) );
+
   for( Index i = 0 ; i < f_number_generators ; ++i )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     v_active_power[ i ][ t ] += UBS->v_active_power[ i ][ t ] * multiplier;
+  }
 
- if( ! v_commitment.empty() )
+ if( ! v_reactive_power.empty() ) {
+  if( UBS->v_reactive_power.empty() )
+   throw( std::invalid_argument(
+	           "UnitBlockSolution::sum: inconsistent reactive power" ) );
+
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_reactive_power[ i ][ t ] +=
+                                UBS->v_reactive_power[ i ][ t ] * multiplier;
+  }
+
+ if( ! v_commitment.empty() ) {
+  if( UBS->v_commitment.empty() )
+   throw( std::invalid_argument(
+		       "UnitBlockSolution::sum: inconsistent commitment" ) );
+
   for( Index i = 0 ; i < f_number_generators ; ++i )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     v_commitment[ i ][ t ] += UBS->v_commitment[ i ][ t ] * multiplier;
+  }
 
- if( ! v_primary_reserve.empty() )
+ if( ! v_primary_reserve.empty() ) {
+  if( UBS->v_primary_reserve.empty() )
+   throw( std::invalid_argument(
+		 "UnitBlockSolution::sum: inconsistent primary reserve" ) );
+
   for( Index i = 0 ; i < f_number_generators ; ++i )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     v_primary_reserve[ i ][ t ] +=
      UBS->v_primary_reserve[ i ][ t ] * multiplier;
+  }
 
- if( ! v_secondary_reserve.empty() )
+ if( ! v_secondary_reserve.empty() ) {
+  if( UBS->v_secondary_reserve.empty() )
+   throw( std::invalid_argument(
+	       "UnitBlockSolution::sum: inconsistent secondary reserve" ) );
+
   for( Index i = 0 ; i < f_number_generators ; ++i )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     v_secondary_reserve[ i ][ t ] +=
      UBS->v_secondary_reserve[ i ][ t ] * multiplier;
-
+  }
  }  // end( UnitBlockSolution::sum )
 
 /*--------------------------------------------------------------------------*/
@@ -576,6 +673,7 @@ void UnitBlockSolution::guts_of_clone( UnitBlockSolution * sol ) const
  sol->f_number_generators = f_number_generators;
 
  copy_multi_array( sol->v_active_power , v_active_power );
+ copy_multi_array( sol->v_reactive_power , v_reactive_power );
  copy_multi_array( sol->v_commitment , v_commitment );
  copy_multi_array( sol->v_primary_reserve , v_primary_reserve );
  copy_multi_array( sol->v_secondary_reserve , v_secondary_reserve );
@@ -591,6 +689,11 @@ void UnitBlockSolution::guts_of_scale( UnitBlockSolution * sol ,
   for( Index i = 0 ; i < f_number_generators ; ++i )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     sol->v_active_power[ i ][ t ] *= factor;
+
+ if( ! v_reactive_power.empty() )
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    sol->v_reactive_power[ i ][ t ] *= factor;
 
  if( ! v_commitment.empty() )
   for( Index i = 0 ; i < f_number_generators ; ++i )

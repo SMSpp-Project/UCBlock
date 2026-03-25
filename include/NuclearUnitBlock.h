@@ -80,8 +80,8 @@ namespace SMSpp_di_unipi_it
  *   ThermalUnitBlock, so one would get an exception)
  */
 
-class NuclearUnitBlock : public ThermalUnitBlock {
-
+class NuclearUnitBlock : public ThermalUnitBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -192,6 +192,22 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  * (although they are in principle optional for ThermalUnitBlock). */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /* extends ThermalUnitBlock::expected_dims()
+  * not necessary, no new dimensions
+
+ std::vector< std::string > expected_dims( void ) const override;
+ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends ThermalUnitBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the NuclearUnitBlock

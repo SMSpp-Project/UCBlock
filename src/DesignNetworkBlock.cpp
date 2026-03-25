@@ -64,7 +64,7 @@ DesignNetworkBlock::~DesignNetworkBlock()
 /*--------------------------------------------------------------------------*/
 
 void DesignNetworkBlock::deserialize_network_blocks(
-                const netCDF::NcGroup & group )
+					      const netCDF::NcGroup & group )
 {
  v_Block.clear();
  Index found = 0;
@@ -97,17 +97,6 @@ void DesignNetworkBlock::deserialize_network_blocks(
 
 void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
- #ifndef NDEBUG
-  static std::vector< std::string > expected_dims = { "NumberDesignLines" ,
-						      "NumberSubNetwork" };
-  check_dimensions( group , expected_dims , std::cerr );
-
-  static std::vector< std::string > expected_vars = {
-   "InvestmentCost" , "DesignLines" , "MinCapacityDesign" ,
-   "MaxCapacityDesign" };
-  check_variables( group , expected_vars , std::cerr );
- #endif
-
  int design_lines;
  deserialize_dim( group , "NumberDesignLines" , design_lines , false );
 
@@ -173,6 +162,33 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
+#ifndef NDEBUG
+
+std::vector< std::string > DesignNetworkBlock::expected_dims( void ) const {
+ auto ret = NetworkBlock::expected_dims();
+ ret.push_back( "NumberDesignLines" );
+ ret.push_back( "NumberSubNetwork" );
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > DesignNetworkBlock::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "InvestmentCost" , "DesignLines" , "MinCapacityDesign" ,
+    "MaxCapacityDesign" };
+
+ auto ret = NetworkBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
+
+/*--------------------------------------------------------------------------*/
+
 void DesignNetworkBlock::check_data_consistency( void ) const
 {
  for( Index l = 0 ; l < v_InvestmentCost.size() ; ++l ) {
@@ -193,14 +209,14 @@ void DesignNetworkBlock::check_data_consistency( void ) const
       ( get_min_capacity_design( l ) > 1.0 ) )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
                             "MinCapacityDesign must be <= 1 when "
-                               "|MaxCapacityDesign| == 1" ) );
+                            "|MaxCapacityDesign| == 1" ) );
 
   // Binary case (max < 0): MinCapacityDesign <= 1
   if( ( get_max_capacity_design( l ) < 0 ) &&
       ( get_min_capacity_design( l ) > 1.0 ) )
    throw( std::logic_error( "DesignNetworkBlock::check_data_consistency: "
                             "MinCapacityDesign must be <= 1 for binary "
-                               "design." ) );
+                            "design." ) );
   }
 
  // check consistency between lines and design lines

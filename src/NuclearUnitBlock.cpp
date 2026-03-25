@@ -71,7 +71,7 @@ static void assign( std::vector< T > & vec , const Block::Subset sbst ,
  // assign to the sub-vector of vec[] corresponding to the indices in sbst
  // the values found in vector starting at it
  for( auto t : sbst )
-  vec[ t ] = *(it++);
+  vec[ t ] = *( it++ );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -93,19 +93,6 @@ NuclearUnitBlock::~NuclearUnitBlock()
 
 void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- // check all expected variables, comprised those of the base class: see
- // ThermalUnitBlock::deserialize() for the rationale
- const std::vector< std::string > expected_vars = { "MinPower" , "MaxPower" ,
-  "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
-  "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
-  "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
-  "MinDownTime" , "InitUpDownTime" , "Availability" , "ModulationTime" ,
-  "InitModulation" , "ModulationDeltaRampUp" , "ModulationDeltaRampDown" };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  // call the method of the base class
  ThermalUnitBlock::deserialize( group );
 
@@ -147,6 +134,38 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  check_modulation_consistency();
 
  }  // end( NuclearUnitBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+/*
+std::vector< std::string > NuclearUnitBlock::expected_dims( void )
+ const {
+ static const std::vector< std::string > ed = { };
+
+ auto ret = UnitBlock::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+
+ return( ret );
+ }
+
+----------------------------------------------------------------------------*/
+
+std::vector< std::string > NuclearUnitBlock::expected_vars( void )
+ const {
+ static const std::vector< std::string > ev =
+ { "ModulationTime" , "InitModulation" , "ModulationDeltaRampUp" ,
+   "ModulationDeltaRampDown"
+   };
+
+ auto ret = ThermalUnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -273,17 +292,17 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   double RHS = 0;
   auto cfit = cf.begin();
 
-  *(cfit++) = coeff_pair( & v_active_power[ t ] , 1.0 );
-  *(cfit++) = coeff_pair( & v_modulation[ t ] ,
+  *( cfit++ ) = coeff_pair( & v_active_power[ t ] , 1.0 );
+  *( cfit++ ) = coeff_pair( & v_modulation[ t ] ,
         - ( v_DeltaRampUp[ t ] - v_modulation_ramp_up[ t ] )
       );
   // the two terms "- p_{t-1}" and "- \Delta^M_{t+} u_{t-1}" only exist if
   // t > 0, as otherwise p_{t-1} and u_{t-1} are undefined
   if( t ) {
-   *(cfit++) = coeff_pair( & v_commitment[ t - 1 ] ,
+   *( cfit++ ) = coeff_pair( & v_commitment[ t - 1 ] ,
        - v_modulation_ramp_up[ t ] );
 
-   *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , -1.0 );
+   *( cfit++ ) = coeff_pair( & v_active_power[ t - 1 ] , -1.0 );
    }
   else {
    // if t == 0, the "- p_{t-1}" term is fixed and equal to - f_InitialPower,
@@ -327,17 +346,17 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   LinearFunction::v_coeff_pair cf( np );
   auto cfit = cf.begin();
 
-  *(cfit++) = coeff_pair( & v_active_power[ t ] , -1.0 );
-  *(cfit++) = coeff_pair( & v_commitment[ t ] ,
+  *( cfit++ ) = coeff_pair( & v_active_power[ t ] , -1.0 );
+  *( cfit++ ) = coeff_pair( & v_commitment[ t ] ,
       - v_modulation_ramp_down[ t ] );
-  *(cfit++) = coeff_pair( & v_modulation[ t ] ,
+  *( cfit++ ) = coeff_pair( & v_modulation[ t ] ,
       - ( v_DeltaRampDown[ t ] -
           v_modulation_ramp_down[ t ] ) );
 
   // the terms "p_{t-1}" only exists if t > 0, as otherwise p_{t-1} is
   // undefined
   if( t )
-   *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , 1.0 );
+   *( cfit++ ) = coeff_pair( & v_active_power[ t - 1 ] , 1.0 );
 
   // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
   // the commitment status if fixed and shut-downs are not allowed, hence
@@ -435,7 +454,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   LinearFunction::v_coeff_pair cf( t - h + 1 );
 
   for( auto cfit = cf.begin() ; h <= t ; )
-   *(cfit++) = coeff_pair( & v_modulation[ h++ ] , 1.0 );
+   *( cfit++ ) = coeff_pair( & v_modulation[ h++ ] , 1.0 );
 
   ModulationConst[ t - first_c ].set_lhs( - Inf< double >() );
   ModulationConst[ t - first_c ].set_rhs( 1.0 );
@@ -582,7 +601,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
  // check correctness of new values w.r.t. v_DeltaRampUp
  auto vit = values;
  for( auto t : subset ) {
-  auto mrut = *(vit++);
+  auto mrut = *( vit++ );
   if( mrut < 0 )
    throw( std::logic_error( fn + ": new modulation ramp up at time " +
                             std::to_string( t ) + " is " +
@@ -617,7 +636,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
 
   // TODO: make it more efficient by treating the t == 0 case offline
   for( auto t : subset ) {
-   auto mrut = *(values++);
+   auto mrut = *( values++ );
    auto lf = LF( Modulation_RampUp_Constraints[ t ].get_function() );
 
    // TODO: make it more efficient by calling modify_coefficients( subset )
@@ -662,7 +681,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
  // check correctness of new values w.r.t. v_DeltaRampUp
  auto vit = values;
  for( auto t = rng.first ; t < rng.second ; ++t ) {
-  auto mrut = *(vit++);
+  auto mrut = *( vit++ );
   if( mrut < 0 )
    throw( std::logic_error( fn + ": new modulation ramp up at time " +
                             std::to_string( t ) + " is " +
@@ -699,7 +718,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
 
   // TODO: make it more efficient by treating the t == 0 case offline
   for( auto t = rng.first ; t < rng.second ; ++t ) {
-   auto mrut = *(values++);
+   auto mrut = *( values++ );
    auto lf = LF( Modulation_RampUp_Constraints[ t ].get_function() );
 
    // TODO: make it more efficient by calling modify_coefficients( subset )
@@ -748,7 +767,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  // check correctness of new values w.r.t. v_DeltaRampDown
  auto vit = values;
  for( auto t : subset ) {
-  auto mrdt = *(vit++);
+  auto mrdt = *( vit++ );
   if( mrdt < 0 )
    throw( std::logic_error( fn + ": new modulation ramp down at time " +
                             std::to_string( t ) + " is " +
@@ -777,7 +796,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
             open_channel( par2chnl( issueAMod ) ) ) );
   for( auto t : subset ) {
-   auto mrdt = *(values++);
+   auto mrdt = *( values++ );
    auto lf = LF( Modulation_RampDown_Constraints[ t ].get_function() );
 
    // TODO: make it more efficient by calling modify_coefficients( range )
@@ -819,7 +838,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  // check correctness of new values w.r.t. v_DeltaRampDown
  auto vit = values;
  for( auto t = rng.first ; t < rng.second ; ++t ) {
-  auto mrdt = *(vit++);
+  auto mrdt = *( vit++ );
   if( mrdt < 0 )
    throw( std::logic_error( fn + ": new modulation ramp down at time " +
                             std::to_string( t ) + " is " +
@@ -851,7 +870,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
             open_channel( par2chnl( issueAMod ) ) ) );
 
   for( auto t = rng.first ; t < rng.second ; ++t ) {
-   auto mrdt = *(values++);
+   auto mrdt = *( values++ );
    auto lf = LF( Modulation_RampUp_Constraints[ t ].get_function() );
 
    // TODO: make it more efficient by calling modify_coefficients( range )

@@ -90,16 +90,8 @@ void NetworkBlock::generate_abstract_variables( Configuration * stvv )
    for( Index i = 0 ; i < nn ; ++i )
     v_node_injection[ t ][ i ].set_type( ColVariable::kContinuous );
   add_static_variable( v_node_injection , "s_network" );
-
-  // the node injection variables
-  v_reactive_node_injection.resize(
-   boost::extents[ ni ][ nn ] );
-  for( Index t = 0 ; t < ni ; ++t )
-   for( Index node_id = 0 ; node_id < nn ; ++node_id )
-    v_reactive_node_injection[ t ][ node_id ].set_type( ColVariable::kContinuous );
-  add_static_variable( v_reactive_node_injection , "reactive_s_network" );
- }
-}  // end( NetworkBlock::generate_abstract_variables )
+  }
+ }  // end( NetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -113,8 +105,7 @@ void NetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // node injection bound constraints
 
- node_injection_bounds_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()[ nn ][ ni ] );
+ node_injection_bounds_const.resize( MAFRC_ext()[ nn ][ ni ] );
 
  for( Index t = 0 ; t < ni ; ++t )
   for( Index i = 0 ; i < nn ; ++i ) {
@@ -128,27 +119,6 @@ void NetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  add_static_constraint( node_injection_bounds_const ,
                         "Node_Injection_Bound_Const_Network" );
-
- // node injection bound constraints
-
- reactive_node_injection_bounds_const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ nn ][ ni ] );
-
- for( Index i = 0 ; i < ni ; ++i )
-
-  for( Index node_id = 0 ; node_id < nn ; ++node_id ) {
-
-   reactive_node_injection_bounds_const[ node_id ][ i ].set_lhs(
-    v_MinReactiveNodeInjection[ i ][ node_id ] );
-   reactive_node_injection_bounds_const[ node_id ][ i ].set_rhs(
-    v_MaxReactiveNodeInjection[ i ][ node_id ] );
-   reactive_node_injection_bounds_const[ node_id ][ i ].set_variable(
-    &v_reactive_node_injection[ i ][ node_id ] );
-  }
-
- add_static_constraint( reactive_node_injection_bounds_const ,
-                        "Reactive_Node_Injection_Bound_Const_Network" );
 
  }  // end( NetworkBlock::generate_abstract_constraints )
 
@@ -167,11 +137,9 @@ Solution * NetworkBlock::get_Solution( Configuration * csolc , bool emptys )
 
  auto sol = new_Solution();
 
- using mad2 = boost::multi_array< double , 2 >;
-
  if( wsol & 1 )
   sol->v_node_injection.resize(
-        mad2::extent_gen()[ get_number_intervals() ][ get_number_nodes() ] );
+	   MAdouble_ext()[ get_number_intervals() ][ get_number_nodes() ] );
 
  if( ! emptys )
   sol->read( this );
@@ -255,7 +223,7 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  if( ! ::deserialize< double , 2 >( group , "NodeInjection" ,
                                     { f_number_intervals , f_number_nodes } ,
                                     v_node_injection , true ) ) {
-  std::vector< boost::multi_array< double , 2 >::index > sizes( 2 , 0 );
+  std::vector< MAdouble::index > sizes( 2 , 0 );
   v_node_injection.resize( sizes );
   }
  }  // end( NetworkBlockSolution::deserialize( NcGroup & )
@@ -302,7 +270,7 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
   }
 
  // deserialize the Node Injection - - - - - - - - - - - - - - - - - - - - -
- using mad2i = boost::multi_array< double , 2 >::index;
+ using mad2i = MAdouble::index;
 
  auto ncVar = group.getVar( "NodeInjection" );
  if( ncVar.isNull() ) {

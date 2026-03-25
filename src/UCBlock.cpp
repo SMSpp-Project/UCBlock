@@ -74,12 +74,33 @@ static void copy_multi_array( boost::multi_array< T , K > & to ,
  }
 
 /*--------------------------------------------------------------------------*/
+
+static inline UnitBlock * UB( Block * b ) {
+ return( static_cast< UnitBlock * >( b ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static inline NetworkBlock * NB( Block * b ) {
+ return( static_cast< NetworkBlock * >( b ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static inline LinearFunction * LF( Function * f ) {
+ return( static_cast< LinearFunction * >( f ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF UCBlock ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
 UCBlock::~UCBlock()
 {
  Constraint::clear( v_node_injection_Const );
+ Constraint::clear( v_reactive_node_injection_Const );
  Constraint::clear( v_PrimaryDemand_Const );
  Constraint::clear( v_SecondaryDemand_Const );
  Constraint::clear( v_InertiaDemand_Const );
@@ -92,8 +113,10 @@ UCBlock::~UCBlock()
  delete( f_NetworkData );
 
  objective.clear();
-}
+ }
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
@@ -114,15 +137,15 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
   else
    throw( std::invalid_argument( "UCBlock::deserialize: " +
                                  sub_group_name + " deserialize failed" ) );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
 {
  Index cntr = 0;
- v_network_blocks.resize( f_number_networks );
+ v_network_blocks.resize( f_number_networks , nullptr );
 
  for( Index i = 0 ; i < f_number_networks ; ++i ) {
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
@@ -133,13 +156,11 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
   auto res = almost_new_Block( sub_group , this );
   if( auto nbi = dynamic_cast< NetworkBlock * >( res.second ) ) {
    v_network_blocks[ i ] = nbi;
-   // first, try to set the global NetworkData if it is of the right type...
-   nbi->set_NetworkData( f_NetworkData );
-   // ... otherwise, the NetworkData will be nullptr inside,
-   // so we deserialize the entire NetworkBlock
-   nbi->deserialize( res.first );
+   nbi->set_NetworkData( f_NetworkData );  // set the global NetworkData
+   nbi->deserialize( res.first );          // deserialize the NetworkBlock
    ++cntr;
-  } else {
+   }
+  else {
    delete( nbi );
    throw( std::invalid_argument( "UCBlock::deserialize:" + sub_group_name +
                                  " not a valid NetworkBlock" ) );
@@ -159,77 +180,14 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
 
 void UCBlock::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "TimeHorizon" ,
-                                                     "NumberUnits" ,
-                                                     "NumberNetworks" ,
-                                                     "NumberPrimaryZones" ,
-                                                     "NumberSecondaryZones" ,
-                                                     "NumberInertiaZones" ,
-                                                     "NumberPollutants" ,
-                                                     "NumberNodes" ,
-                                                     "NumberLines" ,
-                                                     "NumberBranches" ,
-                                                     "NumberElectricalGenerators" ,
-                                                     "TotalNumberPollutantZones" ,
-                                                     "NumberIntervals" };
- check_dimensions( group , expected_dims , std::cerr );
-
- static std::vector< std::string > expected_vars = { "ActivePowerDemand" ,
-                                                     "GeneratorNode" ,
-                                                     "PrimaryZones" ,
-                                                     "PrimaryDemand" ,
-                                                     "SecondaryZones" ,
-                                                     "SecondaryDemand" ,
-                                                     "InertiaZones" ,
-                                                     "InertiaDemand" ,
-                                                     "NumberPollutantZones" ,
-                                                     "PollutantZones" ,
-                                                     "PollutantBudget" ,
-                                                     "PollutantRho" ,
-                                                     "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" ,
-                                                     "NetworkDataClassname" ,
-                                                     // DCNetworkBlockData
-                                                     "StartLine" ,
-                                                     "EndLine" ,
-                                                     "MinPowerFlow" ,
-                                                     "MaxPowerFlow" ,
-                                                     "LineSusceptance" ,
-                                                     "NetworkCost" ,
-                                                     "Efficiency" ,
-                                                     "HyperArcID" ,
-                                                     "NodeName" ,
-                                                     "LineName" ,
-                                                     // ACNetworkBlockData
-                                                     "ReactivePowerDemand" ,
-                                                     "NodeConductance" ,
-                                                     "NodeSusceptance" ,
-                                                     "NodeVoltageMagnitude" ,
-                                                     "NodeVoltageAngle" ,
-                                                     "LineResistance" ,
-                                                     "LineReactance" ,
-                                                     "LineMinAngle" ,
-                                                     "LineMaxAngle" ,
-                                                     "LineRATEA",
-                                                     "LineRatio",
-                                                     "LineShiftAngle",
-                                                     "NodeMaxVoltage",
-                                                     "NodeMinVoltage",
-                                                     // ECNetworkBlockData
-                                                     "BuyPrice" ,
-                                                     "SellPrice" ,
-                                                     "RewardPrice" ,
-                                                     "PeakTariff" };
- check_variables( group , expected_vars , std::cerr );
-#endif
-
- // Mandatory variables
+ // mandatory dimensions- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
  deserialize_dim( group , "NumberUnits" , f_number_units , false );
 
- // Optional variables
+ // optional dimensions - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( ! deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
@@ -242,31 +200,22 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                       "NetworkBlockClassname" ) )
   network_block_classname = "DCNetworkBlock";
 
-  if( ! ::deserialize( group , network_data_classname ,
-                       "NetworkDataClassname" ) )
-    network_data_classname = ( network_block_classname == "ACNetworkBlock" )
-                              ? "ACNetworkData"
-                              : "DCNetworkData";
+ if( ! ::deserialize( group , network_data_classname ,
+		      "NetworkDataClassname" ) )
+  network_data_classname = ( network_block_classname == "ACNetworkBlock" )
+                             ? "ACNetworkData" : "DCNetworkData";
 
- Index number_nodes;
- if( ! deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
-  number_nodes = 1;
- } else {
+ Index number_nodes = 1;  // default: no networks
+ if( deserialize_dim( group , "NumberNodes" , number_nodes ) ) {
+  // if "NumberNodes" is defined, then a "global" NetworkData is there
+
   f_NetworkData = NetworkBlock::NetworkData::new_NetworkData(
-   network_data_classname );
+                                                    network_data_classname );
   if( ! f_NetworkData )
    throw( std::invalid_argument(
-    "UCBlock::deserialize: NetworkData missing in UCBlock" ) );
+                  "UCBlock::deserialize: NetworkData missing in UCBlock" ) );
   f_NetworkData->deserialize( group );
- }
-
- ::deserialize( group , "ActivePowerDemand" ,
-                { number_nodes , f_time_horizon } , v_active_power_demand );
-
- ::deserialize( group , "ReactivePowerDemand" ,
-                { number_nodes , f_time_horizon } , v_reactive_power_demand );
-
- // Optional dimensions
+  }
 
  f_number_primary_zones = 0;
  deserialize_dim( group , "NumberPrimaryZones" , f_number_primary_zones );
@@ -279,6 +228,15 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  f_number_pollutants = 0;
  deserialize_dim( group , "NumberPollutants" , f_number_pollutants );
+
+ // variables (all optional)- - - - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ ::deserialize( group , "ActivePowerDemand" ,
+                { number_nodes , f_time_horizon } , v_active_power_demand );
+
+ ::deserialize( group , "ReactivePowerDemand" ,
+                { number_nodes , f_time_horizon } , v_reactive_power_demand );
 
  ::deserialize( group , "PrimaryZones" , number_nodes ,
                 v_primary_zones , true , true );
@@ -306,7 +264,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   f_total_number_pollutant_zones = 0;
   for( const auto & n : v_number_pollutant_zones )
    f_total_number_pollutant_zones += n;
- }
+  }
 
  if( ! f_total_number_pollutant_zones )
   f_total_number_pollutant_zones = f_number_pollutants;
@@ -317,40 +275,45 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
                  v_pollutant_zones , true , true );
 
   /* TODO commented away until this is properly managed
-  ::deserialize( group , "PollutantBudget" , v_pollutant_budget , true , false );
+  ::deserialize( group , "PollutantBudget" , v_pollutant_budget , true ,
+                 false );
   */
 
   ::deserialize( group , "PollutantRho" ,
                  { f_number_pollutants , f_number_elc_generators } ,
                  v_pollutant_rho , true , true );
- }
+  }
  else {
-  v_pollutant_zones.resize(
-   boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
+  v_pollutant_zones.resize( boost::extents[ 0 ][ 0 ] );
+	     //!! boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
   v_pollutant_budget.resize( boost::extents[ 0 ][ 0 ] );
-  v_pollutant_rho.resize(
-   boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
- }
+  v_pollutant_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
+    //!!    boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
+  }
 
- // reset all existing sub-Block, if any
+ // reset all existing sub-Block, if any- - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  for( auto block : v_Block )
   delete( block );
  v_Block.clear();
 
- // load all UnitBlock
+ // load and "configure" the UnitBlock- - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  deserialize_sub_blocks( group , "UnitBlock_" , f_number_units );
 
- // Generate UnitBlock primary spinning reserve variables
- unsigned int what = 0;
- if( f_number_primary_zones > 0 )
+ // check which reserve variables (primary, secondary, inertia) need be
+ // defined and "inform" the UnitBlock about this
+
+ unsigned char what = 0;
+ if( f_number_primary_zones > 0 )  // primary spinning reserve variables
   what += 1;
 
- // Generate UnitBlock secondary spinning reserve variables
- if( f_number_secondary_zones > 0 )
+ if( f_number_secondary_zones > 0 )  // secondary spinning reserve variables
   what += 2;
 
- // Generate UnitBlock inertia reserve variables
- if( f_number_inertia_zones > 0 )
+ if( f_number_inertia_zones > 0 )  // inertia reserve variables
   what += 4;
 
  if( what > 0 )
@@ -358,199 +321,304 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    if( auto ub = dynamic_cast< UnitBlock * >( b ) )
     ub->set_reserve_vars( what );
 
- // load all NetworkBlock, if any
- deserialize_network_blocks( group );
+ // load or create the NetworkBlock (if necessary)- - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( v_network_blocks.empty() && ( ! v_active_power_demand.num_elements() ) )
+ deserialize_network_blocks( group );  // try to load the NetworkBlock
+
+ if( v_network_blocks.empty() && v_active_power_demand.empty() )
   throw( std::invalid_argument( "UCBlock::deserialize: ActivePowerDemand "
                                 "mandatory if no NetworkBlocks" ) );
 
  // if number_nodes == 1, NetworkBlocks are useless and therefore removed
  if( number_nodes == 1 ) {
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // curios case: there is only one node and therefore NetworkBlock are
+  // useless, save that the active power demand may be stored in there
+  // rather than in v_active_power_demand; move it there and delete the
+  // useless NetworkBlock. note that one does not have to consider the
+  // reactive power since a bus (1 node network) does not have it
 
-  if( ! v_active_power_demand.num_elements() ) {
-
+  if( v_active_power_demand.empty() ) {
    // if active power demand is not defined, do it now and preload it with
    // zeros in case some NetworkBlock is not there
-   v_active_power_demand.resize(
-    boost::multi_array< double , 2 >::extent_gen()[ 1 ][ f_time_horizon ] );
+   v_active_power_demand.resize( MAdouble_ext()[ 1 ][ f_time_horizon ] );
    for( auto apdit = v_active_power_demand.data() ;
         apdit != v_active_power_demand.data() + f_time_horizon ; )
-    *( apdit++ ) = 0;
-  }
+	*( apdit++ ) = 0;
+   }
 
   if( ! v_network_blocks.empty() ) {
-
    Index t = 0;
    for( Index n = 0 ; n < f_number_networks ; ++n )
     if( v_network_blocks[ n ] ) {
-     for( Index i = 0 ;
-          i < v_network_blocks[ n ]->get_number_intervals() ;
+     for( Index i = 0 ; i < v_network_blocks[ n ]->get_number_intervals() ;
           ++i , ++t ) {
       if( auto ad = v_network_blocks[ n ]->get_active_demand( i ) )
        v_active_power_demand[ 0 ][ t ] = ad[ 0 ];
+      }
+     delete v_network_blocks[ n ];
      }
-    }
+
    v_network_blocks.clear();
    v_Block.resize( f_number_units );
+   }
   }
-
- } else {  // number_nodes > 1
-
-  // if they don't exist, create them now as NetworkBlock
+ else {
+  // number_nodes > 1 - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // if (some of) the NetworkBlock don't exist, create them now and feed them
+  // the "global" NetworkData
   if( v_network_blocks.empty() ) {
    v_network_blocks.resize( f_number_networks );
    v_Block.resize( f_number_units + f_number_networks );
-  }
+   }
 
-  
+  // meanwhile compute the number of covered intervals
+  Index sum_intervals = 0;
   Index t = 0;
   for( Index n = 0 ; n < f_number_networks ; ++n ) {
-
    auto nbi = v_network_blocks[ n ];
    if( ! nbi ) {  // NetworkBlock n does not exist: create a NetworkBlock
     nbi = dynamic_cast< NetworkBlock * >(
-     new_Block( network_block_classname , this ) );
+			      new_Block( network_block_classname , this ) );
     v_network_blocks[ n ] = nbi;
     v_Block[ f_number_units + n ] = nbi;
-   }
+    }
 
    // if the NetworkBlock does not have its own NetworkData...
    if( ! nbi->get_NetworkData() ) {
     if( ! f_NetworkData )
      throw( std::invalid_argument( "UCBlock::deserialize: NetworkData "
-                                   "missing in NetworkBlock " +
-                                   std::to_string( n ) + " and in UCBlock" ) );
+                                   "missing in NetworkBlock_" +
+                                   std::to_string( n ) + " and in UCBlock" )
+	    );
+
     // ... then set the UCBlock global one
     nbi->set_NetworkData( f_NetworkData );
     // assert that the global NetworkData passed is of the right type
     assert( nbi->get_NetworkData() != nullptr );
-   }
+    }
 
+   sum_intervals += nbi->get_number_intervals();
+
+   if( ! n )  // for the first one only, check if reactive power is there
+    f_has_reactive = nbi->handles_reactive();
+
+   // set the constant term
    nbi->set_constant_term( v_network_constant_terms[ n ] );
-
-   boost::multi_array< double , 2 > ap_v(
-    boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
-   boost::multi_array< double , 2 > r_ap_v(
-    boost::extents[ v_network_blocks[ n ]->get_number_intervals() ][ number_nodes ] );
-
-   for( Index i = 0 ;
-        i < v_network_blocks[ n ]->get_number_intervals() ;
-        ++i , ++t ) {
-
-    if( ! nbi->get_active_demand( i ) ) {
-     if( ! v_active_power_demand.num_elements() )
-      throw( std::invalid_argument( "UCBlock::deserialize: ActivePowerDemand "
-                                    "missing in UCBlock and in NetworkBlock "
-                                    + std::to_string( n ) ) );
-     typedef boost::multi_array_types::index_range range;
-     auto ap_c = v_active_power_demand[
-      boost::indices[ range( 0 , number_nodes ) ][ t ] ];
-     std::copy( ap_c.begin() , ap_c.end() , ap_v[ i ].begin() );
-    }
-
-    if( ! nbi->get_reactive_demand( i ) ) {
-     if( ! v_reactive_power_demand.empty() ) { // TODO: should be an error for AC but optional for DC
-      typedef boost::multi_array_types::index_range range;
-      auto r_ap_c = v_reactive_power_demand[
-      boost::indices[ range( 0 , number_nodes ) ][ t ] ];
-      std::copy( r_ap_c.begin() , r_ap_c.end() , r_ap_v[ i ].begin() );
-     }
-    }
-
    }
-   nbi->set_ActiveDemand( ap_v );
-   nbi->set_ReactiveDemand( r_ap_v );
-  }
 
-  Index sum_intervals = std::accumulate(
-   v_network_blocks.begin() , v_network_blocks.end() , 0 ,
-   []( int init , const NetworkBlock * nb ) {
-    return( init + nb->get_number_intervals() );
-   } );
-
-  // sum_intervals == f_time_horizon, i.e., we receive in input / we create n
-  // `NetworkBlock`(s) and the sum of intervals spanned by each of
-  // them is equal to the time horizon of the problem, throw exception otherwise
+  // it must be that sum_intervals == f_time_horizon, i.e., the NetworkBlock
+  // we receive in input / create span by the whole time horizon of the
+  // problem, throw exception otherwise
   if( sum_intervals != f_time_horizon )
-   throw( std::invalid_argument( "UCBlock::deserialize: The sum of the number "
-                                 "of intervals spanned by each NetworkBlock "
-                                 "must be equal to the number of time horizon." ) );
+   throw( std::invalid_argument( "UCBlock::deserialize: the intervals "
+				 "spanned by the NetworkBlock do not cover "
+				 "the time horizon" ) );
 
-  // v_active_power_demand used up, disband it
-  v_active_power_demand.resize(
-   boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
+  // now pass the active power demand, if any
+  if( v_active_power_demand.empty() ) {
+   // if not, check that the demand was there in the NetworkBlock
+   for( auto * nbi : v_network_blocks )
+    for( Index i = 0 ; i < nbi->get_number_intervals() ; ++i )
+     if( ! nbi->get_active_demand( i ) )
+      throw( std::invalid_argument( "UCBlock::deserialize: ActivePowerDemand "
+                                    "missing in UCBlock and in NetworkBlock"
+                                    ) ); 
+   }
+  else {
+   Index t = 0;
+   boost::multi_array< double , 2 > ap_v;
+   using range = boost::multi_array_types::index_range;
+   for( auto * nbi : v_network_blocks ) {
+    auto ni = nbi->get_number_intervals();
+    ap_v.resize( boost::extents[ ni ][ number_nodes ] );
+    for( Index i = 0 ; i < ni ; ++i , ++t ) {
+     auto ap_c = v_active_power_demand[
+		          boost::indices[ range( 0 , number_nodes ) ][ t ] ];
+     std::copy( ap_c.begin() , ap_c.end() , ap_v[ i ].begin() );
+     }
 
- }  // end( else( number_nodes > 1 ) )
+    nbi->set_ActiveDemand( ap_v );
+    }
+
+   // v_active_power_demand used up, disband it
+   v_active_power_demand.resize( MAdouble_ext()[ 0 ][ 0 ] );
+   }
+
+  // if reactive power is considered, do the same for it
+  if( f_has_reactive ) {
+   if( v_reactive_power_demand.empty() ) {
+    // demand is not defined, check it was there in the NetworkBlock
+    for( auto * nbi : v_network_blocks )
+     for( Index i = 0 ; i < nbi->get_number_intervals() ; ++i )
+      if( ! nbi->get_reactive_demand( i ) )
+       throw( std::invalid_argument(
+			       "UCBlock::deserialize: ReactivePowerDemand "
+                               "missing in UCBlock and in NetworkBlock" ) ); 
+    }
+   else {
+    Index t = 0;
+    boost::multi_array< double , 2 > rp_v;
+    using range = boost::multi_array_types::index_range;
+    for( auto * nbi : v_network_blocks ) {
+     auto ni = nbi->get_number_intervals();
+     rp_v.resize( boost::extents[ ni ][ number_nodes ] );
+     for( Index i = 0 ; i < ni ; ++i , ++t ) {
+      auto rp_c = v_reactive_power_demand[
+		          boost::indices[ range( 0 , number_nodes ) ][ t ] ];
+      std::copy( rp_c.begin() , rp_c.end() , rp_v[ i ].begin() );
+      }
+
+     nbi->set_ReactiveDemand( rp_v );
+     }
+
+    // v_reactive_power_demand used up, disband it
+    v_reactive_power_demand.resize( MAdouble_ext()[ 0 ][ 0 ] );
+    }
+   }  // end( if( f_has_reactive ) )
+  }  // end( else( number_nodes > 1 ) )- - - - - - - - - - - - - - - - - - -
+
+ // if reactive power is there, inform the UnitBlock- - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( f_has_reactive )
+  for( Index u = 0 ; u < f_number_units ; ++u )
+   UB( v_Block[ u ] )->set_reactive_power( true );
+
+ // recover the generator --> node mapping- - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( ! deserialize_dim( group , "NumberElectricalGenerators" ,
                         f_number_elc_generators ) ) {
   f_number_elc_generators = 0;
   for( Index i = 0 ; i < f_number_units ; ++i )
-   f_number_elc_generators +=
-    static_cast< UnitBlock * >( v_Block[ i ] )->get_number_generators();
- }
+   f_number_elc_generators += UB( v_Block[ i ] )->get_number_generators();
+  }
 
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
                 v_generator_node , true , true );
 
- // store the min and max node injection into each NetworkBlock
+ // compute and store the min and max node injection into each NetworkBlock -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( ! v_network_blocks.empty() ) {
-
+ if( ! v_network_blocks.empty() ) {  // ... if any
   Index t = 0;
-  for( Index n = 0 ; n < f_number_networks ; ++n )
+  for( Index n = 0 ; n < f_number_networks ; ++n ) {  // for all networks
+   auto nbi = v_network_blocks[ n ];
+   for( Index i = 0 ; i < nbi->get_number_intervals() ; ++i , ++t ) {
+    // for each interval covered by the network, compute min and max
+    // active power output by all generators
+    std::vector< double > min_node_injection( number_nodes , 0 );
+    std::vector< double > max_node_injection( number_nodes , 0 );
 
-   for( Index i = 0 ;
-        i < v_network_blocks[ n ]->get_number_intervals() ;
-        ++i , ++t )
-
-    for( Index node_id = 0 ;
-         node_id < v_network_blocks[ n ]->get_number_nodes() ;
-         ++node_id ) {
-
-     double min_node_injection = 0.0;
-     double max_node_injection = 0.0;
-     double min_reactive_node_injection = 0.0;
-     double max_reactive_node_injection = 0.0;
-
-     Index elc_generator = 0;
-     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
-
-      const auto unit_block = get_unit_block( unit_id );
-
-      for( Index g = 0 ; g < unit_block->get_number_generators() ;
-           ++g , ++elc_generator ) {
-
-       if( node_id != v_generator_node[ elc_generator ] )
-        continue;
-
-       auto fixed_consumption = unit_block->get_fixed_consumption( g );
-       min_node_injection += std::min( unit_block->get_min_power( t , g ) ,
-                                       fixed_consumption
-                                       ? -fixed_consumption[ t ] : 0.0 );
-       max_node_injection += std::max( 0.0 ,
-                                       unit_block->get_max_power( t , g ) );
-
-       min_reactive_node_injection = unit_block->get_min_reactive_power( t , g );
-       max_reactive_node_injection = unit_block->get_max_reactive_power( t , g );
+    Index gen = 0;
+    for( Index u = 0 ; u < f_number_units ; ++u ) {
+     const auto ub = get_unit_block( u );
+     for( Index g = 0 ; g < ub->get_number_generators() ; ++g ) {
+      auto node = v_generator_node[ gen++ ];
+      auto fixed_consumption = ub->get_fixed_consumption( g );
+      min_node_injection[ node ] += std::min( ub->get_min_power( t , g ) ,
+					      fixed_consumption ?
+					      - fixed_consumption[ t ] : 0 );
+      max_node_injection[ node ] += std::max( 0.0 ,
+					      ub->get_max_power( t , g ) );
       }
      }
 
-     v_network_blocks[ n ]->set_min_node_injection( min_node_injection, node_id, i );
-     v_network_blocks[ n ]->set_max_node_injection( max_node_injection, node_id, i );
+    // now set min and max active power output in the network
+    for( Index node = 0 ; node < nbi->get_number_nodes() ; ++node ) {
+     nbi->set_min_node_injection( min_node_injection[ node ] , node , i );
+     nbi->set_max_node_injection( max_node_injection[ node ] , node , i );
+     }
+    }  // end( for( i ) )
+   }  // end( for( n ) )
 
-     v_network_blocks[ n ]->set_min_reactive_node_injection( i , node_id , 
-                                                             min_reactive_node_injection);
-     v_network_blocks[ n ]->set_max_reactive_node_injection( i , node_id , 
-                                                             max_reactive_node_injection);
-    }
- }
+  // if reactive power is considered, do the same for it
+  if( f_has_reactive ) {
+   for( Index n = t = 0 ; n < f_number_networks ; ++n ) {  // all networks
+    auto nbi = v_network_blocks[ n ];
+    for( Index i = 0 ; i < nbi->get_number_intervals() ; ++i , ++t ) {
+     // for each interval covered by the network, compute min and max
+     // reactive power output by all generators
+     std::vector< double > min_node_injection( number_nodes , 0 );
+     std::vector< double > max_node_injection( number_nodes , 0 );
 
- // finally call the method of the base class
+     Index gen = 0;
+     for( Index u = 0 ; u < f_number_units ; ++u ) {
+      const auto ub = get_unit_block( u );
+      for( Index g = 0 ; g < ub->get_number_generators() ; ++g ) {
+       auto node = v_generator_node[ gen++ ];
+       min_node_injection[ node ] += ub->get_min_reactive_power( t , g );
+       max_node_injection[ node ] += ub->get_max_reactive_power( t , g );
+       }
+      }
+
+     // now set min and max active power output in the network
+     for( Index node = 0 ; node < nbi->get_number_nodes() ; ++node ) {
+      nbi->set_min_reactive_node_injection( min_node_injection[ node ] ,
+					    node , i );
+      nbi->set_max_reactive_node_injection( max_node_injection[ node ] ,
+					    node , i );
+      }
+     }  // end( for( i ) )
+    }  // end( for( n ) )
+   }  // end( if( f_has_reactive ) )
+  }  // end( if( ! v_network_blocks.empty() ) )
+
+ // finally call the method of the base class - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // note that by calling this last we ensure that the NetworkData (if any) is
+ // properly initialised so that its expected stuff can be counted when it
+ // is checked there inside
  Block::deserialize( group );
 
  }  // end( UCBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > UCBlock::expected_dims( void ) const {
+ static const std::vector< std::string > ed =
+ { "TimeHorizon" , "NumberUnits" ,"NumberNetworks" , "NumberPrimaryZones" ,
+   "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" ,
+   "NumberNodes" , "NumberLines" , "NumberBranches" ,
+   "NumberElectricalGenerators" , "TotalNumberPollutantZones" ,
+   "NumberIntervals" };
+
+ auto ret = Block::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+ if( f_NetworkData ) {
+  auto ndev = f_NetworkData->expected_dims();
+  ret.insert( ret.end() , ndev.begin() , ndev.end() );
+  }
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > UCBlock::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "ActivePowerDemand" , "GeneratorNode" , "PrimaryZones" , "PrimaryDemand" ,
+   "SecondaryZones" , "SecondaryDemand" , "InertiaZones" , "InertiaDemand" ,
+   "NumberPollutantZones" , "PollutantZones" , "PollutantBudget" ,
+   "PollutantRho" , "NetworkConstantTerms" , "NetworkBlockClassname" ,
+   "NetworkDataClassname"
+   };
+
+ auto ret = Block::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+ if( f_NetworkData ) {
+  auto nded = f_NetworkData->expected_vars();
+  ret.insert( ret.end() , nded.begin() , nded.end() );
+  }
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -564,8 +632,8 @@ void UCBlock::generate_abstract_constraints( Configuration * stcc )
 
  // generate the abstract constraints of UCBlock
  generate_node_injection_constraints();
- if ( v_reactive_power_demand.num_elements() > 0 )
-   generate_reactive_node_injection_constraints();
+ if( f_has_reactive )
+  generate_reactive_node_injection_constraints();
 
  generate_primary_demand_constraints();
  generate_secondary_demand_constraints();
@@ -696,117 +764,102 @@ void UCBlock::generate_node_injection_constraints( void )
   }
 
   add_static_constraint( v_node_injection_Const , "node_injection_c" );
- }
-
-}  // end( UCBlock::generate_node_injection_constraints )
-
-/*--------------------------------------------------------------------------*/
+  }
+ }  // end( UCBlock::generate_node_injection_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::generate_reactive_node_injection_constraints( void )
 {
- if( v_reactive_power_demand.empty() )
+ const auto number_nodes = get_number_nodes();
+ if( number_nodes == 0 )  // well, that'd be curious, but ...
   return;
 
- const auto number_nodes = get_number_nodes();
-
  v_reactive_node_injection_Const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ f_time_horizon ][ number_nodes ] );
+			    MAFRC_ext()[ f_time_horizon ][ number_nodes ] );
 
- if( number_nodes > 0 ) {  // well, that'd be curious, but ...
+ if( number_nodes == 1 ) {
+  // special case: in a bus network there are no NetworkBlocks and the node
+  // injection constraints actually are active power demand constraints
+  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( number_nodes == 1 ) {
-   // special case: in a bus network there are no NetworkBlocks and the node
-   // injection constraints actually are active power demand constraints
-   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
+   // initialise demand as active power
+   auto rhs = v_reactive_power_demand[ 0 ][ t ];
 
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
-    // initialise demand as active power
-    auto rhs = v_reactive_power_demand[ 0 ][ t ];
+   // each generator surely contributes with active power, but it may also
+   // contribute with fixed consumption linked to commitment status, so
+   // the number of nonzeros can be at most twice the number of generators
+   LinearFunction::v_coeff_pair vc( 2 * f_number_elc_generators );
+   auto vcit = vc.begin();
 
-    // each generator surely contributes with active power, but it may also
-    // contribute with fixed consumption linked to commitment status, so
-    // the number of nonzeros can be at most twice the number of generators
-    LinearFunction::v_coeff_pair vc( 2 * f_number_elc_generators );
-    auto vcit = vc.begin();
+   for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
+    const auto unit_block = get_unit_block( i );
+    const auto scale = unit_block->get_scale();
 
-    for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
-     const auto unit_block = get_unit_block( i );
-     const auto scale = unit_block->get_scale();
+    // for each electrical generator within the unit
+    for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
+     // surely add the contribution of the corresponding active power
+     *( vcit++ ) = std::pair( &unit_block->get_reactive_power( g )[ t ] ,
+			      scale );
 
-     // for each electrical generator within the unit
-     for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
-
-      // surely add the contribution of the corresponding active power
-      *( vcit++ ) = std::pair( &unit_block->get_reactive_power( g )[ t ] ,
-                               scale );
-
-      // if the generator also has nonzero fixed consumption at t
-      // fixed consumption happens when the generator is off, and it
-      // therefore has the form fc[ t ] * ( 1 - u[ t ] ); thus, the
-      // RHS of the constraint also has to be increased by fc[ t ]. note
-      // that a unit with no commitment is always on, and therefore the
-      // fixed consumption is always 0
-      if( auto fc = unit_block->get_fixed_consumption( g ) )
-       if( fc[ t ] )
-        if( auto u = unit_block->get_commitment( g ) ) {
-         const auto fixed_consumption = fc[ t ] * scale;
-         // add the contribution of the corresponding commitment variables
-         *( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
-         rhs -= fixed_consumption;    // update the RHS
+     // if the generator also has nonzero fixed consumption at t
+     // fixed consumption happens when the generator is off, and it
+     // therefore has the form fc[ t ] * ( 1 - u[ t ] ); thus, the
+     // RHS of the constraint also has to be increased by fc[ t ]. note
+     // that a unit with no commitment is always on, and therefore the
+     // fixed consumption is always 0
+     if( auto fc = unit_block->get_fixed_consumption( g ) )
+      if( fc[ t ] )
+       if( auto u = unit_block->get_commitment( g ) ) {
+	const auto fixed_consumption = fc[ t ] * scale;
+	// add the contribution of the corresponding commitment variables
+	*( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
+	rhs -= fixed_consumption;    // update the RHS
         }
      }  // end( for( g ) )
     }  // end( for( i ) )
 
-    // set the final RHS of the constraint (equality constraint)
-    v_reactive_node_injection_Const[ t ][ 0 ].set_both( rhs , eNoMod );
-    // resize vc so that it's of the right length
-    vc.resize( std::distance( vc.begin() , vcit ) );
-    // construct and pass the LinearFunction to the FRowConstraint
-    v_reactive_node_injection_Const[ t ][ 0 ].set_function(
-     new LinearFunction( std::move( vc ) ) , eNoMod );
+   // set the final RHS of the constraint (equality constraint)
+   v_reactive_node_injection_Const[ t ][ 0 ].set_both( rhs , eNoMod );
+   // resize vc so that it's of the right length
+   vc.resize( std::distance( vc.begin() , vcit ) );
+   // construct and pass the LinearFunction to the FRowConstraint
+   v_reactive_node_injection_Const[ t ][ 0 ].set_function(
+			   new LinearFunction( std::move( vc ) ) , eNoMod );
    }  // end( for( t ) )
-
-  } else {  // number_nodes > 1
-
+  }
+ else {  // number_nodes > 1- - - - - - - - - - - - - - - - - - - - - - - - -
    // Network needs GeneratorNode
 
    Index t = 0;
    for( Index n = 0 ; n < f_number_networks ; ++n ) {
-
-    for( Index i = 0 ;
-         i < v_network_blocks[ n ]->get_number_intervals() ;
+    for( Index i = 0 ; i < v_network_blocks[ n ]->get_number_intervals() ;
          ++i , ++t ) {
-
-     auto node_injection = v_network_blocks[ n ]->get_reactive_node_injection( i );
+     auto node_injection =
+                     v_network_blocks[ n ]->get_reactive_node_injection( i );
 
      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
       auto lf = new LinearFunction();
 
       lf->add_variable( &node_injection[ node_id ] , -1.0 , eNoMod );
 
       double rhs = 0.0;
-
       Index elc_generator = 0;
       for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
-
        const auto unit_block = get_unit_block( unit_id );
        const auto scale = unit_block->get_scale();
 
        for( Index generator = 0 ;
             generator < unit_block->get_number_generators() ;
             ++generator , ++elc_generator ) {
-
         if( node_id != v_generator_node[ elc_generator ] )
          continue;
 
         if( auto ap = unit_block->get_reactive_power( generator ) ) {
          auto reactive_power = &ap[ t ];
          lf->add_variable( reactive_power , scale , eNoMod );
-        }
+         }
 
         if( auto fc = unit_block->get_fixed_consumption( generator ) )
          if( auto c = unit_block->get_commitment( generator ) ) {
@@ -814,20 +867,22 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
           auto commitment = &c[ t ];
           lf->add_variable( commitment , fixed_consumption , eNoMod );
           rhs += fixed_consumption;
-         }
+          }
+        }
        }
-      }
-      v_reactive_node_injection_Const[ t ][ node_id ].set_both( rhs , eNoMod );
+
+      v_reactive_node_injection_Const[ t ][ node_id ].set_both( rhs ,
+								eNoMod );
       v_reactive_node_injection_Const[ t ][ node_id ].set_function( lf );
+      }
      }
     }
-   }
   }
 
-  add_static_constraint( v_reactive_node_injection_Const , "reactive_node_injection_c" );
- }
+ add_static_constraint( v_reactive_node_injection_Const ,
+			 "reactive_node_injection_c" );
 
-}  // end( UCBlock::generate_reactive_node_injection_constraints )
+ }  // end( UCBlock::generate_reactive_node_injection_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -837,8 +892,7 @@ void UCBlock::generate_primary_demand_constraints( void )
   return;
 
  v_PrimaryDemand_Const.resize(
-  boost::multi_array< FRowConstraint , 2 >::extent_gen()
-  [ f_time_horizon ][ f_number_primary_zones ] );
+		   MAFRC_ext()[ f_time_horizon ][ f_number_primary_zones ] );
 
  // We assume that, if a generator has primary spinning reserve for a time
  // instant, then it has primary spinning reserve for all time instants.
@@ -1608,13 +1662,12 @@ void UCBlock::update_node_injection_constraints(
     constraint.set_both( rhs , eNoBlck );
 
     // update the coefficients
-    static_cast< LinearFunction * >
-    ( constraint.get_function() )->modify_coefficients
-     ( std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
+    LF( constraint.get_function() )->modify_coefficients(
+	 std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
 
-   }  // end( for( t ) )
-
-  } else {  // number_nodes > 1
+    }  // end( for( t ) )
+   }
+  else {  // number_nodes > 1
 
    // Network needs GeneratorNode
 
@@ -1704,9 +1757,8 @@ void UCBlock::update_node_injection_constraints(
      constraint.set_both( rhs , eNoBlck );
 
      // update the coefficients
-     static_cast< LinearFunction * >( constraint.get_function() )->
-      modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                           true , eNoBlck );
+     LF( constraint.get_function() )->modify_coefficients(
+	  std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
 
     }  // end( for( node_id ) )
    }  // end( for( t ) )
@@ -1805,19 +1857,17 @@ void UCBlock::update_primary_demand_constraints(
    }  // end( for( modified_units ) )
 
    // Update the coefficients of the active variables
-   static_cast< LinearFunction * >( constraint.get_function() )->
-    modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                         false , eNoBlck );
+   LF( constraint.get_function() )->modify_coefficients(
+	 std::move( coefficients ) , std::move( subset ) , false , eNoBlck );
 
-  }  // end( for( zone_id ) )
- }  // end( for( t ) )
-
-}  // end( UCBlock::update_primary_demand_constraints )
+   }  // end( for( zone_id ) )
+  }  // end( for( t ) )
+ }  // end( UCBlock::update_primary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_secondary_demand_constraints(
- const std::vector< Index > & modified_units )
+			        const std::vector< Index > & modified_units )
 {
  if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -1905,19 +1955,17 @@ void UCBlock::update_secondary_demand_constraints(
    }  // end( for( modified_units ) )
 
    // Update the coefficients of the active variables
-   static_cast< LinearFunction * >( constraint.get_function() )->
-    modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                         false , eNoBlck );
+   LF( constraint.get_function() )->modify_coefficients(
+	 std::move( coefficients ) , std::move( subset ) , false , eNoBlck );
 
-  }  // end( for( zone_id ) )
- }  // end( for( t ) )
-
-}  // end( UCBlock::update_secondary_demand_constraints )
+   }  // end( for( zone_id ) )
+  }  // end( for( t ) )
+ }  // end( UCBlock::update_secondary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_inertia_demand_constraints(
- const std::vector< Index > & modified_units )
+			        const std::vector< Index > & modified_units )
 {
  if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -2043,25 +2091,23 @@ void UCBlock::update_inertia_demand_constraints(
     }  // end( for( unit_id ) )
 
     // Update the coefficients of the active variables
-    static_cast< LinearFunction * >( constraint.get_function() )->
-     modify_coefficients( std::move( coefficients ) , std::move( subset ) ,
-                          true , eNoBlck );
+    LF( constraint.get_function() )->modify_coefficients(
+	  std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
 
-   }  // end( for( node_id ) )
-  }  // end( for( zone_id ) )
- }  // end( for( t ) )
-
-}  // end( UCBlock::update_inertia_demand_constraints )
+    }  // end( for( node_id ) )
+   }  // end( for( zone_id ) )
+  }  // end( for( t ) )
+ }  // end( UCBlock::update_inertia_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints( Index time ,
-						                                           Index node_index ,
+						 Index node_index ,
                                                  double demand )
 {
  auto rhs = demand;
  for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
-  const auto unit_block = static_cast< UnitBlock * >( v_Block[ i ] );
+  const auto unit_block = UB( v_Block[ i ] );
   const auto scale = unit_block->get_scale();
   // for each electrical generator within the unit
   for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {

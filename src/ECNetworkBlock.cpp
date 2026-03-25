@@ -75,33 +75,6 @@ ECNetworkBlock::~ECNetworkBlock()
 
 void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 {
-
-#ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberIntervals" ,
-                                                     // if called from UCBlock:
-                                                     "TimeHorizon" ,
-                                                     "NumberUnits" ,
-                                                     "NumberNetworks" ,
-                                                     "NumberElectricalGenerators" };
- check_dimensions( group , expected_dims , std::cerr );
-
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "BuyPrice" ,
-                                                     "SellPrice" ,
-                                                     "RewardPrice" ,
-                                                     "PeakTariff" ,
-                                                     "ConstantTerm" ,
-                                                     // if called from UCBlock:
-                                                     "ActivePowerDemand" ,
-                                                     "GeneratorNode" ,
-                                                     "NetworkConstantTerms" ,
-                                                     "NetworkBlockClassname" ,
-                                                     "NetworkDataClassname" };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  NetworkData::deserialize( group );
 
  if( f_number_nodes == 1 )
@@ -133,50 +106,79 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
-{
-
 #ifndef NDEBUG
- static std::vector< std::string > expected_dims = { "NumberNodes" ,
-                                                     "NumberIntervals" };
- check_dimensions( group , expected_dims , std::cerr );
 
- static std::vector< std::string > expected_vars = { "ActiveDemand" ,
-                                                     "BuyPrice" ,
-                                                     "SellPrice" ,
-                                                     "RewardPrice" ,
-                                                     "PeakTariff" ,
-                                                     "ConstantTerm" };
- check_variables( group , expected_vars , std::cerr );
+std::vector< std::string > ECNetworkData::expected_dims( void ) const {
+ auto ret = NetworkData::expected_dims();
+ ret.push_back( "NumberIntervals" );
+
+ return( ret );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+std::vector< std::string > ECNetworkData::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "BuyPrice" , "SellPrice" , "RewardPrice" , "PeakTariff" };
+
+ auto ret = NetworkData::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
 #endif
 
- NetworkBlock::deserialize( group );
+/*--------------------------------------------------------------------------*/
 
+void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
+{
  // Optional variables
-
- Index NumberNodes, NumberIntervals;
- if( deserialize_dim( group , "NumberNodes" , NumberNodes ) &&
-     deserialize_dim( group , "NumberIntervals" , NumberIntervals ) ) {
-  // Since the dimensions "NumberNodes" and "NumberIntervals" has been provided,
-  // it means that an ECNetworkData has been provided. Thus, the ECNetworkData
-  // is deserialized, and it is marked as being local
-  if( f_local_NetworkData )
-   // if the NetworkData has not been passed from UCBlock, then delete it
-   delete( f_NetworkData );
-  auto ECND = new ECNetworkData();
+ Index NumberIntervals;
+ if( ! deserialize_dim( group , "NumberIntervals" , NumberIntervals ) )
+  NumberIntervals = 1;
+ 
+ Index NumberNodes;
+ if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+  // since the dimensions "NumberNodes" has been provided, an ECNetworkData
+  // is there: deserialize it and mark it as local
+  if( f_local_NetworkData ) {  // if the NetworkData has not been passed
+   delete( f_NetworkData );    // from UCBlock, then delete it
+   f_NetworkData = nullptr;
+   }
+  auto ECND = get_new_NetworkData();
   ECND->deserialize( group );
   if( f_NetworkData &&
     ( f_NetworkData->get_number_nodes() != ECND->get_number_nodes() ) )
-   throw( std::logic_error(
-    "ECNetworkBlock::deserialize: NumberNodes not matching between NetworkData" ) );
+   throw( std::logic_error( "ECNetworkBlock::deserialize: NumberNodes not "
+			    "matching between NetworkData" ) );
   f_NetworkData = ECND;
   f_local_NetworkData = true;
-  // An ECNetworkData has been provided. So, the size of the given vector of
-  // active demand must be equal to the number of nodes.
+  // an ECNetworkData has been provided, so the size of the given vector of
+  // active demand must be equal to [ number of nodes x number of intervals ]
   ::deserialize( group , "ActiveDemand" ,
                  { NumberIntervals , NumberNodes } , v_ActiveDemand );
+  }
+
+ // note: NetworkBlock::deserialize() is called after dealing with the
+ //       ECNetworkData, so that it's there when the list of expected stuff
+ //       is constructed and checked
+ NetworkBlock::deserialize( group );
+
+ }  // end( ECNetworkBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > ECNetworkBlock::expected_vars( void ) const {
+ auto ret = NetworkBlock::expected_vars();
+ ret.push_back( "ActiveDemand" );
+
+ return( ret );
  }
-}  // end( ECNetworkBlock::deserialize )
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -547,7 +549,7 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
    throw( std::invalid_argument( "ECNetworkBlock::set_active_demand: "
                                  "invalid value in subset." ) );
 
-  auto demand = *(values++);
+  auto demand = *( values++ );
   if( *( v_ActiveDemand.data() + i ) != demand ) {
    identical = false;
 
