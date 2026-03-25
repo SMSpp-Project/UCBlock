@@ -263,13 +263,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- // do not call DCNetworkBlock::generate_abstract_constraints( stcc ) since
- // the class entirely redefines its constraints, but directly call
- // generate_bound_constraints() to have the bound constraints generated
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- generate_bound_constraints();
-
  // read the Configuration (if any) - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -318,7 +311,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
                            "number of lines of DCNetworkBlock is not set" )
 	 );
 
- // node injection bound constraints
+ // do not call DCNetworkBlock::generate_abstract_constraints( stcc ) since
+ // the class entirely redefines its constraints, but directly call
+ // generate_bound_constraints() to have the bound constraints generated
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ generate_bound_constraints();
+
+ // node injection bound constraints- - - - - - - - - - - - - - - - - - - - -
  reactive_node_injection_bounds_const.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   reactive_node_injection_bounds_const[ node_id ].set_lhs(
@@ -332,14 +332,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  add_static_constraint( reactive_node_injection_bounds_const ,
                         "Reactive_Node_Injection_Bound_Const_Network" );
 
- // now start processing lines
+ // now start processing lines- - - - - - - - - - - - - - - - - - - - - - - -
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
 
  auto & DC_lines = f_NetworkData->get_DC_lines();
  int nb_dc_lines = DC_lines.size();
 
- // recover the DC lines
+ // recover the DC lines- - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
  int nb_hvdc_lines = f_NetworkData->get_number_HVDC_lines();
 
@@ -349,7 +349,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   * v_power_flow_tilde with v_power_flow_tilde = C * v_power_flow
   * and likewise v_reactive_power_flow */
 
- // ----- Voltage bounds
+ // ----- Voltage bounds- - - - - - - - - - - - - - - - - - - - - - - - - - -
  /* We ensure that the voltage magnitude is bounded between min_voltage 
   * and max_voltage. To this aim,
   *    W_{n,n} = (V_n).(V_n)^H = |V_n|^2
@@ -366,7 +366,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   }
  add_static_constraint( v_voltage_bounds_const , "AC_voltage_bounds_limit" );
 
- // ----- Angle bounds
+ // ----- Angle bounds- - - - - - - - - - - - - - - - - - - - - - - - - - - -
  /*
  We aim to incorporate Phase Angle Difference (PAD) constraints for each line = (start,end):
    min_angle_{line} <= angle(V_{end}) - angle(V_{start}) <= max_angle_{line}
@@ -403,14 +403,14 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_angle_bounds_const[ 1 ][ i_line ].set_rhs( 0.0 );
   v_angle_bounds_const[ 1 ][ i_line ].set_function( lfunc_2 );
 
-  // -- bounds on v_sum_product_voltages
+  // -- bounds on v_sum_product_voltages- - - - - - - - - - - - - - - - - - -
   auto lfunc_3 = new LinearFunction();
   lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
   v_basic_bounds_const[ 0 ][ i_line ].set_lhs( std::min( cos(std::abs(phi_min)), cos(std::abs(phi_max)) )*min_voltage[ start_line[ line_id ] ]*min_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
   v_basic_bounds_const[ 0 ][ i_line ].set_rhs( max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
   v_basic_bounds_const[ 0 ][ i_line ].set_function( lfunc_3 );
 
-  // -- bounds on v_diff_product_voltages
+  // -- bounds on v_diff_product_voltages - - - - - - - - - - - - - - - - - -
   auto lfunc_4 = new LinearFunction();
   double s_sin = std::max( sin(phi_min), sin(phi_max) );
   lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
@@ -426,7 +426,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( v_basic_bounds_const , "AC_elem_bounds" ); 
   }
 
- // ----- Active and Reactive Power conservation:
+ // ----- Active and Reactive Power conservation: - - - - - - - - - - - - - -
  // Shunt admittance
  SpCVec Ys = SpCVec( number_nodes );
  for( Index n = 0 ; n < number_nodes ; ++n ) {
@@ -443,7 +443,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   * and an imaginary part. */
  v_power_flow_injection_const.resize( 2 * number_nodes );
 
- // real part of the power flow conservation
+ // real part of the power flow conservation- - - - - - - - - - - - - - - - -
  for( Index p = 0 ; p < number_nodes ; ++p ) {
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_node_injection[ 0 ][ p ] , -1.0 * f_C_v_scal );
@@ -466,7 +466,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_power_flow_injection_const[ p ].set_function( lfunc );
   }
 
- // imaginary part of the power flow conservation
+ // imaginary part of the power flow conservation- - - - - - - - - - - - - -
  for( Index p = 0 ; p < number_nodes ; ++p ) {
   auto lfunc = new LinearFunction();
   lfunc->add_variable( & v_reactive_node_injection[ p ] , -1.0 * f_C_v_scal );
@@ -491,7 +491,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  add_static_constraint( v_power_flow_injection_const ,
                         "AC_power_flow_injection" );
 
- // ----- Since the lines have been duplicated, we need to add for DC ones the link between the two versions
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // ----- Since the lines have been duplicated, we need to add for DC ones
+ //the link between the two versions
  v_flow_dc.resize( nb_hvdc_lines );
  int i_hvdc_line = 0;
  for( auto & line_id : HVDC_lines ) {
@@ -505,7 +507,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  add_static_constraint( v_flow_dc , "HVDC_flow_links" );
 
- // ----- Definition of complex power flow
+ // ----- Definition of complex power flow- - - - - - - - - - - - - - - - - -
  /*
  We define the complex power flow S_{line} for each line = (start,end) as
    S_{start,end} = Yff_{start,end} W_{start,start} + Yft_{start,end}W_{start,end}
@@ -643,7 +645,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( v_voltage_definition_const ,
                          "AC_voltage_definition_const" );
 
- // ----- Thermal limit on lines
+ // ----- Thermal limit on lines- - - - - - - - - - - - - - - - - - - - - - -
  /*
  We impose that |S_{line}| <= rateA_{line}, which corresponds to a thermal limitation.
  Then, to take into account this constraint, we use a DQuadFunction:
