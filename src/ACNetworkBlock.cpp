@@ -281,7 +281,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  int f_digits = 16;
 
  if( ( ! stcc ) && f_BlockConfig )
-  stcc = f_BlockConfig->f_static_variables_Configuration;
+  stcc = f_BlockConfig->f_static_constraints_Configuration;
 
  if( auto SCdd = dynamic_cast< SimpleConfiguration< double > * >( stcc ) )
   C_v_scal = SCdd->f_value;
