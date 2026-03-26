@@ -1781,13 +1781,14 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
+ static void static_initialization( void )
+ {
   register_method< UCBlock , MF_dbl_it , Subset && , bool >(
-   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
+   "UCBlock::set_active_power_demand" , & UCBlock::set_active_power_demand );
 
   register_method< UCBlock , MF_dbl_it , Range >(
-   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
-  }
+   "UCBlock::set_active_power_demand" , & UCBlock::set_active_power_demand );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
