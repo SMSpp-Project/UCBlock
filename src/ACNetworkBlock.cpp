@@ -123,6 +123,14 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
 
   ::deserialize( group , "NodeMinVoltage" , f_number_nodes ,
                  v_node_min_voltage , true , true );
+
+   // Uncover the Min and Max Reactive Flow if there
+
+   ::deserialize( group , "MinReactivePowerFlow" , f_number_lines , v_min_reac_power_flow ,
+                 true , true );
+
+   ::deserialize( group , "MaxReactivePowerFlow" , f_number_lines , v_max_reac_power_flow ,
+                 true , true );
   }
  }  // end( ACNetworkData::deserialize )
 
@@ -208,6 +216,21 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
  DCNetworkBlock::generate_abstract_variables( stvv );
 
+  // read the Configuration (if any) - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( ( ! stvv ) && f_BlockConfig )
+  stvv = f_BlockConfig->f_static_variables_Configuration;
+
+ if( auto SCdd = dynamic_cast< SimpleConfiguration< int > * >( stvv ) ){
+    b_strongSOCP = (SCdd->f_value > 0);  
+ }
+ else 
+   if( auto SCvd = dynamic_cast< SimpleConfiguration< std::vector< int > > * >( stvv ) ) {
+    if( SCvd->f_value.size() > 0 )
+      b_strongSOCP = (SCvd->f_value[ 0 ] > 0);
+ }
+
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
 
@@ -250,10 +273,10 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   v_sqrd_voltages[ node_id ].set_type( ColVariable::kContinuous );
  add_static_variable( v_sqrd_voltages , "v_sqrd_voltages" );
 
- // If so desired we can now add the variables for the strenghtened SOCP relaxation
- // TODO add switch to turn this on or off
- generate_strengthened_variables();
-
+  // If so desired we can now add the variables for the strenghtened SOCP relaxation
+  if ( b_strongSOCP ){
+    generate_strengthened_variables();
+  }
  }  // end( ACNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -299,7 +322,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     }
  
  const auto number_nodes = get_number_nodes();
- std::cout << " Found a config file yes or no " << f_digits << "\n";
+ //std::cout << " Found a config file yes or no " << f_digits << "\n";
 
  if( number_nodes <= 1 )
   return;
@@ -425,6 +448,33 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( v_angle_bounds_const , "AC_angle_bounds_limit" );
   add_static_constraint( v_basic_bounds_const , "AC_elem_bounds" ); 
   }
+
+ auto * fnet = static_cast< ACNetworkData * >( f_NetworkData ); 
+ // Bounds on Reactive flow in HVDC lines
+ if ( fnet->has_reactive_bounds() ){
+    v_reactive_flow_bounds.resize( 2*nb_hvdc_lines );
+    int i_hvdc_line = 0;
+    for( auto & line_id : HVDC_lines ) {
+        auto lfunc = new LinearFunction();
+        lfunc->add_variable( &v_reactive_power_flow[ line_id ] , 1.0 );  
+        v_reactive_flow_bounds[ i_hvdc_line ].set_lhs( f_C_v_scal * fnet->get_min_reac_power_flow( line_id ) );
+        v_reactive_flow_bounds[ i_hvdc_line ].set_rhs( f_C_v_scal * fnet->get_max_reac_power_flow( line_id ) );
+        v_reactive_flow_bounds[ i_hvdc_line ].set_function( lfunc );
+  
+        auto lfunc2 = new LinearFunction();
+        lfunc2->add_variable( &v_reactive_power_flow[ number_lines + line_id ] , 1.0 );  
+        v_reactive_flow_bounds[ nb_hvdc_lines + i_hvdc_line ].set_lhs( f_C_v_scal * fnet->get_min_reac_power_flow( line_id ) );
+        v_reactive_flow_bounds[ nb_hvdc_lines + i_hvdc_line ].set_rhs( f_C_v_scal * fnet->get_max_reac_power_flow( line_id ) );
+        v_reactive_flow_bounds[ nb_hvdc_lines + i_hvdc_line ].set_function( lfunc2 );
+  
+        ++i_hvdc_line;
+    }
+    add_static_constraint( v_reactive_flow_bounds , "Reactive_Flow_Bounds" );
+  }
+  else{
+    std::cout << " No bounds on Reactive flow given ... \n";
+  }
+
 
  // ----- Active and Reactive Power conservation: - - - - - - - - - - - - - -
  // Shunt admittance
@@ -651,32 +701,36 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  Then, to take into account this constraint, we use a DQuadFunction:
    Real(S_{line})^2 + Imag(S_{line})^2 <= rateA_{line}^2
  */
- v_thermal_limit.resize( 2 * number_lines );
+ v_thermal_limit.resize( 2 * nb_dc_lines );
  const auto & rate_A = ND()->get_line_rate_A();
- for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+ i_line = 0;
+ for( auto & line_id : DC_lines ) {
   auto qfunc_1 = new DQuadFunction();
   qfunc_1->add_variable( &v_power_flow[ line_id ] , 0.0 , 1.0 );
   qfunc_1->add_variable( &v_reactive_power_flow[ line_id ] , 0.0 , 1.0 );
-  v_thermal_limit[ line_id ].set_lhs( -Inf< double >() );
-  v_thermal_limit[ line_id ].set_rhs(
-   pow( f_C_v_scal * rate_A[ line_id ] / base_mva , 2 ) );
-  v_thermal_limit[ line_id ].set_function( qfunc_1 );
+  v_thermal_limit[ i_line ].set_lhs( -Inf< double >() );
+  v_thermal_limit[ i_line ].set_rhs( pow( f_C_v_scal * rate_A[ line_id ] / base_mva , 2 ) );
+  v_thermal_limit[ i_line ].set_function( qfunc_1 );
+
   auto qfunc_2 = new DQuadFunction();
   qfunc_2->add_variable( &v_power_flow[ number_lines + line_id ] , 0.0 , 1.0 );
   qfunc_2->add_variable( &v_reactive_power_flow[ number_lines + line_id ] ,
                          0.0 , 1.0 );
-  v_thermal_limit[ number_lines + line_id ].set_lhs( -Inf< double >() );
-  v_thermal_limit[ number_lines + line_id ].set_rhs(
-   pow( f_C_v_scal * rate_A[ line_id ] / base_mva , 2 ) );
-  v_thermal_limit[ number_lines + line_id ].set_function( qfunc_2 );
+  v_thermal_limit[ nb_dc_lines + i_line ].set_lhs( -Inf< double >() );
+  v_thermal_limit[ nb_dc_lines + i_line ].set_rhs( pow( f_C_v_scal * rate_A[ line_id ] / base_mva , 2 ) );
+  v_thermal_limit[ nb_dc_lines + i_line ].set_function( qfunc_2 );
+
+  ++i_line; 
  }
  add_static_constraint( v_thermal_limit , "AC_thermal_limit_const" );
 
- // up to now, only SOCP relaxation is available, but it could be replaced
- // by something else
- generate_SOCP_relaxation();
- strengthen_SOCP_relaxation();
+  // up to now, only SOCP relaxation is available, but it could be replaced
+  // by something else
+  generate_SOCP_relaxation();
 
+  if ( b_strongSOCP ){
+    strengthen_SOCP_relaxation();
+  }
  }  // end( ACNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
