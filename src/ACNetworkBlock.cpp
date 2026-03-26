@@ -222,13 +222,12 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
 
- if( auto SCdd = dynamic_cast< SimpleConfiguration< int > * >( stvv ) ){
-    b_strongSOCP = (SCdd->f_value > 0);  
- }
- else 
+ if( auto SCdd = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
+    b_strongSOCP = ( SCdd->f_value > 0 );
+ else
    if( auto SCvd = dynamic_cast< SimpleConfiguration< std::vector< int > > * >( stvv ) ) {
     if( SCvd->f_value.size() > 0 )
-      b_strongSOCP = (SCvd->f_value[ 0 ] > 0);
+      b_strongSOCP = ( SCvd->f_value[ 0 ] > 0 );
  }
 
  const auto number_nodes = get_number_nodes();
@@ -273,10 +272,9 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
   v_sqrd_voltages[ node_id ].set_type( ColVariable::kContinuous );
  add_static_variable( v_sqrd_voltages , "v_sqrd_voltages" );
 
-  // If so desired we can now add the variables for the strenghtened SOCP relaxation
-  if ( b_strongSOCP ){
-    generate_strengthened_variables();
-  }
+ // If so desired we can now add the variables for the strengthened SOCP relaxation
+ if ( b_strongSOCP )
+  generate_strengthened_variables();
  }  // end( ACNetworkBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -728,9 +726,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // by something else
   generate_SOCP_relaxation();
 
-  if ( b_strongSOCP ){
+  if ( b_strongSOCP )
     strengthen_SOCP_relaxation();
-  }
+
  }  // end( ACNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/

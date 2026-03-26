@@ -325,7 +325,7 @@ class ACNetworkBlock : public DCNetworkBlock
  * @{ */
 
  explicit ACNetworkBlock( Block * f_block = nullptr )
-  : DCNetworkBlock( f_block ), b_strongSOCP(true) {}
+  : DCNetworkBlock( f_block ) , b_strongSOCP( true ) {}
 
 /*--------------------------------------------------------------------------*/
 
