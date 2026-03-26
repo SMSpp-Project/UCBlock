@@ -325,7 +325,7 @@ class ACNetworkBlock : public DCNetworkBlock
  * @{ */
 
  explicit ACNetworkBlock( Block * f_block = nullptr )
-  : DCNetworkBlock( f_block ) {}
+  : DCNetworkBlock( f_block ), b_strongSOCP(true) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -604,6 +604,9 @@ class ACNetworkBlock : public DCNetworkBlock
 /*--------------------------------------------------------------------------*/
 
 /*---------------------------------- data ----------------------------------*/
+
+ /// Boolean on if we wish to generate the stronger SOCP relaxation
+ bool b_strongSOCP;
 
  /// minimum reactive production of the electrical generators
  std::vector< double > v_MinReactiveNodeInjection;
