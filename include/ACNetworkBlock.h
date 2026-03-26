@@ -360,10 +360,31 @@ class ACNetworkBlock : public DCNetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the ACNetworkBlock
- /** TODO: comment */
-
+ ///
+ ///  We will generate the following variables
+ ///    v_power_flow
+ ///    v_reactive_power_flow
+ ///    v_sum_product_voltages
+ ///    v_diff_product_voltages
+ ///    v_sqrd_voltages
+ ///
+ ///  Observe that contrary to before, both v_power_flow (the real part of flow through a line) and v_reactive_power_flow (the imaginary part of flow through a line)
+ ///    Now have as dimension twice the total number of lines. This is because we need to distinguish between flow to and from buses.
+ ///
+ ///  The further variables "correspond to" voltages in each node
+ ///    v_sum_product_voltages  = c_{n,n'} = Re(V_n)Re(V_n') + Im(V_n)Im(V_n')
+ ///    v_diff_product_voltages = s_{n,n'} = Im(V_n)Re(V_n') - Re(V_n)Im(V_n')
+ ///    v_sqrd_voltages = W_{n,n'} = c_{n,n} = |V_n|^2
+ ///  These appear in the standard rotated second order cones.
+ ///
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
+ /// The following function adds additional variables for the stronger SOCP relaxation.
+ /// Herein we follow the following paper
+ /// C. Coffrin, H. L. Hijazi and P. Van Hentenryck, "The QC Relaxation: A Theoretical and Computational Study on Optimal Power Flow," in IEEE Transactions on Power Systems, vol. 31, no. 4, pp. 3008-3018, July 2016, doi: 10.1109/TPWRS.2015.2463111.
+ // this paper considers and adds multiple McCormick inequalities to strenghten the basic SOCP relaxation
+ /// 
+ /// the internal variable b_strongSOCP which can be set through a BlockConfig (static_variables kind) toggles this on or off
  void generate_strengthened_variables( void ); 
 
 /*--------------------------------------------------------------------------*/
