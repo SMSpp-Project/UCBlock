@@ -421,7 +421,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   ++i_line;
   }
 
- if( i_line > 0 ){
+ if( i_line > 0 ) {
   add_static_constraint( v_angle_bounds_const , "AC_angle_bounds_limit" );
   add_static_constraint( v_basic_bounds_const , "AC_elem_bounds" ); 
   }
@@ -757,9 +757,8 @@ void ACNetworkBlock::generate_strengthened_variables( void )
 
  // -----
  v_theta.resize( number_nodes );
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
   v_theta[ node_id ].set_type( ColVariable::kContinuous );
- }
  add_static_variable( v_theta , "v_theta" );
 
  // -----
@@ -812,7 +811,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
 
  // -- Add simple bounds
  v_volt_bounds.resize( number_nodes );
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_voltage[ node_id ] , 1.0 );
   v_volt_bounds[ node_id ].set_lhs( min_voltage[ node_id ] * f_C_v_scal );
@@ -867,7 +866,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  // ===== generate auxiliary constraints
  // 
  v_diag_const_1.resize( number_nodes );
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   auto qfunc = new DQuadFunction();
   qfunc->add_variable( &v_sqrd_voltages[ node_id ] , -1.0 , 0.0 );
   qfunc->add_variable( &v_voltage[ node_id ] , 0.0 , 1.0 );
@@ -879,7 +878,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
 
  // ----
  v_diag_const_2.resize( number_nodes );
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ){
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   auto lfunc = new LinearFunction();
   lfunc->add_variable( &v_sqrd_voltages[ node_id ] , -1.0 );
   lfunc->add_variable( &v_voltage[ node_id ] , 

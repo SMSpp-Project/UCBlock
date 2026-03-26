@@ -585,33 +585,24 @@ private:
 /*--------------------------------------------------------------------------*/
  /// register the methods in the methods factory
 
- static void static_initialization( void ) {
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< NuclearUnitBlock >(
-   *           "NuclearUnitBlock::set_modulation_ramp_up" ,
-   *           & NuclearUnitBlock::set_availability , MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
+ static void static_initialization( void )
+ {
   register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
-                               "NuclearUnitBlock::set_modulation_ramp_up" ,
-                               & NuclearUnitBlock::set_modulation_ramp_up );
+   "NuclearUnitBlock::set_modulation_ramp_up" ,
+   & NuclearUnitBlock::set_modulation_ramp_up );
 
   register_method< NuclearUnitBlock , MF_dbl_it , Range >(
-                               "NuclearUnitBlock::set_modulation_ramp_up" ,
-                               & NuclearUnitBlock::set_modulation_ramp_up );
+   "NuclearUnitBlock::set_modulation_ramp_up" ,
+   & NuclearUnitBlock::set_modulation_ramp_up );
 
   register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
-                             "NuclearUnitBlock::set_modulation_ramp_down" ,
-                             & NuclearUnitBlock::set_modulation_ramp_down );
+   "NuclearUnitBlock::set_modulation_ramp_down" ,
+   & NuclearUnitBlock::set_modulation_ramp_down );
 
   register_method< NuclearUnitBlock , MF_dbl_it , Range >(
-                             "NuclearUnitBlock::set_modulation_ramp_down" ,
-                             & NuclearUnitBlock::set_modulation_ramp_down );
-  }
+   "NuclearUnitBlock::set_modulation_ramp_down" ,
+   & NuclearUnitBlock::set_modulation_ramp_down );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

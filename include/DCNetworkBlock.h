@@ -1882,23 +1882,14 @@ class DCNetworkData : public NetworkData
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< DCNetworkBlock >( "DCNetworkBlock::set_active_demand",
-   *                                    &DCNetworkBlock::set_active_demand,
-   *                                    MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
+ static void static_initialization( void )
+ {
   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "DCNetworkBlock::set_active_demand" , &DCNetworkBlock::set_active_demand );
+   "DCNetworkBlock::set_active_demand" , & DCNetworkBlock::set_active_demand );
 
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
-   "DCNetworkBlock::set_active_demand" , &DCNetworkBlock::set_active_demand );
-  }
+   "DCNetworkBlock::set_active_demand" , & DCNetworkBlock::set_active_demand );
+ }
 
  };  // end( class( DCNetworkBlock ) )
 

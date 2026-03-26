@@ -1934,39 +1934,30 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args()
-   *
-   * register_method< HydroUnitBlock >( "HydroUnitBlock::set_inflow",
-   *                                    &HydroUnitBlock::set_inflow,
-   *                                    MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
+ static void static_initialization( void )
+ {
   register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
-                "HydroUnitBlock::set_inflow" , & HydroUnitBlock::set_inflow );
+   "HydroUnitBlock::set_inflow" , & HydroUnitBlock::set_inflow );
 
   register_method< HydroUnitBlock , MF_dbl_it , Range >(
-                "HydroUnitBlock::set_inflow" , & HydroUnitBlock::set_inflow );
+   "HydroUnitBlock::set_inflow" , & HydroUnitBlock::set_inflow );
 
   register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
-				       "HydroUnitBlock::set_inertia_power" ,
-				       & HydroUnitBlock::set_inertia_power );
+   "HydroUnitBlock::set_inertia_power" ,
+   & HydroUnitBlock::set_inertia_power );
 
   register_method< HydroUnitBlock , MF_dbl_it , Range >(
-				       "HydroUnitBlock::set_inertia_power" ,
-				       & HydroUnitBlock::set_inertia_power );
+   "HydroUnitBlock::set_inertia_power" ,
+   & HydroUnitBlock::set_inertia_power );
 
   register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
-				      "HydroUnitBlock::set_initial_volume" ,
-				      & HydroUnitBlock::set_initial_volume );
+   "HydroUnitBlock::set_initial_volume" ,
+   & HydroUnitBlock::set_initial_volume );
 
   register_method< HydroUnitBlock , MF_dbl_it , Range >(
-				      "HydroUnitBlock::set_initial_volume" ,
-				      & HydroUnitBlock::set_initial_volume );
-  }
+   "HydroUnitBlock::set_initial_volume" ,
+   & HydroUnitBlock::set_initial_volume );
+ }
 
 /*--------------------------------------------------------------------------*/
 

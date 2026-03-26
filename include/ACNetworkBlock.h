@@ -657,13 +657,14 @@ class ACNetworkBlock : public DCNetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
+ static void static_initialization( void )
+ {
   register_method< ACNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "DCNetworkBlock::set_active_demand" , &ACNetworkBlock::set_active_demand );
+   "DCNetworkBlock::set_active_demand" , & ACNetworkBlock::set_active_demand );
 
   register_method< ACNetworkBlock , MF_dbl_it , Range >(
-   "DCNetworkBlock::set_active_demand" , &ACNetworkBlock::set_active_demand );
-  }
+   "DCNetworkBlock::set_active_demand" , & ACNetworkBlock::set_active_demand );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

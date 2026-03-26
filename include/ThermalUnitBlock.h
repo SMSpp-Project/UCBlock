@@ -2882,56 +2882,46 @@ class ThermalUnitBlock : public UnitBlock
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< ThermalUnitBlock >(
-   *                                    "ThermalUnitBlock::set_availability" ,
-   *                                    & ThermalUnitBlock::set_availability ,
-   *                                    MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
+ static void static_initialization( void )
+ {
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-                                      "ThermalUnitBlock::set_availability" ,
-                                      & ThermalUnitBlock::set_availability );
+   "ThermalUnitBlock::set_availability" ,
+   & ThermalUnitBlock::set_availability );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-                                      "ThermalUnitBlock::set_availability" ,
-                                      & ThermalUnitBlock::set_availability );
+   "ThermalUnitBlock::set_availability" ,
+   & ThermalUnitBlock::set_availability );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-                                      "ThermalUnitBlock::set_maximum_power" ,
-                                      & ThermalUnitBlock::set_maximum_power );
+   "ThermalUnitBlock::set_maximum_power" ,
+   & ThermalUnitBlock::set_maximum_power );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-                                      "ThermalUnitBlock::set_maximum_power" ,
-                                      & ThermalUnitBlock::set_maximum_power );
+   "ThermalUnitBlock::set_maximum_power" ,
+   & ThermalUnitBlock::set_maximum_power );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-                                      "ThermalUnitBlock::set_initial_power" ,
-                                      & ThermalUnitBlock::set_initial_power );
+   "ThermalUnitBlock::set_initial_power" ,
+   & ThermalUnitBlock::set_initial_power );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-                                      "ThermalUnitBlock::set_initial_power" ,
-                                      & ThermalUnitBlock::set_initial_power );
+   "ThermalUnitBlock::set_initial_power" ,
+   & ThermalUnitBlock::set_initial_power );
 
   register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
-                                   "ThermalUnitBlock::set_init_updown_time" ,
-                                   & ThermalUnitBlock::set_init_updown_time );
+   "ThermalUnitBlock::set_init_updown_time" ,
+   & ThermalUnitBlock::set_init_updown_time );
 
   register_method< ThermalUnitBlock , MF_int_it , Range >(
-                                   "ThermalUnitBlock::set_init_updown_time" ,
-                                   & ThermalUnitBlock::set_init_updown_time );
+   "ThermalUnitBlock::set_init_updown_time" ,
+   & ThermalUnitBlock::set_init_updown_time );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-                      "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
+   "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-                      "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
-  }
+   "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
+ }
 
 /*--------------------------------------------------------------------------*/
 

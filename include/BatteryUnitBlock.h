@@ -2046,32 +2046,23 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
-   *                                      &BatteryUnitBlock::set_initial_storage,
-   *                                      MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
+ static void static_initialization( void )
+ {
   register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
    "BatteryUnitBlock::set_initial_storage" ,
-   &BatteryUnitBlock::set_initial_storage );
+   & BatteryUnitBlock::set_initial_storage );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Range >(
    "BatteryUnitBlock::set_initial_storage" ,
-   &BatteryUnitBlock::set_initial_storage );
+   & BatteryUnitBlock::set_initial_storage );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
    "BatteryUnitBlock::set_kappa" ,
-   &BatteryUnitBlock::set_kappa );
+   & BatteryUnitBlock::set_kappa );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Range >(
    "BatteryUnitBlock::set_kappa" ,
-   &BatteryUnitBlock::set_kappa );
+   & BatteryUnitBlock::set_kappa );
  }
 
 };  // end( class( BatteryUnitBlock ) )
