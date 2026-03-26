@@ -389,7 +389,7 @@ class ACNetworkBlock : public DCNetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract constraints of the ACNetworkBlock
- /** TODO: comment
+ /** 
   *
   * The above nonlinear constraints in the formulation are way more
   * numerically instable than standard linear constraints, and therefore
@@ -398,7 +398,10 @@ class ACNetworkBlock : public DCNetworkBlock
   *
   * TODO: COMMENT BETTER WHAT EACH OF THESE DOES
   *
-  * - C_v_scal => default 1.0
+  * - C_v_scal => default 1.0 ; 
+  *         This is the main variable, working in a similar fashion as the "usual" per unit transform
+  *         Essentially all Voltages become tilde_Voltage = C_v_scal * Voltage
+  *                         power flows becomes C_v_scal * v_power_flow
   *
   * - f_ACvS => default 0.0 (Slack for AC_voltage_definition_const)
   *
@@ -406,6 +409,7 @@ class ACNetworkBlock : public DCNetworkBlock
   *              AC_voltage_definition_const equations)
   *
   * - f_digits => (default 16) the # of digits in round_sig (default?)
+  *         This helps round some of the admittance matrix data that appears in the constraint up to f_digits digits
   *
   * Setting these to non-default values is possible with the Configuration
   * parameter, that is either \p stcc or, if f_BlockConfig is not nullptr,

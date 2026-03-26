@@ -405,9 +405,13 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  const auto & max_angle = ND()->get_line_max_angle();
 
  for( auto & line_id : DC_lines ) {
+  // -- Observe that all angles are typically input as degrees, but obviously we need radians
+  //
   double phi_min = PI * min_angle[ line_id ] / 180.;
   double phi_max = PI * max_angle[ line_id ] / 180.;
-  // --
+  
+  // -- These are the classic angle based bounds on c_{n,n'} and s_{n,n'}
+  // \tan(\underline{\theta}_{n,n'})c_{n,n'} \leq s_{n,n'}
   auto lfunc_1 = new LinearFunction();
   lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
   lfunc_1->add_variable( & v_sum_product_voltages[ line_id ] ,
@@ -415,7 +419,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_angle_bounds_const[ 0 ][ i_line ].set_lhs( 0.0 );
   v_angle_bounds_const[ 0 ][ i_line ].set_rhs( Inf< double >() );
   v_angle_bounds_const[ 0 ][ i_line ].set_function( lfunc_1 );
-  // --
+
+  // -- second half
+  // s_{n,n'} \leq \tan(\overline{\theta}_{n,n'})c_{n,n'}
   auto lfunc_2 = new LinearFunction();
   lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
   lfunc_2->add_variable( & v_sum_product_voltages[ line_id ] ,
@@ -425,6 +431,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_angle_bounds_const[ 1 ][ i_line ].set_function( lfunc_2 );
 
   // -- bounds on v_sum_product_voltages- - - - - - - - - - - - - - - - - - -
+  //    The variables are also as follows
+  //    v_sum_product_voltages = c_{n,n'} = v_n v_n' cos(theta_n - theta_n')
+  //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n') on each line we can deduce proper bounds on these variables as well
+  //
   auto lfunc_3 = new LinearFunction();
   lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
   v_basic_bounds_const[ 0 ][ i_line ].set_lhs( std::min( cos(std::abs(phi_min)), cos(std::abs(phi_max)) )*min_voltage[ start_line[ line_id ] ]*min_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
@@ -432,6 +442,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_basic_bounds_const[ 0 ][ i_line ].set_function( lfunc_3 );
 
   // -- bounds on v_diff_product_voltages - - - - - - - - - - - - - - - - - -
+  //    The variables are also as follows
+  //    v_diff_product_voltages = s_{n,n'} = v_n v_n' sin(theta_n - theta_n')
+  //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n') on each line we can deduce proper bounds on these variables as well
+  //
   auto lfunc_4 = new LinearFunction();
   double s_sin = std::max( sin(phi_min), sin(phi_max) );
   lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
