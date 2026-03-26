@@ -2047,7 +2047,6 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  static void static_initialization( void ) {
-
   /* Warning: Not all C++ compilers enjoy the template wizardry behind the
    * three-args version of register_method<> with the compact MS_*_*::args(),
    *

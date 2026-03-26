@@ -1334,17 +1334,65 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// update the active power demand
- /** TODO: COMMENT THE FORMAT OF \p values, DAMMIT!!
-  */
+ /** Updates the active power demand for the entries specified by \p subset.
+  *
+  * The active power demand is conceptually stored as a matrix
+  * ActivePowerDemand[ n ][ t ], where n is the node index and t is the time
+  * instant. The iterator \p values must therefore provide the new demand
+  * values in the same order as the entries identified by \p subset, where
+  * each element of \p subset is interpreted as the flattened index
+  *
+  *    index = n * get_time_horizon() + t .
+  *
+  * Hence, for a generic element \c index in \p subset, the corresponding
+  * demand value read from \p values is assigned to
+  *
+  *    ActivePowerDemand[ index / get_time_horizon() ]
+  *                     [ index % get_time_horizon() ] .
+  *
+  * Therefore, the underlying flattened layout is node-major, i.e., all time
+  * instants of node 0 come first, then all time instants of node 1, and so
+  * on:
+  *
+  *    [ (0,0), (0,1), ... , (0,T-1), (1,0), ... , (N-1,T-1) ] .
+  *
+  * If \p ordered is true, \p subset is assumed to be already sorted in
+  * increasing order; otherwise it may be reordered internally before issuing
+  * the corresponding Modification. If NetworkBlock-s are present, the method
+  * forwards each updated entry to the corresponding NetworkBlock covering the
+  * associated time interval. */
+
  void set_active_power_demand( MF_dbl_it values , Subset && subset = { 0 } ,
-			       bool ordered = false ,
+                               bool ordered = false ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// update the active power demand
- /** TODO: COMMENT THE FORMAT OF \p values, DAMMIT!!
-  */
+ /** Updates the active power demand for the flattened range \p rng.
+  *
+  * The active power demand is conceptually stored as a matrix
+  * ActivePowerDemand[ n ][ t ], where n is the node index and t is the time
+  * instant. The iterator \p values must provide one value for each flattened
+  * entry in the half-open range [ rng.first , rng.second ), in increasing
+  * index order, with each flattened index interpreted as
+  *
+  *    index = n * get_time_horizon() + t .
+  *
+  * Hence, the k-th value read from \p values is assigned to the entry
+  * corresponding to the k-th flattened index in the range, namely
+  *
+  *    ActivePowerDemand[ index / get_time_horizon() ]
+  *                     [ index % get_time_horizon() ] .
+  *
+  * Therefore, the underlying flattened layout is node-major, i.e., all time
+  * instants of node 0 come first, then all time instants of node 1, and so
+  * on:
+  *
+  *    [ (0,0), (0,1), ... , (0,T-1), (1,0), ... , (N-1,T-1) ] .
+  *
+  * If NetworkBlock-s are present, each updated entry is forwarded to the
+  * corresponding NetworkBlock covering the associated time interval. */
 
  void set_active_power_demand( MF_dbl_it values , Range rng = Range( 0 , 1 ) ,
                                ModParam issuePMod = eNoBlck ,
