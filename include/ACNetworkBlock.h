@@ -205,6 +205,39 @@ class ACNetworkBlock : public DCNetworkBlock
   return( v_line_max_angle );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns true if minimum and maximum reactive flow bounds have been loaded
+ bool has_reactive_bounds( ) const{
+    return ( !v_min_reac_power_flow.empty() && !v_max_reac_power_flow.empty() );
+ }
+
+
+/*--------------------------------------------------------------------------*/
+ /// returns minimum Reactive power flow of the given \p line
+ /** This method returns the minimum Reactive power flow of the given \p line.
+  *
+  * @return the minimum Reactive power flow of the given \p line. */
+
+ double get_min_reac_power_flow( Index line ) const {
+  assert( line < f_number_lines );
+  if( v_min_reac_power_flow.empty() )
+   return( 0 );
+  return( v_min_reac_power_flow[ line ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns maximum Reactive power flow of the given \p line
+ /** This method returns the maximum Reactive power flow of the given \p line.
+  *
+  * @return the maximum Reactive power flow of the given \p line. */
+
+ double get_max_reac_power_flow( Index line ) const {
+  assert( line < f_number_lines );
+  if( v_max_reac_power_flow.empty() )
+   return( 0 );
+  return( v_max_reac_power_flow[ line ] );
+  }
+  
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  std::vector< std::pair< std::set< Index > , std::set< Index > > >
@@ -261,6 +294,14 @@ class ACNetworkBlock : public DCNetworkBlock
  std::vector< double > v_node_susceptance;
  std::vector< double > v_node_max_voltage;
  std::vector< double > v_node_min_voltage;
+
+ // Data on Reactive max and min power flow
+
+  /// vector to store the minimum Reactive power flow at each line
+ std::vector< double > v_min_reac_power_flow;
+
+ /// vector to store the maximum Reactive power flow at each line
+ std::vector< double > v_max_reac_power_flow;
 
  /*----------------------- PRIVATE PART OF THE CLASS -----------------------*/
 
@@ -607,6 +648,9 @@ class ACNetworkBlock : public DCNetworkBlock
 
   MAFRC v_basic_bounds_const;
 
+  // ----- Bounds on Reactive flow in lines (HVDC only)
+  std::vector< FRowConstraint > v_reactive_flow_bounds;
+
   // ----- Specific constraints for SOCP relaxation
   std::vector< FRowConstraint > v_socp_const;
 
@@ -615,6 +659,8 @@ class ACNetworkBlock : public DCNetworkBlock
   std::vector< FRowConstraint > v_theta_bounds;  
   std::vector< FRowConstraint > v_alpha_bounds; // alpha ~ cos( theta_i - theta_j )
   std::vector< FRowConstraint > v_beta_bounds;  // beta  ~ sin( theta_i - theta_j )
+
+  /// -----  Various constraints for the stronger SOCP relaxation
 
   std::vector< FRowConstraint > v_diag_const_1;
   std::vector< FRowConstraint > v_diag_const_2;

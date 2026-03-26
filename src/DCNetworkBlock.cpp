@@ -1193,9 +1193,9 @@ void DCNetworkBlock::generate_bound_constraints( void )
 
    const double kappa = get_kappa( l );
    v_power_flow_limit_const[ l ].set_lhs(
-                            kappa * f_NetworkData->get_min_power_flow( l ) );
+                            kappa * f_C_v_scal * f_NetworkData->get_min_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_rhs(
-                            kappa * f_NetworkData->get_max_power_flow( l ) );
+                            kappa * f_C_v_scal * f_NetworkData->get_max_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
    }
 
