@@ -47,7 +47,7 @@ SMSpp_insert_in_factory_cpp_1( ACNetworkBlock );
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 // register ACNetworkBlock::ACNetworkData to the NetworkData factory
 
-using ACNetworkData = ACNetworkBlock::ACNetworkData ;
+using ACNetworkData = ACNetworkBlock::ACNetworkData;
 
 SMSpp_insert_in_factory_cpp_0( ACNetworkData );
 
@@ -126,11 +126,39 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
 
    // Uncover the Min and Max Reactive Flow if there
 
-   ::deserialize( group , "MinReactivePowerFlow" , f_number_lines , v_min_reac_power_flow ,
-                 true , true );
+  ::deserialize( group , "MinReactivePowerFlow" , f_number_lines ,
+		 v_min_reac_power_flow , true , true );
 
-   ::deserialize( group , "MaxReactivePowerFlow" , f_number_lines , v_max_reac_power_flow ,
-                 true , true );
+  ::deserialize( group , "MaxReactivePowerFlow" , f_number_lines ,
+		 v_max_reac_power_flow , true , true );
+
+  // pre-fill v_DC_lines and v_HVDC_lines to override the logic in the
+  // corresponding get_*() of DCNetworkData; this is because for AC
+  // networks having 0 susceptance is not enough to declare that a line is
+  // "DC" (i.e., not "HVDC"), but it must have 0 reactance and 0 resistance
+  // too
+
+  v_DC_lines.clear();
+  v_HVDC_lines.clear();
+  if( v_line_susceptance.empty() ) {
+   for( Index i = 0 ; i < f_number_lines ; ++i )
+    if( ( ! v_line_reactance[ i ] ) && ( ! v_line_resistance[ i ] ) )
+     v_HVDC_lines.push_back( i );
+    else
+     v_DC_lines.push_back( i );
+   }
+  else {
+   for( Index i = 0 ; i < f_number_lines ; ++i )
+    if( ( ! v_line_susceptance[ i ] ) && ( ! v_line_reactance[ i ] ) &&
+	( ! v_line_resistance[ i ] ) )
+     v_HVDC_lines.push_back( i );
+    else
+     v_DC_lines.push_back( i );
+   }
+
+  f_number_HVDC_lines = v_HVDC_lines.size();
+  v_HVDC_lines.shrink_to_fit();
+  v_DC_lines.shrink_to_fit();
   }
  }  // end( ACNetworkData::deserialize )
 

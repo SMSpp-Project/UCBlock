@@ -515,12 +515,12 @@ class DCNetworkData : public NetworkData
   * @return the AC lines in the network. */
 
  const Subset & get_DC_lines( void ) {
-  if( v_DC_lines.empty() && ( ! v_line_susceptance.empty() ) ) {
-   v_DC_lines.reserve( f_number_lines - f_number_HVDC_lines );
-   for( Index line_id = 0 ; line_id < f_number_lines ; ++line_id )
-    if( v_line_susceptance[ line_id ] != 0 )
-     v_DC_lines.push_back( line_id );
-    }
+  if( v_DC_lines.empty() && ( f_number_lines > f_number_HVDC_lines ) ) {
+    v_DC_lines.reserve( f_number_lines - f_number_HVDC_lines );
+    for( Index line_id = 0 ; line_id < f_number_lines ; ++line_id )
+     if( v_line_susceptance[ line_id ] != 0 )
+      v_DC_lines.push_back( line_id );
+   }
 
   return( v_DC_lines );
   }

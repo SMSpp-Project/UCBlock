@@ -207,10 +207,10 @@ class ACNetworkBlock : public DCNetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns true if minimum and maximum reactive flow bounds have been loaded
- bool has_reactive_bounds( ) const{
-    return ( !v_min_reac_power_flow.empty() && !v_max_reac_power_flow.empty() );
- }
-
+ bool has_reactive_bounds( ) const {
+  return( ( ! v_min_reac_power_flow.empty() ) &&
+	  ( ! v_max_reac_power_flow.empty() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns minimum Reactive power flow of the given \p line
