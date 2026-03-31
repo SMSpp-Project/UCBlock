@@ -645,6 +645,15 @@ class SlackUnitBlock : public UnitBlock
   return( &( v_secondary_spinning_reserve.front() ) );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive power variables
+
+ ColVariable * get_reactive_power( Index generator ) override {
+  if( v_reactive_power.empty() )
+   return( nullptr );
+  return( &( v_reactive_power.front() ) );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR SAVING THE SlackUnitBlock ------------------*/
 /*--------------------------------------------------------------------------*/
