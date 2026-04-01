@@ -617,7 +617,11 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  *  on each line should at least be some value and at most be some other value. 
  *  we can then check this against the thermal limits and should showcase the user a problem if any
  * 
- *  TODO this check
+ *  Indeed with I+ = {i : c_i > 0} and I- = {i : c_i < 0}
+ *    we can deduce from v_flow = sum_I+ c_i w_i + sum_I- c_i w_i, 
+ *    that
+ *      v_flow >= sum_I+ c_i \underline{w}_i + sum_I- c_i \overline{w}_i
+ *      v_flow <= sum_I+ c_i \overline{w}_i + sum_I- c_i \underline{w}_i
  */
 
  /* 
@@ -666,6 +670,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   return( -1.0 * Y( l ) / ( tau( l ) * std::exp( 1i * theta( l ) ) ) );
  };
 
+ // for the check
+ const auto & v_l_names = ND()->get_line_names( );
+ const auto & rate_A = ND()->get_line_rate_A(); 
+
  v_voltage_definition_const.resize( MAFRC_ext()[ 2 ][ 2 * nb_dc_lines ] );
  i_line = 0;
  const auto splitted_lines = ND()->get_direct_and_reverse_AClines();
@@ -677,17 +685,55 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     throw( std::logic_error( "Non-finite coefficient, possibly line ratio is "
                              "zero for an AC line" ) );
 
+   // Values for the basic bound check
+   double v_flow_lower = 0.0;
+   double v_flow_upper = 0.0;
+   double phi_min = PI * min_angle[ line_id ] / 180.;
+   double phi_max = PI * max_angle[ line_id ] / 180.;
+   double delta_phi = phi_max - phi_min; // assumeing phi_min <= phi_max evidently.
+   double c_cos     = std::min( cos(std::abs(phi_min)), cos(std::abs(phi_max)) ) ;
+   double c_sin     = sin( delta_phi );
+ 
    // 1.1) real part
    auto lfunc_1 = new LinearFunction();
    lfunc_1->add_variable( &v_sqrd_voltages[ p ] ,
                           round_sig( Yff( line_id ).real() * f_scale ,
 				     f_digits ) );
+
+   // Update bounds
+   v_flow_lower += std::max(Yff( line_id ).real(),0.0) * std::pow( min_voltage[ p ] , 2.0 ) + std::min(Yff( line_id ).real(),0.0) * std::pow( max_voltage[ p ] , 2.0 ) ;
+   v_flow_upper += std::max(Yff( line_id ).real(),0.0) * std::pow( max_voltage[ p ] , 2.0 ) + std::min(Yff( line_id ).real(),0.0) * std::pow( min_voltage[ p ] , 2.0 ) ; 
+
    lfunc_1->add_variable( &v_sum_product_voltages[ line_id ] ,
                           round_sig( Yft( line_id ).real() * f_scale ,
 				     f_digits ) );
+
+   v_flow_lower += std::max(Yft( line_id ).real(),0.0) * c_cos * min_voltage[ p ] * min_voltage[ end_line[ line_id ] ] + std::min(Yft( line_id ).real(),0.0) * max_voltage[ p ] * max_voltage[ end_line[ line_id ] ] ;
+   v_flow_upper += std::max(Yft( line_id ).real(),0.0) * max_voltage[ p ] * max_voltage[ end_line[ line_id ] ] + std::min(Yft( line_id ).real(),0.0) * c_cos * min_voltage[ p ] * min_voltage[ end_line[ line_id ] ] ; 
+
    lfunc_1->add_variable( &v_diff_product_voltages[ line_id ] ,
                           round_sig( Yft( line_id ).imag() * f_scale ,
 				     f_digits ) );
+
+   // Since the bounds are symmetric, it suffices to compute this one value, moreover the sum greatly simplifies :
+   double w_bound = c_sin * max_voltage[ p ] * max_voltage[ end_line[ line_id ] ]; 
+   v_flow_lower += std::abs( Yft( line_id ).imag() ) * -1.0 * w_bound ;
+   v_flow_upper += std::abs( Yft( line_id ).imag() ) * w_bound  ; 
+
+   // We can now check if this is possible at all, thinking about max and min powerflow and the thermal limit
+   //
+   if ( (v_flow_lower > get_max_power_flow( line_id )) || v_flow_upper < get_min_power_flow( line_id ) ){
+      std::cout << " The power line with index = " << line_id << " and name " << v_l_names[ line_id ] << " has induced bounds from the AC equations that are [ " 
+                << v_flow_lower << ", " << v_flow_upper << "]" << " and imposed bounds [ " 
+                << get_min_power_flow( line_id ) << " , " << get_max_power_flow( line_id ) << " ] \n";
+   }
+   if ( ( v_flow_lower > 0 ) || ( v_flow_upper < 0) ){
+      double min_therm = std::min( std::pow(v_flow_lower, 2.0), std::pow(v_flow_upper, 2.0) );
+      if ( min_therm > rate_A[ line_id ] ){
+          std::cout << " The power line with index = " << line_id << " and name " << v_l_names[ line_id ] << " has induced bounds from the AC equations that yield a minimal thermal limit of " << min_therm << " but this exceeds the given limit " << rate_A[ line_id ] << "\n";          
+      }
+   }
+             
    lfunc_1->add_variable( &v_power_flow[ line_id ] ,
                           - 1.0 * f_C_v_scal * f_scale );
    //v_voltage_definition_const[ 0 ][ i_line ].set_both( 0.0 );
@@ -771,7 +817,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  *  Real(S_{line})^2 + Imag(S_{line})^2 <= rateA_{line}^2
  */
  v_thermal_limit.resize( 2 * nb_dc_lines );
- const auto & rate_A = ND()->get_line_rate_A();
+ // const auto & rate_A = ND()->get_line_rate_A(); 
  i_line = 0;
  for( auto & line_id : DC_lines ) {
   auto qfunc_1 = new DQuadFunction();

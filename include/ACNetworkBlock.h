@@ -283,6 +283,37 @@ class ACNetworkBlock : public DCNetworkBlock
 
  double f_base_mva;  ///< the reference mva of the instance
 
+ /*
+ *  AC Network have all sort of additional data
+ *    Each power line now has a Resistance (r), Reactance (x) and Susceptance (b). 
+ *      note that when these are given in per unit, these can be converted to physical values by computing f = V^2 / mbase
+ *      and multiplying r, x by f, while dividing b by f ; 
+ * 
+ *    The Susceptance was typically already specified when DCNetworks were used
+ *    /!\ : We make the assumption that when all three are zero, then the line is in fact HVDC
+ *    
+ *  Some lines corresponding to Transformers also come with a "Tap" Ratio. This is the ratio of nominal 
+ *  voltages on both ends of the line. The default value is therefore 1.0
+ * 
+ *  Each line also has a Thermal limit (rate_A), which is the bound on total flow - the equivalent of the classic MaxPowerFlow
+ *
+ *  Each line comes with a phase angle difference (nominally zero) and bounds on this difference
+ *    typical default values for these bounds would be +/- 20°, 30 being a sort of maximal value, indicating close to instability
+ * 
+ *  Nodes that have Shunts (typical not the case) have an extra conductance term Gs and susceptance term Bs
+ *    the default values are 0 and 0
+ * 
+ *  Finally each node has bounds on allowed voltages. In typical per unit style these are assumed to be 0.9 and 1.1.
+ *    However as SMS++ is unit agnostic, one could specify physical units in which case for a 220 kV node we would specify the values
+ *  198 and 242.
+ * 
+ *  For power lines that are HVDC, one can specify additional maximal and minimal reactive power flow bounds on these lines
+ *    these are independent of the active bounds already available in DCNetworkData for HVDC lines only
+ *    for AC lines these are linked to the Active flow through the thermal limit constraints
+ *      which are of the form active_flow^2 + reactive_flow^2 <= Thermal_limit^2 ; 
+ * 
+ *  In the mixed case for simplicity the bounds are also given for AC lines but not used (!!!) 
+ */
  std::vector< double > v_line_reactance;
  std::vector< double > v_line_resistance;
  std::vector< double > v_line_ratio;
