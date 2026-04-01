@@ -1228,11 +1228,11 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  objective.set_sense( Objective::eMin );
 
  // Set Block objective
- this->set_objective( &objective );
+ this->set_objective( &objective , eNoMod );
 
  set_objective_generated();
 
-}  // end( BatteryUnitBlock::generate_objective )
+ }  // end( BatteryUnitBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
 /*---------------- METHODS FOR CHECKING THE BatteryUnitBlock ---------------*/

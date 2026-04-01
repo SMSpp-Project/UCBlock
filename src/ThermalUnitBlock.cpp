@@ -3912,7 +3912,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  objective.set_sense( Objective::eMin );
 
  // set Block objective
- set_objective( &objective );
+ set_objective( &objective , eNoMod );
 
  set_objective_generated();
 

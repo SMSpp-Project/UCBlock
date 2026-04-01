@@ -1229,7 +1229,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
- this->set_objective( &objective );  // set Block objective
+ this->set_objective( &objective , eNoMod );  // set Block objective
 
  set_objective_generated();
 
