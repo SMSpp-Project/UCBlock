@@ -186,7 +186,7 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
   v_reactive_power.resize( f_time_horizon );
   for( auto & var : v_reactive_power )
    var.set_type( ColVariable::kNonNegative );
-  add_static_variable( v_reactive_power , "q_intermittent" );
+  add_static_variable( v_reactive_power , "q_slack" );
   }
 
  // Primary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - - -

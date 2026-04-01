@@ -437,6 +437,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   //
   double phi_min = PI * min_angle[ line_id ] / 180.;
   double phi_max = PI * max_angle[ line_id ] / 180.;
+  double delta_phi = phi_max - phi_min; // assumeing phi_min <= phi_max evidently.
   
   // -- These are the classic angle based bounds on c_{n,n'} and s_{n,n'}
   // \tan(\underline{\theta}_{n,n'})c_{n,n'} \leq s_{n,n'}
@@ -461,7 +462,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // -- bounds on v_sum_product_voltages- - - - - - - - - - - - - - - - - - -
   //    The variables are also as follows
   //    v_sum_product_voltages = c_{n,n'} = v_n v_n' cos(theta_n - theta_n')
-  //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n') on each line we can deduce proper bounds on these variables as well
+  //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n') 
+  //         on each line we can deduce proper bounds on these variables as well
   //
   auto lfunc_3 = new LinearFunction();
   lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
@@ -472,10 +474,11 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // -- bounds on v_diff_product_voltages - - - - - - - - - - - - - - - - - -
   //    The variables are also as follows
   //    v_diff_product_voltages = s_{n,n'} = v_n v_n' sin(theta_n - theta_n')
-  //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n') on each line we can deduce proper bounds on these variables as well
+  //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n') 
+  //         on each line we can deduce proper bounds on these variables as well
   //
   auto lfunc_4 = new LinearFunction();
-  double s_sin = std::max( sin(phi_min), sin(phi_max) );
+  double s_sin = sin( delta_phi ); //std::max( sin(phi_min), sin(phi_max) );
   lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
   v_basic_bounds_const[ 1 ][ i_line ].set_lhs( -1.0*s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
   v_basic_bounds_const[ 1 ][ i_line ].set_rhs( s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
@@ -491,6 +494,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  auto * fnet = static_cast< ACNetworkData * >( f_NetworkData ); 
  // Bounds on Reactive flow in HVDC lines
+ //    HVDC lines have direct bounds both on Active and Reactive Power (if given)
  if ( fnet->has_reactive_bounds() ){
     v_reactive_flow_bounds.resize( 2*nb_hvdc_lines );
     int i_hvdc_line = 0;
@@ -515,7 +519,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     std::cout << " No bounds on Reactive flow given ... \n";
   }
 
-
  // ----- Active and Reactive Power conservation: - - - - - - - - - - - - - -
  // Shunt admittance
  SpCVec Ys = SpCVec( number_nodes );
@@ -530,7 +533,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   *   Supply - Demand = \sum_{line_id \in L \cup L^R} power_flow[ line_id ]
   *
   * The complex matrix product <M,W>_F is then decomposed into a real part
-  * and an imaginary part. */
+  * and an imaginary part. 
+  * 
+  * This is a simple preservation constraint.
+ */
  v_power_flow_injection_const.resize( 2 * number_nodes );
 
  // real part of the power flow conservation- - - - - - - - - - - - - - - - -
@@ -583,7 +589,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // ----- Since the lines have been duplicated, we need to add for DC ones
- //the link between the two versions
+ //       the link between the two versions
+ //       Indeed the specific nature of the HVDC lines is that the flows are opposite of each other.
+ //              Observe that this is not true of the ``imaginary" (Reactive part) of the flow however
  v_flow_dc.resize( nb_hvdc_lines );
  int i_hvdc_line = 0;
  for( auto & line_id : HVDC_lines ) {
@@ -599,13 +607,34 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // ----- Definition of complex power flow- - - - - - - - - - - - - - - - - -
  /*
- We define the complex power flow S_{line} for each line = (start,end) as
-   S_{start,end} = Yff_{start,end} W_{start,start} + Yft_{start,end}W_{start,end}
-   S_{end,start} = Ytt_{start,end} W_{start,start} + Ytf_{start,end}W_{end,end}
- Once, again, we then split into two constraints (one for real and one for imaginary part)
+ * We define the complex power flow S_{line} for each line = (start,end) as
+ *   S_{start,end} = Yff_{start,end} W_{start,start} + Yft_{start,end}W_{start,end}
+ *   S_{end,start} = Ytt_{start,end} W_{start,start} + Ytf_{start,end}W_{end,end}
+ * Once, again, we then split into two constraints (one for real and one for imaginary part)
+ * 
+ * Note that we can use these equations to make an elementary check on the feasibility of the flows
+ *  Indeed from the bounds on W (lower and upper) and the sign of the coefficients we can deduce that the flow
+ *  on each line should at least be some value and at most be some other value. 
+ *  we can then check this against the thermal limits and should showcase the user a problem if any
+ * 
+ *  TODO this check
  */
 
- // shortcut to recover mathematical notation
+ /* 
+ * shortcut to recover mathematical notation
+ *
+ *   \Yff_{ab} = \left[\frac{1}{r_{ab}+ix_{ab}}+i\tfrac{1}{2}\mathfrak{b}_{ab}\right]/\tau_{ab}^2
+ *   \Ytt_{ab} = \frac{1}{r_{ab}+ix_{ab}}+i\tfrac{1}{2}\mathfrak{b}_{ab}
+ *   \Yft_{ab} = -\left[\frac{1}{r_{ab}+ix_{ab}}\right]/(\tau_{ab}e^{-i\nu_{ab}})
+ *   \Ytf_{ab} = -\left[\frac{1}{r_{ab}+ix_{ab}}\right]/(\tau_{ab}e^{+i\nu_{ab}})
+ * 
+ *   Since these coefficients (both the real and imaginary parts) are often not "nice" numbers
+ *   We have incorporated two options
+ *    a) rounding, using the f_digits value (ensuring the 25th decimal junk does not interfere)
+ *    b) add slack in the equations through f_ACvS 
+ * 
+ *   Both parameters seems delicate to fine tune and perhaps ought to be reconsidered at some stage.
+ */
  auto * f_net = static_cast< ACNetworkData * >( f_NetworkData );
 
  auto r = [ f_net ]( int line_id ) {
@@ -729,7 +758,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
    ++i_line;
   }
- } // i_line should be nb_dc_lines * 2
+ } // At this stage i_line should be nb_dc_lines * 2
 
  if( i_line > 0 )
   add_static_constraint( v_voltage_definition_const ,
@@ -737,9 +766,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // ----- Thermal limit on lines- - - - - - - - - - - - - - - - - - - - - - -
  /*
- We impose that |S_{line}| <= rateA_{line}, which corresponds to a thermal limitation.
- Then, to take into account this constraint, we use a DQuadFunction:
-   Real(S_{line})^2 + Imag(S_{line})^2 <= rateA_{line}^2
+ *  We impose that |S_{line}| <= rateA_{line}, which corresponds to a thermal limitation.
+ *  Then, to take into account this constraint, we use a DQuadFunction:
+ *  Real(S_{line})^2 + Imag(S_{line})^2 <= rateA_{line}^2
  */
  v_thermal_limit.resize( 2 * nb_dc_lines );
  const auto & rate_A = ND()->get_line_rate_A();
@@ -764,10 +793,21 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  }
  add_static_constraint( v_thermal_limit , "AC_thermal_limit_const" );
 
-  // up to now, only SOCP relaxation is available, but it could be replaced
-  // by something else
+  // The above given equations are always valid. However in order to have a convex model we use the SOCP relaxation
+  //  of the following non-convex quadratic relation:
+  //     c_{n,n'} = c_{n',n}
+  //       s_{n,n'} = -s_{n',n}
+  //       c_{n,n'}^2 + s_{n,n'}^2 = c_{n,n}c_{n',n'}
+  // 
+  // Stronger relaxations using Semi-Definite programming exist, but are not implemented yet.
+  //  should this become so, the call to the following function can be switched upon
   generate_SOCP_relaxation();
 
+  /*
+  *   Moreover the SOCP relaxation can be made much stronger following the work by Coffin
+  *   This can be done by adding multiple McCormick inequalities
+  *   this is optional and can be triggered from the BlockConfig file
+  */
   if ( b_strongSOCP )
     strengthen_SOCP_relaxation();
 
@@ -904,6 +944,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  int i_line;
 
  // -- Add simple bounds
+ //     these are evident from what the variables represent
  v_volt_bounds.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   auto lfunc = new LinearFunction();
@@ -959,6 +1000,14 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
 
  // ===== generate auxiliary constraints
  // 
+ /*
+ *  This is the McCormick enveloppe of the square term V_n^2
+ *    which directly yields
+ *    c_{n,n} \geq v_n^2
+ *    c_{n,n} \leq (\overline{v}_n + \underline{v}_n) v_n - \overline{v}_n\underline{v}_n
+ *    
+ *  This is eq. (21a) combined with (T-CONV) in Coffrin'
+ */
  v_diag_const_1.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   auto qfunc = new DQuadFunction();
@@ -986,6 +1035,13 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   }
  add_static_constraint( v_diag_const_2 , "v_diag_const_2" );
  
+ /*
+ *  The following are the classic McCormick relaxations for a product of variables
+ *    z_{n,n'} \geq \underline{v}_{n}v_{n'} + \underline{v}_{n'}v_{n} - \underline{v}_{n}\underline{v_{n'}}
+ *    z_{n,n'} \geq \overline{v}_{n}v_{n'} + \overline{v}_{n'}v_{n} - \overline{v}_{n}\overline{v}_{n'}
+ *    z_{n,n'} \leq \underline{v}_{n}v_{n'} + \overline{v}_{n'}v_{n} - \underline{v}_{n}\overline{v}_{n'}
+ *    z_{n,n'} \leq \overline{v}_{n}v_{n'} + \underline{v}_{n'}v_{n} - \overline{v}_{n}\underline{v}_{n'}
+ */
  v_def_z_1.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {
@@ -1105,6 +1161,14 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_def_alpha_2 , "v_def_alpha_2" );
 
  // -----
+ /* These are the following McCormick equations
+ *
+ *  c_{n,n'}\geq \underline{v}_{n}\underline{v}_{n'} \alpha_{n,n'} + \cos(\theta^\Delta _{n,n'}) z_{n,n'} - \underline{v}_{n}\underline{v}_{n'}\cos(\theta^\Delta _{n,n'})
+ *  c_{n,n'}\geq \overline{v}_{n}\overline{v}_{n'} \alpha_{n,n'} + z_{n,n'} - \overline{v}_{n}\overline{v}_{n'}
+ *  c_{n,n'}\leq \underline{v}_{n}\underline{v}_{n'} \alpha_{n,n'} + z_{n,n'} - \underline{v}_{n}\underline{v}_{n'}
+ *  c_{n,n'}\leq \overline{v}_{n}\overline{v}_{n'} \alpha_{n,n'} + \cos(\theta^\Delta _{n,n'}) z_{n,n'} - \overline{v}_{n}\overline{v}_{n'}\cos(\theta^\Delta _{n,n'})
+ *
+ */
  v_def_c_1.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {
@@ -1200,6 +1264,12 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   }
  add_static_constraint( v_def_c_4 , "v_def_c_4" );
 
+ /*
+ *  The beta variables are involved in the convex relaxation of the sine function. This yields
+ *  \beta_{n,n'} \leq \cos(\tfrac{\theta^\Delta _{n,n'}}{2})\left((\theta_n - \theta_{n'}) - \tfrac{\theta^\Delta _{n,n'}}{2}\right) + \sin(\tfrac{\theta^\Delta _{n,n'}}{2})
+ *  \beta_{n,n'} \geq \cos(\tfrac{\theta^\Delta _{n,n'}}{2})\left((\theta_n - \theta_{n'}) + \tfrac{\theta^\Delta _{n,n'}}{2}\right) - \sin(\tfrac{\theta^\Delta _{n,n'}}{2})
+ * 
+ */
  v_def_beta_1.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {
@@ -1221,7 +1291,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  }
  add_static_constraint( v_def_beta_1 , "v_def_beta_1" );
 
- // -----
+ // ---
  v_def_beta_2.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {
@@ -1243,7 +1313,16 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  }
  add_static_constraint( v_def_beta_2 , "v_def_beta_2" );
 
- // -----
+ /*
+ *
+ *  These are the McCormick relaxation of the product term involving the sine function
+ * 
+ *  s_{n,n'}\geq \underline{v}_{n}\underline{v}_{n'} \beta_{n,n'} -\sin(\theta^\Delta _{n,n'}) z_{n,n'} + \underline{v}_{n}\underline{v}_{n'}\sin(\theta^\Delta _{n,n'})
+ *  s_{n,n'}\geq \overline{v}_{n}\overline{v}_{n'} \beta_{n,n'} + \sin(\theta^\Delta _{n,n'})z_{n,n'} - \overline{v}_{n}\overline{v}_{n'}\sin(\theta^\Delta _{n,n'})
+ *  s_{n,n'}\leq \underline{v}_{n}\underline{v}_{n'} \beta_{n,n'} + \sin(\theta^\Delta _{n,n'})z_{n,n'} - \underline{v}_{n}\underline{v}_{n'}\sin(\theta^\Delta _{n,n'})
+ *  s_{n,n'}\leq \overline{v}_{n}\overline{v}_{n'} \beta_{n,n'} -\sin(\theta^\Delta _{n,n'}) z_{n,n'} + \overline{v}_{n}\overline{v}_{n'}\sin(\theta^\Delta _{n,n'})
+ * 
+ */
  v_def_s_1.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {

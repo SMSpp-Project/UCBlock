@@ -648,14 +648,33 @@ class ACNetworkBlock : public DCNetworkBlock
   std::vector< ColVariable > v_reactive_node_injection;
 
   /// real part is the standard "v_power_flow" variable
+  //    One counter intuitive part of AC flow is that power lines will have a flow in both directions that are not opposites of each other!
+  //    as a result all power flow variables are twice the lines (flow to and from)
   std::vector< ColVariable > v_reactive_power_flow;
 
   // ----- Generic variables for AC-OPF
-  std::vector< ColVariable > v_sum_product_voltages;
-  std::vector< ColVariable > v_diff_product_voltages;
-  std::vector< ColVariable > v_sqrd_voltages;
+  //       Note that the voltages in each node are now complex numbers having a module |V_n| which is the usual voltage on which bounds are imposed
+  //            and an angle which will intervene in the equations as differences in between nodes connected by a powerline.
+  //            to this end the terms
+  //            c_{n,n'} = Re(V_n)Re(V_n') + Im(V_n)Im(V_n')
+  //            s_{n,n'} = Im(V_n)Re(V_n') - Re(V_n)Im(V_n')
+  //            appear, using the well known formulae from trigonometry : 
+  //                              cos(a)cos(b) = 0.5( cos(a+b) - cos(a - b) )
+  //                              sin(a)sin(b) = 0.5( cos(a-b) - cos(a + b) )
+  //                              sin(a)cos(b) = 0.5( sin(a+b) + sin(a - b) )
+  //            alternative representations can be derived making appear the angle difference on the line (on which bounds are known, typically +/- 30°)
+  std::vector< ColVariable > v_sum_product_voltages;  // c_{n,n'} = v_n v_n' cos(theta_n - theta_n')
+  std::vector< ColVariable > v_diff_product_voltages; // s_{n,n'} = v_n v_n' sin(theta_n - theta_n')
+  std::vector< ColVariable > v_sqrd_voltages;         // c_{n,n}
 
   /// ----- Variables for stenghtening the SOCP relaxation by adding McCormick like inequalities
+  /*
+  * Here alpha ~ cos( theta_i - theta_j )
+  *      beta  ~ sin( theta_i - theta_j )
+  *      theta is the angle in each node
+  *      voltage is the modulus of voltage in each node
+  *      z is the auxiliary variable used in the McCormick relaxation of V_n V_n' 
+  */
   std::vector< ColVariable > v_voltage;
   std::vector< ColVariable > v_theta;
   std::vector< ColVariable > v_alpha;
@@ -690,20 +709,64 @@ class ACNetworkBlock : public DCNetworkBlock
 
   /// -----  Various constraints for the stronger SOCP relaxation
 
+  // Mc Cormick Relxation of the square term V_n^2
   std::vector< FRowConstraint > v_diag_const_1;
   std::vector< FRowConstraint > v_diag_const_2;
-  std::vector< FRowConstraint > v_def_alpha_1;
-  std::vector< FRowConstraint > v_def_alpha_2;
-  std::vector< FRowConstraint > v_def_beta_1;
-  std::vector< FRowConstraint > v_def_beta_2;
+
+   // The terms V_n V_n' appear in later McCormick relaxations. Therefore z_{n,n'} representing this term appears in the classic McCormick relaxation of this
   std::vector< FRowConstraint > v_def_z_1;
   std::vector< FRowConstraint > v_def_z_2;
   std::vector< FRowConstraint > v_def_z_3;
   std::vector< FRowConstraint > v_def_z_4;
+
+  /* The McCormick Relaxation of some later terms require the convex envelope of the cosine and sine function 
+  *
+  *  These appear in:
+  * 
+  *  Hijazi, H., Coffrin, C. & Hentenryck, P.V. Convex quadratic relaxations for mixed-integer nonlinear programs in power systems. 
+  *  Math. Prog. Comp. 9, 321–367 (2017). https://doi.org/10.1007/s12532-016-0112-z
+  * 
+  *  For the cosine of ``x" which will be our phase angle difference we thus get
+  * 
+  *  alpha <= 1 - \frac{1 - cos( \bar{x} )}{\bar{x}^2} x^2
+  *  alpha >= cos( \bar{x} )
+  * 
+  */
+  std::vector< FRowConstraint > v_def_alpha_1;
+  std::vector< FRowConstraint > v_def_alpha_2;
+
+  /*
+  * The following appear in the classic McCormick relaxation of the "double" convex relaxation of
+  *   Re(V_nV_n') = < ( V_nV_n' )^M ( cos( theta_n - theta_n')^C ) >^M
+  * which is thus the McCormick relaxation of the product term
+  *     z_{n,n'} \alpha_{n,n'}
+  * This product term is none other than c_{n,n'}
+  *   see eq. (23b) in Coffrin.
+  */
   std::vector< FRowConstraint > v_def_c_1;
   std::vector< FRowConstraint > v_def_c_2;
   std::vector< FRowConstraint > v_def_c_3;
   std::vector< FRowConstraint > v_def_c_4;
+
+  /*
+  * The convex envelope of the sine function (see above) is as follows
+  *   again with "x" what will be the phase angle difference
+  *  
+  * beta <= cos( \frac{\bar{x}}{2} )( x - \frac{\bar{x}}{2} ) + sin( \frac{\bar{x}}{2} )
+  * beta >= cos( \frac{\bar{x}}{2} )( x + \frac{\bar{x}}{2} ) - sin( \frac{\bar{x}}{2} )
+  * 
+  */
+  std::vector< FRowConstraint > v_def_beta_1;
+  std::vector< FRowConstraint > v_def_beta_2;
+
+ /*
+  * The following appear in the classic McCormick relaxation of the "double" convex relaxation of
+  *   Im(V_nV_n') = < ( V_nV_n' )^M ( sin( theta_n - theta_n')^S ) >^M
+  * which is thus the McCormick relaxation of the product term
+  *     z_{n,n'} \beta{n,n'}
+  * This product term is none other than s_{n,n'}
+  *   see eq. (23c) in Coffrin.
+  */ 
   std::vector< FRowConstraint > v_def_s_1;
   std::vector< FRowConstraint > v_def_s_2;
   std::vector< FRowConstraint > v_def_s_3;
