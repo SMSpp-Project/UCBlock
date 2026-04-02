@@ -926,7 +926,7 @@ void HydroUnitBlock::generate_objective( Configuration * objc )
  objective.set_sense( Objective::eMin );
 
  // Set Block objective
- this->set_objective( &objective );
+ this->set_objective( &objective , eNoMod );
 
  set_objective_generated();
 

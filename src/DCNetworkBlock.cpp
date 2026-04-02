@@ -696,12 +696,21 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  if( constraints_generated() )  // constraints have already been generated
   return;                       // nothing to do
 
- f_C_v_scal = 1;
  if( ( ! stcc ) && f_BlockConfig )
-  stcc = f_BlockConfig->f_static_variables_Configuration;
+  stcc = f_BlockConfig->f_static_constraints_Configuration;
+
+ f_C_v_scal = 1;
+ f_tikhonov_coeff = 1e-4;
 
  if( auto SCdd = dynamic_cast< SimpleConfiguration< double > * >( stcc ) )
   f_C_v_scal = SCdd->f_value;
+ else
+  if( auto SCdd = dynamic_cast< SimpleConfiguration< std::pair< double ,
+                                                                double > >
+                                                     * >( stcc ) ) {
+   f_C_v_scal = SCdd->f_value.first;
+   f_tikhonov_coeff = SCdd->f_value.second;
+   }
 
  switch( ftype ) {
   case( PTDF ) :  generate_PTDF_constraints( stcc ); break;
@@ -1048,7 +1057,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  if( ! f_NetworkData->is_HVDC() ) {  // ... if any
 
   // compute PTDF and, if necessary, DCDF
-  SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines );
+  SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines , f_tikhonov_coeff);
   if( f_NetworkData->is_DC_HVDC() )
    if( ! f_NetworkData->was_DCDF_computed() )
     f_NetworkData->compute_DCDF( HVDC_lines , PTDF_matrix );
@@ -1229,7 +1238,7 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
 
- this->set_objective( &objective );  // set Block objective
+ this->set_objective( &objective , eNoMod );  // set Block objective
 
  set_objective_generated();
 
@@ -1701,12 +1710,12 @@ void DCNetworkBlock::change_relax_abs_constraints(
 {
  if( ! f_NetworkData->is_HVDC() ) {
   auto & DC_lines = f_NetworkData->get_DC_lines();
-  SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines );
+  SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines , f_tikhonov_coeff );
   for( auto & i : modified_lines ) {
    double constant_term = 0;
    for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id )
     constant_term -=
-                 PTDF_matrix.coeff( i , node_id ) * v_ActiveDemand[ node_id ];
+                PTDF_matrix.coeff( i , node_id ) * v_ActiveDemand[ node_id ];
    v_power_flow_relax_abs[ 0 ][ i ].set_lhs( constant_term );
    v_power_flow_relax_abs[ 1 ][ i ].set_lhs( -constant_term );
    }
