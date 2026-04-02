@@ -429,18 +429,20 @@ class ACNetworkBlock : public DCNetworkBlock
   *
   * TODO: COMMENT BETTER WHAT EACH OF THESE DOES
   *
-  * - C_v_scal => default 1.0 ; 
-  *         This is the main variable, working in a similar fashion as the "usual" per unit transform
-  *         Essentially all Voltages become tilde_Voltage = C_v_scal * Voltage
-  *                         power flows becomes C_v_scal * v_power_flow
+  * - C_v_scal => default 1.0 ; This is the main variable, working in a
+  *                             similar fashion as the "usual" per unit
+  *   transform. Essentially all Voltages become
+  *   tilde_Voltage = C_v_scal * Voltage  and power flows becomes
+  *   C_v_scal * v_power_flow
   *
   * - f_ACvS => default 0.0 (Slack for AC_voltage_definition_const)
   *
   * - f_scale => default 1.0 (scaling constant for the
   *              AC_voltage_definition_const equations)
   *
-  * - f_digits => (default 16) the # of digits in round_sig (default?)
-  *         This helps round some of the admittance matrix data that appears in the constraint up to f_digits digits
+  * - f_digits => (default 16) the # of digits in round_sig. This helps
+  *                            round some of the admittance matrix data
+  *   that appears in the constraint up to f_digits digits
   *
   * Setting these to non-default values is possible with the Configuration
   * parameter, that is either \p stcc or, if f_BlockConfig is not nullptr,

@@ -884,7 +884,8 @@ class DCNetworkData : public NetworkData
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
   : NetworkBlock( f_block ) , f_NetworkData( nullptr ) , ftype( PTDF ) ,
-    v_design( nullptr ) , v_which_design( nullptr ) , f_C_v_scal( 1 ) {}
+    v_design( nullptr ) , v_which_design( nullptr ) , f_C_v_scal( 1 ) ,
+    f_tikhonov_coeff( 1e-4 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of DCNetworkBlock
@@ -1145,14 +1146,27 @@ class DCNetworkData : public NetworkData
   *   TODO: PUT THE SCALING FACTOR IN THE RIGTH EQUATIONS OR AT LEAST TELL
   *   WHICH ONES THEY ARE
   *
-  * This is why the scaling constant C_v_scal is defined, with default value
-  * of 1 (no scaling). Setting it to a non-default value is possible with
-  * the Configuration parameter, that is either \p stcc or, if f_BlockConfig
-  * is not nullptr, f_BlockConfig->f_static_constraints_Configuration. If the
-  * result is not nullptr and it is a SimpleConfiguration< double >, its
-  * f_value is used to set C_v_scal. */
+  * This is why the following scaling constants are defined:
+  *
+  * - C_v_scal, with default value of 1 (no scaling);
+  *
+  * - tikhonov_coeff, with default value of 1e-4, which is used to regularise
+  *   (obviously, in the Tikhonov sense) the computation of the inverse in
+  *  the PTDF matrix.
+  *
+  * Setting these to non-default values is possible with the Configuration
+  * parameter, that is either \p stcc or, if f_BlockConfig is not nullptr,
+  * f_BlockConfig->f_static_constraints_Configuration. If the result is not
+  * nullptr, then is is a SimpleConfiguration< ... > which can contain up
+  * to two numbers, i.e.,
+  *
+  * - a SimpleConfiguration< double > for setting C_v_scal alone;
+  *
+  * - a SimpleConfiguration< std::pair< double , double > > for setting
+  *   C_v_scal and tikhonov_coeff. */
 
- void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr )
+  override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1816,7 +1830,9 @@ class DCNetworkData : public NetworkData
  formulation_type ftype;          ///< choice of model
 
  double f_C_v_scal;               ///< scaling factor for flow bounds
- 
+
+ double f_tikhonov_coeff;         ///< regularization for PTDF computation
+
 /*-------------------------------- variables -------------------------------*/
 
  /// the power flow variables
