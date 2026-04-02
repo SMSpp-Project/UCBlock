@@ -339,14 +339,16 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       auto lfunc = new LinearFunction();
       lfunc->add_variable( &v_reactive_power[ t ], 1.0 );
-      lfunc->add_variable( &v_abs_reactive_power[ t ] , -1.0 );      
+      lfunc->add_variable( &v_abs_reactive_power[ t ] , -1.0 );  
+      Abs_of_Reactive[ t ].set_lhs( -Inf< double >() );    
       Abs_of_Reactive[ t ].set_rhs( 0.0 );
       Abs_of_Reactive[ t ].set_function( lfunc );
 
       //
       auto lfunc2 = new LinearFunction();
-      lfunc->add_variable( &v_reactive_power[ t ], -1.0 );
-      lfunc->add_variable( &v_abs_reactive_power[ t ] , -1.0 );      
+      lfunc2->add_variable( &v_reactive_power[ t ], -1.0 );
+      lfunc2->add_variable( &v_abs_reactive_power[ t ] , -1.0 );      
+      Abs_of_Reactive[ f_time_horizon + t ].set_lhs( -Inf< double >() );
       Abs_of_Reactive[ f_time_horizon + t ].set_rhs( 0.0 );
       Abs_of_Reactive[ f_time_horizon + t ].set_function( lfunc2 );
   }
