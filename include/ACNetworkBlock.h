@@ -724,19 +724,19 @@ class ACNetworkBlock : public DCNetworkBlock
   std::vector< FRowConstraint > v_thermal_limit;
   std::vector< FRowConstraint > v_flow_dc;
 
-  MAFRC v_basic_bounds_const;
+  MABC v_basic_bounds_const;
 
   // ----- Bounds on Reactive flow in lines (HVDC only)
-  std::vector< FRowConstraint > v_reactive_flow_bounds;
+  std::vector< BoxConstraint > v_reactive_flow_bounds;
 
   // ----- Specific constraints for SOCP relaxation
   std::vector< FRowConstraint > v_socp_const;
 
   /// ----- Variables for stenghtening the SOCP relaxation by adding McCormick like inequalities
-  std::vector< FRowConstraint > v_volt_bounds;  
+  std::vector< BoxConstraint > v_volt_bounds;  
   std::vector< FRowConstraint > v_theta_bounds;  
-  std::vector< FRowConstraint > v_alpha_bounds; // alpha ~ cos( theta_i - theta_j )
-  std::vector< FRowConstraint > v_beta_bounds;  // beta  ~ sin( theta_i - theta_j )
+  std::vector< BoxConstraint > v_alpha_bounds; // alpha ~ cos( theta_i - theta_j )
+  std::vector< BoxConstraint > v_beta_bounds;  // beta  ~ sin( theta_i - theta_j )
 
   /// -----  Various constraints for the stronger SOCP relaxation
 

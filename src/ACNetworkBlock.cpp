@@ -465,11 +465,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n') 
   //         on each line we can deduce proper bounds on these variables as well
   //
-  auto lfunc_3 = new LinearFunction();
-  lfunc_3->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
   v_basic_bounds_const[ 0 ][ i_line ].set_lhs( std::min( cos(std::abs(phi_min)), cos(std::abs(phi_max)) )*min_voltage[ start_line[ line_id ] ]*min_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
   v_basic_bounds_const[ 0 ][ i_line ].set_rhs( max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
-  v_basic_bounds_const[ 0 ][ i_line ].set_function( lfunc_3 );
+  v_basic_bounds_const[ 0 ][ i_line ].set_variable(  & v_sum_product_voltages[ line_id ] );
 
   // -- bounds on v_diff_product_voltages - - - - - - - - - - - - - - - - - -
   //    The variables are also as follows
@@ -477,12 +475,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n') 
   //         on each line we can deduce proper bounds on these variables as well
   //
-  auto lfunc_4 = new LinearFunction();
   double s_sin = sin( delta_phi ); //std::max( sin(phi_min), sin(phi_max) );
-  lfunc_4->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
   v_basic_bounds_const[ 1 ][ i_line ].set_lhs( -1.0*s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
   v_basic_bounds_const[ 1 ][ i_line ].set_rhs( s_sin*max_voltage[ start_line[ line_id ] ]*max_voltage[ end_line[ line_id ] ]*pow(f_C_v_scal, 2) );
-  v_basic_bounds_const[ 1 ][ i_line ].set_function( lfunc_4 );
+  v_basic_bounds_const[ 1 ][ i_line ].set_variable( & v_diff_product_voltages[ line_id ] );
 
   ++i_line;
   }
@@ -499,17 +495,13 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     v_reactive_flow_bounds.resize( 2*nb_hvdc_lines );
     int i_hvdc_line = 0;
     for( auto & line_id : HVDC_lines ) {
-        auto lfunc = new LinearFunction();
-        lfunc->add_variable( &v_reactive_power_flow[ line_id ] , 1.0 );  
         v_reactive_flow_bounds[ i_hvdc_line ].set_lhs( f_C_v_scal * fnet->get_min_reac_power_flow( line_id ) );
         v_reactive_flow_bounds[ i_hvdc_line ].set_rhs( f_C_v_scal * fnet->get_max_reac_power_flow( line_id ) );
-        v_reactive_flow_bounds[ i_hvdc_line ].set_function( lfunc );
-  
-        auto lfunc2 = new LinearFunction();
-        lfunc2->add_variable( &v_reactive_power_flow[ number_lines + line_id ] , 1.0 );  
+        v_reactive_flow_bounds[ i_hvdc_line ].set_variable( &v_reactive_power_flow[ line_id ] );
+        // Bound on the to flow
         v_reactive_flow_bounds[ nb_hvdc_lines + i_hvdc_line ].set_lhs( f_C_v_scal * fnet->get_min_reac_power_flow( line_id ) );
         v_reactive_flow_bounds[ nb_hvdc_lines + i_hvdc_line ].set_rhs( f_C_v_scal * fnet->get_max_reac_power_flow( line_id ) );
-        v_reactive_flow_bounds[ nb_hvdc_lines + i_hvdc_line ].set_function( lfunc2 );
+        v_reactive_flow_bounds[ nb_hvdc_lines + i_hvdc_line ].set_variable( &v_reactive_power_flow[ number_lines + line_id ] );
   
         ++i_hvdc_line;
     }
@@ -993,11 +985,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  //     these are evident from what the variables represent
  v_volt_bounds.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_voltage[ node_id ] , 1.0 );
   v_volt_bounds[ node_id ].set_lhs( min_voltage[ node_id ] * f_C_v_scal );
   v_volt_bounds[ node_id ].set_rhs( max_voltage[ node_id ] * f_C_v_scal );
-  v_volt_bounds[ node_id ].set_function( lfunc );
+  v_volt_bounds[ node_id ].set_variable( &v_voltage[ node_id ] );
   }
  add_static_constraint( v_volt_bounds , "v_volt_bounds" );
 
@@ -1022,11 +1012,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  v_alpha_bounds.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {
-  auto lfunc = new LinearFunction();  
-  lfunc->add_variable( &v_alpha[ i_line ] , 1.0 );
   v_alpha_bounds[ i_line ].set_lhs( -1.0 );
   v_alpha_bounds[ i_line ].set_rhs(  1.0  );
-  v_alpha_bounds[ i_line ].set_function( lfunc );
+  v_alpha_bounds[ i_line ].set_variable( &v_alpha[ i_line ] );
   ++i_line;
  }
  add_static_constraint( v_alpha_bounds , "v_alpha_bounds" );
@@ -1035,11 +1023,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  v_beta_bounds.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {
-  auto lfunc = new LinearFunction();  
-  lfunc->add_variable( &v_beta[ i_line ] , 1.0 );
   v_beta_bounds[ i_line ].set_lhs( -1.0 );
   v_beta_bounds[ i_line ].set_rhs(  1.0  );
-  v_beta_bounds[ i_line ].set_function( lfunc );
+  v_beta_bounds[ i_line ].set_variable( &v_beta[ i_line ] );
   ++i_line;
   }
  add_static_constraint( v_beta_bounds , "v_beta_bounds" );

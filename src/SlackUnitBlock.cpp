@@ -182,11 +182,15 @@ void SlackUnitBlock::generate_abstract_variables( Configuration * stvv )
  // Reactive Power Variable, if any - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( f_reactive_power ) {
-  v_reactive_power.resize( f_time_horizon );
-  for( auto & var : v_reactive_power )
-   var.set_type( ColVariable::kNonNegative );
-  add_static_variable( v_reactive_power , "q_slack" );
+  if( f_reactive_power ) {
+    v_reactive_power.resize( f_time_horizon );
+    v_abs_reactive_power.resize( f_time_horizon );
+    for( auto & var : v_reactive_power )
+      var.set_type( ColVariable::kContinuous );
+    add_static_variable( v_reactive_power , "q_slack" );
+    for( auto & var : v_abs_reactive_power )
+      var.set_type( ColVariable::kNonNegative );
+    add_static_variable( v_abs_reactive_power , "q_a_slack" );
   }
 
  // Primary Spinning Reserve Variable - - - - - - - - - - - - - - - - - - - -
@@ -311,12 +315,42 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    ReactivePower_Bound_Const[ t ].set_rhs( get_max_reactive_power( t ) );
-   ReactivePower_Bound_Const[ t ].set_lhs( get_min_reactive_power( t ) );
+   if ( ! v_MinReactivePower.empty() ){
+      ReactivePower_Bound_Const[ t ].set_lhs( get_min_reactive_power( t ) );
+   }
+   else{
+      // assuming some possible symmetry
+      ReactivePower_Bound_Const[ t ].set_lhs( -1.0*get_max_reactive_power( t ) );
+   }
    ReactivePower_Bound_Const[ t ].set_variable( & v_reactive_power[ t ] );
    }
 
   add_static_constraint( ReactivePower_Bound_Const ,
                          "ReactivePowerBound_thermal" );
+
+
+  /*
+  *   Classic linearization of |q|, by adding a variable q_a and writing
+  *   q  <= q_a
+  *   -q <= q_a
+  *   q_a >= 0
+  */                
+  Abs_of_Reactive.resize( 2 * f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+      auto lfunc = new LinearFunction();
+      lfunc->add_variable( &v_reactive_power[ t ], 1.0 );
+      lfunc->add_variable( &v_abs_reactive_power[ t ] , -1.0 );      
+      Abs_of_Reactive[ t ].set_rhs( 0.0 );
+      Abs_of_Reactive[ t ].set_function( lfunc );
+
+      //
+      auto lfunc2 = new LinearFunction();
+      lfunc->add_variable( &v_reactive_power[ t ], -1.0 );
+      lfunc->add_variable( &v_abs_reactive_power[ t ] , -1.0 );      
+      Abs_of_Reactive[ f_time_horizon + t ].set_rhs( 0.0 );
+      Abs_of_Reactive[ f_time_horizon + t ].set_function( lfunc2 );
+  }
+  add_static_constraint( Abs_of_Reactive , "Lin_of_Abs_Reactive" );
 
   /*!! Link between active and reactive power
   Reactive_2_Active_Const.resize( f_time_horizon );
@@ -411,7 +445,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
 
   // Add reactive power variables if needed
   if( get_max_reactive_power( t ) > 0.0 )
-    lf->add_variable( &v_reactive_power[ t ] , 0.7 * v_ActivePowerCost[ t ] ,
+    lf->add_variable( &v_abs_reactive_power[ t ] , 0.7 * v_ActivePowerCost[ t ] ,
                       eDryRun );
  }
 

@@ -736,6 +736,9 @@ class SlackUnitBlock : public UnitBlock
  /// the reactive power variables
  std::vector< ColVariable > v_reactive_power;
 
+ /// the absolute value of v_reactive_power for the cost function
+ std::vector< ColVariable > v_abs_reactive_power;
+
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
 
@@ -758,6 +761,9 @@ class SlackUnitBlock : public UnitBlock
 
  /// the reactive power bound constraints
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
+
+ /// Linearization of the v_reactive_power
+ std::vector< FRowConstraint > Abs_of_Reactive;
 
  /*!! Q <= P
  std::vector< FRowConstraint > Reactive_2_Active_Const;
