@@ -580,13 +580,13 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in charge
    intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-                               f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] );
+                               - f_kappa * f_MaxCRateCharge * v_MinPower[ t ] );
    intake_outtake_bounds_Const[ 0 ][ t ].set_variable( &v_intake_level[ t ] );
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
    intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
-    -f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] );
+    f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] );
    intake_outtake_bounds_Const[ 1 ][ t ].set_variable( &v_outtake_level[ t ] );
    }
 
@@ -655,14 +655,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    // Upper bound of the intake level design constraints:
    //
-   //     v_intake_level <= ( k C_ch v_MaxPower ) x_b
-   // => v_intake_level - ( k C_ch v_MaxPower ) x_b <= 0
+   //     v_intake_level <= ( -k C_ch v_MinPower ) x_b
+   // => v_intake_level + ( k C_ch v_MinPower ) x_b <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in charge
    vars.push_back( std::make_pair( & v_intake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( & batt_design ,
-			   -f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] ) );
+			   f_kappa * f_MaxCRateCharge * v_MinPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_rhs( 0.0 );
@@ -671,14 +671,14 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    // Upper bound of the outtake level design constraints:
    //
-   //      v_outtake_level <= (k C_dis -v_MinPower ) x_b
-   // => v_outtake_level + ( k C_dis v_MinPower ) x_b <= 0
+   //      v_outtake_level <= (k C_dis v_MaxPower ) x_b
+   // => v_outtake_level - ( k C_dis v_MaxPower ) x_b <= 0
 
    // set the maximum dispatch of converter not to exceed the C-rate of the
    // battery in discharge
    vars.push_back( std::make_pair( & v_outtake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( & batt_design ,
-                        f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] ) );
+                        -f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] ) );
 
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
