@@ -620,12 +620,12 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
   wf = sci->f_value;
 
  switch( wf ) {
-  case( 1 ): ftype = CYCLE; generate_PTDF_variables( ); break;
+  case( 1 ): ftype = CYCLE; generate_CYCLE_variables(); break;
   case( 2 ): throw( std::logic_error(
 			    "DCNetworkBlock::generate_abstract_variables: "
 			    "KIRCHHOFF formulation not implemented yet" ) );
 	     ftype = KIRCHHOFF; break;
-  default:   ftype = PTDF; generate_CYCLE_variables();
+  default:   ftype = PTDF; generate_PTDF_variables();
   }  
 
  set_variables_generated();
