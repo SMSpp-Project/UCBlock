@@ -95,7 +95,15 @@ namespace SMSpp_di_unipi_it
  *
  * - The CYCLE formulation ... TODO: DESCRIBE
  *
- * - The KIRCHHOFF formulation ... TODO: DESCRIBE
+ * - The KIRCHHOFF formulation, which directly encodes Kirchhoff's laws
+ *   using both power flow variables F_l and voltage angle variables
+ *   theta_n. For each DC line l (non-zero susceptance):
+ *     F_l = B_l * ( theta_{from(l)} - theta_{to(l)} )   (KVL)
+ *   For each node n:
+ *     sum_{l:out(n)} F_l - sum_{l:in(n)} eta_l F_l = S_n - D_n  (KCL)
+ *   with a reference node angle fixed to zero. For HVDC lines (zero
+ *   susceptance), no angle relationship is imposed: the flow is only
+ *   constrained by capacity limits and node balance.
  */
 
 class DCNetworkBlock : public NetworkBlock
@@ -984,11 +992,41 @@ class DCNetworkData : public NetworkData
   *
   * DCNetworkBlock supports three possible different formulations:
   *
-  * - The PTDF formulation, whereby ... TODO: COMPLETE
+  * - The PTDF formulation, which uses the Power Transfer Distribution
+  *   Factor matrix to express DC line flows as a linear combination of
+  *   nodal injections. Only power flow variables \f$ F_l \f$ are needed
+  *   (no angle variables). For HVDC lines, standard flow conservation
+  *   constraints are used.
   *
-  * - The CYCLE formulation, whereby ... TODO: COMPLETE
+  * - The CYCLE formulation, which uses a spanning tree and a fundamental
+  *   cycle basis to express power flows in terms of tree-transfer
+  *   coefficients and cycle flow variables \f$ h_c \f$. Requires both
+  *   \f$ F_l \f$ and \f$ h_c \f$ variables (no angle variables).
   *
-  * - The KIRCHHOFF formulation, whereby ... TODO: COMPLETE
+  * - The KIRCHHOFF formulation, which introduces voltage angle variables
+  *   \f$ \theta_n \f$ for each node and encodes:
+  *   \f[
+  *     F_l \;=\; \mathfrak{S}_l \bigl(\theta_{\mathrm{from}(l)}
+  *                                   - \theta_{\mathrm{to}(l)}\bigr)
+  *     \qquad \forall l \in \mathcal{L}^{DC}
+  *     \qquad (10)
+  *   \f]
+  *   \f[
+  *     - S_n
+  *     \;+\;
+  *     \sum_{l=(n,\cdot)} F_l
+  *     \;-\;
+  *     \sum_{l=(\cdot,n)} \eta_l\, F_l
+  *     \;=\;
+  *     - D^{ac}_n
+  *     \qquad \forall n \in \mathcal{N}
+  *     \qquad (11)
+  *   \f]
+  *   \f[
+  *     \theta_{\mathrm{ref}} = 0
+  *     \qquad (12)
+  *   \f]
+  *   Capacity limits (1) or (1a)\--(1b) apply as in the other formulations
   *
   * The different possible formulations are represented by a the int value
   * "wf" that is obtained as follows:
@@ -1015,10 +1053,15 @@ class DCNetworkData : public NetworkData
  void generate_CYCLE_variables( void );
 
 /*--------------------------------------------------------------------------*/
+
+ void generate_KIRCHHOFF_variables( void );
+
+/*--------------------------------------------------------------------------*/
  /// generate abstract constraints of DCNetworkBlock
  /** This method generates the linear constraints of the DC network according
-  * to the internal formulation type #ftype, which can be either **PTDF** or
-  * **CYCLE**. The topology of the transmission network is defined by a set of
+  * to the internal formulation type #ftype, which can be **PTDF**, **CYCLE**,
+  * or **KIRCHHOFF**. The topology of the transmission network is defined by
+  * a set of
   * nodes \f$ \mathcal{N} \f$ and a set of lines \f$ \mathcal{L} \f$. For each
   * line \f$ l \in \mathcal{L} \f$, let \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$
   * denote the minimum and maximum admissible power flows, and
@@ -1140,6 +1183,41 @@ class DCNetworkData : public NetworkData
   * Capacity limits (1) or (1a)–(1b) apply to each line depending on whether a
   * design variable \f$ x_l \f$ exists.
   *
+  * \b Kirchhoff \b (KIRCHHOFF) \b formulation.
+  * Voltage angle variables \f$ \theta_n \f$ are introduced for each node.
+  * For each DC line \f$ l \f$ (non-zero susceptance \f$ \mathfrak{S}_l \f$),
+  * the flow-angle relationship (Kirchhoff's Voltage Law) is imposed:
+  * \f[
+  *   F_l
+  *   \;=\;
+  *   \mathfrak{S}_l \bigl(\theta_{\mathrm{from}(l)}
+  *                       - \theta_{\mathrm{to}(l)}\bigr)
+  *   \qquad \forall l \in \mathcal{L}^{DC}
+  *   \qquad (10)
+  * \f]
+  * For each node \f$ n \f$, a power balance constraint (Kirchhoff's Current
+  * Law) is enforced over \e all lines (both DC and HVDC):
+  * \f[
+  *   -S_n
+  *   \;+\;
+  *   \sum_{l=(n,\cdot)} F_l
+  *   \;-\;
+  *   \sum_{l=(\cdot,n)} \eta_l\, F_l
+  *   \;=\;
+  *   -D^{ac}_n
+  *   \qquad \forall n \in \mathcal{N}
+  *   \qquad (11)
+  * \f]
+  * A reference node angle is fixed to zero:
+  * \f[
+  *   \theta_{\mathrm{ref}} = 0
+  *   \qquad (12)
+  * \f]
+  * HVDC lines (zero susceptance) have no angle relationship and are only
+  * constrained by flow limits and node balance. Hypergraph HVDC lines are
+  * supported in the node balance. Capacity limits (1) or (1a)--(1b)
+  * apply as in the other formulations.
+  *
   * Flow balance constraints may have to be scaled for numerical stability
   * reasons.
   *
@@ -1175,6 +1253,48 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
 
  void generate_CYCLE_constraints( Configuration * stcc = nullptr );
+
+/*--------------------------------------------------------------------------*/
+
+ void generate_KIRCHHOFF_constraints( Configuration * stcc = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the NetworkCost auxiliary constraints
+ /** Generates the auxiliary constraints for the linearisation of |F_l|
+  * (absolute-value relaxation) when the "NetworkCost" vector is provided:
+  *   \f[
+  *     V_l \ge  F_l, \quad V_l \ge -F_l \qquad \forall\, l \in \mathcal{L}
+  *   \f]
+  * Does nothing if NetworkCost is empty. This method is intended to be
+  * called by generate_KIRCHHOFF_constraints() and overriding classes. */
+
+ void generate_network_cost_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the reference-node angle constraint
+ /** Fixes the voltage angle of the reference node to zero:
+  *   \f[
+  *     \theta_{\mathrm{ref}} = 0
+  *   \f]
+  * Skipped for pure HVDC networks (no angle variables).
+  * This method is intended to be called by generate_KIRCHHOFF_constraints()
+  * and overriding classes. */
+
+ void generate_reference_angle_constraint( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the KCL node-balance constraints
+ /** Generates Kirchhoff's Current Law at every node:
+  *   \f[
+  *     -S_n + \sum_{l:\,\mathrm{start}(l)=n} F_l
+  *          - \sum_{l:\,\mathrm{end}(l)=n} \eta_l\, F_l = -D_n
+  *     \qquad \forall\, n
+  *   \f]
+  * handling DC lines, HVDC lines and hypergraph topologies.
+  * This method is intended to be called by generate_KIRCHHOFF_constraints()
+  * and overriding classes. */
+
+ void generate_node_balance_constraints( void );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1841,6 +1961,9 @@ class DCNetworkData : public NetworkData
  /// the power flow variables on cycle basis
  std::vector< ColVariable > v_cycle_flow;
 
+ /// the voltage angle variables (Kirchhoff formulation)
+ std::vector< ColVariable > v_voltage_angle;
+
  /// the auxiliary network cost variable
  std::vector< ColVariable > v_auxiliary_variable;
 
@@ -1878,6 +2001,17 @@ class DCNetworkData : public NetworkData
 
  /// definition of the flow on cycles
  std::vector< FRowConstraint > v_CYCLE_def_cycle_const;
+
+ /// flow-angle definition constraints (Kirchhoff formulation)
+ /// F_l - B_l * ( theta_from - theta_to ) = 0 for each DC line
+ std::vector< FRowConstraint > v_KIRCHHOFF_power_flow_def;
+
+ /// node power balance constraints (Kirchhoff formulation)
+ /// for each node n: -S_n + sum_outgoing F_l - sum_incoming eta_l F_l = -D_n
+ std::vector< FRowConstraint > v_KIRCHHOFF_node_balance_const;
+
+ /// reference node angle constraint (Kirchhoff formulation)
+ BoxConstraint v_reference_angle_const;
 
  /// the objective function
  FRealObjective objective;

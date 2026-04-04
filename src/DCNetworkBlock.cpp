@@ -520,6 +520,9 @@ DCNetworkBlock::~DCNetworkBlock()
  overall_balanced_const.clear();
  Constraint::clear( v_CYCLE_def_flow_const );
  Constraint::clear( v_CYCLE_def_cycle_const );
+ Constraint::clear( v_KIRCHHOFF_power_flow_def );
+ Constraint::clear( v_KIRCHHOFF_node_balance_const );
+ v_reference_angle_const.clear();
 
  objective.clear();
 
@@ -621,10 +624,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
 
  switch( wf ) {
   case( 1 ): ftype = CYCLE; generate_CYCLE_variables(); break;
-  case( 2 ): throw( std::logic_error(
-			    "DCNetworkBlock::generate_abstract_variables: "
-			    "KIRCHHOFF formulation not implemented yet" ) );
-	     ftype = KIRCHHOFF; break;
+  case( 2 ): ftype = KIRCHHOFF; generate_KIRCHHOFF_variables(); break;
   default:   ftype = PTDF; generate_PTDF_variables();
   }  
 
@@ -691,6 +691,33 @@ void DCNetworkBlock::generate_CYCLE_variables( void )
 
 /*--------------------------------------------------------------------------*/
 
+void DCNetworkBlock::generate_KIRCHHOFF_variables( void )
+{
+ /** The Kirchhoff formulation uses:
+  *  - power flow variables F_l for each line (same as PTDF / CYCLE)
+  *  - voltage angle variables theta_n for each node (new)
+  *
+  * For pure HVDC networks (all susceptances zero), no angle variables are
+  * needed since the flows are fully controllable. */
+
+ generate_PTDF_variables();  // creates v_power_flow (and v_auxiliary_variable)
+
+ const auto number_nodes = get_number_nodes();
+ if( number_nodes <= 1 )
+  return;
+
+ // voltage angle variables are needed only if there are DC lines
+ if( ! f_NetworkData->is_HVDC() ) {
+  v_voltage_angle.resize( number_nodes );
+  for( auto & var : v_voltage_angle )
+   var.set_type( ColVariable::kContinuous );
+  add_static_variable( v_voltage_angle , "voltage_angle" );
+  }
+
+ }  // end( DCNetworkBlock::generate_KIRCHHOFF_variables )
+
+/*--------------------------------------------------------------------------*/
+
 void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 {
  if( constraints_generated() )  // constraints have already been generated
@@ -715,10 +742,10 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  switch( ftype ) {
   case( PTDF ) :  generate_PTDF_constraints( stcc ); break;
   case( CYCLE ) : generate_CYCLE_constraints( stcc ); break;
-  case( KIRCHHOFF ) :
+  case( KIRCHHOFF ) : generate_KIRCHHOFF_constraints( stcc ); break;
   default :
    throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-			    "line type not implemented yet" ) );
+			    "unknown formulation type" ) );
   }
 
  set_constraints_generated();
@@ -887,6 +914,190 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  generate_bound_constraints( );  // generate flow limits
 
  }  // end( DCNetworkBlock::generate_CYCLE_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
+{
+ /** The Kirchhoff formulation directly encodes:
+  *
+  *  1. Kirchhoff's Voltage Law (KVL) for DC lines:
+  *     F_l - B_l * ( theta_{from(l)} - theta_{to(l)} ) = 0
+  *
+  *  2. Kirchhoff's Current Law (KCL) at every node:
+  *     -S_n + sum_{l: start(l)=n} F_l - sum_{l: end(l)=n} eta_l F_l = -D_n
+  *
+  *  3. Reference node angle fixed to zero:
+  *     theta_{ref} = 0
+  *
+  *  4. Flow capacity limits (delegated to generate_bound_constraints).
+  *
+  *  5. NetworkCost auxiliary constraints |F_l| (if applicable).
+  *
+  * For pure HVDC networks (all susceptances zero), no angle variables
+  * exist, and only the KCL node balance and flow limits are generated. */
+
+ const auto number_nodes = get_number_nodes();
+ if( number_nodes <= 1 )
+  return;
+
+ const auto number_lines = get_number_lines();
+
+ if( number_lines <= 0 )
+  throw( std::logic_error( "DCNetworkBlock::generate_KIRCHHOFF_constraints: "
+                           "number of lines of DCNetworkBlock is not set" ) );
+
+ LinearFunction::v_coeff_pair vars;
+
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
+
+ // --- NetworkCost auxiliary constraints (if applicable) ---
+ generate_network_cost_constraints();
+
+ // --- KVL: flow-angle definition for DC lines ---
+ // F_l - B_l * theta_{from(l)} + B_l * theta_{to(l)} = 0
+ if( ! f_NetworkData->is_HVDC() ) {
+  auto & DC_lines = f_NetworkData->get_DC_lines();
+  v_KIRCHHOFF_power_flow_def.resize( DC_lines.size() );
+
+  Index idx = 0;
+  for( auto & line_id : DC_lines ) {
+   double B_l = get_line_susceptance( line_id );
+   vars.emplace_back( & v_power_flow[ line_id ] , 1.0 );
+   vars.emplace_back( & v_voltage_angle[ start_line[ line_id ] ] , -B_l );
+   vars.emplace_back( & v_voltage_angle[ end_line[ line_id ] ] , B_l );
+
+   v_KIRCHHOFF_power_flow_def[ idx ].set_both( 0.0 );
+   v_KIRCHHOFF_power_flow_def[ idx ].set_function(
+                                    new LinearFunction( std::move( vars ) ) );
+   ++idx;
+   }
+
+  add_static_constraint( v_KIRCHHOFF_power_flow_def ,
+                         "KIRCHHOFF_power_flow_def" );
+  }
+
+ // --- Reference angle constraint ---
+ generate_reference_angle_constraint();
+
+ // --- KCL: node power balance at every node ---
+ generate_node_balance_constraints();
+
+ /*-----------------------------------------------------------------------*/
+ generate_bound_constraints();  // generate flow limits
+
+ }  // end( DCNetworkBlock::generate_KIRCHHOFF_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::generate_network_cost_constraints( void )
+{
+ // 0 <= V_l - F_l  and  0 <= V_l + F_l  (linearization of |F_l|)
+ if( f_NetworkData->get_network_cost().empty() )
+  return;
+
+ const auto number_lines = get_number_lines();
+ LinearFunction::v_coeff_pair vars;
+
+ using MAFRC2 = boost::multi_array< FRowConstraint , 2 >;
+ v_power_flow_relax_abs.resize( MAFRC2::extent_gen()[ 2 ][ number_lines ] );
+
+ for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+  vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -1.0 ) );
+  vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
+  v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( 0.0 );
+  v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
+  v_power_flow_relax_abs[ 0 ][ line_id ].set_function(
+                                   new LinearFunction( std::move( vars ) ) );
+
+  vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
+  vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
+  v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( 0.0 );
+  v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
+  v_power_flow_relax_abs[ 1 ][ line_id ].set_function(
+                                   new LinearFunction( std::move( vars ) ) );
+  }
+
+ add_static_constraint( v_power_flow_relax_abs , "power_flow_relax_abs" );
+
+ }  // end( DCNetworkBlock::generate_network_cost_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::generate_reference_angle_constraint( void )
+{
+ if( f_NetworkData->is_HVDC() )
+  return;  // no angle variables for pure HVDC
+
+ const Index ref = f_NetworkData->get_reference_node();
+ v_reference_angle_const.set_lhs( 0.0 );
+ v_reference_angle_const.set_rhs( 0.0 );
+ v_reference_angle_const.set_variable( & v_voltage_angle[ ref ] );
+ add_static_constraint( v_reference_angle_const , "reference_angle" );
+
+ }  // end( DCNetworkBlock::generate_reference_angle_constraint )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::generate_node_balance_constraints( void )
+{
+ // KCL at every node:
+ // -S_n + sum_{l: start(l)=n} F_l - sum_{l: end(l)=n} eta_l F_l = -D_n
+
+ const auto number_nodes = get_number_nodes();
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
+ LinearFunction::v_coeff_pair vars;
+
+ v_KIRCHHOFF_node_balance_const.resize( number_nodes );
+
+ for( Index n = 0 ; n < number_nodes ; ++n ) {
+  vars.emplace_back( & v_node_injection[ 0 ][ n ] , -1.0 );
+
+  // DC lines (regular arcs, never hyperarcs)
+  if( ! f_NetworkData->is_HVDC() ) {
+   for( auto & l : f_NetworkData->get_DC_lines() ) {
+    if( start_line[ l ] == n )
+     vars.emplace_back( & v_power_flow[ l ] , 1.0 );
+    double eta = f_NetworkData->get_line_efficiency( l );
+    if( end_line[ l ] == n )
+     vars.emplace_back( & v_power_flow[ l ] , -eta );
+    }
+   }
+
+  // HVDC lines (may be hyperarcs)
+  if( ! f_NetworkData->is_DC() ) {
+   for( auto & l : f_NetworkData->get_HVDC_lines() ) {
+    if( start_line[ l ] == n )
+     vars.emplace_back( & v_power_flow[ l ] , 1.0 );
+
+    if( ! f_NetworkData->is_hypergraph() ) {
+     double eta = f_NetworkData->get_line_efficiency( l );
+     if( end_line[ l ] == n )
+      vars.emplace_back( & v_power_flow[ l ] , -eta );
+     }
+    else {
+     for( Index i = 0 ;
+          i < f_NetworkData->get_end_lines()[ l ].size() ; ++i ) {
+      if( f_NetworkData->get_end_lines()[ l ][ i ] == n ) {
+       double eta = f_NetworkData->get_line_efficiencies( l )[ i ];
+       vars.emplace_back( & v_power_flow[ l ] , -eta );
+       }
+      }
+     }
+    }
+   }
+
+  v_KIRCHHOFF_node_balance_const[ n ].set_both( -v_ActiveDemand[ n ] );
+  v_KIRCHHOFF_node_balance_const[ n ].set_function(
+                                    new LinearFunction( std::move( vars ) ) );
+  }
+
+ add_static_constraint( v_KIRCHHOFF_node_balance_const ,
+                        "KIRCHHOFF_node_balance" );
+
+ }  // end( DCNetworkBlock::generate_node_balance_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1223,15 +1434,15 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
 
  switch( ftype ) {
   case( PTDF ) :
-    if( ! f_NetworkData->get_network_cost().empty() )
-      for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
-        lf->add_variable( &v_auxiliary_variable[ line_id ] ,
-                          f_NetworkData->get_network_cost()[ line_id ] ,
-                          eNoMod );
-    break;
+   if( ! f_NetworkData->get_network_cost().empty() )
+    for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
+     lf->add_variable( &v_auxiliary_variable[ line_id ] ,
+		       f_NetworkData->get_network_cost()[ line_id ] ,
+		       eNoMod );
+   break;
   default :
-    break;
- }
+   break;
+  }
 
  lf->set_constant_term( f_ConstTerm );
 
@@ -1320,6 +1531,8 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_node_injection , tol )
   && ColVariable::is_feasible( v_power_flow , tol )
   && ColVariable::is_feasible( v_auxiliary_variable , tol )
+  && ColVariable::is_feasible( v_cycle_flow , tol )
+  && ColVariable::is_feasible( v_voltage_angle , tol )
   // Constraints
   && RowConstraint::is_feasible( v_power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_limit_design_const , tol ,
@@ -1333,6 +1546,11 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
          rel_viol )
   && RowConstraint::is_feasible( v_CYCLE_def_flow_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_CYCLE_def_cycle_const , tol , rel_viol )
+  // Kirchhoff formulation
+  && RowConstraint::is_feasible( v_KIRCHHOFF_power_flow_def , tol , rel_viol )
+  && RowConstraint::is_feasible( v_KIRCHHOFF_node_balance_const , tol ,
+         rel_viol )
+  && RowConstraint::is_feasible( v_reference_angle_const , tol , rel_viol )
   );
 
  }  // end( DCNetworkBlock::is_feasible )
