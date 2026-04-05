@@ -63,16 +63,15 @@ using SpMat = Eigen::SparseMatrix< double >;
 /*--------------------------------------------------------------------------*/
 
 // register DCNetworkBlock to the Block factory
-SMSpp_insert_in_factory_cpp_0( DCNetworkBlock );
+SMSpp_insert_in_factory_cpp_1( DCNetworkBlock );
 
 // register DCNetworkBlockSolution to the Solution factory
 SMSpp_insert_in_factory_cpp_0( DCNetworkBlockSolution );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
 // register DCNetworkData to the NetworkData factory
 
-typedef DCNetworkBlock::DCNetworkData DCNetworkData;
+using DCNetworkData = DCNetworkBlock::DCNetworkData;
 
 SMSpp_insert_in_factory_cpp_0( DCNetworkData );
 

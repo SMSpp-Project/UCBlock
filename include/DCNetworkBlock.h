@@ -887,8 +887,7 @@ class DCNetworkData : public NetworkData
 
  /// constructor of DCNetworkBlock
  /** Constructor of DCNetworkBlock, taking possibly a pointer of its
-  * father Block.
-  */
+  * father Block. */
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
   : NetworkBlock( f_block ) , f_NetworkData( nullptr ) , ftype( PTDF ) ,
@@ -2035,11 +2034,15 @@ class DCNetworkData : public NetworkData
  static void static_initialization( void )
  {
   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "DCNetworkBlock::set_active_demand" , & DCNetworkBlock::set_active_demand );
+   "DCNetworkBlock::set_active_demand" ,
+   & DCNetworkBlock::set_active_demand );
 
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
-   "DCNetworkBlock::set_active_demand" , & DCNetworkBlock::set_active_demand );
- }
+   "DCNetworkBlock::set_active_demand" ,
+   & DCNetworkBlock::set_active_demand );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  };  // end( class( DCNetworkBlock ) )
 
@@ -2081,10 +2084,6 @@ class DCNetworkBlockMod : public NetworkBlockMod
     output << "Set active demand values ";
    }
   }
-
- DCNetworkBlock * f_Block{};
- ///< pointer to the Block to which the Modification refers
-
  };  // end( class( DCNetworkBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
@@ -2172,12 +2171,10 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
  *
  * Note that one DCNetworkBlock covers one time instant, so these variables
  * do not need to be indexed over time instants (unlike those of the base
- * NetworkBlockSolution).
- */
+ * NetworkBlockSolution). */
 
 class DCNetworkBlockSolution : public NetworkBlockSolution
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2240,8 +2237,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   * - The variable "DualCost", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; DualCost[ l ] is the absolute value of
   *   the dual variable of the constraint representing the capacity of
-  *   line l. The variable is optional.
-  */
+  *   line l. The variable is optional. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -2296,8 +2292,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   * (although, technically, if some of the DCNetworkBlockSolution that
   * appears when \p idx > 0 is Configure-d with less information than that
   * when idx == 0 the code will not break, but there will be uninitialised
-  * values in the netCDF).
-  */
+  * values in the netCDF). */
 
  void serialize( netCDF::NcGroup & group , size_t idx ) const override;
 
@@ -2334,8 +2329,6 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  private:
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
-
-/*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;
 

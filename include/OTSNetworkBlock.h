@@ -43,11 +43,9 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Donato Meoli \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
+ * \author Claude 4.6 \n
  *
- * \copyright &copy; by Antonio Frangioni, Donato Meoli
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -71,103 +69,6 @@
 
 namespace SMSpp_di_unipi_it
 {
-
-/*--------------------------------------------------------------------------*/
-/*------------------------ CLASS OTSNetworkData ----------------------------*/
-/*--------------------------------------------------------------------------*/
-/*--------------------------- GENERAL NOTES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/// NetworkData extension carrying per-line switching costs
-/** OTSNetworkData extends DCNetworkData with a vector of per-line switching
- * costs. When a line \f$ l \f$ is opened (switched off) in a given time
- * period, a cost \f$ c^{\mathrm{sw}}_l \f$ is incurred in the objective.
- *
- * The switching cost can be specified as:
- *
- * - a scalar (one netCDF value), in which case every line gets the same
- *   cost;
- *
- * - a vector indexed over NumberLines, giving individual per-line costs;
- *
- * - omitted entirely, in which case the default is 0 for all lines.
- *
- * The netCDF variable is named **"SwitchingCost"** and is of type
- * netCDF::NcDouble. */
-
-class OTSNetworkData : public DCNetworkData
-{
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/** @} ---------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
-/** @name Constructor and Destructor
- * @{ */
-
- /// constructor of OTSNetworkData, does nothing special
- OTSNetworkData( void ) : DCNetworkData() {}
-
- /// destructor of OTSNetworkData: it is virtual, and empty
- ~OTSNetworkData() override = default;
-
-/** @} --------------------- OTHER INITIALIZATIONS -------------------------*/
-/** @name Other initializations
- * @{ */
-
- /// deserialize an OTSNetworkData out of a netCDF::NcGroup
- /** Deserializes the parent DCNetworkData first, then reads the optional
-  * netCDF variable **"SwitchingCost"**:
-  *
-  * - If the variable has dimension 1 (a single scalar), that value is
-  *   replicated for every line.
-  *
-  * - If the variable has dimension NumberLines, each entry gives the
-  *   switching cost for the corresponding line.
-  *
-  * - If the variable is absent, all switching costs default to 0. */
-
- void deserialize( const netCDF::NcGroup & group ) override;
-
-/** @} ----------------------- ACCESSOR METHODS ----------------------------*/
-/** @name Accessor methods
- * @{ */
-
- /// returns the switching cost for line \p l
- /** Returns the switching cost for the given line index. If the switching
-  * cost vector is empty (all zeros), returns 0. */
-
- double get_switching_cost( Index l ) const {
-  if( v_switching_cost.empty() )
-   return( 0.0 );
-  return( v_switching_cost[ l ] );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the full switching cost vector (may be empty if all zero)
-
- const std::vector< double > & get_switching_cost( void ) const {
-  return( v_switching_cost );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns true if any line has a nonzero switching cost
-
- bool has_switching_cost( void ) const {
-  return( ! v_switching_cost.empty() );
-  }
-
-/** @} ---------------------------------------------------------------------*/
-
-/*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
-
- protected:
-
- /// per-line switching costs; empty means all zero
- std::vector< double > v_switching_cost;
-
- };  // end( class( OTSNetworkData ) )
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS OTSNetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -285,8 +186,9 @@ class OTSNetworkData : public DCNetworkData
 
 class OTSNetworkBlock : public DCNetworkBlock
 {
-
+/*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
  public:
 
@@ -296,6 +198,111 @@ class OTSNetworkBlock : public DCNetworkBlock
 /** @name Public types
  * @{ */
 
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS OTSNetworkData ----------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// DCNetworkData extension carrying per-line switching costs
+/** OTSNetworkData extends DCNetworkData with a vector of per-line switching
+ * costs. When a line \f$ l \f$ is opened (switched off) in a given time
+ * period, a cost \f$ c^{\mathrm{sw}}_l \f$ is incurred in the objective.
+ *
+ * The switching cost can be specified as:
+ *
+ * - a scalar (one netCDF value), in which case every line gets the same
+ *   cost;
+ *
+ * - a vector indexed over NumberLines, giving individual per-line costs;
+ *
+ * - omitted entirely, in which case the default is 0 for all lines.
+ *
+ * The netCDF variable is named **"SwitchingCost"** and is of type
+ * netCDF::NcDouble. */
+
+class OTSNetworkData : public DCNetworkData
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/** @} ---------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/** @name Constructor and Destructor
+ * @{ */
+
+ /// constructor of OTSNetworkData, does nothing special
+ OTSNetworkData( void ) : DCNetworkData() {}
+
+ /// destructor of OTSNetworkData: it is virtual, and empty
+ ~OTSNetworkData() override = default;
+
+/** @} --------------------- OTHER INITIALIZATIONS -------------------------*/
+/** @name Other initializations
+ * @{ */
+
+ /// deserialize an OTSNetworkData out of a netCDF::NcGroup
+ /** Deserializes the parent DCNetworkData first, then reads the optional
+  * netCDF variable **"SwitchingCost"**:
+  *
+  * - If the variable has dimension 1 (a single scalar), that value is
+  *   replicated for every line.
+  *
+  * - If the variable has dimension NumberLines, each entry gives the
+  *   switching cost for the corresponding line.
+  *
+  * - If the variable is absent, all switching costs default to 0. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/** @} ----------------------- ACCESSOR METHODS ----------------------------*/
+/** @name Accessor methods
+ * @{ */
+
+ /// returns the switching cost for line \p l
+ /** Returns the switching cost for the given line index. If the switching
+  * cost vector is empty (all zeros), returns 0. */
+
+ double get_switching_cost( Index l ) const {
+  if( v_switching_cost.empty() )
+   return( 0.0 );
+  return( v_switching_cost[ l ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the full switching cost vector (may be empty if all zero)
+
+ const std::vector< double > & get_switching_cost( void ) const {
+  return( v_switching_cost );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if any line has a nonzero switching cost
+
+ bool has_switching_cost( void ) const {
+  return( ! v_switching_cost.empty() );
+  }
+
+/** @} ----------------- PROTECTED PART OF THE CLASS -----------------------*/
+
+ protected:
+
+ /// per-line switching costs; empty means all zero
+ std::vector< double > v_switching_cost;
+
+/*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
+
+ private:
+
+/*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
+
+ };  // end( class( OTSNetworkData ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// enum for the OTS formulation types
  /** The four OTS formulations, selected by bits 0-1 of the configuration
   * integer. */
@@ -336,7 +343,7 @@ class OTSNetworkBlock : public DCNetworkBlock
   * identical to DCNetworkBlock, with the additional fields read by
   * OTSNetworkData (in particular, "SwitchingCost"). */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR GENERATING THE abstract representation ----------*/
@@ -668,6 +675,14 @@ class OTSNetworkBlock : public DCNetworkBlock
 
  SMSpp_insert_in_factory_h;
 
+/*--------------------------------------------------------------------------*/
+/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
+/*--------------------------------------------------------------------------*/
+ // static_initialization() needs be defined, even if void, for otherwise the
+ // method of the base class DCNetworkBlock is called, which is private
+
+ static void static_initialization( void ) {}
+ 
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( OTSNetworkBlock ) )

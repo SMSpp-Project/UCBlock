@@ -36,7 +36,13 @@ using namespace SMSpp_di_unipi_it;
 /*------------------------- FACTORY REGISTRATION ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
-SMSpp_insert_in_factory_cpp_0( OTSNetworkBlock );
+// register OTSNetworkBlock to the Block factory
+SMSpp_insert_in_factory_cpp_1( OTSNetworkBlock );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+// register DCNetworkData to the NetworkData factory
+
+using OTSNetworkData = OTSNetworkBlock::OTSNetworkData;
 
 SMSpp_insert_in_factory_cpp_0( OTSNetworkData );
 
@@ -57,7 +63,7 @@ void OTSNetworkData::deserialize( const netCDF::NcGroup & group )
  // automatically when allow_scalar_var = true.
  if( ::deserialize( group , "SwitchingCost" , f_number_lines ,
                     v_switching_cost , true , true ) )
-  if( std::is_all( v_switching_cost.begin() , v_switching_cost.end() ,
+  if( std::all_of( v_switching_cost.begin() , v_switching_cost.end() ,
 		   []( auto a ) { return( a == 0 ); } ) )
    // if all costs are zero, clear the vector for efficiency: the rest
    // of the code treats an empty vector as "no switching costs"
@@ -83,7 +89,7 @@ OTSNetworkBlock::~OTSNetworkBlock()
 
 /*--------------------------------------------------------------------------*/
 
-void OTSNetworkBlock::deserialize( netCDF::NcGroup & group )
+void OTSNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
  // DCNetworkBlock::deserialize will call get_new_NetworkData() which
  // returns an OTSNetworkData, so "SwitchingCost" will be read
@@ -222,7 +228,8 @@ void OTSNetworkBlock::generate_objective( Configuration * objc )
 
  for( Index idx = 0 ; idx < DC_lines.size() ; ++idx ) {
   auto l = DC_lines[ idx ];
-  double c_sw = ots_data->get_switching_cost( l );
+  double c_sw = static_cast< OTSNetworkData * >( f_NetworkData
+						 )->get_switching_cost( l );
   if( c_sw == 0.0 )
    continue;
 
@@ -313,7 +320,7 @@ void OTSNetworkBlock::compute_big_M( void )
  // compute the global sum: sum_k( f_max_k / |B_k| )
  double sum_ratio = 0.0;
  for( auto & k : DC_lines ) {
-  double B_k = std::abs( f_NetworkData->get_line_susceptance( k ) );
+  double B_k = std::abs( get_line_susceptance( k ) );
   if( B_k > 0.0 )
    sum_ratio += f_NetworkData->get_max_power_flow( k ) / B_k;
   }
@@ -322,7 +329,7 @@ void OTSNetworkBlock::compute_big_M( void )
  v_big_M.resize( DC_lines.size() );
  for( Index idx = 0 ; idx < DC_lines.size() ; ++idx ) {
   auto l = DC_lines[ idx ];
-  double B_l = std::abs( f_NetworkData->get_line_susceptance( l ) );
+  double B_l = std::abs( get_line_susceptance( l ) );
   v_big_M[ idx ] = B_l * sum_ratio;
   }
 
@@ -454,7 +461,7 @@ void OTSNetworkBlock::generate_OTS_Standard_constraints( void )
 
  for( Index idx = 0 ; idx < n_dc ; ++idx ) {
   auto l = DC_lines[ idx ];
-  double B_l = f_NetworkData->get_line_susceptance( l );
+  double B_l = get_line_susceptance( l );
   double M_l = v_big_M[ idx ];
 
   // upper: F_l - B_l*theta_from + B_l*theta_to + M_l*z_l <= M_l
@@ -512,7 +519,7 @@ void OTSNetworkBlock::generate_OTS_Directional_constraints( void )
 
  for( Index idx = 0 ; idx < n_dc ; ++idx ) {
   auto l = DC_lines[ idx ];
-  double B_l = f_NetworkData->get_line_susceptance( l );
+  double B_l = get_line_susceptance( l );
   double M_l = v_big_M[ idx ];
 
   // upper: F_l - B_l*theta_from + B_l*theta_to + M_l*z+ + M_l*z- <= M_l
@@ -583,7 +590,7 @@ void OTSNetworkBlock::generate_OTS_Elastic_constraints( void )
 
  for( Index idx = 0 ; idx < n_dc ; ++idx ) {
   auto l = DC_lines[ idx ];
-  double B_l = f_NetworkData->get_line_susceptance( l );
+  double B_l = get_line_susceptance( l );
   double M_l = v_big_M[ idx ];
   double aM = v_alpha[ idx ] * M_l;
   double bM = v_beta[ idx ] * M_l;
@@ -657,7 +664,7 @@ void OTSNetworkBlock::generate_OTS_ElasticDirectional_constraints( void )
 
  for( Index idx = 0 ; idx < n_dc ; ++idx ) {
   auto l = DC_lines[ idx ];
-  double B_l = f_NetworkData->get_line_susceptance( l );
+  double B_l = get_line_susceptance( l );
   double M_l = v_big_M[ idx ];
   double aM = v_alpha[ idx ] * M_l;
   double bM = v_beta[ idx ] * M_l;
