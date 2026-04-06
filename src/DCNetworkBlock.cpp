@@ -612,19 +612,23 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
+ // call the method of the base class to generate node injection variables
  NetworkBlock::generate_abstract_variables( stvv );
 
  // read Configuration to set the formulation
- Index wf = 0; // 0: PTDF, 1: cycle, 2: Kirchhoff, cycle by default
+ Index wf = 0;  // 0: PTDF (default), 1: cycle, 2: Kirchhoff
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
   wf = sci->f_value;
 
+ // flow and (if necessary) auxiliary cost variables are always there
+ generate_PTDF_variables();
+ 
  switch( wf ) {
-  case( 1 ): ftype = CYCLE; generate_CYCLE_variables(); break;
+  case( 1 ): ftype = CYCLE;     generate_CYCLE_variables(); break;
   case( 2 ): ftype = KIRCHHOFF; generate_KIRCHHOFF_variables(); break;
-  default:   ftype = PTDF; generate_PTDF_variables();
+  default:   ftype = PTDF; 
   }  
 
  set_variables_generated();
@@ -639,9 +643,7 @@ void DCNetworkBlock::generate_PTDF_variables( void )
   * "Linear Optimal Power Flow Using Cycle Flows" of
   *  Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown */
 
- const auto number_lines = get_number_lines();
-
- if( number_lines > 0 ) {
+ if( auto number_lines = get_number_lines() ; number_lines > 0 ) {
   // the power flow Variable
   v_power_flow.resize( number_lines );
   for( auto & var : v_power_flow )
@@ -699,8 +701,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_variables( void )
   * For pure HVDC networks (all susceptances zero), no angle variables are
   * needed since the flows are fully controllable. */
 
- generate_PTDF_variables();  // creates v_power_flow (and v_auxiliary_variable)
-
  const auto number_nodes = get_number_nodes();
  if( number_nodes <= 1 )
   return;
@@ -739,15 +739,19 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    }
 
  switch( ftype ) {
-  case( PTDF ) :  generate_PTDF_constraints( stcc ); break;
-  case( CYCLE ) : generate_CYCLE_constraints( stcc ); break;
-  case( KIRCHHOFF ) : generate_KIRCHHOFF_constraints( stcc ); break;
+  case( PTDF ):      generate_PTDF_constraints( stcc ); break;
+  case( CYCLE ):     generate_CYCLE_constraints( stcc ); break;
+  case( KIRCHHOFF ): generate_KIRCHHOFF_constraints( stcc ); break;
   default :
    throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
 			    "unknown formulation type" ) );
   }
 
- set_constraints_generated();
+ // generate common constraints: bounds and cost (if there)
+ generate_bound_constraints();         // generate flow limits
+ generate_network_cost_constraints();  // generate cost constraints
+
+ set_constraints_generated();  // signal all done
 
  }  // end( DCNetworkBlock::generate_abstract_constraints )
 
@@ -755,10 +759,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
 void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 {
- /**
-  * Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
-  *    Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown
-  */
+ /** Implementation of "Linear Optimal Power Flow Using Cycle Flows" of
+  *  Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown */
 
  const auto number_nodes = get_number_nodes();
  if( number_nodes <= 1 )
@@ -793,15 +795,15 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
    adj( number_nodes );
 
  for( const auto & kv : tree ) {
-  const Index l = kv.first;
-  const int s = kv.second; // ±1 orientation in the spanning tree
+  Index l = kv.first;
+  int s = kv.second; // ±1 orientation in the spanning tree
 
-  const Index u = ( s >= 0 ) ? start_line[ l ] : end_line[ l ];
-  const Index v = ( s >= 0 ) ? end_line[ l ] : start_line[ l ];
+  Index u = ( s >= 0 ) ? start_line[ l ] : end_line[ l ];
+  Index v = ( s >= 0 ) ? end_line[ l ] : start_line[ l ];
 
   adj[ u ].emplace_back( v , l , +1 ); // along canonical direction
   adj[ v ].emplace_back( u , l , -1 ); // opposite direction
- }
+  }
 
  /*--------------------------------------------------------------*/
  /* depth-first search from reference node to compute:           */
@@ -809,31 +811,31 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  /*  - parent_edge[ i ]: edge connecting parent → i              */
  /*  - sign_from_parent[ i ]: +1 if along canonical, −1 otherwise*/
  /*--------------------------------------------------------------*/
- std::vector< Index > parent( number_nodes , static_cast< Index >( -1 ) );
- std::vector< Index > parent_edge( number_nodes , number_lines );
+ Subset parent( number_nodes , static_cast< Index >( -1 ) );
+ Subset parent_edge( number_nodes , number_lines );
  std::vector< int > sign_from_parent( number_nodes , 0 );
 
- std::vector< Index > stack;
+ Subset stack;
  parent[ root ] = root;
  stack.push_back( root );
 
  while( ! stack.empty() ) {
-   Index u = stack.back();
-   stack.pop_back();
+  Index u = stack.back();
+  stack.pop_back();
 
-   for( const auto & tup : adj[ u ] ) {
-     Index v , l;
-     int step_sign;
-     std::tie( v , l , step_sign ) = tup;
+  for( const auto & tup : adj[ u ] ) {
+   Index v , l;
+   int step_sign;
+   std::tie( v , l , step_sign ) = tup;
 
-     if( parent[ v ] == static_cast< Index >( -1 ) ) {
-      parent[ v ] = u;
-      parent_edge[ v ] = l;
-      sign_from_parent[ v ] = step_sign;
-      stack.push_back( v );
-     }
+   if( parent[ v ] == static_cast< Index >( -1 ) ) {
+    parent[ v ] = u;
+    parent_edge[ v ] = l;
+    sign_from_parent[ v ] = step_sign;
+    stack.push_back( v );
+    }
    }
- }
+  }
 
  /*--------------------------------------------------------------*/
  /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c      */
@@ -842,75 +844,76 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 
  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
-   /* -f_l term */
-   vars.emplace_back( &v_power_flow[ line_id ] , -1.0 );
+  /* -f_l term */
+  vars.emplace_back( &v_power_flow[ line_id ] , -1.0 );
 
-   /* Σ_i T_{li} p_i : only if l is a tree edge */
-   if( tree.contains( line_id ) ) {
-     for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-       if( node_id == root )
-         continue;
+  /* Σ_i T_{li} p_i : only if l is a tree edge */
+  if( tree.contains( line_id ) ) {
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+    if( node_id == root )
+     continue;
 
-       /* climb path from node_id to root; if edge == line_id, add sign */
-       Index u = node_id;
-       while( u != parent[ u ] ) {
-         if( parent_edge[ u ] == line_id ) {
-           vars.emplace_back( &v_node_injection[ 0 ][ node_id ] ,
-                              sign_from_parent[ u ] );
-           break;  // edge appears at most once in path root→node_id
-         }
-         u = parent[ u ];
-       }
+    /* climb path from node_id to root; if edge == line_id, add sign */
+    Index u = node_id;
+    while( u != parent[ u ] ) {
+     if( parent_edge[ u ] == line_id ) {
+      vars.emplace_back( &v_node_injection[ 0 ][ node_id ] ,
+			 sign_from_parent[ u ] );
+      break;  // edge appears at most once in path root→node_id
+      }
+     u = parent[ u ];
      }
+    }
    }
 
-   /* Σ_c C_{lc} h_c term */
-   auto it_basis = basis.begin();
-   for( int cycle_id = 0 ; cycle_id < static_cast< int >( basis.size() ) ;
-        ++cycle_id , ++it_basis ) {
-     const std::map< Index , int > & cycle = *it_basis;
-     if( auto it = cycle.find( line_id ) ; it != cycle.end() )
-       vars.emplace_back( &v_cycle_flow[ cycle_id ] , it->second );
+  /* Σ_c C_{lc} h_c term */
+  auto it_basis = basis.begin();
+  for( int cycle_id = 0 ; cycle_id < static_cast< int >( basis.size() ) ;
+       ++cycle_id , ++it_basis ) {
+   const std::map< Index , int > & cycle = *it_basis;
+   if( auto it = cycle.find( line_id ) ; it != cycle.end() )
+    vars.emplace_back( &v_cycle_flow[ cycle_id ] , it->second );
    }
 
-   v_CYCLE_def_flow_const[ line_id ].set_both( 0.0 );
-   v_CYCLE_def_flow_const[ line_id ].set_function(
+  v_CYCLE_def_flow_const[ line_id ].set_both( 0.0 );
+  v_CYCLE_def_flow_const[ line_id ].set_function(
      new LinearFunction( std::move( vars ) ) );
- }
+  }
+
  add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
 
  // eq (25): forall cycle c, sum_l C_{lc}x_lf_l = 0
  v_CYCLE_def_cycle_const.resize( number_lines - number_nodes + 1 );
  auto it_basis = basis.begin();
- for( int cycle_id = 0 ; cycle_id < basis.size() ; ++cycle_id, ++it_basis ) {
+ for( int cycle_id = 0 ; cycle_id < basis.size() ;
+      ++cycle_id , ++it_basis ) {
   std::map< Index , int > cycle = *it_basis;
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-   if( auto it = cycle.find( line_id ) ; it != cycle.end() ) {
-    vars.push_back(
-     std::make_pair( &v_power_flow[ line_id ] ,
-                     it->second / get_line_susceptance( line_id ) ) );
-   }
+   if( auto it = cycle.find( line_id ) ; it != cycle.end() )
+    vars.push_back( std::make_pair( &v_power_flow[ line_id ] ,
+			   it->second / get_line_susceptance( line_id ) ) );
   }
+
   v_CYCLE_def_cycle_const[ cycle_id ].set_both( 0.0 );
   v_CYCLE_def_cycle_const[ cycle_id ].set_function(
-   new LinearFunction( std::move( vars ) ) );
- }
- add_static_constraint( v_CYCLE_def_cycle_const , "v_CYCLE_def_cycle_const" );
+                                   new LinearFunction( std::move( vars ) ) );
+  }
+
+ add_static_constraint( v_CYCLE_def_cycle_const ,
+			"v_CYCLE_def_cycle_const" );
 
  // eq (25): sum_i p_i = 0
  double constant_term = 0.;
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] , 1. ) );
   constant_term += v_ActiveDemand[ node_id ];
- }
+  }
+
  overall_balanced_const.set_function(
-          new LinearFunction( std::move( vars ) ) );
+                                 new LinearFunction( std::move( vars ) ) );
  overall_balanced_const.set_lhs( constant_term );
  overall_balanced_const.set_rhs( constant_term );
  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
-
- /*-----------------------------------------------------------------------*/ 
- generate_bound_constraints( );  // generate flow limits
 
  }  // end( DCNetworkBlock::generate_CYCLE_constraints )
 
@@ -929,10 +932,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
   *  3. Reference node angle fixed to zero:
   *     theta_{ref} = 0
   *
-  *  4. Flow capacity limits (delegated to generate_bound_constraints).
-  *
-  *  5. NetworkCost auxiliary constraints |F_l| (if applicable).
-  *
   * For pure HVDC networks (all susceptances zero), no angle variables
   * exist, and only the KCL node balance and flow limits are generated. */
 
@@ -950,9 +949,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
 
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
-
- // --- NetworkCost auxiliary constraints (if applicable) ---
- generate_network_cost_constraints();
 
  // --- KVL: flow-angle definition for DC lines ---
  // F_l - B_l * theta_{from(l)} + B_l * theta_{to(l)} = 0
@@ -984,7 +980,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
  generate_node_balance_constraints();
 
  /*-----------------------------------------------------------------------*/
- generate_bound_constraints();  // generate flow limits
 
  }  // end( DCNetworkBlock::generate_KIRCHHOFF_constraints )
 
@@ -999,8 +994,7 @@ void DCNetworkBlock::generate_network_cost_constraints( void )
  const auto number_lines = get_number_lines();
  LinearFunction::v_coeff_pair vars;
 
- using MAFRC2 = boost::multi_array< FRowConstraint , 2 >;
- v_power_flow_relax_abs.resize( MAFRC2::extent_gen()[ 2 ][ number_lines ] );
+ v_power_flow_relax_abs.resize( MAFRC_ext()[ 2 ][ number_lines ] );
 
  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
   vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -1.0 ) );
@@ -1121,32 +1115,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
 
- // auxiliary constraints for cost (if there) - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ! f_NetworkData->get_network_cost().empty() ) {
-  // 0 <= V_l - F_l && 0 <= V_l + F_l
-  v_power_flow_relax_abs.resize( MAFRC_ext()[ 2 ][ number_lines ] );
-
-  // definition of absolute value of power flow
-  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-   vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -1.0 ) );
-   vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
-   v_power_flow_relax_abs[ 0 ][ line_id ].set_lhs( 0.0 );
-   v_power_flow_relax_abs[ 0 ][ line_id ].set_rhs( Inf< double >() );
-   v_power_flow_relax_abs[ 0 ][ line_id ].set_function(
-                                    new LinearFunction( std::move( vars ) ) );
-
-   vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_auxiliary_variable[ line_id ] , 1.0 ) );
-   v_power_flow_relax_abs[ 1 ][ line_id ].set_lhs( 0.0 );
-   v_power_flow_relax_abs[ 1 ][ line_id ].set_rhs( Inf< double >() );
-   v_power_flow_relax_abs[ 1 ][ line_id ].set_function(
-                                    new LinearFunction( std::move( vars ) ) );
-   }
-
-  add_static_constraint( v_power_flow_relax_abs , "power_flow_relax_abs" );
-  }
-
  // Splitting DC and HVDC part- - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto & DC_lines = f_NetworkData->get_DC_lines();
@@ -1155,8 +1123,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  // constraints on the HVDC part- - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! f_NetworkData->is_DC() ) {  // ... if any
-
-  generate_bound_constraints();  // generate flow limits- - - - - - - - - - -
 
   // power flow node injection constraints for pure HVDC- - - - - - - - - - -
   if( f_NetworkData->is_HVDC() ) {
@@ -1244,14 +1210,13 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
       }
 
-     // v_DC_HVDC_power_flow_const[ iDCnode ].set_both( - v_ActiveDemand[ n ] );
      v_DC_HVDC_power_flow_const[ iDCnode ].set_lhs(
-                                           -v_ActiveDemand[ n ] - nodal_slack );
+                                       -v_ActiveDemand[ n ] - nodal_slack );
      // allow for a 0.01 MW deviation
      v_DC_HVDC_power_flow_const[ iDCnode ].set_rhs(
-                                           -v_ActiveDemand[ n ] + nodal_slack );
+                                       -v_ActiveDemand[ n ] + nodal_slack );
      v_DC_HVDC_power_flow_const[ iDCnode ].set_function(
-                                      new LinearFunction( std::move( vars ) ) );
+                                  new LinearFunction( std::move( vars ) ) );
 
      ++iDCnode; // update the index
      }
@@ -1295,7 +1260,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
      int node_id = f_NetworkData->get_originalIdx( it.col() );
      if( node_id != f_NetworkData->get_reference_node() ) {
       double coefficient = round_to( it.value() , ptdf_round );
-      //PTDF_matrix.coeff( line_id , f_NetworkData->get_reducedIdx( node_id ) );
       // Distribution Factor Matrix
       vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] ,
                                       coefficient ) );
@@ -1350,8 +1314,6 @@ void DCNetworkBlock::generate_bound_constraints( void )
  /*-------------------- flow limits with/without design ------------------*/
  /*-----------------------------------------------------------------------*/
 
- using MAFRC2 = boost::multi_array< FRowConstraint , 2 >;
-
  LinearFunction::v_coeff_pair vars;
 
  const auto number_lines = get_number_lines();
@@ -1364,8 +1326,7 @@ void DCNetworkBlock::generate_bound_constraints( void )
   *   UPPER: F_l - kappa * MaxP_l * x_l <= 0 */
 
  if( is_design() ) {
-  v_power_flow_limit_design_const.resize(
-        MAFRC2::extent_gen()[ 2 ][ number_lines ] );
+  v_power_flow_limit_design_const.resize(  MAFRC_ext()[ 2 ][ number_lines ] );
 
   for( Index l = 0 ; l < number_lines ; ++l ) {
    ColVariable * x = get_design( l );
@@ -1394,7 +1355,7 @@ void DCNetworkBlock::generate_bound_constraints( void )
    }
 
   add_static_constraint( v_power_flow_limit_design_const ,
-       "Power_flow_limit_design" );
+			 "Power_flow_limit_design" );
   }
 
  /*------------------------- without design -------------------------------*/
@@ -1411,10 +1372,10 @@ void DCNetworkBlock::generate_bound_constraints( void )
     continue;
 
    const double kappa = get_kappa( l );
-   v_power_flow_limit_const[ l ].set_lhs(
-                            kappa * f_C_v_scal * f_NetworkData->get_min_power_flow( l ) );
-   v_power_flow_limit_const[ l ].set_rhs(
-                            kappa * f_C_v_scal * f_NetworkData->get_max_power_flow( l ) );
+   v_power_flow_limit_const[ l ].set_lhs( kappa * f_C_v_scal *
+				   f_NetworkData->get_min_power_flow( l ) );
+   v_power_flow_limit_const[ l ].set_rhs( kappa * f_C_v_scal *
+				   f_NetworkData->get_max_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
    }
 
@@ -1429,20 +1390,18 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
 
- auto lf = new LinearFunction();
+ LinearFunction::v_coeff_pair vars;
 
- switch( ftype ) {
-  case( PTDF ) :
-   if( ! f_NetworkData->get_network_cost().empty() )
-    for( Index line_id = 0 ; line_id < get_number_lines() ; ++line_id )
-     lf->add_variable( &v_auxiliary_variable[ line_id ] ,
-		       f_NetworkData->get_network_cost()[ line_id ] ,
-		       eNoMod );
-   break;
-  default :
-   break;
+ if( const auto & nc = f_NetworkData->get_network_cost() ; ! nc.empty() ) {
+  auto nl = get_number_lines();
+  vars.resize( nl );
+ 
+  for( Index line_id = 0 ; line_id < nl ; ++line_id )
+   vars[ line_id ] = std::make_pair( & v_auxiliary_variable[ line_id ] ,
+				     nc[ line_id ] );
   }
 
+ auto lf = new LinearFunction( std::move( vars ) );
  lf->set_constant_term( f_ConstTerm );
 
  objective.set_function( lf );
