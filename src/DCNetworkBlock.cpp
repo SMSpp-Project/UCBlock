@@ -643,20 +643,22 @@ void DCNetworkBlock::generate_PTDF_variables( void )
   * "Linear Optimal Power Flow Using Cycle Flows" of
   *  Jonas Horsch, Henrik Ronellenfitsch, Dirk Witthaut, Tom Brown */
 
- if( auto number_lines = get_number_lines() ; number_lines > 0 ) {
-  // the power flow Variable
-  v_power_flow.resize( number_lines );
-  for( auto & var : v_power_flow )
-   var.set_type( ColVariable::kContinuous );
-  add_static_variable( v_power_flow , "p_flow_network" );
+ auto number_lines = get_number_lines();
+ if( number_lines <= 0 )
+  return;
 
-  if( ! f_NetworkData->get_network_cost().empty() ) {
-   // the auxiliary Variable
-   v_auxiliary_variable.resize( number_lines );
-   for( auto & var : v_auxiliary_variable )
-    var.set_type( ColVariable::kContinuous );
-   add_static_variable( v_auxiliary_variable , "aux_network" );
-   }
+ // the power flow Variable
+ v_power_flow.resize( number_lines );
+ for( auto & var : v_power_flow )
+  var.set_type( ColVariable::kContinuous );
+ add_static_variable( v_power_flow , "p_flow_network" );
+
+ if( ! f_NetworkData->get_network_cost().empty() ) {
+  // the auxiliary Variable
+  v_auxiliary_variable.resize( number_lines );
+  for( auto & var : v_auxiliary_variable )
+   var.set_type( ColVariable::kContinuous );
+  add_static_variable( v_auxiliary_variable , "aux_network" );
   }
  }  // end( DCNetworkBlock::generate_PTDF_variables )
 
@@ -671,22 +673,22 @@ void DCNetworkBlock::generate_CYCLE_variables( void )
   *   - variables "v_power_flow" as in the PTDF formulation (f_l in the paper)
   *   - variables "v_cycle_flow" (h_c in the paper) */
 
-  generate_PTDF_variables(); // we have the same variables + others
+ const auto number_nodes = get_number_nodes();
+ if( number_nodes <= 1 )
+  return;
 
-  const auto number_nodes = get_number_nodes();
-  if( number_nodes <= 1 )
-   return;
-  const auto number_lines = get_number_lines();
+ const auto number_lines = get_number_lines();
+ if( number_lines <= 0 )
+  return;
+  
+ // the power flow variable on cycle basis
+ // we know the number of cycles by the graph theory, see the paper.
+ // So, no reason to call get_lines_in_cycle()
+ v_cycle_flow.resize( number_lines - number_nodes + 1 );
 
-  if( ( number_lines > 0 ) && ( number_nodes > 0 ) ) {
-   // the power flow variable on cycle basis
-   v_cycle_flow.resize( number_lines - number_nodes + 1 );
-   // we know the number of cycles by the graph theory, see the paper.
-   // So, no reason to call get_lines_in_cycle()
-   for( auto & var : v_cycle_flow )
-    var.set_type( ColVariable::kContinuous );
-   add_static_variable( v_cycle_flow , "cycle_flow_network" );
-   }
+ for( auto & var : v_cycle_flow )
+  var.set_type( ColVariable::kContinuous );
+ add_static_variable( v_cycle_flow , "cycle_flow_network" );
 
  }  // end( DCNetworkBlock::generate_CYCLE_variables )
 
@@ -712,7 +714,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_variables( void )
    var.set_type( ColVariable::kContinuous );
   add_static_variable( v_voltage_angle , "voltage_angle" );
   }
-
  }  // end( DCNetworkBlock::generate_KIRCHHOFF_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -913,6 +914,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
                                  new LinearFunction( std::move( vars ) ) );
  overall_balanced_const.set_lhs( constant_term );
  overall_balanced_const.set_rhs( constant_term );
+
  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
 
  }  // end( DCNetworkBlock::generate_CYCLE_constraints )
@@ -978,8 +980,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
 
  // --- KCL: node power balance at every node ---
  generate_node_balance_constraints();
-
- /*-----------------------------------------------------------------------*/
 
  }  // end( DCNetworkBlock::generate_KIRCHHOFF_constraints )
 
@@ -1142,17 +1142,17 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
       // efficiency of the HVDC line
       if( end_line[ line_id ] == n )
        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-     }
+      }
      else { // if hyperarch -> loop over v_end_lines and get_line_efficiencies
-      for( Index i = 0 ; i < f_NetworkData->get_end_lines()[ line_id ].size() ;
-	   ++i ) {
-       if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
+      auto & end_lines = f_NetworkData->get_end_lines()[ line_id ];
+      for( Index i = 0 ; i < end_lines.size() ; ++i ) {
+       if( end_lines[ i ] == n ) {
         eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
         vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
+        }
        }
       }
      }
-    }
 
     v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
     v_power_flow_injection_const[ n ].set_function(
