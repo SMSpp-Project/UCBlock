@@ -1646,9 +1646,9 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-    f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] , issueAMod );
+    -f_kappa * f_MaxCRateCharge * v_MinPower[ t ] , issueAMod );
    intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
-    -f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] , issueAMod );
+    f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] , issueAMod );
   }
 
  else if( ! intake_outtake_upper_bounds_design_Const.empty() )
@@ -1666,7 +1666,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                              "intake_outtake_upper_bounds_design_Const." ) );
 
    f0->modify_coefficient( batt_design_idx0 ,
-                           -f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] ,
+                           f_kappa * f_MaxCRateCharge * v_MinPower[ t ] ,
                            issueAMod );
 
    auto f1 = static_cast< LinearFunction * >(
@@ -1680,7 +1680,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                              "intake_outtake_upper_bounds_design_Const." ) );
 
    f1->modify_coefficient( batt_design_idx1 ,
-                           f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] ,
+                           -f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] ,
                            issueAMod );
 
    auto f2 = static_cast< LinearFunction * >(
