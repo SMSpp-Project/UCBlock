@@ -97,6 +97,9 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "LineResistance" , f_number_lines ,
                  v_line_resistance , true , true );
 
+  ::deserialize( group , "LineChargingSusceptance" , f_number_lines ,
+                 v_line_chargingsusceptance , true , true );
+
   ::deserialize( group , "LineRatio" , f_number_lines , v_line_ratio ,
                  true , true );
 
@@ -177,7 +180,7 @@ std::vector< std::string > ACNetworkData::expected_vars( void ) const {
  static const std::vector< std::string > ev =
  { "ReactivePowerDemand" , "NodeConductance" , "NodeSusceptance" ,
    "NodeVoltageMagnitude" , "NodeVoltageAngle" , "NodeMaxVoltage" ,
-   "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineRatio" ,
+   "NodeMinVoltage" , "LineResistance" , "LineReactance" , "LineChargingSusceptance", "LineRatio" ,
    "LineRATEA" , "LineShiftAngle" , "LineMinAngle" , "LineMaxAngle"
    };
 
@@ -640,7 +643,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   return( f_net->get_line_reactance().at( line_id ) );
  };
  auto b = [ f_net ]( int line_id ) {
-  return( f_net->get_line_susceptance().at( line_id ) );
+  return( f_net->get_line_chargingsusceptance().at( line_id ) );
  };
  auto tau = [ f_net ]( int line_id ) {
   return( f_net->get_line_ratio().at( line_id ) );

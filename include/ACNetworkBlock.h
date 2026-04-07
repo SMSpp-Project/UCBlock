@@ -177,6 +177,12 @@ class ACNetworkBlock : public DCNetworkBlock
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
+ const std::vector< double > & get_line_chargingsusceptance( void ) const {
+  return( v_line_chargingsusceptance );
+  }
+  
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  const std::vector< double > & get_line_ratio( void ) const {
   return( v_line_ratio );
   }
@@ -285,9 +291,12 @@ class ACNetworkBlock : public DCNetworkBlock
 
  /*
  *  AC Network have all sort of additional data
- *    Each power line now has a Resistance (r), Reactance (x) and Susceptance (b). 
+ *    Each power line now has a Resistance (r), Reactance (x) and Susceptance (B). 
  *      note that when these are given in per unit, these can be converted to physical values by computing f = V^2 / mbase
  *      and multiplying r, x by f, while dividing b by f ; 
+ *    Observe that power lines have moreover a "chargingSusceptance", with symbole (b) ; 
+ *        The formulae for this quantity is 2 * pi * f * C, with C the Capacitance of a power line and f the nominal frequency in Hz (e.g., 50)
+ *    This latter charging susceptance will play a role in the "Reactive AC power flow equations"
  * 
  *    The Susceptance was typically already specified when DCNetworks were used
  *    /!\ : We make the assumption that when all three are zero, then the line is in fact HVDC
@@ -316,6 +325,7 @@ class ACNetworkBlock : public DCNetworkBlock
  */
  std::vector< double > v_line_reactance;
  std::vector< double > v_line_resistance;
+ std::vector< double > v_line_chargingsusceptance; 
  std::vector< double > v_line_ratio;
  std::vector< double > v_line_rate_A;
  std::vector< double > v_line_angle;
