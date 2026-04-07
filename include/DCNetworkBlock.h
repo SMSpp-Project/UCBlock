@@ -353,8 +353,7 @@ class DCNetworkData : public NetworkData
  /// returns true if this is a mixed DC - HVDC grid
 
  bool is_DC_HVDC( void ) {
-  return( ( ! v_line_susceptance.empty() ) &&
-	  ( f_number_lines > f_number_HVDC_lines ) );
+  return( ( ! v_line_susceptance.empty() ) && ( f_number_HVDC_lines > 0 ) );
   }
  
 /*--------------------------------------------------------------------------*/
