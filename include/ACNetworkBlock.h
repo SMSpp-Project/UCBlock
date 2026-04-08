@@ -717,6 +717,10 @@ class ACNetworkBlock : public DCNetworkBlock
   *      theta is the angle in each node
   *      voltage is the modulus of voltage in each node
   *      z is the auxiliary variable used in the McCormick relaxation of V_n V_n' 
+  * 
+  *   N.B. : The auxiliary variables v_alpha, v_beta and v_z are only defined for the AC lines. As a result if any
+  *          HVDC lines are present, they will have a different indexation than the other terms in the equations,
+  *          most notably v_sum_product_voltages and v_diff_product_voltages 
   */
   std::vector< ColVariable > v_voltage;
   std::vector< ColVariable > v_theta;

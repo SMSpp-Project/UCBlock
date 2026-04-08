@@ -1217,7 +1217,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   double coeff_cos = cos(delta_theta);
 
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_sum_product_voltages[ line_id ] , 1.0 ); // v_sum is indexed over all lines, whereas the aux variables only over the ac lines
   lfunc->add_variable( &v_alpha[ i_line ] ,
 		       - min_voltage[ n ] * min_voltage[ p ]
 		       * pow( f_C_v_scal , 2 ) );
@@ -1238,7 +1238,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   Index n = end_line[ line_id ];
   
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_sum_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
   lfunc->add_variable( & v_alpha[ i_line ] ,
 		       - max_voltage[ n ] * max_voltage[ p ]
 		       * pow( f_C_v_scal , 2 ) );
@@ -1265,7 +1265,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   double coeff_cos = cos(delta_theta);
 
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_sum_product_voltages[ line_id ] , 1.0 );
   lfunc->add_variable( &v_alpha[ i_line ] ,
 		       - max_voltage[ n ] * max_voltage[ p ]
 		       * pow( f_C_v_scal , 2 ) );
@@ -1286,7 +1286,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   Index n = end_line[ line_id ];
   
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_sum_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_sum_product_voltages[ line_id ] , 1.0 );
   lfunc->add_variable( &v_alpha[ i_line ] ,
 		       - min_voltage[ n ] * min_voltage[ p ]
 		       * pow( f_C_v_scal , 2 ) );
@@ -1368,7 +1368,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   double coeff_sin = sin(delta_theta);
 
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_diff_product_voltages[ line_id ] , 1.0 );
   lfunc->add_variable( &v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ]* pow(f_C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , coeff_sin );
   v_def_s_1[ i_line ].set_function( lfunc );
@@ -1389,7 +1389,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   double coeff_sin = sin(delta_theta);
   
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_diff_product_voltages[ line_id ] , 1.0 );
   lfunc->add_variable( &v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * pow(f_C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , - coeff_sin );
   v_def_s_2[ i_line ].set_function( lfunc );
@@ -1410,7 +1410,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   double coeff_sin = sin(delta_theta);
 
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_diff_product_voltages[ line_id ] , 1.0 );
   lfunc->add_variable( &v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * pow(f_C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , - coeff_sin );
   v_def_s_3[ i_line ].set_function( lfunc );
@@ -1431,7 +1431,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   double coeff_sin = sin(delta_theta);
   
   auto lfunc = new LinearFunction();
-  lfunc->add_variable( &v_diff_product_voltages[ i_line ] , 1.0 );
+  lfunc->add_variable( &v_diff_product_voltages[ line_id ] , 1.0 );
   lfunc->add_variable( &v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * pow(f_C_v_scal,2) );
   lfunc->add_variable( &v_z[ i_line ] , coeff_sin );
   v_def_s_4[ i_line ].set_function( lfunc );
