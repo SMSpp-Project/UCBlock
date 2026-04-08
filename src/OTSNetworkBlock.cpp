@@ -110,6 +110,7 @@ void OTSNetworkBlock::generate_abstract_variables( Configuration * stvv )
  NetworkBlock::generate_abstract_variables( stvv );
 
  ftype = KIRCHHOFF;
+ generate_PTDF_variables();
  generate_KIRCHHOFF_variables();
 
  // Read OTS configuration from SimpleConfiguration< int >

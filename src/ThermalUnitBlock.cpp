@@ -609,43 +609,43 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   for( Index t = 0 ; t < init_t ; ++t ) {
    if( ! v_commitment.empty() ) {
     v_commitment[ t ].set_value( 1 );
-    v_commitment[ t ].is_fixed( true );
+    v_commitment[ t ].is_fixed( true , eNoMod );
     }
    }
 
   for( Index t = init_t ;
        t < std::min( init_t + f_MinDownTime , f_time_horizon ) ; ++t ) {
    v_start_up[ t - init_t ].set_value( 0 );
-   v_start_up[ t - init_t ].is_fixed( true );
+   v_start_up[ t - init_t ].is_fixed( true , eNoMod );
    }
   }
  else {  // InitUpDownTime <= 0 - - - - - - - - - - - - - - - - - - - - - - -
   for( Index t = 0 ; t < init_t ; ++t ) {
    if( ! v_active_power.empty() ) {
     v_active_power[ t ].set_value( 0 );
-    v_active_power[ t ].is_fixed( true );
+    v_active_power[ t ].is_fixed( true , eNoMod );
     }
 
    if( ! v_commitment.empty() ) {
     v_commitment[ t ].set_value( 0 );
-    v_commitment[ t ].is_fixed( true );
+    v_commitment[ t ].is_fixed( true , eNoMod );
     }
 
    if( ! v_primary_spinning_reserve.empty() ) {
     v_primary_spinning_reserve[ t ].set_value( 0 );
-    v_primary_spinning_reserve[ t ].is_fixed( true );
+    v_primary_spinning_reserve[ t ].is_fixed( true , eNoMod );
     }
 
    if( ! v_secondary_spinning_reserve.empty() ) {
     v_secondary_spinning_reserve[ t ].set_value( 0 );
-    v_secondary_spinning_reserve[ t ].is_fixed( true );
+    v_secondary_spinning_reserve[ t ].is_fixed( true , eNoMod );
     }
    }
 
   for( Index t = init_t ;
        t < std::min( init_t + f_MinUpTime , f_time_horizon ) ; ++t ) {
    v_shut_down[ t - init_t ].set_value( 0 );
-   v_shut_down[ t - init_t ].is_fixed( true );
+   v_shut_down[ t - init_t ].is_fixed( true , eNoMod );
    }
   }
 
