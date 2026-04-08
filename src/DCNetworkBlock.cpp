@@ -1271,7 +1271,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
    if( f_NetworkData->is_DC_HVDC() ) {
     SpMat DCDF_ = f_NetworkData->get_DCDF();
     // TODO : Also only loop over the non zero entries of DCDF only ...
-    for( auto & dc_line_id : DC_lines ) {
+    for( auto & dc_line_id : HVDC_lines ) {
      double coeff = round_to( DCDF_.coeff( line_id , dc_line_id ) ,
                               ptdf_round );
      vars.push_back( std::make_pair( &v_power_flow[ dc_line_id ] , coeff ) );

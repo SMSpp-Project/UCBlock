@@ -411,45 +411,44 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
  auto lf = new LinearFunction();
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
   if( ! v_ActivePowerCost.empty() )
-   lf->add_variable( &v_active_power[ t ] , v_ActivePowerCost[ t ] , eDryRun );
+   lf->add_variable( &v_active_power[ t ] , v_ActivePowerCost[ t ] , eNoMod );
   else
-   lf->add_variable( &v_active_power[ t ] , 0.0 , eDryRun );
+   lf->add_variable( &v_active_power[ t ] , 0.0 , eNoMod );
 
   if( reserve_vars & 1u ) {  // if UCBlock has primary demand variables
    if( ! v_MaxPrimaryPower.empty() ) {
     if( ! v_PrimaryCost.empty() )
      lf->add_variable( &v_primary_spinning_reserve[ t ] ,
-                       v_PrimaryCost[ t ] , eDryRun );
+                       v_PrimaryCost[ t ] , eNoMod );
     else
-     lf->add_variable( &v_primary_spinning_reserve[ t ] , 0.0 , eDryRun );
+     lf->add_variable( &v_primary_spinning_reserve[ t ] , 0.0 , eNoMod );
+    }
    }
-  }
 
   if( reserve_vars & 2u ) {  // if UCBlock has secondary demand variables
    if( ! v_MaxSecondaryPower.empty() ) {
     if( ! v_SecondaryCost.empty() )
      lf->add_variable( &v_secondary_spinning_reserve[ t ] ,
-                       v_SecondaryCost[ t ] , eDryRun );
+                       v_SecondaryCost[ t ] , eNoMod );
     else
-     lf->add_variable( &v_secondary_spinning_reserve[ t ] , 0.0 , eDryRun );
+     lf->add_variable( &v_secondary_spinning_reserve[ t ] , 0.0 , eNoMod );
+    }
    }
-  }
 
   if( reserve_vars & 4u ) {
    if( ( ! v_InertiaCost.empty() ) && ( ! v_MaxInertia.empty() ) )
     lf->add_variable( &v_commitment[ t ] ,
-                      v_InertiaCost[ t ] * v_MaxInertia[ t ] , eDryRun );
+                      v_InertiaCost[ t ] * v_MaxInertia[ t ] , eNoMod );
    else
-    lf->add_variable( &v_commitment[ t ] , 0.0 , eDryRun );
-  }
+    lf->add_variable( &v_commitment[ t ] , 0.0 , eNoMod );
+   }
 
   // Add reactive power variables if needed
-  if( get_max_reactive_power( t ) > 0.0 )
-    lf->add_variable( &v_abs_reactive_power[ t ] , 0.7 * v_ActivePowerCost[ t ] ,
-                      eDryRun );
- }
+  if( f_reactive_power )
+   lf->add_variable( &v_abs_reactive_power[ t ] ,
+		     0.7 * v_ActivePowerCost[ t ] , eNoMod );
+  }
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
