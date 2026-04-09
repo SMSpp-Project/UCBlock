@@ -276,7 +276,7 @@ class DesignNetworkBlock : public NetworkBlock
  /// returns the number of lines for which design is defined
 
  Index get_number_design_lines( void ) const {
-  return( v_design_lines.size() );
+  return( f_num_design_lines );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -356,8 +356,7 @@ class DesignNetworkBlock : public NetworkBlock
   if( ( it == v_design_lines.end() ) || ( *it != line ) )
    return( nullptr );
 
-  return( &v_design[ static_cast< Index >(
-   std::distance( v_design_lines.begin() , it ) ) ] );
+  return( &v_design[ std::distance( v_design_lines.begin() , it ) ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -683,6 +682,12 @@ class DesignNetworkBlock : public NetworkBlock
 
  Index f_number_subnetworks;             ///< number of subnetworks
 
+ /// the number of design lines
+ Index f_num_design_lines;
+
+ /// the list of line indices that have an associated design variable
+ Subset v_design_lines;
+
  /// the investment cost for each line
  std::vector< double > v_InvestmentCost;
 
@@ -697,8 +702,6 @@ class DesignNetworkBlock : public NetworkBlock
  /// the design variable for each design line
  std::vector< ColVariable > v_design;
 
- /// the list of line indices that have an associated design variable
- Subset v_design_lines;
 
 /*------------------------------- constraints ------------------------------*/
 

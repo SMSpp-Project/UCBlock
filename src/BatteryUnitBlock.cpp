@@ -1206,12 +1206,13 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
  auto lf = new LinearFunction();
 
- if( v_RefSchedule.empty() ) {
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-     lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eDryRun );
-     lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] , eDryRun );
+ if( v_RefSchedule.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eNoMod );
+   lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] ,
+		     eNoMod );
    }
- }
+
 
  if( f_BattInvestmentCost != 0 )
   lf->add_variable( &batt_design , f_BattInvestmentCost );

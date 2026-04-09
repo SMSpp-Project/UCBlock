@@ -808,7 +808,7 @@ void OTSNetworkBlock::generate_design_coupling_constraints( void )
  //   z_l <= x_l  (Standard/Elastic)
  //   z+_l + z-_l <= x_l  (Directional/ElasticDirectional)
 
- if( ! is_design() )
+ if( ! has_design() )
   return;
 
  auto & DC_lines = f_NetworkData->get_DC_lines();

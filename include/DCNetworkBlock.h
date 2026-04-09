@@ -890,8 +890,8 @@ class DCNetworkData : public NetworkData
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
   : NetworkBlock( f_block ) , f_NetworkData( nullptr ) , ftype( PTDF ) ,
-    v_design( nullptr ) , v_which_design( nullptr ) , f_C_v_scal( 1 ) ,
-    f_tikhonov_coeff( 1e-4 ), f_ptdf_round( 1e-16 ) {}
+    v_design( nullptr ) , f_C_v_scal( 1 ) , f_tikhonov_coeff( 1e-4 ) ,
+    f_ptdf_round( 1e-16 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of DCNetworkBlock
@@ -1541,15 +1541,15 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// returns true if there is any design variable associated with some line
 
- bool is_design( void ) const {
-  return( v_design && ( ! ( *v_design ).empty() ) );
+ bool has_design( void ) const {
+  return( v_design && ( ! v_design->empty() ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if all lines have associated design variable
 
  bool all_design( void ) const {
-  return( is_design() && ( ( *v_design ).size() == get_number_lines() ) );
+  return( has_design() && ( v_design->size() == get_number_lines() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1568,16 +1568,11 @@ class DCNetworkData : public NetworkData
   *       modified outside the intended modeling interface. */
 
  ColVariable * get_design( Index line ) const {
-  if( ( ! v_design ) || ( *v_design ).empty() )
+  if( ( ! v_design ) || v_design->empty() )
    return( nullptr );
 
-  if( ( ! v_which_design ) || ( *v_which_design ).empty() )
-   return( line >= ( *v_design ).size() ? nullptr : & ( *v_design )[ line ] );
-
-  auto it = std::lower_bound( ( *v_which_design ).begin() ,
-			      ( *v_which_design ).end() , line );
-  return( it == ( *v_which_design ).end() ? nullptr :
-	  & ( *v_design )[ std::distance( ( *v_which_design ).begin() , it ) ] );
+  return( v_dense_design.empty() ? & (*v_design)[ line ]
+	                         : v_dense_design[ line ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1633,7 +1628,7 @@ class DCNetworkData : public NetworkData
 
   dp.resize( nl );
   for( Index l = 0 ; l < nl ; ++l ) {
-   if( is_design() && get_design( l ) )  {  // design on this line
+   if( has_design() && get_design( l ) )  {  // design on this line
     dp[ l ] = v_power_flow_limit_design_const[ 1 ][ l ].get_dual() -
               v_power_flow_limit_design_const[ 0 ][ l ].get_dual();
     continue;
@@ -1741,13 +1736,13 @@ class DCNetworkData : public NetworkData
   *
   * Note that DCNetworkBlock retains the pointers to the two vectors \p DV
   * and \p Which, which therefore must not be changed by the caller for all
-  * the lifetime of the object; in turn, DCNetworkBlock pledges not to
-  * change them.
+  * the lifetime of the object; in turn, DCNetworkBlock cannot change them.
+  * (since they are const).
   *
   * If \p DV == nullptr or *DV.empty() then no line has design variables.
   * This is the default if this method is never called.
   *
-  * If \p WDV == nullptr or *WDV.empty(), it is assumed that DV[ i ]
+  * If \p WDV == nullptr or WDV->empty(), it is assumed that DV[ i ]
   * refers to line i for all i = 0 , ... , DV.size() - 1. Otherwise,
   * DV[ i ] refers to line WDV[ i ]. If nonempty, \p WDV is supposed to
   * contain numbers in 0, ..., get_number_lines() - 1, be ordered in
@@ -1757,16 +1752,29 @@ class DCNetworkData : public NetworkData
 
  void set_design_variables( std::vector< ColVariable > * DV = nullptr ,
 			    c_Subset * WDV = nullptr ) {
-
   if( constraints_generated() )
    throw( std::logic_error( "DCNetworkBlock::set_design_variables: called "
 			    "when constraints are already generated" ) );
   v_design = DV;
-  v_which_design = WDV;
-  if( ( ! v_which_design->empty() ) &&
-      ( v_which_design->back() > get_number_lines() - 1 ) )
-   throw( std::invalid_argument( "DCNetworkBlock::set_design_variables: "
-				 "invalid line number" ) );
+  if( WDV && ( ! WDV->empty() ) ) {
+   #ifndef NDEBUG
+    for( Index i = 0 ; i < WDV->size() - 1 ; ++i )
+     if( (*WDV)[ i ] >= (*WDV)[ i + 1 ] )
+      throw( std::invalid_argument( "DCNetworkBlock::set_design_variables: "
+				    "WDV not ordered" ) );
+   #endif
+   
+   if( WDV->back() >= get_number_lines() )
+    throw( std::invalid_argument( "DCNetworkBlock::set_design_variables: "
+				  "invalid line number in WDV" ) );
+
+   v_dense_design.resize( get_number_lines() , nullptr );
+   for( Index i = 0 , j = 0 ; i < v_dense_design.size() ; ++i )
+    if( (*WDV)[ j ] == i )
+     v_dense_design[ i ] = & (*v_design)[ j++ ];
+   }
+  else
+   v_dense_design.clear();
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1778,8 +1786,7 @@ class DCNetworkData : public NetworkData
  /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
-  * details of the format of the created netCDF group.
-  */
+  * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1970,8 +1977,8 @@ class DCNetworkData : public NetworkData
  /// the design variables for lines
  std::vector< ColVariable > * v_design;
 
- /// which lines have design variables
- c_Subset * v_which_design;
+ /// the "densified" version of v_design (if needed)
+ std::vector< ColVariable * > v_dense_design;
 
 /*------------------------------- constraints ------------------------------*/
 
