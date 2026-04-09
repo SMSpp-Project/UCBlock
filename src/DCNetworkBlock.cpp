@@ -728,6 +728,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  f_C_v_scal = 1;
  f_tikhonov_coeff = 1e-4;
+ f_ptdf_round = 1e-16; // Default value doing nothing
 
  if( auto SCdd = dynamic_cast< SimpleConfiguration< double > * >( stcc ) )
   f_C_v_scal = SCdd->f_value;
@@ -737,6 +738,15 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
                                                      * >( stcc ) ) {
    f_C_v_scal = SCdd->f_value.first;
    f_tikhonov_coeff = SCdd->f_value.second;
+   }
+  else
+   if( auto SCdd = dynamic_cast< SimpleConfiguration< std::vector< double > > * >( stcc ) ) {
+    if( SCdd->f_value.size() > 0 )
+      f_C_v_scal = SCdd->f_value[ 0 ];
+    if( SCdd->f_value.size() > 1 )
+      f_tikhonov_coeff = SCdd->f_value[ 1 ];
+    if( SCdd->f_value.size() > 2 )
+      f_ptdf_round = SCdd->f_value[ 2 ];
    }
 
  switch( ftype ) {
@@ -1241,9 +1251,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
   v_power_flow_def.resize( number_lines );
 
   for( auto & line_id : DC_lines ) {
-   double ptdf_round = 1e-7;
-   double ptdf_slack = 1.0;
-
    // TODO : verify if this does not entail a copy of the information
    // which would be inefficient
    Eigen::SparseMatrix< double > a_row =
@@ -1259,7 +1266,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
 	 ++it ) {
      int node_id = f_NetworkData->get_originalIdx( it.col() );
      if( node_id != f_NetworkData->get_reference_node() ) {
-      double coefficient = round_to( it.value() , ptdf_round );
+      double coefficient = round_to( it.value() , f_ptdf_round );
       // Distribution Factor Matrix
       vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] ,
                                       coefficient ) );
@@ -1273,7 +1280,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
     // TODO : Also only loop over the non zero entries of DCDF only ...
     for( auto & dc_line_id : HVDC_lines ) {
      double coeff = round_to( DCDF_.coeff( line_id , dc_line_id ) ,
-                              ptdf_round );
+                              f_ptdf_round );
      vars.push_back( std::make_pair( &v_power_flow[ dc_line_id ] , coeff ) );
      }
     }
@@ -1281,8 +1288,8 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
    // Set the constraint (AC)
    v_power_flow_def[ line_id ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
-   v_power_flow_def[ line_id ].set_lhs( constant_term - ptdf_slack );
-   v_power_flow_def[ line_id ].set_rhs( constant_term + ptdf_slack );
+   v_power_flow_def[ line_id ].set_lhs( constant_term );
+   v_power_flow_def[ line_id ].set_rhs( constant_term );
 
    }  // end( for( DC lines ) )
 

@@ -891,7 +891,7 @@ class DCNetworkData : public NetworkData
  explicit DCNetworkBlock( Block * f_block = nullptr )
   : NetworkBlock( f_block ) , f_NetworkData( nullptr ) , ftype( PTDF ) ,
     v_design( nullptr ) , v_which_design( nullptr ) , f_C_v_scal( 1 ) ,
-    f_tikhonov_coeff( 1e-4 ) {}
+    f_tikhonov_coeff( 1e-4 ), f_ptdf_round( 1e-16 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of DCNetworkBlock
@@ -1950,6 +1950,8 @@ class DCNetworkData : public NetworkData
  double f_C_v_scal;               ///< scaling factor for flow bounds
 
  double f_tikhonov_coeff;         ///< regularization for PTDF computation
+
+ double f_ptdf_round ;           ///< a coefficient to round some of the possibly nasty numerical values in the PTDF matrices
 
 /*-------------------------------- variables -------------------------------*/
 
