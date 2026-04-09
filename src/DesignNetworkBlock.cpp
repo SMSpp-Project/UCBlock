@@ -97,36 +97,35 @@ void DesignNetworkBlock::deserialize_network_blocks(
 
 void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
- int design_lines;
- deserialize_dim( group , "NumberDesignLines" , design_lines , false );
+ deserialize_dim( group , "NumberDesignLines" , f_num_design_lines , false );
 
  deserialize_dim( group , "NumberSubNetwork" , f_number_subnetworks );
 
- if( ! ::deserialize( group , "InvestmentCost" , design_lines ,
+ if( ! ::deserialize( group , "InvestmentCost" , f_num_design_lines ,
                       v_InvestmentCost , true , true ) ) {
-  v_InvestmentCost.resize( design_lines );
+  v_InvestmentCost.resize( f_num_design_lines );
   }
 
- if( design_lines > 0 ) {
-  std::vector< Index > tmp_design_lines;
-  if( ::deserialize( group , "DesignLines" , design_lines ,
-                     tmp_design_lines , false , true ) ) {
-   v_design_lines = std::move( tmp_design_lines );
+ if( f_num_design_lines > 0 )
+  if( ::deserialize( group , "DesignLines" , f_num_design_lines ,
+                     v_design_lines , false , true ) ) {
+   bool ordered = true;
+   for( Index i = 0 ; i < v_design_lines.size() ; ++i )
+    if( v_design_lines[ i ] != i ) {
+     ordered = false;
+     break;
+     }
+   if( ordered )
+    v_design_lines.clear();
    }
-  else {
-   v_design_lines.resize( design_lines );
-   for( Index p = 0 ; p < design_lines ; ++p )
-    v_design_lines[ p ] = p;
-   }
-  }
 
- if( ! ::deserialize( group , "MinCapacityDesign" , design_lines ,
+ if( ! ::deserialize( group , "MinCapacityDesign" , f_num_design_lines ,
                       v_MinCapacityDesign , true , true ) )
-  v_MinCapacityDesign.resize( design_lines );
+  v_MinCapacityDesign.resize( f_num_design_lines , 0 );
 
- if( ! ::deserialize( group , "MaxCapacityDesign" , design_lines ,
+ if( ! ::deserialize( group , "MaxCapacityDesign" , f_num_design_lines ,
                       v_MaxCapacityDesign , true , true ) )
-  v_MaxCapacityDesign.resize( design_lines , 1 );
+  v_MaxCapacityDesign.resize( f_num_design_lines , 1 );
 
  // load all NetworkBlock, if any
  deserialize_network_blocks( group );
@@ -250,9 +249,9 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  Block::generate_abstract_variables( stvv );
 
  // Create design variables only for the selected ("designed") lines
- if( const auto nd = static_cast< Index >( v_design_lines.size() ) ) {
-  v_design.resize( nd );
-  for( Index p = 0 ; p < nd ; ++p ) {
+ if( f_num_design_lines ) {
+  v_design.resize( f_num_design_lines );
+  for( Index p = 0 ; p < f_num_design_lines ; ++p ) {
    if( get_max_capacity_design( p ) < 0 )
     v_design[ p ].set_type( ColVariable::kBinary );
    else
@@ -264,8 +263,9 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  // Pass design variables to sub-network blocks
  for( auto * nb : v_Block )
   if( auto * dcnb = dynamic_cast< DCNetworkBlock * >( nb ) )
-   dcnb->set_design_variables( &v_design , &v_design_lines );
-
+   dcnb->set_design_variables( & v_design ,
+			       v_design_lines.empty() ? nullptr
+			                              : & v_design_lines );
  set_variables_generated();
 
  }  // end( DesignNetworkBlock::generate_abstract_variables )
@@ -280,10 +280,10 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  // generate abstract constraints in all the sub-Block
  Block::generate_abstract_constraints( stcc );
 
- if( const auto nd = static_cast< Index >( v_design_lines.size() ) ) {
-  v_design_bound_const.resize( nd );
+ if( f_num_design_lines ) {
+  v_design_bound_const.resize( f_num_design_lines );
 
-  for( Index p = 0 ; p < nd ; ++p ) {
+  for( Index p = 0 ; p < f_num_design_lines ; ++p ) {
    double lb = std::max( 0.0 , get_min_capacity_design( p ) );
    double maxd = get_max_capacity_design( p );
    bool is_binary = ( maxd < 0.0 );
@@ -321,11 +321,9 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
  auto lf = new LinearFunction();
 
  // Investment term only over the selected ("designed") lines
- const auto nd = static_cast< Index >( v_design_lines.size() );
- for( Index p = 0 ; p < nd ; ++p ) {
+ for( Index p = 0 ; p < f_num_design_lines ; ++p )
   if( get_investment_cost( p ) != 0 )
    lf->add_variable( &v_design[ p ] , get_investment_cost( p ) , eNoMod );
-  }
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
@@ -341,7 +339,7 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
 /*--------------------------------------------------------------------------*/
 
 Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
-               bool emptys )
+					     bool emptys )
 {
  Index wsol = 31;
  if( ( ! csolc ) && f_BlockConfig )
@@ -358,7 +356,7 @@ Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
             NetworkBlock::get_Solution( & snc , true ) );
 
  if( wsol & 2 )
-  sol->v_design.resize( v_design_lines.size() );
+  sol->v_design.resize( f_num_design_lines );
 
  if( wsol & 4 ) {
   sol->v_network_Solution.resize( v_Block.size() );
@@ -442,43 +440,28 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
  NetworkBlock::serialize( group );
 
  auto NumberDesignLines = group.addDim( "NumberDesignLines" ,
-                                         v_design_lines.size() );
+                                         f_num_design_lines );
  if( ! v_InvestmentCost.empty() )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
-         NumberDesignLines , v_InvestmentCost );
+	       NumberDesignLines , v_InvestmentCost );
 
- const Index nd = static_cast< Index >( v_design_lines.size() );
- if( nd > 0 ) {
-  bool is_sequential = true;
-  for( Index p = 0 ; p < nd ; ++p )
-   if( v_design_lines[ p ] != p ) {
-    is_sequential = false;
-    break;
-    }
+ if( ! v_design_lines.empty() )
+  ::serialize( group , "DesignLines" , netCDF::NcInt() , NumberDesignLines ,
+	       v_design_lines );
 
-  if( ! is_sequential )
-   ::serialize( group , "DesignLines" , netCDF::NcInt() , NumberDesignLines ,
-                v_design_lines );
-
-  std::vector< double > min_on_nd( nd , 0.0 ) , max_on_nd( nd , 1.0 );
-  for( Index p = 0 ; p < nd ; ++p ) {
-   min_on_nd[ p ] = v_MinCapacityDesign.empty() ? 0.0
-                                                : v_MinCapacityDesign[ p ];
-   max_on_nd[ p ] = v_MaxCapacityDesign.empty() ? 1.0
-                                                : v_MaxCapacityDesign[ p ];
-  }
-
-  if( std::any_of( min_on_nd.begin() , min_on_nd.end() ,
+ if( ! v_MinCapacityDesign.empty() )
+  if( std::any_of( v_MinCapacityDesign.begin() , v_MinCapacityDesign.end() ,
                    []( double x ){ return( x != 0.0 ); } ) )
    ::serialize( group , "MinCapacityDesign" , netCDF::NcDouble() ,
-                NumberDesignLines , min_on_nd );
-
-  if( std::any_of( max_on_nd.begin() , max_on_nd.end() ,
+                NumberDesignLines , v_MinCapacityDesign );
+ 
+ if( ! v_MaxCapacityDesign.empty() )
+  if( std::any_of( v_MaxCapacityDesign.begin() , v_MaxCapacityDesign.end() ,
                    []( double x ){ return( std::abs( x ) != 1.0 ); } ) )
    ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
-                NumberDesignLines , max_on_nd );
- }
-}  // end( DesignNetworkBlock::serialize )
+                NumberDesignLines , v_MaxCapacityDesign );
+
+ }  // end( DesignNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -741,7 +724,7 @@ DesignNetworkBlockSolution * DesignNetworkBlockSolution::scale(
 /*--------------------------------------------------------------------------*/
 
 void DesignNetworkBlockSolution::sum( const Solution * solution ,
-              double multiplier )
+				      double multiplier )
 {
  // call the method of the base class
  NetworkBlockSolution::sum( solution , multiplier );
@@ -752,7 +735,7 @@ void DesignNetworkBlockSolution::sum( const Solution * solution ,
         "not a DesignNetworkBlockSolution" ) );
 
  if( ! v_design.empty() ) {
-  if( v_design.size() != DCNBS-> v_design.size() )
+  if( v_design.size() != DCNBS->v_design.size() )
    throw( std::invalid_argument( "DesignNetworkBlockSolution::sum: "
          "inconsistent design_lines number" ) );
 

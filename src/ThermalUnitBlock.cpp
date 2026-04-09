@@ -609,43 +609,43 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   for( Index t = 0 ; t < init_t ; ++t ) {
    if( ! v_commitment.empty() ) {
     v_commitment[ t ].set_value( 1 );
-    v_commitment[ t ].is_fixed( true );
+    v_commitment[ t ].is_fixed( true , eNoMod );
     }
    }
 
   for( Index t = init_t ;
        t < std::min( init_t + f_MinDownTime , f_time_horizon ) ; ++t ) {
    v_start_up[ t - init_t ].set_value( 0 );
-   v_start_up[ t - init_t ].is_fixed( true );
+   v_start_up[ t - init_t ].is_fixed( true , eNoMod );
    }
   }
  else {  // InitUpDownTime <= 0 - - - - - - - - - - - - - - - - - - - - - - -
   for( Index t = 0 ; t < init_t ; ++t ) {
    if( ! v_active_power.empty() ) {
     v_active_power[ t ].set_value( 0 );
-    v_active_power[ t ].is_fixed( true );
+    v_active_power[ t ].is_fixed( true , eNoMod );
     }
 
    if( ! v_commitment.empty() ) {
     v_commitment[ t ].set_value( 0 );
-    v_commitment[ t ].is_fixed( true );
+    v_commitment[ t ].is_fixed( true , eNoMod );
     }
 
    if( ! v_primary_spinning_reserve.empty() ) {
     v_primary_spinning_reserve[ t ].set_value( 0 );
-    v_primary_spinning_reserve[ t ].is_fixed( true );
+    v_primary_spinning_reserve[ t ].is_fixed( true , eNoMod );
     }
 
    if( ! v_secondary_spinning_reserve.empty() ) {
     v_secondary_spinning_reserve[ t ].set_value( 0 );
-    v_secondary_spinning_reserve[ t ].is_fixed( true );
+    v_secondary_spinning_reserve[ t ].is_fixed( true , eNoMod );
     }
    }
 
   for( Index t = init_t ;
        t < std::min( init_t + f_MinUpTime , f_time_horizon ) ; ++t ) {
    v_shut_down[ t - init_t ].set_value( 0 );
-   v_shut_down[ t - init_t ].is_fixed( true );
+   v_shut_down[ t - init_t ].is_fixed( true , eNoMod );
    }
   }
 
@@ -5584,10 +5584,11 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
   // changing the Variable is not supported, but the Modification is issued
   // when they are first generated, in which case it must be ignored
-  if( ! variables_generated() )
-   return;
+  // THE Modification SHOULD NOT BE ISSUED WHEN THEY ARE CREATED!
+  //if( ! variables_generated() )
+  // return;
 
-  throw( std::logic_error( "ThermalUnitBlock - VariableMod not supported." ) );
+  throw( std::logic_error( "ThermalUnitBlock - VariableMod not supported" ) );
   /*
   auto v = dynamic_cast< ColVariable * const >( tmod->variable() );
 
@@ -5605,38 +5606,40 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  if( const auto tmod = dynamic_cast< BlockMod * >( mod ) ) {
   // changing the Objective is not supported, but the Modification is issued
   // when it is first set, in which case it must be ignored
-  if( ! objective_generated() )
-   return;
+  // THE Modification SHOULD NOT BE ISSUED WHEN IT IS CREATED!
+  //if( ! objective_generated() )
+  // return;
 
   throw( std::logic_error( "ThermalUnitBlock - BlockMod not supported." ) );
 
   // TODO: BlockMod - obj changed
   return;
- }
+  }
 
  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( const auto tmod = dynamic_cast< FunctionMod * >( mod ) ) {
   auto f = tmod->function();
-  if( f == static_cast< FRealObjective * >( get_objective() )->get_function() ) {
+  if( f == static_cast< FRealObjective * >( get_objective()
+					    )->get_function() ) {
    handle_objective_change( tmod , chnl );
    return;
-  }
+   }
 
   std::ostringstream em;
   em << *mod;
-  throw( std::invalid_argument(
-   "ThermalUnitBlock::guts_of_add_Modification: unsupported " + em.str() + "." ) );
+  throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: "
+				"unsupported " + em.str() ) );
   return;
- }
+  }
 
  // any other Modification is not supported - - - - - - - - - - - - - - - - -
 
  std::ostringstream em;
  em << *mod;
- throw( std::invalid_argument(
-  "ThermalUnitBlock::guts_of_add_Modification: unsupported " + em.str() + "." ) );
+ throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: "
+			       "unsupported " + em.str() ) );
 
-}  // end( ThermalUnitBlock::guts_of_add_Modification )
+ }  // end( ThermalUnitBlock::guts_of_add_Modification )
 
 /*--------------------------------------------------------------------------*/
 
@@ -5645,6 +5648,12 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 {
  const auto * qf = static_cast< const DQuadFunction * >( mod->function() );
  auto par = make_par( eNoBlck , chnl );
+ // the method is implemented by calling the physical change methods
+ // set_startup_costs(), set_linear_term() etc.; these need be called with
+ // eNoBlck for PMod (the physical representation need be changed, but the
+ // corresponding Modification has to be ignored by the ThermalUnitBlock
+ // since it has been self-inflicted), and with eDryRun for AMod (the
+ // abstract representation has been changed already)
  Index th = f_time_horizon;
 
  // C05FunctionModLinRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5863,10 +5872,10 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     "C05FunctionModLinSbst." ) );
   return;
 
- }  // end( C05FunctionModLinSbst )
+  }  // end( C05FunctionModLinSbst )
 
- throw( std::invalid_argument(
-  "ThermalUnitBlock:: unsupported FunctionMod from Objective." ) );
+ throw( std::invalid_argument( "ThermalUnitBlock:: unsupported FunctionMod "
+			       "from Objective" ) );
 
  }  // end( ThermalUnitBlock::handle_objective_change )
 

@@ -95,7 +95,15 @@ namespace SMSpp_di_unipi_it
  *
  * - The CYCLE formulation ... TODO: DESCRIBE
  *
- * - The KIRCHHOFF formulation ... TODO: DESCRIBE
+ * - The KIRCHHOFF formulation, which directly encodes Kirchhoff's laws
+ *   using both power flow variables F_l and voltage angle variables
+ *   theta_n. For each DC line l (non-zero susceptance):
+ *     F_l = B_l * ( theta_{from(l)} - theta_{to(l)} )   (KVL)
+ *   For each node n:
+ *     sum_{l:out(n)} F_l - sum_{l:in(n)} eta_l F_l = S_n - D_n  (KCL)
+ *   with a reference node angle fixed to zero. For HVDC lines (zero
+ *   susceptance), no angle relationship is imposed: the flow is only
+ *   constrained by capacity limits and node balance.
  */
 
 class DCNetworkBlock : public NetworkBlock
@@ -345,8 +353,7 @@ class DCNetworkData : public NetworkData
  /// returns true if this is a mixed DC - HVDC grid
 
  bool is_DC_HVDC( void ) {
-  return( ( ! v_line_susceptance.empty() ) &&
-	  ( f_number_lines > f_number_HVDC_lines ) );
+  return( ( ! v_line_susceptance.empty() ) && ( f_number_HVDC_lines > 0 ) );
   }
  
 /*--------------------------------------------------------------------------*/
@@ -879,13 +886,12 @@ class DCNetworkData : public NetworkData
 
  /// constructor of DCNetworkBlock
  /** Constructor of DCNetworkBlock, taking possibly a pointer of its
-  * father Block.
-  */
+  * father Block. */
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
   : NetworkBlock( f_block ) , f_NetworkData( nullptr ) , ftype( PTDF ) ,
-    v_design( nullptr ) , v_which_design( nullptr ) , f_C_v_scal( 1 ) ,
-    f_tikhonov_coeff( 1e-4 ) {}
+    v_design( nullptr ) , f_C_v_scal( 1 ) , f_tikhonov_coeff( 1e-4 ) ,
+    f_ptdf_round( 1e-16 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of DCNetworkBlock
@@ -984,11 +990,41 @@ class DCNetworkData : public NetworkData
   *
   * DCNetworkBlock supports three possible different formulations:
   *
-  * - The PTDF formulation, whereby ... TODO: COMPLETE
+  * - The PTDF formulation, which uses the Power Transfer Distribution
+  *   Factor matrix to express DC line flows as a linear combination of
+  *   nodal injections. Only power flow variables \f$ F_l \f$ are needed
+  *   (no angle variables). For HVDC lines, standard flow conservation
+  *   constraints are used.
   *
-  * - The CYCLE formulation, whereby ... TODO: COMPLETE
+  * - The CYCLE formulation, which uses a spanning tree and a fundamental
+  *   cycle basis to express power flows in terms of tree-transfer
+  *   coefficients and cycle flow variables \f$ h_c \f$. Requires both
+  *   \f$ F_l \f$ and \f$ h_c \f$ variables (no angle variables).
   *
-  * - The KIRCHHOFF formulation, whereby ... TODO: COMPLETE
+  * - The KIRCHHOFF formulation, which introduces voltage angle variables
+  *   \f$ \theta_n \f$ for each node and encodes:
+  *   \f[
+  *     F_l \;=\; \mathfrak{S}_l \bigl(\theta_{\mathrm{from}(l)}
+  *                                   - \theta_{\mathrm{to}(l)}\bigr)
+  *     \qquad \forall l \in \mathcal{L}^{DC}
+  *     \qquad (10)
+  *   \f]
+  *   \f[
+  *     - S_n
+  *     \;+\;
+  *     \sum_{l=(n,\cdot)} F_l
+  *     \;-\;
+  *     \sum_{l=(\cdot,n)} \eta_l\, F_l
+  *     \;=\;
+  *     - D^{ac}_n
+  *     \qquad \forall n \in \mathcal{N}
+  *     \qquad (11)
+  *   \f]
+  *   \f[
+  *     \theta_{\mathrm{ref}} = 0
+  *     \qquad (12)
+  *   \f]
+  *   Capacity limits (1) or (1a)\--(1b) apply as in the other formulations
   *
   * The different possible formulations are represented by a the int value
   * "wf" that is obtained as follows:
@@ -1015,10 +1051,15 @@ class DCNetworkData : public NetworkData
  void generate_CYCLE_variables( void );
 
 /*--------------------------------------------------------------------------*/
+
+ void generate_KIRCHHOFF_variables( void );
+
+/*--------------------------------------------------------------------------*/
  /// generate abstract constraints of DCNetworkBlock
  /** This method generates the linear constraints of the DC network according
-  * to the internal formulation type #ftype, which can be either **PTDF** or
-  * **CYCLE**. The topology of the transmission network is defined by a set of
+  * to the internal formulation type #ftype, which can be **PTDF**, **CYCLE**,
+  * or **KIRCHHOFF**. The topology of the transmission network is defined by
+  * a set of
   * nodes \f$ \mathcal{N} \f$ and a set of lines \f$ \mathcal{L} \f$. For each
   * line \f$ l \in \mathcal{L} \f$, let \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$
   * denote the minimum and maximum admissible power flows, and
@@ -1140,6 +1181,41 @@ class DCNetworkData : public NetworkData
   * Capacity limits (1) or (1a)–(1b) apply to each line depending on whether a
   * design variable \f$ x_l \f$ exists.
   *
+  * \b Kirchhoff \b (KIRCHHOFF) \b formulation.
+  * Voltage angle variables \f$ \theta_n \f$ are introduced for each node.
+  * For each DC line \f$ l \f$ (non-zero susceptance \f$ \mathfrak{S}_l \f$),
+  * the flow-angle relationship (Kirchhoff's Voltage Law) is imposed:
+  * \f[
+  *   F_l
+  *   \;=\;
+  *   \mathfrak{S}_l \bigl(\theta_{\mathrm{from}(l)}
+  *                       - \theta_{\mathrm{to}(l)}\bigr)
+  *   \qquad \forall l \in \mathcal{L}^{DC}
+  *   \qquad (10)
+  * \f]
+  * For each node \f$ n \f$, a power balance constraint (Kirchhoff's Current
+  * Law) is enforced over \e all lines (both DC and HVDC):
+  * \f[
+  *   -S_n
+  *   \;+\;
+  *   \sum_{l=(n,\cdot)} F_l
+  *   \;-\;
+  *   \sum_{l=(\cdot,n)} \eta_l\, F_l
+  *   \;=\;
+  *   -D^{ac}_n
+  *   \qquad \forall n \in \mathcal{N}
+  *   \qquad (11)
+  * \f]
+  * A reference node angle is fixed to zero:
+  * \f[
+  *   \theta_{\mathrm{ref}} = 0
+  *   \qquad (12)
+  * \f]
+  * HVDC lines (zero susceptance) have no angle relationship and are only
+  * constrained by flow limits and node balance. Hypergraph HVDC lines are
+  * supported in the node balance. Capacity limits (1) or (1a)--(1b)
+  * apply as in the other formulations.
+  *
   * Flow balance constraints may have to be scaled for numerical stability
   * reasons.
   *
@@ -1175,6 +1251,48 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
 
  void generate_CYCLE_constraints( Configuration * stcc = nullptr );
+
+/*--------------------------------------------------------------------------*/
+
+ void generate_KIRCHHOFF_constraints( Configuration * stcc = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the NetworkCost auxiliary constraints
+ /** Generates the auxiliary constraints for the linearisation of |F_l|
+  * (absolute-value relaxation) when the "NetworkCost" vector is provided:
+  *   \f[
+  *     V_l \ge  F_l, \quad V_l \ge -F_l \qquad \forall\, l \in \mathcal{L}
+  *   \f]
+  * Does nothing if NetworkCost is empty. This method is intended to be
+  * called by generate_KIRCHHOFF_constraints() and overriding classes. */
+
+ void generate_network_cost_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the reference-node angle constraint
+ /** Fixes the voltage angle of the reference node to zero:
+  *   \f[
+  *     \theta_{\mathrm{ref}} = 0
+  *   \f]
+  * Skipped for pure HVDC networks (no angle variables).
+  * This method is intended to be called by generate_KIRCHHOFF_constraints()
+  * and overriding classes. */
+
+ void generate_reference_angle_constraint( void );
+
+/*--------------------------------------------------------------------------*/
+ /// generate the KCL node-balance constraints
+ /** Generates Kirchhoff's Current Law at every node:
+  *   \f[
+  *     -S_n + \sum_{l:\,\mathrm{start}(l)=n} F_l
+  *          - \sum_{l:\,\mathrm{end}(l)=n} \eta_l\, F_l = -D_n
+  *     \qquad \forall\, n
+  *   \f]
+  * handling DC lines, HVDC lines and hypergraph topologies.
+  * This method is intended to be called by generate_KIRCHHOFF_constraints()
+  * and overriding classes. */
+
+ void generate_node_balance_constraints( void );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1423,15 +1541,15 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// returns true if there is any design variable associated with some line
 
- bool is_design( void ) const {
-  return( v_design && ( ! ( *v_design ).empty() ) );
+ bool has_design( void ) const {
+  return( v_design && ( ! v_design->empty() ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if all lines have associated design variable
 
  bool all_design( void ) const {
-  return( is_design() && ( ( *v_design ).size() == get_number_lines() ) );
+  return( has_design() && ( v_design->size() == get_number_lines() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1450,16 +1568,11 @@ class DCNetworkData : public NetworkData
   *       modified outside the intended modeling interface. */
 
  ColVariable * get_design( Index line ) const {
-  if( ( ! v_design ) || ( *v_design ).empty() )
+  if( ( ! v_design ) || v_design->empty() )
    return( nullptr );
 
-  if( ( ! v_which_design ) || ( *v_which_design ).empty() )
-   return( line >= ( *v_design ).size() ? nullptr : & ( *v_design )[ line ] );
-
-  auto it = std::lower_bound( ( *v_which_design ).begin() ,
-			      ( *v_which_design ).end() , line );
-  return( it == ( *v_which_design ).end() ? nullptr :
-	  & ( *v_design )[ std::distance( ( *v_which_design ).begin() , it ) ] );
+  return( v_dense_design.empty() ? & (*v_design)[ line ]
+	                         : v_dense_design[ line ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1515,7 +1628,7 @@ class DCNetworkData : public NetworkData
 
   dp.resize( nl );
   for( Index l = 0 ; l < nl ; ++l ) {
-   if( is_design() && get_design( l ) )  {  // design on this line
+   if( has_design() && get_design( l ) )  {  // design on this line
     dp[ l ] = v_power_flow_limit_design_const[ 1 ][ l ].get_dual() -
               v_power_flow_limit_design_const[ 0 ][ l ].get_dual();
     continue;
@@ -1623,13 +1736,13 @@ class DCNetworkData : public NetworkData
   *
   * Note that DCNetworkBlock retains the pointers to the two vectors \p DV
   * and \p Which, which therefore must not be changed by the caller for all
-  * the lifetime of the object; in turn, DCNetworkBlock pledges not to
-  * change them.
+  * the lifetime of the object; in turn, DCNetworkBlock cannot change them.
+  * (since they are const).
   *
   * If \p DV == nullptr or *DV.empty() then no line has design variables.
   * This is the default if this method is never called.
   *
-  * If \p WDV == nullptr or *WDV.empty(), it is assumed that DV[ i ]
+  * If \p WDV == nullptr or WDV->empty(), it is assumed that DV[ i ]
   * refers to line i for all i = 0 , ... , DV.size() - 1. Otherwise,
   * DV[ i ] refers to line WDV[ i ]. If nonempty, \p WDV is supposed to
   * contain numbers in 0, ..., get_number_lines() - 1, be ordered in
@@ -1639,16 +1752,29 @@ class DCNetworkData : public NetworkData
 
  void set_design_variables( std::vector< ColVariable > * DV = nullptr ,
 			    c_Subset * WDV = nullptr ) {
-
   if( constraints_generated() )
    throw( std::logic_error( "DCNetworkBlock::set_design_variables: called "
 			    "when constraints are already generated" ) );
   v_design = DV;
-  v_which_design = WDV;
-  if( ( ! v_which_design->empty() ) &&
-      ( v_which_design->back() > get_number_lines() - 1 ) )
-   throw( std::invalid_argument( "DCNetworkBlock::set_design_variables: "
-				 "invalid line number" ) );
+  if( WDV && ( ! WDV->empty() ) ) {
+   #ifndef NDEBUG
+    for( Index i = 0 ; i < WDV->size() - 1 ; ++i )
+     if( (*WDV)[ i ] >= (*WDV)[ i + 1 ] )
+      throw( std::invalid_argument( "DCNetworkBlock::set_design_variables: "
+				    "WDV not ordered" ) );
+   #endif
+   
+   if( WDV->back() >= get_number_lines() )
+    throw( std::invalid_argument( "DCNetworkBlock::set_design_variables: "
+				  "invalid line number in WDV" ) );
+
+   v_dense_design.resize( get_number_lines() , nullptr );
+   for( Index i = 0 , j = 0 ; i < v_dense_design.size() ; ++i )
+    if( (*WDV)[ j ] == i )
+     v_dense_design[ i ] = & (*v_design)[ j++ ];
+   }
+  else
+   v_dense_design.clear();
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1660,8 +1786,7 @@ class DCNetworkData : public NetworkData
  /// extends Block::serialize( netCDF::NcGroup )
  /** Extends Block::serialize( netCDF::NcGroup ) to the specific format of a
   * NetworkBlock. See NetworkBlock::deserialize( netCDF::NcGroup ) for
-  * details of the format of the created netCDF group.
-  */
+  * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1833,6 +1958,8 @@ class DCNetworkData : public NetworkData
 
  double f_tikhonov_coeff;         ///< regularization for PTDF computation
 
+ double f_ptdf_round ;           ///< a coefficient to round some of the possibly nasty numerical values in the PTDF matrices
+
 /*-------------------------------- variables -------------------------------*/
 
  /// the power flow variables
@@ -1841,14 +1968,17 @@ class DCNetworkData : public NetworkData
  /// the power flow variables on cycle basis
  std::vector< ColVariable > v_cycle_flow;
 
+ /// the voltage angle variables (Kirchhoff formulation)
+ std::vector< ColVariable > v_voltage_angle;
+
  /// the auxiliary network cost variable
  std::vector< ColVariable > v_auxiliary_variable;
 
  /// the design variables for lines
  std::vector< ColVariable > * v_design;
 
- /// which lines have design variables
- c_Subset * v_which_design;
+ /// the "densified" version of v_design (if needed)
+ std::vector< ColVariable * > v_dense_design;
 
 /*------------------------------- constraints ------------------------------*/
 
@@ -1879,6 +2009,17 @@ class DCNetworkData : public NetworkData
  /// definition of the flow on cycles
  std::vector< FRowConstraint > v_CYCLE_def_cycle_const;
 
+ /// flow-angle definition constraints (Kirchhoff formulation)
+ /// F_l - B_l * ( theta_from - theta_to ) = 0 for each DC line
+ std::vector< FRowConstraint > v_KIRCHHOFF_power_flow_def;
+
+ /// node power balance constraints (Kirchhoff formulation)
+ /// for each node n: -S_n + sum_outgoing F_l - sum_incoming eta_l F_l = -D_n
+ std::vector< FRowConstraint > v_KIRCHHOFF_node_balance_const;
+
+ /// reference node angle constraint (Kirchhoff formulation)
+ BoxConstraint v_reference_angle_const;
+
  /// the objective function
  FRealObjective objective;
 
@@ -1901,11 +2042,15 @@ class DCNetworkData : public NetworkData
  static void static_initialization( void )
  {
   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "DCNetworkBlock::set_active_demand" , & DCNetworkBlock::set_active_demand );
+   "DCNetworkBlock::set_active_demand" ,
+   & DCNetworkBlock::set_active_demand );
 
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
-   "DCNetworkBlock::set_active_demand" , & DCNetworkBlock::set_active_demand );
- }
+   "DCNetworkBlock::set_active_demand" ,
+   & DCNetworkBlock::set_active_demand );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  };  // end( class( DCNetworkBlock ) )
 
@@ -1947,10 +2092,6 @@ class DCNetworkBlockMod : public NetworkBlockMod
     output << "Set active demand values ";
    }
   }
-
- DCNetworkBlock * f_Block{};
- ///< pointer to the Block to which the Modification refers
-
  };  // end( class( DCNetworkBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
@@ -2038,12 +2179,10 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
  *
  * Note that one DCNetworkBlock covers one time instant, so these variables
  * do not need to be indexed over time instants (unlike those of the base
- * NetworkBlockSolution).
- */
+ * NetworkBlockSolution). */
 
 class DCNetworkBlockSolution : public NetworkBlockSolution
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2106,8 +2245,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   * - The variable "DualCost", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; DualCost[ l ] is the absolute value of
   *   the dual variable of the constraint representing the capacity of
-  *   line l. The variable is optional.
-  */
+  *   line l. The variable is optional. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -2162,8 +2300,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   * (although, technically, if some of the DCNetworkBlockSolution that
   * appears when \p idx > 0 is Configure-d with less information than that
   * when idx == 0 the code will not break, but there will be uninitialised
-  * values in the netCDF).
-  */
+  * values in the netCDF). */
 
  void serialize( netCDF::NcGroup & group , size_t idx ) const override;
 
@@ -2200,8 +2337,6 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  private:
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
-
-/*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;
 
