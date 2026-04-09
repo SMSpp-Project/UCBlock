@@ -252,7 +252,8 @@ void DesignNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( f_num_design_lines ) {
   v_design.resize( f_num_design_lines );
   for( Index p = 0 ; p < f_num_design_lines ; ++p ) {
-   if( get_max_capacity_design( p ) < 0 )
+   Index l = v_design_lines[ p ];
+   if( get_max_capacity_design( l ) < 0 )
     v_design[ p ].set_type( ColVariable::kBinary );
    else
     v_design[ p ].set_type( ColVariable::kNonNegative );
@@ -284,8 +285,9 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   v_design_bound_const.resize( f_num_design_lines );
 
   for( Index p = 0 ; p < f_num_design_lines ; ++p ) {
-   double lb = std::max( 0.0 , get_min_capacity_design( p ) );
-   double maxd = get_max_capacity_design( p );
+   Index l = v_design_lines[ p ];
+   double lb = std::max( 0.0 , get_min_capacity_design( l ) );
+   double maxd = get_max_capacity_design( l );
    bool is_binary = ( maxd < 0.0 );
    double ub = is_binary ? 1.0 : std::abs( maxd );
 
@@ -322,8 +324,11 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
 
  // Investment term only over the selected ("designed") lines
  for( Index p = 0 ; p < f_num_design_lines ; ++p )
-  if( get_investment_cost( p ) != 0 )
-   lf->add_variable( &v_design[ p ] , get_investment_cost( p ) , eNoMod );
+ {
+  Index l = v_design_lines[ p ];
+  if( get_investment_cost( l ) != 0 )
+   lf->add_variable( &v_design[ p ] , get_investment_cost( l ) , eNoMod );
+ }
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
