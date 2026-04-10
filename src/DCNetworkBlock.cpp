@@ -438,6 +438,7 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
 
  this->v_cycle_basis.clear();
  this->m_spanning_tree.clear();
+ std::map< Index, Index > reverse_spanning_tree;
 
  //!! auto start_solve = std::chrono::high_resolution_clock::now();
 
@@ -491,7 +492,11 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
     gnodes.erase( it_gnode );
    }
   use_root = false;  // reinit root
-  this->m_spanning_tree.insert( pred.begin() , pred.end() );
+  reverse_spanning_tree.insert( pred.begin() , pred.end() );
+  }
+  for (const auto& pair: reverse_spanning_tree){ // reverse spanning tree is done with predecessors
+    if (pair.first != pair.second) // be carefull: for the root node, the predecessor is itself
+      this->m_spanning_tree[pair.second].insert(pair.first);
   }
 
  /*!!
