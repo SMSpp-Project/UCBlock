@@ -702,7 +702,6 @@ class DesignNetworkBlock : public NetworkBlock
  /// the design variable for each design line
  std::vector< ColVariable > v_design;
 
-
 /*------------------------------- constraints ------------------------------*/
 
  /// the design bound constraint for each line
