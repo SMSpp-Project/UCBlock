@@ -123,7 +123,7 @@ add_subdirectory(tools)
 # Download nc4.tgz from GitLab Package Registry if it doesn't exist
 set(DATA_URL "https://gitlab.com/api/v4/projects/14857791/packages/generic/nc4/latest/nc4.tgz")
 set(DATA_ARCHIVE ${CMAKE_CURRENT_SOURCE_DIR}/data/nc4.tgz)
-set(DATA_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/download_nc4.cmake)
+set(DATA_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/download_uc_nc4.cmake)
 
 file(WRITE ${DATA_SCRIPT} "
 file(DOWNLOAD \"${DATA_URL}\" \"${DATA_ARCHIVE}\" SHOW_PROGRESS)
@@ -137,7 +137,7 @@ add_custom_command(
         VERBATIM
 )
 
-add_custom_target(download_nc4
+add_custom_target(download_uc_nc4
         DEPENDS ${DATA_ARCHIVE})
 
 # Custom command to extract the nc4.tgz archive if the .extracted file does not exist
@@ -148,14 +148,14 @@ add_custom_command(
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data
         COMMENT "Extracting nc4.tgz"
         VERBATIM
-        DEPENDS download_nc4)
+        DEPENDS download_uc_nc4)
 
 # Create custom targets to run the data extraction
-add_custom_target(extract_nc4uc
+add_custom_target(extract_uc_nc4
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/data/.extracted)
 
-# Ensure that extract_nc4uc is executed after the download
-add_dependencies(extract_nc4uc download_nc4)
+# Ensure that extract_uc_nc4 is executed after the download
+add_dependencies(extract_uc_nc4 download_uc_nc4)
 
 # ----- Install instructions ------------------------------------------------ #
 # The following commands are used when installing the library

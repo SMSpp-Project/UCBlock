@@ -323,12 +323,11 @@ void DesignNetworkBlock::generate_objective( Configuration * objc )
  auto lf = new LinearFunction();
 
  // Investment term only over the selected ("designed") lines
- for( Index p = 0 ; p < f_num_design_lines ; ++p )
- {
-  Index l = v_design_lines[ p ];
+ for( Index p = 0 ; p < f_num_design_lines ; ++p ) {
+  Index l = v_design_lines.empty() ? p : v_design_lines[ p ];
   if( get_investment_cost( l ) != 0 )
    lf->add_variable( &v_design[ p ] , get_investment_cost( l ) , eNoMod );
- }
+  }
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );

@@ -22,7 +22,8 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Wim van Ackooij,
+ *                      Quentin Jacquet, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -285,7 +286,7 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
    for( Index i = 0 ; i < get_end_lines()[ line_id ].size() ; ++i ) {
     eta = get_line_efficiencies( line_id )[ i ]; // efficiency of the hyperarc
     A_DC_transpose.coeffRef(
-	get_reducedIdx( get_end_lines()[ line_id ][ i ] ) , line_id ) = -eta;
+     get_reducedIdx( get_end_lines()[ line_id ][ i ] ) , line_id ) = -eta;
     }
    }
   }
@@ -438,7 +439,7 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
 
  this->v_cycle_basis.clear();
  this->m_spanning_tree.clear();
- std::map< Index, Index > reverse_spanning_tree;
+ std::map< Index , Index > reverse_spanning_tree;
 
  //!! auto start_solve = std::chrono::high_resolution_clock::now();
 
@@ -476,8 +477,8 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
        std::vector< Index > cycle = { nbr , z };
        Index p = pred[ z ];
        while( ! pn.contains( p ) ) {
-	cycle.push_back( p );
-	p = pred[ p ];
+        cycle.push_back( p );
+        p = pred[ p ];
         }
        cycle.push_back( p );
        this->v_cycle_basis.push_back( cycle );
@@ -494,9 +495,11 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
   use_root = false;  // reinit root
   reverse_spanning_tree.insert( pred.begin() , pred.end() );
   }
-  for (const auto& pair: reverse_spanning_tree){ // reverse spanning tree is done with predecessors
-    if (pair.first != pair.second) // be carefull: for the root node, the predecessor is itself
-      this->m_spanning_tree[pair.second].insert(pair.first);
+  for( const auto & pair : reverse_spanning_tree ) {
+   // reverse spanning tree is done with predecessors
+   if( pair.first != pair.second )
+    // be careful: for the root node, the predecessor is itself
+    this->m_spanning_tree[ pair.second ].insert( pair.first );
   }
 
  /*!!
@@ -748,7 +751,8 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    f_tikhonov_coeff = SCdd->f_value.second;
    }
   else
-   if( auto SCdd = dynamic_cast< SimpleConfiguration< std::vector< double > > * >( stcc ) ) {
+   if( auto SCdd = dynamic_cast< SimpleConfiguration< std::vector< double > >
+                                                      * >( stcc ) ) {
     if( SCdd->f_value.size() > 0 )
       f_C_v_scal = SCdd->f_value[ 0 ];
     if( SCdd->f_value.size() > 1 )
@@ -839,12 +843,12 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
   adj[ v ].emplace_back( u , l , -1 ); // opposite direction
   }
 
- /*--------------------------------------------------------------*/
- /* depth-first search from reference node to compute:           */
- /*  - parent[ i ]: parent node in the tree                      */
- /*  - parent_edge[ i ]: edge connecting parent → i              */
- /*  - sign_from_parent[ i ]: +1 if along canonical, −1 otherwise*/
- /*--------------------------------------------------------------*/
+ /*---------------------------------------------------------------*/
+ /* depth-first search from reference node to compute:            */
+ /*  - parent[ i ]: parent node in the tree                       */
+ /*  - parent_edge[ i ]: edge connecting parent → i               */
+ /*  - sign_from_parent[ i ]: +1 if along canonical, −1 otherwise */
+ /*---------------------------------------------------------------*/
  Subset parent( number_nodes , static_cast< Index >( -1 ) );
  Subset parent_edge( number_nodes , number_lines );
  std::vector< int > sign_from_parent( number_nodes , 0 );
@@ -933,8 +937,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
                                    new LinearFunction( std::move( vars ) ) );
   }
 
- add_static_constraint( v_CYCLE_def_cycle_const ,
-			"v_CYCLE_def_cycle_const" );
+ add_static_constraint( v_CYCLE_def_cycle_const , "v_CYCLE_def_cycle_const" );
 
  // eq (25): sum_i p_i = 0
  double constant_term = 0.;
@@ -1092,7 +1095,7 @@ void DCNetworkBlock::generate_node_balance_constraints( void )
     }
    }
 
-  // HVDC lines (may be hyperarcs)
+  // HVDC lines (maybe hyperarcs)
   if( ! f_NetworkData->is_DC() ) {
    for( auto & l : f_NetworkData->get_HVDC_lines() ) {
     if( start_line[ l ] == n )
