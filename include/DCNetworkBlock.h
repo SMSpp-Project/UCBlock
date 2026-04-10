@@ -648,7 +648,7 @@ class DCNetworkData : public NetworkData
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::map< Index, set< Index > > & get_spanning_tree( void ) {
+ const std::map< Index, std::set< Index > > & get_spanning_tree( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
   return( m_spanning_tree );
