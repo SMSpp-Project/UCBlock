@@ -654,6 +654,10 @@ class DCNetworkData : public NetworkData
   return( m_spanning_tree );
   }
 
+  const Index get_spanning_tree_root( void ){
+    return ( m_span_root );
+  }
+
 /*--------------------------------------------------------------------------*/
 /* Return a map where the keys are the line ids involved in the spanning
  * tree and the value is 1 if the directed line is in the tree and -1 if 
@@ -857,6 +861,8 @@ class DCNetworkData : public NetworkData
 
  /// vector to store the spanning tree
  std::map< Index , std::set< Index > > m_spanning_tree;
+ /// The spanning tree may have a different root than the reference_node, as a result we store it here
+ Index m_span_root;
 
  /// to not recompute each time the PTDF
  SpMat stored_B2;

@@ -505,6 +505,9 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
 
  std::cout << "Time to compute cycle basis : " << time << " sec." << std::endl;
  !!*/
+ // std::cout << " Root is now " << root << "\n";
+ // Since the root may not be the reference node, we save this fellow here.
+ this->m_span_root = root; 
  cycle_basis_was_computed = true;
 
  }  // end( DCNetworkData::compute_cycle_basis )
@@ -800,7 +803,22 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  /* eq (25): for all lines l,  f_l = sum_i T_{li} p_i  +  sum_c C_{lc} h_c */
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
- const Index root = f_NetworkData->get_reference_node();
+ const Index root = f_NetworkData->get_spanning_tree_root(); //f_NetworkData->get_reference_node();
+
+ // show the tree
+ /*
+ std::cout << "Spanning tree ( root = " << root << " ) \n";
+ for (const auto& [key, value] : tree){
+    std::cout << key << " --> " << value << "\n";    
+ }
+ std::cout << "Cycle basis : \n";
+ for (const auto& el: basis ){
+    std::cout << " cycle ---- \n";
+    for (const auto& [key, value] : el){
+      std::cout << "      " << key << " --> " << value << "\n";    
+  }
+ }
+ */
 
  /*--------------------------------------------------------------*/
  /* build oriented tree adjacency (canonical orientation)        */
