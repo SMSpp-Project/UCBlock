@@ -1571,8 +1571,13 @@ class DCNetworkData : public NetworkData
   if( ( ! v_design ) || v_design->empty() )
    return( nullptr );
 
-  return( v_dense_design.empty() ? & (*v_design)[ line ]
-	                         : v_dense_design[ line ] );
+  if( ! v_dense_design.empty() )
+   return( v_dense_design[ line ] );
+
+  if( line >= v_design->size() )
+   return( nullptr );
+
+  return( & (*v_design)[ line ] );
   }
 
 /*--------------------------------------------------------------------------*/
