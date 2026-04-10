@@ -648,7 +648,7 @@ class DCNetworkData : public NetworkData
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::map< Index, Index > & get_spanning_tree( void ) {
+ const std::map< Index, set< Index > > & get_spanning_tree( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
   return( m_spanning_tree );
@@ -676,10 +676,10 @@ class DCNetworkData : public NetworkData
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
    Index i = start_line[ line_id ];
    Index j = end_line[ line_id ];
-   if( this->m_spanning_tree[ i ] == j )  // line in spanning tree
+   if( this->m_spanning_tree[ i ].contains(j) )  // line in spanning tree
     lines_in_spanning_tree[ line_id ] = 1;
    else
-    if( this->m_spanning_tree[ j ] == i )  // reverse line in spanning tree
+    if( this->m_spanning_tree[ j ].contains(i) )  // reverse line in spanning tree
       lines_in_spanning_tree[ line_id ] = -1;
    }
   return( lines_in_spanning_tree );
@@ -856,7 +856,7 @@ class DCNetworkData : public NetworkData
  std::vector< Subset > v_cycle_basis;
 
  /// vector to store the spanning tree
- std::map< Index , Index > m_spanning_tree;
+ std::map< Index , std::set< Index > > m_spanning_tree;
 
  /// to not recompute each time the PTDF
  SpMat stored_B2;
