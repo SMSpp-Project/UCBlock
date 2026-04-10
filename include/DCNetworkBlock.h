@@ -648,7 +648,7 @@ class DCNetworkData : public NetworkData
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::map< Index, std::set< Index > > & get_spanning_tree( void ) {
+ const std::map< Index , std::set< Index > > & get_spanning_tree( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
   return( m_spanning_tree );
@@ -690,7 +690,7 @@ class DCNetworkData : public NetworkData
  * cycle and the value is 1 if the directed line is in the cycle and -1 if
  * the reverse directed line is in the cycle. */
 
- std::vector< std::map< Index, int > > get_lines_in_cycles( void ) {
+ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
 
