@@ -962,21 +962,21 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the battery investment cost
  double get_batt_investment_cost( void ) const {
   return( f_BattInvestmentCost );
- }
+  }
 
  /// returns the converter investment cost
  double get_conv_investment_cost( void ) const {
   return( f_ConvInvestmentCost );
- }
+  }
 
  /// returns the maximum battery installable capacity by the user
  double get_batt_max_capacity_design( void ) const {
-  return ( f_BattMaxCapacityDesign );
+  return( f_BattMaxCapacityDesign );
   }
 
  /// returns the maximum converter installable capacity by the user
  double get_conv_max_capacity_design( void ) const {
-  return ( f_ConvMaxCapacityDesign );
+  return( f_ConvMaxCapacityDesign );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -996,7 +996,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_min_storage( void ) const {
   return( v_MinStorage );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum storage
@@ -1013,7 +1013,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_storage( void ) const {
   return( v_MaxStorage );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum power at a given time
@@ -1032,7 +1032,7 @@ class BatteryUnitBlock : public UnitBlock
 
  double get_min_power( Index t , Index generator = 0 ) const override {
   return( v_MinPower[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power at a given time
@@ -1051,7 +1051,7 @@ class BatteryUnitBlock : public UnitBlock
 
  double get_max_power( Index t , Index generator = 0 ) const override {
   return( v_MaxPower[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum converter power at a given time
@@ -1104,7 +1104,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_primary_power( void ) const {
   return( v_MaxPrimaryPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum secondary reserve power
@@ -1122,7 +1122,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_secondary_power( void ) const {
   return( v_MaxSecondaryPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp up
@@ -1139,7 +1139,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp down
@@ -1426,7 +1426,7 @@ class BatteryUnitBlock : public UnitBlock
       active_power_bounds_Const[ 0 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const[ 0 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power output constraints
@@ -1435,7 +1435,7 @@ class BatteryUnitBlock : public UnitBlock
       active_power_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const.data()[ 1 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power output constraint associated with time t
@@ -1444,7 +1444,7 @@ class BatteryUnitBlock : public UnitBlock
       active_power_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const[ 1 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraints with binary variables
@@ -1453,7 +1453,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const.data()[ 0 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraint with binary variables for time t
@@ -1462,7 +1462,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const[ 0 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints with binary variables
@@ -1471,7 +1471,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const.data()[ 1 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraint + binary variables for time t
@@ -1480,13 +1480,13 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const[ 1 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the storage level bound constraints
  const std::vector< BoxConstraint > & get_storage_level_bounds( void ) const {
   return( storage_level_bounds_Const );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraints
@@ -1495,7 +1495,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_bounds_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_bounds_Const.data()[ 0 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraint associated with time t
@@ -1504,7 +1504,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_bounds_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_bounds_Const[ 0 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints
@@ -1513,7 +1513,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_bounds_Const.data()[ 1 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraint associated with time t
@@ -1522,21 +1522,21 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_bounds_Const[ 1 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the primary reserve bound constraints
  const std::vector< LB0Constraint > & get_primary_reserve_bounds( void )
   const {
   return( primary_upper_bound_Const );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the secondary reserve bound constraints
  const std::vector< LB0Constraint > & get_secondary_reserve_bounds( void )
   const {
   return( secondary_upper_bound_Const );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -1601,7 +1601,7 @@ class BatteryUnitBlock : public UnitBlock
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "BatteryUnitBlock::load not implemented yet" ) );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -1733,7 +1733,7 @@ class BatteryUnitBlock : public UnitBlock
   std::vector< double > vector = { value };
   set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
              issuePMod , issueAMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2063,7 +2063,7 @@ class BatteryUnitBlock : public UnitBlock
   register_method< BatteryUnitBlock , MF_dbl_it , Range >(
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
- }
+  }
 
 };  // end( class( BatteryUnitBlock ) )
 
@@ -2147,7 +2147,7 @@ class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod
  void print( std::ostream & output ) const override {
   BatteryUnitBlockMod::print( output );
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
- }
+  }
 
  Block::Range f_rng;  ///< the range
 
@@ -2181,7 +2181,7 @@ class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod
  void print( std::ostream & output ) const override {
   BatteryUnitBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
- }
+  }
 
  Block::Subset f_nms;  ///< the subset
 
@@ -2295,7 +2295,7 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
 
  void print( std::ostream & output ) const override {
   output << "BatteryUnitBlockSolution [" << this << "]: " << std::endl;
- }
+  }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 

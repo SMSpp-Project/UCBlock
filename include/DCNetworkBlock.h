@@ -654,8 +654,8 @@ class DCNetworkData : public NetworkData
   return( m_spanning_tree );
   }
 
-  const Index get_spanning_tree_root( void ){
-    return ( m_span_root );
+ const Index get_spanning_tree_root( void ) {
+  return( m_span_root );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -680,10 +680,10 @@ class DCNetworkData : public NetworkData
   for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
    Index i = start_line[ line_id ];
    Index j = end_line[ line_id ];
-   if( this->m_spanning_tree[ i ].contains(j) )  // line in spanning tree
+   if( this->m_spanning_tree[ i ].contains( j ) )  // line in spanning tree
     lines_in_spanning_tree[ line_id ] = 1;
    else
-    if( this->m_spanning_tree[ j ].contains(i) )  // reverse line in spanning tree
+    if( this->m_spanning_tree[ j ].contains( i ) )  // reverse line in spanning tree
       lines_in_spanning_tree[ line_id ] = -1;
    }
   return( lines_in_spanning_tree );

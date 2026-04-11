@@ -177,7 +177,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 				  std::to_string( i ) ) );
    std::sort( tmp[ i ].begin() , tmp[ i ].end() ,
               []( auto & a , auto & b ) {
-               return ( std::get< 1 >( a ) < std::get< 1 >( b ) ); } );
+               return( std::get< 1 >( a ) < std::get< 1 >( b ) ); } );
    for( Index j = 1 ; j < tmp[ i ].size() ; ++j )
     if( std::get< 1 >( tmp[ i ][ j ] ) == std::get< 1 >( tmp[ i ][ j - 1 ] ) )
      throw( std::invalid_argument( "DCNetworkData::deserialize: "
