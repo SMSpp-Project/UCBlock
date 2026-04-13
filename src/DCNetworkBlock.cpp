@@ -33,6 +33,8 @@
 
 #include <map>
 
+#include <queue>
+
 #include <utility>
 
 #include "NetworkBlock.h"
@@ -802,123 +804,57 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  // cycle incidence matrices C_{lc} in the paper
  assert( basis.size() == number_lines - number_nodes + 1 );
 
- auto tree = f_NetworkData->get_lines_in_spanning_tree();
+ auto lines_in_tree = f_NetworkData->get_lines_in_spanning_tree();
+ auto tree = f_NetworkData->get_spanning_tree();
 
  /* eq (25): for all lines l,  f_l = sum_i T_{li} p_i  +  sum_c C_{lc} h_c */
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
  const Index root = f_NetworkData->get_spanning_tree_root(); //f_NetworkData->get_reference_node();
 
- // show the tree
- /*
- std::cout << "Spanning tree ( root = " << root << " ) \n";
- for (const auto& [key, value] : tree){
-    std::cout << key << " --> " << value << "\n";    
- }
- std::cout << "Cycle basis : \n";
- for (const auto& el: basis ){
-    std::cout << " cycle ---- \n";
-    for (const auto& [key, value] : el){
-      std::cout << "      " << key << " --> " << value << "\n";    
-  }
- }
- */
-
- /*--------------------------------------------------------------*/
- /* build oriented tree adjacency (canonical orientation)        */
- /* each tree arc l: if tree[ l ] == +1 → start( l ) → end( l ) (+1 sign)
-    else → end( l ) → start( l ) (+1 sign), reverse with −1           */
- /*--------------------------------------------------------------*/
- std::vector< std::vector< std::tuple< Index , Index , int > > >
-   adj( number_nodes );
-
- for( const auto & kv : tree ) {
-  Index l = kv.first;
-  int s = kv.second; // ±1 orientation in the spanning tree
-
-  Index u = ( s >= 0 ) ? start_line[ l ] : end_line[ l ];
-  Index v = ( s >= 0 ) ? end_line[ l ] : start_line[ l ];
-
-  adj[ u ].emplace_back( v , l , +1 ); // along canonical direction
-  adj[ v ].emplace_back( u , l , -1 ); // opposite direction
-  }
-
- /*---------------------------------------------------------------*/
- /* depth-first search from reference node to compute:            */
- /*  - parent[ i ]: parent node in the tree                       */
- /*  - parent_edge[ i ]: edge connecting parent → i               */
- /*  - sign_from_parent[ i ]: +1 if along canonical, −1 otherwise */
- /*---------------------------------------------------------------*/
- Subset parent( number_nodes , static_cast< Index >( -1 ) );
- Subset parent_edge( number_nodes , number_lines );
- std::vector< int > sign_from_parent( number_nodes , 0 );
-
- Subset stack;
- parent[ root ] = root;
- stack.push_back( root );
-
- while( ! stack.empty() ) {
-  Index u = stack.back();
-  stack.pop_back();
-
-  for( const auto & tup : adj[ u ] ) {
-   Index v , l;
-   int step_sign;
-   std::tie( v , l , step_sign ) = tup;
-
-   if( parent[ v ] == static_cast< Index >( -1 ) ) {
-    parent[ v ] = u;
-    parent_edge[ v ] = l;
-    sign_from_parent[ v ] = step_sign;
-    stack.push_back( v );
-    }
-   }
-  }
-
- /*--------------------------------------------------------------*/
+/*--------------------------------------------------------------*/
  /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c      */
  /*--------------------------------------------------------------*/
  v_CYCLE_def_flow_const.resize( number_lines );
 
  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
 
-  /* -f_l term */
-  vars.emplace_back( &v_power_flow[ line_id ] , -1.0 );
+    /* -f_l term */
+    double constant_term = 0.;
+    vars.emplace_back( &v_power_flow[ line_id ] , -1.0 );
 
-  /* Σ_i T_{li} p_i : only if l is a tree edge */
-  if( tree.contains( line_id ) ) {
-   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-    if( node_id == root )
-     continue;
+    /* Σ_i T_{li} p_i : only if l is a tree edge */
+    if( lines_in_tree.contains( line_id ) ) {
+      int sign = -lines_in_tree[line_id]; // be carefull, path FROM node TO root, i.e, in the reverse contrary to the spanning tree
+      int node_id = (sign < 0) ? end_line[line_id] : start_line[line_id]; // the one further to root node in this edge
+      std::queue< int > qu;
+      qu.push( node_id );
 
-    /* climb path from node_id to root; if edge == line_id, add sign */
-    Index u = node_id;
-    while( u != parent[ u ] ) {
-     if( parent_edge[ u ] == line_id ) {
-      vars.emplace_back( &v_node_injection[ 0 ][ node_id ] ,
-			 sign_from_parent[ u ] );
-      break;  // edge appears at most once in path root→node_id
+      // we go through the rest of the tree starting from node_id and we sum all the contributions
+      // be carefull, in the paper, p_i is the node injection - demand. Therefore we need to sum the node_injection variables AND the demand in the constant term
+      while ( !qu.empty() ){
+        int p = qu.front();
+        vars.emplace_back( &v_node_injection[ 0 ][ p ], sign );
+        constant_term += sign * v_ActiveDemand[ p ];
+        qu.pop();
+        for (int child : tree[p]) {
+          qu.push( child );
+        }
       }
-     u = parent[ u ];
-     }
     }
-   }
 
-  /* Σ_c C_{lc} h_c term */
-  auto it_basis = basis.begin();
-  for( int cycle_id = 0 ; cycle_id < static_cast< int >( basis.size() ) ;
-       ++cycle_id , ++it_basis ) {
-   const std::map< Index , int > & cycle = *it_basis;
-   if( auto it = cycle.find( line_id ) ; it != cycle.end() )
-    vars.emplace_back( &v_cycle_flow[ cycle_id ] , it->second );
-   }
+    /* Σ_c C_{lc} h_c term */
+    auto it_basis = basis.begin();
+    for( int cycle_id = 0 ; cycle_id < static_cast< int >( basis.size() ) ; ++cycle_id , ++it_basis ) {
+      const std::map< Index , int > & cycle = *it_basis;
+      if( auto it = cycle.find( line_id ) ; it != cycle.end() )
+        vars.emplace_back( &v_cycle_flow[ cycle_id ] , it->second );
+    }
 
-  v_CYCLE_def_flow_const[ line_id ].set_both( 0.0 );
-  v_CYCLE_def_flow_const[ line_id ].set_function(
-     new LinearFunction( std::move( vars ) ) );
+    v_CYCLE_def_flow_const[ line_id ].set_both( constant_term );
+    v_CYCLE_def_flow_const[ line_id ].set_function( new LinearFunction( std::move( vars ) ) );
   }
-
- add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
+  add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
 
  // eq (25): forall cycle c, sum_l C_{lc}x_lf_l = 0
  v_CYCLE_def_cycle_const.resize( number_lines - number_nodes + 1 );
