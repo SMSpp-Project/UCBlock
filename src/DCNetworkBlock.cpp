@@ -870,11 +870,13 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
     v_CYCLE_def_flow_const[ id_dc_line ].set_function( lfunc );
     ++id_dc_line;
   }
-  add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
+  if ( nb_dc_lines > 0 )
+    add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
 
  // eq (25): forall cycle c, sum_l C_{lc}x_lf_l = 0
- v_CYCLE_def_cycle_const.resize( number_lines - number_nodes + 1 );
- for (size_t cycle_id = 0; cycle_id < basis.size(); ++cycle_id) {
+ if ( basis.size() > 0 ){
+  v_CYCLE_def_cycle_const.resize( basis.size() );
+  for (size_t cycle_id = 0; cycle_id < basis.size(); ++cycle_id) {
     auto lfunc = new LinearFunction();
     const auto& cycle = basis[cycle_id];
     for (const auto& [line_id, coeff] : cycle) {
@@ -883,8 +885,9 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
   
     v_CYCLE_def_cycle_const[ cycle_id ].set_both( 0.0 );
     v_CYCLE_def_cycle_const[ cycle_id ].set_function( lfunc );
+  }
+  add_static_constraint( v_CYCLE_def_cycle_const , "v_CYCLE_def_cycle_const" );
  }
- add_static_constraint( v_CYCLE_def_cycle_const , "v_CYCLE_def_cycle_const" );
  
  // eq (25): sum_i p_i = 0
  auto lfunc = new LinearFunction();
@@ -899,6 +902,11 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
  
  // Add the HVDC constraints for the cycle formulation
+
+ // If desired an additional boolean can be intercepted from the Block config and plugged here   
+ generate_HVDC_nodal_constraints( );
+ 
+ /* --- old stuff
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
  int nb_hvdc_lines = HVDC_lines.size();
 
@@ -920,6 +928,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
     ++i_hvdc_line;
  }
  add_static_constraint( v_CYCLE_def_HVDC_const , "v_CYCLE_def_HVDC_const" );
+ */
 
  }  // end( DCNetworkBlock::generate_CYCLE_constraints )
 
@@ -986,6 +995,83 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
  generate_node_balance_constraints();
 
  }  // end( DCNetworkBlock::generate_KIRCHHOFF_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+ void DCNetworkBlock::generate_HVDC_nodal_constraints( bool full_formulation ){
+  auto number_nodes = get_number_nodes();
+  auto number_lines = get_number_lines();
+  auto & DC_lines = f_NetworkData->get_DC_lines();
+  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
+
+  const auto & start_line = f_NetworkData->get_start_line();
+  const auto & end_line = f_NetworkData->get_end_line();
+
+  // power flow node injection constraints for mixed DC - HVDC- - - - - - - -
+  // if we have mixed lines, we have as many as nodes impacted and touched
+  // by DC lines
+  if( f_NetworkData->is_DC_HVDC() ) {
+    int nb_DCnodes = 0;
+    // savagely setting all visited nodes to true will generate nodal
+    // balances for all nodes
+    // the default and subtle initialization should be with false
+    std::vector< bool > nodes_vist( number_nodes , full_formulation );
+
+    // Flip any visited nodes to true
+    for( auto & line_id : HVDC_lines ) {
+      nodes_vist[ start_line[ line_id ] ] = true;
+      nodes_vist[ end_line[ line_id ] ] = true;
+    }
+
+    for( Index n = 0 ; n < number_nodes ; ++n ) {
+      if( nodes_vist[ n ] )
+        ++nb_DCnodes;
+    }
+
+    v_DC_HVDC_power_flow_const.resize( nb_DCnodes );
+
+    // Add power balance equations for impacted nodes
+    int iDCnode = 0;
+    for( Index n = 0 ; n < number_nodes ; ++n ) {
+      if( nodes_vist[ n ] ) {
+        auto lfunc = new LinearFunction();
+
+        double nodal_slack = 0.0; // 0.05; -- Why is there a nodal slack ?
+        lfunc->add_variable( &v_node_injection[ 0 ][ n ] , -1.0 ); 
+
+        double eta = 1.0;
+        for( auto & line_id : HVDC_lines ) {
+          eta = f_NetworkData->get_line_efficiency( line_id );
+          if( start_line[ line_id ] == n )
+            lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 ); 
+          if( end_line[ line_id ] == n )
+            lfunc->add_variable(  &v_power_flow[ line_id ] , -eta );
+        }
+        for( auto & line_id : DC_lines ) {
+          eta = f_NetworkData->get_line_efficiency( line_id );
+          if( start_line[ line_id ] == n )
+            lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 ); 
+          if( end_line[ line_id ] == n )
+            lfunc->add_variable( &v_power_flow[ line_id ] , -eta ); 
+        }
+
+        v_DC_HVDC_power_flow_const[ iDCnode ].set_lhs( -v_ActiveDemand[ n ] - nodal_slack );
+        // allow for a 0.01 MW deviation
+        v_DC_HVDC_power_flow_const[ iDCnode ].set_rhs( -v_ActiveDemand[ n ] + nodal_slack );
+        v_DC_HVDC_power_flow_const[ iDCnode ].set_function( lfunc );
+
+        ++iDCnode; // update the index
+      }
+   }
+   // Add the whole vector of constraints at once
+   add_static_constraint( v_DC_HVDC_power_flow_const ,
+                          "DCHVDC_power_flow_injection" );   
+  }  // end( if( there are HVDC lines ) )
+}
+
+
+
+
 
 /*--------------------------------------------------------------------------*/
 
@@ -1167,69 +1253,9 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
 			  "HVDC_power_flow_injection" );
    }
 
-  // power flow node injection constraints for mixed DC - HVDC- - - - - - - -
-  // if we have mixed lines, we have as many as nodes impacted and touched
-  // by DC lines
-  if( f_NetworkData->is_DC_HVDC() ) {
-   bool full_formulation = true;
-   int nb_DCnodes = 0;
-   // savagely setting all visited nodes to true will generate nodal
-   // balances for all nodes
-   // the default and subtle initialization should be with false
-   std::vector< bool > nodes_vist( number_nodes , full_formulation );
-
-   // Flip any visited nodes to true
-   for( auto & line_id : HVDC_lines ) {
-    nodes_vist[ start_line[ line_id ] ] = true;
-    nodes_vist[ end_line[ line_id ] ] = true;
-    }
-
-   for( Index n = 0 ; n < number_nodes ; ++n ) {
-    if( nodes_vist[ n ] )
-     ++nb_DCnodes;
-    }
-
-   v_DC_HVDC_power_flow_const.resize( nb_DCnodes );
-
-   // Add power balance equations for impacted nodes
-   int iDCnode = 0;
-   for( Index n = 0 ; n < number_nodes ; ++n ) {
-    if( nodes_vist[ n ] ) {
-     double nodal_slack = 0.05;
-     vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
-
-     double eta = 1.0;
-     for( auto & line_id : HVDC_lines ) {
-      eta = f_NetworkData->get_line_efficiency( line_id );
-      if( start_line[ line_id ] == n )
-       vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
-      if( end_line[ line_id ] == n )
-       vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-      }
-     for( auto & line_id : DC_lines ) {
-      eta = f_NetworkData->get_line_efficiency( line_id );
-      if( start_line[ line_id ] == n )
-       vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
-      if( end_line[ line_id ] == n )
-       vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-      }
-
-     v_DC_HVDC_power_flow_const[ iDCnode ].set_lhs(
-                                       -v_ActiveDemand[ n ] - nodal_slack );
-     // allow for a 0.01 MW deviation
-     v_DC_HVDC_power_flow_const[ iDCnode ].set_rhs(
-                                       -v_ActiveDemand[ n ] + nodal_slack );
-     v_DC_HVDC_power_flow_const[ iDCnode ].set_function(
-                                  new LinearFunction( std::move( vars ) ) );
-
-     ++iDCnode; // update the index
-     }
-    }
-   // Add the whole vector of constraints at once
-   add_static_constraint( v_DC_HVDC_power_flow_const ,
-                          "DCHVDC_power_flow_injection" );
-   }
-  }  // end( if( there are HVDC lines ) )
+   // If desired an additional boolean can be intercepted from the Block config and plugged here   
+   generate_HVDC_nodal_constraints( );
+ }
 
  // Constraints on the DC part- - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

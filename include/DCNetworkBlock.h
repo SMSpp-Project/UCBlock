@@ -1264,6 +1264,12 @@ class DCNetworkData : public NetworkData
  void generate_KIRCHHOFF_constraints( Configuration * stcc = nullptr );
 
 /*--------------------------------------------------------------------------*/
+// Generate the nodal balance equations needed to have HVDC lines.
+// the additional boolean can be used to simply overload the model with unnecessary constraints
+// 
+ void generate_HVDC_nodal_constraints( bool full_formulation = false );
+
+/*--------------------------------------------------------------------------*/
  /// generate the NetworkCost auxiliary constraints
  /** Generates the auxiliary constraints for the linearisation of |F_l|
   * (absolute-value relaxation) when the "NetworkCost" vector is provided:
