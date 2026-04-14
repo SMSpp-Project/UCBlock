@@ -654,7 +654,7 @@ class DCNetworkData : public NetworkData
   return( m_spanning_tree );
   }
 
- const Index get_spanning_tree_root( void ) {
+ const std::vector< Index > & get_spanning_tree_root( void ) {
   return( m_span_root );
   }
 
@@ -862,7 +862,8 @@ class DCNetworkData : public NetworkData
  /// vector to store the spanning tree
  std::map< Index , std::set< Index > > m_spanning_tree;
  /// The spanning tree may have a different root than the reference_node, as a result we store it here
- Index m_span_root;
+ std::vector< Index > m_span_root; // The graph can in fact have disconnected components because we have HVDC lines that connect the various parts or for some other reason
+ // then the spanning tree is more like a "spanning forest" which can be uncovered with the knowledge of multiple roots.
 
  /// to not recompute each time the PTDF
  SpMat stored_B2;
@@ -2019,6 +2020,9 @@ class DCNetworkData : public NetworkData
 
  /// definition of the flow on cycles
  std::vector< FRowConstraint > v_CYCLE_def_cycle_const;
+
+ /// HVDC constraints for cycle formulation
+ std::vector< FRowConstraint > v_CYCLE_def_HVDC_const;
 
  /// flow-angle definition constraints (Kirchhoff formulation)
  /// F_l - B_l * ( theta_from - theta_to ) = 0 for each DC line

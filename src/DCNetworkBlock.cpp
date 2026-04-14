@@ -487,7 +487,11 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
        used[ nbr ].insert( z );
        }
     }
-   }
+    // save the root node
+    // std::cout << " Root is now " << root << "\n";
+    // Since the root may not be the reference node, we save this fellow here.
+    this->m_span_root.push_back( root ); 
+  } // end of loop over gnodes.size() 
 
   for( auto it = pred.begin() ; it != pred.end() ; ++it ) {
    auto it_gnode = std::find( gnodes.begin() , gnodes.end() , it->first );
@@ -497,12 +501,13 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
   use_root = false;  // reinit root
   reverse_spanning_tree.insert( pred.begin() , pred.end() );
   }
-  for( const auto & pair : reverse_spanning_tree ) {
+ 
+ for( const auto & pair : reverse_spanning_tree ) {
    // reverse spanning tree is done with predecessors
    if( pair.first != pair.second )
     // be careful: for the root node, the predecessor is itself
     this->m_spanning_tree[ pair.second ].insert( pair.first );
-  }
+ }
 
  /*!!
  double time = std::chrono::duration_cast< std::chrono::milliseconds >(
@@ -510,9 +515,6 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
 
  std::cout << "Time to compute cycle basis : " << time << " sec." << std::endl;
  !!*/
- // std::cout << " Root is now " << root << "\n";
- // Since the root may not be the reference node, we save this fellow here.
- this->m_span_root = root; 
  cycle_basis_was_computed = true;
 
  }  // end( DCNetworkData::compute_cycle_basis )
@@ -808,17 +810,27 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  /* eq (25): for all lines l,  f_l = sum_i T_{li} p_i  +  sum_c C_{lc} h_c */
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
- const Index root = f_NetworkData->get_spanning_tree_root(); //f_NetworkData->get_reference_node();
+ const std::vector< Index > root = f_NetworkData->get_spanning_tree_root(); //f_NetworkData->get_reference_node();
+
+ /* Print the Spanning tree and roots */
+ /*std::cout << " Spanning tree roots : \n";
+ for (int i=0; i < root.size(); ++i )
+    std::cout << root[i] << "\n";
+ */
 
 /*--------------------------------------------------------------*/
  /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c      */
  /*--------------------------------------------------------------*/
- v_CYCLE_def_flow_const.resize( number_lines );
+ auto & DC_lines = f_NetworkData->get_DC_lines();
+ int nb_dc_lines = DC_lines.size();
+
+ v_CYCLE_def_flow_const.resize( nb_dc_lines );
 
  // Instead of eternally reallocating queues, we do it once and for all ;
  std::deque< int > bfs_queue;
  bfs_queue.clear(); // clear is supposed to keep the memory foot print rather than do reallocs all the time.
- for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+ int id_dc_line = 0;
+ for( auto & line_id : DC_lines ){
     auto lfunc = new LinearFunction();
     bfs_queue.clear();
 
@@ -854,8 +866,9 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
         }
     }
 
-    v_CYCLE_def_flow_const[ line_id ].set_both( constant_term );
-    v_CYCLE_def_flow_const[ line_id ].set_function( lfunc );
+    v_CYCLE_def_flow_const[ id_dc_line ].set_both( constant_term );
+    v_CYCLE_def_flow_const[ id_dc_line ].set_function( lfunc );
+    ++id_dc_line;
   }
   add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
 
@@ -884,6 +897,29 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  overall_balanced_const.set_lhs( constant_term );
  overall_balanced_const.set_rhs( constant_term );
  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
+ 
+ // Add the HVDC constraints for the cycle formulation
+ auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
+ int nb_hvdc_lines = HVDC_lines.size();
+
+ v_CYCLE_def_HVDC_const.resize( 2 * nb_hvdc_lines );
+ int i_hvdc_line = 0;
+ for ( auto & hvdc_l : HVDC_lines ){
+    auto lfunc_1 = new LinearFunction();
+    lfunc_1->add_variable( &v_node_injection[ 0 ][ start_line[ hvdc_l ] ], -1.0 );
+    lfunc_1->add_variable( &v_power_flow[ hvdc_l ], 1.0 );
+    v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_function( lfunc_1 );
+    v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_both( -v_ActiveDemand[ start_line[ hvdc_l ] ] );
+
+    auto lfunc_2 = new LinearFunction();
+    lfunc_2->add_variable( &v_node_injection[ 0 ][ end_line[ hvdc_l ] ], -1.0 );
+    lfunc_2->add_variable( &v_power_flow[ hvdc_l ], -1.0 );
+    v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_function( lfunc_2 );
+    v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_both( -v_ActiveDemand[ end_line[ hvdc_l ] ] );
+
+    ++i_hvdc_line;
+ }
+ add_static_constraint( v_CYCLE_def_HVDC_const , "v_CYCLE_def_HVDC_const" );
 
  }  // end( DCNetworkBlock::generate_CYCLE_constraints )
 
