@@ -797,8 +797,6 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
                            "number of lines of DCNetworkBlock is not set" ) );
 
- LinearFunction::v_coeff_pair vars;
-
  // ----- First step: compute the cycle basis and spanning tree
  auto basis = f_NetworkData->get_lines_in_cycles();
  // cycle incidence matrices C_{lc} in the paper
@@ -817,76 +815,74 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  /*--------------------------------------------------------------*/
  v_CYCLE_def_flow_const.resize( number_lines );
 
+ // Instead of eternally reallocating queues, we do it once and for all ;
+ std::deque< int > bfs_queue;
+ bfs_queue.clear(); // clear is supposed to keep the memory foot print rather than do reallocs all the time.
  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+    auto lfunc = new LinearFunction();
+    bfs_queue.clear();
 
     /* -f_l term */
     double constant_term = 0.;
-    vars.emplace_back( &v_power_flow[ line_id ] , -1.0 );
+    lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 );
 
     /* Σ_i T_{li} p_i : only if l is a tree edge */
     if( lines_in_tree.contains( line_id ) ) {
       int sign = -lines_in_tree[line_id]; // be carefull, path FROM node TO root, i.e, in the reverse contrary to the spanning tree
-      int node_id = (sign < 0) ? end_line[line_id] : start_line[line_id]; // the one further to root node in this edge
-      std::queue< int > qu;
-      qu.push( node_id );
+      int node_id = (sign < 0) ? end_line[line_id] : start_line[line_id]; // the one further to root node in this edge      
+      bfs_queue.push_back( node_id );
 
       // we go through the rest of the tree starting from node_id and we sum all the contributions
       // be carefull, in the paper, p_i is the node injection - demand. Therefore we need to sum the node_injection variables AND the demand in the constant term
-      while ( !qu.empty() ){
-        int p = qu.front();
-        vars.emplace_back( &v_node_injection[ 0 ][ p ], sign );
+      while ( !bfs_queue.empty() ){
+        int p = bfs_queue.front();
+        lfunc->add_variable( &v_node_injection[ 0 ][ p ], sign );
         constant_term += sign * v_ActiveDemand[ p ];
-        qu.pop();
+        bfs_queue.pop_front();
         for (int child : tree[p]) {
-          qu.push( child );
+          bfs_queue.push_back( child );
         }
       }
     }
 
     /* Σ_c C_{lc} h_c term */
-    auto it_basis = basis.begin();
-    for( int cycle_id = 0 ; cycle_id < static_cast< int >( basis.size() ) ; ++cycle_id , ++it_basis ) {
-      const std::map< Index , int > & cycle = *it_basis;
-      if( auto it = cycle.find( line_id ) ; it != cycle.end() )
-        vars.emplace_back( &v_cycle_flow[ cycle_id ] , it->second );
+    for (int cycle_id = 0; cycle_id < (int) basis.size(); ++cycle_id) {
+        const auto& cycle = basis[cycle_id];
+        auto it = cycle.find(line_id);
+        if (it != cycle.end()) {
+          lfunc->add_variable( &v_cycle_flow[ cycle_id ] , it->second );
+        }
     }
 
     v_CYCLE_def_flow_const[ line_id ].set_both( constant_term );
-    v_CYCLE_def_flow_const[ line_id ].set_function( new LinearFunction( std::move( vars ) ) );
+    v_CYCLE_def_flow_const[ line_id ].set_function( lfunc );
   }
   add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
 
  // eq (25): forall cycle c, sum_l C_{lc}x_lf_l = 0
  v_CYCLE_def_cycle_const.resize( number_lines - number_nodes + 1 );
- auto it_basis = basis.begin();
- for( int cycle_id = 0 ; cycle_id < basis.size() ;
-      ++cycle_id , ++it_basis ) {
-  std::map< Index , int > cycle = *it_basis;
-  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-   if( auto it = cycle.find( line_id ) ; it != cycle.end() )
-    vars.push_back( std::make_pair( &v_power_flow[ line_id ] ,
-			   it->second / get_line_susceptance( line_id ) ) );
-  }
-
-  v_CYCLE_def_cycle_const[ cycle_id ].set_both( 0.0 );
-  v_CYCLE_def_cycle_const[ cycle_id ].set_function(
-                                   new LinearFunction( std::move( vars ) ) );
-  }
-
+ for (size_t cycle_id = 0; cycle_id < basis.size(); ++cycle_id) {
+    auto lfunc = new LinearFunction();
+    const auto& cycle = basis[cycle_id];
+    for (const auto& [line_id, coeff] : cycle) {
+      lfunc->add_variable( &v_power_flow[ line_id ] , coeff / get_line_susceptance( line_id ) );
+    }
+  
+    v_CYCLE_def_cycle_const[ cycle_id ].set_both( 0.0 );
+    v_CYCLE_def_cycle_const[ cycle_id ].set_function( lfunc );
+ }
  add_static_constraint( v_CYCLE_def_cycle_const , "v_CYCLE_def_cycle_const" );
-
+ 
  // eq (25): sum_i p_i = 0
+ auto lfunc = new LinearFunction();
  double constant_term = 0.;
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-  vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] , 1. ) );
-  constant_term += v_ActiveDemand[ node_id ];
-  }
-
- overall_balanced_const.set_function(
-                                 new LinearFunction( std::move( vars ) ) );
+    lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , 1.0 );
+    constant_term += v_ActiveDemand[ node_id ];
+ }
+ overall_balanced_const.set_function( lfunc ) ;
  overall_balanced_const.set_lhs( constant_term );
  overall_balanced_const.set_rhs( constant_term );
-
  add_static_constraint( overall_balanced_const , "overall_balanced_const" );
 
  }  // end( DCNetworkBlock::generate_CYCLE_constraints )
