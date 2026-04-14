@@ -300,11 +300,10 @@ void BatteryUnitBlock::check_data_consistency( void ) const
  assert( v_MaxStorage.size() == f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( ( v_MinStorage[ t ] > v_MaxStorage[ t ] ) ||
-      ( v_MinStorage[ t ] < 0 ) )
+  if( ( v_MinStorage[ t ] > v_MaxStorage[ t ] ) )
    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: maximum "
                             "and minimum storage levels must be such that "
-                            "maximum_storage >= minimum_storage >= 0." ) );
+                            "maximum_storage >= minimum_storage." ) );
 
  // Inefficiency of storing and extracting energy
 
@@ -471,7 +470,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
-  var.set_type( ColVariable::kNonNegative );
+  var.set_type( ColVariable::kContinuous );
  add_static_variable( v_storage_level , "sl_battery" );
 
  v_intake_level.resize( f_time_horizon );
