@@ -821,7 +821,8 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 /*--------------------------------------------------------------*/
  /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c      */
  /*--------------------------------------------------------------*/
- auto & DC_lines = f_NetworkData->get_DC_lines();
+ auto & DC_lines   = f_NetworkData->get_DC_lines();
+ auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
  int nb_dc_lines = DC_lines.size();
 
  v_CYCLE_def_flow_const.resize( nb_dc_lines );
@@ -849,6 +850,13 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
       while ( !bfs_queue.empty() ){
         int p = bfs_queue.front();
         lfunc->add_variable( &v_node_injection[ 0 ][ p ], sign );
+        // HVDC lines alter the net node_injection here and should be accounted for (if present)
+        for ( auto & hvdc_line : HVDC_lines ){
+          if ( end_line[ hvdc_line ] == p )
+            lfunc->add_variable( &v_power_flow[ hvdc_line ], sign );
+          if ( start_line[ hvdc_line ] == p )
+            lfunc->add_variable( &v_power_flow[ hvdc_line ], -1.0*sign );
+        }
         constant_term += sign * v_ActiveDemand[ p ];
         bfs_queue.pop_front();
         for (int child : tree[p]) {

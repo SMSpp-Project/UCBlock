@@ -668,6 +668,7 @@ class DCNetworkData : public NetworkData
    this->compute_cycle_basis();
 
   const auto number_lines = get_number_lines();
+  const auto & DC_lines   = get_DC_lines();
   if( number_lines <= 0 )
    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
 			    "number of lines of DCNetworkBlock is not set" )
@@ -677,7 +678,8 @@ class DCNetworkData : public NetworkData
   const auto & end_line = get_end_line();
 
   std::map< Index , int > lines_in_spanning_tree;
-  for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+  //for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+  for ( auto & line_id : DC_lines){ // only DC lines can participate here
    Index i = start_line[ line_id ];
    Index j = end_line[ line_id ];
    if( this->m_spanning_tree[ i ].contains( j ) )  // line in spanning tree
