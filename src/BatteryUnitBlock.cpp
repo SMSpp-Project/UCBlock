@@ -300,11 +300,10 @@ void BatteryUnitBlock::check_data_consistency( void ) const
  assert( v_MaxStorage.size() == f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( ( v_MinStorage[ t ] > v_MaxStorage[ t ] ) ||
-      ( v_MinStorage[ t ] < 0 ) )
+  if( ( v_MinStorage[ t ] > v_MaxStorage[ t ] ) )
    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: maximum "
                             "and minimum storage levels must be such that "
-                            "maximum_storage >= minimum_storage >= 0." ) );
+                            "maximum_storage >= minimum_storage." ) );
 
  // Inefficiency of storing and extracting energy
 
@@ -471,7 +470,7 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  v_storage_level.resize( f_time_horizon );
  for( auto & var : v_storage_level )
-  var.set_type( ColVariable::kNonNegative );
+  var.set_type( ColVariable::kContinuous );
  add_static_variable( v_storage_level , "sl_battery" );
 
  v_intake_level.resize( f_time_horizon );
@@ -1647,9 +1646,9 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-    f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] , issueAMod );
+    -f_kappa * f_MaxCRateCharge * v_MinPower[ t ] , issueAMod );
    intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
-    -f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] , issueAMod );
+    f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] , issueAMod );
   }
 
  else if( ! intake_outtake_upper_bounds_design_Const.empty() )
@@ -1667,7 +1666,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                              "intake_outtake_upper_bounds_design_Const." ) );
 
    f0->modify_coefficient( batt_design_idx0 ,
-                           -f_kappa * f_MaxCRateCharge * v_MaxPower[ t ] ,
+                           f_kappa * f_MaxCRateCharge * v_MinPower[ t ] ,
                            issueAMod );
 
    auto f1 = static_cast< LinearFunction * >(
@@ -1681,7 +1680,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                              "intake_outtake_upper_bounds_design_Const." ) );
 
    f1->modify_coefficient( batt_design_idx1 ,
-                           f_kappa * f_MaxCRateDischarge * v_MinPower[ t ] ,
+                           -f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] ,
                            issueAMod );
 
    auto f2 = static_cast< LinearFunction * >(
