@@ -903,8 +903,9 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  
  // Add the HVDC constraints for the cycle formulation
 
- // If desired an additional boolean can be intercepted from the Block config and plugged here   
- generate_HVDC_nodal_constraints( );
+ // If desired an additional boolean can be intercepted from the Block config and plugged here
+ if ( f_NetworkData->is_HVDC() || f_NetworkData->is_DC_HVDC() )   
+    generate_HVDC_nodal_constraints( );
  
  /* --- old stuff
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
@@ -1010,7 +1011,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
   // power flow node injection constraints for mixed DC - HVDC- - - - - - - -
   // if we have mixed lines, we have as many as nodes impacted and touched
   // by DC lines
-  if( f_NetworkData->is_DC_HVDC() ) {
     int nb_DCnodes = 0;
     // savagely setting all visited nodes to true will generate nodal
     // balances for all nodes
@@ -1065,8 +1065,7 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
    }
    // Add the whole vector of constraints at once
    add_static_constraint( v_DC_HVDC_power_flow_const ,
-                          "DCHVDC_power_flow_injection" );   
-  }  // end( if( there are HVDC lines ) )
+                          "DCHVDC_power_flow_injection" );
 }
 
 
@@ -1253,8 +1252,10 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
 			  "HVDC_power_flow_injection" );
    }
 
-   // If desired an additional boolean can be intercepted from the Block config and plugged here   
-   generate_HVDC_nodal_constraints( );
+   // If desired an additional boolean can be intercepted from the Block config and plugged here
+   if( f_NetworkData->is_DC_HVDC() ) {   
+    generate_HVDC_nodal_constraints( );
+   }
  }
 
  // Constraints on the DC part- - - - - - - - - - - - - - - - - - - - - - - -

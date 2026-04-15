@@ -698,8 +698,11 @@ class DCNetworkData : public NetworkData
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
 
+  const auto & DC_lines   = get_DC_lines();
   const auto number_nodes = get_number_nodes();
   const auto number_lines = get_number_lines();
+  int nb_dc_lines = DC_lines.size(); 
+  
   if( number_lines <= 0 )
    throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
 			    "number of lines of DCNetworkBlock is not set" )
@@ -712,7 +715,8 @@ class DCNetworkData : public NetworkData
    std::vector< std::map< Index , int > >( this->v_cycle_basis.size() );
   int idx_cycle = 0;
   for (auto & cycle : this->v_cycle_basis ) {
-    for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+    //for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
+    for ( auto & line_id : DC_lines){ // only DC lines can participate here
       Index i = start_line[ line_id ];
       Index j = end_line[ line_id ];
       auto it_i = std::find( cycle.begin() , cycle.end() , i );
@@ -736,8 +740,9 @@ class DCNetworkData : public NetworkData
     ++ idx_cycle;
   }
 
-  assert( lines_in_cycles.size() == number_lines - number_nodes + 1 );
   // take advantage of the theory to ensure the size of the cycle basis
+  // Not sure if the Theory is valid in a graph having potentially disconnected componenents due to HVDC lines
+  // assert( lines_in_cycles.size() == number_lines - number_nodes + 1 );
 
   return( lines_in_cycles );
   }
