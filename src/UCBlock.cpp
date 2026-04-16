@@ -2308,7 +2308,7 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
                             this , UCBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
- }  // end( UCBlock::set_active_power_demand( range ) )
+}  // end( UCBlock::set_active_power_demand( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF UCBlockSolution -------------------------*/

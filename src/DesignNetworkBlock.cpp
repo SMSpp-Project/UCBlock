@@ -472,27 +472,57 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
 /*--------------------------------------------------------------------------*/
 
 void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
-                                            Subset && subset , bool ordered ,
+                                            Subset && subset ,
+                                            bool ordered ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
 {
  if( v_Block.empty() || subset.empty() )
   return;
 
- if( subset.empty() )
-  return;
- 
+ if( ! ordered )
+  std::sort( subset.begin() , subset.end() );
+
+ Index global_offset = 0;
+ auto val_it = values;
+
  for( auto bi : v_Block ) {
   auto nbi = static_cast< NetworkBlock * >( bi );
-  Subset sb = subset;
-  nbi->set_active_demand( values , std::move( sb ) , ordered ,
-        issuePMod , issueAMod );
+  if( ! nbi )
+   continue;
+
+  const Index local_size =
+   nbi->get_number_intervals() * nbi->get_number_nodes();
+
+  Subset local_subset;
+  auto first_val_it = val_it;
+
+  for( auto idx : subset ) {
+   if( ( idx >= global_offset ) && ( idx < global_offset + local_size ) ) {
+    local_subset.push_back( idx - global_offset );
+    ++val_it;
+    }
+   else if( idx >= global_offset + local_size ) {
+    // this element belongs to a later block, do nothing here
+    }
+   }
+
+  if( ! local_subset.empty() ) {
+   nbi->set_active_demand( first_val_it ,
+                           std::move( local_subset ) ,
+                           true ,
+                           issuePMod ,
+                           issueAMod );
+   }
+
+  global_offset += local_size;
   }
  }  // end( DesignNetworkBlock::set_active_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void DesignNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
+void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
+                                            Range rng ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
 {
@@ -502,9 +532,36 @@ void DesignNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
  if( rng.second <= rng.first )
   return;
 
+ Index global_offset = 0;
+ auto val_it = values;
+
  for( auto bi : v_Block ) {
   auto nbi = static_cast< NetworkBlock * >( bi );
-  nbi->set_active_demand( values , rng , issuePMod , issueAMod );
+  if( ! nbi )
+   continue;
+
+  const Index local_size =
+   nbi->get_number_intervals() * nbi->get_number_nodes();
+
+  const Index block_begin = global_offset;
+  const Index block_end   = global_offset + local_size;
+
+  const Index overlap_begin = std::max( rng.first , block_begin );
+  const Index overlap_end   = std::min( rng.second , block_end );
+
+  if( overlap_begin < overlap_end ) {
+   const Range local_rng( overlap_begin - block_begin ,
+                          overlap_end   - block_begin );
+
+   nbi->set_active_demand( val_it ,
+                           local_rng ,
+                           issuePMod ,
+                           issueAMod );
+
+   std::advance( val_it , overlap_end - overlap_begin );
+   }
+
+  global_offset += local_size;
   }
  }  // end( DesignNetworkBlock::set_active_demand( range ) )
 
