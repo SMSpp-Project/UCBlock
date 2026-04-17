@@ -904,6 +904,17 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
     lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , 1.0 );
     constant_term += v_ActiveDemand[ node_id ];
  }
+ // In case the hypergraph is specified (only HVDC lines) and if these have non-1
+ // efficiency, these need to enter the overall balance since they can imply
+ // a) Losses (when flows are in the sense of the line and effiency < 1) or
+ //         against the sense of the line and efficiency > 1
+ // b) Additional Generation (when flows are against the sense of the line and efficiency < 1)
+ //         with the flow of the line and efficiency > 1 
+ // 
+ for ( auto & hvdc_l : HVDC_lines ){
+    double eta = f_NetworkData->get_line_efficiency( hvdc_l );
+    lfunc->add_variable( &v_power_flow[ hvdc_l ] , (eta - 1.0) );
+ }
  overall_balanced_const.set_function( lfunc ) ;
  overall_balanced_const.set_lhs( constant_term );
  overall_balanced_const.set_rhs( constant_term );
