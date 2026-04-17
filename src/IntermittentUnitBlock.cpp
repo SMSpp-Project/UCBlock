@@ -490,13 +490,14 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
  // Maximum and Minimum generation constraints (if any)
  if( ( f_MaxGeneration < Inf< double >() ) || ( f_MinGeneration > -Inf< double >() ) ) {
 
-  auto lfunc = new LinearFunction();
+  LinearFunction::v_coeff_pair vpair( f_time_horizon ,
+    std::make_pair( nullptr , 1 ) );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   lfunc->add_variable( &v_active_power[ t ] , 1.0 );
+   vpair[ t ].first = &v_active_power[ t ];
   
   MaxMinGeneration_Const.set_lhs( f_MinGeneration );
   MaxMinGeneration_Const.set_rhs( f_MaxGeneration );
-  MaxMinGeneration_Const.set_function( lfunc );
+  MaxMinGeneration_Const.set_function( new LinearFunction( std::move( vpair ) ) );
   
   add_static_constraint( MaxMinGeneration_Const , "MaxMinGeneration_intermittent" );
  }
