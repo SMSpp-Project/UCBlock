@@ -108,6 +108,12 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
                       v_ActivePowerCost , true , true , v_change_intervals ) )
   v_ActivePowerCost.resize( f_time_horizon );
 
+ if ( ! ::deserialize( group , f_MaxGeneration, "MaxGeneration" ))
+  f_MaxGeneration = Inf< double >();
+
+ if ( ! ::deserialize( group , f_MinGeneration , "MinGeneration" ))
+  f_MinGeneration = -Inf< double >();
+
  ::deserialize( group , f_gamma , "Gamma" );
 
  ::deserialize( group , f_kappa , "Kappa" );
@@ -157,7 +163,7 @@ std::vector< std::string > IntermittentUnitBlock::expected_vars( void )
  { "InvestmentCost" , "MinCapacityDesign" , "MaxCapacityDesign" ,
    "MaxCapacity" , "MinPower" , "MaxPower" , "InertiaPower" ,
    "ActivePowerCost", "Gamma" , "Kappa", "MinReactivePower",
-   "MaxReactivePower"
+   "MaxReactivePower", "MaxGeneration", "MinGeneration"
    };
 
  auto ret = UnitBlock::expected_vars();
@@ -207,6 +213,11 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
                              "is " + std::to_string( v_MaxPower[ t ] ) + "." ) );
 
  }
+ 
+ // Maximum generation no lower than Minimum Generation
+ if( ( f_MaxGeneration < f_MinGeneration ) )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "MaxGeneration must be >= MinGeneration." ) );
 
  // Gamma
 
@@ -475,7 +486,22 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   add_static_constraint( Reactive_2_Active_Const, "QandP_inter" );
   !!*/
   }
+
+ // Maximum and Minimum generation constraints (if any)
+ if( ( f_MaxGeneration < Inf< double >() ) || ( f_MinGeneration > -Inf< double >() ) ) {
+
+  LinearFunction::v_coeff_pair vpair( f_time_horizon ,
+    std::make_pair( nullptr , 1 ) );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   vpair[ t ].first = &v_active_power[ t ];
   
+  MaxMinGeneration_Const.set_lhs( f_MinGeneration );
+  MaxMinGeneration_Const.set_rhs( f_MaxGeneration );
+  MaxMinGeneration_Const.set_function( new LinearFunction( std::move( vpair ) ) );
+  
+  add_static_constraint( MaxMinGeneration_Const , "MaxMinGeneration_intermittent" );
+ }
+
  set_constraints_generated();
 
  }  // end( IntermittentUnitBlock::generate_abstract_constraints )
@@ -593,6 +619,9 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  ::serialize( group , "Gamma" , netCDF::NcDouble() , f_gamma );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
+
+ ::serialize( group , "MaxGeneration" , netCDF::NcDouble() , f_MaxGeneration );
+ ::serialize( group , "MinGeneration" , netCDF::NcDouble() , f_MinGeneration );
 
  // Serialize one-dimensional variables
 
