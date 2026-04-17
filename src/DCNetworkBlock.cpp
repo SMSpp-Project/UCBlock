@@ -911,9 +911,18 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  // b) Additional Generation (when flows are against the sense of the line and efficiency < 1)
  //         with the flow of the line and efficiency > 1 
  // 
- for( auto & hvdc_l : HVDC_lines ) {
-  double eta = f_NetworkData->get_line_efficiency( hvdc_l );
-  lfunc->add_variable( &v_power_flow[ hvdc_l ] , eta - 1.0 );
+ double eta;
+ for ( auto & hvdc_l : HVDC_lines ){
+  if ( ! f_NetworkData->is_hypergraph() ) {  // if not hyperarc, losses are 1 - eta
+    eta = f_NetworkData->get_line_efficiency( hvdc_l );
+    lfunc->add_variable( &v_power_flow[ hvdc_l ] , (eta - 1.0) );
+  }
+  else
+  { // if hyperarc, losses are 1 - sum(etas)
+    auto & etas = f_NetworkData->get_line_efficiencies( hvdc_l );
+    double eta_sum = std::accumulate( etas.begin() , etas.end() , 0.0 );
+    lfunc->add_variable( &v_power_flow[ hvdc_l ] , (eta_sum - 1.0) );
+  }
  }
  overall_balanced_const.set_function( lfunc ) ;
  overall_balanced_const.set_lhs( constant_term );
@@ -1060,18 +1069,29 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
 
         double eta = 1.0;
         for( auto & line_id : HVDC_lines ) {
-          eta = f_NetworkData->get_line_efficiency( line_id );
           if( start_line[ line_id ] == n )
-            lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 ); 
-          if( end_line[ line_id ] == n )
-            lfunc->add_variable(  &v_power_flow[ line_id ] , -eta );
+            lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );
+          
+          if ( ! f_NetworkData->is_hypergraph() ) {
+            if( end_line[ line_id ] == n )
+              lfunc->add_variable(  &v_power_flow[ line_id ] , -eta );
+          }
+          else
+          {
+            for( Index i = 0 ;
+              i < f_NetworkData->get_end_lines()[ line_id ].size() ; ++i ) {
+                if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
+                  eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
+                  lfunc->add_variable( & v_power_flow[ line_id ] , -eta );
+                }
+            }
+          }
         }
         for( auto & line_id : DC_lines ) {
-          eta = f_NetworkData->get_line_efficiency( line_id );
           if( start_line[ line_id ] == n )
             lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 ); 
           if( end_line[ line_id ] == n )
-            lfunc->add_variable( &v_power_flow[ line_id ] , -eta ); 
+            lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 ); 
         }
 
         v_DC_HVDC_power_flow_const[ iDCnode ].set_lhs( -v_ActiveDemand[ n ] - nodal_slack );
