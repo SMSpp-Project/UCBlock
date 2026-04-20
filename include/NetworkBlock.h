@@ -873,6 +873,8 @@ class NetworkBlock : public Block
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the NetworkBlock
+ *  @{ */
 
  /// set the active demand at the nodes specified by \p subset
  /** This function sets the active demand at each node in the given \p
@@ -917,7 +919,7 @@ class NetworkBlock : public Block
                                  ModParam issuePMod ,
                                  ModParam issueAMod ) = 0;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 

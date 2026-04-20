@@ -682,6 +682,8 @@ class ECNetworkBlock : public NetworkBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the ECNetworkBlock
+ *  @{ */
 
  /// set the active demand at the nodes specified by \p subset
  /** This function sets the active demand at each node in the given \p
@@ -729,7 +731,7 @@ class ECNetworkBlock : public NetworkBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 

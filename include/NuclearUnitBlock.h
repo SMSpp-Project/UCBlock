@@ -425,6 +425,9 @@ class NuclearUnitBlock : public ThermalUnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the NuclearUnitBlock
+ *  @{ */
+
  /* Method for handling Modification.
   *
   * This method has to intercept any "abstract Modification" that
@@ -510,7 +513,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
 				ModParam issuePMod = eNoBlck ,
 				ModParam issueAMod = eNoBlck );
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

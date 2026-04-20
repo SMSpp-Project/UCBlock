@@ -785,7 +785,7 @@ class IntermittentUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
- /** @name Methods for changing the data of the IntermittentUnitBlock
+/** @name Methods for changing the data of the IntermittentUnitBlock
  *  @{ */
 
  /// set the maximum power values
@@ -951,7 +951,7 @@ class IntermittentUnitBlock : public UnitBlock
 
  using UnitBlock::scale;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

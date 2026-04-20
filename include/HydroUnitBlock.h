@@ -1665,7 +1665,7 @@ class HydroUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
- /** @name Methods for changing the data of the HydroUnitBlock
+/** @name Methods for changing the data of the HydroUnitBlock
  *  @{ */
 
  /// set the inflow values
@@ -1808,7 +1808,7 @@ class HydroUnitBlock : public UnitBlock
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck );
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// set the active power cost values
  /** This function sets the active power cost values of this HydroUnitBlock.
   *
@@ -1861,7 +1861,7 @@ class HydroUnitBlock : public UnitBlock
                          issuePMod , issueAMod );
  }
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

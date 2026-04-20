@@ -2165,6 +2165,9 @@ class ThermalUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the ThermalUnitBlock
+ *  @{ */
+
  /** Method for handling Modification.
   *
   * This method has to intercept any "abstract Modification" that
@@ -2396,7 +2399,7 @@ class ThermalUnitBlock : public UnitBlock
  // For the Range version, use the default implementation defined in UnitBlock
  using UnitBlock::scale;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

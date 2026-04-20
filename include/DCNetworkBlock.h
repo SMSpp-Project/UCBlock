@@ -1818,6 +1818,9 @@ class DCNetworkData : public NetworkData
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the DCNetworkBlock
+ *  @{ */
+
  /// set the kappa constants for the lines specified by \p subset
  /** This function sets the kappa constant of each line in the given \p
   * subset. The kappa constant of each line whose index is specified by the
@@ -1949,7 +1952,7 @@ class DCNetworkData : public NetworkData
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
