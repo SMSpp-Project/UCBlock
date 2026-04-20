@@ -785,27 +785,107 @@ class IntermittentUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+ /** @name Methods for changing the data of the IntermittentUnitBlock
+ *  @{ */
+
+ /// set the maximum power values
+ /** This function sets the maximum power values of this IntermittentUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the maximum power values.
+  * @param subset  If non-empty, the maximum power values corresponding to the
+  *                indices in \p subset are set to the values pointed by
+  *                \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_maximum_power( MF_dbl_it values ,
                          Subset && subset ,
                          const bool ordered = false ,
-                         ModParam issuePMod = eNoBlck ,
-                         ModParam issueAMod = eNoBlck );
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the maximum power values
+ /** This function sets the maximum power values of this IntermittentUnitBlock.
+  *
+  * @param values Iterator to a vector containing the maximum power values.
+  * @param rng    If non-empty, the maximum power values corresponding to the
+  *               indices in \p rng are set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_maximum_power( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
-                         ModParam issuePMod = eNoBlck ,
-                         ModParam issueAMod = eNoBlck );
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this
+  * IntermittentUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the active power cost
+  *                values.
+  * @param subset  If non-empty, the active power cost values corresponding
+  *                to the indices in \p subset are set to the values pointed
+  *                by \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( MF_dbl_it values ,
+                             Subset && subset ,
+                             bool ordered = false ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this
+  * IntermittentUnitBlock.
+  *
+  * @param values Iterator to a vector containing the active power cost
+  *               values.
+  * @param rng    If non-empty, the active power cost values corresponding
+  *               to the indices in \p rng are set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( MF_dbl_it values ,
+                             Range rng = Range( 0 , Inf< Index >() ) ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this
+  * IntermittentUnitBlock.
+  *
+  * @param value     The value of the active power cost.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( double value ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_active_power_cost( vector.cbegin() ,
+                         Range( 0 , Inf< Index >() ) ,
+                         issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// sets the scale factor
- /** This method sets the scale factor.
+ /** This method sets the scale factor of this IntermittentUnitBlock.
   *
   * @param values An iterator to a vector containing the scale factor.
-  *
   * @param subset If non-empty, the scale factor is set to the value pointed
   *               by \p values. If empty, no operation is performed.
-  *
   * @param ordered This parameter is ignored.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued. */
@@ -821,8 +901,9 @@ class IntermittentUnitBlock : public UnitBlock
   * maximum power in the constraints of this IntermittentUnitBlock.
   *
   * @param values  Iterator to a vector containing the kappa constants.
-  * @param subset  If non-empty, the kappa constant is set to the value
-  *                pointed by \p values. If empty, no operation is performed.
+  * @param subset  If non-empty, the kappa constant corresponding to the
+  *                indices in \p subset is set to the values pointed by
+  *                \p values. If empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued. */
@@ -838,8 +919,9 @@ class IntermittentUnitBlock : public UnitBlock
   * maximum power in the constraints of this IntermittentUnitBlock.
   *
   * @param values Iterator to a vector containing the kappa constants.
-  * @param rng    If non-empty, the kappa constant is set to the value
-  *               pointed by \p values. If empty, no operation is performed.
+  * @param rng    If non-empty, the kappa constant corresponding to the
+  *               indices in \p rng is set to the values pointed by
+  *               \p values. If empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
@@ -1052,6 +1134,14 @@ class IntermittentUnitBlock : public UnitBlock
    & IntermittentUnitBlock::set_maximum_power );
 
   register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::set_active_power_cost" ,
+   & IntermittentUnitBlock::set_active_power_cost );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::set_active_power_cost" ,
+   & IntermittentUnitBlock::set_active_power_cost );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
    "IntermittentUnitBlock::scale" ,
    & IntermittentUnitBlock::scale );
 
@@ -1085,7 +1175,8 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  {
   eSetMaxP = eUBModLastParam , ///< set max power values
   eSetKappa ,                  ///< set the kappa constant
-  eIUBModLastParam         ///< first allowed parameter for derived classes
+  eSetActPCost ,               ///< set active power cost values
+  eIUBModLastParam             ///< first allowed parameter for derived classes
   /**< Convenience value to easily allow derived classes to extend the set
    * of types of IntermittentUnitBlockMod. */
   };
@@ -1107,8 +1198,17 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  void print( std::ostream & output ) const override {
   output << "IntermittentUnitBlockMod[" << this << "]: ";
   switch( f_type ) {
-   default:
+   case( eSetMaxP ):
     output << "Set max power values ";
+    break;
+   case( eSetKappa ):
+    output << "Set the kappa constant ";
+    break;
+   case( eSetActPCost ):
+    output << "Set active power cost values ";
+    break;
+   default:
+    break;
   }
  }
 

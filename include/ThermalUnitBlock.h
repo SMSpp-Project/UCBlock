@@ -2908,6 +2908,62 @@ class ThermalUnitBlock : public UnitBlock
    "ThermalUnitBlock::set_initial_power" ,
    & ThermalUnitBlock::set_initial_power );
 
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_startup_costs" ,
+   & ThermalUnitBlock::set_startup_costs );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_startup_costs" ,
+   & ThermalUnitBlock::set_startup_costs );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::scale" ,
+   & ThermalUnitBlock::scale );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::scale" ,
+   & ThermalUnitBlock::scale );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_const_term" ,
+   & ThermalUnitBlock::set_const_term );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_const_term" ,
+   & ThermalUnitBlock::set_const_term );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_linear_term" ,
+   & ThermalUnitBlock::set_linear_term );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_linear_term" ,
+   & ThermalUnitBlock::set_linear_term );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_quad_term" ,
+   & ThermalUnitBlock::set_quad_term );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_quad_term" ,
+   & ThermalUnitBlock::set_quad_term );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_primary_spinning_reserve_cost" ,
+   & ThermalUnitBlock::set_primary_spinning_reserve_cost );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_primary_spinning_reserve_cost" ,
+   & ThermalUnitBlock::set_primary_spinning_reserve_cost );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_secondary_spinning_reserve_cost" ,
+   & ThermalUnitBlock::set_secondary_spinning_reserve_cost );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_secondary_spinning_reserve_cost" ,
+   & ThermalUnitBlock::set_secondary_spinning_reserve_cost );
+
   register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
    "ThermalUnitBlock::set_init_updown_time" ,
    & ThermalUnitBlock::set_init_updown_time );
@@ -2915,12 +2971,6 @@ class ThermalUnitBlock : public UnitBlock
   register_method< ThermalUnitBlock , MF_int_it , Range >(
    "ThermalUnitBlock::set_init_updown_time" ,
    & ThermalUnitBlock::set_init_updown_time );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2994,7 +3044,14 @@ class ThermalUnitBlockMod : public UnitBlockMod
    case( eSetConstT ):
     output << "Set constant term";
     break;
-   default:;
+   case( eSetPrSpResCost ):
+    output << "Set primary spinning reserve cost";
+    break;
+   case( eSetSecSpResCost ):
+    output << "Set secondary spinning reserve cost";
+    break;
+   default:
+    break;
    }
   }
  };  // end( class( ThermalUnitBlockMod ) )
