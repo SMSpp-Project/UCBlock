@@ -491,6 +491,29 @@ class BatteryUnitBlock : public UnitBlock
   * need not be defined. For details, see the comments to
   * generate_abstract_variables() and generate_abstract_constraints().
   *
+  * - The variable "StandingBatteryRho", of type netCDF::NcDouble and either
+  *   of size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   \f$ \mathrm{STBR}[ t ] \f$ that, for each time instant \f$ t \f$,
+  *   contains the inefficiency of holding the energy of the unit for the
+  *   corresponding time step. This variable is optional; if it is not
+  *   provided then \f$ \mathrm{STBR}[ t ] = 1. \f$ for all \f$ t \f$, i.e., no
+  *   energy is spent just for holding energy in the battery (this
+  *   simplifies the model somewhat, see below). If "StandingBatteryRho" has
+  *   length 1 then \f$ \mathrm{STBR}[ t ] \f$ contains the same value for all
+  *   \f$ t \f$. Otherwise, \f$ \mathrm{StandingBatteryRho}[ i ] \f$ is the
+  *   fixed value of \f$ \mathrm{STBR}[ t ] \f$ for all \f$ t \f$ in the
+  *   interval \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *   \mathrm{ChangeIntervals}[ i ] ] \f$ with the assumption that
+  *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. Note that it must always
+  *   be \f$ \mathrm{STBR}[ t ] \le 0. \f$ for all \f$ t \f$ (as \f$ \mathrm{STBR}
+  *   [ t ] \f$ is the amount of energy actually going in the battery for each
+  *   1 unit of input energy). If \f$ \mathrm{NumberIntervals} \le 1 \f$ or
+  *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
+  *   mapping clearly does not require "ChangeIntervals", which in fact is not
+  *   loaded.
+  *
   * - The scalar variable "InitialStorage", of type netCDF::NcDouble and not
   *   indexed over any dimension. This variable indicates the amount of
   *   storage level that the unit had at time instant -1, i.e., before the
@@ -766,7 +789,7 @@ class BatteryUnitBlock : public UnitBlock
   *   f_time_horizon:
   *
   *   \f[
-  *     v^{ba}_t = v^{ba}_{t-1} + ρ^+_t · p^+_t − ρ^-_t · p^-_t − d^{ba}_t
+  *     v^{ba}_t = v^{ba}_{t-1} ρ^{st}_t + ρ^+_t · p^+_t − ρ^-_t · p^-_t − d^{ba}_t
   *                                         \quad t \in \mathcal{T} \quad (7)
   *   \f]
   *
@@ -1193,6 +1216,25 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_extracting_battery_rho( void ) const {
   return( v_ExtractingBatteryRho );
+  }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the vector of inefficiency of holding energy of the unit
+  /** This method returns a vector V containing the standing battery rho
+  * (inefficiency of standing/holding energy of the unit) at all time instants.
+  * There are three possible cases:
+  *
+  * - if the vector is empty, then the extracting battery rho of the unit is
+  *   0.;
+  *
+  * - if the vector has only one element, then V[ 0 ] is the extracting
+  *   battery rho of the unit for all time instants;
+  *
+  * - otherwise, the vector V must have size get_time_horizon() and each
+  *   V[ t ] represents the extracting battery rho value at time t. */
+
+  const std::vector< double > & get_standing_battery_rho( void ) const {
+  return( v_StandingBatteryRho );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1795,6 +1837,9 @@ class BatteryUnitBlock : public UnitBlock
  /// the vector of ExtractingBatteryRho
  std::vector< double > v_ExtractingBatteryRho;
 
+ /// the vector of StandingBatteryRho
+ std::vector< double > v_StandingBatteryRho;
+
  /// the vector of Cost
  std::vector< double > v_Cost;
 
@@ -2014,6 +2059,8 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - The inefficiency of extracting energy is greater than or equal to the
   *   inefficiency of storing energy.
+  *
+  * - The inefficiency of standing energy is less than or equal to 1.
   *
   * - The demand is nonnegative.
   *

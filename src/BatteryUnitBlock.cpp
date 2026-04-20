@@ -150,6 +150,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                 v_StoringBatteryRho , true , true , v_change_intervals );
  ::deserialize( group , "ExtractingBatteryRho" , f_time_horizon ,
                 v_ExtractingBatteryRho , true , true , v_change_intervals );
+ ::deserialize( group , "StandingBatteryRho" , f_time_horizon ,
+                v_StandingBatteryRho , true , true , v_change_intervals );
 
  if( ! ::deserialize( group , "Cost" , f_time_horizon , v_Cost ,
                       true , true , v_change_intervals ) )
@@ -206,7 +208,8 @@ std::vector< std::string > BatteryUnitBlock::expected_vars( void ) const {
  { "MinStorage" , "MaxStorage" , "InitialStorage" , "MinPower" , "MaxPower" ,
    "InitialPower" , "ConverterMaxPower" , "MaxPrimaryPower" ,
    "MaxSecondaryPower" , "DeltaRampUp" , "DeltaRampDown" ,
-   "StoringBatteryRho" , "ExtractingBatteryRho" , "Cost" , "Demand" ,
+   "StoringBatteryRho" , "ExtractingBatteryRho" , "StandingBatteryRho",
+   "Cost" , "Demand" ,
    "Kappa" , "MaxCRateCharge" , "MaxCRateDischarge" , "BatteryMaxCapacity" ,
    "ConverterMaxCapacity" , "BatteryInvestmentCost" ,
    "ConverterInvestmentCost" , "BatteryMinCapacityDesign" ,
@@ -305,7 +308,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const
                             "and minimum storage levels must be such that "
                             "maximum_storage >= minimum_storage." ) );
 
- // Inefficiency of storing and extracting energy
+ // Inefficiency of storing, extracting and standing energy
 
  if( ! v_StoringBatteryRho.empty() ) {
   assert( v_StoringBatteryRho.size() == f_time_horizon );
@@ -327,6 +330,23 @@ void BatteryUnitBlock::check_data_consistency( void ) const
                              "step " + std::to_string( t ) + ": " +
                              std::to_string( v_ExtractingBatteryRho[ t ] ) +
                              ". It must not be less than 1." ) );
+ }
+
+ if( ! v_StandingBatteryRho.empty() ) {
+  assert( v_StandingBatteryRho.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_StandingBatteryRho[ t ] > 1. ) 
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
+                             " inefficiency of standing energy for time "
+                             "step " + std::to_string( t ) + ": " +
+                             std::to_string( v_StandingBatteryRho[ t ] ) +
+                             ". It must not be greater than 1." ) );
+   else if( v_StandingBatteryRho[ t ] < 0. )
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid"
+                            " inefficiency of standing energy for time "
+                            "step " + std::to_string( t ) + ": " +
+                            std::to_string( v_StandingBatteryRho[ t ] ) +
+                            ". It must not be lower than 0." ) );
  }
 
  // Delta ramp-up
@@ -929,19 +949,23 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  vars.push_back( std::make_pair( &v_storage_level[ 0 ] , 1.0 ) );
 
- if( f_InitialStorage < 0 )  // cyclical notation
-  vars.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
-                                  -1.0 ) );
-
- double intake_coeff = 0.0;
+ double intake_coeff = 1.0;
  if( ! v_StoringBatteryRho.empty() )
   intake_coeff = -v_StoringBatteryRho[ 0 ];
  vars.push_back( std::make_pair( &v_intake_level[ 0 ] , intake_coeff ) );
 
- double outtake_coeff = 0.0;
+ double outtake_coeff = 1.0;
  if( ! v_ExtractingBatteryRho.empty() )
   outtake_coeff = v_ExtractingBatteryRho[ 0 ];
  vars.push_back( std::make_pair( &v_outtake_level[ 0 ] , outtake_coeff ) );
+
+ double standing_coeff = 1.0;
+  if( ! v_StandingBatteryRho.empty() )
+    standing_coeff = v_StandingBatteryRho[ 0 ];
+
+ if( f_InitialStorage < 0 )  // cyclical notation
+  vars.push_back( std::make_pair( &v_storage_level[ f_time_horizon - 1 ] ,
+                                  -standing_coeff ) );
 
  if( ! v_Demand.empty() )
   demand_Const[ 0 ].set_both(
@@ -952,16 +976,20 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  demand_Const[ 0 ].set_function( new LinearFunction( std::move( vars ) ) );
 
- for( Index t = 1 ; t < f_time_horizon ; ++t ) {
+ for( Index t = 1 ; t < f_time_horizon ; ++t ) {  
   vars.push_back( std::make_pair( &v_storage_level[ t ] , 1.0 ) );
-  vars.push_back( std::make_pair( &v_storage_level[ t - 1 ] , -1.0 ) );
+  
+  standing_coeff = 1.0;
+  if( ! v_StandingBatteryRho.empty() )
+    standing_coeff = v_StandingBatteryRho[ t ];
+  vars.push_back( std::make_pair( &v_storage_level[ t - 1 ] , -standing_coeff ) );
 
-  intake_coeff = 0.0;
+  intake_coeff = 1.0;
   if( ! v_StoringBatteryRho.empty() )
    intake_coeff = -v_StoringBatteryRho[ t ];
   vars.push_back( std::make_pair( &v_intake_level[ t ] , intake_coeff ) );
 
-  outtake_coeff = 0.0;
+  outtake_coeff = 1.0;
   if( ! v_ExtractingBatteryRho.empty() )
    outtake_coeff = v_ExtractingBatteryRho[ t ];
   vars.push_back( std::make_pair( &v_outtake_level[ t ] , outtake_coeff ) );
@@ -1381,6 +1409,7 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "DeltaRampDown" , v_DeltaRampDown );
  serialize( "StoringBatteryRho" , v_StoringBatteryRho );
  serialize( "ExtractingBatteryRho" , v_ExtractingBatteryRho );
+ serialize( "StandingBatteryRho" , v_StandingBatteryRho );
  serialize( "Cost" , v_Cost );
  serialize( "Demand" , v_Demand );
 
