@@ -164,7 +164,7 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ConstantTerm" , f_TotalNumberPieces ,
                 v_ConstTerm , true , true );
 
- ::deserialize( group , "ActivePowerCost" , f_TotalNumberPieces ,
+ ::deserialize( group , "ActivePowerCost" , f_NumberArcs ,
                 v_ActivePowerCost , true , true );
 
  ::deserialize( group , "InertiaPower" , { f_time_horizon , f_NumberArcs } ,
@@ -913,7 +913,7 @@ void HydroUnitBlock::generate_objective( Configuration * objc )
 
  if( ! v_ActivePowerCost.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   for( Index arc = 0 ; arc < f_TotalNumberPieces ; ++arc )
+   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
     vars.push_back( std::make_pair( get_active_power( arc , t ) ,
                                     v_ActivePowerCost[ arc ] ) );
 
@@ -1066,7 +1066,7 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
               TotalNumberPieces , v_ConstTerm , false );
 
  ::serialize( group , "ActivePowerCost" , netCDF::NcDouble() ,
-              TotalNumberPieces , v_ActivePowerCost , false );
+              NumberArcs , v_ActivePowerCost , false );
 
  ::serialize( group , "InitialFlowRate" , netCDF::NcDouble() ,
               NumberArcs , v_InitialFlowRate , false );
@@ -1505,8 +1505,8 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( const Block::Subset & a
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::update_initial_flow_rate_in_cnstrs(Block::Range arcs ,
-                                                        c_ModParam issueAMod )
+void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( Block::Range arcs ,
+                                                         c_ModParam issueAMod )
 {
  if( ! constraints_generated() )
   return;
@@ -1546,7 +1546,7 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
 
   auto max_index = *std::max_element( std::begin( subset ) ,
                                       std::end( subset ) );
-  v_InitialFlowRate.resize( max_index );
+  v_InitialFlowRate.resize( max_index + 1 );
  }
 
  bool identical = true;
@@ -1626,6 +1626,140 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( HydroUnitBlock::set_initial_flow_rate( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
+                                            Subset && subset ,
+                                            bool ordered ,
+                                            c_ModParam issuePMod ,
+                                            c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ if( v_ActivePowerCost.empty() ) {
+  if( std::all_of( values ,
+                   values + subset.size() ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+
+  v_ActivePowerCost.assign( f_NumberArcs , 0.0 );
+ }
+
+ for( auto arc : subset )
+  if( arc >= v_ActivePowerCost.size() )
+   throw( std::invalid_argument(
+    "HydroUnitBlock::set_active_power_cost: invalid index in subset." ) );
+
+ auto values_it = values;
+
+ bool identical = true;
+ for( auto arc : subset ) {
+  if( v_ActivePowerCost[ arc ] != *( values_it++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  values_it = values;
+  for( auto arc : subset )
+   v_ActivePowerCost[ arc ] = *( values_it++ );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+
+   for( auto arc : subset ) {
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+     const auto idx = lf->is_active( &v_active_power[ arc ][ t ] );
+
+     if( idx == Inf< Index >() )
+      throw( std::logic_error(
+       "HydroUnitBlock::set_active_power_cost: expected Variable not "
+       "found in objective." ) );
+
+     lf->modify_coefficient( idx ,
+                             v_ActivePowerCost[ arc ] ,
+                             issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockSbstMod >(
+    this , HydroUnitBlockMod::eSetActPCost , std::move( subset ) ) ,
+   Observer::par2chnl( issuePMod ) );
+ }
+}  // end( HydroUnitBlock::set_active_power_cost( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
+                                            Range rng ,
+                                            c_ModParam issuePMod ,
+                                            c_ModParam issueAMod )
+{
+ rng.second = std::min( rng.second , f_NumberArcs );
+ if( rng.second <= rng.first )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+
+ if( v_ActivePowerCost.empty() ) {
+  if( std::all_of( values ,
+                   values + sz ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+
+  v_ActivePowerCost.assign( f_NumberArcs , 0.0 );
+ }
+
+ if( std::equal( values ,
+                 values + sz ,
+                 v_ActivePowerCost.begin() + rng.first ) )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  std::copy( values ,
+             values + sz ,
+             v_ActivePowerCost.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+
+   for( Index arc = rng.first ; arc < rng.second ; ++arc ) {
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+     const auto idx = lf->is_active( &v_active_power[ arc ][ t ] );
+
+     if( idx == Inf< Index >() )
+      throw( std::logic_error(
+       "HydroUnitBlock::set_active_power_cost: expected Variable not "
+       "found in objective." ) );
+
+     lf->modify_coefficient( idx ,
+                             v_ActivePowerCost[ arc ] ,
+                             issueAMod );
+    }
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification(
+   std::make_shared< HydroUnitBlockRngdMod >(
+    this , HydroUnitBlockMod::eSetActPCost , rng ) ,
+   Observer::par2chnl( issuePMod ) );
+
+}  // end( HydroUnitBlock::set_active_power_cost( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS OF HydroUnitBlockSolution ---------------------*/
