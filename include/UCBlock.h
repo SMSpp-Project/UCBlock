@@ -1320,6 +1320,9 @@ class UCBlock : public Block
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the ThermalUnitBlock
+ *  @{ */
+
  /** Method for handling Modification.
   *
   * This method has to intercept any "abstract Modification" that modifies the
@@ -1398,7 +1401,7 @@ class UCBlock : public Block
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

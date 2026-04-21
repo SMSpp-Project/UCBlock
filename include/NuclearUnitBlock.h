@@ -425,6 +425,9 @@ class NuclearUnitBlock : public ThermalUnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the NuclearUnitBlock
+ *  @{ */
+
  /* Method for handling Modification.
   *
   * This method has to intercept any "abstract Modification" that
@@ -510,7 +513,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
 				ModParam issuePMod = eNoBlck ,
 				ModParam issueAMod = eNoBlck );
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -620,7 +623,7 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
 
  /// Public enum for the types of ThermalUnitBlockMod
  enum NUB_mod_type {
-  eSetModDP = eTUBBModLastParam , ///< set modulation delta ramp up
+  eSetModDP = eTUBModLastParam , ///< set modulation delta ramp up
   eSetModDM ,                     ///< set modulation delta ramp down
   eNUBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of

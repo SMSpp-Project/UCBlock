@@ -3,7 +3,7 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Header file for class DesignNetworkBlock, which derives from Block and
+ * Header file for class DesignNetworkBlock, which derives from NetworkBlock and
  * defines the standard representation of **per-line design data** and
  * **per-line design variables** for transmission network models in the Unit
  * Commitment problem. The rationale is to centralize once-and-for-all the
@@ -64,7 +64,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a "design" Block holding investment data and variables shared by children
-/** The DesignNetworkBlock class derives from Block, and defines the
+/** The DesignNetworkBlock class derives from NetworkBlock, and defines the
  * standard representation of **per-line design** for transmission networks.
  * It reads the design data (InvestmentCost, MinCapacityDesign,
  * MaxCapacityDesign) and creates one design variable \f$ x_l \f$ per line
@@ -152,12 +152,12 @@ class DesignNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 
 #ifndef NDEBUG
- // extends UnitBlock::expected_dims()
+ // extends NetworkBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends UnitBlock::expected_vars()
+ /// extends NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
 
@@ -342,7 +342,7 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the design variable for the given design-line index
- /** Returns a pointer the design variable \f$ x_{\mathrm{line}} \f$ of the
+ /** Returns a pointer to the design variable \f$ x_{\mathrm{line}} \f$ of the
   * given design-line index \p line, or nullptr if the line has no design
   * variable. */
 
@@ -488,6 +488,14 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
+ void set_network_cost( MF_dbl_it , Subset && , bool , ModParam , ModParam );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_network_cost( MF_dbl_it , Range , ModParam , ModParam );
+
+/*--------------------------------------------------------------------------*/
+
  void set_NetworkData( NetworkData * nd ) override {
   f_NetworkData = nd;
   for( auto * nb : v_Block )
@@ -522,7 +530,7 @@ class DesignNetworkBlock : public NetworkBlock
 
   if( interval < v_Block.size() )
    static_cast< NetworkBlock * >(
-    v_Block[ interval ] )->set_min_node_injection( max_injection , node );
+    v_Block[ interval ] )->set_max_node_injection( max_injection , node );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -533,7 +541,7 @@ class DesignNetworkBlock : public NetworkBlock
 
  /// returns a Solution representing the current solution of this NetworkBlock
  /** This method must construct and return a (pointer to a) Solution object
-  * representing the current "solution state" of this NetworkBlock.�, i.e., a
+  * representing the current "solution state" of this NetworkBlock, i.e., a
   * DesignNetworkBlockSolution.
   *
   * The parameter for deciding which kind of Solution must be returned is a
@@ -705,7 +713,7 @@ class DesignNetworkBlock : public NetworkBlock
 /*------------------------------- constraints ------------------------------*/
 
  /// the design bound constraint for each line
- std::vector< BoxConstraint > v_design_bound_const;
+ std::vector< BoxConstraint > v_design_bound_Const;
 
 /*-------------------------------- objective -------------------------------*/
 
@@ -749,7 +757,7 @@ class DesignNetworkBlock : public NetworkBlock
  *
  * - the design variables on (a subset of) the link(s)
  *
- * - the [DC]NetworkBlockSolution information corrseponding to the inner
+ * - the [DC]NetworkBlockSolution information corresponding to the inner
  *   [DC]NetworkBlock, in basically the same format as that of UCBlock,
  *   i.e., in two possible versions:
   *
@@ -812,7 +820,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
   * NetworkBlockSolution::serialize( netCDF::NcGroup & ), plus
   *
   * - The dimension "NumberDesignLines" containing the number of lines in
-  *   the transmission network that have design variables. It is opitonal,
+  *   the transmission network that have design variables. It is optional,
   *   but if it's not there then "DesignValue" must not be there.
   *
   * - The variable "DesignValue", of type netCDF::NcDouble and indexed over
@@ -829,15 +837,15 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
   *     optional, but if it's not there then the sub-groups (see below)
   *     cannot be there.
   *
-  *   = Sub-groups "SubNetworkBlock_0", "SubNetworkBlock_1", ...,
-  *     "SubNetworkBlock_T" with T = NumberSubNetworks - 1, with
-  *     "SubNetworkBlock_i" containing each the NetworkBlockSolution
+  *   = Sub-groups "NetworkBlock_0", "NetworkBlock_1", ...,
+  *     "NetworkBlock_T" with T = NumberSubNetworks - 1, with
+  *     "NetworkBlock_i" containing each the NetworkBlockSolution
   *     corresponding to that network constraints for some specific subset
   *     of time instants.
   *
   *   or in "nonstandard" format, cf. the comments to
   *   NetworkBlockSolution::serialize( netCDF::NcGroup & , * size_t ), where
-  *   the sub-NetworkBlock are all serialize()-d in \p group. */
+  *   the sub-NetworkBlock are all serialized in \p group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 

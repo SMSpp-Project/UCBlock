@@ -3968,6 +3968,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_active_power_h_k , tol )
   && ColVariable::is_feasible( v_active_power_h , tol )
   && ColVariable::is_feasible( v_active_power_k , tol )
+  && ColVariable::is_feasible( v_reactive_power , tol )
   && ColVariable::is_feasible( v_cut , tol )
   && ColVariable::is_feasible( v_cut_h_k , tol )
   && ColVariable::is_feasible( v_cut_h , tol )
@@ -3992,7 +3993,9 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( Init_PC_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_PC_Const , tol , rel_viol )
   && RowConstraint::is_feasible( PC_cuts , tol , rel_viol )
-  && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Reference_Schedule_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )
 

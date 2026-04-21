@@ -140,7 +140,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  f_number_HVDC_lines = std::count_if( v_line_susceptance.begin() ,
 				      v_line_susceptance.end() ,
-				      []( auto s ){ return( s == 0 ); }
+				      []( auto s ) { return( s == 0 ); }
 				      );
  if( f_number_HVDC_lines == f_number_lines )
   v_line_susceptance.clear();
@@ -814,8 +814,8 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 
  /* Print the Spanning tree and roots */
  /*std::cout << " Spanning tree roots : \n";
- for (int i=0; i < root.size(); ++i )
-    std::cout << root[i] << "\n";
+ for( int i = 0 ; i < root.size() ; ++i )
+    std::cout << root[ i ] << "\n";
  */
 
 /*--------------------------------------------------------------*/
@@ -829,9 +829,9 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 
  // Instead of eternally reallocating queues, we do it once and for all ;
  std::deque< int > bfs_queue;
- bfs_queue.clear(); // clear is supposed to keep the memory foot print rather than do reallocs all the time.
+ bfs_queue.clear(); // clear is supposed to keep the memory footprint rather than do reallocates all the time.
  int id_dc_line = 0;
- for( auto & line_id : DC_lines ){
+ for( auto & line_id : DC_lines ) {
     auto lfunc = new LinearFunction();
     bfs_queue.clear();
 
@@ -841,35 +841,35 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 
     /* Σ_i T_{li} p_i : only if l is a tree edge */
     if( lines_in_tree.contains( line_id ) ) {
-      int sign = -lines_in_tree[line_id]; // be carefull, path FROM node TO root, i.e, in the reverse contrary to the spanning tree
-      int node_id = (sign < 0) ? end_line[line_id] : start_line[line_id]; // the one further to root node in this edge      
+      int sign = -lines_in_tree[ line_id ]; // be careful, path FROM node TO root, i.e, in the reverse contrary to the spanning tree
+      int node_id = ( sign < 0 ) ? end_line[ line_id ] : start_line[ line_id ]; // the one further to root node in this edge
       bfs_queue.push_back( node_id );
 
-      // we go through the rest of the tree starting from node_id and we sum all the contributions
-      // be carefull, in the paper, p_i is the node injection - demand. Therefore we need to sum the node_injection variables AND the demand in the constant term
-      while ( !bfs_queue.empty() ){
+      // we go through the rest of the tree starting from node_id, and we sum all the contributions
+      // be careful, in the paper, p_i is the node injection - demand. Therefore, we need to sum the node_injection variables AND the demand in the constant term
+      while ( ! bfs_queue.empty() ) {
         int p = bfs_queue.front();
         lfunc->add_variable( &v_node_injection[ 0 ][ p ], sign );
         // HVDC lines alter the net node_injection here and should be accounted for (if present)
-        for ( auto & hvdc_line : HVDC_lines ){
-          if ( end_line[ hvdc_line ] == p )
+        for( auto & hvdc_line : HVDC_lines ) {
+          if( end_line[ hvdc_line ] == p )
             lfunc->add_variable( &v_power_flow[ hvdc_line ], sign );
-          if ( start_line[ hvdc_line ] == p )
-            lfunc->add_variable( &v_power_flow[ hvdc_line ], -1.0*sign );
+          if( start_line[ hvdc_line ] == p )
+            lfunc->add_variable( &v_power_flow[ hvdc_line ], -1.0 * sign );
         }
         constant_term += sign * v_ActiveDemand[ p ];
         bfs_queue.pop_front();
-        for (int child : tree[p]) {
+        for( int child : tree[ p ] ) {
           bfs_queue.push_back( child );
         }
       }
     }
 
     /* Σ_c C_{lc} h_c term */
-    for (int cycle_id = 0; cycle_id < (int) basis.size(); ++cycle_id) {
-        const auto& cycle = basis[cycle_id];
-        auto it = cycle.find(line_id);
-        if (it != cycle.end()) {
+    for( int cycle_id = 0 ; cycle_id < ( int ) basis.size() ; ++cycle_id ) {
+        const auto& cycle = basis[ cycle_id ];
+        auto it = cycle.find( line_id );
+        if( it != cycle.end() ) {
           lfunc->add_variable( &v_cycle_flow[ cycle_id ] , it->second );
         }
     }
@@ -878,16 +878,16 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
     v_CYCLE_def_flow_const[ id_dc_line ].set_function( lfunc );
     ++id_dc_line;
   }
-  if ( nb_dc_lines > 0 )
-    add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
+  if( nb_dc_lines > 0 )
+   add_static_constraint( v_CYCLE_def_flow_const , "v_CYCLE_def_flow_const" );
 
  // eq (25): forall cycle c, sum_l C_{lc}x_lf_l = 0
- if ( basis.size() > 0 ){
+ if( basis.size() > 0 ) {
   v_CYCLE_def_cycle_const.resize( basis.size() );
-  for (size_t cycle_id = 0; cycle_id < basis.size(); ++cycle_id) {
+  for( size_t cycle_id = 0 ; cycle_id < basis.size() ; ++cycle_id ) {
     auto lfunc = new LinearFunction();
-    const auto& cycle = basis[cycle_id];
-    for (const auto& [line_id, coeff] : cycle) {
+    const auto& cycle = basis[ cycle_id ];
+    for( const auto & [ line_id , coeff ] : cycle ) {
       lfunc->add_variable( &v_power_flow[ line_id ] , coeff / get_line_susceptance( line_id ) );
     }
   
@@ -906,14 +906,14 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  }
  // In case the hypergraph is specified (only HVDC lines) and if these have non-1
  // efficiency, these need to enter the overall balance since they can imply
- // a) Losses (when flows are in the sense of the line and effiency < 1) or
+ // a) Losses (when flows are in the sense of the line and efficiency < 1) or
  //         against the sense of the line and efficiency > 1
  // b) Additional Generation (when flows are against the sense of the line and efficiency < 1)
  //         with the flow of the line and efficiency > 1 
  // 
- for ( auto & hvdc_l : HVDC_lines ){
-    double eta = f_NetworkData->get_line_efficiency( hvdc_l );
-    lfunc->add_variable( &v_power_flow[ hvdc_l ] , (eta - 1.0) );
+ for( auto & hvdc_l : HVDC_lines ) {
+  double eta = f_NetworkData->get_line_efficiency( hvdc_l );
+  lfunc->add_variable( &v_power_flow[ hvdc_l ] , eta - 1.0 );
  }
  overall_balanced_const.set_function( lfunc ) ;
  overall_balanced_const.set_lhs( constant_term );
@@ -923,8 +923,8 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  // Add the HVDC constraints for the cycle formulation
 
  // If desired an additional boolean can be intercepted from the Block config and plugged here
- if ( f_NetworkData->is_HVDC() || f_NetworkData->is_DC_HVDC() )   
-    generate_HVDC_nodal_constraints( );
+ if( f_NetworkData->is_HVDC() || f_NetworkData->is_DC_HVDC() )
+  generate_HVDC_nodal_constraints( );
  
  /* --- old stuff
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
@@ -932,20 +932,20 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 
  v_CYCLE_def_HVDC_const.resize( 2 * nb_hvdc_lines );
  int i_hvdc_line = 0;
- for ( auto & hvdc_l : HVDC_lines ){
-    auto lfunc_1 = new LinearFunction();
-    lfunc_1->add_variable( &v_node_injection[ 0 ][ start_line[ hvdc_l ] ], -1.0 );
-    lfunc_1->add_variable( &v_power_flow[ hvdc_l ], 1.0 );
-    v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_function( lfunc_1 );
-    v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_both( -v_ActiveDemand[ start_line[ hvdc_l ] ] );
+ for( auto & hvdc_l : HVDC_lines ) {
+   auto lfunc_1 = new LinearFunction();
+   lfunc_1->add_variable( &v_node_injection[ 0 ][ start_line[ hvdc_l ] ], -1.0 );
+   lfunc_1->add_variable( &v_power_flow[ hvdc_l ], 1.0 );
+   v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_function( lfunc_1 );
+   v_CYCLE_def_HVDC_const[ i_hvdc_line ].set_both( -v_ActiveDemand[ start_line[ hvdc_l ] ] );
 
-    auto lfunc_2 = new LinearFunction();
-    lfunc_2->add_variable( &v_node_injection[ 0 ][ end_line[ hvdc_l ] ], -1.0 );
-    lfunc_2->add_variable( &v_power_flow[ hvdc_l ], -1.0 );
-    v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_function( lfunc_2 );
-    v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_both( -v_ActiveDemand[ end_line[ hvdc_l ] ] );
+   auto lfunc_2 = new LinearFunction();
+   lfunc_2->add_variable( &v_node_injection[ 0 ][ end_line[ hvdc_l ] ], -1.0 );
+   lfunc_2->add_variable( &v_power_flow[ hvdc_l ], -1.0 );
+   v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_function( lfunc_2 );
+   v_CYCLE_def_HVDC_const[ nb_hvdc_lines + i_hvdc_line ].set_both( -v_ActiveDemand[ end_line[ hvdc_l ] ] );
 
-    ++i_hvdc_line;
+   ++i_hvdc_line;
  }
  add_static_constraint( v_CYCLE_def_HVDC_const , "v_CYCLE_def_HVDC_const" );
  */
@@ -1018,7 +1018,7 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
 
 /*--------------------------------------------------------------------------*/
 
- void DCNetworkBlock::generate_HVDC_nodal_constraints( bool full_formulation ){
+ void DCNetworkBlock::generate_HVDC_nodal_constraints( bool full_formulation ) {
   auto number_nodes = get_number_nodes();
   auto number_lines = get_number_lines();
   auto & DC_lines = f_NetworkData->get_DC_lines();
@@ -1086,10 +1086,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
    add_static_constraint( v_DC_HVDC_power_flow_const ,
                           "DCHVDC_power_flow_injection" );
 }
-
-
-
-
 
 /*--------------------------------------------------------------------------*/
 
@@ -1623,7 +1619,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
 
  if( ! v_line_susceptance.empty() )
   ::serialize( group , "LineSusceptance" , netCDF::NcDouble() , NumberLines ,
-	       v_line_susceptance );
+	              v_line_susceptance );
 
  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
               v_network_cost );
@@ -1793,6 +1789,136 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
                            Observer::par2chnl( issuePMod ) );
 
  }  // end( DCNetworkBlock::set_active_demand( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
+                                       Subset && subset ,
+                                       bool ordered ,
+                                       c_ModParam issuePMod ,
+                                       c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ auto & network_cost = f_NetworkData->get_network_cost();
+
+ if( network_cost.empty() ) {
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+
+  network_cost.assign( get_number_lines() , 0.0 );
+  }
+
+ bool identical = true;
+ auto values_it = values;
+ for( auto i : subset ) {
+  if( i >= network_cost.size() )
+   throw( std::invalid_argument(
+    "DCNetworkBlock::set_network_cost: invalid value in subset: " +
+    std::to_string( i ) ) );
+
+  if( network_cost[ i ] != *( values_it++ ) ) {
+   identical = false;
+   break;
+   }
+  }
+
+ if( identical )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  values_it = values;
+  for( auto i : subset )
+   network_cost[ i ] = *( values_it++ );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+
+   for( auto i : subset ) {
+    const auto idx = lf->is_active( &v_auxiliary_variable[ i ] );
+
+    if( idx == Inf< Index >() )
+     throw( std::logic_error(
+      "DCNetworkBlock::set_network_cost: expected Variable not found in "
+      "objective." ) );
+
+    lf->modify_coefficient( idx ,
+                            network_cost[ i ] ,
+                            issueAMod );
+    }
+   }
+  }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+
+  Block::add_Modification( std::make_shared< DCNetworkBlockSbstMod >(
+                            this , DCNetworkBlockMod::eSetNetCost ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+  }
+}  // end( DCNetworkBlock::set_network_cost( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
+                                       Range rng ,
+                                       c_ModParam issuePMod ,
+                                       c_ModParam issueAMod )
+{
+ rng.second = std::min( rng.second , get_number_lines() );
+ if( rng.second <= rng.first )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+
+ auto & network_cost = f_NetworkData->get_network_cost();
+
+ if( network_cost.empty() ) {
+  if( std::all_of( values , values + sz ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+
+  network_cost.assign( get_number_lines() , 0.0 );
+ }
+
+ if( std::equal( values ,
+                 values + sz ,
+                 network_cost.begin() + rng.first ) )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  std::copy( values ,
+             values + sz ,
+             network_cost.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+
+   for( Index i = rng.first ; i < rng.second ; ++i ) {
+    const auto idx = lf->is_active( &v_auxiliary_variable[ i ] );
+
+    if( idx == Inf< Index >() )
+     throw( std::logic_error(
+      "DCNetworkBlock::set_network_cost: expected Variable not found in "
+      "objective." ) );
+
+    lf->modify_coefficient( idx ,
+                            network_cost[ i ] ,
+                            issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >(
+                            this , DCNetworkBlockMod::eSetNetCost , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+}  // end( DCNetworkBlock::set_network_cost( range ) )
 
 /*--------------------------------------------------------------------------*/
 

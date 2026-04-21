@@ -213,7 +213,7 @@ class HydroUnitBlock : public UnitBlock
  * function of a pump is a simple linear function. In other words, the
  * "number of pieces" of a turbine is >= 1, whereas the "number of pieces"
  * of a pump is necessarily equal to 1. In reality, the same equipment can
- * sometimes be used both as a pump and as a turbine. In our model this is be
+ * sometimes be used both as a pump and as a turbine. In our model this is
  * accounted for by artificially splitting the unit into “two units”, a pump
  * one and a turbine one, which must be done at the data processing stage.
  * This causes the possible problem that at some time instant both the pump
@@ -255,7 +255,7 @@ class HydroUnitBlock : public UnitBlock
  *   t. This variable is not optional (a reservoir must have some available
  *   volume). If the second dimension has size 1 then the entry MaxV[ r , 0 ]
  *   gives the fixed maximum volumetric value of the unit for each reservoir r
- *   during the all the time horizon. Otherwise, the MaxVolumetric[ r , i ] is
+ *   during the whole time horizon. Otherwise, the MaxVolumetric[ r , i ] is
  *   the fixed value of MaxV[ r , t ] for reservoir r and all t in the
  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
@@ -389,7 +389,7 @@ class HydroUnitBlock : public UnitBlock
  *   reserve. Note that only turbines can produce secondary reserve, i.e., SR[
  *   t , l ] > 0 ==> MaxP[ t , l ] > 0. If the first dimension has size 1
  *   then the entry SR[ 0 , l ] is assumed to contain the maximum possible
- *   fraction of active power that can use as secondary reserve by arc l for
+ *   fraction of active power that can be used as secondary reserve by arc l for
  *   all time instant. Otherwise, SecondaryRho[ i , l ] is the fixed value of
  *   SR[ t , l ] for arc l and all t in the interval [ ChangeIntervals[ i - 1
  *   ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1
@@ -452,7 +452,7 @@ class HydroUnitBlock : public UnitBlock
  *   power that it is currently generating (basically, the constant to be
  *   multiplied to the active power variable) at time t for arc l. The
  *   variable is optional; if it is not defined, IP[ t , l ] == 0 for each
- *   time instants t and arc l. If the first dimension has size 1 then the
+ *   time instant t and arc l. If the first dimension has size 1 then the
  *   entry IP[ 0 , l ] is assumed to contain the inertia power value for
  *   arc l and all time instants t. Otherwise, InertiaPower[ i , l ] is the
  *   fixed value of IP[ t , l ] for all t in the interval [ ChangeIntervals[ i
@@ -556,7 +556,7 @@ class HydroUnitBlock : public UnitBlock
   *
   * - the volumetric variables
   *
-  * Where its' first dimension is the number of reservoirs and the second
+  * Where its first dimension is the number of reservoirs and the second
   * dimension is the time horizon. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
@@ -612,7 +612,7 @@ class HydroUnitBlock : public UnitBlock
   * present as below:
   *
   * - maximum and minimum power output constraints according to primary and
-  *   secondary spinning reserves are are presented in (1)-(2). Each of them
+  *   secondary spinning reserves are presented in (1)-(2). Each of them
   *   is a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
   *   are f_time_horizon, and f_NumberArcs entries, where the entry
   *   t = 0, ...,f_time_horizon - 1 and the entry l = 0, ...,f_NumberArcs - 1
@@ -686,7 +686,7 @@ class HydroUnitBlock : public UnitBlock
   *   \f]
   *
   * - flow rate variable bounds: This inequality (9) indicates upper and lower
-  *   bound of flow rate at time t and for ach arc l, thus that is a
+  *   bound of flow rate at time t and for each arc l, thus that is a
   *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
   *   f_time_horizon, and f_NumberArcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
@@ -696,7 +696,7 @@ class HydroUnitBlock : public UnitBlock
   *   \f]
   *
   * - ramp-up and ramp-down constraints: These inequality (10)-(11) indicate
-  *   ramp-up and ramp-down constraints at time t and for ach arc l, so each
+  *   ramp-up and ramp-down constraints at time t and for each arc l, so each
   *   of them is a boost::multi_array< FRowConstraint , 2 >; with two
   *   dimensions which are f_time_horizon, and f_NumberArcs entries, where
   *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
@@ -848,9 +848,8 @@ class HydroUnitBlock : public UnitBlock
   * - if f_NumberReservoirs == 2, this vector has size of 1 which means there
   *   is one arc at the system (single hydro case).
   *
-  * - if f_NumberReservoirs > 2, this vector have size of f_NumberReservoirs
-  *   and each element of the vectors gives starting point of each arc in the
-  *   network. */
+  *  - otherwise, this vector has size f_NumberArcs and each element gives
+  *    the starting point of one arc in the network. */
 
  const std::vector< Index > & get_start_arc( void ) const {
   return( v_StartArc );
@@ -866,9 +865,8 @@ class HydroUnitBlock : public UnitBlock
   * - if f_NumberReservoirs == 2, this vector has size of 1 which means there
   *   is one arc at the system (single hydro case).
   *
-  * - if f_NumberReservoirs > 2, this vector have size of f_NumberReservoirs
-  *   and each element of the vectors gives ending point of each arc in the
-  *   network. */
+  *  - otherwise, this vector has size f_NumberArcs and each element gives
+  *    the ending point of one arc in the network. */
 
  const std::vector< Index > & get_end_arc( void ) const {
   return( v_EndArc );
@@ -999,7 +997,7 @@ class HydroUnitBlock : public UnitBlock
   *   defined, and there are no minimum flow constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   get_time_horizon() rows and get_number_generators() columns and each element
   *   of M[ t , i ] gives the minimum flow at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_min_flow( void ) const {
@@ -1017,7 +1015,7 @@ class HydroUnitBlock : public UnitBlock
   *   defined, and there are no maximum flow constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   get_time_horizon() rows and get_number_generators() columns and each element
   *   of M[ t , i ] gives the maximum flow at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_max_flow( void ) const {
@@ -1050,7 +1048,7 @@ class HydroUnitBlock : public UnitBlock
   * - if the boost::multi_array<> M is empty() then no ramping constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   get_time_horizon() rows and get_number_generators() columns and each element
   *   of M[ t , i ] gives the delta ramp up value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_delta_ramp_up( void ) const {
@@ -1067,7 +1065,7 @@ class HydroUnitBlock : public UnitBlock
   * - if the boost::multi_array<> M is empty() then no ramping constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   get_time_horizon() rows and get_number_generators() columns and each element
   *   of M[ t , i ] gives the delta ramp down value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_delta_ramp_down( void ) const {
@@ -1085,7 +1083,7 @@ class HydroUnitBlock : public UnitBlock
   *   constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   get_time_horizon() rows and get_number_generators() columns and each element
   *   of M[ t , i ] gives the primary rho value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_primary_rho( void ) const {
@@ -1103,7 +1101,7 @@ class HydroUnitBlock : public UnitBlock
   *   constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_arcs() columns and each element
+  *   get_time_horizon() rows and get_number_generators() columns and each element
   *   of M[ t , i ] gives the secondary rho value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_secondary_rho( void ) const {
@@ -1120,7 +1118,7 @@ class HydroUnitBlock : public UnitBlock
   * - if the vector has only one element, then V[ 0 ] presents the number
   *   of pieces for all units;
   *
-  * - otherwise, the vector must have size get_number_arcs() and each element
+  * - otherwise, the vector must have size get_number_generators() and each element
   *   of V[ i ] represents the number of pieces of each unit i. */
 
  const std::vector< Index > & get_number_pieces( void ) const {
@@ -1158,7 +1156,7 @@ class HydroUnitBlock : public UnitBlock
   *   value for all the pieces;
   *
   * - otherwise, the returned V is a std::vector < double > and
-  *   V.sized == TotalNumberPieces and each element of V[ h ] represents the
+  *   V.size() == TotalNumberPieces and each element of V[ h ] represents the
   *   linear term value of each piece h. */
 
  const std::vector< double > & get_linear_term( void ) const {
@@ -1175,7 +1173,7 @@ class HydroUnitBlock : public UnitBlock
   * - if the vector has only one element, then V[ 0 ] presents the uphill
   *   delay for all units;
   *
-  * - otherwise, the vector must have size get_number_arcs() and each element
+  * - otherwise, the vector must have size get_number_generators() and each element
   *   of V[ i ] represents the uphill delay for each unit i. */
 
  const std::vector< int > & get_uphill_delay( void ) const {
@@ -1202,7 +1200,7 @@ class HydroUnitBlock : public UnitBlock
   * - if the vector has only one element, then V[ 0 ] presents the downhill
   *   delay for all units;
   *
-  * - otherwise, the vector must have size get_number_arcs() and each element
+  * - otherwise, the vector must have size get_number_generators() and each element
   *   of V[ i ] represents the downhill delay for each unit i. */
 
  const std::vector< Index > & get_downhill_delay( void ) const {
@@ -1248,7 +1246,7 @@ class HydroUnitBlock : public UnitBlock
   * - if the vector has only one element, then V[ 0 ] presents the initial
   *   flow rate for all units;
   *
-  * - otherwise, the vector must have size get_number_arcs() and each element
+  * - otherwise, the vector must have size get_number_generators() and each element
   *   of V[ i ] represents the initial flow rate for each unit i. */
 
  const std::vector< double > & get_initial_flow_rate( void ) const {
@@ -1588,14 +1586,14 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the MinFlow of \p arc at instant \p t
 
- double get_MinFlow( Index t , Index arc ) {
+ double get_MinFlow( Index t , Index arc ) const {
   return( v_MinFlow.empty() ? 0 : v_MinFlow[ t ][ arc ] );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the MaxFlow of \p arc at instant \p t
 
- double get_MaxFlow( Index t , Index arc ) {
+ double get_MaxFlow( Index t , Index arc ) const {
   return( v_MaxFlow.empty() ? 0 : v_MaxFlow[ t ][ arc ] );
   }
 
@@ -1667,48 +1665,203 @@ class HydroUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the HydroUnitBlock
+ *  @{ */
+
+ /// set the inflow values
+ /** This function sets the inflow values of this HydroUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the inflow values.
+  * @param subset  If non-empty, the inflow values corresponding to the
+  *                indices in \p subset are set to the values pointed by
+  *                \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_inflow( MF_dbl_it values ,
                   Subset && subset , bool ordered = false ,
-                  ModParam issuePMod = eNoBlck ,
-		  ModParam issueAMod = eNoBlck );
+                  c_ModParam issuePMod = eNoBlck ,
+                  c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the inflow values
+ /** This function sets the inflow values of this HydroUnitBlock.
+  *
+  * @param values Iterator to a vector containing the inflow values.
+  * @param rng    If non-empty, the inflow values corresponding to the
+  *               indices in \p rng are set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_inflow( MF_dbl_it values ,
                   Range rng = Range( 0 , Inf< Index >() ) ,
-                  ModParam issuePMod = eNoBlck ,
-                  ModParam issueAMod = eNoBlck );
+                  c_ModParam issuePMod = eNoBlck ,
+                  c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the inertia power values
+ /** This function sets the inertia power values of this HydroUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the inertia power values.
+  * @param subset  If non-empty, the inertia power values corresponding to the
+  *                indices in \p subset are set to the values pointed by
+  *                \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_inertia_power( MF_dbl_it values ,
                          Subset && subset , bool ordered = false ,
-                         ModParam issuePMod = eNoBlck ,
-                         ModParam issueAMod = eNoBlck );
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the inertia power values
+ /** This function sets the inertia power values of this HydroUnitBlock.
+  *
+  * @param values Iterator to a vector containing the inertia power values.
+  * @param rng    If non-empty, the inertia power values corresponding to the
+  *               indices in \p rng are set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_inertia_power( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
-                         ModParam issuePMod = eNoBlck ,
-                         ModParam issueAMod = eNoBlck );
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the initial volume
+ /** This function sets the initial volume of this HydroUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the initial volume values.
+  * @param subset  If non-empty, the initial volume corresponding to the
+  *                indices in \p subset is set to the values pointed by
+  *                \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_initial_volume( MF_dbl_it values ,
                           Subset && subset , bool ordered = false ,
-                          ModParam issuePMod = eNoBlck ,
-                          ModParam issueAMod = eNoBlck );
+                          c_ModParam issuePMod = eNoBlck ,
+                          c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the initial volume
+ /** This function sets the initial volume of this HydroUnitBlock.
+  *
+  * @param values Iterator to a vector containing the initial volume values.
+  * @param rng    If non-empty, the initial volume corresponding to the
+  *               indices in \p rng is set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_initial_volume( MF_dbl_it values ,
                           Range rng = Range( 0 , Inf< Index >() ) ,
-                          ModParam issuePMod = eNoBlck ,
-                          ModParam issueAMod = eNoBlck );
+                          c_ModParam issuePMod = eNoBlck ,
+                          c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the initial flow rate
+ /** This function sets the initial flow rate of this HydroUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the initial flow rate
+  *                values.
+  * @param subset  If non-empty, the initial flow rate corresponding to the
+  *                indices in \p subset is set to the values pointed by
+  *                \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_initial_flow_rate( MF_dbl_it values ,
                              Subset && subset , bool ordered = false ,
-                             ModParam issuePMod = eNoBlck ,
-                             ModParam issueAMod = eNoBlck );
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the initial flow rate
+ /** This function sets the initial flow rate of this HydroUnitBlock.
+  *
+  * @param values Iterator to a vector containing the initial flow rate values.
+  * @param rng    If non-empty, the initial flow rate corresponding to the
+  *               indices in \p rng is set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_initial_flow_rate( MF_dbl_it values ,
                              Range rng = Range( 0 , Inf< Index >() ) ,
-                             ModParam issuePMod = eNoBlck ,
-                             ModParam issueAMod = eNoBlck );
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this HydroUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the active power cost
+  *                values.
+  * @param subset  If non-empty, the active power cost values corresponding
+  *                to the indices in \p subset are set to the values pointed
+  *                by \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( MF_dbl_it values ,
+                             Subset && subset ,
+                             bool ordered = false ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this HydroUnitBlock.
+  *
+  * @param values Iterator to a vector containing the active power cost
+  *               values.
+  * @param rng    If non-empty, the active power cost values corresponding
+  *               to the indices in \p rng are set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( MF_dbl_it values ,
+                             Range rng = Range( 0 , Inf< Index >() ) ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this HydroUnitBlock.
+  *
+  * @param value     The value of the active power cost.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( double value ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_active_power_cost( vector.cbegin() ,
+                         Range( 0 , Inf< Index >() ) ,
+                         issuePMod , issueAMod );
+ }
+
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1816,7 +1969,7 @@ class HydroUnitBlock : public UnitBlock
  boost::multi_array< double , 2 > v_PrimaryRho;
 
  /// the matrix of SecondaryRho
- /** Indexed over the dimensions NumberIntervals and NumberArcs. */
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_SecondaryRho;
 
  /// the reference schedule to deviate minimally from if there
@@ -1877,7 +2030,7 @@ class HydroUnitBlock : public UnitBlock
  /// ramp-down constraints
  boost::multi_array< FRowConstraint , 2 > RampDown_Const;
 
- /// final volumes fo each reservoir constraints
+ /// final volumes of each reservoir constraints
  boost::multi_array< FRowConstraint , 2 > FinalVolumeReservoir_Const;
 
  /// flow rate bounds constraints
@@ -1957,6 +2110,22 @@ class HydroUnitBlock : public UnitBlock
   register_method< HydroUnitBlock , MF_dbl_it , Range >(
    "HydroUnitBlock::set_initial_volume" ,
    & HydroUnitBlock::set_initial_volume );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_initial_flow_rate" ,
+   & HydroUnitBlock::set_initial_flow_rate );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_initial_flow_rate" ,
+   & HydroUnitBlock::set_initial_flow_rate );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+   "HydroUnitBlock::set_active_power_cost" ,
+   & HydroUnitBlock::set_active_power_cost );
+
+  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+   "HydroUnitBlock::set_active_power_cost" ,
+   & HydroUnitBlock::set_active_power_cost );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1977,12 +2146,16 @@ class HydroUnitBlockMod : public UnitBlockMod
   eSetInf = eUBModLastParam , ///< set inflow values
   eSetInerP ,                 ///< set inertia power values
   eSetInitF ,                 ///< set initial flow rate values
-  eSetInitV                   ///< set initial volumetric values
+  eSetInitV ,                 ///< set initial volumetric values
+  eSetActPCost ,              ///< set active power cost values
+  eHUBModLastParam            ///< first allowed parameter for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set
+   * of types of HydroUnitBlockMod. */
   };
 
  /// constructor, takes the HydroUnitBlock and the type
  HydroUnitBlockMod( HydroUnitBlock * fblock , int type )
-  : UnitBlockMod( fblock , type ) , f_Block( nullptr ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
 
  /// destructor, does nothing
  virtual ~HydroUnitBlockMod( void ) override = default;
@@ -1996,10 +2169,23 @@ class HydroUnitBlockMod : public UnitBlockMod
  void print( std::ostream & output ) const override {
   output << "HydroUnitBlockMod[" << this << "]: ";
   switch( f_type ) {
-   case( eSetInf ):   output << "set inflow values"; break;
-   case( eSetInerP ): output << "set inertia power values";  break;
-   case( eSetInitF ): output << "set initial flow rate values"; break;
-   default:           output << "set initial volumetric values";
+   case( eSetInf ):
+    output << "set inflow values";
+    break;
+   case( eSetInerP ):
+    output << "set inertia power values";
+    break;
+   case( eSetInitF ):
+    output << "set initial flow rate values";
+    break;
+   case( eSetInitV ):
+    output << "set initial volumetric values";
+    break;
+   case( eSetActPCost ):
+    output << "set active power cost values";
+    break;
+   default:
+    break;
    }
   }
 
@@ -2084,7 +2270,7 @@ class HydroUnitBlockSbstMod : public HydroUnitBlockMod
  * commitment and primary/secondary reserve) the other information that is
  * typical of the HydroUnitBlock, i.e.,
  *
- * - [possibly] the volumetricc level of each reservoir at each time instant
+ * - [possibly] the volumetric level of each reservoir at each time instant
  *
  * - [possibly] the volumetric flow on each arc at each time instant */
 
@@ -2132,7 +2318,7 @@ class HydroUnitBlockSolution : public UnitBlockSolution
   *   provided then it is taken to be == 1. Note, however, that a single
   *   reservoir can still have multiple hydro generating units (arc). Yet,
   *   there is no need of a dimension for the number of arcs since "number
-  *   of arcs == f_number_generators" and this is already a flied of
+  *   of arcs == f_number_generators" and this is already a field of
   *   UnitBlockSolution.
   *
   * - The variable "VolumetricLevel", of type netCDF::NcDouble and indexed
