@@ -373,151 +373,100 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines )
+
+void DCNetworkData::compute_cycle_basis(int opt_root, bool only_DC_lines)
 {
- // As it does not require data of neither DC nor AC
- /* Compute a list of cycles which form a basis for cycles of G.
+    if (cycle_basis_was_computed)
+        return;
 
-  A basis for cycles of a network is a minimal collection of
-  cycles such that any cycle in the network can be written
-  as a sum of cycles in the basis.  Here summation of cycles
-  is defined as "exclusive or" of the edges. Cycle bases are
-  useful, e.g. when deriving equations for electric circuits
-  using Kirchhoff's Laws.
+    const Index number_nodes = get_number_nodes();
+    const Index number_lines = get_number_lines();
 
-  Returns
-  -------
-  A list of cycle lists.  Each cycle list is a list of nodes
-  which forms a cycle (loop) in G.
+    if (number_lines <= 0)
+        throw std::logic_error(
+            "DCNetworkData::compute_cycle_basis: number of lines not set"
+        );
 
-  Examples
-  --------
-  >>> G = nx.Graph()
-  >>> nx.add_cycle(G, [0, 1, 2, 3])
-  >>> nx.add_cycle(G, [0, 3, 4, 5])
-  >>> nx.cycle_basis(G, 0)
-  [[3, 4, 5, 0], [1, 2, 3, 0]]
+    const auto& start_line = get_start_line();
+    const auto& end_line   = get_end_line();
 
-  Notes
-  -----
-  This is adapted from algorithm CACM 491 [1]_.
+    /*------------------------------------------------------------
+     * Build adjacency list (undirected)
+     *------------------------------------------------------------*/
+    std::vector<std::vector<Index>> neighbors(number_nodes);
 
-  References
-  ----------
-  .. [1] Paton, K. An algorithm for finding a fundamental set of
-     cycles of a graph. Comm. ACM 12, 9 (Sept 1969), 514-518.
- */
+    const auto& DC_lines = get_DC_lines();
+    for (Index line_id : DC_lines) {
+        Index u = start_line[line_id];
+        Index v = end_line[line_id];
 
- if( cycle_basis_was_computed )
-  return;
-
- // get data
- const auto number_nodes = get_number_nodes();
- const auto number_lines = get_number_lines();
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkData::compute_cycle_basis: "
-			   "number of lines of DCNetworkBlock is not set" ) );
-
- const auto & start_line = get_start_line();
- const auto & end_line = get_end_line();
-
- // First, compute neighbors
- std::vector< std::set< Index > > neighbors( number_nodes ,
-                                             std::set< Index >() );
- for( Index id_line = 0 ; id_line < number_lines ; ++id_line ) {
-  if( only_DC_lines &&
-      ( v_line_susceptance.empty() || ( v_line_susceptance[ id_line ] == 0 ) ) )
-   continue;
-  Index i = start_line[ id_line ];
-  Index j = end_line[ id_line ];
-  neighbors[ i ].insert( j );
-  neighbors[ j ].insert( i );
-  }
-
- Index root;
- bool use_root = true;
- if( opt_root < 0 ) root = get_reference_node();
- else root = opt_root;
-
- this->v_cycle_basis.clear();
- this->m_spanning_tree.clear();
- std::map< Index , Index > reverse_spanning_tree;
-
- //!! auto start_solve = std::chrono::high_resolution_clock::now();
-
- Subset gnodes;
- for( Index i = 0 ; i < number_nodes ; ++i )
-  if( neighbors[ i ].size() )
-   gnodes.push_back( i );
-
- while( gnodes.size() ) {  // loop over connected components
-  if( use_root ) {
-   root = gnodes.back();
-   gnodes.pop_back();
-   }
-  Subset stack = { root };
-  std::map< Index , Index > pred = { { root , root } };
-  std::map< Index , std::set< Index > > used;
-  used[ root ] = std::set< Index >();
-  while( stack.size() ) {  // walk the spanning tree finding cycles
-   Index z = stack.back();
-   stack.pop_back();  // use last-in so cycles easier to find
-   std::set< Index > zused = used[ z ];
-   for( auto & nbr : neighbors[ z ] ) {
-    if( ! used.contains( nbr ) ) { // new node
-     pred[ nbr ] = z;
-     stack.push_back( nbr );
-     used[ nbr ] = std::set< Index >();
-     used[ nbr ].insert( z );
-     }
-    else
-     if( nbr == z )  // self loops
-      this->v_cycle_basis.push_back( std::vector< Index >( 1 , z ) );
-     else
-      if( ! zused.contains( nbr ) ) { // found a cycle
-       std::set< Index > pn = used[ nbr ];
-       std::vector< Index > cycle = { nbr , z };
-       Index p = pred[ z ];
-       while( ! pn.contains( p ) ) {
-        cycle.push_back( p );
-        p = pred[ p ];
+        if (u == v) {
+            // self-loop → trivial cycle
+            v_cycle_basis.push_back({u});
+            continue;
         }
-       cycle.push_back( p );
-       this->v_cycle_basis.push_back( cycle );
-       used[ nbr ].insert( z );
-       }
+
+        neighbors[u].push_back(v);
+        neighbors[v].push_back(u);
     }
-    // save the root node
-    // std::cout << " Root is now " << root << "\n";
-    // Since the root may not be the reference node, we save this fellow here.
-    this->m_span_root.push_back( root ); 
-  } // end of loop over gnodes.size() 
 
-  for( auto it = pred.begin() ; it != pred.end() ; ++it ) {
-   auto it_gnode = std::find( gnodes.begin() , gnodes.end() , it->first );
-   if( it_gnode != gnodes.end() )
-    gnodes.erase( it_gnode );
-   }
-  use_root = false;  // reinit root
-  reverse_spanning_tree.insert( pred.begin() , pred.end() );
-  }
- 
- for( const auto & pair : reverse_spanning_tree ) {
-   // reverse spanning tree is done with predecessors
-   if( pair.first != pair.second )
-    // be careful: for the root node, the predecessor is itself
-    this->m_spanning_tree[ pair.second ].insert( pair.first );
- }
+    /*------------------------------------------------------------
+     * Initialise DFS / Paton state
+     *------------------------------------------------------------*/
+    v_cycle_basis.clear();
 
- /*!!
- double time = std::chrono::duration_cast< std::chrono::milliseconds >(
-  std::chrono::high_resolution_clock::now() - start_solve ).count() / 1000.0;
+    m_spanning_parent.assign(number_nodes, -1);
 
- std::cout << "Time to compute cycle basis : " << time << " sec." << std::endl;
- !!*/
- cycle_basis_was_computed = true;
+    std::vector<int> depth(number_nodes, -1);
+    std::vector<Index> stack;
 
- }  // end( DCNetworkData::compute_cycle_basis )
+    /*------------------------------------------------------------
+     * DFS over connected components
+     *------------------------------------------------------------*/
+    for (Index start = 0; start < number_nodes; ++start) {
+
+        if (depth[start] != -1 || neighbors[start].empty())
+            continue;
+
+        // new connected component
+        depth[start] = 0;
+        m_spanning_parent[start] = start;
+        stack.push_back(start);
+
+        while (!stack.empty()) {
+            Index u = stack.back();
+            stack.pop_back();
+
+            for (Index v : neighbors[u]) {
+
+                // Tree edge
+                if (depth[v] == -1) {
+                    depth[v] = depth[u] + 1;
+                    m_spanning_parent[v] = u;
+                    stack.push_back(v);
+                }
+                // Back edge to ancestor → fundamental cycle
+                else if (v != m_spanning_parent[u] &&
+                         depth[v] < depth[u]) {
+
+                    Subset cycle;
+                    cycle.push_back(v);
+
+                    Index x = u;
+                    while (x != v) {
+                        cycle.push_back(x);
+                        x = m_spanning_parent[x];
+                    }
+
+                    cycle.push_back(v);   // close cycle
+                    v_cycle_basis.push_back(std::move(cycle));
+                }
+            }
+        }
+    }
+
+    cycle_basis_was_computed = true;
+}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkBlock ------------------------*/
@@ -800,17 +749,23 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
                            "number of lines of DCNetworkBlock is not set" ) );
 
  // ----- First step: compute the cycle basis and spanning tree
- auto basis = f_NetworkData->get_lines_in_cycles();
  // cycle incidence matrices C_{lc} in the paper
- assert( basis.size() == number_lines - number_nodes + 1 );
+ auto basis = f_NetworkData->get_lines_in_cycles();
 
  auto lines_in_tree = f_NetworkData->get_lines_in_spanning_tree();
- auto tree = f_NetworkData->get_spanning_tree();
+ // build the children from the parents
+ const auto& parent = f_NetworkData->get_spanning_parent();
+ std::vector<std::vector<Index>> tree_children(number_nodes);
+ for (Index v = 0; v < number_nodes; ++v) {
+    int p = parent[v];
+    if (p >= 0 && p != v) {
+        tree_children[p].push_back(v);
+    }
+ }
 
  /* eq (25): for all lines l,  f_l = sum_i T_{li} p_i  +  sum_c C_{lc} h_c */
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
- const std::vector< Index > root = f_NetworkData->get_spanning_tree_root(); //f_NetworkData->get_reference_node();
 
  /* Print the Spanning tree and roots */
  /*std::cout << " Spanning tree roots : \n";
@@ -859,8 +814,8 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
         }
         constant_term += sign * v_ActiveDemand[ p ];
         bfs_queue.pop_front();
-        for( int child : tree[ p ] ) {
-          bfs_queue.push_back( child );
+        for (Index child : tree_children[p]) {
+          bfs_queue.push_back(child);
         }
       }
     }
@@ -1070,9 +1025,9 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
         double eta = 1.0;
         for( auto & line_id : HVDC_lines ) {
           if( start_line[ line_id ] == n )
-            lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );
-          
+            lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );          
           if ( ! f_NetworkData->is_hypergraph() ) {
+            eta = f_NetworkData->get_line_efficiency( line_id );
             if( end_line[ line_id ] == n )
               lfunc->add_variable(  &v_power_flow[ line_id ] , -eta );
           }

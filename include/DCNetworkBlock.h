@@ -648,10 +648,10 @@ class DCNetworkData : public NetworkData
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::map< Index , std::set< Index > > & get_spanning_tree( void ) {
+ const std::vector<int> & get_spanning_parent( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
-  return( m_spanning_tree );
+  return( m_spanning_parent );
   }
 
  const std::vector< Index > & get_spanning_tree_root( void ) {
@@ -663,33 +663,39 @@ class DCNetworkData : public NetworkData
  * tree and the value is 1 if the directed line is in the tree and -1 if 
  * the reverse directed line is in the tree.*/
 
- std::map< Index , int > get_lines_in_spanning_tree( void ) {
-  if( ! cycle_basis_was_computed )
-   this->compute_cycle_basis();
+std::map<Index, int> get_lines_in_spanning_tree(void){
+    if (!cycle_basis_was_computed)
+        compute_cycle_basis();
 
-  const auto number_lines = get_number_lines();
-  const auto & DC_lines   = get_DC_lines();
-  if( number_lines <= 0 )
-   throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
-			    "number of lines of DCNetworkBlock is not set" )
-	  );
+    const auto number_lines = get_number_lines();
+    const auto& DC_lines    = get_DC_lines();
 
-  const auto & start_line = get_start_line();
-  const auto & end_line = get_end_line();
+    if (number_lines <= 0)
+        throw std::logic_error(
+            "get_lines_in_spanning_tree: number of lines not set"
+        );
 
-  std::map< Index , int > lines_in_spanning_tree;
-  //for( Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-  for ( auto & line_id : DC_lines) { // only DC lines can participate here
-   Index i = start_line[ line_id ];
-   Index j = end_line[ line_id ];
-   if( this->m_spanning_tree[ i ].contains( j ) )  // line in spanning tree
-    lines_in_spanning_tree[ line_id ] = 1;
-   else
-    if( this->m_spanning_tree[ j ].contains( i ) )  // reverse line in spanning tree
-      lines_in_spanning_tree[ line_id ] = -1;
-   }
-  return( lines_in_spanning_tree );
-  }
+    const auto& start_line = get_start_line();
+    const auto& end_line   = get_end_line();
+
+    std::map<Index, int> lines_in_spanning_tree;
+
+    for (Index line_id : DC_lines) {
+        Index i = start_line[line_id];
+        Index j = end_line[line_id];
+
+        // i -> j in tree
+        if (m_spanning_parent[j] == i) {
+            lines_in_spanning_tree[line_id] = 1;
+        }
+        // j -> i in tree (reverse direction)
+        else if (m_spanning_parent[i] == j) {
+            lines_in_spanning_tree[line_id] = -1;
+        }
+    }
+
+    return lines_in_spanning_tree;
+}
 
 /*--------------------------------------------------------------------------*/
 /* Return a vector of map where the keys are the line ids involved in the
@@ -867,7 +873,9 @@ class DCNetworkData : public NetworkData
  std::vector< Subset > v_cycle_basis;
 
  /// vector to store the spanning tree
- std::map< Index , std::set< Index > > m_spanning_tree;
+ // -1 will be a default value for not belonging to the tree
+ std::vector<int> m_spanning_parent;
+
  /// The spanning tree may have a different root than the reference_node, as a result we store it here
  std::vector< Index > m_span_root; // The graph can in fact have disconnected components because we have HVDC lines that connect the various parts or for some other reason
  // then the spanning tree is more like a "spanning forest" which can be uncovered with the knowledge of multiple roots.
