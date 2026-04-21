@@ -585,6 +585,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   UnitBlock::is_feasible( useabstract )
   // Variables
   && ColVariable::is_feasible( v_active_power , tol )
+  && ColVariable::is_feasible( v_reactive_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   // Constraints
@@ -592,7 +593,8 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
   && RowConstraint::is_feasible( design_bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( max_power_Const , tol , rel_viol )
   && RowConstraint::is_feasible( active_power_bounds_design_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( active_power_bounds_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol , rel_viol ) );
 
 }  // end( IntermittentUnitBlock::is_feasible )
 

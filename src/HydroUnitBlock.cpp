@@ -968,6 +968,7 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // Variables: Notice that there is no check for the v_flow_rate and
   // v_active_power variables, since they are continuous and have no bounds
   && ColVariable::is_feasible( v_volumetric , tol )
+  && ColVariable::is_feasible( v_reactive_power , tol )
   && ColVariable::is_feasible( v_primary_spinning_reserve , tol )
   && ColVariable::is_feasible( v_secondary_spinning_reserve , tol )
   // Constraints
@@ -981,7 +982,9 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
   && RowConstraint::is_feasible( FlowRateBounds_Const , tol , rel_viol )
   && RowConstraint::is_feasible( FinalVolumeReservoir_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( VolumetricBounds_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( VolumetricBounds_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Reference_Schedule_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol , rel_viol ) );
 
  } // end( HydroUnitBlock::is_feasible )
 

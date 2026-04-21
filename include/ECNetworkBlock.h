@@ -834,7 +834,7 @@ class ECNetworkBlockMod : public NetworkBlockMod
  enum ECNetB_mod_type
  {
   eSetActD = 0 , ///< set active demand values
-  eNetBModLastParam  ///< first allowed parameter value for derived classes
+  eECNetBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ECNetworkBlockMod. */
  };

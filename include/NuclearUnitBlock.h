@@ -623,7 +623,7 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
 
  /// Public enum for the types of ThermalUnitBlockMod
  enum NUB_mod_type {
-  eSetModDP = eTUBBModLastParam , ///< set modulation delta ramp up
+  eSetModDP = eTUBModLastParam , ///< set modulation delta ramp up
   eSetModDM ,                     ///< set modulation delta ramp down
   eNUBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of

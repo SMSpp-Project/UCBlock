@@ -342,17 +342,17 @@ class DCNetworkData : public NetworkData
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true if this is a pure HVDC grid
 
- bool is_HVDC( void ) { return( v_line_susceptance.empty() ); }
+ bool is_HVDC( void ) const { return( v_line_susceptance.empty() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true if this is a pure DC grid
 
- bool is_DC( void ) { return( f_number_HVDC_lines == 0 ); }
+ bool is_DC( void ) const { return( f_number_HVDC_lines == 0 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true if this is a mixed DC - HVDC grid
 
- bool is_DC_HVDC( void ) {
+ bool is_DC_HVDC( void ) const {
   return( ( ! v_line_susceptance.empty() ) && ( f_number_HVDC_lines > 0 ) );
   }
  
@@ -762,7 +762,7 @@ class DCNetworkData : public NetworkData
   *   element of the vectors gives the network cost value for each line in the
   *   network. */
 
- const std::vector< double > & get_network_cost( void ) const {
+ std::vector< double > & get_network_cost( void ) {
   return( v_network_cost );
   }
 
@@ -860,7 +860,7 @@ class DCNetworkData : public NetworkData
 
  std::vector< std::string > v_line_names;  ///< Line names
 
- Subset v_DC_lines;      ///< the indices of DC lines (susceptance > 0)
+ Subset v_DC_lines;      ///< the indices of DC lines (susceptance != 0)
  Subset v_HVDC_lines;    ///< the indices of HVDC lines (susceptance == 0)
 
  /// vector to store the cycle basis
@@ -1052,7 +1052,7 @@ class DCNetworkData : public NetworkData
   * - otherwise, wf is 0
   *
   * The chosen formulation is CYCLE if wf == 1,KIRCHHOFF if wf == 2,
-  * is PTDF in all other cases (default). */
+  * and PTDF in all other cases (default). */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -1597,7 +1597,7 @@ class DCNetworkData : public NetworkData
   if( line >= v_design->size() )
    return( nullptr );
 
-  return( & (*v_design)[ line ] );
+  return( & ( *v_design )[ line ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1742,7 +1742,7 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// sets the dual prices of power flow limits, however the network is
+ /// sets the dual prices of power flow limits
 
  void set_dual_prices( const std::vector< double > & dp ) {
   auto nl = get_number_lines();
@@ -1784,7 +1784,7 @@ class DCNetworkData : public NetworkData
   if( WDV && ( ! WDV->empty() ) ) {
    #ifndef NDEBUG
     for( Index i = 0 ; i < WDV->size() - 1 ; ++i )
-     if( (*WDV)[ i ] >= (*WDV)[ i + 1 ] )
+     if( ( *WDV )[ i ] >= ( *WDV )[ i + 1 ] )
       throw( std::invalid_argument( "DCNetworkBlock::set_design_variables: "
 				    "WDV not ordered" ) );
    #endif
@@ -1795,8 +1795,8 @@ class DCNetworkData : public NetworkData
 
    v_dense_design.resize( get_number_lines() , nullptr );
    for( Index i = 0 , j = 0 ; i < v_dense_design.size() ; ++i )
-    if( (*WDV)[ j ] == i )
-     v_dense_design[ i ] = & (*v_design)[ j++ ];
+    if( ( j < WDV->size() ) && ( ( *WDV )[ j ] == i ) )
+     v_dense_design[ i ] = & ( *v_design )[ j++ ];
    }
   else
    v_dense_design.clear();
@@ -1821,6 +1821,57 @@ class DCNetworkData : public NetworkData
 /** @name Methods for changing the data of the DCNetworkBlock
  *  @{ */
 
+ /// set the network cost values
+ /** This function sets the network cost values of this DCNetworkBlock.
+  *
+  * @param values  Iterator to a vector containing the network cost values.
+  * @param subset  If non-empty, the network cost values corresponding to the
+  *                indices in \p subset are set to the values pointed by
+  *                \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_network_cost( MF_dbl_it values ,
+                        Subset && subset ,
+                        bool ordered = false ,
+                        c_ModParam issuePMod = eNoBlck ,
+                        c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the network cost values
+ /** This function sets the network cost values of this DCNetworkBlock.
+  *
+  * @param values Iterator to a vector containing the network cost values.
+  * @param rng    If non-empty, the network cost values corresponding to the
+  *               indices in \p rng are set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_network_cost( MF_dbl_it values ,
+                        Range rng = Range( 0 , Inf< Index >() ) ,
+                        c_ModParam issuePMod = eNoBlck ,
+                        c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the network cost values
+ /** This function sets the network cost values of this DCNetworkBlock.
+  *
+  * @param value     The value of the network cost.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_network_cost( double value ,
+                        c_ModParam issuePMod = eNoBlck ,
+                        c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_network_cost( vector.cbegin() ,
+                    Range( 0 , Inf< Index >() ) ,
+                    issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// set the kappa constants for the lines specified by \p subset
  /** This function sets the kappa constant of each line in the given \p
   * subset. The kappa constant of each line whose index is specified by the
@@ -1986,7 +2037,7 @@ class DCNetworkData : public NetworkData
 
  double f_tikhonov_coeff;         ///< regularization for PTDF computation
 
- double f_ptdf_round ;           ///< a coefficient to round some of the possibly nasty numerical values in the PTDF matrices
+ double f_ptdf_round;            ///< a coefficient to round some of the possibly nasty numerical values in the PTDF matrices
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -2073,12 +2124,28 @@ class DCNetworkData : public NetworkData
  static void static_initialization( void )
  {
   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "DCNetworkBlock::set_network_cost" ,
+   & DCNetworkBlock::set_network_cost );
+
+  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+   "DCNetworkBlock::set_network_cost" ,
+   & DCNetworkBlock::set_network_cost );
+
+  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
    "DCNetworkBlock::set_active_demand" ,
    & DCNetworkBlock::set_active_demand );
 
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
    "DCNetworkBlock::set_active_demand" ,
    & DCNetworkBlock::set_active_demand );
+
+  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "DCNetworkBlock::set_kappa" ,
+   & DCNetworkBlock::set_kappa );
+
+  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+   "DCNetworkBlock::set_kappa" ,
+   & DCNetworkBlock::set_kappa );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2098,6 +2165,7 @@ class DCNetworkBlockMod : public NetworkBlockMod
  enum DCNetB_mod_type
  {
   eSetKappa = eNetBModLastParam ,  ///< set the kappa constants
+  eSetNetCost ,                    ///< set network cost values
   eDCNetBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of DCNetworkBlockMod. */
@@ -2119,8 +2187,14 @@ class DCNetworkBlockMod : public NetworkBlockMod
  void print( std::ostream & output ) const override {
   output << "DCNetworkBlockMod[" << this << "]: ";
   switch( f_type ) {
+   case( eSetKappa ):
+    output << "Set kappa values ";
+    break;
+   case( eSetNetCost ):
+    output << "Set network cost values ";
+    break;
    default:
-    output << "Set active demand values ";
+    output << "Unknown DCNetworkBlock modification ";
    }
   }
  };  // end( class( DCNetworkBlockMod ) )

@@ -507,7 +507,7 @@ class BatteryUnitBlock : public UnitBlock
   *   interval \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
   *   \mathrm{ChangeIntervals}[ i ] ] \f$ with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. Note that it must always
-  *   be \f$ \mathrm{STBR}[ t ] \le 0. \f$ for all \f$ t \f$ (as \f$ \mathrm{STBR}
+  *   be \f$ \mathrm{STBR}[ t ] \le 1. \f$ for all \f$ t \f$ (as \f$ \mathrm{STBR}
   *   [ t ] \f$ is the amount of energy actually going in the battery for each
   *   1 unit of input energy). If \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
@@ -1219,22 +1219,21 @@ class BatteryUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
-  /// returns the vector of inefficiency of holding energy of the unit
-  /** This method returns a vector V containing the standing battery rho
+ /// returns the vector of inefficiency of holding energy of the unit
+ /** This method returns a vector V containing the standing battery rho
   * (inefficiency of standing/holding energy of the unit) at all time instants.
   * There are three possible cases:
   *
-  * - if the vector is empty, then the extracting battery rho of the unit is
-  *   0.;
+  * - if the vector is empty, then the standing battery rho of the unit is 1;
   *
-  * - if the vector has only one element, then V[ 0 ] is the extracting
-  *   battery rho of the unit for all time instants;
+  * - if the vector has only one element, then V[ 0 ] is the standing battery
+  *   rho of the unit for all time instants;
   *
   * - otherwise, the vector V must have size get_time_horizon() and each
-  *   V[ t ] represents the extracting battery rho value at time t. */
+  *   V[ t ] represents the standing battery rho value at time t. */
 
   const std::vector< double > & get_standing_battery_rho( void ) const {
-  return( v_StandingBatteryRho );
+   return( v_StandingBatteryRho );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1517,7 +1516,7 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraint + binary variables for time t
- const FRowConstraint * get_max_outtake_binary_constraints( Index t ) const {
+ const FRowConstraint * get_max_outtake_binary_constraint( Index t ) const {
   if( intake_outtake_binary_Const.empty() ||
       intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
@@ -1690,6 +1689,57 @@ class BatteryUnitBlock : public UnitBlock
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the cost values
+ /** This function sets the cost values of this BatteryUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the cost values.
+  * @param subset  If non-empty, the cost values corresponding to the indices
+  *                in \p subset are set to the values pointed by \p values.
+  *                If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_cost( MF_dbl_it values ,
+                Subset && subset ,
+                bool ordered = false ,
+                c_ModParam issuePMod = eNoBlck ,
+                c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the cost values
+ /** This function sets the cost values of this BatteryUnitBlock.
+  *
+  * @param values Iterator to a vector containing the cost values.
+  * @param rng    If non-empty, the cost values corresponding to the indices
+  *               in \p rng are set to the values pointed by \p values. If
+  *               empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_cost( MF_dbl_it values ,
+                Range rng = Range( 0 , Inf< Index >() ) ,
+                c_ModParam issuePMod = eNoBlck ,
+                c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the cost values
+ /** This function sets the cost values of this BatteryUnitBlock.
+  *
+  * @param value     The value of the cost.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_cost( double value ,
+                c_ModParam issuePMod = eNoBlck ,
+                c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_cost( vector.cbegin() ,
+            Range( 0 , Inf< Index >() ) ,
+            issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// sets the scale factor of this BatteryUnitBlock
@@ -2104,6 +2154,22 @@ class BatteryUnitBlock : public UnitBlock
    & BatteryUnitBlock::set_initial_storage );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_initial_power" ,
+   & BatteryUnitBlock::set_initial_power );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_initial_power" ,
+   & BatteryUnitBlock::set_initial_power );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_cost" ,
+   & BatteryUnitBlock::set_cost );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_cost" ,
+   & BatteryUnitBlock::set_cost );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
 
@@ -2129,12 +2195,16 @@ class BatteryUnitBlockMod : public UnitBlockMod
  {
   eSetInitS = eUBModLastParam , ///< set initial storage values
   eSetInitP ,                   ///< set initial power values
+  eSetCost ,                    ///< set cost values
   eSetKappa ,                   ///< set the kappa constant
- };
+  eBUBModLastParam  ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of BatteryUnitBlockMod. */
+  };
 
  /// constructor, takes the BatteryUnitBlock and the type
  BatteryUnitBlockMod( BatteryUnitBlock * const fblock , const int type )
-  : UnitBlockMod( fblock , type ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
 
  /// destructor, does nothing
  virtual ~BatteryUnitBlockMod() override = default;
@@ -2153,6 +2223,9 @@ class BatteryUnitBlockMod : public UnitBlockMod
     break;
    case( eSetInitP ):
     output << "set initial power values ";
+    break;
+   case( eSetCost ):
+    output << "set cost values ";
     break;
    case( eSetKappa ):
     output << "set kappa ";
@@ -2186,7 +2259,7 @@ class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod
  virtual ~BatteryUnitBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng( void ) { return( f_rng ); }
+ Block::c_Range & rng( void ) const { return( f_rng ); }
 
  protected:
 
@@ -2220,7 +2293,7 @@ class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod
  virtual ~BatteryUnitBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms( void ) { return( f_nms ); }
+ Block::c_Subset & nms( void ) const { return( f_nms ); }
 
  protected:
 

@@ -500,10 +500,8 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    // Variable
    && ColVariable::is_feasible( v_modulation , tol )
    // Constraints
-   && RowConstraint::is_feasible( Modulation_RampUp_Constraints ,
-          tol , rel_viol )
-   && RowConstraint::is_feasible( Modulation_RampDown_Constraints ,
-          tol , rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampUp_Constraints , tol , rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampDown_Constraints , tol , rel_viol )
    && RowConstraint::is_feasible( NoDownModulation , tol , rel_viol )
    && RowConstraint::is_feasible( NoStartUpModulation , tol , rel_viol )
    && RowConstraint::is_feasible( ModulationConst , tol , rel_viol )

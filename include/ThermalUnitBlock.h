@@ -2990,7 +2990,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
  public:
 
  /// public enum for the types of ThermalUnitBlockMod
- enum TUBB_mod_type
+ enum TUB_mod_type
  {
   eSetMaxP = eUBModLastParam , ///< set max power values
   eSetInitP ,                  ///< set initial power values
@@ -3002,7 +3002,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
   eSetConstT ,                 ///< set constant term
   eSetPrSpResCost ,            ///< set primary spinning reserve costs
   eSetSecSpResCost ,           ///< set secondary spinning reserve costs
-  eTUBBModLastParam   ///< first allowed parameter value for derived classes
+  eTUBModLastParam   ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ThermalUnitBlockMod. */
   };
