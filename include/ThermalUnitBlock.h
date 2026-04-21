@@ -27,6 +27,8 @@
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
  *         Consiglio Nazionale delle Ricerche \n
  *
+ * \author Claude Opus 4.7 \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
  *                      Rafael Durbano Lobato, Donato Meoli, Tiziano Bacci
  */

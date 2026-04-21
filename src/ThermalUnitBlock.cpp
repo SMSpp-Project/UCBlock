@@ -24,6 +24,8 @@
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
  *         Consiglio Nazionale delle Ricerche \n
  *
+ * \author Claude Opus 4.7 \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
  *                      Rafael Durbano Lobato, Donato Meoli, Tiziano Bacci
  */
@@ -169,7 +171,7 @@ ThermalUnitBlock::~ThermalUnitBlock()
  Constraint::clear( Commitment_fixed_to_One_Const );
 
  objective.clear();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -181,22 +183,20 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  UnitBlock::deserialize( group );
 
  // Mandatory variables
-
  ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
                 false , true , v_change_intervals );
 
  // Optional variables
-
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
 
  ::deserialize( group , f_Capacity , "Capacity" );
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
-  f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
-                          f_time_horizon );
+  f_MinUpTime = std::min( std::max( f_MinUpTime , Index( 1 ) ) ,
+			  f_time_horizon );
 
  if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) )
-  f_MinDownTime = std::min( std::max( f_MinDownTime , static_cast< Index >( 1 ) ) ,
+  f_MinDownTime = std::min( std::max( f_MinDownTime , Index( 1 ) ) ,
                             f_time_horizon );
 
  ::deserialize( group , f_InitialPower , "InitialPower" );
@@ -206,7 +206,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
    f_InitUpDownTime = -f_MinDownTime;
   else
    f_InitUpDownTime = f_MinUpTime;
- }
+  }
 
  if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
                       true , true , v_change_intervals ) )
@@ -301,53 +301,58 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   if( f_InitUpDownTime > 0 ) {
    const auto delta_ramp_up = get_delta_ramp_up( 0 );
    if( delta_ramp_up == 0 )
-    v_MaxRampSteps[ 0 ] = static_cast< int >( f_time_horizon - 1 );
+    v_MaxRampSteps[ 0 ] = int( f_time_horizon - 1 );
    else
-    v_MaxRampSteps[ 0 ] = std::min( static_cast< int >(
-     ( ( get_operational_max_power( 0 ) - f_InitialPower ) /
-       delta_ramp_up ) ), static_cast< int >( f_time_horizon - 1 ) );
-  }
+    v_MaxRampSteps[ 0 ] = std::min( int(
+                    ( ( get_operational_max_power( 0 ) - f_InitialPower ) /
+                      delta_ramp_up ) ) , int( f_time_horizon - 1 ) );
+   }
   else
    v_MaxRampSteps[ 0 ] = -1;
+
   for( Index t = 1 ; t <= f_time_horizon ; ++t ) {
    const auto delta_ramp_up = get_delta_ramp_up( t - 1 );
    if( delta_ramp_up == 0 )
-    v_MaxRampSteps[ t ] = static_cast< int >( f_time_horizon - t );
+    v_MaxRampSteps[ t ] = int( f_time_horizon - t );
    else
-    v_MaxRampSteps[ t ] = std::min( static_cast< int >(
-     ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
-       delta_ramp_up ) ), static_cast< int >( f_time_horizon - t ) );
+    v_MaxRampSteps[ t ] = std::min( int(
+                    ( ( get_operational_max_power( t - 1 ) -
+			get_operational_min_power( t - 1 ) ) /
+		      delta_ramp_up ) ) , int( f_time_horizon - t ) );
   }
  }
 
  if( ! ::deserialize( group , "MaxRampDownSteps" , f_time_horizon ,
-                      v_MaxRampDownSteps , true , true , v_change_intervals ) ) {
+                      v_MaxRampDownSteps , true , true , v_change_intervals )
+     ) {
   v_MaxRampDownSteps.resize( f_time_horizon + 1 );
   if( f_InitUpDownTime > 0 ) {
    const auto delta_ramp_down = get_delta_ramp_down( 0 );
    if( delta_ramp_down == 0 )
-    v_MaxRampDownSteps[ 0 ] = static_cast< int >( f_time_horizon - 1 );
+    v_MaxRampDownSteps[ 0 ] = int( f_time_horizon - 1 );
    else
-    v_MaxRampDownSteps[ 0 ] = std::min( static_cast< int >(
-     ( ( f_InitialPower - get_operational_min_power( 0 ) ) /
-       delta_ramp_down ) ), static_cast< int >( f_time_horizon - 1 ) );
-  }
+    v_MaxRampDownSteps[ 0 ] = std::min( int(
+                     ( ( f_InitialPower - get_operational_min_power( 0 ) ) /
+		       delta_ramp_down ) ) , int( f_time_horizon - 1 ) );
+   }
   else
    v_MaxRampDownSteps[ 0 ] = -1;
+
   for( Index t = 1 ; t <= f_time_horizon ; ++t ) {
    const auto delta_ramp_down = get_delta_ramp_down( t - 1 );
    if( delta_ramp_down == 0 )
     v_MaxRampDownSteps[ t ] = f_time_horizon - t;
    else
-    v_MaxRampDownSteps[ t ] = std::min( static_cast< int >(
-     ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
-       delta_ramp_down ) ), static_cast< int >( f_time_horizon - t ) );
+    v_MaxRampDownSteps[ t ] = std::min( int (
+		     ( ( get_operational_max_power( t - 1 ) -
+			 get_operational_min_power( t - 1 ) ) /
+		       delta_ramp_down ) ) , int ( f_time_horizon - t ) );
+   }
   }
- }
 
  check_data_consistency();
 
-}  // end( ThermalUnitBlock::deserialize )
+ }  // end( ThermalUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -5656,26 +5661,42 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
  // abstract representation has been changed already)
  Index th = f_time_horizon;
 
- // C05FunctionModLinRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
- // split the C05FunctionModLinRngd in up to 5 physical Modification by
- // calling the appropriate set_*() methods (ranged version) for those among
- // startup, power, commitment, primary/secondary reserve variables whose
- // coefficient change. This heavily relies on the fact that variables of
- // the same type are consecutive (and ordered in the obvious way) when
- // set as coefficients in the Objective
+ // C05FunctionModLinRngd / DQuadFunctionModRngd - - - - - - - - - - - - - - -
+ // split the Modification in up to 5 physical Modification by calling the
+ // appropriate set_*() methods (ranged version) for those among startup,
+ // power, commitment, primary/secondary reserve variables whose coefficient
+ // change. This heavily relies on the fact that variables of the same type
+ // are consecutive (and ordered in the obvious way) when set as coefficients
+ // in the Objective. C05FunctionModLinRngd only reports changes to linear
+ // coefficients, while DQuadFunctionModRngd also reports changes to quadratic
+ // coefficients; since only the active power variables carry a non-zero
+ // quadratic coefficient, set_quad_term() is called exclusively for that
+ // section, and only when the Modification is a DQuadFunctionModRngd (the
+ // with_quad flag).
 
- if( const auto tmod = dynamic_cast< C05FunctionModLinRngd * >( mod ) ) {
+ const Range * rng = nullptr;
+ bool with_quad = false;
+ if( const auto tmod = dynamic_cast< C05FunctionModLinRngd * >( mod ) )
+  rng = & tmod->range();
+ else
+  if( const auto tmod = dynamic_cast< DQuadFunctionModRngd * >( mod ) ) {
+   rng = & tmod->range();
+   with_quad = true;
+   }
 
-  Index l = tmod->range().first;
-  Index r = tmod->range().second;
+ if( rng ) {
+  Index l = rng->first;
+  Index r = rng->second;
 
-  if( tmod->range().second > qf->get_num_active_var() )
+  if( r > qf->get_num_active_var() )
    throw( std::invalid_argument(
-    "ThermalUnitBlock::handle_objective_change: invalid Range [" +
-    std::to_string( l ) + ", " + std::to_string( r ) +
-    ") in C05FunctionModLinRngd." ) );
+		  "ThermalUnitBlock::add_Modification: invalid Range [" +
+		  std::to_string( l ) + ", " + std::to_string( r ) + ")" ) );
 
   std::vector< double > nv( r - l + 1 );
+  std::vector< double > nvq;
+  if( with_quad )
+   nvq.resize( r - l + 1 );
   Index gl = 0;
   Index gr = th - init_t;
 
@@ -5688,7 +5709,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    l = r2;
    if( l == r )
     return;
-  }
+   }
 
   gl = gr;
   gr = 2 * th - init_t;
@@ -5699,10 +5720,17 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    for( Index i = l ; i < r2 ; )
     *( nvit++ ) = qf->get_linear_coefficient( i++ );
    set_linear_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
+   if( with_quad ) {
+    auto nvqit = nvq.begin();
+    for( Index i = l ; i < r2 ; )
+     *( nvqit++ ) = qf->get_quadratic_coefficient( i++ );
+    set_quad_term( nvq.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
+    }
+
    l = r2;
    if( l == r )
     return;
-  }
+   }
 
   gl = gr;
   gr = 3 * th - init_t;
@@ -5713,10 +5741,11 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    for( Index i = l ; i < r2 ; )
     *( nvit++ ) = qf->get_linear_coefficient( i++ );
    set_const_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
+
    l = r2;
    if( l == r )
     return;
-  }
+   }
 
   gl = gr;
   gr = 4 * th - init_t;
@@ -5731,7 +5760,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    l = r2;
    if( l == r )
     return;
-  }
+   }
 
   gl = gr;
   gr = 5 * th - init_t;
@@ -5745,38 +5774,47 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
                                         par , eDryRun );
    if( r2 == r )
     return;
-  }
+   }
 
-  throw( std::invalid_argument(
-   "ThermalUnitBlock::handle_objective_change: invalid variable in "
-   "C05FunctionModLinRngd." ) );
+  throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: invalid "
+				"variable in Modification" ) );
   return;
 
- }  // end( C05FunctionModLinRngd )
+  }  // end( Rngd )
 
- // C05FunctionModLinSbst - - - - - - - - - - - - - - - - - - - - - - - - - -
- // split the C05FunctionModLinSbst in up to 5 physical Modification by
- // calling the appropriate set_*() methods (subset version) for those among
- // startup, power, commitment, primary/secondary reserve variables whose
- // coefficient change. This heavily relies on the fact that variables of
- // the same type are consecutive (and ordered in the obvious way) when
- // set as coefficients in the Objective
+ // C05FunctionModLinSbst / DQuadFunctionModSbst - - - - - - - - - - - - - - -
+ // split the Modification in up to 5 physical Modification by calling the
+ // appropriate set_*() methods (subset version); see the comment on the
+ // ranged case above: the same considerations apply, with the quadratic
+ // coefficient being handled only for the active power section and only
+ // when the Modification is a DQuadFunctionModSbst.
 
- if( const auto tmod = dynamic_cast< C05FunctionModLinSbst * >( mod ) ) {
+ const Subset * sbs = nullptr;
+ with_quad = false;
+ if( const auto tmod = dynamic_cast< C05FunctionModLinSbst * >( mod ) )
+  sbs = & tmod->subset();
+ else
+  if( const auto tmod = dynamic_cast< DQuadFunctionModSbst * >( mod ) ) {
+   sbs = & tmod->subset();
+   with_quad = true;
+   }
 
-  if( tmod->subset().back() > qf->get_num_active_var() )
-   throw( std::invalid_argument(
-    "ThermalUnitBlock::handle_objective_change: invalid Subset in "
-    "C05FunctionModLinSbst." ) );
+ if( sbs ) {
+  if( sbs->back() > qf->get_num_active_var() )
+   throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: "
+				 "invalid Subset" ) );
 
-  std::vector< double > nv( tmod->subset().size() );
-  auto l = tmod->subset().begin();
+  std::vector< double > nv( sbs->size() );
+  std::vector< double > nvq;
+  if( with_quad )
+   nvq.resize( sbs->size() );
+  auto l = sbs->begin();
   Index gl = 0;
   Index gr = th - init_t;
 
   if( *l < gr ) {  // startup variables
    auto r = l;
-   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+   for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
     ++r;
    Subset nms( std::distance( l , r ) );
    auto nvit = nv.begin();
@@ -5784,37 +5822,44 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    while( l != r ) {
     *( nvit++ ) = qf->get_linear_coefficient( *l );
     *( nmsit++ ) = *( l++ );
-   }
+    }
    set_startup_costs( nv.begin() , std::move( nms ) , true , par , eDryRun );
-   if( r == tmod->subset().end() )
+   if( r == sbs->end() )
     return;
-  }
+   }
 
   gl = gr;
   gr = 2 * th - init_t;
 
   if( *l < gr ) {  // active power variables
    auto r = l;
-   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+   for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
     ++r;
    Subset nms( std::distance( l , r ) );
    auto nvit = nv.begin();
    auto nmsit = nms.begin();
+   auto nvqit = nvq.begin();
    while( l != r ) {
     *( nvit++ ) = qf->get_linear_coefficient( *l );
+    if( with_quad )
+     *( nvqit++ ) = qf->get_quadratic_coefficient( *l );
     *( nmsit++ ) = *( l++ ) - gl;
-   }
+    }
+   if( with_quad ) {
+    Subset nmsq = nms;  // copy, as it is moved
+    set_quad_term( nvq.begin() , std::move( nmsq ) , true , par , eDryRun );
+    }
    set_linear_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
-   if( r == tmod->subset().end() )
+   if( r == sbs->end() )
     return;
-  }
+   }
 
   gl = gr;
   gr = 3 * th - init_t;
 
   if( *l < gr ) {  // commitment variables
    auto r = l;
-   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+   for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
     ++r;
    Subset nms( std::distance( l , r ) );
    auto nvit = nv.begin();
@@ -5822,18 +5867,18 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    while( l != r ) {
     *( nvit++ ) = qf->get_linear_coefficient( *l );
     *( nmsit++ ) = *( l++ ) - gl;
-   }
+    }
    set_const_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
-   if( r == tmod->subset().end() )
+   if( r == sbs->end() )
     return;
-  }
+   }
 
   gl = gr;
   gr = 4 * th - init_t;
 
   if( *l < gr ) {  // primary spinning reserve variables
    auto r = l;
-   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+   for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
     ++r;
    Subset nms( std::distance( l , r ) );
    auto nvit = nv.begin();
@@ -5841,19 +5886,19 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    while( l != r ) {
     *( nvit++ ) = qf->get_linear_coefficient( *l );
     *( nmsit++ ) = *( l++ ) - gl;
-   }
+    }
    set_primary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
                                       true , par , eDryRun );
-   if( r == tmod->subset().end() )
+   if( r == sbs->end() )
     return;
-  }
+   }
 
   gl = gr;
   gr = 5 * th - init_t;
 
   if( *l < gr ) {  // secondary spinning reserve variables
    auto r = l;
-   for( ++r ; ( r != tmod->subset().end() ) && ( *r < gr ) ; )
+   for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
     ++r;
    Subset nms( std::distance( l , r ) );
    auto nvit = nv.begin();
@@ -5861,18 +5906,17 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    while( l != r ) {
     *( nvit++ ) = qf->get_linear_coefficient( *l );
     *( nmsit++ ) = *( l++ ) - gl;
-   }
+    }
    set_secondary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
                                         true , par , eDryRun );
-  }
+   }
 
-  if( l != tmod->subset().end() )
-   throw( std::invalid_argument(
-    "ThermalUnitBlock::handle_objective_change: invalid variable in "
-    "C05FunctionModLinSbst." ) );
+  if( l != sbs->end() )
+   throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: invalid "
+				 "variable in Modification" ) );
   return;
 
-  }  // end( C05FunctionModLinSbst )
+  }  // end( Sbst )
 
  throw( std::invalid_argument( "ThermalUnitBlock:: unsupported FunctionMod "
 			       "from Objective" ) );
