@@ -881,8 +881,6 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
   double constant_term = 0.;
   lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 );
 
-  int f_sign = +1;
-
   /* Σ_i T_{li} p_i : only if l is a tree edge */
   if( lines_in_tree.contains( line_id ) ) {
    int sign = -lines_in_tree[ line_id ];
@@ -1438,11 +1436,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
   overall_balanced_const.set_lhs( constant_term );
   overall_balanced_const.set_rhs( constant_term );
   add_static_constraint( overall_balanced_const , "overall_balanced_const" );
-
   }  // end( if( there are DC lines ) )
-
- set_constraints_generated();
-
  }  // end( DCNetworkBlock::generate_PTDF_constraints )
 
 /*--------------------------------------------------------------------------*/
@@ -1853,38 +1847,30 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
              v_ActiveDemand.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   // Change the physical representation
+   // Change the abstract representation
 
-  std::copy( values , values + ( rng.second - rng.first ) ,
-             v_ActiveDemand.begin() + rng.first );
-
-   if( not_dry_run( issueAMod ) && constraints_generated() ) {
-    // Change the abstract representation
-
-    if( f_NetworkData->is_HVDC() ) {
-     std::vector< Index > modified_nodes( rng.second - rng.first );
-     std::iota( modified_nodes.begin() , modified_nodes.end() ,
-                rng.first );
-     change_DC_power_flow_injection_constraints( modified_nodes ,
-                                                 issueAMod );
-     }
-    else {
-     std::vector< Index > modified_lines( f_NetworkData->get_number_lines() );
-     std::iota( modified_lines.begin() , modified_lines.end() , 0 );
-     change_relax_abs_constraints( modified_lines , issueAMod );
-     // all lines are modified
-     change_power_flow_limit_constraints( modified_lines , issueAMod );
-     }
+   if( f_NetworkData->is_HVDC() ) {
+    std::vector< Index > modified_nodes( rng.second - rng.first );
+    std::iota( modified_nodes.begin() , modified_nodes.end() ,
+               rng.first );
+    change_DC_power_flow_injection_constraints( modified_nodes ,
+                                                issueAMod );
+    }
+   else {
+    std::vector< Index > modified_lines( f_NetworkData->get_number_lines() );
+    std::iota( modified_lines.begin() , modified_lines.end() , 0 );
+    change_relax_abs_constraints( modified_lines , issueAMod );
+    // all lines are modified
+    change_power_flow_limit_constraints( modified_lines , issueAMod );
     }
    }
   }
 
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
+ if( issue_pmod( issuePMod ) ) // issue a Physical Modification
   Block::add_Modification( std::make_shared< NetworkBlockRngdMod >( this ,
                             NetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
-
- }  // end( DCNetworkBlock::set_active_demand( range ) )
+ } // end( DCNetworkBlock::set_active_demand( range ) )
 
 /*--------------------------------------------------------------------------*/
 
