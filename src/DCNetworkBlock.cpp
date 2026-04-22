@@ -395,6 +395,7 @@ void DCNetworkData::compute_cycle_basis(int opt_root, bool only_DC_lines)
      *------------------------------------------------------------*/
     std::vector<std::vector<Index>> neighbors(number_nodes);
 
+    v_cycle_basis.clear();
     const auto& DC_lines = get_DC_lines();
     for (Index line_id : DC_lines) {
         Index u = start_line[line_id];
@@ -413,11 +414,15 @@ void DCNetworkData::compute_cycle_basis(int opt_root, bool only_DC_lines)
     /*------------------------------------------------------------
      * Initialise DFS / Paton state
      *------------------------------------------------------------*/
-    v_cycle_basis.clear();
 
     m_spanning_parent.assign(number_nodes, -1);
 
     std::vector<int> depth(number_nodes, -1);
+
+    // marks nodes on the current DFS path
+    std::vector<bool> in_stack(number_nodes, false);
+
+    // explicit DFS stack   
     std::vector<Index> stack;
 
     /*------------------------------------------------------------
@@ -432,39 +437,63 @@ void DCNetworkData::compute_cycle_basis(int opt_root, bool only_DC_lines)
         depth[start] = 0;
         m_spanning_parent[start] = start;
         stack.push_back(start);
+        in_stack[start] = true;
 
         while (!stack.empty()) {
             Index u = stack.back();
             stack.pop_back();
 
+            bool pushed_child = false;          
             for (Index v : neighbors[u]) {
-
                 // Tree edge
                 if (depth[v] == -1) {
                     depth[v] = depth[u] + 1;
-                    m_spanning_parent[v] = u;
-                    stack.push_back(v);
+                    m_spanning_parent[v] = static_cast<int>(u);
+
+                    stack.push_back(u);   // resume u later
+                    stack.push_back(v);   // DFS into v
+                    in_stack[v] = true;
+
+                    pushed_child = true;
+                    break;  // important: depth-first
                 }
-                // Back edge to ancestor → fundamental cycle
-                else if (v != m_spanning_parent[u] &&
-                         depth[v] < depth[u]) {
+
+                // -------------------------------------------------
+                // Back edge to ANCESTOR → fundamental cycle
+                // -------------------------------------------------
+                else if (v != static_cast<Index>(m_spanning_parent[u]) &&
+                         in_stack[v] ) {
 
                     Subset cycle;
                     cycle.push_back(v);
 
-                    Index x = u;
-                    while (x != v) {
-                        cycle.push_back(x);
+                    int x = static_cast<int>(u);
+#ifndef NDEBUG
+                    int guard = 0;
+#endif
+                    while (x != static_cast<int>(v)) {
+                        cycle.push_back(static_cast<Index>(x));
                         x = m_spanning_parent[x];
+#ifndef NDEBUG
+                        // Safety guards
+                        assert(x >= 0 && x < static_cast<int>(number_nodes));
+                        assert(++guard <= static_cast<int>(number_nodes));
+#endif
                     }
 
-                    cycle.push_back(v);   // close cycle
+                    cycle.push_back(v);  // close cycle
                     v_cycle_basis.push_back(std::move(cycle));
                 }
             }
+
+            // -------------------------------------------------
+            // Finished exploring u
+            // -------------------------------------------------
+            if (!pushed_child) {
+                in_stack[u] = false;
+            }
         }
     }
-
     cycle_basis_was_computed = true;
 }
 
