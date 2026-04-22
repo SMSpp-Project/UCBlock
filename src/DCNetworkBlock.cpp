@@ -202,7 +202,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    if( ( ! v_line_susceptance.empty() ) &&
-       ( v_line_susceptance[ i ] > 0 ) && ( v_end_lines[ i ].size() > 1 ) )
+       ( v_line_susceptance[ i ] != 0.0 ) && ( tmp[ i ].size() > 1 ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: line " +
     				                          std::to_string( id[ i ] ) +
     				                          " is a hyperarc but has susceptance" ) );
@@ -277,23 +277,26 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
  SpMat A_DC_transpose( number_nodes - 1 , number_lines );
  double eta = 1.0;
  for( auto & line_id : HVDC_lines ) {
-  A_DC_transpose.coeffRef( get_reducedIdx( start_line[ line_id ] ) ,
-			   line_id ) = 1.;
+  if( start_line[ line_id ] != get_reference_node() )
+   A_DC_transpose.coeffRef( get_reducedIdx( start_line[ line_id ] ) ,
+                                            line_id ) = 1.;
   if( ! is_hypergraph() ) {  // no hypergraph
    eta = get_line_efficiency( line_id ); // efficiency of the HVDC line
-   A_DC_transpose.coeffRef( get_reducedIdx( end_line[ line_id ] ) ,
-			    line_id ) = -eta;
+   if( end_line[ line_id ] != get_reference_node() )
+    A_DC_transpose.coeffRef( get_reducedIdx( end_line[ line_id ] ) ,
+                                             line_id ) = -eta;
    }
   else {  // with hypergraph
    for( Index i = 0 ; i < get_end_lines()[ line_id ].size() ; ++i ) {
     eta = get_line_efficiencies( line_id )[ i ]; // efficiency of the hyperarc
-    A_DC_transpose.coeffRef(
-     get_reducedIdx( get_end_lines()[ line_id ][ i ] ) , line_id ) = -eta;
+    if( const Index e = get_end_lines()[ line_id ][ i ] ; e != get_reference_node() )
+     A_DC_transpose.coeffRef( get_reducedIdx( e ) , line_id ) = -eta;
     }
    }
   }
 
  DCDF = -PTDF_matrix * A_DC_transpose;
+ DCDF_was_computed = true;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -440,7 +443,7 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
  *   cycles of a graph", Communications of the ACM, 1969.
  * - NetworkX implementation of cycle_basis (adapted to C++).
  */
-void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines ) {
+void DCNetworkData::compute_cycle_basis( void ) {
  if( cycle_basis_was_computed )
   return;
 
@@ -525,7 +528,7 @@ void DCNetworkData::compute_cycle_basis( int opt_root , bool only_DC_lines ) {
     // -------------------------------------------------
     // Back edge to ANCESTOR → fundamental cycle
     // -------------------------------------------------
-    else if( v != static_cast< Index >( m_spanning_parent[ u ] ) &&
+    if( v != static_cast< Index >( m_spanning_parent[ u ] ) &&
      in_stack[ v ] ) {
      Subset cycle;
      cycle.push_back( v );
@@ -740,7 +743,7 @@ void DCNetworkBlock::generate_CYCLE_variables( void )
  // the power flow variable on cycle basis
  // we know the number of cycles by the graph theory, see the paper.
  // So, no reason to call get_lines_in_cycle()
- v_cycle_flow.resize( number_lines - number_nodes + 1 );
+ v_cycle_flow.resize( f_NetworkData->get_lines_in_cycles().size() );
 
  for( auto & var : v_cycle_flow )
   var.set_type( ColVariable::kContinuous );
@@ -858,12 +861,6 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
 
- /* Print the Spanning tree and roots */
- /*std::cout << " Spanning tree roots : \n";
- for( int i = 0 ; i < root.size() ; ++i )
-    std::cout << root[ i ] << "\n";
- */
-
  /*--------------------------------------------------------------*/
  /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c      */
  /*--------------------------------------------------------------*/
@@ -897,8 +894,12 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
     child = v;
    else if( parent[ u ] == static_cast< int >( v ) )
     child = u;
-   else
-    continue; // should not happen
+   else {
+#ifndef NDEBUG
+    assert(
+     false && "Tree edge orientation inconsistent with spanning parent" );
+#endif
+   }
 
    std::queue< Index > q;
    q.push( child );
@@ -1101,84 +1102,88 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
 
 /*--------------------------------------------------------------------------*/
 
- void DCNetworkBlock::generate_HVDC_nodal_constraints( bool full_formulation ) {
-  auto number_nodes = get_number_nodes();
-  auto number_lines = get_number_lines();
-  auto & DC_lines = f_NetworkData->get_DC_lines();
-  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
+void DCNetworkBlock::generate_HVDC_nodal_constraints( bool full_formulation ) {
+ auto number_nodes = get_number_nodes();
+ auto & DC_lines = f_NetworkData->get_DC_lines();
+ auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
 
-  const auto & start_line = f_NetworkData->get_start_line();
-  const auto & end_line = f_NetworkData->get_end_line();
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
 
-  // power flow node injection constraints for mixed DC - HVDC- - - - - - - -
-  // if we have mixed lines, we have as many as nodes impacted and touched
-  // by DC lines
-    int nb_DCnodes = 0;
-    // savagely setting all visited nodes to true will generate nodal
-    // balances for all nodes
-    // the default and subtle initialization should be with false
-    std::vector< bool > nodes_vist( number_nodes , full_formulation );
+ // power flow node injection constraints for mixed DC - HVDC- - - - - - - -
+ // if we have mixed lines, we have as many as nodes impacted and touched
+ // by DC lines
+ int nb_DCnodes = 0;
+ // savagely setting all visited nodes to true will generate nodal
+ // balances for all nodes
+ // the default and subtle initialization should be with false
+ std::vector< bool > nodes_vist( number_nodes , full_formulation );
 
-    // Flip any visited nodes to true
-    for( auto & line_id : HVDC_lines ) {
-      nodes_vist[ start_line[ line_id ] ] = true;
-      nodes_vist[ end_line[ line_id ] ] = true;
+ // Flip any visited nodes to true
+ for( auto & line_id : HVDC_lines ) {
+  nodes_vist[ start_line[ line_id ] ] = true;
+  if( ! f_NetworkData->is_hypergraph() )
+   nodes_vist[ end_line[ line_id ] ] = true;
+  else
+   for( auto e : f_NetworkData->get_end_lines()[ line_id ] )
+    nodes_vist[ e ] = true;
+ }
+
+ for( Index n = 0 ; n < number_nodes ; ++n ) {
+  if( nodes_vist[ n ] )
+   ++nb_DCnodes;
+ }
+
+ v_DC_HVDC_power_flow_const.resize( nb_DCnodes );
+
+ // Add power balance equations for impacted nodes
+ int iDCnode = 0;
+ for( Index n = 0 ; n < number_nodes ; ++n ) {
+  if( nodes_vist[ n ] ) {
+   auto lfunc = new LinearFunction();
+
+   double nodal_slack = 0.0; // 0.05; -- Why is there a nodal slack ?
+   lfunc->add_variable( &v_node_injection[ 0 ][ n ] , -1.0 );
+
+   double eta = 1.0;
+   for( auto & line_id : HVDC_lines ) {
+    if( start_line[ line_id ] == n )
+     lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );
+    if( ! f_NetworkData->is_hypergraph() ) {
+     eta = f_NetworkData->get_line_efficiency( line_id );
+     if( end_line[ line_id ] == n )
+      lfunc->add_variable( &v_power_flow[ line_id ] , -eta );
     }
-
-    for( Index n = 0 ; n < number_nodes ; ++n ) {
-      if( nodes_vist[ n ] )
-        ++nb_DCnodes;
-    }
-
-    v_DC_HVDC_power_flow_const.resize( nb_DCnodes );
-
-    // Add power balance equations for impacted nodes
-    int iDCnode = 0;
-    for( Index n = 0 ; n < number_nodes ; ++n ) {
-      if( nodes_vist[ n ] ) {
-        auto lfunc = new LinearFunction();
-
-        double nodal_slack = 0.0; // 0.05; -- Why is there a nodal slack ?
-        lfunc->add_variable( &v_node_injection[ 0 ][ n ] , -1.0 ); 
-
-        double eta = 1.0;
-        for( auto & line_id : HVDC_lines ) {
-          if( start_line[ line_id ] == n )
-            lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );          
-          if( ! f_NetworkData->is_hypergraph() ) {
-            eta = f_NetworkData->get_line_efficiency( line_id );
-            if( end_line[ line_id ] == n )
-              lfunc->add_variable(  &v_power_flow[ line_id ] , -eta );
-          }
-          else
-          {
-            for( Index i = 0 ;
-              i < f_NetworkData->get_end_lines()[ line_id ].size() ; ++i ) {
-                if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
-                  eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
-                  lfunc->add_variable( & v_power_flow[ line_id ] , -eta );
-                }
-            }
-          }
-        }
-        for( auto & line_id : DC_lines ) {
-          if( start_line[ line_id ] == n )
-            lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 ); 
-          if( end_line[ line_id ] == n )
-            lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 ); 
-        }
-
-        v_DC_HVDC_power_flow_const[ iDCnode ].set_lhs( -v_ActiveDemand[ n ] - nodal_slack );
-        // allow for a 0.01 MW deviation
-        v_DC_HVDC_power_flow_const[ iDCnode ].set_rhs( -v_ActiveDemand[ n ] + nodal_slack );
-        v_DC_HVDC_power_flow_const[ iDCnode ].set_function( lfunc );
-
-        ++iDCnode; // update the index
+    else {
+     for( Index i = 0 ;
+          i < f_NetworkData->get_end_lines()[ line_id ].size() ; ++i ) {
+      if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
+       eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
+       lfunc->add_variable( &v_power_flow[ line_id ] , -eta );
       }
+     }
+    }
    }
-   // Add the whole vector of constraints at once
-   add_static_constraint( v_DC_HVDC_power_flow_const ,
-                          "DCHVDC_power_flow_injection" );
+   for( auto & line_id : DC_lines ) {
+    if( start_line[ line_id ] == n )
+     lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );
+    if( end_line[ line_id ] == n )
+     lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 );
+   }
+
+   v_DC_HVDC_power_flow_const[ iDCnode ].set_lhs(
+    -v_ActiveDemand[ n ] - nodal_slack );
+   // allow for a 0.01 MW deviation
+   v_DC_HVDC_power_flow_const[ iDCnode ].set_rhs(
+    -v_ActiveDemand[ n ] + nodal_slack );
+   v_DC_HVDC_power_flow_const[ iDCnode ].set_function( lfunc );
+
+   ++iDCnode; // update the index
+  }
+ }
+ // Add the whole vector of constraints at once
+ add_static_constraint( v_DC_HVDC_power_flow_const ,
+                        "DCHVDC_power_flow_injection" );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1793,18 +1798,11 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
 
  if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
      constraints_generated() ) {
-  // Change the abstract representation
-  if( f_NetworkData->is_HVDC() ) {
-   std::vector< Index > modified_nodes( subset.begin() , subset.end() );
+  std::vector< Index > modified_nodes( subset.begin() , subset.end() );
+  if( f_NetworkData->is_HVDC() )
    change_DC_power_flow_injection_constraints( modified_nodes , issueAMod );
-   }
-  else {
-   std::vector< Index > modified_lines( f_NetworkData->get_number_lines() );
-   std::iota( modified_lines.begin() , modified_lines.end() , 0 );
-   change_relax_abs_constraints( modified_lines , issueAMod );
-   // all lines are modified
-   change_power_flow_limit_constraints( modified_lines , issueAMod );
-   }
+  else
+   change_active_demand_constraints( modified_nodes , issueAMod );
   }
 
  if( issue_pmod( issuePMod ) ) {  // Issue a Physical Modification
@@ -1813,7 +1811,7 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
 
   Block::add_Modification( std::make_shared< NetworkBlockSbstMod >(
                             this , NetworkBlockMod::eSetActD ,
-			    std::move( subset ) ) ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
   }
  }  // end( DCNetworkBlock::set_active_demand( subset ) )
@@ -1847,22 +1845,12 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
              v_ActiveDemand.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
-   // Change the abstract representation
-
-   if( f_NetworkData->is_HVDC() ) {
-    std::vector< Index > modified_nodes( rng.second - rng.first );
-    std::iota( modified_nodes.begin() , modified_nodes.end() ,
-               rng.first );
-    change_DC_power_flow_injection_constraints( modified_nodes ,
-                                                issueAMod );
-    }
-   else {
-    std::vector< Index > modified_lines( f_NetworkData->get_number_lines() );
-    std::iota( modified_lines.begin() , modified_lines.end() , 0 );
-    change_relax_abs_constraints( modified_lines , issueAMod );
-    // all lines are modified
-    change_power_flow_limit_constraints( modified_lines , issueAMod );
-    }
+   std::vector< Index > modified_nodes( rng.second - rng.first );
+   std::iota( modified_nodes.begin() , modified_nodes.end() , rng.first );
+   if( f_NetworkData->is_HVDC() )
+    change_DC_power_flow_injection_constraints( modified_nodes , issueAMod );
+   else
+    change_active_demand_constraints( modified_nodes , issueAMod );
    }
   }
 
@@ -1871,6 +1859,206 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
                             NetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
  } // end( DCNetworkBlock::set_active_demand( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::change_active_demand_constraints(
+                           c_Subset & modified_nodes ,
+                           c_ModParam issueAMod )
+{
+ switch( ftype ) {
+  case( PTDF ):
+   change_active_demand_constraints_PTDF( modified_nodes , issueAMod );
+   break;
+  case( CYCLE ):
+   change_active_demand_constraints_CYCLE( modified_nodes , issueAMod );
+   break;
+  case( KIRCHHOFF ):
+   change_active_demand_constraints_KIRCHHOFF( modified_nodes , issueAMod );
+   break;
+  default:
+   throw( std::logic_error(
+    "DCNetworkBlock::change_active_demand_constraints: unknown formulation type"
+   ) );
+  }
+ }  // end( DCNetworkBlock::change_active_demand_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::change_active_demand_constraints_PTDF(
+                           c_Subset & modified_nodes ,
+                           c_ModParam issueAMod )
+{
+ auto & DC_lines = f_NetworkData->get_DC_lines();
+ SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines , f_tikhonov_coeff );
+
+ const Index ref = f_NetworkData->get_reference_node();
+
+ for( auto & line_id : DC_lines ) {
+  double constant_term = 0.0;
+
+  Eigen::SparseMatrix< double > a_row =
+      PTDF_matrix.block( line_id , 0 , 1 , PTDF_matrix.cols() );
+
+  for( int k = 0 ; k < a_row.outerSize() ; ++k ) {
+   for( Eigen::SparseMatrix< double >::InnerIterator it( a_row , k ) ; it ;
+        ++it ) {
+    int node_id = f_NetworkData->get_originalIdx( it.col() );
+    if( node_id != ref ) {
+     double coefficient = round_to( it.value() , f_ptdf_round );
+     constant_term += coefficient * v_ActiveDemand[ node_id ];
+    }
+        }
+  }
+
+  v_power_flow_def[ line_id ].set_lhs( constant_term , issueAMod );
+  v_power_flow_def[ line_id ].set_rhs( constant_term , issueAMod );
+ }
+
+ double balance_const = 0.0;
+ for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id )
+  balance_const += v_ActiveDemand[ node_id ];
+
+ overall_balanced_const.set_lhs( balance_const , issueAMod );
+ overall_balanced_const.set_rhs( balance_const , issueAMod );
+
+ if( f_NetworkData->is_DC_HVDC() )
+  change_DC_HVDC_power_flow_injection_constraints( modified_nodes , issueAMod );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::change_active_demand_constraints_CYCLE(
+                           c_Subset & modified_nodes ,
+                           c_ModParam issueAMod )
+{
+ const auto number_nodes = get_number_nodes();
+ const auto & start_line = f_NetworkData->get_start_line();
+ const auto & end_line = f_NetworkData->get_end_line();
+
+ auto basis = f_NetworkData->get_lines_in_cycles();
+ auto lines_in_tree = f_NetworkData->get_lines_in_spanning_tree();
+ const auto & parent = f_NetworkData->get_spanning_parent();
+
+ std::vector< std::vector< Index > > tree_children( number_nodes );
+ for( Index i = 0 ; i < number_nodes ; ++i ) {
+  int p = parent[ i ];
+  if( p >= 0 && p != static_cast< int >( i ) )
+   tree_children[ p ].push_back( i );
+ }
+
+ auto & DC_lines = f_NetworkData->get_DC_lines();
+ auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
+
+ int id_dc_line = 0;
+ for( auto & line_id : DC_lines ) {
+  double constant_term = 0.0;
+
+  if( lines_in_tree.contains( line_id ) ) {
+   int sign = -lines_in_tree[ line_id ];
+
+   Index u = start_line[ line_id ];
+   Index v = end_line[ line_id ];
+
+   std::vector< bool > in_S( number_nodes , false );
+   Index child;
+
+   if( parent[ v ] == static_cast< int >( u ) )
+    child = v;
+   else if( parent[ u ] == static_cast< int >( v ) )
+    child = u;
+   else
+    throw( std::logic_error(
+     "DCNetworkBlock::change_active_demand_constraints_CYCLE: "
+     "tree edge orientation inconsistent with spanning parent" ) );
+
+   std::queue< Index > q;
+   q.push( child );
+   in_S[ child ] = true;
+
+   while( ! q.empty() ) {
+    Index x = q.front();
+    q.pop();
+    for( Index c : tree_children[ x ] ) {
+     in_S[ c ] = true;
+     q.push( c );
+    }
+   }
+
+   for( Index i = 0 ; i < number_nodes ; ++i ) {
+    if( in_S[ i ] )
+     constant_term += sign * v_ActiveDemand[ i ];
+   }
+  }
+
+  v_CYCLE_def_flow_const[ id_dc_line ].set_lhs( constant_term , issueAMod );
+  v_CYCLE_def_flow_const[ id_dc_line ].set_rhs( constant_term , issueAMod );
+  ++id_dc_line;
+ }
+
+ double balance_const = 0.0;
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+  balance_const += v_ActiveDemand[ node_id ];
+
+ overall_balanced_const.set_lhs( balance_const , issueAMod );
+ overall_balanced_const.set_rhs( balance_const , issueAMod );
+
+ if( f_NetworkData->is_DC_HVDC() )
+  change_DC_HVDC_power_flow_injection_constraints( modified_nodes , issueAMod );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::change_active_demand_constraints_KIRCHHOFF(
+                           c_Subset & modified_nodes ,
+                           c_ModParam issueAMod )
+{
+ for( auto & n : modified_nodes )
+  v_KIRCHHOFF_node_balance_const[ n ].set_both(
+   -v_ActiveDemand[ n ] , issueAMod );
+
+ if( f_NetworkData->is_DC_HVDC() )
+  change_DC_HVDC_power_flow_injection_constraints( modified_nodes , issueAMod );
+}
+
+/*--------------------------------------------------------------------------*/
+
+
+void DCNetworkBlock::change_DC_HVDC_power_flow_injection_constraints(
+                           c_Subset & modified_nodes ,
+                           c_ModParam issueAMod )
+{
+ const auto number_nodes = get_number_nodes();
+ auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
+ const auto & start_line = f_NetworkData->get_start_line();
+
+ std::vector< bool > nodes_vist( number_nodes , false );
+
+ for( auto & line_id : HVDC_lines ) {
+  nodes_vist[ start_line[ line_id ] ] = true;
+  if( ! f_NetworkData->is_hypergraph() )
+   nodes_vist[ f_NetworkData->get_end_line()[ line_id ] ] = true;
+  else
+   for( auto e : f_NetworkData->get_end_lines()[ line_id ] )
+    nodes_vist[ e ] = true;
+ }
+
+ int iDCnode = 0;
+ for( Index n = 0 ; n < number_nodes ; ++n ) {
+  if( ! nodes_vist[ n ] )
+   continue;
+
+  if( std::find( modified_nodes.begin() , modified_nodes.end() , n ) !=
+      modified_nodes.end() ) {
+   v_DC_HVDC_power_flow_const[ iDCnode ].set_lhs( -v_ActiveDemand[ n ] ,
+                                                  issueAMod );
+   v_DC_HVDC_power_flow_const[ iDCnode ].set_rhs( -v_ActiveDemand[ n ] ,
+                                                  issueAMod );
+      }
+
+  ++iDCnode;
+ }
+}
 
 /*--------------------------------------------------------------------------*/
 
@@ -2133,25 +2321,6 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
     }
   }
  }  // end( DCNetworkBlock::change_power_flow_limit_constraints )
-
-/*--------------------------------------------------------------------------*/
-
-void DCNetworkBlock::change_relax_abs_constraints(
-			   c_Subset & modified_lines , c_ModParam issueAMod )
-{
- if( ! f_NetworkData->is_HVDC() ) {
-  auto & DC_lines = f_NetworkData->get_DC_lines();
-  SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines , f_tikhonov_coeff );
-  for( auto & i : modified_lines ) {
-   double constant_term = 0;
-   for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id )
-    constant_term -=
-                PTDF_matrix.coeff( i , node_id ) * v_ActiveDemand[ node_id ];
-   v_power_flow_relax_abs[ 0 ][ i ].set_lhs( constant_term );
-   v_power_flow_relax_abs[ 1 ][ i ].set_lhs( -constant_term );
-   }
-  }
- }  // end( DCNetworkBlock::change_relax_abs_constraints )
 
 /*--------------------------------------------------------------------------*/
 

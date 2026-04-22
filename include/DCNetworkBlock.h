@@ -301,7 +301,7 @@ class DCNetworkData : public NetworkData
   *   contains the name of the i-th transmission line. This variable is
   *   optional. */
 
- virtual void deserialize( const netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -329,7 +329,7 @@ class DCNetworkData : public NetworkData
 
  Index get_number_lines( void ) const { return( f_number_lines ); }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
  /// returns the number of HVDC lines of the network
  /** Method for returning the number of HVDC lines of the network, i.e.,
   * those with 0 susceptance. Clearly, get_number_HVDC_lines() <=
@@ -339,17 +339,17 @@ class DCNetworkData : public NetworkData
 
  Index get_number_HVDC_lines( void ) const { return( f_number_HVDC_lines ); }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
  /// returns true if this is a pure HVDC grid
 
  bool is_HVDC( void ) const { return( v_line_susceptance.empty() ); }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
  /// returns true if this is a pure DC grid
 
  bool is_DC( void ) const { return( f_number_HVDC_lines == 0 ); }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
  /// returns true if this is a mixed DC - HVDC grid
 
  bool is_DC_HVDC( void ) const {
@@ -628,15 +628,14 @@ class DCNetworkData : public NetworkData
  void set_cycle_basis_computed( void ) { cycle_basis_was_computed = true; }
 
 /*--------------------------------------------------------------------------*/
- /// compute the decomposition of the graph into cycles and spanning tree
- /** Methods for computing a spanning tree of the network and a cycle basis
-  * The functions get_cycle_basis() and get_spanning_tree() return results
-  * in terms of node ids, not line ids. To access the line ids in the
+ /// compute the decomposition of the DC graph into cycles and spanning tree
+ /** Methods for computing a spanning forest of the DC subgraph and a cycle
+  * basis. The functions get_cycle_basis() and get_spanning_tree() return
+  * results in terms of node ids, not line ids. To access the line ids in the
   * spanning tree (resp. in the cycles), use get_lines_in_spanning_tree()
-  * (resp. get_lines_in_cycles()). Note that \p root is int and not Index,
-  * as it can be negative. */
+  * (resp. get_lines_in_cycles()). */
 
- void compute_cycle_basis( int root = -1 , bool only_DC_lines = true );
+ void compute_cycle_basis( void );
 
 /*--------------------------------------------------------------------------*/
 
@@ -646,16 +645,12 @@ class DCNetworkData : public NetworkData
   return( v_cycle_basis );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 
  const std::vector<int> & get_spanning_parent( void ) {
   if( ! cycle_basis_was_computed )
    this->compute_cycle_basis();
   return( m_spanning_parent );
-  }
-
- const std::vector< Index > & get_spanning_tree_root( void ) {
-  return( m_span_root );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -724,48 +719,51 @@ class DCNetworkData : public NetworkData
  *   algebraic cancellation between tree constraints and cycle
  *   constraints, which would otherwise force cycle flows to zero.
  */
-std::map<Index, int> get_lines_in_spanning_tree(void){
-    if (!cycle_basis_was_computed)
-        compute_cycle_basis();
+std::map< Index , int > get_lines_in_spanning_tree( void ) {
+ if( ! cycle_basis_was_computed )
+  compute_cycle_basis();
 
-    const auto& DC_lines   = get_DC_lines();
-    const auto& start_line = get_start_line();
-    const auto& end_line   = get_end_line();
+ const auto & DC_lines = get_DC_lines();
+ const auto & start_line = get_start_line();
+ const auto & end_line = get_end_line();
 
-    std::map<Index, int> lines_in_spanning_tree;
+ std::map< Index , int > lines_in_spanning_tree;
 
-    for (Index line_id : DC_lines) {
-        Index u = start_line[line_id];
-        Index v = end_line[line_id];
+ for( Index line_id : DC_lines ) {
+  Index u = start_line[ line_id ];
+  Index v = end_line[ line_id ];
 
-        if (m_spanning_parent[v] == static_cast<int>(u)) {
-            // u -> v is the tree edge
-            lines_in_spanning_tree[line_id] = +1;
-        }
-        else if (m_spanning_parent[u] == static_cast<int>(v)) {
-            // v -> u is the tree edge
-            lines_in_spanning_tree[line_id] = -1;
-        }
-    }
+  if( m_spanning_parent[ v ] == static_cast< int >( u ) ) {
+   // u -> v is the tree edge
+   lines_in_spanning_tree[ line_id ] = +1;
+  }
+  else if( m_spanning_parent[ u ] == static_cast< int >( v ) ) {
+   // v -> u is the tree edge
+   lines_in_spanning_tree[ line_id ] = -1;
+  }
+ }
 
 #ifndef NDEBUG
-    // Consistency check: every non-root node must have exactly one tree edge
-    std::vector<int> seen_parent(m_spanning_parent.size(), 0);
-    for (const auto& [line_id, dir] : lines_in_spanning_tree) {
-        Index u = start_line[line_id];
-        Index v = end_line[line_id];
-        if (dir == +1) seen_parent[v]++;
-        if (dir == -1) seen_parent[u]++;
-    }
-    for (Index i = 0; i < m_spanning_parent.size(); ++i) {
-        if (m_spanning_parent[i] >= 0 && m_spanning_parent[i] != static_cast<int>(i)) {
-            assert(seen_parent[i] == 1 && "Node has inconsistent tree parent mapping");
-        }
-    }
+ // Consistency check: every non-root node must have exactly one tree edge
+ std::vector< int > seen_parent( m_spanning_parent.size() , 0 );
+ for( const auto & [ line_id, dir ] : lines_in_spanning_tree ) {
+  Index u = start_line[ line_id ];
+  Index v = end_line[ line_id ];
+  if( dir == +1 ) seen_parent[ v ]++;
+  if( dir == -1 ) seen_parent[ u ]++;
+ }
+ for( Index i = 0 ; i < m_spanning_parent.size() ; ++i ) {
+  if( m_spanning_parent[ i ] >= 0 && m_spanning_parent[ i ] != static_cast<
+   int >( i ) ) {
+   assert( seen_parent[ i ] == 1 && "Node has inconsistent tree parent mapping" );
+  }
+ }
 #endif
 
-    return lines_in_spanning_tree;
+ return( lines_in_spanning_tree );
 }
+
+/*--------------------------------------------------------------------------*/
 
 /**
  * Convert the node‑based cycle basis into an edge‑based (line‑based)
@@ -843,74 +841,74 @@ std::map<Index, int> get_lines_in_spanning_tree(void){
  *   inconsistent signs between tree equations and cycle equations
  *   will force cycle flows to collapse to zero.
  */
-std::vector<std::map<Index,int>> get_lines_in_cycles(void){
-    if (!cycle_basis_was_computed)
-        compute_cycle_basis();
+std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
+ if( ! cycle_basis_was_computed )
+  compute_cycle_basis();
 
-    const auto& DC_lines   = get_DC_lines();
-    const auto& start_line = get_start_line();
-    const auto& end_line   = get_end_line();
+ const auto & DC_lines = get_DC_lines();
+ const auto & start_line = get_start_line();
+ const auto & end_line = get_end_line();
 
-    // ------------------------------------------------------------
-    // Build a fast DC-only adjacency: (u,v) → unique DC line_id
-    // ------------------------------------------------------------
-    std::map<std::pair<Index,Index>, Index> dc_edge;
+ // ------------------------------------------------------------
+ // Build a fast DC-only adjacency: (u,v) → DC line ids
+ // ------------------------------------------------------------
+ std::map< std::pair< Index , Index > , std::vector< Index > > dc_edge;
 
-    for (Index line_id : DC_lines) {
-        Index u = start_line[line_id];
-        Index v = end_line[line_id];
+ for( Index line_id : DC_lines ) {
+  Index u = start_line[ line_id ];
+  Index v = end_line[ line_id ];
 
-        auto key1 = std::make_pair(u, v);
-        auto key2 = std::make_pair(v, u);
+  dc_edge[ std::make_pair( u , v ) ].push_back( line_id );
+  dc_edge[ std::make_pair( v , u ) ].push_back( line_id );
+ }
 
-#ifndef NDEBUG
-        // parallel DC lines are ambiguous for cycle-flow formulation
-        assert(!dc_edge.contains(key1));
-        assert(!dc_edge.contains(key2));
-#endif
+ // ------------------------------------------------------------
+ // Convert node cycles → DC line cycles
+ // ------------------------------------------------------------
+ std::vector< std::map< Index , int > > lines_in_cycles;
+ lines_in_cycles.resize( v_cycle_basis.size() );
 
-        dc_edge[key1] = line_id;
-        dc_edge[key2] = line_id;
-    }
-
-    // ------------------------------------------------------------
-    // Convert node cycles → DC line cycles
-    // ------------------------------------------------------------
-    std::vector<std::map<Index,int>> lines_in_cycles;
-    lines_in_cycles.resize(v_cycle_basis.size());
-
-    for (size_t c = 0; c < v_cycle_basis.size(); ++c) {
-        const Subset& cycle = v_cycle_basis[c];
+ for( size_t c = 0 ; c < v_cycle_basis.size() ; ++c ) {
+  const Subset & cycle = v_cycle_basis[ c ];
 
 #ifndef NDEBUG
-        assert(cycle.size() >= 3);
-        assert(cycle.front() == cycle.back());
+  assert( cycle.size() >= 3 );
+  assert( cycle.front() == cycle.back() );
 #endif
 
-        auto& cycle_map = lines_in_cycles[c];
+  auto & cycle_map = lines_in_cycles[ c ];
 
-        for (size_t k = 0; k + 1 < cycle.size(); ++k) {
-            Index u = cycle[k];
-            Index v = cycle[k+1];
+  for( size_t k = 0 ; k + 1 < cycle.size() ; ++k ) {
+   Index u = cycle[ k ];
+   Index v = cycle[ k + 1 ];
 
-            auto it = dc_edge.find({u, v});
+   auto it = dc_edge.find( std::make_pair( u , v ) );
+
 #ifndef NDEBUG
-            // THIS is the key invariant you were missing
-            assert(it != dc_edge.end() &&
-                   "Cycle uses a non-DC or ambiguous edge");
+   assert( it != dc_edge.end() &&
+    "Cycle uses a non-DC edge" );
+   assert( it->second.size() == 1 &&
+    "Parallel DC lines not supported in cycle basis" );
 #endif
 
-            Index line_id = it->second;
+   Index line_id = it->second.front();
 
-            // orientation
-            int sign = (start_line[line_id] == u &&
-                        end_line[line_id]   == v) ? +1 : -1;
+   int sign = ( start_line[ line_id ] == u &&
+               end_line[ line_id ] == v )
+               ? +1
+               : -1;
 
-            cycle_map[line_id] += sign;
-        }
-    }
+#ifndef NDEBUG
+   auto it_cycle = cycle_map.find( line_id );
+   assert( it_cycle == cycle_map.end() &&
+    "Edge repeated in cycle" );
+#endif
 
-    return lines_in_cycles;
+   cycle_map[ line_id ] += sign;
+  }
+ }
+
+ return( lines_in_cycles );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1032,11 +1030,7 @@ std::vector<std::map<Index,int>> get_lines_in_cycles(void){
 
  /// vector to store the spanning tree
  // -1 will be a default value for not belonging to the tree
- std::vector<int> m_spanning_parent;
-
- /// The spanning tree may have a different root than the reference_node, as a result we store it here
- std::vector< Index > m_span_root; // The graph can in fact have disconnected components because we have HVDC lines that connect the various parts or for some other reason
- // then the spanning tree is more like a "spanning forest" which can be uncovered with the knowledge of multiple roots.
+ std::vector< int > m_spanning_parent;
 
  /// to not recompute each time the PTDF
  SpMat stored_B2;
@@ -2097,19 +2091,6 @@ std::vector<std::map<Index,int>> get_lines_in_cycles(void){
 					   c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
- /// change the abstract repr. of the constraints on the auxiliary variables
- /** This function changes the abstract representation of the constraints on
-  * the auxiliary variables for indices in \p modified_lines.
-  *
-  * @param modified_lines A vector of the indices of constraints that
-  *                         have to be modified.
-  *
-  * @param issueAMod It controls how abstract Modification are issued. */
-
- void change_relax_abs_constraints( c_Subset & modified_lines ,
-				    c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
  /// change the abstract representation of the injection constraints
  /** This function changes the abstract representation of the power flow
   * injection constraints for indices in \p modified_nodes.
@@ -2168,6 +2149,120 @@ std::vector<std::map<Index,int>> get_lines_in_cycles(void){
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
+
+/*--------------------------------------------------------------------------*/
+ /// change the abstract representation of the demand-dependent constraints
+ /** This function updates the abstract representation of all the constraints
+  * of this DCNetworkBlock whose right-hand side depends on the active demand,
+  * according to the formulation currently selected in #ftype.
+  *
+  * In particular:
+  *
+  * - in the PTDF formulation, it updates the power-flow definition
+  *   constraints and the overall balance constraint;
+  *
+  * - in the CYCLE formulation, it updates the tree-flow definition
+  *   constraints and the overall balance constraint;
+  *
+  * - in the KIRCHHOFF formulation, it updates the nodal balance constraints.
+  *
+  * For mixed DC-HVDC networks, this method also updates the additional
+  * nodal constraints associated with the HVDC part whenever needed.
+  *
+  * @param modified_nodes A vector containing the indices of the nodes whose
+  *        active demand has been modified.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_active_demand_constraints( c_Subset & modified_nodes ,
+                                        c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// change the abstract representation of the PTDF demand-dependent constraints
+ /** This function updates the abstract representation of the constraints
+  * whose right-hand side depends on the active demand in the PTDF
+  * formulation.
+  *
+  * In particular, it recomputes:
+  *
+  * - the constant terms of the power-flow definition constraints for all
+  *   DC lines;
+  *
+  * - the constant term of the overall balance constraint.
+  *
+  * For mixed DC-HVDC networks, it also updates the additional nodal
+  * constraints associated with the HVDC part.
+  *
+  * @param modified_nodes A vector containing the indices of the nodes whose
+  *        active demand has been modified.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_active_demand_constraints_PTDF( c_Subset & modified_nodes ,
+                                             c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// change the abstract representation of the CYCLE demand-dependent constraints
+ /** This function updates the abstract representation of the constraints
+  * whose right-hand side depends on the active demand in the CYCLE
+  * formulation.
+  *
+  * In particular, it recomputes:
+  *
+  * - the constant terms of the flow-definition constraints associated with
+  *   the spanning-tree part of the model;
+  *
+  * - the constant term of the overall balance constraint.
+  *
+  * For mixed DC-HVDC networks, it also updates the additional nodal
+  * constraints associated with the HVDC part.
+  *
+  * @param modified_nodes A vector containing the indices of the nodes whose
+  *        active demand has been modified.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_active_demand_constraints_CYCLE( c_Subset & modified_nodes ,
+                                              c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// change the abstract representation of the KIRCHHOFF demand-dependent constraints
+ /** This function updates the abstract representation of the constraints
+  * whose right-hand side depends on the active demand in the KIRCHHOFF
+  * formulation.
+  *
+  * In particular, it updates the nodal balance constraints corresponding to
+  * the nodes listed in \p modified_nodes.
+  *
+  * For mixed DC-HVDC networks, it also updates the additional nodal
+  * constraints associated with the HVDC part.
+  *
+  * @param modified_nodes A vector containing the indices of the nodes whose
+  *        active demand has been modified.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_active_demand_constraints_KIRCHHOFF(
+                                        c_Subset & modified_nodes ,
+                                        c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// change the abstract representation of the mixed DC-HVDC nodal constraints
+ /** This function updates the abstract representation of the nodal
+  * power-flow injection constraints associated with the HVDC part of a
+  * mixed DC-HVDC network, for the nodes listed in \p modified_nodes.
+  *
+  * These are the constraints generated by generate_HVDC_nodal_constraints()
+  * and stored in #v_DC_HVDC_power_flow_const.
+  *
+  * @param modified_nodes A vector containing the indices of the nodes whose
+  *        active demand has been modified.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void change_DC_HVDC_power_flow_injection_constraints(
+                                        c_Subset & modified_nodes ,
+                                        c_ModParam issueAMod );
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
