@@ -108,18 +108,18 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  for( Index i = 0 ; i < f_number_branches ; ++i ) {
   if( ( v_start_line[ i ] < 0 ) || ( v_start_line[ i ] >= f_number_nodes ) )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				 "wrong start node number " +
-				 std::to_string( v_start_line[ i ] ) ) );
+				                             "wrong start node number " +
+				                             std::to_string( v_start_line[ i ] ) ) );
 
   if( ( v_end_line[ i ] < 0 ) || ( v_end_line[ i ] >= f_number_nodes ) )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				 "wrong end node number " +
-				 std::to_string( v_end_line[ i ] ) ) );
+				                             "wrong end node number " +
+				                             std::to_string( v_end_line[ i ] ) ) );
 
   if( v_start_line[ i ] == v_end_line[ i ] )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				 "start node == end node for branch " +
-				 std::to_string( v_end_line[ i ] ) ) );
+				                             "start node == end node for branch " +
+				                             std::to_string( v_end_line[ i ] ) ) );
   }
 
  ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
@@ -158,33 +158,33 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   for( Index i = 0 ; i < f_number_branches ; ++i ) {
    if( ( id[ i ] < 0 ) || ( id[ i ] >= f_number_lines ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				  "wrong hyperarc id " +
-				  std::to_string( id[ i ] ) ) );
+    				                          "wrong hyperarc id " +
+    				                          std::to_string( id[ i ] ) ) );
    tmp[ id[ i ] ].push_back( std::make_tuple( v_start_line[ i ] ,
                                               v_end_line[ i ] ,
                                               v_efficiency[ i ] ) );
    if( std::get< 0 >( tmp[ id[ i ] ].front() ) !=
        std::get< 0 >( tmp[ id[ i ] ].back() ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				  "branches for line " +
-				  std::to_string( id[ i ] ) +
-				  " have different start" ) );
+    				                          "branches for line " +
+    				                          std::to_string( id[ i ] ) +
+    				                          " have different start" ) );
    }
 
   // sort all tmp[ i ] for increasing end node
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    if( tmp[ i ].empty() )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				  "no branches for line " +
-				  std::to_string( i ) ) );
+    				                          "no branches for line " +
+    				                          std::to_string( i ) ) );
    std::sort( tmp[ i ].begin() , tmp[ i ].end() ,
               []( auto & a , auto & b ) {
                return( std::get< 1 >( a ) < std::get< 1 >( b ) ); } );
    for( Index j = 1 ; j < tmp[ i ].size() ; ++j )
     if( std::get< 1 >( tmp[ i ][ j ] ) == std::get< 1 >( tmp[ i ][ j - 1 ] ) )
      throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				   "repeated end node for line " +
-				   std::to_string( i ) ) );
+    				                           "repeated end node for line " +
+    				                           std::to_string( i ) ) );
    }
 
   // resize v_start_line and put there the right start nodes
@@ -204,8 +204,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
    if( ( ! v_line_susceptance.empty() ) &&
        ( v_line_susceptance[ i ] > 0 ) && ( v_end_lines[ i ].size() > 1 ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: line " +
-				  std::to_string( id[ i ] ) +
-				  "is a hyperarc but has susceptance" ) );
+    				                          std::to_string( id[ i ] ) +
+    				                          " is a hyperarc but has susceptance" ) );
    v_end_lines[ i ].resize( tmp[ i ].size() );
    v_h_efficiency[ i ].resize( tmp[ i ].size() );
    for( Index j = 0 ; j < tmp[ i ].size() ; ++j ) {
@@ -305,7 +305,7 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
  const auto number_lines = get_number_lines();
  if( number_lines <= 0 )
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-			   "number of lines of DCNetworkBlock is not set" ) );
+    				                   "number of lines of DCNetworkBlock is not set" ) );
 
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
@@ -607,7 +607,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
   if( f_NetworkData &&
       ( f_NetworkData->get_number_nodes() != DCND->get_number_nodes() ) )
    throw( std::logic_error( "DCNetworkBlock::deserialize: NumberNodes "
-			    "not matching between NetworkData" ) );
+    				                    "not matching between NetworkData" ) );
   f_NetworkData = DCND;
   f_local_NetworkData = true;
   // a [DC]NetworkData has been provided, so the size of the given vector
@@ -812,7 +812,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   case( KIRCHHOFF ): generate_KIRCHHOFF_constraints( stcc ); break;
   default :
    throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-			    "unknown formulation type" ) );
+			                         "unknown formulation type" ) );
   }
 
  // generate common constraints: bounds and cost (if there)
@@ -837,7 +837,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
 
  if( number_lines <= 0 )
   throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-   "number of lines of DCNetworkBlock is not set" ) );
+                           "number of lines of DCNetworkBlock is not set" ) );
 
  // ----- First step: compute the cycle basis and spanning tree
  // cycle incidence matrices C_{lc} in the paper
@@ -2276,7 +2276,7 @@ void DCNetworkBlockSolution::write( Block * block )
 
  if( f_number_lines != DCNB->get_number_lines() )
   throw( std::invalid_argument(
-        "DCNetworkBlockSolution::write: inconsistent lines number" ) );
+    "DCNetworkBlockSolution::write: inconsistent lines number" ) );
 
  // write the flow power variables - - - - - - - - - - - - - - - - - - - - -
  if( ! v_flow.empty() )
