@@ -167,7 +167,7 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ActivePowerCost" , f_NumberArcs ,
                 v_ActivePowerCost , true , true );
 
- ::deserialize( group , "InertiaPower" , { f_time_horizon , f_NumberArcs } ,
+ ::deserialize( group , "InertiaPower" , { f_NumberArcs , f_time_horizon } ,
                 v_InertiaPower , true , true , v_change_intervals );
 
  ::deserialize( group , "InitialFlowRate" , f_NumberArcs ,
@@ -1119,7 +1119,7 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
               { TimeHorizon , NumberArcs } , v_SecondaryRho );
 
  ::serialize( group , "InertiaPower" , netCDF::NcDouble() ,
-              { TimeHorizon , NumberArcs } , v_InertiaPower );
+              { NumberArcs , TimeHorizon } , v_InertiaPower );
 
 }  // end( HydroUnitBlock::serialize )
 
@@ -1275,17 +1275,21 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
-  v_InertiaPower.resize( boost::extents[ f_time_horizon ][ f_NumberArcs ] );
+  v_InertiaPower.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
  }
 
  // If nothing changes, return
  bool identical = true;
+ auto values_it = values;
  for( auto i : subset ) {
-  if( i >= v_InertiaPower.size() )
+  if( i >= f_NumberArcs * f_time_horizon )
    throw( std::invalid_argument( "HydroUnitBlock::set_inertia_power: "
                                  "invalid value in subset." ) );
 
-  if( *( v_InertiaPower.data() + i ) != *( values++ ) )
+  Index a = i / f_time_horizon;
+  Index t = i % f_time_horizon;
+
+  if( v_InertiaPower[ a ][ t ] != *( values_it++ ) )
    identical = false;
  }
 
@@ -1294,11 +1298,11 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-
+  values_it = values;
   for( auto i : subset ) {
-   Index a = i % f_NumberArcs;
-   Index t = i / f_NumberArcs;
-   v_InertiaPower[ t ][ a ] = *( values++ );
+   Index a = i / f_time_horizon;
+   Index t = i % f_time_horizon;
+   v_InertiaPower[ a ][ t ] = *( values_it++ );
   }
 
   if( constraints_generated() ) {
@@ -1313,7 +1317,8 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
    std::sort( subset.begin() , subset.end() );
 
   Block::add_Modification( std::make_shared< HydroUnitBlockSbstMod >(
-                            this , HydroUnitBlockMod::eSetInerP , std::move( subset ) ) ,
+                            this , HydroUnitBlockMod::eSetInerP ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( HydroUnitBlock::set_inertia_power( subset ) )
@@ -1335,20 +1340,33 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
-  v_InertiaPower.resize( boost::extents[ f_time_horizon ][ f_NumberArcs ] );
+  v_InertiaPower.resize( boost::extents[ f_NumberArcs ][ f_time_horizon ] );
  }
 
  // If nothing changes, return
- if( std::equal( values ,
-                 values + ( rng.second - rng.first ) ,
-                 v_InertiaPower.data() + rng.first ) )
+ bool identical = true;
+ auto values_it = values;
+ for( Index i = rng.first ; i < rng.second ; ++i ) {
+  Index a = i / f_time_horizon;
+  Index t = i % f_time_horizon;
+
+  if( v_InertiaPower[ a ][ t ] != *( values_it++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values ,
-             values + ( rng.second - rng.first ) ,
-             v_InertiaPower.data() + rng.first );
+  values_it = values;
+  for( Index i = rng.first ; i < rng.second ; ++i ) {
+   Index a = i / f_time_horizon;
+   Index t = i % f_time_horizon;
+   v_InertiaPower[ a ][ t ] = *( values_it++ );
+  }
 
   if( constraints_generated() ) {
    // Change the abstract representation
@@ -1358,9 +1376,9 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >(
-                            this , HydroUnitBlockMod::eSetInerP , rng ) ,
-                           Observer::par2chnl( issuePMod ) );
+   Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >(
+                             this , HydroUnitBlockMod::eSetInerP , rng ) ,
+                            Observer::par2chnl( issuePMod ) );
 
 }  // end( HydroUnitBlock::set_inertia_power( range ) )
 

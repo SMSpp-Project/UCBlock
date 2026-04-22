@@ -442,20 +442,20 @@ class HydroUnitBlock : public UnitBlock
  *   not provided then it's taken to be zero.
  *
  * - The variable "InertiaPower", of type netCDF::NcDouble and indexed both
- *   over the dimensions "NumberIntervals" and "NumberArcs". The first
- *   dimension may have either size 1 or size "NumberIntervals" (if
- *   "NumberIntervals" is not provided, then the size can also be
- *   "TimeHorizon") whereas the second one always has size NumberArcs (if it
- *   is provided at all). This is meant to represent the matrix IP[ t , l ]
- *   which, for each time instant t and arc l, contains the contribution that
+ *   over the dimensions "NumberArcs" and "NumberIntervals". The first
+ *   dimension always has size NumberArcs (if it is provided at all),
+ *   whereas the second one may have either size 1 or size "NumberIntervals"
+ *   (if "NumberIntervals" is not provided, then the size can also be
+ *   "TimeHorizon"). This is meant to represent the matrix IP[ l , t ]
+ *   which, for each arc l and time instant t, contains the contribution that
  *   the unit can give to the inertia constraint which depends on the active
  *   power that it is currently generating (basically, the constant to be
  *   multiplied to the active power variable) at time t for arc l. The
- *   variable is optional; if it is not defined, IP[ t , l ] == 0 for each
- *   time instant t and arc l. If the first dimension has size 1 then the
- *   entry IP[ 0 , l ] is assumed to contain the inertia power value for
- *   arc l and all time instants t. Otherwise, InertiaPower[ i , l ] is the
- *   fixed value of IP[ t , l ] for all t in the interval [ ChangeIntervals[ i
+ *   variable is optional; if it is not defined, IP[ l , t ] == 0 for each
+ *   arc l and time instant t. If the second dimension has size 1 then the
+ *   entry IP[ l , 0 ] is assumed to contain the inertia power value for
+ *   arc l and all time instants t. Otherwise, InertiaPower[ l , i ] is the
+ *   fixed value of IP[ l , t ] for all t in the interval [ ChangeIntervals[ i
  *   - 1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[
  *   - 1 ] = 0 and all l. If NumberIntervals <= 1 or NumberIntervals >=
  *   TimeHorizon then the mapping clearly does not require "ChangeIntervals",
@@ -550,8 +550,8 @@ class HydroUnitBlock : public UnitBlock
   * - the flow rate variables
   *
   * Each of the boost::multi_array< ColVariable , 2 > has as first dimension
-  * the time horizon and as second dimension the number of arcs (or
-  * generators, which is returned by get_number_generators()). The last
+  * the number of arcs (or generators, which is returned by
+  * get_number_generators()) and as second dimension the time horizon. The last
   * boost::multi_array< ColVariable , 2 > variable is:
   *
   * - the volumetric variables
@@ -873,22 +873,21 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of inertia power
- /** The returned value U = get_inertia_power() contains the contribution to
-  * inertia (basically, the constants to be multiplied by the active power
-  * variables returned by get_active_power()) of eac arcs (generators) at each
-  * time instants. There are three possible cases:
+ /// returns the inertia power values of the given generator
+ /** The returned value U = get_inertia_power( generator ) contains the
+  * contribution to inertia (basically, the constants to be multiplied by the
+  * active power variables returned by get_active_power()) of the given arc
+  * (generator) at each time instant. There are three possible cases:
   *
   * - if the matrix is empty, then the inertia power is 0 and this function
   *   returns a nullptr;
   *
-  * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the inertia power for arc (generator) l is U[ 0 , l ] for all t
-  *   which means that the second dimension has size get_number_arcs();
+  * - if the second dimension has size 1, then U[ 0 ] gives the inertia power
+  *   value of the given generator for all time instants;
   *
-  * - otherwise, the matrix has size the time horizon per
-  *   get_number_arcs(), and U[ t , l ] contains the contribution to
-  *   inertia power of arc (generator) l at time instant t. */
+  * - otherwise, U[ t ] contains the contribution to inertia power of the
+  *   given generator at time instant t, for t = 0 , ... ,
+  *   get_time_horizon() - 1. */
 
  const double * get_inertia_power( Index generator ) const override {
   if( v_InertiaPower.empty() )
@@ -1917,7 +1916,7 @@ class HydroUnitBlock : public UnitBlock
  std::vector< double > v_ActivePowerCost;
 
  /// the matrix of inertia power of generators
- /** Indexed over the dimensions TimeHorizon and NumberArcs. */
+ /** Indexed over the dimensions NumberArcs and TimeHorizon. */
  boost::multi_array< double , 2 > v_InertiaPower;
 
  /// the matrix of MinVolumetric
