@@ -536,28 +536,27 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the HydroUnitBlock
- /** The HydroUnitBlock class has six boost::multi_array< ColVariable , 2 >
-  * variables where the first four are:
+ /** The HydroUnitBlock class has several groups of variables.
   *
-  * - the primary spinning reserve variables (if defined);
+  * The following are boost::multi_array< ColVariable , 2 > indexed by
+  * generator/arc and time:
   *
-  * - the secondary spinning reserve variables (if defined);
+  * - the flow rate variables;
   *
   * - the active power variables;
   *
   * - the reactive power variables (if defined);
   *
-  * - the flow rate variables
+  * - the primary spinning reserve variables (if defined);
   *
-  * Each of the boost::multi_array< ColVariable , 2 > has as first dimension
-  * the number of arcs (or generators, which is returned by
-  * get_number_generators()) and as second dimension the time horizon. The last
-  * boost::multi_array< ColVariable , 2 > variable is:
+  * - the secondary spinning reserve variables (if defined).
   *
-  * - the volumetric variables
+  * The volumetric variables are instead a
+  * boost::multi_array< ColVariable , 2 > indexed by reservoir and time.
   *
-  * Where its first dimension is the number of reservoirs and the second
-  * dimension is the time horizon. */
+  * If the reference schedule is defined, an additional vector of
+  * ColVariable is generated to represent the absolute deviation from the
+  * reference schedule. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -986,42 +985,6 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the matrix of minimum flow
- /** The method returned a two-dimensional boost::multi_array<> M such that
-  * M[ t , i ] gives the minimum flow at each time t associated with unit
-  * (arc) i. This two-dimensional boost::multi_array<> M considers two
-  * possible cases:
-  *
-  * - if the boost::multi_array<> M is empty() then no minimum flow is
-  *   defined, and there are no minimum flow constraints;
-  *
-  * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_generators() columns and each element
-  *   of M[ t , i ] gives the minimum flow at time t and unit i. */
-
- const boost::multi_array< double , 2 > & get_min_flow( void ) const {
-  return( v_MinFlow );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the matrix of maximum flow
- /** The method returned a two-dimensional boost::multi_array<> M such that
-  * M[ t , i ] gives the maximum flow at each time t associated with unit
-  * (arc) i. This two-dimensional boost::multi_array<> M considers two
-  * possible cases:
-  *
-  * - if the boost::multi_array<> M is empty() then no maximum flow is
-  *   defined, and there are no maximum flow constraints;
-  *
-  * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_generators() columns and each element
-  *   of M[ t , i ] gives the maximum flow at time t and unit i. */
-
- const boost::multi_array< double , 2 > & get_max_flow( void ) const {
-  return( v_MaxFlow );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns the minimum flow of \p generator at time \p t
 
  double get_min_flow( Index t , Index generator = 0 ) const {
@@ -1217,43 +1180,25 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of initial volumetric
- /** The returned vector contains the initial volumetric for each reservoir n.
-  * There are three possible cases:
+ /// returns the initial volumetric at the given \p reservoir
+ /** This method returns the initial volumetric at the given \p reservoir.
   *
-  * - if the vector is empty, then the initial volumetric for each reservoir
-  *   is 0;
+  * @param reservoir The index of the reservoir whose initial volumetric is
+  *                  desired.
   *
-  * - if the vector has only one element, then V[ 0 ] presents the initial
-  *   volumetric for all reservoirs;
-  *
-  * - otherwise, the vector must have size get_number_reservoirs() and each
-  *   element of V[ i ] represents the initial volumetric for each reservoir
-  *   n. */
+  * @return The initial volumetric at the given \p reservoir. If no initial
+  *         volumetric is defined, then 0.0 is returned. */
 
- const std::vector< double > & get_initial_volumetric( void ) const {
-  return( v_InitialVolumetric );
+ double get_initial_volumetric( Index reservoir ) const {
+  assert( reservoir < get_number_reservoirs() );
+  return( v_InitialVolumetric.empty() ? 0.0 :
+          ( ( v_InitialVolumetric.size() == 1 ) ?
+            v_InitialVolumetric.front() :
+            v_InitialVolumetric[ reservoir ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of initial flow rate
- /** The returned vector contains the initial flow rate for each unit (arc) i.
-  * There are three possible cases:
-  *
-  * - if the vector is empty, then the initial flow rate for each unit is 0;
-  *
-  * - if the vector has only one element, then V[ 0 ] presents the initial
-  *   flow rate for all units;
-  *
-  * - otherwise, the vector must have size get_number_generators() and each element
-  *   of V[ i ] represents the initial flow rate for each unit i. */
-
- const std::vector< double > & get_initial_flow_rate( void ) const {
-  return( v_InitialFlowRate );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the vector of initial flow rate at the given \p arc
+ /// returns the initial flow rate at the given \p arc
  /** This method returns the initial flow rate at the given \p arc.
   *
   * @param arc The index of the arc whose initial flow rate is desired.
@@ -1261,7 +1206,7 @@ class HydroUnitBlock : public UnitBlock
   * @return The initial flow rate at the given \p arc. */
 
  double get_initial_flow_rate( Index arc ) const {
-  assert( arc < f_NumberArcs );
+  assert( arc < get_number_generators() );
   return( v_InitialFlowRate.empty() ? 0.0 :
           ( ( v_InitialFlowRate.size() == 1 ) ? v_InitialFlowRate.front() :
             v_InitialFlowRate[ arc ] ) );
@@ -1582,20 +1527,6 @@ class HydroUnitBlock : public UnitBlock
   return( nullptr );
   }
 
-/*--------------------------------------------------------------------------*/
- /// returns the MinFlow of \p arc at instant \p t
-
- double get_MinFlow( Index t , Index arc ) const {
-  return( v_MinFlow.empty() ? 0 : v_MinFlow[ t ][ arc ] );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the MaxFlow of \p arc at instant \p t
-
- double get_MaxFlow( Index t , Index arc ) const {
-  return( v_MaxFlow.empty() ? 0 : v_MaxFlow[ t ][ arc ] );
-  }
-
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1620,7 +1551,7 @@ class HydroUnitBlock : public UnitBlock
   *
   * This value is to be found as:
   *
-  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it
+  * - if solc is not nullptr, and it is a SimpleConfiguration< int >, then it
   *   is solc->f_value;
   *
   * - otherwise, if f_BlockConfig is not nullptr,
@@ -1879,7 +1810,7 @@ class HydroUnitBlock : public UnitBlock
  /// the number of reservoirs (nodes) of the problem
  Index f_NumberReservoirs{};
 
- /// the number arcs connecting the reservoirs in the cascading system
+ /// the number of arcs connecting the reservoirs in the cascading system
  Index f_NumberArcs{};
 
  /// the total number of pieces
@@ -1939,11 +1870,11 @@ class HydroUnitBlock : public UnitBlock
  /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MaxPower;
 
-  /// the vector of MinReactivePower
-  /** Indexed over the dimensions TimeHorizon and NumberArcs. */
+ /// the matrix of MinReactivePower
+ /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MinReactivePower;
 
- /// the vector of MaxReactivePower
+ /// the matrix of MaxReactivePower
  /** Indexed over the dimensions TimeHorizon and NumberArcs. */
  boost::multi_array< double , 2 > v_MaxReactivePower;
 
@@ -1985,7 +1916,7 @@ class HydroUnitBlock : public UnitBlock
  /// the active power variables
  boost::multi_array< ColVariable , 2 > v_active_power;
 
- /// the reactive power variables have to be redefined
+ /// the reactive power variables
  boost::multi_array< ColVariable , 2 > v_reactive_power;
 
  /// the primary spinning reserve variables
@@ -2021,7 +1952,7 @@ class HydroUnitBlock : public UnitBlock
  boost::multi_array< FRowConstraint , 2 > ActivePowerBounds_Const;
 
  /// the reactive power bound constraints
- boost::multi_array< BoxConstraint, 2 > ReactivePower_Bound_Const;
+ boost::multi_array< BoxConstraint , 2 > ReactivePower_Bound_Const;
 
  /// ramp-up constraints
  boost::multi_array< FRowConstraint , 2 > RampUp_Const;

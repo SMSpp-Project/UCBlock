@@ -57,8 +57,8 @@ SMSpp_insert_in_factory_cpp_0( HydroUnitBlockSolution );
 /*--------------------------------------------------------------------------*/
 
 template< class T , std::size_t K >
-static inline void copy_multi_array( boost::multi_array< T , K > & to ,
-			       const boost::multi_array< T , K > & from )
+static void copy_multi_array( boost::multi_array< T , K > & to ,
+			      const boost::multi_array< T , K > & from )
 {
  std::vector< size_t > extent;
  auto shape = from.shape();
@@ -257,8 +257,7 @@ void HydroUnitBlock::generate_abstract_variables( Configuration * stvv )
  // volumetric Variable - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- v_volumetric.resize( boost::extents[ f_NumberReservoirs ][ f_time_horizon ]
-		      );
+ v_volumetric.resize( boost::extents[ f_NumberReservoirs ][ f_time_horizon ] );
  for( Index g = 0 ; g < f_NumberReservoirs ; ++g )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_volumetric[ g ][ t ].set_type( ColVariable::kNonNegative );
@@ -403,8 +402,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    double initial_volume = 0.0;
    if( t == 0 ) {
-    if( v_InitialVolumetric[ n ] >= 0. )
-     initial_volume = v_InitialVolumetric[ n ];
+    const auto initial_vol = get_initial_volumetric( n );
+    if( initial_vol >= 0. )
+     initial_volume = initial_vol;
     else
      vars.push_back( std::make_pair( get_volume( n , f_time_horizon - 1 ) ,
                                      -1.0 ) );
@@ -552,8 +552,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-     auto MinF = get_MinFlow( t , arc );
-     auto MaxF = get_MaxFlow( t , arc );
+     auto MinF = get_min_flow( t , arc );
+     auto MaxF = get_max_flow( t , arc );
 
      if( ( MinF >= 0 ) && ( MaxF > 0 ) ) {  // Turbines
       vars.push_back( std::make_pair( get_active_power( arc , t ) ,
@@ -598,8 +598,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-     auto MinF = get_MinFlow( t , arc );
-     auto MaxF = get_MaxFlow( t , arc );
+     auto MinF = get_min_flow( t , arc );
+     auto MaxF = get_max_flow( t , arc );
 
      if( ( MinF >= 0 ) && ( MaxF > 0 ) ) {  // Turbines
       vars.push_back( std::make_pair( get_active_power( arc , t ) ,
@@ -654,8 +654,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
     else
      end += v_NumberPieces[ arc ];
 
-    auto MinF = get_MinFlow( t , arc );
-    auto MaxF = get_MaxFlow( t , arc );
+    auto MinF = get_min_flow( t , arc );
+    auto MaxF = get_max_flow( t , arc );
 
     if( ( MinF >= 0 ) && ( MaxF > 0 ) ) {  // Turbines
      for( ; piece < end ; ++piece , ++cnstr_idx ) {
@@ -714,8 +714,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
    auto flow_rate = get_flow_rate( arc , t );
-   FlowRateBounds_Const[ t ][ arc ].set_lhs( get_MinFlow( t , arc ) );
-   FlowRateBounds_Const[ t ][ arc ].set_rhs( get_MaxFlow( t , arc ) );
+   FlowRateBounds_Const[ t ][ arc ].set_lhs( get_min_flow( t , arc ) );
+   FlowRateBounds_Const[ t ][ arc ].set_rhs( get_max_flow( t , arc ) );
    FlowRateBounds_Const[ t ][ arc ].set_variable( flow_rate );
    }
 
@@ -739,8 +739,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
    RampUp_Const[ 0 ][ arc ].set_function(
     new LinearFunction( std::move( vars ) ) );
 
-   for( Index t = 1 , cnstr_idx = 1 ; t < f_time_horizon ;
-	++t , ++cnstr_idx ) {
+   for( Index t = 1 , cnstr_idx = 1 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
     vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
     vars.push_back( std::make_pair( get_flow_rate( arc , t - 1 ) , -1.0 ) );
 
@@ -795,10 +794,9 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     if( ( v_MinVolumetric[ node ][ t ] > v_MaxVolumetric[ node ][ t ] ) ||
         ( v_MinVolumetric[ node ][ t ] < 0 ) ||
-	( v_MaxVolumetric[ node ][ t ] < 0 ) )
+	       ( v_MaxVolumetric[ node ][ t ] < 0 ) )
      throw( std::logic_error( "HydroUnitBlock::Volumetric Bounds Constraint "
-                              "must be 0 <= MinV[ r , t ] <= MaxV[ r , t ]"
-			      ) );
+                              "must be 0 <= MinV[ r , t ] <= MaxV[ r , t ]" ) );
 
  assert( VolumetricBounds_Const.empty() );
  VolumetricBounds_Const.resize(
@@ -856,8 +854,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( f_reactive_power && 
-     ( ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) )
-     ) {
+     ( ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) ) ) {
   if( ReactivePower_Bound_Const.empty() )
    ReactivePower_Bound_Const.resize(
                           boost::extents[ f_NumberArcs ][ f_time_horizon ] );
@@ -1147,12 +1144,13 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
 
  // If nothing changes, return
  bool identical = true;
+ auto values_it = values;
  for( auto i : subset ) {
   if( i >= v_inflows.size() )
    throw( std::invalid_argument( "HydroUnitBlock::set_inflow: "
                                  "invalid value in subset." ) );
 
-  if( *( v_inflows.data() + i ) != *( values++ ) )
+  if( *( v_inflows.data() + i ) != *( values_it++ ) )
    identical = false;
  }
 
@@ -1161,23 +1159,21 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-
+  values_it = values;
   for( auto i : subset ) {
    Index t = i % f_time_horizon;
    Index r = i / f_time_horizon;
-   v_inflows[ r ][ t ] = *( values++ );
+   v_inflows[ r ][ t ] = *( values_it++ );
   }
 
   if( constraints_generated() )
    // Change the abstract representation
-
    for( auto i : subset ) {
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
     if( t == 0 ) {
-     const auto volume = v_InitialVolumetric[ r ] >= 0. ?
-                          v_InitialVolumetric[ r ] : 0.;
+     const auto volume = get_initial_volumetric( r );
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
       volume + v_inflows[ r ][ t ] , issueAMod );
     }
@@ -1193,7 +1189,8 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
    std::sort( subset.begin() , subset.end() );
 
   Block::add_Modification( std::make_shared< HydroUnitBlockSbstMod >(
-                            this , HydroUnitBlockMod::eSetInf , std::move( subset ) ) ,
+                            this , HydroUnitBlockMod::eSetInf ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( HydroUnitBlock::set_inflow( subset ) )
@@ -1239,8 +1236,7 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
     Index r = i / f_time_horizon;
 
     if( t == 0 ) {
-     const auto volume = v_InitialVolumetric[ r ] >= 0. ?
-                          v_InitialVolumetric[ r ] : 0.;
+     const auto volume = get_initial_volumetric( r );
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
       volume + v_inflows[ r ][ t ] , issueAMod );
     }
@@ -1405,35 +1401,35 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
  }
 
  bool identical = true;
+ auto values_it = values;
  for( auto r : subset ) {
   if( r >= v_InitialVolumetric.size() )
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: invalid "
                                  "index in subset: " + std::to_string( r ) ) );
 
-  const auto volume = *( values++ );
-  if( v_InitialVolumetric[ r ] != volume ) {
+  const auto volume = *( values_it++ );
+  if( v_InitialVolumetric[ r ] != volume )
    identical = false;
-
-   if( not_dry_run( issuePMod ) ) {
-    // Change the physical representation
-    v_InitialVolumetric[ r ] = volume;
-   }
-  }
  }
 
  if( identical )
   // Nothing has changed.
   return;
 
- if( not_dry_run( issuePMod ) &&
-     not_dry_run( issueAMod ) &&
-     constraints_generated() ) {
-  // Change the abstract representation
-  for( auto r : subset ) {
-   const auto volume = v_InitialVolumetric[ r ] >= 0. ?
-                         v_InitialVolumetric[ r ] : 0.;
-   FinalVolumeReservoir_Const[ 0 ][ r ].set_both
-    ( volume + v_inflows[ r ][ 0 ] , issueAMod );
+ if( not_dry_run( issuePMod ) ) {
+  // Change the physical representation
+  values_it = values;
+  for( auto r : subset )
+   v_InitialVolumetric[ r ] = *( values_it++ );
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // Change the abstract representation
+   for( auto r : subset ) {
+    const auto volume = get_initial_volumetric( r );
+    const auto inflow = v_inflows.empty() ? 0.0 : v_inflows[ r ][ 0 ];
+    FinalVolumeReservoir_Const[ 0 ][ r ].set_both
+     ( volume + inflow , issueAMod );
+   }
   }
  }
 
@@ -1443,7 +1439,8 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
    std::sort( subset.begin() , subset.end() );
 
   Block::add_Modification( std::make_shared< HydroUnitBlockSbstMod >(
-                            this , HydroUnitBlockMod::eSetInitV , std::move( subset ) ) ,
+                            this , HydroUnitBlockMod::eSetInitV ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
  }
 }  // end( HydroUnitBlock::set_initial_volume( subset ) )
@@ -1465,7 +1462,7 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
                    values + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    // The initial volumes are still zero. There is nothing to be updated.
-   return;
+    return;
 
   v_InitialVolumetric.resize( get_number_reservoirs() );
  }
@@ -1484,19 +1481,19 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( Index r = rng.first ; r < rng.second ; ++r ) {
-    const auto volume = v_InitialVolumetric[ r ] >= 0. ?
-                          v_InitialVolumetric[ r ] : 0.;
+    const auto volume = get_initial_volumetric( r );
+    const auto inflow = v_inflows.empty() ? 0.0 : v_inflows[ r ][ 0 ];
     FinalVolumeReservoir_Const[ 0 ][ r ].set_both
-     ( volume + v_inflows[ r ][ 0 ] , issueAMod );
+     ( volume + inflow , issueAMod );
    }
   }
  }
 
  if( issue_pmod( issuePMod ) )
   // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >(
-                            this , HydroUnitBlockMod::eSetInitV , rng ) ,
-                           Observer::par2chnl( issuePMod ) );
+   Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >(
+                             this , HydroUnitBlockMod::eSetInitV , rng ) ,
+                            Observer::par2chnl( issuePMod ) );
 
 }  // end( HydroUnitBlock::set_initial_volume( range ) )
 
@@ -1571,26 +1568,26 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
  }
 
  bool identical = true;
+ auto values_it = values;
  for( auto i : subset ) {
   if( i >= v_InitialFlowRate.size() )
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_flow_rate: "
-                                  "invalid value in subset." ) );
-  auto flow_rate = *( values++ );
-  if( v_InitialFlowRate[ i ] != flow_rate ) {
+                                 "invalid value in subset." ) );
+  if( v_InitialFlowRate[ i ] != *( values_it++ ) )
    identical = false;
-   if( not_dry_run( issuePMod ) )
-    // Change the physical representation
-    v_InitialFlowRate[ i ] = flow_rate;
-  }
  }
- if( identical )
-  return;  // nothing changes; return
 
- if( not_dry_run( issuePMod ) &&
-     not_dry_run( issueAMod ) &&
-     constraints_generated() )
-  // Change the abstract representation
-  update_initial_flow_rate_in_cnstrs( subset , issueAMod );
+ if( identical )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  values_it = values;
+  for( auto i : subset )
+   v_InitialFlowRate[ i ] = *( values_it++ );
+
+  if( not_dry_run( issueAMod ) && constraints_generated() )
+   update_initial_flow_rate_in_cnstrs( subset , issueAMod );
+ }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
@@ -1836,7 +1833,7 @@ void HydroUnitBlockSolution::read( const Block * block )
  auto HUB = dynamic_cast< const HydroUnitBlock * >( block );
  if( ! HUB )
   throw( std::invalid_argument( "HydroUnitBlockSolution::read: block is "
-				"not a HydroUnitBlock" ) );
+				                            "not a HydroUnitBlock" ) );
 
  UnitBlockSolution::read( HUB );  // call the method of the base class
 
@@ -1866,11 +1863,11 @@ void HydroUnitBlockSolution::write( Block * block )
  auto HUB = dynamic_cast< HydroUnitBlock * >( block );
  if( ! HUB )
   throw( std::invalid_argument( "HydroUnitBlockSolution::write: block is "
-				"not a HydroUnitBlock" ) );
+			                            	"not a HydroUnitBlock" ) );
 
  if(  f_reservoirs != HUB->get_number_reservoirs() )
   throw( std::invalid_argument( "HydroUnitBlockSolution::write: "
-				"inconsistent number of reservoirs" ) );
+				                            "inconsistent number of reservoirs" ) );
 
  if( ! v_volume.empty() )
   for( Index i = 0 ; i < f_reservoirs ; ++i ) {
@@ -1957,11 +1954,11 @@ void HydroUnitBlockSolution::sum( const Solution * solution ,
  auto HUBS = dynamic_cast< const HydroUnitBlockSolution * >( solution );
  if( ! HUBS )
   throw( std::invalid_argument( "HydroUnitBlockSolution::sum: solution not "
-				"a HydroUnitBlockSolution" ) );
+				                            "a HydroUnitBlockSolution" ) );
 
  if( f_reservoirs != HUBS->f_reservoirs )
   throw( std::invalid_argument( "HydroUnitBlockSolution::sum: inconsistent "
-				"number of reservoirs" ) );
+				                            "number of reservoirs" ) );
 
  if( ! v_volume.empty() )
   for( Index i = 0 ; i < f_reservoirs ; ++i )
