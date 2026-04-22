@@ -667,32 +667,41 @@ std::map<Index, int> get_lines_in_spanning_tree(void){
     if (!cycle_basis_was_computed)
         compute_cycle_basis();
 
-    const auto number_lines = get_number_lines();
-    const auto& DC_lines    = get_DC_lines();
-
-    if (number_lines <= 0)
-        throw std::logic_error(
-            "get_lines_in_spanning_tree: number of lines not set"
-        );
-
+    const auto& DC_lines   = get_DC_lines();
     const auto& start_line = get_start_line();
     const auto& end_line   = get_end_line();
 
     std::map<Index, int> lines_in_spanning_tree;
 
     for (Index line_id : DC_lines) {
-        Index i = start_line[line_id];
-        Index j = end_line[line_id];
+        Index u = start_line[line_id];
+        Index v = end_line[line_id];
 
-        // i -> j in tree
-        if (m_spanning_parent[j] == i) {
-            lines_in_spanning_tree[line_id] = 1;
+        if (m_spanning_parent[v] == static_cast<int>(u)) {
+            // u -> v is the tree edge
+            lines_in_spanning_tree[line_id] = +1;
         }
-        // j -> i in tree (reverse direction)
-        else if (m_spanning_parent[i] == j) {
+        else if (m_spanning_parent[u] == static_cast<int>(v)) {
+            // v -> u is the tree edge
             lines_in_spanning_tree[line_id] = -1;
         }
     }
+
+#ifndef NDEBUG
+    // Consistency check: every non-root node must have exactly one tree edge
+    std::vector<int> seen_parent(m_spanning_parent.size(), 0);
+    for (const auto& [line_id, dir] : lines_in_spanning_tree) {
+        Index u = start_line[line_id];
+        Index v = end_line[line_id];
+        if (dir == +1) seen_parent[v]++;
+        if (dir == -1) seen_parent[u]++;
+    }
+    for (Index i = 0; i < m_spanning_parent.size(); ++i) {
+        if (m_spanning_parent[i] >= 0 && m_spanning_parent[i] != static_cast<int>(i)) {
+            assert(seen_parent[i] == 1 && "Node has inconsistent tree parent mapping");
+        }
+    }
+#endif
 
     return lines_in_spanning_tree;
 }
@@ -701,59 +710,76 @@ std::map<Index, int> get_lines_in_spanning_tree(void){
 /* Return a vector of map where the keys are the line ids involved in the
  * cycle and the value is 1 if the directed line is in the cycle and -1 if
  * the reverse directed line is in the cycle. */
+ 
+std::vector<std::map<Index,int>> get_lines_in_cycles(void){
+    if (!cycle_basis_was_computed)
+        compute_cycle_basis();
 
- std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
-  if( ! cycle_basis_was_computed )
-   this->compute_cycle_basis();
+    const auto& DC_lines   = get_DC_lines();
+    const auto& start_line = get_start_line();
+    const auto& end_line   = get_end_line();
 
-  const auto & DC_lines   = get_DC_lines();
-  const auto number_nodes = get_number_nodes();
-  const auto number_lines = get_number_lines();
-  int nb_dc_lines = DC_lines.size(); 
-  
-  if( number_lines <= 0 )
-   throw( std::logic_error( "DCNetworkData::get_lines_in_spanning_tree: "
-			    "number of lines of DCNetworkBlock is not set" )
-	  );
+    // ------------------------------------------------------------
+    // Build a fast DC-only adjacency: (u,v) → unique DC line_id
+    // ------------------------------------------------------------
+    std::map<std::pair<Index,Index>, Index> dc_edge;
 
-  const auto & start_line = get_start_line();
-  const auto & end_line = get_end_line();
+    for (Index line_id : DC_lines) {
+        Index u = start_line[line_id];
+        Index v = end_line[line_id];
 
-  std::vector< std::map< Index , int > > lines_in_cycles =
-   std::vector< std::map< Index , int > >( this->v_cycle_basis.size() );
-  int idx_cycle = 0;
-  for (auto & cycle : this->v_cycle_basis ) {
-    //for (Index line_id = 0 ; line_id < number_lines ; ++line_id ) {
-    for ( auto & line_id : DC_lines) { // only DC lines can participate here
-      Index i = start_line[ line_id ];
-      Index j = end_line[ line_id ];
-      auto it_i = std::find( cycle.begin() , cycle.end() , i );
-      int pos_i = std::distance( cycle.begin() , it_i );
-      if ( it_i != cycle.end() ) {
-        // the line or reverse line may be in the cycle
-        if ( ( pos_i < cycle.size() - 1 ) && ( cycle[ pos_i + 1 ] == j ) ) {
-         lines_in_cycles[ idx_cycle ][ line_id ] = 1; // true line
-        }
-        if( ( pos_i == cycle.size() - 1 ) && ( cycle[ 0 ] == j ) ) {
-         lines_in_cycles[ idx_cycle ][ line_id ] = 1; // true line
-        }
-        if( ( pos_i > 0 ) && ( cycle[ pos_i - 1 ] == j ) ) {
-         lines_in_cycles[ idx_cycle ][ line_id ] = -1; // reverse line
-        }
-        if( ( pos_i == 0 ) && ( cycle[ cycle.size() - 1 ] == j ) ) {
-         lines_in_cycles[ idx_cycle ][ line_id ] = -1; // reverse line
-        }
-      }
+        auto key1 = std::make_pair(u, v);
+        auto key2 = std::make_pair(v, u);
+
+#ifndef NDEBUG
+        // parallel DC lines are ambiguous for cycle-flow formulation
+        assert(!dc_edge.contains(key1));
+        assert(!dc_edge.contains(key2));
+#endif
+
+        dc_edge[key1] = line_id;
+        dc_edge[key2] = line_id;
     }
-    ++ idx_cycle;
-  }
 
-  // take advantage of the theory to ensure the size of the cycle basis
-  // Not sure if the Theory is valid in a graph having potentially disconnected componenents due to HVDC lines
-  // assert( lines_in_cycles.size() == number_lines - number_nodes + 1 );
+    // ------------------------------------------------------------
+    // Convert node cycles → DC line cycles
+    // ------------------------------------------------------------
+    std::vector<std::map<Index,int>> lines_in_cycles;
+    lines_in_cycles.resize(v_cycle_basis.size());
 
-  return( lines_in_cycles );
-  }
+    for (size_t c = 0; c < v_cycle_basis.size(); ++c) {
+        const Subset& cycle = v_cycle_basis[c];
+
+#ifndef NDEBUG
+        assert(cycle.size() >= 3);
+        assert(cycle.front() == cycle.back());
+#endif
+
+        auto& cycle_map = lines_in_cycles[c];
+
+        for (size_t k = 0; k + 1 < cycle.size(); ++k) {
+            Index u = cycle[k];
+            Index v = cycle[k+1];
+
+            auto it = dc_edge.find({u, v});
+#ifndef NDEBUG
+            // THIS is the key invariant you were missing
+            assert(it != dc_edge.end() &&
+                   "Cycle uses a non-DC or ambiguous edge");
+#endif
+
+            Index line_id = it->second;
+
+            // orientation
+            int sign = (start_line[line_id] == u &&
+                        end_line[line_id]   == v) ? +1 : -1;
+
+            cycle_map[line_id] += sign;
+        }
+    }
+
+    return lines_in_cycles;
+}
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the network cost

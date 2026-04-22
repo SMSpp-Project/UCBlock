@@ -782,13 +782,13 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
  auto basis = f_NetworkData->get_lines_in_cycles();
 
  auto lines_in_tree = f_NetworkData->get_lines_in_spanning_tree();
- // build the children from the parents
  const auto& parent = f_NetworkData->get_spanning_parent();
+ // Construct the children from the tree
  std::vector<std::vector<Index>> tree_children(number_nodes);
- for (Index v = 0; v < number_nodes; ++v) {
-    int p = parent[v];
-    if (p >= 0 && p != v) {
-        tree_children[p].push_back(v);
+ for (Index i = 0; i < number_nodes; ++i) {
+    int p = parent[i];
+    if (p >= 0 && p != static_cast<int>(i)) {
+        tree_children[p].push_back(i);
     }
  }
 
@@ -802,7 +802,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
     std::cout << root[ i ] << "\n";
  */
 
-/*--------------------------------------------------------------*/
+ /*--------------------------------------------------------------*/
  /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c      */
  /*--------------------------------------------------------------*/
  auto & DC_lines   = f_NetworkData->get_DC_lines();
@@ -811,42 +811,70 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 
  v_CYCLE_def_flow_const.resize( nb_dc_lines );
 
- // Instead of eternally reallocating queues, we do it once and for all ;
- std::deque< int > bfs_queue;
- bfs_queue.clear(); // clear is supposed to keep the memory footprint rather than do reallocates all the time.
  int id_dc_line = 0;
  for( auto & line_id : DC_lines ) {
     auto lfunc = new LinearFunction();
-    bfs_queue.clear();
 
     /* -f_l term */
     double constant_term = 0.;
     lfunc->add_variable( &v_power_flow[ line_id ] , -1.0 );
 
-    /* Σ_i T_{li} p_i : only if l is a tree edge */
-    if( lines_in_tree.contains( line_id ) ) {
-      int sign = -lines_in_tree[ line_id ]; // be careful, path FROM node TO root, i.e, in the reverse contrary to the spanning tree
-      int node_id = ( sign < 0 ) ? end_line[ line_id ] : start_line[ line_id ]; // the one further to root node in this edge
-      bfs_queue.push_back( node_id );
+    int f_sign = +1;
 
-      // we go through the rest of the tree starting from node_id, and we sum all the contributions
-      // be careful, in the paper, p_i is the node injection - demand. Therefore, we need to sum the node_injection variables AND the demand in the constant term
-      while ( ! bfs_queue.empty() ) {
-        int p = bfs_queue.front();
-        lfunc->add_variable( &v_node_injection[ 0 ][ p ], sign );
-        // HVDC lines alter the net node_injection here and should be accounted for (if present)
-        for( auto & hvdc_line : HVDC_lines ) {
-          if( end_line[ hvdc_line ] == p )
-            lfunc->add_variable( &v_power_flow[ hvdc_line ], sign );
-          if( start_line[ hvdc_line ] == p )
-            lfunc->add_variable( &v_power_flow[ hvdc_line ], -1.0 * sign );
-        }
-        constant_term += sign * v_ActiveDemand[ p ];
-        bfs_queue.pop_front();
-        for (Index child : tree_children[p]) {
-          bfs_queue.push_back(child);
+    /* Σ_i T_{li} p_i : only if l is a tree edge */
+    if (lines_in_tree.contains(line_id)){
+      // endpoints of the DC tree edge
+      Index u = start_line[line_id];
+      Index v = end_line[line_id];
+
+      const Index number_nodes = get_number_nodes();
+      std::vector<bool> in_S(number_nodes, false);
+      // identify the child subtree S_l
+      Index child;
+      if (parent[v] == static_cast<int>(u))
+          child = v;
+      else if (parent[u] == static_cast<int>(v))
+          child = u;
+      else
+        continue;  // should not happen
+
+      std::queue<Index> q;
+      q.push(child);
+      in_S[child] = true;
+
+      while (!q.empty()){
+        Index x = q.front();
+        q.pop();
+        for (Index c : tree_children[x]){
+          in_S[c] = true;
+          q.push(c);
         }
       }
+
+      for (Index i = 0; i < number_nodes; ++i){
+        if (!in_S[i])
+          continue;
+
+        /* ---- expand p_i ---- */
+        // nodal injection variable
+        lfunc->add_variable(&v_node_injection[0][i], 1.0);
+        constant_term += v_ActiveDemand[i];
+      }
+
+      /* HVDC contributions: only if the line crosses the cut */
+      for (auto hvdc_line : HVDC_lines){
+          Index a = start_line[hvdc_line];
+          Index b = end_line[hvdc_line];
+
+          bool a_in = in_S[a];
+          bool b_in = in_S[b];
+
+          if (a_in && !b_in)
+            lfunc->add_variable(&v_power_flow[hvdc_line], -1.0);
+          else if (b_in && !a_in)
+            lfunc->add_variable(&v_power_flow[hvdc_line], 1.0);
+          // else: does not cross cut → zero contribution
+        }
     }
 
     /* Σ_c C_{lc} h_c term */
