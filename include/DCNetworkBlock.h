@@ -659,10 +659,71 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
-/* Return a map where the keys are the line ids involved in the spanning
- * tree and the value is 1 if the directed line is in the tree and -1 if 
- * the reverse directed line is in the tree.*/
 
+/**
+ * Extract the DC spanning forest produced by compute_cycle_basis()
+ * as an edge‑oriented (line‑oriented) representation.
+ *
+ * This routine converts the node‑level parent array of the DFS
+ * spanning forest into a map of DC line identifiers with explicit
+ * orientation.
+ *
+ * Output:
+ * -------
+ * - A map:
+ *       key   : DC line_id
+ *       value : +1 if the line orientation matches the spanning tree
+ *                     direction (parent -> child with start -> end),
+ *               -1 if the line orientation is opposite to the spanning
+ *                     tree direction.
+ *
+ * Interpretation:
+ * ---------------
+ * - Each entry corresponds to one DC tree edge.
+ * - The sign encodes how the reference flow direction of the line
+ *   (start_line -> end_line) is oriented relative to the spanning tree.
+ *
+ * Algorithm overview:
+ * -------------------
+ * 1. The DC spanning forest is already known via m_spanning_parent[],
+ *    where each non‑root node has exactly one parent and roots satisfy
+ *    parent[root] == root.
+ *
+ * 2. For each DC line (u,v):
+ *      - If parent[v] == u, then the line is a tree edge directed u -> v.
+ *      - If parent[u] == v, then the line is a tree edge directed v -> u.
+ *      - Otherwise, the line is not part of the spanning tree.
+ *
+ * 3. The routine records only those DC lines that correspond to exactly
+ *    one parent–child relation, ensuring:
+ *      - Each non‑root node appears in exactly one tree edge.
+ *      - No HVDC line is ever included in the spanning tree.
+ *
+ * Design notes and invariants:
+ * ----------------------------
+ * - The spanning tree is a forest (one tree per DC‑connected component).
+ *
+ * - This representation is intentionally edge‑centric:
+ *     it is used downstream to:
+ *       • orient the T_{li} cut equations,
+ *       • define consistent reference directions for f_l in tree
+ *         constraints,
+ *       • ensure compatibility with cycle incidence C_{lc}.
+ *
+ * - In debug mode, a consistency check verifies that:
+ *     every non‑root node appears in exactly one spanning‑tree edge.
+ *
+ * Relationship to the cycle‑flow formulation:
+ * -------------------------------------------
+ * - The returned map defines the tree component of the decomposition
+ *   of line flows:
+ *
+ *       f_l = sum_i T_{li} p_i + sum_c C_{lc} h_c
+ *
+ * - Correct orientation of tree edges is essential to prevent
+ *   algebraic cancellation between tree constraints and cycle
+ *   constraints, which would otherwise force cycle flows to zero.
+ */
 std::map<Index, int> get_lines_in_spanning_tree(void){
     if (!cycle_basis_was_computed)
         compute_cycle_basis();
@@ -706,11 +767,82 @@ std::map<Index, int> get_lines_in_spanning_tree(void){
     return lines_in_spanning_tree;
 }
 
-/*--------------------------------------------------------------------------*/
-/* Return a vector of map where the keys are the line ids involved in the
- * cycle and the value is 1 if the directed line is in the cycle and -1 if
- * the reverse directed line is in the cycle. */
- 
+/**
+ * Convert the node‑based cycle basis into an edge‑based (line‑based)
+ * cycle incidence representation.
+ *
+ * This routine takes the node cycles produced by compute_cycle_basis()
+ * and rewrites them as cycles over DC transmission lines, suitable for
+ * constructing the cycle incidence matrix C_{lc} used in the
+ * cycle‑flow formulation.
+ *
+ * Input:
+ * ------
+ * - v_cycle_basis:
+ *     A vector of node cycles, where each cycle is an ordered list of
+ *     node indices with cycle.front() == cycle.back().
+ *
+ * Output:
+ * -------
+ * - A vector of maps, one per cycle:
+ *     - key   : DC line_id
+ *     - value : +1 if the line is traversed in its reference direction
+ *               (start_line -> end_line),
+ *               -1 if traversed in the reverse direction.
+ *
+ * Algorithm overview:
+ * -------------------
+ * 1. Build a DC‑only edge lookup table mapping an unordered node pair
+ *    (u,v) to the unique DC line connecting them.
+ *
+ *    This enforces a crucial invariant:
+ *      - Each pair of consecutive nodes in a cycle must be connected
+ *        by exactly one DC line.
+ *      - HVDC lines are excluded from cycle topology.
+ *
+ * 2. For each node‑based cycle:
+ *      a) Traverse consecutive node pairs along the cycle.
+ *      b) For each pair (u,v):
+ *           - Look up the corresponding DC line_id.
+ *           - Determine the orientation of the cycle edge relative to
+ *             the line’s reference direction (start_line -> end_line).
+ *           - Accumulate the signed incidence (+1 or -1) for that line.
+ *
+ * 3. The resulting map for each cycle represents one column of the
+ *    cycle incidence matrix C_{lc}.
+ *
+ * Design notes and invariants:
+ * ----------------------------
+ * - Cycles are assumed to be simple and closed
+ *   (cycle.front() == cycle.back()).
+ *
+ * - Parallel DC lines between the same node pair are explicitly
+ *   forbidden, as they make cycle incidence ambiguous in the
+ *   cycle‑flow formulation.
+ *
+ * - Orientation is defined strictly with respect to the line’s
+ *   reference direction; downstream constraints rely on this
+ *   consistency to avoid algebraic cancellation of cycle flows.
+ *
+ * - This routine performs no topological search; it is a pure
+ *   structural transformation from node cycles to line cycles.
+ *
+ * Relationship to the cycle‑flow formulation:
+ * -------------------------------------------
+ * - The output directly defines the coefficients C_{lc} in the
+ *   equation:
+ *
+ *       f_l = sum_i T_{li} p_i + sum_c C_{lc} h_c
+ *
+ *   where:
+ *     - f_l is the DC line flow,
+ *     - p_i is the nodal injection,
+ *     - h_c is the cycle flow variable.
+ *
+ * - Correct orientation and completeness of C_{lc} is essential;
+ *   inconsistent signs between tree equations and cycle equations
+ *   will force cycle flows to collapse to zero.
+ */
 std::vector<std::map<Index,int>> get_lines_in_cycles(void){
     if (!cycle_basis_was_computed)
         compute_cycle_basis();

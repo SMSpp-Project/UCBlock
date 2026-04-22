@@ -374,6 +374,72 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
 /*--------------------------------------------------------------------------*/
 
 
+/**
+ * Compute a fundamental cycle basis of the DC network using
+ * a depth‑first search (DFS)–based variant of Paton's algorithm.
+ *
+ * The algorithm operates on the DC subgraph only:
+ *  - Nodes represent buses.
+ *  - Edges represent DC transmission lines.
+ *  - HVDC lines are explicitly excluded from the topology.
+ *
+ * Overview of the algorithm:
+ * --------------------------
+ * 1. Build an undirected adjacency list of the DC graph.
+ *
+ * 2. Traverse each connected component of the DC graph using
+ *    an explicit (iterative) depth‑first search.
+ *
+ * 3. During DFS, build a spanning forest:
+ *      - Each node stores its parent in the DFS tree.
+ *      - Roots satisfy parent[root] == root.
+ *
+ * 4. Track the current DFS path explicitly using an `in_stack` flag.
+ *    This is crucial to distinguish true back‑edges to ancestors
+ *    from cross‑edges when using an iterative DFS.
+ *
+ * 5. Whenever a back‑edge (u → v) is encountered such that:
+ *      - v is already on the current DFS path (v is an ancestor of u),
+ *      - v is not the parent of u,
+ *    a fundamental cycle is detected.
+ *
+ * 6. Construct the cycle by:
+ *      - Starting from the back‑edge endpoint v,
+ *      - Walking up the parent pointers from u until v is reached,
+ *      - Closing the cycle at v.
+ *
+ *    The resulting cycle is stored as an ordered list of nodes
+ *    with cycle.front() == cycle.back().
+ *
+ * 7. Repeat until all connected components have been explored.
+ *
+ * Properties of the computed cycle basis:
+ * ---------------------------------------
+ * - Each cycle corresponds to exactly one non‑tree (back) edge.
+ * - The set of cycles forms a fundamental cycle basis:
+ *      |cycles| = |E_DC| − |V_DC| + (number of DC connected components)
+ * - Cycles are expressed in node form here and later converted
+ *   to edge / line incidence form in a separate routine.
+ *
+ * Design notes:
+ * -------------
+ * - An explicit stack is used instead of recursion to avoid
+ *   stack overflows on large networks.
+ *
+ * - The `in_stack` array replaces the recursion stack marker
+ *   normally used in recursive DFS and is required for correctness.
+ *
+ * - Self‑loops are handled explicitly and added as trivial cycles.
+ *
+ * - The algorithm is root‑agnostic: each DC connected component
+ *   has its own DFS root.
+ *
+ * References:
+ * -----------
+ * - K. Paton, "An algorithm for finding a fundamental set of
+ *   cycles of a graph", Communications of the ACM, 1969.
+ * - NetworkX implementation of cycle_basis (adapted to C++).
+ */
 void DCNetworkData::compute_cycle_basis(int opt_root, bool only_DC_lines)
 {
     if (cycle_basis_was_computed)
