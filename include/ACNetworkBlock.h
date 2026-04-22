@@ -294,7 +294,7 @@ class ACNetworkBlock : public DCNetworkBlock
  *    Each power line now has a Resistance (r), Reactance (x) and Susceptance (B). 
  *      note that when these are given in per unit, these can be converted to physical values by computing f = V^2 / mbase
  *      and multiplying r, x by f, while dividing b by f ; 
- *    Observe that power lines have moreover a "chargingSusceptance", with symbole (b) ; 
+ *    Observe that power lines have moreover a "chargingSusceptance", with symbol (b) ;
  *        The formulae for this quantity is 2 * pi * f * C, with C the Capacitance of a power line and f the nominal frequency in Hz (e.g., 50)
  *    This latter charging susceptance will play a role in the "Reactive AC power flow equations"
  * 
