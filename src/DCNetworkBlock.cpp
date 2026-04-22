@@ -823,6 +823,7 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 
     /* Σ_i T_{li} p_i : only if l is a tree edge */
     if (lines_in_tree.contains(line_id)){
+      int sign = -lines_in_tree[ line_id ]; // be careful, path FROM node TO root, i.e, in the reverse contrary to the spanning tree
       // endpoints of the DC tree edge
       Index u = start_line[line_id];
       Index v = end_line[line_id];
@@ -857,8 +858,8 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
 
         /* ---- expand p_i ---- */
         // nodal injection variable
-        lfunc->add_variable(&v_node_injection[0][i], 1.0);
-        constant_term += v_ActiveDemand[i];
+        lfunc->add_variable(&v_node_injection[0][i], sign);
+        constant_term += sign*v_ActiveDemand[i];
       }
 
       /* HVDC contributions: only if the line crosses the cut */
@@ -870,9 +871,9 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc )
           bool b_in = in_S[b];
 
           if (a_in && !b_in)
-            lfunc->add_variable(&v_power_flow[hvdc_line], -1.0);
+            lfunc->add_variable(&v_power_flow[hvdc_line], -1.0*sign);
           else if (b_in && !a_in)
-            lfunc->add_variable(&v_power_flow[hvdc_line], 1.0);
+            lfunc->add_variable(&v_power_flow[hvdc_line], 1.0*sign);
           // else: does not cross cut → zero contribution
         }
     }
