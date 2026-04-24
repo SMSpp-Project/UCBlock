@@ -594,22 +594,20 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
-/* ----------- */
-/*
- * Due to deletion of HVDC lines are just because it is possible to have a network with isolated components
- *   this should be fairly easy to deal with, but we must identify the isolated subgraphs
- *   this is the purpose of the next routine
- *
-*/
-void identify_connected_components( void );
+ /*
+  * Due to deletion of HVDC lines are just because it is possible to have a network with isolated components
+  *   this should be fairly easy to deal with, but we must identify the isolated subgraphs
+  *   this is the purpose of the next routine
+ */
+ void identify_connected_components( void );
 
-std::vector< std::vector< Index > > & get_subgraphs( void ){ 
+ std::vector< std::vector< Index > > & get_subgraphs( void ) {
   return v_nodes_in_component;
-}
+  }
 
-size_t get_nb_connected_components( void ){
-    return nb_components;
- }
+ size_t get_nb_connected_components( void ) const {
+  return nb_components;
+  }
 
  SpMat get_PTDF( c_Subset & DC_lines , double tikhonov_coeff = 1e-4 );
 
@@ -631,8 +629,8 @@ size_t get_nb_connected_components( void ){
 
  void set_stored_B2( const SpMat & B2 , const SpMat & B2_inv ) {
   // in case sizes mismatch
-  stored_B2.resize( B2.rows(), B2.cols() );
-  stored_B2_inv.resize( B2_inv.rows(), B2_inv.cols() );
+  stored_B2.resize( B2.rows() , B2.cols() );
+  stored_B2_inv.resize( B2_inv.rows() , B2_inv.cols() );
 
   stored_B2 = B2;
   stored_B2_inv = B2_inv;
@@ -1053,10 +1051,12 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
  // -1 will be a default value for not belonging to the tree
  std::vector< int > m_spanning_parent;
 
- std::vector< int > v_component; // A simple number for each node of the component (of the subgraph) it belongs to when HVDC lines are not there
- size_t nb_components;           // The total number of connected subgraphs.
- std::vector< std::vector< Index > > v_nodes_in_component; // For each component we can now readily identify which nodes are where.
- std::vector< int > v_reduced_idx;  // For each node the reduced index
+ std::vector< int > v_component;
+ // A simple number for each node of the component (of the subgraph) it belongs to when HVDC lines are not there
+ size_t nb_components; // The total number of connected subgraphs.
+ std::vector< std::vector< Index > > v_nodes_in_component;
+ // For each component we can now readily identify which nodes are where.
+ std::vector< int > v_reduced_idx; // For each node the reduced index
  std::vector< int > v_original_idx; // For each reduced index the original node
 
  /// to not recompute each time the PTDF
