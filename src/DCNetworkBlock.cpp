@@ -291,29 +291,29 @@ void DCNetworkData::identify_connected_components( void )
   adj[ i ].push_back( j );
   adj[ j ].push_back( i );
  }
-  v_component.assign(nb_nodes, -1);
-  nb_components = 0;
+ v_component.assign( nb_nodes , -1 );
+ nb_components = 0;
 
-  for (Index v = 0; v < nb_nodes; ++v) {
-      if (v_component[v] != -1) continue;
+ for( Index v = 0 ; v < nb_nodes ; ++v ) {
+  if( v_component[ v ] != -1 ) continue;
 
-      std::queue<Index> q;
-      q.push(v);
-      v_component[v] = nb_components;
+  std::queue< Index > q;
+  q.push( v );
+  v_component[ v ] = nb_components;
 
-      while (!q.empty()) {
-          Index u = q.front(); 
-          q.pop();
-          for (Index w : adj[u]) {
-              if (v_component[w] == -1) {
-                  v_component[w] = nb_components;
-                  q.push(w);
-              }
-          }
-      }
-
-      ++nb_components;
+  while( ! q.empty() ) {
+   Index u = q.front();
+   q.pop();
+   for( Index w : adj[ u ] ) {
+    if( v_component[ w ] == -1 ) {
+     v_component[ w ] = nb_components;
+     q.push( w );
+    }
+   }
   }
+
+  ++nb_components;
+ }
  // Now simply identify each collection of nodes
  v_nodes_in_component.resize( nb_components );
  for( Index v = 0 ; v < nb_nodes ; ++v )
