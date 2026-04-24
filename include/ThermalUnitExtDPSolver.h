@@ -67,6 +67,9 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Claude Opus 4.7 \n
+ *         Anthropic
+ *
  * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
@@ -157,47 +160,83 @@ class ThermalUnitExtDPSolver : public Solver
 /*------------------------- PROTECTED TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// stage of the computation
+ /// stages of the computation performed by compute()
+ /** Each value records how far along the forward pipeline we have already
+  * progressed for the current values of the ThermalUnitBlock parameters.
+  * Once the Modification queue is drained, compute() only re-runs the
+  * stages that have been invalidated (i.e., only those strictly after
+  * the current stage value). Modifications that change input data reset
+  * stage to start, forcing a full re-execution. */
  enum stage_value {
-  start = 0 ,    ///< nothing computed
-  loaded_OK = 1 ,///< parameters loaded
-  dp_OK = 2 ,    ///< DP has been run
-  sol_OK = 3     ///< solution P[], U[] has been assembled
+  start = 0 ,    ///< nothing computed (or parameters have changed)
+  loaded_OK = 1 ,///< parameters loaded from ThermalUnitBlock (reserved)
+  dp_OK = 2 ,    ///< forward DP has been run; f_best_cost is valid
+  sol_OK = 3     ///< P[] and U[] have been assembled by backtracking
  };
 
 /*--------------------------------------------------------------------------*/
-/// one quadratic piece alfa p^2 + beta p + gamma on [left, right]
+ /// one quadratic piece alfa p^2 + beta p + gamma on the interval
+ /// [left, right] of the power variable p
+ /** This is the atomic building block of the piecewise quadratic value
+  * functions used by the DP. The three coefficients encode the full
+  * univariate quadratic alfa p^2 + beta p + gamma; the two endpoints
+  * [left, right] delimit the portion of the power axis on which this
+  * expression is meaningful. Neighbouring pieces in a PQFun share their
+  * adjacent endpoints (right of piece i == left of piece i+1), so each
+  * endpoint is stored redundantly but the representation is local and
+  * self-contained, which makes insertion/splitting cheap during
+  * sliding_min(). */
 
  struct PieceQuad {
-  double alfa;
-  double beta;
-  double gamma;
-  double left;
-  double right;
+  double alfa;   ///< coefficient of p^2 (>= 0 for a convex piece)
+  double beta;   ///< coefficient of p
+  double gamma;  ///< additive constant (absorbs accumulated path cost)
+  double left;   ///< left endpoint of the piece (inclusive)
+  double right;  ///< right endpoint of the piece (inclusive)
  };
 
- /// convex piecewise quadratic function, stored as sorted list of pieces
- /** Each element describes the piece alfa p^2 + beta p + gamma on
-  * [left, right]. The pieces are sorted by left endpoint and cover a
-  * contiguous interval with no gaps and no overlaps (except at shared
-  * endpoints). Because the functions used in the DP are convex, alfa >= 0
-  * on every piece and the piecewise junction is continuous. An empty
-  * vector denotes the +INF function, i.e., an infeasible state. */
+ /// a convex piecewise quadratic function on the power axis
+ /** Stored as a vector of PieceQuad sorted by left endpoint and covering a
+  * contiguous sub-interval of the power axis with no gaps and no overlaps
+  * (except at shared endpoints). The DP invariants are:
+  *
+  *  1. pieces[ i ].right == pieces[ i+1 ].left for all i (continuous support);
+  *  2. alfa >= 0 on every piece (each piece is itself convex);
+  *  3. the values at shared endpoints agree (function is continuous);
+  *  4. the subgradient is monotonically non-decreasing across endpoints,
+  *     so the *overall* piecewise function is convex.
+  *
+  * The empty vector represents the +INFinity function, used to signal an
+  * infeasible or not-yet-reached DP state (e.g., a tau value that has no
+  * predecessor chain, or an interval that is empty after clamping).
+  *
+  * All the "shape" operations implemented on PQFun (sliding_min, add_quadratic,
+  * clamp_domain, ...) preserve invariants (1)-(4) by construction. */
 
  using PQFun = std::vector< PieceQuad >;
 
 /*--------------------------------------------------------------------------*/
-/// backtracking record for a single F^tau_t "slot"
- /** After the forward DP each (t, tau) slot is summarised by:
+ /// summary of a single F^tau_t function, kept alongside the PQFun itself
+ /** Produced by run_DP() right after each F^tau_t has been built. It is
+  * used both to finalise the best cost at the end of the horizon and to
+  * support backtracking without re-scanning the piecewise representation.
   *
-  *  - min_val : min over p of F^tau_t(p) on the full domain (INF if the slot
-  *    is infeasible);
-  *  - argmin_p : the corresponding unconstrained minimiser p_star of
-  *    F^tau_t; this is the value used by the "middle" branch of the
-  *    Wuijts sliding minimum while walking the optimal path back.
+  *  - min_val : the minimum value of F^tau_t(p) over the whole domain
+  *              [min_power[t], max_power[t]] (or [min_power[t], bound_on[t]]
+  *              when tau == 1, since a just-restarted unit is further
+  *              constrained by the start-up ramp limit). TUEDPINF if the
+  *              slot is infeasible (empty F).
+  *  - argmin_p : a minimiser p_star of F^tau_t on the same domain. This is
+  *              the "p*_{t}" referenced by eq. (16) of Wuijts et al. (2021):
+  *              when walking the optimal path back from time t to time t-1,
+  *              the power at t-1 is clamped to [p - Delta+, p + Delta-]
+  *              around the current power p, and the "middle" branch of
+  *              the three-case formula picks exactly p_star_prev.
   *
-  * Predecessors are implicit: for tau > 1 the predecessor is (t-1, tau-1);
-  * for tau == 1 the predecessor is the off-side state at t-1. */
+  * Predecessors are implicit and dictated by the forward DP recurrence:
+  * for tau > 1 the predecessor of (t, tau) is (t-1, tau-1); for tau == 1
+  * the predecessor is the off-side state at t-1 (specifically the
+  * "ready-to-restart" state encoded by c_off_ready[t-1]). */
 
  struct OnSlot {
   double min_val;
@@ -308,51 +347,101 @@ class ThermalUnitExtDPSolver : public Solver
 
  // ---- DP state ------------------------------------------------------- //
 
- char stage;                  ///< what has been computed
- bool f_solved;               ///< set by run_DP()+build_solution()
- double f_best_cost;          ///< objective value of the current solution
+ char stage;                  ///< computation stage (see stage_value)
+ bool f_solved;               ///< true iff f_best_cost encodes a feasible
+                              ///< schedule (finite cost); set by run_DP()
+ double f_best_cost;          ///< optimal objective value after run_DP()
 
- /// F^tau_t functions, sparse. f_F[ t ] and f_tau[ t ] are parallel
- /// vectors (same length) sorted by tau ascending: f_F[ t ][ i ] is the
- /// surviving function with tau == f_tau[ t ][ i ] at time t. Surviving
- /// means: reachable by some legal DP path AND not flagged as irrelevant
- /// by the pairwise-domination heuristic (RRF+).
+ // -- ON-side value functions ------------------------------------------ //
+
+ /// surviving F^tau_t functions, in sparse parallel-vector layout
+ /** f_F[ t ] and f_tau[ t ] have the same length and are sorted by tau
+  * ascending: f_F[ t ][ i ] is the piecewise convex quadratic value
+  * function for the (t, f_tau[t][i]) DP state. "Surviving" means two
+  * things at once:
+  *
+  *  - *reachable*: only tau values that can be obtained by some legal
+  *    sequence of DP transitions from the initial state are present;
+  *    unreachable tau values simply have no entry (as opposed to an
+  *    "+INF placeholder"). This collapses the storage from O(n * K_max)
+  *    down to O(n * |kept|), which is what the paper relies on for
+  *    practical efficiency;
+  *
+  *  - *relevant*: among the tau >= M_up entries, those pointwise dominated
+  *    by another tau' >= M_up entry have been pruned by the pairwise
+  *    RRF+ check (Wuijts et al. 2021, Prop. 6.1 / is_dominated_by); a
+  *    dominated function cannot appear in any optimal schedule since its
+  *    downstream propagation through sliding_min is dominated too.
+  *
+  * f_tau[t] is kept strictly increasing, so membership can be tested with
+  * std::lower_bound in O(log |kept|) during backtracking. */
  std::vector< std::vector< PQFun > > f_F;
  std::vector< std::vector< Index > > f_tau;
 
- /// per-slot summary for backtracking: parallel to f_F[ t ] / f_tau[ t ]
+ /// per-slot summary (min_val, argmin_p) parallel to f_F[t] / f_tau[t]
+ /** Built at the same time as f_F[t] so we do not have to re-scan the
+  * PQFun during backtracking. f_on[t][i] summarises f_F[t][i] over the
+  * full domain of that function. */
  std::vector< std::vector< OnSlot > > f_on;
 
- /// c_off_ready[ t ]: min cost of being off at t, "ready" (off >= M_down)
+ // -- OFF-side scalars ------------------------------------------------- //
+
+ /// c_off_ready[ t ] : min cost of a schedule that is off at time t AND
+ /// has been off for at least min_down_time consecutive instants (so it
+ /// is legal to restart at time t + 1). This is the state from which
+ /// F^1_{t+1} is built when c_off_ready[t] is finite. Updated at each t
+ /// as the min of three sources: (1) stay from c_off_ready[t-1];
+ /// (2) fresh shutdown happened at end of time t - min_down_time;
+ /// (3) initial-off trail, when init_up_down_time <= 0 and the number of
+ /// consecutive off instants since before the horizon (i.e.,
+ /// |init_up_down_time| + t + 1) has just reached min_down_time.
  std::vector< double > c_off_ready;
 
- /// c_off_any[ t ]: min cost of being off at t (any residual off duration)
+ /// c_off_any[ t ] : min cost of a schedule that is off at time t,
+ /// regardless of how long it has been off. Used only at the end of the
+ /// horizon, where a trailing off period is not charged any further cost
+ /// and the min-down-time of the *current* off period is not of our
+ /// concern (it will be paid in the next planning horizon, if any).
+ /// Updated as min( c_off_any[t-1], v_shutdown[t-1] ).
  std::vector< double > c_off_any;
 
- /// v_shutdown[ t ] (in range [0, time_horizon - 1]): min cost of a
- /// schedule on through instant t with final power in [P, SD] plus the
- /// shutdown cost (cstop), i.e., the cost "arriving" at the long
- /// shutdown arc
+ /// v_shutdown[ h ] : cost of reaching the "long shutdown arc" at the
+ /// end of time h, i.e., min_{ tau >= M_up , p in [P, SD_{h+1}] } of
+ /// F^tau_h(p), plus the constant shutdown cost (currently 0 since
+ /// ThermalUnitBlock does not expose a shutdown cost). Only well defined
+ /// for h < time_horizon - 1; the entry for the last instant is
+ /// unused (the unit is free to stay on until the horizon end without
+ /// entering a shutdown trajectory). Arriving at v_shutdown[h] makes the
+ /// unit "ready to restart" at time h + M_down via the long arc. */
  std::vector< double > v_shutdown;
 
- /// for each shutdown index, which (tau, p) achieved v_shutdown[ t ]
- /// (tau in [1, K_max[t]]; p in the shutdown range). Only used for
- /// backtracking. If v_shutdown[t] is +INF, both fields are undefined.
+ /// optimal (tau, p) that achieves v_shutdown[h]: needed to backtrack
+ /// through the long shutdown arc. If v_shutdown[h] is +INF, the two
+ /// fields are undefined.
  std::vector< Index  > v_shutdown_tau;
  std::vector< double > v_shutdown_p;
 
- /// last shutdown time whose long arc produced c_off_ready[ t ], or -1 if
- /// c_off_ready[ t ] is +INF (or the "ready" came from the initial state)
+ /// "origin time" of c_off_ready[ t ]: records the time h whose shutdown
+ /// produced c_off_ready[t] via the long shutdown arc, so that
+ /// backtracking knows where to jump back to. Value is -1 if:
+ /// (a) c_off_ready[t] is +INF (never reached), or (b) the "ready" state
+ /// was inherited from the initial off trail (init_up_down_time <= 0 and
+ /// enough off time had accumulated before the horizon), in which case
+ /// no in-horizon shutdown is involved and backtracking stops at t = 0.
  std::vector< int > f_ready_pred;
 
- /// last shutdown time contributing to c_off_any[ t ], or -1 if the unit
- /// has been off from before the horizon (no shutdown happened yet)
+ /// analogous to f_ready_pred[ t ] but for c_off_any[ t ]: time of the
+ /// last shutdown that contributed, or -1 when no in-horizon shutdown
+ /// has occurred (init_up_down_time <= 0 and the unit has been off from
+ /// the start of the horizon).
  std::vector< int > f_any_pred;
 
  // ---- output ---------------------------------------------------------- //
 
- std::vector< double > P;     ///< power values of the optimal schedule
- std::vector< bool >   U;     ///< commitment values of the optimal schedule
+ /// power profile of the optimal schedule, as filled by build_solution()
+ std::vector< double > P;
+ /// commitment profile of the optimal schedule, as filled by build_solution()
+ std::vector< bool >   U;
 
  SMSpp_insert_in_factory_h;
 
