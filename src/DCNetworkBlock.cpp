@@ -254,16 +254,74 @@ std::vector< std::string > DCNetworkData::expected_vars( void ) const {
 /*--------------------------------------------------------------------------*/
 
 int DCNetworkData::get_reducedIdx( int idx ) const {
- return( idx > get_reference_node() ?idx - 1 : idx );
- }
+  if ( nb_components == 1 ){
+    const int ref = get_reference_node();
+    if ( idx == ref )
+      return -1;
+    return ( idx > ref ? idx - 1 : idx );
+  }
+  else
+     return v_reduced_idx[ idx ];
+}
 
 /*--------------------------------------------------------------------------*/
 
 int DCNetworkData::get_originalIdx( int idx ) const {
- return( idx >= get_reference_node() ? idx + 1 : idx );
- }
+    if ( nb_components == 1 ) {
+        const int ref = get_reference_node();
+        return ( idx >= ref ? idx + 1 : idx );
+    }
+    else {
+        // In the multi-component case, we use the explicit inverse mapping
+        // v_original_idx[red_idx] = original_node
+        return v_original_idx[idx];
+    }
+}
 
 /*--------------------------------------------------------------------------*/
+
+void DCNetworkData::identify_connected_components( void ){
+  Index nb_nodes = get_number_nodes(); 
+  const auto & DC_lines = get_DC_lines();
+  const auto & start_line = get_start_line();
+  const auto & end_line = get_end_line();  
+  std::vector<std::vector<Index>> adj(nb_nodes);
+
+  for (auto line_id : DC_lines) {
+      Index i = start_line[line_id];
+      Index j = end_line[line_id];
+      adj[i].push_back(j);
+      adj[j].push_back(i);
+  }
+  v_component.resize(nb_nodes, -1);
+  nb_components = 0;
+
+  for (Index v = 0; v < nb_nodes; ++v) {
+      if (v_component[v] != -1) continue;
+
+      std::queue<Index> q;
+      q.push(v);
+      v_component[v] = nb_components;
+
+      while (!q.empty()) {
+          Index u = q.front(); 
+          q.pop();
+          for (Index w : adj[u]) {
+              if (v_component[w] == -1) {
+                  v_component[w] = nb_components;
+                  q.push(w);
+              }
+          }
+      }
+
+      ++nb_components;
+  }
+  // Now simply identify each collection of nodes
+  v_nodes_in_component.resize( nb_components );
+  for (Index v = 0; v < nb_nodes; ++v)
+    v_nodes_in_component[v_component[v]].push_back(v);
+
+}
 
 void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
                                   const SpMat & PTDF_matrix )
@@ -272,29 +330,40 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
  const auto number_lines = get_number_lines();
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
+ 
+ // Connected components must already be known
+ const size_t nb_c = get_nb_connected_components();
 
  // linking constraints between DC and HVDC
- SpMat A_DC_transpose( number_nodes - 1 , number_lines );
+ SpMat A_DC_transpose( number_nodes - nb_c , number_lines );
  double eta = 1.0;
  for( auto & line_id : HVDC_lines ) {
-  if( start_line[ line_id ] != get_reference_node() )
-   A_DC_transpose.coeffRef( get_reducedIdx( start_line[ line_id ] ) ,
-                                            line_id ) = 1.;
+   // ---- Start node contribution (+1)
+   Index s = start_line[line_id];
+   int rs = get_reducedIdx(s);
+   if (rs >= 0){
+     A_DC_transpose.coeffRef(rs, line_id) = 1.0;
+   }
   if( ! is_hypergraph() ) {  // no hypergraph
    eta = get_line_efficiency( line_id ); // efficiency of the HVDC line
-   if( end_line[ line_id ] != get_reference_node() )
-    A_DC_transpose.coeffRef( get_reducedIdx( end_line[ line_id ] ) ,
-                                             line_id ) = -eta;
+   Index e = end_line[line_id];
+   int re = get_reducedIdx(e);
+   if (re >= 0)
+   {
+     A_DC_transpose.coeffRef(re, line_id) = -eta;
    }
+  }
   else {  // with hypergraph
    for( Index i = 0 ; i < get_end_lines()[ line_id ].size() ; ++i ) {
     eta = get_line_efficiencies( line_id )[ i ]; // efficiency of the hyperarc
-    if( const Index e = get_end_lines()[ line_id ][ i ] ; e != get_reference_node() )
-     A_DC_transpose.coeffRef( get_reducedIdx( e ) , line_id ) = -eta;
+    Index e = get_end_lines()[line_id][i];
+    int re = get_reducedIdx(e);
+    if (re >= 0){
+      A_DC_transpose.coeffRef(re, line_id) = -eta;
     }
    }
-  }
-
+   }
+ }
  DCDF = -PTDF_matrix * A_DC_transpose;
  DCDF_was_computed = true;
  }
@@ -312,6 +381,20 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
 
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
+
+ // Compute any connected components now
+ identify_connected_components();
+
+ const size_t nb_c   = get_nb_connected_components();
+ const auto & v_comp = get_subgraphs();
+ /* -- some possible printing for debugging if need be
+ std::cout << " Found " << nb_c << " connected components\n";
+ for (int i=0; i < nb_c; ++i){
+    std::cout << " Component " << i << " has nodes = ";
+    for (int j=0; j < v_comp[i].size();++j)
+        std::cout << v_comp[i][j] << " ; ";
+    std::cout << "\n";
+ }*/
 
  // construct the matrix using two sub-matrices B_bar and B_hat
  // note that v_line_susceptance may be empty but it is only used inside
@@ -336,13 +419,44 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
   B_bar.insert( node_id , node_id ) = B_bar_diag[ node_id ] + tikhonov_coeff;
 
- Index ref_node = get_reference_node();
- SpMat I_nref = SpMat( number_nodes , number_nodes - 1 );
- for( Index node_id = 0 ; node_id < ref_node ; ++node_id )
-  I_nref.insert( node_id , node_id ) = 1.;
+ /*
+ * When only a single connected component is there, the situation is simple
+ *  we pick the reference node and form the Identity matrix from which we delete that row
+ * When multiple connected components are there, potentially just having a single node altogether (isolated node)
+ *  then the situation consists of picking a reference node per "AC block"
+ *  this too is fairly simple and consists of deleting as many rows as need be 
+ *  in fact one per connected component
+ * In the latter case we will not (at least for the time being) allow the user to pick a reference node per component 
+ *  and will do this for him. 
+ * Should we opt to remove this freedom from the user alltogether then the code can be simplified
+ */ 
+ SpMat I_nref = SpMat( number_nodes , number_nodes - nb_c );
+ if ( nb_c == 1 ){
+  Index ref_node = get_reference_node();
+  for( Index node_id = 0 ; node_id < ref_node ; ++node_id )
+    I_nref.insert( node_id , node_id ) = 1.;
+  for( Index node_id = ref_node ; node_id < number_nodes - 1 ; ++node_id )
+    I_nref.insert( node_id + 1 , node_id ) = 1.;
+ }
+ else{
+   // Identification of the reference nodes
+   v_reduced_idx.resize( number_nodes, -1);
+   v_original_idx.resize( number_nodes - nb_c, -1 );
+   std::vector<bool> is_ref(number_nodes, false);
+   for ( const auto& comp : v_comp )
+      is_ref[comp.front()] = true;
 
- for( Index node_id = ref_node ; node_id < number_nodes - 1 ; ++node_id )
-  I_nref.insert( node_id + 1 , node_id ) = 1.;
+   int col = 0;
+   for ( Index node_id = 0 ; node_id < number_nodes; ++node_id) {
+      if ( !is_ref[node_id] ){
+        I_nref.insert(node_id, col) = 1.0;
+        v_reduced_idx[ node_id ] = col;
+        v_original_idx[ col ] = node_id;
+        ++col;
+      }
+   }
+ }
+ I_nref.makeCompressed();
 
  // construction of B1 and B2 (see documentation)
  SpMat B1 = B_hat * I_nref;
@@ -350,16 +464,16 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
 
  // compute inverse of B2 and deduce PTDF
  SpMat PTDF_matrix;
- SpMat B2_inv = SpMat( number_nodes - 1 , number_nodes - 1 );
+ SpMat B2_inv = SpMat( number_nodes - nb_c , number_nodes - nb_c );
  std::pair< SpMat , SpMat > t = get_stored_B2();
- if( B2.isApprox( t.first ) )
+ if( (t.first.rows() == number_nodes - nb_c) && B2.isApprox( t.first ) )
   B2_inv = t.second;
  else {
   // Inversion of sparse matrix with eigen (solve B2*X = I)
   //Eigen::BiCGSTAB<SpMat> solver;
   Eigen::SparseLU< SpMat > solver;
   solver.compute( B2 );
-  SpMat I( number_nodes - 1 , number_nodes - 1 );
+  SpMat I( number_nodes - nb_c , number_nodes - nb_c );
   I.setIdentity();
   if( solver.info() != Eigen::Success )
    std::cout << "Inversion in PTDF not possible" << std::endl;
