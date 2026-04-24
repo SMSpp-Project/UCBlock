@@ -293,7 +293,7 @@ void DCNetworkData::identify_connected_components( void ){
       adj[i].push_back(j);
       adj[j].push_back(i);
   }
-  v_component.resize(nb_nodes, -1);
+  v_component.assign(nb_nodes, -1);
   nb_components = 0;
 
   for (Index v = 0; v < nb_nodes; ++v) {
