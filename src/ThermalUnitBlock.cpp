@@ -24,8 +24,6 @@
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
  *         Consiglio Nazionale delle Ricerche \n
  *
- * \author Claude Opus 4.7 \n
- *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
  *                      Rafael Durbano Lobato, Donato Meoli, Tiziano Bacci
  */
@@ -46,41 +44,6 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
-
-/*--------------------------------------------------------------------------*/
-/*-------------------------------- CONSTANTS -------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-static constexpr unsigned char FormMsk = 7;
-// mask for the first three bits, i.e., the formulation
-
-static constexpr unsigned char PCuts = 8;
-// mask for the 4th bit, == 1 if the perspective cuts are used
-
-static constexpr unsigned char ZWCont = 16;
-// mask for the 5th bit, == 1 if z_t and w_t are continuous (not binary)
-
-static constexpr unsigned char tbinForm = 0;
-/// the "three binaries" (3bin) formulation is used
-
-static constexpr unsigned char TForm = 1;
-/// the T formulation is used
-
-static constexpr unsigned char ptForm = 2;
-/// the p_t formulation is used
-
-static constexpr unsigned char DPForm = 3;
-/// the "dynamic programming" (DP) formulation is used
-
-static constexpr unsigned char SUForm = 4;
-/// the "start-up" (SU) formulation is used
-
-static constexpr unsigned char SDForm = 5;
-/// the "shut-down" (SD) formulation is used
-
-static constexpr unsigned char SUSDForm = 6;
-/// the "start-up shut-down" (SUSD) formulation is used
-
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -171,7 +134,7 @@ ThermalUnitBlock::~ThermalUnitBlock()
  Constraint::clear( Commitment_fixed_to_One_Const );
 
  objective.clear();
- }
+}
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -183,20 +146,22 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  UnitBlock::deserialize( group );
 
  // Mandatory variables
+
  ::deserialize( group , "MaxPower" , f_time_horizon , v_MaxPower ,
                 false , true , v_change_intervals );
 
  // Optional variables
+
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
 
  ::deserialize( group , f_Capacity , "Capacity" );
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
-  f_MinUpTime = std::min( std::max( f_MinUpTime , Index( 1 ) ) ,
-			  f_time_horizon );
+  f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
+                          f_time_horizon );
 
  if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) )
-  f_MinDownTime = std::min( std::max( f_MinDownTime , Index( 1 ) ) ,
+  f_MinDownTime = std::min( std::max( f_MinDownTime , static_cast< Index >( 1 ) ) ,
                             f_time_horizon );
 
  ::deserialize( group , f_InitialPower , "InitialPower" );
@@ -206,7 +171,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
    f_InitUpDownTime = -f_MinDownTime;
   else
    f_InitUpDownTime = f_MinUpTime;
-  }
+ }
 
  if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
                       true , true , v_change_intervals ) )
@@ -301,58 +266,53 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   if( f_InitUpDownTime > 0 ) {
    const auto delta_ramp_up = get_delta_ramp_up( 0 );
    if( delta_ramp_up == 0 )
-    v_MaxRampSteps[ 0 ] = int( f_time_horizon - 1 );
+    v_MaxRampSteps[ 0 ] = static_cast< int >( f_time_horizon - 1 );
    else
-    v_MaxRampSteps[ 0 ] = std::min( int(
-                    ( ( get_operational_max_power( 0 ) - f_InitialPower ) /
-                      delta_ramp_up ) ) , int( f_time_horizon - 1 ) );
-   }
+    v_MaxRampSteps[ 0 ] = std::min( static_cast< int >(
+     ( ( get_operational_max_power( 0 ) - f_InitialPower ) /
+       delta_ramp_up ) ), static_cast< int >( f_time_horizon - 1 ) );
+  }
   else
    v_MaxRampSteps[ 0 ] = -1;
-
   for( Index t = 1 ; t <= f_time_horizon ; ++t ) {
    const auto delta_ramp_up = get_delta_ramp_up( t - 1 );
    if( delta_ramp_up == 0 )
-    v_MaxRampSteps[ t ] = int( f_time_horizon - t );
+    v_MaxRampSteps[ t ] = static_cast< int >( f_time_horizon - t );
    else
-    v_MaxRampSteps[ t ] = std::min( int(
-                    ( ( get_operational_max_power( t - 1 ) -
-			get_operational_min_power( t - 1 ) ) /
-		      delta_ramp_up ) ) , int( f_time_horizon - t ) );
+    v_MaxRampSteps[ t ] = std::min( static_cast< int >(
+     ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
+       delta_ramp_up ) ), static_cast< int >( f_time_horizon - t ) );
   }
  }
 
  if( ! ::deserialize( group , "MaxRampDownSteps" , f_time_horizon ,
-                      v_MaxRampDownSteps , true , true , v_change_intervals )
-     ) {
+                      v_MaxRampDownSteps , true , true , v_change_intervals ) ) {
   v_MaxRampDownSteps.resize( f_time_horizon + 1 );
   if( f_InitUpDownTime > 0 ) {
    const auto delta_ramp_down = get_delta_ramp_down( 0 );
    if( delta_ramp_down == 0 )
-    v_MaxRampDownSteps[ 0 ] = int( f_time_horizon - 1 );
+    v_MaxRampDownSteps[ 0 ] = static_cast< int >( f_time_horizon - 1 );
    else
-    v_MaxRampDownSteps[ 0 ] = std::min( int(
-                     ( ( f_InitialPower - get_operational_min_power( 0 ) ) /
-		       delta_ramp_down ) ) , int( f_time_horizon - 1 ) );
-   }
+    v_MaxRampDownSteps[ 0 ] = std::min( static_cast< int >(
+     ( ( f_InitialPower - get_operational_min_power( 0 ) ) /
+       delta_ramp_down ) ), static_cast< int >( f_time_horizon - 1 ) );
+  }
   else
    v_MaxRampDownSteps[ 0 ] = -1;
-
   for( Index t = 1 ; t <= f_time_horizon ; ++t ) {
    const auto delta_ramp_down = get_delta_ramp_down( t - 1 );
    if( delta_ramp_down == 0 )
     v_MaxRampDownSteps[ t ] = f_time_horizon - t;
    else
-    v_MaxRampDownSteps[ t ] = std::min( int (
-		     ( ( get_operational_max_power( t - 1 ) -
-			 get_operational_min_power( t - 1 ) ) /
-		       delta_ramp_down ) ) , int ( f_time_horizon - t ) );
-   }
+    v_MaxRampDownSteps[ t ] = std::min( static_cast< int >(
+     ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
+       delta_ramp_down ) ), static_cast< int >( f_time_horizon - t ) );
   }
+ }
 
  check_data_consistency();
 
- }  // end( ThermalUnitBlock::deserialize )
+}  // end( ThermalUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -3965,10 +3925,10 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_commitment_plus , tol )
   && ColVariable::is_feasible( v_commitment_minus , tol )
   && ColVariable::is_feasible( v_active_power , tol )
+  && ColVariable::is_feasible( v_reactive_power , tol )
   && ColVariable::is_feasible( v_active_power_h_k , tol )
   && ColVariable::is_feasible( v_active_power_h , tol )
   && ColVariable::is_feasible( v_active_power_k , tol )
-  && ColVariable::is_feasible( v_reactive_power , tol )
   && ColVariable::is_feasible( v_cut , tol )
   && ColVariable::is_feasible( v_cut_h_k , tol )
   && ColVariable::is_feasible( v_cut_h , tol )
@@ -3993,9 +3953,11 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( Init_PC_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_PC_Const , tol , rel_viol )
   && RowConstraint::is_feasible( PC_cuts , tol , rel_viol )
-  && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Commitment_fixed_to_One_Const , tol ,
+				 rel_viol )
   && RowConstraint::is_feasible( Reference_Schedule_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol
+				 , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )
 
@@ -5969,11 +5931,153 @@ void ThermalUnitBlockSolution::write( Block * block )
 
  auto TUB = dynamic_cast< ThermalUnitBlock * >( block );
  if( ! TUB )
-  throw( std::invalid_argument( "ThermalUnitBlockSolution::read: block "
+  throw( std::invalid_argument( "ThermalUnitBlockSolution::write: block "
         "is not a ThermalUnitBlock" ) );
 
  // write the design - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  TUB->get_design().set_value( f_design );
+
+ // write the start-up / shut-down variables - - - - - - - - - - - - - - - -
+ //
+ // v_start_up and v_shut_down are NOT saved in the Solution (they are not
+ // part of UnitBlockSolution), because they are logically implied by the
+ // commitment transitions. However, they are actual ColVariable(s) whose
+ // current values would otherwise remain whatever the Block was last left
+ // with by some intervening computation -- and since they carry a cost in
+ // the Objective (v_StartUpCost on v_start_up), a stale value silently
+ // corrupts any subsequent (re-)evaluation of the Objective Function at
+ // the Solution being restored (e.g., LagBFunction::get_linearization_*()
+ // computing f(x^*) at the saved solution after another oracle evaluation
+ // has modified the Block in the meantime).
+ //
+ // we therefore derive them from the commitment values just restored by
+ // UnitBlockSolution::write() and set them explicitly.
+
+ // the commitment values have just been restored into the Block by
+ // UnitBlockSolution::write() above, so we can read them back through
+ // get_const_commitment() to derive the transitions
+
+ auto Ci = TUB->get_const_commitment( 0 );
+ if( ! Ci )
+  return;                 // no commitment ColVariables: nothing to derive
+
+ // re-compute init_t using the same formula as the Block (see
+ // ThermalUnitDPSolver::load_parameters() or the doc at ThermalUnitBlock.h
+ // around line 650): init_t is the first time instant at which the
+ // commitment decision is free; for t < init_t the commitment is fixed by
+ // the initial conditions and no ColVariable for start_up/shut_down exists
+ const auto time_horizon = TUB->get_time_horizon();
+ const auto init_ud      = TUB->get_init_up_down_time();
+ const auto min_up       = TUB->get_min_up_time();
+ const auto min_dn       = TUB->get_min_down_time();
+ Index init_t;
+ if( init_ud > 0 )
+  init_t = ( min_up > Index( init_ud ) )
+           ? std::min( time_horizon , min_up - Index( init_ud ) )
+           : Index( 0 );
+ else
+  init_t = ( min_dn > Index( - init_ud ) )
+           ? std::min( time_horizon , min_dn - Index( - init_ud ) )
+           : Index( 0 );
+
+ // start_up[ t ] = 1 iff commitment[ t-1 ] == 0 AND commitment[ t ] == 1 ;
+ // the boundary t == init_t == 0 is handled via init_up_down_time: if the
+ // unit was on before the horizon (init_ud > 0), the "previous" commitment
+ // is 1 and start_up[0] = 0; if it was off, start_up[0] = commitment[0]
+ if( auto sup_it = TUB->get_start_up() ) {
+  if( ! init_t )
+   ( sup_it++ )->set_value(
+    ( init_ud <= 0 ) && ( Ci[ 0 ].get_value() > 0.5 ) ? 1 : 0 );
+  for( Index t = std::max( init_t , Index( 1 ) ) ; t < time_horizon ; ++t )
+   ( sup_it++ )->set_value(
+    ( Ci[ t ].get_value() > 0.5 ) && ( Ci[ t - 1 ].get_value() <= 0.5 )
+    ? 1 : 0 );
+  }
+
+ // shut_down[ t ] = 1 iff commitment[ t-1 ] == 1 AND commitment[ t ] == 0 ;
+ // symmetric boundary handling
+ if( auto sdn_it = TUB->get_shut_down() ) {
+  if( ! init_t )
+   ( sdn_it++ )->set_value(
+    ( init_ud > 0 ) && ( Ci[ 0 ].get_value() <= 0.5 ) ? 1 : 0 );
+  for( Index t = std::max( init_t , Index( 1 ) ) ; t < time_horizon ; ++t )
+   ( sdn_it++ )->set_value(
+    ( Ci[ t ].get_value() <= 0.5 ) && ( Ci[ t - 1 ].get_value() > 0.5 )
+    ? 1 : 0 );
+  }
+
+ // write the perspective-cut auxiliary variables, if the formulation uses
+ // them - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //
+ // when the formulation sets the PCuts bit, the quadratic cost alpha * p^2
+ // on the active power is *replaced* in the Objective by a linear cost
+ // alpha * v_cut, where v_cut is a continuous auxiliary variable modelling
+ // the perspective of the quadratic term: v_cut >= alpha * p^2 / u  with
+ // u in {0, 1} the commitment indicator that "activates" the cost (u == 0
+ // forces p == 0, hence v_cut == 0). At the optimum of any sub-problem
+ // using PCuts the constraint is tight, so
+ //
+ //     v_cut = alpha * p^2 / u   if u > 0
+ //             0                 if u ~ 0   (and in that case p = 0 too)
+ //
+ // Since ThermalUnitBlockSolution only stores commitment + power, the
+ // v_cut* variables would otherwise keep whatever values the Block was
+ // last left with by a previous (unrelated) compute(); we explicitly
+ // restore them via the formula above. This matters for exactly the same
+ // reason start_up/shut_down did above: the cut variables carry a cost
+ // coefficient in the Objective (alpha = v_QuadTerm[t]) and a wrong value
+ // contaminates downstream re-evaluations of the Objective at the saved
+ // solution.
+
+ if( ! TUB->has_perspective_cuts() )
+  return;                 // formulation does not use PCuts
+
+ const auto form = TUB->get_formulation();
+ const double u_eps = 1e-12;
+
+ // 3bin, T and pt formulations: v_cut[ t ] is the cut variable, with p =
+ // v_active_power[t] and alpha = v_QuadTerm[t]. The commitment indicator
+ // u differs: for 3bin and T it is v_commitment[t]; for pt it is the sum
+ // of v_commitment_plus[i] over the i such that Y_plus[i] covers t+1
+ // (same set that appears in Init_PC_Const for ptForm around line 3196)
+ if( ( form == ThermalUnitBlock::tbinForm ) ||
+     ( form == ThermalUnitBlock::TForm ) ||
+     ( form == ThermalUnitBlock::ptForm ) ) {
+  auto Cu = TUB->get_cut();
+  if( ! Cu )
+   return;                // PCut set but v_cut not built (should not happen)
+
+  auto P  = TUB->get_const_active_power( 0 );
+  auto Cp = TUB->get_commitment_plus();  // only used by ptForm
+  const auto & YP = TUB->get_Y_plus();   // only used by ptForm
+
+  for( Index t = 0 ; t < time_horizon ; ++t ) {
+   double p = P[ t ].get_value();
+   double u;
+   if( form == ThermalUnitBlock::ptForm ) {
+    u = 0;
+    for( Index i = 0 ; i < YP.size() ; ++i )
+     if( ( YP[ i ].first <= t + 1 ) && ( t + 1 <= YP[ i ].second ) )
+      u += Cp[ i ].get_value();
+    }
+   else
+    u = Ci[ t ].get_value();
+
+   // if u is (numerically) zero, p must be zero too and v_cut must be zero;
+   // else v_cut = alpha * p^2 / u  (perspective of the quadratic)
+   double v = ( u <= u_eps ) ? 0.0
+                             : TUB->get_quad_term( t ) * p * p / u;
+   Cu[ t ].set_value( v );
+   }
+  return;
+  }
+
+ // TODO: DP / SU / SD / SUSD formulations use v_cut_h_k, v_cut_h, v_cut_k,
+ // v_cut_teta respectively, each indexed via v_Z_h_k / v_Z_h / v_Z_k and
+ // tied to a different "activation" variable of the state-space graph.
+ // These are not yet handled here: if the caller uses PCuts with one of
+ // those formulations, subsequent re-evaluations of the Objective at the
+ // restored solution will again read stale values of the cut variables.
 
  }  // end( ThermalUnitBlockSolution::write )
 
