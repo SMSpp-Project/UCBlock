@@ -932,8 +932,25 @@ void ThermalUnitExtDPSolver::run_DP( void )
    f_tau[ 0 ].push_back( tau0 );
    f_on [ 0 ].push_back( { v , p } );
    }
-  // OFF-side scalars stay +INF: the unit is on, no off path has been
-  // produced yet
+  // when init_up_down_time >= min_up_time the min-up-time is already
+  // satisfied at t = 0, and the unit could equivalently have been shut
+  // down at the end of t = -1 (a pre-horizon decision, hence "free"
+  // within the horizon) and be off at t = 0. We must seed the OFF-side
+  // scalars accordingly, otherwise the DP misses any schedule that
+  // starts off and pays no cost: with high linear costs this is
+  // typically the cheapest option, and overlooking it makes f_best_cost
+  // too large (the on-only schedules are forced to pay f_t at t = 0).
+  if( Index( init_up_down_time ) >= min_up_time ) {
+   c_off_any[ 0 ]  = 0;
+   f_any_pred[ 0 ] = -1;
+   // ready at t = 0 means the off run ending at t = 0 (just the single
+   // instant t = 0, since the shutdown happened at end of t = -1) is at
+   // least mdt long; this only happens when mdt <= 1
+   if( Index( 1 ) >= min_down_time ) {
+    c_off_ready[ 0 ]  = 0;
+    f_ready_pred[ 0 ] = -1;
+    }
+   }
   }
  else {
   // init_up_down_time <= 0: the unit has been off for |init| instants
@@ -1013,9 +1030,20 @@ void ThermalUnitExtDPSolver::run_DP( void )
    fresh_ready = v_shutdown[ t - mdt ];
    fresh_h = int( t - mdt );
    }
+  // initial-off trail covers t when the off run by end of t reaches mdt:
+  //  - if init_up_down_time <= 0, the off run includes the |init| pre-
+  //    horizon instants plus the in-horizon ones up to and including t,
+  //    i.e. -init_ud + t + 1 instants;
+  //  - if init_up_down_time > 0 but >= mut, the unit could have shut
+  //    down at end of t = -1 (a free pre-horizon decision since mut is
+  //    already satisfied), so the in-horizon off run is t + 1 instants
   double init_ready = TUEDPINF;
   if( ( init_up_down_time <= 0 ) &&
       ( Index( - init_up_down_time ) + t + 1 >= mdt ) )
+   init_ready = 0;
+  else if( ( init_up_down_time > 0 ) &&
+           ( Index( init_up_down_time ) >= min_up_time ) &&
+           ( t + 1 >= mdt ) )
    init_ready = 0;
   double best_ready = std::min( { stay_ready , fresh_ready , init_ready } );
   c_off_ready[ t ] = best_ready;
