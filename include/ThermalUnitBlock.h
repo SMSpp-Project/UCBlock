@@ -27,8 +27,6 @@
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
  *         Consiglio Nazionale delle Ricerche \n
  *
- * \author Claude Opus 4.7 \n
- *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
  *                      Rafael Durbano Lobato, Donato Meoli, Tiziano Bacci
  */
@@ -90,6 +88,38 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  public:
+
+/*----------------------------- CONSTANTS ----------------------------------*/
+
+ /// mask for the first three bits of AR, i.e., the formulation code
+ static constexpr unsigned char FormMsk = 7;
+
+ /// mask for the 4th bit of AR, == 1 if the perspective cuts are used
+ static constexpr unsigned char PCuts = 8;
+
+ /// mask for the 5th bit of AR, == 1 if z_t and w_t are continuous
+ static constexpr unsigned char ZWCont = 16;
+
+ /// the "three binaries" (3bin) formulation is used
+ static constexpr unsigned char tbinForm = 0;
+
+ /// the T formulation is used
+ static constexpr unsigned char TForm = 1;
+
+ /// the p_t formulation is used
+ static constexpr unsigned char ptForm = 2;
+
+ /// the "dynamic programming" (DP) formulation is used
+ static constexpr unsigned char DPForm = 3;
+
+ /// the "start-up" (SU) formulation is used
+ static constexpr unsigned char SUForm = 4;
+
+ /// the "shut-down" (SD) formulation is used
+ static constexpr unsigned char SDForm = 5;
+
+ /// the "start-up shut-down" (SUSD) formulation is used
+ static constexpr unsigned char SUSDForm = 6;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -2103,6 +2133,83 @@ class ThermalUnitBlock : public UnitBlock
 
  const ColVariable & get_const_design( void ) const { return( design ); }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of commitment_plus variables (DP / SU / SD / pt /
+ /// SUSD formulations), or nullptr if not defined
+
+ ColVariable * get_commitment_plus( void ) {
+  if( v_commitment_plus.empty() )
+   return( nullptr );
+  return( &( v_commitment_plus.front() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of perspective-cut auxiliary variables for the 3bin,
+ /// T and pt formulations, or nullptr if not defined
+
+ ColVariable * get_cut( void ) {
+  if( v_cut.empty() )
+   return( nullptr );
+  return( &( v_cut.front() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of (h, k) index pairs of the y^+ commitment
+ /// variables for the DP, pt, SU, SD and SUSD formulations
+
+ const std::vector< std::pair< Index , Index > > & get_Y_plus( void ) const {
+  return( v_Y_plus );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the formulation code currently in use; the value is one of
+ /// tbinForm, TForm, ptForm, DPForm, SUForm, SDForm, SUSDForm
+
+ unsigned char get_formulation( void ) const { return( AR & FormMsk ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true iff the formulation uses perspective cuts (PCuts bit)
+
+ bool has_perspective_cuts( void ) const { return( AR & PCuts ); }
+
+/*--------------------------------------------------------------------------*/
+ /// fill in the formulation-specific ColVariables from the canonical
+ /// (active power, commitment) representation of a thermal-unit schedule
+ /** This method assumes that the canonical part of the schedule is
+  * already in place: the caller has set v_active_power[ t ] = p[ t ] and
+  * v_commitment[ t ] = u[ t ] (1 if on at t, 0 otherwise). It then sets
+  * *every other* ColVariable of the Block in a way that is consistent
+  * with that schedule and the current formulation:
+  *
+  * - v_start_up / v_shut_down: derived from u transitions, with the
+  *   pre-horizon initial state given by init_up_down_time (see the
+  *   boundary-handling comments in the implementation)
+  * - if perspective cuts are active and the formulation is one of
+  *   tbinForm / TForm / ptForm, v_cut[ t ] = u[ t ] ? p[ t ]^2 : 0;
+  *   this is the value the linearised perspective constraints make
+  *   tight at the integer optimum, and the value LagBFunction needs
+  *   to recompute the original quadratic cost at x* via
+  *   sum_t alpha_t v_cut_t (since with PCuts on the DQuadFunction
+  *   stores a *linear* coefficient alpha_t = v_QuadTerm[t] on
+  *   v_cut[t] and a zero quadratic coefficient on v_active_power[t])
+  *
+  * This can be used by specialised Solvers of a ThermalUnitBlock that
+  * only know the canonical representation (p, u), of a thermal-unit
+  * schedule, to have a complete formulation-ready version of their
+  * solution written in the TermalUnitBlock at the end of compute(),
+  * delegating to the Block all the formulation-specific bookkeeping that
+  * follows. ThermalUnitBlockSolution::write() also calls it to restore
+  * the full representation from the (p, u) it had saved.
+  *
+  * NOTE: for the disaggregated formulations DPForm / SUForm / SDForm /
+  * SUSDForm the associated v_*_h_k / v_*_h / v_*_k / v_*_teta variables
+  * are NOT yet handled here, since their values do not depend on (p, u)
+  * alone (they encode the actual on/off run path through the
+  * state-space graph). Calling this method on such a formulation
+  * leaves those auxiliaries untouched. */
+
+ void set_solution( void );
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2167,12 +2274,10 @@ class ThermalUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for changing the data of the ThermalUnitBlock
- *  @{ */
+ /** Methods for changing the data of the ThermalUnitBlock.
+  * @{ */
 
- /** Method for handling Modification.
-  *
-  * This method has to intercept any "abstract Modification" that
+ /** This method has to intercept any "abstract Modification" that
   * modifies the "abstract representation" of the ThermalUnitBlock, and
   * "translate" them into both changes of the actual data structures and
   * corresponding "physical Modification". These Modification are those
@@ -2180,8 +2285,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   *     THE IMPLEMENTATION OF THIS METHOD IS BOTH PARTIAL AND HORRIBLE,
   *     ONE SINGLE ABSTRACT MODIFICATION CAN GIVE RISE TO MANY MANY MANY
-  *     PHYSICAL ONES, IT SHOULD BE COMPLETELY OVERHAULED!!!
-  */
+  *     PHYSICAL ONES, IT SHOULD BE COMPLETELY OVERHAULED!!! */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
@@ -2906,28 +3010,12 @@ class ThermalUnitBlock : public UnitBlock
    & ThermalUnitBlock::set_maximum_power );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::set_initial_power" ,
-   & ThermalUnitBlock::set_initial_power );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::set_initial_power" ,
-   & ThermalUnitBlock::set_initial_power );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
    "ThermalUnitBlock::set_startup_costs" ,
    & ThermalUnitBlock::set_startup_costs );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
    "ThermalUnitBlock::set_startup_costs" ,
    & ThermalUnitBlock::set_startup_costs );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::scale" ,
-   & ThermalUnitBlock::scale );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::scale" ,
-   & ThermalUnitBlock::scale );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
    "ThermalUnitBlock::set_const_term" ,
@@ -2968,6 +3056,14 @@ class ThermalUnitBlock : public UnitBlock
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
    "ThermalUnitBlock::set_secondary_spinning_reserve_cost" ,
    & ThermalUnitBlock::set_secondary_spinning_reserve_cost );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_initial_power" ,
+   & ThermalUnitBlock::set_initial_power );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_initial_power" ,
+   & ThermalUnitBlock::set_initial_power );
 
   register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
    "ThermalUnitBlock::set_init_updown_time" ,
@@ -2976,6 +3072,12 @@ class ThermalUnitBlock : public UnitBlock
   register_method< ThermalUnitBlock , MF_int_it , Range >(
    "ThermalUnitBlock::set_init_updown_time" ,
    & ThermalUnitBlock::set_init_updown_time );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -3050,13 +3152,12 @@ class ThermalUnitBlockMod : public UnitBlockMod
     output << "Set constant term";
     break;
    case( eSetPrSpResCost ):
-    output << "Set primary spinning reserve cost";
+    output << "Set primary spinning reserve costs";
     break;
    case( eSetSecSpResCost ):
-    output << "Set secondary spinning reserve cost";
+    output << "Set secondary spinning reserve costs";
     break;
-   default:
-    break;
+   default:;
    }
   }
  };  // end( class( ThermalUnitBlockMod ) )

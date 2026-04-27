@@ -84,6 +84,7 @@ target_sources(${modName} PRIVATE
         src/NuclearUnitBlock.cpp
         src/ThermalUnitBlock.cpp
         src/ThermalUnitDPSolver.cpp
+        src/ThermalUnitExtDPSolver.cpp
         src/HydroUnitBlock.cpp
         src/IntermittentUnitBlock.cpp
         src/SlackUnitBlock.cpp
