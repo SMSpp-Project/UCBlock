@@ -112,17 +112,11 @@ int ThermalUnitExtDPSolver::compute( bool changedvars )
 /*--------------------------------------------------------------------------*/
 
 // Write the optimal schedule stored in P[] and U[] into the variables of
-// the ThermalUnitBlock. This matches ThermalUnitDPSolver's semantics:
-//
-//  - active_power and commitment variables are set uniformly across the
-//    whole horizon from P[] and U[];
-//  - start_up[t] is set iff the unit transitions off->on between t-1
-//    and t, accounting for the "boundary" cases before t_init by
-//    consulting init_up_down_time instead of U[-1];
-//  - shut_down[t] symmetrically encodes on->off transitions.
-//
-// The Block is locked for write access and unlocked before returning; if
-// the caller already owns the Block (same id), we skip the locking dance.
+// the ThermalUnitBlock. The DP only knows the canonical (active power,
+// commitment) representation; the Block is responsible for filling in the
+// formulation-specific auxiliaries (start_up / shut_down indicators,
+// perspective-cut variables when PCuts is on, ...) consistently from
+// (P, U) -- see ThermalUnitBlock::set_solution() for the details.
 
 void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
 {
@@ -133,33 +127,17 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
 
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
- // active power: one value per time step, directly from the DP output
+ // canonical part: active power and commitment from the DP's (P, U)
  if( auto pow_it = b->get_active_power( 0 ) )
   for( Index i = 0 ; i < time_horizon ; )
    ( pow_it++ )->set_value( P[ i++ ] );
 
- // commitment: binary, 1 iff the unit is on at that step
  if( auto com_it = b->get_commitment( 0 ) )
   for( Index i = 0 ; i < time_horizon ; )
    ( com_it++ )->set_value( U[ i++ ] ? 1 : 0 );
 
- // start-up indicator: 1 iff the unit just turned on at step i. The
- // boundary at i == 0 uses init_up_down_time to decide whether the
- // previous step was off
- if( auto sup_it = b->get_start_up() ) {
-  if( ! t_init )
-   ( sup_it++ )->set_value( ( init_up_down_time <= 0 ) && ( U[ 0 ] ? 1 : 0 ) );
-  for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   ( sup_it++ )->set_value( ( U[ i ] ) && ( ! U[ i - 1 ] ) ? 1 : 0 );
-  }
-
- // shut-down indicator: symmetric to start-up
- if( auto sdn_it = b->get_shut_down() ) {
-  if( ! t_init )
-   ( sdn_it++ )->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] ) ? 1 : 0 );
-  for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   ( sdn_it++ )->set_value( ( ! U[ i ] ) && ( U[ i - 1 ] ? 1 : 0 ) );
-  }
+ // formulation-specific bookkeeping is delegated to the Block
+ b->set_solution();
 
  if( ! owned )
   f_Block->unlock( f_id );

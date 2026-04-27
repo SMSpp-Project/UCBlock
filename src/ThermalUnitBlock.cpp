@@ -5613,6 +5613,76 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::set_solution( void )
+{
+ // canonical part: the caller has already set v_active_power[t] and
+ // v_commitment[t] for all t. We read them back to derive the
+ // formulation-specific auxiliaries below.
+ auto Pi = get_const_active_power( 0 );
+ auto Ci = get_const_commitment( 0 );
+ if( ( ! Pi ) || ( ! Ci ) )
+  return;             // no canonical variables: nothing to derive from
+
+ // start_up[ t ] = 1 iff commitment goes off->on at t. start_up is
+ // indexed from init_t onwards (size = time_horizon - init_t); the
+ // boundary case t == init_t == 0 is handled via the pre-horizon
+ // state in f_InitUpDownTime: if the unit was off before t = 0
+ // (f_InitUpDownTime <= 0) and is on at t = 0, that counts as a
+ // start-up at t = 0; otherwise start_up[ 0 ] = 0
+ if( auto sup_it = get_start_up() ) {
+  if( init_t == 0 )
+   sup_it[ 0 ].set_value(
+    ( ( f_InitUpDownTime <= 0 ) && ( Ci[ 0 ].get_value() > 0.5 ) )
+    ? 1.0 : 0.0 );
+  for( Index t = std::max( init_t , Index( 1 ) ) ;
+       t < f_time_horizon ; ++t )
+   sup_it[ t - init_t ].set_value(
+    ( ( Ci[ t ].get_value() > 0.5 ) && ( Ci[ t - 1 ].get_value() <= 0.5 ) )
+    ? 1.0 : 0.0 );
+  }
+
+ // shut_down[ t ] = 1 iff commitment goes on->off at t (symmetric)
+ if( auto sdn_it = get_shut_down() ) {
+  if( init_t == 0 )
+   sdn_it[ 0 ].set_value(
+    ( ( f_InitUpDownTime > 0 ) && ( Ci[ 0 ].get_value() <= 0.5 ) )
+    ? 1.0 : 0.0 );
+  for( Index t = std::max( init_t , Index( 1 ) ) ;
+       t < f_time_horizon ; ++t )
+   sdn_it[ t - init_t ].set_value(
+    ( ( Ci[ t ].get_value() <= 0.5 ) && ( Ci[ t - 1 ].get_value() > 0.5 ) )
+    ? 1.0 : 0.0 );
+  }
+
+ // perspective-cut auxiliary variables (only when PCuts is active).
+ // The cost coefficient of v_cut[t] in the Objective is alpha_t =
+ // f_scale * v_QuadTerm[t]; the perspective constraint v_cut >= p^2 / u
+ // is tight at the integer optimum (u in {0,1}), giving alpha_t * p_t^2
+ // -- the original quadratic at integer u. Setting v_cut to the same
+ // value here keeps LagBFunction's "original cost at x*" recomputation
+ // (which reads the variable value via the saved CostMatrix) consistent
+ // with what the formulation that uses the original quadratic produces.
+ if( has_perspective_cuts() ) {
+  const auto form = get_formulation();
+  if( ( form == tbinForm ) || ( form == TForm ) || ( form == ptForm ) ) {
+   if( auto cut_it = get_cut() )
+    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+     double pt = Pi[ t ].get_value();
+     bool ut = Ci[ t ].get_value() > 0.5;
+     cut_it[ t ].set_value( ut ? pt * pt : 0.0 );
+     }
+   }
+  // TODO: DPForm / SUForm / SDForm / SUSDForm need to populate
+  // v_cut_h_k / v_cut_h / v_cut_k / v_cut_teta indexed by the
+  // disaggregated graph; the value at the active arc is p_t^2 and 0
+  // elsewhere. Those formulations also need v_active_power_h_k,
+  // v_commitment_plus, etc., which are not yet handled here.
+  }
+
+ }  // end( ThermalUnitBlock::set_solution )
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
                                                 ChnlName chnl )
 {
@@ -5937,147 +6007,14 @@ void ThermalUnitBlockSolution::write( Block * block )
  // write the design - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  TUB->get_design().set_value( f_design );
 
- // write the start-up / shut-down variables - - - - - - - - - - - - - - - -
- //
- // v_start_up and v_shut_down are NOT saved in the Solution (they are not
- // part of UnitBlockSolution), because they are logically implied by the
- // commitment transitions. However, they are actual ColVariable(s) whose
- // current values would otherwise remain whatever the Block was last left
- // with by some intervening computation -- and since they carry a cost in
- // the Objective (v_StartUpCost on v_start_up), a stale value silently
- // corrupts any subsequent (re-)evaluation of the Objective Function at
- // the Solution being restored (e.g., LagBFunction::get_linearization_*()
- // computing f(x^*) at the saved solution after another oracle evaluation
- // has modified the Block in the meantime).
- //
- // we therefore derive them from the commitment values just restored by
- // UnitBlockSolution::write() and set them explicitly.
-
- // the commitment values have just been restored into the Block by
- // UnitBlockSolution::write() above, so we can read them back through
- // get_const_commitment() to derive the transitions
-
- auto Ci = TUB->get_const_commitment( 0 );
- if( ! Ci )
-  return;                 // no commitment ColVariables: nothing to derive
-
- // re-compute init_t using the same formula as the Block (see
- // ThermalUnitDPSolver::load_parameters() or the doc at ThermalUnitBlock.h
- // around line 650): init_t is the first time instant at which the
- // commitment decision is free; for t < init_t the commitment is fixed by
- // the initial conditions and no ColVariable for start_up/shut_down exists
- const auto time_horizon = TUB->get_time_horizon();
- const auto init_ud      = TUB->get_init_up_down_time();
- const auto min_up       = TUB->get_min_up_time();
- const auto min_dn       = TUB->get_min_down_time();
- Index init_t;
- if( init_ud > 0 )
-  init_t = ( min_up > Index( init_ud ) )
-           ? std::min( time_horizon , min_up - Index( init_ud ) )
-           : Index( 0 );
- else
-  init_t = ( min_dn > Index( - init_ud ) )
-           ? std::min( time_horizon , min_dn - Index( - init_ud ) )
-           : Index( 0 );
-
- // start_up[ t ] = 1 iff commitment[ t-1 ] == 0 AND commitment[ t ] == 1 ;
- // the boundary t == init_t == 0 is handled via init_up_down_time: if the
- // unit was on before the horizon (init_ud > 0), the "previous" commitment
- // is 1 and start_up[0] = 0; if it was off, start_up[0] = commitment[0]
- if( auto sup_it = TUB->get_start_up() ) {
-  if( ! init_t )
-   ( sup_it++ )->set_value(
-    ( init_ud <= 0 ) && ( Ci[ 0 ].get_value() > 0.5 ) ? 1 : 0 );
-  for( Index t = std::max( init_t , Index( 1 ) ) ; t < time_horizon ; ++t )
-   ( sup_it++ )->set_value(
-    ( Ci[ t ].get_value() > 0.5 ) && ( Ci[ t - 1 ].get_value() <= 0.5 )
-    ? 1 : 0 );
-  }
-
- // shut_down[ t ] = 1 iff commitment[ t-1 ] == 1 AND commitment[ t ] == 0 ;
- // symmetric boundary handling
- if( auto sdn_it = TUB->get_shut_down() ) {
-  if( ! init_t )
-   ( sdn_it++ )->set_value(
-    ( init_ud > 0 ) && ( Ci[ 0 ].get_value() <= 0.5 ) ? 1 : 0 );
-  for( Index t = std::max( init_t , Index( 1 ) ) ; t < time_horizon ; ++t )
-   ( sdn_it++ )->set_value(
-    ( Ci[ t ].get_value() <= 0.5 ) && ( Ci[ t - 1 ].get_value() > 0.5 )
-    ? 1 : 0 );
-  }
-
- // write the perspective-cut auxiliary variables, if the formulation uses
- // them - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- //
- // when the formulation sets the PCuts bit, the quadratic cost alpha * p^2
- // on the active power is *replaced* in the Objective by a linear cost
- // alpha * v_cut, where v_cut is a continuous auxiliary variable modelling
- // the perspective of the quadratic term: v_cut >= alpha * p^2 / u  with
- // u in {0, 1} the commitment indicator that "activates" the cost (u == 0
- // forces p == 0, hence v_cut == 0). At the optimum of any sub-problem
- // using PCuts the constraint is tight, so
- //
- //     v_cut = alpha * p^2 / u   if u > 0
- //             0                 if u ~ 0   (and in that case p = 0 too)
- //
- // Since ThermalUnitBlockSolution only stores commitment + power, the
- // v_cut* variables would otherwise keep whatever values the Block was
- // last left with by a previous (unrelated) compute(); we explicitly
- // restore them via the formula above. This matters for exactly the same
- // reason start_up/shut_down did above: the cut variables carry a cost
- // coefficient in the Objective (alpha = v_QuadTerm[t]) and a wrong value
- // contaminates downstream re-evaluations of the Objective at the saved
- // solution.
-
- if( ! TUB->has_perspective_cuts() )
-  return;                 // formulation does not use PCuts
-
- const auto form = TUB->get_formulation();
- const double u_eps = 1e-12;
-
- // 3bin, T and pt formulations: v_cut[ t ] is the cut variable, with p =
- // v_active_power[t] and alpha = v_QuadTerm[t]. The commitment indicator
- // u differs: for 3bin and T it is v_commitment[t]; for pt it is the sum
- // of v_commitment_plus[i] over the i such that Y_plus[i] covers t+1
- // (same set that appears in Init_PC_Const for ptForm around line 3196)
- if( ( form == ThermalUnitBlock::tbinForm ) ||
-     ( form == ThermalUnitBlock::TForm ) ||
-     ( form == ThermalUnitBlock::ptForm ) ) {
-  auto Cu = TUB->get_cut();
-  if( ! Cu )
-   return;                // PCut set but v_cut not built (should not happen)
-
-  auto P  = TUB->get_const_active_power( 0 );
-  auto Cp = TUB->get_commitment_plus();  // only used by ptForm
-  const auto & YP = TUB->get_Y_plus();   // only used by ptForm
-
-  for( Index t = 0 ; t < time_horizon ; ++t ) {
-   double p = P[ t ].get_value();
-   double u;
-   if( form == ThermalUnitBlock::ptForm ) {
-    u = 0;
-    for( Index i = 0 ; i < YP.size() ; ++i )
-     if( ( YP[ i ].first <= t + 1 ) && ( t + 1 <= YP[ i ].second ) )
-      u += Cp[ i ].get_value();
-    }
-   else
-    u = Ci[ t ].get_value();
-
-   // if u is (numerically) zero, p must be zero too and v_cut must be zero;
-   // else v_cut = alpha * p^2 / u  (perspective of the quadratic)
-   double v = ( u <= u_eps ) ? 0.0
-                             : TUB->get_quad_term( t ) * p * p / u;
-   Cu[ t ].set_value( v );
-   }
-  return;
-  }
-
- // TODO: DP / SU / SD / SUSD formulations use v_cut_h_k, v_cut_h, v_cut_k,
- // v_cut_teta respectively, each indexed via v_Z_h_k / v_Z_h / v_Z_k and
- // tied to a different "activation" variable of the state-space graph.
- // These are not yet handled here: if the caller uses PCuts with one of
- // those formulations, subsequent re-evaluations of the Objective at the
- // restored solution will again read stale values of the cut variables.
+ // (p, u) have just been restored into the Block by UnitBlockSolution::
+ // write(); delegate all the formulation-specific bookkeeping (start_up /
+ // shut_down, perspective-cut auxiliaries, ...) to the Block itself. This
+ // shares the implementation with the inner DP Solvers and ensures that
+ // LagBFunction::get_linearization_constant(), which reads variable
+ // values to recompute f(x*) via its saved CostMatrix, sees a state
+ // consistent with the saved (p, u).
+ TUB->set_solution();
 
  }  // end( ThermalUnitBlockSolution::write )
 

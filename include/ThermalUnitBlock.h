@@ -2172,6 +2172,44 @@ class ThermalUnitBlock : public UnitBlock
 
  bool has_perspective_cuts( void ) const { return( AR & PCuts ); }
 
+/*--------------------------------------------------------------------------*/
+ /// fill in the formulation-specific ColVariables from the canonical
+ /// (active power, commitment) representation of a thermal-unit schedule
+ /** This method assumes that the canonical part of the schedule is
+  * already in place: the caller has set v_active_power[ t ] = p[ t ] and
+  * v_commitment[ t ] = u[ t ] (1 if on at t, 0 otherwise). It then sets
+  * *every other* ColVariable of the Block in a way that is consistent
+  * with that schedule and the current formulation:
+  *
+  * - v_start_up / v_shut_down: derived from u transitions, with the
+  *   pre-horizon initial state given by init_up_down_time (see the
+  *   boundary-handling comments in the implementation)
+  * - if perspective cuts are active and the formulation is one of
+  *   tbinForm / TForm / ptForm, v_cut[ t ] = u[ t ] ? p[ t ]^2 : 0;
+  *   this is the value the linearised perspective constraints make
+  *   tight at the integer optimum, and the value LagBFunction needs
+  *   to recompute the original quadratic cost at x* via
+  *   sum_t alpha_t v_cut_t (since with PCuts on the DQuadFunction
+  *   stores a *linear* coefficient alpha_t = v_QuadTerm[t] on
+  *   v_cut[t] and a zero quadratic coefficient on v_active_power[t])
+  *
+  * This can be used by specialised Solvers of a ThermalUnitBlock that
+  * only know the canonical representation (p, u), of a thermal-unit
+  * schedule, to have a complete formulation-ready version of their
+  * solution written in the TermalUnitBlock at the end of compute(),
+  * delegating to the Block all the formulation-specific bookkeeping that
+  * follows. ThermalUnitBlockSolution::write() also calls it to restore
+  * the full representation from the (p, u) it had saved.
+  *
+  * NOTE: for the disaggregated formulations DPForm / SUForm / SDForm /
+  * SUSDForm the associated v_*_h_k / v_*_h / v_*_k / v_*_teta variables
+  * are NOT yet handled here, since their values do not depend on (p, u)
+  * alone (they encode the actual on/off run path through the
+  * state-space graph). Calling this method on such a formulation
+  * leaves those auxiliaries untouched. */
+
+ void set_solution( void );
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/

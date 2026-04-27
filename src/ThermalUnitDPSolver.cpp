@@ -118,39 +118,21 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
- // set active power variables, if any
+ // canonical part: write the schedule the DP produced, (P, U), into the
+ // active power and commitment ColVariables of the Block
  if( auto pow_it = b->get_active_power( 0 ) )
   for( Index i = 0 ; i < time_horizon ; )
    ( pow_it++ )->set_value( P[ i++ ] );
 
- // set unit commitment variables, if any
  if( auto com_it = b->get_commitment( 0 ) )
   for( Index i = 0 ; i < time_horizon ; )
    ( com_it++ )->set_value( U[ i++ ] ? 1 : 0 );
 
- // set start_up variables, if any, but note that start_up variables are
- // only defined from t_init onwards, so skip all i <= t_init
- if( auto sup_it = b->get_start_up() ) {
-  // startup at 0 iif the unit was off at the start, and it is on at 0
-  if( ! t_init )
-   ( sup_it++ )->set_value( ( init_up_down_time <= 0 ) && ( U[ 0 ] ? 1 : 0 ) );
-
-  // startup at i iff the unit was off at i - 1, and it is on at i
-  for( Index i = std:: max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   ( sup_it++ )->set_value( ( U[ i ] ) && ( ! U[ i - 1 ] ) ? 1 : 0 );
-  }
-
- // set shut_down variables, if any, but note that start_up variables are
- // only defined from t_init onwards, so skip all i <= t_init
- if( auto sdn_it = b->get_shut_down() ) {
-  // shutdown at 0 iif the unit was on at the start, and it is off at 0
-  if( ! t_init )
-   ( sdn_it++ )->set_value( ( init_up_down_time > 0 ) && ( ! U[ 0 ] ) ? 1 : 0 );
-
-  // shutdown at i iff the unit was on at i - 1, and it is off at i
-  for( Index i = std::max( t_init , Index( 1 ) ) ; i < time_horizon ; ++i )
-   ( sdn_it++ )->set_value( ( ! U[ i ] ) && ( U[ i - 1 ] ? 1 : 0 ) );
-  }
+ // formulation-specific bookkeeping (start_up / shut_down indicators,
+ // perspective-cut auxiliaries, ...) is delegated to the Block, which
+ // knows which variables exist in the current formulation and how they
+ // relate to (p, u). This way the DP stays formulation-agnostic.
+ b->set_solution();
 
  // unlock the Block
  if( ! owned )
