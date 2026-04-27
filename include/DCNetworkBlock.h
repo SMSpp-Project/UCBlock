@@ -162,7 +162,7 @@ class DCNetworkData : public NetworkData
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_number_HVDC_lines( 0 ) ,
   f_reference_node( 0 ) , DCDF_was_computed( false ) ,
-  f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
+  f_number_branches( 0 ) , cycle_basis_was_computed( false ), nb_components( 0 ) {}
 
  /// destructor of DCNetworkData: it is virtual, and empty
  ~DCNetworkData() override = default;

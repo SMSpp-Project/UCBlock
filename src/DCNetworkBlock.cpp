@@ -378,9 +378,12 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
 
- // Compute any connected components now
- identify_connected_components();
+ // Compute any connected components now 
+ // If the number of components is not initialized, do the computation. Otherwise rely on what is stored
+ if ( get_nb_connected_components() == 0 )
+  identify_connected_components();
 
+ // update nb_c if need be
  const size_t nb_c = get_nb_connected_components();
  const auto & v_comp = get_subgraphs();
  /*-- some possible printing for debugging if need be
