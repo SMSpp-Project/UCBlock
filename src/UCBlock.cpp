@@ -375,7 +375,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
   // meanwhile compute the number of covered intervals
   Index sum_intervals = 0;
-  Index t = 0;
+  // Index t = 0;
   for( Index n = 0 ; n < f_number_networks ; ++n ) {
    auto nbi = v_network_blocks[ n ];
    if( ! nbi ) {  // NetworkBlock n does not exist: create a NetworkBlock
@@ -385,6 +385,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     v_Block[ f_number_units + n ] = nbi;
     }
 
+   // tell it which time instant is its starting one
+   nbi->set_time_instant( sum_intervals );
+			 
    // if the NetworkBlock does not have its own NetworkData...
    if( ! nbi->get_NetworkData() ) {
     if( ! f_NetworkData )

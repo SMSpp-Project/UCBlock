@@ -321,7 +321,8 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
+void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
+{
  if( constraints_generated() ) // constraints have already been generated
   return; // nothing to do
 
@@ -509,11 +510,11 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
  if( i_line > 0 ) {
   add_static_constraint( v_angle_bounds_const , "AC_angle_bounds_limit" );
   add_static_constraint( v_basic_bounds_const , "AC_elem_bounds" );
- }
+  }
 
  auto * fnet = static_cast< ACNetworkData * >( f_NetworkData );
  // Bounds on Reactive flow in HVDC lines
- //    HVDC lines have direct bounds both on Active and Reactive Power (if given)
+ // HVDC lines have direct bounds both on Active and Reactive Power (if given)
  if( fnet->has_reactive_bounds() ) {
   v_reactive_flow_bounds.resize( 2 * nb_hvdc_lines );
   int i_hvdc_line = 0;
@@ -533,12 +534,12 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
     &v_reactive_power_flow[ number_lines + line_id ] );
 
    ++i_hvdc_line;
-  }
+   }
+
   add_static_constraint( v_reactive_flow_bounds , "Reactive_Flow_Bounds" );
- }
- else {
-  std::cout << " No bounds on Reactive flow given ... \n";
- }
+  }
+ else
+  std::cout << " No bounds on Reactive flow given ... " << std::endl;
 
  // ----- Active and Reactive Power conservation: - - - - - - - - - - - - - -
  // Shunt admittance
@@ -748,34 +749,37 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc ) {
                           round_sig( Yft( line_id ).imag() * f_scale ,
                                      f_digits ) );
 
-   // Since the bounds are symmetric, it suffices to compute this one value, moreover the sum greatly simplifies :
-   double w_bound = c_sin * max_voltage[ p ] * max_voltage[ end_line[
-    line_id ] ];
+   // Since the bounds are symmetric, it suffices to compute this one value,
+   // moreover the sum greatly simplifies :
+   double w_bound = c_sin * max_voltage[ p ] *
+                    max_voltage[ end_line[ line_id ] ];
    v_flow_lower += std::abs( Yft( line_id ).imag() ) * -1.0 * w_bound;
    v_flow_upper += std::abs( Yft( line_id ).imag() ) * w_bound;
 
-   // We can now check if this is possible at all, thinking about max and min powerflow and the thermal limit
-   //
-   if( ( v_flow_lower > get_max_power_flow( line_id ) ) || v_flow_upper <
-    get_min_power_flow( line_id ) ) {
-    std::cout << " The power line with index = " << line_id << " and name " <<
-     v_l_names[ line_id ] <<
-     " has induced bounds from the AC equations that are [ "
-     << v_flow_lower << ", " << v_flow_upper << "]" << " and imposed bounds [ "
-     << get_min_power_flow( line_id ) << " , " << get_max_power_flow( line_id )
-     << " ] \n";
-   }
+   // We can now check if this is possible at all, thinking about max and
+   // min powerflow and the thermal limit
+   auto max_p = get_max_power_flow( line_id );
+   auto min_p = get_min_power_flow( line_id );
+   if( ( v_flow_lower > max_p ) || ( v_flow_upper <  min_p ) ) {
+    std::cout << " The power line with index = " << line_id << " and name "
+	      << v_l_names[ line_id ]
+	      << " has induced bounds from the AC equations that are [ "
+	      << v_flow_lower << ", " << v_flow_upper << "]"
+	      << " and imposed bounds [ " << min_p << " , " << max_p
+	      << " ]" << std::endl;
+    }
+
    if( ( v_flow_lower > 0 ) || ( v_flow_upper < 0 ) ) {
     double min_therm = std::min( std::pow( v_flow_lower , 2.0 ) ,
                                  std::pow( v_flow_upper , 2.0 ) );
-    if( min_therm > rate_A[ line_id ] ) {
-     std::cout << " The power line with index = " << line_id << " and name " <<
-      v_l_names[ line_id ] <<
-      " has induced bounds from the AC equations that yield a minimal thermal limit of "
-      << min_therm << " but this exceeds the given limit " << rate_A[ line_id ]
-      << "\n";
+    if( min_therm > rate_A[ line_id ] )
+     std::cout << " The power line with index = " << line_id << " and name "
+	       << v_l_names[ line_id ]
+	       << " has induced bounds from the AC equations that yield a "
+	       << "minimal thermal limit of " << min_therm
+	       << " but this exceeds the given limit " << rate_A[ line_id ]
+	       << std::endl;
     }
-   }
 
    lfunc_1->add_variable( &v_power_flow[ line_id ] ,
                           -1.0 * f_C_v_scal * f_scale );

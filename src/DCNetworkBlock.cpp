@@ -79,6 +79,57 @@ using DCNetworkData = DCNetworkBlock::DCNetworkData;
 SMSpp_insert_in_factory_cpp_0( DCNetworkData );
 
 /*--------------------------------------------------------------------------*/
+/*---------------------------- STATIC FUNCTIONS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+/* Deserializes a 2-dim double multi_array where the first dimension is
+ * optional: if the ncVar only have one dimension it is taken to be the
+ * second one and a column-wise matrix (1 row, dim2 columns) is returned.
+ * If, furthermore, the variable is scalar (both dimensions are 1) then
+ * the column-wise matrix contains that single value repeated over. */
+
+bool deserialize_opt( const netCDF::NcGroup & group ,
+		      const std::string & name ,
+		      std::size_t dim1 , std::size_t dim2 ,
+		      boost::multi_array< double , 2 > & multi_array )
+{
+ using index = typename boost::multi_array< double , 2 >::index;
+ static const std::vector< index > empty = { 0 , 0 };
+
+ auto ncVar = group.getVar( name );
+ if( ncVar.isNull() ) {
+  multi_array.resize( empty );
+  return( false );
+  }
+
+ if( ncVar.getDimCount() == 0 )
+  throw( std::invalid_argument( "netCDF variable " + name + "is empty" ) );
+
+ if( ncVar.getDimCount() > 2 )
+  throw( std::invalid_argument( "netCDF variable " + name +
+				"has too many dimensions" ) );
+
+ std::vector< index > size = { dim1 , dim2 };
+ if( ncVar.getDimCount() == 1 )  // 1-dimensional variable
+  size[ 0 ] = 1;                 // ignore the first dimension
+
+ multi_array.resize( size );
+
+ if( size[ 0 ] == 1 ) {          // 1-dimensional variable
+  if( (ncVar.getDims())[ 0 ] == 1 ) {  // in fact, a scalar variable
+   ncVar.getVar( { 0 } , { 1 } , multi_array.data() );
+   for( Index i = 1 ; i < multi_array.data().size() ; ++i )
+    multi_array.data()[ i ] = multi_array.data()[ 0 ];  // replicate
+   }
+  else                                 // a vector
+   ncVar.getVar( { 0 } , { dim2 } , multi_array.data() );
+  }
+ else                            // 2-dimensional variable
+  ncVar.getVar( empty , size , multi_array.data() );
+
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkData -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -96,9 +147,13 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
  deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
- if( ! deserialize_dim( group , "NumberBranches" , f_number_branches , true ) )
+ if( ! deserialize_dim( group , "NumberBranches" , f_number_branches ,
+			true ) )
   f_number_branches = f_number_lines;
 
+ Index time_instants = 1;
+ deserialize_dim( group , "NumberInstants" , time_instants , true );
+ 
  ::deserialize( group , "StartLine" , f_number_branches , v_start_line ,
                 false , false );
 
@@ -108,32 +163,37 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  for( Index i = 0 ; i < f_number_branches ; ++i ) {
   if( ( v_start_line[ i ] < 0 ) || ( v_start_line[ i ] >= f_number_nodes ) )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				                             "wrong start node number " +
-				                             std::to_string( v_start_line[ i ] ) ) );
+				 "wrong start node number " +
+				 std::to_string( v_start_line[ i ] ) ) );
 
   if( ( v_end_line[ i ] < 0 ) || ( v_end_line[ i ] >= f_number_nodes ) )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				                             "wrong end node number " +
-				                             std::to_string( v_end_line[ i ] ) ) );
+				 "wrong end node number " +
+				 std::to_string( v_end_line[ i ] ) ) );
 
   if( v_start_line[ i ] == v_end_line[ i ] )
    throw( std::invalid_argument( "DCNetworkData::deserialize: "
-				                             "start node == end node for branch " +
-				                             std::to_string( v_end_line[ i ] ) ) );
+				 "start node == end node for branch " +
+				 std::to_string( v_end_line[ i ] ) ) );
   }
 
- ::deserialize( group , "MaxPowerFlow" , f_number_lines , v_max_power_flow ,
-                true , true );
+ deserialize_opt( group , "MaxPowerFlow" , time_instants ,
+		  f_number_lines , v_max_power_flow );
 
- ::deserialize( group , "MinPowerFlow" , f_number_lines , v_min_power_flow ,
-                true , true );
+ deserialize_opt( group , "MinPowerFlow" , time_instants ,
+		  f_number_lines , v_min_power_flow );
+
+ if( ! deserialize_opt( group , "Efficiency" , time_instants ,
+			f_number_branches , v_efficiency ) ) {
+  using index = boost::multi_array< double , 2 >::index;
+  const std::vector< index > size = { 1 , f_number_branches };
+  v_efficiency.resize( size );
+  for( Index b = 0 ; b < f_number_branches ; ++b )
+   v_efficiency[ 0 ][ b ] = 1;
+  }
 
  ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
                 true , true );
-
- if( ! ::deserialize( group , "Efficiency" , f_number_branches , v_efficiency ,
-                      true , true ) )
-  v_efficiency.resize( f_number_branches , 1 );
 
  ::deserialize( group , "LineSusceptance" , f_number_lines ,
 		v_line_susceptance , true , true );
@@ -145,6 +205,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  if( f_number_HVDC_lines == f_number_lines )
   v_line_susceptance.clear();
 
+ //!! TODO: in the hypergraph case the line names are garbled!!
  ::deserialize( group , "LineName" , f_number_lines , v_line_names );
 
  if( is_hypergraph() ) {
@@ -152,39 +213,38 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "HyperArcID" , f_number_branches , id ,
                  false , false );
 
-  // < start node , end node , efficiency >
-  std::vector< std::vector< std::tuple< Index , Index , double > > >
-                                                         tmp( f_number_lines );
+  // < start node , end node , branch name >
+  std::vector< std::vector< std::tuple< Index , Index , Index > > >
+                                                      tmp( f_number_lines );
   for( Index i = 0 ; i < f_number_branches ; ++i ) {
    if( ( id[ i ] < 0 ) || ( id[ i ] >= f_number_lines ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-    				                          "wrong hyperarc id " +
-    				                          std::to_string( id[ i ] ) ) );
+				  "wrong hyperarc id " +
+				  std::to_string( id[ i ] ) ) );
    tmp[ id[ i ] ].push_back( std::make_tuple( v_start_line[ i ] ,
-                                              v_end_line[ i ] ,
-                                              v_efficiency[ i ] ) );
+                                              v_end_line[ i ] , i ) );
    if( std::get< 0 >( tmp[ id[ i ] ].front() ) !=
        std::get< 0 >( tmp[ id[ i ] ].back() ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-    				                          "branches for line " +
-    				                          std::to_string( id[ i ] ) +
-    				                          " have different start" ) );
+				  "branches for line " +
+				  std::to_string( id[ i ] ) +
+				  " have different start" ) );
    }
 
   // sort all tmp[ i ] for increasing end node
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    if( tmp[ i ].empty() )
     throw( std::invalid_argument( "DCNetworkData::deserialize: "
-    				                          "no branches for line " +
-    				                          std::to_string( i ) ) );
+				  "no branches for line " +
+				  std::to_string( i ) ) );
    std::sort( tmp[ i ].begin() , tmp[ i ].end() ,
               []( auto & a , auto & b ) {
                return( std::get< 1 >( a ) < std::get< 1 >( b ) ); } );
    for( Index j = 1 ; j < tmp[ i ].size() ; ++j )
     if( std::get< 1 >( tmp[ i ][ j ] ) == std::get< 1 >( tmp[ i ][ j - 1 ] ) )
      throw( std::invalid_argument( "DCNetworkData::deserialize: "
-    				                           "repeated end node for line " +
-    				                           std::to_string( i ) ) );
+				   "repeated end node for line " +
+				   std::to_string( i ) ) );
    }
 
   // resize v_start_line and put there the right start nodes
@@ -192,35 +252,48 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   for( Index i = 0 ; i < f_number_lines ; ++i )
    v_start_line[ i ] = std::get< 0 >( tmp[ i ].front() );
 
-  // clear v_end_line and v_efficiency
+  // clear v_end_line
   v_end_line.clear();
-  v_efficiency.clear();
 
   // build v_end_lines and v_h_efficiency
   v_end_lines.resize( f_number_lines );
-  v_h_efficiency.resize( f_number_lines );
+  time_instants = v_h_efficiency.shape()[ 0 ];
+  v_h_efficiency.resize( time_instants );
+  for( Index t = 0 ; t < time_instants ; ++t )
+   v_h_efficiency[ t ].resize( f_number_lines );
 
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    if( ( ! v_line_susceptance.empty() ) &&
        ( v_line_susceptance[ i ] != 0.0 ) && ( tmp[ i ].size() > 1 ) )
     throw( std::invalid_argument( "DCNetworkData::deserialize: line " +
-    				                          std::to_string( id[ i ] ) +
-    				                          " is a hyperarc but has susceptance" ) );
+				  std::to_string( id[ i ] ) +
+				  " is a hyperarc but has susceptance" ) );
    v_end_lines[ i ].resize( tmp[ i ].size() );
-   v_h_efficiency[ i ].resize( tmp[ i ].size() );
-   for( Index j = 0 ; j < tmp[ i ].size() ; ++j ) {
+   for( Index j = 0 ; j < tmp[ i ].size() ; ++j )
     v_end_lines[ i ][ j ] = std::get< 1 >( tmp[ i ][ j ] );
-    v_h_efficiency[ i ][ j ] = std::get< 2 >( tmp[ i ][ j ] );
+
+   for( Index t = 0 ; t < time_instants ; ++t ) {
+    v_h_efficiency[ t ][ i ].resize( tmp[ i ].size() );
+    for( Index j = 0 ; j < tmp[ i ].size() ; ++j )
+     v_h_efficiency[ t ][ i ][ j ] =
+                        v_efficiency[ t ][ std::get< 2 >( tmp[ i ][ j ] ) ];
     }
    }
-  }
+
+  // clear v_efficiency
+  //!! using index = boost::multi_array< double , 2 >::index;
+  //!! const std::vector< index > empty = { 0 , 0 };
+  //!! v_efficiency.resize( empty );
+  v_efficiency.resize( { 0 , 0 } );
+
+  }  // end( if( is_hypergraph() ) )
 
  stored_B2 = SpMat( f_number_nodes - 1 , f_number_nodes - 1 );
  stored_B2_inv = SpMat( f_number_nodes - 1 , f_number_nodes - 1 );
 
  ::deserialize( group , "NodeName" , f_number_nodes , v_node_names );
 
- } // end( DCNetworkData::deserialize )
+ }  // end( DCNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
@@ -314,11 +387,12 @@ void DCNetworkData::identify_connected_components( void )
 
   ++nb_components;
  }
+
  // Now simply identify each collection of nodes
  v_nodes_in_component.resize( nb_components );
  for( Index v = 0 ; v < nb_nodes ; ++v )
   v_nodes_in_component[ v_component[ v ] ].push_back( v );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -348,18 +422,17 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
    int re = get_reducedIdx( e );
    if( re >= 0 )
     A_DC_transpose.coeffRef( re , line_id ) = -eta;
-  }
+   }
   else { // with hypergraph
    for( Index i = 0 ; i < get_end_lines()[ line_id ].size() ; ++i ) {
     eta = get_line_efficiencies( line_id )[ i ]; // efficiency of the hyperarc
     Index e = get_end_lines()[ line_id ][ i ];
     int re = get_reducedIdx( e );
-    if( re >= 0 ) {
+    if( re >= 0 )
      A_DC_transpose.coeffRef( re , line_id ) = -eta;
     }
    }
   }
- }
  DCDF = -PTDF_matrix * A_DC_transpose;
  DCDF_was_computed = true;
  }
@@ -1101,11 +1174,11 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  for( auto & hvdc_l : HVDC_lines ) {
   if( ! f_NetworkData->is_hypergraph() ) {
    // if not hyperarc, losses are 1 - eta
-   eta = f_NetworkData->get_line_efficiency( hvdc_l );
+   eta = get_line_efficiency( hvdc_l );
    lfunc->add_variable( &v_power_flow[ hvdc_l ] , eta - 1.0 );
   }
   else { // if hyperarc, losses are 1 - sum(etas)
-   auto & etas = f_NetworkData->get_line_efficiencies( hvdc_l );
+   auto & etas = get_line_efficiencies( hvdc_l );
    double eta_sum = std::accumulate( etas.begin() , etas.end() , 0.0 );
    lfunc->add_variable( &v_power_flow[ hvdc_l ] , eta_sum - 1.0 );
   }
@@ -1260,7 +1333,7 @@ void DCNetworkBlock::generate_HVDC_nodal_constraints( bool full_formulation ) {
     if( start_line[ line_id ] == n )
      lfunc->add_variable( &v_power_flow[ line_id ] , 1.0 );
     if( ! f_NetworkData->is_hypergraph() ) {
-     eta = f_NetworkData->get_line_efficiency( line_id );
+     eta = get_line_efficiency( line_id );
      if( end_line[ line_id ] == n )
       lfunc->add_variable( &v_power_flow[ line_id ] , -eta );
     }
@@ -1268,7 +1341,7 @@ void DCNetworkBlock::generate_HVDC_nodal_constraints( bool full_formulation ) {
      for( Index i = 0 ;
           i < f_NetworkData->get_end_lines()[ line_id ].size() ; ++i ) {
       if( f_NetworkData->get_end_lines()[ line_id ][ i ] == n ) {
-       eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
+       eta = get_line_efficiencies( line_id )[ i ];
        lfunc->add_variable( &v_power_flow[ line_id ] , -eta );
       }
      }
@@ -1366,7 +1439,7 @@ void DCNetworkBlock::generate_node_balance_constraints( void )
    for( auto & l : f_NetworkData->get_DC_lines() ) {
     if( start_line[ l ] == n )
      vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-    double eta = f_NetworkData->get_line_efficiency( l );
+    double eta = get_line_efficiency( l );
     if( end_line[ l ] == n )
      vars.emplace_back( & v_power_flow[ l ] , -eta );
     }
@@ -1379,7 +1452,7 @@ void DCNetworkBlock::generate_node_balance_constraints( void )
      vars.emplace_back( & v_power_flow[ l ] , 1.0 );
 
     if( ! f_NetworkData->is_hypergraph() ) {
-     double eta = f_NetworkData->get_line_efficiency( l );
+     double eta = get_line_efficiency( l );
      if( end_line[ l ] == n )
       vars.emplace_back( & v_power_flow[ l ] , -eta );
      }
@@ -1387,7 +1460,7 @@ void DCNetworkBlock::generate_node_balance_constraints( void )
      for( Index i = 0 ;
           i < f_NetworkData->get_end_lines()[ l ].size() ; ++i ) {
       if( f_NetworkData->get_end_lines()[ l ][ i ] == n ) {
-       double eta = f_NetworkData->get_line_efficiencies( l )[ i ];
+       double eta = get_line_efficiencies( l )[ i ];
        vars.emplace_back( & v_power_flow[ l ] , -eta );
        }
       }
@@ -1451,7 +1524,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
 
      if( ! f_NetworkData->is_hypergraph() ) {
       // if no hyperarch -> normal behavior from get_line_efficiency
-      eta = f_NetworkData->get_line_efficiency( line_id );
+      eta = get_line_efficiency( line_id );
       // efficiency of the HVDC line
       if( end_line[ line_id ] == n )
        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
@@ -1460,7 +1533,7 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
       auto & end_lines = f_NetworkData->get_end_lines()[ line_id ];
       for( Index i = 0 ; i < end_lines.size() ; ++i ) {
        if( end_lines[ i ] == n ) {
-        eta = f_NetworkData->get_line_efficiencies( line_id )[ i ];
+        eta = get_line_efficiencies( line_id )[ i ];
         vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
         }
        }
@@ -1582,8 +1655,8 @@ void DCNetworkBlock::generate_bound_constraints( void )
     continue;  // handled in the "without design" block
 
    const double kappa = get_kappa( l );
-   const double Pmn   = f_NetworkData->get_min_power_flow( l );
-   const double Pmx   = f_NetworkData->get_max_power_flow( l );
+   const double Pmn   = get_min_power_flow( l );
+   const double Pmx   = get_max_power_flow( l );
 
    // LOWER:  F_l - kappa * Pmn * x_l >= 0
    vars.emplace_back( & v_power_flow[ l ] , 1.0 );
@@ -1621,9 +1694,9 @@ void DCNetworkBlock::generate_bound_constraints( void )
 
    const double kappa = get_kappa( l );
    v_power_flow_limit_const[ l ].set_lhs( kappa * f_C_v_scal *
-				   f_NetworkData->get_min_power_flow( l ) );
+					  get_min_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_rhs( kappa * f_C_v_scal *
-				   f_NetworkData->get_max_power_flow( l ) );
+					  get_max_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
    }
 
@@ -2411,23 +2484,23 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    // the LF).
 
    // LOWER bound:  F_i - kappa * MinP_i * x_i >= 0
-   double lower_coeff_x = -kappa * f_NetworkData->get_min_power_flow( i );
+   double lower_coeff_x = -kappa * get_min_power_flow( i );
    auto * lf_low = static_cast< LinearFunction * >(
 		   v_power_flow_limit_design_const[ 0 ][ i ].get_function() );
    lf_low->modify_coefficient( 1 , lower_coeff_x , issueAMod );
 
    // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
-   double upper_coeff_x = -kappa * f_NetworkData->get_max_power_flow( i );
+   double upper_coeff_x = -kappa * get_max_power_flow( i );
    auto * lf_up = static_cast< LinearFunction * >(
 		   v_power_flow_limit_design_const[ 1 ][ i ].get_function() );
    lf_up->modify_coefficient( 1 , upper_coeff_x , issueAMod );
    }
   else {
    // Constraints *without* design variable: simple bounds update
-   v_power_flow_limit_const[ i ].set_lhs(
-		 kappa * f_NetworkData->get_min_power_flow( i ) , issueAMod );
-   v_power_flow_limit_const[ i ].set_rhs(
-		 kappa * f_NetworkData->get_max_power_flow( i ) , issueAMod );
+   v_power_flow_limit_const[ i ].set_lhs( kappa * get_min_power_flow( i ) ,
+					  issueAMod );
+   v_power_flow_limit_const[ i ].set_rhs( kappa * get_max_power_flow( i ) ,
+					  issueAMod );
     }
   }
  }  // end( DCNetworkBlock::change_power_flow_limit_constraints )
