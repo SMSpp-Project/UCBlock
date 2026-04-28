@@ -588,7 +588,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
   return;
 
  if( ! ordered )
-  std::sort( subset.begin(), subset.end() );
+  std::sort( subset.begin() , subset.end() );
 
  if( subset.back() >= f_time_horizon )
   throw( std::invalid_argument( fn + ": invalid index in subset" ) );
@@ -754,7 +754,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
   return;
 
  if( ! ordered )
-  std::sort( subset.begin(), subset.end() );
+  std::sort( subset.begin() , subset.end() );
 
  if( subset.back() >= f_time_horizon )
   throw( std::invalid_argument( fn + ": invalid index in subset" ) );

@@ -270,7 +270,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
    else
     v_MaxRampSteps[ 0 ] = std::min( static_cast< int >(
      ( ( get_operational_max_power( 0 ) - f_InitialPower ) /
-       delta_ramp_up ) ), static_cast< int >( f_time_horizon - 1 ) );
+       delta_ramp_up ) ) , static_cast< int >( f_time_horizon - 1 ) );
   }
   else
    v_MaxRampSteps[ 0 ] = -1;
@@ -281,7 +281,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
    else
     v_MaxRampSteps[ t ] = std::min( static_cast< int >(
      ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
-       delta_ramp_up ) ), static_cast< int >( f_time_horizon - t ) );
+       delta_ramp_up ) ) , static_cast< int >( f_time_horizon - t ) );
   }
  }
 
@@ -295,7 +295,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
    else
     v_MaxRampDownSteps[ 0 ] = std::min( static_cast< int >(
      ( ( f_InitialPower - get_operational_min_power( 0 ) ) /
-       delta_ramp_down ) ), static_cast< int >( f_time_horizon - 1 ) );
+       delta_ramp_down ) ) , static_cast< int >( f_time_horizon - 1 ) );
   }
   else
    v_MaxRampDownSteps[ 0 ] = -1;
@@ -306,7 +306,7 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
    else
     v_MaxRampDownSteps[ t ] = std::min( static_cast< int >(
      ( ( get_operational_max_power( t - 1 ) - get_operational_min_power( t - 1 ) ) /
-       delta_ramp_down ) ), static_cast< int >( f_time_horizon - t ) );
+       delta_ramp_down ) ) , static_cast< int >( f_time_horizon - t ) );
   }
  }
 
