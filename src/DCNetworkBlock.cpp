@@ -96,13 +96,10 @@ static bool deserialize_opt( const netCDF::NcGroup & group ,
  static const std::vector< index > empty = { 0 , 0 };
 
  auto ncVar = group.getVar( name );
- if( ncVar.isNull() ) {
+ if( ncVar.isNull() || ( ncVar.getDimCount() == 0 ) ) {
   multi_array.resize( empty );
   return( false );
   }
-
- if( ncVar.getDimCount() == 0 )
-  throw( std::invalid_argument( "netCDF variable " + name + "is empty" ) );
 
  if( ncVar.getDimCount() > 2 )
   throw( std::invalid_argument( "netCDF variable " + name +
@@ -283,7 +280,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
   // build v_end_lines and v_h_efficiency
   v_end_lines.resize( f_number_lines );
-  time_instants = v_h_efficiency.size();
+  time_instants = v_efficiency.shape()[ 0 ];
   v_h_efficiency.resize( time_instants );
   for( Index t = 0 ; t < time_instants ; ++t )
    v_h_efficiency[ t ].resize( f_number_lines );

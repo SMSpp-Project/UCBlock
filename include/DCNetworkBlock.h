@@ -237,12 +237,13 @@ class DCNetworkData : public NetworkData
   *   for all pairs ( i , j ) such that HyperArcID[ i ] == HyperArcID[ j ],
   *   i.e., ALL "branches" MUST HAVE THE SAME "tail" and different heads.
   *
-  * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed over
-  *   both dimensions "NumberInstants" and "NumberLines", if the former is
-  *   defined, and only "NumberLines" otherwise. This is meant to represent
-  *   the matrix MxP[ t ][ l ] that, for each line l and time instant t,
-  *   contains the maximum power flow of line l at time t (a non-negative
-  *   number). If "NumberInstants" is not defined, this is rather a vector
+  * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed in
+  *   principle over both dimensions "NumberInstants" and "NumberLines".
+  *   This is meant to represent the matrix MxP[ t ][ l ] that, for each
+  *   line l and time instant t, contains the maximum power flow of line l
+  *   at time t (a non-negative number). However, the variable can also be
+  *   indexed over "NumberLines" only (and it must necessarily be so if
+  *   "NumberInstants" is not defined), in which case it is rather a vector
   *   MxP[ l ] containing the identical max capacity of the line at all time
   *   instants. Note that if line l is a hyperarc (see "HyperArcID") the
   *   capacity is still one number representing the maximum amount of flow
@@ -251,20 +252,22 @@ class DCNetworkData : public NetworkData
   *   variable is optional, if not provided it is assumed that MxP[ l ] == 0
   *   for all line l (and all time instants t).
   *
-  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
-  *   both dimensions "NumberInstants" and "NumberLines", if the former is
-  *   defined, and only "NumberLines" otherwise. This is meant to represent
-  *   the matrix MnP[ t ][ l ] that, for each line l and time instant t,
-  *   contains the maximum power flow of line l at time t (note that this is
-  *   typically a negative number as lines are bi-directional, see above).
-  *   If "NumberInstants" is not defined, this is rather a vector MnP[ l ]
-  *   containing the identical min capacity of the line at all time
-  *   instants. Note that if line l is a hyperarc (see "HyperArcID") the
-  *   capacity is still one number representing the minimum amount of flow
-  *   leaving the tail bus, although then some flow (not necessarily the
-  *   same amount, see "Efficiency") can reach more than one head bus. The
-  *   variable is optional, if not provided it is assumed that MxP[ l ] == 0
-  *   for all line l (and all time instants t).
+  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed in
+  *   principle over both dimensions "NumberInstants" and "NumberLines".
+  *   This is meant to represent the matrix MnP[ t ][ l ] that, for each
+  *   line l and time instant t, contains the minimum power flow of line l
+  *   at time t (note that this is typically, but not necessarily, a
+  *   negative number as electrical lines are bi-directional, see above).
+  *   However, the variable can also be indexed over "NumberLines" only (and
+  *   it must necessarily be so if "NumberInstants" is not defined), in
+  *   which case it is rather a vector MnP[ l ] containing the identical min
+  *   capacity of the line at all time instants. Note that if line l is a
+  *   hyperarc (see "HyperArcID") the capacity is still one number
+  *   representing the minimum amount of flow leaving the tail bus, although
+  *   then some flow (not necessarily the same amount, see "Efficiency") can
+  *   reach more than one head bus. The variable is optional, if not
+  *   provided it is assumed that MxP[ l ] == 0 for all line l (and all
+  *   time instants t).
   *
   * - The variable "LineSusceptance", of type netCDF::NcDouble and indexed
   *   over the dimension "NumberLines". This is meant to represent the
@@ -296,23 +299,24 @@ class DCNetworkData : public NetworkData
   *   although then some flow (not necessarily the same amount, see
   *   "Efficiency") can reach more than one head bus.
   *
-  * - The variable "Efficiency", of type netCDF::NcDouble and indexed over
-  *   both dimensions "NumberInstants" and "NumberBranches" (if it is
-  *   defined, otherwise "NumberLines"), if the former is defined, and only
-  *   "NumberBranches" (...) otherwise. Efficiency[ t ][ l ] represents the
-  *   efficiency of branch l at time t. This means that if X is the amount
-  *   of flow leaving StartLine[ l ] at time t, then X * Efficiency[ t ][ l ]
-  *   is the amount of flow reaching EndLine[ l ] at time t. If
-  *   "NumberInstants" is not defined, this is rather a vector Efficiency[ l ]
-  *   containing the identical efficiency capacity of the line at all time
-  *   instants. Note that, if l is a hyperarc (see "HyperArcID"), each branch
-  *   can have a different Efficiency (at each time instant): say, an
-  *   hyperarc with branches 1 --> 2 with Efficiency 0.5 and 1 --> 3 with
-  *   Efficiency 0.5 means that one unit of flow leaves 1 and half of it
-  *   reaches 2 while the other half reaches 3. There is no requirement that
-  *   the efficiencies of the different branches of the same hyperarc sum to
-  *   1: in fact, this variable is optional, if it is not specified then
-  *   Efficiency[ l ] == 1 for all branches / lines (and all time instants t).
+  * - The variable "Efficiency", of type netCDF::NcDouble and indexed in
+  *   principle over both dimensions "NumberInstants" and "NumberBranches"
+  *   (if it is defined, otherwise "NumberLines"). This means that if X is
+  *   the amount of flow leaving StartLine[ l ] at time t, then
+  *   X * Efficiency[ t ][ l ] is the amount of flow reaching EndLine[ l ]
+  *   at time t. However, the variable can also be  indexed over
+  *   "NumberBranches" ("NumberLines") only (and it must necessarily be so
+  *   if "NumberInstants" is not defined), in which case it is rather a
+  *   vector Efficiency[ l ] containing the identicalefficiency of the line
+  *   at all time instants.Note that, if l is a hyperarc (see "HyperArcID"),
+  *   each branch can have a different Efficiency (at each time instant):
+  *   say, an hyperarc with branches 1 --> 2 with Efficiency 0.5 and
+  *   1 --> 3 with Efficiency 0.5 means that one unit of flow leaves 1 and
+  *   half of it reaches 2 while the other half reaches 3. There is no
+  *   requirement that the efficiencies of the different branches of the
+  *   same hyperarc sum to 1: in fact, this variable is optional, if it is
+  *   not specified then Efficiency[ l ] == 1 for all branches / lines (and
+  *   all time instants t).
   *
   * - The variable "LineName", of type netCDF::NcString() and indexed over
   *   the dimension "NumberLines". Its i-th entry, namely LineName[ i ],
