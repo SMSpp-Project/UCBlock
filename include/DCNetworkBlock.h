@@ -161,7 +161,7 @@ class DCNetworkData : public NetworkData
 
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_number_HVDC_lines( 0 ) ,
-  f_reference_node( 0 ) , DCDF_was_computed( false ) ,
+  f_reference_node( 0 ) , DCDF_was_computed( Inf< Index >() ) ,
   f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
 
  /// destructor of DCNetworkData: it is virtual, and empty
@@ -602,7 +602,8 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- void compute_DCDF( c_Subset & HVDC_lines , const SpMat & PTDF_matrix );
+ void compute_DCDF( c_Subset & HVDC_lines , const SpMat & PTDF_matrix ,
+		    Index time );
 
 /*--------------------------------------------------------------------------*/
 
@@ -610,7 +611,9 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- bool was_DCDF_computed( void ) const { return( DCDF_was_computed ); }
+ bool was_DCDF_computed( Index t ) const {
+  return( DCDF_was_computed == t );
+  }
 
 /*--------------------------------------------------------------------------*/
  /** Due to deletion of HVDC lines are just because it is possible to have a
@@ -997,7 +1000,7 @@ class DCNetworkData : public NetworkData
  Index f_reference_node;
 
  /// A boolean to avoid forming A^dc multiple times
- bool DCDF_was_computed;
+ Index DCDF_was_computed;
 
  /// A boolean to avoid recomputing the cycle basis algorithm
  bool cycle_basis_was_computed;
