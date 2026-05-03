@@ -22,22 +22,28 @@
 		ren_production = Dict{String,Dict{String,Dict{Int,Float64}}}()
 
 		for u in user_set
-			
+
 			# Define load distribution for short period uncertainty
-			load_scenario_s = point_s_load[scen_s] * profile_component(data_user[u], "load", "load") # mean load in the scenario s considered
-			load_distribution = MvNormal(load_scenario_s, profile_component(data_user[u], "load", "std"))
-			
+			load_mean = profile_component(data_user[u], "load", "load")
+			load_scenario_s = point_s_load[scen_s] * load_mean # mean load in the scenario s considered
+			# Fall back to a multiplicative noise based on the long-period sigma when the
+			# profile does not define an explicit std (new-format YAMLs do not).
+			load_std = profile_component_d(data_user[u], "load", "std", abs.(load_mean) .* sigma_load)
+			load_distribution = MvNormal(load_scenario_s, load_std)
+
 			# Load extraction
 			array_load = broadcast(abs, rand(load_distribution))
 
 			# New load demand of user u
 			load_demand[u] = array2dict(array_load)
-			
+
             ren_production[u] = Dict{String,Dict{Int,Float64}}()
 			for name = asset_names(data_user[u], REN)
 				# Define renewable distribution for short period uncertainty
-				ren_scenario_s = point_s_ren[scen_s] * profile_component(data_user[u], name, "ren_pu")
-				ren_distribution = MvNormal(ren_scenario_s, profile_component(data_user[u], name, "std"))
+				ren_mean = profile_component(data_user[u], name, "ren_pu")
+				ren_scenario_s = point_s_ren[scen_s] * ren_mean
+				ren_std = profile_component_d(data_user[u], name, "std", abs.(ren_mean) .* sigma_ren)
+				ren_distribution = MvNormal(ren_scenario_s, ren_std)
 
 				# Renewable extraction
 				array_ren = broadcast(abs, rand(ren_distribution))
@@ -52,13 +58,17 @@
 				get!(ren_production[u],name,temp)
 			end
 		end
+		# Market-level price fields are stored in the scenario object but are not propagated
+		# to the netCDF DiscreteScenarioSet, so any field absent from the YAML (typical of the
+		# new format, which lacks `penalty_price`) is filled with empty defaults.
+		empty_dict = Dict{Int, Float64}()
 		return Scenario_Load_Renewable(1,
 						1,
-						profile(data_market, "peak_tariff"),
-						array2dict(profile(data_market, "buy_price")),
-						array2dict(profile(data_market, "consumption_price")),
-						array2dict(profile(data_market, "sell_price")),
-						array2dict(profile(data_market, "penalty_price")),
+						profile_d(data_market, "peak_tariff", Dict{String, Float64}()),
+						array2dict(profile_d(data_market, "buy_price",          fill(0.0, length(time_set)))),
+						array2dict(profile_d(data_market, "consumption_price",  fill(0.0, length(time_set)))),
+						array2dict(profile_d(data_market, "sell_price",         fill(0.0, length(time_set)))),
+						array2dict(profile_d(data_market, "penalty_price",      fill(0.0, length(time_set)))),
 						load_demand,
 						ren_production)
 	end

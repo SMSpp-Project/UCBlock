@@ -1,6 +1,6 @@
 Bus Data Format
         1   bus number (positive integer)									-> NodeName
-        2   bus type														-> not usefull, except reference node ?
+        2   bus type														-> not Useful, except reference node ?
                 PQ bus          = 1
                 PV bus          = 2
                 reference bus   = 3
@@ -9,12 +9,12 @@ Bus Data Format
         4   Qd, reactive power demand (MVAr)								-> not yet in NetworkBlock
         5   Gs, shunt conductance (MW demanded at V = 1.0 p.u.)				-> not yet in NetworkBlock
         6   Bs, shunt susceptance (MVAr injected at V = 1.0 p.u.)			-> Susceptance
-        7   area number, (positive integer)									-> Usefull ?
+        7   area number, (positive integer)									-> Useful ?
         8   Vm, voltage magnitude (p.u.)									-> not yet in NetworkBlock
         9   Va, voltage angle (degrees)										-> not yet in NetworkBlock
    (-)     (bus name)
         10  baseKV, base voltage (kV)									
-        11  zone, loss zone (positive integer)								-> Usefull ?
+        11  zone, loss zone (positive integer)								-> Useful ?
     (+) 12  maxVm, maximum voltage magnitude (p.u.)							-> not yet in NetworkBlock
     (+) 13  minVm, minimum voltage magnitude (p.u.)							-> not yet in NetworkBlock
 
@@ -37,16 +37,16 @@ Bus Data Format
                 remote bus controlled by several generators)
         9   Pmax, maximum real power output (MW)								-> MaxPower (in ThermalUnitBlock)
         10  Pmin, minimum real power output (MW)								-> MinPower (in ThermalUnitBlock)
-    (2) 11  Pc1, lower real power output of PQ capability curve (MW)			-> Usefull ?
-    (2) 12  Pc2, upper real power output of PQ capability curve (MW)			-> Usefull ?
-    (2) 13  Qc1min, minimum reactive power output at Pc1 (MVAr)				-> Usefull ?
-    (2) 14  Qc1max, maximum reactive power output at Pc1 (MVAr)				-> Usefull ?
-    (2) 15  Qc2min, minimum reactive power output at Pc2 (MVAr)				-> Usefull ?
-    (2) 16  Qc2max, maximum reactive power output at Pc2 (MVAr)				-> Usefull ?
-    (2) 17  ramp rate for load following/AGC (MW/min)							-> Usefull ?
-    (2) 18  ramp rate for 10 minute reserves (MW)								-> Usefull ?
-    (2) 19  ramp rate for 30 minute reserves (MW)								-> Usefull ?
-    (2) 20  ramp rate for reactive power (2 sec timescale) (MVAr/min)			-> Usefull ?
+    (2) 11  Pc1, lower real power output of PQ capability curve (MW)			-> Useful ?
+    (2) 12  Pc2, upper real power output of PQ capability curve (MW)			-> Useful ?
+    (2) 13  Qc1min, minimum reactive power output at Pc1 (MVAr)				-> Useful ?
+    (2) 14  Qc1max, maximum reactive power output at Pc1 (MVAr)				-> Useful ?
+    (2) 15  Qc2min, minimum reactive power output at Pc2 (MVAr)				-> Useful ?
+    (2) 16  Qc2max, maximum reactive power output at Pc2 (MVAr)				-> Useful ?
+    (2) 17  ramp rate for load following/AGC (MW/min)							-> Useful ?
+    (2) 18  ramp rate for 10 minute reserves (MW)								-> Useful ?
+    (2) 19  ramp rate for 30 minute reserves (MW)								-> Useful ?
+    (2) 20  ramp rate for reactive power (2 sec timescale) (MVAr/min)			-> Useful ?
     (2) 21  APF, area participation factor
 
     Branch Data Format
@@ -56,10 +56,10 @@ Bus Data Format
         3   r, resistance (p.u.)												-> not yet in NetworkBlock
         4   x, reactance (p.u.)													-> not yet in NetworkBlock
         5   b, total line charging susceptance (p.u.)							-> not yet in NetworkBlock
-        6   rateA, MVA rating A (long term rating), set to 0 for unlimited		-> Usefull ?
-        7   rateB, MVA rating B (short term rating), set to 0 for unlimited		-> Usefull ?
-        8   rateC, MVA rating C (emergency rating), set to 0 for unlimited		-> Usefull ?
-        9   ratio, transformer off nominal turns ratio ( = 0 for lines )		-> Usefull ?
+        6   rateA, MVA rating A (long term rating), set to 0 for unlimited		-> Useful ?
+        7   rateB, MVA rating B (short term rating), set to 0 for unlimited		-> Useful ?
+        8   rateC, MVA rating C (emergency rating), set to 0 for unlimited		-> Useful ?
+        9   ratio, transformer off nominal turns ratio ( = 0 for lines )		-> Useful ?
             (taps at 'from' bus, impedance at 'to' bus,
              i.e. if r = x = b = 0, then ratio = Vf / Vt)
         10  angle, transformer phase shift angle (degrees), positive => delay	-> not yet in NetworkBlock
@@ -94,7 +94,7 @@ Bus Data Format
                 end/break-points of the piecewise linear cost function
             (MODEL = 2) : cn, ..., c1, c0
                 n+1 coefficients of an n-th order polynomial cost function,
-                starting with highest order, where cost is
+                starting with the highest order, where cost is
                 f(p) = cn*p^n + ... + c1*p + c0
   
   (+) Area Data Format (deprecated)

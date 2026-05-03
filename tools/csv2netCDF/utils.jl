@@ -1,29 +1,52 @@
+"""
+    @enum ASSET_TYPE
 
-@enum ASSET_TYPE LOAD = 0 REN = 1 BATT = 2 CONV = 3 THER = 4
+Enumeration type to specify the type of the assets.
+Implemented values:
+- LOAD: load type
+- T_LOAD: thermal load
+- REN: renewable assets
+- CONV: battery converters
+- THER: thermal generators
+- TES: thermal energy storage component
+- BATT: battery component
+- HP: heat pump
+- BOIL: boiler
+"""
+@enum ASSET_TYPE LOAD=0 T_LOAD=1 REN=2 BATT=3 CONV=4 THER=5 LOAD_ADJ=6 TES=7 HP=8 BOIL=9
 ANY = collect(instances(ASSET_TYPE))  # all assets code
-DEVICES = setdiff(ANY, [LOAD])  # devices codes
+GENS = [REN, THER]                    # generator codes
+LOADS = [LOAD, LOAD_ADJ, T_LOAD]      # load codes
+DEVICES = setdiff(ANY, LOADS)         # devices codes
 
 type_codes = Base.Dict(
     "renewable" => REN,
-    "battery" => BATT,
     "converter" => CONV,
-    "thermal" => THER,
-    "load" => LOAD,
+    "t_load"    => T_LOAD,
+    "load"      => LOAD,
+    "thermal"   => THER,
+    "battery"   => BATT,
+    "storage"   => TES,
+    "heat_pump" => HP,
+    "boiler"    => BOIL,
+    "load_adj"  => LOAD_ADJ,
 )
 
+# Get the previous time step, with circular time step
+@inline pre(time_step::Int, gen_data::Dict) = if (time_step > field(gen_data, "init_step")) time_step - 1 else field(gen_data, "final_step") end
+@inline pre(time_step::V, time_set::UnitRange{V}) where {V<:Int} = if (time_step > time_set[1]) time_step - 1 else time_set[end] end
+
+
 "Function to safely get a field of a dictionary with default value"
-@inline field_d(d::AbstractDict, field, default=nothing) =
-    (field in keys(d) ? d[field] : default)
+@inline field_d(d::AbstractDict, field, default=nothing) = (field in keys(d) ? d[field] : default)
 @inline field_i(d, field) = field_d(d, field, 0)
 @inline field_f(d, field) = field_d(d, field, 0.0)
 "Function get field that throws an error if the field is not found"
-@inline function field(d, field, desc=nothing)
-    if d isa AbstractDict && field in keys(d)
+@inline function field(d::AbstractDict, field, desc=nothing)
+    if field in keys(d)
         return d[field]
     else
-        msg =
-            isnothing(desc) ?
-            "Field $field not found in dictionary $(keys(d))" : desc
+        msg = isnothing(desc) ? "Field $field not found in dictionary $(keys(d))" : desc
         throw(KeyError(msg))
     end
 end
@@ -33,7 +56,6 @@ end
 @inline function allequal(x)
     length(x) < 2 && return true
     e1 = x[1]
-    i = 2
     @inbounds for i = 2:length(x)
         x[i] == e1 || return false
     end
@@ -41,30 +63,49 @@ end
 end
 
 "Function to get the general parameters"
-general(d) = field(d, "general")
+general(d::AbstractDict) = field(d, "general")
 "Function to get the users configuration"
-users(d) = field(d, "users")
+users(d::AbstractDict) = field(d, "users")
 "Function to get the market configuration"
-market(d) = field(d, "market")
+market(d::AbstractDict) = field(d, "market")
 "Function to get the profile dictionary"
-profiles(d) = field_d(d, "profile")
+profiles(d::AbstractDict) = field_d(d, "profile")
+"Auxiliary function to check if the key 'type' is available in the dictionary d, otherwise false"
+has_type(d::AbstractDict) = ("type" in keys(d))
+has_type(d) = false  # if d is not an abstract dictionary, then return false
 "Function to get the components list of a dictionary"
-components(d) = d
+function components(d::AbstractDict)
+    return Dict(k => v for (k, v) in d if has_type(v))
+end
 "Function to get the components value of a dictionary"
 component(d, c_name) = field(components(d), c_name)
 "Function to get the components value of a dictionary"
 field_component(d, c_name, f_name) = field(component(d, c_name), f_name)
-
+"Function to get the components value of a dictionary, with default value"
+field_component(d, c_name, f_name, default) = field_d(component(d, c_name), f_name, default)
+"Function to know if a dictionary has a particular component"
+has_component(d, c_name, f_name) = haskey(component(d, c_name), f_name)
 "Function to get a specific profile"
 function profile(d, profile_name)
     profile_block = profiles(d)
     return field(profile_block, profile_name)
 end
-
 "Function to get a specific profile"
 function profile_component(d, c_name, profile_name)
     profile_block = profiles(component(d, c_name))
     return field(profile_block, profile_name)
+end
+"Function to get a profile with a default fallback if absent"
+function profile_d(d, profile_name, default=nothing)
+    profile_block = profiles(d)
+    isnothing(profile_block) && return default
+    return field_d(profile_block, profile_name, default)
+end
+"Function to get a component profile with a default fallback if absent"
+function profile_component_d(d, c_name, profile_name, default=nothing)
+    profile_block = profiles(component(d, c_name))
+    isnothing(profile_block) && return default
+    return field_d(profile_block, profile_name, default)
 end
 
 "Function to get the asset type of a component"
@@ -88,66 +129,70 @@ end
 "Function to get the list of the assets for a user in a list of elements except a list of given types"
 function asset_names_ex(d, ex::Vector{ASSET_TYPE})
     comps = components(d)
-    accepted_types = set_diff(ANY, ex)
+    accepted_types = setdiff(ANY, ex)
     return asset_names(d, accepted_types)
 end
 
-"Get the list of users"
+"Function to get the list of devices for a user"
+device_names(d) = asset_names(d, DEVICES)
+
+"Function to get the list of generators for a user"
+generator_names(d) = asset_names(d, GENS)
+
+"Function to check whether an user has any asset"
+has_any_asset(d, a_types::Vector{ASSET_TYPE}=DEVICES) = !isempty(asset_names(d, a_types))
+
+"Function to check whether an user has an asset type"
+has_asset(d, atype::ASSET_TYPE) = !isempty(asset_names(d, atype))
+
+"Function to check whether an user has an asset given its name"
+has_asset(d, aname::AbstractString) = aname in keys(d)
+
+
+"Get the list of users specified in the YAML general configuration."
 function user_names(gen_data, users_data)
-    # get the list of users if set
-    user_list = field_d(gen_data, "user_list")
-    if isnothing(user_list)
+    user_set = field_d(gen_data, "user_set")
+    if isnothing(user_set)
         @info "List of users not specified: all users selected"
-        user_list = collect(keys(users_data))
-    elseif isempty(user_list)
+        user_set = collect(keys(users_data))
+    elseif isempty(user_set)
         throw(ErrorException("Input user list is empty"))
-    elseif !(user_list isa AbstractVector)
+    elseif !(user_set isa AbstractVector)
         throw(ErrorException("Input user list is not a vector"))
     end
-    return sort!(user_list)
+    return sort!(user_set)
 end
+
 
 """
 Function to parse a string value of a profile to load the corresponding dataframe
 """
-function parse_dataprofile(
-    gen_config,
-    data,
-    profile_name,
-    profile_value::AbstractString,
-)
+function parse_dataprofile(gen_config, data, profile_name, profile_value::AbstractString)
+
+    init_step = gen_config["init_step"]
+    final_step = gen_config["final_step"]
 
     if profile_value in names(data)
-        return data[!, profile_value]
+        return data[init_step:final_step, profile_value]
     else
-        throw(
-            KeyError(
-                "Profile name $profile_value not found in available dataframes",
-            ),
-        )
+        throw(KeyError("Profile name $profile_value not found in available dataframes"))
     end
 end
 
 """
-Function to parse a string value of a profile to load the corresponding dataframe
+Function to parse a vector profile, slicing it to [init_step, final_step].
 """
-function parse_dataprofile(
-    gen_config,
-    data,
-    profile_name,
-    profile_value::AbstractVector{T},
-) where {T<:Integer}
+function parse_dataprofile(gen_config, data, profile_name, profile_value::AbstractVector{T}) where {T<:Real}
 
-    if length(profile_value) <
-       gen_config["final_step"] - gen_config["init_step"] + 1
-        throw(
-            ErrorException(
-                "Not enough profile data available for the current profile list",
-            ),
-        )
-    end
+    init_step = gen_config["init_step"]
+    @assert init_step isa Integer "Parameter init_step in configuration is not an Int for profile $profile_name"
+    @assert init_step >= 1 "Parameter init_step shall be non-negative for profile $profile_name"
 
-    return profile_value
+    final_step = gen_config["final_step"]
+    @assert final_step isa Integer "Parameter final_step in configuration is not an Int for profile $profile_name"
+    @assert length(profile_value) >= final_step "Parameter final_step shall be no larger than the length of profile $profile_name"
+
+    return profile_value[init_step:final_step]
 end
 
 """
@@ -159,48 +204,24 @@ function parse_dataprofile(gen_config, data, profile_name, profile_value::Dict)
     func_name = field(profile_value, "function")
     inputs = field(profile_value, "inputs")
 
-    # load input data for the function
     input_data = []
     for i_data in inputs
-        push!(
-            input_data,
-            parse_dataprofile(
-                gen_config,
-                data,
-                profile_name * " inputs",
-                i_data,
-            ),
-        )
+        push!(input_data, parse_dataprofile(gen_config, data, profile_name * " inputs", i_data))
     end
 
-    # prepare the execution of the function
-    cmd_expr = Expr(
-        :call,
-        Symbol(func_name),
-        gen_config,
-        data,
-        profile_name,
-        input_data...,
-    )
-
-    # execute the function
+    cmd_expr = Expr(:call, Symbol(func_name), gen_config, data, profile_name, input_data...)
     ret_value = eval(cmd_expr)
 
     return ret_value
 end
 
+
 """
-Function to parse a string value of a profile to load the corresponding dataframe
+Function to parse a scalar profile and broadcast it across the time horizon.
 """
-function parse_dataprofile(
-    gen_config,
-    data,
-    profile_name,
-    profile_value::T,
-) where {T<:Real}
+function parse_dataprofile(gen_config, data, profile_name, profile_value::T) where {T<:Real}
 
     n_steps = gen_config["final_step"] - gen_config["init_step"] + 1
-
     return fill(convert(Float64, profile_value), n_steps)
 end
 
@@ -212,10 +233,16 @@ function parse_dataprofile(gen_config, data, profile_name, profile_value::Any)
 end
 
 """
-Function to read the input of the optimization model described as a yaml file
+    read_input(file_name)
+
+Read a YAML model description and return the loaded data dictionary, with all
+profile placeholders resolved against the optional CSV datasets. Handles both
+the old format (flat `market.profile`) and the new format
+(`general.profile` + per-tariff `market.<tariff>.profile`).
 """
 function read_input(file_name::AbstractString)
 
+    file_name = abspath(file_name)
     data = YAML.load_file(file_name)
 
     gen_data = general(data)
@@ -225,8 +252,8 @@ function read_input(file_name::AbstractString)
     opt_files = field(gen_data, "optional_datasets")
     if !isnothing(opt_files)  # datasets are available
         for f_name in opt_files
-            # read dataset and join to the original dataset
-            d = CSV.read(f_name, DataFrame)
+            abs_file_name = (isabspath(f_name) ? f_name : joinpath(dirname(file_name), f_name))
+            d = CSV.read(abs_file_name, DataFrame)
             if isempty(opt_data)
                 opt_data = d
             else
@@ -235,7 +262,6 @@ function read_input(file_name::AbstractString)
         end
     end
 
-    # process main fields of the assets to populate the dictionary with all filled data
     market_data = market(data)
     users_data = users(data)
 
@@ -243,17 +269,18 @@ function read_input(file_name::AbstractString)
         profile_dict = profiles(d_dict)
         if !isnothing(profile_dict) && length(profile_dict) > 0
             for p_name in keys(profile_dict)
-                profile_dict[p_name] = parse_dataprofile(
-                    gen_data,
-                    opt_data,
-                    p_name,
-                    profile_dict[p_name],
-                )
+                profile_dict[p_name] = parse_dataprofile(gen_data, opt_data, p_name, profile_dict[p_name])
             end
         end
     end
 
-    change_profile!(market_data, opt_data)
+    # General-level profiles (time_res, energy_weight, peak_categories, reward_price)
+    change_profile!(gen_data, opt_data)
+
+    # Per-tariff market profiles (commercial, non_commercial, ...)
+    for c_name in keys(market_data)
+        change_profile!(market_data[c_name], opt_data)
+    end
 
     for u_name in keys(users_data)
         comp_dict = components(users_data[u_name])
@@ -267,28 +294,23 @@ function read_input(file_name::AbstractString)
     return data
 end
 
+"Return main data elements of the dataset: general parameters, users data and market data"
+function explode_data(data)
+    return general(data), users(data), market(data)
+end
+
 parse_to_float(x::AbstractString) = parse(Float64, x)
 parse_to_float(x::Any) = Float64(x)
 
+
 "Function to parse the peak power categories and tariff"
-function parse_peak_quantity_by_time_vectors(
-    gen_config,
-    data,
-    profile_name,
-    peak_categories,
-    peak_tariffs,
-)
-    # initialization of output dictionary
+function parse_peak_quantity_by_time_vectors(gen_config, data, profile_name, peak_categories, peak_tariffs)
     peak_tariffs_by_category = Dict{String,Float64}()
 
     for (p_cat, t_value) in zip(peak_categories, peak_tariffs)
         if p_cat ∈ keys(peak_tariffs_by_category) &&
            peak_tariffs_by_category[p_cat] != t_value
-            throw(
-                ErrorException(
-                    "Peak tariff category $p_cat corresponds multiple prices (e.g., $t_value and $(peak_tariffs_by_category[p_cat])",
-                ),
-            )
+            throw(ErrorException("Peak tariff category $p_cat corresponds multiple prices (e.g. $t_value and $(peak_tariffs_by_category[p_cat])"))
         elseif p_cat ∉ keys(peak_tariffs_by_category)
             peak_tariffs_by_category[p_cat] = parse_to_float(t_value)
         end
@@ -297,12 +319,71 @@ function parse_peak_quantity_by_time_vectors(
     return peak_tariffs_by_category
 end
 
-# function used to convert array in dictionary
+
+"""
+    _jump_to_dict
+
+Function to turn a JuMP model to a dictionary
+"""
+function _jump_to_dict(model)
+    results = Dict{Symbol,Any}()
+
+    results[:solve_time] = solve_time(model)
+    results[:termination_status] = Int(termination_status(model))
+    results[:objective_value] = objective_value(model)
+
+    for key_model in keys(model.obj_dict)
+        push!(results, key_model => value.(model[key_model]))
+    end
+
+    return results
+end
+
+
+"""
+    delta_t_tes_lb(users_data, u, s, t)
+
+Lower bound of the temperature difference for a thermal energy storage (TES) at time t.
+"""
+function delta_t_tes_lb(users_data, u, s, t)
+    l = first([
+        l for l in asset_names(users_data[u], T_LOAD)
+        if field_component(users_data[u], l, "corr_asset") == s || s in field_component(users_data[u], l, "corr_asset")
+    ])
+    md = profile_component(users_data[u], l, "mode")[t]
+    if md < -0.5 # cooling
+        return field_component(users_data[u], s, "T_ref_cool") - field_component(users_data[u], s, "T_input_cool")
+    else
+        return 0.0
+    end
+end
+
+
+"""
+    delta_t_tes_ub(users_data, u, s, t)
+
+Upper bound of the temperature difference for a thermal energy storage (TES) at time t.
+"""
+function delta_t_tes_ub(users_data, u, s, t)
+    l = first([
+        l for l in asset_names(users_data[u], T_LOAD)
+        if field_component(users_data[u], l, "corr_asset") == s || s in field_component(users_data[u], l, "corr_asset")
+    ])
+    md = profile_component(users_data[u], l, "mode")[t]
+    if md > 0.5 # heating
+        return field_component(users_data[u], s, "T_ref_heat") - field_component(users_data[u], s, "T_input_heat")
+    else
+        return 0.0
+    end
+end
+
+
+"Convert an array to a dictionary keyed by 1-based time indices"
 function array2dict(p::Array{Float64})
-	A = Dict{Int,Float64}()
-	n = length(p)
-	for i = 1:n
-		A[i] = p[i]
-	end
-	return A
+    A = Dict{Int,Float64}()
+    n = length(p)
+    for i = 1:n
+        A[i] = p[i]
+    end
+    return A
 end

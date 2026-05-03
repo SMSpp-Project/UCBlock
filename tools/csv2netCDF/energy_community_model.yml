@@ -3,7 +3,7 @@ general:  # general input parameters
   final_step: 1152  # final time step
   d_rate: 0.03  # discount rate
   project_lifetime: 20  # [y] project lifetime
-  user_set: [user1, user2, user3, user4, user5, user6, user7, user8, user9, user10]  # list of users for the simulation
+  user_set: [user1, user2, user3] #, user4, user5, user6, user7, user8, user9, user10]  # list of users for the simulation
   scen_s_sample: 1  # number of scenarios s to be extracted
   scen_eps_sample: 1  # number of scenarios eps to be extracted
   sigma_load: 0.3  # standard deviation associated with load in long period uncertainty

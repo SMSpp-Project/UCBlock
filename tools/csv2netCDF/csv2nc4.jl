@@ -3,7 +3,7 @@ Pkg.activate(".")  # Activate environment from Project.toml
 Pkg.instantiate()
 
 using YAML
-# the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl, 
+# the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl,
 # does not support (yet) the concept of group :(
 using NCDatasets
 using DataStructures
@@ -12,7 +12,6 @@ using Parameters
 using DataFrames
 using XLSX
 using JLD2
-using YAML
 using CSV
 
 using Distributions
@@ -32,14 +31,27 @@ include("scenario_definition.jl")
 include("pem_extraction.jl")
 
 # Include the sampler for distributions associated to short period uncertainty and a function to generate scenarios
-include("Scen_eps_sampler.jl")
+include("scen_eps_sampler.jl")
 
 # setting the seed
 Random.seed!(123)
 
+
+# YAML layout assumed by this driver (the only supported format):
+#   * EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
+#     `peak_categories`) under `general.profile`.
+#   * Pricing fields (`buy_price`, `sell_price`, `consumption_price`,
+#     `peak_tariff`, `peak_weight`) under per-tariff blocks selected by
+#     `users.<u>.tariff_name`.
+
+@inline ec_profile(name) = profile(gen_data, name)
+@inline ec_profile_d(name, default) = profile_d(gen_data, name, default)
+@inline user_market_data(u) = field(market_data, field(users_data[u], "tariff_name"))
+
+
 function csvEC2nc4(
     deterministic::Bool=false,
-    sampled_scenarios::Union{Nothing, Vector{Scenario_Load_Renewable}}=nothing,
+    sampled_scenarios::Union{Nothing,Vector{Scenario_Load_Renewable}}=nothing,
 )
 
     middle = "_"
@@ -71,7 +83,7 @@ function csvEC2nc4(
     defDim(block, "TimeHorizon", n_steps)
 
     # Store the number of `ECNetworkBlock`(s), i.e., the number of peak periods/categories
-    peak_categories = profile(market_data, "peak_categories")[time_set]
+    peak_categories = ec_profile("peak_categories")[time_set]
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
@@ -79,49 +91,43 @@ function csvEC2nc4(
     # Create buy, sell, reward, and consumption, i.e., the constant term, price data arrays
     project_lifetime = field(gen_data, "project_lifetime")
     year_set = 1:project_lifetime
+    discount_factor = sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    energy_weight_profile = ec_profile("energy_weight")
+    time_res_profile = ec_profile("time_res")
 
     # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-    buy_price_data = [profile(market_data, "buy_price")[t] *
-                      profile(market_data, "energy_weight")[t] *
-                      profile(market_data, "time_res")[t]
-                      for t in time_set] *
-                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    buy_price_data = [sum(profile(user_market_data(u), "buy_price")[t] *
+                          energy_weight_profile[t] *
+                          time_res_profile[t]
+                          for u in user_set)
+                      for t in time_set] * discount_factor
 
     # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-    sell_price_data = [profile(market_data, "sell_price")[t] *
-                       profile(market_data, "energy_weight")[t] *
-                       profile(market_data, "time_res")[t]
-                       for t in time_set] *
-                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    sell_price_data = [sum(profile(user_market_data(u), "sell_price")[t] *
+                           energy_weight_profile[t] *
+                           time_res_profile[t]
+                           for u in user_set)
+                       for t in time_set] * discount_factor
 
     # `RewardPrice`, i.e., the reward awarded to the community
-    reward_price_data = [profile(market_data, "reward_price")[t] *
-                         profile(market_data, "energy_weight")[t] *
-                         profile(market_data, "time_res")[t]
-                         for t in time_set] *
-                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-
-    # `PenaltyPrice`, i.e., the penalty price for energy squilibrium
-    #= penalty_price_data = [profile(market_data, "penalty_price")[t] *
-                            profile(market_data, "energy_weight")[t] *
-                            profile(market_data, "time_res")[t]
-                            for t in time_set] *
-                            sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set) =#
+    reward_price_data = [ec_profile_d("reward_price", fill(0.0, n_steps))[t] *
+                         energy_weight_profile[t] *
+                         time_res_profile[t]
+                         for t in time_set] * discount_factor
 
     # `PeakTariff`, i.e., the peak tariff cost
-    peak_tariff_data = [profile(market_data, "peak_tariff")[w] *
-                        profile(market_data, "peak_weight")[w]
-                        for w in peak_set] *
-                       sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    peak_tariff_data = [sum(profile(user_market_data(u), "peak_tariff")[w] *
+                            profile(user_market_data(u), "peak_weight")[w]
+                            for u in user_set)
+                        for w in peak_set] * discount_factor
 
     # `ConstantTerm`, i.e., the consumption price
-    const_term_data = [sum(profile(market_data, "consumption_price")[t] *
+    const_term_data = [sum(profile(user_market_data(u), "consumption_price")[t] *
                            profile_component(users_data[u], l, "load")[t]
                            for u in user_set for l in asset_names(users_data[u], LOAD)) *
-                       profile(market_data, "energy_weight")[t] *
-                       profile(market_data, "time_res")[t]
-                       for t in time_set] *
-                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                       energy_weight_profile[t] *
+                       time_res_profile[t]
+                       for t in time_set] * discount_factor
 
     if (!("--with-network-blocks" in OPTION_ARGS) &&
         allequal(sell_price_data) &&
@@ -270,7 +276,6 @@ function csvEC2nc4(
     # AbstractPath
     if !deterministic # stochastic model
         path_dim = 0
-        # path_group_idx_data = Int[]
         path_group_idx_data = String[]
         path_element_idx_data = Int[]
         path_range_idx_data = Int[]
@@ -325,7 +330,6 @@ function csvEC2nc4(
 
                     if !deterministic # stochastic model
                         path_dim += 1
-                        # append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_intermittent
                         append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
                         append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_intermittent
                         append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_intermittent
@@ -368,7 +372,7 @@ function csvEC2nc4(
 
                     # store the minimum storage of the battery
                     min_storage_data = [field_component(users_data[u], g, "min_SOC") /
-                                        profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                        time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                         for t in time_set] * field_component(users_data[u], g, "max_capacity")
                     if (allequal(min_storage_data))
                         min_storage = defVar(ub, "MinStorage", Float64, ())
@@ -380,7 +384,7 @@ function csvEC2nc4(
 
                     # store the maximum storage of the battery
                     max_storage_data = [field_component(users_data[u], g, "max_SOC") /
-                                        profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                        time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                         for t in time_set] * field_component(users_data[u], g, "max_capacity")
                     if (allequal(max_storage_data))
                         max_storage = defVar(ub, "MaxStorage", Float64, ())
@@ -440,7 +444,6 @@ function csvEC2nc4(
 
                     if !deterministic # stochastic model
                         path_dim += 2
-                        # append!(path_group_idx_data, [last_g, 0, last_g, 1]) # i.e., last_g wrt B, 0 wrt V x_battery, 1 wrt V x_converter
                         append!(path_group_idx_data, [string(last_g), "x_battery", string(last_g), "x_converter"]) # i.e., last_g wrt B, V x_battery, x_converter
                         append!(path_element_idx_data, [typemax(UInt32), 0, typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_battery, x_converter
                         append!(path_range_idx_data, [typemax(UInt32), 1, typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_battery, x_converter
@@ -494,8 +497,8 @@ function csvEC2nc4(
                         # store the linear term of the thermal
                         linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "slope_map")) *
-                                                profile(market_data, "energy_weight")[t] *
-                                                profile(market_data, "time_res")[t]
+                                                energy_weight_profile[t] *
+                                                time_res_profile[t]
                                                 for t in time_set] *
                                                (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
                         if (allequal(linear_term_data))
@@ -510,8 +513,8 @@ function csvEC2nc4(
                         const_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
                                                 (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "inter_map"))) *
-                                               profile(market_data, "energy_weight")[t] *
-                                               profile(market_data, "time_res")[t]
+                                               energy_weight_profile[t] *
+                                               time_res_profile[t]
                                                for t in time_set] *
                                               (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
                                           field_component(users_data[u], g, "nom_capacity")
@@ -525,7 +528,6 @@ function csvEC2nc4(
 
                         if !deterministic # stochastic model
                             path_dim += 1
-                            # append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_thermal
                             append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
                             append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
                             append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
@@ -543,7 +545,10 @@ function csvEC2nc4(
 
     if !deterministic # stochastic model
 
-        # The mode "c" stands for creating a new file (clobber)
+        # The mode "c" stands for creating a new file (clobber).
+        # The TSSB instance only references the deterministic UCBlock written above
+        # via the `filename` attribute on its inner Block — the deterministic block
+        # itself is NOT embedded inline.
         tssb_ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
 
@@ -570,7 +575,7 @@ function csvEC2nc4(
         dss = defGroup(
             tssb,
             "DiscreteScenarioSet",
-            attrib = OrderedDict("type" => "DiscreteScenarioSet"),
+            attrib=OrderedDict("type" => "DiscreteScenarioSet"),
         )
 
         # ScenarioSize = number of entries in each scenario vector.
@@ -582,8 +587,6 @@ function csvEC2nc4(
 
         defDim(dss, "NumberScenarios", n_scen)
         defDim(dss, "ScenarioSize", scenario_size)
-        # For "NumberScenarios" we re-use the dimension already defined
-        # in the parent group, by referring to it by name in defVar.
 
         ## A T T E N T I O N: The data is stored in the NetCDF file in the
         ## same order as they are stored in memory. As Julia uses the
@@ -595,7 +598,7 @@ function csvEC2nc4(
         ## NumberScenarios x ScenarioSize in C++, we store it here as
         ## ScenarioSize x NumberScenarios in Julia.
         scen_mat = Array{Float64}(undef, scenario_size, n_scen)
-        weights  = Array{Float64}(undef, n_scen)
+        weights = Array{Float64}(undef, n_scen)
 
         for (k, scen) in enumerate(sampled_scenarios)
             vec = Array{Float64}(undef, scenario_size)
@@ -648,7 +651,6 @@ function csvEC2nc4(
         path_node_types = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
         path_node_types[:] = collect("BV"^path_dim)[:] # repeat BV path_dim times
 
-        # path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
         path_group_idx = defVar(ap, "PathGroupIndices", String, ("TotalLength",))
         path_group_idx[:] = path_group_idx_data[:]
 
@@ -686,23 +688,23 @@ function csvEC2nc4(
         defDim(sb, "SetElements_dim", 4 * number_mappings)
 
         v_FunctionName = defVar(sb, "FunctionName", String, ("NumberDataMappings",))
-        v_DataType     = defVar(sb, "DataType",     Char,   ("NumberDataMappings",))
-        v_Caller       = defVar(sb, "Caller",       Char,   ("NumberDataMappings",))
-        v_SetSize      = defVar(sb, "SetSize",      UInt32, ("SetSize_dim",))
-        v_SetElements  = defVar(sb, "SetElements",  UInt32, ("SetElements_dim",))
+        v_DataType = defVar(sb, "DataType", Char, ("NumberDataMappings",))
+        v_Caller = defVar(sb, "Caller", Char, ("NumberDataMappings",))
+        v_SetSize = defVar(sb, "SetSize", UInt32, ("SetSize_dim",))
+        v_SetElements = defVar(sb, "SetElements", UInt32, ("SetElements_dim",))
 
         v_FunctionName[:] = fill("UCBlock::set_active_power_demand", number_mappings)
-        v_DataType[:]     = fill('D', number_mappings)
-        v_Caller[:]       = fill('B', number_mappings)
+        v_DataType[:] = fill('D', number_mappings)
+        v_Caller[:] = fill('B', number_mappings)
 
         # Range/Range for both mappings
-        v_SetSize[:]      = fill(UInt32(0), 2 * number_mappings)
+        v_SetSize[:] = fill(UInt32(0), 2 * number_mappings)
 
         # mapping 0: [0,  N)  -> [0, N)
         # mapping 1: [N, 2N)  -> [0, N)
         v_SetElements[:] = UInt32.([
-            0,  N,  0,  N,
-            N, 2N,  0,  N
+            0, N, 0, N,
+            N, 2N, 0, N
         ])
 
         ap = defGroup(sb, "AbstractPath")
@@ -710,14 +712,15 @@ function csvEC2nc4(
         defDim(ap, "PathDim", number_mappings)
         defDim(ap, "TotalLength", 0)  # empty paths
 
-        v_PathStart        = defVar(ap, "PathStart",          UInt32, ("PathDim",))
-        v_PathNodeTypes    = defVar(ap, "PathNodeTypes",      Char,   ("TotalLength",))
-        v_PathGroupIndices = defVar(ap, "PathGroupIndices",   String, ("TotalLength",))
-        v_PathElementIdx   = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
-        v_PathRangeIdx     = defVar(ap, "PathRangeIndices",   UInt32, ("TotalLength",))
+        v_PathStart = defVar(ap, "PathStart", UInt32, ("PathDim",))
+        v_PathNodeTypes = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
+        v_PathGroupIndices = defVar(ap, "PathGroupIndices", String, ("TotalLength",))
+        v_PathElementIdx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
+        v_PathRangeIdx = defVar(ap, "PathRangeIndices", UInt32, ("TotalLength",))
 
         v_PathStart[:] = fill(UInt32(0), number_mappings)
 
+        # The deterministic UCBlock is referenced via filename — not embedded inline.
         defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))
 
         close(tssb_ds)
@@ -752,6 +755,9 @@ final_step = field(gen_data, "final_step")
 time_set = init_step:final_step
 n_steps = length(time_set)
 
+# Peak set is required as a global by Scen_eps_sampler / scenario_definition.
+peak_set = unique(ec_profile("peak_categories")[time_set])
+
 # number of scenarios to be extracted
 scen_s_sample = field(gen_data, "scen_s_sample")
 scen_eps_sample = field(gen_data, "scen_eps_sample")
@@ -774,32 +780,24 @@ SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV]
 sampled_scenarios = nothing
 if !is_det
 
-    # Number of scenarios to be extracted
-    scen_s_sample = 3
-    scen_eps_sample = 3
-
     scen_s_set = 1:scen_s_sample
     scen_eps_set = 1:scen_eps_sample
 
-    # Standard deviation associated with load and renewable production in long period uncertainty
-
-    sigma_load = 0.4
-    sigma_ren = 0.2
-
     # Extraction of the point used to sample the distributions associated to the long period uncertainty
     (point_s_load,
-    point_s_ren,
-    scen_probability) = pem_extraction(scen_s_sample,sigma_load,sigma_ren)
+        point_s_ren,
+        scen_probability) = pem_extraction(scen_s_sample, sigma_load, sigma_ren)
 
-    # To define an empty stochastic model we have to declare previously the scenarios
-    # sampled_scenarios is a list of Scenario_Load_Renewable defined in scenario_definition.jl; see definition for more information
+    # To define an empty stochastic model we have to declare previously the scenarios.
+    # sampled_scenarios is a list of Scenario_Load_Renewable defined in scenario_definition.jl;
+    # see definition for more information.
     # Notable quantities are:
     #   sampled_scenarios[i].scen_s : scenario s
     #   sampled_scenarios[i].scen_eps : scenario epsilon
     #   probability(sampled_scenarios[1]) : denotes the probability of the scenario
-    #   sampled_scenarios[i].Load : is a dictionary that denotes the load profiles of each user; e.g. sampled_scenarios[1].Load["user1"][1] is the load of user1 in time 1
-    #   sampled_scenarios[i].Ren : is a dictionary that denotes the renewable profiles of each user by asset; e.g. sampled_scenarios[1].Ren["user1"]["PV"][1] is the PV production of user1 in time 1
-    sampled_scenarios = scenarios_generator(data,point_s_load,point_s_ren,scen_probability,scen_s_sample,scen_eps_sample)
+    #   sampled_scenarios[i].Load["user1"][1] : load of user1 at time 1
+    #   sampled_scenarios[i].Ren["user1"]["PV"][1] : PV production of user1 at time 1
+    sampled_scenarios = scenarios_generator(data, point_s_load, point_s_ren, scen_probability, scen_s_sample, scen_eps_sample)
 end
 
 ## Data aggregation and netCDF files generation
