@@ -3,10 +3,10 @@
 # This file aims to obtain the results of the instances with EnergyCommunity.jl.
 #
 # To run this file you can run in the terminal:
-# julia test_instance_with_EC_jl.jl
+# julia test_instance_with_EC_jl.jl {file_name [optional]}
 # the results will be printed in the terminal.
 #
-# To customize the instance, you can change the configuration file (variable fconfig).
+# {file_name} is the optional name of the configuration file, which is a YAML file, e.g. `energy_community_model.yaml`.
 #
 # Each instance is defined by:
 # - configuration file: configuration file of the instance, which contains the parameters of the model. 
@@ -43,7 +43,11 @@ optimizer = Gurobi.Optimizer  # if you have a Gurobi license, otherwise use HiGH
 ## 2. Defines the path to the configuration file
 
 # Load the data
-fconfig = "energy_community_model_new.yml"
+fconfig = "energy_community_model_new.yml"  # default value
+if length(ARGS) > 0
+    fconfig = string(ARGS[1])
+end
+println("Using configuration file: ", fconfig)
 
 ## 3. Create the model and solve it
 
