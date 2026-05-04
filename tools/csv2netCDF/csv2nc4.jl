@@ -584,26 +584,22 @@ function csvEC2nc4(
         defDim(tssb, "NumberScenarios", n_scen)
 
         # ----------------------------------------------------------------
-        # Stochastic-price detection (forward-compatibility hook).
+        # Stochastic-price detection.
         # ----------------------------------------------------------------
-        # The base AUTENS sampler only perturbs Load and Ren. Our extended
-        # `scen_eps_sampler.jl` ALSO perturbs market-level prices when the
+        # `scen_eps_sampler.jl` perturbs market-level prices whenever the
         # YAML market profile defines `std_<name>` (`std_buy_price`,
         # `std_sell_price`, `std_consumption_price`, `std_penalty_price`,
-        # `std_peak_tariff`).  When those entries appear, the resulting
-        # scenarios carry distinct values for the corresponding price
-        # field; we detect that here so a future revision of csv2nc4 (and
-        # the C++ side of `ECNetworkBlock` / `UCBlock`) can wire them as
-        # extra `SimpleDataMapping` slices.
-        #
-        # Today only `UCBlock::set_active_power_demand`,
-        # `ECNetworkBlock::set_active_demand` and
-        # `IntermittentUnitBlock::set_maximum_power` are registered via
-        # `register_method<>()`. Until ECNetworkBlock/UCBlock register
-        # `set_buy_price`, `set_sell_price`, `set_peak_tariff`,
-        # `set_const_term` (consumption_price) and `set_penalty_price`
-        # we cannot embed those mappings in the netCDF without breaking
-        # deserialization, so we just emit a diagnostic.
+        # `std_peak_tariff`); without those entries the corresponding price
+        # is left deterministic. We scan the sampled scenarios to find
+        # which price fields actually vary, then emit one
+        # `SimpleDataMapping` per (varying field, peak period) targeting the
+        # matching ECNetworkBlock setter (registered in
+        # `ECNetworkBlock::static_initialization`):
+        #   buy_price          -> ECNetworkBlock::set_buy_price
+        #   sell_price         -> ECNetworkBlock::set_sell_price
+        #   peak_tariff        -> ECNetworkBlock::set_peak_tariff   (scalar)
+        #   consumption_price  -> ECNetworkBlock::set_const_term    (scalar)
+        #   penalty_price      -> ECNetworkBlock::set_penalty_price
         function _scenario_field_varies(field_extractor)
             isempty(sampled_scenarios) && return false
             ref = field_extractor(sampled_scenarios[1])
@@ -616,12 +612,9 @@ function csvEC2nc4(
         _scenario_field_varies(s -> s.penalty_price)     && push!(varying_price_fields, "penalty_price")
         _scenario_field_varies(s -> s.peak_tariff)       && push!(varying_price_fields, "peak_tariff")
 
-        # The C++ ECNetworkBlock now exposes set_buy_price/set_sell_price/
-        # set_peak_tariff/set_const_term/set_penalty_price via register_method<>.
-        # For each varying field we emit one SimpleDataMapping per peak period,
-        # targeting NetworkBlock_<i_w-1>. peak_tariff and consumption_price are
-        # scalar setters (length 1); the others are per-time vectors of length
-        # equal to the peak's number of intervals.
+        # peak_tariff and consumption_price feed scalar setters (slice length 1);
+        # the other three feed per-time vectors of length equal to the peak's
+        # number of intervals.
         ec_setter_for = Dict(
             "buy_price"         => "ECNetworkBlock::set_buy_price",
             "sell_price"        => "ECNetworkBlock::set_sell_price",
@@ -673,6 +666,11 @@ function csvEC2nc4(
         #      max_capacity * scen.Ren[user][asset][t]. These feed
         #      IntermittentUnitBlock::set_maximum_power on the corresponding
         #      UnitBlock_<ub_idx>.
+        #   3. Price tail (only when `varying_price_fields` is non-empty):
+        #      one slice per (varying field, peak period) ordered as in
+        #      `price_mappings`, of length 1 for the scalar setters
+        #      (peak_tariff, consumption_price) and `n_intervals_per_peak[i_w]`
+        #      for the vector setters (buy_price, sell_price, penalty_price).
         n_users = length(user_set)
         n_intermittent = length(intermittent_units)
         N_dem = n_steps * n_users
@@ -835,8 +833,10 @@ function csvEC2nc4(
         # SimpleDataMapping
         #
         # One mapping per stochastic quantity. The scenario vector is split as
-        # described above (Section 1 = demand, then one slice per intermittent
-        # unit). Each mapping declares:
+        # described above: Section 1 (demand), then one slice per intermittent
+        # unit (Section 2), then one slice per (varying price field, peak
+        # period) (Section 3, only when price perturbations are detected).
+        # Each mapping declares:
         #
         #   * which C++ setter consumes the slice
         #   * SetSize=(0,0) i.e. Range/Range mode
@@ -846,7 +846,9 @@ function csvEC2nc4(
         #
         # Mapping 0 targets the inner UCBlock itself (empty AbstractPath);
         # mappings 1..n_intermittent target UnitBlock_<ub_idx> via a single
-        # "B" hop carrying the UnitBlock index.
+        # "B" hop carrying the UnitBlock index; the price mappings target
+        # NetworkBlock_<i_w-1> via a single "B" hop carrying the NetworkBlock
+        # index (= n_devices + (i_w-1) in UCBlock's sub-Block ordering).
 
         number_mappings = 1 + n_intermittent + length(price_mappings)
 

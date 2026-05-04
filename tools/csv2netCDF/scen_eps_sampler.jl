@@ -100,11 +100,11 @@ end
 				get!(ren_production[u],name,temp)
 			end
 		end
-		# Market-level price fields. The base AUTENS sampler copies them across
-		# scenarios verbatim; we additionally apply truncated-Normal noise when the
-		# YAML defines an `std_<field>` profile (e.g. `std_buy_price`, `std_sell_price`,
-		# `std_consumption_price`, `std_penalty_price`, `std_peak_tariff`). When that
-		# `std` is absent the price is left deterministic.
+		# Market-level price fields: each is perturbed with truncated-Normal
+		# noise when the YAML market profile defines the matching `std_<field>`
+		# entry (`std_buy_price`, `std_sell_price`, `std_consumption_price`,
+		# `std_penalty_price`, `std_peak_tariff`); without `std_*` the price is
+		# left deterministic.
 		buy_price_arr          = perturb_price_vector(data_market, "buy_price",         time_set)
 		sell_price_arr         = perturb_price_vector(data_market, "sell_price",        time_set)
 		consumption_price_arr  = perturb_price_vector(data_market, "consumption_price", time_set)
