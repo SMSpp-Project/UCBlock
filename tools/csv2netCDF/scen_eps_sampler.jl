@@ -1,5 +1,47 @@
 # Sampler for distribution associated to short period uncertainty
-	
+
+# ---------------------------------------------------------------------------
+# Helpers for optional stochastic perturbation of market-level prices.
+# A price profile becomes scenario-dependent if the YAML market profile
+# contains the matching `std_<name>` entry (or `std_peak_tariff` for the
+# Dict-typed peak tariff). Without it the price stays deterministic.
+# ---------------------------------------------------------------------------
+
+"""
+    perturb_price_vector(data_market, name, time_set)
+
+Return a per-time-step price vector for `name` (e.g. "buy_price"). When
+`std_<name>` is present in the market profile the deterministic mean is
+perturbed via `MvNormal(mean, std)` then folded to non-negative values;
+otherwise the deterministic mean is returned untouched.
+"""
+function perturb_price_vector(data_market, name::AbstractString, time_set)
+	mean_vec = profile_d(data_market, name, fill(0.0, length(time_set)))
+	std_vec = profile_d(data_market, "std_" * name, nothing)
+	isnothing(std_vec) && return mean_vec
+	return broadcast(abs, rand(MvNormal(mean_vec, std_vec)))
+end
+
+"""
+    perturb_peak_tariff(data_market)
+
+Return the peak-tariff Dict (category → tariff). When the market profile
+contains `std_peak_tariff` (Dict{String,Float64}) each category is sampled
+independently from `Normal(mean, std)`; otherwise the deterministic Dict is
+returned untouched.
+"""
+function perturb_peak_tariff(data_market)
+	mean_dict = profile_d(data_market, "peak_tariff", Dict{String, Float64}())
+	std_dict = profile_d(data_market, "std_peak_tariff", nothing)
+	(isnothing(std_dict) || isempty(std_dict)) && return mean_dict
+	out = Dict{String, Float64}()
+	for (cat, mu) in mean_dict
+		sigma = get(std_dict, cat, 0.0)
+		out[cat] = sigma > 0 ? abs(rand(Normal(mu, sigma))) : mu
+	end
+	return out
+end
+
 ### Sampler definition
 
 @sampler Scenario_eps_Sampler = begin
@@ -58,17 +100,24 @@
 				get!(ren_production[u],name,temp)
 			end
 		end
-		# Market-level price fields are stored in the scenario object but are not propagated
-		# to the netCDF DiscreteScenarioSet, so any field absent from the YAML (typical of the
-		# new format, which lacks `penalty_price`) is filled with empty defaults.
-		empty_dict = Dict{Int, Float64}()
+		# Market-level price fields. The base AUTENS sampler copies them across
+		# scenarios verbatim; we additionally apply truncated-Normal noise when the
+		# YAML defines an `std_<field>` profile (e.g. `std_buy_price`, `std_sell_price`,
+		# `std_consumption_price`, `std_penalty_price`, `std_peak_tariff`). When that
+		# `std` is absent the price is left deterministic.
+		buy_price_arr          = perturb_price_vector(data_market, "buy_price",         time_set)
+		sell_price_arr         = perturb_price_vector(data_market, "sell_price",        time_set)
+		consumption_price_arr  = perturb_price_vector(data_market, "consumption_price", time_set)
+		penalty_price_arr      = perturb_price_vector(data_market, "penalty_price",     time_set)
+		peak_tariff_dict       = perturb_peak_tariff(data_market)
+
 		return Scenario_Load_Renewable(1,
 						1,
-						profile_d(data_market, "peak_tariff", Dict{String, Float64}()),
-						array2dict(profile_d(data_market, "buy_price",          fill(0.0, length(time_set)))),
-						array2dict(profile_d(data_market, "consumption_price",  fill(0.0, length(time_set)))),
-						array2dict(profile_d(data_market, "sell_price",         fill(0.0, length(time_set)))),
-						array2dict(profile_d(data_market, "penalty_price",      fill(0.0, length(time_set)))),
+						peak_tariff_dict,
+						array2dict(buy_price_arr),
+						array2dict(consumption_price_arr),
+						array2dict(sell_price_arr),
+						array2dict(penalty_price_arr),
 						load_demand,
 						ren_production)
 	end

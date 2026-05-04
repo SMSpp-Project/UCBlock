@@ -2481,8 +2481,7 @@ class DCNetworkBlockMod : public NetworkBlockMod
    case( eSetNetCost ):
     output << "Set network cost values ";
     break;
-   default:
-    output << "Unknown DCNetworkBlock modification ";
+   default:;
    }
   }
  };  // end( class( DCNetworkBlockMod ) )

@@ -641,34 +641,34 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
  void print( std::ostream & output ) const override {
   output << "NuclearUnitBlockMod[" << this << "]: ";
   switch( f_type ) {
-   case eSetMaxP:
+   case( eSetMaxP ):
     output << "set max power values";
     break;
-   case eSetInitP:
+   case( eSetInitP ):
     output << "set initial power values";
     break;
-   case eSetInitUD:
+   case( eSetInitUD ):
     output << "Set initial up/down times";
     break;
-   case eSetAv:
+   case( eSetAv ):
     output << "Set availability";
     break;
-   case eSetSUC:
+   case( eSetSUC ):
     output << "Set startup costs";
     break;
-   case eSetLinT:
+   case( eSetLinT ):
     output << "Set linear term";
     break;
-   case eSetQuadT:
+   case( eSetQuadT ):
     output << "Set quad term";
     break;
-   case eSetConstT:
+   case( eSetConstT ):
     output << "Set constant term";
     break;
-   case eSetModDP:
+   case( eSetModDP ):
     output << "set modulation delta ramp up";
     break;
-   case eSetModDM:
+   case( eSetModDM ):
     output << "set modulation delta ramp down";
     break;
    default:;
