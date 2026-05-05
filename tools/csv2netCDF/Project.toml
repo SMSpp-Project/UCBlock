@@ -17,5 +17,5 @@ StochasticPrograms = "8b8459f2-c380-502b-8633-9aed2d6c2b35"
 XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
-[compat]
-EnergyCommunity = "0.1.1, 0.2, 0.3"
+# [compat]
+# EnergyCommunity = "0.1.1, 0.2, 0.3"
