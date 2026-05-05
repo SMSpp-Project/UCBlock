@@ -1081,18 +1081,23 @@ class ECNetworkBlock : public NetworkBlock
   * a specific interval in "NumberIntervals" */
  std::vector< ColVariable > v_peak_power;
 
- /** positive squilibrium of the user at each time horizon that is referred
-  * to a specific peak period, i.e., a specific interval in "NumberIntervals" */
- boost::multi_array< ColVariable , 2 > v_power_squilibrium_pos;
+ /** positive aggregate squilibrium of the community at each time horizon
+  * that is referred to a specific peak period, i.e., a specific interval in
+  * "NumberIntervals" */
+ std::vector< ColVariable > v_power_squilibrium_pos;
 
- /** negative squilibrium of the user at each time horizon that is referred
-  * to a specific peak period, i.e., a specific interval in "NumberIntervals" */
- boost::multi_array< ColVariable , 2 > v_power_squilibrium_neg;
+ /** negative aggregate squilibrium of the community at each time horizon
+  * that is referred to a specific peak period, i.e., a specific interval in
+  * "NumberIntervals" */
+ std::vector< ColVariable > v_power_squilibrium_neg;
 
 /*------------------------------- constraints ------------------------------*/
 
  /// the power balance constraints
  boost::multi_array< FRowConstraint , 2 > power_balance_const;
+
+ /// the aggregate power balance constraints
+ std::vector< FRowConstraint > power_balance_agg_const;
 
  /// the shared power constraints
  boost::multi_array< FRowConstraint , 2 > power_shared_const;
