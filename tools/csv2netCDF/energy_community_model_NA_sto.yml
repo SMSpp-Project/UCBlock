@@ -1,126 +1,108 @@
 general:  # general input parameters
   init_step: 1  # initial time step
-  final_step: 24  # final time step (stochastic: kept short for solver tractability)
+  final_step: 24  # final time step (kept short for solver tractability)
   d_rate: 0.03  # discount rate
   project_lifetime: 20  # [y] project lifetime
   user_set: [user1, user2, user3, user4, user5, user6, user7, user8, user9, user10]  # list of users for the simulation
-  scen_s_sample: 3  # number of scenarios s to be extracted
-  scen_eps_sample: 1  # number of scenarios eps to be extracted
-  sigma_load: 0.3  # standard deviation associated with load in long period uncertainty
-  sigma_ren: 0.2  # standard deviation associated with renewable production in long period uncertainty
 
-  profile: # base profiles
-    time_res: time_res  # time resolution column
-    energy_weight: energy_weight # weight of time step over the year
-    reward_price: reward_price  # name of the column describing the reward value
-    peak_categories: peak_categories # different peak time group
-  optional_datasets:  # optional csv files storing data
-    - input_resource.csv
-    - market_data.csv
+  # Stochastic configuration — schema aligned with EC.jl@stochastic.
+  n_s: 3
+  n_eps: 1
+  uncertain_var: L
 
-market:  # market characteristics
-  non_commercial:
-    profile:
-      buy_price: buy_price  # name of the column for the buying electricity price
-      sell_price: sell_price  # name of the column for the selling electricity price
-      consumption_price: consumption_price  # name of the column for the consumption price
-      peak_categories: peak_categories  # name of the column describing the code peak tariff per each timestep
-      peak_tariff:  # peak power tariff described by a dictionary: loaded by performing a custom data parsing
-        function: parse_peak_quantity_by_time_vectors
-        inputs:
-          - peak_categories
-          - peak_tariff
-      peak_weight:
-        function: parse_peak_quantity_by_time_vectors
-        inputs:
-          - peak_categories
-          - peak_weight
-  commercial:
-    profile:
-      buy_price: buy_price # name of the column for the buying electricity price
-      sell_price: sell_price  # name of the column for the selling electricity price
-      consumption_price: consumption_price  # name of the column for the consumption price
-      peak_categories: peak_categories  # name of the column describing the code peak tariff per each timestep
-      peak_tariff:  # peak power tariff described by a dictionary: loaded by performing a custom data parsing
-        function: parse_peak_quantity_by_time_vectors
-        inputs:
-          - peak_categories
-          - peak_tariff
-      energy_weight: energy_weight
-      peak_weight:
-        function: parse_peak_quantity_by_time_vectors
-        inputs:
-          - peak_categories
-          - peak_weight
+  optional_datasets:
+    - input_resource_sto.csv
+    - market_data_sto.csv
+
+market:
+  profile:
+    buy_price: buy_price
+    sell_price: sell_price
+    consumption_price: consumption_price
+    reward_price: reward_price
+    penalty_price: penalty_price
+    peak_categories: peak_categories
+    peak_tariff:
+      function: parse_peak_quantity_by_time_vectors
+      inputs:
+        - peak_categories
+        - peak_tariff
+    energy_weight: energy_weight
+    peak_weight:
+      function: parse_peak_quantity_by_time_vectors
+      inputs:
+        - peak_categories
+        - peak_weight
+    time_res: time_res
 
 users:  # list of users and the corresponding assets — No-Asset case: load only
 
   user1:
-    tariff_name: commercial
     load:
       type: load
       profile:
         load: load_user1
+        std: std_load_user1
 
   user2:
-    tariff_name: non_commercial
     load:
       type: load
       profile:
         load: load_user2
+        std: std_load_user2
 
   user3:
-    tariff_name: non_commercial
     load:
       type: load
       profile:
         load: load_user3
+        std: std_load_user3
 
   user4:
-    tariff_name: non_commercial
     load:
       type: load
       profile:
         load: load_user4
+        std: std_load_user4
 
   user5:
-    tariff_name: commercial
     load:
       type: load
       profile:
         load: load_user5
+        std: std_load_user5
 
   user6:
-    tariff_name: commercial
     load:
       type: load
       profile:
         load: load_user6
+        std: std_load_user6
 
   user7:
-    tariff_name: non_commercial
     load:
       type: load
       profile:
         load: load_user7
+        std: std_load_user7
 
   user8:
-    tariff_name: commercial
     load:
       type: load
       profile:
         load: load_user8
+        std: std_load_user8
 
   user9:
-    tariff_name: commercial
     load:
       type: load
       profile:
         load: load_user9
+        std: std_load_user9
 
   user10:
-    tariff_name: commercial
     load:
       type: load
       profile:
         load: load_user10
+        std: std_load_user10

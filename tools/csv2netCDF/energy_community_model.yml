@@ -27,12 +27,12 @@ market:  # market characteristics
       peak_categories: peak_categories  # name of the column describing the code peak tariff per each timestep
       peak_tariff:  # peak power tariff described by a dictionary: loaded by performing a custom data parsing
         function: parse_peak_quantity_by_time_vectors
-        inputs: 
+        inputs:
           - peak_categories
           - peak_tariff
       peak_weight:
         function: parse_peak_quantity_by_time_vectors
-        inputs: 
+        inputs:
           - peak_categories
           - peak_weight
   commercial:
@@ -43,13 +43,13 @@ market:  # market characteristics
       peak_categories: peak_categories  # name of the column describing the code peak tariff per each timestep
       peak_tariff:  # peak power tariff described by a dictionary: loaded by performing a custom data parsing
         function: parse_peak_quantity_by_time_vectors
-        inputs: 
+        inputs:
           - peak_categories
           - peak_tariff
       energy_weight: energy_weight
       peak_weight:
         function: parse_peak_quantity_by_time_vectors
-        inputs: 
+        inputs:
           - peak_categories
           - peak_weight
 users:  # list of users and the corresponding assets
@@ -57,7 +57,7 @@ users:  # list of users and the corresponding assets
   user1:  # name of the user
     tariff_name: commercial # type of market
     # list of components
-    
+
     PV:  # component PV
       type: renewable  # type of component
       CAPEX_lin: 1700  # [€/kW] specific investment cost of the component
@@ -66,13 +66,13 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
-    
+
     load:  # component load
       type: load
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user1
-    
+
     # load_adj:  # component adjustable load
     #   type: load_adj
     #   eta: 0.9
@@ -108,8 +108,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 80  # [kW] maximum capacity
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
-    
-    
+
     batt:  # component battery
       type: battery  # type of component
       CAPEX_lin: 400  # [€/kWh] specific investment cost of the component
@@ -121,8 +120,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
-      corr_asset: conv  # corresponding converter    
-    
+      corr_asset: conv  # corresponding converter
 
     conv:  # component converter
       type: converter  # type of component
@@ -134,7 +132,6 @@ users:  # list of users and the corresponding assets
       min_ch: 0.1  # [-] maximum charge
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
-
 
     load:  # component load
       type: load
@@ -155,7 +152,6 @@ users:  # list of users and the corresponding assets
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
-    
     wind:  # component wind
       type: renewable  # type of component
       CAPEX_lin: 3000  # [€/kW] specific investment cost of the component
@@ -164,8 +160,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 100  # [kW] maximum capacity
       profile:  # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
-    
-    
+
     batt:  # component battery
       type: battery  # type of component
       CAPEX_lin: 400  # [€/kWh] specific investment cost of the component
@@ -177,9 +172,8 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
-      corr_asset: conv  # corresponding converter    
-    
-    
+      corr_asset: conv  # corresponding converter
+
     conv:  # component converter
       type: converter  # type of component
       CAPEX_lin: 200  # [€/kW] specific investment cost of the component
@@ -191,7 +185,6 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
 
-
     load:  # component load
       type: load
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
@@ -199,7 +192,7 @@ users:  # list of users and the corresponding assets
         load: load_user3
 
   user4:  # name of the user
-    # list of components 
+    # list of components
     tariff_name: non_commercial # type of market
 
     PV:  # component PV
@@ -217,7 +210,6 @@ users:  # list of users and the corresponding assets
       profile:
         load: load_user4
 
-
   user5:  # name of the user
     # list of components
     tariff_name: commercial # type of market
@@ -227,7 +219,6 @@ users:  # list of users and the corresponding assets
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
       profile:
         load: load_user5
-
 
   user6:  # name of the user
     # list of components
@@ -241,7 +232,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 60  # [kW] maximum capacity
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
-    
+
     batt:  # component battery
       type: battery  # type of component
       CAPEX_lin: 500  # [€/kWh] specific investment cost of the component
@@ -253,9 +244,8 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
-      corr_asset: conv  # corresponding converter    
-    
-    
+      corr_asset: conv  # corresponding converter
+
     conv:  # component converter
       type: converter  # type of component
       CAPEX_lin: 200  # [€/kW] specific investment cost of the component
@@ -273,7 +263,6 @@ users:  # list of users and the corresponding assets
       profile:
         load: load_user6
 
-
   user7:  # name of the user
     # list of components
     tariff_name: non_commercial # type of market
@@ -287,7 +276,7 @@ users:  # list of users and the corresponding assets
   user8:  # name of the user
     # list of components
     tariff_name: commercial # type of market
-    
+
     PV:  # component PV
       type: renewable  # type of component
       CAPEX_lin: 1400  # [€/kW] specific investment cost of the component
@@ -297,7 +286,6 @@ users:  # list of users and the corresponding assets
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
 
-    
     wind:  # component wind
       type: renewable  # type of component
       CAPEX_lin: 3000  # [€/kW] specific investment cost of the component
@@ -306,8 +294,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 100  # [kW] maximum capacity
       profile:  # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
-    
-    
+
     batt:  # component battery
       type: battery  # type of component
       CAPEX_lin: 400  # [€/kWh] specific investment cost of the component
@@ -319,9 +306,8 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
-      corr_asset: conv  # corresponding converter    
-    
-    
+      corr_asset: conv  # corresponding converter
+
     conv:  # component converter
       type: converter  # type of component
       CAPEX_lin: 200  # [€/kW] specific investment cost of the component
@@ -333,7 +319,6 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
 
-
     load:  # component load
       type: load
       # curt_cost: 6.0  # [€/kWh] load curtailment cost
@@ -343,7 +328,7 @@ users:  # list of users and the corresponding assets
   user9:  # name of the user
     # list of components
     tariff_name: commercial # type of market
-    
+
     PV:  # component PV
       type: renewable  # type of component
       CAPEX_lin: 1400  # [€/kW] specific investment cost of the component
@@ -352,7 +337,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 100  # [kW] maximum capacity
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
-    
+
     batt:  # component battery
       type: battery  # type of component
       CAPEX_lin: 400  # [€/kWh] specific investment cost of the component
@@ -364,9 +349,8 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       max_C_dch: 1.0  # [-] maximum C-rate in discharge
       max_C_ch: 1.0  # [-] maximum C-rate in charge
-      corr_asset: conv  # corresponding converter    
-    
-    
+      corr_asset: conv  # corresponding converter
+
     conv:  # component converter
       type: converter  # type of component
       CAPEX_lin: 200  # [€/kW] specific investment cost of the component
@@ -387,7 +371,7 @@ users:  # list of users and the corresponding assets
   user10:  # name of the user
     # list of components
     tariff_name: commercial # type of market
-    
+
     load:  # component load
       type: load
       # curt_cost: 6.0  # [€/kWh] load curtailment cost

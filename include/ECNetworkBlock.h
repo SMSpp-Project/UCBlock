@@ -157,10 +157,12 @@ class ECNetworkBlock : public NetworkBlock
    * - The variable "PenaltyPrice", of type netCDF::NcDouble and either of
    *   size 1 or indexed over the dimension "NumberIntervals". This is meant
    *   to represent the vector PenP[ t ] that, for each time instant t,
-   *   contains the unit cost of unmet demand for the corresponding time
-   *   step. This variable is optional and is left empty when not provided;
-   *   if "PenaltyPrice" has length 1 then PenP[ t ] contains the same value
-   *   for all t. */
+   *   contains the tariff that the user pays on the (positive and negative)
+   *   squilibrium for the corresponding time step. If "PenaltyPrice" has
+   *   length 1 then PenP[ t ] contains the same value for all t. This
+   *   variable is optional: if it is not provided, the ECNetworkBlock does
+   *   not generate the squilibrium variables and the corresponding term in
+   *   the objective. */
 
   void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -246,11 +248,10 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
   /// returns the penalty price
-  /** Returns the per-interval unit cost that penalises load curtailment /
-   * unmet demand. The base ECNetworkBlock model has no curtailment variable
-   * yet, so the value is currently stored only for use by per-scenario
-   * overrides written via ECNetworkBlock::set_penalty_price(); a future
-   * extension can wire it into the objective. */
+  /** Returns the tariff that the user pays on the (positive and negative)
+   * squilibrium at each time horizon. The vector may be empty when no
+   * penalty has been defined for this ECNetworkData; in that case the
+   * ECNetworkBlock does not generate the squilibrium variables. */
 
   const std::vector< double > & get_penalty_price( void ) const {
    return( v_PenaltyPrice );
@@ -297,11 +298,7 @@ class ECNetworkBlock : public NetworkBlock
   /// tariff that the user pays due to the peak power
   double f_PeakTariff{};
 
-  /// per-interval penalty price (unit cost of unmet demand). Optional and
-  /// not yet wired to the ECNetworkBlock objective: stored here so that
-  /// scenario-specific values written via ECNetworkBlock::set_penalty_price
-  /// survive across the deserialize/serialize cycle and can be picked up by
-  /// a future curtailment-aware extension of the model.
+  /// tariff that the user pays on the squilibrium at each time horizon
   std::vector< double > v_PenaltyPrice;
 
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -641,10 +638,12 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the penalty price at the given interval
- /** Returns the per-interval unit cost that penalises load curtailment / unmet
-  * demand. The base ECNetworkBlock model has no curtailment variable, so this
-  * value is currently stored only for use by per-scenario overrides written via
-  * set_penalty_price(); a future extension can wire it into the objective. */
+ /** Returns the tariff that the user pays on the (positive and negative)
+  * squilibrium at the given interval. Returns 0 when no penalty has been
+  * defined for this ECNetworkData (i.e. when the squilibrium variables
+  * have not been generated).
+  *
+  * @param interval The interval wrt the penalty price is returned. */
 
  double get_penalty_price( Index interval ) const {
   const auto & v = f_NetworkData->get_penalty_price();
@@ -855,7 +854,23 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the sell price at the time intervals specified by \p subset
- /** Like set_buy_price( subset ) but for the sell price. */
+ /** This function sets the sell price at each time interval in the given
+  * \p subset. The sell price at the time interval whose index is specified by
+  * the i-th element in \p subset is given by the i-th element of the vector
+  * pointed by \p values, i.e., it is given by the value pointed by
+  * (values + i). The parameter \p ordered indicates whether the \p subset is
+  * ordered.
+  *
+  * @param values An iterator to a vector containing the sell prices.
+  *
+  * @param subset The indices of the time intervals at which the sell price is
+  *               being modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_sell_price( MF_dbl_it values ,
                       Subset && subset ,
@@ -865,7 +880,20 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the sell price at the time intervals specified by \p rng
- /** Like set_buy_price( range ) but for the sell price. */
+ /** This function sets the sell price at each time interval in the given
+  * Range \p rng. For each i in the given Range (up to the number of
+  * intervals minus 1), the sell price at interval i is given by the element
+  * of the vector pointed by \p values whose index is (i - rng.first), i.e.,
+  * it is given by the value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the sell prices.
+  *
+  * @param rng A Range containing the indices of the time intervals at which
+  *        the sell price is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_sell_price( MF_dbl_it values ,
                       Range rng = Range( 0 , Inf< Index >() ) ,
@@ -897,8 +925,18 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the peak tariff
- /** Like set_peak_tariff( subset ) but using a Range. The Range must include
-  * the index 0; values outside [ 0 , 1 ) are ignored. */
+ /** This function sets the (scalar) peak tariff. PeakTariff is a single
+  * value, so only the index 0 is meaningful: the Range \p rng must include
+  * 0, and any value outside [ 0 , 1 ) is ignored.
+  *
+  * @param values An iterator to a vector whose first element is the new
+  *        peak tariff.
+  *
+  * @param rng A Range that must include the index 0.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_peak_tariff( MF_dbl_it values ,
                        Range rng = Range( 0 , Inf< Index >() ) ,
@@ -930,8 +968,19 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the constant term of the objective
- /** Like set_const_term( subset ) but using a Range. The Range must include
-  * the index 0; values outside [ 0 , 1 ) are ignored. */
+ /** This function sets the (scalar) constant term added to the objective
+  * function of this ECNetworkBlock. ConstTerm is a single value, so only
+  * the index 0 is meaningful: the Range \p rng must include 0, and any
+  * value outside [ 0 , 1 ) is ignored.
+  *
+  * @param values An iterator to a vector whose first element is the new
+  *        constant term.
+  *
+  * @param rng A Range that must include the index 0.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_const_term( MF_dbl_it values ,
                       Range rng = Range( 0 , Inf< Index >() ) ,
@@ -940,9 +989,23 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the penalty price at the time intervals specified by \p subset
- /** Like set_buy_price( subset ) but for the penalty price (unit cost of
-  * unmet demand). The current ECNetworkBlock objective does not include a
-  * curtailment variable, so the abstract representation is not affected. */
+ /** This function sets the penalty price at each time interval in the given
+  * \p subset. The penalty price at the time interval whose index is specified
+  * by the i-th element in \p subset is given by the i-th element of the
+  * vector pointed by \p values, i.e., it is given by the value pointed by
+  * (values + i). The parameter \p ordered indicates whether the \p subset is
+  * ordered.
+  *
+  * @param values An iterator to a vector containing the penalty prices.
+  *
+  * @param subset The indices of the time intervals at which the penalty
+  *               price is being modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_penalty_price( MF_dbl_it values ,
                          Subset && subset ,
@@ -952,8 +1015,21 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the penalty price at the time intervals specified by \p rng
- /** Like set_buy_price( range ) but for the penalty price; see
-  * set_penalty_price( subset ). */
+ /** This function sets the penalty price at each time interval in the given
+  * Range \p rng. For each i in the given Range (up to the number of
+  * intervals minus 1), the penalty price at interval i is given by the
+  * element of the vector pointed by \p values whose index is
+  * (i - rng.first), i.e., it is given by the value pointed by
+  * (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the penalty prices.
+  *
+  * @param rng A Range containing the indices of the time intervals at which
+  *        the penalty price is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_penalty_price( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
@@ -1004,6 +1080,14 @@ class ECNetworkBlock : public NetworkBlock
  /** maximum power usage by the user at the corresponding peak period, i.e.,
   * a specific interval in "NumberIntervals" */
  std::vector< ColVariable > v_peak_power;
+
+ /** positive squilibrium of the user at each time horizon that is referred
+  * to a specific peak period, i.e., a specific interval in "NumberIntervals" */
+ boost::multi_array< ColVariable , 2 > v_power_squilibrium_pos;
+
+ /** negative squilibrium of the user at each time horizon that is referred
+  * to a specific peak period, i.e., a specific interval in "NumberIntervals" */
+ boost::multi_array< ColVariable , 2 > v_power_squilibrium_neg;
 
 /*------------------------------- constraints ------------------------------*/
 

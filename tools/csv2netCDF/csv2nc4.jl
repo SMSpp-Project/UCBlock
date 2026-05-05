@@ -1,6 +1,11 @@
 using Pkg
 Pkg.activate(".")  # Activate environment from Project.toml
-Pkg.instantiate()
+# `Pkg.instantiate()` is intentionally NOT called here: this driver does not
+# import `EnergyCommunity` or `Gurobi`, but they are still listed as optional
+# deps in Project.toml; running `instantiate` would force their resolution
+# (and on Julia 1.11 the EC.jl version pin clashes with newer XLSX). The
+# direct deps used below are loaded individually below — if any is missing,
+# add it manually (`Pkg.add(...)`) once and the Manifest will pin it.
 
 using YAML
 # the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl,
@@ -33,20 +38,37 @@ include("pem_extraction.jl")
 # Include the sampler for distributions associated to short period uncertainty and a function to generate scenarios
 include("scen_eps_sampler.jl")
 
-# setting the seed
-Random.seed!(123)
+# A `Random.seed!(123)` is set later, immediately before the call to
+# `pem_extraction` (and again in `test_instance_with_EC_jl.jl` before the
+# corresponding sampling), so the (s, eps) draws are bit-identical between
+# the SMS++ TSSB pipeline and the EC.jl@stochastic comparison.
 
-
-# YAML layout assumed by this driver (the only supported format):
+# YAML layout assumed by this driver — schema aligned with EC.jl@stochastic:
 #   * EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
 #     `peak_categories`) under `general.profile`.
 #   * Pricing fields (`buy_price`, `sell_price`, `consumption_price`,
-#     `peak_tariff`, `peak_weight`) under per-tariff blocks selected by
-#     `users.<u>.tariff_name`.
+#     `penalty_price`, `peak_tariff`, `peak_weight`) under a single flat
+#     `market.profile` group.
 
-@inline ec_profile(name) = profile(gen_data, name)
-@inline ec_profile_d(name, default) = profile_d(gen_data, name, default)
-@inline user_market_data(u) = field(market_data, field(users_data[u], "tariff_name"))
+# EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
+# `peak_categories`). The EC.jl@stochastic schema places them under
+# `market.profile`; the legacy schema (still used by the deterministic
+# `*_CO/_NA/_NC.yml`) places them under `general.profile`. Try the
+# market-level profile first and fall back to general so that both
+# schemas keep working through the same driver.
+@inline ec_profile(name) = let p = profile_d(market_data, name, nothing)
+    isnothing(p) ? profile(gen_data, name) : p
+end
+@inline ec_profile_d(name, default) = let p = profile_d(market_data, name, nothing)
+    isnothing(p) ? profile_d(gen_data, name, default) : p
+end
+# `user_market_data(u)` returns the per-user market block. With the
+# EC.jl@stochastic schema there is a single flat `market.profile`, so any
+# user gets the same `market_data`. With the legacy two-tier schema each
+# user has a `tariff_name` pointing at one of `market.commercial` /
+# `market.non_commercial`; in that case follow the indirection.
+@inline user_market_data(u) = haskey(market_data, "profile") ?
+    market_data : field(market_data, field(users_data[u], "tariff_name"))
 
 
 function csvEC2nc4(
@@ -153,6 +175,17 @@ function csvEC2nc4(
                        time_res_profile[t]
                        for t in time_set] * discount_factor
 
+    # `PenaltyPrice`, i.e., the unit cost of unmet demand. Optional: only
+    # written to the netCDF when the YAML market profile defines it. When
+    # present, ECNetworkBlock creates the imbalance slack variables and the
+    # corresponding term in the objective.
+    penalty_price_raw = profile_d(ref_market, "penalty_price", nothing)
+    penalty_price_data = isnothing(penalty_price_raw) ? nothing :
+                         [penalty_price_raw[t] *
+                          energy_weight_profile[t] *
+                          time_res_profile[t]
+                          for t in time_set] * discount_factor
+
     if (!("--with-network-blocks" in OPTION_ARGS) &&
         allequal(sell_price_data) &&
         allequal(buy_price_data) &&
@@ -208,6 +241,14 @@ function csvEC2nc4(
             const_term[i_w] = sum(const_term_data[last_t:last_i])
             n_intervals = count(x -> x == w, peak_categories)
             last_t += n_intervals
+        end
+
+        # `PenaltyPrice` is shared across all peaks here (consolidated branch is
+        # taken only when prices are constant across peaks); it is consumed by
+        # ECNetworkBlock to instantiate the imbalance slack variables.
+        if !isnothing(penalty_price_data) && !iszero(penalty_price_data[1])
+            penalty_price = defVar(block, "PenaltyPrice", Float64, ("NumberIntervals",))
+            penalty_price[:] = penalty_price_data[1:n_intervals[1]]
         end
 
     else
@@ -295,6 +336,14 @@ function csvEC2nc4(
             # `ConstantTerm`, i.e., the consumption price
             const_term = defVar(ecnb, "ConstantTerm", Float64, ())
             const_term[:] = sum(const_term_data[last_t:last_i])
+
+            # `PenaltyPrice` (optional): triggers the imbalance slack
+            # variables in ECNetworkBlock.
+            if !isnothing(penalty_price_data) &&
+               any(!iszero, penalty_price_data[last_t:last_i])
+                penalty_price = defVar(ecnb, "PenaltyPrice", Float64, ("NumberIntervals",))
+                penalty_price[:] = penalty_price_data[last_t:last_i]
+            end
 
             last_t += n_intervals
         end
@@ -997,18 +1046,28 @@ n_steps = length(time_set)
 # Peak set is required as a global by Scen_eps_sampler / scenario_definition.
 peak_set = unique(ec_profile("peak_categories")[time_set])
 
-# number of scenarios to be extracted
-scen_s_sample = field(gen_data, "scen_s_sample")
-scen_eps_sample = field(gen_data, "scen_eps_sample")
+# Number of scenarios to be extracted. Read the EC.jl@stochastic-style
+# `n_s`/`n_eps` keys, falling back to the legacy `scen_s_sample`/
+# `scen_eps_sample` keys still used by the deterministic YAMLs.
+scen_s_sample = field_d(gen_data, "n_s",
+                        field_d(gen_data, "scen_s_sample", 1))
+scen_eps_sample = field_d(gen_data, "n_eps",
+                          field_d(gen_data, "scen_eps_sample", 1))
 
-is_det = false
-if scen_s_sample == 1 && scen_eps_sample == 1
-    is_det = true
-else
-    # standard deviation associated with load and renewable production in long period uncertainty
-    sigma_load = field(gen_data, "sigma_load")
-    sigma_ren = field(gen_data, "sigma_ren")
-end
+is_det = (scen_s_sample == 1 && scen_eps_sample == 1)
+
+# Long-period uncertainty parameters. The deterministic flow doesn't need
+# them; in the stochastic flow they default to the upstream EC.jl@stochastic
+# values and can be overridden via `general.sigma_load`, `general.sigma_pv`,
+# `general.sigma_wind`, `general.mean_pv`, `general.mean_wind` in the YAML.
+# `general.uncertain_var` is a string of letters in {"L","P","W"} that
+# selects which long-period source(s) of uncertainty are sampled.
+sigma_load = field_d(gen_data, "sigma_load", 0.3)
+mean_pv    = field_d(gen_data, "mean_pv",    1.0)
+sigma_pv   = field_d(gen_data, "sigma_pv",   0.1)
+mean_wind  = field_d(gen_data, "mean_wind",  0.95)
+sigma_wind = field_d(gen_data, "sigma_wind", 0.15)
+unc_var    = field_d(gen_data, "uncertain_var", "L")
 
 # converters, i.e., CONV, are modeled with the corresponding BatteryUnitBlock in SMS++
 SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
@@ -1022,21 +1081,28 @@ if !is_det
     scen_s_set = 1:scen_s_sample
     scen_eps_set = 1:scen_eps_sample
 
-    # Extraction of the point used to sample the distributions associated to the long period uncertainty
-    (point_s_load,
-        point_s_ren,
-        scen_probability) = pem_extraction(scen_s_sample, sigma_load, sigma_ren)
+    # Reset the RNG immediately before sampling so the sequence is the same
+    # one consumed by `test_instance_with_EC_jl.jl`. Any intervening `rand`
+    # calls (e.g. by NCDatasets) are isolated from the scenario draws.
+    Random.seed!(123)
 
-    # To define an empty stochastic model we have to declare previously the scenarios.
-    # sampled_scenarios is a list of Scenario_Load_Renewable defined in scenario_definition.jl;
-    # see definition for more information.
-    # Notable quantities are:
-    #   sampled_scenarios[i].scen_s : scenario s
-    #   sampled_scenarios[i].scen_eps : scenario epsilon
-    #   probability(sampled_scenarios[1]) : denotes the probability of the scenario
-    #   sampled_scenarios[i].Load["user1"][1] : load of user1 at time 1
-    #   sampled_scenarios[i].Ren["user1"]["PV"][1] : PV production of user1 at time 1
-    sampled_scenarios = scenarios_generator(data, point_s_load, point_s_ren, scen_probability, scen_s_sample, scen_eps_sample)
+    # Extract the long-period (`s`) sampling points and their probabilities.
+    (point_s_load,
+        point_s_pv,
+        point_s_wind,
+        scen_probability) = pem_extraction(scen_s_sample, sigma_load,
+                                           mean_pv, sigma_pv,
+                                           mean_wind, sigma_wind,
+                                           unc_var)
+
+    # Build the full (s, eps) scenario set used by the deterministic
+    # equivalent. `sampled_scenarios` is a list of `Scenario_Load_Renewable`
+    # (see `scenario_definition.jl`).
+    sampled_scenarios = scenarios_generator(data,
+                                            point_s_load, point_s_pv, point_s_wind,
+                                            scen_s_sample, scen_eps_sample,
+                                            unc_var;
+                                            point_probability=scen_probability)
 end
 
 ## Data aggregation and netCDF files generation

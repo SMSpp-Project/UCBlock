@@ -225,6 +225,29 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_peak_power , "p_peak_network" );
 
+ // the squilibrium variables are generated only if a PenaltyPrice has been
+ // provided to the ECNetworkData; otherwise the model is identical to the
+ // one without the imbalance term in the objective
+ if( ! f_NetworkData->get_penalty_price().empty() ) {
+  // the positive squilibrium variables
+  v_power_squilibrium_pos.resize(
+   boost::extents[ number_intervals ][ number_nodes ] );
+  for( Index i = 0 ; i < number_intervals ; ++i )
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+    v_power_squilibrium_pos[ i ][ node_id ].set_type(
+     ColVariable::kNonNegative );
+  add_static_variable( v_power_squilibrium_pos , "p_sq_pos_network" );
+
+  // the negative squilibrium variables
+  v_power_squilibrium_neg.resize(
+   boost::extents[ number_intervals ][ number_nodes ] );
+  for( Index i = 0 ; i < number_intervals ; ++i )
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+    v_power_squilibrium_neg[ i ][ node_id ].set_type(
+     ColVariable::kNonNegative );
+  add_static_variable( v_power_squilibrium_neg , "p_sq_neg_network" );
+ }
+
  set_variables_generated();
 
 }  // end( ECNetworkBlock::generate_abstract_variables )
@@ -245,9 +268,15 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  LinearFunction::v_coeff_pair vars;
 
+ const bool has_imbalance = ! v_power_squilibrium_pos.empty();
+
  // set the power balance, i.e.:
  //
- //    P^+ - P^- - node_injection = - active_demand   for all u, t
+ //    P^+ - P^- - node_injection [ + P_sq^+ - P_sq^- ]
+ //        = - active_demand                                   for all u, t
+ //
+ // the two squilibrium terms (in brackets) appear only when the PenaltyPrice
+ // has been provided to the ECNetworkData
 
  power_balance_const.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
@@ -262,6 +291,13 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    vars.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
                                    -1.0 ) );
    vars.push_back( std::make_pair( &v_node_injection[ i ][ node_id ] , -1.0 ) );
+
+   if( has_imbalance ) {
+    vars.push_back( std::make_pair( &v_power_squilibrium_pos[ i ][ node_id ] ,
+                                    1.0 ) );
+    vars.push_back( std::make_pair( &v_power_squilibrium_neg[ i ][ node_id ] ,
+                                    -1.0 ) );
+   }
 
    power_balance_const[ node_id ][ i ].set_both(
     -v_ActiveDemand[ i ][ node_id ] );
@@ -383,6 +419,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc )
   return;                     // nothing to do
 
  const auto is_coop = is_cooperative();
+ const bool has_imbalance = ! v_power_squilibrium_pos.empty();
 
  LinearFunction::v_coeff_pair vars;
 
@@ -398,6 +435,17 @@ void ECNetworkBlock::generate_objective( Configuration * objc )
    if( node_id == 0 && is_coop )
     vars.push_back( std::make_pair( &v_shared_power[ t ] ,
                                     -get_reward_price( t ) ) );
+
+   // the squilibrium variables enter the objective with the same
+   // `penalty_price[t]` coefficient on both the positive and the negative
+   // one; the term is generated only when the squilibrium variables exist
+   if( has_imbalance ) {
+    const auto pp = get_penalty_price( t );
+    vars.push_back( std::make_pair( &v_power_squilibrium_pos[ t ][ node_id ] ,
+                                    pp ) );
+    vars.push_back( std::make_pair( &v_power_squilibrium_neg[ t ][ node_id ] ,
+                                    pp ) );
+   }
   }
 
   vars.push_back( std::make_pair( &v_peak_power[ node_id ] ,
@@ -1068,10 +1116,28 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
   }
  }
 
- (void) issueAMod;  // no abstract update yet (no curtailment variable)
-
  if( ! changed )
   return;
+
+ // when the squilibrium variables are part of the model, the coefficients
+ // of `v_power_squilibrium_pos/neg[i][n]` in the objective must be aligned
+ // with the new `penalty_price[i]` for every node `n`
+ if( ! v_power_squilibrium_pos.empty() && not_dry_run( issueAMod ) &&
+     not_dry_run( issuePMod ) && objective_generated() ) {
+  auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+  const auto N = get_number_nodes();
+  for( auto i : subset )
+   for( Index n = 0 ; n < N ; ++n ) {
+    const auto idx_pos = lf->is_active( &v_power_squilibrium_pos[ i ][ n ] );
+    const auto idx_neg = lf->is_active( &v_power_squilibrium_neg[ i ][ n ] );
+    if( idx_pos == Inf< Index >() || idx_neg == Inf< Index >() )
+     throw( std::logic_error(
+      "ECNetworkBlock::set_penalty_price: expected Variable not found in "
+      "objective." ) );
+    lf->modify_coefficient( idx_pos , penalty_price[ i ] , issueAMod );
+    lf->modify_coefficient( idx_neg , penalty_price[ i ] , issueAMod );
+   }
+ }
 
  if( issue_pmod( issuePMod ) ) {
   if( ! ordered )
@@ -1109,10 +1175,29 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
                  penalty_price.begin() + rng.first ) )
   return;
 
- if( not_dry_run( issuePMod ) )
+ if( not_dry_run( issuePMod ) ) {
   std::copy( values , values + sz , penalty_price.begin() + rng.first );
 
- (void) issueAMod;
+  // when the squilibrium variables are part of the model, the coefficients
+  // of `v_power_squilibrium_pos/neg[t][n]` in the objective must be aligned
+  // with the new `penalty_price[t]` for every node `n`
+  if( ! v_power_squilibrium_pos.empty() && not_dry_run( issueAMod ) &&
+      objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   const auto N = get_number_nodes();
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    for( Index n = 0 ; n < N ; ++n ) {
+     const auto idx_pos = lf->is_active( &v_power_squilibrium_pos[ t ][ n ] );
+     const auto idx_neg = lf->is_active( &v_power_squilibrium_neg[ t ][ n ] );
+     if( idx_pos == Inf< Index >() || idx_neg == Inf< Index >() )
+      throw( std::logic_error(
+       "ECNetworkBlock::set_penalty_price: expected Variable not found in "
+       "objective." ) );
+     lf->modify_coefficient( idx_pos , penalty_price[ t ] , issueAMod );
+     lf->modify_coefficient( idx_neg , penalty_price[ t ] , issueAMod );
+    }
+  }
+ }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
