@@ -762,10 +762,12 @@ function csvEC2nc4(
             vec = Array{Float64}(undef, scenario_size)
             idx = 1
 
-            # Section 1: ActivePowerDemand in (time, user) order, consistent
-            # with how ActivePowerDemand is written as [t, u].
-            for t in time_set
-                for u in user_set
+            # Section 1: ActivePowerDemand in (user, time) order, matching
+            # the layout expected by `UCBlock::set_active_power_demand` which
+            # interprets each scenario index as `(node × TimeHorizon + time)`,
+            # i.e., outer loop on user (node), inner loop on time.
+            for u in user_set
+                for t in time_set
                     vec[idx] = scen.Load[u][t]
                     idx += 1
                 end

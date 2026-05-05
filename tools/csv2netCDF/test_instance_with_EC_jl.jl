@@ -31,7 +31,10 @@
 # Package manager to setup the environment
 import Pkg
 Pkg.activate(".")
-Pkg.instantiate()  # optional; comment after first execution
+# `Pkg.instantiate()` is intentionally NOT called here: the script later
+# does `Pkg.add(url=..., rev=...)` to pin EnergyCommunity to the right branch
+# (`main` vs `stochastic`), which would conflict with a pre-existing manifest
+# that does not list EnergyCommunity yet on a fresh checkout.
 
 ## 2. Defines the path to the configuration file
 
