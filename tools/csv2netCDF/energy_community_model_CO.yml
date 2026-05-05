@@ -9,30 +9,52 @@ general:  # general input parameters
     - input_resource.csv
     - market_data.csv
 
-market:  # market characteristics
-  profile:
-    buy_price: buy_price  # name of the column for the buying electricity price
-    sell_price: sell_price  # name of the column for the selling electricity price
-    consumption_price: consumption_price  # name of the column for the consumption price
-    reward_price: reward_price  # name of the column describing the reward value
-    peak_categories: peak_categories  # name of the column describing the code peak tariff per each timestep
-    peak_tariff:  # peak power tariff described by a dictionary: loaded by performing a custom data parsing
-      function: parse_peak_quantity_by_time_vectors
-      inputs:
-        - peak_categories
-        - peak_tariff
-    energy_weight: energy_weight  # weight of time step over the year
-    peak_weight:
-      function: parse_peak_quantity_by_time_vectors
-      inputs:
-        - peak_categories
-        - peak_weight
+  profile: # base profiles
     time_res: time_res  # time resolution column
+    energy_weight: energy_weight # weight of time step over the year
+    reward_price: reward_price  # name of the column describing the reward value
+    peak_categories: peak_categories # different peak time group
+
+market:  # market characteristics
+  non_commercial:
+    profile:
+      buy_price: buy_price  # name of the column for the buying electricity price
+      sell_price: sell_price  # name of the column for the selling electricity price
+      consumption_price: consumption_price  # name of the column for the consumption price
+      peak_categories: peak_categories  # name of the column describing the code peak tariff per each timestep
+      peak_tariff:  # peak power tariff described by a dictionary: loaded by performing a custom data parsing
+        function: parse_peak_quantity_by_time_vectors
+        inputs:
+          - peak_categories
+          - peak_tariff
+      peak_weight:
+        function: parse_peak_quantity_by_time_vectors
+        inputs:
+          - peak_categories
+          - peak_weight
+  commercial:
+    profile:
+      buy_price: buy_price # name of the column for the buying electricity price
+      sell_price: sell_price  # name of the column for the selling electricity price
+      consumption_price: consumption_price  # name of the column for the consumption price
+      peak_categories: peak_categories  # name of the column describing the code peak tariff per each timestep
+      peak_tariff:  # peak power tariff described by a dictionary: loaded by performing a custom data parsing
+        function: parse_peak_quantity_by_time_vectors
+        inputs:
+          - peak_categories
+          - peak_tariff
+      energy_weight: energy_weight
+      peak_weight:
+        function: parse_peak_quantity_by_time_vectors
+        inputs:
+          - peak_categories
+          - peak_weight
 
 users:  # list of users and the corresponding assets
 
   user1:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     PV:  # component PV
       type: renewable  # type of component
@@ -52,19 +74,22 @@ users:  # list of users and the corresponding assets
 
     generator:  # component thermal
       type: thermal
-      CAPEX_lin: 2000  # [€/kW] specific investment cost of the component
-      OEM_lin: 0.02  # [€/kWh/y] specific O&M cost
-      fuel_price: 0.018  # [€/m3] fuel price
+      CAPEX_lin: 3000  # [€/kW] specific investment cost of the component
+      OEM_lin: 0.0  # [€/kW/y] specific O&M cost
+      OEM_com: 0.02 # [€/kWh/y] specific O&M cost arising from commitment
+      fuel_price: 0.2  # [€/unit] fuel price
       lifetime_y: 10  # [y] lifetime of the component
-      slope_map: 3.7  # [m3/kWh] slope of the fuel consumption map
-      inter_map: 0.54  # [m3/kWh] intercept of the fuel consumption map
+      inter_map: 0.54  # [unit/kWh] intercept of the fuel consumption map
+      slope_map: 3.7  # [unit/kWh] slope of the fuel consumption map
       min_technical: 0.2  # [-] minimum technical working point of the generator
       max_technical: 1.0  # [-] maximum technical working point of the generator
-      max_capacity: 10  # [kW] maximum capacity to install
+      max_capacity: 30  # [kW] maximum capacity to install
+      modularity: true  # [integer/continuous] whether the installation is continuous or integer
       nom_capacity: 10  # [kW] nominal capacity of the generator
 
   user2:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     PV:  # component PV
       type: renewable  # type of component
@@ -110,6 +135,7 @@ users:  # list of users and the corresponding assets
 
   user3:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     PV:  # component PV
       type: renewable  # type of component
@@ -165,6 +191,7 @@ users:  # list of users and the corresponding assets
 
   user4:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     PV:  # component PV
       type: renewable  # type of component
@@ -184,6 +211,7 @@ users:  # list of users and the corresponding assets
 
   user5:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     load:  # component load
       type: load
@@ -193,6 +221,7 @@ users:  # list of users and the corresponding assets
 
   user6:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     PV:  # component PV
       type: renewable  # type of component
@@ -238,6 +267,7 @@ users:  # list of users and the corresponding assets
 
   user7:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     load:  # component load
       type: load
@@ -247,6 +277,7 @@ users:  # list of users and the corresponding assets
 
   user8:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     PV:  # component PV
       type: renewable  # type of component
@@ -302,6 +333,7 @@ users:  # list of users and the corresponding assets
 
   user9:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     PV:  # component PV
       type: renewable  # type of component
@@ -347,6 +379,7 @@ users:  # list of users and the corresponding assets
 
   user10:  # name of the user
     # list of components
+    tariff_name: non_commercial # type of market
 
     load:  # component load
       type: load
