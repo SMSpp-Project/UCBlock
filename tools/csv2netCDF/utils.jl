@@ -277,8 +277,15 @@ function read_input(file_name::AbstractString)
     # General-level profiles (time_res, energy_weight, peak_categories, reward_price)
     change_profile!(gen_data, opt_data)
 
+    # Top-level market profile, if any. The sampler in `scen_eps_sampler.jl`
+    # reads from this profile (it doesn't know about per-user tariffs); it is
+    # also used as the source of `std_<field>` columns that drive stochastic
+    # price perturbation. Skip the per-tariff loop on the same key.
+    change_profile!(market_data, opt_data)
+
     # Per-tariff market profiles (commercial, non_commercial, ...)
     for c_name in keys(market_data)
+        c_name == "profile" && continue
         change_profile!(market_data[c_name], opt_data)
     end
 
