@@ -2230,7 +2230,7 @@ class BatteryUnitBlockMod : public UnitBlockMod
    case( eSetKappa ):
     output << "set kappa ";
     break;
-   default: ;
+   default:;
   }
  }
 

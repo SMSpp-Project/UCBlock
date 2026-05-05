@@ -494,7 +494,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   //    from this relation and the possible allowed angle bounds (directly bounding theta_n - theta_n')
   //         on each line we can deduce proper bounds on these variables as well
   //
-  double s_sin = sin( delta_phi ); //std::max( sin(phi_min), sin(phi_max) );
+  double s_sin = sin( delta_phi ); //std::max( sin(phi_min) , sin(phi_max) );
   v_basic_bounds_const[ 1 ][ i_line ].set_lhs(
    -1.0 * s_sin * max_voltage[ start_line[ line_id ] ] * max_voltage[ end_line[
     line_id ] ] * pow( f_C_v_scal , 2 ) );

@@ -2137,8 +2137,6 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
- const auto number_nodes = get_number_nodes();
-
  if( ! v_network_blocks.empty() ) {
   for( auto index : subset ) {
    const auto node_index = index / f_time_horizon;
@@ -2171,7 +2169,11 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
      "UCBlock::set_active_power_demand(subset): "
      "time index out of range of NetworkBlocks" ) );
 
-   assert( node_index < nb_nodes );
+   if( node_index >= nb_nodes )
+    throw( std::out_of_range(
+     "UCBlock::set_active_power_demand: node index out of range "
+     "(node=" + std::to_string( node_index ) +
+     ", nodes=" + std::to_string( nb_nodes ) + ")" ) );
 
    const Index flat = local_interval * nb_nodes + node_index;
 
@@ -2227,9 +2229,7 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
 {
- const auto number_nodes = get_number_nodes();
-
- rng.second = std::min( rng.second , number_nodes * f_time_horizon );
+ rng.second = std::min( rng.second , get_number_nodes() * f_time_horizon );
 
  if( rng.first >= rng.second )
   return;
@@ -2266,7 +2266,11 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
      "UCBlock::set_active_power_demand: time index out of range "
      "of NetworkBlocks" ) );
 
-   assert( node_index < nb_nodes );
+   if( node_index >= nb_nodes )
+    throw( std::out_of_range(
+     "UCBlock::set_active_power_demand: node index out of range "
+     "(node=" + std::to_string( node_index ) +
+     ", nodes=" + std::to_string( nb_nodes ) + ")" ) );
 
    const Index flat = local_interval * nb_nodes + node_index;
 

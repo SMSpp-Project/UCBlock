@@ -136,8 +136,8 @@ class UCBlock : public Block
   : Block( father ) , f_time_horizon( 0 ) , f_has_reactive( false ) ,
     f_number_networks( 0 ) , f_number_units( 0 ) ,
     f_number_elc_generators( 0 ) , f_total_number_pollutant_zones( 0 ) ,
-    f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ),
-    f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ),
+    f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
+    f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ) ,
     f_NetworkData( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/

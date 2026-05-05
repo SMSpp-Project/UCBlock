@@ -2114,8 +2114,7 @@ class HydroUnitBlockMod : public UnitBlockMod
    case( eSetActPCost ):
     output << "set active power cost values";
     break;
-   default:
-    break;
+   default:;
    }
   }
 

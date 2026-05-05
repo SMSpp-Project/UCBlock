@@ -135,7 +135,7 @@ std::vector< std::string > SlackUnitBlock::expected_vars( void )
  const {
  static const std::vector< std::string > ev =
  { "MaxPower" , "MaxPrimaryPower" , "MaxSecondaryPower" , "ActivePowerCost" ,
-   "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia"
+   "PrimaryCost" , "SecondaryCost" , "InertiaCost" , "MaxInertia" ,
    "MinReactivePower" , "MaxReactivePower"
    };
 

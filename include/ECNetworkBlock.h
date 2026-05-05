@@ -152,7 +152,17 @@ class ECNetworkBlock : public NetworkBlock
    *   RewardP[ t ] contains the same value for all t;
    *
    * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
-   *   tariff that the user pays due to the peak power. */
+   *   tariff that the user pays due to the peak power;
+   *
+   * - The variable "PenaltyPrice", of type netCDF::NcDouble and either of
+   *   size 1 or indexed over the dimension "NumberIntervals". This is meant
+   *   to represent the vector PenP[ t ] that, for each time instant t,
+   *   contains the tariff that the user pays on the (positive and negative)
+   *   squilibrium for the corresponding time step. If "PenaltyPrice" has
+   *   length 1 then PenP[ t ] contains the same value for all t. This
+   *   variable is optional: if it is not provided, the ECNetworkBlock does
+   *   not generate the squilibrium variables and the corresponding term in
+   *   the objective. */
 
   void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -184,31 +194,75 @@ class ECNetworkBlock : public NetworkBlock
   /** Returns the tariff that the user gains to sell electricity to the
    * public market. */
 
-  std::vector< double > get_sell_price( void ) const {
+  const std::vector< double > & get_sell_price( void ) const {
    return( v_SellPrice );
    }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the energy sell price
+  /** Mutating accessor to the SellPrice vector; mirrors
+   * DCNetworkBlock::DCNetworkData::get_network_cost(). It is intended to
+   * be used by ECNetworkBlock setters to mutate the data in place when
+   * scenario-dependent prices are written through register_method<>(). */
+
+  std::vector< double > & get_sell_price( void ) { return( v_SellPrice ); }
 
 /*--------------------------------------------------------------------------*/
   /// returns the energy buy price
   /** Returns the tariff that the user pays to buy electricity from the public
    * market. */
 
-  std::vector< double > get_buy_price( void ) const { return( v_BuyPrice ); }
+  const std::vector< double > & get_buy_price( void ) const {
+   return( v_BuyPrice );
+   }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the energy buy price
+
+  std::vector< double > & get_buy_price( void ) { return( v_BuyPrice ); }
 
 /*--------------------------------------------------------------------------*/
   /// returns the energy reward price
   /** Returns the tariff that the user gains when it absorbs power from the
    * microgrid market / network (instead of from the public grid). */
 
-  std::vector< double > get_reward_price( void ) const {
+  const std::vector< double > & get_reward_price( void ) const {
    return( v_RewardPrice );
    }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the energy reward price
+
+  std::vector< double > & get_reward_price( void ) { return( v_RewardPrice ); }
 
 /*--------------------------------------------------------------------------*/
   /// returns the peak tariff
   /** Returns the tariff that the user pays due to the peak power. */
 
   double get_peak_tariff( void ) const { return( f_PeakTariff ); }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the peak tariff
+
+  double & get_peak_tariff( void ) { return( f_PeakTariff ); }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the penalty price
+  /** Returns the tariff that the user pays on the (positive and negative)
+   * squilibrium at each time horizon. The vector may be empty when no
+   * penalty has been defined for this ECNetworkData; in that case the
+   * ECNetworkBlock does not generate the squilibrium variables. */
+
+  const std::vector< double > & get_penalty_price( void ) const {
+   return( v_PenaltyPrice );
+   }
+
+/*--------------------------------------------------------------------------*/
+  /// returns the penalty price
+
+  std::vector< double > & get_penalty_price( void ) {
+   return( v_PenaltyPrice );
+   }
 
 /** @} ------------- METHODS FOR SAVING THE ECNetworkData ------------------*/
 /** @name Methods for loading, printing & saving the ECNetworkData
@@ -243,6 +297,9 @@ class ECNetworkBlock : public NetworkBlock
 
   /// tariff that the user pays due to the peak power
   double f_PeakTariff{};
+
+  /// tariff that the user pays on the squilibrium at each time horizon
+  std::vector< double > v_PenaltyPrice;
 
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 
@@ -579,6 +636,22 @@ class ECNetworkBlock : public NetworkBlock
   return( f_NetworkData->get_peak_tariff() );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the penalty price at the given interval
+ /** Returns the tariff that the user pays on the (positive and negative)
+  * squilibrium at the given interval. Returns 0 when no penalty has been
+  * defined for this ECNetworkData (i.e. when the squilibrium variables
+  * have not been generated).
+  *
+  * @param interval The interval wrt the penalty price is returned. */
+
+ double get_penalty_price( Index interval ) const {
+  const auto & v = f_NetworkData->get_penalty_price();
+  if( v.empty() )
+   return( 0.0 );
+  return( v[ interval ] );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ECNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -731,6 +804,238 @@ class ECNetworkBlock : public NetworkBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
+/*--------------------------------------------------------------------------*/
+ /// set the buy price at the time intervals specified by \p subset
+ /** This function sets the buy price at each time interval in the given
+  * \p subset. The buy price at the time interval whose index is specified by
+  * the i-th element in \p subset is given by the i-th element of the vector
+  * pointed by \p values, i.e., it is given by the value pointed by
+  * (values + i). The parameter \p ordered indicates whether the \p subset is
+  * ordered.
+  *
+  * @param values An iterator to a vector containing the buy prices.
+  *
+  * @param subset The indices of the time intervals at which the buy price is
+  *               being modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_buy_price( MF_dbl_it values ,
+                     Subset && subset ,
+                     const bool ordered = false ,
+                     ModParam issuePMod = eNoBlck ,
+                     ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the buy price at the time intervals specified by \p rng
+ /** This function sets the buy price at each time interval in the given
+  * Range \p rng. For each i in the given Range (up to the number of
+  * intervals minus 1), the buy price at interval i is given by the element
+  * of the vector pointed by \p values whose index is (i - rng.first), i.e.,
+  * it is given by the value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the buy prices.
+  *
+  * @param rng A Range containing the indices of the time intervals at which
+  *        the buy price is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_buy_price( MF_dbl_it values ,
+                     Range rng = Range( 0 , Inf< Index >() ) ,
+                     ModParam issuePMod = eNoBlck ,
+                     ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the sell price at the time intervals specified by \p subset
+ /** This function sets the sell price at each time interval in the given
+  * \p subset. The sell price at the time interval whose index is specified by
+  * the i-th element in \p subset is given by the i-th element of the vector
+  * pointed by \p values, i.e., it is given by the value pointed by
+  * (values + i). The parameter \p ordered indicates whether the \p subset is
+  * ordered.
+  *
+  * @param values An iterator to a vector containing the sell prices.
+  *
+  * @param subset The indices of the time intervals at which the sell price is
+  *               being modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_sell_price( MF_dbl_it values ,
+                      Subset && subset ,
+                      const bool ordered = false ,
+                      ModParam issuePMod = eNoBlck ,
+                      ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the sell price at the time intervals specified by \p rng
+ /** This function sets the sell price at each time interval in the given
+  * Range \p rng. For each i in the given Range (up to the number of
+  * intervals minus 1), the sell price at interval i is given by the element
+  * of the vector pointed by \p values whose index is (i - rng.first), i.e.,
+  * it is given by the value pointed by (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the sell prices.
+  *
+  * @param rng A Range containing the indices of the time intervals at which
+  *        the sell price is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_sell_price( MF_dbl_it values ,
+                      Range rng = Range( 0 , Inf< Index >() ) ,
+                      ModParam issuePMod = eNoBlck ,
+                      ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the peak tariff
+ /** This function sets the (scalar) peak tariff. Only index 0 is meaningful
+  * since PeakTariff is a single value: \p subset must contain 0, otherwise
+  * an exception is thrown.
+  *
+  * @param values An iterator to a vector whose first element is the new
+  *        peak tariff.
+  *
+  * @param subset Must contain only the index 0.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_peak_tariff( MF_dbl_it values ,
+                       Subset && subset ,
+                       const bool ordered = false ,
+                       ModParam issuePMod = eNoBlck ,
+                       ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the peak tariff
+ /** This function sets the (scalar) peak tariff. PeakTariff is a single
+  * value, so only the index 0 is meaningful: the Range \p rng must include
+  * 0, and any value outside [ 0 , 1 ) is ignored.
+  *
+  * @param values An iterator to a vector whose first element is the new
+  *        peak tariff.
+  *
+  * @param rng A Range that must include the index 0.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_peak_tariff( MF_dbl_it values ,
+                       Range rng = Range( 0 , Inf< Index >() ) ,
+                       ModParam issuePMod = eNoBlck ,
+                       ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the constant term of the objective
+ /** This function sets the (scalar) constant term added to the objective
+  * function of this ECNetworkBlock. Only index 0 is meaningful: \p subset
+  * must contain 0, otherwise an exception is thrown.
+  *
+  * @param values An iterator to a vector whose first element is the new
+  *        constant term.
+  *
+  * @param subset Must contain only the index 0.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_const_term( MF_dbl_it values ,
+                      Subset && subset ,
+                      const bool ordered = false ,
+                      ModParam issuePMod = eNoBlck ,
+                      ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the constant term of the objective
+ /** This function sets the (scalar) constant term added to the objective
+  * function of this ECNetworkBlock. ConstTerm is a single value, so only
+  * the index 0 is meaningful: the Range \p rng must include 0, and any
+  * value outside [ 0 , 1 ) is ignored.
+  *
+  * @param values An iterator to a vector whose first element is the new
+  *        constant term.
+  *
+  * @param rng A Range that must include the index 0.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_const_term( MF_dbl_it values ,
+                      Range rng = Range( 0 , Inf< Index >() ) ,
+                      ModParam issuePMod = eNoBlck ,
+                      ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the penalty price at the time intervals specified by \p subset
+ /** This function sets the penalty price at each time interval in the given
+  * \p subset. The penalty price at the time interval whose index is specified
+  * by the i-th element in \p subset is given by the i-th element of the
+  * vector pointed by \p values, i.e., it is given by the value pointed by
+  * (values + i). The parameter \p ordered indicates whether the \p subset is
+  * ordered.
+  *
+  * @param values An iterator to a vector containing the penalty prices.
+  *
+  * @param subset The indices of the time intervals at which the penalty
+  *               price is being modified.
+  *
+  * @param ordered It indicates whether \p subset is ordered.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_penalty_price( MF_dbl_it values ,
+                         Subset && subset ,
+                         const bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the penalty price at the time intervals specified by \p rng
+ /** This function sets the penalty price at each time interval in the given
+  * Range \p rng. For each i in the given Range (up to the number of
+  * intervals minus 1), the penalty price at interval i is given by the
+  * element of the vector pointed by \p values whose index is
+  * (i - rng.first), i.e., it is given by the value pointed by
+  * (values + i - rng.first).
+  *
+  * @param values An iterator to a vector containing the penalty prices.
+  *
+  * @param rng A Range containing the indices of the time intervals at which
+  *        the penalty price is being modified.
+  *
+  * @param issuePMod It controls how physical Modification are issued.
+  *
+  * @param issueAMod It controls how abstract Modification are issued. */
+
+ void set_penalty_price( MF_dbl_it values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
+
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -776,6 +1081,14 @@ class ECNetworkBlock : public NetworkBlock
   * a specific interval in "NumberIntervals" */
  std::vector< ColVariable > v_peak_power;
 
+ /** positive squilibrium of the user at each time horizon that is referred
+  * to a specific peak period, i.e., a specific interval in "NumberIntervals" */
+ boost::multi_array< ColVariable , 2 > v_power_squilibrium_pos;
+
+ /** negative squilibrium of the user at each time horizon that is referred
+  * to a specific peak period, i.e., a specific interval in "NumberIntervals" */
+ boost::multi_array< ColVariable , 2 > v_power_squilibrium_neg;
+
 /*------------------------------- constraints ------------------------------*/
 
  /// the power balance constraints
@@ -814,6 +1127,36 @@ class ECNetworkBlock : public NetworkBlock
 
   register_method< ECNetworkBlock , MF_dbl_it , Range >(
    "ECNetworkBlock::set_active_demand" , & ECNetworkBlock::set_active_demand );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ECNetworkBlock::set_buy_price" , & ECNetworkBlock::set_buy_price );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+   "ECNetworkBlock::set_buy_price" , & ECNetworkBlock::set_buy_price );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ECNetworkBlock::set_sell_price" , & ECNetworkBlock::set_sell_price );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+   "ECNetworkBlock::set_sell_price" , & ECNetworkBlock::set_sell_price );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ECNetworkBlock::set_peak_tariff" , & ECNetworkBlock::set_peak_tariff );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+   "ECNetworkBlock::set_peak_tariff" , & ECNetworkBlock::set_peak_tariff );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ECNetworkBlock::set_const_term" , & ECNetworkBlock::set_const_term );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+   "ECNetworkBlock::set_const_term" , & ECNetworkBlock::set_const_term );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ECNetworkBlock::set_penalty_price" , & ECNetworkBlock::set_penalty_price );
+
+  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+   "ECNetworkBlock::set_penalty_price" , & ECNetworkBlock::set_penalty_price );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -833,7 +1176,11 @@ class ECNetworkBlockMod : public NetworkBlockMod
  /// public enum for the types of NetworkBlockMod
  enum ECNetB_mod_type
  {
-  eSetActD = 0 , ///< set active demand values
+  eSetBuyP = eNetBModLastParam ,  ///< set buy-price values
+  eSetSellP ,                     ///< set sell-price values
+  eSetPeakT ,                     ///< set peak-tariff value
+  eSetConstT ,                    ///< set objective constant term
+  eSetPenaltyP ,                  ///< set penalty-price values
   eECNetBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ECNetworkBlockMod. */
@@ -855,8 +1202,22 @@ class ECNetworkBlockMod : public NetworkBlockMod
  void print( std::ostream & output ) const override {
   output << "ECNetworkBlockMod[" << this << "]: ";
   switch( f_type ) {
-   default:
-    output << "Set active demand values ";
+   case( eSetBuyP ):
+    output << "Set buy-price values ";
+    break;
+   case( eSetSellP ):
+    output << "Set sell-price values ";
+    break;
+   case( eSetPeakT ):
+    output << "Set peak-tariff value ";
+    break;
+   case( eSetConstT ):
+    output << "Set constant term ";
+    break;
+   case( eSetPenaltyP ):
+    output << "Set penalty-price values ";
+    break;
+   default:;
   }
  }
 

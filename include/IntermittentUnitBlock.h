@@ -1207,8 +1207,7 @@ class IntermittentUnitBlockMod : public UnitBlockMod
    case( eSetActPCost ):
     output << "Set active power cost values ";
     break;
-   default:
-    break;
+   default:;
   }
  }
 

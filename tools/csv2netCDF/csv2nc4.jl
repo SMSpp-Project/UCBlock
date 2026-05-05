@@ -1,9 +1,14 @@
 using Pkg
 Pkg.activate(".")  # Activate environment from Project.toml
-Pkg.instantiate()
+# `Pkg.instantiate()` is intentionally NOT called here: this driver does not
+# import `EnergyCommunity` or `Gurobi`, but they are still listed as optional
+# deps in Project.toml; running `instantiate` would force their resolution
+# (and on Julia 1.11 the EC.jl version pin clashes with newer XLSX). The
+# direct deps used below are loaded individually below — if any is missing,
+# add it manually (`Pkg.add(...)`) once and the Manifest will pin it.
 
 using YAML
-# the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl, 
+# the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl,
 # does not support (yet) the concept of group :(
 using NCDatasets
 using DataStructures
@@ -12,7 +17,6 @@ using Parameters
 using DataFrames
 using XLSX
 using JLD2
-using YAML
 using CSV
 
 using Distributions
@@ -32,14 +36,44 @@ include("scenario_definition.jl")
 include("pem_extraction.jl")
 
 # Include the sampler for distributions associated to short period uncertainty and a function to generate scenarios
-include("Scen_eps_sampler.jl")
+include("scen_eps_sampler.jl")
 
-# setting the seed
-Random.seed!(123)
+# A `Random.seed!(123)` is set later, immediately before the call to
+# `pem_extraction` (and again in `test_instance_with_EC_jl.jl` before the
+# corresponding sampling), so the (s, eps) draws are bit-identical between
+# the SMS++ TSSB pipeline and the EC.jl@stochastic comparison.
+
+# YAML layout assumed by this driver — schema aligned with EC.jl@stochastic:
+#   * EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
+#     `peak_categories`) under `general.profile`.
+#   * Pricing fields (`buy_price`, `sell_price`, `consumption_price`,
+#     `penalty_price`, `peak_tariff`, `peak_weight`) under a single flat
+#     `market.profile` group.
+
+# EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
+# `peak_categories`). The EC.jl@stochastic schema places them under
+# `market.profile`; the legacy schema (still used by the deterministic
+# `*_CO/_NA/_NC.yml`) places them under `general.profile`. Try the
+# market-level profile first and fall back to general so that both
+# schemas keep working through the same driver.
+@inline ec_profile(name) = let p = profile_d(market_data, name, nothing)
+    isnothing(p) ? profile(gen_data, name) : p
+end
+@inline ec_profile_d(name, default) = let p = profile_d(market_data, name, nothing)
+    isnothing(p) ? profile_d(gen_data, name, default) : p
+end
+# `user_market_data(u)` returns the per-user market block. With the
+# EC.jl@stochastic schema there is a single flat `market.profile`, so any
+# user gets the same `market_data`. With the legacy two-tier schema each
+# user has a `tariff_name` pointing at one of `market.commercial` /
+# `market.non_commercial`; in that case follow the indirection.
+@inline user_market_data(u) = haskey(market_data, "profile") ?
+    market_data : field(market_data, field(users_data[u], "tariff_name"))
+
 
 function csvEC2nc4(
     deterministic::Bool=false,
-    sampled_scenarios::Union{Nothing, Vector{Scenario_Load_Renewable}}=nothing,
+    sampled_scenarios::Union{Nothing,Vector{Scenario_Load_Renewable}}=nothing,
 )
 
     middle = "_"
@@ -59,9 +93,29 @@ function csvEC2nc4(
         last = string(last, "_NB")
     end
 
-    # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-    block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+    # Stochastic YAMLs produce a single TSSB nc4 with the UCBlock embedded
+    # inline as the inner Block of the StochasticBlock group; we don't write
+    # a separate `EC_*_Test_sto.nc4` for the inner UCBlock because the test
+    # batches don't need it and the deterministic `EC_*_Test*.nc4` files
+    # (whose objective values are pinned by tests/LagrangianDualSolver_UC/
+    # batches/batch-ec) must stay untouched. Open one dataset accordingly.
+    if deterministic
+        ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+        # tssb / sb are populated only in the stochastic branch below
+        tssb = nothing
+        sb = nothing
+    else
+        ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        tssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        # StochasticBlock + the inner UCBlock are pre-declared so that the
+        # subsequent UCBlock-writing code can target `block` uniformly. The
+        # rest of the TSSB structure (NumberScenarios, DiscreteScenarioSet,
+        # SimpleDataMapping, AbstractPath) is populated further below, after
+        # the UCBlock has collected the metadata it needs (n_devices, ...).
+        sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+        block = defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+    end
 
     # Store the number of nodes
     n_users = length(user_set)
@@ -71,57 +125,66 @@ function csvEC2nc4(
     defDim(block, "TimeHorizon", n_steps)
 
     # Store the number of `ECNetworkBlock`(s), i.e., the number of peak periods/categories
-    peak_categories = profile(market_data, "peak_categories")[time_set]
+    peak_categories = ec_profile("peak_categories")[time_set]
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
 
-    # Create buy, sell, reward, and consumption, i.e., the constant term, price data arrays
+    # Create buy, sell, reward, and consumption, i.e., the constant term, price data arrays.
+    # UCBlock applies a single scalar BuyPrice/SellPrice/PeakTariff to the community-wide
+    # imports/exports/peaks, so the cost is `price · Σ_u flow_u`. To stay consistent with
+    # EnergyCommunity.jl — which computes Σ_u price_u · flow_u with the same per-user data —
+    # we read the price ONCE from a representative tariff (all `tariff_name` blocks point to
+    # the same CSV column in the current setup); summing across users would scale every
+    # cost term by the number of users.
     project_lifetime = field(gen_data, "project_lifetime")
     year_set = 1:project_lifetime
+    discount_factor = sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    energy_weight_profile = ec_profile("energy_weight")
+    time_res_profile = ec_profile("time_res")
+    ref_market = user_market_data(first(user_set))
 
     # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-    buy_price_data = [profile(market_data, "buy_price")[t] *
-                      profile(market_data, "energy_weight")[t] *
-                      profile(market_data, "time_res")[t]
-                      for t in time_set] *
-                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    buy_price_data = [profile(ref_market, "buy_price")[t] *
+                      energy_weight_profile[t] *
+                      time_res_profile[t]
+                      for t in time_set] * discount_factor
 
     # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-    sell_price_data = [profile(market_data, "sell_price")[t] *
-                       profile(market_data, "energy_weight")[t] *
-                       profile(market_data, "time_res")[t]
-                       for t in time_set] *
-                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    sell_price_data = [profile(ref_market, "sell_price")[t] *
+                       energy_weight_profile[t] *
+                       time_res_profile[t]
+                       for t in time_set] * discount_factor
 
     # `RewardPrice`, i.e., the reward awarded to the community
-    reward_price_data = [profile(market_data, "reward_price")[t] *
-                         profile(market_data, "energy_weight")[t] *
-                         profile(market_data, "time_res")[t]
-                         for t in time_set] *
-                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-
-    # `PenaltyPrice`, i.e., the penalty price for energy squilibrium
-    #= penalty_price_data = [profile(market_data, "penalty_price")[t] *
-                            profile(market_data, "energy_weight")[t] *
-                            profile(market_data, "time_res")[t]
-                            for t in time_set] *
-                            sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set) =#
+    reward_price_data = [ec_profile_d("reward_price", fill(0.0, n_steps))[t] *
+                         energy_weight_profile[t] *
+                         time_res_profile[t]
+                         for t in time_set] * discount_factor
 
     # `PeakTariff`, i.e., the peak tariff cost
-    peak_tariff_data = [profile(market_data, "peak_tariff")[w] *
-                        profile(market_data, "peak_weight")[w]
-                        for w in peak_set] *
-                       sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    peak_tariff_data = [profile(ref_market, "peak_tariff")[w] *
+                        profile(ref_market, "peak_weight")[w]
+                        for w in peak_set] * discount_factor
 
-    # `ConstantTerm`, i.e., the consumption price
-    const_term_data = [sum(profile(market_data, "consumption_price")[t] *
-                           profile_component(users_data[u], l, "load")[t]
+    # `ConstantTerm`, i.e., the consumption price applied to total user load
+    const_term_data = [profile(ref_market, "consumption_price")[t] *
+                       sum(profile_component(users_data[u], l, "load")[t]
                            for u in user_set for l in asset_names(users_data[u], LOAD)) *
-                       profile(market_data, "energy_weight")[t] *
-                       profile(market_data, "time_res")[t]
-                       for t in time_set] *
-                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                       energy_weight_profile[t] *
+                       time_res_profile[t]
+                       for t in time_set] * discount_factor
+
+    # `PenaltyPrice`, i.e., the unit cost of unmet demand. Optional: only
+    # written to the netCDF when the YAML market profile defines it. When
+    # present, ECNetworkBlock creates the imbalance slack variables and the
+    # corresponding term in the objective.
+    penalty_price_raw = profile_d(ref_market, "penalty_price", nothing)
+    penalty_price_data = isnothing(penalty_price_raw) ? nothing :
+                         [penalty_price_raw[t] *
+                          energy_weight_profile[t] *
+                          time_res_profile[t]
+                          for t in time_set] * discount_factor
 
     if (!("--with-network-blocks" in OPTION_ARGS) &&
         allequal(sell_price_data) &&
@@ -180,6 +243,14 @@ function csvEC2nc4(
             last_t += n_intervals
         end
 
+        # `PenaltyPrice` is shared across all peaks here (consolidated branch is
+        # taken only when prices are constant across peaks); it is consumed by
+        # ECNetworkBlock to instantiate the imbalance slack variables.
+        if !isnothing(penalty_price_data) && !iszero(penalty_price_data[1])
+            penalty_price = defVar(block, "PenaltyPrice", Float64, ("NumberIntervals",))
+            penalty_price[:] = penalty_price_data[1:n_intervals[1]]
+        end
+
     else
 
         # Store the specific classname of the NetworkData to inform UCBlock
@@ -187,6 +258,20 @@ function csvEC2nc4(
         # transmission and community networks)
         network_data_classname = defVar(block, "NetworkDataClassname", String, ())
         network_data_classname[1] = "NetworkData"
+
+        # `NetworkConstantTerms` MUST be written at the top-level UCBlock even when
+        # individual `NetworkBlock_n` groups carry their own scalar `ConstantTerm`:
+        # `UCBlock::deserialize` (UCBlock.cpp ~408) overwrites every NetworkBlock's
+        # constant_term with `v_network_constant_terms[n]`. Without the top-level
+        # vector that array is zero-filled and the per-block ConstantTerm is lost.
+        nct = defVar(block, "NetworkConstantTerms", Float64, ("NumberNetworks",))
+        last_t = 1
+        for (i_w, w) in enumerate(peak_set)
+            last_i = findlast(x -> x == w, peak_categories)
+            nct[i_w] = sum(const_term_data[last_t:last_i])
+            n_intervals = count(x -> x == w, peak_categories)
+            last_t += n_intervals
+        end
 
         # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time steps/horizons
         last_t = 1
@@ -252,6 +337,14 @@ function csvEC2nc4(
             const_term = defVar(ecnb, "ConstantTerm", Float64, ())
             const_term[:] = sum(const_term_data[last_t:last_i])
 
+            # `PenaltyPrice` (optional): triggers the imbalance slack
+            # variables in ECNetworkBlock.
+            if !isnothing(penalty_price_data) &&
+               any(!iszero, penalty_price_data[last_t:last_i])
+                penalty_price = defVar(ecnb, "PenaltyPrice", Float64, ("NumberIntervals",))
+                penalty_price[:] = penalty_price_data[last_t:last_i]
+            end
+
             last_t += n_intervals
         end
     end
@@ -270,10 +363,15 @@ function csvEC2nc4(
     # AbstractPath
     if !deterministic # stochastic model
         path_dim = 0
-        # path_group_idx_data = Int[]
         path_group_idx_data = String[]
         path_element_idx_data = Int[]
         path_range_idx_data = Int[]
+        # IntermittentUnitBlock(s) whose MaxPower changes per scenario.
+        # For each entry we record:
+        #   ub_idx       = UnitBlock_<ub_idx> position inside the UCBlock
+        #   user, asset  = keys to look up scen.Ren[user][asset]
+        #   max_capacity = scaling factor applied to the per-unit profile
+        intermittent_units = Tuple{Int,String,String,Float64}[]
     end
 
     if n_devices > 0
@@ -325,10 +423,10 @@ function csvEC2nc4(
 
                     if !deterministic # stochastic model
                         path_dim += 1
-                        # append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_intermittent
                         append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
                         append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_intermittent
                         append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_intermittent
+                        push!(intermittent_units, (last_g, u, g, field_component(users_data[u], g, "max_capacity")))
                     end
 
                     last_g += 1
@@ -368,7 +466,7 @@ function csvEC2nc4(
 
                     # store the minimum storage of the battery
                     min_storage_data = [field_component(users_data[u], g, "min_SOC") /
-                                        profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                        time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                         for t in time_set] * field_component(users_data[u], g, "max_capacity")
                     if (allequal(min_storage_data))
                         min_storage = defVar(ub, "MinStorage", Float64, ())
@@ -380,7 +478,7 @@ function csvEC2nc4(
 
                     # store the maximum storage of the battery
                     max_storage_data = [field_component(users_data[u], g, "max_SOC") /
-                                        profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                        time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
                                         for t in time_set] * field_component(users_data[u], g, "max_capacity")
                     if (allequal(max_storage_data))
                         max_storage = defVar(ub, "MaxStorage", Float64, ())
@@ -440,7 +538,6 @@ function csvEC2nc4(
 
                     if !deterministic # stochastic model
                         path_dim += 2
-                        # append!(path_group_idx_data, [last_g, 0, last_g, 1]) # i.e., last_g wrt B, 0 wrt V x_battery, 1 wrt V x_converter
                         append!(path_group_idx_data, [string(last_g), "x_battery", string(last_g), "x_converter"]) # i.e., last_g wrt B, V x_battery, x_converter
                         append!(path_element_idx_data, [typemax(UInt32), 0, typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_battery, x_converter
                         append!(path_range_idx_data, [typemax(UInt32), 1, typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_battery, x_converter
@@ -494,8 +591,8 @@ function csvEC2nc4(
                         # store the linear term of the thermal
                         linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "slope_map")) *
-                                                profile(market_data, "energy_weight")[t] *
-                                                profile(market_data, "time_res")[t]
+                                                energy_weight_profile[t] *
+                                                time_res_profile[t]
                                                 for t in time_set] *
                                                (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
                         if (allequal(linear_term_data))
@@ -510,8 +607,8 @@ function csvEC2nc4(
                         const_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
                                                 (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "inter_map"))) *
-                                               profile(market_data, "energy_weight")[t] *
-                                               profile(market_data, "time_res")[t]
+                                               energy_weight_profile[t] *
+                                               time_res_profile[t]
                                                for t in time_set] *
                                               (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
                                           field_component(users_data[u], g, "nom_capacity")
@@ -525,7 +622,6 @@ function csvEC2nc4(
 
                         if !deterministic # stochastic model
                             path_dim += 1
-                            # append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_thermal
                             append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
                             append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
                             append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
@@ -539,19 +635,73 @@ function csvEC2nc4(
         end
     end
 
-    close(ds)
-
     if !deterministic # stochastic model
 
-        # The mode "c" stands for creating a new file (clobber)
-        tssb_ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-        tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        # The TSSB structures (top-level Block_0 + StochasticBlock + inner
+        # UCBlock Block group) were pre-defined above; the inner UCBlock has
+        # just been populated by the deterministic branch of this function.
+        # Now we add the dimensions and groups that depend on the UCBlock
+        # metadata collected above (n_devices, intermittent_units, peak_set).
 
         ## Number of scenarios in the TwoStageStochasticBlock.
         ## We use the number of sampled_scenarios, which already encodes
         ## the (s, eps) combinations returned by scenarios_generator.
         n_scen = length(sampled_scenarios)
         defDim(tssb, "NumberScenarios", n_scen)
+
+        # ----------------------------------------------------------------
+        # Stochastic-price detection.
+        # ----------------------------------------------------------------
+        # `scen_eps_sampler.jl` perturbs market-level prices whenever the
+        # YAML market profile defines `std_<name>` (`std_buy_price`,
+        # `std_sell_price`, `std_consumption_price`, `std_penalty_price`,
+        # `std_peak_tariff`); without those entries the corresponding price
+        # is left deterministic. We scan the sampled scenarios to find
+        # which price fields actually vary, then emit one
+        # `SimpleDataMapping` per (varying field, peak period) targeting the
+        # matching ECNetworkBlock setter (registered in
+        # `ECNetworkBlock::static_initialization`):
+        #   buy_price          -> ECNetworkBlock::set_buy_price
+        #   sell_price         -> ECNetworkBlock::set_sell_price
+        #   peak_tariff        -> ECNetworkBlock::set_peak_tariff   (scalar)
+        #   consumption_price  -> ECNetworkBlock::set_const_term    (scalar)
+        #   penalty_price      -> ECNetworkBlock::set_penalty_price
+        function _scenario_field_varies(field_extractor)
+            isempty(sampled_scenarios) && return false
+            ref = field_extractor(sampled_scenarios[1])
+            return any(s -> field_extractor(s) != ref, sampled_scenarios)
+        end
+        varying_price_fields = String[]
+        _scenario_field_varies(s -> s.buy_price)         && push!(varying_price_fields, "buy_price")
+        _scenario_field_varies(s -> s.sell_price)        && push!(varying_price_fields, "sell_price")
+        _scenario_field_varies(s -> s.consumption_price) && push!(varying_price_fields, "consumption_price")
+        _scenario_field_varies(s -> s.penalty_price)     && push!(varying_price_fields, "penalty_price")
+        _scenario_field_varies(s -> s.peak_tariff)       && push!(varying_price_fields, "peak_tariff")
+
+        # peak_tariff and consumption_price feed scalar setters (slice length 1);
+        # the other three feed per-time vectors of length equal to the peak's
+        # number of intervals.
+        ec_setter_for = Dict(
+            "buy_price"         => "ECNetworkBlock::set_buy_price",
+            "sell_price"        => "ECNetworkBlock::set_sell_price",
+            "peak_tariff"       => "ECNetworkBlock::set_peak_tariff",
+            "consumption_price" => "ECNetworkBlock::set_const_term",
+            "penalty_price"     => "ECNetworkBlock::set_penalty_price",
+        )
+        scalar_price_field(name) = name == "peak_tariff" || name == "consumption_price"
+
+        n_intervals_per_peak = [count(x -> x == w, peak_categories) for w in peak_set]
+
+        # price_mappings[k] = (field_name, peak_index_1based, slice_length)
+        price_mappings = Tuple{String,Int,Int}[]
+        for field_name in varying_price_fields
+            for i_w in 1:n_peaks
+                len = scalar_price_field(field_name) ? 1 : n_intervals_per_peak[i_w]
+                push!(price_mappings, (field_name, i_w, len))
+            end
+        end
+        N_price_tail = isempty(price_mappings) ? 0 : sum(m[3] for m in price_mappings)
+        # ----------------------------------------------------------------
 
         # DiscreteScenarioSet
         #
@@ -570,20 +720,31 @@ function csvEC2nc4(
         dss = defGroup(
             tssb,
             "DiscreteScenarioSet",
-            attrib = OrderedDict("type" => "DiscreteScenarioSet"),
+            attrib=OrderedDict("type" => "DiscreteScenarioSet"),
         )
 
         # ScenarioSize = number of entries in each scenario vector.
-        # Here we take the active power demand of all users on the whole
-        # time horizon, flattened in (t, u) order, consistent with the
-        # way ActivePowerDemand is written in UCBlock.
+        # Layout (in scenario-vector order):
+        #   1. ActivePowerDemand: n_steps * n_users entries, flattened (t, u)
+        #      consistent with UCBlock::ActivePowerDemand[t, u].
+        #   2. For each IntermittentUnitBlock (PV / wind), in the order they
+        #      were emitted into the UCBlock: n_steps entries with
+        #      max_capacity * scen.Ren[user][asset][t]. These feed
+        #      IntermittentUnitBlock::set_maximum_power on the corresponding
+        #      UnitBlock_<ub_idx>.
+        #   3. Price tail (only when `varying_price_fields` is non-empty):
+        #      one slice per (varying field, peak period) ordered as in
+        #      `price_mappings`, of length 1 for the scalar setters
+        #      (peak_tariff, consumption_price) and `n_intervals_per_peak[i_w]`
+        #      for the vector setters (buy_price, sell_price, penalty_price).
         n_users = length(user_set)
-        scenario_size = n_steps * n_users
+        n_intermittent = length(intermittent_units)
+        N_dem = n_steps * n_users
+        N_mp  = n_steps
+        scenario_size = N_dem + n_intermittent * N_mp + N_price_tail
 
         defDim(dss, "NumberScenarios", n_scen)
         defDim(dss, "ScenarioSize", scenario_size)
-        # For "NumberScenarios" we re-use the dimension already defined
-        # in the parent group, by referring to it by name in defVar.
 
         ## A T T E N T I O N: The data is stored in the NetCDF file in the
         ## same order as they are stored in memory. As Julia uses the
@@ -595,18 +756,93 @@ function csvEC2nc4(
         ## NumberScenarios x ScenarioSize in C++, we store it here as
         ## ScenarioSize x NumberScenarios in Julia.
         scen_mat = Array{Float64}(undef, scenario_size, n_scen)
-        weights  = Array{Float64}(undef, n_scen)
+        weights = Array{Float64}(undef, n_scen)
 
         for (k, scen) in enumerate(sampled_scenarios)
             vec = Array{Float64}(undef, scenario_size)
             idx = 1
 
-            # Flatten scenario Load in (time, user) order, consistent
-            # with ActivePowerDemand written as [t, u].
+            # Section 1: ActivePowerDemand in (time, user) order, consistent
+            # with how ActivePowerDemand is written as [t, u].
             for t in time_set
                 for u in user_set
                     vec[idx] = scen.Load[u][t]
                     idx += 1
+                end
+            end
+
+            # Section 2: per-IntermittentUnitBlock max_power time series.
+            for (_, u, asset, max_cap) in intermittent_units
+                ren_profile = scen.Ren[u][asset]
+                for t in time_set
+                    vec[idx] = max_cap * ren_profile[t]
+                    idx += 1
+                end
+            end
+
+            # Section 3: per-(price_field, peak) tail. For each varying price
+            # field we lay one slice per peak period, in the same order as
+            # `price_mappings`. The aggregation mirrors the deterministic
+            # scaling (energy_weight, time_res, peak_weight, discount_factor)
+            # so the C++ obj coefficient matches the deterministic case when
+            # the perturbation amplitude is zero.
+            if !isempty(price_mappings)
+                last_t_per_peak = let lt = 1, out = Int[]
+                    for nint in n_intervals_per_peak
+                        push!(out, lt)
+                        lt += nint
+                    end
+                    out
+                end
+                for (field_name, i_w, _len) in price_mappings
+                    w = peak_set[i_w]
+                    last_t = last_t_per_peak[i_w]
+                    last_i = last_t + n_intervals_per_peak[i_w] - 1
+                    if field_name == "buy_price"
+                        for tt in last_t:last_i
+                            t = time_set[tt]
+                            vec[idx] = scen.buy_price[t] *
+                                       energy_weight_profile[t] *
+                                       time_res_profile[t] * discount_factor
+                            idx += 1
+                        end
+                    elseif field_name == "sell_price"
+                        for tt in last_t:last_i
+                            t = time_set[tt]
+                            vec[idx] = scen.sell_price[t] *
+                                       energy_weight_profile[t] *
+                                       time_res_profile[t] * discount_factor
+                            idx += 1
+                        end
+                    elseif field_name == "penalty_price"
+                        for tt in last_t:last_i
+                            t = time_set[tt]
+                            vec[idx] = scen.penalty_price[t] *
+                                       energy_weight_profile[t] *
+                                       time_res_profile[t] * discount_factor
+                            idx += 1
+                        end
+                    elseif field_name == "consumption_price"
+                        # ConstantTerm aggregates Σ_t consumption_price[t] · Σ_u Load_u[t]
+                        # over the peak's time window (mirrors deterministic const_term_data).
+                        acc = 0.0
+                        for tt in last_t:last_i
+                            t = time_set[tt]
+                            acc += scen.consumption_price[t] *
+                                   sum(scen.Load[u][t] for u in user_set) *
+                                   energy_weight_profile[t] *
+                                   time_res_profile[t]
+                        end
+                        vec[idx] = acc * discount_factor
+                        idx += 1
+                    elseif field_name == "peak_tariff"
+                        vec[idx] = scen.peak_tariff[w] *
+                                   profile(ref_market, "peak_weight")[w] *
+                                   discount_factor
+                        idx += 1
+                    else
+                        error("Unhandled stochastic price field: $field_name")
+                    end
                 end
             end
 
@@ -648,7 +884,6 @@ function csvEC2nc4(
         path_node_types = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
         path_node_types[:] = collect("BV"^path_dim)[:] # repeat BV path_dim times
 
-        # path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
         path_group_idx = defVar(ap, "PathGroupIndices", String, ("TotalLength",))
         path_group_idx[:] = path_group_idx_data[:]
 
@@ -658,28 +893,31 @@ function csvEC2nc4(
         path_range_idx = defVar(ap, "PathRangeIndices", UInt32, ("TotalLength",))
         path_range_idx[:] = path_range_idx_data[:]
 
-        # StochasticBlock
-        sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+        # StochasticBlock was pre-declared at the top of this function; its
+        # inner UCBlock was populated above by the deterministic branch.
+        # Below we add the SimpleDataMapping section + nested AbstractPath.
 
         # SimpleDataMapping
         #
-        # Scenario convention (for this test):
-        #   A single scenario is a concatenation of multiple stochastic vectors.
-        #   Here we want to call set_active_power_demand twice on the same scenario,
-        #   using two different input chunks:
+        # One mapping per stochastic quantity. The scenario vector is split as
+        # described above: Section 1 (demand), then one slice per intermittent
+        # unit (Section 2), then one slice per (varying price field, peak
+        # period) (Section 3, only when price perturbations are detected).
+        # Each mapping declares:
         #
-        #       scenario = [ X1  X2 ]   where len(X1)=N and len(X2)=N
+        #   * which C++ setter consumes the slice
+        #   * SetSize=(0,0) i.e. Range/Range mode
+        #   * SetElements=[fromStart, fromEnd, toStart, toEnd] picking the
+        #     scenario slice and pushing it into the target's full-length
+        #     argument [0, N_target).
         #
-        # We therefore define TWO mappings:
-        #   mapping 0: SetFrom = [0,   N)  -> SetTo = [0, N)   (uses X1)
-        #   mapping 1: SetFrom = [N,  2N)  -> SetTo = [0, N)   (uses X2)
-        #
-        # IMPORTANT: ScenarioSize must be 2N for this test.
+        # Mapping 0 targets the inner UCBlock itself (empty AbstractPath);
+        # mappings 1..n_intermittent target UnitBlock_<ub_idx> via a single
+        # "B" hop carrying the UnitBlock index; the price mappings target
+        # NetworkBlock_<i_w-1> via a single "B" hop carrying the NetworkBlock
+        # index (= n_devices + (i_w-1) in UCBlock's sub-Block ordering).
 
-        number_mappings = 2
-
-        # Length of one demand vector (consumed by the C++ setter)
-        N = n_steps * n_users   # = length(X1) = length(X2)
+        number_mappings = 1 + n_intermittent + length(price_mappings)
 
         defDim(sb, "NumberDataMappings", number_mappings)
         defDim(sb, "SetSize_dim", 2 * number_mappings)
@@ -691,37 +929,90 @@ function csvEC2nc4(
         v_SetSize      = defVar(sb, "SetSize",      UInt32, ("SetSize_dim",))
         v_SetElements  = defVar(sb, "SetElements",  UInt32, ("SetElements_dim",))
 
-        v_FunctionName[:] = fill("UCBlock::set_active_power_demand", number_mappings)
+        function_names = String["UCBlock::set_active_power_demand";
+                                fill("IntermittentUnitBlock::set_maximum_power", n_intermittent)]
+        for (field_name, _i_w, _len) in price_mappings
+            push!(function_names, ec_setter_for[field_name])
+        end
+        v_FunctionName[:] = function_names
         v_DataType[:]     = fill('D', number_mappings)
         v_Caller[:]       = fill('B', number_mappings)
 
-        # Range/Range for both mappings
-        v_SetSize[:]      = fill(UInt32(0), 2 * number_mappings)
+        # Range/Range for every mapping
+        v_SetSize[:] = fill(UInt32(0), 2 * number_mappings)
 
-        # mapping 0: [0,  N)  -> [0, N)
-        # mapping 1: [N, 2N)  -> [0, N)
-        v_SetElements[:] = UInt32.([
-            0,  N,  0,  N,
-            N, 2N,  0,  N
-        ])
+        set_elements = UInt32[]
+        # Mapping 0: scenario [0, N_dem) -> demand argument [0, N_dem)
+        append!(set_elements, UInt32[0, N_dem, 0, N_dem])
+        # Mapping i: scenario slice for the i-th intermittent unit -> [0, T)
+        for i in 1:n_intermittent
+            offset = N_dem + (i - 1) * N_mp
+            append!(set_elements, UInt32[offset, offset + N_mp, 0, N_mp])
+        end
+        # Mappings for the per-(price_field, peak) tail.
+        let tail_offset = N_dem + n_intermittent * N_mp
+            for (_field_name, _i_w, len) in price_mappings
+                append!(set_elements, UInt32[tail_offset, tail_offset + len, 0, len])
+                tail_offset += len
+            end
+        end
+        v_SetElements[:] = set_elements
 
-        ap = defGroup(sb, "AbstractPath")
+        # AbstractPath nested in StochasticBlock: tells the deserializer how
+        # to navigate from the inner Block (the loaded UCBlock) to each setter
+        # target. Empty path = the UCBlock itself; "B" + UInt32 index = enter
+        # the sub-Block at that group position. UCBlock orders its sub-blocks
+        # as [UnitBlock_0..n_devices-1, NetworkBlock_0..n_peaks-1], so the
+        # NetworkBlock for peak (i_w-1) lives at index n_devices + (i_w-1).
+        ap = defGroup(sb, "AbstractPath", attrib=OrderedDict("type" => "AbstractPath"))
+
+        # Concatenated steps across all paths: one 'B' per max_power mapping,
+        # plus one 'B' per (price_field, peak) mapping.
+        total_length_inner = n_intermittent + length(price_mappings)
 
         defDim(ap, "PathDim", number_mappings)
-        defDim(ap, "TotalLength", 0)  # empty paths
+        defDim(ap, "TotalLength", total_length_inner)
 
-        v_PathStart        = defVar(ap, "PathStart",          UInt32, ("PathDim",))
-        v_PathNodeTypes    = defVar(ap, "PathNodeTypes",      Char,   ("TotalLength",))
-        v_PathGroupIndices = defVar(ap, "PathGroupIndices",   String, ("TotalLength",))
+        v_PathStart        = defVar(ap, "PathStart",         UInt32, ("PathDim",))
+        v_PathNodeTypes    = defVar(ap, "PathNodeTypes",     Char,   ("TotalLength",))
+        v_PathGroupIndices = defVar(ap, "PathGroupIndices",  UInt32, ("TotalLength",))
         v_PathElementIdx   = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
         v_PathRangeIdx     = defVar(ap, "PathRangeIndices",   UInt32, ("TotalLength",))
 
-        v_PathStart[:] = fill(UInt32(0), number_mappings)
+        # PathStart[k] is the start position in the concatenated TotalLength
+        # array for the k-th mapping; the k-th path covers indices
+        # [PathStart[k], PathStart[k+1]) (with the last path running to the
+        # end). Mapping 0 (demand) has length 0 (empty path); each subsequent
+        # mapping (intermittent + price) is a single 'B' hop.
+        path_starts_inner = UInt32[0]
+        # n_intermittent + length(price_mappings) single-step paths follow
+        for i in 1:(n_intermittent + length(price_mappings))
+            push!(path_starts_inner, UInt32(i - 1))
+        end
+        v_PathStart[:] = path_starts_inner
 
-        defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))
+        if total_length_inner > 0
+            node_types = Char[]
+            group_indices = UInt32[]
+            for unit in intermittent_units
+                push!(node_types, 'B')
+                push!(group_indices, UInt32(unit[1]))
+            end
+            for (_field_name, i_w, _len) in price_mappings
+                push!(node_types, 'B')
+                push!(group_indices, UInt32(n_devices + (i_w - 1)))
+            end
+            v_PathNodeTypes[:]    = node_types
+            v_PathGroupIndices[:] = group_indices
+            v_PathElementIdx[:]   = fill(typemax(UInt32), total_length_inner)
+            v_PathRangeIdx[:]     = fill(typemax(UInt32), total_length_inner)
+        end
 
-        close(tssb_ds)
+        # The inner UCBlock is embedded as `sb.Block` (created at the top of
+        # this function). No separate inner-UCBlock nc4 file is written.
     end
+
+    close(ds)
 end
 
 ## Parameters
@@ -752,18 +1043,31 @@ final_step = field(gen_data, "final_step")
 time_set = init_step:final_step
 n_steps = length(time_set)
 
-# number of scenarios to be extracted
-scen_s_sample = field(gen_data, "scen_s_sample")
-scen_eps_sample = field(gen_data, "scen_eps_sample")
+# Peak set is required as a global by Scen_eps_sampler / scenario_definition.
+peak_set = unique(ec_profile("peak_categories")[time_set])
 
-is_det = false
-if scen_s_sample == 1 && scen_eps_sample == 1
-    is_det = true
-else
-    # standard deviation associated with load and renewable production in long period uncertainty
-    sigma_load = field(gen_data, "sigma_load")
-    sigma_ren = field(gen_data, "sigma_ren")
-end
+# Number of scenarios to be extracted. Read the EC.jl@stochastic-style
+# `n_s`/`n_eps` keys, falling back to the legacy `scen_s_sample`/
+# `scen_eps_sample` keys still used by the deterministic YAMLs.
+scen_s_sample = field_d(gen_data, "n_s",
+                        field_d(gen_data, "scen_s_sample", 1))
+scen_eps_sample = field_d(gen_data, "n_eps",
+                          field_d(gen_data, "scen_eps_sample", 1))
+
+is_det = (scen_s_sample == 1 && scen_eps_sample == 1)
+
+# Long-period uncertainty parameters. The deterministic flow doesn't need
+# them; in the stochastic flow they default to the upstream EC.jl@stochastic
+# values and can be overridden via `general.sigma_load`, `general.sigma_pv`,
+# `general.sigma_wind`, `general.mean_pv`, `general.mean_wind` in the YAML.
+# `general.uncertain_var` is a string of letters in {"L","P","W"} that
+# selects which long-period source(s) of uncertainty are sampled.
+sigma_load = field_d(gen_data, "sigma_load", 0.3)
+mean_pv    = field_d(gen_data, "mean_pv",    1.0)
+sigma_pv   = field_d(gen_data, "sigma_pv",   0.1)
+mean_wind  = field_d(gen_data, "mean_wind",  0.95)
+sigma_wind = field_d(gen_data, "sigma_wind", 0.15)
+unc_var    = field_d(gen_data, "uncertain_var", "L")
 
 # converters, i.e., CONV, are modeled with the corresponding BatteryUnitBlock in SMS++
 SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
@@ -774,32 +1078,31 @@ SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV]
 sampled_scenarios = nothing
 if !is_det
 
-    # Number of scenarios to be extracted
-    scen_s_sample = 3
-    scen_eps_sample = 3
-
     scen_s_set = 1:scen_s_sample
     scen_eps_set = 1:scen_eps_sample
 
-    # Standard deviation associated with load and renewable production in long period uncertainty
+    # Reset the RNG immediately before sampling so the sequence is the same
+    # one consumed by `test_instance_with_EC_jl.jl`. Any intervening `rand`
+    # calls (e.g. by NCDatasets) are isolated from the scenario draws.
+    Random.seed!(123)
 
-    sigma_load = 0.4
-    sigma_ren = 0.2
-
-    # Extraction of the point used to sample the distributions associated to the long period uncertainty
+    # Extract the long-period (`s`) sampling points and their probabilities.
     (point_s_load,
-    point_s_ren,
-    scen_probability) = pem_extraction(scen_s_sample,sigma_load,sigma_ren)
+        point_s_pv,
+        point_s_wind,
+        scen_probability) = pem_extraction(scen_s_sample, sigma_load,
+                                           mean_pv, sigma_pv,
+                                           mean_wind, sigma_wind,
+                                           unc_var)
 
-    # To define an empty stochastic model we have to declare previously the scenarios
-    # sampled_scenarios is a list of Scenario_Load_Renewable defined in scenario_definition.jl; see definition for more information
-    # Notable quantities are:
-    #   sampled_scenarios[i].scen_s : scenario s
-    #   sampled_scenarios[i].scen_eps : scenario epsilon
-    #   probability(sampled_scenarios[1]) : denotes the probability of the scenario
-    #   sampled_scenarios[i].Load : is a dictionary that denotes the load profiles of each user; e.g. sampled_scenarios[1].Load["user1"][1] is the load of user1 in time 1
-    #   sampled_scenarios[i].Ren : is a dictionary that denotes the renewable profiles of each user by asset; e.g. sampled_scenarios[1].Ren["user1"]["PV"][1] is the PV production of user1 in time 1
-    sampled_scenarios = scenarios_generator(data,point_s_load,point_s_ren,scen_probability,scen_s_sample,scen_eps_sample)
+    # Build the full (s, eps) scenario set used by the deterministic
+    # equivalent. `sampled_scenarios` is a list of `Scenario_Load_Renewable`
+    # (see `scenario_definition.jl`).
+    sampled_scenarios = scenarios_generator(data,
+                                            point_s_load, point_s_pv, point_s_wind,
+                                            scen_s_sample, scen_eps_sample,
+                                            unc_var;
+                                            point_probability=scen_probability)
 end
 
 ## Data aggregation and netCDF files generation

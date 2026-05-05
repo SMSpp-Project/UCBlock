@@ -535,7 +535,7 @@ void UnitBlockSolution::serialize( netCDF::NcGroup & group ) const
 			     { ng , th } , v_primary_reserve );
 
   // serialize the Secondary Reserve- - - - - - - - - - - - - - - - - - - - -
-  ::serialize< double , 2 >( group , "SecondaryReserve" , netCDF::NcDouble(),
+  ::serialize< double , 2 >( group , "SecondaryReserve" , netCDF::NcDouble() ,
 			     { ng , th } , v_secondary_reserve );
   }
  else {

@@ -102,6 +102,9 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
                       v_RewardPrice , true , true ) )
   v_RewardPrice.resize( f_number_intervals );
 
+ ::deserialize( group , "PenaltyPrice" , f_number_intervals ,
+                v_PenaltyPrice , true , true );
+
 }  // end( ECNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -119,7 +122,7 @@ std::vector< std::string > ECNetworkData::expected_dims( void ) const {
 
 std::vector< std::string > ECNetworkData::expected_vars( void ) const {
  static const std::vector< std::string > ev =
- { "BuyPrice" , "SellPrice" , "RewardPrice" , "PeakTariff" };
+ { "BuyPrice" , "SellPrice" , "RewardPrice" , "PeakTariff" , "PenaltyPrice" };
 
  auto ret = NetworkData::expected_vars();
  ret.insert( ret.end() , ev.begin() , ev.end() );
@@ -222,6 +225,29 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_peak_power , "p_peak_network" );
 
+ // the squilibrium variables are generated only if a PenaltyPrice has been
+ // provided to the ECNetworkData; otherwise the model is identical to the
+ // one without the imbalance term in the objective
+ if( ! f_NetworkData->get_penalty_price().empty() ) {
+  // the positive squilibrium variables
+  v_power_squilibrium_pos.resize(
+   boost::extents[ number_intervals ][ number_nodes ] );
+  for( Index i = 0 ; i < number_intervals ; ++i )
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+    v_power_squilibrium_pos[ i ][ node_id ].set_type(
+     ColVariable::kNonNegative );
+  add_static_variable( v_power_squilibrium_pos , "p_sq_pos_network" );
+
+  // the negative squilibrium variables
+  v_power_squilibrium_neg.resize(
+   boost::extents[ number_intervals ][ number_nodes ] );
+  for( Index i = 0 ; i < number_intervals ; ++i )
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
+    v_power_squilibrium_neg[ i ][ node_id ].set_type(
+     ColVariable::kNonNegative );
+  add_static_variable( v_power_squilibrium_neg , "p_sq_neg_network" );
+ }
+
  set_variables_generated();
 
 }  // end( ECNetworkBlock::generate_abstract_variables )
@@ -242,9 +268,15 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  LinearFunction::v_coeff_pair vars;
 
+ const bool has_imbalance = ! v_power_squilibrium_pos.empty();
+
  // set the power balance, i.e.:
  //
- //    P^+ - P^- - node_injection = - active_demand   for all u, t
+ //    P^+ - P^- - node_injection [ + P_sq^+ - P_sq^- ]
+ //        = - active_demand                                   for all u, t
+ //
+ // the two squilibrium terms (in brackets) appear only when the PenaltyPrice
+ // has been provided to the ECNetworkData
 
  power_balance_const.resize(
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
@@ -259,6 +291,13 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    vars.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
                                    -1.0 ) );
    vars.push_back( std::make_pair( &v_node_injection[ i ][ node_id ] , -1.0 ) );
+
+   if( has_imbalance ) {
+    vars.push_back( std::make_pair( &v_power_squilibrium_pos[ i ][ node_id ] ,
+                                    1.0 ) );
+    vars.push_back( std::make_pair( &v_power_squilibrium_neg[ i ][ node_id ] ,
+                                    -1.0 ) );
+   }
 
    power_balance_const[ node_id ][ i ].set_both(
     -v_ActiveDemand[ i ][ node_id ] );
@@ -380,6 +419,7 @@ void ECNetworkBlock::generate_objective( Configuration * objc )
   return;                     // nothing to do
 
  const auto is_coop = is_cooperative();
+ const bool has_imbalance = ! v_power_squilibrium_pos.empty();
 
  LinearFunction::v_coeff_pair vars;
 
@@ -395,6 +435,17 @@ void ECNetworkBlock::generate_objective( Configuration * objc )
    if( node_id == 0 && is_coop )
     vars.push_back( std::make_pair( &v_shared_power[ t ] ,
                                     -get_reward_price( t ) ) );
+
+   // the squilibrium variables enter the objective with the same
+   // `penalty_price[t]` coefficient on both the positive and the negative
+   // one; the term is generated only when the squilibrium variables exist
+   if( has_imbalance ) {
+    const auto pp = get_penalty_price( t );
+    vars.push_back( std::make_pair( &v_power_squilibrium_pos[ t ][ node_id ] ,
+                                    pp ) );
+    vars.push_back( std::make_pair( &v_power_squilibrium_neg[ t ][ node_id ] ,
+                                    pp ) );
+   }
   }
 
   vars.push_back( std::make_pair( &v_peak_power[ node_id ] ,
@@ -485,6 +536,11 @@ void ECNetworkData::serialize( netCDF::NcGroup & group ) const
                   []( double cst ) { return( cst != 0 ); } ) )
   ::serialize( group , "RewardPrice" , netCDF::NcDouble() , NumberIntervals ,
                v_RewardPrice );
+
+ if( std::any_of( v_PenaltyPrice.begin() , v_PenaltyPrice.end() ,
+                  []( double cst ) { return( cst != 0 ); } ) )
+  ::serialize( group , "PenaltyPrice" , netCDF::NcDouble() , NumberIntervals ,
+               v_PenaltyPrice );
 
 }  // end( ECNetworkData::serialize )
 
@@ -641,6 +697,513 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( ECNetworkBlock::set_active_demand( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
+                                    Block::Subset && subset ,
+                                    const bool ordered ,
+                                    c_ModParam issuePMod ,
+                                    c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ auto & buy_price = f_NetworkData->get_buy_price();
+ const auto T = get_number_intervals();
+
+ if( buy_price.empty() ) {
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+  buy_price.assign( T , 0.0 );
+ }
+
+ bool identical = true;
+ auto values_it = values;
+ for( auto i : subset ) {
+  if( i >= T )
+   throw( std::invalid_argument(
+    "ECNetworkBlock::set_buy_price: invalid value in subset: " +
+    std::to_string( i ) ) );
+  if( buy_price[ i ] != *( values_it++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  values_it = values;
+  for( auto i : subset )
+   buy_price[ i ] = *( values_it++ );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   const auto N = get_number_nodes();
+   for( auto i : subset )
+    for( Index n = 0 ; n < N ; ++n ) {
+     const auto idx = lf->is_active( &v_power_absorption[ i ][ n ] );
+     if( idx == Inf< Index >() )
+      throw( std::logic_error(
+       "ECNetworkBlock::set_buy_price: expected Variable not found in "
+       "objective." ) );
+     lf->modify_coefficient( idx , buy_price[ i ] , issueAMod );
+    }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+  Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
+                            this , ECNetworkBlockMod::eSetBuyP ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( set_buy_price subset )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
+                                    Block::Range rng ,
+                                    c_ModParam issuePMod ,
+                                    c_ModParam issueAMod )
+{
+ const auto T = get_number_intervals();
+ rng.second = std::min( rng.second , T );
+ if( rng.second <= rng.first )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+ auto & buy_price = f_NetworkData->get_buy_price();
+
+ if( buy_price.empty() ) {
+  if( std::all_of( values , values + sz ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+  buy_price.assign( T , 0.0 );
+ }
+
+ if( std::equal( values , values + sz , buy_price.begin() + rng.first ) )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  std::copy( values , values + sz , buy_price.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   const auto N = get_number_nodes();
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    for( Index n = 0 ; n < N ; ++n ) {
+     const auto idx = lf->is_active( &v_power_absorption[ t ][ n ] );
+     if( idx == Inf< Index >() )
+      throw( std::logic_error(
+       "ECNetworkBlock::set_buy_price: expected Variable not found in "
+       "objective." ) );
+     lf->modify_coefficient( idx , buy_price[ t ] , issueAMod );
+    }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
+                            this , ECNetworkBlockMod::eSetBuyP , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+}  // end( set_buy_price range )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
+                                     Block::Subset && subset ,
+                                     const bool ordered ,
+                                     c_ModParam issuePMod ,
+                                     c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ auto & sell_price = f_NetworkData->get_sell_price();
+ const auto T = get_number_intervals();
+
+ if( sell_price.empty() ) {
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+  sell_price.assign( T , 0.0 );
+ }
+
+ bool identical = true;
+ auto values_it = values;
+ for( auto i : subset ) {
+  if( i >= T )
+   throw( std::invalid_argument(
+    "ECNetworkBlock::set_sell_price: invalid value in subset: " +
+    std::to_string( i ) ) );
+  if( sell_price[ i ] != *( values_it++ ) ) {
+   identical = false;
+   break;
+  }
+ }
+
+ if( identical )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  values_it = values;
+  for( auto i : subset )
+   sell_price[ i ] = *( values_it++ );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   const auto N = get_number_nodes();
+   for( auto i : subset )
+    for( Index n = 0 ; n < N ; ++n ) {
+     const auto idx = lf->is_active( &v_power_injection[ i ][ n ] );
+     if( idx == Inf< Index >() )
+      throw( std::logic_error(
+       "ECNetworkBlock::set_sell_price: expected Variable not found in "
+       "objective." ) );
+     lf->modify_coefficient( idx , -sell_price[ i ] , issueAMod );
+    }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+  Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
+                            this , ECNetworkBlockMod::eSetSellP ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( set_sell_price subset )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
+                                     Block::Range rng ,
+                                     c_ModParam issuePMod ,
+                                     c_ModParam issueAMod )
+{
+ const auto T = get_number_intervals();
+ rng.second = std::min( rng.second , T );
+ if( rng.second <= rng.first )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+ auto & sell_price = f_NetworkData->get_sell_price();
+
+ if( sell_price.empty() ) {
+  if( std::all_of( values , values + sz ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+  sell_price.assign( T , 0.0 );
+ }
+
+ if( std::equal( values , values + sz , sell_price.begin() + rng.first ) )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  std::copy( values , values + sz , sell_price.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   const auto N = get_number_nodes();
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    for( Index n = 0 ; n < N ; ++n ) {
+     const auto idx = lf->is_active( &v_power_injection[ t ][ n ] );
+     if( idx == Inf< Index >() )
+      throw( std::logic_error(
+       "ECNetworkBlock::set_sell_price: expected Variable not found in "
+       "objective." ) );
+     lf->modify_coefficient( idx , -sell_price[ t ] , issueAMod );
+    }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
+                            this , ECNetworkBlockMod::eSetSellP , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+}  // end( set_sell_price range )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
+                                      Block::Subset && subset ,
+                                      const bool ordered ,
+                                      c_ModParam issuePMod ,
+                                      c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+ if( subset.front() != 0 )
+  throw( std::invalid_argument( "ECNetworkBlock::set_peak_tariff: PeakTariff "
+                                "is a scalar, only index 0 is allowed." ) );
+
+ auto & peak_tariff = f_NetworkData->get_peak_tariff();
+ const auto v = *values;
+ if( peak_tariff == v )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  peak_tariff = v;
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   const auto N = get_number_nodes();
+   for( Index n = 0 ; n < N ; ++n ) {
+    const auto idx = lf->is_active( &v_peak_power[ n ] );
+    if( idx == Inf< Index >() )
+     throw( std::logic_error(
+      "ECNetworkBlock::set_peak_tariff: expected Variable not found in "
+      "objective." ) );
+    lf->modify_coefficient( idx , peak_tariff , issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+  Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
+                            this , ECNetworkBlockMod::eSetPeakT ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( set_peak_tariff subset )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
+                                      Block::Range rng ,
+                                      c_ModParam issuePMod ,
+                                      c_ModParam issueAMod )
+{
+ if( rng.first > 0 || rng.second <= 0 )
+  return;
+
+ auto & peak_tariff = f_NetworkData->get_peak_tariff();
+ const auto v = *values;
+ if( peak_tariff == v )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  peak_tariff = v;
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   const auto N = get_number_nodes();
+   for( Index n = 0 ; n < N ; ++n ) {
+    const auto idx = lf->is_active( &v_peak_power[ n ] );
+    if( idx == Inf< Index >() )
+     throw( std::logic_error(
+      "ECNetworkBlock::set_peak_tariff: expected Variable not found in "
+      "objective." ) );
+    lf->modify_coefficient( idx , peak_tariff , issueAMod );
+   }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
+                            this , ECNetworkBlockMod::eSetPeakT ,
+                            Range( 0 , 1 ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+}  // end( set_peak_tariff range )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_const_term( MF_dbl_it values ,
+                                     Block::Subset && subset ,
+                                     const bool ordered ,
+                                     c_ModParam issuePMod ,
+                                     c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+ if( subset.front() != 0 )
+  throw( std::invalid_argument( "ECNetworkBlock::set_const_term: ConstTerm "
+                                "is a scalar, only index 0 is allowed." ) );
+
+ const auto v = *values;
+ if( get_const_term() == v )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  set_constant_term( v );  // updates NetworkBlock::f_ConstTerm
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   lf->set_constant_term( v , issueAMod );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+  Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
+                            this , ECNetworkBlockMod::eSetConstT ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( set_const_term subset )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_const_term( MF_dbl_it values ,
+                                     Block::Range rng ,
+                                     c_ModParam issuePMod ,
+                                     c_ModParam issueAMod )
+{
+ if( rng.first > 0 || rng.second <= 0 )
+  return;
+
+ const auto v = *values;
+ if( get_const_term() == v )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  set_constant_term( v );
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   lf->set_constant_term( v , issueAMod );
+  }
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
+                            this , ECNetworkBlockMod::eSetConstT ,
+                            Range( 0 , 1 ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+}  // end( set_const_term range )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
+                                        Block::Subset && subset ,
+                                        const bool ordered ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ auto & penalty_price = f_NetworkData->get_penalty_price();
+ const auto T = get_number_intervals();
+
+ if( penalty_price.empty() ) {
+  if( std::all_of( values , values + subset.size() ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+  penalty_price.assign( T , 0.0 );
+ }
+
+ bool changed = false;
+ auto values_it = values;
+ for( auto i : subset ) {
+  if( i >= T )
+   throw( std::invalid_argument(
+    "ECNetworkBlock::set_penalty_price: invalid value in subset: " +
+    std::to_string( i ) ) );
+  const auto v = *( values_it++ );
+  if( penalty_price[ i ] != v ) {
+   changed = true;
+   if( not_dry_run( issuePMod ) )
+    penalty_price[ i ] = v;
+  }
+ }
+
+ if( ! changed )
+  return;
+
+ // when the squilibrium variables are part of the model, the coefficients
+ // of `v_power_squilibrium_pos/neg[i][n]` in the objective must be aligned
+ // with the new `penalty_price[i]` for every node `n`
+ if( ! v_power_squilibrium_pos.empty() && not_dry_run( issueAMod ) &&
+     not_dry_run( issuePMod ) && objective_generated() ) {
+  auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+  const auto N = get_number_nodes();
+  for( auto i : subset )
+   for( Index n = 0 ; n < N ; ++n ) {
+    const auto idx_pos = lf->is_active( &v_power_squilibrium_pos[ i ][ n ] );
+    const auto idx_neg = lf->is_active( &v_power_squilibrium_neg[ i ][ n ] );
+    if( idx_pos == Inf< Index >() || idx_neg == Inf< Index >() )
+     throw( std::logic_error(
+      "ECNetworkBlock::set_penalty_price: expected Variable not found in "
+      "objective." ) );
+    lf->modify_coefficient( idx_pos , penalty_price[ i ] , issueAMod );
+    lf->modify_coefficient( idx_neg , penalty_price[ i ] , issueAMod );
+   }
+ }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+  Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
+                            this , ECNetworkBlockMod::eSetPenaltyP ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+ }
+}  // end( set_penalty_price subset )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
+                                        Block::Range rng ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
+ const auto T = get_number_intervals();
+ rng.second = std::min( rng.second , T );
+ if( rng.second <= rng.first )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+ auto & penalty_price = f_NetworkData->get_penalty_price();
+
+ if( penalty_price.empty() ) {
+  if( std::all_of( values , values + sz ,
+                   []( double cst ) { return( cst == 0.0 ); } ) )
+   return;
+  penalty_price.assign( T , 0.0 );
+ }
+
+ if( std::equal( values , values + sz ,
+                 penalty_price.begin() + rng.first ) )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  std::copy( values , values + sz , penalty_price.begin() + rng.first );
+
+  // when the squilibrium variables are part of the model, the coefficients
+  // of `v_power_squilibrium_pos/neg[t][n]` in the objective must be aligned
+  // with the new `penalty_price[t]` for every node `n`
+  if( ! v_power_squilibrium_pos.empty() && not_dry_run( issueAMod ) &&
+      objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+   const auto N = get_number_nodes();
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    for( Index n = 0 ; n < N ; ++n ) {
+     const auto idx_pos = lf->is_active( &v_power_squilibrium_pos[ t ][ n ] );
+     const auto idx_neg = lf->is_active( &v_power_squilibrium_neg[ t ][ n ] );
+     if( idx_pos == Inf< Index >() || idx_neg == Inf< Index >() )
+      throw( std::logic_error(
+       "ECNetworkBlock::set_penalty_price: expected Variable not found in "
+       "objective." ) );
+     lf->modify_coefficient( idx_pos , penalty_price[ t ] , issueAMod );
+     lf->modify_coefficient( idx_neg , penalty_price[ t ] , issueAMod );
+    }
+  }
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
+                            this , ECNetworkBlockMod::eSetPenaltyP , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+}  // end( set_penalty_price range )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File ECNetworkBlock.cpp ----------------------*/
