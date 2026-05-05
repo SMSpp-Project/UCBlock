@@ -71,9 +71,29 @@ function csvEC2nc4(
         last = string(last, "_NB")
     end
 
-    # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-    block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+    # Stochastic YAMLs produce a single TSSB nc4 with the UCBlock embedded
+    # inline as the inner Block of the StochasticBlock group; we don't write
+    # a separate `EC_*_Test_sto.nc4` for the inner UCBlock because the test
+    # batches don't need it and the deterministic `EC_*_Test*.nc4` files
+    # (whose objective values are pinned by tests/LagrangianDualSolver_UC/
+    # batches/batch-ec) must stay untouched. Open one dataset accordingly.
+    if deterministic
+        ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+        # tssb / sb are populated only in the stochastic branch below
+        tssb = nothing
+        sb = nothing
+    else
+        ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        tssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        # StochasticBlock + the inner UCBlock are pre-declared so that the
+        # subsequent UCBlock-writing code can target `block` uniformly. The
+        # rest of the TSSB structure (NumberScenarios, DiscreteScenarioSet,
+        # SimpleDataMapping, AbstractPath) is populated further below, after
+        # the UCBlock has collected the metadata it needs (n_devices, ...).
+        sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+        block = defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+    end
 
     # Store the number of nodes
     n_users = length(user_set)
@@ -566,16 +586,13 @@ function csvEC2nc4(
         end
     end
 
-    close(ds)
-
     if !deterministic # stochastic model
 
-        # The mode "c" stands for creating a new file (clobber).
-        # The TSSB instance only references the deterministic UCBlock written above
-        # via the `filename` attribute on its inner Block — the deterministic block
-        # itself is NOT embedded inline.
-        tssb_ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-        tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        # The TSSB structures (top-level Block_0 + StochasticBlock + inner
+        # UCBlock Block group) were pre-defined above; the inner UCBlock has
+        # just been populated by the deterministic branch of this function.
+        # Now we add the dimensions and groups that depend on the UCBlock
+        # metadata collected above (n_devices, intermittent_units, peak_set).
 
         ## Number of scenarios in the TwoStageStochasticBlock.
         ## We use the number of sampled_scenarios, which already encodes
@@ -827,8 +844,9 @@ function csvEC2nc4(
         path_range_idx = defVar(ap, "PathRangeIndices", UInt32, ("TotalLength",))
         path_range_idx[:] = path_range_idx_data[:]
 
-        # StochasticBlock
-        sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+        # StochasticBlock was pre-declared at the top of this function; its
+        # inner UCBlock was populated above by the deterministic branch.
+        # Below we add the SimpleDataMapping section + nested AbstractPath.
 
         # SimpleDataMapping
         #
@@ -941,11 +959,11 @@ function csvEC2nc4(
             v_PathRangeIdx[:]     = fill(typemax(UInt32), total_length_inner)
         end
 
-        # The deterministic UCBlock is referenced via filename — not embedded inline.
-        defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))
-
-        close(tssb_ds)
+        # The inner UCBlock is embedded as `sb.Block` (created at the top of
+        # this function). No separate inner-UCBlock nc4 file is written.
     end
+
+    close(ds)
 end
 
 ## Parameters
