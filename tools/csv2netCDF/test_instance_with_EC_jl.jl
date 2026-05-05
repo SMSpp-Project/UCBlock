@@ -1,6 +1,8 @@
 ## Test the instances with EnergyCommunity.jl
 #
 # This file aims to obtain the results of the instances with EnergyCommunity.jl.
+# If a stochasic instance is requested, it will be solved with the stochastic version of EnergyCommunity.jl, otherwise it will be solved with the deterministic version of EnergyCommunity.jl.
+# A stochastic instance is identified by the presence of "_sto.yml" in the name of the configuration file, otherwise it is considered deterministic.
 #
 # To run this file you can run in the terminal:
 # julia test_instance_with_EC_jl.jl {file_name [optional]}
@@ -49,18 +51,44 @@ if length(ARGS) > 0
 end
 println("Using configuration file: ", fconfig)
 
+# define if network is stochastic: if the configuration file contains "_sto.yml" it is considered stochastic, otherwise it is deterministic
+
+is_stochastic = "_sto.yml" in fconfig
+
+# Ensure environment is set up with the correct version of EnergyCommunity.jl
+if is_stochastic in fconfig
+    Pkg.add(url="https://github.com/SPSUnipi/EnergyCommunity.jl", rev="stochastic")
+else
+    Pkg.add(url="https://github.com/SPSUnipi/EnergyCommunity.jl", rev="main")
+end
+
 ## 3. Create the model and solve it
 
-# Create the model
-model = ModelEC(fconfig, EnergyCommunity.GroupCO(), optimizer)
+obj_value = nothing
+optimal_design = nothing
 
-# build the model
-build_model!(model)
+if is_stochastic
+    println("The model is stochastic.")
 
-# Solve the model
-optimize!(model)
+    # TBD
+else
+    println("The model is deterministic.")
+
+    # Create the model
+    model = ModelEC(fconfig, EnergyCommunity.GroupCO(), optimizer)
+
+    # build the model
+    build_model!(model)
+
+    # Solve the model
+    optimize!(model)
+
+    obj_value = objective_value(model)
+    optimal_design = value.(model.results[:x_us])
+end
+
 
 ## 4. Print the results
 
-println("Optimal value: ", objective_value(model))
-println("Optimal installed capacity by user: ", value.(model.results[:x_us]))
+println("Optimal value: ", obj_value)
+println("Optimal installed capacity by user: ", optimal_design)
