@@ -142,11 +142,15 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
    v_Block[ n ] = nbi;
    }
 
+  // tell it which time instant is its (starting) one; the index is that in
+  // the data structure of the NetworkData inside the DesignNetworkBlock
+  nbi->set_time_instant( n );
+
   // if the NetworkBlock does not have its own NetworkData...
   if( ! nbi->get_NetworkData() ) {
    if( ! f_NetworkData )
     throw( std::invalid_argument( "DesignNetworkBlock::deserialize: "
-				                              "NetworkData missing in NetworkBlock " +
+				  "NetworkData missing in NetworkBlock " +
                                   std::to_string( n ) + " and in UCBlock" ) );
    // ... then set the UCBlock global one
    nbi->set_NetworkData( f_NetworkData );

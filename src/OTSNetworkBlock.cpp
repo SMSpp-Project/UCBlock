@@ -323,7 +323,7 @@ void OTSNetworkBlock::compute_big_M( void )
  for( auto & k : DC_lines ) {
   double B_k = std::abs( get_line_susceptance( k ) );
   if( B_k > 0.0 )
-   sum_ratio += f_NetworkData->get_max_power_flow( k ) / B_k;
+   sum_ratio += get_max_power_flow( k ) / B_k;
   }
 
  // compute M_l for each DC line
@@ -341,7 +341,7 @@ void OTSNetworkBlock::compute_big_M( void )
   v_beta.resize( DC_lines.size() );
   for( Index idx = 0 ; idx < DC_lines.size() ; ++idx ) {
    auto l = DC_lines[ idx ];
-   double f_max = f_NetworkData->get_max_power_flow( l );
+   double f_max = get_max_power_flow( l );
    if( v_big_M[ idx ] > 0.0 ) {
     v_alpha[ idx ] = f_max / v_big_M[ idx ];
     v_beta[ idx ] = 1.0 - v_alpha[ idx ];
@@ -751,7 +751,7 @@ void OTSNetworkBlock::generate_OTS_flow_bounds( void )
 
  for( Index idx = 0 ; idx < n_dc ; ++idx ) {
   auto l = DC_lines[ idx ];
-  double f_max = f_NetworkData->get_max_power_flow( l );
+  double f_max = get_max_power_flow( l );
 
   switch( f_ots_type ) {
    case kOTS_Standard:

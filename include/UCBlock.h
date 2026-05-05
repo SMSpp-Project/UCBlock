@@ -159,8 +159,8 @@ class UCBlock : public Block
   * - The dimension "TimeHorizon" containing the number of time steps in the
   *   problem.
   *
-  * - The dimension "NumberUnits" containing the number of units (UnitBlock) in
-  *   the problem.
+  * - The dimension "NumberUnits" containing the number of units (UnitBlock)
+  *   in the problem.
   *
   * - The dimension "NumberNetworks" containing the number of networks
   *   (NetworkBlock) in the problem. This dimension is optional. If it is not

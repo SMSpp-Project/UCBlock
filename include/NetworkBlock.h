@@ -397,7 +397,8 @@ class NetworkBlock : public Block
   * Block. */
 
  explicit NetworkBlock( Block * father = nullptr ) :
-  Block( father ) , f_local_NetworkData( false ) , f_ConstTerm( 0 ) {}
+  Block( father ) , f_local_NetworkData( false ) , f_ConstTerm( 0 ) ,
+  f_time_instant( Inf< Index >() ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of NetworkBlock
@@ -551,6 +552,15 @@ class NetworkBlock : public Block
   * to derived classes. */
 
  virtual void set_NetworkData( NetworkData * nd = nullptr ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// tells the NetworkBlock to which time instant it refers to
+ /** Tells the NetworkBlock that it refers to the time instants from \p t to
+  * t + get_number_intervals() - 1. This may be irrelevant in most cases, as
+  * the NetworkBlock may not care of this, but it may still be useful to some
+  * derived classes and therefore it is done to be ready general. */
+ 
+ void set_time_instant( Index t ) { f_time_instant = t; }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the constant term
@@ -978,6 +988,9 @@ class NetworkBlock : public Block
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// the starting time instant of the covered interval
+ Index f_time_instant;
+ 
 /*---------------------------------- data ----------------------------------*/
 
  /// true if the NetworkData object has not been passed from outside

@@ -161,8 +161,8 @@ class DCNetworkData : public NetworkData
 
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_number_HVDC_lines( 0 ) ,
-  f_reference_node( 0 ) , DCDF_was_computed( false ) ,
-  f_number_branches( 0 ) , cycle_basis_was_computed( false ) , nb_components( 0 ) {}
+  f_reference_node( 0 ) , DCDF_was_computed( Inf< Index >() ) ,
+  f_number_branches( 0 ) , cycle_basis_was_computed( false ) {}
 
  /// destructor of DCNetworkData: it is virtual, and empty
  ~DCNetworkData() override = default;
@@ -198,6 +198,11 @@ class DCNetworkData : public NetworkData
   *   since one single hyperarc is described by its multiple "branches", as
   *   detailed in "HyperArcID".
   *
+  * - The dimension "NumberInstants" that specifies how many different time
+  *   instants the possibly time-varying variables cover. The dimension is
+  *   optional, if it is not present it is taken to be 1, i.e., all the
+  *   possibly time-varying variables are in fact time-static.
+  *
   * - The variable "StartLine", of type netCDF::NcUint and indexed over the
   *   dimension "NumberBranches" (if it is defined, otherwise "NumberLines");
   *   the l-th entry of the variable is the starting point of the line (a
@@ -216,11 +221,11 @@ class DCNetworkData : public NetworkData
   *   mandatory.
   *
   * - The variable "HyperArcID", of type netCDF::NcUint and indexed over the
-  *   dimension "NumberBranches". The variable is mandatory if "NumberBranches"
-  *   exists, and therefore "NumberBranches" > "NumberLines", and ignored
-  *   otherwise. The variable is used to specify which entries of "StartLine"
-  *   and "EndLine" are different "branches" that correspond to the same
-  *   hyperarc. The entries of the variable are a number in 0, ...,
+  *   dimension "NumberBranches". The variable is mandatory if
+  *   "NumberBranches" exists and therefore "NumberBranches" > "NumberLines",
+  *   and ignored otherwise. The variable is used to specify which entries of
+  *   "StartLine" and "EndLine" are different "branches" that correspond to
+  *   the same hyperarc. The entries of the variable are a number in 0, ...,
   *   NumberLines - 1: HyperArcID[ i ] == l means that StartLine[ i ] and
   *   EndLine[ i ] describe one of the "branches" of the (hyper)line(arc) l.
   *   If a (hyper)line(arc) l has only one branch, i.e., HyperArcID[ i ] == l
@@ -232,26 +237,37 @@ class DCNetworkData : public NetworkData
   *   for all pairs ( i , j ) such that HyperArcID[ i ] == HyperArcID[ j ],
   *   i.e., ALL "branches" MUST HAVE THE SAME "tail" and different heads.
   *
-  * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberLines". This is meant to represent the vector
-  *   MxP[ l ] that, for each line l, contains the maximum power flow at
-  *   line l (a non-negative number). Note that if line l is a hyperarc (see
-  *   "HyperArcID") the capacity is still one number representing the
-  *   maximum amount of flow leaving the tail bus, although then some flow
-  *   (not necessarily the same amount, see "Efficiency") can reach more than
-  *   one head bus. The variable is optional, if not provided it is assumed
-  *   that MxP[ l ] == 0 for all line l.
+  * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed in
+  *   principle over both dimensions "NumberInstants" and "NumberLines".
+  *   This is meant to represent the matrix MxP[ t ][ l ] that, for each
+  *   line l and time instant t, contains the maximum power flow of line l
+  *   at time t (a non-negative number). However, the variable can also be
+  *   indexed over "NumberLines" only (and it must necessarily be so if
+  *   "NumberInstants" is not defined), in which case it is rather a vector
+  *   MxP[ l ] containing the identical max capacity of the line at all time
+  *   instants. Note that if line l is a hyperarc (see "HyperArcID") the
+  *   capacity is still one number representing the maximum amount of flow
+  *   leaving the tail bus, although then some flow (not necessarily the
+  *   same amount, see "Efficiency") can reach more than one head bus. The
+  *   variable is optional, if not provided it is assumed that MxP[ l ] == 0
+  *   for all line l (and all time instants t).
   *
-  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberLines". This is meant to represent the vector
-  *   MnP[ l ] that, for each line l, contains the minimum power flow at
-  *   line l (note that this is typically a negative number as lines are
-  *   bi-directional, see above). Note that if line l is a hyperarc (see
-  *   "HyperArcID") the capacity is still one number representing the
-  *   minimum amount of flow leaving the tail bus, although then some flow
-  *   (not necessarily the same amount, see "Efficiency") can reach more than
-  *   one head bus. The variable is optional, if not provided it is assumed
-  *   that MnP[ l ] == 0 for all line l.
+  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed in
+  *   principle over both dimensions "NumberInstants" and "NumberLines".
+  *   This is meant to represent the matrix MnP[ t ][ l ] that, for each
+  *   line l and time instant t, contains the minimum power flow of line l
+  *   at time t (note that this is typically, but not necessarily, a
+  *   negative number as electrical lines are bi-directional, see above).
+  *   However, the variable can also be indexed over "NumberLines" only (and
+  *   it must necessarily be so if "NumberInstants" is not defined), in
+  *   which case it is rather a vector MnP[ l ] containing the identical min
+  *   capacity of the line at all time instants. Note that if line l is a
+  *   hyperarc (see "HyperArcID") the capacity is still one number
+  *   representing the minimum amount of flow leaving the tail bus, although
+  *   then some flow (not necessarily the same amount, see "Efficiency") can
+  *   reach more than one head bus. The variable is optional, if not
+  *   provided it is assumed that MxP[ l ] == 0 for all line l (and all
+  *   time instants t).
   *
   * - The variable "LineSusceptance", of type netCDF::NcDouble and indexed
   *   over the dimension "NumberLines". This is meant to represent the
@@ -283,18 +299,24 @@ class DCNetworkData : public NetworkData
   *   although then some flow (not necessarily the same amount, see
   *   "Efficiency") can reach more than one head bus.
   *
-  * - The variable "Efficiency", of type netCDF::NcDouble indexed over the
-  *   dimension "NumberBranches" (if it is defined, otherwise "NumberLines");
-  *   Efficiency[ l ] represents the efficiency of branch l. This means that
-  *   if X is the amount of flow leaving StartLine[ l ], then
-  *   X * Efficiency[ l ] is the amount of flow reaching EndLine[ l ]. Note
-  *   that, if l is a hyperarc (see "HyperArcID"), each branch can have a
-  *   different Efficiency: say, an hyperarc with branches 1 --> 2 with
-  *   Efficiency 0.5 and 1 --> 3 with Efficiency 0.5 means that one unit of
-  *   flow leaves 1 and half of it reaches 2 while the other half reaches 3.
-  *   There is no requirement that the efficiencies of the different branches
-  *   of the same hyperarc sum to 1: in fact, this variable is optional, if it
-  *   is not specified then Efficiency[ l ] == 1 for all branches / lines.
+  * - The variable "Efficiency", of type netCDF::NcDouble and indexed in
+  *   principle over both dimensions "NumberInstants" and "NumberBranches"
+  *   (if it is defined, otherwise "NumberLines"). This means that if X is
+  *   the amount of flow leaving StartLine[ l ] at time t, then
+  *   X * Efficiency[ t ][ l ] is the amount of flow reaching EndLine[ l ]
+  *   at time t. However, the variable can also be  indexed over
+  *   "NumberBranches" ("NumberLines") only (and it must necessarily be so
+  *   if "NumberInstants" is not defined), in which case it is rather a
+  *   vector Efficiency[ l ] containing the identicalefficiency of the line
+  *   at all time instants.Note that, if l is a hyperarc (see "HyperArcID"),
+  *   each branch can have a different Efficiency (at each time instant):
+  *   say, an hyperarc with branches 1 --> 2 with Efficiency 0.5 and
+  *   1 --> 3 with Efficiency 0.5 means that one unit of flow leaves 1 and
+  *   half of it reaches 2 while the other half reaches 3. There is no
+  *   requirement that the efficiencies of the different branches of the
+  *   same hyperarc sum to 1: in fact, this variable is optional, if it is
+  *   not specified then Efficiency[ l ] == 1 for all branches / lines (and
+  *   all time instants t).
   *
   * - The variable "LineName", of type netCDF::NcString() and indexed over
   *   the dimension "NumberLines". Its i-th entry, namely LineName[ i ],
@@ -456,50 +478,19 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns vector of the minimum power flow
- /** Method for returning the vector of minimum power flow of each line. This
-  * vector may have empty size (bus network) or the size of number of nodes,
-  * then there are two possible cases:
-  *
-  * - if f_number_lines == 0, this vector has empty size which means there is
-  *   no line at network (bus network).
-  *
-  * - if f_number_lines >= 1, this vector have size of f_number_lines and
-  *   each element of the vector gives minimum power flow of each line in
-  *   the network. */
-
- const std::vector< double > & get_min_power_flow( void ) const {
-  return( v_min_power_flow );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns minimum power flow of the given \p line
- /** This method returns the minimum power flow of the given \p line.
+ /// returns minimum power flow of the given \p line at the given \p time
+ /** This method returns the minimum power flow of the given \p line at
+  * the given \p time.
   *
   * @return the minimum power flow of the given \p line. */
 
- double get_min_power_flow( Index line ) const {
+ double get_min_power_flow( Index line , Index time ) const {
   assert( line < f_number_lines );
-  if( v_min_power_flow.empty() )
+  if( ! v_min_power_flow.num_elements() )
    return( 0 );
-  return( v_min_power_flow[ line ] );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns vector of the maximum power flow
- /** Method for returning the vector of maximum power flow of each line. This
-  * vector may have empty size (bus network) or the size of number of nodes,
-  * then there are two possible cases:
-  *
-  * - if f_number_lines == 0, this vector has empty size which means there
-  *   is no line at network (bus network).
-  *
-  * - if f_number_lines >= 1, this vector have size of f_number_lines and
-  *   each element of the vector gives maximum power flow of each line in
-  *   the network. */
-
- const std::vector< double > & get_max_power_flow( void ) const {
-  return( v_max_power_flow );
+  if( v_min_power_flow.shape()[ 0 ] == 1 )
+   time = 0;
+  return( v_min_power_flow[ time ][ line ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -508,13 +499,46 @@ class DCNetworkData : public NetworkData
   *
   * @return the maximum power flow of the given \p line. */
 
- double get_max_power_flow( Index line ) const {
+ double get_max_power_flow( Index line , Index time ) const {
   assert( line < f_number_lines );
-  if( v_max_power_flow.empty() )
+  if( ! v_min_power_flow.num_elements() )
    return( 0 );
-  return( v_max_power_flow[ line ] );
+  if( v_max_power_flow.shape()[ 0 ] == 1 )
+   time = 0;
+  return( v_max_power_flow[ time ][ line ] );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the efficiency of the given \p line at the given \p time
+ /** Returns the efficiency of the given \p line at the given \p time. If no
+  * efficiencies are specified of \p line is not a HVDC line, 1 is returned.
+  */
+
+  double get_line_efficiency( Index line , Index time ) const {
+  assert( line < f_number_lines );
+  if( is_hypergraph() )
+   throw( std::logic_error( "get_line_efficiency() called but hypergraph" ) );
+  if( v_efficiency.empty() || ( ( ! v_line_susceptance.empty() ) &&
+				( v_line_susceptance[ line ] != 0 ) ) )
+   return( 1 );
+
+  if( v_efficiency.shape()[ 0 ] == 1 )   // time-independent data
+   time = 0;                             // just ignore the time
+  return( v_efficiency[ time ][ line ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the efficiencies for all heads of hyperline \p line at \p time
+
+ const std::vector< double > & get_line_efficiencies(
+					 Index line , Index time  ) const {
+  if( ! is_hypergraph() )
+   throw( std::logic_error(
+                      "get_line_efficiencies() called but no hypergraph" ) );
+  if( v_h_efficiency.size() == 1 )  // time-independent data
+   time = 0;                        // just ignore the time
+  return( v_h_efficiency[ time ][ line ] );
+  }
 /*--------------------------------------------------------------------------*/
  /// returns the DC lines
  /** This function returns the DC lines in the transmission network, i.e.,
@@ -582,7 +606,8 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- void compute_DCDF( c_Subset & HVDC_lines , const SpMat & PTDF_matrix );
+ void compute_DCDF( c_Subset & HVDC_lines , const SpMat & PTDF_matrix ,
+		    Index time );
 
 /*--------------------------------------------------------------------------*/
 
@@ -590,15 +615,16 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
- bool was_DCDF_computed( void ) const { return( DCDF_was_computed ); }
+ bool was_DCDF_computed( Index t ) const {
+  return( DCDF_was_computed == t );
+  }
 
 /*--------------------------------------------------------------------------*/
+ /** Due to deletion of HVDC lines are just because it is possible to have a
+  * network with isolated components this should be fairly easy to deal with,
+  * but we must identify the isolated subgraphs this is the purpose of the
+  * next routine */
 
- /*
-  * Due to deletion of HVDC lines are just because it is possible to have a network with isolated components
-  *   this should be fairly easy to deal with, but we must identify the isolated subgraphs
-  *   this is the purpose of the next routine
- */
  void identify_connected_components( void );
 
  std::vector< std::vector< Index > > & get_subgraphs( void ) {
@@ -673,9 +699,7 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
-
-/**
- * Extract the DC spanning forest produced by compute_cycle_basis()
+/** Extract the DC spanning forest produced by compute_cycle_basis()
  * as an edge‑oriented (line‑oriented) representation.
  *
  * This routine converts the node‑level parent array of the DFS
@@ -736,9 +760,9 @@ class DCNetworkData : public NetworkData
  *
  * - Correct orientation of tree edges is essential to prevent
  *   algebraic cancellation between tree constraints and cycle
- *   constraints, which would otherwise force cycle flows to zero.
- */
-std::map< Index , int > get_lines_in_spanning_tree( void ) {
+ *   constraints, which would otherwise force cycle flows to zero. */
+
+ std::map< Index , int > get_lines_in_spanning_tree( void ) {
  if( ! cycle_basis_was_computed )
   compute_cycle_basis();
 
@@ -780,12 +804,10 @@ std::map< Index , int > get_lines_in_spanning_tree( void ) {
 #endif
 
  return( lines_in_spanning_tree );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
-
-/**
- * Convert the node‑based cycle basis into an edge‑based (line‑based)
+/** Convert the node‑based cycle basis into an edge‑based (line‑based)
  * cycle incidence representation.
  *
  * This routine takes the node cycles produced by compute_cycle_basis()
@@ -858,9 +880,9 @@ std::map< Index , int > get_lines_in_spanning_tree( void ) {
  *
  * - Correct orientation and completeness of C_{lc} is essential;
  *   inconsistent signs between tree equations and cycle equations
- *   will force cycle flows to collapse to zero.
- */
-std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
+ *   will force cycle flows to collapse to zero. */
+
+ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
  if( ! cycle_basis_was_computed )
   compute_cycle_basis();
 
@@ -928,7 +950,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
  }
 
  return( lines_in_cycles );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the network cost
@@ -947,29 +969,6 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   return( v_network_cost );
   }
 
-/*--------------------------------------------------------------------------*/
- /// returns the efficiency of \p line (1 if not specified or not a HVDC line)
-
- double get_line_efficiency( Index line ) const {
-  assert( line < f_number_lines );
-  if( is_hypergraph() )
-   throw( std::logic_error( "get_line_efficiency() called but hypergraph" ) );
-  if( v_efficiency.empty() ||
-      ( ( ! v_line_susceptance.empty() ) &&
-	( v_line_susceptance[ line ] != 0.0 ) ) )
-   return( 1.0 );
-  return( v_efficiency[ line ] );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the set of efficiencies for all heads of hyperline \p line
-
- const std::vector< double > & get_line_efficiencies( Index line ) const {
-  if( ! is_hypergraph() )
-   throw( std::logic_error(
-                      "get_line_efficiencies() called but no hypergraph" ) );
-  return( v_h_efficiency[ line ] );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector containing the name of the lines
@@ -1005,7 +1004,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
  Index f_reference_node;
 
  /// A boolean to avoid forming A^dc multiple times
- bool DCDF_was_computed;
+ Index DCDF_was_computed;
 
  /// A boolean to avoid recomputing the cycle basis algorithm
  bool cycle_basis_was_computed;
@@ -1022,22 +1021,26 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
  /// vector to store the susceptance of each line of the network
  std::vector< double > v_line_susceptance;
 
- /// vector to store the minimum power flow at each line
- std::vector< double > v_min_power_flow;
+ /// matrix to store the minimum power flow at each line and time
+ boost::multi_array< double , 2 > v_min_power_flow;
 
- /// vector to store the maximum power flow at each line
- std::vector< double > v_max_power_flow;
+ /// matrix to store the maximum power flow at each line and time
+ boost::multi_array< double , 2 > v_max_power_flow;
 
  /// vector to store the network cost at each line
  std::vector< double > v_network_cost;
 
- /** vector to store the network efficiency of each line in the graph case,
-  * effective only for HVDC lines and ignored otherwise */
- std::vector< double > v_efficiency;
+ /** matrix to store the network efficiency of each line and time in the
+  * graph case, effective only for HVDC lines and ignored otherwise;
+  * v_efficiency[ t ][ l ] containis the efficiency of the head node of
+  * line l at time t */
+ boost::multi_array< double , 2 > v_efficiency;
 
- /** vector to store the network efficiency of each (hyper)line in the
-  * hypergraph case, effective only for HVDC lines and ignored otherwise */
- std::vector< std::vector< double > > v_h_efficiency;
+ /** matrix of the network efficiency of each (hyper)line in the
+  * hypergraph case, effective only for HVDC lines and ignored otherwise;
+  * v_h_efficiency[ t ][ l ] is the std::vector< double > containing the
+  * efficiency of all head nodes of (hyper)line l at time t */
+ std::vector< std::vector< std::vector< double > > > v_h_efficiency;
 
  std::vector< std::string > v_line_names;  ///< Line names
 
@@ -1517,13 +1520,12 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
  /** Method that generates the objective of the DCNetworkBlock. The objective
   * can include a linear term on the auxiliary variables associated with
   * network costs, if the vector "NetworkCost" is provided:
-  *   \f[
-  *     \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l
-  *   \f]
-  *
-  *   where \f$ NC_l \f$ is the unit network cost of line \f$l\f$ and
-  *   \f$ V_l \f$ is the corresponding auxiliary variable
-  *   (coefficients are also scaled by the Block scale factor, if any). */
+  * \f[
+  *   \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l
+  * \f]
+  * where \f$ NC_l \f$ is the unit network cost of line \f$l\f$ and
+  * \f$ V_l \f$ is the corresponding auxiliary variable
+  * (coefficients are also scaled by the Block scale factor, if any). */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -1584,8 +1586,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   * @param useabstract This parameter is currently ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
-  *             and the type of violation that must be considered.
-  */
+  *             and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -1664,7 +1665,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
  double get_min_power_flow( Index line ) const {
   if( ! f_NetworkData )
    return( 0 );
-  return( f_NetworkData->get_min_power_flow( line ) );
+  return( f_NetworkData->get_min_power_flow( line , f_time_instant ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1679,7 +1680,28 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   * @return The maximum power flow on the given \p line. */
 
  double get_max_power_flow( Index line ) const {
-  return( f_NetworkData ? f_NetworkData->get_max_power_flow( line ) : 0 );
+  if( ! f_NetworkData )
+   return( 0 );
+  return( f_NetworkData->get_max_power_flow( line , f_time_instant ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the efficiency of the given \p line
+
+ double get_line_efficiency( Index line ) const {
+  if( ! f_NetworkData )
+   return( 1 );
+  return( f_NetworkData->get_line_efficiency( line , f_time_instant ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the efficiencies for all heads of hyperline \p line at \p time
+
+ const std::vector< double > & get_line_efficiencies( Index line ) const {
+  static const std::vector< double > _ret = { 1 };
+  if( ! f_NetworkData )
+   return( _ret );
+  return( f_NetworkData->get_line_efficiencies( line , f_time_instant ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2017,11 +2039,10 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   *                \p values. If empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
-  * @param issueAMod Controls how abstract Modifications are issued.
-  */
+  * @param issueAMod Controls how abstract Modifications are issued. */
+ 
  void set_network_cost( MF_dbl_it values ,
-                        Subset && subset ,
-                        bool ordered = false ,
+                        Subset && subset , bool ordered = false ,
                         c_ModParam issuePMod = eNoBlck ,
                         c_ModParam issueAMod = eNoBlck );
 
@@ -2034,8 +2055,8 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   *               indices in \p rng are set to the values pointed by
   *               \p values. If empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
-  * @param issueAMod Controls how abstract Modifications are issued.
-  */
+  * @param issueAMod Controls how abstract Modifications are issued. */
+
  void set_network_cost( MF_dbl_it values ,
                         Range rng = Range( 0 , Inf< Index >() ) ,
                         c_ModParam issuePMod = eNoBlck ,
@@ -2047,16 +2068,14 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   *
   * @param value     The value of the network cost.
   * @param issuePMod Controls how physical Modifications are issued.
-  * @param issueAMod Controls how abstract Modifications are issued.
-  */
- void set_network_cost( double value ,
-                        c_ModParam issuePMod = eNoBlck ,
-                        c_ModParam issueAMod = eNoBlck ) {
+  * @param issueAMod Controls how abstract Modifications are issued. */
+
+ void set_network_cost( double value , c_ModParam issuePMod = eNoBlck ,
+                                       c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
-  set_network_cost( vector.cbegin() ,
-                    Range( 0 , Inf< Index >() ) ,
+  set_network_cost( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
                     issuePMod , issueAMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// set the kappa constants for the lines specified by \p subset
@@ -2075,12 +2094,11 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   *
   * @param issuePMod It controls how physical Modification are issued.
   *
-  * @param issueAMod It controls how abstract Modification are issued.
-  */
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck );
+		 c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// set the kappa constants for the lines specified by \p rng
@@ -2097,8 +2115,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   *
   * @param issuePMod It controls how physical Modification are issued.
   *
-  * @param issueAMod It controls how abstract Modification are issued.
-  */
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -2151,7 +2168,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
 
  void set_active_demand( MF_dbl_it values , Subset && subset ,
                          bool ordered = false ,
-                         ModParam issuePMod = eNoBlck ,
+			 ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
@@ -2169,8 +2186,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   *
   * @param issuePMod It controls how physical Modification are issued.
   *
-  * @param issueAMod It controls how abstract Modification are issued.
-  */
+  * @param issueAMod It controls how abstract Modification are issued. */
 
  void set_active_demand( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
@@ -2205,7 +2221,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
                                         c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
- /// change the abstract representation of the PTDF demand-dependent constraints
+ /// change the abstract representation of the PTDF constraints
  /** This function updates the abstract representation of the constraints
   * whose right-hand side depends on the active demand in the PTDF
   * formulation.
@@ -2229,7 +2245,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
                                              c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
- /// change the abstract representation of the CYCLE demand-dependent constraints
+ /// change the abstract representation of the CYCLE constraints
  /** This function updates the abstract representation of the constraints
   * whose right-hand side depends on the active demand in the CYCLE
   * formulation.
@@ -2253,7 +2269,7 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
                                               c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
- /// change the abstract representation of the KIRCHHOFF demand-dependent constraints
+ /// change the abstract representation of the KIRCHHOFF constraints
  /** This function updates the abstract representation of the constraints
   * whose right-hand side depends on the active demand in the KIRCHHOFF
   * formulation.
@@ -2269,9 +2285,8 @@ std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void change_active_demand_constraints_KIRCHHOFF(
-                                        c_Subset & modified_nodes ,
-                                        c_ModParam issueAMod );
+ void change_active_demand_constraints_KIRCHHOFF( c_Subset & modified_nodes ,
+						  c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// change the abstract representation of the mixed DC-HVDC nodal constraints
