@@ -1,6 +1,6 @@
 general:  # general input parameters
   init_step: 1  # initial time step
-  final_step: 24  # final time step (kept short for solver tractability)
+  final_step: 96  # final time step (kept short for solver tractability)
   d_rate: 0.03  # discount rate
   project_lifetime: 20  # [y] project lifetime
   user_set: [user1, user2, user3, user4, user5, user6, user7, user8, user9, user10]  # list of users for the simulation
