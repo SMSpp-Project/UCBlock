@@ -106,7 +106,6 @@ SMSpp_insert_in_factory_cpp_0( ThermalUnitBlockSolution );
 ThermalUnitBlock::~ThermalUnitBlock()
 {
  Constraint::clear( CommitmentDesign_Const );
- design_bound_Const.clear();
  Constraint::clear( StartUp_ShutDown_Variables_Const );
  Constraint::clear( StartUp_Const );
  Constraint::clear( ShutDown_Const );
@@ -153,11 +152,9 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- if( ::deserialize( group , f_InvestmentCost , "InvestmentCost" ) ) {
-  ::deserialize( group , f_Capacity , "Capacity" );
-  ::deserialize( group , f_MinCapacityDesign , "MinCapacityDesign" );
-  ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
-  }
+ ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
+
+ ::deserialize( group , f_Capacity , "Capacity" );
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
@@ -337,8 +334,7 @@ std::vector< std::string > ThermalUnitBlock::expected_dims( void )
 std::vector< std::string > ThermalUnitBlock::expected_vars( void )
  const {
  static const std::vector< std::string > ev =
-  { "InvestmentCost" , "Capacity" , "MinCapacityDesign" ,
-    "MaxCapacityDesign" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
+  { "InvestmentCost" , "Capacity" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
     "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "LinearTerm" ,
     "QuadTerm" , "ConstTerm" , "StartUpCost" , "FixedConsumption" ,
     "InertiaCommitment" , "InitialPower" , "MinUpTime" ,  "MinDownTime" ,
@@ -368,27 +364,6 @@ void ThermalUnitBlock::check_data_consistency( void ) const
                            "scenario mode, but the presence of a positive "
                            "initial up/down time, typical of the operative "
                            "scenario, is incompatible." ) );
-
- // Min/Max capacity design
-
- if( f_MinCapacityDesign < 0 )
-  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                           "MinCapacityDesign must be nonnegative." ) );
-
- // Continue case (MaxCapacityDesign > 0): MinCapacityDesign <= MaxCapacityDesign
- if( ( f_MaxCapacityDesign > 0 ) && ( f_MinCapacityDesign > f_MaxCapacityDesign ) )
-  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                           "MinCapacityDesign > MaxCapacityDesign." ) );
-
- // Unitary case (|MaxCapacityDesign| == 1): MinCapacityDesign <= 1
- if( ( std::abs( f_MaxCapacityDesign ) == 1 ) && ( f_MinCapacityDesign > 1.0 ) )
-  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                           "MinCapacityDesign must be <= 1 when |MaxCapacityDesign| == 1." ) );
-
- // Binary case (max < 0): MinCapacityDesign <= 1
- if( ( f_MaxCapacityDesign < 0 ) && ( f_MinCapacityDesign > 1.0 ) )
-  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
-                           "MinCapacityDesign must be <= 1 for binary design." ) );
 
  // Minimum and maximum power - - - - - - - - - - - - - - - - - - - - - - - -
  assert( v_MinPower.size() == f_time_horizon );
@@ -518,14 +493,11 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
   init_t = ( -f_InitUpDownTime >= f_MinDownTime ? 0 :
              f_MinDownTime + f_InitUpDownTime );
 
- // Design Variable
+ // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  if( f_InvestmentCost != 0 ) {
-  if( f_MaxCapacityDesign < 0 )
-   design.set_type( ColVariable::kBinary );
-  else
-   design.set_type( ColVariable::kNonNegative );
+  design.set_type( ColVariable::kBinary );
   add_static_variable( design , "x_thermal" );
   }
  else
@@ -916,26 +888,6 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
   add_static_constraint( CommitmentDesign_Const ,
                          "CommitmentDesign_Const_Thermal" );
-
-  // design bounds (only meaningful for continuous design)
-  const double lb = std::max( 0.0 , f_MinCapacityDesign );
-  const bool is_binary = ( f_MaxCapacityDesign < 0.0 );
-  const double ub = is_binary
-                     ? 1.0 : ( std::abs( f_MaxCapacityDesign ) == 1.0
-                      ? 1.0 : std::abs( f_MaxCapacityDesign ) );
-
-  if( ( lb == 1.0 ) && ( ub == 1.0 ) )
-   design.is_unitary( true , eNoMod );
-  else {
-   design_bound_Const.set_lhs( lb );
-   design_bound_Const.set_rhs( ub );
-   design_bound_Const.set_variable( &design );
-
-   add_static_constraint( design_bound_Const , "DesignBound_Thermal" );
-
-   if( is_binary )
-    design.is_integer( true , eNoMod );
-   }
   }
 
  // compute the \psi constants for DP-related formulations- - - - - - - - - -
@@ -4019,18 +3971,12 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  // Serialize scalar variables
 
- if( f_InvestmentCost != 0 ) {
+ if( f_InvestmentCost != 0 )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
                f_InvestmentCost );
-  if( f_Capacity != 0 )
-   ::serialize( group , "Capacity" , netCDF::NcDouble() , f_Capacity );
-  if( f_MinCapacityDesign != 0 )
-   ::serialize( group , "MinCapacityDesign" , netCDF::NcDouble() ,
-                f_MinCapacityDesign );
-  if( f_MaxCapacityDesign != 1 )
-   ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
-                f_MaxCapacityDesign );
-  }
+
+ if( f_Capacity != 0 )
+  ::serialize( group , "Capacity" , netCDF::NcDouble() , f_Capacity );
 
  ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_InitialPower );
  ::serialize( group , "MinUpTime" , netCDF::NcUint() , f_MinUpTime );
