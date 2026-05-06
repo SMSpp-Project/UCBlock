@@ -548,17 +548,6 @@ function csvEC2nc4(
 
                 elseif g == "generator"
 
-                    # design type: binary {0,1} per nom-sized unit when the
-                    # YAML asks for a discrete (integer-modular) install,
-                    # continuous [0,1] otherwise. The deterministic schema
-                    # exposes this as `modularity: true/false`, the stochastic
-                    # one as `type_install: continuous/integer`.
-                    is_binary_design =
-                        (has_component(users_data[u], g, "modularity") &&
-                         field_component(users_data[u], g, "modularity") == false) ||
-                        (has_component(users_data[u], g, "type_install") &&
-                         field_component(users_data[u], g, "type_install") == "integer")
-
                     for _ in 1:div(field_component(users_data[u], g, "max_capacity"), field_component(users_data[u], g, "nom_capacity"))
 
                         ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
@@ -566,13 +555,6 @@ function csvEC2nc4(
                         # store the installable capacity of the thermal
                         thermal_capacity = defVar(ub, "Capacity", Float64, ())
                         thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
-
-                        # store the maximum capacity design only when binary;
-                        # the C++ default (1) already gives continuous [0,1]
-                        if is_binary_design
-                            max_capacity_design = defVar(ub, "MaxCapacityDesign", Float64, ())
-                            max_capacity_design[:] = -1.0
-                        end
 
                         # store the minimum power of the thermal
                         thermal_min_power = defVar(ub, "MinPower", Float64, ())
