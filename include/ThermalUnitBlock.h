@@ -132,7 +132,8 @@ class ThermalUnitBlock : public UnitBlock
   * Block. */
 
  explicit ThermalUnitBlock( Block * f_block = nullptr )
-  : UnitBlock( f_block ) {}
+  : UnitBlock( f_block ), f_InvestmentCost( 0 ), f_Capacity( 0 ),
+    f_MinCapacityDesign( 0 ), f_MaxCapacityDesign( 1 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of ThermalUnitBlock
@@ -153,6 +154,35 @@ class ThermalUnitBlock : public UnitBlock
   * In particular, we refer to that description for the crucial dimensions
   * "TimeHorizon", "NumberIntervals" and "ChangeIntervals".
   * The netCDF::NcGroup must then also contain:
+  *
+  * - The scalar variable "MinCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This sets the lower bound of the design
+  *   variable \( x \) in design mode (i.e., when InvestmentCost != 0). If not
+  *   provided, the default is 0. Its meaning depends on "MaxCapacityDesign":
+  *
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), then
+  *     \( x \in \{ 0 , 1 \} \) and \( \mathrm{MinCapacityDesign} > 0 \)
+  *     implies \( x = 1 \);
+  *
+  *   - otherwise (continuous design), \( x \) is nonnegative continuous with
+  *     \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  *
+  * - The scalar variable "MaxCapacityDesign", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This limits the design variable
+  *   \( x \):
+  *
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{ 0 , 1 \} \)
+  *     (binary);
+  *
+  *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [ 0 , 1 ] \)
+  *     when \( \mathrm{MinCapacityDesign} = 0 \); otherwise
+  *     \( x \in [\,\mathrm{MinCapacityDesign},\,1] \);
+  *
+  *   - if \( \mathrm{MaxCapacityDesign} > 0 \) then \( x \) is nonnegative
+  *     continuous with \( \mathrm{MinCapacityDesign} \le x \le
+  *     \mathrm{MaxCapacityDesign} \).
+  *
+  *   If not provided, the default is 1.
   *
   * - The variable "MinPower", of type netCDF::NcDouble and either of size 1
   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -2124,12 +2154,12 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the design binary variable
+ /// returns the design variable
 
  ColVariable & get_design( void ) { return( design ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns the const design binary variable
+ /// returns the const design variable
 
  const ColVariable & get_const_design( void ) const { return( design ); }
 
@@ -2788,10 +2818,16 @@ class ThermalUnitBlock : public UnitBlock
 
 
  /// the investment cost
- double f_InvestmentCost{};
+ double f_InvestmentCost;
 
  /// the installable capacity by the user
- double f_Capacity{};
+ double f_Capacity;
+
+ /// the minimum capacity design allowed
+ double f_MinCapacityDesign;
+
+ /// the maximum capacity design allowed
+ double f_MaxCapacityDesign;
 
  // total MVA base of this machine
  double f_MBase{};
@@ -2826,7 +2862,7 @@ class ThermalUnitBlock : public UnitBlock
 
 /*-------------------------------- variables -------------------------------*/
 
- /// the design binary variable
+ /// the design variable
  ColVariable design;
 
  /// the start-up binary variables
@@ -2893,6 +2929,9 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the commitment design constraints
  std::vector< FRowConstraint > CommitmentDesign_Const;
+
+ /// the design variable bound constraint (continuous design)
+ BoxConstraint design_bound_Const;
 
  /// the connection min up and down time constraints
  std::vector< FRowConstraint > StartUp_ShutDown_Variables_Const;
