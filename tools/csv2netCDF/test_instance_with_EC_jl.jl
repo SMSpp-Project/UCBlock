@@ -40,10 +40,21 @@ Pkg.activate(".")
 
 # Load the data
 fconfig = "energy_community_model_new.yml"  # default value
-if length(ARGS) > 0
-    fconfig = string(ARGS[1])
+no_thermal = false  # --no-thermal: fix every thermal generator install to 0
+no_asset   = false  # --no-asset: fix every installable asset to 0 (NA case)
+for a in ARGS
+    global fconfig, no_thermal, no_asset
+    if a == "--no-thermal"
+        no_thermal = true
+    elseif a == "--no-asset"
+        no_asset = true
+    elseif !startswith(a, "--")
+        fconfig = string(a)
+    end
 end
 println("Using configuration file: ", fconfig)
+no_thermal && println("Fixing thermal generator installs to 0 (--no-thermal).")
+no_asset   && println("Fixing all installable assets to 0 (--no-asset).")
 
 # define if network is stochastic: if the configuration file contains "_sto.yml"
 # it is considered stochastic, otherwise it is deterministic
@@ -170,6 +181,27 @@ if is_stochastic
     model = StochasticEC(fconfig, EnergyCommunity.GroupCO(), optimizer,
                          sampled_scenarios, scen_s_sample, scen_eps_sample)
     build_specific_model!(EnergyCommunity.GroupCO(), model, optimizer)
+
+    # Emulate the "no thermal" and "no-asset" (NA) variants in the stochastic
+    # flow, where the YAML schema has no explicit knob for them. The
+    # first-stage design variable `x_us[u, a]` is forced to 0 for every asset
+    # we want to remove. EC.jl@stochastic builds the deterministic equivalent,
+    # so reaching the proxy first-stage variables goes through
+    # `proxy(stochasticprogram, 1)`.
+    if no_thermal || no_asset
+        proxy_model = StochasticPrograms.proxy(model.model, 1)
+        x_us = proxy_model[:x_us]
+        for u in user_set
+            for a in device_names(users_data[u])
+                if no_asset ||
+                   ( no_thermal &&
+                     EnergyCommunity.asset_type( users_data[u] , a ) ==
+                       EnergyCommunity.THER )
+                    JuMP.fix( x_us[u, a] , 0.0 )
+                end
+            end
+        end
+    end
 
     # Solver tuning. `set_parameters_ECmodel!` upstream only knows about
     # CPLEX / Gurobi (it dispatches via `occursin(name, typeof(opt))`); for
