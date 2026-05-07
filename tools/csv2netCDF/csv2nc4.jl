@@ -167,10 +167,28 @@ function csvEC2nc4(
                         profile(ref_market, "peak_weight")[w]
                         for w in peak_set] * discount_factor
 
-    # `ConstantTerm`, i.e., the consumption price applied to total user load
+    # `ConstantTerm`, i.e., the consumption price applied to total user load.
+    # When scenarios are present, sum over scenarios weighted by probability
+    # (E_s[Σ_u scenario_load[s,u,t]]) instead of the YAML baseline load:
+    # csv2nc4 substitutes scenario-specific loads into `ActivePowerDemand`
+    # via the `Scenarios` array (line ~778: `vec[idx] = scen.Load[u][t]`),
+    # so the load-balance constraints already see scenario-perturbed demand.
+    # Using the YAML baseline here would leave the `consumption_price × Load`
+    # constant out of step with the rest of the model and produce a
+    # structural ~0.78% objective gap against EC.jl@stochastic on NA cases —
+    # observed and traced in the May-2026 investigation (see memory note
+    # `project_tssb_ec_lp_vs_milp_gap`).
+    expected_total_load_at_t = if isnothing(sampled_scenarios) ||
+                                  isempty(sampled_scenarios)
+        t -> sum(profile_component(users_data[u], l, "load")[t]
+                 for u in user_set for l in asset_names(users_data[u], LOAD))
+    else
+        t -> sum(probability(scen) *
+                 sum(scen.Load[u][t] for u in user_set)
+                 for scen in sampled_scenarios)
+    end
     const_term_data = [profile(ref_market, "consumption_price")[t] *
-                       sum(profile_component(users_data[u], l, "load")[t]
-                           for u in user_set for l in asset_names(users_data[u], LOAD)) *
+                       expected_total_load_at_t(t) *
                        energy_weight_profile[t] *
                        time_res_profile[t]
                        for t in time_set] * discount_factor
@@ -604,7 +622,14 @@ function csvEC2nc4(
                         end
 
                         # store the constant term of the thermal
-                        const_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                        # Commitment-based O&M cost: prefer OEM_com (per EC.jl
+                        # base_model.jl:344, the deterministic split), falling
+                        # back to OEM_lin which EC.jl@stochastic cooperativeStoch.jl
+                        # :254 reuses in this role for thermal generators when
+                        # OEM_com is not specified.
+                        oem_com = field_component(users_data[u], g, "OEM_com",
+                                                  field_component(users_data[u], g, "OEM_lin"))
+                        const_term_data = sum([(oem_com + # commitment-based O&M cost of the component
                                                 (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "inter_map"))) *
                                                energy_weight_profile[t] *

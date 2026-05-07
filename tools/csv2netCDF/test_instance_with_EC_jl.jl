@@ -1,7 +1,7 @@
 ## Test the instances with EnergyCommunity.jl
 #
 # This file aims to obtain the results of the instances with EnergyCommunity.jl.
-# If a stochasic instance is requested, it will be solved with the stochastic version of EnergyCommunity.jl, otherwise it will be solved with the deterministic version of EnergyCommunity.jl.
+# If a stochastic instance is requested, it will be solved with the stochastic version of EnergyCommunity.jl, otherwise it will be solved with the deterministic version of EnergyCommunity.jl.
 # A stochastic instance is identified by the presence of "_sto.yml" in the name of the configuration file, otherwise it is considered deterministic.
 #
 # To run this file you can run in the terminal:
@@ -204,12 +204,12 @@ if is_stochastic
     end
 
     # Solver tuning. `set_parameters_ECmodel!` upstream only knows about
-    # CPLEX / Gurobi (it dispatches via `occursin(name, typeof(opt))`); for
+    # CPLEX / Gurobi (it dispatches via `occursin(name, opt)`); for
     # other solvers (HiGHS in particular) calling it raises and resets the
     # scheduler, so we skip it and let the solver use its defaults.
-    if occursin("CPLEX", string(typeof(optimizer))) ||
-       occursin("Gurobi", string(typeof(optimizer)))
-        set_parameters_ECmodel!(model, 1e-2, 60 * 60, Threads.nthreads(), 1)
+    if occursin("CPLEX", string(optimizer)) ||
+       occursin("Gurobi", string(optimizer))
+        set_parameters_ECmodel!(model, 1e-6, 60 * 60, Threads.nthreads(), 1)
     end
 
     # Solves the deterministic equivalent and stores the solution into
