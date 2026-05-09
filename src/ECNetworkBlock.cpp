@@ -44,11 +44,32 @@ SMSpp_insert_in_factory_cpp_0( ECNetworkBlock );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
+// register ECNetworkBlockSolution to the Solution factory
+
+SMSpp_insert_in_factory_cpp_0( ECNetworkBlockSolution );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
 // register ECNetworkData to the NetworkData factory
 
 typedef ECNetworkBlock::ECNetworkData ECNetworkData;
 
 SMSpp_insert_in_factory_cpp_0( ECNetworkData );
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+template< class T , std::size_t K >
+static void copy_multi_array( boost::multi_array< T , K > & to ,
+                              const boost::multi_array< T , K > & from )
+{
+ std::vector< size_t > extent;
+ auto shape = from.shape();
+ extent.assign( shape , shape + from.num_dimensions() );
+ to.resize( extent );
+ to = from;
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ECNetworkBlock ------------------------*/
@@ -1211,6 +1232,702 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
                             this , ECNetworkBlockMod::eSetPenaltyP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 }  // end( set_penalty_price range )
+
+/*--------------------------------------------------------------------------*/
+
+Solution * ECNetworkBlock::get_Solution( Configuration * csolc , bool emptys )
+{
+ Index wsol = 31;  // by default: save everything
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class with empty=true; the base will create
+ // the right Solution type via new_Solution(), and size v_node_injection if
+ // wsol & 1. We size the EC-specific fields ourselves below, then -- if
+ // requested -- call read() at the end
+ auto * sol = dynamic_cast< ECNetworkBlockSolution * >(
+                          NetworkBlock::get_Solution( csolc , true ) );
+ assert( sol );
+
+ const auto ni = get_number_intervals();
+ const auto nn = get_number_nodes();
+
+ if( wsol & 2 ) {
+  // public-market injection / absorption variables
+  sol->v_power_injection.resize(
+   boost::multi_array< double , 2 >::extent_gen()[ ni ][ nn ] );
+  sol->v_power_absorption.resize(
+   boost::multi_array< double , 2 >::extent_gen()[ ni ][ nn ] );
+  }
+
+ if( wsol & 4 )
+  sol->v_shared_power.resize( ni );
+
+ if( wsol & 8 )
+  sol->v_peak_power.resize( nn );
+
+ if( wsol & 16 ) {
+  // squilibrium variables: only present when the underlying ECNetworkBlock
+  // generates them (i.e. when v_power_squilibrium_pos / _neg are non-empty)
+  if( ! v_power_squilibrium_pos.empty() )
+   sol->v_power_squilibrium_pos.resize( ni );
+  if( ! v_power_squilibrium_neg.empty() )
+   sol->v_power_squilibrium_neg.resize( ni );
+  }
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+
+ }  // end( ECNetworkBlock::get_Solution )
+
+/*--------------------------------------------------------------------------*/
+
+NetworkBlockSolution * ECNetworkBlock::new_Solution( void ) const {
+ return( new ECNetworkBlockSolution() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*------------------- METHODS OF ECNetworkBlockSolution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ NetworkBlockSolution::deserialize( group );
+
+ const auto ni = f_number_intervals;
+ const auto nn = f_number_nodes;
+
+ using mad2i = MAdouble::index;
+
+ // deserialize PowerInjection - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! ::deserialize< double , 2 >( group , "PowerInjection" , { ni , nn } ,
+                                    v_power_injection , true ) ) {
+  std::vector< mad2i > sizes( 2 , 0 );
+  v_power_injection.resize( sizes );
+  }
+
+ // deserialize PowerAbsorption- - - - - - - - - - - - - - - - - - - - - - -
+ if( ! ::deserialize< double , 2 >( group , "PowerAbsorption" , { ni , nn } ,
+                                    v_power_absorption , true ) ) {
+  std::vector< mad2i > sizes( 2 , 0 );
+  v_power_absorption.resize( sizes );
+  }
+
+ // deserialize SharedPower- - - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double >( group , "SharedPower" , v_shared_power , true );
+
+ // deserialize PeakPower- - - - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double >( group , "PeakPower" , v_peak_power , true );
+
+ // deserialize PowerSquilibriumPos / Neg- - - - - - - - - - - - - - - - - -
+ ::deserialize< double >( group , "PowerSquilibriumPos" ,
+                          v_power_squilibrium_pos , true );
+
+ ::deserialize< double >( group , "PowerSquilibriumNeg" ,
+                          v_power_squilibrium_neg , true );
+
+ }  // end( ECNetworkBlockSolution::deserialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
+                                          size_t idx )
+{
+ // call the method of the base class: this fills f_number_nodes,
+ // f_number_intervals, and v_node_injection (if present)
+ NetworkBlockSolution::deserialize( group , idx );
+
+ const auto ni = f_number_intervals;
+ const auto nn = f_number_nodes;
+
+ using mad2i = MAdouble::index;
+
+ // recover the offset in the time-indexed variables for this :Solution: it
+ // is the same one used by the base class. If "EndInstant" is defined, the
+ // start is EndInstant[ idx - 1 ] (or 0 for idx == 0). Otherwise, each
+ // :NetworkBlockSolution covers exactly one instant and the start is idx
+ size_t start;
+ auto EI = group.getVar( "EndInstant" );
+ if( EI.isNull() )
+  start = idx;
+ else {
+  if( idx == 0 )
+   start = 0;
+  else {
+   std::vector< size_t > vidx = { idx - 1 };
+   int eitmp = 0;
+   EI.getVar( vidx , & eitmp );
+   start = eitmp;
+   }
+  }
+
+ // deserialize PowerInjection - - - - - - - - - - - - - - - - - - - - - - -
+ auto ncVar = group.getVar( "PowerInjection" );
+ if( ncVar.isNull() ) {
+  std::vector< mad2i > sizes = { 0 , 0 };
+  v_power_injection.resize( sizes );
+  }
+ else {
+  std::vector< mad2i > sizes = { ni , nn };
+  v_power_injection.resize( sizes );
+  std::vector< size_t > strt = { start , 0 };
+  std::vector< size_t > cnt = { ni , nn };
+  ncVar.getVar( strt , cnt , v_power_injection.data() );
+  }
+
+ // deserialize PowerAbsorption- - - - - - - - - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "PowerAbsorption" );
+ if( ncVar.isNull() ) {
+  std::vector< mad2i > sizes = { 0 , 0 };
+  v_power_absorption.resize( sizes );
+  }
+ else {
+  std::vector< mad2i > sizes = { ni , nn };
+  v_power_absorption.resize( sizes );
+  std::vector< size_t > strt = { start , 0 };
+  std::vector< size_t > cnt = { ni , nn };
+  ncVar.getVar( strt , cnt , v_power_absorption.data() );
+  }
+
+ // deserialize SharedPower- - - - - - - - - - - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "SharedPower" );
+ if( ncVar.isNull() )
+  v_shared_power.clear();
+ else {
+  v_shared_power.resize( ni );
+  std::vector< size_t > strt = { start };
+  std::vector< size_t > cnt = { ni };
+  ncVar.getVar( strt , cnt , v_shared_power.data() );
+  }
+
+ // deserialize PeakPower (one row per network) - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "PeakPower" );
+ if( ncVar.isNull() )
+  v_peak_power.clear();
+ else {
+  v_peak_power.resize( nn );
+  std::vector< size_t > strt = { idx , 0 };
+  std::vector< size_t > cnt = { 1 , nn };
+  ncVar.getVar( strt , cnt , v_peak_power.data() );
+  }
+
+ // deserialize PowerSquilibriumPos- - - - - - - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "PowerSquilibriumPos" );
+ if( ncVar.isNull() )
+  v_power_squilibrium_pos.clear();
+ else {
+  v_power_squilibrium_pos.resize( ni );
+  std::vector< size_t > strt = { start };
+  std::vector< size_t > cnt = { ni };
+  ncVar.getVar( strt , cnt , v_power_squilibrium_pos.data() );
+  }
+
+ // deserialize PowerSquilibriumNeg- - - - - - - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "PowerSquilibriumNeg" );
+ if( ncVar.isNull() )
+  v_power_squilibrium_neg.clear();
+ else {
+  v_power_squilibrium_neg.resize( ni );
+  std::vector< size_t > strt = { start };
+  std::vector< size_t > cnt = { ni };
+  ncVar.getVar( strt , cnt , v_power_squilibrium_neg.data() );
+  }
+
+ }  // end( ECNetworkBlockSolution::deserialize( NcGroup & , size_t ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlockSolution::read( const Block * block )
+{
+ // call the method of the base class
+ NetworkBlockSolution::read( block );
+
+ auto ECNB = dynamic_cast< const ECNetworkBlock * >( block );
+ if( ! ECNB )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::read: block is not an ECNetworkBlock" ) );
+
+ const auto ni = f_number_intervals;
+ const auto nn = f_number_nodes;
+
+ auto NCECNB = const_cast< ECNetworkBlock * >( ECNB );
+
+ // read the public injection / absorption variables (if requested)- - - - -
+ if( ! v_power_injection.empty() )
+  for( Index t = 0 ; t < ni ; ++t ) {
+   auto Pi = NCECNB->get_power_injection( t );
+   if( ! Pi ) {
+    v_power_injection.resize(
+     boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
+    break;
+    }
+   for( Index n = 0 ; n < nn ; ++n )
+    v_power_injection[ t ][ n ] = Pi[ n ].get_value();
+   }
+
+ if( ! v_power_absorption.empty() )
+  for( Index t = 0 ; t < ni ; ++t ) {
+   auto Pa = NCECNB->get_power_absorption( t );
+   if( ! Pa ) {
+    v_power_absorption.resize(
+     boost::multi_array< double , 2 >::extent_gen()[ 0 ][ 0 ] );
+    break;
+    }
+   for( Index n = 0 ; n < nn ; ++n )
+    v_power_absorption[ t ][ n ] = Pa[ n ].get_value();
+   }
+
+ // read the shared power (if requested)- - - - - - - - - - - - - - - - - -
+ if( ! v_shared_power.empty() ) {
+  const auto & SP = ECNB->get_shared_power();
+  if( SP.empty() )
+   v_shared_power.clear();
+  else {
+   if( v_shared_power.size() != SP.size() )
+    v_shared_power.resize( SP.size() );
+   for( Index t = 0 ; t < SP.size() ; ++t )
+    v_shared_power[ t ] = SP[ t ].get_value();
+   }
+  }
+
+ // read the peak power (if requested) - - - - - - - - - - - - - - - - - - -
+ if( ! v_peak_power.empty() ) {
+  const auto & PP = ECNB->get_peak_power();
+  if( PP.empty() )
+   v_peak_power.clear();
+  else {
+   if( v_peak_power.size() != PP.size() )
+    v_peak_power.resize( PP.size() );
+   for( Index n = 0 ; n < PP.size() ; ++n )
+    v_peak_power[ n ] = PP[ n ].get_value();
+   }
+  }
+
+ // read the squilibrium variables (if requested and present) - - - - - - -
+ if( ! v_power_squilibrium_pos.empty() ) {
+  const auto & SQp = ECNB->get_power_squilibrium_pos();
+  if( SQp.empty() )
+   v_power_squilibrium_pos.clear();
+  else {
+   if( v_power_squilibrium_pos.size() != SQp.size() )
+    v_power_squilibrium_pos.resize( SQp.size() );
+   for( Index t = 0 ; t < SQp.size() ; ++t )
+    v_power_squilibrium_pos[ t ] = SQp[ t ].get_value();
+   }
+  }
+
+ if( ! v_power_squilibrium_neg.empty() ) {
+  const auto & SQn = ECNB->get_power_squilibrium_neg();
+  if( SQn.empty() )
+   v_power_squilibrium_neg.clear();
+  else {
+   if( v_power_squilibrium_neg.size() != SQn.size() )
+    v_power_squilibrium_neg.resize( SQn.size() );
+   for( Index t = 0 ; t < SQn.size() ; ++t )
+    v_power_squilibrium_neg[ t ] = SQn[ t ].get_value();
+   }
+  }
+
+ }  // end( ECNetworkBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlockSolution::write( Block * block )
+{
+ // call the method of the base class
+ NetworkBlockSolution::write( block );
+
+ auto ECNB = dynamic_cast< ECNetworkBlock * >( block );
+ if( ! ECNB )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::write: block is not an ECNetworkBlock" ) );
+
+ const auto ni = f_number_intervals;
+ const auto nn = f_number_nodes;
+
+ // write public injection / absorption variables- - - - - - - - - - - - - -
+ if( ! v_power_injection.empty() )
+  for( Index t = 0 ; t < ni ; ++t ) {
+   auto Pi = ECNB->get_power_injection( t );
+   if( Pi )
+    for( Index n = 0 ; n < nn ; ++n )
+     Pi[ n ].set_value( v_power_injection[ t ][ n ] );
+   }
+
+ if( ! v_power_absorption.empty() )
+  for( Index t = 0 ; t < ni ; ++t ) {
+   auto Pa = ECNB->get_power_absorption( t );
+   if( Pa )
+    for( Index n = 0 ; n < nn ; ++n )
+     Pa[ n ].set_value( v_power_absorption[ t ][ n ] );
+   }
+
+ // write the shared power- - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_shared_power.empty() ) {
+  auto & SP = const_cast< std::vector< ColVariable > & >(
+   ECNB->get_shared_power() );
+  if( SP.size() != v_shared_power.size() )
+   throw( std::invalid_argument(
+     "ECNetworkBlockSolution::write: inconsistent shared power size" ) );
+  for( Index t = 0 ; t < SP.size() ; ++t )
+   SP[ t ].set_value( v_shared_power[ t ] );
+  }
+
+ // write the peak power- - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_peak_power.empty() ) {
+  auto & PP = const_cast< std::vector< ColVariable > & >(
+   ECNB->get_peak_power() );
+  if( PP.size() != v_peak_power.size() )
+   throw( std::invalid_argument(
+     "ECNetworkBlockSolution::write: inconsistent peak power size" ) );
+  for( Index n = 0 ; n < PP.size() ; ++n )
+   PP[ n ].set_value( v_peak_power[ n ] );
+  }
+
+ // write the squilibrium variables - - - - - - - - - - - - - - - - - - - -
+ if( ! v_power_squilibrium_pos.empty() ) {
+  auto & SQp = const_cast< std::vector< ColVariable > & >(
+   ECNB->get_power_squilibrium_pos() );
+  if( SQp.size() != v_power_squilibrium_pos.size() )
+   throw( std::invalid_argument(
+     "ECNetworkBlockSolution::write: inconsistent squilibrium pos size" ) );
+  for( Index t = 0 ; t < SQp.size() ; ++t )
+   SQp[ t ].set_value( v_power_squilibrium_pos[ t ] );
+  }
+
+ if( ! v_power_squilibrium_neg.empty() ) {
+  auto & SQn = const_cast< std::vector< ColVariable > & >(
+   ECNB->get_power_squilibrium_neg() );
+  if( SQn.size() != v_power_squilibrium_neg.size() )
+   throw( std::invalid_argument(
+     "ECNetworkBlockSolution::write: inconsistent squilibrium neg size" ) );
+  for( Index t = 0 ; t < SQn.size() ; ++t )
+   SQn[ t ].set_value( v_power_squilibrium_neg[ t ] );
+  }
+
+ }  // end( ECNetworkBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ // call the method of the base class: this writes "NumberNodes",
+ // "NumberInstants" (if > 1) and "NodeInjection" (if non-empty)
+ NetworkBlockSolution::serialize( group );
+
+ // get / create the dimensions we need - - - - - - - - - - - - - - - - - -
+ auto nn = group.getDim( "NumberNodes" );  // base class set it
+ auto ni = group.getDim( "NumberInstants" );  // present iff > 1
+
+ // serialize PowerInjection - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_power_injection.empty() ) {
+  if( ni.isNull() ) {
+   // single-instant: store as a 1D variable indexed over nn
+   std::vector< double > tmp( f_number_nodes );
+   for( Index n = 0 ; n < f_number_nodes ; ++n )
+    tmp[ n ] = v_power_injection[ 0 ][ n ];
+   ::serialize< double >( group , "PowerInjection" , netCDF::NcDouble() , nn ,
+                          tmp );
+   }
+  else
+   ::serialize< double , 2 >( group , "PowerInjection" , netCDF::NcDouble() ,
+                              { ni , nn } , v_power_injection );
+  }
+
+ // serialize PowerAbsorption- - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_power_absorption.empty() ) {
+  if( ni.isNull() ) {
+   std::vector< double > tmp( f_number_nodes );
+   for( Index n = 0 ; n < f_number_nodes ; ++n )
+    tmp[ n ] = v_power_absorption[ 0 ][ n ];
+   ::serialize< double >( group , "PowerAbsorption" , netCDF::NcDouble() , nn ,
+                          tmp );
+   }
+  else
+   ::serialize< double , 2 >( group , "PowerAbsorption" , netCDF::NcDouble() ,
+                              { ni , nn } , v_power_absorption );
+  }
+
+ // serialize SharedPower- - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_shared_power.empty() ) {
+  if( ni.isNull() ) {
+   // single-instant: store as a scalar
+   auto SP = group.addVar( "SharedPower" , netCDF::NcDouble() );
+   SP.putVar( v_shared_power.data() );
+   }
+  else
+   ::serialize< double >( group , "SharedPower" , netCDF::NcDouble() , ni ,
+                          v_shared_power );
+  }
+
+ // serialize PeakPower- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_peak_power.empty() )
+  ::serialize< double >( group , "PeakPower" , netCDF::NcDouble() , nn ,
+                         v_peak_power );
+
+ // serialize PowerSquilibriumPos / Neg- - - - - - - - - - - - - - - - - - -
+ if( ! v_power_squilibrium_pos.empty() ) {
+  if( ni.isNull() ) {
+   auto SP = group.addVar( "PowerSquilibriumPos" , netCDF::NcDouble() );
+   SP.putVar( v_power_squilibrium_pos.data() );
+   }
+  else
+   ::serialize< double >( group , "PowerSquilibriumPos" , netCDF::NcDouble() ,
+                          ni , v_power_squilibrium_pos );
+  }
+
+ if( ! v_power_squilibrium_neg.empty() ) {
+  if( ni.isNull() ) {
+   auto SP = group.addVar( "PowerSquilibriumNeg" , netCDF::NcDouble() );
+   SP.putVar( v_power_squilibrium_neg.data() );
+   }
+  else
+   ::serialize< double >( group , "PowerSquilibriumNeg" , netCDF::NcDouble() ,
+                          ni , v_power_squilibrium_neg );
+  }
+
+ }  // end( ECNetworkBlockSolution::serialize( NcGroup & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
+                                        size_t idx ) const
+{
+ // call the method of the base class: this fills/checks NumberNetworks,
+ // NumberNodes, TotalNumberInstants, EndInstant, NodeInjection (if any)
+ NetworkBlockSolution::serialize( group , idx );
+
+ // recover dimensions; NumberNetworks and NumberNodes must exist
+ auto nnw = group.getDim( "NumberNetworks" );
+ auto nn = group.getDim( "NumberNodes" );
+
+ // for time-indexed EC variables we use TotalNumberInstants when defined,
+ // and fall back to NumberNetworks when each block covers exactly one
+ // instant (i.e. when the parent did not create TotalNumberInstants /
+ // EndInstant)
+ auto tni = group.getDim( "TotalNumberInstants" );
+ const bool has_tni = ! tni.isNull();
+ auto tdim = has_tni ? tni : nnw;
+
+ // recover the offset in time-indexed variables, exactly as the base class
+ // does: 0 for idx == 0, else EndInstant[ idx - 1 ] when present, else idx
+ size_t start;
+ if( has_tni ) {
+  auto EI = group.getVar( "EndInstant" );  // base class created it already
+  start = 0;
+  if( idx > 0 ) {
+   std::vector< size_t > vidx = { idx - 1 };
+   EI.getVar( vidx , & start );
+   }
+  }
+ else
+  start = idx;
+
+ // create/retrieve the netCDF variables - - - - - - - - - - - - - - - - - -
+ netCDF::NcVar PI;  // PowerInjection
+ netCDF::NcVar PA;  // PowerAbsorption
+ netCDF::NcVar SP;  // SharedPower
+ netCDF::NcVar PP;  // PeakPower
+ netCDF::NcVar SQp; // PowerSquilibriumPos
+ netCDF::NcVar SQn; // PowerSquilibriumNeg
+
+ if( idx == 0 ) {  // first call: initialize variables
+  if( ! v_power_injection.empty() )
+   PI = group.addVar( "PowerInjection" , netCDF::NcDouble() , { tdim , nn } );
+
+  if( ! v_power_absorption.empty() )
+   PA = group.addVar( "PowerAbsorption" , netCDF::NcDouble() , { tdim , nn } );
+
+  if( ! v_shared_power.empty() )
+   SP = group.addVar( "SharedPower" , netCDF::NcDouble() , { tdim } );
+
+  if( ! v_peak_power.empty() )
+   PP = group.addVar( "PeakPower" , netCDF::NcDouble() , { nnw , nn } );
+
+  if( ! v_power_squilibrium_pos.empty() )
+   SQp = group.addVar( "PowerSquilibriumPos" , netCDF::NcDouble() ,
+                       { tdim } );
+
+  if( ! v_power_squilibrium_neg.empty() )
+   SQn = group.addVar( "PowerSquilibriumNeg" , netCDF::NcDouble() ,
+                       { tdim } );
+  }
+ else {  // subsequent call: read what is supposedly already there
+  if( ! v_power_injection.empty() )
+   PI = group.getVar( "PowerInjection" );
+
+  if( ! v_power_absorption.empty() )
+   PA = group.getVar( "PowerAbsorption" );
+
+  if( ! v_shared_power.empty() )
+   SP = group.getVar( "SharedPower" );
+
+  if( ! v_peak_power.empty() )
+   PP = group.getVar( "PeakPower" );
+
+  if( ! v_power_squilibrium_pos.empty() )
+   SQp = group.getVar( "PowerSquilibriumPos" );
+
+  if( ! v_power_squilibrium_neg.empty() )
+   SQn = group.getVar( "PowerSquilibriumNeg" );
+  }
+
+ // write the data - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ std::vector< size_t > strt2 = { start , 0 };
+ std::vector< size_t > cnt2 = { f_number_intervals , f_number_nodes };
+ std::vector< size_t > strt1 = { start };
+ std::vector< size_t > cnt1 = { f_number_intervals };
+ std::vector< size_t > strtN = { idx , 0 };
+ std::vector< size_t > cntN = { 1 , f_number_nodes };
+
+ if( ! PI.isNull() )
+  PI.putVar( strt2 , cnt2 , v_power_injection.data() );
+
+ if( ! PA.isNull() )
+  PA.putVar( strt2 , cnt2 , v_power_absorption.data() );
+
+ if( ! SP.isNull() )
+  SP.putVar( strt1 , cnt1 , v_shared_power.data() );
+
+ if( ! PP.isNull() )
+  PP.putVar( strtN , cntN , v_peak_power.data() );
+
+ if( ! SQp.isNull() )
+  SQp.putVar( strt1 , cnt1 , v_power_squilibrium_pos.data() );
+
+ if( ! SQn.isNull() )
+  SQn.putVar( strt1 , cnt1 , v_power_squilibrium_neg.data() );
+
+ }  // end( ECNetworkBlockSolution::serialize( NcGroup & , size_t ) )
+
+/*--------------------------------------------------------------------------*/
+
+ECNetworkBlockSolution * ECNetworkBlockSolution::scale( double factor ) const
+{
+ // call the method of the base class, which calls clone() and therefore
+ // returns an ECNetworkBlockSolution
+ auto sol = dynamic_cast< ECNetworkBlockSolution * >(
+                                     NetworkBlockSolution::scale( factor ) );
+ assert( sol );
+
+ if( factor == 1 )
+  return( sol );
+
+ if( ! v_power_injection.empty() )
+  for( Index t = 0 ; t < f_number_intervals ; ++t )
+   for( Index n = 0 ; n < f_number_nodes ; ++n )
+    sol->v_power_injection[ t ][ n ] *= factor;
+
+ if( ! v_power_absorption.empty() )
+  for( Index t = 0 ; t < f_number_intervals ; ++t )
+   for( Index n = 0 ; n < f_number_nodes ; ++n )
+    sol->v_power_absorption[ t ][ n ] *= factor;
+
+ for( auto & x : sol->v_shared_power ) x *= factor;
+ for( auto & x : sol->v_peak_power ) x *= factor;
+ for( auto & x : sol->v_power_squilibrium_pos ) x *= factor;
+ for( auto & x : sol->v_power_squilibrium_neg ) x *= factor;
+
+ return( sol );
+
+ }  // end( ECNetworkBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void ECNetworkBlockSolution::sum( const Solution * solution ,
+                                  double multiplier )
+{
+ // call the method of the base class
+ NetworkBlockSolution::sum( solution , multiplier );
+
+ auto ECNBS = dynamic_cast< const ECNetworkBlockSolution * >( solution );
+ if( ! ECNBS )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: solution not an ECNetworkBlockSolution" ) );
+
+ // sanity checks - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( v_power_injection.shape()[ 0 ] != ECNBS->v_power_injection.shape()[ 0 ]
+  || v_power_injection.shape()[ 1 ] != ECNBS->v_power_injection.shape()[ 1 ] )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: inconsistent power injection size" ) );
+
+ if( v_power_absorption.shape()[ 0 ] != ECNBS->v_power_absorption.shape()[ 0 ]
+  || v_power_absorption.shape()[ 1 ] !=
+     ECNBS->v_power_absorption.shape()[ 1 ] )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: inconsistent power absorption size" ) );
+
+ if( v_shared_power.size() != ECNBS->v_shared_power.size() )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: inconsistent shared power size" ) );
+
+ if( v_peak_power.size() != ECNBS->v_peak_power.size() )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: inconsistent peak power size" ) );
+
+ if( v_power_squilibrium_pos.size() != ECNBS->v_power_squilibrium_pos.size() )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: inconsistent squilibrium pos size" ) );
+
+ if( v_power_squilibrium_neg.size() != ECNBS->v_power_squilibrium_neg.size() )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: inconsistent squilibrium neg size" ) );
+
+ // accumulate - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_power_injection.empty() )
+  for( Index t = 0 ; t < f_number_intervals ; ++t )
+   for( Index n = 0 ; n < f_number_nodes ; ++n )
+    v_power_injection[ t ][ n ] +=
+     ECNBS->v_power_injection[ t ][ n ] * multiplier;
+
+ if( ! v_power_absorption.empty() )
+  for( Index t = 0 ; t < f_number_intervals ; ++t )
+   for( Index n = 0 ; n < f_number_nodes ; ++n )
+    v_power_absorption[ t ][ n ] +=
+     ECNBS->v_power_absorption[ t ][ n ] * multiplier;
+
+ for( std::size_t t = 0 ; t < v_shared_power.size() ; ++t )
+  v_shared_power[ t ] += ECNBS->v_shared_power[ t ] * multiplier;
+
+ for( std::size_t n = 0 ; n < v_peak_power.size() ; ++n )
+  v_peak_power[ n ] += ECNBS->v_peak_power[ n ] * multiplier;
+
+ for( std::size_t t = 0 ; t < v_power_squilibrium_pos.size() ; ++t )
+  v_power_squilibrium_pos[ t ] +=
+   ECNBS->v_power_squilibrium_pos[ t ] * multiplier;
+
+ for( std::size_t t = 0 ; t < v_power_squilibrium_neg.size() ; ++t )
+  v_power_squilibrium_neg[ t ] +=
+   ECNBS->v_power_squilibrium_neg[ t ] * multiplier;
+
+ }  // end( ECNetworkBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+ECNetworkBlockSolution * ECNetworkBlockSolution::clone( bool empty ) const
+{
+ auto sol = new ECNetworkBlockSolution();
+
+ if( ! empty ) {
+  NetworkBlockSolution::guts_of_clone( sol );
+
+  copy_multi_array( sol->v_power_injection , v_power_injection );
+  copy_multi_array( sol->v_power_absorption , v_power_absorption );
+  sol->v_shared_power = v_shared_power;
+  sol->v_peak_power = v_peak_power;
+  sol->v_power_squilibrium_pos = v_power_squilibrium_pos;
+  sol->v_power_squilibrium_neg = v_power_squilibrium_neg;
+  }
+
+ return( sol );
+
+ }  // end( ECNetworkBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File ECNetworkBlock.cpp ----------------------*/
