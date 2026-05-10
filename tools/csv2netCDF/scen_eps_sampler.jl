@@ -157,6 +157,15 @@ function scenarios_generator(
 		end
 
 		for s = 1:n_scen_s
+			# Force a deterministic per-(s, eps) seed so csv2nc4 and the
+			# test_instance harness consume bit-identical rand sequences
+			# during scenario sampling, regardless of the prior RNG state
+			# (which may diverge between the two callers due to subtle
+			# differences in earlier macro-generated code, package init,
+			# or Dict iteration order). With one seed per scenario the
+			# scenarios are still pseudo-random but reproducible across
+			# pipelines.
+			Random.seed!(123 + s)
 			sampler_eps = Scenario_eps_Sampler(market(data), users(data),
 			                                   point_s_load, point_s_pv,
 			                                   point_s_wind, s)

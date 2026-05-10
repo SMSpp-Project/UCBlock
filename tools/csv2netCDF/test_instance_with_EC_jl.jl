@@ -212,6 +212,19 @@ if is_stochastic
         set_parameters_ECmodel!(model, 1e-6, 60 * 60, Threads.nthreads(), 1)
     end
 
+    # Match the SMS++ test pipeline (`tests/TwoStageStochasticBlock/BSPar-2S.txt`
+    # ships with `intRelaxIntVars 1`, i.e. the MILPSolver and LagrangianDualSolver
+    # both solve the LP relaxation of the deterministic equivalent). Without
+    # this relax_integrality call, EC.jl's MILP optimum is above SMS++'s LP
+    # optimum by the integrality gap (~5e-4 relative on these instances), and
+    # the comparison fails at any tolerance tighter than that gap regardless
+    # of how tightly we set MIPGap.
+    # Dispatch on the StochasticProgram (not on the DEP JuMP.Model) so the
+    # StochasticPrograms.jl method propagates relaxation through the
+    # `Decision` variables to the underlying deterministic equivalent;
+    # `JuMP.relax_integrality(::Model)` alone leaves the DEP integer.
+    StochasticPrograms.relax_integrality(model.model)
+
     # Solves the deterministic equivalent and stores the solution into
     # `model.results`.
     optimize_deterministic_ECmodel(model)
