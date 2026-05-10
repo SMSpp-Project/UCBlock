@@ -3,8 +3,7 @@
 # Default: include the thermal generator (output gets the `_TUB` suffix).
 # `--no-thermal` opts out, mirroring the EC.jl@stochastic flag of the same
 # name. `--no-asset` strips every installable asset and produces the
-# TSSB_EC_NA_*.nc4 family (which used to be generated from dedicated
-# `*_NA*.yml` files, now removed: NA = CO with all assets disabled).
+# TSSB_EC_NA_*.nc4 family.
 
 # deterministic
 
