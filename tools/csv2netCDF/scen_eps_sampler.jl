@@ -1,20 +1,20 @@
-# Sampler for distribution associated to short period uncertainty.
-# Schema aligned with EC.jl@stochastic.
-
-# ---------------------------------------------------------------------------
-# Optional stochastic perturbation of market-level prices.
-# A price profile becomes scenario-dependent if the YAML market profile
-# contains the matching `std_<name>` entry (or `std_peak_tariff` for the
-# Dict-typed peak tariff). Without it the price stays deterministic.
-# ---------------------------------------------------------------------------
+# Short-period (eps) sampler used by both `csv2nc4.jl` (when writing the SMS++
+# TSSB netCDF) and `test_instance_with_EC_jl.jl` (when computing reference
+# objective values via EnergyCommunity.jl@stochastic). It produces a
+# `Scenario_Load_Renewable` for each (s, eps) draw, perturbing the relevant
+# components around the long-period centre points provided by `pem_extraction`.
+#
+# Schema aligned with EnergyCommunity.jl@stochastic; see
+# `examples/RunStochModel(TBD).jl` of
+# https://github.com/SPSUnipi/EnergyCommunity.jl branch `stochastic`.
 
 """
     perturb_price_vector(data_market, name, time_set)
 
-Return a per-time-step price vector for `name` (e.g. "buy_price"). When
-`std_<name>` is present in the market profile the deterministic mean is
-perturbed via `MvNormal(mean, std)` then folded to non-negative values;
-otherwise the deterministic mean is returned untouched.
+Per-time-step sample of the market-level price `name` (e.g. `"buy_price"`).
+When the market profile defines `std_<name>` the deterministic mean is
+perturbed via `MvNormal(mean, std)` and folded to non-negative values;
+without `std_<name>` the deterministic mean is returned untouched.
 """
 function perturb_price_vector(data_market, name::AbstractString, time_set)
 	mean_vec = profile_d(data_market, name, fill(0.0, length(time_set)))
@@ -26,7 +26,7 @@ end
 """
     perturb_peak_tariff(data_market)
 
-Return the peak-tariff Dict (category → tariff). When the market profile
+Sample the peak-tariff Dict (peak category → tariff). When the market profile
 contains `std_peak_tariff` (Dict{String,Float64}) each category is sampled
 independently from `Normal(mean, std)`; otherwise the deterministic Dict is
 returned untouched.
@@ -43,16 +43,21 @@ function perturb_peak_tariff(data_market)
 	return out
 end
 
-### Sampler definition
+# `unc_var` is a string of letters in {"L","P","W"} selecting which
+# short-period sources of uncertainty to perturb (Load / PV / Wind). For a
+# letter not in `unc_var` the sample equals the long-period centre point —
+# so that the per-scenario data fed to the LP coincides with the baseline
+# profile that the SMS++ pipeline uses to set static bounds (e.g.
+# `IntermittentUnitBlock.MaxPower` and the derived `max_node_injection`).
 
 @sampler Scenario_eps_Sampler = begin
-	data_market::Dict{Any, Any}      # data of the market
-	data_user::Dict{Any, Any}        # data of users
-	point_s_load::Array{Any}         # long-period (s) point for load demand
-	point_s_pv::Array{Any}           # long-period (s) point for PV
-	point_s_wind::Array{Any}         # long-period (s) point for wind
+	data_market::Dict{Any, Any}      # market data
+	data_user::Dict{Any, Any}        # users data
+	point_s_load::Array{Any}         # long-period (s) centre points for load
+	point_s_pv::Array{Any}           # long-period (s) centre points for PV
+	point_s_wind::Array{Any}         # long-period (s) centre points for wind
 	scen_s::Int                      # current `s` index
-	unc_var::String                  # which sources are uncertain ("L"/"P"/"W")
+	unc_var::String                  # uncertain sources, subset of "LPW"
 
 	Scenario_eps_Sampler(data_market, data_user, point_s_load, point_s_pv,
 	                     point_s_wind, scen_s, unc_var) =
@@ -68,32 +73,23 @@ end
 		point_s_wind  = sampler.point_s_wind
 		unc_var       = sampler.unc_var
 
-		# Gate the short-period perturbation on `unc_var`: only sample noise
-		# for the sources actually flagged as uncertain. Without this gate
-		# even YAMLs declaring `uncertain_var: L` get PV/wind perturbed (with
-		# `sigma_pv` / `sigma_wind` defaults), which then makes the per-
-		# scenario IntermittentUnitBlock.MaxPower exceed the BASELINE used
-		# by `UCBlock::deserialize` to set `max_node_injection` — so the
-		# ECNetworkBlock node_injection bound becomes binding and forces
-		# unwanted PV curtailment in the SMS LP, opening a structural gap
-		# vs EC.jl@stochastic on NC instances.
 		sample_L = occursin("L", unc_var)
 		sample_P = occursin("P", unc_var)
 		sample_W = occursin("W", unc_var)
 
-		load_demand = Dict{String,Dict{Int,Float64}}()
-		ren_production = Dict{String,Dict{String,Dict{Int,Float64}}}()
+		load_demand    = Dict{String, Dict{Int, Float64}}()
+		ren_production = Dict{String, Dict{String, Dict{Int, Float64}}}()
 
 		for u in user_set
 
-			# Load — short-period perturbation around `point_s_load[scen_s] * mean`.
-			# Skip rand draw when "L" is not in `unc_var` to keep load = baseline.
+			# Load: scaled by the long-period centre point, then optionally
+			# perturbed via `MvNormal(mean, std)` (folded to non-negative).
+			# The standard deviation comes from the user-specific `std`
+			# profile when present; otherwise it falls back to
+			# `|mean| * sigma_load` (a `general.sigma_load` global, default 0.3).
 			load_mean = profile_component(data_user[u], "load", "load")
 			load_scenario_s = point_s_load[scen_s] * load_mean
 			if sample_L
-				# `profile.std` is now mandatory in the EC.jl@stochastic schema; fall
-				# back to `|mean|*sigma_load` (a `general.sigma_load` global, default
-				# 0.3) when the user-specific column is absent.
 				load_std = profile_component_d(data_user[u], "load", "std",
 				                               abs.(load_mean) .* sigma_load)
 				load_distribution = MvNormal(load_scenario_s, load_std)
@@ -102,28 +98,23 @@ end
 				load_demand[u] = array2dict(load_scenario_s)
 			end
 
-			ren_production[u] = Dict{String,Dict{Int,Float64}}()
+			# Renewables (PV / wind): same structure as load, with the
+			# long-period centre and the std/sigma falling back per family.
+			ren_production[u] = Dict{String, Dict{Int, Float64}}()
 			for name = asset_names(data_user[u], REN)
-				# Pick the long-period centre point for this asset's family.
 				asset_type = lowercase(name)  # "pv" / "wind" / ...
-				point_centre = if occursin("pv", asset_type)
-					point_s_pv[scen_s]
-				elseif occursin("wind", asset_type)
-					point_s_wind[scen_s]
-				else
-					1.0  # unknown renewable type → deterministic
-				end
+				is_pv      = occursin("pv",   asset_type)
+				is_wind    = occursin("wind", asset_type)
 
-				# Skip the short-period rand draw when this renewable family is
-				# not in `unc_var` — keeps `scen.Ren[u][asset]` aligned with the
-				# baseline `ren_pu` profile that csv2nc4 writes as MaxPower at the
-				# top-level UnitBlock (see comment above on the curtailment bug).
-				gate_short_period = (occursin("pv", asset_type) && sample_P) ||
-				                    (occursin("wind", asset_type) && sample_W)
+				point_centre = is_pv   ? point_s_pv[scen_s] :
+				               is_wind ? point_s_wind[scen_s] :
+				                         1.0  # unknown family → deterministic
 
 				ren_mean = profile_component(data_user[u], name, "ren_pu")
 				ren_scenario_s = point_centre * ren_mean
-				if gate_short_period
+
+				perturb = (is_pv && sample_P) || (is_wind && sample_W)
+				if perturb
 					ren_std = profile_component_d(data_user[u], name, "std",
 					                              abs.(ren_mean) .* sigma_pv)
 					ren_distribution = MvNormal(ren_scenario_s, ren_std)
@@ -133,8 +124,8 @@ end
 				end
 				temp = array2dict(array_ren)
 
-				# Force zero production at time-steps where the deterministic
-				# profile is zero (e.g. solar at night).
+				# Force production to zero where the deterministic profile is
+				# zero (e.g. solar at night).
 				for t in time_set
 					if profile_component(data_user[u], name, "ren_pu")[t] == 0
 						temp[t] = 0
@@ -144,11 +135,9 @@ end
 			end
 		end
 
-		# Market-level price fields: each is perturbed with truncated-Normal
-		# noise when the YAML market profile defines the matching `std_<field>`
-		# entry (`std_buy_price`, `std_sell_price`, `std_consumption_price`,
-		# `std_penalty_price`, `std_peak_tariff`); without `std_*` the price is
-		# left deterministic.
+		# Market-level prices: each is perturbed via truncated-Normal noise
+		# when the YAML market profile defines the matching `std_<field>`
+		# entry, otherwise it is left deterministic.
 		buy_price_arr         = perturb_price_vector(data_market, "buy_price",         time_set)
 		sell_price_arr        = perturb_price_vector(data_market, "sell_price",        time_set)
 		consumption_price_arr = perturb_price_vector(data_market, "consumption_price", time_set)
@@ -167,6 +156,27 @@ end
 	end
 end
 
+"""
+    scenarios_generator(data, point_s_load, point_s_pv, point_s_wind,
+                        n_scen_s, n_scen_eps, unc_var;
+                        point_probability=ones(n_scen_s),
+                        control_risimulation=false)
+
+Build the full `(s, eps)` scenario set. For each long-period `s` a
+`Scenario_eps_Sampler` is instantiated and queried `n_scen_eps` times to
+produce the short-period draws; the returned scenarios carry probability
+`point_probability[s] / n_scen_eps`.
+
+A deterministic per-`s` seed (`Random.seed!(123 + s)`) is set immediately
+before instantiating the sampler so that `csv2nc4.jl` and
+`test_instance_with_EC_jl.jl` consume bit-identical random sequences when
+both seed `Random` with the same value, regardless of any prior RNG
+divergence between the two callers.
+
+When `control_risimulation` is `true`, `n_scen_s` is interpreted as the
+single `s` index to re-simulate; the generator returns `n_scen_eps`
+scenarios all carrying that index, with uniform probability `1/n_scen_eps`.
+"""
 function scenarios_generator(
 	data::Dict{Any, Any},
 	point_s_load::Vector{Float64},
@@ -178,7 +188,6 @@ function scenarios_generator(
 	point_probability::Vector{Float64} = ones(n_scen_s),
 	control_risimulation::Bool = false,
 )
-
 	if !control_risimulation
 		n_scen = n_scen_s * n_scen_eps
 		sampled_scenarios = Array{Scenario_Load_Renewable}(undef, n_scen)
@@ -187,18 +196,10 @@ function scenarios_generator(
 		end
 
 		for s = 1:n_scen_s
-			# Force a deterministic per-(s, eps) seed so csv2nc4 and the
-			# test_instance harness consume bit-identical rand sequences
-			# during scenario sampling, regardless of the prior RNG state
-			# (which may diverge between the two callers due to subtle
-			# differences in earlier macro-generated code, package init,
-			# or Dict iteration order). With one seed per scenario the
-			# scenarios are still pseudo-random but reproducible across
-			# pipelines.
 			Random.seed!(123 + s)
 			sampler_eps = Scenario_eps_Sampler(market(data), users(data),
 			                                   point_s_load, point_s_pv,
-			                                   point_s_wind, s)
+			                                   point_s_wind, s, unc_var)
 			for eps = 1:n_scen_eps
 				scen = (s - 1) * n_scen_eps + eps
 				scenario_sampled = sampler_eps()
@@ -216,31 +217,32 @@ function scenarios_generator(
 			end
 		end
 		return sampled_scenarios
-	else
-		# Re-simulation: `n_scen_s` is the index of the single `s` to consider.
-		sampled_scenarios = Array{Scenario_Load_Renewable}(undef, n_scen_eps)
-		for scen = 1:n_scen_eps
-			sampled_scenarios[scen] = zero(Scenario_Load_Renewable)
-		end
-
-		s = n_scen_s
-		sampler_eps = Scenario_eps_Sampler(market(data), users(data),
-		                                   point_s_load, point_s_pv,
-		                                   point_s_wind, s)
-		for eps = 1:n_scen_eps
-			scenario_sampled = sampler_eps()
-			sampled_scenarios[eps] = Scenario_Load_Renewable(
-				1, eps,
-				scenario_sampled.peak_tariff,
-				scenario_sampled.buy_price,
-				scenario_sampled.consumption_price,
-				scenario_sampled.sell_price,
-				scenario_sampled.penalty_price,
-				scenario_sampled.Load,
-				scenario_sampled.Ren,
-				probability = 1 / n_scen_eps,
-			)
-		end
-		return sampled_scenarios
 	end
+
+	# Re-simulation path: a single `s = n_scen_s` index, `n_scen_eps` draws,
+	# uniform probability.
+	sampled_scenarios = Array{Scenario_Load_Renewable}(undef, n_scen_eps)
+	for scen = 1:n_scen_eps
+		sampled_scenarios[scen] = zero(Scenario_Load_Renewable)
+	end
+
+	s = n_scen_s
+	sampler_eps = Scenario_eps_Sampler(market(data), users(data),
+	                                   point_s_load, point_s_pv,
+	                                   point_s_wind, s, unc_var)
+	for eps = 1:n_scen_eps
+		scenario_sampled = sampler_eps()
+		sampled_scenarios[eps] = Scenario_Load_Renewable(
+			1, eps,
+			scenario_sampled.peak_tariff,
+			scenario_sampled.buy_price,
+			scenario_sampled.consumption_price,
+			scenario_sampled.sell_price,
+			scenario_sampled.penalty_price,
+			scenario_sampled.Load,
+			scenario_sampled.Ren,
+			probability = 1 / n_scen_eps,
+		)
+	end
+	return sampled_scenarios
 end
