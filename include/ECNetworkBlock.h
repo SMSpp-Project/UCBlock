@@ -709,6 +709,32 @@ class ECNetworkBlock : public NetworkBlock
   return( v_peak_power );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of positive aggregate squilibrium variables
+ /** Returns a const reference to the vector of positive aggregate
+  * squilibrium variables. The vector is empty when no penalty has been
+  * defined for the underlying ECNetworkData (i.e., when the
+  * squilibrium variables have not been generated); otherwise it has
+  * size get_number_intervals() and entry t represents the positive
+  * squilibrium at time t. */
+
+ const std::vector< ColVariable > & get_power_squilibrium_pos( void ) const {
+  return( v_power_squilibrium_pos );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of negative aggregate squilibrium variables
+ /** Returns a const reference to the vector of negative aggregate
+  * squilibrium variables. The vector is empty when no penalty has been
+  * defined for the underlying ECNetworkData (i.e., when the
+  * squilibrium variables have not been generated); otherwise it has
+  * size get_number_intervals() and entry t represents the negative
+  * squilibrium at time t. */
+
+ const std::vector< ColVariable > & get_power_squilibrium_neg( void ) const {
+  return( v_power_squilibrium_neg );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE ECNetworkBlock -----------------*/
 /*--------------------------------------------------------------------------*/
@@ -751,6 +777,46 @@ class ECNetworkBlock : public NetworkBlock
   * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns a Solution representing the current solution of this
+ /// ECNetworkBlock
+ /** This is the override of NetworkBlock::get_Solution() that returns an
+  * ECNetworkBlockSolution sized so as to hold the specific solution
+  * information of the ECNetworkBlock. The parameter for deciding what
+  * extra information must be stored is a single int value, coded
+  * bitwise:
+  *
+  * - bit 0 (& 1) is "taken" by the base :NetworkBlock[Solution] (it
+  *   controls v_node_injection)
+  *
+  * - bit 1 (& 2) means "store the public-market injection / absorption
+  *   variables"
+  *
+  * - bit 2 (& 4) means "store the shared power variables"
+  *
+  * - bit 3 (& 8) means "store the peak power variables"
+  *
+  * - bit 4 (& 16) means "store the squilibrium variables" (effective
+  *   only when the underlying ECNetworkBlock generates them)
+  *
+  * The value of the configuration is taken, in order, from \p solc,
+  * f_BlockConfig->f_solution_Configuration, or, as default, all bits
+  * set (i.e., store everything). */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns an "empty" ECNetworkBlockSolution
+ /** This is the override of NetworkBlock::new_Solution() that allows
+  * Block-machinery to create a Solution of the "right" type, capable of
+  * holding all the ECNetworkBlock-specific solution information (the
+  * public-market injection / absorption variables, the shared power
+  * variables, the peak power variables, and -- if present -- the positive /
+  * negative aggregate squilibrium variables). */
+
+ NetworkBlockSolution * new_Solution( void ) const override;
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -1293,6 +1359,210 @@ class ECNetworkBlockSbstMod : public ECNetworkBlockMod
  Block::Subset f_nms;  ///< the subset
 
 };  // end( class( ECNetworkBlockSbstMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- CLASS ECNetworkBlockSolution -------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a [NetworkBlock]Solution of an ECNetworkBlock
+/** The ECNetworkBlockSolution class derives from NetworkBlockSolution and
+ * adds, to the "standard" information already stored there (the node
+ * injection variables of the base NetworkBlock, indexed over time
+ * intervals and nodes), the other information that is specific to the
+ * ECNetworkBlock, i.e.,
+ *
+ * - the public-market power injection variables P^{P+}_{n,t} (one value
+ *   per node and time interval);
+ *
+ * - the public-market power absorption variables P^{P-}_{n,t} (one value
+ *   per node and time interval);
+ *
+ * - the microgrid shared power variables P^{M}_{t} (one value per time
+ *   interval);
+ *
+ * - the peak-power variables P^{mx}_{n} (one value per node);
+ *
+ * - [optionally, when squilibrium variables are generated] the positive
+ *   and negative aggregate squilibrium variables P_sq^+_{t} and
+ *   P_sq^-_{t} (one value per time interval each).
+ *
+ * As the parent NetworkBlockSolution, ECNetworkBlockSolution can serialize
+ * its data either in the "standard" form (one netCDF::NcGroup per
+ * Solution) or in the "nonstandard" / packed form (one netCDF::NcGroup
+ * shared by many sibling :NetworkBlockSolution, each identified by an
+ * idx). The latter is meant to mitigate the cost of having many small
+ * groups in a single netCDF file. */
+
+class ECNetworkBlockSolution : public NetworkBlockSolution
+{
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend ECNetworkBlock;  ///< make ECNetworkBlock friend
+
+/*---------- CONSTRUCTING AND DESTRUCTING ECNetworkBlockSolution -----------*/
+
+ /// constructor, does nothing
+ explicit ECNetworkBlockSolution( void ) : NetworkBlockSolution() {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize an ECNetworkBlockSolution from a netCDF::NcGroup
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize an ECNetworkBlockSolution from a "global" netCDF::NcGroup
+
+ void deserialize( const netCDF::NcGroup & group , size_t idx ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~ECNetworkBlockSolution() override = default;
+ ///< destructor: it is virtual, and empty
+
+/*------ METHODS DESCRIBING THE BEHAVIOR OF AN ECNetworkBlockSolution ------*/
+
+ void read( const Block * block ) override;
+
+ void write( Block * block ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize an ECNetworkBlockSolution into a netCDF::NcGroup
+ /** Serialize an ECNetworkBlockSolution into a netCDF::NcGroup. The format
+  * extends the one of NetworkBlockSolution, cf. the comments in
+  * NetworkBlockSolution::serialize( netCDF::NcGroup & ), with the
+  * following ECNetworkBlock-specific entries:
+  *
+  * - The variable "PowerInjection", of type netCDF::NcDouble. If the
+  *   dimension "NumberInstants" is defined then it is indexed both over
+  *   "NumberInstants" and "NumberNodes"; otherwise it is indexed only
+  *   over "NumberNodes". PowerInjection[ t , n ] is the optimal value of
+  *   the public-market injection variable for node n at time t. The
+  *   variable is optional.
+  *
+  * - The variable "PowerAbsorption", of type netCDF::NcDouble; same
+  *   indexing as PowerInjection. PowerAbsorption[ t , n ] is the
+  *   optimal value of the public-market absorption variable for node n
+  *   at time t. The variable is optional.
+  *
+  * - The variable "SharedPower", of type netCDF::NcDouble. If
+  *   "NumberInstants" is defined it is indexed over it, otherwise it is
+  *   a scalar (1 element). SharedPower[ t ] is the optimal value of the
+  *   microgrid shared power at time t. The variable is optional.
+  *
+  * - The variable "PeakPower", of type netCDF::NcDouble and indexed over
+  *   "NumberNodes". PeakPower[ n ] is the optimal value of the peak-power
+  *   variable for node n. The variable is optional.
+  *
+  * - The variable "PowerSquilibriumPos" and "PowerSquilibriumNeg", of
+  *   type netCDF::NcDouble. They are indexed over "NumberInstants" if
+  *   defined, otherwise scalar. PowerSquilibrium*[ t ] is the optimal
+  *   value of the corresponding aggregate squilibrium variable at
+  *   time t. Both variables are optional, and they are present only if
+  *   the underlying ECNetworkBlock generates them. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize an ECNetworkBlockSolution into a "global" netCDF::NcGroup
+ /** "nonstandard" version of serialize() that loads an
+  * ECNetworkBlockSolution into a "global" netCDF::NcGroup, i.e., one
+  * where the solution information of multiple ECNetworkBlock are stored
+  * together (to avoid performance issues due to the fact that netCDF is
+  * not structured to work with a large number of sub-NcGroup in a file).
+  * The format extends the "nonstandard" one of NetworkBlockSolution
+  * (cf. the comments in
+  * NetworkBlockSolution::serialize( netCDF::NcGroup & , size_t )) with
+  * the following ECNetworkBlock-specific variables, all dimensioned in
+  * a way consistent with the parent's "TotalNumberInstants" and
+  * "NumberNetworks":
+  *
+  * - The variable "PowerInjection", of type netCDF::NcDouble, indexed
+  *   over "TotalNumberInstants" (or "NumberNetworks" if not defined)
+  *   and "NumberNodes". PowerInjection[ t , n ] is the optimal value of
+  *   the public-market injection at time t for node n. Optional.
+  *
+  * - The variable "PowerAbsorption", of type netCDF::NcDouble; same
+  *   indexing as PowerInjection. Optional.
+  *
+  * - The variable "SharedPower", of type netCDF::NcDouble, indexed over
+  *   "TotalNumberInstants" (or "NumberNetworks" if not defined).
+  *   Optional.
+  *
+  * - The variable "PeakPower", of type netCDF::NcDouble, indexed over
+  *   "NumberNetworks" and "NumberNodes". PeakPower[ idx , n ] is the
+  *   optimal value of the peak-power variable for node n in the idx-th
+  *   ECNetworkBlock. Optional.
+  *
+  * - The variable "PowerSquilibriumPos" and "PowerSquilibriumNeg", of
+  *   type netCDF::NcDouble, indexed over "TotalNumberInstants" (or
+  *   "NumberNetworks" if not defined). Optional. Note that
+  *
+  *       ALL THE ECNetworkBlockSolution MUST HAVE BEEN Configure-d IN
+  *       THE SAME WAY, i.e., either all of them or none of them have
+  *       PowerSquilibrium*. */
+
+ void serialize( netCDF::NcGroup & group , size_t idx ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ECNetworkBlockSolution * scale( double factor ) const override;
+
+ void sum( const Solution * solution , double multiplier ) override;
+
+ ECNetworkBlockSolution * clone( bool empty = false ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream & output ) const override {
+  output << "ECNetworkBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*-------------------------- PROTECTED FIELDS ------------------------------*/
+
+ boost::multi_array< double , 2 > v_power_injection;
+ ///< v_power_injection[ t ][ n ] = public-market injection at node n,
+ ///< time t
+
+ boost::multi_array< double , 2 > v_power_absorption;
+ ///< v_power_absorption[ t ][ n ] = public-market absorption at node n,
+ ///< time t
+
+ std::vector< double > v_shared_power;
+ ///< v_shared_power[ t ] = microgrid shared power at time t
+
+ std::vector< double > v_peak_power;
+ ///< v_peak_power[ n ] = peak-power at node n
+
+ std::vector< double > v_power_squilibrium_pos;
+ ///< v_power_squilibrium_pos[ t ] = positive aggregate squilibrium at
+ ///< time t (empty if the ECNetworkBlock does not generate it)
+
+ std::vector< double > v_power_squilibrium_neg;
+ ///< v_power_squilibrium_neg[ t ] = negative aggregate squilibrium at
+ ///< time t (empty if the ECNetworkBlock does not generate it)
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( ECNetworkBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
