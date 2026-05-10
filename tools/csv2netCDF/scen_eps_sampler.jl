@@ -52,11 +52,12 @@ end
 	point_s_pv::Array{Any}           # long-period (s) point for PV
 	point_s_wind::Array{Any}         # long-period (s) point for wind
 	scen_s::Int                      # current `s` index
+	unc_var::String                  # which sources are uncertain ("L"/"P"/"W")
 
 	Scenario_eps_Sampler(data_market, data_user, point_s_load, point_s_pv,
-	                     point_s_wind, scen_s) =
+	                     point_s_wind, scen_s, unc_var) =
 		new(data_market, data_user, point_s_load, point_s_pv, point_s_wind,
-		    scen_s)
+		    scen_s, unc_var)
 
 	@sample Scenario_Load_Renewable begin
 		scen_s        = sampler.scen_s
@@ -65,6 +66,20 @@ end
 		point_s_load  = sampler.point_s_load
 		point_s_pv    = sampler.point_s_pv
 		point_s_wind  = sampler.point_s_wind
+		unc_var       = sampler.unc_var
+
+		# Gate the short-period perturbation on `unc_var`: only sample noise
+		# for the sources actually flagged as uncertain. Without this gate
+		# even YAMLs declaring `uncertain_var: L` get PV/wind perturbed (with
+		# `sigma_pv` / `sigma_wind` defaults), which then makes the per-
+		# scenario IntermittentUnitBlock.MaxPower exceed the BASELINE used
+		# by `UCBlock::deserialize` to set `max_node_injection` — so the
+		# ECNetworkBlock node_injection bound becomes binding and forces
+		# unwanted PV curtailment in the SMS LP, opening a structural gap
+		# vs EC.jl@stochastic on NC instances.
+		sample_L = occursin("L", unc_var)
+		sample_P = occursin("P", unc_var)
+		sample_W = occursin("W", unc_var)
 
 		load_demand = Dict{String,Dict{Int,Float64}}()
 		ren_production = Dict{String,Dict{String,Dict{Int,Float64}}}()
@@ -72,15 +87,20 @@ end
 		for u in user_set
 
 			# Load — short-period perturbation around `point_s_load[scen_s] * mean`.
+			# Skip rand draw when "L" is not in `unc_var` to keep load = baseline.
 			load_mean = profile_component(data_user[u], "load", "load")
 			load_scenario_s = point_s_load[scen_s] * load_mean
-			# `profile.std` is now mandatory in the EC.jl@stochastic schema; fall
-			# back to `|mean|*sigma_load` (a `general.sigma_load` global, default
-			# 0.3) when the user-specific column is absent.
-			load_std = profile_component_d(data_user[u], "load", "std",
-			                               abs.(load_mean) .* sigma_load)
-			load_distribution = MvNormal(load_scenario_s, load_std)
-			load_demand[u] = array2dict(broadcast(abs, rand(load_distribution)))
+			if sample_L
+				# `profile.std` is now mandatory in the EC.jl@stochastic schema; fall
+				# back to `|mean|*sigma_load` (a `general.sigma_load` global, default
+				# 0.3) when the user-specific column is absent.
+				load_std = profile_component_d(data_user[u], "load", "std",
+				                               abs.(load_mean) .* sigma_load)
+				load_distribution = MvNormal(load_scenario_s, load_std)
+				load_demand[u] = array2dict(broadcast(abs, rand(load_distribution)))
+			else
+				load_demand[u] = array2dict(load_scenario_s)
+			end
 
 			ren_production[u] = Dict{String,Dict{Int,Float64}}()
 			for name = asset_names(data_user[u], REN)
@@ -94,13 +114,23 @@ end
 					1.0  # unknown renewable type → deterministic
 				end
 
+				# Skip the short-period rand draw when this renewable family is
+				# not in `unc_var` — keeps `scen.Ren[u][asset]` aligned with the
+				# baseline `ren_pu` profile that csv2nc4 writes as MaxPower at the
+				# top-level UnitBlock (see comment above on the curtailment bug).
+				gate_short_period = (occursin("pv", asset_type) && sample_P) ||
+				                    (occursin("wind", asset_type) && sample_W)
+
 				ren_mean = profile_component(data_user[u], name, "ren_pu")
 				ren_scenario_s = point_centre * ren_mean
-				ren_std = profile_component_d(data_user[u], name, "std",
-				                              abs.(ren_mean) .* sigma_pv)
-				ren_distribution = MvNormal(ren_scenario_s, ren_std)
-
-				array_ren = broadcast(abs, rand(ren_distribution))
+				if gate_short_period
+					ren_std = profile_component_d(data_user[u], name, "std",
+					                              abs.(ren_mean) .* sigma_pv)
+					ren_distribution = MvNormal(ren_scenario_s, ren_std)
+					array_ren = broadcast(abs, rand(ren_distribution))
+				else
+					array_ren = ren_scenario_s
+				end
 				temp = array2dict(array_ren)
 
 				# Force zero production at time-steps where the deterministic
