@@ -53,7 +53,7 @@ include("scen_eps_sampler.jl")
 # EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
 # `peak_categories`). The EC.jl@stochastic schema places them under
 # `market.profile`; the legacy schema (still used by the deterministic
-# `*_CO/_NA/_NC.yml`) places them under `general.profile`. Try the
+# `*_CO/_NC.yml`) places them under `general.profile`. Try the
 # market-level profile first and fall back to general so that both
 # schemas keep working through the same driver.
 @inline ec_profile(name) = let p = profile_d(market_data, name, nothing)
@@ -77,16 +77,23 @@ function csvEC2nc4(
 )
 
     middle = "_"
-    if occursin("_CO", file_name)
-        middle = string(middle, "CO_")
-    elseif occursin("_NA", file_name)
+    if "--no-asset" in OPTION_ARGS
+        # NA replaces the previously-shipped *_NA*.yml files (which were
+        # identical to CO with all installable assets disabled, only loads).
         middle = string(middle, "NA_")
+    elseif occursin("_CO", file_name)
+        middle = string(middle, "CO_")
     elseif occursin("_NC", file_name)
         middle = string(middle, "NC_")
     end
 
     last = ""
-    if "--with-thermal-blocks" in OPTION_ARGS && !occursin("_NA", file_name)
+    # Default = include the thermal generator (output gets the `_TUB` suffix,
+    # i.e. SMS++ models the generator as a `ThermalUnitBlock`). `--no-thermal`
+    # opts out, mirroring the EC.jl@stochastic flag of the same name (which
+    # fixes `x_us[u, a] = 0` for `THER` assets). `--no-asset` strips every
+    # installable asset and therefore implies no thermal either.
+    if !("--no-thermal" in OPTION_ARGS) && !("--no-asset" in OPTION_ARGS)
         last = string(last, "_TUB")
     end
     if "--with-network-blocks" in OPTION_ARGS
@@ -1051,7 +1058,8 @@ NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
 
 OPTION_ARGS = setdiff(ARGS, NO_OPTION_ARGS)
 @assert 0 <= length(OPTION_ARGS) <= 2
-@assert issubset(OPTION_ARGS, ["--with-thermal-blocks", "--with-network-blocks"])
+@assert issubset(OPTION_ARGS, ["--no-thermal", "--no-asset", "--with-network-blocks"])
+@assert !(("--no-thermal" in OPTION_ARGS) && ("--no-asset" in OPTION_ARGS)) "--no-thermal is implied by --no-asset; do not pass both"
 
 file_name = !isempty(NO_OPTION_ARGS) ?
             string(NO_OPTION_ARGS[1], endswith(NO_OPTION_ARGS[1], ".yml") ? "" : ".yml") :
@@ -1096,8 +1104,19 @@ mean_wind  = field_d(gen_data, "mean_wind",  0.95)
 sigma_wind = field_d(gen_data, "sigma_wind", 0.15)
 unc_var    = field_d(gen_data, "uncertain_var", "L")
 
-# converters, i.e., CONV, are modeled with the corresponding BatteryUnitBlock in SMS++
-SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
+# Installable assets exposed to SMS++.
+# `CONV` (battery converter) is always elided because it is modeled inside
+# the corresponding `BatteryUnitBlock` rather than as a standalone device.
+# Default: include the thermal generator (`THER`).
+# `--no-thermal`: skip `THER` (matches the EC.jl@stochastic flag of the same name).
+# `--no-asset`:   skip every installable asset (NA case).
+SMSPP_DEVICES = if "--no-asset" in OPTION_ARGS
+    eltype(DEVICES)[]
+elseif "--no-thermal" in OPTION_ARGS
+    setdiff(DEVICES, [CONV, THER])
+else
+    setdiff(DEVICES, [CONV])
+end
 
 
 # Preprocessing to create the data structure (sampled_scenarios) for stochastic applications.

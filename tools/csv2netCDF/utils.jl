@@ -385,12 +385,12 @@ function delta_t_tes_ub(users_data, u, s, t)
 end
 
 
-"Convert an array to a dictionary keyed by 1-based time indices"
-function array2dict(p::Array{Float64})
-    A = Dict{Int,Float64}()
-    n = length(p)
-    for i = 1:n
-        A[i] = p[i]
-    end
-    return A
-end
+"Convert an array to a dictionary keyed by 1-based time indices.
+Aligned with EnergyCommunity.jl@stochastic's `utils.jl` form
+(`Dict(i => p[i] for i in eachindex(p))`) so that csv2nc4 and the
+test_instance harness consume the same number of rand calls during
+scenario generation — the explicit-loop form was equivalent in result
+but produced a slightly different Dict-bucket layout that propagated
+to a different RNG advance, breaking bit-identical scenarios across
+the two pipelines."
+array2dict(p::AbstractVector{T}) where {T} = Dict(i => p[i] for i in eachindex(p))

@@ -1,37 +1,40 @@
 #!/usr/bin/env bash
 
+# Default: include the thermal generator (output gets the `_TUB` suffix).
+# `--no-thermal` opts out, mirroring the EC.jl@stochastic flag of the same
+# name. `--no-asset` strips every installable asset and produces the
+# TSSB_EC_NA_*.nc4 family (which used to be generated from dedicated
+# `*_NA*.yml` files, now removed: NA = CO with all assets disabled).
+
 # deterministic
 
 for f in energy_community_model_CO \
-         energy_community_model_NA \
          energy_community_model_NC; do
 
-  julia csv2nc4.jl ${f}
-  julia csv2nc4.jl ${f} --with-network-blocks
+  julia csv2nc4.jl ${f}                                       # _TUB
+  julia csv2nc4.jl ${f} --with-network-blocks                 # _TUB_NB
 
-  if [ "$f" != "energy_community_model_NA" ]; then
-
-    julia csv2nc4.jl ${f} --with-thermal-blocks
-    julia csv2nc4.jl ${f} --with-thermal-blocks --with-network-blocks
-
-  fi
+  julia csv2nc4.jl ${f} --no-thermal                          # (no _TUB)
+  julia csv2nc4.jl ${f} --no-thermal --with-network-blocks    # _NB
 
 done
+
+# NA: derived from CO with every installable asset disabled.
+julia csv2nc4.jl energy_community_model_CO --no-asset
+julia csv2nc4.jl energy_community_model_CO --no-asset --with-network-blocks
 
 # stochastic
 
 for f in energy_community_model_CO_sto \
-         energy_community_model_NA_sto \
          energy_community_model_NC_sto; do
 
-  julia csv2nc4.jl ${f}
-  julia csv2nc4.jl ${f} --with-network-blocks
+  julia csv2nc4.jl ${f}                                       # _TUB
+  julia csv2nc4.jl ${f} --with-network-blocks                 # _TUB_NB
 
-  if [ "$f" != "energy_community_model_NA_sto" ]; then
-
-    julia csv2nc4.jl ${f} --with-thermal-blocks
-    julia csv2nc4.jl ${f} --with-thermal-blocks --with-network-blocks
-
-  fi
+  julia csv2nc4.jl ${f} --no-thermal                          # (no _TUB)
+  julia csv2nc4.jl ${f} --no-thermal --with-network-blocks    # _NB
 
 done
+
+julia csv2nc4.jl energy_community_model_CO_sto --no-asset
+julia csv2nc4.jl energy_community_model_CO_sto --no-asset --with-network-blocks

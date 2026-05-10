@@ -240,6 +240,29 @@ else
     # build the model
     build_model!(model)
 
+    # Emulate the "no thermal" and "no-asset" (NA) variants in the
+    # deterministic flow, mirroring what the stochastic branch above does
+    # for `StochasticPrograms.proxy(model.model, 1)`. In the deterministic
+    # EC.jl model, `x_us` is an `@expression` defined as `n_us[u,a] *
+    # nom_capacity` (or just `n_us[u,a]`) — see EnergyCommunity/base_model.jl
+    # `@expression(model_user, x_us[...], ...)`. The actual decision is
+    # `n_us`, so fixing it to 0 is the equivalent of fixing x_us = 0.
+    # `force=true` is required because `n_us` already has a default lower
+    # bound of 0.
+    if no_thermal || no_asset
+        n_us = model.model[:n_us]
+        for u in model.user_set
+            for a in device_names(model.users_data[u])
+                if no_asset ||
+                   ( no_thermal &&
+                     EnergyCommunity.asset_type( model.users_data[u] , a ) ==
+                       EnergyCommunity.THER )
+                    JuMP.fix( n_us[u, a] , 0.0 ; force=true )
+                end
+            end
+        end
+    end
+
     # Solve the model
     optimize!(model)
 
