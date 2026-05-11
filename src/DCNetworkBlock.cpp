@@ -200,11 +200,11 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 				 std::to_string( v_end_line[ i ] ) ) );
   }
 
- deserialize_opt( group , "MaxPowerFlow" , time_instants ,
-		  f_number_lines , v_max_power_flow );
+ ::deserialize( group , "MaxPowerFlow" ,
+		{ f_number_lines , time_instants } , v_max_power_flow );
 
- deserialize_opt( group , "MinPowerFlow" , time_instants ,
-		  f_number_lines , v_min_power_flow );
+ ::deserialize( group , "MinPowerFlow" ,
+		{ f_number_lines , time_instants } , v_min_power_flow );
 
  if( ! deserialize_opt( group , "Efficiency" , time_instants ,
 			f_number_branches , v_efficiency ) ) {
@@ -1878,10 +1878,10 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
 
  Index time_instants = std::max( std::max( v_efficiency.shape()[ 0 ] ,
 					   v_h_efficiency.size() ) ,
-				 std::max( v_max_power_flow.shape()[ 0 ] ,
-					   v_min_power_flow.shape()[ 0 ] ) );
+				 std::max( v_max_power_flow.shape()[ 1 ] ,
+					   v_min_power_flow.shape()[ 1 ] ) );
  netCDF::NcDim NumberInstants;
- if( time_instants > 1 )
+ if( time_instants > 0 )
   NumberInstants = group.addDim( "NumberInstants" , time_instants );
 
  if( is_hypergraph() ) {  // an hypergraph
@@ -1928,11 +1928,11 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
 		 v_efficiency );
   }
 
- serialize_opt( group , "MaxPowerFlow" , NumberInstants , NumberLines ,
-		v_max_power_flow );
+ ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() ,
+	      { NumberLines , NumberInstants } , v_max_power_flow );
 
- serialize_opt( group , "MinPowerFlow" , NumberInstants , NumberLines ,
-		v_min_power_flow );
+ ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() ,
+	      { NumberLines , NumberInstants } , v_min_power_flow );
 
  if( ! v_line_susceptance.empty() )
   ::serialize( group , "LineSusceptance" , netCDF::NcDouble() , NumberLines ,

@@ -238,8 +238,8 @@ class DCNetworkData : public NetworkData
   *   i.e., ALL "branches" MUST HAVE THE SAME "tail" and different heads.
   *
   * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed in
-  *   principle over both dimensions "NumberInstants" and "NumberLines".
-  *   This is meant to represent the matrix MxP[ t ][ l ] that, for each
+  *   principle over both dimensions "NumberLines" and "NumberInstants".
+  *   This is meant to represent the matrix MxP[ l ][ t ] that, for each
   *   line l and time instant t, contains the maximum power flow of line l
   *   at time t (a non-negative number). However, the variable can also be
   *   indexed over "NumberLines" only (and it must necessarily be so if
@@ -253,8 +253,8 @@ class DCNetworkData : public NetworkData
   *   for all line l (and all time instants t).
   *
   * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed in
-  *   principle over both dimensions "NumberInstants" and "NumberLines".
-  *   This is meant to represent the matrix MnP[ t ][ l ] that, for each
+  *   principle over both dimensions "NumberLines" and "NumberInstants".
+  *   This is meant to represent the matrix MnP[ l ][ t ] that, for each
   *   line l and time instant t, contains the minimum power flow of line l
   *   at time t (note that this is typically, but not necessarily, a
   *   negative number as electrical lines are bi-directional, see above).
@@ -266,7 +266,7 @@ class DCNetworkData : public NetworkData
   *   representing the minimum amount of flow leaving the tail bus, although
   *   then some flow (not necessarily the same amount, see "Efficiency") can
   *   reach more than one head bus. The variable is optional, if not
-  *   provided it is assumed that MxP[ l ] == 0 for all line l (and all
+  *   provided it is assumed that MnP[ l ] == 0 for all line l (and all
   *   time instants t).
   *
   * - The variable "LineSusceptance", of type netCDF::NcDouble and indexed
@@ -488,9 +488,9 @@ class DCNetworkData : public NetworkData
   assert( line < f_number_lines );
   if( ! v_min_power_flow.num_elements() )
    return( 0 );
-  if( v_min_power_flow.shape()[ 0 ] == 1 )
+  if( v_min_power_flow.shape()[ 1 ] == 1 )
    time = 0;
-  return( v_min_power_flow[ time ][ line ] );
+  return( v_min_power_flow[ line ][ time ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -501,11 +501,11 @@ class DCNetworkData : public NetworkData
 
  double get_max_power_flow( Index line , Index time ) const {
   assert( line < f_number_lines );
-  if( ! v_min_power_flow.num_elements() )
+  if( ! v_max_power_flow.num_elements() )
    return( 0 );
-  if( v_max_power_flow.shape()[ 0 ] == 1 )
+  if( v_max_power_flow.shape()[ 1 ] == 1 )
    time = 0;
-  return( v_max_power_flow[ time ][ line ] );
+  return( v_max_power_flow[ line ][ time ] );
   }
 
 /*--------------------------------------------------------------------------*/
