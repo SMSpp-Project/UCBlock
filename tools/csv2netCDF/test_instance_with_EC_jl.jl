@@ -185,16 +185,6 @@ if is_stochastic
         set_parameters_ECmodel!(model, 1e-6, 60 * 60, Threads.nthreads(), 1)
     end
 
-    # Match the SMS++ TSSB test pipeline (`tests/TwoStageStochasticBlock/
-    # BSPar-2S.txt` ships with `intRelaxIntVars 1`): both the MILPSolver and
-    # the LagrangianDualSolver solve the LP relaxation of the deterministic
-    # equivalent. We must dispatch on the `StochasticProgram` (not on the
-    # DEP `JuMP.Model`) so that `StochasticPrograms.relax_integrality`
-    # propagates relaxation through the `Decision` variables to the
-    # underlying DEP — `JuMP.relax_integrality(::Model)` alone leaves the
-    # DEP integer.
-    StochasticPrograms.relax_integrality(model.model)
-
     optimize_deterministic_ECmodel(model)
 
     obj_value      = objective_value(model.model)
