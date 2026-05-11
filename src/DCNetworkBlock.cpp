@@ -79,80 +79,6 @@ using DCNetworkData = DCNetworkBlock::DCNetworkData;
 SMSpp_insert_in_factory_cpp_0( DCNetworkData );
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- STATIC FUNCTIONS ----------------------------*/
-/*--------------------------------------------------------------------------*/
-/* Deserializes a 2-dim double multi_array where the first dimension is
- * optional: if the ncVar only have one dimension it is taken to be the
- * second one and a column-wise matrix (1 row, dim2 columns) is returned.
- * If, furthermore, the variable is scalar (both dimensions are 1) then
- * the column-wise matrix contains that single value repeated over. */
-
-static bool deserialize_opt( const netCDF::NcGroup & group ,
-			     const std::string & name ,
-			     std::size_t dim1 , std::size_t dim2 ,
-			     boost::multi_array< double , 2 > & multi_array )
-{
- using index = typename boost::multi_array< double , 2 >::index;
- static const std::vector< index > empty = { 0 , 0 };
-
- auto ncVar = group.getVar( name );
- if( ncVar.isNull() || ( ncVar.getDimCount() == 0 ) ) {
-  multi_array.resize( empty );
-  return( false );
-  }
-
- if( ncVar.getDimCount() > 2 )
-  throw( std::invalid_argument( "netCDF variable " + name +
-				"has too many dimensions" ) );
-
- std::vector< index > size = { static_cast< index >( dim1 ) ,
-			       static_cast< index >( dim2 ) };
- if( ncVar.getDimCount() == 1 )  // 1-dimensional variable
-  size[ 0 ] = 1;                 // ignore the first dimension
-
- multi_array.resize( size );
-
- if( size[ 0 ] == 1 ) {          // 1-dimensional variable
-  if( (ncVar.getDims())[ 0 ].getSize()  == 1 ) {  // a scalar variable
-   ncVar.getVar( { 0 } , { 1 } , multi_array.data() );
-   auto val = multi_array.data()[ 0 ];
-   for( std::size_t i = 1 ; i < dim2 ; ++i )
-    multi_array.data()[ i ] = val;  // replicate
-   }
-  else                                 // a vector
-   ncVar.getVar( { 0 } , { dim2 } , multi_array.data() );
-  }
- else                            // 2-dimensional variable
-  ncVar.getVar( { 0 , 0 } , { dim1 , dim2 } , multi_array.data() );
-
- return( true );
- }
-
-/*--------------------------------------------------------------------------*/
-/* Serializes a 2-dim double multi_array where the first dimension is
- * optional: if the first dimension is 1, then it is saved ad an 1-dim
- * netCDF variable rather than a 2-dim one. */
-
-static void serialize_opt( netCDF::NcGroup & group ,
-			   const std::string & name ,
-			   const netCDF::NcDim & dim1 ,
-			   const netCDF::NcDim & dim2 ,
-		      const boost::multi_array< double , 2 > & multi_array )
-{
- if( multi_array.shape()[ 0 ] > 1 ) {
-  ::serialize< double , 2 >( group , name , netCDF::NcDouble() ,
-			     { dim1 , dim2 } , multi_array );
-  return;
-  }
-
- std::size_t size2 = dim2.getSize();
- std::vector< double > tmp( size2 );
- for( std::size_t j = 0 ; j < size2 ; ++j )
-  tmp[ j ] = multi_array[ 0 ][ j ];
- ::serialize( group , name , netCDF::NcDouble() , dim2 , tmp );
- }
-
-/*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF DCNetworkData -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -206,8 +132,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "MinPowerFlow" ,
 		{ f_number_lines , time_instants } , v_min_power_flow );
 
- if( ! deserialize_opt( group , "Efficiency" , time_instants ,
-			f_number_branches , v_efficiency ) ) {
+ if( ! ::deserialize( group , "Efficiency" ,
+		      { time_instants , f_number_branches } , v_efficiency ) ) {
   using index = boost::multi_array< double , 2 >::index;
   const std::vector< index > size = { 1 , f_number_branches };
   v_efficiency.resize( size );
@@ -1911,8 +1837,8 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
 
   ::serialize( group , "EndLine" , netCDF::NcUint() , NumberBranches , en );
 
-  serialize_opt( group , "Efficiency" , NumberInstants , NumberBranches ,
-		 eff );
+  ::serialize( group , "Efficiency" , netCDF::NcDouble() ,
+	        { NumberInstants , NumberBranches } , eff );
 
   ::serialize( group , "HyperArcID" , netCDF::NcUint() , NumberBranches ,
 	       id );
@@ -1924,8 +1850,8 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "EndLine" , netCDF::NcUint() , NumberLines ,
                v_end_line );
 
-  serialize_opt( group , "Efficiency" , NumberInstants , NumberLines ,
-		 v_efficiency );
+  ::serialize( group , "Efficiency" , netCDF::NcDouble() ,
+	        { NumberInstants , NumberLines } , v_efficiency );
   }
 
  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() ,
