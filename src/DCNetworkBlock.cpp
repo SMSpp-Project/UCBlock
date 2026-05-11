@@ -133,12 +133,12 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 		{ f_number_lines , time_instants } , v_min_power_flow );
 
  if( ! ::deserialize( group , "Efficiency" ,
-		      { time_instants , f_number_branches } , v_efficiency ) ) {
+		      { f_number_branches , time_instants } , v_efficiency ) ) {
   using index = boost::multi_array< double , 2 >::index;
-  const std::vector< index > size = { 1 , f_number_branches };
+  const std::vector< index > size = { f_number_branches , 1 };
   v_efficiency.resize( size );
   for( Index b = 0 ; b < f_number_branches ; ++b )
-   v_efficiency[ 0 ][ b ] = 1;
+   v_efficiency[ b ][ 0 ] = 1;
   }
 
  ::deserialize( group , "NetworkCost" , f_number_lines , v_network_cost ,
@@ -206,7 +206,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
   // build v_end_lines and v_h_efficiency
   v_end_lines.resize( f_number_lines );
-  time_instants = v_efficiency.shape()[ 0 ];
+  time_instants = v_efficiency.shape()[ 1 ];
   v_h_efficiency.resize( time_instants );
   for( Index t = 0 ; t < time_instants ; ++t )
    v_h_efficiency[ t ].resize( f_number_lines );
@@ -225,7 +225,7 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
     v_h_efficiency[ t ][ i ].resize( tmp[ i ].size() );
     for( Index j = 0 ; j < tmp[ i ].size() ; ++j )
      v_h_efficiency[ t ][ i ][ j ] =
-                        v_efficiency[ t ][ std::get< 2 >( tmp[ i ][ j ] ) ];
+                        v_efficiency[ std::get< 2 >( tmp[ i ][ j ] ) ][ t ];
     }
    }
 
@@ -1802,7 +1802,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
  if( f_reference_node )
   group.addDim( "ReferenceNode" , f_reference_node );
 
- Index time_instants = std::max( std::max( v_efficiency.shape()[ 0 ] ,
+ Index time_instants = std::max( std::max( v_efficiency.shape()[ 1 ] ,
 					   v_h_efficiency.size() ) ,
 				 std::max( v_max_power_flow.shape()[ 1 ] ,
 					   v_min_power_flow.shape()[ 1 ] ) );
@@ -1820,7 +1820,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
   std::vector< Index > en( f_number_branches );
   using index = typename boost::multi_array< double , 2 >::index;
   index num_inst = v_h_efficiency.size();
-  const std::vector< index > size = { num_inst , f_number_branches };
+  const std::vector< index > size = { f_number_branches , num_inst };
   boost::multi_array< double , 2 > eff( size );
 
   Index curr = 0;
@@ -1830,7 +1830,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
     sn[ curr ] = v_start_line[ i ];
     en[ curr ] = v_end_lines[ i ][ j ];
     for( index t = 0 ; t < num_inst ; ++t )
-     eff[ t ][ curr ] = v_h_efficiency[ t ][ i ][ j ];
+     eff[ curr ][ t ] = v_h_efficiency[ t ][ i ][ j ];
     }
 
   ::serialize( group , "StartLine" , netCDF::NcUint() , NumberBranches , sn );
@@ -1838,7 +1838,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "EndLine" , netCDF::NcUint() , NumberBranches , en );
 
   ::serialize( group , "Efficiency" , netCDF::NcDouble() ,
-	        { NumberInstants , NumberBranches } , eff );
+	        { NumberBranches , NumberInstants } , eff );
 
   ::serialize( group , "HyperArcID" , netCDF::NcUint() , NumberBranches ,
 	       id );
@@ -1851,7 +1851,7 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
                v_end_line );
 
   ::serialize( group , "Efficiency" , netCDF::NcDouble() ,
-	        { NumberInstants , NumberLines } , v_efficiency );
+	        { NumberLines , NumberInstants } , v_efficiency );
   }
 
  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() ,

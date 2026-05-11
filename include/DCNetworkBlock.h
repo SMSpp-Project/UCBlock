@@ -300,19 +300,19 @@ class DCNetworkData : public NetworkData
   *   "Efficiency") can reach more than one head bus.
   *
   * - The variable "Efficiency", of type netCDF::NcDouble and indexed in
-  *   principle over both dimensions "NumberInstants" and "NumberBranches"
-  *   (if it is defined, otherwise "NumberLines"). This means that if X is
-  *   the amount of flow leaving StartLine[ l ] at time t, then
-  *   X * Efficiency[ t ][ l ] is the amount of flow reaching EndLine[ l ]
-  *   at time t. However, the variable can also be  indexed over
+  *   principle over both dimensions "NumberBranches" (if it is defined,
+  *   otherwise "NumberLines") and "NumberInstants". This means that if X
+  *   is the amount of flow leaving StartLine[ l ] at time t, then
+  *   X * Efficiency[ l ][ t ] is the amount of flow reaching EndLine[ l ]
+  *   at time t. However, the variable can also be indexed over
   *   "NumberBranches" ("NumberLines") only (and it must necessarily be so
   *   if "NumberInstants" is not defined), in which case it is rather a
-  *   vector Efficiency[ l ] containing the identicalefficiency of the line
-  *   at all time instants.Note that, if l is a hyperarc (see "HyperArcID"),
-  *   each branch can have a different Efficiency (at each time instant):
-  *   say, an hyperarc with branches 1 --> 2 with Efficiency 0.5 and
-  *   1 --> 3 with Efficiency 0.5 means that one unit of flow leaves 1 and
-  *   half of it reaches 2 while the other half reaches 3. There is no
+  *   vector Efficiency[ l ] containing the identical efficiency of the
+  *   line at all time instants. Note that, if l is a hyperarc (see
+  *   "HyperArcID"), each branch can have a different Efficiency (at each
+  *   time instant): say, an hyperarc with branches 1 --> 2 with Efficiency
+  *   0.5 and 1 --> 3 with Efficiency 0.5 means that one unit of flow leaves
+  *   1 and half of it reaches 2 while the other half reaches 3. There is no
   *   requirement that the efficiencies of the different branches of the
   *   same hyperarc sum to 1: in fact, this variable is optional, if it is
   *   not specified then Efficiency[ l ] == 1 for all branches / lines (and
@@ -522,9 +522,9 @@ class DCNetworkData : public NetworkData
 				( v_line_susceptance[ line ] != 0 ) ) )
    return( 1 );
 
-  if( v_efficiency.shape()[ 0 ] == 1 )   // time-independent data
+  if( v_efficiency.shape()[ 1 ] == 1 )   // time-independent data
    time = 0;                             // just ignore the time
-  return( v_efficiency[ time ][ line ] );
+  return( v_efficiency[ line ][ time ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1032,7 +1032,7 @@ class DCNetworkData : public NetworkData
 
  /** matrix to store the network efficiency of each line and time in the
   * graph case, effective only for HVDC lines and ignored otherwise;
-  * v_efficiency[ t ][ l ] containis the efficiency of the head node of
+  * v_efficiency[ l ][ t ] contains the efficiency of the head node of
   * line l at time t */
  boost::multi_array< double , 2 > v_efficiency;
 
