@@ -72,7 +72,7 @@ users:  # list of users and the corresponding assets
       max_technical: 1.0  # [-] maximum technical working point of the generator
       max_capacity: 10  # [kW] maximum capacity to install
       nom_capacity: 10  # [kW] nominal capacity of the generator
-      type_install: continuous  # [integer/continuous] discrete vs. continuous installation
+      type_install: continuous  # [integer/continuous] discrete vs. continuous installation (UNUSED: legacy field name; EC.jl current docs use `modularity` instead, and neither EC.jl source nor csv2nc4.jl read `type_install`. The SMS++ pipeline only models the continuous case anyway)
 
   user2:  # name of the user
     # list of components
@@ -108,8 +108,8 @@ users:  # list of users and the corresponding assets
       OEM_lin: 2  # [€/kW/y] specific O&M cost
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
-      max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      max_dch: 1.0  # [-] maximum discharge rate relative to converter capacity (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective discharge bound comes from batt.max_C_dch)
+      min_ch: 0.1  # [-] minimum charge rate relative to converter capacity   (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective charge bound comes from batt.max_C_ch)
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
@@ -166,8 +166,8 @@ users:  # list of users and the corresponding assets
       OEM_lin: 2  # [€/kW/y] specific O&M cost
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
-      max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      max_dch: 1.0  # [-] maximum discharge rate relative to converter capacity (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective discharge bound comes from batt.max_C_dch)
+      min_ch: 0.1  # [-] minimum charge rate relative to converter capacity   (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective charge bound comes from batt.max_C_ch)
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
@@ -244,8 +244,8 @@ users:  # list of users and the corresponding assets
       OEM_lin: 2  # [€/kW/y] specific O&M cost
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
-      max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      max_dch: 1.0  # [-] maximum discharge rate relative to converter capacity (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective discharge bound comes from batt.max_C_dch)
+      min_ch: 0.1  # [-] minimum charge rate relative to converter capacity   (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective charge bound comes from batt.max_C_ch)
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
@@ -312,8 +312,8 @@ users:  # list of users and the corresponding assets
       OEM_lin: 2  # [€/kW/y] specific O&M cost
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
-      max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      max_dch: 1.0  # [-] maximum discharge rate relative to converter capacity (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective discharge bound comes from batt.max_C_dch)
+      min_ch: 0.1  # [-] minimum charge rate relative to converter capacity   (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective charge bound comes from batt.max_C_ch)
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
@@ -359,8 +359,8 @@ users:  # list of users and the corresponding assets
       OEM_lin: 2  # [€/kW/y] specific O&M cost
       lifetime_y: 10  # [y] lifetime of the component
       eta: 1.0  # [-] roundtrip efficiency
-      max_dch: 1.0  # [-] maximum discharge
-      min_ch: 0.1  # [-] maximum charge
+      max_dch: 1.0  # [-] maximum discharge rate relative to converter capacity (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective discharge bound comes from batt.max_C_dch)
+      min_ch: 0.1  # [-] minimum charge rate relative to converter capacity   (UNUSED: documented by EC.jl but never read by its model code, and not written to the SMS++ BatteryUnitBlock netCDF either; the effective charge bound comes from batt.max_C_ch)
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
