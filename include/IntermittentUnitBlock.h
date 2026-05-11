@@ -961,6 +961,17 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// refresh the f_scale-aware coefficients in the Objective
+ /** Re-applies \f$ S \cdot c \f$ to every coefficient in the Objective that
+  * is meant to scale with the current scale factor \f$ S \f$ (see
+  * UnitBlock::scale()): the active-power costs and the investment cost on
+  * the design variable. Called by scale() after f_scale changes so the
+  * abstract representation stays in sync.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective( c_ModParam issueAMod ) const;
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/

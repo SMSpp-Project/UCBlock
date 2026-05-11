@@ -72,7 +72,7 @@ users:  # list of users and the corresponding assets
       max_technical: 1.0  # [-] maximum technical working point of the generator
       max_capacity: 10  # [kW] maximum capacity to install
       nom_capacity: 10  # [kW] nominal capacity of the generator
-      type_install: continuous  # [integer/continuous] discrete vs. continuous installation (UNUSED: legacy field name; EC.jl current docs use `modularity` instead, and neither EC.jl source nor csv2nc4.jl read `type_install`. The SMS++ pipeline only models the continuous case anyway)
+      modularity: true  # [bool] continuous (true) vs. integer (false) design
 
   user2:  # name of the user
     # list of components

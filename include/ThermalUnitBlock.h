@@ -2627,6 +2627,20 @@ class ThermalUnitBlock : public UnitBlock
                                    c_ModParam issueAMod ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// updates the term of the Objective associated with the investment cost
+ /** This method updates the coefficient of the design variable in the
+  * Objective, i.e., the term \f$ S \cdot I \cdot x \f$ where \f$ S \f$ is
+  * the current scale factor (see UnitBlock::scale()), \f$ I \f$ is the
+  * per-module investment cost, and \f$ x \f$ is the design variable. It
+  * is meant to be called after f_scale has been modified, so that the
+  * Objective coefficient stays in sync with the scaled cost convention
+  * used by the other update_objective_* helpers.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective_investment( c_ModParam issueAMod ) const;
+
+/*--------------------------------------------------------------------------*/
  /// updates the coefficients of the Objective
  /** This method updates the coefficients of the Objective.
   *

@@ -516,7 +516,7 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc )
  auto lf = new LinearFunction();
 
  if( f_InvestmentCost != 0 )
-  lf->add_variable( &design , f_InvestmentCost );
+  lf->add_variable( &design , f_scale * f_InvestmentCost );
 
  if( ! v_ActivePowerCost.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -1002,8 +1002,13 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
  if( f_scale == *values )  // the scale factor does not change: nothing to do
   return;
 
- if( not_dry_run( issuePMod ) )
+ if( not_dry_run( issuePMod ) ) {
   f_scale = *values;  // Update the scale factor
+
+  if( not_dry_run( issueAMod ) && objective_generated() )
+   // refresh the f_scale-aware coefficients in the Objective
+   update_objective( issueAMod );
+ }
 
  if( issue_pmod( issuePMod ) )  // issue a Physical Modification
   Block::add_Modification( std::make_shared< UnitBlockMod >(
@@ -1011,6 +1016,36 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
                                            Observer::par2chnl( issuePMod ) );
 
  }  // end( IntermittentUnitBlock::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void IntermittentUnitBlock::update_objective( c_ModParam issueAMod ) const
+{
+ if( ! objective_generated() )
+  return;  // the Objective has not been generated: nothing to be done
+
+ auto function = static_cast< LinearFunction * >( objective.get_function() );
+
+ // refresh the active-power operating costs (when present)
+ if( ! v_ActivePowerCost.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const auto idx = function->is_active( & v_active_power[ t ] );
+   assert( idx < function->get_num_active_var() );
+   function->modify_coefficient( idx ,
+                                 f_scale * v_ActivePowerCost[ t ] ,
+                                 issueAMod );
+  }
+
+ // refresh the scale-aware investment cost on the design variable
+ if( f_InvestmentCost != 0 ) {
+  const auto idx = function->is_active( & design );
+  assert( idx < function->get_num_active_var() );
+  function->modify_coefficient( idx ,
+                                f_scale * f_InvestmentCost ,
+                                issueAMod );
+ }
+
+}  // end( IntermittentUnitBlock::update_objective )
 
 /*--------------------------------------------------------------------------*/
 

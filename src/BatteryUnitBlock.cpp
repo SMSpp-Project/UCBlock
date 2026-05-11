@@ -1242,10 +1242,10 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
 
 
  if( f_BattInvestmentCost != 0 )
-  lf->add_variable( &batt_design , f_BattInvestmentCost );
+  lf->add_variable( &batt_design , f_scale * f_BattInvestmentCost );
 
  if( f_ConvInvestmentCost != 0 )
-  lf->add_variable( &conv_design , f_ConvInvestmentCost );
+  lf->add_variable( &conv_design , f_scale * f_ConvInvestmentCost );
 
  if( ! v_RefSchedule.empty() ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -2030,22 +2030,40 @@ void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) const {
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
 
- if( ! v_RefSchedule.empty() )
-  return;
-
  auto function = static_cast< LinearFunction * >( objective.get_function() );
 
- LinearFunction::Vec_FunctionValue coefficients;
- coefficients.reserve( 2 * f_time_horizon );
+ // intake / outtake operating costs are emitted only when v_RefSchedule is
+ // empty (see generate_objective); refresh them only in that case
+ if( v_RefSchedule.empty() ) {
+  LinearFunction::Vec_FunctionValue coefficients;
+  coefficients.reserve( 2 * f_time_horizon );
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  coefficients.push_back( f_scale * v_Cost[ t ] );
-  coefficients.push_back( -f_scale * v_Cost[ t ] );
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   coefficients.push_back( f_scale * v_Cost[ t ] );
+   coefficients.push_back( -f_scale * v_Cost[ t ] );
+  }
+
+  function->modify_coefficients( std::move( coefficients ) ,
+                                 Range( 0 , 2 * f_time_horizon ) ,
+                                 issueAMod );
  }
 
- function->modify_coefficients( std::move( coefficients ) ,
-                                Range( 0 , 2 * f_time_horizon ) ,
+ // refresh the scale-aware design coefficients (battery / converter)
+ if( f_BattInvestmentCost != 0 ) {
+  const auto idx = function->is_active( & batt_design );
+  assert( idx < function->get_num_active_var() );
+  function->modify_coefficient( idx ,
+                                f_scale * f_BattInvestmentCost ,
                                 issueAMod );
+ }
+
+ if( f_ConvInvestmentCost != 0 ) {
+  const auto idx = function->is_active( & conv_design );
+  assert( idx < function->get_num_active_var() );
+  function->modify_coefficient( idx ,
+                                f_scale * f_ConvInvestmentCost ,
+                                issueAMod );
+ }
 
 }  // end( BatteryUnitBlock::update_objective )
 

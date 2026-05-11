@@ -84,7 +84,7 @@ users:  # list of users and the corresponding assets
       min_technical: 0.2  # [-] minimum technical working point of the generator
       max_technical: 1.0  # [-] maximum technical working point of the generator
       max_capacity: 30  # [kW] maximum capacity to install
-      modularity: true  # [bool] whether the installation must be in integer modules (EC.jl reads this; when true the design n_us is continuous and x_us = n_us * nom_capacity. csv2nc4.jl ignores it: the SMS++ pipeline only supports the continuous case (modularity=true), so modularity=false would not be honored)
+      modularity: true  # [bool] continuous (true) vs. integer (false) design
       nom_capacity: 10  # [kW] nominal capacity of the generator
 
   user2:  # name of the user

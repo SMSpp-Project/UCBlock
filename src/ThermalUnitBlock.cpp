@@ -3769,7 +3769,8 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  DQuadFunction::v_coeff_triple vars;
 
  if( f_InvestmentCost != 0 )
-  vars.push_back( std::make_tuple( & design , f_InvestmentCost , 0 ) );
+  vars.push_back( std::make_tuple( & design ,
+                                   f_scale * f_InvestmentCost , 0 ) );
 
  // add the start-up variables- - - - - - - - - - - - - - - - - - - - - - - -
  // add start-up variables for tbin and T formulations
@@ -5506,8 +5507,31 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::update_objective_investment( c_ModParam issueAMod ) const
+{
+ if( ! objective_generated() )
+  return;  // the Objective has not been generated: nothing to be done
+
+ if( f_InvestmentCost == 0 )
+  return;  // no design term in the Objective: nothing to be done
+
+ auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
+
+ if( ! function )
+  return;
+
+ auto var_index = function->is_active( & design );
+ assert( var_index < function->get_num_active_var() );
+ function->modify_linear_coefficient( var_index ,
+                                      f_scale * f_InvestmentCost ,
+                                      issueAMod );
+}  // end( ThermalUnitBlock::update_objective_investment )
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::update_objective( const Subset & subset ,
                                          c_ModParam issueAMod ) const {
+ update_objective_investment( issueAMod );
  update_objective_start_up( subset , issueAMod );
  update_objective_active_power( subset , issueAMod );
  update_objective_commitment( subset , issueAMod );
