@@ -1274,6 +1274,14 @@ class BatteryUnitBlock : public UnitBlock
 
  double get_scale( void ) const override { return( f_scale ); }
 
+ double get_design_ub( void ) const override {
+  // Both batt_design and conv_design constrain the active power; the
+  // effective ub for fleet-level bounding is the smaller of the two
+  // capacity-design bounds in absolute value.
+  return( std::min( std::abs( f_BattMaxCapacityDesign ) ,
+                    std::abs( f_ConvMaxCapacityDesign ) ) );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE Variable OF THE BatteryUnitBlock --------*/
 /*--------------------------------------------------------------------------*/

@@ -38,35 +38,22 @@ include("pem_extraction.jl")
 # Include the sampler for distributions associated to short period uncertainty and a function to generate scenarios
 include("scen_eps_sampler.jl")
 
-# A `Random.seed!(123)` is set later, immediately before the call to
-# `pem_extraction` (and again in `test_instance_with_EC_jl.jl` before the
-# corresponding sampling), so the (s, eps) draws are bit-identical between
-# the SMS++ TSSB pipeline and the EC.jl@stochastic comparison.
-
-# YAML layout assumed by this driver — schema aligned with EC.jl@stochastic:
+# YAML layout:
 #   * EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
-#     `peak_categories`) under `general.profile`.
+#     `peak_categories`) under `general.profile` or `market.profile`.
 #   * Pricing fields (`buy_price`, `sell_price`, `consumption_price`,
 #     `penalty_price`, `peak_tariff`, `peak_weight`) under a single flat
-#     `market.profile` group.
+#     `market.profile` group, or per-user via `tariff_name` keys.
 
-# EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
-# `peak_categories`). The EC.jl@stochastic schema places them under
-# `market.profile`; the legacy schema (still used by the deterministic
-# `*_CO/_NC.yml`) places them under `general.profile`. Try the
-# market-level profile first and fall back to general so that both
-# schemas keep working through the same driver.
+# EC-wide profile lookup: try the market profile, fall back to general.
 @inline ec_profile(name) = let p = profile_d(market_data, name, nothing)
     isnothing(p) ? profile(gen_data, name) : p
 end
 @inline ec_profile_d(name, default) = let p = profile_d(market_data, name, nothing)
     isnothing(p) ? profile_d(gen_data, name, default) : p
 end
-# `user_market_data(u)` returns the per-user market block. With the
-# EC.jl@stochastic schema there is a single flat `market.profile`, so any
-# user gets the same `market_data`. With the legacy two-tier schema each
-# user has a `tariff_name` pointing at one of `market.commercial` /
-# `market.non_commercial`; in that case follow the indirection.
+# Per-user market block: the flat schema returns `market_data` directly,
+# the two-tier schema follows `tariff_name`.
 @inline user_market_data(u) = haskey(market_data, "profile") ?
     market_data : field(market_data, field(users_data[u], "tariff_name"))
 
@@ -78,8 +65,6 @@ function csvEC2nc4(
 
     middle = "_"
     if "--no-asset" in OPTION_ARGS
-        # NA replaces the previously-shipped *_NA*.yml files (which were
-        # identical to CO with all installable assets disabled, only loads).
         middle = string(middle, "NA_")
     elseif occursin("_CO", file_name)
         middle = string(middle, "CO_")
@@ -100,26 +85,17 @@ function csvEC2nc4(
         last = string(last, "_NB")
     end
 
-    # Stochastic YAMLs produce a single TSSB nc4 with the UCBlock embedded
-    # inline as the inner Block of the StochasticBlock group; we don't write
-    # a separate `EC_*_Test_sto.nc4` for the inner UCBlock because the test
-    # batches don't need it and the deterministic `EC_*_Test*.nc4` files
-    # (whose objective values are pinned by tests/LagrangianDualSolver_UC/
-    # batches/batch-ec) must stay untouched. Open one dataset accordingly.
+    # Deterministic YAMLs produce a standalone UCBlock nc4; stochastic YAMLs
+    # produce a TSSB nc4 with the inner UCBlock as a child Block of the
+    # StochasticBlock group.
     if deterministic
         ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
-        # tssb / sb are populated only in the stochastic branch below
         tssb = nothing
         sb = nothing
     else
         ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         tssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
-        # StochasticBlock + the inner UCBlock are pre-declared so that the
-        # subsequent UCBlock-writing code can target `block` uniformly. The
-        # rest of the TSSB structure (NumberScenarios, DiscreteScenarioSet,
-        # SimpleDataMapping, AbstractPath) is populated further below, after
-        # the UCBlock has collected the metadata it needs (n_devices, ...).
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
         block = defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
     end
@@ -175,16 +151,8 @@ function csvEC2nc4(
                         for w in peak_set] * discount_factor
 
     # `ConstantTerm`, i.e., the consumption price applied to total user load.
-    # When scenarios are present, sum over scenarios weighted by probability
-    # (E_s[Σ_u scenario_load[s,u,t]]) instead of the YAML baseline load:
-    # csv2nc4 substitutes scenario-specific loads into `ActivePowerDemand`
-    # via the `Scenarios` array (line ~778: `vec[idx] = scen.Load[u][t]`),
-    # so the load-balance constraints already see scenario-perturbed demand.
-    # Using the YAML baseline here would leave the `consumption_price × Load`
-    # constant out of step with the rest of the model and produce a
-    # structural ~0.78% objective gap against EC.jl@stochastic on NA cases —
-    # observed and traced in the May-2026 investigation (see memory note
-    # `project_tssb_ec_lp_vs_milp_gap`).
+    # Stochastic: probability-weighted expected scenario load. Deterministic:
+    # YAML baseline load.
     expected_total_load_at_t = if isnothing(sampled_scenarios) ||
                                   isempty(sampled_scenarios)
         t -> sum(profile_component(users_data[u], l, "load")[t]
@@ -378,11 +346,10 @@ function csvEC2nc4(
 
     # Create g `UnitBlock`(s) for each electrical generator/device
 
-    n_devices = reduce(+, [d != "generator" ? 1 :
-                          div(field_component(users_data[u], d, "max_capacity"), field_component(users_data[u], d, "nom_capacity"))
-                          for u in user_set
-                          for d in asset_names(users_data[u], SMSPP_DEVICES)], init=0)
-    # number of UnitBlock
+    # one UnitBlock per installable device (regardless of fleet size — the
+    # fleet count is carried inside the block via Scale)
+    n_devices = sum(length(asset_names(users_data[u], SMSPP_DEVICES))
+                    for u in user_set; init=0)
     defDim(block, "NumberUnits", n_devices)
 
     # AbstractPath
@@ -395,7 +362,9 @@ function csvEC2nc4(
         # For each entry we record:
         #   ub_idx       = UnitBlock_<ub_idx> position inside the UCBlock
         #   user, asset  = keys to look up scen.Ren[user][asset]
-        #   max_capacity = scaling factor applied to the per-unit profile
+        #   nom_capacity = per-module scaling factor applied to the renewable
+        #                  profile to obtain per-module MaxPower (Scale on the
+        #                  block side aggregates to fleet)
         intermittent_units = Tuple{Int,String,String,Float64}[]
     end
 
@@ -417,12 +386,27 @@ function csvEC2nc4(
 
                     ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
 
-                    # store the maximum installable capacity of the pv/wind asset
+                    # Single IntermittentUnitBlock representing N identical
+                    # modules via Scale = N (default). Per-module MaxPower
+                    # and InvestmentCost; f_scale multiplies them in the
+                    # objective so total fleet quantities are preserved.
+                    #
+                    # Alternative (commented below): drop Scale and use the
+                    # design-variable bound instead — set MaxCapacityDesign
+                    # to ±N (negative = integer ∈ {0,…,N}, positive =
+                    # continuous ∈ [0, N]). The two modes are mathematically
+                    # equivalent for the continuous LP; the design-variable
+                    # mode also allows integer fleet count to match
+                    # EnergyCommunity.jl@stochastic.
+                    n_modules = div(field_component(users_data[u], g, "max_capacity"),
+                                    field_component(users_data[u], g, "nom_capacity"))
+
+                    # maximum installable capacity (fleet-level, reporting)
                     max_capacity = defVar(ub, "MaxCapacity", Float64, ())
                     max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
-                    # store the maximum power of the pv/wind asset
-                    max_power_data = [field_component(users_data[u], g, "max_capacity") *
+                    # maximum power (per module)
+                    max_power_data = [field_component(users_data[u], g, "nom_capacity") *
                                       profile_component(users_data[u], g, "ren_pu")[t]
                                       for t in time_set]
                     if (allequal(max_power_data))
@@ -433,7 +417,7 @@ function csvEC2nc4(
                         max_power[:] = max_power_data[:]
                     end
 
-                    # store the Net Present Value of the pv/wind asset
+                    # Net Present Value (per module)
                     investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                     investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
                                              ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
@@ -444,14 +428,35 @@ function csvEC2nc4(
                                                 (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                        field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                               (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                         field_component(users_data[u], g, "max_capacity")
+                                         field_component(users_data[u], g, "nom_capacity")
+
+                    # default: Scale = N (single block, N identical modules
+                    # in lockstep)
+                    if n_modules > 1
+                        scale_var = defVar(ub, "Scale", Float64, ())
+                        scale_var[:] = n_modules
+                    end
+
+                    # alternative: comment out the Scale block above and
+                    # uncomment the block below to switch to the design-
+                    # variable mode (MaxCapacityDesign = ±N). The block
+                    # check_data_consistency disallows mixing the two.
+                    #
+                    # is_integer_design = !deterministic ||
+                    #     (field_component(users_data[u], g, "modularity", true) == false)
+                    # mcd_signed = is_integer_design ? -float(n_modules) :
+                    #                                   float(n_modules)
+                    # if n_modules != 1
+                    #     mcd_var = defVar(ub, "MaxCapacityDesign", Float64, ())
+                    #     mcd_var[:] = mcd_signed
+                    # end
 
                     if !deterministic # stochastic model
                         path_dim += 1
                         append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
                         append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_intermittent
                         append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_intermittent
-                        push!(intermittent_units, (last_g, u, g, field_component(users_data[u], g, "max_capacity")))
+                        push!(intermittent_units, (last_g, u, g, field_component(users_data[u], g, "nom_capacity")))
                     end
 
                     last_g += 1
@@ -461,15 +466,36 @@ function csvEC2nc4(
 
                     ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
 
+                    # Single BatteryUnitBlock representing N identical
+                    # battery + converter modules via Scale = N (default).
+                    # The same Scale applies to both batt and conv since
+                    # they live in the same block.
+                    #
+                    # Alternative (commented below): drop Scale and use the
+                    # per-component design bounds — BatteryMaxCapacityDesign
+                    # and ConverterMaxCapacityDesign set to ±N (negative =
+                    # integer, positive = continuous).
+                    g_conv = field_component(users_data[u], g, "corr_asset")
+                    n_modules_batt = div(field_component(users_data[u], g, "max_capacity"),
+                                         field_component(users_data[u], g, "nom_capacity"))
+                    n_modules_conv = div(field_component(users_data[u], g_conv, "max_capacity"),
+                                         field_component(users_data[u], g_conv, "nom_capacity"))
+                    if n_modules_batt != n_modules_conv
+                        error("BatteryUnitBlock fleet size mismatch for user $(u): " *
+                              "batt has $(n_modules_batt) modules but " *
+                              "conv has $(n_modules_conv); they must match.")
+                    end
+                    n_modules = n_modules_batt
+
                     # ----------- Battery -----------
 
-                    # store the maximum installable capacity of the battery
+                    # maximum installable capacity (fleet-level, reporting)
                     batt_max_capacity = defVar(ub, "BatteryMaxCapacity", Float64, ())
                     batt_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
-                    # store the maximum power of the battery
+                    # maximum power (per module)
                     batt_max_power = defVar(ub, "MaxPower", Float64, ())
-                    batt_max_power[:] = field_component(users_data[u], g, "max_capacity")
+                    batt_max_power[:] = field_component(users_data[u], g, "nom_capacity")
 
                     # store the maximum C-rate of the battery in charge
                     max_C_ch = field_component(users_data[u], g, "max_C_ch")
@@ -485,14 +511,14 @@ function csvEC2nc4(
                         batt_max_C_dch[:] = max_C_dch
                     end
 
-                    # set a negative initial power negative to use the cyclical notation
+                    # negative initial storage triggers cyclical notation
                     initial_storage = defVar(ub, "InitialStorage", Float64, ())
                     initial_storage[:] = -1
 
-                    # store the minimum storage of the battery
+                    # minimum storage (per module)
                     min_storage_data = [field_component(users_data[u], g, "min_SOC") /
                                         time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                        for t in time_set] * field_component(users_data[u], g, "max_capacity")
+                                        for t in time_set] * field_component(users_data[u], g, "nom_capacity")
                     if (allequal(min_storage_data))
                         min_storage = defVar(ub, "MinStorage", Float64, ())
                         min_storage[:] = min_storage_data[1]
@@ -501,10 +527,10 @@ function csvEC2nc4(
                         min_storage[:] = min_storage_data[:]
                     end
 
-                    # store the maximum storage of the battery
+                    # maximum storage (per module)
                     max_storage_data = [field_component(users_data[u], g, "max_SOC") /
                                         time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                        for t in time_set] * field_component(users_data[u], g, "max_capacity")
+                                        for t in time_set] * field_component(users_data[u], g, "nom_capacity")
                     if (allequal(max_storage_data))
                         max_storage = defVar(ub, "MaxStorage", Float64, ())
                         max_storage[:] = max_storage_data[1]
@@ -513,7 +539,7 @@ function csvEC2nc4(
                         max_storage[:] = max_storage_data[:]
                     end
 
-                    # store the Net Present Value of the battery
+                    # Net Present Value of the battery (per module)
                     batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
                     batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
                                                    ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
@@ -524,31 +550,29 @@ function csvEC2nc4(
                                                       (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                              field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                                     (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                               field_component(users_data[u], g, "max_capacity"))
+                                               field_component(users_data[u], g, "nom_capacity"))
 
                     # ---------- Converter ----------
 
-                    g_conv = field_component(users_data[u], g, "corr_asset") # corresponding converter, i.e., "conv"
-
-                    # store the maximum installable capacity of the converter
+                    # maximum installable capacity (fleet-level, reporting)
                     conv_max_capacity = defVar(ub, "ConverterMaxCapacity", Float64, ())
                     conv_max_capacity[:] = field_component(users_data[u], g_conv, "max_capacity")
 
-                    # store the maximum power of the converter
+                    # maximum power (per module)
                     conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
-                    conv_max_power[:] = field_component(users_data[u], g_conv, "max_capacity")
+                    conv_max_power[:] = field_component(users_data[u], g_conv, "nom_capacity")
 
-                    # store the intake roundtrip efficiency of the battery
+                    # intake roundtrip efficiency
                     intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ())
                     intake_coeff[:] = 1 / (sqrt(field_component(users_data[u], g, "eta")) *
-                                           field_component(users_data[u], g_conv, "eta")) # corresponding converter, i.e., "conv"
+                                           field_component(users_data[u], g_conv, "eta"))
 
-                    # store the outtake roundtrip efficiency of the battery
+                    # outtake roundtrip efficiency
                     outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ())
                     outtake_coeff[:] = sqrt(field_component(users_data[u], g, "eta")) *
-                                       field_component(users_data[u], g_conv, "eta") # corresponding converter, i.e., "conv"
+                                       field_component(users_data[u], g_conv, "eta")
 
-                    # store the Net Present Value of the converter
+                    # Net Present Value of the converter (per module)
                     conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
                     conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
                                                    ((field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
@@ -559,7 +583,36 @@ function csvEC2nc4(
                                                       (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
                                                              field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
                                                     (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                               field_component(users_data[u], g_conv, "max_capacity"))
+                                               field_component(users_data[u], g_conv, "nom_capacity"))
+
+                    # default: Scale = N (single block, N synchronous
+                    # batt + conv modules in lockstep)
+                    if n_modules > 1
+                        scale_var = defVar(ub, "Scale", Float64, ())
+                        scale_var[:] = n_modules
+                    end
+
+                    # alternative: comment out the Scale block above and
+                    # uncomment the block below to switch to per-component
+                    # design bounds. The block check_data_consistency
+                    # disallows mixing the two.
+                    #
+                    # batt_integer_design = !deterministic ||
+                    #     (field_component(users_data[u], g, "modularity", true) == false)
+                    # conv_integer_design = !deterministic ||
+                    #     (field_component(users_data[u], g_conv, "modularity", true) == false)
+                    # batt_mcd_signed = batt_integer_design ? -float(n_modules_batt) :
+                    #                                          float(n_modules_batt)
+                    # conv_mcd_signed = conv_integer_design ? -float(n_modules_conv) :
+                    #                                          float(n_modules_conv)
+                    # if n_modules_batt != 1
+                    #     batt_mcd_var = defVar(ub, "BatteryMaxCapacityDesign", Float64, ())
+                    #     batt_mcd_var[:] = batt_mcd_signed
+                    # end
+                    # if n_modules_conv != 1
+                    #     conv_mcd_var = defVar(ub, "ConverterMaxCapacityDesign", Float64, ())
+                    #     conv_mcd_var[:] = conv_mcd_signed
+                    # end
 
                     if !deterministic # stochastic model
                         path_dim += 2
@@ -573,95 +626,102 @@ function csvEC2nc4(
 
                 elseif g == "generator"
 
-                    for _ in 1:div(field_component(users_data[u], g, "max_capacity"), field_component(users_data[u], g, "nom_capacity"))
+                    # Single ThermalUnitBlock representing N identical
+                    # modules via Scale = N. Per-module data (Capacity,
+                    # MinPower, MaxPower, InvestmentCost, LinearTerm,
+                    # ConstTerm); f_scale multiplies cost terms in the
+                    # objective so total fleet cost is preserved.
+                    n_modules = div(field_component(users_data[u], g, "max_capacity"),
+                                    field_component(users_data[u], g, "nom_capacity"))
 
-                        ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
+                    ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
 
-                        # store the installable capacity of the thermal
-                        thermal_capacity = defVar(ub, "Capacity", Float64, ())
-                        thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
+                    # installable capacity (per module)
+                    thermal_capacity = defVar(ub, "Capacity", Float64, ())
+                    thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
 
-                        # store the minimum power of the thermal
-                        thermal_min_power = defVar(ub, "MinPower", Float64, ())
-                        thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
-                                                field_component(users_data[u], g, "nom_capacity"))
+                    # minimum power (per module)
+                    thermal_min_power = defVar(ub, "MinPower", Float64, ())
+                    thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
+                                            field_component(users_data[u], g, "nom_capacity"))
 
-                        # store the maximum power of the thermal
-                        thermal_max_power = defVar(ub, "MaxPower", Float64, ())
-                        thermal_max_power_val =
-                            field_component(users_data[u], g, "max_technical") *
-                            field_component(users_data[u], g, "nom_capacity")
-                        thermal_max_power[:] = thermal_max_power_val
+                    # maximum power (per module)
+                    thermal_max_power = defVar(ub, "MaxPower", Float64, ())
+                    thermal_max_power_val =
+                        field_component(users_data[u], g, "max_technical") *
+                        field_component(users_data[u], g, "nom_capacity")
+                    thermal_max_power[:] = thermal_max_power_val
 
-                        # store the start-up limit
-                        thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
-                        thermal_start_up_limit[:] = thermal_max_power_val
+                    # start-up limit
+                    thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
+                    thermal_start_up_limit[:] = thermal_max_power_val
 
-                        # store the shut-down limit
-                        thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
-                        thermal_shut_up_limit[:] = thermal_max_power_val
+                    # shut-down limit
+                    thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
+                    thermal_shut_up_limit[:] = thermal_max_power_val
 
-                        # store the Net Present Value of the thermal
-                        investment_cost = defVar(ub, "InvestmentCost", Float64, ())
-                        investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                                 ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                    field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
-                                                   ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
-                                                    field_component(users_data[u], g, "CAPEX_lin") *
-                                                    (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                           field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                                  (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                             field_component(users_data[u], g, "nom_capacity")
+                    # Net Present Value of the thermal (per module)
+                    investment_cost = defVar(ub, "InvestmentCost", Float64, ())
+                    investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                             ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                               ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                field_component(users_data[u], g, "CAPEX_lin") *
+                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                              (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                         field_component(users_data[u], g, "nom_capacity")
 
-                        # store the linear term of the thermal
-                        linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
-                                                 field_component(users_data[u], g, "slope_map")) *
-                                                energy_weight_profile[t] *
-                                                time_res_profile[t]
-                                                for t in time_set] *
-                                               (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
-                        if (allequal(linear_term_data))
-                            linear_term = defVar(ub, "LinearTerm", Float64, ())
-                            linear_term[:] = linear_term_data[1]
-                        else
-                            linear_term = defVar(ub, "LinearTerm", Float64, ("TimeHorizon",))
-                            linear_term[:] = linear_term_data[:]
-                        end
-
-                        # store the constant term of the thermal
-                        # Commitment-based O&M cost: prefer OEM_com (per EC.jl
-                        # base_model.jl:344, the deterministic split), falling
-                        # back to OEM_lin which EC.jl@stochastic cooperativeStoch.jl
-                        # :254 reuses in this role for thermal generators when
-                        # OEM_com is not specified.
-                        oem_com = field_component(users_data[u], g, "OEM_com",
-                                                  field_component(users_data[u], g, "OEM_lin"))
-                        const_term_data = sum([(oem_com + # commitment-based O&M cost of the component
-                                                (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
-                                                 field_component(users_data[u], g, "inter_map"))) *
-                                               energy_weight_profile[t] *
-                                               time_res_profile[t]
-                                               for t in time_set] *
-                                              (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
-                                          field_component(users_data[u], g, "nom_capacity")
-                        if (allequal(const_term_data))
-                            const_term = defVar(ub, "ConstTerm", Float64, ())
-                            const_term[:] = const_term_data[1]
-                        else
-                            const_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
-                            const_term[:] = const_term_data[:]
-                        end
-
-                        if !deterministic # stochastic model
-                            path_dim += 1
-                            append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
-                            append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
-                            append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
-                        end
-
-                        last_g += 1
-                        generator_node[last_g] = i_u - 1 # assign the ownership of the current therms generator to the respective user
+                    # store the linear term of the thermal
+                    linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
+                                             field_component(users_data[u], g, "slope_map")) *
+                                            energy_weight_profile[t] *
+                                            time_res_profile[t]
+                                            for t in time_set] *
+                                           (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                    if (allequal(linear_term_data))
+                        linear_term = defVar(ub, "LinearTerm", Float64, ())
+                        linear_term[:] = linear_term_data[1]
+                    else
+                        linear_term = defVar(ub, "LinearTerm", Float64, ("TimeHorizon",))
+                        linear_term[:] = linear_term_data[:]
                     end
+
+                    # constant term: commitment-based O&M (OEM_com, else OEM_lin)
+                    # plus fuel intercept, per module
+                    oem_com = field_component(users_data[u], g, "OEM_com",
+                                              field_component(users_data[u], g, "OEM_lin"))
+                    const_term_data = sum([(oem_com +
+                                            (field_component(users_data[u], g, "fuel_price") *
+                                             field_component(users_data[u], g, "inter_map"))) *
+                                           energy_weight_profile[t] *
+                                           time_res_profile[t]
+                                           for t in time_set] *
+                                          (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
+                                      field_component(users_data[u], g, "nom_capacity")
+                    if (allequal(const_term_data))
+                        const_term = defVar(ub, "ConstTerm", Float64, ())
+                        const_term[:] = const_term_data[1]
+                    else
+                        const_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
+                        const_term[:] = const_term_data[:]
+                    end
+
+                    # fleet scale factor (omit when 1 — f_scale defaults to 1)
+                    if n_modules > 1
+                        scale_var = defVar(ub, "Scale", Float64, ())
+                        scale_var[:] = n_modules
+                    end
+
+                    if !deterministic # stochastic model
+                        path_dim += 1
+                        append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
+                        append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
+                        append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
+                    end
+
+                    last_g += 1
+                    generator_node[last_g] = i_u - 1 # assign the ownership of the current thermal generator to the respective user
                 end
             end
         end
@@ -805,11 +865,12 @@ function csvEC2nc4(
                 end
             end
 
-            # Section 2: per-IntermittentUnitBlock max_power time series.
-            for (_, u, asset, max_cap) in intermittent_units
+            # Section 2: per-IntermittentUnitBlock per-module MaxPower time
+            # series (Scale on the block side aggregates to fleet).
+            for (_, u, asset, nom_cap) in intermittent_units
                 ren_profile = scen.Ren[u][asset]
                 for t in time_set
-                    vec[idx] = max_cap * ren_profile[t]
+                    vec[idx] = nom_cap * ren_profile[t]
                     idx += 1
                 end
             end
@@ -1078,12 +1139,10 @@ final_step = field(gen_data, "final_step")
 time_set = init_step:final_step
 n_steps = length(time_set)
 
-# Peak set is required as a global by Scen_eps_sampler / scenario_definition.
+# Peak set is required as a global by scen_eps_sampler / scenario_definition.
 peak_set = unique(ec_profile("peak_categories")[time_set])
 
-# Number of scenarios to be extracted. Read the EC.jl@stochastic-style
-# `n_s`/`n_eps` keys, falling back to the legacy `scen_s_sample`/
-# `scen_eps_sample` keys still used by the deterministic YAMLs.
+# Number of scenarios; `scen_s_sample == scen_eps_sample == 1` means deterministic.
 scen_s_sample = field_d(gen_data, "n_s",
                         field_d(gen_data, "scen_s_sample", 1))
 scen_eps_sample = field_d(gen_data, "n_eps",
@@ -1091,12 +1150,8 @@ scen_eps_sample = field_d(gen_data, "n_eps",
 
 is_det = (scen_s_sample == 1 && scen_eps_sample == 1)
 
-# Long-period uncertainty parameters. The deterministic flow doesn't need
-# them; in the stochastic flow they default to the upstream EC.jl@stochastic
-# values and can be overridden via `general.sigma_load`, `general.sigma_pv`,
-# `general.sigma_wind`, `general.mean_pv`, `general.mean_wind` in the YAML.
-# `general.uncertain_var` is a string of letters in {"L","P","W"} that
-# selects which long-period source(s) of uncertainty are sampled.
+# Long-period uncertainty parameters; `uncertain_var` is a string of letters
+# in {"L","P","W"} selecting which sources are sampled.
 sigma_load = field_d(gen_data, "sigma_load", 0.3)
 mean_pv    = field_d(gen_data, "mean_pv",    1.0)
 sigma_pv   = field_d(gen_data, "sigma_pv",   0.1)
@@ -1104,12 +1159,9 @@ mean_wind  = field_d(gen_data, "mean_wind",  0.95)
 sigma_wind = field_d(gen_data, "sigma_wind", 0.15)
 unc_var    = field_d(gen_data, "uncertain_var", "L")
 
-# Installable assets exposed to SMS++.
-# `CONV` (battery converter) is always elided because it is modeled inside
-# the corresponding `BatteryUnitBlock` rather than as a standalone device.
-# Default: include the thermal generator (`THER`).
-# `--no-thermal`: skip `THER` (matches the EC.jl@stochastic flag of the same name).
-# `--no-asset`:   skip every installable asset (NA case).
+# Installable assets exposed to SMS++. CONV is always elided (modeled
+# inside the corresponding BatteryUnitBlock); --no-thermal skips THER;
+# --no-asset skips everything (NA case).
 SMSPP_DEVICES = if "--no-asset" in OPTION_ARGS
     eltype(DEVICES)[]
 elseif "--no-thermal" in OPTION_ARGS
@@ -1119,20 +1171,18 @@ else
 end
 
 
-# Preprocessing to create the data structure (sampled_scenarios) for stochastic applications.
-# If the model is deterministic, sampled_scenarios is nothing.
+# `sampled_scenarios` carries the (s, eps) scenario set in the stochastic
+# flow; it is `nothing` in the deterministic flow.
 sampled_scenarios = nothing
 if !is_det
 
     scen_s_set = 1:scen_s_sample
     scen_eps_set = 1:scen_eps_sample
 
-    # Reset the RNG immediately before sampling so the sequence is the same
-    # one consumed by `test_instance_with_EC_jl.jl`. Any intervening `rand`
-    # calls (e.g. by NCDatasets) are isolated from the scenario draws.
+    # Reset the RNG so the draws are bit-identical with
+    # test_instance_with_EC_jl.jl (which seeds the same value).
     Random.seed!(123)
 
-    # Extract the long-period (`s`) sampling points and their probabilities.
     (point_s_load,
         point_s_pv,
         point_s_wind,
@@ -1141,9 +1191,6 @@ if !is_det
                                            mean_wind, sigma_wind,
                                            unc_var)
 
-    # Build the full (s, eps) scenario set used by the deterministic
-    # equivalent. `sampled_scenarios` is a list of `Scenario_Load_Renewable`
-    # (see `scenario_definition.jl`).
     sampled_scenarios = scenarios_generator(data,
                                             point_s_load, point_s_pv, point_s_wind,
                                             scen_s_sample, scen_eps_sample,

@@ -640,6 +640,12 @@ class IntermittentUnitBlock : public UnitBlock
 
  double get_scale( void ) const override { return( f_scale ); }
 
+ double get_design_ub( void ) const override {
+  // f_MaxCapacityDesign < 0 → integer design ∈ {0, ..., |MaxCapacityDesign|};
+  // f_MaxCapacityDesign >= 0 → continuous design ∈ [0, MaxCapacityDesign].
+  return( std::abs( f_MaxCapacityDesign ) );
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /*------ METHODS FOR READING THE Variable OF THE IntermittentUnitBlock -----*/
 /*--------------------------------------------------------------------------*/

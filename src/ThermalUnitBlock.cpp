@@ -156,6 +156,8 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_Capacity , "Capacity" );
 
+ ::deserialize( group , f_scale , "Scale" );
+
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
                           f_time_horizon );
@@ -334,14 +336,14 @@ std::vector< std::string > ThermalUnitBlock::expected_dims( void )
 std::vector< std::string > ThermalUnitBlock::expected_vars( void )
  const {
  static const std::vector< std::string > ev =
-  { "InvestmentCost" , "Capacity" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
-    "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "LinearTerm" ,
-    "QuadTerm" , "ConstTerm" , "StartUpCost" , "FixedConsumption" ,
-    "InertiaCommitment" , "InitialPower" , "MinUpTime" ,  "MinDownTime" ,
-    "InitUpDownTime" , "Availability" , "StartUpLimit" , "ShutDownLimit" ,
-    "MaxRampUpSteps" , "MaxRampDownSteps" , "InitialReactivePower",
-    "MaxReactivePower" , "MinReactivePower" , "ReferenceSchedule" ,
-    "FixToMaximum"
+  { "InvestmentCost" , "Capacity" , "Scale" , "MinPower" , "MaxPower" ,
+    "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
+    "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
+    "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
+    "MinDownTime" , "InitUpDownTime" , "Availability" , "StartUpLimit" ,
+    "ShutDownLimit" , "MaxRampUpSteps" , "MaxRampDownSteps" ,
+    "InitialReactivePower", "MaxReactivePower" , "MinReactivePower" ,
+    "ReferenceSchedule" , "FixToMaximum"
     };
 
  auto ret = UnitBlock::expected_vars();
@@ -3978,6 +3980,9 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  if( f_Capacity != 0 )
   ::serialize( group , "Capacity" , netCDF::NcDouble() , f_Capacity );
+
+ if( f_scale != 1 )
+  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_InitialPower );
  ::serialize( group , "MinUpTime" , netCDF::NcUint() , f_MinUpTime );

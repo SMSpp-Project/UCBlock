@@ -172,6 +172,8 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , f_ConvMaxCapacityDesign , "ConverterMaxCapacityDesign" );
  }
 
+ ::deserialize( group , f_scale , "Scale" );
+
  // variables for AC elements
  if( ::deserialize( group , "MaxReactivePower" , f_time_horizon ,
 		    v_MaxReactivePower , true , true , v_change_intervals )
@@ -216,7 +218,7 @@ std::vector< std::string > BatteryUnitBlock::expected_vars( void ) const {
    "ConverterInvestmentCost" , "BatteryMinCapacityDesign" ,
    "ConverterMinCapacityDesign" , "BatteryMaxCapacityDesign" ,
    "ConverterMaxCapacityDesign" , "MinReactivePower", "MaxReactivePower",
-   "ReferenceSchedule" };
+   "ReferenceSchedule" , "Scale" };
 
  auto ret = UnitBlock::expected_vars();
  ret.insert( ret.end() , ev.begin() , ev.end() );
@@ -263,6 +265,14 @@ void BatteryUnitBlock::check_data_consistency( void ) const
                             "BatteryMaxCapacityDesign < 0 (binary design)." ) );
  }
 
+ // Scale and design granularity are two equivalent ways to model multiple
+ // identical modules; combining them with both > 1 over-counts the fleet.
+ if( ( f_scale != 1 ) && ( std::abs( f_BattMaxCapacityDesign ) > 1 ) )
+  throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: "
+                           "cannot combine Scale != 1 with "
+                           "|BatteryMaxCapacityDesign| > 1; they represent "
+                           "the same multi-module fleet and would double-count." ) );
+
  // Min/Max converter capacity design
 
  if( f_ConvMinCapacityDesign < 0 )
@@ -284,6 +294,13 @@ void BatteryUnitBlock::check_data_consistency( void ) const
    throw( std::logic_error( "ConverterMinCapacityDesign must be <= 1 when "
                             "ConverterMaxCapacityDesign < 0 (binary design)." ) );
  }
+
+ // Same Scale-vs-design exclusion as the battery (see note above).
+ if( ( f_scale != 1 ) && ( std::abs( f_ConvMaxCapacityDesign ) > 1 ) )
+  throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: "
+                           "cannot combine Scale != 1 with "
+                           "|ConverterMaxCapacityDesign| > 1; they represent "
+                           "the same multi-module fleet and would double-count." ) );
 
  // Minimum and maximum power
 
@@ -464,8 +481,14 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( f_BattInvestmentCost != 0 ) {
-  if( f_BattMaxCapacityDesign < 0 )
-   batt_design.set_type( ColVariable::kBinary );
+  if( f_BattMaxCapacityDesign < 0 ) {
+   // integer design in {0, ..., |BatteryMaxCapacityDesign|}; reduces to
+   // binary {0,1} when |BatteryMaxCapacityDesign| == 1.
+   if( std::abs( f_BattMaxCapacityDesign ) == 1.0 )
+    batt_design.set_type( ColVariable::kBinary );
+   else
+    batt_design.set_type( ColVariable::kInteger );
+  }
   else
    batt_design.set_type( ColVariable::kNonNegative );
   add_static_variable( batt_design , "x_battery" );
@@ -477,8 +500,14 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( f_ConvInvestmentCost != 0 ) {
-  if( f_ConvMaxCapacityDesign < 0 )
-   conv_design.set_type( ColVariable::kBinary );
+  if( f_ConvMaxCapacityDesign < 0 ) {
+   // integer design in {0, ..., |ConverterMaxCapacityDesign|}; reduces to
+   // binary {0,1} when |ConverterMaxCapacityDesign| == 1.
+   if( std::abs( f_ConvMaxCapacityDesign ) == 1.0 )
+    conv_design.set_type( ColVariable::kBinary );
+   else
+    conv_design.set_type( ColVariable::kInteger );
+  }
   else
    conv_design.set_type( ColVariable::kNonNegative );
   add_static_variable( conv_design , "x_converter" );
@@ -821,14 +850,12 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Battery" );
 
-  // Battery design bounds- - - - - - - - - - - - - - - - - - - - - - - - - -
-
+  // Battery design bounds. f_BattMaxCapacityDesign < 0 selects integer
+  // design with bound |f_BattMaxCapacityDesign|; >= 0 selects continuous
+  // design with bound f_BattMaxCapacityDesign.
   const double lb_b = std::max( 0.0 , f_BattMinCapacityDesign );
-  const bool is_binary_b = ( f_BattMaxCapacityDesign < 0.0 );
-
-  const double ub_b = is_binary_b
-                       ? 1.0 : ( std::abs( f_BattMaxCapacityDesign ) == 1.0
-                            ? 1.0 : std::abs( f_BattMaxCapacityDesign ) );
+  const bool is_integer_b = ( f_BattMaxCapacityDesign < 0.0 );
+  const double ub_b = std::abs( f_BattMaxCapacityDesign );
 
   if( ( lb_b == 1.0 ) && ( ub_b == 1.0 ) )
    batt_design.is_unitary( true , eNoMod );
@@ -840,7 +867,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    add_static_constraint( batt_design_bound_Const ,
 			  "BattDesignBound_Battery" );
 
-   if( is_binary_b )
+   if( is_integer_b )
     batt_design.is_integer( true , eNoMod );
    }
   }  // end( battery design variables ) - - - - - - - - - - - - - - - - - - -
@@ -850,14 +877,12 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // converter design variables - - - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  // Converter design bounds- - - - - - - - - - - - - - - - - - - - - - - - -
-
+  // Converter design bounds. f_ConvMaxCapacityDesign < 0 selects integer
+  // design with bound |f_ConvMaxCapacityDesign|; >= 0 selects continuous
+  // design with bound f_ConvMaxCapacityDesign.
   const double lb_c = std::max( 0.0 , f_ConvMinCapacityDesign );
-  const bool is_binary_c = ( f_ConvMaxCapacityDesign < 0.0 );
-
-  const double ub_c = is_binary_c
-                       ? 1.0 : ( std::abs( f_ConvMaxCapacityDesign ) == 1.0
-                            ? 1.0 : std::abs( f_ConvMaxCapacityDesign ) );
+  const bool is_integer_c = ( f_ConvMaxCapacityDesign < 0.0 );
+  const double ub_c = std::abs( f_ConvMaxCapacityDesign );
 
   if( ( lb_c == 1.0 ) && ( ub_c == 1.0 ) )
    conv_design.is_unitary( true , eNoMod );
@@ -869,7 +894,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    add_static_constraint( conv_design_bound_Const ,
 			  "ConvDesignBound_Battery" );
 
-   if( is_binary_c )
+   if( is_integer_c )
     conv_design.is_integer( true , eNoMod );
    }
   }
@@ -1361,6 +1386,9 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
    ::serialize( group , "ConverterMaxCapacityDesign" , netCDF::NcDouble() ,
                 f_ConvMaxCapacityDesign );
  }
+
+ if( f_scale != 1 )
+  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  if( f_MaxCRateCharge != 1 )
   ::serialize( group , "MaxCRateCharge" , netCDF::NcDouble() ,

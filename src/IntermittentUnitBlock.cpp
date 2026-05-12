@@ -96,6 +96,8 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
   }
 
+ ::deserialize( group , f_scale , "Scale" );
+
  if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
                       true , true , v_change_intervals ) )
   v_MinPower.resize( f_time_horizon );
@@ -161,7 +163,7 @@ std::vector< std::string > IntermittentUnitBlock::expected_vars( void )
  const {
  static const std::vector< std::string > ev =
  { "InvestmentCost" , "MinCapacityDesign" , "MaxCapacityDesign" ,
-   "MaxCapacity" , "MinPower" , "MaxPower" , "InertiaPower" ,
+   "MaxCapacity" , "Scale" , "MinPower" , "MaxPower" , "InertiaPower" ,
    "ActivePowerCost", "Gamma" , "Kappa", "MinReactivePower",
    "MaxReactivePower", "MaxGeneration", "MinGeneration"
    };
@@ -198,6 +200,14 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
  if( ( f_MaxCapacityDesign < 0 ) && ( f_MinCapacityDesign > 1.0 ) )
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                            "MinCapacityDesign must be <= 1 for binary design." ) );
+
+ // Scale and design granularity are two equivalent ways to model multiple
+ // identical modules; combining them with both > 1 over-counts the fleet.
+ if( ( f_scale != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
+  throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
+                           "cannot combine Scale != 1 with "
+                           "|MaxCapacityDesign| > 1; they represent the "
+                           "same multi-module fleet and would double-count." ) );
 
  // Minimum and maximum power
 
@@ -258,8 +268,14 @@ void IntermittentUnitBlock::generate_abstract_variables( Configuration * stvv )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( f_InvestmentCost != 0 ) {
-  if( f_MaxCapacityDesign < 0 )
-   design.set_type( ColVariable::kBinary );
+  if( f_MaxCapacityDesign < 0 ) {
+   // integer design in {0, ..., |MaxCapacityDesign|}; reduces to binary
+   // {0,1} when |MaxCapacityDesign| == 1.
+   if( std::abs( f_MaxCapacityDesign ) == 1.0 )
+    design.set_type( ColVariable::kBinary );
+   else
+    design.set_type( ColVariable::kInteger );
+  }
   else
    design.set_type( ColVariable::kNonNegative );
   add_static_variable( design , "x_intermittent" );
@@ -428,14 +444,12 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Intermittent" );
 
-  // Design bounds
-
+  // Design bounds. f_MaxCapacityDesign < 0 selects integer design with
+  // bound |f_MaxCapacityDesign|; f_MaxCapacityDesign >= 0 selects
+  // continuous design with bound f_MaxCapacityDesign.
+  const bool is_integer_design = ( f_MaxCapacityDesign < 0.0 );
   const double lb = std::max( 0.0 , f_MinCapacityDesign );
-  const bool is_binary = ( f_MaxCapacityDesign < 0.0 );
-
-  const double ub = is_binary
-                     ? 1.0 : ( std::abs( f_MaxCapacityDesign ) == 1.0
-                      ? 1.0 : std::abs( f_MaxCapacityDesign ) );
+  const double ub = std::abs( f_MaxCapacityDesign );
 
   if( ( lb == 1.0 ) && ( ub == 1.0 ) )
    design.is_unitary( true , eNoMod );
@@ -446,7 +460,7 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
    add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
 
-   if( is_binary )
+   if( is_integer_design )
     design.is_integer( true , eNoMod );
   }
  }
@@ -618,6 +632,9 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
    ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
                 f_MaxCapacityDesign );
  }
+
+ if( f_scale != 1 )
+  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  ::serialize( group , "Gamma" , netCDF::NcDouble() , f_gamma );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );

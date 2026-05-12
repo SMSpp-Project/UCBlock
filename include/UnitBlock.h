@@ -535,6 +535,26 @@ class UnitBlock : public Block
 
  virtual double get_scale( void ) const { return( 1 ); }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the upper bound of the design variable
+ /** This method returns the upper bound of the design variable of this
+  * UnitBlock when the unit is in design mode. The intended use is for
+  * pre-computing fleet-level bounds on node injection in the embedding
+  * UCBlock: the per-time-step contribution of one unit to the node
+  * injection is bounded by `get_scale() * get_design_ub() *
+  * get_max_power( t , g )`.
+  *
+  * UnitBlock provides a default implementation returning 1 (which is
+  * correct for blocks whose design variable is binary, like
+  * ThermalUnitBlock). UnitBlocks that support a design upper bound
+  * greater than 1 (IntermittentUnitBlock / BatteryUnitBlock via
+  * MaxCapacityDesign) override it.
+  *
+  * @return The upper bound of the design variable (1 if no design is
+  *         in use or the design is binary). */
+
+ virtual double get_design_ub( void ) const { return( 1 ); }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/

@@ -187,62 +187,7 @@ if is_stochastic
 
     optimize_deterministic_ECmodel(model)
 
-    # `StochasticPrograms.relax_integrality` does not propagate to the
-    # first-stage `n_us` Decision variables, so the deterministic-equivalent
-    # model keeps the integer design vars and Gurobi solves a MILP. The
-    # SMS++ TSSB pipeline treats `x_us = n_us * nom_capacity` as continuous
-    # in `[0, max_capacity]` (no integer constraint on the design side), so
-    # to compare against SMS++ on equal footing we must report the LP
-    # relaxation of the EC.jl model. Dump the model to an LP file, strip
-    # the `Generals` block, reload it in a fresh Gurobi environment, and
-    # use that objective (plus the JuMP objective constant, which is not
-    # encoded in the LP file) as the reference value.
-    relaxed_lp_obj = nothing
-    let det = model.deterministic_model
-        global relaxed_lp_obj
-        grb = JuMP.unsafe_backend(det)
-        lp_path = tempname() * ".lp"
-        relaxed_path = tempname() * ".lp"
-        try
-            Gurobi.GRBwrite(grb, lp_path)
-
-            open(relaxed_path, "w") do io
-                in_generals = false
-                for line in eachline(lp_path)
-                    if startswith(line, "Generals")
-                        in_generals = true
-                        continue
-                    end
-                    if in_generals
-                        startswith(line, "End") && (in_generals = false; println(io, line))
-                        continue
-                    end
-                    println(io, line)
-                end
-            end
-
-            env = Gurobi.Env()
-            lp_model = Ref{Ptr{Cvoid}}()
-            Gurobi.GRBreadmodel(env, relaxed_path, lp_model)
-            Gurobi.GRBsetintparam(Gurobi.GRBgetenv(lp_model[]), "OutputFlag", 0)
-            Gurobi.GRBoptimize(lp_model[])
-            obj = Ref{Cdouble}(0.0)
-            Gurobi.GRBgetdblattr(lp_model[], "ObjVal", obj)
-            relaxed_body = obj[]
-            Gurobi.GRBfreemodel(lp_model[])
-
-            grb_obj_body = Ref{Cdouble}(0.0)
-            Gurobi.GRBgetdblattr(grb, "ObjVal", grb_obj_body)
-            relaxed_lp_obj = relaxed_body +
-                             (JuMP.objective_value(det) - grb_obj_body[])
-        finally
-            isfile(lp_path)      && rm(lp_path)
-            isfile(relaxed_path) && rm(relaxed_path)
-        end
-    end
-
-    obj_value      = relaxed_lp_obj === nothing ?
-                       objective_value(model.model) : relaxed_lp_obj
+    obj_value      = objective_value(model.model)
     optimal_design = model.results[:x_us].data
 else
     println("The model is deterministic.")
