@@ -49,7 +49,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 50  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
         std: std_pv  # std-deviation column of the renewable profile
@@ -73,7 +73,7 @@ users:  # list of users and the corresponding assets
       max_technical: 1.0  # [-] maximum technical working point of the generator
       max_capacity: 10  # [kW] maximum capacity to install
       nom_capacity: 10  # [kW] nominal capacity of the generator
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
   user2:  # name of the user
     # list of components
@@ -85,7 +85,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 80  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
         std: std_pv  # std-deviation column of the renewable profile
@@ -103,7 +103,7 @@ users:  # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       corr_asset: conv  # corresponding converter
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     conv:  # component converter
       type: converter  # type of component
@@ -116,7 +116,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     load:  # component load
       type: load
@@ -135,7 +135,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
         std: std_pv  # std-deviation column of the renewable profile
@@ -147,7 +147,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 20  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
         std: std_wind  # std-deviation column of the renewable profile
@@ -165,7 +165,7 @@ users:  # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       corr_asset: conv  # corresponding converter
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     conv:  # component converter
       type: converter  # type of component
@@ -178,7 +178,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     load:  # component load
       type: load
@@ -197,7 +197,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 40  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
         std: std_pv  # std-deviation column of the renewable profile
@@ -229,7 +229,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 60  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
         std: std_pv  # std-deviation column of the renewable profile
@@ -247,7 +247,7 @@ users:  # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       corr_asset: conv  # corresponding converter
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     conv:  # component converter
       type: converter  # type of component
@@ -260,7 +260,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     load:  # component load
       type: load
@@ -289,7 +289,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
         std: std_pv  # std-deviation column of the renewable profile
@@ -301,7 +301,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 20  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: wind  # code name of the specific renewable profile of the component
         std: std_wind  # std-deviation column of the renewable profile
@@ -319,7 +319,7 @@ users:  # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       corr_asset: conv  # corresponding converter
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     conv:  # component converter
       type: converter  # type of component
@@ -332,7 +332,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     load:  # component load
       type: load
@@ -351,7 +351,7 @@ users:  # list of users and the corresponding assets
       lifetime_y: 25  # [y] lifetime of the component
       max_capacity: 100  # [kW] maximum capacity to install
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
       profile:  # list of profiles
         ren_pu: pv  # code name of the specific renewable profile of the component
         std: std_pv  # std-deviation column of the renewable profile
@@ -369,7 +369,7 @@ users:  # list of users and the corresponding assets
       max_C_ch: 1.0  # [-] maximum C-rate in charge
       corr_asset: conv  # corresponding converter
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     conv:  # component converter
       type: converter  # type of component
@@ -382,7 +382,7 @@ users:  # list of users and the corresponding assets
       max_capacity: 50  # [kW] maximum capacity
       corr_asset: batt  # corresponding battery
       nom_capacity: 1  # [kW] nominal capacity of a base plant
-      modularity: true  # [bool] continuous (true) vs. integer (false) design
+      modularity: true  # [bool] integer (true) vs. continuous (false) design
 
     load:  # component load
       type: load

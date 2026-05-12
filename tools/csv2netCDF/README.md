@@ -66,10 +66,25 @@ julia csv2nc4.jl [yml] --design-mode=design   # default
   behaves as a fleet of `N` identical modules.
 - `design`: a single block sized by `nom_capacity` with `MaxCapacityDesign
   = ±N` (`BatteryMaxCapacityDesign` / `ConverterMaxCapacityDesign` for
-  batteries). The sign is negative ⇔ integer install ∈ `{0,…,N}` (chosen
-  when the YAML asset has `modularity: false`, and always in the stochastic
-  flow to match `EnergyCommunity.jl@stochastic`); otherwise continuous
-  install in `[0, N]`.
+  batteries). The sign is set by the per-asset YAML field `modularity`,
+  using the same convention as `EnergyCommunity.jl`:
+
+  | YAML `modularity`            | `MaxCapacityDesign` |
+  | ---------------------------- | ------------------- |
+  | `true`                       | `−N` (integer)      |
+  | `false` (default if missing) | `+N` (continuous)   |
+
+  The convention is applied uniformly on both the deterministic and the
+  stochastic flow. EC.jl's stochastic branch currently keeps the
+  first-stage `n_us` integer regardless of `modularity` (via
+  `StochasticPrograms`), so for now an integer-flagged YAML matches
+  EC.jl@stochastic exactly while a continuous-flagged YAML diverges
+  there; honouring the field on the stochastic side too makes the
+  encoding forward-compatible with a future EC.jl@stochastic that
+  exposes the same toggle. The `modularity` field is consulted only in
+  `design` mode: `fleet` and `scale` never emit a `MaxCapacityDesign`
+  and always keep the design continuous, so for them the YAML field has
+  no effect.
 
 The three modes are mathematically equivalent at LP-relaxation level; only
 `design` with a negative `MaxCapacityDesign` actually enforces an integer

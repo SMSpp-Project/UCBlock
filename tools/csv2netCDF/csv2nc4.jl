@@ -444,9 +444,17 @@ function csvEC2nc4(
                         scale_var[:] = n_modules
                     elseif design_mode == "design" && n_modules != 1
                         # MaxCapacityDesign = ±N: design bound widened to N;
-                        # sign is negative ⇔ integer ∈ {0,…,N}.
-                        is_integer_design = !deterministic ||
-                            (field_component(users_data[u], g, "modularity", true) == false)
+                        # sign is negative ⇔ integer ∈ {0,…,N}. The
+                        # per-asset YAML `modularity` field uses the same
+                        # convention as `EnergyCommunity.jl`: `true` ⇒
+                        # integer design, `false` (the EC.jl default) ⇒
+                        # continuous. The stochastic flow currently keeps
+                        # n_us integer regardless of this field (via
+                        # StochasticPrograms); honouring `modularity` here
+                        # leaves the encoding forward-compatible with a
+                        # future EC.jl@stochastic that exposes the same
+                        # toggle.
+                        is_integer_design = field_component(users_data[u], g, "modularity", false)
                         mcd_var = defVar(ub, "MaxCapacityDesign", Float64, ())
                         mcd_var[:] = is_integer_design ? -float(n_modules) : float(n_modules)
                     end
@@ -598,13 +606,13 @@ function csvEC2nc4(
                         scale_var = defVar(ub, "Scale", Float64, ())
                         scale_var[:] = n_modules
                     elseif design_mode == "design"
-                        # Per-component MaxCapacityDesign = ±N: design bound
-                        # widened to N (signed by modularity YAML flag;
-                        # stochastic flow always integer).
-                        batt_integer_design = !deterministic ||
-                            (field_component(users_data[u], g, "modularity", true) == false)
-                        conv_integer_design = !deterministic ||
-                            (field_component(users_data[u], g_conv, "modularity", true) == false)
+                        # Per-component MaxCapacityDesign = ±N: sign is
+                        # negative ⇔ integer ∈ {0,…,N}. Each component
+                        # (batt / conv) consults its own `modularity` YAML
+                        # field with the same convention as EC.jl: `true`
+                        # ⇒ integer, `false` (EC.jl default) ⇒ continuous.
+                        batt_integer_design = field_component(users_data[u], g, "modularity", false)
+                        conv_integer_design = field_component(users_data[u], g_conv, "modularity", false)
                         if n_modules_batt != 1
                             batt_mcd_var = defVar(ub, "BatteryMaxCapacityDesign", Float64, ())
                             batt_mcd_var[:] = batt_integer_design ? -float(n_modules_batt) :
@@ -1129,9 +1137,20 @@ NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
 #                f_scale factor multiplies cost / power in the abstract
 #                Objective so the block behaves as a fleet of N modules.
 #   - "design" : per-module sizing (nom_capacity) + MaxCapacityDesign
-#                = ±N, signed by the YAML `modularity` flag — `false`
-#                ⇒ integer ∈ {0,…,N}; the stochastic flow is always
-#                integer to match EnergyCommunity.jl@stochastic.
+#                = ±N. The sign is set by the per-asset YAML field
+#                `modularity`, using the same convention as
+#                EnergyCommunity.jl: `true` ⇒ −N (integer ∈ {0,…,N}),
+#                `false` (the EC.jl default, also ours when the field
+#                is missing) ⇒ +N (continuous in [0, N]). The
+#                convention is applied uniformly on both deterministic
+#                and stochastic flow — the stochastic flow currently
+#                keeps n_us integer regardless of this field (via
+#                StochasticPrograms), but honouring `modularity` here
+#                makes the encoding forward-compatible with a future
+#                EC.jl@stochastic that exposes the same toggle.
+#                `modularity` is read only in this mode; "fleet" and
+#                "scale" never emit a MaxCapacityDesign and ignore the
+#                field.
 # Thermal units are unaffected: ThermalUnitBlock has a binary design
 # variable only, so a granular integer count {0,…,N} is always achieved
 # by replicating the block N times (Scale = N on a thermal block forces
