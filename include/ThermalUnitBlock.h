@@ -445,7 +445,23 @@ class ThermalUnitBlock : public UnitBlock
   *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
   *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
   *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded. */
+  *   require "ChangeIntervals", which in fact is not loaded.
+  *
+  * - The scalar variable "Scale", of type netCDF::NcDouble and not indexed
+  *   over any dimension. Sets the scale factor \f$ S \f$ of this UnitBlock
+  *   (see UnitBlock::scale() for the general semantics); optional, default
+  *   1. Since the design variable of a ThermalUnitBlock is binary, the
+  *   only effect of \f$ S \f$ here is to multiply every cost coefficient
+  *   and every per-generator output (active power, reserves) in the
+  *   Objective by \f$ S \f$, while the commitment variable stays binary.
+  *   In other words, "Scale" = N models a *synchronous* fleet of N
+  *   identical thermal modules that are committed all together at every
+  *   time step (all-or-nothing build). This is more restrictive than the
+  *   integer install \f$ \in \{ 0 , \ldots , N \} \f$ that
+  *   IntermittentUnitBlock and BatteryUnitBlock can express via
+  *   "MaxCapacityDesign" \f$ = -N \f$: to obtain a granular integer count
+  *   of identical thermal units use N separate ThermalUnitBlocks with
+  *   binary design instead. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

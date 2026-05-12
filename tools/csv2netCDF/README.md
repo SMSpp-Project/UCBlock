@@ -41,12 +41,45 @@ julia csv2nc4.jl energy_community_model_CO --no-asset
 
 `--no-asset` implies no thermal (so it cannot be combined with `--no-thermal`).
 
-Finally, for test purposes, the script can take an additional flag to enforce
+For test purposes, the script can take an additional flag to enforce
 the generation of the physical ECNetworkBlock(s), which adds the `_NB` suffix:
 
 ```sh
 julia csv2nc4.jl [yml] --with-network-blocks
 ```
+
+Finally, for `PV` / `wind` (`IntermittentUnitBlock`) and `batt` / `conv`
+(`BatteryUnitBlock`) installable assets, the fleet of `N = max_capacity /
+nom_capacity` identical modules can be encoded in three LP-equivalent ways
+selected by `--design-mode`:
+
+```sh
+julia csv2nc4.jl [yml] --design-mode=fleet
+julia csv2nc4.jl [yml] --design-mode=scale
+julia csv2nc4.jl [yml] --design-mode=design   # default
+```
+
+- `fleet`: a single block sized by `max_capacity`; the design variable is
+  continuous in `[0, 1]`, no `Scale` / `MaxCapacityDesign` emitted.
+- `scale`: a single block sized by `nom_capacity` with `Scale = N`; the
+  `f_scale` factor multiplies the cost and power coefficients so the block
+  behaves as a fleet of `N` identical modules.
+- `design`: a single block sized by `nom_capacity` with `MaxCapacityDesign
+  = ±N` (`BatteryMaxCapacityDesign` / `ConverterMaxCapacityDesign` for
+  batteries). The sign is negative ⇔ integer install ∈ `{0,…,N}` (chosen
+  when the YAML asset has `modularity: false`, and always in the stochastic
+  flow to match `EnergyCommunity.jl@stochastic`); otherwise continuous
+  install in `[0, N]`.
+
+The three modes are mathematically equivalent at LP-relaxation level; only
+`design` with a negative `MaxCapacityDesign` actually enforces an integer
+install at MILP level. `Scale ≠ 1` and `|MaxCapacityDesign| > 1` (or
+`|Battery/ConverterMaxCapacityDesign| > 1` for batteries) are *mutually
+exclusive* — `check_data_consistency()` on the C++ side rejects
+configurations that activate both. Thermal assets are unaffected: a
+`ThermalUnitBlock` has a binary design variable only, so a granular integer
+count `{0,…,N}` is achieved by replicating the block `N` times rather than
+via `Scale = N` (which would force a synchronous all-or-nothing fleet).
 
 The convenience wrapper `gen-all-nc4` runs the deterministic and stochastic
 batches over CO and NC (with `_TUB` default and `--no-thermal` variants) plus

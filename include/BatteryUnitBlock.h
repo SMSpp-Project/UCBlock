@@ -556,7 +556,28 @@ class BatteryUnitBlock : public UnitBlock
   *   contains the factor that multiplies the minimum and maximum active
   *   power, maximum primary and secondary reserve, and the minimum and
   *   maximum storage levels, at each time instant \f$ t \f$. This variable is
-  *   optional; if it is not provided it is taken to be \f$ \kappa = 1 \f$. */
+  *   optional; if it is not provided it is taken to be \f$ \kappa = 1 \f$.
+  *
+  * - The scalar variable "Scale", of type netCDF::NcDouble and not indexed
+  *   over any dimension. Sets the scale factor \f$ S \f$ of this UnitBlock
+  *   (see UnitBlock::scale() for the general semantics); optional, default
+  *   1. "Scale" = N models a fleet of N identical BatteryUnitBlock modules
+  *   sized per-module (i.e., "MaxPower", "MinStorage", "MaxStorage", the
+  *   two "InvestmentCost" variables and the converter side describe a
+  *   single module): the battery and converter design variables stay in
+  *   \f$ [ 0 , \mathrm{BatteryMaxCapacityDesign} ] \f$ and
+  *   \f$ [ 0 , \mathrm{ConverterMaxCapacityDesign} ] \f$ but every
+  *   per-generator power, storage bound and objective coefficient is
+  *   multiplied by \f$ S \f$, so the model is mathematically equivalent
+  *   (LP-wise) to a single block with per-fleet sizing and design bounds
+  *   \f$ N \times \mathrm{BatteryMaxCapacityDesign} \f$ and
+  *   \f$ N \times \mathrm{ConverterMaxCapacityDesign} \f$. Because of this
+  *   equivalence, "Scale" \f$ \neq 1 \f$ and
+  *   \f$ |\mathrm{BatteryMaxCapacityDesign}| > 1 \f$ (or
+  *   \f$ |\mathrm{ConverterMaxCapacityDesign}| > 1 \f$) are *mutually
+  *   exclusive*: the two mechanisms encode the same replication and
+  *   combining them double-counts the fleet size. check_data_consistency()
+  *   rejects configurations that activate both. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

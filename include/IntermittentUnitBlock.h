@@ -277,7 +277,24 @@ class IntermittentUnitBlock : public UnitBlock
   * - The scalar variable "Kappa", of type netCDF::NcDouble and not indexed
   *   over any dimension. This variable multiplies the minimum and maximum
   *   power at each time instant \f$ t \f$. This variable is optional; if it
-  *   is not provided it is taken to be \f$ \kappa = 1 \f$. */
+  *   is not provided it is taken to be \f$ \kappa = 1 \f$.
+  *
+  * - The scalar variable "Scale", of type netCDF::NcDouble and not indexed
+  *   over any dimension. Sets the scale factor \f$ S \f$ of this UnitBlock
+  *   (see UnitBlock::scale() for the general semantics); optional, default
+  *   1. "Scale" = N models a fleet of N identical IntermittentUnitBlock
+  *   modules sized per-module (i.e., "MaxPower" / "InvestmentCost"
+  *   describe a single module): the design variable stays in
+  *   \f$ [ 0 , \mathrm{MaxCapacityDesign} ] \f$ but every per-generator
+  *   power and every objective coefficient is multiplied by \f$ S \f$, so
+  *   the model is mathematically equivalent (LP-wise) to a single block
+  *   with per-fleet sizing and design bound \f$ N \times
+  *   \mathrm{MaxCapacityDesign} \f$. Because of this equivalence,
+  *   "Scale" \f$ \neq 1 \f$ and \f$ |\mathrm{MaxCapacityDesign}| > 1 \f$
+  *   are *mutually exclusive*: the two mechanisms encode the same
+  *   replication and combining them double-counts the fleet size.
+  *   check_data_consistency() rejects configurations that activate
+  *   both. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

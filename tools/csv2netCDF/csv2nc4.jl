@@ -346,10 +346,17 @@ function csvEC2nc4(
 
     # Create g `UnitBlock`(s) for each electrical generator/device
 
-    # one UnitBlock per installable device (regardless of fleet size — the
-    # fleet count is carried inside the block via Scale)
-    n_devices = sum(length(asset_names(users_data[u], SMSPP_DEVICES))
-                    for u in user_set; init=0)
+    # one UnitBlock per installable device, except for thermal generators
+    # which are replicated N = max_capacity / nom_capacity times (each
+    # replica is a binary-design ThermalUnitBlock; the sum over replicas
+    # gives the integer fleet count, matching EC.jl `n_us`). PV/wind/batt
+    # carry the fleet size inside a single block via Scale.
+    n_devices = reduce(+, [d != "generator" ? 1 :
+                           div(field_component(users_data[u], d, "max_capacity"),
+                               field_component(users_data[u], d, "nom_capacity"))
+                           for u in user_set
+                           for d in asset_names(users_data[u], SMSPP_DEVICES)],
+                       init=0)
     defDim(block, "NumberUnits", n_devices)
 
     # AbstractPath
@@ -386,27 +393,27 @@ function csvEC2nc4(
 
                     ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
 
-                    # Single IntermittentUnitBlock representing N identical
-                    # modules via Scale = N (default). Per-module MaxPower
-                    # and InvestmentCost; f_scale multiplies them in the
-                    # objective so total fleet quantities are preserved.
-                    #
-                    # Alternative (commented below): drop Scale and use the
-                    # design-variable bound instead — set MaxCapacityDesign
-                    # to ±N (negative = integer ∈ {0,…,N}, positive =
-                    # continuous ∈ [0, N]). The two modes are mathematically
-                    # equivalent for the continuous LP; the design-variable
-                    # mode also allows integer fleet count to match
-                    # EnergyCommunity.jl@stochastic.
+                    # The fleet of N = max_capacity / nom_capacity identical
+                    # modules is encoded according to the top-level
+                    # `design_mode` flag (see the CLI parser at the bottom of
+                    # this file). The three modes are LP-equivalent on the
+                    # install bound; only "design" with negative MaxCapacityDesign
+                    # actually enforces an integer install at MILP level.
                     n_modules = div(field_component(users_data[u], g, "max_capacity"),
                                     field_component(users_data[u], g, "nom_capacity"))
 
-                    # maximum installable capacity (fleet-level, reporting)
+                    # maximum installable capacity (always the fleet total)
                     max_capacity = defVar(ub, "MaxCapacity", Float64, ())
                     max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
-                    # maximum power (per module)
-                    max_power_data = [field_component(users_data[u], g, "nom_capacity") *
+                    # "fleet" mode sizes MaxPower / InvestmentCost by
+                    # max_capacity; "scale" and "design" by nom_capacity.
+                    size_capacity = design_mode == "fleet" ?
+                                    field_component(users_data[u], g, "max_capacity") :
+                                    field_component(users_data[u], g, "nom_capacity")
+
+                    # maximum power
+                    max_power_data = [size_capacity *
                                       profile_component(users_data[u], g, "ren_pu")[t]
                                       for t in time_set]
                     if (allequal(max_power_data))
@@ -417,46 +424,39 @@ function csvEC2nc4(
                         max_power[:] = max_power_data[:]
                     end
 
-                    # Net Present Value (per module)
+                    # Net Present Value
                     investment_cost = defVar(ub, "InvestmentCost", Float64, ())
-                    investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                             ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                    investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") :
+                                             ((field_component(users_data[u], g, "OEM_lin") +
                                                ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                field_component(users_data[u], g, "CAPEX_lin") : 0.0) -
                                                ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
                                                 field_component(users_data[u], g, "CAPEX_lin") *
                                                 (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) *
                                               (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                         field_component(users_data[u], g, "nom_capacity")
+                                         size_capacity
 
-                    # default: Scale = N (single block, N identical modules
-                    # in lockstep)
-                    if n_modules > 1
+                    if design_mode == "scale" && n_modules > 1
+                        # Scale = N: f_scale on the block aggregates the
+                        # per-module sizing to fleet level.
                         scale_var = defVar(ub, "Scale", Float64, ())
                         scale_var[:] = n_modules
+                    elseif design_mode == "design" && n_modules != 1
+                        # MaxCapacityDesign = ±N: design bound widened to N;
+                        # sign is negative ⇔ integer ∈ {0,…,N}.
+                        is_integer_design = !deterministic ||
+                            (field_component(users_data[u], g, "modularity", true) == false)
+                        mcd_var = defVar(ub, "MaxCapacityDesign", Float64, ())
+                        mcd_var[:] = is_integer_design ? -float(n_modules) : float(n_modules)
                     end
-
-                    # alternative: comment out the Scale block above and
-                    # uncomment the block below to switch to the design-
-                    # variable mode (MaxCapacityDesign = ±N). The block
-                    # check_data_consistency disallows mixing the two.
-                    #
-                    # is_integer_design = !deterministic ||
-                    #     (field_component(users_data[u], g, "modularity", true) == false)
-                    # mcd_signed = is_integer_design ? -float(n_modules) :
-                    #                                   float(n_modules)
-                    # if n_modules != 1
-                    #     mcd_var = defVar(ub, "MaxCapacityDesign", Float64, ())
-                    #     mcd_var[:] = mcd_signed
-                    # end
 
                     if !deterministic # stochastic model
                         path_dim += 1
                         append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
                         append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_intermittent
                         append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_intermittent
-                        push!(intermittent_units, (last_g, u, g, field_component(users_data[u], g, "nom_capacity")))
+                        push!(intermittent_units, (last_g, u, g, size_capacity))
                     end
 
                     last_g += 1
@@ -466,15 +466,11 @@ function csvEC2nc4(
 
                     ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
 
-                    # Single BatteryUnitBlock representing N identical
-                    # battery + converter modules via Scale = N (default).
-                    # The same Scale applies to both batt and conv since
-                    # they live in the same block.
-                    #
-                    # Alternative (commented below): drop Scale and use the
-                    # per-component design bounds — BatteryMaxCapacityDesign
-                    # and ConverterMaxCapacityDesign set to ±N (negative =
-                    # integer, positive = continuous).
+                    # The fleet of N identical modules is encoded according
+                    # to the top-level `design_mode` flag (see the CLI parser
+                    # at the bottom of this file). batt_n_modules and
+                    # conv_n_modules must match because they live in the
+                    # same block.
                     g_conv = field_component(users_data[u], g, "corr_asset")
                     n_modules_batt = div(field_component(users_data[u], g, "max_capacity"),
                                          field_component(users_data[u], g, "nom_capacity"))
@@ -487,15 +483,25 @@ function csvEC2nc4(
                     end
                     n_modules = n_modules_batt
 
+                    # "fleet" mode sizes per-component MaxPower / storage /
+                    # InvestmentCost by max_capacity; "scale" and "design" by
+                    # nom_capacity.
+                    batt_size = design_mode == "fleet" ?
+                                field_component(users_data[u], g, "max_capacity") :
+                                field_component(users_data[u], g, "nom_capacity")
+                    conv_size = design_mode == "fleet" ?
+                                field_component(users_data[u], g_conv, "max_capacity") :
+                                field_component(users_data[u], g_conv, "nom_capacity")
+
                     # ----------- Battery -----------
 
-                    # maximum installable capacity (fleet-level, reporting)
+                    # maximum installable capacity (always the fleet total)
                     batt_max_capacity = defVar(ub, "BatteryMaxCapacity", Float64, ())
                     batt_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
-                    # maximum power (per module)
+                    # maximum power
                     batt_max_power = defVar(ub, "MaxPower", Float64, ())
-                    batt_max_power[:] = field_component(users_data[u], g, "nom_capacity")
+                    batt_max_power[:] = batt_size
 
                     # store the maximum C-rate of the battery in charge
                     max_C_ch = field_component(users_data[u], g, "max_C_ch")
@@ -515,10 +521,10 @@ function csvEC2nc4(
                     initial_storage = defVar(ub, "InitialStorage", Float64, ())
                     initial_storage[:] = -1
 
-                    # minimum storage (per module)
+                    # minimum storage
                     min_storage_data = [field_component(users_data[u], g, "min_SOC") /
                                         time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                        for t in time_set] * field_component(users_data[u], g, "nom_capacity")
+                                        for t in time_set] * batt_size
                     if (allequal(min_storage_data))
                         min_storage = defVar(ub, "MinStorage", Float64, ())
                         min_storage[:] = min_storage_data[1]
@@ -527,10 +533,10 @@ function csvEC2nc4(
                         min_storage[:] = min_storage_data[:]
                     end
 
-                    # maximum storage (per module)
+                    # maximum storage
                     max_storage_data = [field_component(users_data[u], g, "max_SOC") /
                                         time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                        for t in time_set] * field_component(users_data[u], g, "nom_capacity")
+                                        for t in time_set] * batt_size
                     if (allequal(max_storage_data))
                         max_storage = defVar(ub, "MaxStorage", Float64, ())
                         max_storage[:] = max_storage_data[1]
@@ -539,28 +545,28 @@ function csvEC2nc4(
                         max_storage[:] = max_storage_data[:]
                     end
 
-                    # Net Present Value of the battery (per module)
+                    # Net Present Value of the battery
                     batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
-                    batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                                   ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                    batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") :
+                                                   ((field_component(users_data[u], g, "OEM_lin") +
                                                      ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                      field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                      field_component(users_data[u], g, "CAPEX_lin") : 0.0) -
                                                      ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
                                                       field_component(users_data[u], g, "CAPEX_lin") *
                                                       (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                             field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                             field_component(users_data[u], g, "lifetime_y")) : 0.0)) *
                                                     (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                               field_component(users_data[u], g, "nom_capacity"))
+                                               batt_size)
 
                     # ---------- Converter ----------
 
-                    # maximum installable capacity (fleet-level, reporting)
+                    # maximum installable capacity (always the fleet total)
                     conv_max_capacity = defVar(ub, "ConverterMaxCapacity", Float64, ())
                     conv_max_capacity[:] = field_component(users_data[u], g_conv, "max_capacity")
 
-                    # maximum power (per module)
+                    # maximum power
                     conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
-                    conv_max_power[:] = field_component(users_data[u], g_conv, "nom_capacity")
+                    conv_max_power[:] = conv_size
 
                     # intake roundtrip efficiency
                     intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ())
@@ -572,47 +578,44 @@ function csvEC2nc4(
                     outtake_coeff[:] = sqrt(field_component(users_data[u], g, "eta")) *
                                        field_component(users_data[u], g_conv, "eta")
 
-                    # Net Present Value of the converter (per module)
+                    # Net Present Value of the converter
                     conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
-                    conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
-                                                   ((field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
+                    conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") :
+                                                   ((field_component(users_data[u], g_conv, "OEM_lin") +
                                                      ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                      field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                      field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) -
                                                      ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) != 0 && y == project_lifetime) ?
                                                       field_component(users_data[u], g_conv, "CAPEX_lin") *
                                                       (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
-                                                             field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                             field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) *
                                                     (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                               field_component(users_data[u], g_conv, "nom_capacity"))
+                                               conv_size)
 
-                    # default: Scale = N (single block, N synchronous
-                    # batt + conv modules in lockstep)
-                    if n_modules > 1
+                    if design_mode == "scale" && n_modules > 1
+                        # Scale = N: f_scale on the block aggregates the
+                        # per-module sizing to fleet level (batt and conv
+                        # share the same n_modules by construction).
                         scale_var = defVar(ub, "Scale", Float64, ())
                         scale_var[:] = n_modules
+                    elseif design_mode == "design"
+                        # Per-component MaxCapacityDesign = ±N: design bound
+                        # widened to N (signed by modularity YAML flag;
+                        # stochastic flow always integer).
+                        batt_integer_design = !deterministic ||
+                            (field_component(users_data[u], g, "modularity", true) == false)
+                        conv_integer_design = !deterministic ||
+                            (field_component(users_data[u], g_conv, "modularity", true) == false)
+                        if n_modules_batt != 1
+                            batt_mcd_var = defVar(ub, "BatteryMaxCapacityDesign", Float64, ())
+                            batt_mcd_var[:] = batt_integer_design ? -float(n_modules_batt) :
+                                                                     float(n_modules_batt)
+                        end
+                        if n_modules_conv != 1
+                            conv_mcd_var = defVar(ub, "ConverterMaxCapacityDesign", Float64, ())
+                            conv_mcd_var[:] = conv_integer_design ? -float(n_modules_conv) :
+                                                                     float(n_modules_conv)
+                        end
                     end
-
-                    # alternative: comment out the Scale block above and
-                    # uncomment the block below to switch to per-component
-                    # design bounds. The block check_data_consistency
-                    # disallows mixing the two.
-                    #
-                    # batt_integer_design = !deterministic ||
-                    #     (field_component(users_data[u], g, "modularity", true) == false)
-                    # conv_integer_design = !deterministic ||
-                    #     (field_component(users_data[u], g_conv, "modularity", true) == false)
-                    # batt_mcd_signed = batt_integer_design ? -float(n_modules_batt) :
-                    #                                          float(n_modules_batt)
-                    # conv_mcd_signed = conv_integer_design ? -float(n_modules_conv) :
-                    #                                          float(n_modules_conv)
-                    # if n_modules_batt != 1
-                    #     batt_mcd_var = defVar(ub, "BatteryMaxCapacityDesign", Float64, ())
-                    #     batt_mcd_var[:] = batt_mcd_signed
-                    # end
-                    # if n_modules_conv != 1
-                    #     conv_mcd_var = defVar(ub, "ConverterMaxCapacityDesign", Float64, ())
-                    #     conv_mcd_var[:] = conv_mcd_signed
-                    # end
 
                     if !deterministic # stochastic model
                         path_dim += 2
@@ -626,102 +629,100 @@ function csvEC2nc4(
 
                 elseif g == "generator"
 
-                    # Single ThermalUnitBlock representing N identical
-                    # modules via Scale = N. Per-module data (Capacity,
-                    # MinPower, MaxPower, InvestmentCost, LinearTerm,
-                    # ConstTerm); f_scale multiplies cost terms in the
-                    # objective so total fleet cost is preserved.
+                    # ThermalUnitBlock has a binary design variable only:
+                    # to model a fleet of N identical modules with granular
+                    # integer count {0,…,N} (matching EnergyCommunity.jl's
+                    # n_us), we replicate the block N times rather than use
+                    # Scale = N (which would force a synchronous-fleet
+                    # all-or-nothing build, restricting feasibility).
                     n_modules = div(field_component(users_data[u], g, "max_capacity"),
                                     field_component(users_data[u], g, "nom_capacity"))
 
-                    ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
+                    for _ in 1:n_modules
 
-                    # installable capacity (per module)
-                    thermal_capacity = defVar(ub, "Capacity", Float64, ())
-                    thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
+                        ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
 
-                    # minimum power (per module)
-                    thermal_min_power = defVar(ub, "MinPower", Float64, ())
-                    thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
-                                            field_component(users_data[u], g, "nom_capacity"))
+                        # installable capacity (per module)
+                        thermal_capacity = defVar(ub, "Capacity", Float64, ())
+                        thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
 
-                    # maximum power (per module)
-                    thermal_max_power = defVar(ub, "MaxPower", Float64, ())
-                    thermal_max_power_val =
-                        field_component(users_data[u], g, "max_technical") *
-                        field_component(users_data[u], g, "nom_capacity")
-                    thermal_max_power[:] = thermal_max_power_val
+                        # minimum power (per module)
+                        thermal_min_power = defVar(ub, "MinPower", Float64, ())
+                        thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
+                                                field_component(users_data[u], g, "nom_capacity"))
 
-                    # start-up limit
-                    thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
-                    thermal_start_up_limit[:] = thermal_max_power_val
+                        # maximum power (per module)
+                        thermal_max_power = defVar(ub, "MaxPower", Float64, ())
+                        thermal_max_power_val =
+                            field_component(users_data[u], g, "max_technical") *
+                            field_component(users_data[u], g, "nom_capacity")
+                        thermal_max_power[:] = thermal_max_power_val
 
-                    # shut-down limit
-                    thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
-                    thermal_shut_up_limit[:] = thermal_max_power_val
+                        # start-up limit
+                        thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
+                        thermal_start_up_limit[:] = thermal_max_power_val
 
-                    # Net Present Value of the thermal (per module)
-                    investment_cost = defVar(ub, "InvestmentCost", Float64, ())
-                    investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                             ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
-                                               ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
-                                                field_component(users_data[u], g, "CAPEX_lin") *
-                                                (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
-                                              (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                         field_component(users_data[u], g, "nom_capacity")
+                        # shut-down limit
+                        thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
+                        thermal_shut_up_limit[:] = thermal_max_power_val
 
-                    # store the linear term of the thermal
-                    linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
-                                             field_component(users_data[u], g, "slope_map")) *
-                                            energy_weight_profile[t] *
-                                            time_res_profile[t]
-                                            for t in time_set] *
-                                           (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
-                    if (allequal(linear_term_data))
-                        linear_term = defVar(ub, "LinearTerm", Float64, ())
-                        linear_term[:] = linear_term_data[1]
-                    else
-                        linear_term = defVar(ub, "LinearTerm", Float64, ("TimeHorizon",))
-                        linear_term[:] = linear_term_data[:]
+                        # Net Present Value of the thermal (per module)
+                        investment_cost = defVar(ub, "InvestmentCost", Float64, ())
+                        investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
+                                                 ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
+                                                    field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                   ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
+                                                    field_component(users_data[u], g, "CAPEX_lin") *
+                                                    (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
+                                                           field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                  (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
+                                             field_component(users_data[u], g, "nom_capacity")
+
+                        # store the linear term of the thermal
+                        linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
+                                                 field_component(users_data[u], g, "slope_map")) *
+                                                energy_weight_profile[t] *
+                                                time_res_profile[t]
+                                                for t in time_set] *
+                                               (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
+                        if (allequal(linear_term_data))
+                            linear_term = defVar(ub, "LinearTerm", Float64, ())
+                            linear_term[:] = linear_term_data[1]
+                        else
+                            linear_term = defVar(ub, "LinearTerm", Float64, ("TimeHorizon",))
+                            linear_term[:] = linear_term_data[:]
+                        end
+
+                        # constant term: commitment-based O&M (OEM_com, else OEM_lin)
+                        # plus fuel intercept, per module
+                        oem_com = field_component(users_data[u], g, "OEM_com",
+                                                  field_component(users_data[u], g, "OEM_lin"))
+                        const_term_data = sum([(oem_com +
+                                                (field_component(users_data[u], g, "fuel_price") *
+                                                 field_component(users_data[u], g, "inter_map"))) *
+                                               energy_weight_profile[t] *
+                                               time_res_profile[t]
+                                               for t in time_set] *
+                                              (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
+                                          field_component(users_data[u], g, "nom_capacity")
+                        if (allequal(const_term_data))
+                            const_term = defVar(ub, "ConstTerm", Float64, ())
+                            const_term[:] = const_term_data[1]
+                        else
+                            const_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
+                            const_term[:] = const_term_data[:]
+                        end
+
+                        if !deterministic # stochastic model
+                            path_dim += 1
+                            append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
+                            append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
+                            append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
+                        end
+
+                        last_g += 1
+                        generator_node[last_g] = i_u - 1 # assign the ownership of the current thermal generator to the respective user
                     end
-
-                    # constant term: commitment-based O&M (OEM_com, else OEM_lin)
-                    # plus fuel intercept, per module
-                    oem_com = field_component(users_data[u], g, "OEM_com",
-                                              field_component(users_data[u], g, "OEM_lin"))
-                    const_term_data = sum([(oem_com +
-                                            (field_component(users_data[u], g, "fuel_price") *
-                                             field_component(users_data[u], g, "inter_map"))) *
-                                           energy_weight_profile[t] *
-                                           time_res_profile[t]
-                                           for t in time_set] *
-                                          (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
-                                      field_component(users_data[u], g, "nom_capacity")
-                    if (allequal(const_term_data))
-                        const_term = defVar(ub, "ConstTerm", Float64, ())
-                        const_term[:] = const_term_data[1]
-                    else
-                        const_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
-                        const_term[:] = const_term_data[:]
-                    end
-
-                    # fleet scale factor (omit when 1 — f_scale defaults to 1)
-                    if n_modules > 1
-                        scale_var = defVar(ub, "Scale", Float64, ())
-                        scale_var[:] = n_modules
-                    end
-
-                    if !deterministic # stochastic model
-                        path_dim += 1
-                        append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
-                        append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
-                        append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
-                    end
-
-                    last_g += 1
-                    generator_node[last_g] = i_u - 1 # assign the ownership of the current thermal generator to the respective user
                 end
             end
         end
@@ -1112,12 +1113,38 @@ end
 
 ## Parameters
 
-@assert 0 <= length(ARGS) <= 3
+@assert 0 <= length(ARGS) <= 4
 
 NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
 @assert 0 <= length(NO_OPTION_ARGS) <= 1
 
-OPTION_ARGS = setdiff(ARGS, NO_OPTION_ARGS)
+# Separate the value-taking --design-mode= flag from the boolean ones.
+# `design_mode` selects how PV/wind and batt/conv encode a fleet of N
+# identical modules in the IntermittentUnitBlock / BatteryUnitBlock
+# netCDF schema. The three modes are mathematically equivalent at the
+# LP-relaxation level (so the SMS++ tests pass under any of them):
+#   - "fleet"  : single block sized by max_capacity, design ∈ [0, 1]
+#                continuous (MaxCapacityDesign defaults to 1, no Scale).
+#   - "scale"  : per-module sizing (nom_capacity) + Scale = N. The
+#                f_scale factor multiplies cost / power in the abstract
+#                Objective so the block behaves as a fleet of N modules.
+#   - "design" : per-module sizing (nom_capacity) + MaxCapacityDesign
+#                = ±N, signed by the YAML `modularity` flag — `false`
+#                ⇒ integer ∈ {0,…,N}; the stochastic flow is always
+#                integer to match EnergyCommunity.jl@stochastic.
+# Thermal units are unaffected: ThermalUnitBlock has a binary design
+# variable only, so a granular integer count {0,…,N} is always achieved
+# by replicating the block N times (Scale = N on a thermal block forces
+# a synchronous all-or-nothing fleet).
+all_option_args = setdiff(ARGS, NO_OPTION_ARGS)
+DESIGN_MODE_PREFIX = "--design-mode="
+design_mode_args = filter(a -> startswith(a, DESIGN_MODE_PREFIX), all_option_args)
+@assert length(design_mode_args) <= 1 "at most one --design-mode= may be provided"
+design_mode = isempty(design_mode_args) ? "design" :
+              string(design_mode_args[1][length(DESIGN_MODE_PREFIX)+1:end])
+@assert design_mode in ("fleet", "scale", "design") "Unknown --design-mode value: $(design_mode) (use fleet, scale, or design)"
+
+OPTION_ARGS = setdiff(all_option_args, design_mode_args)
 @assert 0 <= length(OPTION_ARGS) <= 2
 @assert issubset(OPTION_ARGS, ["--no-thermal", "--no-asset", "--with-network-blocks"])
 @assert !(("--no-thermal" in OPTION_ARGS) && ("--no-asset" in OPTION_ARGS)) "--no-thermal is implied by --no-asset; do not pass both"

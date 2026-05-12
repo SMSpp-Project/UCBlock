@@ -247,16 +247,14 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // start-up, shut-down limits
  if( ! ::deserialize( group , "StartUpLimit" , f_time_horizon ,
-		      v_StartUpLimit , true , true , v_change_intervals )
-     ) {
+		      v_StartUpLimit , true , true , v_change_intervals ) ) {
   v_StartUpLimit.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_StartUpLimit[ t ] = get_operational_min_power( t );
   }
 
  if( ! ::deserialize( group , "ShutDownLimit" , f_time_horizon ,
-		      v_ShutDownLimit , true , true , v_change_intervals )
-     ) {
+		      v_ShutDownLimit , true , true , v_change_intervals ) ) {
   v_ShutDownLimit.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    v_ShutDownLimit[ t ] = get_operational_min_power( t );
@@ -382,7 +380,7 @@ void ThermalUnitBlock::check_data_consistency( void ) const
   if( v_MinPower[ t ] < 0 )
    throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
                             "minimum power at time " + std::to_string( t ) +
-			    " is " + std::to_string( v_MinPower[ t ] ) +
+			                         " is " + std::to_string( v_MinPower[ t ] ) +
                             ", but it must be nonnegative" ) );
   }
 
@@ -393,7 +391,7 @@ void ThermalUnitBlock::check_data_consistency( void ) const
    if( ( v_Availability[ t ] < 0 ) || ( v_Availability[ t ] > 1 ) )
     throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: "
                              "availability at time " + std::to_string( t ) +
-			     " is " + std::to_string( v_Availability[ t ] ) +
+			                          " is " + std::to_string( v_Availability[ t ] ) +
                              ", but it must be between 0 and 1" ) );
   }
 
@@ -451,8 +449,7 @@ void ThermalUnitBlock::check_data_consistency( void ) const
                             ", but it must be between " +
                             std::to_string( get_operational_min_power( t ) )
                             + " and " +
-                            std::to_string( get_operational_max_power( t ) )
-			    ) );
+                            std::to_string( get_operational_max_power( t ) ) ) );
 
  // ShutDownLimit - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -3797,8 +3794,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   vars.push_back( std::make_tuple( & v_active_power[ t ] ,
                                    f_scale * v_LinearTerm[ t ] ,
-                                   AR & PCuts ?
-				   0 : f_scale * v_QuadTerm[ t ] ) );
+                                   AR & PCuts ? 0 : f_scale * v_QuadTerm[ t ] ) );
 
  // add the commitment variables- - - - - - - - - - - - - - - - - - - - - - -
  for( Index t = 0 ; t < f_time_horizon ; ++t )

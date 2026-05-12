@@ -187,7 +187,41 @@ if is_stochastic
 
     optimize_deterministic_ECmodel(model)
 
-    obj_value      = objective_value(model.model)
+    # The SMS++ TSSB test compares against the LP-relaxation value (the
+    # LagrangianDualSolver in BSPar-2S.txt converges to the LP bound, and
+    # the MILPSolver runs with `intRelaxIntVars=1`), so the EC.jl
+    # reference must also be the LP optimum. The bulk
+    # `StochasticPrograms.relax_integrality` entry point skips Decision
+    # variables, and `JuMP.relax_integrality` on the materialized
+    # `deterministic_model` doesn't propagate either. The pure-API way
+    # is to iterate every Decision (stage 1 first-stage + per-scenario
+    # stage > 1) plus every regular JuMP variable of the DEP and unset
+    # the integer / binary attribute one-by-one.
+    let sp = model.model, det = model.deterministic_model
+        # First-stage Decisions.
+        for dvar in StochasticPrograms.all_decision_variables(sp, 1)
+            JuMP.is_integer(dvar) && JuMP.unset_integer(dvar)
+            JuMP.is_binary(dvar)  && JuMP.unset_binary(dvar)
+        end
+        # Stage > 1 Decisions (scenario-dependent).
+        n_scen = StochasticPrograms.num_scenarios(sp)
+        for stage in 2:StochasticPrograms.num_stages(sp)
+            for dvar in StochasticPrograms.all_decision_variables(sp, stage)
+                for s in 1:n_scen
+                    JuMP.is_integer(dvar, s) && JuMP.unset_integer(dvar, s)
+                    JuMP.is_binary(dvar, s)  && JuMP.unset_binary(dvar, s)
+                end
+            end
+        end
+        # Plain JuMP variables on the DEP that are not Decisions.
+        for var in JuMP.all_variables(det)
+            JuMP.is_integer(var) && JuMP.unset_integer(var)
+            JuMP.is_binary(var)  && JuMP.unset_binary(var)
+        end
+        JuMP.optimize!(det)
+    end
+
+    obj_value      = JuMP.objective_value(model.deterministic_model)
     optimal_design = model.results[:x_us].data
 else
     println("The model is deterministic.")
@@ -215,6 +249,29 @@ else
         end
     end
 
+    # Solver tuning. The deterministic branch can't use
+    # set_parameters_ECmodel! (that helper expects the stochastic
+    # deterministic_model field), so we set the attributes directly on
+    # the underlying JuMP Model.
+    if occursin("Gurobi", string(optimizer))
+        JuMP.set_optimizer_attribute(model.model, "TimeLimit", 60 * 60)
+        JuMP.set_optimizer_attribute(model.model, "Threads", Threads.nthreads())
+        JuMP.set_optimizer_attribute(model.model, "OutputFlag", 1)
+    elseif occursin("CPLEX", string(optimizer))
+        JuMP.set_optimizer_attribute(model.model, "CPX_PARAM_TILIM", 60 * 60)
+        JuMP.set_optimizer_attribute(model.model, "CPX_PARAM_THREADS", Threads.nthreads())
+        JuMP.set_optimizer_attribute(model.model, "CPX_PARAM_SCRIND", 1)
+    end
+
+    # The SMS++ LDS_UC pipeline solves the LP relaxation (BSPar-2S.txt
+    # MILPSolver has intRelaxIntVars=1, and LagrangianDualSolver
+    # converges to the LP bound), so the EC.jl reference must also be
+    # the LP optimum, not the MILP one. Today the LP and MILP coincide
+    # on CO/NC because the optimum installs zero thermal, but relaxing
+    # the integer/binary variables here keeps the refs valid even if a
+    # future YAML makes the install > 0.
+    JuMP.relax_integrality(model.model)
+
     optimize!(model)
 
     obj_value      = objective_value(model)
@@ -222,6 +279,13 @@ else
 end
 
 ## 4. Print the results
+#
+# EC.jl maximizes Social Welfare (`@objective(model, Max, SW)`), while SMS++
+# minimizes cost on the same instance; for a community whose welfare ends
+# up negative (typical when grid imports + investment dominate exports),
+# `objective_value` is the negative of the SMS++ cost. Print `-obj_value`
+# so the number is directly comparable to (and can be copied into) the
+# SMS++ batch-ec reference values.
 
-println("Optimal value: ", obj_value)
+println("Optimal value (SMS++ cost convention, = -welfare): ", -obj_value)
 println("Optimal installed capacity by user: ", optimal_design)
