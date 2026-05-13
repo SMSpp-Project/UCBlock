@@ -48,10 +48,10 @@ the generation of the physical ECNetworkBlock(s), which adds the `_NB` suffix:
 julia csv2nc4.jl [yml] --with-network-blocks
 ```
 
-Finally, for `PV` / `wind` (`IntermittentUnitBlock`) and `batt` / `conv`
-(`BatteryUnitBlock`) installable assets, the fleet of `N = max_capacity /
-nom_capacity` identical modules can be encoded in three LP-equivalent ways
-selected by `--design-mode`:
+Finally, for `PV` / `wind` (`IntermittentUnitBlock`), `batt` / `conv`
+(`BatteryUnitBlock`) and `generator` (`ThermalUnitBlock`) installable
+assets, the fleet of `N = max_capacity / nom_capacity` identical modules
+can be encoded in three LP-equivalent ways selected by `--design-mode`:
 
 ```sh
 julia csv2nc4.jl [yml] --design-mode=fleet
@@ -60,14 +60,25 @@ julia csv2nc4.jl [yml] --design-mode=design   # default
 ```
 
 - `fleet`: a single block sized by `max_capacity`; the design variable is
-  continuous in `[0, 1]`, no `Scale` / `MaxCapacityDesign` emitted.
+  continuous in `[0, 1]`, no `Scale` / `MaxCapacityDesign` emitted. For
+  thermal, this produces a single `ThermalUnitBlock` with binary design
+  ⇒ synchronous fleet (install ∈ {0, N}) — mathematically equivalent to
+  `scale` mode for thermal.
 - `scale`: a single block sized by `nom_capacity` with `Scale = N`; the
   `f_scale` factor multiplies the cost and power coefficients so the block
-  behaves as a fleet of `N` identical modules.
+  behaves as a fleet of `N` identical modules. For thermal the commitment
+  `u_t` is binary and shared by the `N` modules ⇒ synchronous on/off
+  fleet (install ∈ {0, N}).
 - `design`: a single block sized by `nom_capacity` with `MaxCapacityDesign
   = ±N` (`BatteryMaxCapacityDesign` / `ConverterMaxCapacityDesign` for
-  batteries). The sign is set by the per-asset YAML field `modularity`,
-  using the same convention as `EnergyCommunity.jl`:
+  batteries) for PV / wind / batt / conv. For thermal the block is
+  instead **replicated `N` times** (each replica with its own binary
+  design and independent `u_t`), since `ThermalUnitBlock` has no
+  `MaxCapacityDesign` and the granular integer install ∈ {0,…,N} with
+  *independent* commitments is achievable only by replication. The sign
+  of `MaxCapacityDesign` (PV / wind / batt / conv only) is set by the
+  per-asset YAML field `modularity`, using the same convention as
+  `EnergyCommunity.jl`:
 
   | YAML `modularity`            | `MaxCapacityDesign` |
   | ---------------------------- | ------------------- |
@@ -86,15 +97,14 @@ julia csv2nc4.jl [yml] --design-mode=design   # default
   and always keep the design continuous, so for them the YAML field has
   no effect.
 
-The three modes are mathematically equivalent at LP-relaxation level; only
-`design` with a negative `MaxCapacityDesign` actually enforces an integer
-install at MILP level. `Scale ≠ 1` and `|MaxCapacityDesign| > 1` (or
-`|Battery/ConverterMaxCapacityDesign| > 1` for batteries) are *mutually
-exclusive* — `check_data_consistency()` on the C++ side rejects
-configurations that activate both. Thermal assets are unaffected: a
-`ThermalUnitBlock` has a binary design variable only, so a granular integer
-count `{0,…,N}` is achieved by replicating the block `N` times rather than
-via `Scale = N` (which would force a synchronous all-or-nothing fleet).
+The three modes are mathematically equivalent at LP-relaxation level. At
+MILP level: for PV / wind / batt / conv, only `design` with a negative
+`MaxCapacityDesign` enforces an integer install; for thermal, only
+`design` (replication) gives a strictly larger feasible set than `scale`
+/ `fleet` thanks to independent commitments per replica. `Scale ≠ 1` and
+`|MaxCapacityDesign| > 1` (or `|Battery/ConverterMaxCapacityDesign| > 1`
+for batteries) are *mutually exclusive* — `check_data_consistency()` on
+the C++ side rejects configurations that activate both.
 
 The convenience wrapper `gen-all-nc4` runs the deterministic and stochastic
 batches over CO and NC (with `_TUB` default and `--no-thermal` variants) plus

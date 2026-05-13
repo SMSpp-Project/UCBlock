@@ -346,12 +346,21 @@ function csvEC2nc4(
 
     # Create g `UnitBlock`(s) for each electrical generator/device
 
-    # one UnitBlock per installable device, except for thermal generators
-    # which are replicated N = max_capacity / nom_capacity times (each
-    # replica is a binary-design ThermalUnitBlock; the sum over replicas
-    # gives the integer fleet count, matching EC.jl `n_us`). PV/wind/batt
-    # carry the fleet size inside a single block via Scale.
-    n_devices = reduce(+, [d != "generator" ? 1 :
+    # one UnitBlock per installable device, with the following dispatch on
+    # `design_mode` for thermal generators (PV/wind/batt always carry the
+    # fleet size inside a single block via Scale / MaxCapacityDesign):
+    #   - design (default): replicate the ThermalUnitBlock N = max_capacity
+    #     / nom_capacity times, each replica with binary design + its own
+    #     commitment u_t. The sum over replicas gives the integer fleet
+    #     count, matching EC.jl `n_us`; each replica can commit independently.
+    #   - scale: 1 ThermalUnitBlock per-module (nom_capacity) + Scale = N.
+    #     UCBlock multiplies the per-module output by N at network coupling
+    #     and the objective coefficients by N. Commitment u_t is binary
+    #     and shared by the N modules ⇒ synchronous on/off fleet.
+    #   - fleet: 1 ThermalUnitBlock sized per max_capacity, no Scale.
+    #     Mathematically equivalent to scale-mode (same synchronous fleet),
+    #     simpler encoding.
+    n_devices = reduce(+, [d != "generator" || design_mode != "design" ? 1 :
                            div(field_component(users_data[u], d, "max_capacity"),
                                field_component(users_data[u], d, "nom_capacity"))
                            for u in user_set
@@ -637,33 +646,45 @@ function csvEC2nc4(
 
                 elseif g == "generator"
 
-                    # ThermalUnitBlock has a binary design variable only:
-                    # to model a fleet of N identical modules with granular
-                    # integer count {0,…,N} (matching EnergyCommunity.jl's
-                    # n_us), we replicate the block N times rather than use
-                    # Scale = N (which would force a synchronous-fleet
-                    # all-or-nothing build, restricting feasibility).
+                    # The fleet of N = max_capacity / nom_capacity identical
+                    # thermal modules is encoded according to the top-level
+                    # `design_mode` flag:
+                    #   - design (default): N replicated ThermalUnitBlocks
+                    #     sized per nom_capacity, each with its own binary
+                    #     design + independent commitment u_t. Granular
+                    #     integer install ∈ {0,…,N}, matches EC.jl `n_us`.
+                    #   - scale: 1 ThermalUnitBlock per-module + Scale = N.
+                    #     Synchronous fleet: u_t shared ⇒ install ∈ {0,N}.
+                    #   - fleet: 1 ThermalUnitBlock sized per max_capacity,
+                    #     no Scale. Mathematically equivalent to scale-mode.
+                    # All three modes are LP-equivalent; design-mode is
+                    # strictly more expressive than scale/fleet at MILP.
                     n_modules = div(field_component(users_data[u], g, "max_capacity"),
                                     field_component(users_data[u], g, "nom_capacity"))
+                    n_replicas = design_mode == "design" ? n_modules : 1
+                    therm_size = design_mode == "fleet" ?
+                                 field_component(users_data[u], g, "max_capacity") :
+                                 field_component(users_data[u], g, "nom_capacity")
 
-                    for _ in 1:n_modules
+                    for _ in 1:n_replicas
 
                         ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
 
-                        # installable capacity (per module)
+                        # installable capacity (per module in scale/design,
+                        # fleet total in fleet mode)
                         thermal_capacity = defVar(ub, "Capacity", Float64, ())
-                        thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
+                        thermal_capacity[:] = therm_size
 
-                        # minimum power (per module)
+                        # minimum power
                         thermal_min_power = defVar(ub, "MinPower", Float64, ())
                         thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
-                                                field_component(users_data[u], g, "nom_capacity"))
+                                                therm_size)
 
-                        # maximum power (per module)
+                        # maximum power
                         thermal_max_power = defVar(ub, "MaxPower", Float64, ())
                         thermal_max_power_val =
                             field_component(users_data[u], g, "max_technical") *
-                            field_component(users_data[u], g, "nom_capacity")
+                            therm_size
                         thermal_max_power[:] = thermal_max_power_val
 
                         # start-up limit
@@ -674,7 +695,7 @@ function csvEC2nc4(
                         thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
                         thermal_shut_up_limit[:] = thermal_max_power_val
 
-                        # Net Present Value of the thermal (per module)
+                        # Net Present Value of the thermal
                         investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                         investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
                                                  ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
@@ -684,9 +705,10 @@ function csvEC2nc4(
                                                     (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                            field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                                   (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                             field_component(users_data[u], g, "nom_capacity")
+                                             therm_size
 
                         # store the linear term of the thermal
+                        # (fuel intensity is in EUR/kWh, independent of module size)
                         linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "slope_map")) *
                                                 energy_weight_profile[t] *
@@ -702,7 +724,7 @@ function csvEC2nc4(
                         end
 
                         # constant term: commitment-based O&M (OEM_com, else OEM_lin)
-                        # plus fuel intercept, per module
+                        # plus fuel intercept, scaled by module size
                         oem_com = field_component(users_data[u], g, "OEM_com",
                                                   field_component(users_data[u], g, "OEM_lin"))
                         const_term_data = sum([(oem_com +
@@ -712,13 +734,21 @@ function csvEC2nc4(
                                                time_res_profile[t]
                                                for t in time_set] *
                                               (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
-                                          field_component(users_data[u], g, "nom_capacity")
+                                          therm_size
                         if (allequal(const_term_data))
                             const_term = defVar(ub, "ConstTerm", Float64, ())
                             const_term[:] = const_term_data[1]
                         else
                             const_term = defVar(ub, "ConstTerm", Float64, ("TimeHorizon",))
                             const_term[:] = const_term_data[:]
+                        end
+
+                        if design_mode == "scale" && n_modules > 1
+                            # Scale = N: f_scale on the block aggregates the
+                            # per-module sizing to fleet level (synchronous
+                            # on/off, see ThermalUnitBlock.h Scale Doxygen).
+                            scale_var = defVar(ub, "Scale", Float64, ())
+                            scale_var[:] = n_modules
                         end
 
                         if !deterministic # stochastic model
@@ -1127,34 +1157,40 @@ NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
 @assert 0 <= length(NO_OPTION_ARGS) <= 1
 
 # Separate the value-taking --design-mode= flag from the boolean ones.
-# `design_mode` selects how PV/wind and batt/conv encode a fleet of N
-# identical modules in the IntermittentUnitBlock / BatteryUnitBlock
-# netCDF schema. The three modes are mathematically equivalent at the
-# LP-relaxation level (so the SMS++ tests pass under any of them):
+# `design_mode` selects how PV/wind, batt/conv and thermal encode a fleet
+# of N identical modules in the IntermittentUnitBlock /
+# BatteryUnitBlock / ThermalUnitBlock netCDF schema. The three modes are
+# mathematically equivalent at the LP-relaxation level (so the SMS++
+# tests pass under any of them):
 #   - "fleet"  : single block sized by max_capacity, design ∈ [0, 1]
 #                continuous (MaxCapacityDesign defaults to 1, no Scale).
+#                For thermal, equivalent to "scale" at MILP since both
+#                produce a synchronous on/off fleet.
 #   - "scale"  : per-module sizing (nom_capacity) + Scale = N. The
 #                f_scale factor multiplies cost / power in the abstract
 #                Objective so the block behaves as a fleet of N modules.
+#                For thermal, the commitment u_t is binary and shared by
+#                the N modules ⇒ synchronous fleet, install ∈ {0, N}.
 #   - "design" : per-module sizing (nom_capacity) + MaxCapacityDesign
-#                = ±N. The sign is set by the per-asset YAML field
-#                `modularity`, using the same convention as
-#                EnergyCommunity.jl: `true` ⇒ −N (integer ∈ {0,…,N}),
-#                `false` (the EC.jl default, also ours when the field
-#                is missing) ⇒ +N (continuous in [0, N]). The
-#                convention is applied uniformly on both deterministic
-#                and stochastic flow — the stochastic flow currently
-#                keeps n_us integer regardless of this field (via
-#                StochasticPrograms), but honouring `modularity` here
-#                makes the encoding forward-compatible with a future
-#                EC.jl@stochastic that exposes the same toggle.
-#                `modularity` is read only in this mode; "fleet" and
-#                "scale" never emit a MaxCapacityDesign and ignore the
-#                field.
-# Thermal units are unaffected: ThermalUnitBlock has a binary design
-# variable only, so a granular integer count {0,…,N} is always achieved
-# by replicating the block N times (Scale = N on a thermal block forces
-# a synchronous all-or-nothing fleet).
+#                = ±N for PV/wind/batt; for thermal, the block is
+#                replicated N times (each replica with its own binary
+#                design + independent u_t) since ThermalUnitBlock has no
+#                MaxCapacityDesign and the granular integer install
+#                ∈ {0,…,N} with independent commitments is achievable
+#                only by replication. PV/wind/batt: the sign is set by
+#                the per-asset YAML field `modularity`, using the same
+#                convention as EnergyCommunity.jl: `true` ⇒ −N (integer
+#                ∈ {0,…,N}), `false` (the EC.jl default, also ours when
+#                the field is missing) ⇒ +N (continuous in [0, N]).
+#                The convention is applied uniformly on both
+#                deterministic and stochastic flow — the stochastic
+#                flow currently keeps n_us integer regardless of this
+#                field (via StochasticPrograms), but honouring
+#                `modularity` here makes the encoding forward-compatible
+#                with a future EC.jl@stochastic that exposes the same
+#                toggle. `modularity` is read only in this mode;
+#                "fleet" and "scale" never emit a MaxCapacityDesign and
+#                ignore the field.
 all_option_args = setdiff(ARGS, NO_OPTION_ARGS)
 DESIGN_MODE_PREFIX = "--design-mode="
 design_mode_args = filter(a -> startswith(a, DESIGN_MODE_PREFIX), all_option_args)

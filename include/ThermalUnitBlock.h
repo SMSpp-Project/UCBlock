@@ -450,18 +450,27 @@ class ThermalUnitBlock : public UnitBlock
   * - The scalar variable "Scale", of type netCDF::NcDouble and not indexed
   *   over any dimension. Sets the scale factor \f$ S \f$ of this UnitBlock
   *   (see UnitBlock::scale() for the general semantics); optional, default
-  *   1. Since the design variable of a ThermalUnitBlock is binary, the
-  *   only effect of \f$ S \f$ here is to multiply every cost coefficient
-  *   and every per-generator output (active power, reserves) in the
-  *   Objective by \f$ S \f$, while the commitment variable stays binary.
-  *   In other words, "Scale" = N models a *synchronous* fleet of N
-  *   identical thermal modules that are committed all together at every
-  *   time step (all-or-nothing build). This is more restrictive than the
-  *   integer install \f$ \in \{ 0 , \ldots , N \} \f$ that
-  *   IntermittentUnitBlock and BatteryUnitBlock can express via
-  *   "MaxCapacityDesign" \f$ = -N \f$: to obtain a granular integer count
-  *   of identical thermal units use N separate ThermalUnitBlocks with
-  *   binary design instead. */
+  *   1. "Scale" = N models a fleet of N identical ThermalUnitBlock modules
+  *   sized per-module (i.e., "MinPower" / "MaxPower" / "DeltaRampUp" /
+  *   "DeltaRampDown" / "StartUpLimit" / "ShutDownLimit" / "InvestmentCost"
+  *   / cost coefficients describe a single module): every per-generator
+  *   power and every objective coefficient is multiplied by \f$ S \f$ in
+  *   the Objective, and the enclosing UCBlock further multiplies the
+  *   per-module output by \f$ S \f$ when the unit contributes to network
+  *   coupling constraints (demand balance, reserves, ...) via
+  *   get_scale(). The commitment / start-up / shut-down variables stay
+  *   binary and are *shared* among the N modules, so the fleet is
+  *   committed all together at every time step: install is either 0 or N
+  *   units, with no sub-fleet granularity. This is a strictly less
+  *   expressive feasible set than the integer install
+  *   \f$ \in \{ 0 , \ldots , N \} \f$ that IntermittentUnitBlock and
+  *   BatteryUnitBlock can express via "MaxCapacityDesign" \f$ = -N \f$
+  *   (those allow each module to commit independently because their
+  *   design is a continuous / integer scalar, not a per-time-step binary
+  *   commitment), but it is significantly cheaper than the alternative
+  *   of N replicated ThermalUnitBlocks. To obtain the granular integer
+  *   count of independently-committable thermal units use N separate
+  *   ThermalUnitBlocks with binary design instead. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
