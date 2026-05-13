@@ -147,12 +147,16 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "LineSusceptance" , f_number_lines ,
 		v_line_susceptance , true , true );
 
- f_number_HVDC_lines = std::count_if( v_line_susceptance.begin() ,
-				      v_line_susceptance.end() ,
-				      []( auto s ) { return( s == 0 ); }
-				      );
- if( f_number_HVDC_lines == f_number_lines )
-  v_line_susceptance.clear();
+ if( v_line_susceptance.empty() )
+  f_number_HVDC_lines = f_number_lines;
+ else {
+  f_number_HVDC_lines = std::count_if( v_line_susceptance.begin() ,
+				       v_line_susceptance.end() ,
+				       []( auto s ) { return( s == 0 ); }
+				       );
+  if( f_number_HVDC_lines == f_number_lines )
+   v_line_susceptance.clear();
+  }
 
  //!! TODO: in the hypergraph case the line names are garbled!!
  ::deserialize( group , "LineName" , f_number_lines , v_line_names );
