@@ -127,13 +127,13 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   }
 
  ::deserialize( group , "MaxPowerFlow" ,
-		{ f_number_lines , time_instants } , v_max_power_flow );
+		{ f_number_lines , time_instants } , v_max_power_flow , true , true );
 
  ::deserialize( group , "MinPowerFlow" ,
-		{ f_number_lines , time_instants } , v_min_power_flow );
+		{ f_number_lines , time_instants } , v_min_power_flow , true , true );
 
  if( ! ::deserialize( group , "Efficiency" ,
-		      { f_number_branches , time_instants } , v_efficiency ) ) {
+		      { f_number_branches , time_instants } , v_efficiency , true , true ) ) {
   using index = boost::multi_array< double , 2 >::index;
   const std::vector< index > size = { f_number_branches , 1 };
   v_efficiency.resize( size );
