@@ -678,6 +678,57 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+/// set the active power cost values (Subset overload)
+/** Update v_ActivePowerCost at the time indices in @p subset to the values
+ *  pointed by @p values. If the objective has already been generated, the
+ *  affected LinearFunction coefficients (the active-power coefficient at the
+ *  matching @p t, and the reactive-power-abs coefficient if reactive power
+ *  is enabled) are updated in sync. Issues a SlackUnitBlockSbstMod with type
+ *  SlackUnitBlockMod::eSetActPCost depending on @p issuePMod. */
+
+ void set_active_power_cost( MF_dbl_it values ,
+                             Subset && subset ,
+                             bool ordered = false ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+/// set the active power cost values (Range overload)
+/** Update v_ActivePowerCost at the time indices in @p rng to the values
+ *  pointed by @p values. Same Modification dispatch as the Subset overload,
+ *  but issues a SlackUnitBlockRngdMod instead. */
+
+ void set_active_power_cost( MF_dbl_it values ,
+                             Range rng = Range( 0 , Inf< Index >() ) ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+/// set the active power cost to a single (uniform-over-time) value
+
+ void set_active_power_cost( double value ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_active_power_cost( vector.cbegin() ,
+                         Range( 0 , Inf< Index >() ) ,
+                         issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ static void static_initialization( void )
+ {
+  register_method< SlackUnitBlock , MF_dbl_it , Subset && , bool >(
+   "SlackUnitBlock::set_active_power_cost" ,
+   & SlackUnitBlock::set_active_power_cost );
+
+  register_method< SlackUnitBlock , MF_dbl_it , Range >(
+   "SlackUnitBlock::set_active_power_cost" ,
+   & SlackUnitBlock::set_active_power_cost );
+  }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -793,6 +844,115 @@ class SlackUnitBlock : public UnitBlock
 
 
 };  // end( class( SlackUnitBlock ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS SlackUnitBlockMod --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived class from UnitBlockMod for changes to a SlackUnitBlock
+
+class SlackUnitBlockMod : public UnitBlockMod
+{
+ public:
+
+ /// public enum for the types of SlackUnitBlockMod
+ enum SUB_mod_type
+ {
+  eSetActPCost = eUBModLastParam , ///< set active power cost values
+  eSUBModLastParam                 ///< first allowed parameter for derived classes
+  };
+
+ /// constructor, takes the SlackUnitBlock and the type
+ SlackUnitBlockMod( SlackUnitBlock * const fblock , const int type )
+  : UnitBlockMod( fblock , type ) {}
+
+ /// destructor, does nothing
+ virtual ~SlackUnitBlockMod() override = default;
+
+ /// returns the Block to which the Modification refers
+ Block * get_Block( void ) const override { return( f_Block ); }
+
+ protected:
+
+ /// prints the SlackUnitBlockMod
+ void print( std::ostream & output ) const override {
+  output << "SlackUnitBlockMod[" << this << "]: ";
+  switch( f_type ) {
+   case( eSetActPCost ):
+    output << "Set active power cost values ";
+    break;
+   default:;
+  }
+  }
+
+ SlackUnitBlock * f_Block{};
+ ///< pointer to the Block to which the Modification refers
+
+};  // end( class( SlackUnitBlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS SlackUnitBlockRngdMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from SlackUnitBlockMod for "ranged" modifications
+class SlackUnitBlockRngdMod : public SlackUnitBlockMod
+{
+ public:
+
+ /// constructor: takes the SlackUnitBlock, the type, and the range
+ SlackUnitBlockRngdMod( SlackUnitBlock * const fblock , const int type ,
+                        const Block::Range & rng )
+  : SlackUnitBlockMod( fblock , type ) , f_rng( rng ) {}
+
+ /// destructor, does nothing
+ virtual ~SlackUnitBlockRngdMod() override = default;
+
+ /// accessor to the range
+ Block::c_Range & rng( void ) { return( f_rng ); }
+
+ protected:
+
+ /// prints the SlackUnitBlockRngdMod
+ void print( std::ostream & output ) const override {
+  SlackUnitBlockMod::print( output );
+  output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
+  }
+
+ Block::Range f_rng;  ///< the range
+
+};  // end( class( SlackUnitBlockRngdMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS SlackUnitBlockSbstMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// derived from SlackUnitBlockMod for "subset" modifications
+class SlackUnitBlockSbstMod : public SlackUnitBlockMod
+{
+ public:
+
+ /// constructor: takes the SlackUnitBlock, the type, and the subset
+ SlackUnitBlockSbstMod( SlackUnitBlock * const fblock , const int type ,
+                        Block::Subset && nms )
+  : SlackUnitBlockMod( fblock , type ) , f_nms( std::move( nms ) ) {}
+
+ /// destructor, does nothing
+ virtual ~SlackUnitBlockSbstMod() override = default;
+
+ /// accessor to the subset
+ Block::c_Subset & nms( void ) { return( f_nms ); }
+
+ protected:
+
+ /// prints the SlackUnitBlockSbstMod
+ void print( std::ostream & output ) const override {
+  SlackUnitBlockMod::print( output );
+  output << "(# " << f_nms.size() << ")" << std::endl;
+  }
+
+ Block::Subset f_nms;  ///< the subset
+
+};  // end( class( SlackUnitBlockSbstMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

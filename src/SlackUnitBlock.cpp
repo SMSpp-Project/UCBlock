@@ -558,5 +558,150 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
 }  // end( SlackUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
+
+void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
+                                            Subset && subset ,
+                                            bool ordered ,
+                                            c_ModParam issuePMod ,
+                                            c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ if( v_ActivePowerCost.empty() ) {
+  if( std::all_of( values ,
+                   values + subset.size() ,
+                   []( double cst ) { return( cst == 0 ); } ) )
+   return;
+
+  v_ActivePowerCost.assign( f_time_horizon , 0.0 );
+  }
+
+ for( auto t : subset )
+  if( t >= v_ActivePowerCost.size() )
+   throw( std::invalid_argument(
+    "SlackUnitBlock::set_active_power_cost: invalid index in subset." ) );
+
+ auto values_it = values;
+
+ bool identical = true;
+ for( auto t : subset ) {
+  if( v_ActivePowerCost[ t ] != *( values_it++ ) ) {
+   identical = false;
+   break;
+   }
+  }
+
+ if( identical )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  values_it = values;
+  for( auto t : subset )
+   v_ActivePowerCost[ t ] = *( values_it++ );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+
+   for( auto t : subset ) {
+    auto idx = lf->is_active( &v_active_power[ t ] );
+    if( idx == Inf< Index >() )
+     throw( std::logic_error(
+      "SlackUnitBlock::set_active_power_cost: expected active_power Variable "
+      "not found in objective." ) );
+
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , issueAMod );
+
+    if( f_reactive_power ) {
+     idx = lf->is_active( &v_abs_reactive_power[ t ] );
+     if( idx == Inf< Index >() )
+      throw( std::logic_error(
+       "SlackUnitBlock::set_active_power_cost: expected abs_reactive_power "
+       "Variable not found in objective." ) );
+
+     lf->modify_coefficient( idx ,
+                             0.7 * v_ActivePowerCost[ t ] , issueAMod );
+     }
+    }
+   }
+  }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+
+  Block::add_Modification(
+   std::make_shared< SlackUnitBlockSbstMod >(
+    this , SlackUnitBlockMod::eSetActPCost , std::move( subset ) ) ,
+   Observer::par2chnl( issuePMod ) );
+  }
+
+ }  // end( SlackUnitBlock::set_active_power_cost( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
+                                            Range rng ,
+                                            c_ModParam issuePMod ,
+                                            c_ModParam issueAMod )
+{
+ rng.second = std::min( rng.second , f_time_horizon );
+ if( rng.second <= rng.first )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+
+ if( v_ActivePowerCost.empty() ) {
+  if( std::all_of( values ,
+                   values + sz ,
+                   []( double cst ) { return( cst == 0 ); } ) )
+   return;
+
+  v_ActivePowerCost.assign( f_time_horizon , 0.0 );
+  }
+
+ if( std::equal( values ,
+                 values + sz ,
+                 v_ActivePowerCost.begin() + rng.first ) )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  std::copy( values , values + sz , v_ActivePowerCost.begin() + rng.first );
+
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
+   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
+
+   for( Index t = rng.first ; t < rng.second ; ++t ) {
+    auto idx = lf->is_active( &v_active_power[ t ] );
+    if( idx == Inf< Index >() )
+     throw( std::logic_error(
+      "SlackUnitBlock::set_active_power_cost: expected active_power Variable "
+      "not found in objective." ) );
+
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , issueAMod );
+
+    if( f_reactive_power ) {
+     idx = lf->is_active( &v_abs_reactive_power[ t ] );
+     if( idx == Inf< Index >() )
+      throw( std::logic_error(
+       "SlackUnitBlock::set_active_power_cost: expected abs_reactive_power "
+       "Variable not found in objective." ) );
+
+     lf->modify_coefficient( idx ,
+                             0.7 * v_ActivePowerCost[ t ] , issueAMod );
+     }
+    }
+   }
+  }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification(
+   std::make_shared< SlackUnitBlockRngdMod >(
+    this , SlackUnitBlockMod::eSetActPCost , rng ) ,
+   Observer::par2chnl( issuePMod ) );
+
+ }  // end( SlackUnitBlock::set_active_power_cost( range ) )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- End File SlackUnitBlock.cpp ----------------------*/
 /*--------------------------------------------------------------------------*/
