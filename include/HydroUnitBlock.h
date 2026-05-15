@@ -223,6 +223,22 @@ class HydroUnitBlock : public UnitBlock
  * ever happen, this occurrence is not handled in our model (which lets it
  * happen).
  *
+ * Note: when reservoir n is operated under cyclic closure, i.e., when
+ * "InitialVolumetric"[ n ] < 0 so that v[ n , T - 1 ] = v[ n , 0 ], the
+ * water-balance equalities telescope over t and impose
+ * \f$ \sum_t \mathit{Inflows}[n][t] = \sum_t \left(
+ *   \sum_{l: \mathit{StartArc}[l]=n} f_l(t) -
+ *   \sum_{l: \mathit{EndArc}[l]=n}   f_l(t) \right) \f$,
+ * which is achievable only if at every t the outgoing-arc capacities are
+ * sufficient to absorb the inflow when the storage is saturated. A safe
+ * and easy-to-verify pre-condition on the data is therefore
+ * \f$ \sum_{l: \mathit{StartArc}[l]=n} \mathit{MaxFlow}[t][l]
+ *     \geq \mathit{Inflows}[n][t] \f$ for every t; in practice, oversizing
+ * MaxFlow on the spillage arc (the one having LinearTerm == 0, which does
+ * not convert flow into power) by \f$ \max_t \mathit{Inflows}[n][t] \f$
+ * is the simplest way to guarantee this. If this pre-condition is
+ * violated, check_data_consistency() raises an exception.
+ *
  * - The variable "MinVolumetric", of type netCDF::NcDouble and indexed over
  *   both dimensions "NumberReservoirs" and "NumberIntervals". The first
  *   dimension always has size "NumberReservoirs" (if it is provided at all),
@@ -1824,6 +1840,15 @@ class HydroUnitBlock : public UnitBlock
   * - For each reservoir n and each time step t, the volumetric bounds are
   *   nonnegative and ordered:
   *   \f$ 0 \leq v\_MinVolumetric[n][t] \leq v\_MaxVolumetric[n][t] \f$.
+  *
+  * - For each reservoir n operated under cyclic closure
+  *   ( \f$ \mathit{get\_initial\_volumetric}( n ) < 0 \f$ ) and for each
+  *   time step t, the outgoing-arc capacity is sufficient to absorb the
+  *   inflow:
+  *   \f$ \sum_{l: \mathit{StartArc}[l]=n} v\_MaxFlow[t][l]
+  *       \geq v\_inflows[n][t] \f$.
+  *   Oversizing MaxFlow on the spillage arc (LinearTerm == 0) by
+  *   \f$ \max_t v\_inflows[n][t] \f$ is the simplest way to satisfy this.
   *
   * If any of the above conditions are not met, an exception is thrown. */
 

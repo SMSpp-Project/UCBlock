@@ -346,6 +346,39 @@ void HydroUnitBlock::check_data_consistency( void ) const
                               std::to_string( v_MaxVolumetric[ node ][ t ] ) ) );
     }
 
+ // Cyclic-closure outgoing-arc capacity vs inflow - - - - - - - - - - - - -
+ // for each reservoir n under cyclic closure (initial_volumetric < 0) and
+ // for each time t,
+ //   sum_{l: StartArc[l] == n} v_MaxFlow[t][l] \geq v_inflows[n][t]
+ // if this pre-condition is violated, the spillage arc (LinearTerm == 0)
+ // cannot dump the excess inflow at t, the storage cannot help indefinitely
+ // because v[n, T - 1] = v[n, 0] is forced, and the LP is infeasible
+ if( ( ! v_inflows.empty() ) && ( ! v_MaxFlow.empty() ) &&
+     ( ! v_StartArc.empty() ) )
+  for( Index n = 0 ; n < f_NumberReservoirs ; ++n ) {
+   if( get_initial_volumetric( n ) >= 0. )
+    continue;  // not cyclic for this reservoir
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    double s_out = 0.;
+    for( Index l = 0 ; l < f_NumberArcs ; ++l )
+     if( v_StartArc[ l ] == n )
+      s_out += v_MaxFlow[ t ][ l ];
+    if( s_out + 1e-9 * std::max( 1. , std::abs( v_inflows[ n ][ t ] ) )
+        < v_inflows[ n ][ t ] )
+     throw( std::logic_error(
+      "HydroUnitBlock::check_data_consistency: reservoir " +
+      std::to_string( n ) + " is operated under cyclic closure but at "
+      "time " + std::to_string( t ) + " the inflow is " +
+      std::to_string( v_inflows[ n ][ t ] ) + ", which exceeds the "
+      "outgoing-arc capacity sum_{l: StartArc[l]==" + std::to_string( n ) +
+      "} v_MaxFlow[" + std::to_string( t ) + "][l] = " +
+      std::to_string( s_out ) + "; oversize v_MaxFlow on the spillage arc "
+      "(the one with LinearTerm == 0) by at least max_t v_inflows[" +
+      std::to_string( n ) + "][t], or break cyclic closure by setting "
+      "InitialVolumetric[" + std::to_string( n ) + "] >= 0" ) );
+    }
+   }
+
  }  // end( HydroUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
