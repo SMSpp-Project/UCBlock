@@ -1801,6 +1801,34 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// verify whether the data in this HydroUnitBlock is consistent
+ /** This function checks whether the data in this HydroUnitBlock is
+  * consistent. The data is consistent if all the following conditions are
+  * met.
+  *
+  * - For each arc l and each time step t, the minimum active power is not
+  *   greater than the maximum active power:
+  *   \f$ v\_MinPower[t][l] \leq v\_MaxPower[t][l] \f$.
+  *
+  * - For each arc l and each time step t, the minimum flow is not greater
+  *   than the maximum flow:
+  *   \f$ v\_MinFlow[t][l] \leq v\_MaxFlow[t][l] \f$.
+  *
+  * - For each pumping arc l (an arc with \f$ v\_MaxFlow[t][l] \leq 0 \f$
+  *   and \f$ v\_MinFlow[t][l] < 0 \f$ at some time step t), the number of
+  *   pieces is one and both reserve rates vanish, i.e.,
+  *   \f$ v\_NumberPieces[l] = 1 \f$,
+  *   \f$ v\_PrimaryRho[t][l] = 0 \f$ and
+  *   \f$ v\_SecondaryRho[t][l] = 0 \f$.
+  *
+  * - For each reservoir n and each time step t, the volumetric bounds are
+  *   nonnegative and ordered:
+  *   \f$ 0 \leq v\_MinVolumetric[n][t] \leq v\_MaxVolumetric[n][t] \f$.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency( void ) const;
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/

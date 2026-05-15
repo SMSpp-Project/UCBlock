@@ -96,31 +96,14 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  // call the method of the base class
  ThermalUnitBlock::deserialize( group );
 
- // check that DeltaRampUp/Down are defined
- if( v_DeltaRampUp.empty() )
-  throw( std::invalid_argument(
-    "NuclearUnitBlock::deserialize: DeltaRampUp not present" ) );
-
- if( v_DeltaRampDown.empty() )
-  throw( std::invalid_argument(
-        "NuclearUnitBlock::deserialize: DeltaRampDown not present" ) );
-
  // load optional variables ModulationTime and InitModulation or give them
- // default values, check that the values are logically correct
+ // default values
 
  if( ! ::deserialize( group , f_modulation_interval , "ModulationTime" ) )
   f_modulation_interval = 2;
 
- if( f_modulation_interval < 2 )
-  throw( std::invalid_argument(
-        "NuclearUnitBlock::deserialize: ModulationTime < 2" ) );
-
  if( ! ::deserialize( group , f_initial_modulation , "InitModulation" ) )
   f_initial_modulation = f_modulation_interval;
-
- if( f_modulation_interval < 1 )
-  throw( std::invalid_argument(
-        "NuclearUnitBlock::deserialize: InitModulation < 1" ) );
 
  // load mandatory variables ModulationDeltaRampUp and
  // ModulationDeltaRampDown, create the expanded vectors (if needed)
@@ -130,8 +113,7 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ModulationDeltaRampDown" , f_time_horizon ,
                 v_modulation_ramp_down , false , true , v_change_intervals );
 
- // check the consistency of v_modulation_ramp_up and v_modulation_ramp_down
- check_modulation_consistency();
+ check_data_consistency();
 
  }  // end( NuclearUnitBlock::deserialize )
 
@@ -169,27 +151,48 @@ std::vector< std::string > NuclearUnitBlock::expected_vars( void )
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::check_modulation_consistency( void ) const
+void NuclearUnitBlock::check_data_consistency( void ) const
 {
- static const std::string fn =
-                             "NuclearUnitBlock::check_modulation_consistency";
+ static const std::string fn = "NuclearUnitBlock::check_data_consistency";
 
+ // DeltaRampUp/Down - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // both ramp vectors inherited from ThermalUnitBlock are mandatory here
+ if( v_DeltaRampUp.empty() )
+  throw( std::invalid_argument( fn + ": DeltaRampUp not present" ) );
+
+ if( v_DeltaRampDown.empty() )
+  throw( std::invalid_argument( fn + ": DeltaRampDown not present" ) );
+
+ // ModulationTime and InitModulation - - - - - - - - - - - - - - - - - - - -
+ if( f_modulation_interval < 2 )
+  throw( std::invalid_argument( fn + ": ModulationTime is " +
+                                std::to_string( f_modulation_interval ) +
+                                ", but it must be at least 2" ) );
+
+ if( f_initial_modulation < 1 )
+  throw( std::invalid_argument( fn + ": InitModulation is " +
+                                std::to_string( f_initial_modulation ) +
+                                ", but it must be at least 1" ) );
+
+ // ModulationDeltaRampUp/Down - - - - - - - - - - - - - - - - - - - - - - -
+ // for each t: 0 \leq v_modulation_ramp_up[t]   \leq v_DeltaRampUp[t]
+ //             0 \leq v_modulation_ramp_down[t] \leq v_DeltaRampUp[t]
  assert( v_modulation_ramp_up.size() == f_time_horizon );
  assert( v_modulation_ramp_down.size() == f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_modulation_ramp_up[ t ] < 0 )
    throw( std::logic_error( fn + ": modulation ramp up at time " +
-          std::to_string( t ) + " is " +
+                            std::to_string( t ) + " is " +
                             std::to_string( v_modulation_ramp_up[ t ] ) +
                             " < 0" ) );
 
   if( v_modulation_ramp_up[ t ] > v_DeltaRampUp[ t ] )
    throw( std::logic_error( fn + ": modulation ramp up at time " +
-          std::to_string( t ) + " is " +
-          std::to_string( v_modulation_ramp_up[ t ] ) +
-                            "> ramp up = " +
-          std::to_string( v_DeltaRampUp[ t ] ) ) );
+                            std::to_string( t ) + " is " +
+                            std::to_string( v_modulation_ramp_up[ t ] ) +
+                            " > ramp up = " +
+                            std::to_string( v_DeltaRampUp[ t ] ) ) );
 
   if( v_modulation_ramp_down[ t ] < 0 )
    throw( std::logic_error( fn + ": modulation ramp down at time " +
@@ -199,13 +202,13 @@ void NuclearUnitBlock::check_modulation_consistency( void ) const
 
   if( v_modulation_ramp_down[ t ] > v_DeltaRampUp[ t ] )
    throw( std::logic_error( fn + ": modulation ramp down at time " +
-          std::to_string( t ) + " is " +
-          std::to_string( v_modulation_ramp_down[ t ] ) +
-                            "> ramp up = " +
-          std::to_string( v_DeltaRampDown[ t ] ) ) );
+                            std::to_string( t ) + " is " +
+                            std::to_string( v_modulation_ramp_down[ t ] ) +
+                            " > ramp up = " +
+                            std::to_string( v_DeltaRampDown[ t ] ) ) );
 
   }  // end( for t )
- }  // end( NuclearUnitBlock::check_modulation_consistency )
+ }  // end( NuclearUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
 

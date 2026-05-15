@@ -526,7 +526,28 @@ class NuclearUnitBlock : public ThermalUnitBlock
  // void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
  // not required, changes via the "abstract representation" are not supported
 
- void check_modulation_consistency( void ) const;
+ /// verify whether the data in this NuclearUnitBlock is consistent
+ /** This function checks whether the data in this NuclearUnitBlock is
+  * consistent. The data is consistent if all the following conditions are
+  * met.
+  *
+  * - The delta ramp-up and delta ramp-down vectors are not empty: they are
+  *   inherited from ThermalUnitBlock and are mandatory in the nuclear
+  *   specialization.
+  *
+  * - The modulation interval (ModulationTime) is at least 2.
+  *
+  * - The initial modulation (InitModulation) is at least 1.
+  *
+  * - For each time step t, the modulation ramp-up and ramp-down are
+  *   nonnegative and do not exceed the corresponding ThermalUnitBlock
+  *   ramp-up:
+  *   \f$ 0 \leq v\_modulation\_ramp\_up[t] \leq v\_DeltaRampUp[t] \f$ and
+  *   \f$ 0 \leq v\_modulation\_ramp\_down[t] \leq v\_DeltaRampUp[t] \f$.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency( void ) const;
 
  void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck )
   override;

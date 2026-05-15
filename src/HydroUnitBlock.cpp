@@ -206,6 +206,8 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ReferenceSchedule" , f_time_horizon , v_RefSchedule ,
                 true , true , v_change_intervals );
 
+ check_data_consistency();
+
  }  // end( HydroUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -241,6 +243,110 @@ std::vector< std::string > HydroUnitBlock::expected_vars( void ) const {
  }
 
 #endif
+
+/*--------------------------------------------------------------------------*/
+
+void HydroUnitBlock::check_data_consistency( void ) const
+{
+ // MinPower and MaxPower - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // for each arc l and each time t, v_MinPower[t][l] \leq v_MaxPower[t][l]
+ if( ( ! v_MinPower.empty() ) && ( ! v_MaxPower.empty() ) )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( v_MinPower[ t ][ arc ] > v_MaxPower[ t ][ arc ] )
+     throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                              "minimum active power at time " +
+                              std::to_string( t ) + " on arc " +
+                              std::to_string( arc ) + " is " +
+                              std::to_string( v_MinPower[ t ][ arc ] ) +
+                              ", which is greater than the maximum active "
+                              "power, which is " +
+                              std::to_string( v_MaxPower[ t ][ arc ] ) ) );
+
+ // MinFlow and MaxFlow - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // for each arc l and each time t, v_MinFlow[t][l] \leq v_MaxFlow[t][l]
+ if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( v_MinFlow[ t ][ arc ] > v_MaxFlow[ t ][ arc ] )
+     throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                              "minimum flow at time " + std::to_string( t ) +
+                              " on arc " + std::to_string( arc ) + " is " +
+                              std::to_string( v_MinFlow[ t ][ arc ] ) +
+                              ", which is greater than the maximum flow, "
+                              "which is " +
+                              std::to_string( v_MaxFlow[ t ][ arc ] ) ) );
+
+ // Pump arcs: NumberPieces, PrimaryRho, SecondaryRho - - - - - - - - - - - -
+ // an arc l is a pumping arc at time t when v_MaxFlow[t][l] \leq 0 and
+ // v_MinFlow[t][l] < 0; on such an arc the number of pieces must be one,
+ // and the primary and secondary reserve rates must vanish
+ if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
+        ( v_MinFlow[ t ][ arc ] < 0 ) ) {
+     if( ( ! v_NumberPieces.empty() ) && ( v_NumberPieces[ arc ] > 1 ) )
+      throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                               "arc " + std::to_string( arc ) +
+                               " is a pumping arc at time " +
+                               std::to_string( t ) +
+                               " (MaxFlow \\leq 0 and MinFlow < 0), but "
+                               "v_NumberPieces is " +
+                               std::to_string( v_NumberPieces[ arc ] ) +
+                               ", which must be 1" ) );
+     if( ( ! v_PrimaryRho.empty() ) &&
+         ( v_PrimaryRho[ t ][ arc ] != 0 ) )
+      throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                               "arc " + std::to_string( arc ) +
+                               " is a pumping arc at time " +
+                               std::to_string( t ) +
+                               ", but v_PrimaryRho is " +
+                               std::to_string( v_PrimaryRho[ t ][ arc ] ) +
+                               ", which must be 0" ) );
+     if( ( ! v_SecondaryRho.empty() ) &&
+         ( v_SecondaryRho[ t ][ arc ] != 0 ) )
+      throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                               "arc " + std::to_string( arc ) +
+                               " is a pumping arc at time " +
+                               std::to_string( t ) +
+                               ", but v_SecondaryRho is " +
+                               std::to_string( v_SecondaryRho[ t ][ arc ] ) +
+                               ", which must be 0" ) );
+     }
+
+ // Volumetric bounds - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // for each reservoir n and each time t,
+ // 0 \leq v_MinVolumetric[n][t] \leq v_MaxVolumetric[n][t]
+ if( ( ! v_MinVolumetric.empty() ) && ( ! v_MaxVolumetric.empty() ) )
+  for( Index node = 0 ; node < f_NumberReservoirs ; ++node )
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if( v_MinVolumetric[ node ][ t ] < 0 )
+     throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                              "minimum volumetric of reservoir " +
+                              std::to_string( node ) + " at time " +
+                              std::to_string( t ) + " is " +
+                              std::to_string( v_MinVolumetric[ node ][ t ] ) +
+                              ", but it must be nonnegative" ) );
+    if( v_MaxVolumetric[ node ][ t ] < 0 )
+     throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                              "maximum volumetric of reservoir " +
+                              std::to_string( node ) + " at time " +
+                              std::to_string( t ) + " is " +
+                              std::to_string( v_MaxVolumetric[ node ][ t ] ) +
+                              ", but it must be nonnegative" ) );
+    if( v_MinVolumetric[ node ][ t ] > v_MaxVolumetric[ node ][ t ] )
+     throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                              "minimum volumetric of reservoir " +
+                              std::to_string( node ) + " at time " +
+                              std::to_string( t ) + " is " +
+                              std::to_string( v_MinVolumetric[ node ][ t ] ) +
+                              ", which is greater than the maximum "
+                              "volumetric, which is " +
+                              std::to_string( v_MaxVolumetric[ node ][ t ] ) ) );
+    }
+
+ }  // end( HydroUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
 
@@ -426,48 +532,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  // maximum power output according to primary-secondary reserves constraints
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- // Initial data check
- if( ( ! v_MinPower.empty() ) && ( ! v_MaxPower.empty() ) )
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( v_MinPower[ t ][ arc ] > v_MaxPower[ t ][ arc ] )
-     throw( std::logic_error( "HydroUnitBlock::maximum and minimum power "
-                              "output constraints: it must be that v_MaxPower"
-                              " >= v_MinPower" ) );
-
- // Initial data check
- if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
-        ( v_MinFlow[ t ][ arc ] < 0 ) &&
-        ( v_NumberPieces[ arc ] > 1 ) )
-     throw( std::logic_error( "HydroUnitBlock::Data Error: it must be that "
-                              "for each pump when v_MinPower < 0, then "
-                              "v_NumberPieces == 1" ) );
-
- // Initial data check
- if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( ! v_PrimaryRho.empty() )
-     if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
-         ( v_MinFlow[ t ][ arc ] < 0 ) &&
-         ( v_PrimaryRho[ t ][ arc ] != 0 ) )
-      throw( std::logic_error( "HydroUnitBlock::Data Error: it must be that "
-                               "for each pump v_PrimaryRho == 0" ) );
-
- // Initial data check
- if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( ! v_SecondaryRho.empty() )
-     if( ( v_MaxFlow[ t ][ arc ] <= 0 ) &&
-         ( v_MinFlow[ t ][ arc ] < 0 ) &&
-         ( v_SecondaryRho[ t ][ arc ] != 0 ) )
-      throw( std::logic_error( "HydroUnitBlock::Data Error: it must be that "
-                               "for each pump then v_SecondaryRho == 0" ) );
 
  assert( MaxPowerPrimarySecondary_Const.empty() );
 
@@ -699,14 +763,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // flow rate bounds- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- // Initial data check
- if( ( ! v_MinFlow.empty() ) && ( ! v_MaxFlow.empty() ) )
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( v_MinFlow[ t ][ arc ] > v_MaxFlow[ t ][ arc ] )
-     throw( std::logic_error( "HydroUnitBlock::flow rate variable bounds: "
-			      "it must be that v_MaxFlow >= v_MinFlow." ) );
-
  assert( FlowRateBounds_Const.empty() );
  FlowRateBounds_Const.resize(
 		   maFRC2::extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
@@ -787,16 +843,6 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  // volumetric bounds constraints - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- // Initial data check
- if( ( ! v_MinVolumetric.empty() ) && ( ! v_MaxVolumetric.empty() ) )
-  for( Index node = 0 ; node < f_NumberReservoirs ; ++node )
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    if( ( v_MinVolumetric[ node ][ t ] > v_MaxVolumetric[ node ][ t ] ) ||
-        ( v_MinVolumetric[ node ][ t ] < 0 ) ||
-	       ( v_MaxVolumetric[ node ][ t ] < 0 ) )
-     throw( std::logic_error( "HydroUnitBlock::Volumetric Bounds Constraint "
-                              "must be 0 <= MinV[ r , t ] <= MaxV[ r , t ]" ) );
 
  assert( VolumetricBounds_Const.empty() );
  VolumetricBounds_Const.resize(
