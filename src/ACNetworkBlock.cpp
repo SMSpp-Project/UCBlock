@@ -905,6 +905,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  */
  if( b_strongSOCP )
   strengthen_SOCP_relaxation();
+
+ set_constraints_generated();
 } // end( ACNetworkBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/

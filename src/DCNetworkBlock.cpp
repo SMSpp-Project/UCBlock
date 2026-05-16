@@ -962,7 +962,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  generate_bound_constraints();         // generate flow limits
  generate_network_cost_constraints();  // generate cost constraints
 
- set_constraints_generated();  // signal all done
+ set_constraints_generated();
 
  }  // end( DCNetworkBlock::generate_abstract_constraints )
 
