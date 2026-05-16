@@ -111,9 +111,6 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group ) {
   ::deserialize( group , "LineResistance" , f_number_lines ,
                  v_line_resistance , true , true );
 
-  ::deserialize( group , "LineChargingSusceptance" , f_number_lines ,
-                 v_line_chargingsusceptance , true , true );
-
   ::deserialize( group , "LineRatio" , f_number_lines , v_line_ratio ,
                  true , true );
 
@@ -128,6 +125,15 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group ) {
 
   ::deserialize( group , "LineMaxAngle" , f_number_lines , v_line_max_angle ,
                  true , true );
+
+  if( ! ::deserialize( group , "LineChargingSusceptance" , f_number_lines ,
+                       v_line_chargingsusceptance , true , true ) ) {
+   v_line_chargingsusceptance.assign( f_number_lines , 0.0 );
+   if( v_line_ratio.empty() )
+    v_line_ratio.assign( f_number_lines , 1.0 );
+   if( v_line_angle.empty() )
+    v_line_angle.assign( f_number_lines , 0.0 );
+  }
 
   ::deserialize( group , "NodeConductance" , f_number_nodes ,
                  v_node_conductance , true , true );
@@ -538,8 +544,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
   add_static_constraint( v_reactive_flow_bounds , "Reactive_Flow_Bounds" );
   }
- else
-  std::cout << " No bounds on Reactive flow given ... " << std::endl;
 
  // ----- Active and Reactive Power conservation: - - - - - - - - - - - - - -
  // Shunt admittance
