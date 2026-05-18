@@ -1101,24 +1101,27 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    [ 2 ][ f_time_horizon ] );  // 2 dims, i.e., the intake and outtake bounds
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   // v_intake_level <= v_MaxPower b
+   //      v_intake_level <= - v_MinPower b
+   // => v_intake_level + v_MinPower b <= 0
+   // (v_MinPower < 0 by battery convention, so -v_MinPower b is the
+   //  positive intake bound when b == 1)
    vars.push_back( std::make_pair( & v_intake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( & v_battery_binary[ t ] ,
-                                   -f_kappa * v_MaxPower[ t ] ) );
+                                   f_kappa * v_MinPower[ t ] ) );
 
    intake_outtake_binary_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_binary_Const[ 0 ][ t ].set_rhs( 0.0 );
    intake_outtake_binary_Const[ 0 ][ t ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
 
-   //      v_outtake_level <= - v_MinPower ( 1 - b )
-   // => v_outtake_level - v_MinPower b <= - v_MinPower
+   //      v_outtake_level <= v_MaxPower ( 1 - b )
+   // => v_outtake_level + v_MaxPower b <= v_MaxPower
    vars.push_back( std::make_pair( & v_outtake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( & v_battery_binary[ t ] ,
-                                   -f_kappa * v_MinPower[ t ] ) );
+                                   f_kappa * v_MaxPower[ t ] ) );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
-   intake_outtake_binary_Const[ 1 ][ t ].set_rhs( -f_kappa * v_MinPower[ t ] );
+   intake_outtake_binary_Const[ 1 ][ t ].set_rhs( f_kappa * v_MaxPower[ t ] );
    intake_outtake_binary_Const[ 1 ][ t ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
    }
@@ -1968,7 +1971,10 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
     throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
                              "not found in intake_binary_Const." ) );
 
-   f->modify_coefficient( index , -f_kappa * v_MaxPower[ t ] , issueAMod );
+   // intake bound is - v_MinPower b (v_MinPower is the charging-side limit,
+   // negative by convention): coefficient on v_battery_binary is + kappa
+   // v_MinPower, see the construction at the top of the file
+   f->modify_coefficient( index , f_kappa * v_MinPower[ t ] , issueAMod );
   }
 
  if( ( ! intake_outtake_binary_Const.empty() ) &&
@@ -1985,10 +1991,13 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
     throw( std::logic_error( "BatteryUnitBlock::set_kappa: expected Variable"
                              "not found in outtake_binary_Const." ) );
 
-   f->modify_coefficient( index , -f_kappa * v_MinPower[ t ] , issueAMod );
+   // outtake bound is v_MaxPower (1 - b): coefficient on v_battery_binary
+   // is + kappa v_MaxPower and the RHS is kappa v_MaxPower, see the
+   // construction at the top of the file
+   f->modify_coefficient( index , f_kappa * v_MaxPower[ t ] , issueAMod );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_rhs(
-    -f_kappa * v_MinPower[ t ] , issueAMod );
+    f_kappa * v_MaxPower[ t ] , issueAMod );
   }
 
  if( ! primary_upper_bound_Const.empty() )
