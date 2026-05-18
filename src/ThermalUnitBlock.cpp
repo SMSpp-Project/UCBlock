@@ -5765,7 +5765,12 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
     *( nvit++ ) = qf->get_linear_coefficient( i++ );
-   set_startup_costs( nv.begin() , Range( l , r2 ) , par , eDryRun );
+   // set_startup_costs( Range ) expects rng in time-space [ init_t ,
+   // f_time_horizon ); active-var indices [ l , r2 ) correspond to time
+   // indices [ l + init_t , r2 + init_t )
+   set_startup_costs( nv.begin() ,
+                      Range( l + init_t , r2 + init_t ) ,
+                      par , eDryRun );
    l = r2;
    if( l == r )
     return;
@@ -5879,9 +5884,12 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Subset nms( std::distance( l , r ) );
    auto nvit = nv.begin();
    auto nmsit = nms.begin();
+   // set_startup_costs( Subset ) expects subset entries in time-space
+   // [ init_t , f_time_horizon ); active-var indices [ 0 , th - init_t )
+   // map to time indices by adding init_t
    while( l != r ) {
     *( nvit++ ) = qf->get_linear_coefficient( *l );
-    *( nmsit++ ) = *( l++ );
+    *( nmsit++ ) = *( l++ ) + init_t;
     }
    set_startup_costs( nv.begin() , std::move( nms ) , true , par , eDryRun );
    if( r == sbs->end() )
