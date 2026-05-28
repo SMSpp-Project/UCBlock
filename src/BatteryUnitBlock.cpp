@@ -332,7 +332,19 @@ void BatteryUnitBlock::check_data_consistency( void ) const
   assert( v_ExtractingBatteryRho.size() == f_time_horizon );
   assert( v_StoringBatteryRho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   if( v_StoringBatteryRho[ t ] / v_ExtractingBatteryRho[ t ] > 1 )
+   if ( v_ExtractingBatteryRho[ t ] < 0. )
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid "
+                             "inefficiency of extracting energy for time "
+                             "step " + std::to_string( t ) + ": " +
+                             std::to_string( v_ExtractingBatteryRho[ t ] ) +
+                             ". It must not be lower than 0." ) );
+   else if( v_StoringBatteryRho[ t ] < 0. )
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid "
+                             "efficiency of storing energy for time "
+                             "step " + std::to_string( t ) + ": " +
+                             std::to_string( v_StoringBatteryRho[ t ] ) +
+                             ". It must not be lower than 0." ) );
+   else if( ( v_ExtractingBatteryRho[ t ] != 0. ) && ( v_StoringBatteryRho[ t ] / v_ExtractingBatteryRho[ t ] > 1 ) )
     throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid roundtrip"
                              " efficiency of battery for time "
                              "step " + std::to_string( t ) + ": " +
