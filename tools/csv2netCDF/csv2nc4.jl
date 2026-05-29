@@ -1031,27 +1031,39 @@ function csvEC2nc4(
         # inner UCBlock was populated above by the deterministic branch.
         # Below we add the SimpleDataMapping section + nested AbstractPath.
 
-        # SimpleDataMapping
+        # SimpleDataMapping (compact form)
         #
-        # One mapping per stochastic quantity. The scenario vector is split as
-        # described above: Section 1 (demand), then one slice per intermittent
-        # unit (Section 2), then one slice per (varying price field, peak
-        # period) (Section 3, only when price perturbations are detected).
-        # Each mapping declares:
+        # The scenario vector is split as described above: Section 1
+        # (demand), then one slice per intermittent unit (Section 2), then
+        # one slice per (varying price field, peak period) (Section 3, only
+        # when price perturbations are detected). With SMS++'s compact
+        # DataMapping form we emit:
         #
-        #   * which C++ setter consumes the slice
-        #   * SetSize=(0,0) i.e. Range/Range mode
-        #   * SetElements=[fromStart, fromEnd, toStart, toEnd] picking the
-        #     scenario slice and pushing it into the target's full-length
-        #     argument [0, N_target).
+        #   * one mapping for the demand (`UCBlock::set_active_power_demand`,
+        #     empty AbstractPath),
+        #   * ONE compact mapping for ALL intermittent units
+        #     (`IntermittentUnitBlock::set_maximum_power`): its SetFrom
+        #     covers the entire intermittent slice (n_intermittent * N_mp
+        #     consecutive entries of the scenario), its SetTo is the
+        #     per-block [0, N_mp), and its AbstractPath is a single 'B'
+        #     node whose explicit Block subset (PathSubset) lists the
+        #     nested-Block indices of all intermittent units. SMS++
+        #     transparently expands this at deserialize time into one
+        #     concrete mapping per intermittent Block, with SetFrom sliced
+        #     into n_intermittent consecutive N_mp-chunks,
+        #   * one mapping per (price_field, peak): each targets a single
+        #     NetworkBlock via a single 'B' hop (no subset).
         #
-        # Mapping 0 targets the inner UCBlock itself (empty AbstractPath);
-        # mappings 1..n_intermittent target UnitBlock_<ub_idx> via a single
-        # "B" hop carrying the UnitBlock index; the price mappings target
-        # NetworkBlock_<i_w-1> via a single "B" hop carrying the NetworkBlock
-        # index (= n_devices + (i_w-1) in UCBlock's sub-Block ordering).
+        # Each mapping declares which C++ setter consumes the slice,
+        # SetSize=(0,0) i.e. Range/Range mode, and SetElements as the
+        # quadruplet (fromStart, fromEnd, toStart, toEnd).
+        #
+        # UCBlock orders its sub-blocks as [UnitBlock_0..n_devices-1,
+        # NetworkBlock_0..n_peaks-1], so the NetworkBlock for peak (i_w-1)
+        # lives at sub-Block index n_devices + (i_w-1).
 
-        number_mappings = 1 + n_intermittent + length(price_mappings)
+        has_intermittent = n_intermittent > 0
+        number_mappings  = 1 + (has_intermittent ? 1 : 0) + length(price_mappings)
 
         defDim(sb, "NumberDataMappings", number_mappings)
         defDim(sb, "SetSize_dim", 2 * number_mappings)
@@ -1063,8 +1075,10 @@ function csvEC2nc4(
         v_SetSize      = defVar(sb, "SetSize",      UInt32, ("SetSize_dim",))
         v_SetElements  = defVar(sb, "SetElements",  UInt32, ("SetElements_dim",))
 
-        function_names = String["UCBlock::set_active_power_demand";
-                                fill("IntermittentUnitBlock::set_maximum_power", n_intermittent)]
+        function_names = String["UCBlock::set_active_power_demand"]
+        if has_intermittent
+            push!(function_names, "IntermittentUnitBlock::set_maximum_power")
+        end
         for (field_name, _i_w, _len) in price_mappings
             push!(function_names, ec_setter_for[field_name])
         end
@@ -1078,12 +1092,15 @@ function csvEC2nc4(
         set_elements = UInt32[]
         # Mapping 0: scenario [0, N_dem) -> demand argument [0, N_dem)
         append!(set_elements, UInt32[0, N_dem, 0, N_dem])
-        # Mapping i: scenario slice for the i-th intermittent unit -> [0, T)
-        for i in 1:n_intermittent
-            offset = N_dem + (i - 1) * N_mp
-            append!(set_elements, UInt32[offset, offset + N_mp, 0, N_mp])
+        # Mapping 1 (compact intermittent, when present): SetFrom covers the
+        # full intermittent slice; SetTo is the per-block [0, N_mp). The
+        # SMS++ deserializer slices SetFrom into n_intermittent consecutive
+        # chunks of N_mp entries and applies one per Block of the subset.
+        if has_intermittent
+            append!(set_elements,
+                    UInt32[N_dem, N_dem + n_intermittent * N_mp, 0, N_mp])
         end
-        # Mappings for the per-(price_field, peak) tail.
+        # Per-(price_field, peak) tail.
         let tail_offset = N_dem + n_intermittent * N_mp
             for (_field_name, _i_w, len) in price_mappings
                 append!(set_elements, UInt32[tail_offset, tail_offset + len, 0, len])
@@ -1093,16 +1110,18 @@ function csvEC2nc4(
         v_SetElements[:] = set_elements
 
         # AbstractPath nested in StochasticBlock: tells the deserializer how
-        # to navigate from the inner Block (the loaded UCBlock) to each setter
-        # target. Empty path = the UCBlock itself; "B" + UInt32 index = enter
-        # the sub-Block at that group position. UCBlock orders its sub-blocks
-        # as [UnitBlock_0..n_devices-1, NetworkBlock_0..n_peaks-1], so the
-        # NetworkBlock for peak (i_w-1) lives at index n_devices + (i_w-1).
+        # to navigate from the inner Block (the loaded UCBlock) to each
+        # setter target.
+        #   * Empty path  -> the UCBlock itself (demand).
+        #   * 'B' node with PathSubset -> the listed nested-Block indices
+        #     (compact intermittent).
+        #   * 'B' node alone -> the single nested Block at PathGroupIndices.
         ap = defGroup(sb, "AbstractPath", attrib=OrderedDict("type" => "AbstractPath"))
 
-        # Concatenated steps across all paths: one 'B' per max_power mapping,
-        # plus one 'B' per (price_field, peak) mapping.
-        total_length_inner = n_intermittent + length(price_mappings)
+        # Concatenated nodes across all paths: 0 for the (empty) demand
+        # path, 1 for the compact intermittent path (when present), and 1
+        # per (price_field, peak) path.
+        total_length_inner = (has_intermittent ? 1 : 0) + length(price_mappings)
 
         defDim(ap, "PathDim", number_mappings)
         defDim(ap, "TotalLength", total_length_inner)
@@ -1116,30 +1135,93 @@ function csvEC2nc4(
         # PathStart[k] is the start position in the concatenated TotalLength
         # array for the k-th mapping; the k-th path covers indices
         # [PathStart[k], PathStart[k+1]) (with the last path running to the
-        # end). Mapping 0 (demand) has length 0 (empty path); each subsequent
-        # mapping (intermittent + price) is a single 'B' hop.
+        # end). Mapping 0 (demand) has length 0 (empty path); the compact
+        # intermittent (when present) is 1 node; each price mapping is 1
+        # node.
         path_starts_inner = UInt32[0]
-        # n_intermittent + length(price_mappings) single-step paths follow
-        for i in 1:(n_intermittent + length(price_mappings))
-            push!(path_starts_inner, UInt32(i - 1))
+        node_offset = 0
+        if has_intermittent
+            push!(path_starts_inner, UInt32(node_offset))
+            node_offset += 1
+        end
+        for _ in 1:length(price_mappings)
+            push!(path_starts_inner, UInt32(node_offset))
+            node_offset += 1
         end
         v_PathStart[:] = path_starts_inner
 
         if total_length_inner > 0
-            node_types = Char[]
+            node_types    = Char[]
             group_indices = UInt32[]
-            for unit in intermittent_units
+            range_indices = UInt32[]
+
+            # Detect whether the intermittent unit indices form a contiguous
+            # range [start, start+N): when they do, the compact mapping is
+            # encoded as a Block RANGE (group_index = start, range_index =
+            # end), which costs nothing beyond the existing PathGroupIndices /
+            # PathRangeIndices entries. Otherwise the indices are emitted as
+            # an explicit Block SUBSET via the optional PathSubsetSizes /
+            # PathSubset variables.
+            intermittent_indices = UInt32[]
+            intermittent_is_contiguous = false
+            if has_intermittent
+                intermittent_indices = UInt32[UInt32(u[1])
+                                              for u in intermittent_units]
+                intermittent_is_contiguous = all(i -> intermittent_indices[i] ==
+                                                     intermittent_indices[1] +
+                                                     UInt32(i - 1),
+                                                 1:length(intermittent_indices))
+
+                # Compact intermittent node: PathGroupIndices is set to the
+                # FIRST selected index so that any consumer ignoring the
+                # multi-selection still resolves to a valid Block.
                 push!(node_types, 'B')
-                push!(group_indices, UInt32(unit[1]))
+                push!(group_indices, intermittent_indices[1])
+                if intermittent_is_contiguous
+                    # Contiguous range form: [start, end).
+                    push!(range_indices,
+                          intermittent_indices[1] + UInt32(n_intermittent))
+                else
+                    # Subset form: range_index stays +Inf; the actual
+                    # selection is emitted below in PathSubset.
+                    push!(range_indices, typemax(UInt32))
+                end
             end
+
             for (_field_name, i_w, _len) in price_mappings
                 push!(node_types, 'B')
                 push!(group_indices, UInt32(n_devices + (i_w - 1)))
+                push!(range_indices, typemax(UInt32))
             end
+
             v_PathNodeTypes[:]    = node_types
             v_PathGroupIndices[:] = group_indices
             v_PathElementIdx[:]   = fill(typemax(UInt32), total_length_inner)
-            v_PathRangeIdx[:]     = fill(typemax(UInt32), total_length_inner)
+            v_PathRangeIdx[:]     = range_indices
+
+            # Optional explicit per-node Block subset: emitted only when the
+            # compact intermittent mapping is present AND the indices are
+            # not contiguous (otherwise the contiguous-range form above is
+            # used and these optional variables are simply omitted, keeping
+            # the file footprint smaller and the ncdump output cleaner).
+            # PathSubsetSizes[i] is the number of nested-Block indices
+            # selected by node i (0 for nodes that select a single Block or
+            # a contiguous range via PathGroupIndices / PathRangeIndices);
+            # the consecutive PathSubsetSizes[i] entries of PathSubset hold
+            # the corresponding indices.
+            if has_intermittent && !intermittent_is_contiguous
+                subset_sizes = UInt32[UInt32(n_intermittent);
+                                      fill(UInt32(0), length(price_mappings))]
+
+                defDim(ap, "PathSubsetTotalLength", n_intermittent)
+                v_PathSubsetSizes = defVar(ap, "PathSubsetSizes",
+                                           UInt32, ("TotalLength",))
+                v_PathSubset      = defVar(ap, "PathSubset",
+                                           UInt32, ("PathSubsetTotalLength",))
+
+                v_PathSubsetSizes[:] = subset_sizes
+                v_PathSubset[:]      = intermittent_indices
+            end
         end
 
         # The inner UCBlock is embedded as `sb.Block` (created at the top of
