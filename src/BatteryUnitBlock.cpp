@@ -328,29 +328,51 @@ void BatteryUnitBlock::check_data_consistency( void ) const
 
  // Inefficiency of storing, extracting and standing energy
 
- if( ! v_ExtractingBatteryRho.empty() && ! v_StoringBatteryRho.empty()) {
-  assert( v_ExtractingBatteryRho.size() == f_time_horizon );
+ if( ! v_StoringBatteryRho.empty() ) {
   assert( v_StoringBatteryRho.size() == f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   if ( v_ExtractingBatteryRho[ t ] < 0. )
+   if( v_StoringBatteryRho[ t ] < 0. )
     throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid "
-                             "inefficiency of extracting energy for time "
-                             "step " + std::to_string( t ) + ": " +
-                             std::to_string( v_ExtractingBatteryRho[ t ] ) +
-                             ". It must not be lower than 0." ) );
-   else if( v_StoringBatteryRho[ t ] < 0. )
-    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid "
-                             "efficiency of storing energy for time "
-                             "step " + std::to_string( t ) + ": " +
+                             "efficiency of storing energy for time step " +
+                             std::to_string( t ) + ": " +
                              std::to_string( v_StoringBatteryRho[ t ] ) +
                              ". It must not be lower than 0." ) );
-   else if( ( v_ExtractingBatteryRho[ t ] != 0. ) && ( v_StoringBatteryRho[ t ] / v_ExtractingBatteryRho[ t ] > 1 ) )
-    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid roundtrip"
-                             " efficiency of battery for time "
-                             "step " + std::to_string( t ) + ": " +
-                             std::to_string( v_StoringBatteryRho[ t ] / v_ExtractingBatteryRho[ t ] ) +
-                             ". Division of storing by extracting rho must not be greater than 1." ) );
  }
+
+ if( ! v_ExtractingBatteryRho.empty() ) {
+  assert( v_ExtractingBatteryRho.size() == f_time_horizon );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   if( v_ExtractingBatteryRho[ t ] < 0. )
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid "
+                             "inefficiency of extracting energy for time step " +
+                             std::to_string( t ) + ": " +
+                             std::to_string( v_ExtractingBatteryRho[ t ] ) +
+                             ". It must not be lower than 0." ) );
+ }
+
+ // Roundtrip efficiency: the energy retrieved over a charge-discharge cycle
+ // must not exceed the energy put in, i.e. StoringRho / ExtractingRho <= 1.
+ // It is checked as StoringRho <= ExtractingRho to avoid a division (and to
+ // correctly reject the degenerate ExtractingRho == 0 with StoringRho > 0). A
+ // missing vector defaults to 1, consistently with how these coefficients are
+ // used when building the storage balance constraints. Note that, when a time
+ // step represents several elementary periods, an individual rho may exceed 1:
+ // only the roundtrip ratio is constrained.
+
+ if( ( ! v_StoringBatteryRho.empty() ) || ( ! v_ExtractingBatteryRho.empty() ) )
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const double storing = v_StoringBatteryRho.empty()
+                          ? 1. : v_StoringBatteryRho[ t ];
+   const double extracting = v_ExtractingBatteryRho.empty()
+                             ? 1. : v_ExtractingBatteryRho[ t ];
+   if( storing > extracting )
+    throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: invalid "
+                             "roundtrip efficiency of battery for time step " +
+                             std::to_string( t ) + ": StoringBatteryRho (" +
+                             std::to_string( storing ) +
+                             ") must not be greater than ExtractingBatteryRho ("
+                             + std::to_string( extracting ) + ")." ) );
+  }
 
  if( ! v_StandingBatteryRho.empty() ) {
   assert( v_StandingBatteryRho.size() == f_time_horizon );
@@ -460,22 +482,26 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
   negative_prices = sci->f_value;
 
  // Binary variables must be generated if negative prices may occur and if
- // there is some t such that
- // StoringBatteryRho[ t ] < 1 < ExtractingBatteryRho[ t ]
+ // there is some t with a roundtrip loss, i.e. StoringBatteryRho[ t ] <
+ // ExtractingBatteryRho[ t ] (a missing vector defaults to 1); otherwise the
+ // battery could charge and discharge at the same time to exploit the
+ // efficiencies.
 
  bool generate_binary_variables = false;
 
- if( negative_prices && ( ! v_StoringBatteryRho.empty() ) &&
-     ( ! v_ExtractingBatteryRho.empty() ) ) {
-  assert( v_StoringBatteryRho.size() == f_time_horizon );
-  assert( v_ExtractingBatteryRho.size() == f_time_horizon );
-  for( Index t = 0 ; t < v_StoringBatteryRho.size() ; ++t )
-   if( ( v_StoringBatteryRho[ t ] < 1 ) &&
-       ( v_ExtractingBatteryRho[ t ] > 1 ) ) {
+ if( negative_prices && ( ( ! v_StoringBatteryRho.empty() ) ||
+                          ( ! v_ExtractingBatteryRho.empty() ) ) ) {
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const double storing = v_StoringBatteryRho.empty()
+                          ? 1. : v_StoringBatteryRho[ t ];
+   const double extracting = v_ExtractingBatteryRho.empty()
+                             ? 1. : v_ExtractingBatteryRho[ t ];
+   if( storing < extracting ) {
     generate_binary_variables = true;
     break;
    }
   }
+ }
 
  static constexpr double dNaN = std::numeric_limits< double >::quiet_NaN();
 

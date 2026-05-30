@@ -473,7 +473,7 @@ class BatteryUnitBlock : public UnitBlock
   *   \f$ \mathrm{EBR}[ t ] \f$ for all \f$ t \f$ in the interval
   *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}
   *   [ i ] ] \f$ with the assumption that \f$ \mathrm{ChangeIntervals}[ - 1 ]
-  *   = 0 \f$. Note that it must always be \f$ \mathrm{EBR}[ t ] / \mathrm{SBR}[ t ] \le 1 \f$
+  *   = 0 \f$. Note that it must always be \f$ \mathrm{SBR}[ t ] / \mathrm{EBR}[ t ] \le 1 \f$
   *   for all \f$ t \f$ (as \f$ \mathrm{EBR}
   *   [ t ] \f$ is the amount of energy that is taken away from the battery to
   *   obtain 1 unit of output energy). If \f$ \mathrm{NumberIntervals} \le 1
