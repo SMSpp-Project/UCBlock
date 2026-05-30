@@ -450,7 +450,7 @@ class BatteryUnitBlock : public UnitBlock
   *   interval \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
   *   \mathrm{ChangeIntervals}[ i ] ] \f$ with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. Note that it must always
-  *   be \f$ \mathrm{SBR}[ t ] \le 1 \f$ for all \f$ t \f$ (as \f$ \mathrm{SBR}
+  *   be \f$ \mathrm{SBR}[ t ] / \mathrm{EBR}[ t ] \le 1 \f$ for all \f$ t \f$ (as \f$ \mathrm{SBR}
   *   [ t ] \f$ is the amount of energy actually going in the battery for each
   *   1 unit of input energy). If \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
@@ -473,8 +473,8 @@ class BatteryUnitBlock : public UnitBlock
   *   \f$ \mathrm{EBR}[ t ] \f$ for all \f$ t \f$ in the interval
   *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}
   *   [ i ] ] \f$ with the assumption that \f$ \mathrm{ChangeIntervals}[ - 1 ]
-  *   = 0 \f$. Note that it must always be \f$ \mathrm{EBR}[ t ] \ge 1 \f$
-  *   [\f$ \ge \mathrm{SBR}[ t ] \f$] for all \f$ t \f$ (as \f$ \mathrm{EBR}
+  *   = 0 \f$. Note that it must always be \f$ \mathrm{EBR}[ t ] / \mathrm{SBR}[ t ] \le 1 \f$
+  *   for all \f$ t \f$ (as \f$ \mathrm{EBR}
   *   [ t ] \f$ is the amount of energy that is taken away from the battery to
   *   obtain 1 unit of output energy). If \f$ \mathrm{NumberIntervals} \le 1
   *   \f$ or \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then
@@ -506,13 +506,7 @@ class BatteryUnitBlock : public UnitBlock
   *   fixed value of \f$ \mathrm{STBR}[ t ] \f$ for all \f$ t \f$ in the
   *   interval \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
   *   \mathrm{ChangeIntervals}[ i ] ] \f$ with the assumption that
-  *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. Note that it must always
-  *   be \f$ \mathrm{STBR}[ t ] \le 1. \f$ for all \f$ t \f$ (as \f$ \mathrm{STBR}
-  *   [ t ] \f$ is the amount of energy actually going in the battery for each
-  *   1 unit of input energy). If \f$ \mathrm{NumberIntervals} \le 1 \f$ or
-  *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
-  *   mapping clearly does not require "ChangeIntervals", which in fact is not
-  *   loaded.
+  *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$.
   *
   * - The scalar variable "InitialStorage", of type netCDF::NcDouble and not
   *   indexed over any dimension. This variable indicates the amount of
