@@ -232,6 +232,59 @@ function parse_dataprofile(gen_config, data, profile_name, profile_value::Any)
     @error "Data descriptor for $profile_name not accepted"
 end
 
+# Hours in a (non-leap) year: the annual energy balance the representative
+# period must reproduce.
+const HOURS_PER_YEAR = 8760
+
+const _UTF8_BOM = UInt8[0xEF, 0xBB, 0xBF]
+
+"""
+    write_csv_preserving_format(csv_path, d)
+
+Write `d` over `csv_path` keeping the original file's byte conventions, i.e. a
+leading UTF-8 BOM and/or CRLF line endings when present. This makes a rewrite
+that only changes a column value (e.g. a `final_step` round-trip) reproduce the
+file byte-for-byte, avoiding spurious whole-file churn from BOM/newline drift."""
+function write_csv_preserving_format(csv_path, d)
+    raw = read(csv_path)
+    had_bom = length(raw) >= 3 && raw[1:3] == _UTF8_BOM
+    crlf = 0x0D in (had_bom ? @view(raw[4:end]) : raw)
+    s = String(take!(CSV.write(IOBuffer(), d)))  # canonical: no BOM, LF endings
+    crlf && (s = replace(s, "\n" => "\r\n"))
+    open(csv_path, "w") do io
+        had_bom && write(io, _UTF8_BOM)
+        write(io, s)
+    end
+end
+
+"""
+    rescale_annual_energy_weight!(d, final_step, ew_col, tr_col, csv_path)
+
+Keep the annual energy balance `final_step * time_res * energy_weight =
+HOURS_PER_YEAR` when the YAML `final_step` is changed. The CSVs are calibrated
+for one `final_step` (currently 96, with `time_res = 0.25` and
+`energy_weight = 365`); on a different `final_step` we leave `time_res` (the
+genuine physical step length of the data, e.g. 15 min) untouched and recompute,
+per row, the annual repetition weight `energy_weight = HOURS_PER_YEAR /
+(final_step * time_res)`. The CSV is rewritten only when the column actually
+changes, so the calibrated default and any dataset lacking both columns are a
+no-op. Returns `d` (with the updated column when changed)."""
+function rescale_annual_energy_weight!(d, final_step, ew_col, tr_col, csv_path)
+    isnothing(final_step) && return d
+    cols = names(d)
+    (String(ew_col) in cols && String(tr_col) in cols) || return d
+    time_res = d[!, String(tr_col)]
+    new_ew = HOURS_PER_YEAR ./ (final_step .* time_res)
+    all(isinteger, new_ew) && (new_ew = Int.(new_ew))  # keep the clean "365" style
+    if !isequal(d[!, String(ew_col)], new_ew)
+        d[!, String(ew_col)] = new_ew
+        write_csv_preserving_format(csv_path, d)
+        @info "Rescaled '$(ew_col)' in $(basename(csv_path)) for final_step=$(final_step): " *
+              "annual balance final_step*time_res*energy_weight=$(HOURS_PER_YEAR) preserved"
+    end
+    return d
+end
+
 """
     read_input(file_name)
 
@@ -247,6 +300,13 @@ function read_input(file_name::AbstractString)
 
     gen_data = general(data)
 
+    # The market CSV columns are recalibrated to the requested number of time
+    # steps so the user only edits `final_step` (and `user_set`) in the YAML;
+    # `energy_weight`/`time_res` column names follow the general profile map.
+    final_step = field_d(gen_data, "final_step")
+    ew_col = profile_d(gen_data, "energy_weight", "energy_weight")
+    tr_col = profile_d(gen_data, "time_res", "time_res")
+
     # optional data by csv files
     opt_data = DataFrame()
     opt_files = field(gen_data, "optional_datasets")
@@ -254,6 +314,7 @@ function read_input(file_name::AbstractString)
         for f_name in opt_files
             abs_file_name = (isabspath(f_name) ? f_name : joinpath(dirname(file_name), f_name))
             d = CSV.read(abs_file_name, DataFrame)
+            rescale_annual_energy_weight!(d, final_step, ew_col, tr_col, abs_file_name)
             if isempty(opt_data)
                 opt_data = d
             else

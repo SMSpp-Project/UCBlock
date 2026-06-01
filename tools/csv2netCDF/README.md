@@ -120,6 +120,23 @@ the NA case via CO + `--no-asset`, with and without `--with-network-blocks`.
   contributions are summed across users, so EC-wide prices scale with the
   number of users in `general.user_set`.
 
+## Resizing the instance
+
+To change the instance size you only edit the YAML — no manual edits to the
+market CSV are needed:
+
+- **Fewer users**: shrink `general.user_set` to the users you want.
+- **Fewer time steps**: set `general.final_step` to the desired value. On read,
+  `read_input` recalibrates the market dataset so the annual energy balance
+  `final_step * time_res * energy_weight = 8760` (hours in a year) is preserved:
+  `time_res` (the physical step length, e.g. 15 min) is kept as-is and the
+  annual repetition weight `energy_weight` is recomputed as
+  `8760 / (final_step * time_res)`. The CSV is rewritten in place only when the
+  value actually changes (the calibrated default `final_step = 96`,
+  `time_res = 0.25`, `energy_weight = 365` is a no-op). Make sure
+  `general.optional_datasets` points at the matching market CSV (the `*_sto`
+  variants for the stochastic flow).
+
 ## Output
 
 The script writes one or two files into `../../data/nc4/EC_Data/`:

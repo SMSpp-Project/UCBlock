@@ -486,6 +486,16 @@ void BatteryUnitBlock::generate_abstract_variables( Configuration * stvv )
  // ExtractingBatteryRho[ t ] (a missing vector defaults to 1); otherwise the
  // battery could charge and discharge at the same time to exploit the
  // efficiencies.
+ //
+ // The test is the direct comparison storing < extracting rather than the
+ // ratio storing / extracting < 1: the two are equivalent (for extracting > 0),
+ // but the direct form needs no division and gracefully handles the degenerate
+ // extracting == 0. It is also scale-invariant w.r.t. the temporal resolution:
+ // when a step aggregates several elementary periods both coefficients carry
+ // the same period-duration factor (storing_rho = eta_c * tau, extracting_rho =
+ // tau / eta_d), so an individual rho may exceed 1 while the ratio that drives
+ // the loss, storing / extracting = eta_c * eta_d, stays independent of tau and
+ // the inequality keeps detecting the loss correctly.
 
  bool generate_binary_variables = false;
 
