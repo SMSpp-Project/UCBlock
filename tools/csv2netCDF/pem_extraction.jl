@@ -11,6 +11,38 @@
 #                deterministic mean.
 #
 # Returns a 4-tuple (point_load, point_pv, point_wind, scen_probability).
+
+using QuadGK
+
+# Central moment of order k of d, by adaptive quadrature. PEM needs central
+# moments up to order 2N; estimating those by Monte Carlo (the package default
+# for distributions without a direct `moment` method) makes the order >= ~2N-1
+# terms pure sampling noise, so the over-determined probability step turns
+# infeasible for some N/seed/environment combinations. Quadrature is accurate to
+# ~1e-10 for every order, making the PEM construction deterministic and robust.
+# Having this method on the distribution type sends `pem` down its direct branch.
+function central_moment_quad(d::UnivariateDistribution, k::Int)
+    μ = mean(d)
+    lo, hi = extrema(d)                 # truncated normal -> (0.0, Inf)
+    val, _ = quadgk(x -> (x - μ)^k * pdf(d, x), lo, hi; rtol = 1e-10)
+    return val
+end
+
+# Run PEM the package's default way (Monte Carlo moments, kept so the draws stay
+# bit-identical with test_instance_with_EC_jl.jl) and fall back to deterministic
+# quadrature moments only when the MC path makes the probability step infeasible.
+# The cases that need the fallback (typically larger N) have no EC.jl reference,
+# so the divergence is harmless there.
+function pem_robust(d::UnivariateDistribution, N::Int)
+    try
+        return pem(d, N)
+    catch
+        @warn "pem_extraction: Monte Carlo PEM failed for N=$N on $d; " *
+              "retrying with quadrature moments (no longer bit-identical with EC.jl)."
+        return pem(d, N; central_moment_fun = central_moment_quad)
+    end
+end
+
 function pem_extraction(scen_s_sample::Int,
                         sigma_load,
                         mean_pv, sigma_pv,
@@ -31,15 +63,15 @@ function pem_extraction(scen_s_sample::Int,
 
         if sample_L
             d_load = truncated(Normal(1.0, sigma_load), 0.0, +Inf)
-            pem_load = pem(d_load, scen_s_sample)
+            pem_load = pem_robust(d_load, scen_s_sample)
         end
         if sample_P
             d_pv = truncated(Normal(mean_pv, sigma_pv), 0.0, +Inf)
-            pem_pv = pem(d_pv, scen_s_sample)
+            pem_pv = pem_robust(d_pv, scen_s_sample)
         end
         if sample_W
             d_wind = truncated(Normal(mean_wind, sigma_wind), 0.0, +Inf)
-            pem_wind = pem(d_wind, scen_s_sample)
+            pem_wind = pem_robust(d_wind, scen_s_sample)
         end
 
         # The scenario probability is taken from the first sampled letter
