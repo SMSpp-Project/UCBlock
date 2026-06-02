@@ -307,9 +307,28 @@ class ThermalUnitExtDPSolver : public Solver
   * the domain [lo, hi]. Assumes F convex (alfa >= 0 in every piece).
   * Implementation follows Wuijts et al. (2021) eq. (16)-(21), equivalent
   * to the three-case analysis of Frangioni and Gentile (2006). */
- static PQFun sliding_min( const PQFun & F ,
-                           double ramp_up , double ramp_down ,
-                           double lo , double hi );
+ /// take a spare PQFun from the pool (empty, capacity retained) or a new one
+ PQFun pool_take( void ) {
+  if( m_pqpool.empty() )
+   return( PQFun{} );
+  PQFun f = std::move( m_pqpool.back() );
+  m_pqpool.pop_back();
+  f.clear();  // keeps capacity
+  return( f );
+  }
+
+ /// return a PQFun's storage to the pool for later reuse
+ void pool_give( PQFun & f ) {
+  f.clear();  // keeps capacity
+  m_pqpool.push_back( std::move( f ) );
+  }
+
+ /** The result is written into \p out (cleared first), reusing its capacity;
+  * an internal scratch buffer (m_raw) is reused across calls too, so the hot
+  * path performs no per-call allocation. Non-static for that reason. */
+ void sliding_min( const PQFun & F ,
+                   double ramp_up , double ramp_down ,
+                   double lo , double hi , PQFun & out );
 
  /// check whether F1 is pointwise >= F2 (up to tolerance eps) on all of
  /// dom( F1 ); if dom( F1 ) extends beyond dom( F2 ), returns false (at
@@ -383,6 +402,23 @@ class ThermalUnitExtDPSolver : public Solver
   * PQFun during backtracking. f_on[t][i] summarises f_F[t][i] over the
   * full domain of that function. */
  std::vector< std::vector< OnSlot > > f_on;
+
+ // -- allocation pooling for run_DP() ---------------------------------- //
+ // run_DP() rebuilds the sparse ON-side state from scratch at every
+ // re-solve. To avoid the malloc/free churn of the many short-lived PQFun
+ // (one per surviving entry per time step, from sliding_min) and of the
+ // per-step list buffers, we recycle storage across calls:
+ //  - m_pqpool holds spare PQFun buffers (capacity retained); the per-step
+ //    functions are taken from it and the previous solve's f_F[t] are
+ //    drained back into it at the next reset;
+ //  - m_new_F/m_new_tau/m_new_on are the per-step build buffers, swapped
+ //    into f_F[t]/f_tau[t]/f_on[t] instead of freshly allocated;
+ //  - m_raw is sliding_min()'s internal scratch.
+ std::vector< PQFun >  m_pqpool;
+ std::vector< PQFun >  m_new_F;
+ std::vector< Index >  m_new_tau;
+ std::vector< OnSlot > m_new_on;
+ PQFun                 m_raw;
 
  // -- OFF-side scalars ------------------------------------------------- //
 

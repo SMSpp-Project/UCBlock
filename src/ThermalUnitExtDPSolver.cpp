@@ -41,6 +41,16 @@
 #include <algorithm>
 #include <cmath>
 
+#define TUEDPS_PROFILE 0
+/* If TUEDPS_PROFILE > 0, compute() accumulates per-phase wall time
+ * (run_DP / build_solution) into static counters and prints a cumulative
+ * summary to cerr at each call. Temporary instrumentation: keep at 0. */
+
+#if TUEDPS_PROFILE
+ #include <chrono>
+ #include <iostream>
+#endif
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -97,11 +107,30 @@ int ThermalUnitExtDPSolver::compute( bool changedvars )
 
  process_modifications();
 
+#if TUEDPS_PROFILE
+ static double t_dp = 0 , t_bs = 0; static unsigned long n_dp = 0 , n_bs = 0 , n_call = 0;
+ using clk = std::chrono::steady_clock;
+ auto tic = clk::now();
+ if( stage < dp_OK ) {
+  run_DP();
+  t_dp += std::chrono::duration< double >( clk::now() - tic ).count(); ++n_dp;
+  tic = clk::now();
+  }
+ if( stage < sol_OK ) {
+  build_solution();
+  t_bs += std::chrono::duration< double >( clk::now() - tic ).count(); ++n_bs;
+  }
+ ++n_call;
+ std::cerr << "TUEDPS_PROF n=" << time_horizon << " calls=" << n_call
+           << " run_DP=" << t_dp << "s/" << n_dp
+           << " build_solution=" << t_bs << "s/" << n_bs << std::endl;
+#else
  if( stage < dp_OK )
   run_DP();
 
  if( stage < sol_OK )
   build_solution();
+#endif
 
  unlock();
 
@@ -653,13 +682,13 @@ bool ThermalUnitExtDPSolver::is_dominated_by( const PQFun & F1 ,
 // ones (empty intervals) are dropped. The output is still a convex
 // piecewise quadratic on [lo, hi].
 
-ThermalUnitExtDPSolver::PQFun ThermalUnitExtDPSolver::sliding_min(
+void ThermalUnitExtDPSolver::sliding_min(
  const PQFun & F , double ramp_up , double ramp_down ,
- double lo , double hi )
+ double lo , double hi , PQFun & out )
 {
- PQFun G;
+ out.clear();  // keeps capacity
  if( F.empty() || lo > hi + 1e-12 )
-  return( G );
+  return;
 
  // clamp negative ramps defensively (should not occur in normal use)
  if( ramp_up   < 0 ) ramp_up   = 0;
@@ -681,8 +710,10 @@ ThermalUnitExtDPSolver::PQFun ThermalUnitExtDPSolver::sliding_min(
 
  const double tol = 1e-12;
 
- // build the output in an intermediate buffer, sort + clamp at the end
- PQFun raw;
+ // build the output in an intermediate buffer, sort + clamp at the end;
+ // m_raw is a reused member scratch (cleared, capacity retained)
+ PQFun & raw = m_raw;
+ raw.clear();
  raw.reserve( F.size() * 2 + 1 );
 
  // (1) left-shifted pieces: portions of F with q <= p_star.
@@ -752,15 +783,13 @@ ThermalUnitExtDPSolver::PQFun ThermalUnitExtDPSolver::sliding_min(
              } );
 
  // clamp to the output domain [lo, hi] and drop degenerate pieces
- G.reserve( raw.size() );
+ out.reserve( raw.size() );
  for( const auto & pc : raw ) {
   double l = std::max( pc.left  , lo );
   double r = std::min( pc.right , hi );
   if( l < r - 1e-15 )
-   G.push_back( { pc.alfa , pc.beta , pc.gamma , l , r } );
+   out.push_back( { pc.alfa , pc.beta , pc.gamma , l , r } );
   }
-
- return( G );
 
  }  // end( ThermalUnitExtDPSolver::sliding_min )
 
@@ -811,10 +840,18 @@ void ThermalUnitExtDPSolver::run_DP( void )
   return;
   }
 
- // initialise all the per-time-step state vectors to empty / +INF
- f_F  .assign( time_horizon , {} );
- f_tau.assign( time_horizon , {} );
- f_on .assign( time_horizon , {} );
+ // initialise all the per-time-step state vectors to empty / +INF.
+ // recycle the previous solve's PQFun buffers into the pool first, then
+ // empty the per-step lists keeping their outer-vector capacity
+ for( auto & ft : f_F )
+  for( auto & f : ft )
+   pool_give( f );
+ f_F  .resize( time_horizon );
+ f_tau.resize( time_horizon );
+ f_on .resize( time_horizon );
+ for( auto & v : f_F   ) v.clear();
+ for( auto & v : f_tau ) v.clear();
+ for( auto & v : f_on  ) v.clear();
  c_off_ready.assign( time_horizon , TUEDPINF );
  c_off_any  .assign( time_horizon , TUEDPINF );
  v_shutdown .assign( time_horizon , TUEDPINF );
@@ -1042,12 +1079,13 @@ void ThermalUnitExtDPSolver::run_DP( void )
   double ru_prev = delta_ramp_up  [ t - 1 ];
   double rd_prev = delta_ramp_down[ t - 1 ];
 
-  std::vector< PQFun > new_F;
-  std::vector< Index > new_tau;
-  std::vector< OnSlot > new_on;
-  new_F  .reserve( f_F[ t - 1 ].size() + 1 );
-  new_tau.reserve( f_F[ t - 1 ].size() + 1 );
-  new_on .reserve( f_F[ t - 1 ].size() + 1 );
+  // per-step build buffers: reused member scratch (cleared, capacity kept)
+  m_new_F .clear();
+  m_new_tau.clear();
+  m_new_on.clear();
+  m_new_F  .reserve( f_F[ t - 1 ].size() + 1 );
+  m_new_tau.reserve( f_F[ t - 1 ].size() + 1 );
+  m_new_on .reserve( f_F[ t - 1 ].size() + 1 );
 
   // (a) tau = 1 entry (restart arc): F^1_t(p) = f_t(p) + SUC[t]
   //     + c_off_ready[t-1], defined for p in [P, min(Pbar, SU)]. Only
@@ -1058,14 +1096,14 @@ void ThermalUnitExtDPSolver::run_DP( void )
    double hi = std::min( Phi , bound_on[ t ] );
    if( lo < hi + 1e-12 ) {
     double suc = startup_costs.empty() ? 0.0 : startup_costs[ t ];
-    PQFun F;
+    PQFun F = pool_take();
     F.push_back( { quad_term[ t ] , linear_term[ t ] ,
                    const_term[ t ] + suc + c_off_ready[ t - 1 ] ,
                    lo , hi } );
     auto [ v , p ] = min_over( F , lo , hi );
-    new_F  .push_back( std::move( F ) );
-    new_tau.push_back( 1 );
-    new_on .push_back( { v , p } );
+    m_new_F  .push_back( std::move( F ) );
+    m_new_tau.push_back( 1 );
+    m_new_on .push_back( { v , p } );
     }
    }
 
@@ -1074,13 +1112,17 @@ void ThermalUnitExtDPSolver::run_DP( void )
   //     function restricted to [Plo, Phi], then add f_t(p). The output
   //     tau is the previous tau + 1 (continuing the on-run).
   for( std::size_t i = 0 ; i < f_F[ t - 1 ].size() ; ++i ) {
-   PQFun F = sliding_min( f_F[ t - 1 ][ i ] , ru_prev , rd_prev , Plo , Phi );
-   if( F.empty() ) continue;   // intersection with [Plo, Phi] empty
+   PQFun F = pool_take();
+   sliding_min( f_F[ t - 1 ][ i ] , ru_prev , rd_prev , Plo , Phi , F );
+   if( F.empty() ) {           // intersection with [Plo, Phi] empty
+    pool_give( F );            // hand the unused buffer back to the pool
+    continue;
+    }
    add_quadratic( F , quad_term[ t ] , linear_term[ t ] , const_term[ t ] );
    auto [ v , p ] = min_over( F , Plo , Phi );
-   new_F  .push_back( std::move( F ) );
-   new_tau.push_back( f_tau[ t - 1 ][ i ] + 1 );
-   new_on .push_back( { v , p } );
+   m_new_F  .push_back( std::move( F ) );
+   m_new_tau.push_back( f_tau[ t - 1 ][ i ] + 1 );
+   m_new_on .push_back( { v , p } );
    }
 
   // the new_tau vector is already sorted ascending: the restart entry
@@ -1091,11 +1133,13 @@ void ThermalUnitExtDPSolver::run_DP( void )
 
   // RRF+ pruning: remove functions with tau >= mut that are pointwise
   // dominated by some other function with tau >= mut in the new list.
-  prune_RRF_plus( new_F , new_tau , new_on );
+  prune_RRF_plus( m_new_F , m_new_tau , m_new_on );
 
-  f_F  [ t ] = std::move( new_F );
-  f_tau[ t ] = std::move( new_tau );
-  f_on [ t ] = std::move( new_on );
+  // hand the per-step lists over to f_F[t] (emptied at reset); the build
+  // buffers are left empty and regrow on the next step
+  f_F  [ t ] = std::move( m_new_F );
+  f_tau[ t ] = std::move( m_new_tau );
+  f_on [ t ] = std::move( m_new_on );
 
   // v_shutdown[t] is meaningful only if there is at least one more
   // instant in the horizon after t, since an in-horizon off period

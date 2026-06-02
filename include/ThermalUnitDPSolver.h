@@ -37,9 +37,22 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <memory>
+
 #include "Solver.h"
 
 #include "ThermalUnitBlock.h"
+
+#define TUDPS_PARALLEL 1
+/* If TUDPS_PARALLEL > 0, the (independent) per-ON-node Economic Dispatch
+ * solves in compute_EDPs() can be run in parallel with FastFlow; the actual
+ * number of workers is controlled at run time by the intMaxThread parameter
+ * (0 = use all available cores, 1 = serial, k = k workers). Set to 0 in build
+ * setups where FastFlow is not available (e.g. the plain makefiles). */
+
+#if TUDPS_PARALLEL
+namespace ff { class ParallelFor; }  // forward declaration (FastFlow)
+#endif
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -246,7 +259,7 @@ class ThermalUnitDPSolver : public Solver
 
  ThermalUnitDPSolver( void ) {};
 
- ~ThermalUnitDPSolver() override = default;
+ ~ThermalUnitDPSolver() override;  // defined in the .cpp (pimpl'd FastFlow)
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- DERIVED METHODS OF BASE CLASS ----------------------*/
@@ -274,6 +287,24 @@ class ThermalUnitDPSolver : public Solver
 
  /// returns the value of the current solution, if any
  OFValue get_var_value( void ) override { return( f_end.lab ); }
+
+/*--------------------------------------------------------------------------*/
+
+ using Solver::set_par;  // keep the other set_par() overloads visible
+
+ /// the only parameter honoured is intMaxThread (workers for compute_EDPs)
+ void set_par( idx_type par , int value ) override {
+  if( par == intMaxThread ) {
+   f_max_thread = value;
+   return;
+   }
+  Solver::set_par( par , value );
+  }
+
+ [[nodiscard]] int get_int_par( idx_type par ) const override {
+  return( par == intMaxThread ? f_max_thread
+                              : Solver::get_int_par( par ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -509,11 +540,12 @@ class ThermalUnitDPSolver : public Solver
 
   node( void ) : lab( 0 ) , pred( nullptr ) , DPS( nullptr ) {}
 
-  ~node() { delete( DPS ); }
+  ~node() = default;
 
   double lab;                 ///< the label of the node
   node * pred;                ///< the predecessor of the node in the path
-  EDSolver * DPS;             ///< the Economic Dispatch solver of the node
+  EDSolver * DPS;             ///< the ED solver of the node (non-owning: the
+                              ///< solvers are owned by the solver's pool)
   std::vector< arc > v_arcs;  ///< the Forward Star of the node
 
  };  // end( class( node ) )
@@ -541,6 +573,25 @@ class ThermalUnitDPSolver : public Solver
   nde.lab = TUDPINF;
   nde.pred = nullptr;
  }
+
+/*--------------------------------------------------------------------------*/
+
+ // reset a node for a fresh build_graph(), reusing its arc storage and the
+ // pooled ED solvers; lab == 0 means "not yet proved reachable from s"
+
+ static void reset_node( node & nde ) {
+  nde.lab = 0;
+  nde.pred = nullptr;
+  nde.DPS = nullptr;
+  nde.v_arcs.clear();  // keeps the allocated capacity
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ // return the pooled ED solver for the ON node at instant i, allocating it
+ // the first time (and reusing it, buffers included, on later re-solves)
+
+ DPEDSolver * get_on_ed( Index i );
 
 /*--------------------------------------------------------------------------*/
 
@@ -613,6 +664,24 @@ class ThermalUnitDPSolver : public Solver
 
  std::vector< node > v_on_nodes;   ///< vector of ON nodes
  std::vector< node > v_off_nodes;  ///< vector of OFF nodes
+
+ /// pool of ED solvers, one slot per time instant, reused across re-solves
+ /// so that the (dominant) cost of allocating their O(n) buffers is paid
+ /// only once per time horizon rather than at every structural re-solve
+ std::vector< std::unique_ptr< DPEDSolver > > v_on_eds;
+ std::unique_ptr< DPEDSolver > f_start_ed;  ///< ED solver of the source when
+                                            ///< it acts as an ON node
+ Index ed_pool_th{ 0 };            ///< time horizon the ED pool was built for
+
+ int f_max_thread{ 0 };            ///< intMaxThread: 0 = all cores, 1 = serial
+
+#if TUDPS_PARALLEL
+ /// FastFlow parallel-for engine for compute_EDPs(), one per solver instance
+ /// (created on first parallel use); its worker threads are reused across
+ /// re-solves. per-worker cost scratch lives in f_tcost
+ std::unique_ptr< ff::ParallelFor > f_pf;
+ std::vector< std::vector< double > > f_tcost;
+#endif
 
  std::vector< double > P;          ///< power values
  std::vector< bool > U;            ///< commitment values

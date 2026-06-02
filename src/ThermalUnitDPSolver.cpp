@@ -35,6 +35,20 @@
  * to reconstruct the optimal dual solution in the end. However, this is not
  * implemented yet, so that currently the setting makes no sense. */
 
+#define TUDPS_PROFILE 0
+/* If TUDPS_PROFILE > 0, compute() accumulates per-phase wall-clock time
+ * (build_graph / compute_EDPs / min_path / compute_solutions) into static
+ * counters and prints a cumulative summary to cerr at each call. Only the DP
+ * phases are timed, so any other solver running in the same process (e.g. the
+ * MILP comparison solver in the test harness) does not pollute the figures.
+ * Temporary instrumentation: keep at 0 in committed code. */
+
+#define TUDPS_PAR_MIN_N 768
+/* TUDPS_PARALLEL is defined in the header. Below this time horizon
+ * compute_EDPs() stays serial: benchmarks (8 cores) put the serial/parallel
+ * break-even around 600 time steps, so the threshold is set conservatively
+ * above it; it is machine-dependent and may be retuned. */
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -42,6 +56,16 @@
 #include "ThermalUnitDPSolver.h"
 
 #include "ThermalUnitBlock.h"
+
+#if TUDPS_PROFILE
+ #include <chrono>
+ #include <iostream>
+#endif
+
+#if TUDPS_PARALLEL
+ #include <thread>
+ #include <ff/parallel_for.hpp>
+#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -59,6 +83,13 @@ SMSpp_insert_in_factory_cpp_0( ThermalUnitDPSolver );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- Solver INTERFACE -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// defined here (not defaulted in the header) so that the destructor of the
+// pimpl'd ff::ParallelFor is instantiated where the type is complete
+
+ThermalUnitDPSolver::~ThermalUnitDPSolver() = default;
+
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitDPSolver::set_Block( Block * block )
@@ -93,12 +124,35 @@ int ThermalUnitDPSolver::compute( bool changedvars )
 
  process_modifications();
 
+#if TUDPS_PROFILE
+ static double t_bg = 0 , t_ed = 0 , t_mp = 0 , t_cs = 0;
+ static unsigned long n_bg = 0 , n_ed = 0 , n_mp = 0 , n_cs = 0 , n_call = 0;
+ using clk = std::chrono::steady_clock;
+ auto tic = clk::now();
+ #define TUDPS_TIME( acc , cnt ) { auto now = clk::now(); \
+   acc += std::chrono::duration< double >( now - tic ).count(); ++cnt; \
+   tic = now; }
+ switch( stage ) {
+  case( start ):    build_graph();       TUDPS_TIME( t_bg , n_bg )
+  case( graph_OK ): compute_EDPs();      TUDPS_TIME( t_ed , n_ed )
+  case( edps_OK ):  min_path();          TUDPS_TIME( t_mp , n_mp )
+  case( path_OK ):  compute_solutions(); TUDPS_TIME( t_cs , n_cs )
+  }
+ #undef TUDPS_TIME
+ ++n_call;
+ std::cerr << "TUDPS_PROF n=" << time_horizon << " calls=" << n_call
+           << " build_graph=" << t_bg << "s/" << n_bg
+           << " compute_EDPs=" << t_ed << "s/" << n_ed
+           << " min_path=" << t_mp << "s/" << n_mp
+           << " compute_solutions=" << t_cs << "s/" << n_cs << std::endl;
+#else
  switch( stage ) {
   case( start ):    build_graph();
   case( graph_OK ): compute_EDPs();
   case( edps_OK ):  min_path();
   case( path_OK ):  compute_solutions();
   }
+#endif
 
  unlock();  // unlock the mutex
 
@@ -150,11 +204,26 @@ void ThermalUnitDPSolver::build_graph( void )
  // which we use as a way to indicate that the node has not been proved
  // reachable from s yet
 
- delete( f_start.DPS );
+ // (re)build the ED-solver pool only when the time horizon changes; otherwise
+ // the per-instant solvers and their O(n) buffers are kept alive and reused
+ // across re-solves, which avoids the (dominant) allocate/free churn
+ if( ed_pool_th != time_horizon ) {
+  v_on_eds.clear();
+  v_on_eds.resize( time_horizon );  // value-initialised to nullptr
+  f_start_ed.reset();
+  ed_pool_th = time_horizon;
+  }
 
- v_on_nodes.clear();  // this deletes all EDSolver
- v_on_nodes.resize( time_horizon );
+ v_on_nodes.resize( time_horizon );   // no-op unless the horizon changed
  v_off_nodes.resize( time_horizon );
+
+ // reset the nodes in place (their arc storage and the pooled ED solvers
+ // survive, so only the cheap bookkeeping is redone)
+ reset_node( f_start );
+ for( auto & nde : v_on_nodes )
+  reset_node( nde );
+ for( auto & nde : v_off_nodes )
+  reset_node( nde );
 
  // now rebuild the graph: start from s- - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -162,8 +231,10 @@ void ThermalUnitDPSolver::build_graph( void )
  if( init_up_down_time > 0 ) {
   // the unit is already on- - - - - - - - - - - - - - - - - - - - - - - - -
 
-  // s therefore works as an ON-node: construct the EDSolver
-  f_start.DPS = new DPEDSolver( 0 , this );
+  // s therefore works as an ON-node: take its ED solver from the pool
+  if( ! f_start_ed )
+   f_start_ed = std::make_unique< DPEDSolver >( 0 , this );
+  f_start.DPS = f_start_ed.get();
 
   // compute kMin, the first time step the unit can be turned OFF due to
   // the need to reach power bound_down[ i ] from the initial power
@@ -274,8 +345,8 @@ void ThermalUnitDPSolver::build_graph( void )
   // process ON node ( i , 1 ) - - - - - - - - - - - - - - - - - - - - - - -
   if( v_on_nodes[ i ].lab ) {  // ... but only if it is reachable
 
-   // allocate and initialise the EDSolver of the node
-   v_on_nodes[ i ].DPS = new DPEDSolver( i , this );
+   // take the EDSolver of the node from the pool (allocated on first use)
+   v_on_nodes[ i ].DPS = get_on_ed( i );
 
    // allocate the set of arcs, which are:
    //
@@ -414,25 +485,54 @@ void ThermalUnitDPSolver::compute_EDPs( void )
    ai->cost2 = cost[ h++ ];
   }
 
- // update variable costs in the arcs outgoing from every ON( i )
- for( Index i = 0 ; i < time_horizon ; ++i ) {
-  if( v_on_nodes[ i ].v_arcs.empty() )  // unless it is unreachable
-   continue;                            // in which case it is skipped
+ // update variable costs in the arcs outgoing from every ON( i ): each node
+ // has its own ED solver and writes only its own arcs, so the only shared
+ // state is the cost scratch, which is made private per worker below; the
+ // rest of the solver state is read-only here. solving one ON node is the
+ // body of the loop, factored out so the serial and parallel paths share it
+ auto solve_on_node = [ this ]( Index i , std::vector< double > & cost ) {
+  auto & nd = v_on_nodes[ i ];
+  if( nd.v_arcs.empty() )  // unreachable node: nothing to do
+   return;
 
-  // solve EDPs, retrieve optimal costs
-  v_on_nodes[ i ].DPS->compute_costs( cost );
-
-  // index of first tail node
-  Index h = h_of_node( v_on_nodes[ i ].v_arcs.front().tail );
+  nd.DPS->compute_costs( cost );  // solve EDPs, retrieve optimal costs
 
   // the cost of ( i , h ) is found in cost[ h - 1 ]; note that h > i,
   // and therefore h > 0, and therefore h - 1 is well-defined
-  --h;
+  Index h = h_of_node( nd.v_arcs.front().tail ) - 1;
 
-  // set the variable costs in the arcs
-  for( auto & a : v_on_nodes[ i ].v_arcs )
+  for( auto & a : nd.v_arcs )  // set the variable costs in the arcs
    a.cost2 = cost[ h++ ];
+  };
+
+#if TUDPS_PARALLEL
+ // resolve the number of workers from intMaxThread (0 = all cores) and go
+ // parallel only if it is worth more than one worker and the horizon is large
+ // enough for the thread overhead to pay off
+ const long nw = f_max_thread > 0 ? long( f_max_thread )
+                : std::max< long >( 1 , std::thread::hardware_concurrency() );
+ if( ( nw > 1 ) && ( time_horizon >= TUDPS_PAR_MIN_N ) ) {
+  // the ParallelFor (hence its worker threads) is created once per solver
+  // instance and reused: re-creating it per call would spawn/join threads
+  // every time and tank performance. blocking workers (default) sleep idle
+  if( ! f_pf )
+   f_pf = std::make_unique< ff::ParallelFor >(
+           std::max< long >( 1 , std::thread::hardware_concurrency() ) );
+  // one cost scratch per worker, reused across calls and iterations
+  if( long( f_tcost.size() ) < nw )
+   f_tcost.resize( nw );
+  for( auto & c : f_tcost )
+   if( c.size() < time_horizon )
+    c.resize( time_horizon );
+  f_pf->parallel_for_thid( 0 , long( time_horizon ) , 1 , 0 ,
+   [ & ]( const long i , const int thid ) {
+    solve_on_node( Index( i ) , f_tcost[ thid ] );
+    } , nw );
   }
+ else
+#endif
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   solve_on_node( i , cost );
 
  stage = edps_OK;  // update stage
 
@@ -730,6 +830,15 @@ void ThermalUnitDPSolver::retrieve_term( std::vector< double > & out ,
   }
 
  out = in;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ThermalUnitDPSolver::DPEDSolver * ThermalUnitDPSolver::get_on_ed( Index i )
+{
+ if( ! v_on_eds[ i ] )
+  v_on_eds[ i ] = std::make_unique< DPEDSolver >( i , this );
+ return( v_on_eds[ i ].get() );
  }
 
 /*--------------------------------------------------------------------------*/
