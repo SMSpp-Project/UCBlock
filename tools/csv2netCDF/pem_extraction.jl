@@ -13,14 +13,12 @@
 # Returns a 4-tuple (point_load, point_pv, point_wind, scen_probability).
 
 using QuadGK
+using LinearAlgebra
 
-# Central moment of order k of d, by adaptive quadrature. PEM needs central
-# moments up to order 2N; estimating those by Monte Carlo (the package default
-# for distributions without a direct `moment` method) makes the order >= ~2N-1
-# terms pure sampling noise, so the over-determined probability step turns
-# infeasible for some N/seed/environment combinations. Quadrature is accurate to
-# ~1e-10 for every order, making the PEM construction deterministic and robust.
-# Having this method on the distribution type sends `pem` down its direct branch.
+# Central moment of order k of d, by adaptive quadrature, accurate to ~1e-10 at
+# every order (the PointEstimateMethod package falls back to Monte Carlo for
+# distributions without a direct `moment` method, which is pure noise at the
+# high orders PEM needs).
 function central_moment_quad(d::UnivariateDistribution, k::Int)
     μ = mean(d)
     lo, hi = extrema(d)                 # truncated normal -> (0.0, Inf)
@@ -28,19 +26,46 @@ function central_moment_quad(d::UnivariateDistribution, k::Int)
     return val
 end
 
+# N-point PEM (Gaussian quadrature) for d, computed solver-free via Golub-Welsch
+# on the exact central moments. The package builds the points by solving an
+# over-determined feasibility LP with HiGHS; on some machines that LP is reported
+# infeasible (-> 0 solutions, a thrown error) or returns a degenerate all-zero
+# point (-> weights summing to 0), both for larger N. Golub-Welsch is the
+# numerically stable construction: nodes are the eigenvalues of the Jacobi matrix
+# obtained from the Cholesky factor of the Hankel moment matrix, weights are the
+# squared first eigenvector components. Returns the same (x, p) shape as `pem`.
+function gauss_pem(d::UnivariateDistribution, N::Int)
+    μ = mean(d)
+    m = [k == 0 ? 1.0 : central_moment_quad(d, k) for k in 0:2N]
+    M = [m[i + j + 1] for i in 0:N, j in 0:N]          # Hankel, (N+1)x(N+1)
+    R = cholesky(Symmetric(M)).U                       # M = R'R, upper triangular
+    α = [R[k, k+1] / R[k, k] - (k > 1 ? R[k-1, k] / R[k-1, k-1] : 0.0) for k in 1:N]
+    β = [R[k+1, k+1] / R[k, k] for k in 1:N-1]
+    E = eigen(SymTridiagonal(α, β))
+    ord = sortperm(E.values)
+    return (x = E.values[ord] .+ μ, p = (vec(E.vectors[1, :]) .^ 2)[ord])
+end
+
+# Probabilities must be (numerically) a distribution: non-negative and summing
+# to 1. The package returns garbage on a failed inner solve without throwing.
+_valid_pem(r) = all(>=(-1e-9), r.p) && abs(sum(r.p) - 1) < 1e-6
+
 # Run PEM the package's default way (Monte Carlo moments, kept so the draws stay
-# bit-identical with test_instance_with_EC_jl.jl) and fall back to deterministic
-# quadrature moments only when the MC path makes the probability step infeasible.
-# The cases that need the fallback (typically larger N) have no EC.jl reference,
-# so the divergence is harmless there.
+# bit-identical with test_instance_with_EC_jl.jl on the cases that work) and fall
+# back to the deterministic Golub-Welsch construction whenever the package throws
+# or returns invalid weights. The cases needing the fallback have no EC.jl
+# reference, so the divergence is harmless there.
 function pem_robust(d::UnivariateDistribution, N::Int)
-    try
-        return pem(d, N)
+    res = try
+        r = pem(d, N)
+        _valid_pem(r) ? r : nothing
     catch
-        @warn "pem_extraction: Monte Carlo PEM failed for N=$N on $d; " *
-              "retrying with quadrature moments (no longer bit-identical with EC.jl)."
-        return pem(d, N; central_moment_fun = central_moment_quad)
+        nothing
     end
+    isnothing(res) || return res
+    @warn "pem_extraction: package PEM unusable for N=$N on $d; " *
+          "using Golub-Welsch quadrature (no longer bit-identical with EC.jl)."
+    return gauss_pem(d, N)
 end
 
 function pem_extraction(scen_s_sample::Int,
