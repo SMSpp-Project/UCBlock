@@ -347,6 +347,16 @@ class ThermalUnitDPSolver : public Solver
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS EDSolver --------------------------------*/
 /*--------------------------------------------------------------------------*/
+ /// one linear piece of the reserve "discount" g_t(p) on [ lo , hi ]
+ /** g_t(p) = slope * p + intercept for p in [ lo , hi ]. g_t is convex
+  * piecewise-linear and nonpositive when some reserve price is negative (a
+  * Lagrangian reward); it is the per-period cost the economic dispatch must
+  * add to the quadratic energy cost (the effective cost \hat f_t = f_t + g_t).
+  * Declared here (before the ED solvers) so DPEDSolver can use it. */
+ struct g_piece { double lo , hi , slope , intercept; };
+
+/*--------------------------------------------------------------------------*/
+
  /// base class for the Economic Dispatch Solver
  /** EDSolver is a base class that defines a minimal interface between the
   * ThermalUnitDPSolver and the solvers of the individual Economic Dispatch
@@ -507,6 +517,21 @@ class ThermalUnitDPSolver : public Solver
   std::vector< double > m;
   std::vector< int > v;
 
+  /// ping-pong half-size multiplier: 1 normally, larger when reserves are
+  /// present so the augmented (g_t-split) pieces fit in each half
+  Index f_rmul{ 1 };
+
+  /// add the reserve discount g to the just-built pieces of z_{h,k}
+  /** The period-k value-function pieces occupy m[ begm .. mcnt ) and
+   * coeffs[ begt .. coeffcnt ) (the top of the current ping-pong half). This
+   * splits them at g's breakpoints, adds g's (slope, intercept) to each
+   * sub-piece, rewrites them in place expanding upward within the half, and
+   * updates mcnt / coeffcnt / vcnt. Returns the unconstrained minimizer of the
+   * resulting convex piecewise-quadratic function. */
+  double augment_with_g( const std::vector< g_piece > & g ,
+                         Index begm , Index begt ,
+                         Index & mcnt , Index & coeffcnt , int & vcnt );
+
  };  // end( class( DPEDSolver ) );
 
 /*--------------------------------------------------------------------------*/
@@ -634,6 +659,17 @@ class ThermalUnitDPSolver : public Solver
 
 /*--------------------------------------------------------------------------*/
 
+ /// build the reserve discount g_t(p) as convex piecewise-linear pieces
+ /** Returns the pieces of g_t over [ min_power[t] , max_power[t] ], empty when
+  * no reserve price is negative (g_t == 0). Mirrors the construction used by
+  * ThermalUnitExtDPSolver, evaluating reserve_alloc() at analytic breakpoints. */
+ std::vector< g_piece > build_reserve_discount( Index t ) const;
+
+ /// true iff some reserve price is negative, i.e. g_t may be nonzero
+ bool reserve_rewarded( void ) const;
+
+/*--------------------------------------------------------------------------*/
+
  double compute_startup_costs( Index h , Index k ) {
   // one day a time-dependent SUC formula may be easily implemented here
   if( startup_costs.empty() )
@@ -668,6 +704,12 @@ class ThermalUnitDPSolver : public Solver
  std::vector< double > secondary_rho;           ///< secondary reserve cap factor
  std::vector< double > primary_reserve_cost;    ///< primary reserve cost coeff
  std::vector< double > secondary_reserve_cost;  ///< secondary reserve cost coeff
+
+ /// per-period reserve discount g_t(p), precomputed once per compute_EDPs()
+ /** g_disc[ t ] holds the convex piecewise-linear pieces of g_t (see
+  * build_reserve_discount()); empty when no reserve is rewarded, in which case
+  * the economic dispatch is the plain quadratic one. */
+ std::vector< std::vector< g_piece > > g_disc;
 
  double eps{ 1e-10 };              ///< tolerance
 

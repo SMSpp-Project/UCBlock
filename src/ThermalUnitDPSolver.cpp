@@ -259,6 +259,90 @@ double ThermalUnitDPSolver::reserve_alloc( Index t , double p ,
  }  // end( ThermalUnitDPSolver::reserve_alloc )
 
 /*--------------------------------------------------------------------------*/
+
+bool ThermalUnitDPSolver::reserve_rewarded( void ) const
+{
+ for( auto c : primary_reserve_cost )
+  if( c < 0 )
+   return( true );
+ for( auto c : secondary_reserve_cost )
+  if( c < 0 )
+   return( true );
+ return( false );
+
+ }  // end( ThermalUnitDPSolver::reserve_rewarded )
+
+/*--------------------------------------------------------------------------*/
+
+// Build g_t(p) (the reserve "discount") as convex piecewise-linear pieces on
+// [ min_power[t] , max_power[t] ]. g_t is nonpositive when some reserve price
+// is negative; it is built exactly (no approximation) by evaluating
+// reserve_alloc() at the analytic breakpoints where the binding constraint of
+// the per-period reserve LP changes (band vs participation caps). Mirrors
+// ThermalUnitExtDPSolver::build_reserve_discount.
+
+std::vector< ThermalUnitDPSolver::g_piece >
+ThermalUnitDPSolver::build_reserve_discount( Index t ) const
+{
+ std::vector< g_piece > G;
+ const double cp = primary_reserve_cost.empty()   ? 0
+                                                  : primary_reserve_cost[ t ];
+ const double cs = secondary_reserve_cost.empty() ? 0
+                                                  : secondary_reserve_cost[ t ];
+ if( ( cp >= 0 ) && ( cs >= 0 ) )
+  return( G );  // no negative price: g_t == 0
+
+ const double lo = min_power[ t ];
+ const double hi = max_power[ t ];
+ if( hi <= lo + 1e-12 )
+  return( G );
+
+ // participation caps of the active (negative-price) reserves, ordered
+ // most-negative-price first to match reserve_alloc's greedy fill
+ const double rp = primary_rho.empty()   ? 0 : primary_rho[ t ];
+ const double rs = secondary_rho.empty() ? 0 : secondary_rho[ t ];
+ double rho1 = 0 , rho2 = 0;
+ if( ( cp < 0 ) && ( cs < 0 ) ) {
+  if( cp <= cs ) { rho1 = rp; rho2 = rs; }
+  else           { rho1 = rs; rho2 = rp; }
+  }
+ else if( cp < 0 )
+  rho1 = rp;
+ else
+  rho1 = rs;  // cs < 0
+
+ std::vector< double > bp = { lo , hi , 0.5 * ( lo + hi ) };
+ auto add_bp = [ & ]( double d ) {
+  if( ( d > lo + 1e-12 ) && ( d < hi - 1e-12 ) ) bp.push_back( d );
+  };
+ if( rho1 < 1 ) add_bp( lo / ( 1 - rho1 ) );
+ add_bp( hi / ( 1 + rho1 ) );
+ const double rsum = rho1 + rho2;
+ if( rho2 > 0 ) {
+  if( rsum < 1 ) add_bp( lo / ( 1 - rsum ) );
+  add_bp( hi / ( 1 + rsum ) );
+  }
+ std::sort( bp.begin() , bp.end() );
+ bp.erase( std::unique( bp.begin() , bp.end() ,
+            []( double a , double b ) { return( b - a <= 1e-12 ); } ) ,
+           bp.end() );
+
+ G.reserve( bp.size() );
+ for( std::size_t i = 0 ; i + 1 < bp.size() ; ++i ) {
+  const double a = bp[ i ] , b = bp[ i + 1 ];
+  if( b - a <= 1e-12 )
+   continue;
+  double pr , sr;
+  const double ga = reserve_alloc( t , a , pr , sr );
+  const double gb = reserve_alloc( t , b , pr , sr );
+  const double slope = ( gb - ga ) / ( b - a );
+  G.push_back( { a , b , slope , ga - slope * a } );
+  }
+ return( G );
+
+ }  // end( ThermalUnitDPSolver::build_reserve_discount )
+
+/*--------------------------------------------------------------------------*/
 /*------------------ BUILDING AND SOLVING THE DP PROBLEM -------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -523,6 +607,18 @@ void ThermalUnitDPSolver::compute_EDPs( void )
  if( stage < graph_OK )
   throw( std::logic_error(
    "ThermalUnitDPSolver::compute_EDPs: graph not ready." ) );
+
+ // precompute the per-period reserve discount g_t (shared by all ON nodes,
+ // it depends only on (t)-indexed data): the effective economic-dispatch cost
+ // is the quadratic energy cost plus g_t. Empty unless some reserve is
+ // rewarded, in which case compute_costs() runs the plain quadratic dispatch.
+ if( reserve_rewarded() ) {
+  g_disc.resize( time_horizon );
+  for( Index t = 0 ; t < time_horizon ; ++t )
+   g_disc[ t ] = build_reserve_discount( t );
+  }
+ else
+  g_disc.clear();
 
  std::vector< double > cost( time_horizon );
 
@@ -933,13 +1029,21 @@ ThermalUnitDPSolver::DPEDSolver::DPEDSolver( Index h ,
 {
  auto & time_horizon = f_solver->time_horizon;
 
+ // when the unit carries spinning-reserve data the economic dispatch adds the
+ // piecewise-linear reserve discount g_t to the per-period cost, splitting the
+ // value-function pieces at g_t's (at most ~5 internal) breakpoints; doubling
+ // each ping-pong half is therefore more than enough. f_rmul == 1 reproduces
+ // the plain quadratic dispatch exactly (g_t absent)
+ f_rmul = ( ( ! f_solver->primary_rho.empty() ) ||
+            ( ! f_solver->secondary_rho.empty() ) ) ? 2 : 1;
+
  #if( COMPUTE_DUALS )
   Index coeffsize = time_horizon * time_horizon +f_h * f_h -
                     2 * f_h * time_horizon;
  #else
   // Index coeffsize = 4 * ( time_horizon - f_h + 1 );
   // the theory says it should work, but it does not
-  Index coeffsize = 4 * time_horizon;
+  Index coeffsize = f_rmul * 4 * time_horizon;
  #endif
  if( coeffsize != coeffs.size() ) {
   coeffs.resize( coeffsize );
@@ -1008,9 +1112,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   pos[ k ].begm = 0;
   pos[ k ].begt = 0;
  #else
-  Index coeffcnt = 2 * ( time_horizon - f_h );
+  Index coeffcnt = f_rmul * 2 * ( time_horizon - f_h );
   // next free position in coeffs[]
-  Index mcnt = 2 * ( time_horizon - f_h ) + 1;
+  Index mcnt = f_rmul * 2 * ( time_horizon - f_h ) + 1;
   // next free position in m[]
   Index nextk = 1;     // next free position in v[], pos[]
   // since there are only two positions, nextk ping-pongs between 1 and 0
@@ -1021,27 +1125,48 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   pos[ 0 ].begt = 0;
  #endif
 
- // initialize the vector of unconstrained power values, i.e.,
- // power values are not constrained by bound_down[ k ]
- if( std::abs( coeffs[ 0 ].alfa ) <= 1e-16 )
-  unc_p[ k ] = ( coeffs[ 0 ].beta <= 0 ? m[ 1 ] : m[ 0 ] );
- else
-  unc_p[ k ] = std::min( m[ 1 ] ,
-			 std::max( m[ 0 ] ,
-				   -coeffs[ 0 ].beta / ( 2 * coeffs[ 0 ].alfa )
-				   ) );
+ // initialize the vector of unconstrained power values, i.e., power values
+ // are not constrained by bound_down[ k ]. When reserves are rewarded the
+ // single quadratic piece is first augmented with the reserve discount g_k,
+ // turning it into a convex piecewise-quadratic; the optimum and cost are then
+ // read from the augmented pieces
+ if( ! f_solver->g_disc.empty() ) {
+  Index mtmp = 2 , ctmp = 1;
+  unc_p[ k ] = augment_with_g( f_solver->g_disc[ k ] , 0 , 0 ,
+                               mtmp , ctmp , v[ 0 ] );
 
- /* Initialize the vector of constrained power values, that will be
-  * computed at each iteration.
-  * Constrained means that they must be <= bound_down[ k ] */
+  if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
+   con_p[ k ] = bound_down[ k + 1 ];
+  else
+   con_p[ k ] = unc_p[ k ];
 
- if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
-  con_p[ k ] = bound_down[ k + 1 ];
- else
-  con_p[ k ] = unc_p[ k ];
+  int qq = 0;
+  while( ( qq < v[ 0 ] ) && ( con_p[ k ] > m[ qq + 1 ] ) )
+   ++qq;
+  costs[ k ] = coeffs[ qq ].alfa * con_p[ k ] * con_p[ k ] +
+               coeffs[ qq ].beta * con_p[ k ] + coeffs[ qq ].gamma;
+  }
+ else {
+  if( std::abs( coeffs[ 0 ].alfa ) <= 1e-16 )
+   unc_p[ k ] = ( coeffs[ 0 ].beta <= 0 ? m[ 1 ] : m[ 0 ] );
+  else
+   unc_p[ k ] = std::min( m[ 1 ] ,
+			  std::max( m[ 0 ] ,
+				    -coeffs[ 0 ].beta / ( 2 * coeffs[ 0 ].alfa )
+				    ) );
 
- costs[ k ] = coeffs[ 0 ].alfa * con_p[ k ] * con_p[ k ] +
-              coeffs[ 0 ].beta * con_p[ k ];
+  /* Initialize the vector of constrained power values, that will be
+   * computed at each iteration.
+   * Constrained means that they must be <= bound_down[ k ] */
+
+  if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
+   con_p[ k ] = bound_down[ k + 1 ];
+  else
+   con_p[ k ] = unc_p[ k ];
+
+  costs[ k ] = coeffs[ 0 ].alfa * con_p[ k ] * con_p[ k ] +
+               coeffs[ 0 ].beta * con_p[ k ];
+  }
 
  // outermost loop - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1253,6 +1378,18 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   if( firstTime )  // function is strictly decreasing
    unc_p[ k ] = u_bar;
 
+  // reserves rewarded: augment z_{h,k} with the discount g_k (splitting the
+  // pieces just built at g_k's breakpoints) and recompute the unconstrained
+  // optimum; the con_p / costs computation below then reads the augmented
+  // pieces. Only the (active) COMPUTE_DUALS == 0 ping-pong layout is supported
+  #if( ! COMPUTE_DUALS )
+   if( ! f_solver->g_disc.empty() )
+    unc_p[ k ] = augment_with_g( f_solver->g_disc[ k ] ,
+                                 Index( pos[ nextk ].begm ) ,
+                                 Index( pos[ nextk ].begt ) ,
+                                 mcnt , coeffcnt , v[ nextk ] );
+  #endif
+
   // compute con_p[ k ], constrained optimal value for the entire function.
   // important note: the case where k == time_horizon - 1 is dealt with
   // in a special way, i.e., by not requiring the power to be at the level
@@ -1284,8 +1421,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   #else
    q = qm - pos[ nextk ].begm + pos[ nextk ].begt;
    nextk = 1 - nextk;
-   coeffcnt = nextk * ( 2 * time_horizon - f_h );
-   mcnt     = nextk * ( ( 2 * time_horizon - f_h ) + 1 );
+   coeffcnt = nextk * f_rmul * ( 2 * time_horizon - f_h );
+   mcnt     = nextk * ( f_rmul * ( 2 * time_horizon - f_h ) + 1 );
   #endif
 
   costs[ k ] = coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
@@ -1293,6 +1430,83 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
   }  // end( for( k ) )
  }  // end( ThermalUnitDPSolver::compute_costs )
+
+/*--------------------------------------------------------------------------*/
+
+// Add the convex piecewise-linear reserve discount g to the just-built pieces
+// of z_{h,k}, which occupy m[ begm .. mcnt ) and coeffs[ begt .. coeffcnt ) at
+// the top of the current ping-pong half. The base function has ( vcnt + 1 )
+// pieces; this refines the breakpoint set with g's internal breakpoints, adds
+// g's (slope, intercept) on each resulting sub-interval, writes the augmented
+// pieces back in place (expanding upward; the half was over-allocated for it),
+// updates mcnt / coeffcnt / vcnt and returns the unconstrained minimizer of the
+// (still convex) augmented function \hat z = z + g.
+
+double ThermalUnitDPSolver::DPEDSolver::augment_with_g(
+ const std::vector< g_piece > & g , Index begm , Index begt ,
+ Index & mcnt , Index & coeffcnt , int & vcnt )
+{
+ const Index npc = Index( vcnt ) + 1;        // number of base pieces
+ const double lo0 = m[ begm ] , hi0 = m[ begm + npc ];
+
+ // snapshot the base pieces (they get overwritten in place below)
+ std::vector< coeff_t > base( coeffs.begin() + begt , coeffs.begin() + begt + npc );
+ std::vector< double >  bm( m.begin() + begm , m.begin() + begm + npc + 1 );
+
+ // merged breakpoint set: base endpoints + g's internal breakpoints
+ std::vector< double > bk( bm );
+ for( const auto & gp : g ) {
+  if( ( gp.lo > lo0 + 1e-12 ) && ( gp.lo < hi0 - 1e-12 ) ) bk.push_back( gp.lo );
+  if( ( gp.hi > lo0 + 1e-12 ) && ( gp.hi < hi0 - 1e-12 ) ) bk.push_back( gp.hi );
+  }
+ std::sort( bk.begin() , bk.end() );
+ bk.erase( std::unique( bk.begin() , bk.end() ,
+            []( double a , double b ){ return( b - a <= 1e-12 ); } ) , bk.end() );
+
+ auto gval = [ & ]( double x , double & slope , double & icpt ) {
+  slope = 0; icpt = 0;
+  for( const auto & gp : g )
+   if( ( x >= gp.lo - 1e-12 ) && ( x <= gp.hi + 1e-12 ) ) {
+    slope = gp.slope; icpt = gp.intercept; return;
+    }
+  };
+ auto basei = [ & ]( double x ) -> Index {
+  Index j = 0;
+  while( ( j + 1 < npc ) && ( x >= bm[ j + 1 ] ) ) ++j;
+  return( j );
+  };
+
+ const Index nc = Index( bk.size() ) - 1;    // number of augmented pieces
+ m[ begm ] = bk[ 0 ];
+ for( Index i = 0 ; i < nc ; ++i ) {
+  const double mid = 0.5 * ( bk[ i ] + bk[ i + 1 ] );
+  const Index bj = basei( mid );
+  double gs , gi; gval( mid , gs , gi );
+  coeffs[ begt + i ].alfa  = base[ bj ].alfa;
+  coeffs[ begt + i ].beta  = base[ bj ].beta + gs;
+  coeffs[ begt + i ].gamma = base[ bj ].gamma + gi;
+  m[ begm + i + 1 ] = bk[ i + 1 ];
+  }
+ mcnt = begm + nc + 1;
+ coeffcnt = begt + nc;
+ vcnt = int( nc ) - 1;
+
+ // unconstrained minimizer of the convex augmented function
+ double bestv = Inf< double >() , bestp = bk[ 0 ];
+ for( Index i = 0 ; i < nc ; ++i ) {
+  const auto & cc = coeffs[ begt + i ];
+  const double lo = bk[ i ] , hi = bk[ i + 1 ];
+  double ps;
+  if( std::abs( cc.alfa ) <= 1e-16 )
+   ps = ( cc.beta <= 0 ? hi : lo );
+  else
+   ps = std::min( hi , std::max( lo , - cc.beta / ( 2 * cc.alfa ) ) );
+  const double val = cc.alfa * ps * ps + cc.beta * ps + cc.gamma;
+  if( val < bestv ) { bestv = val; bestp = ps; }
+  }
+ return( bestp );
+
+ }  // end( ThermalUnitDPSolver::DPEDSolver::augment_with_g )
 
 /*--------------------------------------------------------------------------*/
 
