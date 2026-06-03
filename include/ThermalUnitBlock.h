@@ -1814,6 +1814,26 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of primary spinning-reserve cost
+ /** The objective coefficient on the primary spinning-reserve variables. It
+  * defaults to the participation factor (get_primary_rho()) but, unlike the
+  * latter, may be modified (e.g. by a Lagrangian price). Empty if there is no
+  * primary reserve. */
+
+ const std::vector< double > & get_primary_spinning_reserve_cost( void ) const {
+  return( v_PrimarySpinningReserveCost );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of secondary spinning-reserve cost
+ /** The objective coefficient on the secondary spinning-reserve variables;
+  * see get_primary_spinning_reserve_cost(). */
+
+ const std::vector< double > & get_secondary_spinning_reserve_cost( void ) const {
+  return( v_SecondarySpinningReserveCost );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-up
  /** The returned vector contains the delta ramp-up at each time.
   * The size of the vector is always get_time_horizon(). */
@@ -2726,10 +2746,23 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > v_Availability;
 
  /// the vector of PrimaryRho
+ /** Participation factor: the maximum fraction of active power that can be
+  * used as primary reserve, used as the cap in the PrimaryRho_Const
+  * constraints. Kept separate from the primary spinning-reserve cost
+  * (v_PrimarySpinningReserveCost), the objective coefficient, which may be
+  * changed (e.g. by a Lagrangian price) without altering this cap. */
  std::vector< double > v_PrimaryRho;
 
- /// the vector of SecondaryRho
+ /// the vector of SecondaryRho (participation factor / cap, see v_PrimaryRho)
  std::vector< double > v_SecondaryRho;
+
+ /// primary spinning-reserve cost (objective coefficient on the primary
+ /// reserve variables); defaults to v_PrimaryRho but is modifiable
+ std::vector< double > v_PrimarySpinningReserveCost;
+
+ /// secondary spinning-reserve cost (objective coefficient on the secondary
+ /// reserve variables); defaults to v_SecondaryRho but is modifiable
+ std::vector< double > v_SecondarySpinningReserveCost;
 
  /// the vector of RampUp
  std::vector< double > v_DeltaRampUp;

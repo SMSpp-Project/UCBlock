@@ -625,6 +625,15 @@ class ThermalUnitDPSolver : public Solver
 
 /*--------------------------------------------------------------------------*/
 
+ /// optimal per-period primary/secondary spinning-reserve provision at p
+ /** Given the unit on at period \p t with active power \p p, computes the
+  * optimal primary ( \p pr ) and secondary ( \p sr ) reserve provision and
+  * returns the resulting per-period reserve cost g_t(p) = cp*pr + cs*sr (0 in
+  * the standalone case, where the reserve cost coefficients are nonnegative). */
+ double reserve_alloc( Index t , double p , double & pr , double & sr ) const;
+
+/*--------------------------------------------------------------------------*/
+
  double compute_startup_costs( Index h , Index k ) {
   // one day a time-dependent SUC formula may be easily implemented here
   if( startup_costs.empty() )
@@ -654,6 +663,11 @@ class ThermalUnitDPSolver : public Solver
  std::vector< double > quad_term;
  std::vector< double > linear_term;
  std::vector< double > const_term;
+
+ std::vector< double > primary_rho;             ///< primary reserve cap factor
+ std::vector< double > secondary_rho;           ///< secondary reserve cap factor
+ std::vector< double > primary_reserve_cost;    ///< primary reserve cost coeff
+ std::vector< double > secondary_reserve_cost;  ///< secondary reserve cost coeff
 
  double eps{ 1e-10 };              ///< tolerance
 

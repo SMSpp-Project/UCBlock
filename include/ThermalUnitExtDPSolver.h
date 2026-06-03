@@ -67,10 +67,14 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \author Claude Opus 4.7 \n
  *         Anthropic
  *
- * \copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -269,6 +273,37 @@ class ThermalUnitExtDPSolver : public Solver
  void build_solution( void );
 
 /*--------------------------------------------------------------------------*/
+
+ /// optimal spinning-reserve provision at instant t given active power p
+ /** Solves, for the unit on at t with power p, the per-period reserve LP
+  *    min  c_pr*pr + c_sr*sr
+  *    s.t. pr <= rho_p*p, sr <= rho_s*p, pr + sr <= max_power[t] - p, >= 0
+  * (reserve only helps when its cost coefficient is negative, i.e. a
+  * Lagrangian reward). Writes the optimal pr, sr and returns the optimal
+  * value g_t(p) = c_pr*pr + c_sr*sr (0 in the standalone cost case). */
+ double reserve_alloc( Index t , double p , double & pr , double & sr ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// reserve "discount" g_t(p) as a convex piecewise-linear PQFun
+ /** Builds g_t(p) = min over (pr,sr) in the reserve polytope of
+  * c_pr*pr + c_sr*sr, as a function of the production p, on [min_power[t],
+  * max_power[t]]. By the design note this is convex piecewise-linear with a
+  * constant number of breakpoints; it is non-positive (a reward) when some
+  * reserve price is negative, and identically zero (empty PQFun returned)
+  * when no price is negative. Adding it to the energy cost f_t yields the
+  * effective per-period cost the DP minimises. */
+ PQFun build_reserve_discount( Index t ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// add a (piecewise-linear) PQFun G to F on F's domain, in place
+ /** Pointwise sum F(p) += G(p) for p in dom(F); pieces of F are split where
+  * a breakpoint of G falls. Where G is undefined it contributes 0. Used to
+  * add the reserve discount g_t to a value function. */
+ static void add_pwq( PQFun & F , const PQFun & G );
+
+/*--------------------------------------------------------------------------*/
 /*---------------- PIECEWISE-QUADRATIC FUNCTION HELPERS --------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -353,6 +388,11 @@ class ThermalUnitExtDPSolver : public Solver
  std::vector< double > startup_costs;
  std::vector< double > delta_ramp_up;
  std::vector< double > delta_ramp_down;
+ // whether the Block actually defines ramp limits (as opposed to defaulting
+ // them to max_power); the start-up / shut-down trajectory of the initial
+ // state is only enforced when the corresponding ramp limit is present
+ bool has_ramp_up{ false };
+ bool has_ramp_down{ false };
  std::vector< double > min_power;
  std::vector< double > max_power;
  std::vector< double > bound_on;
@@ -361,6 +401,17 @@ class ThermalUnitExtDPSolver : public Solver
  std::vector< double > quad_term;
  std::vector< double > linear_term;
  std::vector< double > const_term;
+
+ // -- spinning reserve ------------------------------------------------- //
+ // participation factors (caps in pr<=rho_p*p, sr<=rho_s*p) and objective
+ // cost coefficients on the reserve variables; each empty if the
+ // corresponding reserve is absent. The cost may be a Lagrangian price
+ // (possibly negative, i.e. a reward), which is why it is kept separate
+ // from the rho cap in the Block (get_*_spinning_reserve_cost()).
+ std::vector< double > primary_rho;
+ std::vector< double > secondary_rho;
+ std::vector< double > primary_reserve_cost;
+ std::vector< double > secondary_reserve_cost;
 
  double eps{ 1e-10 };         ///< numerical tolerance
 

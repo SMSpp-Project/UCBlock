@@ -182,6 +182,23 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
   for( Index i = 0 ; i < time_horizon ; )
    ( com_it++ )->set_value( U[ i++ ] ? 1 : 0 );
 
+ // spinning reserve variables (if present): the optimal pr/sr provision
+ // given the active power P[t] (zero when the unit is off, since the caps
+ // rho*P[t] vanish)
+ if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i ) {
+   double pr , sr;
+   reserve_alloc( i , P[ i ] , pr , sr );
+   ( pr_it++ )->set_value( pr );
+   }
+
+ if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i ) {
+   double pr , sr;
+   reserve_alloc( i , P[ i ] , pr , sr );
+   ( sr_it++ )->set_value( sr );
+   }
+
  // formulation-specific bookkeeping (start_up / shut_down indicators,
  // perspective-cut auxiliaries, ...) is delegated to the Block, which
  // knows which variables exist in the current formulation and how they
@@ -193,6 +210,53 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
   f_Block->unlock( f_id );
 
  }  // end( ThermalUnitDPSolver::get_var_solution )
+
+/*--------------------------------------------------------------------------*/
+
+// Per-period spinning-reserve LP: given the unit on at t with power p, find
+// the optimal primary (pr) and secondary (sr) reserve provision. Each unit
+// of reserve costs its objective coefficient (cp / cs); since reserve only
+// appears in upper-bound constraints, it is worth providing only when that
+// coefficient is negative (a Lagrangian reward). Then we greedily fill the
+// more rewarding (more negative) reserve first, up to its participation cap
+// (rho*p) and the shared headroom. Returns the optimal per-period reserve
+// cost g_t(p) = cp*pr + cs*sr (0 in the standalone case, where cp = rho_p >= 0
+// and cs = rho_s >= 0).
+
+double ThermalUnitDPSolver::reserve_alloc( Index t , double p ,
+                                           double & pr , double & sr ) const
+{
+ pr = sr = 0;
+
+ // symmetric reserve band beta_t(p) = min( p - min_power , max_power - p ):
+ // the reserve must fit both above (max_power constraint) and below
+ // (min_power constraint, p - pr - sr >= min_power) the production p
+ const double H = std::min( p - min_power[ t ] , max_power[ t ] - p );
+ if( H <= 0 )
+  return( 0 );
+
+ const double cap_p = primary_rho.empty()   ? 0 : primary_rho[ t ]   * p;
+ const double cap_s = secondary_rho.empty() ? 0 : secondary_rho[ t ] * p;
+ const double cp = primary_reserve_cost.empty()   ? 0
+                                                  : primary_reserve_cost[ t ];
+ const double cs = secondary_reserve_cost.empty() ? 0
+                                                  : secondary_reserve_cost[ t ];
+
+ double rem = H;
+ if( ( cp < 0 ) && ( ( cs >= 0 ) || ( cp <= cs ) ) ) {
+  pr = std::min( cap_p , rem );  rem -= pr;
+  if( cs < 0 )
+   sr = std::min( cap_s , rem );
+  }
+ else if( cs < 0 ) {
+  sr = std::min( cap_s , rem );  rem -= sr;
+  if( cp < 0 )
+   pr = std::min( cap_p , rem );
+  }
+
+ return( cp * pr + cs * sr );
+
+ }  // end( ThermalUnitDPSolver::reserve_alloc )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ BUILDING AND SOLVING THE DP PROBLEM -------------------*/
@@ -633,17 +697,6 @@ void ThermalUnitDPSolver::load_parameters( void )
  // casting has been checked in set_Block() already
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
- // sanity checks
- if( ! b->get_primary_rho().empty() )
-  throw( std::invalid_argument( "ThermalUnitDPSolver::load_parameters: "
-                                "ThermalUnitDPSolver does not handle primary "
-                                "reserve yet." ) );
-
- if( ! b->get_secondary_rho().empty() )
-  throw( std::invalid_argument( "ThermalUnitDPSolver::load_parameters: "
-                                "ThermalUnitDPSolver does not handle "
-                                "secondary reserve yet." ) );
-
  // scalar values
  time_horizon = b->get_time_horizon();
  init_up_down_time = b->get_init_up_down_time();
@@ -684,6 +737,19 @@ void ThermalUnitDPSolver::load_parameters( void )
  retrieve_term( quad_term , b->get_quad_term() );
  retrieve_term( linear_term , b->get_linear_term() );
  retrieve_term( const_term , b->get_const_term() );
+
+ // spinning reserve: participation factors (caps in pr<=rho_p*p / sr<=rho_s*p)
+ // and objective cost coefficients. The cost defaults to the participation
+ // factor but may carry a (possibly negative) Lagrangian price, so it is read
+ // from the separate cost getter. All empty when the reserve is absent.
+ primary_rho            = b->get_primary_rho();
+ secondary_rho          = b->get_secondary_rho();
+ primary_reserve_cost   = b->get_primary_spinning_reserve_cost();
+ secondary_reserve_cost = b->get_secondary_spinning_reserve_cost();
+ if( primary_reserve_cost.empty() )
+  primary_reserve_cost = primary_rho;
+ if( secondary_reserve_cost.empty() )
+  secondary_reserve_cost = secondary_rho;
 
  // unlock the Block
  if( ! owned )
@@ -800,6 +866,22 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
     case( ThermalUnitBlockMod::eSetConstT ):
      retrieve_term( const_term , b->get_const_term() );
      stage = start;
+     return( false );
+
+    case( ThermalUnitBlockMod::eSetPrSpResCost ):
+     primary_reserve_cost = b->get_primary_spinning_reserve_cost();
+     if( primary_reserve_cost.empty() )
+      primary_reserve_cost = primary_rho;
+     if( stage > graph_OK )
+      stage = graph_OK;  // reserve price feeds the per-period economic dispatch
+     return( false );
+
+    case( ThermalUnitBlockMod::eSetSecSpResCost ):
+     secondary_reserve_cost = b->get_secondary_spinning_reserve_cost();
+     if( secondary_reserve_cost.empty() )
+      secondary_reserve_cost = secondary_rho;
+     if( stage > graph_OK )
+      stage = graph_OK;
      return( false );
 
     }  // end( switch )
