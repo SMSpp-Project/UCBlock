@@ -254,6 +254,14 @@ class ThermalUnitExtDPSolver : public Solver
  /// read all the parameters from the ThermalUnitBlock
  void load_parameters( void );
 
+ /// re-read the (possibly Lagrangian-priced) linear costs from the Objective
+ /** Re-read into linear_term / *_reserve_cost / design_cost the linear cost
+  * coefficients the abstract Objective carries for the coupled variables
+  * (active power, spinning reserves, design); these hold any Lagrangian dual
+  * price added via eNoBlck Modifications that never reach this Solver. Returns
+  * true iff any changed (so compute() can invalidate the cached DP). */
+ bool sync_lagrangian_prices( void );
+
  /// process the queue of Modifications
  void process_modifications( void );
 
@@ -412,6 +420,25 @@ class ThermalUnitExtDPSolver : public Solver
  std::vector< double > secondary_rho;
  std::vector< double > primary_reserve_cost;
  std::vector< double > secondary_reserve_cost;
+
+ // design (investment) handling: when the unit carries an investment cost it
+ // has a binary design variable x with objective coefficient design_cost. The
+ // DP solves the operational problem assuming x == 1; run_DP() then keeps the
+ // unit (design_on == true) iff the optimal operational cost p* satisfies
+ // p* + design_cost <= 0, else drops it (design_on == false, zero schedule).
+ bool   has_design{ false };  ///< true iff the unit has an investment cost
+ double design_cost{ 0 };     ///< objective coefficient of the design variable
+ bool   design_on{ false };   ///< the design decision computed by run_DP()
+
+ // cached base indices of the coupled-variable sections in the Objective
+ // Function, used by sync_lagrangian_prices() to read the priced linear costs
+ // without an is_active() lookup per variable; refreshed when f_cached_obj_fun
+ // (the Objective Function last indexed) changes. Inf when the section absent.
+ const void * f_cached_obj_fun{ nullptr };
+ Index f_off_power{ 0 };      ///< base index of the active power variables
+ Index f_off_pr{ 0 };         ///< base index of the primary reserve variables
+ Index f_off_sr{ 0 };         ///< base index of the secondary reserve variables
+ Index f_off_design{ 0 };     ///< index of the design variable
 
  double eps{ 1e-10 };         ///< numerical tolerance
 

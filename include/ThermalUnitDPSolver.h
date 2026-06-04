@@ -638,6 +638,16 @@ class ThermalUnitDPSolver : public Solver
 
 /*--------------------------------------------------------------------------*/
 
+ /// re-read the (possibly Lagrangian-priced) linear costs from the Objective
+ /** Re-read into linear_term / *_reserve_cost / design_cost the linear cost
+  * coefficients the abstract Objective carries for the coupled variables
+  * (active power, spinning reserves, design); these hold any Lagrangian dual
+  * price added via eNoBlck Modifications that never reach this Solver. Returns
+  * true iff any changed (so compute() can invalidate the cached DP). */
+ bool sync_lagrangian_prices( void );
+
+/*--------------------------------------------------------------------------*/
+
  void process_modifications( void );
 
  // returns true if everything need be reset
@@ -710,6 +720,25 @@ class ThermalUnitDPSolver : public Solver
   * build_reserve_discount()); empty when no reserve is rewarded, in which case
   * the economic dispatch is the plain quadratic one. */
  std::vector< std::vector< g_piece > > g_disc;
+
+ // design (investment) handling: when the unit carries an investment cost it
+ // has a binary design variable x with objective coefficient design_cost. The
+ // DP solves the operational problem assuming x == 1; min_path() then keeps the
+ // unit (design_on == true) iff the optimal operational cost p* satisfies
+ // p* + design_cost <= 0, else drops it (design_on == false, zero schedule).
+ bool   has_design{ false };       ///< true iff the unit has an investment cost
+ double design_cost{ 0 };          ///< objective coefficient of the design var
+ bool   design_on{ false };        ///< the design decision computed by min_path()
+
+ // cached base indices of the coupled-variable sections in the Objective
+ // Function, used by sync_lagrangian_prices() to read the priced linear costs
+ // without an is_active() lookup per variable; refreshed when f_cached_obj_fun
+ // (the Objective Function last indexed) changes. Inf when the section absent.
+ const void * f_cached_obj_fun{ nullptr };
+ Index f_off_power{ 0 };           ///< base index of the active power variables
+ Index f_off_pr{ 0 };              ///< base index of the primary reserve vars
+ Index f_off_sr{ 0 };              ///< base index of the secondary reserve vars
+ Index f_off_design{ 0 };          ///< index of the design variable
 
  double eps{ 1e-10 };              ///< tolerance
 

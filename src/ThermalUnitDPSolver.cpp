@@ -57,6 +57,10 @@
 
 #include "ThermalUnitBlock.h"
 
+#include "FRealObjective.h"
+
+#include "DQuadFunction.h"
+
 #if TUDPS_PROFILE
  #include <chrono>
  #include <iostream>
@@ -124,6 +128,13 @@ int ThermalUnitDPSolver::compute( bool changedvars )
 
  process_modifications();
 
+ // the Lagrangian dual prices are written into the abstract Objective via
+ // eNoBlck Modifications that never reach this Solver, so they leave no trace
+ // in the Modification queue; re-read them every call and, if any changed,
+ // invalidate from compute_EDPs() onward (the graph itself is cost-independent)
+ if( sync_lagrangian_prices() && ( stage > graph_OK ) )
+  stage = graph_OK;
+
 #if TUDPS_PROFILE
  static double t_bg = 0 , t_ed = 0 , t_mp = 0 , t_cs = 0;
  static unsigned long n_bg = 0 , n_ed = 0 , n_mp = 0 , n_cs = 0 , n_call = 0;
@@ -172,30 +183,38 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
+ // design (investment): write the design variable and, when the unit is not
+ // built, force the whole schedule to zero overriding the DP's (P, U) which
+ // were computed assuming the unit exists. "built" is true when there is no
+ // design at all.
+ const bool built = ( ! has_design ) || design_on;
+ if( has_design )
+  b->get_design().set_value( design_on ? 1 : 0 );
+
  // canonical part: write the schedule the DP produced, (P, U), into the
  // active power and commitment ColVariables of the Block
  if( auto pow_it = b->get_active_power( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; )
-   ( pow_it++ )->set_value( P[ i++ ] );
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( pow_it++ )->set_value( built ? P[ i ] : 0 );
 
  if( auto com_it = b->get_commitment( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; )
-   ( com_it++ )->set_value( U[ i++ ] ? 1 : 0 );
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( com_it++ )->set_value( ( built && U[ i ] ) ? 1 : 0 );
 
  // spinning reserve variables (if present): the optimal pr/sr provision
  // given the active power P[t] (zero when the unit is off, since the caps
- // rho*P[t] vanish)
+ // rho*P[t] vanish, and zero when the unit is not built)
  if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double pr , sr;
-   reserve_alloc( i , P[ i ] , pr , sr );
+   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
    ( pr_it++ )->set_value( pr );
    }
 
  if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double pr , sr;
-   reserve_alloc( i , P[ i ] , pr , sr );
+   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
    ( sr_it++ )->set_value( sr );
    }
 
@@ -727,6 +746,27 @@ void ThermalUnitDPSolver::min_path( void )
   process_node( v_off_nodes[ i ] );
   }
 
+ // design (investment) decision: the shortest path above solved the
+ // operational problem assuming the unit exists (design == 1), so f_end.lab
+ // is the optimal operational cost p*. Building the unit costs design_cost on
+ // top; it is worth building iff p* + design_cost <= 0, otherwise the unit is
+ // not built and contributes nothing (cost 0, zero schedule). A designable
+ // unit is always initially off (ThermalUnitBlock forbids InitUpDownTime >= 0
+ // with an investment cost) so it can always stay off the whole horizon: the
+ // operational problem is feasible (f_end.lab < TUDPINF) and the design is
+ // never forced on. Generalises to an integer design by the same threshold
+ // argument; the continuous case does not apply (binary commitments inside).
+ if( has_design && ( f_end.lab < TUDPINF ) ) {
+  if( f_end.lab + design_cost <= 0 ) {
+   design_on = true;
+   f_end.lab += design_cost;
+   }
+  else {
+   design_on = false;
+   f_end.lab = 0;          // not built: the unit is absent
+   }
+  }
+
  stage = path_OK;  // all done: update stage
 
  }  // end( ThermalUnitDPSolver::min_path )
@@ -847,6 +887,18 @@ void ThermalUnitDPSolver::load_parameters( void )
  if( secondary_reserve_cost.empty() )
   secondary_reserve_cost = secondary_rho;
 
+ // design (investment): present iff the unit carries a nonzero investment cost.
+ // The DP solves the operational problem assuming the unit exists; min_path()
+ // then decides whether to build it. See min_path() for the threshold rule.
+ design_cost = b->get_investment_cost();
+ has_design  = ( design_cost != 0 );
+ design_on   = false;
+
+ // override the physical linear costs read above with the (possibly Lagrangian-
+ // priced) ones carried by the abstract Objective; see sync_lagrangian_prices()
+ f_cached_obj_fun = nullptr;     // force a fresh section-offset lookup
+ sync_lagrangian_prices();
+
  // unlock the Block
  if( ! owned )
   f_Block->read_unlock();
@@ -858,6 +910,71 @@ void ThermalUnitDPSolver::load_parameters( void )
  stage = start;
 
  }  // end( ThermalUnitDPSolver::load_parameters )
+
+/*--------------------------------------------------------------------------*/
+
+// Re-read the linear cost coefficients that the abstract Objective carries for
+// the variables that can appear in a dualized coupling constraint -- active
+// power (demand), the spinning reserves (reserve requirements) and the design
+// variable (investment budget) -- into linear_term / *_reserve_cost /
+// design_cost. When this Solver is the inner Solver of a LagBFunction the dual
+// prices are added to those coefficients via eNoBlck Modifications that, by
+// design, never reach a Solver and so leave no trace in the Modification queue:
+// this method is the only way the DP learns about them. Quadratic coefficients
+// are never dualized (only linear coupling is), so quad_term is left untouched.
+// f_scale is divided out to match this Solver's un-scaled convention. Solved
+// standalone (no pricing) the coefficients equal the physical ones, so it is a
+// no-op. The variables of each type are consecutive in the Objective (see
+// ThermalUnitBlock::generate_objective), so a single is_active() lookup per
+// section gives its base index; these are cached and only refreshed when the
+// Objective Function changes. Returns true iff any coefficient changed.
+
+bool ThermalUnitDPSolver::sync_lagrangian_prices( void )
+{
+ auto b = static_cast< ThermalUnitBlock * >( f_Block );
+ auto obj = dynamic_cast< FRealObjective * >( b->get_objective() );
+ if( ! obj )
+  return( false );
+ auto qf = dynamic_cast< DQuadFunction * >( obj->get_function() );
+ if( ! qf )
+  return( false );
+
+ if( qf != f_cached_obj_fun ) {  // (re)locate the section base indices
+  const Index nav = qf->get_num_active_var();
+  auto off = [ & ]( const ColVariable * v ) -> Index {
+   auto i = qf->is_active( v );
+   return( i < nav ? i : Inf< Index >() );
+   };
+  auto pap = b->get_active_power( 0 );
+  f_off_power  = pap ? off( pap ) : Inf< Index >();
+  auto pr = b->get_primary_spinning_reserve( 0 );
+  f_off_pr     = pr ? off( pr ) : Inf< Index >();
+  auto sr = b->get_secondary_spinning_reserve( 0 );
+  f_off_sr     = sr ? off( sr ) : Inf< Index >();
+  f_off_design = has_design ? off( & b->get_design() ) : Inf< Index >();
+  f_cached_obj_fun = qf;
+  }
+
+ const double isc = 1.0 / b->get_scale();
+ bool changed = false;
+ auto upd = [ & ]( Index base , Index t , double & dst ) {
+  double nv = isc * qf->get_linear_coefficient( base + t );
+  if( nv != dst ) { dst = nv; changed = true; }
+  };
+
+ for( Index t = 0 ; t < time_horizon ; ++t ) {
+  if( f_off_power != Inf< Index >() )
+   upd( f_off_power , t , linear_term[ t ] );
+  if( f_off_pr != Inf< Index >() )
+   upd( f_off_pr , t , primary_reserve_cost[ t ] );
+  if( f_off_sr != Inf< Index >() )
+   upd( f_off_sr , t , secondary_reserve_cost[ t ] );
+  }
+ if( f_off_design != Inf< Index >() )
+  upd( f_off_design , 0 , design_cost );
+
+ return( changed );
+ }  // end( ThermalUnitDPSolver::sync_lagrangian_prices )
 
 /*--------------------------------------------------------------------------*/
 
