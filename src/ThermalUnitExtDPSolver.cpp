@@ -42,10 +42,6 @@
 
 #include "ThermalUnitBlock.h"
 
-#include "FRealObjective.h"
-
-#include "DQuadFunction.h"
-
 #include <algorithm>
 #include <cmath>
 
@@ -114,13 +110,6 @@ int ThermalUnitExtDPSolver::compute( bool changedvars )
  lock();
 
  process_modifications();
-
- // the Lagrangian dual prices are written into the abstract Objective via
- // eNoBlck Modifications that never reach this Solver, so they leave no trace
- // in the Modification queue; re-read them every call and, if any changed,
- // invalidate the cached DP so it is recomputed against the new costs
- if( sync_lagrangian_prices() )
-  stage = start;
 
 #if TUEDPS_PROFILE
  static double t_dp = 0 , t_bs = 0; static unsigned long n_dp = 0 , n_bs = 0 , n_call = 0;
@@ -466,11 +455,6 @@ void ThermalUnitExtDPSolver::load_parameters( void )
  has_design  = ( design_cost != 0 );
  design_on   = false;
 
- // override the physical linear costs read above with the (possibly Lagrangian-
- // priced) ones carried by the abstract Objective; see sync_lagrangian_prices()
- f_cached_obj_fun = nullptr;     // force a fresh section-offset lookup
- sync_lagrangian_prices();
-
  if( ! owned )
   f_Block->read_unlock();
 
@@ -482,71 +466,6 @@ void ThermalUnitExtDPSolver::load_parameters( void )
  f_best_cost = TUEDPINF;
 
  }  // end( ThermalUnitExtDPSolver::load_parameters )
-
-/*--------------------------------------------------------------------------*/
-
-// Re-read the linear cost coefficients that the abstract Objective carries for
-// the variables that can appear in a dualized coupling constraint -- active
-// power (demand), the spinning reserves (reserve requirements) and the design
-// variable (investment budget) -- into linear_term / *_reserve_cost /
-// design_cost. When this Solver is the inner Solver of a LagBFunction the dual
-// prices are added to those coefficients via eNoBlck Modifications that, by
-// design, never reach a Solver and so leave no trace in the Modification queue:
-// this method is the only way the DP learns about them. Quadratic coefficients
-// are never dualized (only linear coupling is), so quad_term is left untouched.
-// f_scale is divided out to match this Solver's un-scaled convention. Solved
-// standalone (no pricing) the coefficients equal the physical ones, so it is a
-// no-op. The variables of each type are consecutive in the Objective (see
-// ThermalUnitBlock::generate_objective), so a single is_active() lookup per
-// section gives its base index; these are cached and only refreshed when the
-// Objective Function changes. Returns true iff any coefficient changed.
-
-bool ThermalUnitExtDPSolver::sync_lagrangian_prices( void )
-{
- auto b = static_cast< ThermalUnitBlock * >( f_Block );
- auto obj = dynamic_cast< FRealObjective * >( b->get_objective() );
- if( ! obj )
-  return( false );
- auto qf = dynamic_cast< DQuadFunction * >( obj->get_function() );
- if( ! qf )
-  return( false );
-
- if( qf != f_cached_obj_fun ) {  // (re)locate the section base indices
-  const Index nav = qf->get_num_active_var();
-  auto off = [ & ]( const ColVariable * v ) -> Index {
-   auto i = qf->is_active( v );
-   return( i < nav ? i : Inf< Index >() );
-   };
-  auto pap = b->get_active_power( 0 );
-  f_off_power  = pap ? off( pap ) : Inf< Index >();
-  auto pr = b->get_primary_spinning_reserve( 0 );
-  f_off_pr     = pr ? off( pr ) : Inf< Index >();
-  auto sr = b->get_secondary_spinning_reserve( 0 );
-  f_off_sr     = sr ? off( sr ) : Inf< Index >();
-  f_off_design = has_design ? off( & b->get_design() ) : Inf< Index >();
-  f_cached_obj_fun = qf;
-  }
-
- const double isc = 1.0 / b->get_scale();
- bool changed = false;
- auto upd = [ & ]( Index base , Index t , double & dst ) {
-  double nv = isc * qf->get_linear_coefficient( base + t );
-  if( nv != dst ) { dst = nv; changed = true; }
-  };
-
- for( Index t = 0 ; t < time_horizon ; ++t ) {
-  if( f_off_power != Inf< Index >() )
-   upd( f_off_power , t , linear_term[ t ] );
-  if( f_off_pr != Inf< Index >() )
-   upd( f_off_pr , t , primary_reserve_cost[ t ] );
-  if( f_off_sr != Inf< Index >() )
-   upd( f_off_sr , t , secondary_reserve_cost[ t ] );
-  }
- if( f_off_design != Inf< Index >() )
-  upd( f_off_design , 0 , design_cost );
-
- return( changed );
- }  // end( ThermalUnitExtDPSolver::sync_lagrangian_prices )
 
 /*--------------------------------------------------------------------------*/
 
