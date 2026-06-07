@@ -65,6 +65,14 @@
 #if TUDPS_PARALLEL
  #include <thread>
  #include <ff/parallel_for.hpp>
+ // Keep this include: ff/pipeline.hpp forward-declares the isa2a_get*set()
+ // helpers as static and uses them in ff_pipeline members, but their definitions
+ // live in ff/graph_utils.hpp, which only ff/ff.hpp pulls in. GCC/Clang tolerate
+ // the undefined static (the calling members are never emitted here), but MSVC
+ // rejects it with C2129. Including the definitions here is harmless everywhere
+ // (the header is include-guarded and self-contained), so we keep it
+ // unconditional rather than guarding it on the compiler/platform.
+ #include <ff/graph_utils.hpp>
 #endif
 
 /*--------------------------------------------------------------------------*/
