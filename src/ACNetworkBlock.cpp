@@ -218,7 +218,8 @@ std::vector< std::string > ACNetworkData::expected_vars( void ) const
   "NodeVoltageMagnitude" , "NodeVoltageAngle" , "NodeMaxVoltage" ,
   "NodeMinVoltage" , "LineResistance" , "LineReactance" ,
   "LineChargingSusceptance" , "LineRatio" ,
-  "LineRATEA" , "LineShiftAngle" , "LineMinAngle" , "LineMaxAngle"
+  "LineRATEA" , "LineShiftAngle" , "LineMinAngle" , "LineMaxAngle" ,
+  "MinReactivePowerFlow" , "MaxReactivePowerFlow"
  };
 
  auto ret = DCNetworkData::expected_vars();
