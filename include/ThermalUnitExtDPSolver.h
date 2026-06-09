@@ -252,13 +252,16 @@ class ThermalUnitExtDPSolver : public Solver
 /*--------------------------------------------------------------------------*/
 
  /// read all the parameters from the ThermalUnitBlock
- void load_parameters( void );
+ /** virtual so that a derived solver (e.g. NuclearUnitExtDPSolver) can load its
+  * extra data on top of the base parameters. */
+ virtual void load_parameters( void );
 
  /// process the queue of Modifications
  void process_modifications( void );
 
  /// process one Modification; returns true if a full reload is required
- bool guts_of_process_modifications( const p_Mod mod );
+ /** virtual so that a derived solver can intercept its own Modifications. */
+ virtual bool guts_of_process_modifications( const p_Mod mod );
 
  /// expand a per-instant vector as in ThermalUnitDPSolver::retrieve_term()
  void retrieve_term( std::vector< double > & out ,
@@ -267,10 +270,13 @@ class ThermalUnitExtDPSolver : public Solver
 /*--------------------------------------------------------------------------*/
 
  /// run the full forward DP (ON and OFF layers together)
- void run_DP( void );
+ /** virtual so that a derived solver can replace it with a state-augmented
+  * variant (e.g. NuclearUnitExtDPSolver, which adds the modulation lockout). */
+ virtual void run_DP( void );
 
  /// reconstruct the commitment/power schedule by backtracking the DP
- void build_solution( void );
+ /** virtual for the same reason as run_DP(). */
+ virtual void build_solution( void );
 
 /*--------------------------------------------------------------------------*/
 
