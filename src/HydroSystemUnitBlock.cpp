@@ -497,9 +497,17 @@ HydroSystemUnitBlockSolution * HydroSystemUnitBlockSolution::scale(
 {
  auto sol = clone();
 
- if( factor != 1 )
-  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
-   v_innerSol[ i ]->scale( factor );
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ // replace each inner Solution of the clone with its scaled version
+ for( std::size_t i = 0 ; i < sol->v_innerSol.size() ; ++i ) {
+  auto inner = sol->v_innerSol[ i ];
+  sol->v_innerSol[ i ] = inner->scale( factor );
+  delete inner;
+  }
 
  return( sol );
 

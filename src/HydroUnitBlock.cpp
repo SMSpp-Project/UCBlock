@@ -2059,6 +2059,7 @@ HydroUnitBlockSolution * HydroUnitBlockSolution::clone( bool empty ) const
 
  if( ! empty ) {
   guts_of_clone( sol );
+  sol->f_reservoirs = f_reservoirs;
   copy_multi_array( sol->v_volume , v_volume );
   copy_multi_array( sol->v_flow , v_flow );
   }

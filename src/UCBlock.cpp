@@ -2651,12 +2651,20 @@ UCBlockSolution * UCBlockSolution::scale( double factor ) const
  if( factor == 1 )
   return( sol );
 
- for( auto vi : sol->v_unit_Solution )
-  vi->scale( factor );
+ // replace each unit and network Solution of the clone with its scaled
+ // version
+ for( auto & vi : sol->v_unit_Solution ) {
+  auto unit_solution = vi;
+  vi = unit_solution->scale( factor );
+  delete unit_solution;
+  }
 
- for( auto ni : sol->v_network_Solution )
-  if( ni )
-   ni->scale( factor );
+ for( auto & ni : sol->v_network_Solution )
+  if( ni ) {
+   auto network_solution = ni;
+   ni = network_solution->scale( factor );
+   delete network_solution;
+   }
 
  if( ! v_demand_duals.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
