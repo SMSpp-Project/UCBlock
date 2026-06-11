@@ -1222,6 +1222,71 @@ class ThermalUnitBlock : public UnitBlock
   *       \quad t \in \{ 1, ..., \mathcal{T} \}, k: t < k         \quad (2)
   *   \f]
   *
+  * - Spinning reserve constraints: besides the active power \f$ p_t \f$, the
+  *   unit can be required to set aside part of its available capacity as
+  *   primary and/or secondary spinning reserve. The corresponding non-negative
+  *   variables \f$ pr_t \f$ (primary, abstract group "pr_thermal") and
+  *   \f$ sc_t \f$ (secondary, abstract group "sc_thermal") are created only
+  *   if the enclosing UCBlock declares a reserve demand (the reserve_vars
+  *   mask, bit 0 for primary and bit 1 for secondary) *and* the unit is able
+  *   to provide that reserve, i.e., the corresponding fraction vector
+  *   "PrimaryRho" (\f$ \rho^p_t \f$) / "SecondaryRho" (\f$ \rho^s_t \f$) is
+  *   non-empty. Each reserve is independently optional: the unit may have
+  *   none, one or both. The reserve is a quantity that the unit holds "ready
+  *   to move" around its current active power production, valued in the
+  *   objective function at the (possibly time-dependent) prices
+  *   \f$ c^{pr}_t \f$ / \f$ c^{sc}_t \f$ (see generate_objective() and
+  *   set_primary/secondary_spinning_reserve_cost()); in a Lagrangian setting
+  *   these prices are (minus) the multipliers of the system-wide
+  *   reserve-demand constraints, hence are typically \f$ \leq 0 \f$ (a
+  *   revenue), but no sign is assumed here.
+  *
+  *   Two families of constraints govern the reserve:
+  *
+  *   = Fraction constraints (all formulations): each reserve is capped at a
+  *     fixed fraction of the active power actually produced,
+  *     \f[
+  *        pr_t \leq \rho^p_t\, p_t , \qquad
+  *        sc_t \leq \rho^s_t\, p_t
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
+  *     \f]
+  *     These are the "PrimaryRho_Const" / "SecondaryRho_Const" and are added
+  *     whenever the respective reserve variables exist, regardless of the
+  *     chosen formulation, since they only involve the aggregate power
+  *     \f$ p_t \f$.
+  *
+  *   = Capacity (band) constraints: the reserve must fit within a *symmetric*
+  *     band around \f$ p_t \f$ inside \f$ [\underline{p}_t, \overline{p}_t] \f$,
+  *     i.e., the unit must keep enough head-room to move *up* and enough
+  *     foot-room to move *down* by the whole reserve it commits to. This is
+  *     obtained by augmenting the minimum and maximum power output constraints
+  *     with the reserve terms: where the energy-only model reads
+  *     \f$ \underline{p}_t u_t \leq p_t \leq \overline{p}_t u_t \f$ (and its
+  *     start-up / shut-down refinements above), the reserve model uses
+  *     \f[
+  *        \underline{p}_t u_t \;\leq\; p_t - pr_t - sc_t , \qquad
+  *        p_t + pr_t + sc_t \;\leq\; \overline{p}_t u_t
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2)
+  *     \f]
+  *     (with \f$ \overline{p}_t \f$ replaced by the start-up limit
+  *     \f$ \bar l_t \f$ at a start-up period and by the shut-down limit
+  *     \f$ \bar u_t \f$ at a shut-down period, exactly as in the maximum power
+  *     output constraints above). Equivalently, \f$ pr_t + sc_t \leq
+  *     \min\{ p_t - \underline{p}_t , \overline{p}_t - p_t \} \f$ when the unit
+  *     is on. Note that the reserve does *not* enter the ramp-up / ramp-down
+  *     constraints: only the active power \f$ p_t \f$ is ramp-constrained, the
+  *     reserve being a "virtual" room kept around it.
+  *
+  *     IMPORTANT: these band terms are currently added only to the minimum and
+  *     maximum power output constraints of the 3bin, T and pt formulations. In
+  *     the DP, SU, SD and SUSD formulations the reserve variables are still
+  *     subject to the fraction constraints (1) but the band constraints (2)
+  *     are *not* generated, so in those formulations the reserve is limited
+  *     only by the fraction of the produced power and not by the residual
+  *     head-/foot-room. The DP solvers (ThermalUnitDPSolver,
+  *     ThermalUnitExtDPSolver) target the 3bin semantics, i.e., constraints
+  *     (1) and (2) together.
+  *
   * - Perspective function constraints: when the formulations make use of the
   *   perspective function for measuring the total production cost (i.e. when
   *   parameter PCuts = 1), a set of static constraints are defined for
