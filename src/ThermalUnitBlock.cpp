@@ -457,6 +457,17 @@ void ThermalUnitBlock::check_data_consistency( void ) const
                            std::to_string( f_InitialPower ) +
                            ", but it must be nonnegative" ) );
 
+ // if the unit is initially committed, the initial power must lie within
+ // the operational band of the unit: formulations and solvers (e.g. the
+ // DP ones) rely on this documented contract, and violating it silently
+ // produces spurious must-run behaviour rather than a clean error
+ if( ( f_InitUpDownTime > 0 ) && ( f_InitialPower < v_MinPower.front() ) )
+  throw( std::logic_error( "ThermalUnitBlock::check_data_consistency: the "
+                           "unit is initially committed but the initial "
+                           "power is " + std::to_string( f_InitialPower ) +
+                           ", which is below the minimum power, which is " +
+                           std::to_string( v_MinPower.front() ) ) );
+
  // StartUpLimit- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   if( ( v_StartUpLimit[ t ] < get_operational_min_power( t ) ) ||
