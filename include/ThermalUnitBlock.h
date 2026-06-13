@@ -2026,6 +2026,19 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the (dualized) linear cost coefficient of the reactive power
+ /** The reactive power variable q[t] has no cost in the unit's own objective,
+  * but a Solver that dualizes a constraint involving it (e.g. a
+  * LagrangianDualSolver dualizing the reactive-power node balance) injects a
+  * linear coefficient on q[t] into the objective; set_reactive_linear_term()
+  * mirrors it here. The vector follows the same empty/size-1/size-horizon
+  * convention as get_linear_term(). */
+
+ const std::vector< double > & get_reactive_linear_term( void ) const {
+  return( v_ReactiveLinearTerm );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of constant term
  /** The returned vector contains to constant term at time t. There are three
   * possible cases:
@@ -2518,6 +2531,28 @@ class ThermalUnitBlock : public UnitBlock
                      ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+/// set the linear cost coefficient of the reactive power variables
+/** The reactive power variables q[t] carry no cost in the unit's own
+ * objective, but they appear in the objective when a Solver dualizes a
+ * constraint they belong to (e.g. the reactive-power node balance in a
+ * LagrangianDualSolver): the dual term is a linear coefficient on q[t]. These
+ * setters store that coefficient into v_ReactiveLinearTerm so that the DP
+ * solvers can price q[t] over its [Qmin,Qmax] box; they are the reactive
+ * counterpart of set_linear_term(). */
+
+ void set_reactive_linear_term( MF_dbl_it values ,
+                                Subset && subset ,
+                                const bool ordered = false ,
+                                ModParam issuePMod = eNoBlck ,
+                                ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_reactive_linear_term( MF_dbl_it values , Range rng = INFRange ,
+                                ModParam issuePMod = eNoBlck ,
+                                ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 
  void set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                          Subset && subset ,
@@ -2840,6 +2875,11 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the vector of LinearTerm
  std::vector< double > v_LinearTerm;
+
+ /// dualized linear cost coefficient on the reactive power variables q[t]
+ /// (zero in the unit's own objective; set by a dualizing Solver via
+ /// set_reactive_linear_term()). Empty means "all zero".
+ std::vector< double > v_ReactiveLinearTerm;
 
  /// the vector of ConstTerm
  std::vector< double > v_ConstTerm;
@@ -3243,6 +3283,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
   eSetConstT ,                 ///< set constant term
   eSetPrSpResCost ,            ///< set primary spinning reserve costs
   eSetSecSpResCost ,           ///< set secondary spinning reserve costs
+  eSetReactiveLinT ,           ///< set reactive power linear term
   eTUBModLastParam   ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ThermalUnitBlockMod. */
@@ -3293,6 +3334,9 @@ class ThermalUnitBlockMod : public UnitBlockMod
     break;
    case( eSetSecSpResCost ):
     output << "Set secondary spinning reserve costs";
+    break;
+   case( eSetReactiveLinT ):
+    output << "Set reactive power linear term";
     break;
    default:;
    }

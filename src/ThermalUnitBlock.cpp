@@ -3923,6 +3923,19 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
                                      f_scale * v_QuadTerm[ t ] , 0.0 ) );
   }
 
+ // add the reactive power variables LAST - - - - - - - - - - - - - - - - - -
+ // q[t] carries no cost in the unit objective, so its coefficient is 0 unless
+ // a dualizing Solver sets v_ReactiveLinearTerm (see set_reactive_linear_term):
+ // keeping them last lets handle_objective_change() recognise a reactive
+ // coefficient change as the trailing [ num_active_var - th , num_active_var )
+ // index block, independent of which optional sections precede it.
+ if( f_reactive_power )
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_tuple(
+    & v_reactive_power[ t ] ,
+    f_scale * ( v_ReactiveLinearTerm.empty() ? 0.0 : v_ReactiveLinearTerm[ t ] ) ,
+    0.0 ) );
+
  objective.set_function( new DQuadFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
 
@@ -4887,6 +4900,106 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
 }  // end( ThermalUnitBlock::set_linear_term( range ) )
 
 /*--------------------------------------------------------------------------*/
+// the reactive power variables q[t] are the LAST section of the Objective
+// (see generate_objective): they are added only when f_reactive_power, after
+// every other section, so they occupy the active-variable indices
+// [ num_active_var - f_time_horizon , num_active_var ). The DP solvers price
+// q[t] over [Qmin,Qmax] using this coefficient.
+
+void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
+                                                 Subset && subset ,
+                                                 const bool ordered ,
+                                                 ModParam issuePMod ,
+                                                 ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ if( v_ReactiveLinearTerm.empty() ) {
+  if( std::all_of( values ,
+                   values + subset.size() ,
+                   []( double cst ) { return( cst == 0 ); } ) )
+   return;
+
+  v_ReactiveLinearTerm.assign( f_time_horizon , 0 );
+ }
+
+ if( ! ordered )
+  std::sort( subset.begin() , subset.end() );
+
+ if( subset.back() >= v_ReactiveLinearTerm.size() )
+  throw( std::invalid_argument(
+   "ThermalUnitBlock::set_reactive_linear_term: invalid index in subset." ) );
+
+ if( identical( v_ReactiveLinearTerm , subset , values ) )  // nothing changes
+  return;
+
+ if( not_dry_run( issuePMod ) )
+  assign( v_ReactiveLinearTerm , subset , values );
+
+ if( not_dry_run( issueAMod ) && objective_generated() && f_reactive_power ) {
+  auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
+  const Index dpos = qf->get_num_active_var() - f_time_horizon;
+  Subset tmps = subset_add( subset , dpos );
+  DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  qf->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
+                                  true , un_ModBlock( issueAMod ) );
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetReactiveLinT ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+}  // end( ThermalUnitBlock::set_reactive_linear_term( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
+                                                 Range rng ,
+                                                 ModParam issuePMod ,
+                                                 ModParam issueAMod )
+{
+ rng.second = std::min( rng.second , f_time_horizon );
+ if( rng.second <= rng.first )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+ if( v_ReactiveLinearTerm.empty() ) {
+  if( std::all_of( values ,
+                   values + sz ,
+                   []( double cst ) { return( cst == 0 ); } ) )
+   return;
+
+  v_ReactiveLinearTerm.assign( f_time_horizon , 0 );
+ }
+
+ if( std::equal( values , values + sz ,
+                 v_ReactiveLinearTerm.begin() + rng.first ) )
+  return;
+
+ if( not_dry_run( issuePMod ) )
+  std::copy( values , values + sz , v_ReactiveLinearTerm.begin() + rng.first );
+
+ if( not_dry_run( issueAMod ) && objective_generated() && f_reactive_power ) {
+  auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
+  const Index dpos = qf->get_num_active_var() - f_time_horizon;
+  DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  qf->modify_linear_coefficients( std::move( tmpv ) ,
+                                  Range( rng.first + dpos , rng.second + dpos ) ,
+                                  un_ModBlock( issueAMod ) );
+ }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetReactiveLinT ,
+                            rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+}  // end( ThermalUnitBlock::set_reactive_linear_term( range ) )
+
+/*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
                                       Subset && subset ,
@@ -5804,6 +5917,26 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 		  "ThermalUnitBlock::add_Modification: invalid Range [" +
 		  std::to_string( l ) + ", " + std::to_string( r ) + ")" ) );
 
+  // reactive power variables are the trailing section: peel off any index in
+  // [ q_start , num_active_var ) and route it to set_reactive_linear_term(),
+  // then let the code below handle the remaining (non-reactive) prefix only.
+  if( f_reactive_power ) {
+   const Index q_start = qf->get_num_active_var() - th;
+   if( r > q_start ) {
+    const Index rl = std::max( l , q_start );
+    std::vector< double > qv( r - rl );
+    auto qvit = qv.begin();
+    for( Index i = rl ; i < r ; )
+     *( qvit++ ) = qf->get_linear_coefficient( i++ );
+    set_reactive_linear_term( qv.begin() ,
+                              Range( rl - q_start , r - q_start ) ,
+                              par , eDryRun );
+    if( l >= q_start )
+     return;  // the whole range was reactive
+    r = q_start;
+    }
+   }
+
   std::vector< double > nv( r - l + 1 );
   std::vector< double > nvq;
   if( with_quad )
@@ -5915,10 +6048,35 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    with_quad = true;
    }
 
+ Subset reduced;  // storage when the reactive tail has to be peeled off
  if( sbs ) {
   if( sbs->back() > qf->get_num_active_var() )
    throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: "
 				 "invalid Subset" ) );
+
+  // peel off the trailing reactive section (see the ranged case): entries in
+  // [ q_start , num_active_var ) go to set_reactive_linear_term(); the
+  // remaining prefix is handled by the section walk below unchanged.
+  if( f_reactive_power ) {
+   const Index q_start = qf->get_num_active_var() - th;
+   auto qit = std::lower_bound( sbs->begin() , sbs->end() , q_start );
+   if( qit != sbs->end() ) {
+    Subset qms( std::distance( qit , sbs->end() ) );
+    std::vector< double > qv( qms.size() );
+    auto qvit = qv.begin();
+    auto qmsit = qms.begin();
+    for( auto it = qit ; it != sbs->end() ; ++it ) {
+     *( qvit++ ) = qf->get_linear_coefficient( *it );
+     *( qmsit++ ) = *it - q_start;
+     }
+    set_reactive_linear_term( qv.begin() , std::move( qms ) , true ,
+                              par , eDryRun );
+    if( qit == sbs->begin() )
+     return;  // the whole subset was reactive
+    reduced.assign( sbs->begin() , qit );
+    sbs = & reduced;
+    }
+   }
 
   std::vector< double > nv( sbs->size() );
   std::vector< double > nvq;

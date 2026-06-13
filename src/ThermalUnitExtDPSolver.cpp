@@ -194,6 +194,28 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
    ( sr_it++ )->set_value( sr );
    }
 
+ // reactive power variables (AC instances): q[t] is a box-bounded variable in
+ // [ Qmin(t) , Qmax(t) ] that is separable from the DP. Under a dualizing
+ // Solver it carries the linear cost reactive_linear_term[t]: the optimal
+ // q*[t] is the box endpoint minimising c*q (lower bound if c>0, upper if c<0;
+ // any feasible value, here 0 clamped to the box, if c==0). This matches the
+ // contribution run_DP() adds to the value. See ReactivePower_Bound_Const.
+ if( auto q_it = b->get_reactive_power( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i ) {
+   const double qlo = b->get_min_reactive_power( i );
+   const double qhi = b->get_max_reactive_power( i );
+   const double c = reactive_linear_term.empty() ? 0.0
+                                                 : reactive_linear_term[ i ];
+   double q;
+   if( c > 0 )
+    q = qlo;
+   else if( c < 0 )
+    q = qhi;
+   else
+    q = std::min( std::max( 0.0 , qlo ) , qhi );
+   ( q_it++ )->set_value( q );
+   }
+
  // formulation-specific bookkeeping is delegated to the Block
  b->set_solution();
 
@@ -448,6 +470,22 @@ void ThermalUnitExtDPSolver::load_parameters( void )
  if( secondary_reserve_cost.empty() )
   secondary_reserve_cost = secondary_rho;
 
+ // reactive power (AC instances): read the box [Qmin,Qmax] and the (dualized)
+ // linear cost coefficient on q[t]. q[t] is separable from the DP, so run_DP()
+ // adds its optimal contribution as a constant. Empty reactive_linear_term ->
+ // the unit has no reactive power and the term is skipped.
+ if( b->get_reactive_power( 0 ) ) {
+  retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
+  reactive_min.resize( time_horizon );
+  reactive_max.resize( time_horizon );
+  for( Index t = 0 ; t < time_horizon ; ++t ) {
+   reactive_min[ t ] = b->get_min_reactive_power( t );
+   reactive_max[ t ] = b->get_max_reactive_power( t );
+   }
+  }
+ else
+  reactive_linear_term.clear();
+
  // design (investment): present iff the unit carries a nonzero investment cost.
  // The DP solves the operational problem assuming the unit exists; run_DP()
  // then decides whether to build it. See run_DP() for the threshold rule.
@@ -603,6 +641,11 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
     secondary_reserve_cost = b->get_secondary_spinning_reserve_cost();
     if( secondary_reserve_cost.empty() )
      secondary_reserve_cost = secondary_rho;
+    stage = start;
+    return( false );
+
+   case( ThermalUnitBlockMod::eSetReactiveLinT ):
+    retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
     stage = start;
     return( false );
    }
@@ -1462,6 +1505,18 @@ void ThermalUnitExtDPSolver::run_DP( void )
    f_best_cost = 0;          // not built: the unit is absent
    }
   }
+
+ // reactive power contribution (AC instances): q[t] in [Qmin,Qmax] is
+ // separable from the commitment/active-power DP and carries the dualized
+ // linear cost reactive_linear_term[t]. The optimal q*[t] is the box endpoint
+ // minimising c*q, contributing min(c*Qmin, c*Qmax); being path-independent it
+ // is added once here. get_var_solution() reports the matching q*[t].
+ if( f_best_cost < TUEDPINF && ! reactive_linear_term.empty() )
+  for( Index t = 0 ; t < time_horizon ; ++t ) {
+   const double c = reactive_linear_term[ t ];
+   if( c != 0 )
+    f_best_cost += std::min( c * reactive_min[ t ] , c * reactive_max[ t ] );
+   }
 
  f_solved = ( f_best_cost < TUEDPINF );
 

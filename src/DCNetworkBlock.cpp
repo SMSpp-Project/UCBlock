@@ -1951,7 +1951,11 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
  if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
      constraints_generated() ) {
   std::vector< Index > modified_nodes( subset.begin() , subset.end() );
-  if( f_NetworkData->is_HVDC() )
+  // v_power_flow_injection_const only exists in the PTDF formulation (it is
+  // built by generate_PTDF_constraints for the pure-HVDC case); in CYCLE and
+  // KIRCHHOFF the demand lives in the formulation's own node-balance
+  // constraints, which change_active_demand_constraints updates by ftype.
+  if( f_NetworkData->is_HVDC() && ftype == PTDF )
    change_DC_power_flow_injection_constraints( modified_nodes , issueAMod );
   else
    change_active_demand_constraints( modified_nodes , issueAMod );
@@ -1999,7 +2003,10 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    std::vector< Index > modified_nodes( rng.second - rng.first );
    std::iota( modified_nodes.begin() , modified_nodes.end() , rng.first );
-   if( f_NetworkData->is_HVDC() )
+   // see the note in the Subset overload: the v_power_flow_injection_const
+   // path is PTDF-only, CYCLE/KIRCHHOFF update demand via their own node
+   // balance constraints in change_active_demand_constraints.
+   if( f_NetworkData->is_HVDC() && ftype == PTDF )
     change_DC_power_flow_injection_constraints( modified_nodes , issueAMod );
    else
     change_active_demand_constraints( modified_nodes , issueAMod );

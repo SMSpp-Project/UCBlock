@@ -700,6 +700,13 @@ class ThermalUnitDPSolver : public Solver
  std::vector< double > linear_term;
  std::vector< double > const_term;
 
+ // reactive power q[t] in [reactive_min[t], reactive_max[t]], separable from
+ // the DP; reactive_linear_term[t] is its dualized linear cost (empty if the
+ // unit has no reactive power). run_DP() prices q[t] as a constant.
+ std::vector< double > reactive_linear_term;
+ std::vector< double > reactive_min;
+ std::vector< double > reactive_max;
+
  std::vector< double > primary_rho;             ///< primary reserve cap factor
  std::vector< double > secondary_rho;           ///< secondary reserve cap factor
  std::vector< double > primary_reserve_cost;    ///< primary reserve cost coeff

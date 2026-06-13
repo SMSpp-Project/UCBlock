@@ -43,11 +43,15 @@
  * MILP comparison solver in the test harness) does not pollute the figures.
  * Temporary instrumentation: keep at 0 in committed code. */
 
-#define TUDPS_PAR_MIN_N 768
+#ifndef TUDPS_PAR_MIN_N
+ #define TUDPS_PAR_MIN_N 768
+#endif
 /* TUDPS_PARALLEL is defined in the header. Below this time horizon
  * compute_EDPs() stays serial: benchmarks (8 cores) put the serial/parallel
  * break-even around 600 time steps, so the threshold is set conservatively
- * above it; it is machine-dependent and may be retuned. */
+ * above it; it is machine-dependent and may be retuned. It can be overridden
+ * at compile time (-DTUDPS_PAR_MIN_N=0 forces the parallel path on every
+ * horizon, e.g. to benchmark the small-horizon thread overhead). */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -213,6 +217,28 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
    double pr , sr;
    reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
    ( sr_it++ )->set_value( sr );
+   }
+
+ // reactive power variables (AC instances): q[t] in [ Qmin(t) , Qmax(t) ] is
+ // separable from the DP; under a dualizing Solver it carries the linear cost
+ // reactive_linear_term[t] and the optimal q*[t] is the box endpoint
+ // minimising c*q (lower if c>0, upper if c<0, else feasible 0). This matches
+ // the contribution run_DP() adds to the value. See the analogous comment in
+ // ThermalUnitExtDPSolver::get_var_solution().
+ if( auto q_it = b->get_reactive_power( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i ) {
+   const double qlo = b->get_min_reactive_power( i );
+   const double qhi = b->get_max_reactive_power( i );
+   const double c = reactive_linear_term.empty() ? 0.0
+                                                 : reactive_linear_term[ i ];
+   double q;
+   if( c > 0 )
+    q = qlo;
+   else if( c < 0 )
+    q = qhi;
+   else
+    q = std::min( std::max( 0.0 , qlo ) , qhi );
+   ( q_it++ )->set_value( q );
    }
 
  // formulation-specific bookkeeping (start_up / shut_down indicators,
@@ -764,6 +790,18 @@ void ThermalUnitDPSolver::min_path( void )
    }
   }
 
+ // reactive power contribution (AC instances): q[t] in [Qmin,Qmax] is
+ // separable from the commitment/active-power shortest path and carries the
+ // dualized linear cost reactive_linear_term[t]; the optimal q*[t] is the box
+ // endpoint minimising c*q, contributing min(c*Qmin, c*Qmax). Path-independent,
+ // so added once. get_var_solution() reports the matching q*[t].
+ if( ( f_end.lab < TUDPINF ) && ! reactive_linear_term.empty() )
+  for( Index t = 0 ; t < time_horizon ; ++t ) {
+   const double c = reactive_linear_term[ t ];
+   if( c != 0 )
+    f_end.lab += std::min( c * reactive_min[ t ] , c * reactive_max[ t ] );
+   }
+
  stage = path_OK;  // all done: update stage
 
  }  // end( ThermalUnitDPSolver::min_path )
@@ -883,6 +921,22 @@ void ThermalUnitDPSolver::load_parameters( void )
   primary_reserve_cost = primary_rho;
  if( secondary_reserve_cost.empty() )
   secondary_reserve_cost = secondary_rho;
+
+ // reactive power (AC instances): read the box [Qmin,Qmax] and the dualized
+ // linear cost coefficient on q[t]. q[t] is separable from the DP, so run_DP()
+ // adds its optimal contribution as a constant. Empty reactive_linear_term ->
+ // the unit has no reactive power and the term is skipped.
+ if( b->get_reactive_power( 0 ) ) {
+  retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
+  reactive_min.resize( time_horizon );
+  reactive_max.resize( time_horizon );
+  for( Index t = 0 ; t < time_horizon ; ++t ) {
+   reactive_min[ t ] = b->get_min_reactive_power( t );
+   reactive_max[ t ] = b->get_max_reactive_power( t );
+   }
+  }
+ else
+  reactive_linear_term.clear();
 
  // design (investment): present iff the unit carries a nonzero investment cost.
  // The DP solves the operational problem assuming the unit exists; min_path()
@@ -1022,6 +1076,13 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
       secondary_reserve_cost = secondary_rho;
      if( stage > graph_OK )
       stage = graph_OK;
+     return( false );
+
+    case( ThermalUnitBlockMod::eSetReactiveLinT ):
+     // reactive price only changes the separable constant added at the end of
+     // run_DP(); a full re-run recomputes it (the graph/dispatch are unaffected)
+     retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
+     stage = start;
      return( false );
 
     }  // end( switch )
