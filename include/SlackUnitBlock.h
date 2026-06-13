@@ -864,7 +864,7 @@ class SlackUnitBlockMod : public UnitBlockMod
 
  /// constructor, takes the SlackUnitBlock and the type
  SlackUnitBlockMod( SlackUnitBlock * const fblock , const int type )
-  : UnitBlockMod( fblock , type ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
 
  /// destructor, does nothing
  virtual ~SlackUnitBlockMod() override = default;
