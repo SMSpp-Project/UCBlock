@@ -242,17 +242,19 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  // ThermalUnitExtDPSolver::get_var_solution().
  if( auto q_it = b->get_reactive_power( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
-   const double qlo = b->get_min_reactive_power( i );
-   const double qhi = b->get_max_reactive_power( i );
-   const double c = reactive_linear_term.empty() ? 0.0
-                                                 : reactive_linear_term[ i ];
-   double q;
-   if( c > 0 )
-    q = qlo;
-   else if( c < 0 )
-    q = qhi;
-   else
-    q = std::min( std::max( 0.0 , qlo ) , qhi );
+   double q = 0;  // not built: q is forced to 0 with all operational variables
+   if( built ) {
+    const double qlo = b->get_min_reactive_power( i );
+    const double qhi = b->get_max_reactive_power( i );
+    const double c = reactive_linear_term.empty() ? 0.0
+                                                  : reactive_linear_term[ i ];
+    if( c > 0 )
+     q = qlo;
+    else if( c < 0 )
+     q = qhi;
+    else
+     q = std::min( std::max( 0.0 , qlo ) , qhi );
+    }
    ( q_it++ )->set_value( q );
    }
 
@@ -797,38 +799,44 @@ void ThermalUnitDPSolver::min_path( void )
   process_node( v_off_nodes[ i ] );
   }
 
+ // reactive power contribution (AC instances): q[t] in [Qmin,Qmax] is
+ // separable from the commitment/active-power shortest path and carries the
+ // dualized linear cost reactive_linear_term[t]; the optimal q*[t] is the box
+ // endpoint minimising c*q, contributing min(c*Qmin, c*Qmax). Path-independent,
+ // so computed once. It is part of the operational cost (the unit holds q only
+ // if it exists), hence it is folded in BEFORE the design decision below, and
+ // get_var_solution() reports q*[t] = 0 for a non-built unit.
+ double Q_star = 0;
+ if( ( f_end.lab < TUDPINF ) && ! reactive_linear_term.empty() )
+  for( Index t = 0 ; t < time_horizon ; ++t ) {
+   const double c = reactive_linear_term[ t ];
+   if( c != 0 )
+    Q_star += std::min( c * reactive_min[ t ] , c * reactive_max[ t ] );
+   }
+
  // design (investment) decision: the shortest path above solved the
- // operational problem assuming the unit exists (design == 1), so f_end.lab
- // is the optimal operational cost p*. Building the unit costs design_cost on
- // top; it is worth building iff p* + design_cost <= 0, otherwise the unit is
- // not built and contributes nothing (cost 0, zero schedule). A designable
- // unit is always initially off (ThermalUnitBlock forbids InitUpDownTime >= 0
- // with an investment cost) so it can always stay off the whole horizon: the
- // operational problem is feasible (f_end.lab < TUDPINF) and the design is
- // never forced on. Generalises to an integer design by the same threshold
+ // operational problem assuming the unit exists (design == 1), so
+ // f_end.lab + Q_star is the optimal operational cost p* -- the active-power
+ // schedule plus the reactive contribution, both available only if the unit is
+ // built. Building costs design_cost on top; it is worth building iff
+ // p* + design_cost <= 0, otherwise the unit is not built and contributes
+ // nothing (cost 0, zero schedule, zero reactive). A designable unit is always
+ // initially off (ThermalUnitBlock forbids InitUpDownTime >= 0 with an
+ // investment cost) so it can always stay off the whole horizon and the design
+ // is never forced on. Generalises to an integer design by the same threshold
  // argument; the continuous case does not apply (binary commitments inside).
- if( has_design && ( f_end.lab < TUDPINF ) ) {
-  if( f_end.lab + design_cost <= 0 ) {
+ if( has_design ) {
+  if( ( f_end.lab < TUDPINF ) && ( f_end.lab + Q_star + design_cost <= 0 ) ) {
    design_on = true;
-   f_end.lab += design_cost;
+   f_end.lab += Q_star + design_cost;
    }
   else {
    design_on = false;
    f_end.lab = 0;          // not built: the unit is absent
    }
   }
-
- // reactive power contribution (AC instances): q[t] in [Qmin,Qmax] is
- // separable from the commitment/active-power shortest path and carries the
- // dualized linear cost reactive_linear_term[t]; the optimal q*[t] is the box
- // endpoint minimising c*q, contributing min(c*Qmin, c*Qmax). Path-independent,
- // so added once. get_var_solution() reports the matching q*[t].
- if( ( f_end.lab < TUDPINF ) && ! reactive_linear_term.empty() )
-  for( Index t = 0 ; t < time_horizon ; ++t ) {
-   const double c = reactive_linear_term[ t ];
-   if( c != 0 )
-    f_end.lab += std::min( c * reactive_min[ t ] , c * reactive_max[ t ] );
-   }
+ else
+  f_end.lab += Q_star;     // no design: the reactive term is always incurred
 
  stage = path_OK;  // all done: update stage
 
