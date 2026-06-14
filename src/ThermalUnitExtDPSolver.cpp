@@ -177,20 +177,36 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
   for( Index i = 0 ; i < time_horizon ; ++i )
    ( com_it++ )->set_value( ( built && U[ i ] ) ? 1 : 0 );
 
- // spinning reserve variables (if present): the optimal pr/sr provision
- // given the active power P[t] (zero when the unit is off, since the caps
- // rho*P[t] vanish, and zero when the unit is not built)
+ // spinning reserve variables (if present): the optimal pr/sr provision given
+ // the active power P[i]. The reserve band must use the SAME cap as the value
+ // computation, or the recovered solution would disagree with the reported
+ // optimal value: bound_on at a start-up period, bound_down[i+1] at a shut-down
+ // period (off at i+1) -- the boundary correction -- and max_power at an
+ // interior period (or a unit that stays on to the horizon end, a tail with no
+ // shut-down cap). A start-up period is the first on-instant of an on-interval.
+ auto band_cap = [ & ]( Index i ) -> double {
+  if( ! ( built && U[ i ] ) )
+   return( max_power[ i ] );                        // off: reserve is 0 anyway
+  const bool is_su = ( i == 0 ) ? ( init_up_down_time <= 0 )
+                                : ( ! U[ i - 1 ] );
+  if( is_su )
+   return( bound_on[ i ] );                          // start-up
+  if( ( i + 1 < time_horizon ) && ( ! U[ i + 1 ] ) )
+   return( bound_down[ i + 1 ] );                    // shut-down (off at i+1)
+  return( max_power[ i ] );                           // interior / on-to-end
+  };
+
  if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double pr , sr;
-   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
+   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr , band_cap( i ) );
    ( pr_it++ )->set_value( pr );
    }
 
  if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double pr , sr;
-   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
+   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr , band_cap( i ) );
    ( sr_it++ )->set_value( sr );
    }
 
@@ -237,14 +253,17 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
 // where cp = rho_p >= 0 and cs = rho_s >= 0).
 
 double ThermalUnitExtDPSolver::reserve_alloc( Index t , double p ,
-                                              double & pr , double & sr ) const
+                                              double & pr , double & sr ,
+                                              double cap ) const
 {
  pr = sr = 0;
 
- // symmetric reserve band beta_t(p) = min( p - min_power , max_power - p ):
- // the reserve must fit both above (max_power constraint) and below
- // (min_power constraint, p - pr - sr >= min_power) the production p
- const double H = std::min( p - min_power[ t ] , max_power[ t ] - p );
+ // symmetric reserve band beta_t(p) = min( p - min_power , cap - p ): the
+ // reserve must fit both above (the cap constraint, p + pr + sr <= cap) and
+ // below (min_power constraint, p - pr - sr >= min_power) the production p.
+ // cap is max_power at an interior period and the tighter start-up/shut-down
+ // cap at a boundary period.
+ const double H = std::min( p - min_power[ t ] , cap - p );
  if( H <= 0 )
   return( 0 );
 
@@ -282,7 +301,7 @@ double ThermalUnitExtDPSolver::reserve_alloc( Index t , double p ,
 // evaluating reserve_alloc() at the breakpoints.
 
 ThermalUnitExtDPSolver::PQFun
-ThermalUnitExtDPSolver::build_reserve_discount( Index t ) const
+ThermalUnitExtDPSolver::build_reserve_discount( Index t , double cap ) const
 {
  PQFun G;
  const double cp = primary_reserve_cost.empty()   ? 0
@@ -293,7 +312,8 @@ ThermalUnitExtDPSolver::build_reserve_discount( Index t ) const
   return( G );  // no negative price: g_t == 0
 
  const double lo = min_power[ t ];
- const double hi = max_power[ t ];
+ const double hi = cap;  // upper power cap U_t (interior up, or start-up/shut-
+                         // down cap at a boundary period)
  if( hi <= lo + 1e-12 )
   return( G );
 
@@ -333,8 +353,8 @@ ThermalUnitExtDPSolver::build_reserve_discount( Index t ) const
   if( b - a <= 1e-12 )
    continue;
   double pr , sr;
-  const double ga = reserve_alloc( t , a , pr , sr );
-  const double gb = reserve_alloc( t , b , pr , sr );
+  const double ga = reserve_alloc( t , a , pr , sr , cap );
+  const double gb = reserve_alloc( t , b , pr , sr , cap );
   const double slope = ( gb - ga ) / ( b - a );
   G.push_back( { 0.0 , slope , ga - slope * a , a , b } );
   }
@@ -362,6 +382,15 @@ void ThermalUnitExtDPSolver::add_pwq( PQFun & F , const PQFun & G )
   double p = fp.left;
   while( ( gi < G.size() ) && ( G[ gi ].right <= p + tol ) )
    ++gi;
+  if( fp.right <= fp.left + tol ) {  // degenerate (zero-width) piece: keep it,
+   double gb = 0 , gc = 0;           // adding G evaluated at the single point p
+   if( ( gi < G.size() ) && ( G[ gi ].left <= p + tol ) ) {
+    gb = G[ gi ].beta;
+    gc = G[ gi ].gamma;
+    }
+   out.push_back( { fp.alfa , fp.beta + gb , fp.gamma + gc , fp.left , fp.right } );
+   continue;
+   }
   while( p < fp.right - tol ) {
    double r = fp.right , gb = 0 , gc = 0;
    if( gi < G.size() ) {
@@ -1161,9 +1190,17 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // precompute the per-period reserve discount g_t(p): the effective cost the
  // DP minimises is f_t + g_t, so g_t is added wherever f_t is. Empty (no-op)
  // unless some reserve price is negative, so the energy-only path is unchanged
- std::vector< PQFun > eff_disc( n );
- for( Index t = 0 ; t < n ; ++t )
-  eff_disc[ t ] = build_reserve_discount( t );
+ // interior discount (cap = max_power) used at every on->on step, and the
+ // start-up discount (cap = bound_on) used at the off->on step: the reserve
+ // band at a start-up period must fit under the start-up cap bound_on, not the
+ // full max_power (the boundary correction of the design note). The shut-down
+ // variant (cap = bound_down) is built on the fly in compute_v_shutdown, where
+ // the actual shut-down cap is known.
+ std::vector< PQFun > eff_disc( n ) , eff_disc_su( n );
+ for( Index t = 0 ; t < n ; ++t ) {
+  eff_disc   [ t ] = build_reserve_discount( t , max_power[ t ] );
+  eff_disc_su[ t ] = build_reserve_discount( t , bound_on  [ t ] );
+  }
 
  // RRF+ pairwise-domination pruning (Wuijts et al. 2021, Prop. 6.1): a
  // F^tau_t with tau >= mut is "irrelevant" if it is pointwise dominated
@@ -1213,9 +1250,34 @@ void ThermalUnitExtDPSolver::run_DP( void )
   Index best_tau = 0;
   double best_p = 0;
   double Plo = min_power[ t ];
+  // shut-down boundary correction: the closing period's reserve must fit under
+  // the shut-down cap sd_hi, not the interior max_power baked into f_F[t]. Build
+  // delta = g(cap=sd_hi) - g(cap=max_power) once and add it to a copy of each
+  // value function before the readout. No-op when reserves are inactive or
+  // sd_hi == max_power. Applied only to tau > 1 states: those carry the interior
+  // g_int (added at the on->on step); a tau == 1 state (possible only when
+  // mut == 1, a single-period start-up+shut-down interval) instead carries the
+  // start-up g_su and is left as is.
+  PQFun delta;
+  const bool correct = ( ! eff_disc[ t ].empty() ) &&
+                       ( sd_hi < max_power[ t ] - 1e-12 );
+  if( correct ) {
+   delta = build_reserve_discount( t , sd_hi );   // g_sd on [Plo, sd_hi]
+   PQFun neg = eff_disc[ t ];                       // -g_int
+   for( auto & pc : neg ) { pc.beta = -pc.beta; pc.gamma = -pc.gamma; }
+   add_pwq( delta , neg );                          // delta = g_sd - g_int
+   }
   for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i ) {
    if( f_tau[ t ][ i ] < mut ) continue;
-   auto [ v , p ] = min_over( f_F[ t ][ i ] , Plo , sd_hi );
+   std::pair< double , double > vp;
+   if( correct && ( f_tau[ t ][ i ] > 1 ) ) {
+    PQFun F = f_F[ t ][ i ];   // copy, then swap interior band for shut-down
+    add_pwq( F , delta );
+    vp = min_over( F , Plo , sd_hi );
+    }
+   else
+    vp = min_over( f_F[ t ][ i ] , Plo , sd_hi );
+   const double v = vp.first , p = vp.second;
    if( v < best ) { best = v; best_tau = f_tau[ t ][ i ]; best_p = p; }
    }
   v_shutdown[ t ]     = best;
@@ -1298,7 +1360,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
     PQFun F;
     F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] ,
                    const_term[ 0 ] + suc , lo , hi } );
-    add_pwq( F , eff_disc[ 0 ] );
+    add_pwq( F , eff_disc_su[ 0 ] );  // start-up: reserve band under bound_on
     auto [ v , p ] = min_over( F , lo , hi );
     f_F  [ 0 ].push_back( std::move( F ) );
     f_tau[ 0 ].push_back( 1 );
@@ -1420,7 +1482,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
     F.push_back( { quad_term[ t ] , linear_term[ t ] ,
                    const_term[ t ] + suc + c_off_ready[ t - 1 ] ,
                    lo , hi } );
-    add_pwq( F , eff_disc[ t ] );
+    add_pwq( F , eff_disc_su[ t ] );  // start-up: reserve band under bound_on
     auto [ v , p ] = min_over( F , lo , hi );
     m_new_F  .push_back( std::move( F ) );
     m_new_tau.push_back( 1 );

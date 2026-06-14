@@ -2430,10 +2430,22 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( Index t = 0 , cnstr_idx = 0 ; t < f_time_horizon ; ++t , ++cnstr_idx ) {
 
    if( t >= init_t ) {
-    if( t == 0 )
+    if( t == 0 ) {
      vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
                                      v_ShutDownLimit[ t ] -
                                      get_operational_max_power( t ) ) );
+     // a start-up at t == 0 (the unit was off before the horizon, init_t == 0)
+     // is bounded by the start-up cap exactly like an interior start-up: add
+     // the start-up term so the reserve band p + pr + sr <= StartUpLimit is
+     // enforced here too. Without it the band would use the full max_power at a
+     // t == 0 start-up (looser than the T/pt formulations and the DP solvers).
+     // Energy-only is unaffected: the ramp-up constraint already caps p <=
+     // StartUpLimit at a start-up, so the term only binds the reserves.
+     if( ( f_MinUpTime != 1 ) && ( t < f_time_horizon - 1 ) )
+      vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
+                                      v_StartUpLimit[ t ] -
+                                      get_operational_max_power( t ) ) );
+     }
     if( t == f_time_horizon - 1 )
      vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
                                      v_StartUpLimit[ t ] -

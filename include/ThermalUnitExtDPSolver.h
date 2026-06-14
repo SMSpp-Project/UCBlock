@@ -287,7 +287,8 @@ class ThermalUnitExtDPSolver : public Solver
   * (reserve only helps when its cost coefficient is negative, i.e. a
   * Lagrangian reward). Writes the optimal pr, sr and returns the optimal
   * value g_t(p) = c_pr*pr + c_sr*sr (0 in the standalone cost case). */
- double reserve_alloc( Index t , double p , double & pr , double & sr ) const;
+ double reserve_alloc( Index t , double p , double & pr , double & sr ,
+                       double cap ) const;
 
 /*--------------------------------------------------------------------------*/
 
@@ -299,7 +300,12 @@ class ThermalUnitExtDPSolver : public Solver
   * reserve price is negative, and identically zero (empty PQFun returned)
   * when no price is negative. Adding it to the energy cost f_t yields the
   * effective per-period cost the DP minimises. */
- PQFun build_reserve_discount( Index t ) const;
+ /** The upper power cap \p cap used for the reserve band is U_t = max_power[t]
+  * at an interior period, but the tighter start-up cap bound_on[t] or shut-down
+  * cap bound_down[t] at a boundary period (the band must fit under the same cap
+  * that bounds p there); see the start-up/shut-down correction in the design
+  * note. */
+ PQFun build_reserve_discount( Index t , double cap ) const;
 
 /*--------------------------------------------------------------------------*/
 

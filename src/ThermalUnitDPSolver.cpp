@@ -202,20 +202,35 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
   for( Index i = 0 ; i < time_horizon ; ++i )
    ( com_it++ )->set_value( ( built && U[ i ] ) ? 1 : 0 );
 
- // spinning reserve variables (if present): the optimal pr/sr provision
- // given the active power P[t] (zero when the unit is off, since the caps
- // rho*P[t] vanish, and zero when the unit is not built)
+ // spinning reserve variables (if present): the optimal pr/sr provision given
+ // the active power P[i]. The reserve band must use the SAME cap as the value
+ // computation, or the recovered solution would disagree with the reported
+ // optimal value: bound_on at a start-up period, bound_down[i+1] at a shut-down
+ // period (off at i+1) -- the boundary correction -- and max_power at an
+ // interior period (or a unit on to the horizon end, a tail with no shut-down).
+ auto band_cap = [ & ]( Index i ) -> double {
+  if( ! ( built && U[ i ] ) )
+   return( max_power[ i ] );                        // off: reserve is 0 anyway
+  const bool is_su = ( i == 0 ) ? ( init_up_down_time <= 0 )
+                                : ( ! U[ i - 1 ] );
+  if( is_su )
+   return( bound_on[ i ] );                          // start-up
+  if( ( i + 1 < time_horizon ) && ( ! U[ i + 1 ] ) )
+   return( bound_down[ i + 1 ] );                    // shut-down (off at i+1)
+  return( max_power[ i ] );                           // interior / on-to-end
+  };
+
  if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double pr , sr;
-   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
+   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr , band_cap( i ) );
    ( pr_it++ )->set_value( pr );
    }
 
  if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double pr , sr;
-   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
+   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr , band_cap( i ) );
    ( sr_it++ )->set_value( sr );
    }
 
@@ -266,14 +281,16 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
 // and cs = rho_s >= 0).
 
 double ThermalUnitDPSolver::reserve_alloc( Index t , double p ,
-                                           double & pr , double & sr ) const
+                                           double & pr , double & sr ,
+                                           double cap ) const
 {
  pr = sr = 0;
 
- // symmetric reserve band beta_t(p) = min( p - min_power , max_power - p ):
- // the reserve must fit both above (max_power constraint) and below
- // (min_power constraint, p - pr - sr >= min_power) the production p
- const double H = std::min( p - min_power[ t ] , max_power[ t ] - p );
+ // symmetric reserve band beta_t(p) = min( p - min_power , cap - p ): the
+ // reserve must fit both above (the cap constraint, p + pr + sr <= cap) and
+ // below (min_power constraint, p - pr - sr >= min_power). cap is max_power at
+ // an interior period and the tighter start-up/shut-down cap at a boundary one.
+ const double H = std::min( p - min_power[ t ] , cap - p );
  if( H <= 0 )
   return( 0 );
 
@@ -324,7 +341,7 @@ bool ThermalUnitDPSolver::reserve_rewarded( void ) const
 // ThermalUnitExtDPSolver::build_reserve_discount.
 
 std::vector< ThermalUnitDPSolver::g_piece >
-ThermalUnitDPSolver::build_reserve_discount( Index t ) const
+ThermalUnitDPSolver::build_reserve_discount( Index t , double cap ) const
 {
  std::vector< g_piece > G;
  const double cp = primary_reserve_cost.empty()   ? 0
@@ -335,7 +352,8 @@ ThermalUnitDPSolver::build_reserve_discount( Index t ) const
   return( G );  // no negative price: g_t == 0
 
  const double lo = min_power[ t ];
- const double hi = max_power[ t ];
+ const double hi = cap;  // upper power cap U_t (interior max_power, or the
+                         // start-up/shut-down cap at a boundary period)
  if( hi <= lo + 1e-12 )
   return( G );
 
@@ -375,8 +393,8 @@ ThermalUnitDPSolver::build_reserve_discount( Index t ) const
   if( b - a <= 1e-12 )
    continue;
   double pr , sr;
-  const double ga = reserve_alloc( t , a , pr , sr );
-  const double gb = reserve_alloc( t , b , pr , sr );
+  const double ga = reserve_alloc( t , a , pr , sr , cap );
+  const double gb = reserve_alloc( t , b , pr , sr , cap );
   const double slope = ( gb - ga ) / ( b - a );
   G.push_back( { a , b , slope , ga - slope * a } );
   }
@@ -654,13 +672,23 @@ void ThermalUnitDPSolver::compute_EDPs( void )
  // it depends only on (t)-indexed data): the effective economic-dispatch cost
  // is the quadratic energy cost plus g_t. Empty unless some reserve is
  // rewarded, in which case compute_costs() runs the plain quadratic dispatch.
+ // g_disc is the interior discount (cap = max_power) added at every interior
+ // period; g_disc_su is the start-up discount (cap = bound_on) added at the
+ // first period of an on-interval (the boundary correction). The shut-down
+ // variant (cap = bound_down) is built on the fly at the cost readout, where
+ // the actual shut-down cap bound_down[k+1] is known.
  if( reserve_rewarded() ) {
   g_disc.resize( time_horizon );
-  for( Index t = 0 ; t < time_horizon ; ++t )
-   g_disc[ t ] = build_reserve_discount( t );
+  g_disc_su.resize( time_horizon );
+  for( Index t = 0 ; t < time_horizon ; ++t ) {
+   g_disc   [ t ] = build_reserve_discount( t , max_power[ t ] );
+   g_disc_su[ t ] = build_reserve_discount( t , bound_on  [ t ] );
+   }
   }
- else
+ else {
   g_disc.clear();
+  g_disc_su.clear();
+  }
 
  std::vector< double > cost( time_horizon );
 
@@ -1237,7 +1265,11 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
  // read from the augmented pieces
  if( ! f_solver->g_disc.empty() ) {
   Index mtmp = 2 , ctmp = 1;
-  unc_p[ k ] = augment_with_g( f_solver->g_disc[ k ] , 0 , 0 ,
+  // k == f_h is the first period of the on-interval: a start-up, so its reserve
+  // band uses the start-up cap bound_on (g_disc_su). A single-period interval
+  // [h,h] is both start-up and shut-down; like the run-length solver it keeps
+  // the start-up band (no shut-down swap at the base case).
+  unc_p[ k ] = augment_with_g( f_solver->g_disc_su[ k ] , 0 , 0 ,
                                mtmp , ctmp , v[ 0 ] );
 
   if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
@@ -1272,6 +1304,58 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   costs[ k ] = coeffs[ 0 ].alfa * con_p[ k ] * con_p[ k ] +
                coeffs[ 0 ].beta * con_p[ k ];
   }
+
+ // --- shut-down boundary correction helpers (only used when reserves are
+ // rewarded) ----------------------------------------------------------------
+ // gpart(g,p): slope and intercept of the piecewise-linear g at p (0 outside).
+ auto gpart = []( const std::vector< g_piece > & g , double p ,
+                  double & sl , double & ic ) {
+  sl = ic = 0;
+  for( const auto & gp : g )
+   if( ( p >= gp.lo - 1e-9 ) && ( p <= gp.hi + 1e-9 ) ) {
+    sl = gp.slope; ic = gp.intercept; return;
+    }
+  };
+ // shutdown_min: min over [lo,hi] of z(p) - g_int(p) + g_sd(p), where z is the
+ // piecewise-quadratic coeffs[begt+i] on [m[begm+i],m[begm+i+1]] (i < np) with
+ // the interior g_int already baked in. Swaps the interior reserve band for the
+ // shut-down one g_sd; read-only on the sweep buffers.
+ auto shutdown_min = [ & ]( Index begm , Index begt , int np ,
+                            double lo , double hi ,
+                            const std::vector< g_piece > & g_sd ,
+                            const std::vector< g_piece > & g_int ) -> double {
+  std::vector< double > bp = { lo , hi };
+  for( int i = 0 ; i <= np ; ++i ) {
+   const double x = m[ begm + i ];
+   if( ( x > lo + 1e-12 ) && ( x < hi - 1e-12 ) ) bp.push_back( x );
+   }
+  for( const auto & gp : g_sd )
+   if( ( gp.hi > lo + 1e-12 ) && ( gp.hi < hi - 1e-12 ) ) bp.push_back( gp.hi );
+  for( const auto & gp : g_int )
+   if( ( gp.hi > lo + 1e-12 ) && ( gp.hi < hi - 1e-12 ) ) bp.push_back( gp.hi );
+  std::sort( bp.begin() , bp.end() );
+  bp.erase( std::unique( bp.begin() , bp.end() ,
+             []( double a , double b ) { return( b - a <= 1e-12 ); } ) ,
+            bp.end() );
+  double best = TUDPINF;
+  for( std::size_t j = 0 ; j + 1 < bp.size() ; ++j ) {
+   const double a = bp[ j ] , b = bp[ j + 1 ] , mid = 0.5 * ( a + b );
+   int zi = 0;
+   while( ( zi < np - 1 ) && ( mid > m[ begm + zi + 1 ] ) ) ++zi;
+   const double a2 = coeffs[ begt + zi ].alfa ,
+                b2 = coeffs[ begt + zi ].beta ,
+                c2 = coeffs[ begt + zi ].gamma;
+   double ssl , sic , isl , iic;
+   gpart( g_sd , mid , ssl , sic ); gpart( g_int , mid , isl , iic );
+   const double bb = b2 + ssl - isl , cc = c2 + sic - iic;
+   const double pstar = ( std::abs( a2 ) <= 1e-16 )
+                      ? ( bb <= 0 ? b : a )
+                      : std::min( b , std::max( a , -bb / ( 2 * a2 ) ) );
+   const double val = a2 * pstar * pstar + bb * pstar + cc;
+   if( val < best ) best = val;
+   }
+  return( best );
+  };
 
  // outermost loop - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1495,6 +1579,29 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
                                  mcnt , coeffcnt , v[ nextk ] );
   #endif
 
+  // shut-down boundary correction: the cost of closing the on-interval at k
+  // (cost arc to shut down at k) must price the reserve under the shut-down cap
+  // bound_down[k+1], not the interior max_power baked into z_{h,k}. Compute it
+  // here on the current (pre-flip) pieces; it overrides costs[k] below. No-op at
+  // the horizon end (k == n-1: a tail, no shut-down) or when the cap is not
+  // tighter than max_power. The continuing on-run keeps the interior g_k.
+  bool sd_use = false; double sd_cost = 0;
+  #if( ! COMPUTE_DUALS )
+  if( ( ! f_solver->g_disc.empty() ) && ( k < time_horizon - 1 ) &&
+      ( bound_down[ k + 1 ] < max_power[ k ] - 1e-12 ) ) {
+   const Index  bm = pos[ nextk ].begm , bt = pos[ nextk ].begt;
+   const int    nptmp = v[ nextk ];
+   const double sdlo = m[ bm ] , sdhi = std::min( double( bound_down[ k + 1 ] ) ,
+                                                  m[ bm + nptmp ] );
+   if( sdhi > sdlo + 1e-12 ) {
+    const auto g_sd = f_solver->build_reserve_discount( k , bound_down[ k + 1 ] );
+    sd_cost = shutdown_min( bm , bt , nptmp , sdlo , sdhi , g_sd ,
+                            f_solver->g_disc[ k ] );
+    sd_use = true;
+    }
+   }
+  #endif
+
   // compute con_p[ k ], constrained optimal value for the entire function.
   // important note: the case where k == time_horizon - 1 is dealt with
   // in a special way, i.e., by not requiring the power to be at the level
@@ -1530,8 +1637,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    mcnt     = nextk * ( f_rmul * ( 2 * time_horizon - f_h ) + 1 );
   #endif
 
-  costs[ k ] = coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
-               coeffs[ q ].beta * con_p[ k ] + coeffs[ q ].gamma;
+  costs[ k ] = sd_use ? sd_cost
+             : ( coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
+                 coeffs[ q ].beta * con_p[ k ] + coeffs[ q ].gamma );
 
   }  // end( for( k ) )
  }  // end( ThermalUnitDPSolver::compute_costs )

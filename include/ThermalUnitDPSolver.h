@@ -655,15 +655,19 @@ class ThermalUnitDPSolver : public Solver
   * optimal primary ( \p pr ) and secondary ( \p sr ) reserve provision and
   * returns the resulting per-period reserve cost g_t(p) = cp*pr + cs*sr (0 in
   * the standalone case, where the reserve cost coefficients are nonnegative). */
- double reserve_alloc( Index t , double p , double & pr , double & sr ) const;
+ double reserve_alloc( Index t , double p , double & pr , double & sr ,
+                       double cap ) const;
 
 /*--------------------------------------------------------------------------*/
 
  /// build the reserve discount g_t(p) as convex piecewise-linear pieces
- /** Returns the pieces of g_t over [ min_power[t] , max_power[t] ], empty when
-  * no reserve price is negative (g_t == 0). Mirrors the construction used by
-  * ThermalUnitExtDPSolver, evaluating reserve_alloc() at analytic breakpoints. */
- std::vector< g_piece > build_reserve_discount( Index t ) const;
+ /** Returns the pieces of g_t over [ min_power[t] , cap ], empty when no
+  * reserve price is negative (g_t == 0). \p cap is the upper power cap U_t of
+  * the reserve band: max_power[t] at an interior period, the tighter
+  * bound_on[t] / bound_down[t] at a start-up / shut-down period (boundary
+  * correction). Mirrors ThermalUnitExtDPSolver, evaluating reserve_alloc() at
+  * analytic breakpoints. */
+ std::vector< g_piece > build_reserve_discount( Index t , double cap ) const;
 
  /// true iff some reserve price is negative, i.e. g_t may be nonzero
  bool reserve_rewarded( void ) const;
@@ -713,10 +717,14 @@ class ThermalUnitDPSolver : public Solver
  std::vector< double > secondary_reserve_cost;  ///< secondary reserve cost coeff
 
  /// per-period reserve discount g_t(p), precomputed once per compute_EDPs()
- /** g_disc[ t ] holds the convex piecewise-linear pieces of g_t (see
-  * build_reserve_discount()); empty when no reserve is rewarded, in which case
-  * the economic dispatch is the plain quadratic one. */
+ /** g_disc[ t ] holds the convex piecewise-linear pieces of the interior g_t
+  * (band cap max_power[t]); g_disc_su[ t ] holds the start-up variant (band cap
+  * bound_on[t]), used at the first period of an on-interval. Both empty when no
+  * reserve is rewarded, in which case the economic dispatch is the plain
+  * quadratic one. The shut-down variant (cap bound_down) is built on the fly at
+  * the cost readout (see compute_costs()). */
  std::vector< std::vector< g_piece > > g_disc;
+ std::vector< std::vector< g_piece > > g_disc_su;
 
  // design (investment) handling: when the unit carries an investment cost it
  // has a binary design variable x with objective coefficient design_cost. The

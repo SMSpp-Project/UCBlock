@@ -171,9 +171,12 @@ void NuclearUnitExtDPSolver::run_DP( void )
 
  // per-period reserve discount g_t(p), added wherever f_t is (energy-only
  // path: all empty, no-op). Shared by all ON nodes at the same t.
+ // NOTE: interior cap (max_power); the start-up/shut-down boundary correction
+ // of the thermal solver is not yet mirrored in the nuclear DP (a follow-up).
+ // With the common bound_on = bound_down = min_power data it is moot.
  std::vector< PQFun > eff_disc( n );
  for( Index t = 0 ; t < n ; ++t )
-  eff_disc[ t ] = build_reserve_discount( t );
+  eff_disc[ t ] = build_reserve_discount( t , max_power[ t ] );
 
  const bool startup_in_progress =
   has_ramp_up && ( initial_power < min_power[ 0 ] - 1e-9 );
@@ -644,14 +647,14 @@ void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
  if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double pr , sr;
-   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
+   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr , max_power[ i ] );
    ( pr_it++ )->set_value( pr );
    }
 
  if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double pr , sr;
-   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr );
+   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr , max_power[ i ] );
    ( sr_it++ )->set_value( sr );
    }
 
