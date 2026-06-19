@@ -187,6 +187,15 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                       true , true , v_change_intervals ) )
   v_LinearTerm.resize( f_time_horizon );
 
+ // the spinning-reserve linear costs (the dual of the reserve demand pushed
+ // onto the unit, the counterpart of LinearTerm); optional -- left empty when
+ // absent, i.e. when the unit prices no reserve
+ ::deserialize( group , "PrimarySpinningReserveCost" , f_time_horizon ,
+                v_PrimarySpinningReserveCost , true , true , v_change_intervals );
+ ::deserialize( group , "SecondarySpinningReserveCost" , f_time_horizon ,
+                v_SecondarySpinningReserveCost , true , true ,
+                v_change_intervals );
+
  if( ! ::deserialize( group , "QuadTerm" , f_time_horizon , v_QuadTerm ,
                       true , true , v_change_intervals ) )
   v_QuadTerm.resize( f_time_horizon );
@@ -355,6 +364,7 @@ std::vector< std::string > ThermalUnitBlock::expected_vars( void )
  static const std::vector< std::string > ev =
   { "InvestmentCost" , "Capacity" , "Scale" , "MinPower" , "MaxPower" ,
     "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
+    "PrimarySpinningReserveCost" , "SecondarySpinningReserveCost" ,
     "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
     "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
     "MinDownTime" , "InitUpDownTime" , "Availability" , "StartUpLimit" ,
@@ -4102,6 +4112,12 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "SecondaryRho" , v_SecondaryRho );
  serialize( "QuadTerm" , v_QuadTerm );
  serialize( "LinearTerm" , v_LinearTerm );
+ // the spinning-reserve linear costs are, like LinearTerm, the Lagrangian dual
+ // of a relaxed system constraint (here the reserve demand) pushed onto the
+ // unit; serialise them too so a dumped unit carries its reserve prices (empty,
+ // hence skipped, when the unit offers no reserve or none is priced)
+ serialize( "PrimarySpinningReserveCost" , v_PrimarySpinningReserveCost );
+ serialize( "SecondarySpinningReserveCost" , v_SecondarySpinningReserveCost );
  serialize( "ConstTerm" , v_ConstTerm );
  serialize( "StartUpCost" , v_StartUpCost );
  serialize( "FixedConsumption" , v_FixedConsumption );

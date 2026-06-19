@@ -50,6 +50,18 @@
  * (0 = use all available cores, 1 = serial, k = k workers). Set to 0 in build
  * setups where FastFlow is not available (e.g. the plain makefiles). */
 
+#ifndef TUDPS_PAR_MIN_N
+ #define TUDPS_PAR_MIN_N 768
+#endif
+/* Default time horizon below which compute_EDPs() stays serial even with
+ * intMaxThread != 1: the thread-dispatch overhead is not amortised on short
+ * horizons (benchmarks on 8 cores put the serial/parallel break-even around
+ * 600 time steps, so this is set conservatively above it). It is only the
+ * default of the run-time intParMinN parameter (see below); set intParMinN in
+ * the ComputeConfig to override it per solver instance (0 forces the parallel
+ * path on every horizon), or override this compile-time default with
+ * -DTUDPS_PAR_MIN_N=<n>. */
+
 #if TUDPS_PARALLEL
 namespace ff { class ParallelFor; }  // forward declaration (FastFlow)
 #endif
@@ -290,20 +302,51 @@ class ThermalUnitDPSolver : public Solver
 
 /*--------------------------------------------------------------------------*/
 
+ /// extends Solver::int_par_type_S with the ThermalUnitDPSolver int parameters
+ enum int_par_type_TUDPS {
+  intParMinN = intLastAlgPar , ///< min time horizon for the parallel DP path
+  /**< The per-ON-node Economic Dispatch sweep in compute_EDPs() is run in
+   * parallel (over the FastFlow workers set by intMaxThread) only when the
+   * time horizon is at least intParMinN; below it the thread-dispatch overhead
+   * is not amortised and the solver stays serial. Defaults to the compile-time
+   * TUDPS_PAR_MIN_N; set it to 0 to force the parallel path on every horizon. */
+  intLastAlgParTUDPS ///< 1st allowed new int parameter for derived classes
+  };
+
  using Solver::set_par;  // keep the other set_par() overloads visible
 
- /// the only parameter honoured is intMaxThread (workers for compute_EDPs)
+ /// honoured parameters: intMaxThread (workers) and intParMinN (threshold)
  void set_par( idx_type par , int value ) override {
-  if( par == intMaxThread ) {
-   f_max_thread = value;
-   return;
-   }
+  if( par == intMaxThread ) { f_max_thread = value; return; }
+  if( par == intParMinN ) { f_par_min_n = value; return; }
   Solver::set_par( par , value );
   }
 
  [[nodiscard]] int get_int_par( idx_type par ) const override {
-  return( par == intMaxThread ? f_max_thread
-                              : Solver::get_int_par( par ) );
+  if( par == intMaxThread ) return( f_max_thread );
+  if( par == intParMinN ) return( f_par_min_n );
+  return( Solver::get_int_par( par ) );
+  }
+
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
+  return( Solver::get_num_int_par() + intLastAlgParTUDPS - intLastAlgPar );
+  }
+
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  return( par == intParMinN ? TUDPS_PAR_MIN_N
+                            : Solver::get_dflt_int_par( par ) );
+  }
+
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
+  return( name == "intParMinN" ? intParMinN
+                               : Solver::int_par_str2idx( name ) );
+  }
+
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
+  static const std::string name = "intParMinN";
+  return( idx == intParMinN ? name : Solver::int_par_idx2str( idx ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -754,6 +797,7 @@ class ThermalUnitDPSolver : public Solver
  Index ed_pool_th{ 0 };            ///< time horizon the ED pool was built for
 
  int f_max_thread{ 0 };            ///< intMaxThread: 0 = all cores, 1 = serial
+ int f_par_min_n{ TUDPS_PAR_MIN_N }; ///< intParMinN: min horizon for parallel
 
 #if TUDPS_PARALLEL
  /// FastFlow parallel-for engine for compute_EDPs(), one per solver instance

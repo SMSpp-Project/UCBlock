@@ -22,10 +22,10 @@ done
 julia csv2nc4.jl energy_community_model_CO --no-asset
 julia csv2nc4.jl energy_community_model_CO --no-asset --with-network-blocks
 
-# stochastic
+# two-stage stochastic (TwoStageStochasticBlock, TSSB_EC_*.nc4)
 
-for f in energy_community_model_CO_sto \
-         energy_community_model_NC_sto; do
+for f in energy_community_model_CO_two_stage \
+         energy_community_model_NC_two_stage; do
 
   julia csv2nc4.jl ${f}                                       # _TUB
   julia csv2nc4.jl ${f} --with-network-blocks                 # _TUB_NB
@@ -35,5 +35,43 @@ for f in energy_community_model_CO_sto \
 
 done
 
-julia csv2nc4.jl energy_community_model_CO_sto --no-asset
-julia csv2nc4.jl energy_community_model_CO_sto --no-asset --with-network-blocks
+julia csv2nc4.jl energy_community_model_CO_two_stage --no-asset
+julia csv2nc4.jl energy_community_model_CO_two_stage --no-asset --with-network-blocks
+
+# two-stage multi-stage (MultiStageStochasticBlock wrapping one inner
+# TwoStageStochasticBlock per long-period scenario, MSSB_EC_*.nc4): the
+# two-stage YAMLs have a single short-period scenario, so the extensive form
+# coincides with the flattened TwoStageStochasticBlock above.
+
+for f in energy_community_model_CO_two_stage \
+         energy_community_model_NC_two_stage; do
+
+  julia csv2nc4.jl ${f} --multistage                          # _TUB
+  julia csv2nc4.jl ${f} --multistage --with-network-blocks    # _TUB_NB
+
+  julia csv2nc4.jl ${f} --multistage --no-thermal                       # (no _TUB)
+  julia csv2nc4.jl ${f} --multistage --no-thermal --with-network-blocks  # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_two_stage --multistage --no-asset
+julia csv2nc4.jl energy_community_model_CO_two_stage --multistage --no-asset --with-network-blocks
+
+# three-stage multi-stage (MultiStageStochasticBlock, MSSB_EC_*_3S.nc4): the
+# three-stage YAMLs have several short-period scenarios per long-period one, so
+# the day-ahead declared-dispatch bid is shared within each long-period
+# scenario while the dispatch and imbalance vary per short-period one.
+
+for f in energy_community_model_CO_three_stage \
+         energy_community_model_NC_three_stage; do
+
+  julia csv2nc4.jl ${f} --multistage                          # _TUB
+  julia csv2nc4.jl ${f} --multistage --with-network-blocks    # _TUB_NB
+
+  julia csv2nc4.jl ${f} --multistage --no-thermal                       # (no _TUB)
+  julia csv2nc4.jl ${f} --multistage --no-thermal --with-network-blocks  # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --no-asset
+julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --no-asset --with-network-blocks

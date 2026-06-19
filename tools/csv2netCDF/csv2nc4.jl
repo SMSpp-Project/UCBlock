@@ -58,6 +58,82 @@ end
     market_data : field(market_data, field(users_data[u], "tariff_name"))
 
 
+# Group the sampled (s, eps) scenarios by their long-period index `scen_s`,
+# preserving first-seen order. Returns a vector of vectors, one per distinct
+# `scen_s`: this is the outer-stage partition consumed by the `--multistage`
+# flow, where each group becomes the short-period scenario set of one inner
+# TwoStageStochasticBlock.
+function group_by_scen_s(scens)
+    order = Int[]
+    groups = Dict{Int,Vector{eltype(scens)}}()
+    for sc in scens
+        if !haskey(groups, sc.scen_s)
+            push!(order, sc.scen_s)
+            groups[sc.scen_s] = eltype(scens)[]
+        end
+        push!(groups[sc.scen_s], sc)
+    end
+    return [groups[s] for s in order]
+end
+
+# Recursively copy the full content (dimensions, attributes, variables and
+# nested groups) of a netCDF group `src` into the already-created group `dst`.
+# Used to replicate an inner TwoStageStochasticBlock across the outer-stage
+# scenarios of a MultiStageStochasticBlock: the inner Blocks share an identical
+# structure and differ only in their per-group `NumberScenarios` dimension and
+# DiscreteScenarioSet, which are excluded here (via `skip_dims` / `skip_groups`)
+# and written afterwards. The exclusions apply only at the top level of the
+# copy; nested groups are copied in full.
+#
+# The copy is done in two passes (all definitions first, then all data) so that
+# the netCDF library performs a single define -> data mode transition for the
+# whole subtree, rather than one per variable: the latter trips over scalar
+# variables (NetCDF error -38, "Operation not allowed in data mode").
+
+# Pass 1: dimensions, attributes, (empty) variables and nested groups.
+function copy_structure!(dst, src; skip_dims=String[], skip_groups=String[])
+    for dn in keys(src.dim)
+        (dn in skip_dims) && continue
+        (dn in keys(dst.dim)) || defDim(dst, dn, src.dim[dn])
+    end
+    for (k, v) in src.attrib
+        dst.attrib[k] = v
+    end
+    for vn in keys(src)
+        sv = src[vn]
+        defVar(dst, vn, eltype(sv.var), dimnames(sv))
+        for (k, v) in sv.attrib
+            dst[vn].attrib[k] = v
+        end
+    end
+    for gn in keys(src.group)
+        (gn in skip_groups) && continue
+        copy_structure!(defGroup(dst, gn), src.group[gn])
+    end
+end
+
+# Pass 2: variable data (the structure must already exist in `dst`).
+function copy_data!(dst, src; skip_groups=String[])
+    for vn in keys(src)
+        A = Array(src[vn])
+        if ndims(A) == 0
+            dst[vn][:] = A[]
+        else
+            dst[vn][ntuple(_ -> Colon(), ndims(A))...] = A
+        end
+    end
+    for gn in keys(src.group)
+        (gn in skip_groups) && continue
+        copy_data!(dst.group[gn], src.group[gn])
+    end
+end
+
+function copy_group!(dst, src; skip_dims=String[], skip_groups=String[])
+    copy_structure!(dst, src; skip_dims=skip_dims, skip_groups=skip_groups)
+    copy_data!(dst, src; skip_groups=skip_groups)
+end
+
+
 function csvEC2nc4(
     deterministic::Bool=false,
     sampled_scenarios::Union{Nothing,Vector{Scenario_Load_Renewable}}=nothing,
@@ -93,9 +169,37 @@ function csvEC2nc4(
         block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
         tssb = nothing
         sb = nothing
+        mssb = nothing
+        scenario_groups = nothing
+        three_stage = false
     else
-        ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-        tssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        # `--multistage` builds a MultiStageStochasticBlock that aggregates one
+        # inner TwoStageStochasticBlock per long-period (`scen_s`) scenario: the
+        # sampled (s, eps) set is partitioned by `scen_s`, each group becoming
+        # the short-period scenario set of one inner TSSB, and the outer
+        # non-anticipativity ties the first-stage variables across them. The
+        # extensive form is identical to the flattened standalone TSSB, which
+        # is what validates the MultiStageStochasticBlock machinery against the
+        # existing TwoStageStochasticBlock reference values.
+        multistage = "--multistage" in OPTION_ARGS
+        scenario_groups = multistage ? group_by_scen_s(sampled_scenarios) :
+                          nothing
+        # a three-stage instance has several short-period (eps) scenarios per
+        # long-period (s) one, so the inner TwoStageStochasticBlock additionally
+        # ties the day-ahead declared-dispatch bid across the eps; the output
+        # carries an extra `_3S` suffix to keep it distinct from the two-stage one
+        three_stage = multistage && scen_eps_sample > 1
+        prefix = multistage ? "MSSB_EC" : "TSSB_EC"
+        last_out = three_stage ? string(last, "_3S") : last
+        ds = NCDataset(string("../../data/nc4/EC_Data/", prefix, middle, "Test", last_out, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        if multistage
+            mssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "MultiStageStochasticBlock"))
+            defDim(mssb, "NumberSubBlocks", length(scenario_groups))
+            tssb = defGroup(mssb, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        else
+            mssb = nothing
+            tssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        end
         sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
         block = defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
     end
@@ -774,11 +878,14 @@ function csvEC2nc4(
         # Now we add the dimensions and groups that depend on the UCBlock
         # metadata collected above (n_devices, intermittent_units, peak_set).
 
-        ## Number of scenarios in the TwoStageStochasticBlock.
-        ## We use the number of sampled_scenarios, which already encodes
-        ## the (s, eps) combinations returned by scenarios_generator.
+        ## Number of scenarios in the TwoStageStochasticBlock. In the flat
+        ## (TSSB) flow this is the full sampled (s, eps) set; in the
+        ## `--multistage` flow each inner TSSB carries only its long-period
+        ## group, so Block_0 (built here) gets the first group's size and the
+        ## copies get theirs below.
         n_scen = length(sampled_scenarios)
-        defDim(tssb, "NumberScenarios", n_scen)
+        tssb_scenarios = (mssb !== nothing) ? scenario_groups[1] : sampled_scenarios
+        defDim(tssb, "NumberScenarios", length(tssb_scenarios))
 
         # ----------------------------------------------------------------
         # Stochastic-price detection.
@@ -848,12 +955,6 @@ function csvEC2nc4(
         # as (ScenarioSize, NumberScenarios) so that C++ will see it as
         # [NumberScenarios][ScenarioSize].
         #
-        dss = defGroup(
-            tssb,
-            "DiscreteScenarioSet",
-            attrib=OrderedDict("type" => "DiscreteScenarioSet"),
-        )
-
         # ScenarioSize = number of entries in each scenario vector.
         # Layout (in scenario-vector order):
         #   1. ActivePowerDemand: n_steps * n_users entries, flattened (t, u)
@@ -874,8 +975,19 @@ function csvEC2nc4(
         N_mp  = n_steps
         scenario_size = N_dem + n_intermittent * N_mp + N_price_tail
 
-        defDim(dss, "NumberScenarios", n_scen)
-        defDim(dss, "ScenarioSize", scenario_size)
+        # `write_dss!` writes one DiscreteScenarioSet group (Scenarios +
+        # PoolWeights) under `parent_grp` for the given scenario list and
+        # weights. The flat (TSSB) flow calls it once with the full sampled
+        # set; the `--multistage` flow calls it once per inner
+        # TwoStageStochasticBlock with that Block's long-period group and the
+        # corresponding short-period (conditional) probabilities.
+        write_dss! = function (parent_grp, dss_scens, dss_weights)
+            n_sc = length(dss_scens)
+            dss = defGroup(parent_grp, "DiscreteScenarioSet",
+                           attrib=OrderedDict("type" => "DiscreteScenarioSet"))
+
+            defDim(dss, "NumberScenarios", n_sc)
+            defDim(dss, "ScenarioSize", scenario_size)
 
         ## A T T E N T I O N: The data is stored in the NetCDF file in the
         ## same order as they are stored in memory. As Julia uses the
@@ -886,10 +998,10 @@ function csvEC2nc4(
         ## To store the scenario set in the correct shape, i.e.,
         ## NumberScenarios x ScenarioSize in C++, we store it here as
         ## ScenarioSize x NumberScenarios in Julia.
-        scen_mat = Array{Float64}(undef, scenario_size, n_scen)
-        weights = Array{Float64}(undef, n_scen)
+        scen_mat = Array{Float64}(undef, scenario_size, n_sc)
+        weights = Array{Float64}(undef, n_sc)
 
-        for (k, scen) in enumerate(sampled_scenarios)
+        for (k, scen) in enumerate(dss_scens)
             vec = Array{Float64}(undef, scenario_size)
             idx = 1
 
@@ -981,7 +1093,7 @@ function csvEC2nc4(
             end
 
             scen_mat[:, k] = vec
-            weights[k] = probability(scen)
+            weights[k] = dss_weights[k]
         end
 
         # Scenarios: stored as (ScenarioSize, NumberScenarios) in Julia
@@ -1002,30 +1114,66 @@ function csvEC2nc4(
             ("NumberScenarios",),
         )
         pool_weights_var[:] = weights
+        end  # write_dss!
 
-        # AbstractPath
-        ap = defGroup(tssb, "StaticAbstractPath")
+        # AbstractPath to the first-stage (here-and-now) variables. The design
+        # paths (UnitBlock -> x_design) were built during the UCBlock population
+        # above. For a three-stage instance the inner TwoStageStochasticBlock
+        # additionally ties the day-ahead declared-dispatch bid (the aggregate
+        # p_agg_dec_pos/neg of every ECNetworkBlock) across the short-period
+        # scenarios, so those nodes are appended to the inner-TSSB path here.
+        # The MultiStageStochasticBlock ties only the design across the
+        # long-period scenarios, so its own path (written at the end) uses the
+        # design nodes only.
 
-        defDim(ap, "PathDim", path_dim)
+        # `write_static_path!` writes a StaticAbstractPath group from the given
+        # per-node arrays (each path is a 'B' node followed by a 'V' node).
+        write_static_path! = function (parent_grp, gidx, eidx, ridx)
+            pd = length(gidx) ÷ 2
+            ap = defGroup(parent_grp, "StaticAbstractPath")
+            defDim(ap, "PathDim", pd)
+            defDim(ap, "TotalLength", 2 * pd)
+            defVar(ap, "PathStart", UInt32, ("PathDim",))[:] = collect(0:2:2*pd-1)
+            defVar(ap, "PathNodeTypes", Char, ("TotalLength",))[:] = collect("BV"^pd)
+            defVar(ap, "PathGroupIndices", String, ("TotalLength",))[:] = gidx
+            defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))[:] = eidx
+            defVar(ap, "PathRangeIndices", UInt32, ("TotalLength",))[:] = ridx
+        end
 
-        path_length = 2 # 1 B (UnitBlock_*) + 1 V (x_design) for each path
-        total_length = path_length * path_dim
-        defDim(ap, "TotalLength", total_length)
+        # design-only nodes (used by the MultiStageStochasticBlock outer path)
+        design_group_idx = copy(path_group_idx_data)
+        design_element_idx = copy(path_element_idx_data)
+        design_range_idx = copy(path_range_idx_data)
 
-        path_start = defVar(ap, "PathStart", UInt32, ("PathDim",))
-        path_start[:] = collect(0:path_length:total_length-1)[:] # range from 0 to total_length each path_length
+        # inner-TSSB nodes = design (+ declared-dispatch bid for three-stage)
+        tssb_group_idx = copy(design_group_idx)
+        tssb_element_idx = copy(design_element_idx)
+        tssb_range_idx = copy(design_range_idx)
 
-        path_node_types = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
-        path_node_types[:] = collect("BV"^path_dim)[:] # repeat BV path_dim times
+        if three_stage
+            isnothing(penalty_price_data) && error(
+                "csv2nc4: a three-stage instance requires a penalty_price (the " *
+                "imbalance / declared-dispatch bid is generated only then)")
+            # for every ECNetworkBlock (one per peak period, at UCBlock nested
+            # index n_devices + w) append two paths: the aggregate declared
+            # dispatch p_agg_dec_pos / _neg over the peak's intervals
+            for i_w in 1:n_peaks
+                nb_idx = n_devices + (i_w - 1)       # NetworkBlock nested index
+                len = n_intervals_per_peak[i_w]      # intervals in this peak
+                for vname in ("p_agg_dec_pos_network", "p_agg_dec_neg_network")
+                    # 'B' node: ECNetworkBlock by (stringified) nested index
+                    push!(tssb_group_idx, string(nb_idx))
+                    push!(tssb_element_idx, typemax(UInt32))
+                    push!(tssb_range_idx, typemax(UInt32))
+                    # 'V' node: the whole p_agg_dec vector, i.e. [0, len)
+                    push!(tssb_group_idx, vname)
+                    push!(tssb_element_idx, UInt32(0))
+                    push!(tssb_range_idx, UInt32(len))
+                end
+            end
+        end
 
-        path_group_idx = defVar(ap, "PathGroupIndices", String, ("TotalLength",))
-        path_group_idx[:] = path_group_idx_data[:]
-
-        path_element_idx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
-        path_element_idx[:] = path_element_idx_data[:]
-
-        path_range_idx = defVar(ap, "PathRangeIndices", UInt32, ("TotalLength",))
-        path_range_idx[:] = path_range_idx_data[:]
+        write_static_path!(tssb, tssb_group_idx, tssb_element_idx, tssb_range_idx)
 
         # StochasticBlock was pre-declared at the top of this function; its
         # inner UCBlock was populated above by the deterministic branch.
@@ -1226,6 +1374,53 @@ function csvEC2nc4(
 
         # The inner UCBlock is embedded as `sb.Block` (created at the top of
         # this function). No separate inner-UCBlock nc4 file is written.
+
+        if mssb === nothing
+            # Flat TwoStageStochasticBlock: a single DiscreteScenarioSet over
+            # the full sampled set, with the raw scenario probabilities.
+            write_dss!(tssb, sampled_scenarios,
+                       [probability(sc) for sc in sampled_scenarios])
+        else
+            # MultiStageStochasticBlock: Block_0 (built above) is the first
+            # long-period group; the remaining groups are byte-identical inner
+            # TwoStageStochasticBlock that differ only in their per-group
+            # NumberScenarios and DiscreteScenarioSet, so they are obtained by
+            # copying Block_0 (excluding those two) and writing the group's own.
+            # Each inner TSSB carries the SHORT-period (conditional) weights
+            # P(eps | s) and the outer SubBlockProbabilities carry the
+            # LONG-period marginals P(s), whose product P(s) · P(eps | s) is the
+            # joint probability of the flattened scenario.
+            marginals = [sum(probability(sc) for sc in g) for g in scenario_groups]
+            for (j, g) in enumerate(scenario_groups)
+                bj = if j == 1
+                    tssb
+                else
+                    grp = defGroup(mssb, "Block_$(j - 1)",
+                                   attrib=OrderedDict("id" => string(j - 1),
+                                                      "type" => "TwoStageStochasticBlock"))
+                    copy_group!(grp, tssb;
+                                skip_dims=["NumberScenarios"],
+                                skip_groups=["DiscreteScenarioSet"])
+                    grp.attrib["id"] = string(j - 1)  # copy_group! overwrote it
+                    defDim(grp, "NumberScenarios", length(g))
+                    grp
+                end
+                cond_weights = [probability(sc) / marginals[j] for sc in g]
+                write_dss!(bj, g, cond_weights)
+            end
+
+            # outer-stage (long-period) scenario probabilities P(s)
+            sub_block_prob = defVar(mssb, "SubBlockProbabilities", Float64,
+                                    ("NumberSubBlocks",))
+            sub_block_prob[:] = marginals
+
+            # the MultiStageStochasticBlock ties only the design (a subset of
+            # the inner-TSSB here-and-now), resolved against each inner Block's
+            # representative scenario sub-Block (get_first_stage_block); the
+            # declared-dispatch bid is tied by the inner TSSB only.
+            write_static_path!(mssb, design_group_idx, design_element_idx,
+                               design_range_idx)
+        end
     end
 
     close(ds)
@@ -1282,13 +1477,13 @@ design_mode = isempty(design_mode_args) ? "design" :
 @assert design_mode in ("fleet", "scale", "design") "Unknown --design-mode value: $(design_mode) (use fleet, scale, or design)"
 
 OPTION_ARGS = setdiff(all_option_args, design_mode_args)
-@assert 0 <= length(OPTION_ARGS) <= 2
-@assert issubset(OPTION_ARGS, ["--no-thermal", "--no-asset", "--with-network-blocks"])
+@assert 0 <= length(OPTION_ARGS) <= 3
+@assert issubset(OPTION_ARGS, ["--no-thermal", "--no-asset", "--with-network-blocks", "--multistage"])
 @assert !(("--no-thermal" in OPTION_ARGS) && ("--no-asset" in OPTION_ARGS)) "--no-thermal is implied by --no-asset; do not pass both"
 
 file_name = !isempty(NO_OPTION_ARGS) ?
             string(NO_OPTION_ARGS[1], endswith(NO_OPTION_ARGS[1], ".yml") ? "" : ".yml") :
-            "energy_community_model_CO_sto.yml"
+            "energy_community_model_CO_two_stage.yml"
 
 ## Initialization
 

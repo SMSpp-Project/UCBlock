@@ -43,15 +43,10 @@
  * MILP comparison solver in the test harness) does not pollute the figures.
  * Temporary instrumentation: keep at 0 in committed code. */
 
-#ifndef TUDPS_PAR_MIN_N
- #define TUDPS_PAR_MIN_N 768
-#endif
-/* TUDPS_PARALLEL is defined in the header. Below this time horizon
- * compute_EDPs() stays serial: benchmarks (8 cores) put the serial/parallel
- * break-even around 600 time steps, so the threshold is set conservatively
- * above it; it is machine-dependent and may be retuned. It can be overridden
- * at compile time (-DTUDPS_PAR_MIN_N=0 forces the parallel path on every
- * horizon, e.g. to benchmark the small-horizon thread overhead). */
+/* TUDPS_PARALLEL and the default TUDPS_PAR_MIN_N are defined in the header.
+ * Below the time horizon f_par_min_n (the run-time intParMinN parameter,
+ * defaulting to TUDPS_PAR_MIN_N) compute_EDPs() stays serial, since the
+ * thread-dispatch overhead is not amortised on short horizons. */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -743,7 +738,7 @@ void ThermalUnitDPSolver::compute_EDPs( void )
  // enough for the thread overhead to pay off
  const long nw = f_max_thread > 0 ? long( f_max_thread )
                 : std::max< long >( 1 , std::thread::hardware_concurrency() );
- if( ( nw > 1 ) && ( time_horizon >= TUDPS_PAR_MIN_N ) ) {
+ if( ( nw > 1 ) && ( long( time_horizon ) >= long( f_par_min_n ) ) ) {
   // the ParallelFor (hence its worker threads) is created once per solver
   // instance and reused: re-creating it per call would spawn/join threads
   // every time and tank performance. blocking workers (default) sleep idle

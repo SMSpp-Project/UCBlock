@@ -735,6 +735,31 @@ class ECNetworkBlock : public NetworkBlock
   return( v_power_squilibrium_neg );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of positive aggregate declared-dispatch variables
+ /** Returns a const reference to the vector of positive aggregate
+  * declared-dispatch (day-ahead bid) variables. The vector is empty when no
+  * penalty has been defined (i.e., when the imbalance variables have not been
+  * generated); otherwise it has size get_number_intervals() and entry t is
+  * the declared aggregate export at time t. In a multi-stage stochastic
+  * setting these are the first-stage-within-the-subtree decisions, shared
+  * across the short-period scenarios of the same long-period one. */
+
+ const std::vector< ColVariable > & get_power_agg_dec_pos( void ) const {
+  return( v_power_agg_dec_pos );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of negative aggregate declared-dispatch variables
+ /** Returns a const reference to the vector of negative aggregate
+  * declared-dispatch (day-ahead bid) variables. The vector is empty when no
+  * penalty has been defined; otherwise it has size get_number_intervals() and
+  * entry t is the declared aggregate import at time t. */
+
+ const std::vector< ColVariable > & get_power_agg_dec_neg( void ) const {
+  return( v_power_agg_dec_neg );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR MODIFYING THE ECNetworkBlock -----------------*/
 /*--------------------------------------------------------------------------*/
@@ -1157,6 +1182,15 @@ class ECNetworkBlock : public NetworkBlock
   * "NumberIntervals" */
  std::vector< ColVariable > v_power_squilibrium_neg;
 
+ /** positive aggregate declared-dispatch (day-ahead bid) of the community at
+  * each time horizon, i.e., a specific interval in "NumberIntervals". The
+  * actual aggregate export deviates from it by the squilibrium variables. */
+ std::vector< ColVariable > v_power_agg_dec_pos;
+
+ /** negative aggregate declared-dispatch (day-ahead bid) of the community at
+  * each time horizon, i.e., a specific interval in "NumberIntervals" */
+ std::vector< ColVariable > v_power_agg_dec_neg;
+
 /*------------------------------- constraints ------------------------------*/
 
  /// the power balance constraints
@@ -1551,6 +1585,14 @@ class ECNetworkBlockSolution : public NetworkBlockSolution
  std::vector< double > v_power_squilibrium_neg;
  ///< v_power_squilibrium_neg[ t ] = negative aggregate squilibrium at
  ///< time t (empty if the ECNetworkBlock does not generate it)
+
+ std::vector< double > v_power_agg_dec_pos;
+ ///< v_power_agg_dec_pos[ t ] = positive aggregate declared-dispatch (bid)
+ ///< at time t (empty if the ECNetworkBlock does not generate it)
+
+ std::vector< double > v_power_agg_dec_neg;
+ ///< v_power_agg_dec_neg[ t ] = negative aggregate declared-dispatch (bid)
+ ///< at time t (empty if the ECNetworkBlock does not generate it)
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 

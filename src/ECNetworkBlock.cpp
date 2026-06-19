@@ -247,8 +247,10 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
   var.set_type( ColVariable::kNonNegative );
  add_static_variable( v_peak_power , "p_peak_network" );
 
- // the aggregate squilibrium variables: only generated if a PenaltyPrice
- // has been provided to the ECNetworkData
+ // the aggregate squilibrium variables and the aggregate declared-dispatch
+ // (day-ahead bid) variables: only generated if a PenaltyPrice has been
+ // provided to the ECNetworkData. The actual aggregate export then deviates
+ // from the declared-dispatch by the squilibrium, penalized in the Objective.
  if( ! f_NetworkData->get_penalty_price().empty() ) {
   v_power_squilibrium_pos.resize( number_intervals );
   for( auto & var : v_power_squilibrium_pos )
@@ -259,6 +261,16 @@ void ECNetworkBlock::generate_abstract_variables( Configuration * stvv )
   for( auto & var : v_power_squilibrium_neg )
    var.set_type( ColVariable::kNonNegative );
   add_static_variable( v_power_squilibrium_neg , "p_sq_neg_network" );
+
+  v_power_agg_dec_pos.resize( number_intervals );
+  for( auto & var : v_power_agg_dec_pos )
+   var.set_type( ColVariable::kNonNegative );
+  add_static_variable( v_power_agg_dec_pos , "p_agg_dec_pos_network" );
+
+  v_power_agg_dec_neg.resize( number_intervals );
+  for( auto & var : v_power_agg_dec_neg )
+   var.set_type( ColVariable::kNonNegative );
+  add_static_variable( v_power_agg_dec_neg , "p_agg_dec_neg_network" );
  }
 
  set_variables_generated();
@@ -309,31 +321,34 @@ void ECNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  add_static_constraint( power_balance_const , "Power_Balance_Const_Network" );
 
- // set the aggregate community power balance, i.e.:
+ // tie the actual aggregate public-market exchange to the declared-dispatch
+ // (day-ahead bid) plus the squilibrium, i.e.:
  //
- //    Σ_n ( P^+_n - P^-_n - node_injection_n ) + P_sq^+ - P_sq^-
- //        = - Σ_n active_demand_n                                 for all t
+ //    Σ_n ( P^+_n - P^-_n ) - ( P_agg_dec^+ - P_agg_dec^- )
+ //        - ( P_sq^+ - P_sq^- ) = 0                                for all t
  //
- // the constraint is generated only when the squilibrium variables exist
+ // i.e., the actual aggregate net export equals the declared one plus the
+ // imbalance; the squilibrium is penalized in the Objective. With a single
+ // short-period scenario the declared-dispatch is free to equal the actual
+ // export, so the imbalance is zero. The constraint is generated only when
+ // the squilibrium / declared-dispatch variables exist.
  if( has_imbalance ) {
   power_balance_agg_const.resize( number_intervals );
 
   for( Index i = 0 ; i < number_intervals ; ++i ) {
-   double rhs = 0.0;
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
     vars.push_back( std::make_pair( &v_power_injection[ i ][ node_id ] ,
                                     1.0 ) );
     vars.push_back( std::make_pair( &v_power_absorption[ i ][ node_id ] ,
                                     -1.0 ) );
-    vars.push_back( std::make_pair( &v_node_injection[ i ][ node_id ] ,
-                                    -1.0 ) );
-    rhs -= v_ActiveDemand[ i ][ node_id ];
    }
 
-   vars.push_back( std::make_pair( &v_power_squilibrium_pos[ i ] , 1.0 ) );
-   vars.push_back( std::make_pair( &v_power_squilibrium_neg[ i ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_power_agg_dec_pos[ i ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_power_agg_dec_neg[ i ] , 1.0 ) );
+   vars.push_back( std::make_pair( &v_power_squilibrium_pos[ i ] , -1.0 ) );
+   vars.push_back( std::make_pair( &v_power_squilibrium_neg[ i ] , 1.0 ) );
 
-   power_balance_agg_const[ i ].set_both( rhs );
+   power_balance_agg_const[ i ].set_both( 0.0 );
    power_balance_agg_const[ i ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
@@ -539,8 +554,13 @@ bool ECNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && ColVariable::is_feasible( v_power_absorption )
   && ColVariable::is_feasible( v_shared_power )
   && ColVariable::is_feasible( v_peak_power )
+  && ColVariable::is_feasible( v_power_squilibrium_pos )
+  && ColVariable::is_feasible( v_power_squilibrium_neg )
+  && ColVariable::is_feasible( v_power_agg_dec_pos )
+  && ColVariable::is_feasible( v_power_agg_dec_neg )
   // Constraints
   && RowConstraint::is_feasible( power_balance_const , tol , rel_viol )
+  && RowConstraint::is_feasible( power_balance_agg_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_shared_const , tol , rel_viol )
   && RowConstraint::is_feasible( power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( node_injection_bounds_const , tol , rel_viol ) );
@@ -1270,12 +1290,17 @@ Solution * ECNetworkBlock::get_Solution( Configuration * csolc , bool emptys )
   sol->v_peak_power.resize( nn );
 
  if( wsol & 16 ) {
-  // squilibrium variables: only present when the underlying ECNetworkBlock
-  // generates them (i.e. when v_power_squilibrium_pos / _neg are non-empty)
+  // squilibrium and declared-dispatch variables: only present when the
+  // underlying ECNetworkBlock generates them (i.e. when a PenaltyPrice has
+  // been provided, so that the vectors are non-empty)
   if( ! v_power_squilibrium_pos.empty() )
    sol->v_power_squilibrium_pos.resize( ni );
   if( ! v_power_squilibrium_neg.empty() )
    sol->v_power_squilibrium_neg.resize( ni );
+  if( ! v_power_agg_dec_pos.empty() )
+   sol->v_power_agg_dec_pos.resize( ni );
+  if( ! v_power_agg_dec_neg.empty() )
+   sol->v_power_agg_dec_neg.resize( ni );
   }
 
  if( ! emptys )
@@ -1331,6 +1356,13 @@ void ECNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize< double >( group , "PowerSquilibriumNeg" ,
                           v_power_squilibrium_neg , true );
+
+ // deserialize PowerAggDecPos / Neg - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double >( group , "PowerAggDecPos" ,
+                          v_power_agg_dec_pos , true );
+
+ ::deserialize< double >( group , "PowerAggDecNeg" ,
+                          v_power_agg_dec_neg , true );
 
  }  // end( ECNetworkBlockSolution::deserialize( NcGroup & ) )
 
@@ -1439,6 +1471,28 @@ void ECNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
   ncVar.getVar( strt , cnt , v_power_squilibrium_neg.data() );
   }
 
+ // deserialize PowerAggDecPos - - - - - - - - - - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "PowerAggDecPos" );
+ if( ncVar.isNull() )
+  v_power_agg_dec_pos.clear();
+ else {
+  v_power_agg_dec_pos.resize( ni );
+  std::vector< size_t > strt = { start };
+  std::vector< size_t > cnt = { ni };
+  ncVar.getVar( strt , cnt , v_power_agg_dec_pos.data() );
+  }
+
+ // deserialize PowerAggDecNeg - - - - - - - - - - - - - - - - - - - - - - - -
+ ncVar = group.getVar( "PowerAggDecNeg" );
+ if( ncVar.isNull() )
+  v_power_agg_dec_neg.clear();
+ else {
+  v_power_agg_dec_neg.resize( ni );
+  std::vector< size_t > strt = { start };
+  std::vector< size_t > cnt = { ni };
+  ncVar.getVar( strt , cnt , v_power_agg_dec_neg.data() );
+  }
+
  }  // end( ECNetworkBlockSolution::deserialize( NcGroup & , size_t ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1534,6 +1588,31 @@ void ECNetworkBlockSolution::read( const Block * block )
    }
   }
 
+ // read the declared-dispatch variables (if requested and present) - - - - -
+ if( ! v_power_agg_dec_pos.empty() ) {
+  const auto & ADp = ECNB->get_power_agg_dec_pos();
+  if( ADp.empty() )
+   v_power_agg_dec_pos.clear();
+  else {
+   if( v_power_agg_dec_pos.size() != ADp.size() )
+    v_power_agg_dec_pos.resize( ADp.size() );
+   for( Index t = 0 ; t < ADp.size() ; ++t )
+    v_power_agg_dec_pos[ t ] = ADp[ t ].get_value();
+   }
+  }
+
+ if( ! v_power_agg_dec_neg.empty() ) {
+  const auto & ADn = ECNB->get_power_agg_dec_neg();
+  if( ADn.empty() )
+   v_power_agg_dec_neg.clear();
+  else {
+   if( v_power_agg_dec_neg.size() != ADn.size() )
+    v_power_agg_dec_neg.resize( ADn.size() );
+   for( Index t = 0 ; t < ADn.size() ; ++t )
+    v_power_agg_dec_neg[ t ] = ADn[ t ].get_value();
+   }
+  }
+
  }  // end( ECNetworkBlockSolution::read )
 
 /*--------------------------------------------------------------------------*/
@@ -1609,6 +1688,27 @@ void ECNetworkBlockSolution::write( Block * block )
      "ECNetworkBlockSolution::write: inconsistent squilibrium neg size" ) );
   for( Index t = 0 ; t < SQn.size() ; ++t )
    SQn[ t ].set_value( v_power_squilibrium_neg[ t ] );
+  }
+
+ // write the declared-dispatch variables - - - - - - - - - - - - - - - - - -
+ if( ! v_power_agg_dec_pos.empty() ) {
+  auto & ADp = const_cast< std::vector< ColVariable > & >(
+   ECNB->get_power_agg_dec_pos() );
+  if( ADp.size() != v_power_agg_dec_pos.size() )
+   throw( std::invalid_argument(
+     "ECNetworkBlockSolution::write: inconsistent agg dec pos size" ) );
+  for( Index t = 0 ; t < ADp.size() ; ++t )
+   ADp[ t ].set_value( v_power_agg_dec_pos[ t ] );
+  }
+
+ if( ! v_power_agg_dec_neg.empty() ) {
+  auto & ADn = const_cast< std::vector< ColVariable > & >(
+   ECNB->get_power_agg_dec_neg() );
+  if( ADn.size() != v_power_agg_dec_neg.size() )
+   throw( std::invalid_argument(
+     "ECNetworkBlockSolution::write: inconsistent agg dec neg size" ) );
+  for( Index t = 0 ; t < ADn.size() ; ++t )
+   ADn[ t ].set_value( v_power_agg_dec_neg[ t ] );
   }
 
  }  // end( ECNetworkBlockSolution::write )
@@ -1692,6 +1792,27 @@ void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
                           ni , v_power_squilibrium_neg );
   }
 
+ // serialize PowerAggDecPos / Neg - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_power_agg_dec_pos.empty() ) {
+  if( ni.isNull() ) {
+   auto SP = group.addVar( "PowerAggDecPos" , netCDF::NcDouble() );
+   SP.putVar( v_power_agg_dec_pos.data() );
+   }
+  else
+   ::serialize< double >( group , "PowerAggDecPos" , netCDF::NcDouble() ,
+                          ni , v_power_agg_dec_pos );
+  }
+
+ if( ! v_power_agg_dec_neg.empty() ) {
+  if( ni.isNull() ) {
+   auto SP = group.addVar( "PowerAggDecNeg" , netCDF::NcDouble() );
+   SP.putVar( v_power_agg_dec_neg.data() );
+   }
+  else
+   ::serialize< double >( group , "PowerAggDecNeg" , netCDF::NcDouble() ,
+                          ni , v_power_agg_dec_neg );
+  }
+
  }  // end( ECNetworkBlockSolution::serialize( NcGroup & ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1736,6 +1857,8 @@ void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
  netCDF::NcVar PP;  // PeakPower
  netCDF::NcVar SQp; // PowerSquilibriumPos
  netCDF::NcVar SQn; // PowerSquilibriumNeg
+ netCDF::NcVar ADp; // PowerAggDecPos
+ netCDF::NcVar ADn; // PowerAggDecNeg
 
  if( idx == 0 ) {  // first call: initialize variables
   if( ! v_power_injection.empty() )
@@ -1757,6 +1880,12 @@ void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
   if( ! v_power_squilibrium_neg.empty() )
    SQn = group.addVar( "PowerSquilibriumNeg" , netCDF::NcDouble() ,
                        { tdim } );
+
+  if( ! v_power_agg_dec_pos.empty() )
+   ADp = group.addVar( "PowerAggDecPos" , netCDF::NcDouble() , { tdim } );
+
+  if( ! v_power_agg_dec_neg.empty() )
+   ADn = group.addVar( "PowerAggDecNeg" , netCDF::NcDouble() , { tdim } );
   }
  else {  // subsequent call: read what is supposedly already there
   if( ! v_power_injection.empty() )
@@ -1776,6 +1905,12 @@ void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
 
   if( ! v_power_squilibrium_neg.empty() )
    SQn = group.getVar( "PowerSquilibriumNeg" );
+
+  if( ! v_power_agg_dec_pos.empty() )
+   ADp = group.getVar( "PowerAggDecPos" );
+
+  if( ! v_power_agg_dec_neg.empty() )
+   ADn = group.getVar( "PowerAggDecNeg" );
   }
 
  // write the data - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1803,6 +1938,12 @@ void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
 
  if( ! SQn.isNull() )
   SQn.putVar( strt1 , cnt1 , v_power_squilibrium_neg.data() );
+
+ if( ! ADp.isNull() )
+  ADp.putVar( strt1 , cnt1 , v_power_agg_dec_pos.data() );
+
+ if( ! ADn.isNull() )
+  ADn.putVar( strt1 , cnt1 , v_power_agg_dec_neg.data() );
 
  }  // end( ECNetworkBlockSolution::serialize( NcGroup & , size_t ) )
 
@@ -1833,6 +1974,8 @@ ECNetworkBlockSolution * ECNetworkBlockSolution::scale( double factor ) const
  for( auto & x : sol->v_peak_power ) x *= factor;
  for( auto & x : sol->v_power_squilibrium_pos ) x *= factor;
  for( auto & x : sol->v_power_squilibrium_neg ) x *= factor;
+ for( auto & x : sol->v_power_agg_dec_pos ) x *= factor;
+ for( auto & x : sol->v_power_agg_dec_neg ) x *= factor;
 
  return( sol );
 
@@ -1879,6 +2022,14 @@ void ECNetworkBlockSolution::sum( const Solution * solution ,
   throw( std::invalid_argument(
     "ECNetworkBlockSolution::sum: inconsistent squilibrium neg size" ) );
 
+ if( v_power_agg_dec_pos.size() != ECNBS->v_power_agg_dec_pos.size() )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: inconsistent agg dec pos size" ) );
+
+ if( v_power_agg_dec_neg.size() != ECNBS->v_power_agg_dec_neg.size() )
+  throw( std::invalid_argument(
+    "ECNetworkBlockSolution::sum: inconsistent agg dec neg size" ) );
+
  // accumulate - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_power_injection.empty() )
   for( Index t = 0 ; t < f_number_intervals ; ++t )
@@ -1906,6 +2057,14 @@ void ECNetworkBlockSolution::sum( const Solution * solution ,
   v_power_squilibrium_neg[ t ] +=
    ECNBS->v_power_squilibrium_neg[ t ] * multiplier;
 
+ for( std::size_t t = 0 ; t < v_power_agg_dec_pos.size() ; ++t )
+  v_power_agg_dec_pos[ t ] +=
+   ECNBS->v_power_agg_dec_pos[ t ] * multiplier;
+
+ for( std::size_t t = 0 ; t < v_power_agg_dec_neg.size() ; ++t )
+  v_power_agg_dec_neg[ t ] +=
+   ECNBS->v_power_agg_dec_neg[ t ] * multiplier;
+
  }  // end( ECNetworkBlockSolution::sum )
 
 /*--------------------------------------------------------------------------*/
@@ -1923,6 +2082,8 @@ ECNetworkBlockSolution * ECNetworkBlockSolution::clone( bool empty ) const
   sol->v_peak_power = v_peak_power;
   sol->v_power_squilibrium_pos = v_power_squilibrium_pos;
   sol->v_power_squilibrium_neg = v_power_squilibrium_neg;
+  sol->v_power_agg_dec_pos = v_power_agg_dec_pos;
+  sol->v_power_agg_dec_neg = v_power_agg_dec_neg;
   }
 
  return( sol );

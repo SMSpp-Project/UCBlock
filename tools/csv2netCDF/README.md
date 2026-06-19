@@ -17,7 +17,9 @@ where `yml` can be one of the followings:
 - `energy_community_model_CO`     (i.e., Cooperative case; the default if none is given)
 - `energy_community_model_NC`     (i.e., No Cooperative case)
 
-The same names with the `_sto` suffix enable scenario sampling (the
+The same names with the `_two_stage` suffix enable scenario sampling with a
+single short-period scenario per long-period one, and the `_three_stage`
+suffix enables several short-period scenarios per long-period one (the
 deterministic UCBlock is still produced; an additional `TSSB_*.nc4` is
 written that references it via the `filename` attribute).
 
@@ -47,6 +49,23 @@ the generation of the physical ECNetworkBlock(s), which adds the `_NB` suffix:
 ```sh
 julia csv2nc4.jl [yml] --with-network-blocks
 ```
+
+For a stochastic YAML, `--multistage` builds a `MultiStageStochasticBlock`
+that aggregates one `TwoStageStochasticBlock` per long-period (`scen_s`)
+scenario and ties the first-stage variables across them, writing an
+`MSSB_EC_*.nc4` instead of `TSSB_EC_*.nc4`:
+
+```sh
+julia csv2nc4.jl [yml]_two_stage  --multistage    # MSSB_EC_*.nc4
+julia csv2nc4.jl [yml]_three_stage --multistage   # MSSB_EC_*_3S.nc4
+```
+
+With a `_two_stage` YAML (a single short-period scenario) the extensive form
+coincides with the flattened `TwoStageStochasticBlock`. With a `_three_stage`
+YAML (several short-period scenarios) the inner `TwoStageStochasticBlock` also
+ties the day-ahead declared-dispatch bid across the short-period scenarios, so
+the output carries an extra `_3S` suffix. The flag has no effect on a
+deterministic YAML.
 
 Finally, for `PV` / `wind` (`IntermittentUnitBlock`), `batt` / `conv`
 (`BatteryUnitBlock`) and `generator` (`ThermalUnitBlock`) installable
@@ -147,6 +166,12 @@ The script writes one or two files into `../../data/nc4/EC_Data/`:
   produced only when `scen_s_sample * scen_eps_sample > 1`. The TSSB does NOT
   embed the deterministic UCBlock inline; instead its inner `Block` group
   references the `EC_*.nc4` companion file via the `filename` attribute.
+- `MSSB_EC_<MODE>_Test[_TUB][_NB][_3S].nc4` — the MultiStageStochasticBlock
+  instance, produced with `--multistage` from a stochastic YAML. It aggregates
+  the `TwoStageStochasticBlock` as its inner sub-Block(s). The `_3S` suffix
+  marks a three-stage instance (from a `_three_stage` YAML), where the inner
+  `TwoStageStochasticBlock` also ties the day-ahead declared-dispatch bid
+  across the short-period scenarios.
 
 Stochastic scenario sampling uses `pem_extraction`, `scenario_definition` and
 `Scen_eps_sampler`. Profiles whose `std` field is missing fall back to a

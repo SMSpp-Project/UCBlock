@@ -2,9 +2,10 @@
 #
 # Solve an Energy Community instance with EnergyCommunity.jl and print its
 # objective value. The instance is selected by the YAML configuration file
-# passed on the command line: a `_sto.yml` filename triggers the stochastic
-# branch (using EnergyCommunity.jl@stochastic), any other filename triggers
-# the deterministic branch (using EnergyCommunity.jl@main).
+# passed on the command line: a `*_stage.yml` filename (two-stage or
+# three-stage) triggers the stochastic branch (using
+# EnergyCommunity.jl@stochastic), any other filename triggers the
+# deterministic branch (using EnergyCommunity.jl@main).
 #
 # Usage:
 #
@@ -48,7 +49,7 @@ no_thermal && println("Fixing thermal generator installs to 0 (--no-thermal).")
 no_asset   && println("Fixing all installable assets to 0 (--no-asset).")
 
 # Stochastic vs deterministic flow selection by filename convention.
-is_stochastic = occursin("_sto.yml", fconfig)
+is_stochastic = occursin("_stage.yml", fconfig)
 
 # Pin the right EnergyCommunity.jl revision before `using EnergyCommunity`.
 # Set `SKIP_PKG_ADD=1` in the environment to skip this network-dependent
