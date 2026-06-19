@@ -17,9 +17,6 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Claude Opus 4.8 \n
- *         Anthropic
- *
  * \copyright &copy; by Antonio Frangioni, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/

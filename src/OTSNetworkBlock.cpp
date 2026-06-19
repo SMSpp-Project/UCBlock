@@ -8,9 +8,6 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Claude Opus 4.7 \n
- *         Anthropic
- *
  * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
