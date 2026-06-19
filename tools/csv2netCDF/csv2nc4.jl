@@ -184,13 +184,17 @@ function csvEC2nc4(
         multistage = "--multistage" in OPTION_ARGS
         scenario_groups = multistage ? group_by_scen_s(sampled_scenarios) :
                           nothing
-        # a three-stage instance has several short-period (eps) scenarios per
-        # long-period (s) one, so the inner TwoStageStochasticBlock additionally
-        # ties the day-ahead declared-dispatch bid across the eps; the output
-        # carries an extra `_3S` suffix to keep it distinct from the two-stage one
-        three_stage = multistage && scen_eps_sample > 1
+        # number of stages of the MultiStageStochasticBlock: 2 with a single
+        # short-period (eps) scenario per long-period (s) one, 3 with several
+        # (a three-stage instance additionally ties the day-ahead
+        # declared-dispatch bid across the eps). Every MSSB instance carries an
+        # explicit `_<n>S` suffix, since a MultiStageStochasticBlock can be 2-,
+        # 3-, ...-stage; the TwoStageStochasticBlock ones are always two-stage
+        # and stay unsuffixed.
+        n_stages = scen_eps_sample > 1 ? 3 : 2
+        three_stage = multistage && n_stages == 3
         prefix = multistage ? "MSSB_EC" : "TSSB_EC"
-        last_out = three_stage ? string(last, "_3S") : last
+        last_out = multistage ? string(last, "_", n_stages, "S") : last
         ds = NCDataset(string("../../data/nc4/EC_Data/", prefix, middle, "Test", last_out, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         if multistage
             mssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "MultiStageStochasticBlock"))

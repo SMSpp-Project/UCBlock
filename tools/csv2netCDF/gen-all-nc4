@@ -39,7 +39,7 @@ julia csv2nc4.jl energy_community_model_CO_two_stage --no-asset
 julia csv2nc4.jl energy_community_model_CO_two_stage --no-asset --with-network-blocks
 
 # two-stage multi-stage (MultiStageStochasticBlock wrapping one inner
-# TwoStageStochasticBlock per long-period scenario, MSSB_EC_*.nc4): the
+# TwoStageStochasticBlock per long-period scenario, MSSB_EC_*_2S.nc4): the
 # two-stage YAMLs have a single short-period scenario, so the extensive form
 # coincides with the flattened TwoStageStochasticBlock above.
 
