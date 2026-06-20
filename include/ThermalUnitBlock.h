@@ -1722,6 +1722,18 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
+ /// returns the current cost of the design (investment) variable
+ /** Returns the current cost of the design (investment) variable, in the same
+  * unscaled units as get_investment_cost(): i.e. the variable's Objective
+  * coefficient divided by the scale factor. This equals f_InvestmentCost when
+  * the Objective is in its "original" state, but it may differ if a dualizing
+  * Solver has changed the coefficient (e.g. the non-anticipativity multiplier
+  * in a nested Lagrangian); Solvers that consume the structural data (the DP
+  * Solvers) must use this, rather than get_investment_cost(), as the actual
+  * cost of building the unit. Returns 0 if the unit has no design variable, and
+  * f_InvestmentCost if the Objective has not been generated yet. */
+ double get_design_cost( void ) const;
+
  /// returns the installable capacity by the user
  double get_capacity( void ) const { return( f_Capacity ); }
 
@@ -2781,9 +2793,16 @@ class ThermalUnitBlock : public UnitBlock
   * Objective coefficient stays in sync with the scaled cost convention
   * used by the other update_objective_* helpers.
   *
+  * Besides changing the abstract representation (when issueAMod allows it), it
+  * issues a eSetInvCost ThermalUnitBlockMod (when issuePMod allows it) so that
+  * Solvers consuming the structural data (the DP Solvers) refresh their copy
+  * of the design cost via get_design_cost().
+  *
+  * @param issuePMod controls how physical Modification are issued.
+  *
   * @param issueAMod controls how abstract Modification are issued. */
 
- void update_objective_investment( c_ModParam issueAMod ) const;
+ void update_objective_investment( ModParam issuePMod , ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// updates the coefficients of the Objective
@@ -2792,9 +2811,12 @@ class ThermalUnitBlock : public UnitBlock
   * @param subset A set of time instants at which the coefficients must be
   *        updated.
   *
+  * @param issuePMod controls how physical Modification are issued.
+  *
   * @param issueAMod controls how abstract Modification are issued. */
 
- void update_objective( const Subset & subset , c_ModParam issueAMod ) const;
+ void update_objective( const Subset & subset , ModParam issuePMod ,
+                        c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// updates the coefficients of the Objective
@@ -2803,9 +2825,11 @@ class ThermalUnitBlock : public UnitBlock
   * @param subset A set of time instants at which the coefficients must be
   *        updated.
   *
+  * @param issuePMod controls how physical Modification are issued.
+  *
   * @param issueAMod controls how abstract Modification are issued. */
 
- void update_objective( Range rng , c_ModParam issueAMod ) const;
+ void update_objective( Range rng , ModParam issuePMod , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// verify whether the data in this ThermalUnitBlock is consistent
@@ -2966,6 +2990,17 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the investment cost
  double f_InvestmentCost{};
+
+ /// last design cost for which a eSetInvCost Modification was issued
+ /** Cache of the design-variable Objective coefficient for which the last
+  * eSetInvCost ThermalUnitBlockMod was issued by update_objective_investment().
+  * A dualizing Solver rewrites the whole coefficient vector (design included)
+  * at each of its iterations; issuing a eSetInvCost every time would reset the
+  * cached state of the (DP) Solvers and, more importantly, force the dualizing
+  * Bundle to invalidate the linearizations of this component at every iteration
+  * (which prevents convergence). Hence eSetInvCost is issued only when the
+  * design cost actually changed. Initialised in generate_objective(). */
+ double f_last_design_cost = std::numeric_limits< double >::quiet_NaN();
 
  /// the installable capacity by the user
  double f_Capacity{};
@@ -3284,6 +3319,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
   eSetPrSpResCost ,            ///< set primary spinning reserve costs
   eSetSecSpResCost ,           ///< set secondary spinning reserve costs
   eSetReactiveLinT ,           ///< set reactive power linear term
+  eSetInvCost ,                ///< set design (investment) cost
   eTUBModLastParam   ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ThermalUnitBlockMod. */
@@ -3337,6 +3373,9 @@ class ThermalUnitBlockMod : public UnitBlockMod
     break;
    case( eSetReactiveLinT ):
     output << "Set reactive power linear term";
+    break;
+   case( eSetInvCost ):
+    output << "Set design (investment) cost";
     break;
    default:;
    }

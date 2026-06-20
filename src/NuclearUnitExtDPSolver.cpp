@@ -25,8 +25,6 @@
 
 #include "NuclearUnitExtDPSolver.h"
 
-#include "DQuadFunction.h"
-
 #include <algorithm>
 
 /*--------------------------------------------------------------------------*/
@@ -484,18 +482,6 @@ void NuclearUnitExtDPSolver::run_DP( void )
 
  // design (investment) decision, identical rule to the base solver
  if( has_design ) {
-  // refresh design_cost from the current Objective coefficient (see the base
-  // ThermalUnitExtDPSolver::run_DP): a dualizing Solver shifts it directly on
-  // the Objective with no structured Modification reaching the DP; the
-  // Objective stores f_scale * cost.
-  auto * b = static_cast< ThermalUnitBlock * >( f_Block );
-  auto * qf = static_cast< DQuadFunction * >(
-                static_cast< FRealObjective * >( b->get_objective() )
-                  ->get_function() );
-  const auto di = qf->is_active( & b->get_design() );
-  if( di < qf->get_num_active_var() )
-   design_cost = qf->get_linear_coefficient( di ) / b->get_scale();
-
   if( f_best_cost + design_cost <= 0 ) {
    design_on = true;
    f_best_cost += design_cost;

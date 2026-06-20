@@ -52,8 +52,6 @@
  #include <iostream>
 #endif
 
-#include "DQuadFunction.h"
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -519,8 +517,12 @@ void ThermalUnitExtDPSolver::load_parameters( void )
  // design (investment): present iff the unit carries a nonzero investment cost.
  // The DP solves the operational problem assuming the unit exists; run_DP()
  // then decides whether to build it. See run_DP() for the threshold rule.
- design_cost = b->get_investment_cost();
- has_design  = ( design_cost != 0 );
+ // NOTE: the actual building cost is the *current* coefficient of the design
+ // variable in the Objective (get_design_cost()), which may differ from the
+ // structural investment cost if a dualizing Solver has changed it; this is
+ // kept in sync via the eSetInvCost Modification.
+ has_design  = ( b->get_investment_cost() != 0 );
+ design_cost = b->get_design_cost();
  design_on   = false;
 
  if( ! owned )
@@ -678,6 +680,20 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
     retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
     stage = start;
     return( false );
+
+   case( ThermalUnitBlockMod::eSetInvCost ): {
+    // the cost of the design (investment) variable has (possibly) changed,
+    // e.g. because a dualizing Solver pushed a multiplier into its Objective
+    // coefficient. Refresh our copy from get_design_cost(); only invalidate
+    // the cached state when the value actually changed, since this is issued
+    // whenever the Objective is touched (the design index is always in range).
+    auto nc = b->get_design_cost();
+    if( nc != design_cost ) {
+     design_cost = nc;
+     stage = start;
+     }
+    return( false );
+    }
    }
   return( true );
   }
@@ -1576,23 +1592,6 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // integer design by the same threshold argument; the continuous case does not
  // apply (binary commitment decisions inside).
  if( has_design ) {
-  // refresh the design cost from the current Objective coefficient: load()
-  // cached design_cost = get_investment_cost(), the original cost, but a
-  // dualizing Solver (e.g. an enclosing LagBFunction relaxing a
-  // non-anticipativity constraint on the design variable) shifts that
-  // coefficient by its multipliers directly on the Objective. Unlike the
-  // operational costs, the design coefficient has no structured
-  // ThermalUnitBlockMod translating it into the physical representation the DP
-  // reads, so re-read it here from the Objective. The Objective stores
-  // f_scale * cost while the DP works in unscaled costs, hence get_scale().
-  auto * b = static_cast< ThermalUnitBlock * >( f_Block );
-  auto * qf = static_cast< DQuadFunction * >(
-                static_cast< FRealObjective * >( b->get_objective() )
-                  ->get_function() );
-  const auto di = qf->is_active( & b->get_design() );
-  if( di < qf->get_num_active_var() )
-   design_cost = qf->get_linear_coefficient( di ) / b->get_scale();
-
   if( ( f_best_cost < TUEDPINF ) && ( f_best_cost + Q_star + design_cost <= 0 ) ) {
    design_on = true;
    f_best_cost += Q_star + design_cost;

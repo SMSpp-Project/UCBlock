@@ -3811,9 +3811,15 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  //
  // - then possibly f_time_horizon secondary reserve variables
  //
+ // - then possibly the perspective-cut and reactive power variables
+ //
+ // - and FINALLY, if present, the single design (investment) variable
+ //
  // this arrangement is exploited in add_Modification to easily map
  // indices in the coefficients of the Objective Function back into
- // indices of the original variables (and figure out the kind of variable)
+ // indices of the original variables (and figure out the kind of variable).
+ // The design variable is kept last so that the time-indexed sections above
+ // start at index 0 with no leading offset
 
  if( v_commitment.size() != f_time_horizon )
   throw( std::logic_error( "ThermalUnitBlock::generate_objective: "
@@ -3829,9 +3835,10 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
 
  DQuadFunction::v_coeff_triple vars;
 
- if( f_InvestmentCost != 0 )
-  vars.push_back( std::make_tuple( & design ,
-                                   f_scale * f_InvestmentCost , 0 ) );
+ // NOTE: the design (investment) variable, if present, is added LAST (after
+ // the reactive power variables); see the comment there. This keeps the
+ // index mapping done by handle_objective_change() for all the other
+ // (time-indexed) variable sections free of any leading offset.
 
  // add the start-up variables- - - - - - - - - - - - - - - - - - - - - - - -
  // add start-up variables for tbin and T formulations
@@ -3957,6 +3964,25 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
     & v_reactive_power[ t ] ,
     f_scale * ( v_ReactiveLinearTerm.empty() ? 0.0 : v_ReactiveLinearTerm[ t ] ) ,
     0.0 ) );
+
+ // add the design (investment) variable LAST - - - - - - - - - - - - - - - -
+ // x carries the (per-module, scaled) investment cost; a dualizing Solver may
+ // change this coefficient (e.g. the non-anticipativity multiplier in a nested
+ // Lagrangian). Keeping it as the trailing, single-variable block lets
+ // handle_objective_change() recognise a design-coefficient change as the last
+ // index num_active_var - 1, peel it off, and route it to
+ // update_objective_investment() (which issues a eSetInvCost
+ // ThermalUnitBlockMod for the DP Solvers), independent of all the optional
+ // sections that may precede it.
+ if( f_InvestmentCost != 0 ) {
+  vars.push_back( std::make_tuple( & design ,
+                                   f_scale * f_InvestmentCost , 0 ) );
+  // seed the change-detection cache with the initial design cost, so that the
+  // first (no-op) rewrite of the coefficient vector by a dualizing Solver does
+  // not issue a useless eSetInvCost (the DP Solvers read the initial value
+  // directly at setup via get_design_cost()); unscaled, to match get_design_cost()
+  f_last_design_cost = f_InvestmentCost;
+  }
 
  objective.set_function( new DQuadFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
@@ -5612,7 +5638,7 @@ void ThermalUnitBlock::scale( MF_dbl_it values ,
    // Update the abstract representation
    if( objective_generated() )
     // Update the Objective
-    update_objective( Range( 0 , Inf< Index >() ) , issueAMod );
+    update_objective( Range( 0 , Inf< Index >() ) , issuePMod , issueAMod );
   }
  }
 
@@ -5700,7 +5726,31 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::update_objective_investment( c_ModParam issueAMod ) const
+double ThermalUnitBlock::get_design_cost( void ) const
+{
+ if( f_InvestmentCost == 0 )
+  return( 0 );  // no design variable: no design cost
+
+ if( objective_generated() )
+  if( auto function = dynamic_cast< DQuadFunction * >(
+                                                  objective.get_function() ) ) {
+   auto var_index = function->is_active( & design );
+   if( var_index < function->get_num_active_var() )
+    // the current (possibly dualized) coefficient of the design variable;
+    // the Objective stores f_scale * cost, so divide it out to return the
+    // cost in the same unscaled units as get_investment_cost()
+    return( function->get_linear_coefficient( var_index ) / f_scale );
+   }
+
+ // the Objective is not available: fall back to the "original" cost
+ return( f_InvestmentCost );
+
+}  // end( ThermalUnitBlock::get_design_cost )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::update_objective_investment( ModParam issuePMod ,
+                                                    ModParam issueAMod )
 {
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
@@ -5708,23 +5758,48 @@ void ThermalUnitBlock::update_objective_investment( c_ModParam issueAMod ) const
  if( f_InvestmentCost == 0 )
   return;  // no design term in the Objective: nothing to be done
 
- auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
+ if( not_dry_run( issueAMod ) ) {
+  // change the abstract representation, i.e., the coefficient of the design
+  // variable in the Objective
+  auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
+  if( ! function )
+   return;
+  auto var_index = function->is_active( & design );
+  assert( var_index < function->get_num_active_var() );
+  function->modify_linear_coefficient( var_index ,
+                                       f_scale * f_InvestmentCost ,
+                                       un_ModBlock( issueAMod ) );
+  }
 
- if( ! function )
-  return;
+ // only issue the physical Modification if the design cost actually changed
+ // since the last one was issued: a dualizing Solver rewrites the whole
+ // coefficient vector (design included) at every iteration, but the design
+ // coefficient itself changes only when the dual multiplier on it does. Issuing
+ // a eSetInvCost every time would force the dualizing Bundle to invalidate this
+ // component's linearizations at each iteration (preventing convergence) and
+ // flood the (DP) Solvers with useless global-pool rechecks.
+ const double cur = get_design_cost();
+ if( ! ( cur == f_last_design_cost ) ) {  // ( cur != cached ), NaN-safe
+  f_last_design_cost = cur;
 
- auto var_index = function->is_active( & design );
- assert( var_index < function->get_num_active_var() );
- function->modify_linear_coefficient( var_index ,
-                                      f_scale * f_InvestmentCost ,
-                                      issueAMod );
+  if( issue_pmod( issuePMod ) )
+   // Issue a Physical Modification so that Solvers that consume the structural
+   // data (the DP Solvers) refresh their copy of the design cost. Note that the
+   // design cost lives only in the abstract Objective (there is no separate
+   // physical field), so the Solvers re-read it via get_design_cost()
+   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
+                             this , ThermalUnitBlockMod::eSetInvCost ) ,
+                            Observer::par2chnl( issuePMod ) );
+  }
+
 }  // end( ThermalUnitBlock::update_objective_investment )
 
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective( const Subset & subset ,
-                                         c_ModParam issueAMod ) const {
- update_objective_investment( issueAMod );
+                                         ModParam issuePMod ,
+                                         c_ModParam issueAMod ) {
+ update_objective_investment( issuePMod , issueAMod );
  update_objective_start_up( subset , issueAMod );
  update_objective_active_power( subset , issueAMod );
  update_objective_commitment( subset , issueAMod );
@@ -5733,7 +5808,8 @@ void ThermalUnitBlock::update_objective( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective( Range rng ,
-                                         c_ModParam issueAMod ) const {
+                                         ModParam issuePMod ,
+                                         c_ModParam issueAMod ) {
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
@@ -5741,7 +5817,7 @@ void ThermalUnitBlock::update_objective( Range rng ,
  Subset subset( rng.second - rng.first );
  std::iota( subset.begin() , subset.end() , rng.first );
 
- update_objective( subset , issueAMod );
+ update_objective( subset , issuePMod , issueAMod );
 }  // end( ThermalUnitBlock::update_objective( range ) )
 
 /*--------------------------------------------------------------------------*/
@@ -5945,11 +6021,26 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 		  "ThermalUnitBlock::add_Modification: invalid Range [" +
 		  std::to_string( l ) + ", " + std::to_string( r ) + ")" ) );
 
+  // the design (investment) variable, if present, is the trailing single-var
+  // block at index num_active_var - 1: peel off a change to it and route it to
+  // update_objective_investment(), which (re)issues a eSetInvCost
+  // ThermalUnitBlockMod for the DP Solvers (the abstract Objective has been
+  // changed already, hence eDryRun). Afterwards work with the design-free count
+  // nav, which makes the time-indexed sections below start at index 0.
+  const Index has_design = ( f_InvestmentCost != 0 ) ? Index( 1 ) : Index( 0 );
+  const Index nav = qf->get_num_active_var() - has_design;
+  if( has_design && ( r > nav ) ) {
+   update_objective_investment( par , eDryRun );
+   r = nav;
+   if( r <= l )
+    return;  // only the design coefficient changed
+   }
+
   // reactive power variables are the trailing section: peel off any index in
-  // [ q_start , num_active_var ) and route it to set_reactive_linear_term(),
+  // [ q_start , nav ) and route it to set_reactive_linear_term(),
   // then let the code below handle the remaining (non-reactive) prefix only.
   if( f_reactive_power ) {
-   const Index q_start = qf->get_num_active_var() - th;
+   const Index q_start = nav - th;
    if( r > q_start ) {
     const Index rl = std::max( l , q_start );
     std::vector< double > qv( r - rl );
@@ -6076,17 +6167,32 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    with_quad = true;
    }
 
+ Subset des_reduced;  // storage when the trailing design index is peeled off
  Subset reduced;  // storage when the reactive tail has to be peeled off
  if( sbs ) {
   if( sbs->back() > qf->get_num_active_var() )
    throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: "
 				 "invalid Subset" ) );
 
+  // the design (investment) variable, if present, is the trailing single-var
+  // block at index num_active_var - 1 (i.e., nav): peel a change to it off the
+  // (sorted) Subset and route it to update_objective_investment() (see the
+  // ranged case). Afterwards work with the design-free count nav.
+  const Index has_design = ( f_InvestmentCost != 0 ) ? Index( 1 ) : Index( 0 );
+  const Index nav = qf->get_num_active_var() - has_design;
+  if( has_design && ( ! sbs->empty() ) && ( sbs->back() >= nav ) ) {
+   update_objective_investment( par , eDryRun );
+   des_reduced.assign( sbs->begin() , sbs->end() - 1 );
+   sbs = & des_reduced;
+   if( sbs->empty() )
+    return;  // only the design coefficient changed
+   }
+
   // peel off the trailing reactive section (see the ranged case): entries in
-  // [ q_start , num_active_var ) go to set_reactive_linear_term(); the
+  // [ q_start , nav ) go to set_reactive_linear_term(); the
   // remaining prefix is handled by the section walk below unchanged.
   if( f_reactive_power ) {
-   const Index q_start = qf->get_num_active_var() - th;
+   const Index q_start = nav - th;
    auto qit = std::lower_bound( sbs->begin() , sbs->end() , q_start );
    if( qit != sbs->end() ) {
     Subset qms( std::distance( qit , sbs->end() ) );
