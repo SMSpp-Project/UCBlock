@@ -828,6 +828,30 @@ class UnitBlock : public Block
  virtual void scale( double scale_factor , c_ModParam issuePMod = eNoBlck ,
                      c_ModParam issueAMod = eNoBlck );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the linearization coefficient of the kappa-parametrized objective
+ /** When the investment in this UnitBlock is represented by its kappa constant
+  * (rather than by its scale factor), the kappa multiplies the right-hand side
+  * of a set of the UnitBlock's own Constraints. By the envelope theorem, the
+  * derivative of the optimal objective value of this UnitBlock with respect to
+  * kappa is the sum, over those Constraints, of the dual value times the base
+  * coefficient that kappa multiplies. This method computes that derivative
+  * from the current (dual) solution of this UnitBlock, so that it can be used
+  * as the linearization coefficient of the value function with respect to the
+  * Variable associated with the kappa of this UnitBlock.
+  *
+  * Since not every UnitBlock supports the notion of kappa, this method has no
+  * meaningful default: UnitBlocks whose investment is represented by kappa
+  * (IntermittentUnitBlock, BatteryUnitBlock) override it; the default throws.
+  *
+  * @return The derivative of the optimal objective value of this UnitBlock
+  *         with respect to its kappa constant. */
+
+ virtual double get_kappa_linearization( void ) const {
+  throw( std::logic_error( "UnitBlock::get_kappa_linearization: kappa is not "
+                           "supported by this UnitBlock" ) );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/

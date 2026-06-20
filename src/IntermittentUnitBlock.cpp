@@ -1162,6 +1162,96 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values , Range rng ,
 }  // end( IntermittentUnitBlock::set_kappa( range ) )
 
 /*--------------------------------------------------------------------------*/
+
+double IntermittentUnitBlock::get_kappa_linearization( void ) const {
+
+ /* The kappa constant of an IntermittentUnitBlock appears in the following
+  * Constraints for each time instant t:
+  *
+  * - The lower and upper bound constraints on the active power:
+  *
+  *   kappa * P^{mn}_{t} <= p^{ac}_{t} <= kappa * P^{mx}_{t}
+  *
+  * - The minimum total amount of power produced by the unit:
+  *
+  *   kappa * P^{mn}_{t} <= p^{ac}_{t} - p^{pr}_{t} - p^{sc}_{t}
+  *
+  * - The maximum total amount of power produced by the unit:
+  *
+  *   gamma * p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} <= gamma * kappa * P^{mx}_{t}
+  *
+  * By letting lambda_min and lambda_max be the dual variables associated with
+  * the lower and upper bound constraints on the active power, respectively,
+  * and alpha_min and alpha_max be the dual variables associated with the
+  * minimum and maximum total amount of power produced by the unit,
+  * respectively, the linearization coefficient is
+  *
+  *   P^{mn} ' (lambda_min + alpha_min) -
+  *   P^{mx} ' (lambda_max + gamma * alpha_max).
+  */
+
+ double linearization = 0;
+
+ const auto gamma = get_gamma();
+
+ const auto & min_power_constraints = get_min_power_constraints();
+
+ const auto & max_power_constraints = get_max_power_constraints();
+
+ const auto & active_power_bound_constraints =
+  get_active_power_bound_constraints();
+
+ /* The dual value of the bound constraint on the active power is associated
+  * with either the lower bound or the upper bound constraint. This will help
+  * determine to which bound the dual is associated with. */
+ const auto obj_sign =
+  ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+
+ const auto time_horizon = get_time_horizon();
+
+ for( Index t = 0 ; t < time_horizon ; ++t ) {
+
+  const auto min_power = get_min_power( t );
+  const auto max_power = get_max_power( t );
+
+  // Bound constraints on the active power
+
+  if( ! active_power_bound_constraints.empty() ) {
+   const auto dual = active_power_bound_constraints[ t ].get_dual();
+
+   // Now determine which bound is associated with the dual value
+
+   double bound = 0;
+   if( obj_sign * dual > 0 )
+    // The dual is associated with the lower bound constraint
+    bound = min_power;
+   else
+    // The dual is associated with the upper bound constraint
+    bound = max_power;
+
+   linearization += - dual * bound;
+  } // end( ! active_power_bound_constraints.empty() )
+
+  // Minimum and maximum total power constraints
+
+  double alpha_min = 0;
+  if( ! min_power_constraints.empty() )
+   alpha_min = std::abs( min_power_constraints[ t ].get_dual() );
+
+  double alpha_max = 0;
+  if( ! max_power_constraints.empty() )
+   alpha_max = std::abs( max_power_constraints[ t ].get_dual() );
+
+  // Update the linearization coefficient
+
+  linearization +=
+   min_power * ( alpha_min ) - max_power * ( gamma * alpha_max );
+ }
+
+ return( linearization );
+ }  // end( IntermittentUnitBlock::get_kappa_linearization )
+
+/*--------------------------------------------------------------------------*/
 /*--------------- METHODS OF IntermittentUnitBlockSolution -----------------*/
 /*--------------------------------------------------------------------------*/
 

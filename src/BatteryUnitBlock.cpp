@@ -2100,6 +2100,160 @@ void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+double BatteryUnitBlock::get_kappa_linearization( void ) const {
+
+ /* The kappa constant of a BatteryUnitBlock appears in the following
+  * Constraints for each time instant t:
+  *
+  * - Minimum and maximum power output constraint (lambda):
+  *
+  *   kappa * P^{min}_{t} <= p^{ac}_{t} - p^{pr}_{t} - p^{sc}_{t}  [lambda_min]
+  *
+  *   p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} <= kappa * P^{max}_{t}  [lambda_max]
+  *
+  * - Intake and outtake level bounds (alpha):
+  *
+  *   p^{+}_{t} <= kappa * P^{max}_{t}                             [alpha_max]
+  *
+  *   p^{+}_{t} <= kappa * u^{+}_t * P^{max}_{t}                   [alpha_max_u]
+  *
+  *   p^{-}_{t} <= - kappa * (1 - u^{+}_t) * P^{min}_{t}           [alpha_min_u]
+  *
+  * - Storage level bounds (beta):
+  *
+  *   kappa * V^{min}_t <= v_t                                     [beta_min]
+  *
+  *   v_t <= kappa * V^{max}_t                                     [beta_max]
+  *
+  * - Primary and secondary reserves bounds (gamma):
+  *
+  *   p^{pr}_t <= kappa P^{pr max}_t                               [gamma_pr]
+  *
+  *   p^{sc}_t <= kappa P^{sc max}_t                               [gamma_sc]
+  *
+  * The name between [] represents the dual variable associated with each
+  * constraint. The linearization coefficient is
+  *
+  *   P^{min} ' (lambda_min + alpha_min + (1 - u^+) * alpha_min_u) -
+  *   P^{max} ' (lambda_max + alpha_max + u^+ * alpha_max_u) +
+  *   V^{min} ' beta_min - V^{max} ' beta_max -
+  *   P^{pr max} ' gamma_pr - P^{sc max} ' gamma_sc
+  */
+
+ double linearization = 0;
+
+ // Minimum and maximum power output constraint
+
+ const auto & min_power_constraints = get_min_power_constraints();
+
+ const auto & max_power_constraints = get_max_power_constraints();
+
+ // Intake and outtake level bounds
+
+ const auto & intake_bound_constraints = get_max_intake_bounds();
+
+ const auto & outtake_bound_constraints = get_max_outtake_bounds();
+
+ const auto & max_intake_binary_constraints =
+  get_max_intake_binary_constraints();
+
+ const auto & max_outtake_binary_constraints =
+  get_max_outtake_binary_constraints();
+
+ const auto & u = get_intake_outtake_binary_variables();
+
+ // Storage level bounds
+
+ const auto & storage_level_bound_constraints = get_storage_level_bounds();
+
+ // Primary and secondary reserves bounds
+
+ const auto & primary_reserve_bounds = get_primary_reserve_bounds();
+
+ const auto & secondary_reserve_bounds = get_secondary_reserve_bounds();
+
+ /* The dual value of a constraint that has both finite lower and upper bounds
+  * is associated with either the lower bound or the upper bound
+  * constraint. This will help determine to which bound the dual is associated
+  * with. */
+ const auto obj_sign =
+  ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+
+ const auto time_horizon = get_time_horizon();
+
+ for( Index t = 0 ; t < time_horizon ; ++t ) {
+
+  const auto min_power = get_min_power( t );
+  const auto max_power = get_max_power( t );
+  const auto min_storage = get_min_storage()[ t ];
+  const auto max_storage = get_max_storage()[ t ];
+
+  // Minimum and maximum power output constraint
+
+  const auto lambda_min = std::abs( min_power_constraints[ t ].get_dual() );
+  const auto lambda_max = std::abs( max_power_constraints[ t ].get_dual() );
+
+  linearization += min_power * lambda_min - max_power * lambda_max;
+
+  // Intake and outtake level bounds
+
+  if( intake_bound_constraints ) {
+   const auto alpha_max =
+    std::abs( intake_bound_constraints[ t ].get_dual() );
+
+   linearization += - alpha_max * max_power;
+  }
+
+  if( outtake_bound_constraints ) {
+   const auto alpha_min =
+    std::abs( outtake_bound_constraints[ t ].get_dual() );
+
+   linearization += min_power * alpha_min;
+  }
+
+  if( max_intake_binary_constraints ) {
+   const auto alpha_max_u =
+    std::abs( max_intake_binary_constraints[ t ].get_dual() );
+   linearization += - alpha_max_u * u[ t ].get_value() * max_power;
+  }
+
+  if( max_outtake_binary_constraints ) {
+   const auto alpha_min_u =
+    std::abs( max_outtake_binary_constraints[ t ].get_dual() );
+   linearization += ( 1.0 - u[ t ].get_value() ) * alpha_min_u * min_power;
+  }
+
+  // Storage level bounds
+
+  const auto dual = storage_level_bound_constraints[ t ].get_dual();
+  auto bound = max_storage;
+  if( obj_sign * dual > 0 ) {
+   // The bound is associated with the lower bound constraint
+   bound = min_storage;
+  }
+
+  // The bound is associated with the upper bound constraint.
+  linearization += - dual * bound;
+
+  // Primary and secondary reserves bounds
+
+  if( ! primary_reserve_bounds.empty() ) {
+   const auto gamma_pr = std::abs( primary_reserve_bounds[ t ].get_dual() );
+   linearization += - get_max_primary_power()[ t ] * gamma_pr;
+  }
+
+  if( ! secondary_reserve_bounds.empty() ) {
+   const auto gamma_sc = std::abs( secondary_reserve_bounds[ t ].get_dual() );
+   linearization += - get_max_secondary_power()[ t ] * gamma_sc;
+  }
+
+ }
+
+ return( linearization );
+ }  // end( BatteryUnitBlock::get_kappa_linearization )
+
+/*--------------------------------------------------------------------------*/
+
 void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) const {
 
  if( ! objective_generated() )

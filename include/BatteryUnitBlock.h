@@ -1323,6 +1323,14 @@ class BatteryUnitBlock : public UnitBlock
  double get_kappa( void ) const { return( f_kappa ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the linearization coefficient of the kappa-parametrized objective
+ /** See UnitBlock::get_kappa_linearization(). The kappa of a BatteryUnitBlock
+  * appears in its power output, intake/outtake level, storage level and
+  * primary/secondary reserve bound Constraints. */
+
+ double get_kappa_linearization( void ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of storage level variables
  /** This method returns a vector V containing the storage level
   * variables. There are two possible cases:

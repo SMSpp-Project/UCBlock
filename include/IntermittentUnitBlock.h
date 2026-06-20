@@ -546,6 +546,13 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the kappa value
  double get_kappa( void ) const { return( f_kappa ); }
 
+ /// returns the linearization coefficient of the kappa-parametrized objective
+ /** See UnitBlock::get_kappa_linearization(). The kappa of an
+  * IntermittentUnitBlock appears in its active power bound Constraints and in
+  * its minimum and maximum total power Constraints. */
+
+ double get_kappa_linearization( void ) const override;
+
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
