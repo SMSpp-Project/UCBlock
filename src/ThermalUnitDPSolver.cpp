@@ -56,6 +56,8 @@
 
 #include "ThermalUnitBlock.h"
 
+#include "DQuadFunction.h"
+
 #if TUDPS_PROFILE
  #include <chrono>
  #include <iostream>
@@ -821,6 +823,21 @@ void ThermalUnitDPSolver::min_path( void )
  // is never forced on. Generalises to an integer design by the same threshold
  // argument; the continuous case does not apply (binary commitments inside).
  if( has_design ) {
+  // refresh the design cost from the current Objective coefficient: load()
+  // cached design_cost = get_investment_cost(), the original cost, but a
+  // dualizing Solver (e.g. an enclosing LagBFunction relaxing a
+  // non-anticipativity constraint on the design variable) shifts that
+  // coefficient by its multipliers directly on the Objective, with no
+  // structured ThermalUnitBlockMod translating it to the physical
+  // representation the DP reads; the Objective stores f_scale * cost.
+  auto * b = static_cast< ThermalUnitBlock * >( f_Block );
+  auto * qf = static_cast< DQuadFunction * >(
+                static_cast< FRealObjective * >( b->get_objective() )
+                  ->get_function() );
+  const auto di = qf->is_active( & b->get_design() );
+  if( di < qf->get_num_active_var() )
+   design_cost = qf->get_linear_coefficient( di ) / b->get_scale();
+
   if( ( f_end.lab < TUDPINF ) && ( f_end.lab + Q_star + design_cost <= 0 ) ) {
    design_on = true;
    f_end.lab += Q_star + design_cost;

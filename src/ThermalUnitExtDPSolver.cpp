@@ -52,6 +52,8 @@
  #include <iostream>
 #endif
 
+#include "DQuadFunction.h"
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1574,6 +1576,23 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // integer design by the same threshold argument; the continuous case does not
  // apply (binary commitment decisions inside).
  if( has_design ) {
+  // refresh the design cost from the current Objective coefficient: load()
+  // cached design_cost = get_investment_cost(), the original cost, but a
+  // dualizing Solver (e.g. an enclosing LagBFunction relaxing a
+  // non-anticipativity constraint on the design variable) shifts that
+  // coefficient by its multipliers directly on the Objective. Unlike the
+  // operational costs, the design coefficient has no structured
+  // ThermalUnitBlockMod translating it into the physical representation the DP
+  // reads, so re-read it here from the Objective. The Objective stores
+  // f_scale * cost while the DP works in unscaled costs, hence get_scale().
+  auto * b = static_cast< ThermalUnitBlock * >( f_Block );
+  auto * qf = static_cast< DQuadFunction * >(
+                static_cast< FRealObjective * >( b->get_objective() )
+                  ->get_function() );
+  const auto di = qf->is_active( & b->get_design() );
+  if( di < qf->get_num_active_var() )
+   design_cost = qf->get_linear_coefficient( di ) / b->get_scale();
+
   if( ( f_best_cost < TUEDPINF ) && ( f_best_cost + Q_star + design_cost <= 0 ) ) {
    design_on = true;
    f_best_cost += Q_star + design_cost;
