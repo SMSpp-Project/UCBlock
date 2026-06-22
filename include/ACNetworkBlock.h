@@ -17,7 +17,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Quentin Jacquet, Wim van Ackooij
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Quentin Jacquet, Wim van Ackooij,
+ *            Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -553,6 +558,17 @@ class ACNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
+ /// separate the McCormick strengthening inequalities as dynamic cuts
+ /** Separates, at the current point, the McCormick valid inequalities that
+  * strengthen the SOCP relaxation (the z / c / beta / s families), adding to
+  * v_SOCP_cuts only those violated by more than the tolerance read from \p
+  * dycc (a SimpleConfiguration< double >, or the .first of a
+  * SimpleConfiguration< pair< double , int > >; default 1e-6). Does nothing
+  * unless the strengthened relaxation is active (b_strongSOCP). */
+
+ void generate_dynamic_constraints( Configuration * dycc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
  /// generate the SOCP relaxation constraints
  /** Generates the rotated second-order cone constraints linking
   * v_sum_product_voltages, v_diff_product_voltages and v_sqrd_voltages,
@@ -861,9 +877,19 @@ class ACNetworkData : public DCNetworkData
  // ----- Specific constraints for SOCP relaxation -----
  std::vector< FRowConstraint > v_socp_const;
 
+ /* Finite box bounds on the SOCP variables v_sum_product_voltages (c) and
+  * v_diff_product_voltages (s), implied by the cone v_socp_const
+  * (c^2 + s^2 <= w_p w_n) together with the voltage bounds, hence valid at
+  * every feasible point and non-cutting. */
+ std::vector< BoxConstraint > v_sum_product_voltages_bounds;
+ std::vector< BoxConstraint > v_diff_product_voltages_bounds;
+
  // ----- Constraints for the stronger SOCP relaxation -----
  std::vector< BoxConstraint > v_volt_bounds;
  std::vector< FRowConstraint > v_theta_bounds;
+ /// absolute box bounds pinning the free angle gauge; v_theta only ever
+ /// appears as differences theta_p - theta_n, so this cannot cut any profile
+ std::vector< BoxConstraint > v_theta_box_bounds;
  std::vector< BoxConstraint > v_alpha_bounds;
  ///< alpha ~ cos( theta_i - theta_j )
  std::vector< BoxConstraint > v_beta_bounds;
@@ -873,60 +899,27 @@ class ACNetworkData : public DCNetworkData
  std::vector< FRowConstraint > v_diag_const_1;
  std::vector< FRowConstraint > v_diag_const_2;
 
- /* The terms V_n V_n' appear in later McCormick relaxations. Therefore
-  * z_{n,n'} representing this term appears in the classic McCormick
-  * relaxation. */
- std::vector< FRowConstraint > v_def_z_1;
- std::vector< FRowConstraint > v_def_z_2;
- std::vector< FRowConstraint > v_def_z_3;
- std::vector< FRowConstraint > v_def_z_4;
-
- /* The McCormick relaxation of some later terms requires the convex
-  * envelope of the cosine and sine functions; see
-  *
-  *   Hijazi, H., Coffrin, C. & Hentenryck, P.V. "Convex quadratic
-  *   relaxations for mixed-integer nonlinear programs in power systems",
-  *   Math. Prog. Comp. 9, 321-367 (2017),
-  *   https://doi.org/10.1007/s12532-016-0112-z.
-  *
-  * For the cosine of x (the phase angle difference) we get
-  *
+ /* Convex envelope of the cosine of the phase-angle difference x:
   *   alpha <= 1 - ( 1 - cos( xbar ) ) / xbar^2 * x^2
-  *   alpha >= cos( xbar ) */
+  *   alpha >= cos( xbar )
+  * (Hijazi, Coffrin & Van Hentenryck, "Convex quadratic relaxations for
+  * mixed-integer nonlinear programs in power systems", Math. Prog. Comp. 9,
+  * 321-367, 2017, https://doi.org/10.1007/s12532-016-0112-z). */
  std::vector< FRowConstraint > v_def_alpha_1;
  std::vector< FRowConstraint > v_def_alpha_2;
 
- /* The following appear in the classic McCormick relaxation of the
-  * "double" convex relaxation of
-  *   Re( V_n V_n' ) = < ( V_n V_n' )^M ( cos( theta_n - theta_n' )^C ) >^M
-  * which is thus the McCormick relaxation of the product term
-  *     z_{n,n'} alpha_{n,n'}
-  * This product term is none other than c_{n,n'}; see eq. (23b) in
-  * Coffrin (2016). */
- std::vector< FRowConstraint > v_def_c_1;
- std::vector< FRowConstraint > v_def_c_2;
- std::vector< FRowConstraint > v_def_c_3;
- std::vector< FRowConstraint > v_def_c_4;
-
- /* The convex envelope of the sine function (with x the phase angle
-  * difference) is as follows:
-  *
-  *   beta <= cos( xbar/2 ) ( x - xbar/2 ) + sin( xbar/2 )
-  *   beta >= cos( xbar/2 ) ( x + xbar/2 ) - sin( xbar/2 ) */
- std::vector< FRowConstraint > v_def_beta_1;
- std::vector< FRowConstraint > v_def_beta_2;
-
- /* The following appear in the classic McCormick relaxation of the
-  * "double" convex relaxation of
-  *   Im( V_n V_n' ) = < ( V_n V_n' )^M ( sin( theta_n - theta_n' )^S ) >^M
-  * which is thus the McCormick relaxation of the product term
-  *     z_{n,n'} beta_{n,n'}
-  * This product term is none other than s_{n,n'}; see eq. (23c) in
-  * Coffrin (2016). */
- std::vector< FRowConstraint > v_def_s_1;
- std::vector< FRowConstraint > v_def_s_2;
- std::vector< FRowConstraint > v_def_s_3;
- std::vector< FRowConstraint > v_def_s_4;
+ /* The McCormick inequalities that strengthen the SOCP relaxation are valid
+  * inequalities (cuts), not part of the core model: they are therefore handled
+  * as dynamic constraints, separated on demand by generate_dynamic_constraints()
+  * instead of being all materialised up front (which on large multi-period
+  * instances would create hundreds of thousands of rows). The families are:
+  *   z_{n,n'}    : classic McCormick envelope of the product v_n v_n'
+  *   c_{n,n'}    : McCormick relaxation of Re( W_{n,n'} ) from z and alpha
+  *   beta_{n,n'} : convex envelope of sin( theta_n - theta_n' )
+  *   s_{n,n'}    : McCormick relaxation of Im( W_{n,n'} ) from z and beta
+  * (eqs. (23b)-(23c) in Coffrin 2016); all are linear in v_z, v_alpha, v_beta,
+  * v_voltage, v_theta, v_sum_product_voltages and v_diff_product_voltages. */
+ std::list< FRowConstraint > v_SOCP_cuts;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
