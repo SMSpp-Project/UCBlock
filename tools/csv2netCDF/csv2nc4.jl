@@ -182,6 +182,12 @@ function csvEC2nc4(
         # is what validates the MultiStageStochasticBlock machinery against the
         # existing TwoStageStochasticBlock reference values.
         multistage = "--multistage" in OPTION_ARGS
+        # `--shared-tree` (only with `--multistage`): emit the scenario data as a
+        # single shared MultiStageDiscreteScenarioSet consumed by all inner
+        # TwoStageStochasticBlock via views, instead of one baked
+        # DiscreteScenarioSet per inner Block. Additive: the baked format is the
+        # default and is left untouched.
+        shared_tree = multistage && ( "--shared-tree" in OPTION_ARGS )
         scenario_groups = multistage ? group_by_scen_s(sampled_scenarios) :
                           nothing
         # number of stages of the MultiStageStochasticBlock: 2 with a single
@@ -195,6 +201,9 @@ function csvEC2nc4(
         three_stage = multistage && n_stages == 3
         prefix = multistage ? "MSSB_EC" : "TSSB_EC"
         last_out = multistage ? string(last, "_", n_stages, "S") : last
+        # distinct suffix so a shared-tree instance never overwrites the baked
+        # one and the two can be compared side by side
+        last_out = shared_tree ? string(last_out, "_tree") : last_out
         ds = NCDataset(string("../../data/nc4/EC_Data/", prefix, middle, "Test", last_out, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         if multistage
             mssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "MultiStageStochasticBlock"))
@@ -985,27 +994,11 @@ function csvEC2nc4(
         # set; the `--multistage` flow calls it once per inner
         # TwoStageStochasticBlock with that Block's long-period group and the
         # corresponding short-period (conditional) probabilities.
-        write_dss! = function (parent_grp, dss_scens, dss_weights)
-            n_sc = length(dss_scens)
-            dss = defGroup(parent_grp, "DiscreteScenarioSet",
-                           attrib=OrderedDict("type" => "DiscreteScenarioSet"))
-
-            defDim(dss, "NumberScenarios", n_sc)
-            defDim(dss, "ScenarioSize", scenario_size)
-
-        ## A T T E N T I O N: The data is stored in the NetCDF file in the
-        ## same order as they are stored in memory. As Julia uses the
-        ## column-major ordering for arrays, the order of dimensions
-        ## will appear reversed when the data is loaded in languages or
-        ## programs using row-major ordering such as C/C++, Python/NumPy
-        ## or the tools ncdump/ncgen.
-        ## To store the scenario set in the correct shape, i.e.,
-        ## NumberScenarios x ScenarioSize in C++, we store it here as
-        ## ScenarioSize x NumberScenarios in Julia.
-        scen_mat = Array{Float64}(undef, scenario_size, n_sc)
-        weights = Array{Float64}(undef, n_sc)
-
-        for (k, scen) in enumerate(dss_scens)
+        # Build the flat scenario data vector for one sampled scenario, in the
+        # layout consumed by the UCBlock DataMappings. It is reused both as the
+        # rows of the DiscreteScenarioSet (baked format) and as the leaf
+        # NodeData of the shared scenario tree (shared-tree format).
+        scenario_vec = function (scen)
             vec = Array{Float64}(undef, scenario_size)
             idx = 1
 
@@ -1096,7 +1089,33 @@ function csvEC2nc4(
                 end
             end
 
-            scen_mat[:, k] = vec
+            return vec
+        end  # scenario_vec
+
+        # Write one DiscreteScenarioSet group (Scenarios + PoolWeights) into
+        # `parent_grp` for the given scenarios and (conditional) weights.
+        write_dss! = function (parent_grp, dss_scens, dss_weights)
+            n_sc = length(dss_scens)
+            dss = defGroup(parent_grp, "DiscreteScenarioSet",
+                           attrib=OrderedDict("type" => "DiscreteScenarioSet"))
+
+            defDim(dss, "NumberScenarios", n_sc)
+            defDim(dss, "ScenarioSize", scenario_size)
+
+        ## A T T E N T I O N: The data is stored in the NetCDF file in the
+        ## same order as they are stored in memory. As Julia uses the
+        ## column-major ordering for arrays, the order of dimensions
+        ## will appear reversed when the data is loaded in languages or
+        ## programs using row-major ordering such as C/C++, Python/NumPy
+        ## or the tools ncdump/ncgen.
+        ## To store the scenario set in the correct shape, i.e.,
+        ## NumberScenarios x ScenarioSize in C++, we store it here as
+        ## ScenarioSize x NumberScenarios in Julia.
+        scen_mat = Array{Float64}(undef, scenario_size, n_sc)
+        weights = Array{Float64}(undef, n_sc)
+
+        for (k, scen) in enumerate(dss_scens)
+            scen_mat[:, k] = scenario_vec(scen)
             weights[k] = dss_weights[k]
         end
 
@@ -1119,6 +1138,64 @@ function csvEC2nc4(
         )
         pool_weights_var[:] = weights
         end  # write_dss!
+
+        # Write the shared scenario tree as a MultiStageDiscreteScenarioSet under
+        # `parent_grp`/"ScenarioGenerator": root (stage 0) -> one node per
+        # long-period group `s` (stage 1, P(s)) -> one node per `eps` of that
+        # group (stage 2, P(eps|s), data = the scenario vector). Only the leaves
+        # carry data; the inner TwoStageStochasticBlock read it through a view.
+        write_tree! = function (parent_grp, groups, marginals)
+            sg = defGroup(parent_grp, "ScenarioGenerator",
+                          attrib=OrderedDict("type" =>
+                                             "MultiStageDiscreteScenarioSet"))
+
+            n_eps_total = sum(length(g) for g in groups)
+            n_nodes = 1 + length(groups) + n_eps_total   # root + s + eps
+
+            defDim(sg, "NumberStages", 3)
+            defDim(sg, "NumberNodes", n_nodes)
+            defDim(sg, "ScenarioDataSize", scenario_size)
+
+            stage  = Array{UInt32}(undef, n_nodes)
+            parent = Array{UInt32}(undef, n_nodes)
+            prob   = Array{Float64}(undef, n_nodes)
+            # NodeData stored (ScenarioDataSize, NumberNodes) in Julia so C++
+            # sees [NumberNodes][ScenarioDataSize]; only leaves are non-zero.
+            data   = zeros(Float64, scenario_size, n_nodes)
+
+            # root (node index 0 in C++ == column 1 in Julia)
+            stage[1]  = 0
+            parent[1] = n_nodes          # >= NumberNodes == "no parent" marker
+            prob[1]   = 1.0
+
+            next = 2                      # 1-based Julia column of the next node
+            s_cols = Int[]                # Julia column of each s-node
+            for (j, g) in enumerate(groups)
+                stage[next]  = 1
+                parent[next] = 0          # child of the root (C++ index 0)
+                prob[next]   = marginals[j]
+                push!(s_cols, next)
+                next += 1
+            end
+            for (j, g) in enumerate(groups)
+                s_cpp = s_cols[j] - 1     # C++ index of this s-node
+                for sc in g
+                    stage[next]  = 2
+                    parent[next] = s_cpp
+                    prob[next]   = probability(sc) / marginals[j]   # P(eps|s)
+                    data[:, next] = scenario_vec(sc)
+                    next += 1
+                end
+            end
+
+            defVar(sg, "StageScenarioSize", UInt32, ("NumberStages",))[:] =
+                UInt32[0, 0, scenario_size]
+            defVar(sg, "NodeStage", UInt32, ("NumberNodes",))[:] = stage
+            defVar(sg, "NodeParent", UInt32, ("NumberNodes",))[:] = parent
+            defVar(sg, "NodeProbability", Float64, ("NumberNodes",))[:] = prob
+            defVar(sg, "NodeData", Float64,
+                   ("ScenarioDataSize", "NumberNodes"))[:, :] = data
+        end  # write_tree!
 
         # AbstractPath to the first-stage (here-and-now) variables. The design
         # paths (UnitBlock -> x_design) were built during the UCBlock population
@@ -1409,14 +1486,24 @@ function csvEC2nc4(
                     defDim(grp, "NumberScenarios", length(g))
                     grp
                 end
-                cond_weights = [probability(sc) / marginals[j] for sc in g]
-                write_dss!(bj, g, cond_weights)
+                # baked format: one DiscreteScenarioSet per inner Block. In the
+                # shared-tree format the inner Blocks carry no DiscreteScenarioSet
+                # (the data lives in the shared tree, read through a view).
+                if !shared_tree
+                    cond_weights = [probability(sc) / marginals[j] for sc in g]
+                    write_dss!(bj, g, cond_weights)
+                end
             end
 
-            # outer-stage (long-period) scenario probabilities P(s)
-            sub_block_prob = defVar(mssb, "SubBlockProbabilities", Float64,
-                                    ("NumberSubBlocks",))
-            sub_block_prob[:] = marginals
+            if shared_tree
+                # single shared scenario tree; the MSSB derives P(s) from it
+                write_tree!(mssb, scenario_groups, marginals)
+            else
+                # outer-stage (long-period) scenario probabilities P(s)
+                sub_block_prob = defVar(mssb, "SubBlockProbabilities", Float64,
+                                        ("NumberSubBlocks",))
+                sub_block_prob[:] = marginals
+            end
 
             # the MultiStageStochasticBlock ties only the design (a subset of
             # the inner-TSSB here-and-now), resolved against each inner Block's
@@ -1432,7 +1519,9 @@ end
 
 ## Parameters
 
-@assert 0 <= length(ARGS) <= 4
+# at most: 1 YAML name + 1 --design-mode= + up to 4 boolean option flags
+# (--multistage, --shared-tree, --no-thermal/--no-asset, --with-network-blocks)
+@assert 0 <= length(ARGS) <= 6
 
 NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
 @assert 0 <= length(NO_OPTION_ARGS) <= 1
@@ -1481,8 +1570,9 @@ design_mode = isempty(design_mode_args) ? "design" :
 @assert design_mode in ("fleet", "scale", "design") "Unknown --design-mode value: $(design_mode) (use fleet, scale, or design)"
 
 OPTION_ARGS = setdiff(all_option_args, design_mode_args)
-@assert 0 <= length(OPTION_ARGS) <= 3
-@assert issubset(OPTION_ARGS, ["--no-thermal", "--no-asset", "--with-network-blocks", "--multistage"])
+@assert 0 <= length(OPTION_ARGS) <= 4
+@assert issubset(OPTION_ARGS, ["--no-thermal", "--no-asset", "--with-network-blocks", "--multistage", "--shared-tree"])
+@assert !( ("--shared-tree" in OPTION_ARGS) && !("--multistage" in OPTION_ARGS) ) "--shared-tree requires --multistage"
 @assert !(("--no-thermal" in OPTION_ARGS) && ("--no-asset" in OPTION_ARGS)) "--no-thermal is implied by --no-asset; do not pass both"
 
 file_name = !isempty(NO_OPTION_ARGS) ?

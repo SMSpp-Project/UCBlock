@@ -67,6 +67,18 @@ ties the day-ahead declared-dispatch bid across the short-period scenarios, so
 the output carries an extra `_3S` suffix. The flag has no effect on a
 deterministic YAML.
 
+By default each inner `TwoStageStochasticBlock` carries its own
+`DiscreteScenarioSet`. Adding `--shared-tree`, which is only meaningful
+together with `--multistage`, instead stores the whole scenario tree once as a
+single `MultiStageDiscreteScenarioSet` that the inner Blocks read through
+views. The output carries a `_tree` suffix and solves to the same objective as
+the corresponding baked instance:
+
+```sh
+julia csv2nc4.jl [yml]_two_stage  --multistage --shared-tree  # MSSB_EC_*_2S_tree.nc4
+julia csv2nc4.jl [yml]_three_stage --multistage --shared-tree # MSSB_EC_*_3S_tree.nc4
+```
+
 Finally, for `PV` / `wind` (`IntermittentUnitBlock`), `batt` / `conv`
 (`BatteryUnitBlock`) and `generator` (`ThermalUnitBlock`) installable
 assets, the fleet of `N = max_capacity / nom_capacity` identical modules
@@ -172,6 +184,10 @@ The script writes one or two files into `../../data/nc4/EC_Data/`:
   is the number of stages: `_2S` from a `_two_stage` YAML, `_3S` from a
   `_three_stage` YAML (where the inner `TwoStageStochasticBlock` also ties the
   day-ahead declared-dispatch bid across the short-period scenarios).
+- `MSSB_EC_<MODE>_Test[_TUB][_NB]_<n>S_tree.nc4` — the same
+  MultiStageStochasticBlock instance with `--shared-tree`, holding the scenario
+  data in a single `MultiStageDiscreteScenarioSet` read by the inner Blocks
+  through views. It solves to the same objective as the baked `_<n>S` instance.
 
 Stochastic scenario sampling uses `pem_extraction`, `scenario_definition` and
 `Scen_eps_sampler`. Profiles whose `std` field is missing fall back to a

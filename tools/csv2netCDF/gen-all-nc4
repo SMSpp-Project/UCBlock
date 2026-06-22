@@ -75,3 +75,40 @@ done
 
 julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --no-asset
 julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --no-asset --with-network-blocks
+
+# shared-tree multi-stage (same MultiStageStochasticBlock extensive form as the
+# two MSSB sections above, but with the scenario data held in a single shared
+# MultiStageDiscreteScenarioSet consumed by the inner TwoStageStochasticBlock
+# through views, instead of one baked DiscreteScenarioSet per inner Block;
+# MSSB_EC_*_{2,3}S_tree.nc4). They solve to the same objective as the baked
+# MSSB_EC_*_{2,3}S instances. `--shared-tree` requires `--multistage`.
+
+# two-stage, shared tree (MSSB_EC_*_2S_tree.nc4)
+for f in energy_community_model_CO_two_stage \
+         energy_community_model_NC_two_stage; do
+
+  julia csv2nc4.jl ${f} --multistage --shared-tree                        # _TUB
+  julia csv2nc4.jl ${f} --multistage --shared-tree --with-network-blocks  # _TUB_NB
+
+  julia csv2nc4.jl ${f} --multistage --shared-tree --no-thermal                       # (no _TUB)
+  julia csv2nc4.jl ${f} --multistage --shared-tree --no-thermal --with-network-blocks  # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_two_stage --multistage --shared-tree --no-asset
+julia csv2nc4.jl energy_community_model_CO_two_stage --multistage --shared-tree --no-asset --with-network-blocks
+
+# three-stage, shared tree (MSSB_EC_*_3S_tree.nc4)
+for f in energy_community_model_CO_three_stage \
+         energy_community_model_NC_three_stage; do
+
+  julia csv2nc4.jl ${f} --multistage --shared-tree                        # _TUB
+  julia csv2nc4.jl ${f} --multistage --shared-tree --with-network-blocks  # _TUB_NB
+
+  julia csv2nc4.jl ${f} --multistage --shared-tree --no-thermal                       # (no _TUB)
+  julia csv2nc4.jl ${f} --multistage --shared-tree --no-thermal --with-network-blocks  # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --shared-tree --no-asset
+julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --shared-tree --no-asset --with-network-blocks
