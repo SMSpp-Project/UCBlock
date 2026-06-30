@@ -4131,6 +4131,8 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  serialize( "MinPower" , v_MinPower );
  serialize( "MaxPower" , v_MaxPower );
+ serialize( "MaxReactivePower" , v_MaxReactivePower );
+ serialize( "MinReactivePower" , v_MinReactivePower );
  serialize( "Availability" , v_Availability );
  serialize( "DeltaRampUp" , v_DeltaRampUp );
  serialize( "DeltaRampDown" , v_DeltaRampDown );
@@ -5961,8 +5963,12 @@ void ThermalUnitBlock::set_solution( void )
    if( auto cut_it = get_cut() )
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      double pt = Pi[ t ].get_value();
-     bool ut = Ci[ t ].get_value() > 0.5;
-     cut_it[ t ].set_value( ut ? pt * pt : 0.0 );
+     double ut = Ci[ t ].get_value();
+     // the perspective value is p^2 / u, not the threshold-rounded u*p^2: this
+     // is the true P/C term and stays correct for a *fractional* (convex-
+     // combination) commitment. For an integer u it reduces to p^2 when u == 1
+     // and to 0 when u == 0, matching the previous rule.
+     cut_it[ t ].set_value( ( ut > 1e-6 ) ? pt * pt / ut : 0.0 );
      }
    }
   // TODO: DPForm / SUForm / SDForm / SUSDForm need to populate

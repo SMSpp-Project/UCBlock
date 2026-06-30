@@ -336,8 +336,9 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
   // curios case: there is only one node and therefore NetworkBlock are
   // useless, save that the active power demand may be stored in there
   // rather than in v_active_power_demand; move it there and delete the
-  // useless NetworkBlock. note that one does not have to consider the
-  // reactive power since a bus (1 node network) does not have it
+  // useless NetworkBlock. reactive power, if a ReactivePowerDemand was
+  // provided, is still handled here directly by the single-node reactive
+  // balance (see below and generate_reactive_node_injection_constraints())
 
   if( v_active_power_demand.empty() ) {
    // if active power demand is not defined, do it now and preload it with
@@ -363,6 +364,12 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    v_network_blocks.clear();
    v_Block.resize( f_number_units );
    }
+
+  // single-bus reactive power: if a ReactivePowerDemand has been provided,
+  // enable reactive power so that the UnitBlock create the reactive variables
+  // and the (single-node) reactive balance constraints are generated below
+  if( ! v_reactive_power_demand.empty() )
+   f_has_reactive = true;
   }
  else {
   // number_nodes > 1 - - - - - - - - - - - - - - - - - - - - - - - - - - - -
