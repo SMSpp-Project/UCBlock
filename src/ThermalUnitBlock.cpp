@@ -33,6 +33,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <map>
+
 #include "LinearFunction.h"
 
 #include "DQuadFunction.h"
@@ -5103,28 +5105,15 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   // hence, if no perspective cuts are used, then the active power variables,
   // whose quadratic coefficient is the quadratic term of the cost, start
   // from position f_time_horizon - init_t, else the quadratic coefficient
-  // become the quadratic term of the perspective cut variables, start from
-  // position
-  // 5 * f_time_horizon - init_t if both primary and secondary reserve are
-  // defined, and
-  // 4 * f_time_horizon - init_t if just one between primary or secondary
-  // reverse is defined, and
-  // 3 * f_time_horizon - init_t otherwise
-  const Index dpos = ! ( AR & PCuts ) ? f_time_horizon - init_t :
-                     ( ( ( ( ( ! v_primary_spinning_reserve.empty() ) &&
-                             ( reserve_vars & 1u ) ) &&
-                           ( ( ! v_secondary_spinning_reserve.empty() ) &&
-                             ( reserve_vars & 2u ) ) ) ? 5 :
-                         ( ( ( ( ! v_primary_spinning_reserve.empty() ) &&
-                               ( reserve_vars & 1u ) ) ||
-                             ( ( ! v_secondary_spinning_reserve.empty() ) &&
-                               ( reserve_vars & 2u ) ) ) ? 4 : 3 ) ) *
-                       f_time_horizon - init_t );
-
-  Subset tmps = subset_add( subset , dpos );
+  // becomes the *linear* coefficient of the perspective-cut variables,
+  // whose section starts at cut_section_start(); the section is indexed by
+  // time for the tbin / T / pt / SUSD formulations, and by the arcs of the
+  // disaggregated graph (v_Z_h_k / v_Z_h / v_Z_k, whose .first is the time
+  // instant) for the DP / SU / SD formulations
 
   if( ! ( AR & PCuts ) ) {
 
+   Subset tmps = subset_add( subset , f_time_horizon - init_t );
    DQuadFunction::Vec_FunctionValue tmplv( subset.size() , 0 );
    if( ! v_LinearTerm.empty() ) {
     auto tmplvit = tmplv.begin();
@@ -5138,10 +5127,46 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
 
   } else {
 
-   DQuadFunction::Vec_FunctionValue tmplv( values , values + subset.size() );
-   static_cast< DQuadFunction * >( objective.get_function()
-   )->modify_linear_coefficients( std::move( tmplv ) , std::move( tmps ) ,
-                                  true , un_ModBlock( issueAMod ) );
+   const Index dpos = cut_section_start();
+   const auto form = AR & FormMsk;
+
+   if( ( form == tbinForm ) || ( form == TForm ) ||
+       ( form == ptForm ) || ( form == SUSDForm ) ) {
+    // time-indexed cut variables
+    Subset tmps = subset_add( subset , dpos );
+    DQuadFunction::Vec_FunctionValue tmplv( values , values + subset.size() );
+    static_cast< DQuadFunction * >( objective.get_function()
+    )->modify_linear_coefficients( std::move( tmplv ) , std::move( tmps ) ,
+                                   true , un_ModBlock( issueAMod ) );
+   } else {
+    // arc-indexed cut variables: change every arc whose time instant
+    // belongs to the (sorted) subset
+    auto arc_change = [ & ]( const auto & Z ) {
+     Subset nms;
+     DQuadFunction::Vec_FunctionValue tmplv;
+     for( Index i = 0 ; i < Z.size() ; ++i ) {
+      auto it = std::lower_bound( subset.begin() , subset.end() ,
+                                  Z[ i ].first );
+      if( ( it != subset.end() ) && ( *it == Z[ i ].first ) ) {
+       nms.push_back( dpos + i );
+       tmplv.push_back( *( values +
+                           std::distance( subset.begin() , it ) ) );
+       }
+      }
+     if( ! nms.empty() )
+      static_cast< DQuadFunction * >( objective.get_function()
+      )->modify_linear_coefficients( std::move( tmplv ) , std::move( nms ) ,
+                                     true , un_ModBlock( issueAMod ) );
+     };
+
+    if( form == DPForm )
+     arc_change( v_Z_h_k );
+    else
+     if( form == SUForm )
+      arc_change( v_Z_h );
+     else
+      arc_change( v_Z_k );
+   }
   }
  }
 
@@ -5197,26 +5222,15 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   // hence, if no perspective cuts are used, then the active power variables,
   // whose quadratic coefficient is the quadratic term of the cost, start
   // from position f_time_horizon - init_t, else the quadratic coefficient
-  // become the quadratic term of the perspective cut variables, start from
-  // position
-  // 5 * f_time_horizon - init_t if both primary and secondary reserve are
-  // defined, and
-  // 4 * f_time_horizon - init_t if just one between primary or secondary
-  // reverse is defined, and
-  // 3 * f_time_horizon - init_t otherwise
-  const Index dpos = ! ( AR & PCuts ) ? f_time_horizon - init_t :
-                     ( ( ( ( ( ! v_primary_spinning_reserve.empty() ) &&
-                             ( reserve_vars & 1u ) ) &&
-                           ( ( ! v_secondary_spinning_reserve.empty() ) &&
-                             ( reserve_vars & 2u ) ) ) ? 5 :
-                         ( ( ( ( ! v_primary_spinning_reserve.empty() ) &&
-                               ( reserve_vars & 1u ) ) ||
-                             ( ( ! v_secondary_spinning_reserve.empty() ) &&
-                               ( reserve_vars & 2u ) ) ) ? 4 : 3 ) ) *
-                       f_time_horizon - init_t );
+  // becomes the *linear* coefficient of the perspective-cut variables,
+  // whose section starts at cut_section_start(); the section is indexed by
+  // time for the tbin / T / pt / SUSD formulations, and by the arcs of the
+  // disaggregated graph (v_Z_h_k / v_Z_h / v_Z_k, whose .first is the time
+  // instant) for the DP / SU / SD formulations
 
   if( ! ( AR & PCuts ) ) {
 
+   const Index dpos = f_time_horizon - init_t;
    DQuadFunction::Vec_FunctionValue tmplv( sz , 0 );
    if( ! v_LinearTerm.empty() )
     std::copy( v_LinearTerm.begin() + rng.first ,
@@ -5229,12 +5243,43 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
 
   } else {
 
-   DQuadFunction::Vec_FunctionValue tmplv( values , values + sz );
-   static_cast< DQuadFunction * >( objective.get_function()
-   )->modify_linear_coefficients( std::move( tmplv ) ,
-                                  Range( rng.first + dpos ,
-                                         rng.second + dpos ) ,
-                                  un_ModBlock( issueAMod ) );
+   const Index dpos = cut_section_start();
+   const auto form = AR & FormMsk;
+
+   if( ( form == tbinForm ) || ( form == TForm ) ||
+       ( form == ptForm ) || ( form == SUSDForm ) ) {
+    // time-indexed cut variables
+    DQuadFunction::Vec_FunctionValue tmplv( values , values + sz );
+    static_cast< DQuadFunction * >( objective.get_function()
+    )->modify_linear_coefficients( std::move( tmplv ) ,
+                                   Range( rng.first + dpos ,
+                                          rng.second + dpos ) ,
+                                   un_ModBlock( issueAMod ) );
+   } else {
+    // arc-indexed cut variables: change every arc whose time instant
+    // falls in the range
+    auto arc_change = [ & ]( const auto & Z ) {
+     Subset nms;
+     DQuadFunction::Vec_FunctionValue tmplv;
+     for( Index i = 0 ; i < Z.size() ; ++i )
+      if( ( Z[ i ].first >= rng.first ) && ( Z[ i ].first < rng.second ) ) {
+       nms.push_back( dpos + i );
+       tmplv.push_back( *( values + ( Z[ i ].first - rng.first ) ) );
+       }
+     if( ! nms.empty() )
+      static_cast< DQuadFunction * >( objective.get_function()
+      )->modify_linear_coefficients( std::move( tmplv ) , std::move( nms ) ,
+                                     true , un_ModBlock( issueAMod ) );
+     };
+
+    if( form == DPForm )
+     arc_change( v_Z_h_k );
+    else
+     if( form == SUForm )
+      arc_change( v_Z_h );
+     else
+      arc_change( v_Z_k );
+   }
   }
  }
 
@@ -5301,8 +5346,10 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   //
   // hence, the primary reserve variables, whose linear coefficient is the
   // primary spinning reserve cost, start from position
-  // 3 * f_time_horizon - init_t
-  const Index dpos = 3 * f_time_horizon - init_t;
+  // 3 * f_time_horizon - init_t, plus f_time_horizon if the
+  // schedule-deviation variables are there
+  const Index dpos = 3 * f_time_horizon - init_t +
+                     ( v_RefSchedule.empty() ? 0 : f_time_horizon );
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
@@ -5373,8 +5420,10 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   //
   // hence, the primary reserve variables, whose linear coefficient is the
   // primary spinning reserve cost, start from position
-  // 3 * f_time_horizon - init_t
-  const Index dpos = 3 * f_time_horizon - init_t;
+  // 3 * f_time_horizon - init_t, plus f_time_horizon if the
+  // schedule-deviation variables are there
+  const Index dpos = 3 * f_time_horizon - init_t +
+                     ( v_RefSchedule.empty() ? 0 : f_time_horizon );
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   static_cast< DQuadFunction * >( objective.get_function()
@@ -5452,7 +5501,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   // 3 * f_time_horizon - init_t otherwise
   const Index dpos = ( v_primary_spinning_reserve.empty() ||
                        ( ! ( reserve_vars & 1u ) ) ? 3 : 4 ) *
-                     f_time_horizon - init_t;
+                     f_time_horizon - init_t +
+                     ( v_RefSchedule.empty() ? 0 : f_time_horizon );
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
@@ -5529,7 +5579,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   // 3 * f_time_horizon - init_t otherwise
   const Index dpos = ( v_primary_spinning_reserve.empty() ||
                        ( ! ( reserve_vars & 1u ) ) ? 3 : 4 ) *
-                     f_time_horizon - init_t;
+                     f_time_horizon - init_t +
+                     ( v_RefSchedule.empty() ? 0 : f_time_horizon );
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   static_cast< DQuadFunction * >( objective.get_function()
@@ -5982,6 +6033,24 @@ void ThermalUnitBlock::set_solution( void )
 
 /*--------------------------------------------------------------------------*/
 
+Block::Index ThermalUnitBlock::cut_section_start( void ) const
+{
+ // the start-up, active power and commitment variables always come first
+ // (see the layout in generate_objective()); the schedule-deviation and
+ // reserve sections are present only when the corresponding variables are
+ Index pos = 3 * f_time_horizon - init_t;
+ if( ! v_RefSchedule.empty() )
+  pos += f_time_horizon;
+ if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) )
+  pos += f_time_horizon;
+ if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) )
+  pos += f_time_horizon;
+ return( pos );
+
+}  // end( ThermalUnitBlock::cut_section_start )
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
                                                 ChnlName chnl )
 {
@@ -6094,7 +6163,9 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    for( Index i = l ; i < r2 ; )
     *( nvit++ ) = qf->get_linear_coefficient( i++ );
    set_linear_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
-   if( with_quad ) {
+   // with perspective cuts the active power variables carry no quadratic
+   // coefficient (the quadratic term lives on the cut variables, see below)
+   if( with_quad && ! ( AR & PCuts ) ) {
     auto nvqit = nvq.begin();
     for( Index i = l ; i < r2 ; )
      *( nvqit++ ) = qf->get_quadratic_coefficient( i++ );
@@ -6121,33 +6192,103 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     return;
    }
 
-  gl = gr;
-  gr = 4 * th - init_t;
-
-  if( l < gr ) {  // primary spinning reserve variables
-   Index r2 = std::min( r , gr );
-   auto nvit = nv.begin();
-   for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
-   set_primary_spinning_reserve_cost( nv.begin() , Range( l - gl , r2 - gl ) ,
-                                      par , eDryRun );
-   l = r2;
-   if( l == r )
-    return;
+  if( ! v_RefSchedule.empty() ) {  // schedule-deviation variables
+   gl = gr;
+   gr += th;
+   if( l < gr )  // their coefficient is fixed to 1 and cannot change
+    throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
+     "coefficients of the schedule-deviation variables cannot change" ) );
    }
 
-  gl = gr;
-  gr = 5 * th - init_t;
+  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
+   gl = gr;
+   gr += th;
 
-  if( l < gr ) {  // secondary spinning reserve variables
-   Index r2 = std::min( r , gr );
-   auto nvit = nv.begin();
-   for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
-   set_secondary_spinning_reserve_cost( nv.begin() , Range( l - gl , r2 - gl ) ,
-                                        par , eDryRun );
-   if( r2 == r )
-    return;
+   if( l < gr ) {  // primary spinning reserve variables
+    Index r2 = std::min( r , gr );
+    auto nvit = nv.begin();
+    for( Index i = l ; i < r2 ; )
+     *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    set_primary_spinning_reserve_cost( nv.begin() ,
+                                       Range( l - gl , r2 - gl ) ,
+                                       par , eDryRun );
+    l = r2;
+    if( l == r )
+     return;
+    }
+   }
+
+  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
+   gl = gr;
+   gr += th;
+
+   if( l < gr ) {  // secondary spinning reserve variables
+    Index r2 = std::min( r , gr );
+    auto nvit = nv.begin();
+    for( Index i = l ; i < r2 ; )
+     *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    set_secondary_spinning_reserve_cost( nv.begin() ,
+                                         Range( l - gl , r2 - gl ) ,
+                                         par , eDryRun );
+    l = r2;
+    if( l == r )
+     return;
+    }
+   }
+
+  if( AR & PCuts ) {  // perspective-cut variables
+   // their linear coefficient is the quadratic term of the cost (see
+   // generate_objective()); map the change back to set_quad_term()
+   gl = gr;
+   const auto form = AR & FormMsk;
+
+   if( ( form == tbinForm ) || ( form == TForm ) ||
+       ( form == ptForm ) || ( form == SUSDForm ) ) {
+    // time-indexed cut variables
+    gr += th;
+    if( l < gr ) {
+     Index r2 = std::min( r , gr );
+     auto nvit = nv.begin();
+     for( Index i = l ; i < r2 ; )
+      *( nvit++ ) = qf->get_linear_coefficient( i++ );
+     set_quad_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
+     if( r2 == r )
+      return;
+     }
+    }
+   else {
+    // arc-indexed cut variables: map each arc back to its time instant
+    auto arc_decode = [ & ]( const auto & Z ) {
+     gr += Z.size();
+     if( l >= gr )
+      return( false );
+     Index r2 = std::min( r , gr );
+     std::map< Index , double > tv;
+     for( Index i = l ; i < r2 ; ++i )
+      tv[ Z[ i - gl ].first ] = qf->get_linear_coefficient( i );
+     Subset nms( tv.size() );
+     std::vector< double > tvv( tv.size() );
+     auto nmsit = nms.begin();
+     auto tvvit = tvv.begin();
+     for( const auto & p : tv ) {
+      *( nmsit++ ) = p.first;
+      *( tvvit++ ) = p.second;
+      }
+     set_quad_term( tvv.begin() , std::move( nms ) , true , par , eDryRun );
+     return( r2 == r );
+     };
+
+    bool done;
+    if( form == DPForm )
+     done = arc_decode( v_Z_h_k );
+    else
+     if( form == SUForm )
+      done = arc_decode( v_Z_h );
+     else
+      done = arc_decode( v_Z_k );
+    if( done )
+     return;
+    }
    }
 
   throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: invalid "
@@ -6262,7 +6403,9 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
      *( nvqit++ ) = qf->get_quadratic_coefficient( *l );
     *( nmsit++ ) = *( l++ ) - gl;
     }
-   if( with_quad ) {
+   // with perspective cuts the active power variables carry no quadratic
+   // coefficient (the quadratic term lives on the cut variables, see below)
+   if( with_quad && ! ( AR & PCuts ) ) {
     Subset nmsq = nms;  // copy, as it is moved
     set_quad_term( nvq.begin() , std::move( nmsq ) , true , par , eDryRun );
     }
@@ -6290,42 +6433,112 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     return;
    }
 
-  gl = gr;
-  gr = 4 * th - init_t;
-
-  if( *l < gr ) {  // primary spinning reserve variables
-   auto r = l;
-   for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
-    ++r;
-   Subset nms( std::distance( l , r ) );
-   auto nvit = nv.begin();
-   auto nmsit = nms.begin();
-   while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
-    *( nmsit++ ) = *( l++ ) - gl;
-    }
-   set_primary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
-                                      true , par , eDryRun );
-   if( r == sbs->end() )
-    return;
+  if( ! v_RefSchedule.empty() ) {  // schedule-deviation variables
+   gl = gr;
+   gr += th;
+   if( *l < gr )  // their coefficient is fixed to 1 and cannot change
+    throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
+     "coefficients of the schedule-deviation variables cannot change" ) );
    }
 
-  gl = gr;
-  gr = 5 * th - init_t;
+  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
+   gl = gr;
+   gr += th;
 
-  if( *l < gr ) {  // secondary spinning reserve variables
-   auto r = l;
-   for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
-    ++r;
-   Subset nms( std::distance( l , r ) );
-   auto nvit = nv.begin();
-   auto nmsit = nms.begin();
-   while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
-    *( nmsit++ ) = *( l++ ) - gl;
+   if( *l < gr ) {  // primary spinning reserve variables
+    auto r = l;
+    for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
+     ++r;
+    Subset nms( std::distance( l , r ) );
+    auto nvit = nv.begin();
+    auto nmsit = nms.begin();
+    while( l != r ) {
+     *( nvit++ ) = qf->get_linear_coefficient( *l );
+     *( nmsit++ ) = *( l++ ) - gl;
+     }
+    set_primary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
+                                       true , par , eDryRun );
+    if( r == sbs->end() )
+     return;
     }
-   set_secondary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
-                                        true , par , eDryRun );
+   }
+
+  if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) ) {
+   gl = gr;
+   gr += th;
+
+   if( *l < gr ) {  // secondary spinning reserve variables
+    auto r = l;
+    for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
+     ++r;
+    Subset nms( std::distance( l , r ) );
+    auto nvit = nv.begin();
+    auto nmsit = nms.begin();
+    while( l != r ) {
+     *( nvit++ ) = qf->get_linear_coefficient( *l );
+     *( nmsit++ ) = *( l++ ) - gl;
+     }
+    set_secondary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
+                                         true , par , eDryRun );
+    if( r == sbs->end() )
+     return;
+    }
+   }
+
+  if( AR & PCuts ) {  // perspective-cut variables
+   // their linear coefficient is the quadratic term of the cost (see
+   // generate_objective()); map the change back to set_quad_term()
+   gl = gr;
+   const auto form = AR & FormMsk;
+
+   if( ( form == tbinForm ) || ( form == TForm ) ||
+       ( form == ptForm ) || ( form == SUSDForm ) ) {
+    // time-indexed cut variables
+    gr += th;
+    if( *l < gr ) {
+     auto r = l;
+     for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
+      ++r;
+     Subset nms( std::distance( l , r ) );
+     auto nvit = nv.begin();
+     auto nmsit = nms.begin();
+     while( l != r ) {
+      *( nvit++ ) = qf->get_linear_coefficient( *l );
+      *( nmsit++ ) = *( l++ ) - gl;
+      }
+     set_quad_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
+     }
+    }
+   else {
+    // arc-indexed cut variables: map each arc back to its time instant
+    auto arc_decode = [ & ]( const auto & Z ) {
+     gr += Z.size();
+     if( *l >= gr )
+      return;
+     std::map< Index , double > tv;
+     while( ( l != sbs->end() ) && ( *l < gr ) ) {
+      tv[ Z[ *l - gl ].first ] = qf->get_linear_coefficient( *l );
+      ++l;
+      }
+     Subset nms( tv.size() );
+     std::vector< double > tvv( tv.size() );
+     auto nmsit = nms.begin();
+     auto tvvit = tvv.begin();
+     for( const auto & p : tv ) {
+      *( nmsit++ ) = p.first;
+      *( tvvit++ ) = p.second;
+      }
+     set_quad_term( tvv.begin() , std::move( nms ) , true , par , eDryRun );
+     };
+
+    if( form == DPForm )
+     arc_decode( v_Z_h_k );
+    else
+     if( form == SUForm )
+      arc_decode( v_Z_h );
+     else
+      arc_decode( v_Z_k );
+    }
    }
 
   if( l != sbs->end() )

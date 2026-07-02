@@ -2854,6 +2854,11 @@ class ThermalUnitBlock : public UnitBlock
 
  void handle_objective_change( FunctionMod * mod , ChnlName chnl );
 
+ /// returns the index, among the active Variable of the Objective, of the
+ /// first perspective-cut variable (see the layout in generate_objective())
+
+ Index cut_section_start( void ) const;
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
