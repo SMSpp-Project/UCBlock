@@ -252,6 +252,16 @@ class OTSNetworkData : public DCNetworkData
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// serialize an OTSNetworkData into a netCDF::NcGroup
+ /** Serialize an OTSNetworkData into a netCDF::NcGroup: the parent
+  * DCNetworkData first, then the optional "SwitchingCost" variable (which
+  * is not written when all switching costs are zero); see
+  * OTSNetworkData::deserialize( netCDF::NcGroup ) for details of the
+  * format. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
 /** @} ----------------------- ACCESSOR METHODS ----------------------------*/
 /** @name Accessor methods
  * @{ */

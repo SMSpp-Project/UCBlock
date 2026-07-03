@@ -621,9 +621,15 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
     * would indicate that an ECNetworkData is present (which is not the
     * case). Therefore, we create an alternative dimension in order to be able
     * to serialize the active demand. */
-   NumberNodes = group.addDim( "__NumberNodes__" , v_ActiveDemand.size() );
+   NumberNodes = group.addDim( "__NumberNodes__" ,
+                               v_ActiveDemand.shape()[ 1 ] );
 
   auto NumberIntervals = group.getDim( "NumberIntervals" );
+  if( NumberIntervals.isNull() )
+   // no ECNetworkData in the group: like for "NumberNodes" above, an
+   // alternative dimension is created to serialize the active demand
+   NumberIntervals = group.addDim( "__NumberIntervals__" ,
+                                   v_ActiveDemand.shape()[ 0 ] );
 
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                { NumberIntervals , NumberNodes } , v_ActiveDemand );

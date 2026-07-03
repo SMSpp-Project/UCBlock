@@ -70,6 +70,22 @@ void OTSNetworkData::deserialize( const netCDF::NcGroup & group )
  }  // end( OTSNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
+
+void OTSNetworkData::serialize( netCDF::NcGroup & group ) const
+{
+ // serialize the parent DCNetworkData first
+ DCNetworkData::serialize( group );
+
+ if( f_number_nodes == 1 )
+  return;
+
+ // an empty v_switching_cost (all costs zero) is not serialized
+ ::serialize( group , "SwitchingCost" , netCDF::NcDouble() ,
+              group.getDim( "NumberLines" ) , v_switching_cost );
+
+ }  // end( OTSNetworkData::serialize )
+
+/*--------------------------------------------------------------------------*/
 /*------------------- METHODS OF OTSNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 

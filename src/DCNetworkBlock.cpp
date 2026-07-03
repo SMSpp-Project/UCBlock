@@ -253,7 +253,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
 std::vector< std::string > DCNetworkData::expected_dims( void ) const {
  static const std::vector< std::string > ed =
- { "NumberLines" , "NumberBranches" , "ReferenceNode" };
+ { "NumberLines" , "NumberBranches" , "ReferenceNode" , "NumberInstants" ,
+   "__Singleton__" };
 
  auto ret = NetworkData::expected_dims();
  ret.insert( ret.end() , ed.begin() , ed.end() );
@@ -1842,7 +1843,8 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "EndLine" , netCDF::NcUint() , NumberBranches , en );
 
   ::serialize( group , "Efficiency" , netCDF::NcDouble() ,
-	        { NumberBranches , NumberInstants } , eff );
+	        { NumberBranches , NumberInstants } , eff ,
+	       false , true );
 
   ::serialize( group , "HyperArcID" , netCDF::NcUint() , NumberBranches ,
 	       id );
@@ -1855,14 +1857,17 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
                v_end_line );
 
   ::serialize( group , "Efficiency" , netCDF::NcDouble() ,
-	        { NumberLines , NumberInstants } , v_efficiency );
+	        { NumberLines , NumberInstants } , v_efficiency ,
+	       false , true );
   }
 
  ::serialize( group , "MaxPowerFlow" , netCDF::NcDouble() ,
-	      { NumberLines , NumberInstants } , v_max_power_flow );
+	      { NumberLines , NumberInstants } , v_max_power_flow ,
+	      false , true );
 
  ::serialize( group , "MinPowerFlow" , netCDF::NcDouble() ,
-	      { NumberLines , NumberInstants } , v_min_power_flow );
+	      { NumberLines , NumberInstants } , v_min_power_flow ,
+	      false , true );
 
  if( ! v_line_susceptance.empty() )
   ::serialize( group , "LineSusceptance" , netCDF::NcDouble() , NumberLines ,
@@ -1871,12 +1876,8 @@ void DCNetworkData::serialize( netCDF::NcGroup & group ) const
  ::serialize( group , "NetworkCost" , netCDF::NcDouble() , NumberLines ,
               v_network_cost );
 
- if( ! v_line_names.empty() ) {
-  auto LineName = group.addVar( "LineName" , netCDF::NcString() ,
-        NumberLines );
-  for( Index i = 0 ; i < v_line_names.size() ; ++i )
-   LineName.putVar( { i } , v_line_names[ i ] );
-  }
+ ::serialize( group , "LineName" , NumberLines , v_line_names );
+
  }  // end( DCNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/

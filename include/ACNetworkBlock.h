@@ -299,16 +299,12 @@ class ACNetworkData : public DCNetworkData
 
  /// serialize an ACNetworkData out of a netCDF::NcGroup
  /** Serialize an ACNetworkData out of a netCDF::NcGroup to the specific
-  * format of an ACNetworkData. See
+  * format of an ACNetworkData: the parent DCNetworkData first, then the
+  * "baseMVA" attribute and the AC-specific line and node data. See
   * ACNetworkData::deserialize( netCDF::NcGroup ) for details of the format
-  * of the created netCDF group.
-  *
-  * TODO: IMPLEMENT */
+  * of the created netCDF group. */
 
- void serialize( netCDF::NcGroup & group ) const override {
-  throw( std::logic_error( "ACNetworkData::serialize() not implemented yet" )
-         );
-  }
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -429,10 +425,20 @@ class ACNetworkData : public DCNetworkData
  /** Deserialize an ACNetworkBlock out of a netCDF::NcGroup. All the
   * AC-specific data lives in the [AC]NetworkData object, which is
   * automatically deserialize()-d by the base class via
-  * get_new_NetworkData(); hence this method just dispatches to
-  * DCNetworkBlock::deserialize(). */
+  * get_new_NetworkData(); hence this method dispatches to
+  * DCNetworkBlock::deserialize() and then only reads the optional
+  * "ReactiveDemand" variable, which mirrors the (one-dimensional)
+  * "ActiveDemand" one. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// extends DCNetworkBlock::serialize( netCDF::NcGroup )
+ /** Serialize the ACNetworkBlock into the given netCDF::NcGroup: the base
+  * DCNetworkBlock first (which takes care of the [AC]NetworkData), then the
+  * "ReactiveDemand" variable (if any). */
+
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -445,12 +451,10 @@ class ACNetworkData : public DCNetworkData
  */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- // extends [DC]NetworkBlock::expected_vars()
- /* not necessary since ACNetworkBlock does not have any new vars save those
-  * of the ACNetworkData that are automatically taken into account.
+ /// extends [DC]NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
- */
+
 #endif
 
 /*--------------------------------------------------------------------------*/
@@ -721,6 +725,18 @@ class ACNetworkData : public DCNetworkData
   override {
   if( v_ReactiveDemand.empty() )
    v_ReactiveDemand.assign( v[ 0 ].begin() , v[ 0 ].end() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive demands
+ /** ACNetworkBlock does handle reactive power, so the method is actually
+  * implemented here. Note that ACNetworkBlock always covers one interval
+  * only, hence \p interval is ignored. */
+
+ const double * get_reactive_demand( Index interval = 0 ) const override {
+  if( v_ReactiveDemand.empty() )
+   return( nullptr );
+  return( v_ReactiveDemand.data() );
   }
 
 /*--------------------------------------------------------------------------*/

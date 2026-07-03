@@ -177,6 +177,9 @@ void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group )
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::serialize( netCDF::NcGroup& group ) const {
+ Block::serialize( group );  // writes the "type" attribute, without which
+                             // the group cannot be deserialize()-d back
+
  if( f_ConstTerm != 0 )
   ::serialize( group , "ConstantTerm" , netCDF::NcDouble() , f_ConstTerm );
  }
@@ -184,16 +187,11 @@ void NetworkBlock::serialize( netCDF::NcGroup& group ) const {
 /*--------------------------------------------------------------------------*/
 
 void NetworkBlock::NetworkData::serialize( netCDF::NcGroup& group ) const {
- if( f_number_nodes > 1 ) {
-  auto NumberNodes = group.getDim( "NumberNodes" );
+ // "NumberNodes" is written even when it is 1: its presence in the group
+ // is what signals deserialize() that a NetworkData is there
+ auto NumberNodes = group.addDim( "NumberNodes" , f_number_nodes );
 
-  if( ! v_node_names.empty() ) {
-   auto NodeName = group.addVar( "NodeName" , netCDF::NcString() ,
-				 NumberNodes );
-   for( Index i = 0 ; i < v_node_names.size() ; ++i )
-    NodeName.putVar( { i } , v_node_names[ i ] );
-   }
-  }
+ ::serialize( group , "NodeName" , NumberNodes , v_node_names );
  }
 
 /*--------------------------------------------------------------------------*/

@@ -20,6 +20,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <numeric>
+
 #include <utility>
 
 #include "DesignNetworkBlock.h"
@@ -450,13 +452,26 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
 
  auto NumberDesignLines = group.addDim( "NumberDesignLines" ,
                                          f_num_design_lines );
+
+ group.addDim( "NumberSubNetwork" , f_number_subnetworks );
+
  if( ! v_InvestmentCost.empty() )
   ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
 	       NumberDesignLines , v_InvestmentCost );
 
- if( ! v_design_lines.empty() )
-  ::serialize( group , "DesignLines" , netCDF::NcInt() , NumberDesignLines ,
-	       v_design_lines );
+ // "DesignLines" is mandatory in deserialize(), where it is cleared if it
+ // is the identity: in that case write the identity back
+ if( f_num_design_lines > 0 ) {
+  if( v_design_lines.empty() ) {
+   Subset dl( f_num_design_lines );
+   std::iota( dl.begin() , dl.end() , 0 );
+   ::serialize( group , "DesignLines" , netCDF::NcInt() , NumberDesignLines ,
+	        dl );
+   }
+  else
+   ::serialize( group , "DesignLines" , netCDF::NcInt() , NumberDesignLines ,
+	        v_design_lines );
+  }
 
  if( ! v_MinCapacityDesign.empty() )
   if( std::any_of( v_MinCapacityDesign.begin() , v_MinCapacityDesign.end() ,
@@ -469,6 +484,13 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
                    []( double x ){ return( std::abs( x ) != 1.0 ); } ) )
    ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
                 NumberDesignLines , v_MaxCapacityDesign );
+
+ // serialize the sub-NetworkBlock, mirroring deserialize_network_blocks()
+ for( Index n = 0 ; n < v_Block.size() ; ++n )
+  if( auto nbi = dynamic_cast< NetworkBlock * >( v_Block[ n ] ) ) {
+   auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( n ) );
+   nbi->serialize( sub_group );
+   }
 
  }  // end( DesignNetworkBlock::serialize )
 

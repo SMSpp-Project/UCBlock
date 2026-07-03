@@ -618,7 +618,8 @@ std::vector< std::string > UCBlock::expected_dims( void ) const {
 
 std::vector< std::string > UCBlock::expected_vars( void ) const {
  static const std::vector< std::string > ev =
- { "ActivePowerDemand" , "GeneratorNode" , "PrimaryZones" , "PrimaryDemand" ,
+ { "ActivePowerDemand" , "ReactivePowerDemand" , "GeneratorNode" ,
+   "PrimaryZones" , "PrimaryDemand" ,
    "SecondaryZones" , "SecondaryDemand" , "InertiaZones" , "InertiaDemand" ,
    "NumberPollutantZones" , "PollutantZones" , "PollutantBudget" ,
    "PollutantRho" , "NetworkConstantTerms" , "NetworkBlockClassname" ,
@@ -1465,6 +1466,12 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
  ::serialize( group , "ActivePowerDemand" , netCDF::NcDouble() ,
               { NumberNodes , TimeHorizon } , v_active_power_demand );
 
+ // note: in the multi-node case both demands have been handed over to the
+ // NetworkBlock (which serialize them) at deserialize() time, so the two
+ // multi_array are empty and nothing is written here
+ ::serialize( group , "ReactivePowerDemand" , netCDF::NcDouble() ,
+              { NumberNodes , TimeHorizon } , v_reactive_power_demand );
+
  ::serialize( group , "PrimaryZones" , netCDF::NcUint() ,
               NumberNodes , v_primary_zones );
 
@@ -1509,7 +1516,10 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "NetworkBlockClassname" , netCDF::NcString() ,
                network_block_classname );
 
- if( network_data_classname != "NetworkData" )
+ // the classname can be left implicit only when it coincides with the
+ // default that deserialize() uses when the variable is absent
+ if( network_data_classname != ( network_block_classname == "ACNetworkBlock"
+                                 ? "ACNetworkData" : "DCNetworkData" ) )
   ::serialize( group , "NetworkDataClassname" , netCDF::NcString() ,
                network_data_classname );
 
@@ -1524,9 +1534,9 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
   sub_block->serialize( sub_group );
   }
 
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  if( auto sub_block = get_network_block( t ) ) {
-   auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( t ) );
+ for( Index n = 0 ; n < f_number_networks ; ++n )
+  if( auto sub_block = get_network_block( n ) ) {
+   auto sub_group = group.addGroup( "NetworkBlock_" + std::to_string( n ) );
    sub_block->serialize( sub_group );
    }
 

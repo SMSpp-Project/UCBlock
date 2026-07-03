@@ -28,7 +28,13 @@
 
 #include <complex>
 
+#include <iomanip>
+
+#include <limits>
+
 #include <map>
+
+#include <sstream>
 
 #include "ACNetworkBlock.h"
 
@@ -201,6 +207,69 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
+void ACNetworkData::serialize( netCDF::NcGroup & group ) const
+{
+ // serialize the parent DCNetworkData first
+ DCNetworkData::serialize( group );
+
+ // "baseMVA" is (perhaps surprisingly) a string attribute, see deserialize()
+ std::ostringstream base_mva;
+ base_mva << std::setprecision( std::numeric_limits< double >::max_digits10 )
+	  << f_base_mva;
+ group.putAtt( "baseMVA" , base_mva.str() );
+
+ if( f_number_nodes == 1 )
+  return;
+
+ auto NumberLines = group.getDim( "NumberLines" );
+ auto NumberNodes = group.getDim( "NumberNodes" );
+
+ ::serialize( group , "LineReactance" , netCDF::NcDouble() , NumberLines ,
+              v_line_reactance );
+
+ ::serialize( group , "LineResistance" , netCDF::NcDouble() , NumberLines ,
+              v_line_resistance );
+
+ ::serialize( group , "LineRatio" , netCDF::NcDouble() , NumberLines ,
+              v_line_ratio );
+
+ ::serialize( group , "LineRATEA" , netCDF::NcDouble() , NumberLines ,
+              v_line_rate_A );
+
+ ::serialize( group , "LineShiftAngle" , netCDF::NcDouble() , NumberLines ,
+              v_line_angle );
+
+ ::serialize( group , "LineMinAngle" , netCDF::NcDouble() , NumberLines ,
+              v_line_min_angle );
+
+ ::serialize( group , "LineMaxAngle" , netCDF::NcDouble() , NumberLines ,
+              v_line_max_angle );
+
+ ::serialize( group , "LineChargingSusceptance" , netCDF::NcDouble() ,
+              NumberLines , v_line_chargingsusceptance );
+
+ ::serialize( group , "NodeConductance" , netCDF::NcDouble() , NumberNodes ,
+              v_node_conductance );
+
+ ::serialize( group , "NodeSusceptance" , netCDF::NcDouble() , NumberNodes ,
+              v_node_susceptance );
+
+ ::serialize( group , "NodeMaxVoltage" , netCDF::NcDouble() , NumberNodes ,
+              v_node_max_voltage );
+
+ ::serialize( group , "NodeMinVoltage" , netCDF::NcDouble() , NumberNodes ,
+              v_node_min_voltage );
+
+ ::serialize( group , "MinReactivePowerFlow" , netCDF::NcDouble() ,
+              NumberLines , v_min_reac_power_flow );
+
+ ::serialize( group , "MaxReactivePowerFlow" , netCDF::NcDouble() ,
+              NumberLines , v_max_reac_power_flow );
+
+ }  // end( ACNetworkData::serialize )
+
+/*--------------------------------------------------------------------------*/
+
 #ifndef NDEBUG
 /*
 std::vector< std::string > ACNetworkData::expected_dims( void ) const {
@@ -268,11 +337,49 @@ ACNetworkBlock::~ACNetworkBlock()
 
 void ACNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
- // just have to call the method of the base class: all the difference lies
- // in the [AC]NetworkData, which is automatically deserialize()-d there
- // thanks to get_new_NetworkData()
+ // just have to call the method of the base class first: most of the
+ // difference lies in the [AC]NetworkData, which is automatically
+ // deserialize()-d there thanks to get_new_NetworkData()
  DCNetworkBlock::deserialize( group );
+
+ // the reactive demand, if there, mirrors the (1D) active demand
+ ::deserialize( group , "ReactiveDemand" , get_number_nodes() ,
+                v_ReactiveDemand , true , true );
+
  }  // end( ACNetworkBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlock::serialize( netCDF::NcGroup & group ) const
+{
+ DCNetworkBlock::serialize( group );
+
+ if( ! v_ReactiveDemand.empty() ) {
+  // like for "ActiveDemand" in the base class, if no [AC]NetworkData is in
+  // the group the number of nodes is recorded by an alternative dimension
+  auto NumberNodes = group.getDim( "NumberNodes" );
+  if( NumberNodes.isNull() )
+   NumberNodes = group.getDim( "__NumberNodes__" );
+  if( NumberNodes.isNull() )
+   NumberNodes = group.addDim( "__NumberNodes__" , v_ReactiveDemand.size() );
+
+  ::serialize( group , "ReactiveDemand" , netCDF::NcDouble() , NumberNodes ,
+	       v_ReactiveDemand );
+  }
+ }  // end( ACNetworkBlock::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > ACNetworkBlock::expected_vars( void ) const {
+ auto ret = DCNetworkBlock::expected_vars();
+ ret.push_back( "ReactiveDemand" );
+
+ return( ret );
+ }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 
