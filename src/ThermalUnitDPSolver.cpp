@@ -405,6 +405,10 @@ ThermalUnitDPSolver::build_reserve_discount( Index t , double cap ) const
 
 void ThermalUnitDPSolver::build_graph( void )
 {
+ // read the current fixed status of the Variable: the commitment fixings
+ // prune the arcs below, any other fixing makes load_fixings() throw
+ load_fixings();
+
  // first reset any existing graph; note that node labels will be set to 0,
  // which we use as a way to indicate that the node has not been proved
  // reachable from s yet
@@ -480,11 +484,20 @@ void ThermalUnitDPSolver::build_graph( void )
   while( j < kMin )          // between 0 (included) and kMin (excluded)
    fc += const_term[ j++ ];  // since the unit is on in that period
 
-  f_start.v_arcs.resize( time_horizon - kMin + 1 );
+  // the arc ( s , j ) has ON-run [ 0 , j ), which is allowed only if no
+  // instant before j is fixed OFF; the ( s , d ) arc (run [ 0 , T )) is
+  // allowed only if no instant at all is fixed OFF. The allowed j form a
+  // prefix, so the arc list is just truncated
+  const Index lim = f_has_fixings ? nxt_off[ 0 ] : time_horizon;
+  const Index jend = std::min( time_horizon , lim + 1 );
+  const bool darc = ( lim >= time_horizon );
+
+  f_start.v_arcs.resize( ( jend > kMin ? jend - kMin : 0 ) +
+			 ( darc ? 1 : 0 ) );
   auto ai = f_start.v_arcs.begin();
 
-  // construct the "normal" arcs up to ( s , time_horizon - 1 )
-  for( ; j < time_horizon ; ++j , ++ai ) {
+  // construct the "normal" arcs up to ( s , jend - 1 )
+  for( ; j < jend ; ++j , ++ai ) {
    ai->cost1 = fc;
    ai->cost2 = 0;
    ai->tail = & v_off_nodes[ j ];
@@ -492,11 +505,14 @@ void ThermalUnitDPSolver::build_graph( void )
    fc += const_term[ j ];  // the next fixed cost will comprise that at j
    }
 
-  // now construct the special last arc ( s , d ); note that the fixed
-  // cost from 0 to n - 1 (included) has been computed already
-  ai->cost1 = fc;
-  ai->cost2 = 0;
-  ai->tail = & f_end;
+  // now construct the special last arc ( s , d ), if allowed; note that in
+  // this case jend == time_horizon, hence the fixed cost from 0 to n - 1
+  // (included) has been computed already
+  if( darc ) {
+   ai->cost1 = fc;
+   ai->cost2 = 0;
+   ai->tail = & f_end;
+   }
   }
  else {  // init_up_down_time <= 0, the unit was off- - - - - - - - - - - -
 
@@ -515,22 +531,34 @@ void ThermalUnitDPSolver::build_graph( void )
   // analogous as in the init_up_down_time > 0 case, except of course they
   // go to the ON nodes
 
-  f_start.v_arcs.resize( time_horizon - t_init + 1 );
+  // the arc ( s , j ) has OFF-run [ 0 , j ), which is allowed only if no
+  // instant before j is fixed ON; the ( s , d ) arc (run [ 0 , T )) is
+  // allowed only if no instant at all is fixed ON. The allowed j form a
+  // prefix, so the arc list is just truncated
+  const Index lim = f_has_fixings ? nxt_on[ 0 ] : time_horizon;
+  const Index jend = std::min( time_horizon , lim + 1 );
+  const bool darc = ( lim >= time_horizon );
+
+  f_start.v_arcs.resize( ( jend > t_init ? jend - t_init : 0 ) +
+			 ( darc ? 1 : 0 ) );
   auto ai = f_start.v_arcs.begin();
 
-  // construct the "normal" arcs up to ( i , time_horizon - 1 )
-  for( Index j = t_init ; j < time_horizon ; ++j , ++ai ) {
+  // construct the "normal" arcs up to ( s , jend - 1 )
+  for( Index j = t_init ; j < jend ; ++j , ++ai ) {
    ai->cost1 = compute_startup_costs( 0 , j );
    ai->cost2 = 0;
    ai->tail = & v_on_nodes[ j ];
    ai->tail->lab = 1;            // mark the tail node as reachable
    }
 
-  // now construct the special last arc ( s , d ); note that the fixed
-  // cost is 0 because no startup ever happens during the time horizon
-  ai->cost1 = 0;
-  ai->cost2 = 0;
-  ai->tail = & f_end;
+  // now construct the special last arc ( s , d ), if allowed; note that
+  // the fixed cost is 0 because no startup ever happens during the time
+  // horizon
+  if( darc ) {
+   ai->cost1 = 0;
+   ai->cost2 = 0;
+   ai->tail = & f_end;
+   }
 
   }  // end( else( the unit was off ) )
 
@@ -587,11 +615,20 @@ void ThermalUnitDPSolver::build_graph( void )
    while( j < endi )
     fc += const_term[ j++ ];  // since the
 
-   v_on_nodes[ i ].v_arcs.resize( time_horizon - endi + 1 );
+   // the arc ( i , j ) has ON-run [ i , j ), which is allowed only if no
+   // instant in it is fixed OFF; the ( i , d ) arc (run [ i , T )) is
+   // allowed only if no instant >= i is fixed OFF. The allowed j form a
+   // prefix, so the arc list is just truncated
+   const Index lim = f_has_fixings ? nxt_off[ i ] : time_horizon;
+   const Index jend = std::min( time_horizon , lim + 1 );
+   const bool darc = ( lim >= time_horizon );
+
+   v_on_nodes[ i ].v_arcs.resize( ( jend > endi ? jend - endi : 0 ) +
+				  ( darc ? 1 : 0 ) );
    auto ai = v_on_nodes[ i ].v_arcs.begin();
 
-   // construct the "normal" arcs up to ( i , time_horizon - 1 )
-   for( ; j < time_horizon ; ++j , ++ai ) {
+   // construct the "normal" arcs up to ( i , jend - 1 )
+   for( ; j < jend ; ++j , ++ai ) {
     ai->cost1 = fc;
     ai->cost2 = 0;
     ai->tail = & v_off_nodes[ j ];
@@ -599,11 +636,14 @@ void ThermalUnitDPSolver::build_graph( void )
     fc += const_term[ j ];  // the next fixed cost will comprise that at j
     }
 
-   // now construct the special last arc ( i , d ); note that the fixed
-   // cost from i to n - 1 (included) has been computed already
-   ai->cost1 = fc;
-   ai->cost2 = 0;
-   ai->tail = & f_end;
+   // now construct the special last arc ( i , d ), if allowed; note that in
+   // this case jend == time_horizon, hence the fixed cost from i to n - 1
+   // (included) has been computed already
+   if( darc ) {
+    ai->cost1 = fc;
+    ai->cost2 = 0;
+    ai->tail = & f_end;
+    }
 
    }  // end( if( reached )
 
@@ -630,22 +670,35 @@ void ThermalUnitDPSolver::build_graph( void )
    //   after (but this is not our concern)
 
    Index endi = std::min( time_horizon , i + mdt );
-   v_off_nodes[ i ].v_arcs.resize( time_horizon - endi + 1 );
+
+   // the arc ( i , j ) has OFF-run [ i , j ), which is allowed only if no
+   // instant in it is fixed ON; the ( i , d ) arc (run [ i , T )) is
+   // allowed only if no instant >= i is fixed ON. The allowed j form a
+   // prefix, so the arc list is just truncated
+   const Index lim = f_has_fixings ? nxt_on[ i ] : time_horizon;
+   const Index jend = std::min( time_horizon , lim + 1 );
+   const bool darc = ( lim >= time_horizon );
+
+   v_off_nodes[ i ].v_arcs.resize( ( jend > endi ? jend - endi : 0 ) +
+				   ( darc ? 1 : 0 ) );
    auto ai = v_off_nodes[ i ].v_arcs.begin();
 
-   // construct the "normal" arcs up to ( i , time_horizon - 1 )
-   for( Index j = i + mdt ; j < time_horizon ; ++j , ++ai ) {
+   // construct the "normal" arcs up to ( i , jend - 1 )
+   for( Index j = i + mdt ; j < jend ; ++j , ++ai ) {
     ai->cost1 = compute_startup_costs( i , j );
     ai->cost2 = 0;
     ai->tail = & v_on_nodes[ j ];
     ai->tail->lab = 1;            // mark the tail node as reachable
     }
 
-   // now construct the special last arc ( i , d ); note that the fixed
-   // cost is 0 because no startup ever happens during the time horizon
-   ai->cost1 = 0;
-   ai->cost2 = 0;
-   ai->tail = & f_end;
+   // now construct the special last arc ( i , d ), if allowed; note that
+   // the fixed cost is 0 because no startup ever happens during the time
+   // horizon
+   if( darc ) {
+    ai->cost1 = 0;
+    ai->cost2 = 0;
+    ai->tail = & f_end;
+    }
 
    }  // end( if( reached )
   }  // end( for( i ) )
@@ -689,8 +742,9 @@ void ThermalUnitDPSolver::compute_EDPs( void )
 
  std::vector< double > cost( time_horizon );
 
- // update variable costs in the arcs outgoing from s
- if( f_start.DPS ) {                   // f_start is a ON node
+ // update variable costs in the arcs outgoing from s; note that s may have
+ // no arcs at all if the fixings forbid them all (the problem is unfeasible)
+ if( f_start.DPS && ( ! f_start.v_arcs.empty() ) ) {  // f_start is a ON node
   f_start.DPS->compute_costs( cost );  // solve EDPs, retrieve optimal costs
 
   // index of first tail node (note: one arc surely exists)
@@ -821,9 +875,19 @@ void ThermalUnitDPSolver::min_path( void )
  // is never forced on. Generalises to an integer design by the same threshold
  // argument; the continuous case does not apply (binary commitments inside).
  if( has_design ) {
-  if( ( f_end.lab < TUDPINF ) && ( f_end.lab + Q_star + design_cost <= 0 ) ) {
+  // a commitment fixed ON (or the design variable fixed to 1) forces the
+  // unit to be built regardless of the economics; if it cannot (no feasible
+  // path, or the design variable is fixed to 0) the problem is unfeasible,
+  // since the all-zero "not built" solution violates the fixings
+  if( ( ! f_no_build ) && ( f_end.lab < TUDPINF ) &&
+      ( f_must_build || ( f_end.lab + Q_star + design_cost <= 0 ) ) ) {
    design_on = true;
    f_end.lab += Q_star + design_cost;
+   }
+  else if( f_must_build ) {
+   design_on = false;
+   f_end.lab = TUDPINF;    // unfeasible: must be built, but cannot
+   f_end.pred = nullptr;
    }
   else {
    design_on = false;
@@ -851,9 +915,10 @@ void ThermalUnitDPSolver::compute_solutions( void )
  Index k = time_horizon;
  auto n = f_end.pred;
 
- if( ! n )
-  throw( std::logic_error( "ThermalUnitDPSolver::compute_solutions: called "
-                           "when has_var_solution() == false." ) );
+ if( ! n ) {        // no path to the destination: the fixings made the
+  stage = sol_OK;   // problem unfeasible, there is no solution to compute
+  return;
+  }
 
  // compute the solution by visiting the optimal path backward from f_end
 
@@ -991,6 +1056,96 @@ void ThermalUnitDPSolver::load_parameters( void )
  stage = start;
 
  }  // end( ThermalUnitDPSolver::load_parameters )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitDPSolver::load_fixings( void )
+{
+ f_has_fixings = f_must_build = f_no_build = false;
+
+ // locking the Block
+ bool owned = f_Block->is_owned_by( f_id );
+ if( ( ! owned ) && ( ! f_Block->read_lock() ) )
+  throw( std::runtime_error(
+   "ThermalUnitDPSolver::load_fixings: unable to lock the Block." ) );
+
+ auto b = static_cast< ThermalUnitBlock * >( f_Block );
+
+ // commitment fixings, translated into the "first instant >= t fixed
+ // OFF / ON" tables that build_graph() uses to prune the arcs
+ if( auto u = b->get_commitment( 0 ) ) {
+  nxt_off.assign( time_horizon + 1 , time_horizon );
+  nxt_on.assign( time_horizon + 1 , time_horizon );
+  for( Index t = time_horizon ; t-- > 0 ; ) {
+   nxt_off[ t ] = nxt_off[ t + 1 ];
+   nxt_on[ t ] = nxt_on[ t + 1 ];
+   if( u[ t ].is_fixed() ) {
+    f_has_fixings = true;
+    if( u[ t ].get_value() >= 0.5 ) {
+     nxt_on[ t ] = t;
+     f_must_build = true;  // an ON instant requires the unit to exist
+     }
+    else
+     nxt_off[ t ] = t;
+    }
+   }
+  }
+
+ // the design variable can be fixed, too
+ if( has_design ) {
+  const auto & d = b->get_const_design();
+  if( d.is_fixed() ) {
+   if( d.get_value() >= 0.5 )
+    f_must_build = true;
+   else
+    f_no_build = true;
+   }
+  }
+
+ // fixings of any other Variable cannot be honored by the DP, save the
+ // structural ones that ThermalUnitBlock itself makes when generating the
+ // variables to encode the initial conditions (the pre-t_init instants and
+ // the start-up / shut-down windows right after them), which the DP
+ // enforces anyway
+ auto refuse = [ & ]( const ColVariable * v , Index n , const char * name ,
+		      auto && structural ) {
+  for( Index t = 0 ; v && ( t < n ) ; ++t )
+   if( v[ t ].is_fixed() && ( ! structural( t , v[ t ].get_value() ) ) ) {
+    if( ! owned )
+     f_Block->read_unlock();
+    throw( std::logic_error(
+     std::string( "ThermalUnitDPSolver: fixed " ) + name +
+     " Variable not supported (yet)" ) );
+    }
+  };
+
+ const bool init_on = init_up_down_time > 0;
+ auto never = []( Index , double ) { return( false ); };
+ auto pre_horizon_zero = [ & ]( Index t , double val ) {
+  return( ( ! init_on ) && ( t < t_init ) && ( val == 0 ) );
+  };
+
+ const Index nsd = time_horizon > t_init ? time_horizon - t_init : 0;
+ refuse( b->get_active_power( 0 ) , time_horizon , "active power" ,
+	 pre_horizon_zero );
+ refuse( b->get_reactive_power( 0 ) , time_horizon , "reactive power" ,
+	 never );
+ refuse( b->get_primary_spinning_reserve( 0 ) , time_horizon ,
+	 "primary reserve" , pre_horizon_zero );
+ refuse( b->get_secondary_spinning_reserve( 0 ) , time_horizon ,
+	 "secondary reserve" , pre_horizon_zero );
+ refuse( b->get_start_up() , nsd , "start-up" ,
+	 [ & ]( Index k , double val ) {
+	  return( init_on && ( k < min_down_time ) && ( val == 0 ) ); } );
+ refuse( b->get_shut_down() , nsd , "shut-down" ,
+	 [ & ]( Index k , double val ) {
+	  return( ( ! init_on ) && ( k < min_up_time ) && ( val == 0 ) ); } );
+
+ // unlock the Block
+ if( ! owned )
+  f_Block->read_unlock();
+
+ }  // end( ThermalUnitDPSolver::load_fixings )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1135,11 +1290,11 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      }
 
     case( ThermalUnitBlockMod::eFixVars ):
-     // supporting fixed Variable would require disabling the arcs of the
-     // graph that are incompatible with the fixings (and coping with the
-     // DP possibly becoming unfeasible), which is not implemented (yet)
-     throw( std::logic_error( "ThermalUnitDPSolver: fixed Variable not "
-			      "supported (yet)" ) );
+     // the fixed status of some Variable changed: the graph has to be
+     // rebuilt from scratch, as build_graph() re-reads the fixings (via
+     // load_fixings()) and prunes the incompatible arcs
+     stage = start;
+     return( false );
 
     }  // end( switch )
 

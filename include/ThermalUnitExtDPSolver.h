@@ -266,6 +266,16 @@ class ThermalUnitExtDPSolver : public Solver
 
 /*--------------------------------------------------------------------------*/
 
+ /// read the fixed status of the Variable of the ThermalUnitBlock
+ /** Reads which commitment (and design) Variable are fixed, translating the
+  * commitment fixings into the nxt_off / nxt_on tables that run_DP() uses
+  * to kill the incompatible DP states; throws if any Variable that the DP
+  * cannot honor (active power, reserves, start-up, shut-down, reactive) is
+  * fixed. */
+ void load_fixings( void );
+
+/*--------------------------------------------------------------------------*/
+
  /// run the full forward DP (ON and OFF layers together)
  /** virtual so that a derived solver can replace it with a state-augmented
   * variant (e.g. NuclearUnitExtDPSolver, which adds the modulation lockout). */
@@ -439,6 +449,16 @@ class ThermalUnitExtDPSolver : public Solver
  bool   has_design{ false };  ///< true iff the unit has an investment cost
  double design_cost{ 0 };     ///< objective coefficient of the design variable
  bool   design_on{ false };   ///< the design decision computed by run_DP()
+
+ // fixed Variable handling: the commitment (and design) Variable can be
+ // fixed, which run_DP() honors by killing the ON states of the instants
+ // fixed OFF and the OFF states of the instants fixed ON (see
+ // load_fixings()); this may make the problem unfeasible
+ std::vector< Index > nxt_off;  ///< first instant >= t fixed OFF (T if none)
+ std::vector< Index > nxt_on;   ///< first instant >= t fixed ON (T if none)
+ bool f_has_fixings{ false };   ///< true iff some commitment is fixed
+ bool f_must_build{ false };    ///< commitment fixed ON, or design fixed to 1
+ bool f_no_build{ false };      ///< the design variable is fixed to 0
 
  double eps{ 1e-10 };         ///< numerical tolerance
 

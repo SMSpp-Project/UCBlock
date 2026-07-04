@@ -115,6 +115,25 @@ void NuclearUnitExtDPSolver::run_DP( void )
   return;
   }
 
+ // the lockout-augmented DP does not honor fixed Variable (yet): unlike
+ // the base class it does not kill the incompatible states, so it must
+ // refuse them rather than silently ignoring them. The only tolerated
+ // fixings are the structural ones with which ThermalUnitBlock encodes the
+ // initial conditions (the commitments before t_init fixed to the initial
+ // state), which this DP enforces natively anyway
+ load_fixings();
+ bool foreign = f_no_build ||
+		( f_must_build && ( init_up_down_time <= 0 ) );
+ if( f_has_fixings ) {
+  if( init_up_down_time > 0 )
+   foreign = foreign || ( nxt_off[ 0 ] < n ) || ( nxt_on[ t_init ] < n );
+  else
+   foreign = foreign || ( nxt_on[ 0 ] < n ) || ( nxt_off[ t_init ] < n );
+  }
+ if( foreign )
+  throw( std::logic_error( "NuclearUnitExtDPSolver: fixed Variable not "
+			   "supported (yet)" ) );
+
  const Index mut = std::max( min_up_time   , Index( 1 ) );
  const Index mdt = std::max( min_down_time , Index( 1 ) );
  const Index L = std::max( f_mod_interval , Index( 2 ) );  // tau^M

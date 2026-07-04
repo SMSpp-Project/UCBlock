@@ -681,6 +681,16 @@ class ThermalUnitDPSolver : public Solver
 
 /*--------------------------------------------------------------------------*/
 
+ /// read the fixed status of the Variable of the ThermalUnitBlock
+ /** Reads which commitment (and design) Variable are fixed, translating the
+  * commitment fixings into the nxt_off / nxt_on tables that build_graph()
+  * uses to prune the incompatible arcs; throws if any Variable that the DP
+  * cannot honor (active power, reserves, start-up, shut-down, reactive) is
+  * fixed. */
+ void load_fixings( void );
+
+/*--------------------------------------------------------------------------*/
+
  void process_modifications( void );
 
  // returns true if everything need be reset
@@ -777,6 +787,17 @@ class ThermalUnitDPSolver : public Solver
  bool   has_design{ false };       ///< true iff the unit has an investment cost
  double design_cost{ 0 };          ///< objective coefficient of the design var
  bool   design_on{ false };        ///< the design decision computed by min_path()
+
+ // fixed Variable handling: the commitment (and design) Variable can be
+ // fixed, which build_graph() honors by not constructing the arcs whose
+ // ON-run [ a , b ) contains an instant fixed OFF or whose OFF-run contains
+ // an instant fixed ON (see load_fixings()); this may make the destination
+ // unreachable, i.e., the problem unfeasible
+ std::vector< Index > nxt_off;  ///< first instant >= t fixed OFF (T if none)
+ std::vector< Index > nxt_on;   ///< first instant >= t fixed ON (T if none)
+ bool f_has_fixings{ false };   ///< true iff some commitment is fixed
+ bool f_must_build{ false };    ///< commitment fixed ON, or design fixed to 1
+ bool f_no_build{ false };      ///< the design variable is fixed to 0
 
  double eps{ 1e-10 };              ///< tolerance
 

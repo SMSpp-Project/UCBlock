@@ -539,6 +539,96 @@ void ThermalUnitExtDPSolver::load_parameters( void )
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitExtDPSolver::load_fixings( void )
+{
+ f_has_fixings = f_must_build = f_no_build = false;
+
+ // locking the Block
+ bool owned = f_Block->is_owned_by( f_id );
+ if( ( ! owned ) && ( ! f_Block->read_lock() ) )
+  throw( std::runtime_error(
+   "ThermalUnitExtDPSolver::load_fixings: unable to lock the Block." ) );
+
+ auto b = static_cast< ThermalUnitBlock * >( f_Block );
+
+ // commitment fixings, translated into the "first instant >= t fixed
+ // OFF / ON" tables that run_DP() uses to kill the incompatible states
+ if( auto u = b->get_commitment( 0 ) ) {
+  nxt_off.assign( time_horizon + 1 , time_horizon );
+  nxt_on.assign( time_horizon + 1 , time_horizon );
+  for( Index t = time_horizon ; t-- > 0 ; ) {
+   nxt_off[ t ] = nxt_off[ t + 1 ];
+   nxt_on[ t ] = nxt_on[ t + 1 ];
+   if( u[ t ].is_fixed() ) {
+    f_has_fixings = true;
+    if( u[ t ].get_value() >= 0.5 ) {
+     nxt_on[ t ] = t;
+     f_must_build = true;  // an ON instant requires the unit to exist
+     }
+    else
+     nxt_off[ t ] = t;
+    }
+   }
+  }
+
+ // the design variable can be fixed, too
+ if( has_design ) {
+  const auto & d = b->get_const_design();
+  if( d.is_fixed() ) {
+   if( d.get_value() >= 0.5 )
+    f_must_build = true;
+   else
+    f_no_build = true;
+   }
+  }
+
+ // fixings of any other Variable cannot be honored by the DP, save the
+ // structural ones that ThermalUnitBlock itself makes when generating the
+ // variables to encode the initial conditions (the pre-t_init instants and
+ // the start-up / shut-down windows right after them), which the DP
+ // enforces anyway
+ auto refuse = [ & ]( const ColVariable * v , Index n , const char * name ,
+		      auto && structural ) {
+  for( Index t = 0 ; v && ( t < n ) ; ++t )
+   if( v[ t ].is_fixed() && ( ! structural( t , v[ t ].get_value() ) ) ) {
+    if( ! owned )
+     f_Block->read_unlock();
+    throw( std::logic_error(
+     std::string( "ThermalUnitExtDPSolver: fixed " ) + name +
+     " Variable not supported (yet)" ) );
+    }
+  };
+
+ const bool init_on = init_up_down_time > 0;
+ auto never = []( Index , double ) { return( false ); };
+ auto pre_horizon_zero = [ & ]( Index t , double val ) {
+  return( ( ! init_on ) && ( t < t_init ) && ( val == 0 ) );
+  };
+
+ const Index nsd = time_horizon > t_init ? time_horizon - t_init : 0;
+ refuse( b->get_active_power( 0 ) , time_horizon , "active power" ,
+	 pre_horizon_zero );
+ refuse( b->get_reactive_power( 0 ) , time_horizon , "reactive power" ,
+	 never );
+ refuse( b->get_primary_spinning_reserve( 0 ) , time_horizon ,
+	 "primary reserve" , pre_horizon_zero );
+ refuse( b->get_secondary_spinning_reserve( 0 ) , time_horizon ,
+	 "secondary reserve" , pre_horizon_zero );
+ refuse( b->get_start_up() , nsd , "start-up" ,
+	 [ & ]( Index k , double val ) {
+	  return( init_on && ( k < min_down_time ) && ( val == 0 ) ); } );
+ refuse( b->get_shut_down() , nsd , "shut-down" ,
+	 [ & ]( Index k , double val ) {
+	  return( ( ! init_on ) && ( k < min_up_time ) && ( val == 0 ) ); } );
+
+ // unlock the Block
+ if( ! owned )
+  f_Block->read_unlock();
+
+ }  // end( ThermalUnitExtDPSolver::load_fixings )
+
+/*--------------------------------------------------------------------------*/
+
 // Drain the Modification queue produced by the Block since the last call
 // to compute(). Each Modification is dispatched through
 // guts_of_process_modifications(), which either patches the cached state
@@ -696,11 +786,11 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
     }
 
    case( ThermalUnitBlockMod::eFixVars ):
-    // supporting fixed Variable would require disabling the arcs of the
-    // graph that are incompatible with the fixings (and coping with the
-    // DP possibly becoming unfeasible), which is not implemented (yet)
-    throw( std::logic_error( "ThermalUnitExtDPSolver: fixed Variable not "
-			     "supported (yet)" ) );
+    // the fixed status of some Variable changed: the DP has to be re-run
+    // from scratch, as run_DP() re-reads the fixings (via load_fixings())
+    // and kills the incompatible states
+    stage = start;
+    return( false );
    }
   return( true );
   }
@@ -1175,6 +1265,17 @@ void ThermalUnitExtDPSolver::run_DP( void )
   return;
   }
 
+ // read the current fixed status of the Variable: the commitment fixings
+ // kill the incompatible DP states below, any other fixing makes
+ // load_fixings() throw
+ load_fixings();
+ const auto fixed_on = [ & ]( Index t ) {
+  return( f_has_fixings && ( nxt_on[ t ] == t ) );
+  };
+ const auto fixed_off = [ & ]( Index t ) {
+  return( f_has_fixings && ( nxt_off[ t ] == t ) );
+  };
+
  // initialise all the per-time-step state vectors to empty / +INF.
  // recycle the previous solve's PQFun buffers into the pool first, then
  // empty the per-step lists keeping their outer-vector capacity
@@ -1323,7 +1424,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
                         initial_power - delta_ramp_down[ 0 ] );
   double hi = std::min( max_power[ 0 ] ,
                         initial_power + delta_ramp_up[ 0 ] );
-  if( lo < hi + 1e-12 ) {
+  if( ( ! fixed_off( 0 ) ) && ( lo < hi + 1e-12 ) ) {
    PQFun F;
    F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] , const_term[ 0 ] ,
                   lo , hi } );
@@ -1357,7 +1458,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
   // seeding is then infeasible and must be skipped (the in-horizon shut-down
   // path through v_shutdown handles the trajectory, possibly multi-period).
   if( ( Index( init_up_down_time ) >= min_up_time ) &&
-      ( ! startup_in_progress ) && ( ! shutdown_in_progress ) ) {
+      ( ! startup_in_progress ) && ( ! shutdown_in_progress ) &&
+      ( ! fixed_on( 0 ) ) ) {
    c_off_any[ 0 ]  = 0;
    f_any_pred[ 0 ] = -1;
    // ready at t = 0 means the off run ending at t = 0 (just the single
@@ -1374,7 +1476,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
   // strictly before t = 0. We can immediately *restart* at t = 0 if the
   // off period satisfies mdt, i.e. iff |init| >= mdt.
   bool can_restart_t0 = ( Index( - init_up_down_time ) >= mdt );
-  if( can_restart_t0 ) {
+  if( can_restart_t0 && ( ! fixed_off( 0 ) ) ) {
    // F^1_0(p) = f_0(p) + SUC[0] on [P, min(Pbar, SU)]: the restart arc
    // pays the start-up cost and constrains p by the start-up ramp limit
    double lo = min_power[ 0 ];
@@ -1393,14 +1495,16 @@ void ThermalUnitExtDPSolver::run_DP( void )
    }
   // "unit off at t = 0, any duration": cost 0 from the initial off state;
   // f_any_pred[0] = -1 signals that no in-horizon shutdown happened
-  c_off_any[ 0 ]  = 0;
-  f_any_pred[ 0 ] = -1;
-  // "unit off at t = 0 AND ready": the off trail before t = 0 counts
-  // |init| instants and t = 0 itself adds one more, so the condition is
-  // |init| + 1 >= mdt (equivalently, the unit is ready right at t = 0)
-  if( Index( - init_up_down_time ) + 1 >= mdt ) {
-   c_off_ready[ 0 ]  = 0;
-   f_ready_pred[ 0 ] = -1;
+  if( ! fixed_on( 0 ) ) {
+   c_off_any[ 0 ]  = 0;
+   f_any_pred[ 0 ] = -1;
+   // "unit off at t = 0 AND ready": the off trail before t = 0 counts
+   // |init| instants and t = 0 itself adds one more, so the condition is
+   // |init| + 1 >= mdt (equivalently, the unit is ready right at t = 0)
+   if( Index( - init_up_down_time ) + 1 >= mdt ) {
+    c_off_ready[ 0 ]  = 0;
+    f_ready_pred[ 0 ] = -1;
+    }
    }
   }
 
@@ -1444,7 +1548,11 @@ void ThermalUnitExtDPSolver::run_DP( void )
   double stay_ready  = c_off_ready[ t - 1 ];
   double fresh_ready = TUEDPINF;
   int fresh_h = -1;
-  if( t >= mdt ) {
+  // the "long shutdown arc" spans the off instants [ t - mdt + 1 , t ]
+  // directly, so it must be checked against the fixed-ON instants (which
+  // the per-instant kill below cannot intercept)
+  if( ( t >= mdt ) &&
+      ( ( ! f_has_fixings ) || ( nxt_on[ t - mdt + 1 ] > t ) ) ) {
    fresh_ready = v_shutdown[ t - mdt ];
    fresh_h = int( t - mdt );
    }
@@ -1456,16 +1564,20 @@ void ThermalUnitExtDPSolver::run_DP( void )
   //    down at end of t = -1 (a free pre-horizon decision since mut is
   //    already satisfied), so the in-horizon off run is t + 1 instants
   double init_ready = TUEDPINF;
-  if( ( init_up_down_time <= 0 ) &&
-      ( Index( - init_up_down_time ) + t + 1 >= mdt ) )
-   init_ready = 0;
-  else if( ( init_up_down_time > 0 ) &&
-           ( Index( init_up_down_time ) >= min_up_time ) &&
-           ( t + 1 >= mdt ) &&
-           ( ! startup_in_progress ) && ( ! shutdown_in_progress ) )
-   // the "free pre-horizon shutdown" is unavailable while the unit is still
-   // inside its initial start-up / shut-down trajectory (see t = 0 seeding)
-   init_ready = 0;
+  // the initial-off trail spans the off instants [ 0 , t ] directly, so it
+  // must be checked against the fixed-ON instants too
+  if( ( ! f_has_fixings ) || ( nxt_on[ 0 ] > t ) ) {
+   if( ( init_up_down_time <= 0 ) &&
+       ( Index( - init_up_down_time ) + t + 1 >= mdt ) )
+    init_ready = 0;
+   else if( ( init_up_down_time > 0 ) &&
+	    ( Index( init_up_down_time ) >= min_up_time ) &&
+	    ( t + 1 >= mdt ) &&
+	    ( ! startup_in_progress ) && ( ! shutdown_in_progress ) )
+    // the "free pre-horizon shutdown" is unavailable while the unit is still
+    // inside its initial start-up / shut-down trajectory (see t = 0 seeding)
+    init_ready = 0;
+   }
   double best_ready = std::min( { stay_ready , fresh_ready , init_ready } );
   c_off_ready[ t ] = best_ready;
   // record the source so backtracking knows where the "ready" came from;
@@ -1476,6 +1588,13 @@ void ThermalUnitExtDPSolver::run_DP( void )
    f_ready_pred[ t ] = fresh_h;
   else
    f_ready_pred[ t ] = f_ready_pred[ t - 1 ];
+
+  if( fixed_on( t ) ) {   // the unit cannot be off at t: kill both OFF
+   c_off_any   [ t ] = TUEDPINF;   // states (the "stay off" paths through
+   f_any_pred  [ t ] = -1;         // t die here, the arcs jumping over t
+   c_off_ready [ t ] = TUEDPINF;   // have been checked above)
+   f_ready_pred[ t ] = -1;
+   }
 
   // -- ON-side updates ------------------------------------------------- //
   // build a fresh sparse list for time t from (a) a possible restart
@@ -1497,7 +1616,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
   //     + c_off_ready[t-1], defined for p in [P, min(Pbar, SU)]. Only
   //     built if c_off_ready[t-1] is finite (otherwise the unit cannot
   //     legally restart at t).
-  if( c_off_ready[ t - 1 ] < TUEDPINF ) {
+  if( ( ! fixed_off( t ) ) && ( c_off_ready[ t - 1 ] < TUEDPINF ) ) {
    double lo = Plo;
    double hi = std::min( Phi , bound_on[ t ] );
    if( lo < hi + 1e-12 ) {
@@ -1517,8 +1636,10 @@ void ThermalUnitExtDPSolver::run_DP( void )
   // (b) tau > 1 entries: from each surviving entry of f_F[t-1] apply
   //     sliding_min (ramp window from t-1 to t) to get the value
   //     function restricted to [Plo, Phi], then add f_t(p). The output
-  //     tau is the previous tau + 1 (continuing the on-run).
-  for( std::size_t i = 0 ; i < f_F[ t - 1 ].size() ; ++i ) {
+  //     tau is the previous tau + 1 (continuing the on-run). No ON state
+  //     exists at t if the commitment there is fixed OFF.
+  for( std::size_t i = 0 ; ( ! fixed_off( t ) ) && ( i < f_F[ t - 1 ].size() ) ;
+       ++i ) {
    PQFun F = pool_take();
    sliding_min( f_F[ t - 1 ][ i ] , ru_prev , rd_prev , Plo , Phi , F );
    if( F.empty() ) {           // intersection with [Plo, Phi] empty
@@ -1599,9 +1720,18 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // integer design by the same threshold argument; the continuous case does not
  // apply (binary commitment decisions inside).
  if( has_design ) {
-  if( ( f_best_cost < TUEDPINF ) && ( f_best_cost + Q_star + design_cost <= 0 ) ) {
+  // a commitment fixed ON (or the design variable fixed to 1) forces the
+  // unit to be built regardless of the economics; if it cannot (no feasible
+  // schedule, or the design variable is fixed to 0) the problem is
+  // unfeasible, since the all-zero "not built" solution violates the fixings
+  if( ( ! f_no_build ) && ( f_best_cost < TUEDPINF ) &&
+      ( f_must_build || ( f_best_cost + Q_star + design_cost <= 0 ) ) ) {
    design_on = true;
    f_best_cost += Q_star + design_cost;
+   }
+  else if( f_must_build ) {
+   design_on = false;
+   f_best_cost = TUEDPINF;   // unfeasible: must be built, but cannot
    }
   else {
    design_on = false;
