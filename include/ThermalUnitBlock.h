@@ -3325,6 +3325,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
   eSetSecSpResCost ,           ///< set secondary spinning reserve costs
   eSetReactiveLinT ,           ///< set reactive power linear term
   eSetInvCost ,                ///< set design (investment) cost
+  eFixVars ,                   ///< the fixed status of some Variable changed
   eTUBModLastParam   ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of ThermalUnitBlockMod. */
@@ -3381,6 +3382,9 @@ class ThermalUnitBlockMod : public UnitBlockMod
     break;
    case( eSetInvCost ):
     output << "Set design (investment) cost";
+    break;
+   case( eFixVars ):
+    output << "Changed fixed status of some Variable";
     break;
    default:;
    }

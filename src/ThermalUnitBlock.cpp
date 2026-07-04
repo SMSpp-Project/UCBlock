@@ -5898,23 +5898,21 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
  // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
-  // changing the Variable is not supported, but the Modification is issued
-  // when they are first generated, in which case it must be ignored
-  // THE Modification SHOULD NOT BE ISSUED WHEN THEY ARE CREATED!
-  //if( ! variables_generated() )
-  // return;
+  // the only supported change is fixing/unfixing a Variable: the abstract
+  // representation is already up to date (the fixed status lives in the
+  // Variable itself, and it has no physical counterpart in the
+  // ThermalUnitBlock data), so all that remains to be done is telling the
+  // Solvers that consume the physical representation about the change; it
+  // is then their business to deal with it (or to complain if they can't)
+  if( Variable::is_fixed( tmod->old_state() ) ==
+      Variable::is_fixed( tmod->new_state() ) )
+   throw( std::logic_error( "ThermalUnitBlock::add_Modification: VariableMod "
+			    "changing anything but the fixed status is not "
+			    "supported" ) );
 
-  throw( std::logic_error( "ThermalUnitBlock - VariableMod not supported" ) );
-  /*
-  auto v = dynamic_cast< ColVariable * const >( tmod->variable() );
-
-  if( v->is_fixed() ) {
-   // TODO: Do something to the physical representation
-
-   } else {
-   // TODO: Do something to the physical representation
-   }
-  */
+  if( anyone_there() )
+   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
+			     this , ThermalUnitBlockMod::eFixVars ) , chnl );
   return;
  }
 

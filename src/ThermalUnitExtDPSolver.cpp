@@ -694,6 +694,13 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
      }
     return( false );
     }
+
+   case( ThermalUnitBlockMod::eFixVars ):
+    // supporting fixed Variable would require disabling the arcs of the
+    // graph that are incompatible with the fixings (and coping with the
+    // DP possibly becoming unfeasible), which is not implemented (yet)
+    throw( std::logic_error( "ThermalUnitExtDPSolver: fixed Variable not "
+			     "supported (yet)" ) );
    }
   return( true );
   }
