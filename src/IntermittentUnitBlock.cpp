@@ -728,6 +728,24 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
   for( auto t : time )
    active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
                                            issueAMod );
+
+ // when InvestmentCost != 0 the upper bound on the active power is
+ // v_active_power - f_kappa * v_MaxPower * design <= 0, so v_MaxPower is a
+ // coefficient of the design Variable rather than a right-hand side
+ if( ! active_power_bounds_design_Const.empty() )
+  for( auto t : time ) {
+   auto f = static_cast< LinearFunction * >(
+    active_power_bounds_design_Const[ 1 ][ t ].get_function() );
+
+   const auto design_idx = f->is_active( &design );
+   if( design_idx == Inf< Index >() )
+    throw( std::logic_error(
+     "IntermittentUnitBlock::update_max_power_in_cnstrs: expected Variable "
+     "not found in active_power_bounds_design_Const." ) );
+
+   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] ,
+                          issueAMod );
+  }
  // FIXME: use a GroupModification
  }  // end( IntermittentUnitBlock::update_max_power_in_cnstrs ( subset ) )
 
@@ -745,6 +763,24 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
   for( auto t = time.first ; t < time.second ; ++t )
    active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
                                            issueAMod );
+
+ // when InvestmentCost != 0 the upper bound on the active power is
+ // v_active_power - f_kappa * v_MaxPower * design <= 0, so v_MaxPower is a
+ // coefficient of the design Variable rather than a right-hand side
+ if( ! active_power_bounds_design_Const.empty() )
+  for( auto t = time.first ; t < time.second ; ++t ) {
+   auto f = static_cast< LinearFunction * >(
+    active_power_bounds_design_Const[ 1 ][ t ].get_function() );
+
+   const auto design_idx = f->is_active( &design );
+   if( design_idx == Inf< Index >() )
+    throw( std::logic_error(
+     "IntermittentUnitBlock::update_max_power_in_cnstrs: expected Variable "
+     "not found in active_power_bounds_design_Const." ) );
+
+   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] ,
+                          issueAMod );
+  }
 
  }  // end( IntermittentUnitBlock::update_max_power_in_cnstrs ( range ) )
 

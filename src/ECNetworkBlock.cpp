@@ -661,7 +661,7 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
 
  bool identical = true;
  for( auto i : subset ) {
-  if( i >= v_ActiveDemand.size() )
+  if( i >= v_ActiveDemand.num_elements() )
    throw( std::invalid_argument( "ECNetworkBlock::set_active_demand: "
                                  "invalid value in subset." ) );
 
@@ -684,8 +684,8 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
   // Change the abstract representation
 
   for( auto i : subset ) {
-   Index t = i % get_number_nodes();
-   Index n = i / get_number_nodes();
+   Index t = i / get_number_nodes();
+   Index n = i % get_number_nodes();
 
    power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
                                            issueAMod );
@@ -741,8 +741,8 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
    // Change the abstract representation
 
    for( Index i = rng.first ; i < rng.second ; ++i ) {
-    Index t = i % get_number_nodes();
-    Index n = i / get_number_nodes();
+    Index t = i / get_number_nodes();
+    Index n = i % get_number_nodes();
 
     power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
                                             issueAMod );
