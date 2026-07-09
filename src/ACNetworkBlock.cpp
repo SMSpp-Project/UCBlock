@@ -14,7 +14,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Quentin Jacquet, Wim van Ackooij
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Quentin Jacquet, Wim van Ackooij,
+ *            Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -317,20 +322,7 @@ ACNetworkBlock::~ACNetworkBlock()
  Constraint::clear( v_diag_const_2 );
  Constraint::clear( v_def_alpha_1 );
  Constraint::clear( v_def_alpha_2 );
- Constraint::clear( v_def_beta_1 );
- Constraint::clear( v_def_beta_2 );
- Constraint::clear( v_def_z_1 );
- Constraint::clear( v_def_z_2 );
- Constraint::clear( v_def_z_3 );
- Constraint::clear( v_def_z_4 );
- Constraint::clear( v_def_c_1 );
- Constraint::clear( v_def_c_2 );
- Constraint::clear( v_def_c_3 );
- Constraint::clear( v_def_c_4 );
- Constraint::clear( v_def_s_1 );
- Constraint::clear( v_def_s_2 );
- Constraint::clear( v_def_s_3 );
- Constraint::clear( v_def_s_4 );
+ Constraint::clear( v_SOCP_cuts );
  }  // end( ACNetworkBlock::~ACNetworkBlock )
 
 /*--------------------------------------------------------------------------*/
@@ -1090,6 +1082,8 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
  auto & DC_lines = f_NetworkData->get_DC_lines();
  int nb_dc_lines = DC_lines.size();
 
+ const auto & max_voltage = ND()->get_node_max_voltage();
+
  /* Voltage relaxation matrix W.
   *
   * We aim to impose W = V.V^H, where V is the vector of voltages for each
@@ -1108,6 +1102,8 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
   * write the SOCP constraints (this might be simplifiable). */
 
  v_socp_const.resize( nb_dc_lines );
+ v_sum_product_voltages_bounds.resize( nb_dc_lines );
+ v_diff_product_voltages_bounds.resize( nb_dc_lines );
  int i_line = 0;
  for( auto & line_id : DC_lines ) {
   Index p = start_line[ line_id ];
@@ -1123,11 +1119,30 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
   v_socp_const[ i_line ].set_rhs( 0.0 );
   v_socp_const[ i_line ].set_function( qfunc );
 
+  /* Finite box on c = v_sum_product_voltages and s = v_diff_product_voltages.
+   * The cone above gives c^2 + s^2 <= w_p w_n, and the voltage bounds give
+   * w_k <= ( C max_voltage_k )^2, hence |c|, |s| <= C^2 max_v_p max_v_n.
+   * This bound holds at every feasible point, so it cannot cut anything. */
+  double cs_bound = pow( f_C_v_scal , 2 ) * max_voltage[ p ] * max_voltage[ n ];
+  v_sum_product_voltages_bounds[ i_line ].set_lhs( - cs_bound );
+  v_sum_product_voltages_bounds[ i_line ].set_rhs(   cs_bound );
+  v_sum_product_voltages_bounds[ i_line ].set_variable(
+   & v_sum_product_voltages[ line_id ] );
+  v_diff_product_voltages_bounds[ i_line ].set_lhs( - cs_bound );
+  v_diff_product_voltages_bounds[ i_line ].set_rhs(   cs_bound );
+  v_diff_product_voltages_bounds[ i_line ].set_variable(
+   & v_diff_product_voltages[ line_id ] );
+
   ++i_line;
   }
 
- if( i_line > 0 )
+ if( i_line > 0 ) {
   add_static_constraint( v_socp_const , "AC_socp_const" );
+  add_static_constraint( v_sum_product_voltages_bounds ,
+                         "AC_sum_product_voltages_bounds" );
+  add_static_constraint( v_diff_product_voltages_bounds ,
+                         "AC_diff_product_voltages_bounds" );
+  }
 
  }  // end( ACNetworkBlock::generate_SOCP_relaxation )
 
@@ -1179,6 +1194,35 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   }
  add_static_constraint( v_theta_bounds , "v_theta_bounds" );
 
+ // absolute box bounds on each individual v_theta- - - - - - - - - - - - - -
+ /* v_theta only ever enters the model as differences ( theta_p - theta_n )
+  * (in v_theta_bounds above and in the cos/sin McCormick constraints below),
+  * so its absolute value is a free gauge that is here pinned for definiteness:
+  * theta_0 = 0 fixes the reference, and every other angle is given the
+  * tightest box that still cannot cut any feasible profile. Along a spanning
+  * tree of the (connected) network each of the at most number_nodes - 1 line
+  * crossings adds at most max_phi := max_line | PAD limit |, so
+  * | theta_n | <= ( number_nodes - 1 ) max_phi. */
+ double max_phi = 0.0;
+ for( auto & line_id : DC_lines )
+  max_phi = std::max( max_phi , PI * std::max( v_line_max_angle[ line_id ] ,
+                      - v_line_min_angle[ line_id ] ) / 180.0 );
+ const double theta_bound = ( number_nodes - 1 ) * max_phi;
+
+ v_theta_box_bounds.resize( number_nodes );
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+  if( node_id == 0 ) {  // reference / slack bus: fix the angle gauge
+   v_theta_box_bounds[ node_id ].set_lhs( 0.0 );
+   v_theta_box_bounds[ node_id ].set_rhs( 0.0 );
+   }
+  else {
+   v_theta_box_bounds[ node_id ].set_lhs( - theta_bound );
+   v_theta_box_bounds[ node_id ].set_rhs(   theta_bound );
+   }
+  v_theta_box_bounds[ node_id ].set_variable( & v_theta[ node_id ] );
+  }
+ add_static_constraint( v_theta_box_bounds , "v_theta_box_bounds" );
+
  // bounds on v_alpha - - - - - - - - - - - - - - - - - - - - - - - - - - -
  v_alpha_bounds.resize( nb_dc_lines );
  i_line = 0;
@@ -1203,13 +1247,12 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
 
  // generate auxiliary constraints- - - - - - - - - - - - - - - - - - - - -
 
- /* McCormick envelope of the square term V_n^2, which directly yields
+ /* McCormick envelope of the square term V_n^2 (one per node):
   *   c_{n,n} >= v_n^2
-  *   c_{n,n} <= ( overline{v}_n + underline{v}_n ) v_n
-  *              - overline{v}_n underline{v}_n
-  *
+  *   c_{n,n} <= ( overline{v}_n + underline{v}_n ) v_n - overline{v}_n underline{v}_n
   * This is eq. (21a) combined with (T-CONV) in Coffrin (2016). */
  v_diag_const_1.resize( number_nodes );
+ v_diag_const_2.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   auto qfunc = new DQuadFunction();
   qfunc->add_variable( & v_sqrd_voltages[ node_id ] , -1.0 , 0.0 );
@@ -1217,11 +1260,7 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   v_diag_const_1[ node_id ].set_lhs( -Inf< double >() );
   v_diag_const_1[ node_id ].set_rhs( 0.0 );
   v_diag_const_1[ node_id ].set_function( qfunc );
-  }
- add_static_constraint( v_diag_const_1 , "v_diag_const_1" );
 
- v_diag_const_2.resize( number_nodes );
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   auto lfunc = new LinearFunction();
   lfunc->add_variable( & v_sqrd_voltages[ node_id ] , -1.0 );
   lfunc->add_variable( & v_voltage[ node_id ] ,
@@ -1233,121 +1272,34 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
                                      pow( f_C_v_scal , 2 ) );
   v_diag_const_2[ node_id ].set_function( lfunc );
   }
+ add_static_constraint( v_diag_const_1 , "v_diag_const_1" );
  add_static_constraint( v_diag_const_2 , "v_diag_const_2" );
 
- /* Classic McCormick relaxations for a product of variables:
-  *   z_{n,n'} >= underline{v}_n v_{n'}  + underline{v}_{n'} v_n
-  *               - underline{v}_n underline{v}_{n'}
-  *   z_{n,n'} >= overline{v}_n  v_{n'}  + overline{v}_{n'}  v_n
-  *               - overline{v}_n overline{v}_{n'}
-  *   z_{n,n'} <= underline{v}_n v_{n'}  + overline{v}_{n'}  v_n
-  *               - underline{v}_n overline{v}_{n'}
-  *   z_{n,n'} <= overline{v}_n  v_{n'}  + underline{v}_{n'} v_n
-  *               - overline{v}_n underline{v}_{n'} */
- v_def_z_1.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_z[ i_line ] , 1.0 );
-  lfunc->add_variable( & v_voltage[ p ] , -min_voltage[ n ] * f_C_v_scal );
-  lfunc->add_variable( & v_voltage[ n ] , -min_voltage[ p ] * f_C_v_scal );
-  v_def_z_1[ i_line ].set_function( lfunc );
-  v_def_z_1[ i_line ].set_lhs( -min_voltage[ n ] * min_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  v_def_z_1[ i_line ].set_rhs( Inf< double >() );
-  ++i_line;
-  }
- add_static_constraint( v_def_z_1 , "v_def_z_1" );
-
- v_def_z_2.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_z[ i_line ] , 1.0 );
-  lfunc->add_variable( & v_voltage[ p ] , -max_voltage[ n ] * f_C_v_scal );
-  lfunc->add_variable( & v_voltage[ n ] , -max_voltage[ p ] * f_C_v_scal );
-  v_def_z_2[ i_line ].set_function( lfunc );
-  v_def_z_2[ i_line ].set_lhs( -max_voltage[ n ] * max_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  v_def_z_2[ i_line ].set_rhs( Inf< double >() );
-  ++i_line;
-  }
- add_static_constraint( v_def_z_2 , "v_def_z_2" );
-
- v_def_z_3.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_z[ i_line ] , 1.0 );
-  lfunc->add_variable( & v_voltage[ p ] , -max_voltage[ n ] * f_C_v_scal );
-  lfunc->add_variable( & v_voltage[ n ] , -min_voltage[ p ] * f_C_v_scal );
-  v_def_z_3[ i_line ].set_function( lfunc );
-  v_def_z_3[ i_line ].set_lhs( -Inf< double >() );
-  v_def_z_3[ i_line ].set_rhs( -min_voltage[ p ] * max_voltage[ n ] *
-                               pow( f_C_v_scal , 2 ) );
-  ++i_line;
-  }
- add_static_constraint( v_def_z_3 , "v_def_z_3" );
-
- v_def_z_4.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_z[ i_line ] , 1.0 );
-  lfunc->add_variable( & v_voltage[ n ] , -max_voltage[ p ] * f_C_v_scal );
-  lfunc->add_variable( & v_voltage[ p ] , -min_voltage[ n ] * f_C_v_scal );
-  v_def_z_4[ i_line ].set_function( lfunc );
-  v_def_z_4[ i_line ].set_lhs( -Inf< double >() );
-  v_def_z_4[ i_line ].set_rhs( -min_voltage[ n ] * max_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  ++i_line;
-  }
- add_static_constraint( v_def_z_4 , "v_def_z_4" );
-
- /* alpha_{n,n'} <= 1 - ( 1 - cos( theta^Delta_{n,n'} ) )
-  *                     / ( theta^Delta_{n,n'} )^2
-  *                     ( theta_n - theta_{n'} )^2 */
+ /* Convex envelope of cos( theta_p - theta_n ), one pair of constraints per AC
+  * line. This is a small, genuinely convex set and is kept static:
+  *   alpha <= 1 - ( 1 - cos theta^Delta ) / theta^Delta^2 ( theta_p - theta_n )^2
+  *   alpha >= cos( theta^Delta )
+  * The linear McCormick families ( z / c / beta / s ), which would otherwise
+  * blow up the model, are instead separated on demand: see
+  * generate_dynamic_constraints(). */
  v_def_alpha_1.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                            -v_line_min_angle[ line_id ] ) ) /
-   180.0;
-  double coeff = ( 1 - cos( delta_theta ) ) / pow( delta_theta , 2 );
-
-  auto qfunc = new QuadFunction();
-  qfunc->add_variable( & v_alpha[ i_line ] , 1.0 , 0.0 );
-  qfunc->add_variable( & v_theta[ p ] , 0.0 , coeff );
-  qfunc->add_variable( & v_theta[ n ] , 0.0 , coeff );
-  qfunc->add_nd_term( & v_theta[ p ] , & v_theta[ n ] , -2.0 * coeff );
-
-  v_def_alpha_1[ i_line ].set_function( qfunc );
-  v_def_alpha_1[ i_line ].set_lhs( -Inf< double >() );
-  v_def_alpha_1[ i_line ].set_rhs( 1.0 );
-  ++i_line;
-  }
- add_static_constraint( v_def_alpha_1 , "v_def_alpha_1" );
-
  v_def_alpha_2.resize( nb_dc_lines );
  i_line = 0;
  for( auto & line_id : DC_lines ) {
-  double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                            -v_line_min_angle[ line_id ] ) ) /
-   180.0;
+  const Index p = start_line[ line_id ];
+  const Index n = end_line[ line_id ];
+  const double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
+                                      - v_line_min_angle[ line_id ] ) ) / 180.0;
+  const double alpha_coeff = ( 1 - cos( delta_theta ) ) / pow( delta_theta , 2 );
+
+  auto qfunc = new QuadFunction();
+  qfunc->add_variable( & v_alpha[ i_line ] , 1.0 , 0.0 );
+  qfunc->add_variable( & v_theta[ p ] , 0.0 , alpha_coeff );
+  qfunc->add_variable( & v_theta[ n ] , 0.0 , alpha_coeff );
+  qfunc->add_nd_term( & v_theta[ p ] , & v_theta[ n ] , -2.0 * alpha_coeff );
+  v_def_alpha_1[ i_line ].set_function( qfunc );
+  v_def_alpha_1[ i_line ].set_lhs( -Inf< double >() );
+  v_def_alpha_1[ i_line ].set_rhs( 1.0 );
 
   auto lfunc = new LinearFunction();
   lfunc->add_variable( & v_alpha[ i_line ] , 1.0 );
@@ -1356,278 +1308,156 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   v_def_alpha_2[ i_line ].set_rhs( Inf< double >() );
   ++i_line;
   }
+ add_static_constraint( v_def_alpha_1 , "v_def_alpha_1" );
  add_static_constraint( v_def_alpha_2 , "v_def_alpha_2" );
 
- /* McCormick relaxations of c_{n,n'}:
-  *
-  *  c_{n,n'} >= underline{v}_n underline{v}_{n'} alpha_{n,n'}
-  *              + cos( theta^Delta_{n,n'} ) z_{n,n'}
-  *              - underline{v}_n underline{v}_{n'} cos( theta^Delta_{n,n'} )
-  *  c_{n,n'} >= overline{v}_n overline{v}_{n'} alpha_{n,n'}
-  *              + z_{n,n'} - overline{v}_n overline{v}_{n'}
-  *  c_{n,n'} <= underline{v}_n underline{v}_{n'} alpha_{n,n'}
-  *              + z_{n,n'} - underline{v}_n underline{v}_{n'}
-  *  c_{n,n'} <= overline{v}_n overline{v}_{n'} alpha_{n,n'}
-  *              + cos( theta^Delta_{n,n'} ) z_{n,n'}
-  *              - overline{v}_n overline{v}_{n'} cos( theta^Delta_{n,n'} ) */
- v_def_c_1.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * std::max( v_line_max_angle[ line_id ] ,
-                                      -v_line_min_angle[ line_id ] ) / 180.0;
-  double coeff_cos = cos( delta_theta );
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
-  // v_sum is indexed over all lines, whereas the aux variables only over
-  // the AC lines
-  lfunc->add_variable( & v_alpha[ i_line ] ,
-                       -min_voltage[ n ] * min_voltage[ p ] *
-                       pow( f_C_v_scal , 2 ) );
-  lfunc->add_variable( & v_z[ i_line ] , -coeff_cos );
-  v_def_c_1[ i_line ].set_function( lfunc );
-  v_def_c_1[ i_line ].set_lhs( -coeff_cos * min_voltage[ n ] *
-                               min_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  v_def_c_1[ i_line ].set_rhs( Inf< double >() );
-  ++i_line;
-  }
- add_static_constraint( v_def_c_1 , "v_def_c_1" );
-
- v_def_c_2.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
-  lfunc->add_variable( & v_alpha[ i_line ] ,
-                       -max_voltage[ n ] * max_voltage[ p ] *
-                       pow( f_C_v_scal , 2 ) );
-  lfunc->add_variable( & v_z[ i_line ] , -1.0 );
-  v_def_c_2[ i_line ].set_function( lfunc );
-  v_def_c_2[ i_line ].set_lhs( -max_voltage[ n ] * max_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  v_def_c_2[ i_line ].set_rhs( Inf< double >() );
-  ++i_line;
-  }
- add_static_constraint( v_def_c_2 , "v_def_c_2" );
-
- v_def_c_3.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * std::max( v_line_max_angle[ line_id ] ,
-                                      -v_line_min_angle[ line_id ] ) / 180.0;
-  double coeff_cos = cos( delta_theta );
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
-  lfunc->add_variable( & v_alpha[ i_line ] ,
-                       -max_voltage[ n ] * max_voltage[ p ] *
-                       pow( f_C_v_scal , 2 ) );
-  lfunc->add_variable( & v_z[ i_line ] , -coeff_cos );
-  v_def_c_3[ i_line ].set_function( lfunc );
-  v_def_c_3[ i_line ].set_lhs( -Inf< double >() );
-  v_def_c_3[ i_line ].set_rhs( -coeff_cos * max_voltage[ n ] *
-                               max_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  ++i_line;
-  }
- add_static_constraint( v_def_c_3 , "v_def_c_3" );
-
- v_def_c_4.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_sum_product_voltages[ line_id ] , 1.0 );
-  lfunc->add_variable( & v_alpha[ i_line ] ,
-                       -min_voltage[ n ] * min_voltage[ p ] *
-                       pow( f_C_v_scal , 2 ) );
-  lfunc->add_variable( & v_z[ i_line ] , -1.0 );
-  v_def_c_4[ i_line ].set_function( lfunc );
-  v_def_c_4[ i_line ].set_lhs( -Inf< double >() );
-  v_def_c_4[ i_line ].set_rhs( -min_voltage[ n ] * min_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  ++i_line;
-  }
- add_static_constraint( v_def_c_4 , "v_def_c_4" );
-
- /* The beta variables are involved in the convex relaxation of the sine
-  * function:
-  *
-  *  beta_{n,n'} <= cos( theta^Delta_{n,n'} / 2 )
-  *                 ( ( theta_n - theta_{n'} ) - theta^Delta_{n,n'} / 2 )
-  *                 + sin( theta^Delta_{n,n'} / 2 )
-  *  beta_{n,n'} >= cos( theta^Delta_{n,n'} / 2 )
-  *                 ( ( theta_n - theta_{n'} ) + theta^Delta_{n,n'} / 2 )
-  *                 - sin( theta^Delta_{n,n'} / 2 ) */
- v_def_beta_1.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                            -v_line_min_angle[ line_id ] ) ) /
-   180.0;
-  double coeff_cos = cos( delta_theta / 2.0 );
-  double coeff_sin = sin( delta_theta / 2.0 );
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_beta[ i_line ] , 1.0 );
-  lfunc->add_variable( & v_theta[ p ] , -coeff_cos );
-  lfunc->add_variable( & v_theta[ n ] , coeff_cos );
-  v_def_beta_1[ i_line ].set_function( lfunc );
-  v_def_beta_1[ i_line ].set_lhs( -Inf< double >() );
-  v_def_beta_1[ i_line ].set_rhs( coeff_sin - coeff_cos * delta_theta / 2.0 );
-  ++i_line;
-  }
- add_static_constraint( v_def_beta_1 , "v_def_beta_1" );
-
- v_def_beta_2.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                            -v_line_min_angle[ line_id ] ) ) /
-   180.0;
-  double coeff_cos = cos( delta_theta / 2.0 );
-  double coeff_sin = sin( delta_theta / 2.0 );
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_beta[ i_line ] , 1.0 );
-  lfunc->add_variable( & v_theta[ p ] , -coeff_cos );
-  lfunc->add_variable( & v_theta[ n ] , coeff_cos );
-  v_def_beta_2[ i_line ].set_function( lfunc );
-  v_def_beta_2[ i_line ].set_lhs( -coeff_sin + coeff_cos * delta_theta / 2.0 );
-  v_def_beta_2[ i_line ].set_rhs( Inf< double >() );
-  ++i_line;
-  }
- add_static_constraint( v_def_beta_2 , "v_def_beta_2" );
-
- /* McCormick relaxations of s_{n,n'} (product involving the sine):
-  *
-  *  s_{n,n'} >= underline{v}_n underline{v}_{n'} beta_{n,n'}
-  *              - sin( theta^Delta_{n,n'} ) z_{n,n'}
-  *              + underline{v}_n underline{v}_{n'} sin( theta^Delta_{n,n'} )
-  *  s_{n,n'} >= overline{v}_n overline{v}_{n'} beta_{n,n'}
-  *              + sin( theta^Delta_{n,n'} ) z_{n,n'}
-  *              - overline{v}_n overline{v}_{n'} sin( theta^Delta_{n,n'} )
-  *  s_{n,n'} <= underline{v}_n underline{v}_{n'} beta_{n,n'}
-  *              + sin( theta^Delta_{n,n'} ) z_{n,n'}
-  *              - underline{v}_n underline{v}_{n'} sin( theta^Delta_{n,n'} )
-  *  s_{n,n'} <= overline{v}_n overline{v}_{n'} beta_{n,n'}
-  *              - sin( theta^Delta_{n,n'} ) z_{n,n'}
-  *              + overline{v}_n overline{v}_{n'} sin( theta^Delta_{n,n'} ) */
- v_def_s_1.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                            -v_line_min_angle[ line_id ] ) ) /
-   180.0;
-  double coeff_sin = sin( delta_theta );
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
-  lfunc->add_variable( & v_beta[ i_line ] ,
-                       -min_voltage[ n ] * min_voltage[ p ] *
-                       pow( f_C_v_scal , 2 ) );
-  lfunc->add_variable( & v_z[ i_line ] , coeff_sin );
-  v_def_s_1[ i_line ].set_function( lfunc );
-  v_def_s_1[ i_line ].set_lhs( coeff_sin * min_voltage[ n ] *
-                               min_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  v_def_s_1[ i_line ].set_rhs( Inf< double >() );
-  ++i_line;
-  }
- add_static_constraint( v_def_s_1 , "v_def_s_1" );
-
- v_def_s_2.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                            -v_line_min_angle[ line_id ] ) ) /
-   180.0;
-  double coeff_sin = sin( delta_theta );
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
-  lfunc->add_variable( & v_beta[ i_line ] ,
-                       -max_voltage[ n ] * max_voltage[ p ] *
-                       pow( f_C_v_scal , 2 ) );
-  lfunc->add_variable( & v_z[ i_line ] , -coeff_sin );
-  v_def_s_2[ i_line ].set_function( lfunc );
-  v_def_s_2[ i_line ].set_lhs( -coeff_sin * max_voltage[ n ] *
-                               max_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  v_def_s_2[ i_line ].set_rhs( Inf< double >() );
-  ++i_line;
-  }
- add_static_constraint( v_def_s_2 , "v_def_s_2" );
-
- v_def_s_3.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                            -v_line_min_angle[ line_id ] ) ) /
-   180.0;
-  double coeff_sin = sin( delta_theta );
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
-  lfunc->add_variable( & v_beta[ i_line ] ,
-                       -min_voltage[ n ] * min_voltage[ p ] *
-                       pow( f_C_v_scal , 2 ) );
-  lfunc->add_variable( & v_z[ i_line ] , -coeff_sin );
-  v_def_s_3[ i_line ].set_function( lfunc );
-  v_def_s_3[ i_line ].set_lhs( -Inf< double >() );
-  v_def_s_3[ i_line ].set_rhs( -coeff_sin * min_voltage[ n ] *
-                               min_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  ++i_line;
-  }
- add_static_constraint( v_def_s_3 , "v_def_s_3" );
-
- v_def_s_4.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  Index p = start_line[ line_id ];
-  Index n = end_line[ line_id ];
-  double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                            -v_line_min_angle[ line_id ] ) ) /
-   180.0;
-  double coeff_sin = sin( delta_theta );
-
-  auto lfunc = new LinearFunction();
-  lfunc->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
-  lfunc->add_variable( & v_beta[ i_line ] ,
-                       -max_voltage[ n ] * max_voltage[ p ] *
-                       pow( f_C_v_scal , 2 ) );
-  lfunc->add_variable( & v_z[ i_line ] , coeff_sin );
-  v_def_s_4[ i_line ].set_function( lfunc );
-  v_def_s_4[ i_line ].set_lhs( -Inf< double >() );
-  v_def_s_4[ i_line ].set_rhs( coeff_sin * max_voltage[ n ] *
-                               max_voltage[ p ] *
-                               pow( f_C_v_scal , 2 ) );
-  ++i_line;
-  }
- add_static_constraint( v_def_s_4 , "v_def_s_4" );
+ // register the (initially empty) group of dynamic McCormick cuts; it is
+ // populated on demand by generate_dynamic_constraints()
+ add_dynamic_constraint( v_SOCP_cuts , "AC_SOCP_cuts" );
 
  }  // end( ACNetworkBlock::strengthen_SOCP_relaxation )
+
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
+{
+ // the McCormick cuts only exist for the strengthened SOCP relaxation
+ if( ! b_strongSOCP )
+  return;
+
+ // separation tolerance (absolute): a cut is added only if violated by > tol
+ double tol = 1e-6;
+ auto extract_parameters = [ & tol ]( Configuration * c ) -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+   }
+  if( auto tc = dynamic_cast<
+                 SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   return( true );
+   }
+  return( false );
+  };
+ if( ( ! extract_parameters( dycc ) ) && f_BlockConfig )
+  extract_parameters( f_BlockConfig->f_dynamic_constraints_Configuration );
+
+ auto * f_net = static_cast< ACNetworkData * >( f_NetworkData );
+ const auto & start_line = f_net->get_start_line();
+ const auto & end_line = f_net->get_end_line();
+ const auto & min_voltage = f_net->get_node_min_voltage();
+ const auto & max_voltage = f_net->get_node_max_voltage();
+ const auto & v_line_min_angle = f_net->get_line_min_angle();
+ const auto & v_line_max_angle = f_net->get_line_max_angle();
+ auto & DC_lines = f_net->get_DC_lines();
+
+ const double C2 = pow( f_C_v_scal , 2 );
+
+ std::list< FRowConstraint > newcuts;
+
+ /* Append to newcuts the three-term inequality lhs <= c0 v0 + c1 v1 + c2 v2
+  * <= rhs, but only if it is violated by more than tol at the current point.
+  * The coefficients are exactly those of the static formulation, so a
+  * separated cut is identical to the inequality it replaces. */
+ auto separate = [ & ]( ColVariable * v0 , double c0 ,
+                        ColVariable * v1 , double c1 ,
+                        ColVariable * v2 , double c2 ,
+                        double lhs , double rhs ) {
+  const double val = c0 * v0->get_value() + c1 * v1->get_value()
+                   + c2 * v2->get_value();
+  if( ( val < lhs - tol ) || ( val > rhs + tol ) ) {
+   std::list< FRowConstraint > one( 1 );
+   auto lfunc = new LinearFunction();
+   lfunc->add_variable( v0 , c0 );
+   lfunc->add_variable( v1 , c1 );
+   lfunc->add_variable( v2 , c2 );
+   one.back().set_function( lfunc );
+   one.back().set_lhs( lhs );
+   one.back().set_rhs( rhs );
+   newcuts.splice( newcuts.end() , one );
+   }
+  };
+
+ int i_line = 0;
+ for( auto & line_id : DC_lines ) {
+  const Index p = start_line[ line_id ];
+  const Index n = end_line[ line_id ];
+  const double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
+                                      - v_line_min_angle[ line_id ] ) ) / 180.0;
+  const double cos_d = cos( delta_theta );          // cos( theta^Delta )
+  const double sin_d = sin( delta_theta );          // sin( theta^Delta )
+  const double cos_h = cos( delta_theta / 2.0 );    // cos( theta^Delta / 2 )
+  const double sin_h = sin( delta_theta / 2.0 );    // sin( theta^Delta / 2 )
+
+  // z : McCormick envelope of the product v_p v_n
+  separate( & v_z[ i_line ] , 1.0 ,
+            & v_voltage[ p ] , - min_voltage[ n ] * f_C_v_scal ,
+            & v_voltage[ n ] , - min_voltage[ p ] * f_C_v_scal ,
+            - min_voltage[ n ] * min_voltage[ p ] * C2 , Inf< double >() );
+  separate( & v_z[ i_line ] , 1.0 ,
+            & v_voltage[ p ] , - max_voltage[ n ] * f_C_v_scal ,
+            & v_voltage[ n ] , - max_voltage[ p ] * f_C_v_scal ,
+            - max_voltage[ n ] * max_voltage[ p ] * C2 , Inf< double >() );
+  separate( & v_z[ i_line ] , 1.0 ,
+            & v_voltage[ p ] , - max_voltage[ n ] * f_C_v_scal ,
+            & v_voltage[ n ] , - min_voltage[ p ] * f_C_v_scal ,
+            - Inf< double >() , - min_voltage[ p ] * max_voltage[ n ] * C2 );
+  separate( & v_z[ i_line ] , 1.0 ,
+            & v_voltage[ n ] , - max_voltage[ p ] * f_C_v_scal ,
+            & v_voltage[ p ] , - min_voltage[ n ] * f_C_v_scal ,
+            - Inf< double >() , - min_voltage[ n ] * max_voltage[ p ] * C2 );
+
+  // c : McCormick relaxation of c_{p,n} = Re( W_{p,n} )
+  separate( & v_sum_product_voltages[ line_id ] , 1.0 ,
+            & v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * C2 ,
+            & v_z[ i_line ] , - cos_d ,
+            - cos_d * min_voltage[ n ] * min_voltage[ p ] * C2 , Inf< double >() );
+  separate( & v_sum_product_voltages[ line_id ] , 1.0 ,
+            & v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * C2 ,
+            & v_z[ i_line ] , - 1.0 ,
+            - max_voltage[ n ] * max_voltage[ p ] * C2 , Inf< double >() );
+  separate( & v_sum_product_voltages[ line_id ] , 1.0 ,
+            & v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * C2 ,
+            & v_z[ i_line ] , - cos_d ,
+            - Inf< double >() , - cos_d * max_voltage[ n ] * max_voltage[ p ] * C2 );
+  separate( & v_sum_product_voltages[ line_id ] , 1.0 ,
+            & v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * C2 ,
+            & v_z[ i_line ] , - 1.0 ,
+            - Inf< double >() , - min_voltage[ n ] * min_voltage[ p ] * C2 );
+
+  // beta : convex envelope of sin( theta_p - theta_n )
+  separate( & v_beta[ i_line ] , 1.0 ,
+            & v_theta[ p ] , - cos_h , & v_theta[ n ] , cos_h ,
+            - Inf< double >() , sin_h - cos_h * delta_theta / 2.0 );
+  separate( & v_beta[ i_line ] , 1.0 ,
+            & v_theta[ p ] , - cos_h , & v_theta[ n ] , cos_h ,
+            - sin_h + cos_h * delta_theta / 2.0 , Inf< double >() );
+
+  // s : McCormick relaxation of s_{p,n} = Im( W_{p,n} )
+  separate( & v_diff_product_voltages[ line_id ] , 1.0 ,
+            & v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * C2 ,
+            & v_z[ i_line ] , sin_d ,
+            sin_d * min_voltage[ n ] * min_voltage[ p ] * C2 , Inf< double >() );
+  separate( & v_diff_product_voltages[ line_id ] , 1.0 ,
+            & v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * C2 ,
+            & v_z[ i_line ] , - sin_d ,
+            - sin_d * max_voltage[ n ] * max_voltage[ p ] * C2 , Inf< double >() );
+  separate( & v_diff_product_voltages[ line_id ] , 1.0 ,
+            & v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * C2 ,
+            & v_z[ i_line ] , - sin_d ,
+            - Inf< double >() , - sin_d * min_voltage[ n ] * min_voltage[ p ] * C2 );
+  separate( & v_diff_product_voltages[ line_id ] , 1.0 ,
+            & v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * C2 ,
+            & v_z[ i_line ] , sin_d ,
+            - Inf< double >() , sin_d * max_voltage[ n ] * max_voltage[ p ] * C2 );
+
+  ++i_line;
+  }
+
+ if( ! newcuts.empty() )
+  add_dynamic_constraints( v_SOCP_cuts , newcuts , eNoBlck );
+
+ }  // end( ACNetworkBlock::generate_dynamic_constraints )
 
 /*--------------------------------------------------------------------------*/
 
