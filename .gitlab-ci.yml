@@ -9,6 +9,7 @@ cache:
 stages:
   - build
   - test
+  - test-pph
   - deploy
 
 build:
@@ -36,8 +37,12 @@ build:
       - CMakeLists.txt
       - .gitlab-ci.yml
 
-test:
-  stage: test
+# the full ucblock suite exceeds the 3h GitLab.com shared-runner job cap when
+# run as one job (metabatch-PPH under PrimalProximalHeur alone is ~1.5h), so it
+# is split into two SEQUENTIAL stages, each comfortably under 3h: metabatch
+# (slv=0) + TUDPS here, metabatch-PPH (slv=1) next. Sequential, not parallel, to
+# keep within the two concurrent Gurobi sessions the academic WLS license grants.
+.test_template:
   timeout: 24h
   # the academic Gurobi WLS license caps concurrent sessions: a test job may
   # abort at startup with "GRBstartenv returned with status 10030" when other
@@ -53,8 +58,6 @@ test:
           "$GRB_LICENSEID" "$GRB_WLSACCESSID" "$GRB_WLSSECRET" > /tmp/gurobi.lic
         export GRB_LICENSE_FILE=/tmp/gurobi.lic
       fi
-  script:
-    - ctest -V -C Release -L "$CI_PROJECT_TITLE" --test-dir smspp-project/build --no-tests=error
   only:
     refs:
       - develop
@@ -67,6 +70,18 @@ test:
       - tools/*
       - CMakeLists.txt
       - .gitlab-ci.yml
+
+test:
+  extends: .test_template
+  stage: test
+  script:
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -E metabatch-PPH --test-dir smspp-project/build --no-tests=error
+
+test-pph:
+  extends: .test_template
+  stage: test-pph
+  script:
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -R metabatch-PPH --test-dir smspp-project/build --no-tests=error
 
 deploy:
   stage: deploy
