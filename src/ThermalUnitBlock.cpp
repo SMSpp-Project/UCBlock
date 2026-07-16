@@ -154,6 +154,19 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
+ // a continuous design is not representable here, as it would multiply the
+ // binary commitment variable in the maximum power constraint
+ for( const auto & design : { "MaxCapacityDesign" , "MinCapacityDesign" } )
+  if( ! group.getVar( design ).isNull() )
+   throw( std::logic_error(
+    std::string( "ThermalUnitBlock::deserialize: " ) + design +
+    " is not supported. A continuous design variable would multiply the "
+    "binary commitment variable in the maximum power constraint, making the "
+    "model bilinear. The available options are: \"InvestmentCost\", for the "
+    "binary decision of building the unit; \"Scale\" = N, for a fleet of N "
+    "identical modules committed together; or N replicated ThermalUnitBlock, "
+    "for an integer install with independent commitments." ) );
+
  ::deserialize( group , f_InvestmentCost , "InvestmentCost" );
 
  ::deserialize( group , f_Capacity , "Capacity" );
