@@ -422,13 +422,18 @@ class ThermalUnitExtDPSolver : public Solver
  std::vector< double > const_term;
 
  // -- reactive power --------------------------------------------------- //
- // q[t] in [reactive_min[t], reactive_max[t]] is separable from the
- // commitment/active-power DP (no coupling, no cost in the unit objective).
- // reactive_linear_term[t] is its dualized linear cost (empty if the unit has
- // no reactive power); run_DP() prices q[t] as a constant added to the value.
+ // q[t] in [reactive_min[t] + reactive_min_on[t] u[t],
+ //          reactive_max[t] + reactive_max_on[t] u[t]] is separable from the
+ // active-power DP (no p coupling, no cost in the unit objective) but gated by
+ // the commitment u[t]. reactive_linear_term[t] is its dualized linear cost
+ // (empty if the unit has no reactive power). run_DP() prices q[t] as the
+ // off-box constant Q_star plus, when gated, a per-on-period increment
+ // reactive_delta[t]. The _on vectors are empty when the box is not gated.
  std::vector< double > reactive_linear_term;
  std::vector< double > reactive_min;
  std::vector< double > reactive_max;
+ std::vector< double > reactive_min_on;
+ std::vector< double > reactive_max_on;
 
  // -- spinning reserve ------------------------------------------------- //
  // participation factors (caps in pr<=rho_p*p, sr<=rho_s*p) and objective

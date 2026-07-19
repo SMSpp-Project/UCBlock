@@ -757,12 +757,22 @@ class ThermalUnitDPSolver : public Solver
  std::vector< double > linear_term;
  std::vector< double > const_term;
 
- // reactive power q[t] in [reactive_min[t], reactive_max[t]], separable from
- // the DP; reactive_linear_term[t] is its dualized linear cost (empty if the
- // unit has no reactive power). run_DP() prices q[t] as a constant.
+ // reactive power q[t] in [reactive_min[t] + reactive_min_on[t] u[t],
+ // reactive_max[t] + reactive_max_on[t] u[t]], separable from the active-power
+ // DP but gated by the commitment u[t]; reactive_linear_term[t] is its dualized
+ // linear cost (empty if the unit has no reactive power). The off-box reward is
+ // priced as the constant Q_star; when the box is gated (the _on vectors are
+ // non-empty) the per-on-period increment reactive_delta[t] = r_on - r_off is
+ // added to the fixed cost of every on-period. fill_reactive_delta() (re)builds
+ // reactive_delta from the current reactive price and boxes.
  std::vector< double > reactive_linear_term;
  std::vector< double > reactive_min;
  std::vector< double > reactive_max;
+ std::vector< double > reactive_min_on;
+ std::vector< double > reactive_max_on;
+ std::vector< double > reactive_delta;
+
+ void fill_reactive_delta( void );
 
  std::vector< double > primary_rho;             ///< primary reserve cap factor
  std::vector< double > secondary_rho;           ///< secondary reserve cap factor

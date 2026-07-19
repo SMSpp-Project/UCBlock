@@ -213,12 +213,19 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
  // q*[t] is the box endpoint minimising c*q (lower bound if c>0, upper if c<0;
  // any feasible value, here 0 clamped to the box, if c==0). This matches the
  // contribution run_DP() adds to the value. See ReactivePower_Bound_Const.
+ // the box is state-dependent: [Qmin_off,Qmax_off] when off, widened by the
+ // commitment coefficients [Qmin_on,Qmax_on] when on (U[i]) -- the same box the
+ // per-period contribution in run_DP() prices. Off/not built collapses to the
+ // off box (q forced to 0 when not built).
  if( auto q_it = b->get_reactive_power( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double q = 0;  // not built: q is forced to 0 with all operational variables
    if( built ) {
-    const double qlo = b->get_min_reactive_power( i );
-    const double qhi = b->get_max_reactive_power( i );
+    const bool on = U[ i ];
+    const double qlo = b->get_min_reactive_power( i ) +
+                       ( on ? b->get_min_reactive_power_on( i ) : 0.0 );
+    const double qhi = b->get_max_reactive_power( i ) +
+                       ( on ? b->get_max_reactive_power_on( i ) : 0.0 );
     const double c = reactive_linear_term.empty() ? 0.0
                                                   : reactive_linear_term[ i ];
     if( c > 0 )
@@ -506,13 +513,27 @@ void ThermalUnitExtDPSolver::load_parameters( void )
   retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
   reactive_min.resize( time_horizon );
   reactive_max.resize( time_horizon );
+  reactive_min_on.resize( time_horizon );
+  reactive_max_on.resize( time_horizon );
+  bool any_on = false;
   for( Index t = 0 ; t < time_horizon ; ++t ) {
    reactive_min[ t ] = b->get_min_reactive_power( t );
    reactive_max[ t ] = b->get_max_reactive_power( t );
+   reactive_min_on[ t ] = b->get_min_reactive_power_on( t );
+   reactive_max_on[ t ] = b->get_max_reactive_power_on( t );
+   any_on = any_on || ( reactive_min_on[ t ] != 0.0 ) ||
+            ( reactive_max_on[ t ] != 0.0 );
+   }
+  if( ! any_on ) {  // no commitment gating: keep the plain separable box
+   reactive_min_on.clear();
+   reactive_max_on.clear();
    }
   }
- else
+ else {
   reactive_linear_term.clear();
+  reactive_min_on.clear();
+  reactive_max_on.clear();
+  }
 
  // design (investment): present iff the unit carries a nonzero investment cost.
  // The DP solves the operational problem assuming the unit exists; run_DP()
@@ -1327,6 +1348,26 @@ void ThermalUnitExtDPSolver::run_DP( void )
   eff_disc_su[ t ] = build_reserve_discount( t , bound_on  [ t ] );
   }
 
+ // reactive on-increment: when the reactive box is commitment-gated
+ // ([Qmin_off,Qmax_off] widened by [Qmin_on,Qmax_on] while on), being on earns,
+ // on top of the off-state reward accumulated into Q_star (computed on the off
+ // box, unchanged), an extra Delta_t = r_on_t - r_off_t per on-period. It is a
+ // constant, folded into const_term at each on-period site below. Zero (empty
+ // vectors) recovers the plain separable reactive constant.
+ std::vector< double > reactive_delta( n , 0.0 );
+ if( ( ! reactive_linear_term.empty() ) &&
+     ( ( ! reactive_min_on.empty() ) || ( ! reactive_max_on.empty() ) ) )
+  for( Index t = 0 ; t < n ; ++t ) {
+   const double c = reactive_linear_term[ t ];
+   const double lo_off = reactive_min[ t ] , hi_off = reactive_max[ t ];
+   const double lo_on = lo_off +
+    ( reactive_min_on.empty() ? 0.0 : reactive_min_on[ t ] );
+   const double hi_on = hi_off +
+    ( reactive_max_on.empty() ? 0.0 : reactive_max_on[ t ] );
+   reactive_delta[ t ] = std::min( c * lo_on , c * hi_on ) -
+                         std::min( c * lo_off , c * hi_off );
+   }
+
  // RRF+ pairwise-domination pruning (Wuijts et al. 2021, Prop. 6.1): a
  // F^tau_t with tau >= mut is "irrelevant" if it is pointwise dominated
  // by some F^tau'_t with tau' >= mut; if so it cannot appear in any
@@ -1426,8 +1467,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
                         initial_power + delta_ramp_up[ 0 ] );
   if( ( ! fixed_off( 0 ) ) && ( lo < hi + 1e-12 ) ) {
    PQFun F;
-   F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] , const_term[ 0 ] ,
-                  lo , hi } );
+   F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] ,
+                  const_term[ 0 ] + reactive_delta[ 0 ] , lo , hi } );
    add_pwq( F , eff_disc[ 0 ] );
    auto [ v , p ] = min_over( F , lo , hi );
    f_F  [ 0 ].push_back( std::move( F ) );
@@ -1485,7 +1526,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
     double suc = startup_costs.empty() ? 0.0 : startup_costs[ 0 ];
     PQFun F;
     F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] ,
-                   const_term[ 0 ] + suc , lo , hi } );
+                   const_term[ 0 ] + suc + reactive_delta[ 0 ] , lo , hi } );
     add_pwq( F , eff_disc_su[ 0 ] );  // start-up: reserve band under bound_on
     auto [ v , p ] = min_over( F , lo , hi );
     f_F  [ 0 ].push_back( std::move( F ) );
@@ -1623,7 +1664,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
     double suc = startup_costs.empty() ? 0.0 : startup_costs[ t ];
     PQFun F = pool_take();
     F.push_back( { quad_term[ t ] , linear_term[ t ] ,
-                   const_term[ t ] + suc + c_off_ready[ t - 1 ] ,
+                   const_term[ t ] + suc + c_off_ready[ t - 1 ] +
+                   reactive_delta[ t ] ,
                    lo , hi } );
     add_pwq( F , eff_disc_su[ t ] );  // start-up: reserve band under bound_on
     auto [ v , p ] = min_over( F , lo , hi );
@@ -1646,7 +1688,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
     pool_give( F );            // hand the unused buffer back to the pool
     continue;
     }
-   add_quadratic( F , quad_term[ t ] , linear_term[ t ] , const_term[ t ] );
+   add_quadratic( F , quad_term[ t ] , linear_term[ t ] ,
+                  const_term[ t ] + reactive_delta[ t ] );
    add_pwq( F , eff_disc[ t ] );
    auto [ v , p ] = min_over( F , Plo , Phi );
    m_new_F  .push_back( std::move( F ) );

@@ -265,6 +265,21 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 		   []( double i ) { return( i == 0 ); } ) )
    v_MinReactivePower.clear();
 
+ // commitment-gated reactive coefficients (optional): the u[t] terms of the
+ // state-dependent bound Qmin_off + Qmin_on u <= q <= Qmax_off + Qmax_on u;
+ // absent or all-zero means the plain box above (backward-compatible)
+ if( ::deserialize( group , "MaxReactivePowerOn" , f_time_horizon ,
+		    v_MaxReactivePowerOn , true , true , v_change_intervals ) )
+  if( std::all_of( v_MaxReactivePowerOn.begin() , v_MaxReactivePowerOn.end() ,
+		   []( double i ) { return( i == 0 ); } ) )
+   v_MaxReactivePowerOn.clear();
+
+ if( ::deserialize( group , "MinReactivePowerOn" , f_time_horizon ,
+		    v_MinReactivePowerOn , true , true , v_change_intervals ) )
+  if( std::all_of( v_MinReactivePowerOn.begin() , v_MinReactivePowerOn.end() ,
+		   []( double i ) { return( i == 0 ); } ) )
+   v_MinReactivePowerOn.clear();
+
  // variables for the reference schedule
  ::deserialize( group , "ReferenceSchedule" , f_time_horizon ,
 		v_RefSchedule , true , true , v_change_intervals );
@@ -385,6 +400,7 @@ std::vector< std::string > ThermalUnitBlock::expected_vars( void )
     "MinDownTime" , "InitUpDownTime" , "Availability" , "StartUpLimit" ,
     "ShutDownLimit" , "MaxRampUpSteps" , "MaxRampDownSteps" ,
     "InitialReactivePower", "MaxReactivePower" , "MinReactivePower" ,
+    "MaxReactivePowerOn" , "MinReactivePowerOn" ,
     "ReferenceSchedule" , "FixToMaximum"
     };
 
@@ -3494,20 +3510,63 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // reactive power bounds constraints (if any) - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( f_reactive_power && 
-     ( ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) )
-     ) {
-  if( ReactivePower_Bound_Const.empty() )
-   ReactivePower_Bound_Const.resize( f_time_horizon );
+ // the bound is Qmin_off + Qmin_on u <= q <= Qmax_off + Qmax_on u; when the
+ // commitment coefficients Qmin/max_on are all zero (the default) it is the
+ // plain box on q and a BoxConstraint suffices, otherwise q is coupled to the
+ // commitment u and two FRowConstraints are needed
+ const bool reactive_gated = ( ! v_MinReactivePowerOn.empty() ) ||
+                             ( ! v_MaxReactivePowerOn.empty() );
 
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   ReactivePower_Bound_Const[ t ].set_rhs( get_max_reactive_power( t ) );
-   ReactivePower_Bound_Const[ t ].set_lhs( get_min_reactive_power( t ) );
-   ReactivePower_Bound_Const[ t ].set_variable( & v_reactive_power[ t ] );
+ if( f_reactive_power &&
+     ( ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) ||
+       reactive_gated ) ) {
+
+  if( ! reactive_gated ) {
+   if( ReactivePower_Bound_Const.empty() )
+    ReactivePower_Bound_Const.resize( f_time_horizon );
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    ReactivePower_Bound_Const[ t ].set_rhs( get_max_reactive_power( t ) );
+    ReactivePower_Bound_Const[ t ].set_lhs( get_min_reactive_power( t ) );
+    ReactivePower_Bound_Const[ t ].set_variable( & v_reactive_power[ t ] );
+    }
+
+   add_static_constraint( ReactivePower_Bound_Const ,
+                          "ReactivePowerBound_thermal" );
    }
+  else {
+   if( ReactivePowerMax_Const.empty() )
+    ReactivePowerMax_Const.resize( f_time_horizon );
+   if( ReactivePowerMin_Const.empty() )
+    ReactivePowerMin_Const.resize( f_time_horizon );
 
-  add_static_constraint( ReactivePower_Bound_Const ,
-                         "ReactivePowerBound_thermal" );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // q[t] - Qmax_on[t] u[t] <= Qmax_off[t]
+    LinearFunction::v_coeff_pair vmax;
+    vmax.push_back( std::make_pair( & v_reactive_power[ t ] , 1.0 ) );
+    vmax.push_back( std::make_pair( & v_commitment[ t ] ,
+                                    - get_max_reactive_power_on( t ) ) );
+    ReactivePowerMax_Const[ t ].set_lhs( - Inf< double >() );
+    ReactivePowerMax_Const[ t ].set_rhs( get_max_reactive_power( t ) );
+    ReactivePowerMax_Const[ t ].set_function(
+                                 new LinearFunction( std::move( vmax ) ) );
+
+    // q[t] - Qmin_on[t] u[t] >= Qmin_off[t]
+    LinearFunction::v_coeff_pair vmin;
+    vmin.push_back( std::make_pair( & v_reactive_power[ t ] , 1.0 ) );
+    vmin.push_back( std::make_pair( & v_commitment[ t ] ,
+                                    - get_min_reactive_power_on( t ) ) );
+    ReactivePowerMin_Const[ t ].set_lhs( get_min_reactive_power( t ) );
+    ReactivePowerMin_Const[ t ].set_rhs( Inf< double >() );
+    ReactivePowerMin_Const[ t ].set_function(
+                                 new LinearFunction( std::move( vmin ) ) );
+    }
+
+   add_static_constraint( ReactivePowerMax_Const ,
+                          "ReactivePowerMax_thermal" );
+   add_static_constraint( ReactivePowerMin_Const ,
+                          "ReactivePowerMin_thermal" );
+   }
   }
 
  set_constraints_generated();
@@ -4083,7 +4142,9 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 				 rel_viol )
   && RowConstraint::is_feasible( Reference_Schedule_Const , tol , rel_viol )
   && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol
-				 , rel_viol ) );
+				 , rel_viol )
+  && RowConstraint::is_feasible( ReactivePowerMax_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ReactivePowerMin_Const , tol , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )
 
@@ -4148,6 +4209,8 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "MaxPower" , v_MaxPower );
  serialize( "MaxReactivePower" , v_MaxReactivePower );
  serialize( "MinReactivePower" , v_MinReactivePower );
+ serialize( "MaxReactivePowerOn" , v_MaxReactivePowerOn );
+ serialize( "MinReactivePowerOn" , v_MinReactivePowerOn );
  serialize( "Availability" , v_Availability );
  serialize( "DeltaRampUp" , v_DeltaRampUp );
  serialize( "DeltaRampDown" , v_DeltaRampDown );

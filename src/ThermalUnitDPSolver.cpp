@@ -235,12 +235,19 @@ void ThermalUnitDPSolver::get_var_solution( Configuration * solc )
  // minimising c*q (lower if c>0, upper if c<0, else feasible 0). This matches
  // the contribution run_DP() adds to the value. See the analogous comment in
  // ThermalUnitExtDPSolver::get_var_solution().
+ // the box is state-dependent: [Qmin_off,Qmax_off] when off, widened by the
+ // commitment coefficients [Qmin_on,Qmax_on] when on (U[i]) -- the same box the
+ // per-period contribution prices (Q_star on the off box, reactive_delta on the
+ // on increment). Off/not built collapses to the off box.
  if( auto q_it = b->get_reactive_power( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i ) {
    double q = 0;  // not built: q is forced to 0 with all operational variables
    if( built ) {
-    const double qlo = b->get_min_reactive_power( i );
-    const double qhi = b->get_max_reactive_power( i );
+    const bool on = U[ i ];
+    const double qlo = b->get_min_reactive_power( i ) +
+                       ( on ? b->get_min_reactive_power_on( i ) : 0.0 );
+    const double qhi = b->get_max_reactive_power( i ) +
+                       ( on ? b->get_max_reactive_power_on( i ) : 0.0 );
     const double c = reactive_linear_term.empty() ? 0.0
                                                   : reactive_linear_term[ i ];
     if( c > 0 )
@@ -481,8 +488,10 @@ void ThermalUnitDPSolver::build_graph( void )
 
   double fc = 0;             // compute the fixed-cost component of the cost
   Index j = 0;               // this surely comprises the fixed costs
-  while( j < kMin )          // between 0 (included) and kMin (excluded)
-   fc += const_term[ j++ ];  // since the unit is on in that period
+  while( j < kMin ) {        // between 0 (included) and kMin (excluded)
+   fc += const_term[ j ] + reactive_delta[ j ];  // unit is on in that period
+   ++j;
+   }
 
   // the arc ( s , j ) has ON-run [ 0 , j ), which is allowed only if no
   // instant before j is fixed OFF; the ( s , d ) arc (run [ 0 , T )) is
@@ -502,7 +511,7 @@ void ThermalUnitDPSolver::build_graph( void )
    ai->cost2 = 0;
    ai->tail = & v_off_nodes[ j ];
    ai->tail->lab = 1;      // mark the tail node as reachable
-   fc += const_term[ j ];  // the next fixed cost will comprise that at j
+   fc += const_term[ j ] + reactive_delta[ j ];  // the next fixed cost at j
    }
 
   // now construct the special last arc ( s , d ), if allowed; note that in
@@ -612,8 +621,10 @@ void ThermalUnitDPSolver::build_graph( void )
    double fc = 0;
    Index j = i;
    Index endi = std::min( time_horizon , i + mut );
-   while( j < endi )
-    fc += const_term[ j++ ];  // since the
+   while( j < endi ) {
+    fc += const_term[ j ] + reactive_delta[ j ];  // unit is on in that period
+    ++j;
+    }
 
    // the arc ( i , j ) has ON-run [ i , j ), which is allowed only if no
    // instant in it is fixed OFF; the ( i , d ) arc (run [ i , T )) is
@@ -633,7 +644,7 @@ void ThermalUnitDPSolver::build_graph( void )
     ai->cost2 = 0;
     ai->tail = & v_off_nodes[ j ];
     ai->tail->lab = 1;      // mark the tail node as reachable
-    fc += const_term[ j ];  // the next fixed cost will comprise that at j
+    fc += const_term[ j ] + reactive_delta[ j ];  // the next fixed cost at j
     }
 
    // now construct the special last arc ( i , d ), if allowed; note that in
@@ -1026,13 +1037,29 @@ void ThermalUnitDPSolver::load_parameters( void )
   retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
   reactive_min.resize( time_horizon );
   reactive_max.resize( time_horizon );
+  reactive_min_on.resize( time_horizon );
+  reactive_max_on.resize( time_horizon );
+  bool any_on = false;
   for( Index t = 0 ; t < time_horizon ; ++t ) {
    reactive_min[ t ] = b->get_min_reactive_power( t );
    reactive_max[ t ] = b->get_max_reactive_power( t );
+   reactive_min_on[ t ] = b->get_min_reactive_power_on( t );
+   reactive_max_on[ t ] = b->get_max_reactive_power_on( t );
+   any_on = any_on || ( reactive_min_on[ t ] != 0.0 ) ||
+            ( reactive_max_on[ t ] != 0.0 );
+   }
+  if( ! any_on ) {  // no commitment gating: keep the plain separable box
+   reactive_min_on.clear();
+   reactive_max_on.clear();
    }
   }
- else
+ else {
   reactive_linear_term.clear();
+  reactive_min_on.clear();
+  reactive_max_on.clear();
+  }
+
+ fill_reactive_delta();  // (re)build the per-on-period reactive increment
 
  // design (investment): present iff the unit carries a nonzero investment cost.
  // The DP solves the operational problem assuming the unit exists; min_path()
@@ -1056,6 +1083,33 @@ void ThermalUnitDPSolver::load_parameters( void )
  stage = start;
 
  }  // end( ThermalUnitDPSolver::load_parameters )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitDPSolver::fill_reactive_delta( void )
+{
+ // the commitment-gated reactive box [Qmin_off,Qmax_off] widens to
+ // [Qmin_off+Qmin_on,Qmax_off+Qmax_on] when the unit is on, so being on earns,
+ // over the off-state reward folded into Q_star (computed on the off box), an
+ // extra Delta_t = r_on_t - r_off_t per on-period, a constant added to the
+ // fixed cost of every on-period. reactive_delta is always sized to the horizon
+ // (zero when the box is not gated or the unit carries no reactive power), so
+ // the build_graph() fixed-cost accumulation can add it unconditionally.
+ reactive_delta.assign( time_horizon , 0.0 );
+ if( reactive_linear_term.empty() ||
+     ( reactive_min_on.empty() && reactive_max_on.empty() ) )
+  return;
+ for( Index t = 0 ; t < time_horizon ; ++t ) {
+  const double c = reactive_linear_term[ t ];
+  const double lo_off = reactive_min[ t ] , hi_off = reactive_max[ t ];
+  const double lo_on = lo_off +
+   ( reactive_min_on.empty() ? 0.0 : reactive_min_on[ t ] );
+  const double hi_on = hi_off +
+   ( reactive_max_on.empty() ? 0.0 : reactive_max_on[ t ] );
+  reactive_delta[ t ] = std::min( c * lo_on , c * hi_on ) -
+                        std::min( c * lo_off , c * hi_off );
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1269,9 +1323,12 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      return( false );
 
     case( ThermalUnitBlockMod::eSetReactiveLinT ):
-     // reactive price only changes the separable constant added at the end of
-     // run_DP(); a full re-run recomputes it (the graph/dispatch are unaffected)
+     // the reactive price feeds the off-box constant Q_star and, when the box
+     // is commitment-gated, the per-on-period increment reactive_delta that
+     // enters the on-arc fixed costs; a full re-run (stage = start) rebuilds
+     // both from the refreshed price
      retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
+     fill_reactive_delta();
      stage = start;
      return( false );
 

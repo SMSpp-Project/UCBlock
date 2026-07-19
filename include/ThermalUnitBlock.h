@@ -1790,6 +1790,33 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the commitment-gated minimum reactive power coefficient
+ /** The reactive power bound is state-dependent on the commitment \f$ u_t \f$:
+  * \f[ \underline{q}^{\mathrm{off}}_t + \underline{q}^{\mathrm{on}}_t\,u_t
+  *     \;\le\; q_t \;\le\;
+  *     \overline{q}^{\mathrm{off}}_t + \overline{q}^{\mathrm{on}}_t\,u_t , \f]
+  * where get_min_reactive_power() and get_max_reactive_power() return the
+  * \f$ ^{\mathrm{off}} \f$ terms (the bound when the unit is off) and this
+  * method the \f$ \underline{q}^{\mathrm{on}}_t \f$ coefficient of \f$ u_t \f$.
+  * Zero (the default, empty vector) recovers the plain box \f$ [\underline{q}
+  * ^{\mathrm{off}}_t , \overline{q}^{\mathrm{off}}_t] \f$. */
+
+ double get_min_reactive_power_on( Index t , Index generator = 0 ) const {
+  return( ( v_MinReactivePowerOn.size() > t ) ?
+	  v_MinReactivePowerOn[ t ] : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the commitment-gated maximum reactive power coefficient
+ /** The \f$ \overline{q}^{\mathrm{on}}_t \f$ coefficient of \f$ u_t \f$ in the
+  * state-dependent reactive bound; see get_min_reactive_power_on(). */
+
+ double get_max_reactive_power_on( Index t , Index generator = 0 ) const {
+  return( ( v_MaxReactivePowerOn.size() > t ) ?
+	  v_MaxReactivePowerOn[ t ] : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the operational minimum active power output at the time \t
  /** This method returns the operational minimum active power output of the
   * unit at time \p t. See get_availability() for the definition of
@@ -2944,6 +2971,12 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of MaxReactivePower
  std::vector< double > v_MaxReactivePower;
 
+ /// the vector of MinReactivePowerOn (commitment coefficient; empty = all 0)
+ std::vector< double > v_MinReactivePowerOn;
+
+ /// the vector of MaxReactivePowerOn (commitment coefficient; empty = all 0)
+ std::vector< double > v_MaxReactivePowerOn;
+
  /// the reference Schedule to deviate minimally from if there
  std::vector< double > v_RefSchedule;
 
@@ -3183,8 +3216,16 @@ class ThermalUnitBlock : public UnitBlock
  /// the commitment fixed to one BoxConstraints
  std::vector< BoxConstraint > Commitment_fixed_to_One_Const;
 
- /// the reactive power bound constraints
+ /// the reactive power bound constraints (plain box; no commitment gating)
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
+
+ /// the reactive power upper bound constraints (commitment-gated variant):
+ /// q[t] - Qmax_on[t] u[t] <= Qmax_off[t]
+ std::vector< FRowConstraint > ReactivePowerMax_Const;
+
+ /// the reactive power lower bound constraints (commitment-gated variant):
+ /// q[t] - Qmin_on[t] u[t] >= Qmin_off[t]
+ std::vector< FRowConstraint > ReactivePowerMin_Const;
 
  //!! Q <= P
  //!! std::vector< FRowConstraint > Reactive_2_Active_Const;
