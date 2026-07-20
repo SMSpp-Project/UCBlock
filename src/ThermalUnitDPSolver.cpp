@@ -1505,12 +1505,19 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
  // read from the augmented pieces
  if( ! f_solver->g_disc.empty() ) {
   Index mtmp = 2 , ctmp = 1;
-  // k == f_h is the first period of the on-interval: a start-up, so its reserve
-  // band uses the start-up cap bound_on (g_disc_su). A single-period interval
-  // [h,h] is both start-up and shut-down; like the run-length solver it keeps
-  // the start-up band (no shut-down swap at the base case).
-  unc_p[ k ] = augment_with_g( f_solver->g_disc_su[ k ] , 0 , 0 ,
-                               mtmp , ctmp , v[ 0 ] );
+  // k == f_h is the first period of the on-interval: normally a start-up, so its
+  // reserve band uses the start-up cap bound_on (g_disc_su). A single-period
+  // interval [h,h] is both start-up and shut-down; like the run-length solver it
+  // keeps the start-up band (no shut-down swap at the base case). The exception
+  // is a unit already on at t=0 (init_up_down_time > 0): that period is interior,
+  // not a start-up -- its energy domain above is the ramp domain, not [lp,bl] --
+  // so its reserve band uses the interior cap max_power (g_disc), matching the
+  // run-length solver; otherwise the start-up band (bound_on) would wrongly
+  // suppress the reserve reward at t=0 for an initially-committed unit.
+  const bool init_on = ( f_h == 0 ) && ( init_up_down_time > 0 );
+  unc_p[ k ] = augment_with_g( init_on ? f_solver->g_disc[ k ]
+                                       : f_solver->g_disc_su[ k ] ,
+                               0 , 0 , mtmp , ctmp , v[ 0 ] );
 
   if( ( k < time_horizon - 1 ) && ( unc_p[ k ] > bound_down[ k + 1 ] ) )
    con_p[ k ] = bound_down[ k + 1 ];
@@ -1902,12 +1909,18 @@ double ThermalUnitDPSolver::DPEDSolver::augment_with_g(
  const Index npc = Index( vcnt ) + 1;        // number of base pieces
  const double lo0 = m[ begm ] , hi0 = m[ begm + npc ];
 
- // snapshot the base pieces (they get overwritten in place below)
- std::vector< coeff_t > base( coeffs.begin() + begt , coeffs.begin() + begt + npc );
- std::vector< double >  bm( m.begin() + begm , m.begin() + begm + npc + 1 );
+ // snapshot the base pieces (they get overwritten in place below); the scratch
+ // buffers are thread-local and reused across the O(n^2) calls of a sweep so
+ // they do not reallocate (the per-call heap churn otherwise dominates the
+ // reserve-priced ED sweep), one set per worker in the parallel variant
+ static thread_local std::vector< coeff_t > base;
+ static thread_local std::vector< double >  bm;
+ static thread_local std::vector< double >  bk;
+ base.assign( coeffs.begin() + begt , coeffs.begin() + begt + npc );
+ bm.assign( m.begin() + begm , m.begin() + begm + npc + 1 );
 
  // merged breakpoint set: base endpoints + g's internal breakpoints
- std::vector< double > bk( bm );
+ bk.assign( bm.begin() , bm.end() );
  for( const auto & gp : g ) {
   if( ( gp.lo > lo0 + 1e-12 ) && ( gp.lo < hi0 - 1e-12 ) ) bk.push_back( gp.lo );
   if( ( gp.hi > lo0 + 1e-12 ) && ( gp.hi < hi0 - 1e-12 ) ) bk.push_back( gp.hi );
