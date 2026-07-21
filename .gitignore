@@ -13,6 +13,9 @@ netCDF
 tools/nc4generator
 tools/csv2netCDF/Manifest.toml
 
+# local UCOTS JSON tooling (not part of the repository)
+tools/json2netCDF/
+
 # --- C/C++ build artifacts ----------------------------------
 *.o
 *.obj
