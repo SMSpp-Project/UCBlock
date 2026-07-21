@@ -13,8 +13,12 @@ netCDF
 tools/nc4generator
 tools/csv2netCDF/Manifest.toml
 
-# local UCOTS JSON tooling (not part of the repository)
-tools/json2netCDF/
+# local UCOTS instance generator (not part of the repository)
+tools/json2netCDF/DatasetGenerator_UCOTS.jl
+tools/json2netCDF/gen_singlebus_batch.jl
+tools/json2netCDF/branch*.dat
+tools/json2netCDF/generator.tex
+tools/json2netCDF/generator.pdf
 
 # --- C/C++ build artifacts ----------------------------------
 *.o
