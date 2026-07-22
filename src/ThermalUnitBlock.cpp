@@ -211,6 +211,12 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                 v_SecondarySpinningReserveCost , true , true ,
                 v_change_intervals );
 
+ // the reactive-power linear cost (the dual of the reactive nodal balance
+ // pushed onto the unit, the counterpart of LinearTerm); optional -- left
+ // empty when absent, i.e. when the unit prices no reactive power
+ ::deserialize( group , "ReactiveLinearTerm" , f_time_horizon ,
+                v_ReactiveLinearTerm , true , true , v_change_intervals );
+
  if( ! ::deserialize( group , "QuadTerm" , f_time_horizon , v_QuadTerm ,
                       true , true , v_change_intervals ) )
   v_QuadTerm.resize( f_time_horizon );
@@ -395,6 +401,7 @@ std::vector< std::string > ThermalUnitBlock::expected_vars( void )
   { "InvestmentCost" , "Capacity" , "Scale" , "MinPower" , "MaxPower" ,
     "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
     "PrimarySpinningReserveCost" , "SecondarySpinningReserveCost" ,
+    "ReactiveLinearTerm" ,
     "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
     "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
     "MinDownTime" , "InitUpDownTime" , "Availability" , "StartUpLimit" ,
@@ -4224,6 +4231,7 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
  // hence skipped, when the unit offers no reserve or none is priced)
  serialize( "PrimarySpinningReserveCost" , v_PrimarySpinningReserveCost );
  serialize( "SecondarySpinningReserveCost" , v_SecondarySpinningReserveCost );
+ serialize( "ReactiveLinearTerm" , v_ReactiveLinearTerm );
  serialize( "ConstTerm" , v_ConstTerm );
  serialize( "StartUpCost" , v_StartUpCost );
  serialize( "FixedConsumption" , v_FixedConsumption );
