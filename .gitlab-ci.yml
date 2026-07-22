@@ -9,7 +9,7 @@ cache:
 stages:
   - build
   - test
-  - test-pph
+  - test-heur
   - deploy
 
 build:
@@ -38,10 +38,14 @@ build:
       - .gitlab-ci.yml
 
 # the full ucblock suite exceeds the 3h GitLab.com shared-runner job cap when
-# run as one job (metabatch-PPH under PrimalProximalHeur alone is ~1.5h), so it
-# is split into two SEQUENTIAL stages, each comfortably under 3h: metabatch
-# (slv=0) + TUDPS here, metabatch-PPH (slv=1) next. Sequential, not parallel, to
-# keep within the two concurrent Gurobi sessions the academic WLS license grants.
+# run as one job (the PrimalProximalHeur cross-check alone is ~1.5h), so it is
+# split into two SEQUENTIAL stages, each comfortably under 3h. The heuristic is
+# what costs: in CI it only runs within the academic and energy community
+# batches of the UCBlock suite, which therefore make up the
+# second stage, while everything else (the other batches of that suite, TUDPS,
+# and every other suite carrying the same label) makes up the first. Sequential,
+# not parallel, to keep within the two concurrent Gurobi sessions the academic
+# WLS license grants.
 .test_template:
   timeout: 24h
   # the academic Gurobi WLS license caps concurrent sessions: a test job may
@@ -75,13 +79,13 @@ test:
   extends: .test_template
   stage: test
   script:
-    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -E metabatch-PPH --test-dir smspp-project/build --no-tests=error
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -E "UCBlock_test/batches/batch-(acad|ec)" --test-dir smspp-project/build --no-tests=error
 
-test-pph:
+test-heur:
   extends: .test_template
-  stage: test-pph
+  stage: test-heur
   script:
-    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -R metabatch-PPH --test-dir smspp-project/build --no-tests=error
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -R "UCBlock_test/batches/batch-(acad|ec)" --test-dir smspp-project/build --no-tests=error
 
 deploy:
   stage: deploy
