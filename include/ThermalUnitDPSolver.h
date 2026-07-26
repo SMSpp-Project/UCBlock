@@ -784,10 +784,15 @@ class ThermalUnitDPSolver : public Solver
   * (band cap max_power[t]); g_disc_su[ t ] holds the start-up variant (band cap
   * bound_on[t]), used at the first period of an on-interval. Both empty when no
   * reserve is rewarded, in which case the economic dispatch is the plain
-  * quadratic one. The shut-down variant (cap bound_down) is built on the fly at
-  * the cost readout (see compute_costs()). */
+  * quadratic one. g_disc_sd[ t ] holds the shut-down variant (band cap
+  * bound_down[ t + 1 ], the cap of a period whose on-interval closes at t),
+  * used by the shut-down boundary correction at the cost readout; it is
+  * precomputed here too since it also depends only on t, not on the source h
+  * (empty at t == n - 1, a tail, and when the cap is not tighter than
+  * max_power, where the correction is moot). */
  std::vector< std::vector< g_piece > > g_disc;
  std::vector< std::vector< g_piece > > g_disc_su;
+ std::vector< std::vector< g_piece > > g_disc_sd;
 
  // design (investment) handling: when the unit carries an investment cost it
  // has a binary design variable x with objective coefficient design_cost. The

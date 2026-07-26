@@ -35,7 +35,9 @@
  * to reconstruct the optimal dual solution in the end. However, this is not
  * implemented yet, so that currently the setting makes no sense. */
 
-#define TUDPS_PROFILE 0
+#ifndef TUDPS_PROFILE
+ #define TUDPS_PROFILE 0
+#endif
 /* If TUDPS_PROFILE > 0, compute() accumulates per-phase wall-clock time
  * (build_graph / compute_EDPs / min_path / compute_solutions) into static
  * counters and prints a cumulative summary to cerr at each call. Only the DP
@@ -391,17 +393,53 @@ ThermalUnitDPSolver::build_reserve_discount( Index t , double cap ) const
             []( double a , double b ) { return( b - a <= 1e-12 ); } ) ,
            bp.end() );
 
- G.reserve( bp.size() );
- for( std::size_t i = 0 ; i + 1 < bp.size() ; ++i ) {
-  const double a = bp[ i ] , b = bp[ i + 1 ];
-  if( b - a <= 1e-12 )
-   continue;
+ // the reserve-LP regime on an interval determines g's slope there: which of
+ // the band sides is the tight one, and whether each reserve is limited by
+ // its participation cap or by the (residual) band. The candidate breakpoint
+ // set bp contains every point where the regime can change, so the regime at
+ // an interval's midpoint characterises the whole interval; adjacent
+ // intervals with the same regime are merged (their common breakpoint is
+ // spurious -- g is truly linear across it), which keeps the pieces of g, and
+ // hence the splits it induces in the economic-dispatch value functions, to
+ // the bare minimum. This is an exact test (no tolerance on the slopes).
+ auto regime = [ & ]( double p ) -> int {
+  const double Hl = p - lo , Hr = hi - p;
+  const bool left = Hl < Hr;
+  const double H = left ? Hl : Hr;
+  const double c1 = rho1 * p;
+  if( c1 > H )
+   return( left ? 0 : 1 );    // 1st reserve band-limited (2nd gets nothing)
+  const double c2 = rho2 * p;
+  if( c2 > H - c1 )
+   return( left ? 2 : 3 );    // 2nd reserve limited by the residual band
+  return( 4 );                // both reserves at their participation caps
+  };
+
+ auto emit = [ & ]( double a , double b ) {
   double pr , sr;
   const double ga = reserve_alloc( t , a , pr , sr , cap );
   const double gb = reserve_alloc( t , b , pr , sr , cap );
   const double slope = ( gb - ga ) / ( b - a );
   G.push_back( { a , b , slope , ga - slope * a } );
+  };
+
+ G.reserve( bp.size() );
+ double pa = bp[ 0 ] , pb = pa;   // the piece being extended is [ pa , pb ]
+ int prg = -1;                    // ... and this is its regime (none yet)
+ for( std::size_t i = 1 ; i < bp.size() ; ++i ) {
+  const double b = bp[ i ];
+  if( b - pb <= 1e-12 )
+   continue;
+  const int rg = regime( 0.5 * ( pb + b ) );
+  if( ( rg != prg ) && ( pb > pa ) ) {   // regime change: emit [ pa , pb ]
+   emit( pa , pb );
+   pa = pb;
+   }
+  prg = rg;
+  pb = b;
   }
+ if( pb > pa )                    // emit the last piece
+  emit( pa , pb );
  return( G );
 
  }  // end( ThermalUnitDPSolver::build_reserve_discount )
@@ -735,20 +773,30 @@ void ThermalUnitDPSolver::compute_EDPs( void )
  // rewarded, in which case compute_costs() runs the plain quadratic dispatch.
  // g_disc is the interior discount (cap = max_power) added at every interior
  // period; g_disc_su is the start-up discount (cap = bound_on) added at the
- // first period of an on-interval (the boundary correction). The shut-down
- // variant (cap = bound_down) is built on the fly at the cost readout, where
- // the actual shut-down cap bound_down[k+1] is known.
+ // first period of an on-interval (the boundary correction); g_disc_sd is the
+ // shut-down discount (cap = bound_down[t+1]) used at the cost readout when
+ // the on-interval closes at t. All three depend only on t, not on the source
+ // h, so they are precomputed once and shared by all the ED sweeps.
  if( reserve_rewarded() ) {
   g_disc.resize( time_horizon );
   g_disc_su.resize( time_horizon );
+  g_disc_sd.resize( time_horizon );
   for( Index t = 0 ; t < time_horizon ; ++t ) {
    g_disc   [ t ] = build_reserve_discount( t , max_power[ t ] );
    g_disc_su[ t ] = build_reserve_discount( t , bound_on  [ t ] );
+   // the shut-down correction only bites when the cap is tighter than the
+   // interior one (and never at the last period, whose arc is a tail)
+   if( ( t < time_horizon - 1 ) &&
+       ( bound_down[ t + 1 ] < max_power[ t ] - 1e-12 ) )
+    g_disc_sd[ t ] = build_reserve_discount( t , bound_down[ t + 1 ] );
+   else
+    g_disc_sd[ t ].clear();
    }
   }
  else {
   g_disc.clear();
   g_disc_su.clear();
+  g_disc_sd.clear();
   }
 
  std::vector< double > cost( time_horizon );
@@ -1552,54 +1600,61 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
                coeffs[ 0 ].beta * con_p[ k ];
   }
 
- // --- shut-down boundary correction helpers (only used when reserves are
+ // --- shut-down boundary correction helper (only used when reserves are
  // rewarded) ----------------------------------------------------------------
- // gpart(g,p): slope and intercept of the piecewise-linear g at p (0 outside).
- auto gpart = []( const std::vector< g_piece > & g , double p ,
-                  double & sl , double & ic ) {
-  sl = ic = 0;
-  for( const auto & gp : g )
-   if( ( p >= gp.lo - 1e-9 ) && ( p <= gp.hi + 1e-9 ) ) {
-    sl = gp.slope; ic = gp.intercept; return;
-    }
-  };
  // shutdown_min: min over [lo,hi] of z(p) - g_int(p) + g_sd(p), where z is the
  // piecewise-quadratic coeffs[begt+i] on [m[begm+i],m[begm+i+1]] (i < np) with
  // the interior g_int already baked in. Swaps the interior reserve band for the
- // shut-down one g_sd; read-only on the sweep buffers.
+ // shut-down one g_sd; read-only on the sweep buffers. The three breakpoint
+ // sequences (z's m, g_sd's, g_int's) are all sorted, so the sub-intervals are
+ // enumerated by a single left-to-right merged walk with monotone cursors: no
+ // per-call allocation, no sort, no rescan of the pieces from the start.
  auto shutdown_min = [ & ]( Index begm , Index begt , int np ,
                             double lo , double hi ,
                             const std::vector< g_piece > & g_sd ,
                             const std::vector< g_piece > & g_int ) -> double {
-  std::vector< double > bp = { lo , hi };
-  for( int i = 0 ; i <= np ; ++i ) {
-   const double x = m[ begm + i ];
-   if( ( x > lo + 1e-12 ) && ( x < hi - 1e-12 ) ) bp.push_back( x );
-   }
-  for( const auto & gp : g_sd )
-   if( ( gp.hi > lo + 1e-12 ) && ( gp.hi < hi - 1e-12 ) ) bp.push_back( gp.hi );
-  for( const auto & gp : g_int )
-   if( ( gp.hi > lo + 1e-12 ) && ( gp.hi < hi - 1e-12 ) ) bp.push_back( gp.hi );
-  std::sort( bp.begin() , bp.end() );
-  bp.erase( std::unique( bp.begin() , bp.end() ,
-             []( double a , double b ) { return( b - a <= 1e-12 ); } ) ,
-            bp.end() );
   double best = TUDPINF;
-  for( std::size_t j = 0 ; j + 1 < bp.size() ; ++j ) {
-   const double a = bp[ j ] , b = bp[ j + 1 ] , mid = 0.5 * ( a + b );
-   int zi = 0;
-   while( ( zi < np - 1 ) && ( mid > m[ begm + zi + 1 ] ) ) ++zi;
+  // walk the sub-intervals top-down: the minimised function is convex (z with
+  // the interior g swapped out is z_0, plus the convex g_sd), so the
+  // per-interval minima decrease until the global minimum and then increase,
+  // and the walk can stop as soon as they start growing again. Top-down is the
+  // cheap direction: the shut-down cap typically cuts below the unconstrained
+  // minimiser, so the minimum sits at (or just below) hi and only a handful of
+  // sub-intervals are visited
+  int zi = np - 1;                 // z piece containing the current interval
+  int si = int( g_sd.size() ) - 1 , ii = int( g_int.size() ) - 1;
+  for( double b = hi ; b > lo + 1e-12 ; ) {
+   // move the cursors past the breakpoints at or above b, then the left
+   // endpoint a is the nearest breakpoint below b (or lo)
+   double a = lo;
+   while( ( zi > 0 ) && ( m[ begm + zi ] >= b - 1e-12 ) ) --zi;
+   if( m[ begm + zi ] > a ) a = m[ begm + zi ];
+   while( ( si > 0 ) && ( g_sd[ si ].lo >= b - 1e-12 ) ) --si;
+   if( ( si >= 0 ) && ( g_sd[ si ].lo > a ) ) a = g_sd[ si ].lo;
+   while( ( ii > 0 ) && ( g_int[ ii ].lo >= b - 1e-12 ) ) --ii;
+   if( ( ii >= 0 ) && ( g_int[ ii ].lo > a ) ) a = g_int[ ii ].lo;
+   const double mid = 0.5 * ( a + b );
    const double a2 = coeffs[ begt + zi ].alfa ,
                 b2 = coeffs[ begt + zi ].beta ,
                 c2 = coeffs[ begt + zi ].gamma;
-   double ssl , sic , isl , iic;
-   gpart( g_sd , mid , ssl , sic ); gpart( g_int , mid , isl , iic );
+   double ssl = 0 , sic = 0 , isl = 0 , iic = 0;
+   if( ( si >= 0 ) && ( mid >= g_sd[ si ].lo - 1e-9 ) &&
+       ( mid <= g_sd[ si ].hi + 1e-9 ) ) {
+    ssl = g_sd[ si ].slope; sic = g_sd[ si ].intercept;
+    }
+   if( ( ii >= 0 ) && ( mid >= g_int[ ii ].lo - 1e-9 ) &&
+       ( mid <= g_int[ ii ].hi + 1e-9 ) ) {
+    isl = g_int[ ii ].slope; iic = g_int[ ii ].intercept;
+    }
    const double bb = b2 + ssl - isl , cc = c2 + sic - iic;
    const double pstar = ( std::abs( a2 ) <= 1e-16 )
                       ? ( bb <= 0 ? b : a )
                       : std::min( b , std::max( a , -bb / ( 2 * a2 ) ) );
    const double val = a2 * pstar * pstar + bb * pstar + cc;
    if( val < best ) best = val;
+   else if( val > best )
+    break;
+   b = a;
    }
   return( best );
   };
@@ -1841,8 +1896,10 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    const double sdlo = m[ bm ] , sdhi = std::min( double( bound_down[ k + 1 ] ) ,
                                                   m[ bm + nptmp ] );
    if( sdhi > sdlo + 1e-12 ) {
-    const auto g_sd = f_solver->build_reserve_discount( k , bound_down[ k + 1 ] );
-    sd_cost = shutdown_min( bm , bt , nptmp , sdlo , sdhi , g_sd ,
+    // g_disc_sd[ k ] is the precomputed shut-down discount (cap
+    // bound_down[ k + 1 ]), shared by all the sweeps
+    sd_cost = shutdown_min( bm , bt , nptmp , sdlo , sdhi ,
+                            f_solver->g_disc_sd[ k ] ,
                             f_solver->g_disc[ k ] );
     sd_use = true;
     }
@@ -1915,61 +1972,66 @@ double ThermalUnitDPSolver::DPEDSolver::augment_with_g(
  // reserve-priced ED sweep), one set per worker in the parallel variant
  static thread_local std::vector< coeff_t > base;
  static thread_local std::vector< double >  bm;
- static thread_local std::vector< double >  bk;
  base.assign( coeffs.begin() + begt , coeffs.begin() + begt + npc );
  bm.assign( m.begin() + begm , m.begin() + begm + npc + 1 );
 
- // merged breakpoint set: base endpoints + g's internal breakpoints
- bk.assign( bm.begin() , bm.end() );
+ // g's internal breakpoints in ( lo0 , hi0 ): already sorted, since g's
+ // pieces are contiguous and ordered
+ static thread_local std::vector< double > gb;
+ gb.clear();
  for( const auto & gp : g ) {
-  if( ( gp.lo > lo0 + 1e-12 ) && ( gp.lo < hi0 - 1e-12 ) ) bk.push_back( gp.lo );
-  if( ( gp.hi > lo0 + 1e-12 ) && ( gp.hi < hi0 - 1e-12 ) ) bk.push_back( gp.hi );
+  if( ( gp.lo > lo0 + 1e-12 ) && ( gp.lo < hi0 - 1e-12 ) ) gb.push_back( gp.lo );
+  if( ( gp.hi > lo0 + 1e-12 ) && ( gp.hi < hi0 - 1e-12 ) ) gb.push_back( gp.hi );
   }
- std::sort( bk.begin() , bk.end() );
- bk.erase( std::unique( bk.begin() , bk.end() ,
-            []( double a , double b ){ return( b - a <= 1e-12 ); } ) , bk.end() );
 
- auto gval = [ & ]( double x , double & slope , double & icpt ) {
-  slope = 0; icpt = 0;
-  for( const auto & gp : g )
-   if( ( x >= gp.lo - 1e-12 ) && ( x <= gp.hi + 1e-12 ) ) {
-    slope = gp.slope; icpt = gp.intercept; return;
-    }
-  };
- auto basei = [ & ]( double x ) -> Index {
-  Index j = 0;
-  while( ( j + 1 < npc ) && ( x >= bm[ j + 1 ] ) ) ++j;
-  return( j );
-  };
-
- const Index nc = Index( bk.size() ) - 1;    // number of augmented pieces
- m[ begm ] = bk[ 0 ];
- for( Index i = 0 ; i < nc ; ++i ) {
-  const double mid = 0.5 * ( bk[ i ] + bk[ i + 1 ] );
-  const Index bj = basei( mid );
-  double gs , gi; gval( mid , gs , gi );
-  coeffs[ begt + i ].alfa  = base[ bj ].alfa;
-  coeffs[ begt + i ].beta  = base[ bj ].beta + gs;
-  coeffs[ begt + i ].gamma = base[ bj ].gamma + gi;
-  m[ begm + i + 1 ] = bk[ i + 1 ];
+ // single pass: merge the base endpoints (sorted) with g's breakpoints
+ // (sorted), deduplicating within 1e-12 of the last kept value, and emit each
+ // augmented piece as soon as its right endpoint pops out of the merge; the
+ // base-piece and g-piece cursors advance monotonically with the (increasing)
+ // mid points, and the unconstrained minimizer of the (convex) augmented
+ // function is computed in the same pass
+ double prev = bm[ 0 ];
+ m[ begm ] = prev;
+ Index i = 0;                      // next augmented piece to be written
+ Index bj = 0;                     // base piece containing the current one
+ std::size_t gj = 0;               // idem for g
+ double bestv = Inf< double >() , bestp = prev;
+ for( std::size_t ib = 1 , ig = 0 ;
+      ( ib < bm.size() ) || ( ig < gb.size() ) ; ) {
+  const double x = ( ( ib < bm.size() ) &&
+                     ( ( ig >= gb.size() ) || ( bm[ ib ] <= gb[ ig ] ) ) )
+                 ? bm[ ib++ ] : gb[ ig++ ];
+  if( x - prev <= 1e-12 )          // same dedup as the former sort+unique
+   continue;
+  const double mid = 0.5 * ( prev + x );
+  while( ( bj + 1 < npc ) && ( mid >= bm[ bj + 1 ] ) ) ++bj;
+  double gs = 0 , gi = 0;
+  while( ( gj < g.size() ) && ( mid > g[ gj ].hi + 1e-12 ) ) ++gj;
+  if( ( gj < g.size() ) && ( mid >= g[ gj ].lo - 1e-12 ) &&
+      ( mid <= g[ gj ].hi + 1e-12 ) ) {
+   gs = g[ gj ].slope; gi = g[ gj ].intercept;
+   }
+  const double alfa  = base[ bj ].alfa;
+  const double beta  = base[ bj ].beta + gs;
+  const double gamma = base[ bj ].gamma + gi;
+  coeffs[ begt + i ].alfa  = alfa;
+  coeffs[ begt + i ].beta  = beta;
+  coeffs[ begt + i ].gamma = gamma;
+  m[ begm + i + 1 ] = x;
+  double ps;
+  if( std::abs( alfa ) <= 1e-16 )
+   ps = ( beta <= 0 ? x : prev );
+  else
+   ps = std::min( x , std::max( prev , - beta / ( 2 * alfa ) ) );
+  const double val = alfa * ps * ps + beta * ps + gamma;
+  if( val < bestv ) { bestv = val; bestp = ps; }
+  prev = x;
+  ++i;
   }
+ const Index nc = i;               // number of augmented pieces
  mcnt = begm + nc + 1;
  coeffcnt = begt + nc;
  vcnt = int( nc ) - 1;
-
- // unconstrained minimizer of the convex augmented function
- double bestv = Inf< double >() , bestp = bk[ 0 ];
- for( Index i = 0 ; i < nc ; ++i ) {
-  const auto & cc = coeffs[ begt + i ];
-  const double lo = bk[ i ] , hi = bk[ i + 1 ];
-  double ps;
-  if( std::abs( cc.alfa ) <= 1e-16 )
-   ps = ( cc.beta <= 0 ? hi : lo );
-  else
-   ps = std::min( hi , std::max( lo , - cc.beta / ( 2 * cc.alfa ) ) );
-  const double val = cc.alfa * ps * ps + cc.beta * ps + cc.gamma;
-  if( val < bestv ) { bestv = val; bestp = ps; }
-  }
  return( bestp );
 
  }  // end( ThermalUnitDPSolver::DPEDSolver::augment_with_g )
