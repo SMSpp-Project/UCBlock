@@ -89,6 +89,7 @@ target_sources(${modName} PRIVATE
         src/BatteryUnitBlock.cpp
         src/NuclearUnitBlock.cpp
         src/ThermalUnitBlock.cpp
+        src/ThermalUnitDPSolverBase.cpp
         src/ThermalUnitDPSolver.cpp
         src/ThermalUnitExtDPSolver.cpp
         src/NuclearUnitExtDPSolver.cpp

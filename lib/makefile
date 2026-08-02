@@ -54,6 +54,7 @@ UCBckOBJ = $(UCBckOdir)/ACNetworkBlock.o \
 	$(UCBckOdir)/OTSNetworkBlock.o \
 	$(UCBckOdir)/SlackUnitBlock.o \
 	$(UCBckOdir)/ThermalUnitBlock.o \
+	$(UCBckOdir)/ThermalUnitDPSolverBase.o \
 	$(UCBckOdir)/ThermalUnitDPSolver.o \
 	$(UCBckOdir)/ThermalUnitExtDPSolver.o \
 	$(UCBckOdir)/NuclearUnitExtDPSolver.o \
@@ -74,6 +75,7 @@ UCBckH = $(UCBckINCdir)/BatteryUnitBlock.h \
 	$(UCBckINCdir)/OTSNetworkBlock.h \
 	$(UCBckINCdir)/SlackUnitBlock.h \
 	$(UCBckINCdir)/ThermalUnitBlock.h \
+	$(UCBckINCdir)/ThermalUnitDPSolverBase.h \
 	$(UCBckINCdir)/ThermalUnitDPSolver.h \
 	$(UCBckINCdir)/ThermalUnitExtDPSolver.h \
 	$(UCBckINCdir)/NuclearUnitExtDPSolver.h \
@@ -166,6 +168,12 @@ $(UCBckOdir)/ThermalUnitBlock.o: $(UCBckSRCdir)/ThermalUnitBlock.cpp \
         $(UCBckINCdir)/ThermalUnitBlock.h $(UCBckINCdir)/UnitBlock.h \
 	$(SMS++OBJ) 
 	$(CC) -c $(UCBckSRCdir)/ThermalUnitBlock.cpp -o $@ \
+	$(SMS++INC) $(UCBckINC) $(SW)
+
+$(UCBckOdir)/ThermalUnitDPSolverBase.o: \
+	$(UCBckSRCdir)/ThermalUnitDPSolverBase.cpp \
+        $(UCBckINCdir)/ThermalUnitDPSolverBase.h $(SMS++OBJ)
+	$(CC) -c $(UCBckSRCdir)/ThermalUnitDPSolverBase.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
 $(UCBckOdir)/ThermalUnitDPSolver.o: \

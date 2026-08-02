@@ -680,7 +680,7 @@ class ThermalUnitBlock : public UnitBlock
   *     'generate_abstract_constraints').
   *
   * Finally, the value wf also regulates whether the start-up variables
-  * \f$ v_t \f$ and shut-down variable \f$ w_t \f are declared as binary or
+  * \f$ v_t \f$ and shut-down variable \f$ w_t \f$ are declared as binary or
   * continuous (which should not change the results, but it may have some
   * impacts on the solution process). The variables are defined as binary
   * if (wf & 16 == 0), and as continuous otherwise. */
@@ -843,10 +843,10 @@ class ThermalUnitBlock : public UnitBlock
   *   cost. We then define a state-space graph G = ( N , A ).
   *   The nodes in N are of two types: \f$ON_t\f$ and \f$OFF_t\f$ for each
   *   \f$t \in \mathcal{T}\f$ , plus two special nodes, the source s and the
-  *   sink d. The arcs in A are of two types: ON-arcs \f$( OFF_h , ON_k )\$f,
+  *   sink d. The arcs in A are of two types: ON-arcs \f$( OFF_h , ON_k )\f$,
   *   denoting that the unit is turned on at the beginning of period \f$h\f$
   *   and unit remains on until the end of period \f$k\f$, and OFF-arcs
-  *   \$f( ON_k , OFF_r )\$f, denoting that the unit is off from period
+  *   \f$( ON_k , OFF_r )\f$, denoting that the unit is off from period
   *   \f$k+1\f$ to period \f$r-1\f$. Both on- and off-arcs are only
   *   constructed, obviously, if they satisfy the minimum (respectively) up-
   *   and down-time constraints. Moreover, there are the connections between
@@ -1048,6 +1048,18 @@ class ThermalUnitBlock : public UnitBlock
   *                       \quad k: t \leq k \quad (5)
   *   \f]
   *
+  * Index convention for the shut-down cap. In the rows below the shut-down
+  * cap multiplies the shut-down variable \f$ w_{t+1} \f$ (on at \f$ t \f$,
+  * off at \f$ t+1 \f$, so the shut-down event is at \f$ t+1 \f$).
+  * Since \f$ w \f$ is defined by \f$ u_t - u_{t-1} = v_t - w_t \f$, the
+  * ShutDownLimit is indexed at the shut-down instant, i.e. the cap on the
+  * last on-power \f$ p_t \f$ is \f$ \bar u_{t+1} \f$ (not \f$ \bar u_t \f$):
+  * the formulas below are written with \f$ \bar u_t \f$ for brevity but the
+  * code, and the DP solvers, use \f$ \bar u_{t+1} \f$ with \f$ w_{t+1} \f$.
+  * This coincides with \f$ \bar u_t \f$ only when the ShutDownLimit is
+  * constant in time. The start-up cap \f$ \bar l_t \f$ multiplies \f$ v_t \f$
+  * (start-up at \f$ t \f$) and is indexed at \f$ t \f$.
+  *
   * - Maximum power output constraints (3bin formulation):
   *   \f[
   *      p_t \leq \bar{p_t} u_t
@@ -1110,24 +1122,26 @@ class ThermalUnitBlock : public UnitBlock
   *
   * For \f$ t \in \{1,...,\mathcal{T}\}\f$, let
   *
-  * - if ramp-up constraints are included,
+  * - if ramp-up constraints are included (the start-up ramping trajectory
+  *   climbs from the start-up limit \f$ \bar l_t \f$),
   *   \f[
-  *     TRU_t = \lfloor \frac{\bar{p_t} - \bar u_t}{\Delta^+_t} \rfloor
+  *     TRU_t = \lfloor \frac{\bar{p_t} - \bar l_t}{\Delta^+_t} \rfloor
+  *   \f]
+  *
+  * - if ramp-down constraints are included (the shut-down ramping trajectory
+  *   descends to the shut-down limit \f$ \bar u_t \f$),
+  *   \f[
+  *    TRD_t = \lfloor \frac{\bar{p_t} - \bar u_t}{\Delta^-_t} \rfloor
   *   \f]
   *
   * - if ramp-down constraints are included,
   *   \f[
-  *    TRD_t = \lfloor \frac{\bar{p_t} - \bar l_t}{\Delta^-_t} \rfloor
-  *   \f]
-  *
-  * - if ramp-down constraints are included,
-  *   \f[
-  *     KSD_t = \min\{\mbox{ InitUpDownTime },|\mathcal{T}|-t,TRD_t\}
+  *     KSD_t = \min\{\mbox{ MinUpTime }-1,|\mathcal{T}|-t-1,TRD_t\}
   *   \f]
   *
   * - if ramp-up and ramp-down constraints are included,
   *   \f[
-  *    KSU_t = \min\{\mbox{ InitUpDownTime }-1-\max\{0,KSD_t\},TRU_t\}
+  *    KSU_t = \min\{\mbox{ MinUpTime }-2-\max\{0,KSD_t\},TRU_t,t-1\}
   *   \f]
   *
   * - if ramp-up and not ramp-down constraints are included,
@@ -1224,7 +1238,8 @@ class ThermalUnitBlock : public UnitBlock
   *
   * - Spinning reserve constraints: besides the active power \f$ p_t \f$, the
   *   unit can be required to set aside part of its available capacity as
-  *   primary and/or secondary spinning reserve. The corresponding non-negative
+  *   primary and/or secondary spinning reserve. The corresponding
+  *   non-negative
   *   variables \f$ pr_t \f$ (primary, abstract group "pr_thermal") and
   *   \f$ sc_t \f$ (secondary, abstract group "sc_thermal") are created only
   *   if the enclosing UCBlock declares a reserve demand (the reserve_vars
@@ -1255,37 +1270,58 @@ class ThermalUnitBlock : public UnitBlock
   *     chosen formulation, since they only involve the aggregate power
   *     \f$ p_t \f$.
   *
-  *   = Capacity (band) constraints: the reserve must fit within a *symmetric*
-  *     band around \f$ p_t \f$ inside \f$ [\underline{p}_t, \overline{p}_t] \f$,
-  *     i.e., the unit must keep enough head-room to move *up* and enough
-  *     foot-room to move *down* by the whole reserve it commits to. This is
-  *     obtained by augmenting the minimum and maximum power output constraints
-  *     with the reserve terms: where the energy-only model reads
-  *     \f$ \underline{p}_t u_t \leq p_t \leq \overline{p}_t u_t \f$ (and its
-  *     start-up / shut-down refinements above), the reserve model uses
+  *   = Capacity and deliverability (band) constraints ("Reserve_Const",
+  *     all formulations): the reserve must both fit within the operating
+  *     band around \f$ p_t \f$ *and*, if activated, be reachable within one
+  *     ramp step from the previously realised output. Writing
+  *     \f$ r_t = pr_t + sc_t \f$, these are five rows per period, generated
+  *     uniformly for every formulation in terms of the commitment
+  *     \f$ u_t \f$, the start-up \f$ v_t \f$ and the shut-down
+  *     \f$ w_t \f$ variables (present in all formulations), so the reserve
+  *     model does *not* depend on the chosen formulation. Foot-room
+  *     (capacity, below):
   *     \f[
-  *        \underline{p}_t u_t \;\leq\; p_t - pr_t - sc_t , \qquad
-  *        p_t + pr_t + sc_t \;\leq\; \overline{p}_t u_t
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2)
+  *        p_t - r_t \;\geq\; \underline{p}_t\, u_t
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2a)
   *     \f]
-  *     (with \f$ \overline{p}_t \f$ replaced by the start-up limit
-  *     \f$ \bar l_t \f$ at a start-up period and by the shut-down limit
-  *     \f$ \bar u_t \f$ at a shut-down period, exactly as in the maximum power
-  *     output constraints above). Equivalently, \f$ pr_t + sc_t \leq
-  *     \min\{ p_t - \underline{p}_t , \overline{p}_t - p_t \} \f$ when the unit
-  *     is on. Note that the reserve does *not* enter the ramp-up / ramp-down
-  *     constraints: only the active power \f$ p_t \f$ is ramp-constrained, the
-  *     reserve being a "virtual" room kept around it.
+  *     head-room (capacity, above), boundary-aware through the start-up and
+  *     shut-down caps:
+  *     \f[
+  *        p_t + r_t \;\leq\; \bar{p}_t u_t + ( \bar l_t - \bar{p}_t ) v_t
+  *     \f]
+  *     \f[
+  *        p_t + r_t \;\leq\; \bar{p}_t u_t + ( \bar u_t - \bar{p}_t ) w_{t+1}
+  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2b)
+  *     \f]
+  *     (so the head-room cap is \f$ \bar{p}_t \f$ at an interior on-period,
+  *     \f$ \bar l_t \f$ at a start-up, \f$ \bar u_t \f$ at a shut-down and
+  *     \f$ \min\{\bar l_t, \bar u_t\} \f$ at a single-period on-interval);
+  *     and ramp deliverability, the reserve fitting in the ramp left over
+  *     after the scheduled move,
+  *     \f[
+  *        p_t + r_t - p_{t-1} \;\leq\; \Delta^+_{t-1}
+  *     \f]
+  *     \f[
+  *        p_{t-1} - p_t + r_t \;\leq\; \Delta^-_{t-1}
+  *                       \quad t : u_{t-1} = u_t = 1 \quad (2c)
+  *     \f]
+  *     which bind only on an interior transition (both \f$ t-1 \f$ and
+  *     \f$ t \f$ on) and are relaxed by the commitment at a start-up or a
+  *     shut-down, where (2b) supplies the cap instead. The energy ramp-up /
+  *     ramp-down constraints on \f$ p_t \f$ are unchanged: the reserve adds
+  *     the *parallel* deliverability relations (2c), it does not enter the
+  *     ramping of the energy itself.
   *
-  *     IMPORTANT: these band terms are currently added only to the minimum and
-  *     maximum power output constraints of the 3bin, T and pt formulations. In
-  *     the DP, SU, SD and SUSD formulations the reserve variables are still
-  *     subject to the fraction constraints (1) but the band constraints (2)
-  *     are *not* generated, so in those formulations the reserve is limited
-  *     only by the fraction of the produced power and not by the residual
-  *     head-/foot-room. The DP solvers (ThermalUnitDPSolver,
-  *     ThermalUnitExtDPSolver) target the 3bin semantics, i.e., constraints
-  *     (1) and (2) together.
+  *     This model is therefore identical across all seven formulations and
+  *     coincides, by construction, with the band the two DP solvers
+  *     (ThermalUnitDPSolver, ThermalUnitExtDPSolver) implement, so a
+  *     reserve-rewarded instance yields the same optimum under any
+  *     formulation and under the DP. It is the "residual-ramp" reserve model
+  *     (the flexible-ramping / ramp-capability product of electricity
+  *     markets); see the TUDPS paper for the rationale, in particular for
+  *     why the pure capacity band, blind to the ramp, over-credits the
+  *     reserve of slow units. The energy-only problem is unaffected (no
+  *     reserve variable is created and no "Reserve_Const" is generated).
   *
   * - Perspective function constraints: when the formulations make use of the
   *   perspective function for measuring the total production cost (i.e. when
@@ -1774,7 +1810,7 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum reactive power of \p generator at time \t
+ /// returns the minimum reactive power of \p generator at time t
 
  double get_min_reactive_power( Index t , Index generator = 0 )
   const override {
@@ -1782,7 +1818,7 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum reactive power of \p generator at time \t
+ /// returns the maximum reactive power of \p generator at time t
 
  double get_max_reactive_power( Index t , Index generator = 0 )
   const override {
@@ -1817,7 +1853,7 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the operational minimum active power output at the time \t
+ /// returns the operational minimum active power output at the time t
  /** This method returns the operational minimum active power output of the
   * unit at time \p t. See get_availability() for the definition of
   * operational minimum power.
@@ -2956,12 +2992,12 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > v_ShutDownLimit;
 
  /// the vector of max ramps steps (SUSD formulation)
- /// v_MaxRampSteps\f$_t = \min\{(\bar{p]-\underline{p])/\Delta_t^+, |\mathcal{T}|-t\}\f$
+ /// v_MaxRampSteps\f$_t = \min\{(\bar{p}-\underline{p})/\Delta_t^+, |\mathcal{T}|-t\}\f$
  /// denotes the maximum number of ramp up steps from time period \f$t\f$
  std::vector< int > v_MaxRampSteps;
 
  /// the vector of max ramps steps (SUSD formulation)
- /// v_MaxRampDownSteps\f$_t = \min\{(\bar{p]-\underline{p])/\Delta_t^-, |\mathcal{T}|-t\}\f$
+ /// v_MaxRampDownSteps\f$_t = \min\{(\bar{p}-\underline{p})/\Delta_t^-, |\mathcal{T}|-t\}\f$
  /// denotes the maximum number of ramp down steps from time period \f$t\f$
  std::vector< int > v_MaxRampDownSteps;
 
@@ -2983,29 +3019,29 @@ class ThermalUnitBlock : public UnitBlock
  // the vector for separating PC-cuts
  std::vector< double > prevpbar;
 
- /// the vector of index of the variables \f$p_t^{hk} of the DP formulation.
+ /// the vector of index of the variables \f$p_t^{hk}\f$ of the DP formulation.
  /// In particular, v_P_h_k.fist = t, v_P_h_k.second.fist = h,
  /// v_P_h_k.second.second = k
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
 
- /// the vector of index of the variables \f$z_t^{hk} of the DP formulation.
+ /// the vector of index of the variables \f$z_t^{hk}\f$ of the DP formulation.
  /// In particular, v_Z_h_k.fist = t, v_Z_h_k.second.fist = h,
  /// v_P_Z_k.second.second = k
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
 
- /// the vector of index of the variables \f$p_t^{h} of the SU formulation.
+ /// the vector of index of the variables \f$p_t^{h}\f$ of the SU formulation.
  /// In particular, v_P_h.fist = t, v_P_h.second = h
  std::vector< std::pair< Index , Index > > v_P_h;
 
- /// the vector of index of the variables \f$z_t^{h} of the SU formulation.
+ /// the vector of index of the variables \f$z_t^{h}\f$ of the SU formulation.
  /// In particular, v_Z_h.fist = t, v_Z_h.second = h
  std::vector< std::pair< Index , Index > > v_Z_h;
 
- /// the vector of index of the variables \f$\tilde p_t^{k} of the SD
+ /// the vector of index of the variables \f$\tilde p_t^{k}\f$ of the SD
  /// formulation. In particular, v_P_k.fist = t, v_P_k.second = k
  std::vector< std::pair< Index , Index > > v_P_k;
 
- /// the vector of index of the variables \f$\tilde z_t^{k} of the SD
+ /// the vector of index of the variables \f$\tilde z_t^{k}\f$ of the SD
  /// formulation. In particular, v_Z_k.fist = t, v_Z_k.second = k
  std::vector< std::pair< Index , Index > > v_Z_k;
 
@@ -3015,12 +3051,12 @@ class ThermalUnitBlock : public UnitBlock
   /// the vector of index of the OFF nodes in the state-space graph
  std::vector< Index > v_nodes_minus;
 
- /// the vector of index of the variables \f$y_+^{hk} of the DP, pt, SU,
+ /// the vector of index of the variables \f$y_+^{hk}\f$ of the DP, pt, SU,
  /// SD and SUSD formulations. In particular, v_Y_plus.fist = h,
  /// v_Y_plus.second = k
  std::vector< std::pair< Index , Index > > v_Y_plus;
 
- /// the vector of index of the variables \f$y_-^{hk} of the DP, pt, SU,
+ /// the vector of index of the variables \f$y_-^{hk}\f$ of the DP, pt, SU,
  /// SD and SUSD formulations. In particular, v_Y_minus.fist = h,
  /// v_Y_minus.second = k
  std::vector< std::pair< Index , Index > > v_Y_minus;
@@ -3170,6 +3206,14 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the SecondaryRho fraction constraints
  std::vector< FRowConstraint > SecondaryRho_Const;
+
+ /// the spinning-reserve band (capacity + ramp-deliverability) constraints
+ /** Uniform across all formulations: bound the reserve r_t = pr_t + sr_t by
+  * the boundary capacity band around p_t and by the ramp left over after the
+  * scheduled move (deliverability). Built only when the unit offers reserve;
+  * see the "Spinning reserve constraints" part of the
+  * generate_abstract_constraints() documentation. */
+ std::vector< FRowConstraint > Reserve_Const;
 
  /* Constraints connecting power variables of 3bin, T and pt
   * formulations with those of DP, SU, SD and SUSD formulations */

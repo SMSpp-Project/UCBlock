@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------*/
-/*----------------------- File NuclearUnitExtDPSolver.cpp ---------------------*/
+/*-------------------- File NuclearUnitExtDPSolver.cpp ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  * Implementation of the NuclearUnitExtDPSolver class: the Ext hybrid DP of
@@ -73,9 +73,9 @@ void NuclearUnitExtDPSolver::load_parameters( void )
 
  auto b = static_cast< NuclearUnitBlock * >( f_Block );
 
- f_mod_interval   = b->get_modulation_interval();
+ f_mod_interval = b->get_modulation_interval();
  f_init_modulation = int( b->get_initial_modulation() );
- mod_ramp_up   = b->get_modulation_ramp_up();
+ mod_ramp_up = b->get_modulation_ramp_up();
  mod_ramp_down = b->get_modulation_ramp_down();
 
  if( ! owned )
@@ -115,15 +115,15 @@ void NuclearUnitExtDPSolver::run_DP( void )
   return;
   }
 
- // the lockout-augmented DP does not honor fixed Variable (yet): unlike
- // the base class it does not kill the incompatible states, so it must
- // refuse them rather than silently ignoring them. The only tolerated
- // fixings are the structural ones with which ThermalUnitBlock encodes the
- // initial conditions (the commitments before t_init fixed to the initial
- // state), which this DP enforces natively anyway
+ // the lockout-augmented DP does not honor fixed Variable: unlike the base
+ // class it does not kill the incompatible states, so it must refuse them
+ // rather than silently ignoring them. The only tolerated fixings are the
+ // structural ones with which ThermalUnitBlock encodes the initial
+ // conditions (the commitments before t_init fixed to the initial state),
+ // which this DP enforces natively anyway
  load_fixings();
  bool foreign = f_no_build ||
-		( f_must_build && ( init_up_down_time <= 0 ) );
+                ( f_must_build && ( init_up_down_time <= 0 ) );
  if( f_has_fixings ) {
   if( init_up_down_time > 0 )
    foreign = foreign || ( nxt_off[ 0 ] < n ) || ( nxt_on[ t_init ] < n );
@@ -132,15 +132,17 @@ void NuclearUnitExtDPSolver::run_DP( void )
   }
  if( foreign )
   throw( std::logic_error( "NuclearUnitExtDPSolver: fixed Variable not "
-			   "supported (yet)" ) );
+                           "supported (yet)" ) );
 
  const Index mut = std::max( min_up_time   , Index( 1 ) );
  const Index mdt = std::max( min_down_time , Index( 1 ) );
  const Index L = std::max( f_mod_interval , Index( 2 ) );  // tau^M
  const Index lockmax = L - 1;
- // lockout entering t = 0 (max{ tau^M - InitModulation , 0 })
- const Index l0 = ( Index( f_init_modulation ) < L )
-                  ? ( L - Index( f_init_modulation ) ) : Index( 0 );
+ // lockout entering t = 0 (max{ tau^M - InitModulation , 0 }); a negative
+ // InitModulation is clamped to 0 (the Index cast would otherwise wrap)
+ const Index im = ( f_init_modulation > 0 ) ? Index( f_init_modulation )
+                                            : Index( 0 );
+ const Index l0 = ( im < L ) ? ( L - im ) : Index( 0 );
 
  // ell after one idle (no-modulation / off) instant
  auto dec = []( Index ell ) -> Index { return( ell ? ell - 1 : 0 ); };
@@ -187,8 +189,8 @@ void NuclearUnitExtDPSolver::run_DP( void )
 
  // per-period reserve discount g_t(p), added wherever f_t is (energy-only
  // path: all empty, no-op). Shared by all ON nodes at the same t.
- // NOTE: interior cap (max_power); the start-up/shut-down boundary correction
- // of the thermal solver is not yet mirrored in the nuclear DP (a follow-up).
+ // NOTE: interior cap (max_power); the start-up / shut-down boundary
+ // correction of the thermal solver is not mirrored in the nuclear DP.
  // With the common bound_on = bound_down = min_power data it is moot.
  std::vector< PQFun > eff_disc( n );
  for( Index t = 0 ; t < n ; ++t )
@@ -218,7 +220,7 @@ void NuclearUnitExtDPSolver::run_DP( void )
     const bool tau_ok = ( ( vT[ i ] >= mut ) && ( vT[ j ] >= mut ) ) ||
                         ( vT[ i ] == vT[ j ] );
     if( ! tau_ok ) continue;
-    if( vL[ j ] > vL[ i ] ) continue;       // j less flexible: cannot dominate
+    if( vL[ j ] > vL[ i ] ) continue;      // j less flexible: cannot dominate
     if( is_dominated_by( vF[ i ] , vF[ j ] ) ) {
      // tie-break to avoid mutual elimination of identical slots: when j is
      // not strictly better, only let the lower-index one survive
@@ -244,7 +246,7 @@ void NuclearUnitExtDPSolver::run_DP( void )
   vO .resize( out );  vBL.resize( out );  vBI.resize( out );
   };
 
- // -- v_shutdown at time t: per lockout ell, best (tau >= mut, p) on slot - //
+ // -- v_shutdown at time t: per lockout ell, best (tau >= mut, p) slot -- //
  auto compute_vs = [ & ]( Index t , double sd_hi ) {
   double Plo = min_power[ t ];
   for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i ) {
@@ -357,7 +359,9 @@ void NuclearUnitExtDPSolver::run_DP( void )
    double stay = c_off_any[ t - 1 ];
    double fresh = TUEDPINF;  Index fresh_ell = 0;
    for( Index e = 0 ; e < L ; ++e )
-    if( vs[ t - 1 ][ e ] < fresh ) { fresh = vs[ t - 1 ][ e ]; fresh_ell = e; }
+    if( vs[ t - 1 ][ e ] < fresh ) {
+     fresh = vs[ t - 1 ][ e ];  fresh_ell = e;
+     }
    if( fresh < stay ) {
     c_off_any [ t ] = fresh;
     f_any_pred[ t ] = int( t - 1 );
@@ -551,7 +555,7 @@ void NuclearUnitExtDPSolver::build_solution( void )
 
  // walk one on-run back from on-slot (t, idx) with power p, writing
  // P/U/M; returns the run-start time and, via off_lock, the off-ready
- // lockout used by the restart (BAD-cast Index if the run hit t = 0)
+ // lockout used by the restart (NONE if the run hit t = 0)
  const Index NONE = Index( -1 );
  auto walk_on = [ & ]( Index t , std::size_t idx , double p ,
                        Index & off_lock ) -> Index {
@@ -595,14 +599,16 @@ void NuclearUnitExtDPSolver::build_solution( void )
  bool have_on = false;
  Index on_t = 0;  std::size_t on_idx = BAD;  double on_p = 0;
  if( best_on <= best_off ) {
-  on_t = n - 1;  on_idx = best_idx;  on_p = f_on[ n - 1 ][ best_idx ].argmin_p;
+  on_t = n - 1;  on_idx = best_idx;
+  on_p = f_on[ n - 1 ][ best_idx ].argmin_p;
   have_on = ( best_idx != BAD );
   }
  else {
   int h = f_any_pred[ n - 1 ];
   if( h >= 0 ) {
    const Index ellh = f_any_lock[ n - 1 ];
-   on_t = Index( h );  on_idx = vs_idx[ h ][ ellh ];  on_p = vs_p[ h ][ ellh ];
+   on_t = Index( h );  on_idx = vs_idx[ h ][ ellh ];
+   on_p = vs_p[ h ][ ellh ];
    have_on = ( on_idx != BAD );
    }
   }
@@ -620,9 +626,9 @@ void NuclearUnitExtDPSolver::build_solution( void )
   const int h = ready_pred[ t_start - 1 ][ off_lock ];
   if( h < 0 ) break;   // ready came from the initial off trail (pre-horizon)
   const Index ellh = ready_pred_lock[ t_start - 1 ][ off_lock ];
-  on_t   = Index( h );
+  on_t = Index( h );
   on_idx = vs_idx[ h ][ ellh ];
-  on_p   = vs_p  [ h ][ ellh ];
+  on_p = vs_p  [ h ][ ellh ];
   if( on_idx == BAD ) break;
   }
 
@@ -682,5 +688,5 @@ void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
  }  // end( NuclearUnitExtDPSolver::get_var_solution )
 
 /*--------------------------------------------------------------------------*/
-/*------------------- End File NuclearUnitExtDPSolver.cpp ---------------------*/
+/*------------------ End File NuclearUnitExtDPSolver.cpp -------------------*/
 /*--------------------------------------------------------------------------*/

@@ -3,8 +3,8 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the ThermalUnitDPSolver class, that solves the
- * ThermalUnitBlock (without primary and secondary reserve variables, so far)
- * using a Dynamic Programming algorithm.
+ * ThermalUnitBlock, comprised its spinning-reserve variables, using a
+ * Dynamic Programming algorithm.
  *
  * \author Claudio Gentile \n
  *         Istituto di Analisi di Sistemi e Informatica "Antonio Ruberti" \n
@@ -42,6 +42,8 @@
 #include "Solver.h"
 
 #include "ThermalUnitBlock.h"
+
+#include "ThermalUnitDPSolverBase.h"
 
 #define TUDPS_PARALLEL 1
 /* If TUDPS_PARALLEL > 0, the (independent) per-ON-node Economic Dispatch
@@ -100,7 +102,7 @@ namespace SMSpp_di_unipi_it
  * ones, that are computed separately) of the unit if started up exactly at
  * the beginning of time h >= 0 and shut down exactly at the end of time
  * h <= k <= n - 1, i.e., being online for all the time instants h, h + 1,
- * ..., k (note that h = k is possible). Similarly, we denote bu SUC( h , k )
+ * ..., k (note that h = k is possible). Similarly, we denote by SUC( h , k )
  * the cost of having the unit off from the beginning of h to the end of k
  * and then starting up at k + 1: this is typically easy to compute.
  *
@@ -111,7 +113,7 @@ namespace SMSpp_di_unipi_it
  *   0 <= i < j <= n - 1, means that the unit is started at the beginning of
  *   time i and shut down at the end of time j - 1, so that it is off at
  *   time j. The cost of the arc is therefore ED( i , j - 1 ). Note that
- *   this problem concerns the power variables p[ h ], p[ h + 1 ], ...
+ *   this problem concerns the power variables p[ i ], p[ i + 1 ], ...
  *   p[ j - 1 ], but also implicitly p[ j ] that will be necessarily
  *   fixed to 0 (as the unit is down at j). However, such an arc exists only
  *   if j - i = number of consecutive periods the unit remains on is
@@ -126,7 +128,7 @@ namespace SMSpp_di_unipi_it
  *   of time i and remains down up until the end of time j - 1, then it is
  *   started up at j. Hence, the cost of the arc is the (possibly,
  *   time-variable) start-up costs SUC( i , j - 1 ). This basically fixes
- *   p[ h ] = p[ h + 1 ] = p[ j - 1 ] = 0, but leaves p[ j ] free to be
+ *   p[ i ] = p[ i + 1 ] = ... = p[ j - 1 ] = 0, but leaves p[ j ] free to be
  *   anything (it will be decided by the outgoing arcs of ( j , 1 )).
  *   Such an arc exists only if j - i = number of consecutive periods the
  *   unit remains off is >= min down-time. In particular, in this case it
@@ -147,7 +149,7 @@ namespace SMSpp_di_unipi_it
  *   d, meaning that the unit remains on in all the time instants between i
  *   and n - 1, and it is *not* shut down at the end of the period. The
  *   cost of this arc is the optimal cost of a "special" ED( i , n - 1 ),
- *   deciding on all variables  p[ h ], p[ h + 1 ], ..., p[ n - 1 ] and
+ *   deciding on all variables p[ i ], p[ i + 1 ], ..., p[ n - 1 ] and
  *   *not* (implicitly) fixing p[ n - 1 ] = 0 as ED( i , n - 2 ),
  *   corresponding to the arc ( i , 1 ) --> ( n - 1 , 0 ) does. The reason
  *   why ED( i , n - 1 ) is "special" is that, due to the ramp-down
@@ -164,7 +166,7 @@ namespace SMSpp_di_unipi_it
  *
  * - From each OFF node ( i , 0 ) there always is one arc to the destination
  *   d, meaning that the unit remains off in all the time instants between i
- *   and n - 1. Ordinarily with would imply that the unit is started up right
+ *   and n - 1. Ordinarily this would imply that the unit is started up right
  *   at the beginning of the next horizon of operations, but this is not of
  *   our concern for the current problem. This means that all these arcs have
  *   *zero cost*, as any startup cost will be accounted for in the next
@@ -172,8 +174,8 @@ namespace SMSpp_di_unipi_it
  *
  * - From the node (s) there are arcs going to either ( i , 1 ) or ( i, 0 )
  *   nodes depending on the value of init_up_down_time (the amount of time
- *   the unit has been on or of prior to the initial time instant 0), the
- *   min_up_time, min_down_time, initial_power and delta_ramp_dow values,
+ *   the unit has been on or off prior to the initial time instant 0), the
+ *   min_up_time, min_down_time, initial_power and delta_ramp_down values,
  *   as applicable. The rules are the following:
  *
  *   = If init_up_down_time > 0, then the unit has been on for
@@ -193,7 +195,7 @@ namespace SMSpp_di_unipi_it
  *     * if init_up_down_time < min_up_time, i.e., the unit has to remain
  *       on anyway for at least other ( min_up_time - init_up_down_time )
  *       instants, then
- *       min_node = max( t_ramp_min , min_up_time - init_up_down_time
+ *       min_node = max( t_ramp_min , min_up_time - init_up_down_time );
  *
  *     The cost of each arc ( s , i ) will be ED( 0 , i - 1 ), where these
  *     ED are also "special" in the sense that, for the sake of ramp-up and
@@ -205,7 +207,7 @@ namespace SMSpp_di_unipi_it
  *     there will be *both* an arc s --> ( 0 , 1 ) saying "the unit is on
  *     and will remain on for a while", *and* an arc s --> ( 0 , 0 ) saying
  *     "the unit is on but I'll shut it down immediately and will remain
- *     off for w while".
+ *     off for a while".
  *
  *     Note that "sufficiently large" i includes i == n, i.e., the arc
  *     s --> d corresponding to "the unit was on at the beginning and
@@ -217,11 +219,11 @@ namespace SMSpp_di_unipi_it
  *     shut down when the time begins". Then, there will be arcs between
  *     s and all nodes ( i , 1 ) for "sufficiently large"
  *     i >= max( min down-time + init_up_down_time , 0 ). That is, we
- *     wait for the remaining  min down-time - ( - init_up_down_time )
+ *     wait for the remaining min down-time - ( - init_up_down_time )
  *     time periods (if any) required by the min down-time constraint
  *     before allowing the unit to be started up again. These arcs will
  *     have cost SUC( 0 , i ) since the unit will be started up at i.
- *     Note the that if min down-time == 0, i.e., there is no min
+ *     Note that if min down-time == 0, i.e., there is no min
  *     down-time requirement, this means that i == 0 is always possible,
  *     i.e., the unit is started up immediately at the beginning. This
  *     potentially yields the "double strange" case where
@@ -230,8 +232,8 @@ namespace SMSpp_di_unipi_it
  *     cannot (and have no reason to) avoid it, as in the case of
  *     OFF -> ON arcs, because the decision to shut down the unit right
  *     at the end of the previous interval (encoded by init_up_down_time
- *     == 0) is not in our hands as it has been taken before out time has
- *     come. Yet, this is not impossible not logically contradictory, so
+ *     == 0) is not in our hands as it has been taken before our time has
+ *     come. Yet, this is neither impossible nor logically contradictory, so
  *     there is no problem (and min down-time == 0 is unlikely anyway).
  *
  *     Note that "sufficiently large" i includes i == n, i.e., the arc
@@ -242,11 +244,11 @@ namespace SMSpp_di_unipi_it
  *     the current problem; hence, this arc has *zero cost*.
  *
  * ThermalUnitDPSolver first builds the graph, then uses one EDSolver for
- * each ON node (comprised s if the unit is on at the beginning, and therefore
- * is it equivalent to a ON node) to solve EDs to compute the arc costs, then
- * uses a( acyclic) min-path algorithm to solve the problem. */
+ * each ON node (comprised s if the unit is on at the beginning, and
+ * therefore it is equivalent to an ON node) to solve EDs to compute the arc
+ * costs, then uses an (acyclic) min-path algorithm to solve the problem. */
 
-class ThermalUnitDPSolver : public Solver
+class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
 {
 
 /*--------------------------------------------------------------------------*/
@@ -302,14 +304,15 @@ class ThermalUnitDPSolver : public Solver
 
 /*--------------------------------------------------------------------------*/
 
- /// extends Solver::int_par_type_S with the ThermalUnitDPSolver int parameters
+ /// extends Solver::int_par_type_S with the ThermalUnitDPSolver parameters
  enum int_par_type_TUDPS {
   intParMinN = intLastAlgPar , ///< min time horizon for the parallel DP path
   /**< The per-ON-node Economic Dispatch sweep in compute_EDPs() is run in
    * parallel (over the FastFlow workers set by intMaxThread) only when the
-   * time horizon is at least intParMinN; below it the thread-dispatch overhead
-   * is not amortised and the solver stays serial. Defaults to the compile-time
-   * TUDPS_PAR_MIN_N; set it to 0 to force the parallel path on every horizon. */
+   * time horizon is at least intParMinN; below it the thread-dispatch
+   * overhead is not amortised and the solver stays serial. Defaults to the
+   * compile-time TUDPS_PAR_MIN_N; set it to 0 to force the parallel path on
+   * every horizon. */
   intLastAlgParTUDPS ///< 1st allowed new int parameter for derived classes
   };
 
@@ -390,16 +393,6 @@ class ThermalUnitDPSolver : public Solver
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS EDSolver --------------------------------*/
 /*--------------------------------------------------------------------------*/
- /// one linear piece of the reserve "discount" g_t(p) on [ lo , hi ]
- /** g_t(p) = slope * p + intercept for p in [ lo , hi ]. g_t is convex
-  * piecewise-linear and nonpositive when some reserve price is negative (a
-  * Lagrangian reward); it is the per-period cost the economic dispatch must
-  * add to the quadratic energy cost (the effective cost \hat f_t = f_t + g_t).
-  * Declared here (before the ED solvers) so DPEDSolver can use it. */
- struct g_piece { double lo , hi , slope , intercept; };
-
-/*--------------------------------------------------------------------------*/
-
  /// base class for the Economic Dispatch Solver
  /** EDSolver is a base class that defines a minimal interface between the
   * ThermalUnitDPSolver and the solvers of the individual Economic Dispatch
@@ -470,7 +463,7 @@ class ThermalUnitDPSolver : public Solver
   /** After compute_costs() have been called once, it is possible to call
    * compute_power_variables( k ) for h <= k <= t - 1 to get the optimal
    * power values corresponding to the arc ( h , k - 1 ); note that this also
-   * works for the arc ( h , s ) by passing k = t, as we cheat so that the two
+   * works for the arc ( h , d ) by passing k = t, as we cheat so that the two
    * correspond to the same ED (see compute_costs()). The optimal values of
    * the power variables are written in the positions h, h + 1, ..., k - 1 of
    * the vector p. The solution depends on k, but this method is typically
@@ -523,7 +516,8 @@ class ThermalUnitDPSolver : public Solver
 
   void compute_costs( std::vector< double > & costs ) override;
 
-  void compute_power_variables( Index k , std::vector< double > & p ) override;
+  void compute_power_variables( Index k ,
+                                std::vector< double > & p ) override;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
@@ -533,9 +527,9 @@ class ThermalUnitDPSolver : public Solver
 
   /// coefficients for a variable of the objective function
   struct coeff_t {
-      double alfa;
-      double beta;
-      double gamma;
+   double alfa;
+   double beta;
+   double gamma;
   };
 
   /// cost coefficients of the objective function
@@ -543,8 +537,8 @@ class ThermalUnitDPSolver : public Solver
 
   /// indices for a piece of the (piece-wise) objective function
   struct pos_t {
-      int begt;
-      int begm;
+   int begt;
+   int begm;
   };
 
   /** For each k = h, ..., n - 1 the vector contains the indices of the pieces
@@ -564,16 +558,16 @@ class ThermalUnitDPSolver : public Solver
   /// present so the augmented (g_t-split) pieces fit in each half
   Index f_rmul{ 1 };
 
-  /// add the reserve discount g to the just-built pieces of z_{h,k}
-  /** The period-k value-function pieces occupy m[ begm .. mcnt ) and
-   * coeffs[ begt .. coeffcnt ) (the top of the current ping-pong half). This
-   * splits them at g's breakpoints, adds g's (slope, intercept) to each
-   * sub-piece, rewrites them in place expanding upward within the half, and
-   * updates mcnt / coeffcnt / vcnt. Returns the unconstrained minimizer of the
-   * resulting convex piecewise-quadratic function. */
-  double augment_with_g( const std::vector< g_piece > & g ,
-                         Index begm , Index begt ,
-                         Index & mcnt , Index & coeffcnt , int & vcnt );
+  /// economic-dispatch sweep with the residual-ramp reserve reward folded in
+  /** Alternative to compute_costs() taken when some reserve is rewarded.
+   * Instead of the single-parabola coeffs[] / m[] sweep + capacity-band g
+   * add, it carries a convex piecewise-quadratic value function
+   * \f$ z_{h,k} \f$ and, at each interior step, replaces the pure-energy
+   * ramp-window projection with the base class' sliding_min_corr(), the
+   * deliverability-correct residual-ramp transition. The energy-only path
+   * (compute_costs()) is untouched. Fills the same costs[ k ] = ED( h , k )
+   * arc costs. */
+  void compute_costs_reserve( std::vector< double > & costs );
 
  };  // end( class( DPEDSolver ) );
 
@@ -593,7 +587,7 @@ class ThermalUnitDPSolver : public Solver
 
   ~arc() = default;
 
-  double cost1;  ///< the now-power-dependent part of the cost (fixed, SUC)
+  double cost1;  ///< the non-power-dependent part of the cost (fixed, SUC)
   double cost2;  ///< the power-dependent part of the cost
   node * tail;   ///< (pointer to) the tail node
 
@@ -693,42 +687,24 @@ class ThermalUnitDPSolver : public Solver
 
  void process_modifications( void );
 
- // returns true if everything need be reset
+ // returns true if everything needs to be reset
  bool guts_of_process_modifications( const p_Mod mod );
 
 /*--------------------------------------------------------------------------*/
 
- void retrieve_term( std::vector< double > & out ,
-                     const std::vector< double > & in ) const;
-
-/*--------------------------------------------------------------------------*/
-
- /// optimal per-period primary/secondary spinning-reserve provision at p
- /** Given the unit on at period \p t with active power \p p, computes the
-  * optimal primary ( \p pr ) and secondary ( \p sr ) reserve provision and
-  * returns the resulting per-period reserve cost g_t(p) = cp*pr + cs*sr (0 in
-  * the standalone case, where the reserve cost coefficients are nonnegative). */
- double reserve_alloc( Index t , double p , double & pr , double & sr ,
-                       double cap ) const;
-
-/*--------------------------------------------------------------------------*/
-
- /// build the reserve discount g_t(p) as convex piecewise-linear pieces
- /** Returns the pieces of g_t over [ min_power[t] , cap ], empty when no
-  * reserve price is negative (g_t == 0). \p cap is the upper power cap U_t of
-  * the reserve band: max_power[t] at an interior period, the tighter
-  * bound_on[t] / bound_down[t] at a start-up / shut-down period (boundary
-  * correction). Mirrors ThermalUnitExtDPSolver, evaluating reserve_alloc() at
-  * analytic breakpoints. */
- std::vector< g_piece > build_reserve_discount( Index t , double cap ) const;
-
- /// true iff some reserve price is negative, i.e. g_t may be nonzero
+ /// true iff some reserve price is negative, i.e. the reserve may be rewarded
+ /** When true the economic dispatch takes the residual-ramp reserve path
+  * (compute_costs_reserve() / the eff_disc* tables); when false it is the
+  * plain quadratic sweep. The reserve model itself (reserve_alloc /
+  * reserve_alloc_band / reserve_reward / build_reserve_discount /
+  * sliding_min_corr / ...) lives in the base class ThermalUnitDPSolverBase
+  * and is inherited. */
  bool reserve_rewarded( void ) const;
 
 /*--------------------------------------------------------------------------*/
 
  double compute_startup_costs( Index h , Index k ) {
-  // one day a time-dependent SUC formula may be easily implemented here
+  // hook point for a time-dependent SUC( h , k ) formula
   if( startup_costs.empty() )
    return( 0 );
   return( startup_costs[ k ] );
@@ -738,83 +714,41 @@ class ThermalUnitDPSolver : public Solver
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Index time_horizon;       ///< time horizon
- int init_up_down_time;    ///< initial up/down time (it can be < 0)
- Index min_up_time;        ///< minimum up time
- Index min_down_time;      ///< minimum down time
- double initial_power;     ///< initial power
- Index t_init;             ///< the first instant in which commitment is free
-
- std::vector< double > startup_costs;
- std::vector< double > delta_ramp_up;
- std::vector< double > delta_ramp_down;
- std::vector< double > min_power;
- std::vector< double > max_power;
- std::vector< double > bound_on;
- std::vector< double > bound_down;
-
- std::vector< double > quad_term;
- std::vector< double > linear_term;
- std::vector< double > const_term;
+ // NOTE: the data loaded from the ThermalUnitBlock (power/ramp/cost bounds,
+ // the spinning-reserve factors and prices, the design and commitment-fixing
+ // data, the scalar parameters), the PieceQuad / PQFun value-function type
+ // and its operations, and the whole reserve model (reserve_alloc /
+ // reserve_alloc_band / reserve_reward / build_reserve_discount /
+ // reserve_corr_argmin / sliding_min_corr / ...) live in the base class
+ // ThermalUnitDPSolverBase and are inherited. Only the solver-specific
+ // reactive increment, the on/off graph, the ED-solver pool and the output
+ // are declared here.
 
  // reactive power q[t] in [reactive_min[t] + reactive_min_on[t] u[t],
- // reactive_max[t] + reactive_max_on[t] u[t]], separable from the active-power
- // DP but gated by the commitment u[t]; reactive_linear_term[t] is its dualized
- // linear cost (empty if the unit has no reactive power). The off-box reward is
- // priced as the constant Q_star; when the box is gated (the _on vectors are
- // non-empty) the per-on-period increment reactive_delta[t] = r_on - r_off is
- // added to the fixed cost of every on-period. fill_reactive_delta() (re)builds
- // reactive_delta from the current reactive price and boxes.
- std::vector< double > reactive_linear_term;
- std::vector< double > reactive_min;
- std::vector< double > reactive_max;
- std::vector< double > reactive_min_on;
- std::vector< double > reactive_max_on;
+ // reactive_max[t] + reactive_max_on[t] u[t]], separable from the
+ // active-power DP but gated by the commitment u[t]; reactive_linear_term[t]
+ // is its dualized linear cost (empty if the unit has no reactive power).
+ // The off-box reward is priced as the constant Q_star; when the box is
+ // gated (the _on vectors are non-empty) the per-on-period increment
+ // reactive_delta[t] = r_on - r_off is added to the fixed cost of every
+ // on-period. fill_reactive_delta() (re)builds reactive_delta from the
+ // current reactive price and boxes.
  std::vector< double > reactive_delta;
 
  void fill_reactive_delta( void );
 
- std::vector< double > primary_rho;             ///< primary reserve cap factor
- std::vector< double > secondary_rho;           ///< secondary reserve cap factor
- std::vector< double > primary_reserve_cost;    ///< primary reserve cost coeff
- std::vector< double > secondary_reserve_cost;  ///< secondary reserve cost coeff
-
- /// per-period reserve discount g_t(p), precomputed once per compute_EDPs()
- /** g_disc[ t ] holds the convex piecewise-linear pieces of the interior g_t
-  * (band cap max_power[t]); g_disc_su[ t ] holds the start-up variant (band cap
-  * bound_on[t]), used at the first period of an on-interval. Both empty when no
-  * reserve is rewarded, in which case the economic dispatch is the plain
-  * quadratic one. g_disc_sd[ t ] holds the shut-down variant (band cap
-  * bound_down[ t + 1 ], the cap of a period whose on-interval closes at t),
-  * used by the shut-down boundary correction at the cost readout; it is
-  * precomputed here too since it also depends only on t, not on the source h
-  * (empty at t == n - 1, a tail, and when the cap is not tighter than
-  * max_power, where the correction is moot). */
- std::vector< std::vector< g_piece > > g_disc;
- std::vector< std::vector< g_piece > > g_disc_su;
- std::vector< std::vector< g_piece > > g_disc_sd;
-
- // design (investment) handling: when the unit carries an investment cost it
- // has a binary design variable x with objective coefficient design_cost. The
- // DP solves the operational problem assuming x == 1; min_path() then keeps the
- // unit (design_on == true) iff the optimal operational cost p* satisfies
- // p* + design_cost <= 0, else drops it (design_on == false, zero schedule).
- bool   has_design{ false };       ///< true iff the unit has an investment cost
- double design_cost{ 0 };          ///< objective coefficient of the design var
- bool   design_on{ false };        ///< the design decision computed by min_path()
-
- // fixed Variable handling: the commitment (and design) Variable can be
- // fixed, which build_graph() honors by not constructing the arcs whose
- // ON-run [ a , b ) contains an instant fixed OFF or whose OFF-run contains
- // an instant fixed ON (see load_fixings()); this may make the destination
- // unreachable, i.e., the problem unfeasible
- std::vector< Index > nxt_off;  ///< first instant >= t fixed OFF (T if none)
- std::vector< Index > nxt_on;   ///< first instant >= t fixed ON (T if none)
- bool f_has_fixings{ false };   ///< true iff some commitment is fixed
- bool f_must_build{ false };    ///< commitment fixed ON, or design fixed to 1
- bool f_no_build{ false };      ///< the design variable is fixed to 0
-
- double eps{ 1e-10 };              ///< tolerance
+ /// per-period reserve discount \f$ g_t( p ) \f$ as convex piecewise-linear
+ /// PQFuns, precomputed once per compute_EDPs() (empty unless reserve is
+ /// rewarded)
+ /** eff_disc[ t ] is the interior variant (band cap max_power[ t ]);
+  * eff_disc_su[ t ] the start-up variant (cap bound_on[ t ]), added at the
+  * first period of an on-interval where there is no predecessor (hence no
+  * ramp coupling). The shut-down variant is handled by recomputing the
+  * closing transition with the shut-down cap inside compute_costs_reserve(),
+  * so no eff_disc_sd table is needed. Built by the base class'
+  * build_reserve_discount(). */
+ std::vector< PQFun > eff_disc;
+ std::vector< PQFun > eff_disc_su;
 
  char stage;                       ///< what has been computed
 
@@ -832,13 +766,13 @@ class ThermalUnitDPSolver : public Solver
                                             ///< it acts as an ON node
  Index ed_pool_th{ 0 };            ///< time horizon the ED pool was built for
 
- int f_max_thread{ 0 };            ///< intMaxThread: 0 = all cores, 1 = serial
+ int f_max_thread{ 0 };           ///< intMaxThread: 0 = all cores, 1 = serial
  int f_par_min_n{ TUDPS_PAR_MIN_N }; ///< intParMinN: min horizon for parallel
 
 #if TUDPS_PARALLEL
  /// FastFlow parallel-for engine for compute_EDPs(), one per solver instance
  /// (created on first parallel use); its worker threads are reused across
- /// re-solves. per-worker cost scratch lives in f_tcost
+ /// re-solves, and the per-worker cost scratch lives in f_tcost
  std::unique_ptr< ff::ParallelFor > f_pf;
  std::vector< std::vector< double > > f_tcost;
 #endif
@@ -849,10 +783,6 @@ class ThermalUnitDPSolver : public Solver
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
-/*--------------------------------------------------------------------------*/
-
-
 
 };  // end( class( ThermalUnitDPSolver ) )
 

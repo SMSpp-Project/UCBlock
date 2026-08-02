@@ -117,6 +117,7 @@ ThermalUnitBlock::~ThermalUnitBlock()
  Constraint::clear( MaxPower_Const );
  Constraint::clear( PrimaryRho_Const );
  Constraint::clear( SecondaryRho_Const );
+ Constraint::clear( Reserve_Const );
 
  Constraint::clear( Eq_ActivePower_Const );
  Constraint::clear( Eq_Commitment_Const );
@@ -2338,15 +2339,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                    -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-   // if UCBlock has primary demand variables
-   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
 
-   // if UCBlock has secondary reserve variables
-   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
 
    MinPower_Const[ t ].set_lhs( 0.0 );
    MinPower_Const[ t ].set_rhs( Inf< double >() );
@@ -2363,15 +2356,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
-   // if UCBlock has primary demand variables
-   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
 
-   // if UCBlock has secondary reserve variables
-   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
 
    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
     if( ( v_Y_plus[ i ].first <= t + 1 ) &&
@@ -2480,7 +2465,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    if( t >= init_t ) {
     if( t == 0 ) {
      vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
-                                     v_ShutDownLimit[ t ] -
+                                     v_ShutDownLimit[ t + 1 ] -
                                      get_operational_max_power( t ) ) );
      // a start-up at t == 0 (the unit was off before the horizon, init_t == 0)
      // is bounded by the start-up cap exactly like an interior start-up: add
@@ -2502,17 +2487,17 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     if( f_MinUpTime == 1 ) {
      if( ( t > 0 ) && ( t < f_time_horizon - 1 ) ) {
       vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
-                                      v_ShutDownLimit[ t ] -
+                                      v_ShutDownLimit[ t + 1 ] -
                                       get_operational_max_power( t ) ) );
       vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
                                       std::max( 0.0 ,
-                                                v_ShutDownLimit[ t ] -
+                                                v_ShutDownLimit[ t + 1 ] -
                                                 v_StartUpLimit[ t ] ) ) );
      }
     } else {
      if( ( t > 0 ) && ( t < f_time_horizon - 1 ) ) {
       vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
-                                      v_ShutDownLimit[ t ] -
+                                      v_ShutDownLimit[ t + 1 ] -
                                       get_operational_max_power( t ) ) );
       vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
                                       v_StartUpLimit[ t ] -
@@ -2525,15 +2510,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                    get_operational_max_power( t ) ) );
    vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-   // if UCBlock has primary demand variables
-   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
 
-   // if UCBlock has secondary reserve variables
-   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
 
    MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
    MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
@@ -2546,7 +2523,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
       vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
                                       std::max( 0.0 ,
-                                                -v_ShutDownLimit[ t ] +
+                                                -v_ShutDownLimit[ t + 1 ] +
                                                 v_StartUpLimit[ t ] ) ) );
       vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
                                       v_StartUpLimit[ t ] -
@@ -2556,15 +2533,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                       get_operational_max_power( t ) ) );
       vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-      // if UCBlock has primary demand variables
-      if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-       vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                       -1.0 ) );
 
-      // if UCBlock has secondary reserve variables
-      if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-       vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                       -1.0 ) );
 
       cnstr_idx++;
 
@@ -2600,18 +2569,28 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
+    // TRU is the length of the start-up ramping trajectory (climb from the
+    // start-up level to the cap), so it uses the StartUpLimit and DeltaRampUp;
+    // TRD is the shut-down trajectory (descent to the shut-down level), using
+    // the ShutDownLimit and DeltaRampDown. (Previously the two limits were
+    // swapped -- harmless only when StartUpLimit == ShutDownLimit.)
     if( ( ! v_DeltaRampUp.empty() ) )
      v_T_RU[ t ] = std::floor( ( get_operational_max_power( t ) -
-                                 v_ShutDownLimit[ t ] ) / v_DeltaRampUp[ t ] );
+                                 v_StartUpLimit[ t ] ) / v_DeltaRampUp[ t ] );
     if( ( ! v_DeltaRampDown.empty() ) ) {
      v_T_RD[ t ] = std::floor( ( get_operational_max_power( t ) -
-                                 v_StartUpLimit[ t ] ) / v_DeltaRampDown[ t ] );
-     v_K_SD[ t ] = std::min( f_InitUpDownTime - 1 , v_T_RD[ t ] );
+                                 v_ShutDownLimit[ t ] ) / v_DeltaRampDown[ t ] );
+     // the window of shut-down / start-up trajectory steps that can jointly
+     // constrain a period is bounded by the minimum up time (the shortest an
+     // on-interval can be), not by the initial up/down time -- the strengthening
+     // must not depend on the unit's state before the horizon.
+     v_K_SD[ t ] = std::min( static_cast< int >( f_MinUpTime ) - 1 ,
+                             v_T_RD[ t ] );
      v_K_SD[ t ] = std::min( static_cast< int >( f_time_horizon - t ) - 1 ,
                              v_K_SD[ t ] );
     }
     if( ( ! v_DeltaRampUp.empty() ) && ( ! v_DeltaRampDown.empty() ) ) {
-     v_K_SU[ t ] = std::min( f_InitUpDownTime - 2 -
+     v_K_SU[ t ] = std::min( static_cast< int >( f_MinUpTime ) - 2 -
                              std::max( 0 , v_K_SD[ t ] ) , v_T_RU[ t ] );
      v_K_SU[ t ] = std::min( static_cast< int >( t ) - 1 , v_K_SU[ t ] );
     }
@@ -2658,15 +2637,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                    get_operational_max_power( t ) ) );
    vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-   // if UCBlock has primary demand variables
-   if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
 
-   // if UCBlock has secondary reserve variables
-   if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-    vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                    -1.0 ) );
 
    MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
    MaxPower_Const[ cnstr_idx ].set_rhs( Inf< double >() );
@@ -2683,15 +2654,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                     get_operational_max_power( t ) ) );
     vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-    // if UCBlock has primary demand variables
-    if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
-    // if UCBlock has secondary reserve variables
-    if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
     if( t >= init_t ) {
      vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
@@ -2719,15 +2682,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                     get_operational_max_power( t ) ) );
     vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-    // if UCBlock has primary demand variables
-    if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
-    // if UCBlock has secondary reserve variables
-    if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
     if( t >= init_t ) {
      vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
@@ -2755,15 +2710,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                     get_operational_max_power( t ) ) );
     vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-    // if UCBlock has primary demand variables
-    if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
-    // if UCBlock has secondary reserve variables
-    if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
     if( t >= init_t ) {
      if( t < ( f_time_horizon - 1 ) )
@@ -2794,15 +2741,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                     get_operational_max_power( t ) ) );
     vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-    // if UCBlock has primary demand variables
-    if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
-    // if UCBlock has secondary reserve variables
-    if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
     int min_RU = std::min( static_cast< int >( f_MinUpTime ) - 2 , v_T_RU[ t ] );
 
@@ -2836,15 +2775,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                      get_operational_max_power( t ) ) );
      vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-     // if UCBlock has primary demand variables
-     if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-      vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                      -1.0 ) );
 
-     // if UCBlock has secondary reserve variables
-     if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                      -1.0 ) );
 
      int min_RU = std::min( static_cast< int >( f_MinUpTime ) - 1 , v_T_RU[ t ] );
 
@@ -2874,15 +2805,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                      get_operational_max_power( t ) ) );
      vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-     // if UCBlock has primary demand variables
-     if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-      vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                      -1.0 ) );
 
-     // if UCBlock has secondary reserve variables
-     if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                      -1.0 ) );
 
      if( t >= init_t ) {
 
@@ -2951,15 +2874,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
 
-    // if UCBlock has primary demand variables
-    if( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
-    // if UCBlock has secondary reserve variables
-    if( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) )
-     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
-                                     -1.0 ) );
 
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      for( Index j = 0 ; j < v_P_h_k.size() ; ++j )
@@ -3160,6 +3075,128 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    add_static_constraint( SecondaryRho_Const ,
 			  "SecondaryRho_Const_Thermal" );
    }
+
+ // spinning-reserve band constraints (deliverability model)- - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // The reserve r_t = pr_t + sr_t must fit the boundary capacity band around
+ // p_t AND be deliverable within one ramp step from the previous realised
+ // output (the "residual ramp"). These rows are uniform across all
+ // formulations -- they use only the commitment u, the start-up v and the
+ // shut-down w variables, present in every formulation -- so the reserve model
+ // is formulation-independent and coincides with the one the DP solvers
+ // implement. See the "Spinning reserve constraints" part of this method's
+ // documentation. The fraction caps pr <= rho^p p, sr <= rho^s p above stay
+ // separate; here r_t denotes pr_t + sr_t and every row has reserve coeff +1.
+ {
+  const bool has_pr = ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() );
+  const bool has_sr = ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() );
+  if( has_pr || has_sr ) {
+   const bool has_ru = ! v_DeltaRampUp.empty();
+   const bool has_rd = ! v_DeltaRampDown.empty();
+   const Index ntrans = ( f_time_horizon > 0 ) ? f_time_horizon - 1 : 0;
+   Reserve_Const.resize( 3 * f_time_horizon +
+                         ( has_ru ? ntrans : 0 ) + ( has_rd ? ntrans : 0 ) );
+
+   // start-up (v) / shut-down (w) indicator at t, or nullptr outside the free
+   // window [ init_t , time_horizon ) where those variables live
+   auto v_su = [ & ]( Index t ) -> ColVariable * {
+    if( v_start_up.empty() || ( t < init_t ) ) return( nullptr );
+    const Index j = t - init_t;
+    return( j < v_start_up.size() ? &v_start_up[ j ] : nullptr );
+    };
+   auto v_sd = [ & ]( Index t ) -> ColVariable * {
+    if( v_shut_down.empty() || ( t < init_t ) ) return( nullptr );
+    const Index j = t - init_t;
+    return( j < v_shut_down.size() ? &v_shut_down[ j ] : nullptr );
+    };
+   // append the reserve variable(s) with unit coefficient to the current row
+   auto add_res = [ & ]( Index t ) {
+    if( has_pr )
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] , 1.0 ) );
+    if( has_sr )
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+    };
+
+   Index ci = 0;
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    const double pmin = get_operational_min_power( t );
+    const double pmax = get_operational_max_power( t );
+
+    // (1) foot-room: p_t - r_t >= pmin u_t, i.e. pmin u_t - p_t + r_t <= 0
+    vars.push_back( std::make_pair( &v_commitment[ t ] , pmin ) );
+    vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
+    add_res( t );
+    Reserve_Const[ ci ].set_lhs( -Inf< double >() );
+    Reserve_Const[ ci ].set_rhs( 0.0 );
+    Reserve_Const[ ci++ ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+
+    // (2) head-room, start-up side:
+    //     p_t + r_t <= pmax u_t + ( SUlim_t - pmax ) v_t
+    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+    vars.push_back( std::make_pair( &v_commitment[ t ] , -pmax ) );
+    if( auto * v = v_su( t ) )
+     vars.push_back( std::make_pair( v , -( v_StartUpLimit[ t ] - pmax ) ) );
+    add_res( t );
+    Reserve_Const[ ci ].set_lhs( -Inf< double >() );
+    Reserve_Const[ ci ].set_rhs( 0.0 );
+    Reserve_Const[ ci++ ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+
+    // (3) head-room, shut-down side:
+    //     p_t + r_t <= pmax u_t + ( SDlim_{t+1} - pmax ) w_{t+1}
+    // (w_{t+1} = 1 marks the unit off at t+1, i.e. the shut-down event is at
+    // t+1, so the cap is the shut-down limit indexed at t+1 -- the same index
+    // the T formulation and the DP solvers use, not SDlim_t)
+    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+    vars.push_back( std::make_pair( &v_commitment[ t ] , -pmax ) );
+    if( auto * w = v_sd( t + 1 ) )
+     vars.push_back( std::make_pair( w , -( v_ShutDownLimit[ t + 1 ] - pmax ) ) );
+    add_res( t );
+    Reserve_Const[ ci ].set_lhs( -Inf< double >() );
+    Reserve_Const[ ci ].set_rhs( 0.0 );
+    Reserve_Const[ ci++ ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+    }
+
+   // (4) ramp-up deliverability (interior residual; relaxed at a start-up,
+   //     where the head-room row already caps at SUlim):
+   //     p_t + r_t - p_{t-1} + ( pmax_t - DRU_{t-1} ) u_{t-1} <= pmax_t
+   if( has_ru )
+    for( Index t = 1 ; t < f_time_horizon ; ++t ) {
+     const double pmax = get_operational_max_power( t );
+     vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+     vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , -1.0 ) );
+     vars.push_back( std::make_pair( &v_commitment[ t - 1 ] ,
+                                     pmax - v_DeltaRampUp[ t - 1 ] ) );
+     add_res( t );
+     Reserve_Const[ ci ].set_lhs( -Inf< double >() );
+     Reserve_Const[ ci ].set_rhs( pmax );
+     Reserve_Const[ ci++ ].set_function(
+      new LinearFunction( std::move( vars ) ) );
+     }
+
+   // (5) ramp-down deliverability:
+   //     p_{t-1} - p_t + r_t + ( pmax_{t-1} - DRD_{t-1} ) u_t <= pmax_{t-1}
+   if( has_rd )
+    for( Index t = 1 ; t < f_time_horizon ; ++t ) {
+     const double pmaxm = get_operational_max_power( t - 1 );
+     vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , 1.0 ) );
+     vars.push_back( std::make_pair( &v_active_power[ t ] , -1.0 ) );
+     vars.push_back( std::make_pair( &v_commitment[ t ] ,
+                                     pmaxm - v_DeltaRampDown[ t - 1 ] ) );
+     add_res( t );
+     Reserve_Const[ ci ].set_lhs( -Inf< double >() );
+     Reserve_Const[ ci ].set_rhs( pmaxm );
+     Reserve_Const[ ci++ ].set_function(
+      new LinearFunction( std::move( vars ) ) );
+     }
+
+   add_static_constraint( Reserve_Const , "Reserve_Const_Thermal" );
+   }
+  }
 
  // ZOConstraints - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4137,6 +4174,7 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( MaxPower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( PrimaryRho_Const , tol , rel_viol )
   && RowConstraint::is_feasible( SecondaryRho_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( Reserve_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_ActivePower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_Commitment_Const , tol , rel_viol )
   && RowConstraint::is_feasible( Eq_StartUp_Const , tol , rel_viol )
