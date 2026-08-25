@@ -178,31 +178,31 @@ int ThermalUnitExtDPSolver::compute( bool changedvars )
 // perspective-cut variables when PCuts is on, ...) consistently from
 // (P, U) -- see ThermalUnitBlock::set_solution() for the details.
 
-void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
+void ThermalUnitExtDPSolver::recover_schedule( std::vector< double > & p ,
+                                               std::vector< double > & u ,
+                                               std::vector< double > & pr ,
+                                               std::vector< double > & sr ,
+                                               std::vector< double > & q ,
+                                               bool & built ) const
 {
- bool owned = f_Block->is_owned_by( f_id );
- if( ( ! owned ) && ( ! f_Block->lock( f_id ) ) )
-  throw( std::runtime_error(
-   "ThermalUnitExtDPSolver::get_var_solution: unable to lock the Block." ) );
-
  auto b = static_cast< ThermalUnitBlock * >( f_Block );
 
- // design (investment): write the design variable and, when the unit is not
- // built, force the whole schedule to zero overriding the DP's (P, U) which
- // were computed assuming the unit exists. "built" is true when there is no
- // design at all.
- const bool built = ( ! has_design ) || design_on;
- if( has_design )
-  b->get_design().set_value( design_on ? 1 : 0 );
+ // design (investment): when the unit is not built the whole schedule is
+ // zero, overriding the DP's (P, U) which were computed assuming the unit
+ // exists. "built" is true when there is no design at all.
+ built = ( ! has_design ) || design_on;
+
+ p.resize( time_horizon );
+ u.resize( time_horizon );
+ pr.resize( time_horizon );
+ sr.resize( time_horizon );
+ q.resize( time_horizon );
 
  // canonical part: active power and commitment from the DP's (P, U)
- if( auto pow_it = b->get_active_power( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i )
-   ( pow_it++ )->set_value( built ? P[ i ] : 0 );
-
- if( auto com_it = b->get_commitment( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i )
-   ( com_it++ )->set_value( ( built && U[ i ] ) ? 1 : 0 );
+ for( Index i = 0 ; i < time_horizon ; ++i ) {
+  p[ i ] = built ? P[ i ] : 0;
+  u[ i ] = ( built && U[ i ] ) ? 1 : 0;
+  }
 
  // spinning reserve variables (if present): the optimal pr/sr provision
  // given the recovered power profile P[]. The reserve band must be the
@@ -236,19 +236,8 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
   return( H );
   };
 
- if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i ) {
-   double pr , sr;
-   reserve_alloc_band( i , built ? P[ i ] : 0 , res_band( i ) , pr , sr );
-   ( pr_it++ )->set_value( pr );
-   }
-
- if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i ) {
-   double pr , sr;
-   reserve_alloc_band( i , built ? P[ i ] : 0 , res_band( i ) , pr , sr );
-   ( sr_it++ )->set_value( sr );
-   }
+ for( Index i = 0 ; i < time_horizon ; ++i )
+  reserve_alloc_band( i , p[ i ] , res_band( i ) , pr[ i ] , sr[ i ] );
 
  // reactive power variables (AC instances): q[t] is a box-bounded
  // variable in [ Qmin(t) , Qmax(t) ] that is separable from the DP.
@@ -261,9 +250,8 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
  // commitment coefficients [Qmin_on,Qmax_on] when on (U[i]), the same
  // box the per-period contribution in run_DP() prices. Off/not built
  // collapses to the off box (q forced to 0 when not built).
- if( auto q_it = b->get_reactive_power( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i ) {
-   double q = 0;  // not built: q forced to 0 with all operational variables
+ for( Index i = 0 ; i < time_horizon ; ++i ) {
+   double qi = 0;  // not built: q forced to 0 with all operational variables
    if( built ) {
     const bool on = U[ i ];
     const double qlo = b->get_min_reactive_power( i ) +
@@ -273,14 +261,54 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
     const double c = reactive_linear_term.empty() ? 0.0
                                                   : reactive_linear_term[ i ];
     if( c > 0 )
-     q = qlo;
+     qi = qlo;
     else if( c < 0 )
-     q = qhi;
+     qi = qhi;
     else
-     q = std::min( std::max( 0.0 , qlo ) , qhi );
+     qi = std::min( std::max( 0.0 , qlo ) , qhi );
     }
-   ( q_it++ )->set_value( q );
+   q[ i ] = qi;
    }
+
+ }  // end( ThermalUnitExtDPSolver::recover_schedule )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
+{
+ bool owned = f_Block->is_owned_by( f_id );
+ if( ( ! owned ) && ( ! f_Block->lock( f_id ) ) )
+  throw( std::runtime_error(
+   "ThermalUnitExtDPSolver::get_var_solution: unable to lock the Block." ) );
+
+ std::vector< double > p , u , pr , sr , q;
+ bool built;
+ recover_schedule( p , u , pr , sr , q , built );
+
+ auto b = static_cast< ThermalUnitBlock * >( f_Block );
+
+ if( has_design )
+  b->get_design().set_value( design_on ? 1 : 0 );
+
+ if( auto pow_it = b->get_active_power( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( pow_it++ )->set_value( p[ i ] );
+
+ if( auto com_it = b->get_commitment( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( com_it++ )->set_value( u[ i ] );
+
+ if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( pr_it++ )->set_value( pr[ i ] );
+
+ if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( sr_it++ )->set_value( sr[ i ] );
+
+ if( auto q_it = b->get_reactive_power( 0 ) )
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( q_it++ )->set_value( q[ i ] );
 
  // formulation-specific bookkeeping is delegated to the Block
  b->set_solution();
@@ -289,6 +317,27 @@ void ThermalUnitExtDPSolver::get_var_solution( Configuration * solc )
   f_Block->unlock( f_id );
 
  }  // end( ThermalUnitExtDPSolver::get_var_solution )
+
+/*--------------------------------------------------------------------------*/
+
+Solution * ThermalUnitExtDPSolver::get_Solution( Configuration * solc )
+{
+ std::vector< double > p , u , pr , sr , q;
+ bool built;
+ recover_schedule( p , u , pr , sr , q , built );
+
+ // only the parts the unit actually has are saved, exactly as only the
+ // Variable that exist are written by get_var_solution()
+ if( primary_rho.empty() )
+  pr.clear();
+ if( secondary_rho.empty() )
+  sr.clear();
+ if( ! has_reactive_power() )
+  q.clear();
+
+ return( pack_Solution( p , u , pr , sr , q , built ? 1 : 0 ) );
+
+ }  // end( ThermalUnitExtDPSolver::get_Solution )
 
 // NOTE: the reserve model (reserve_alloc / build_reserve_discount /
 // add_pwq / ...) and the piecewise-quadratic machinery are implemented

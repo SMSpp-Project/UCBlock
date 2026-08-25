@@ -127,6 +127,35 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  /// writes the current solution in the Block
  void get_var_solution( Configuration * solc ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// returns the schedule the DP has found as a ThermalUnitBlockSolution
+ /** Returns the schedule the dynamic programming has found as a
+  * ThermalUnitBlockSolution [see ThermalUnitBlock.h], filled straight out of
+  * the data structures of the Solver rather than by writing it in the
+  * Variable of the ThermalUnitBlock and having it read back from there: no
+  * abstract representation is therefore required to exist, and the
+  * ThermalUnitBlock is not written into at all. See the analogous method of
+  * ThermalUnitDPSolver for which parts of the solution are saved. */
+
+ [[nodiscard]] Solution * get_Solution( Configuration * solc = nullptr )
+  override;
+
+/*--------------------------------------------------------------------------*/
+ /// recovers the schedule the DP has found
+ /** Recovers the schedule the dynamic programming has found: the active
+  * power \p p, the commitment \p u, the primary and secondary spinning
+  * reserve \p pr and \p sr, the reactive power \p q, and whether the unit
+  * is \p built at all. It is what both get_var_solution() and
+  * get_Solution() write, respectively into the Variable of the
+  * ThermalUnitBlock and into the Solution. */
+
+ virtual void recover_schedule( std::vector< double > & p ,
+                                std::vector< double > & u ,
+                                std::vector< double > & pr ,
+                                std::vector< double > & sr ,
+                                std::vector< double > & q ,
+                                bool & built ) const;
+
  /// returns a valid lower bound on the optimal objective function value
  OFValue get_lb( void ) override { return( f_best_cost ); }
 

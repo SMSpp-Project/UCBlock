@@ -98,6 +98,22 @@ class NuclearUnitExtDPSolver : public ThermalUnitExtDPSolver
  void get_var_solution( Configuration * solc ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// recovers the schedule the nuclear DP has found
+ /** Recovers the schedule as ThermalUnitExtDPSolver::recover_schedule()
+  * does, save that the reserve band is the plain capacity one that the
+  * nuclear dynamic programming prices, and that a nuclear unit has no
+  * reactive power. The modulation indicators have no counterpart in the
+  * Solution and are therefore only written into the NuclearUnitBlock by
+  * get_var_solution(). */
+
+ void recover_schedule( std::vector< double > & p ,
+                        std::vector< double > & u ,
+                        std::vector< double > & pr ,
+                        std::vector< double > & sr ,
+                        std::vector< double > & q ,
+                        bool & built ) const override;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

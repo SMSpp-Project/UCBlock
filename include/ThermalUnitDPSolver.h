@@ -293,6 +293,25 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
  /// writes the current solution in the Block
  void get_var_solution( Configuration * solc ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// returns the schedule the DP has found as a ThermalUnitBlockSolution
+ /** Returns the schedule the dynamic programming has found as a
+  * ThermalUnitBlockSolution [see ThermalUnitBlock.h], filled straight out of
+  * the data structures of the Solver rather than by writing it in the
+  * Variable of the ThermalUnitBlock and having it read back from there: no
+  * abstract representation is therefore required to exist, and the
+  * ThermalUnitBlock is not written into at all, hence it is not lock()-ed
+  * and any number of Solver attached to it can produce their own Solution at
+  * the same time.
+  *
+  * The active power, the commitment and the dimensioning variable are always
+  * saved; the spinning reserves and the reactive power only if the unit has
+  * them, which is the same rule get_var_solution() follows by only writing
+  * the Variable that exist. */
+
+ [[nodiscard]] Solution * get_Solution( Configuration * solc = nullptr )
+  override;
+
  /// returns a valid lower bound on the optimal objective function value
  OFValue get_lb( void ) override { return( f_end.lab ); }
 
@@ -699,6 +718,15 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
   * reserve_alloc_band / reserve_reward / build_reserve_discount /
   * sliding_min_corr / ...) lives in the base class ThermalUnitDPSolverBase
   * and is inherited. */
+ void recover_schedule( std::vector< double > & p ,
+                        std::vector< double > & u ,
+                        std::vector< double > & pr ,
+                        std::vector< double > & sr ,
+                        std::vector< double > & q ,
+                        bool & built ) const;
+ ///< recovers the schedule the DP has found: power, commitment, reserves,
+ ///< reactive power, and whether the unit is built
+
  bool reserve_rewarded( void ) const;
 
 /*--------------------------------------------------------------------------*/

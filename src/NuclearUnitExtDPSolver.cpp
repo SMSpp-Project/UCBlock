@@ -640,6 +640,35 @@ void NuclearUnitExtDPSolver::build_solution( void )
 /*----------------------- WRITING THE SOLUTION -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void NuclearUnitExtDPSolver::recover_schedule( std::vector< double > & p ,
+                                               std::vector< double > & u ,
+                                               std::vector< double > & pr ,
+                                               std::vector< double > & sr ,
+                                               std::vector< double > & q ,
+                                               bool & built ) const
+{
+ built = ( ! has_design ) || design_on;
+
+ p.resize( time_horizon );
+ u.resize( time_horizon );
+ pr.resize( time_horizon );
+ sr.resize( time_horizon );
+ q.clear();   // a nuclear unit has no reactive power
+
+ for( Index i = 0 ; i < time_horizon ; ++i ) {
+  p[ i ] = built ? P[ i ] : 0;
+  u[ i ] = ( built && U[ i ] ) ? 1 : 0;
+  }
+
+ /* The reserve band of a nuclear unit is the plain capacity one around the
+  * scheduled power, which is what its own dynamic programming prices. */
+ for( Index i = 0 ; i < time_horizon ; ++i )
+  reserve_alloc( i , p[ i ] , pr[ i ] , sr[ i ] , max_power[ i ] );
+
+ }  // end( NuclearUnitExtDPSolver::recover_schedule )
+
+/*--------------------------------------------------------------------------*/
+
 void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
 {
  bool owned = f_Block->is_owned_by( f_id );
@@ -647,38 +676,36 @@ void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
   throw( std::runtime_error(
    "NuclearUnitExtDPSolver::get_var_solution: unable to lock the Block." ) );
 
+ std::vector< double > p , u , pr , sr , q;
+ bool built;
+ recover_schedule( p , u , pr , sr , q , built );
+
  auto b = static_cast< NuclearUnitBlock * >( f_Block );
 
- const bool built = ( ! has_design ) || design_on;
  if( has_design )
   b->get_design().set_value( design_on ? 1 : 0 );
 
  if( auto pow_it = b->get_active_power( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i )
-   ( pow_it++ )->set_value( built ? P[ i ] : 0 );
+   ( pow_it++ )->set_value( p[ i ] );
 
  if( auto com_it = b->get_commitment( 0 ) )
   for( Index i = 0 ; i < time_horizon ; ++i )
-   ( com_it++ )->set_value( ( built && U[ i ] ) ? 1 : 0 );
+   ( com_it++ )->set_value( u[ i ] );
 
- // the modulation indicators recovered by build_solution()
+ // the modulation indicators recovered by build_solution(), which live in
+ // the NuclearUnitBlock alone and have no counterpart in the Solution
  if( auto mod_it = b->get_modulation() )
   for( Index i = 0 ; i < time_horizon ; ++i )
    ( mod_it++ )->set_value( ( built && M[ i ] ) ? 1 : 0 );
 
  if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i ) {
-   double pr , sr;
-   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr , max_power[ i ] );
-   ( pr_it++ )->set_value( pr );
-   }
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( pr_it++ )->set_value( pr[ i ] );
 
  if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i ) {
-   double pr , sr;
-   reserve_alloc( i , built ? P[ i ] : 0 , pr , sr , max_power[ i ] );
-   ( sr_it++ )->set_value( sr );
-   }
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   ( sr_it++ )->set_value( sr[ i ] );
 
  b->set_solution();
 

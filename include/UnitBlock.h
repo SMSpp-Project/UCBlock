@@ -1133,6 +1133,99 @@ class UnitBlockSolution : public Solution {
 
  void sum( const Solution * solution , double multiplier ) override;
 
+/*----------- METHODS FOR READING AND WRITING THE SOLUTION -----------------*/
+/** @name Reading and writing the solution
+ *
+ * The parts of the solution this UnitBlockSolution saves, each of which is
+ * empty if it does not save it [see UnitBlock::get_Solution()]. The setters
+ * are what a Solver fills the Solution with directly out of its own data
+ * structures, rather than writing the solution in the Variable of the
+ * UnitBlock and having it read back from there, which requires the Variable
+ * to exist at all.
+ *  @{ */
+
+ /// returns the active power saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > & get_active_power(
+  void ) const { return( v_active_power ); }
+
+ /// returns the reactive power saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > & get_reactive_power(
+  void ) const { return( v_reactive_power ); }
+
+ /// returns the commitment saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > & get_commitment(
+  void ) const { return( v_commitment ); }
+
+ /// returns the primary spinning reserve saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > &
+  get_primary_spinning_reserve( void ) const {
+  return( v_primary_reserve );
+  }
+
+ /// returns the secondary spinning reserve saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > &
+  get_secondary_spinning_reserve( void ) const {
+  return( v_secondary_reserve );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets the number of generators and the time horizon of the solution
+ /** Sets the size of the solution, which the setters below must agree with;
+  * it is what read() takes from the UnitBlock. */
+
+ void set_dimensions( Index number_generators , Index time_horizon ) {
+  f_number_generators = number_generators;
+  f_time_horizon = time_horizon;
+  }
+
+ /// sets the active power saved in this UnitBlockSolution
+
+ void set_active_power( boost::multi_array< double , 2 > && ap ) {
+  v_active_power.resize( boost::extents[ ap.shape()[ 0 ] ]
+                                  [ ap.shape()[ 1 ] ] );
+  v_active_power = ap;
+  }
+
+ /// sets the reactive power saved in this UnitBlockSolution
+
+ void set_reactive_power( boost::multi_array< double , 2 > && rp ) {
+  v_reactive_power.resize( boost::extents[ rp.shape()[ 0 ] ]
+                                  [ rp.shape()[ 1 ] ] );
+  v_reactive_power = rp;
+  }
+
+ /// sets the commitment saved in this UnitBlockSolution
+
+ void set_commitment( boost::multi_array< double , 2 > && cm ) {
+  v_commitment.resize( boost::extents[ cm.shape()[ 0 ] ]
+                                  [ cm.shape()[ 1 ] ] );
+  v_commitment = cm;
+  }
+
+ /// sets the primary spinning reserve saved in this UnitBlockSolution
+
+ void set_primary_spinning_reserve( boost::multi_array< double , 2 > && pr ) {
+  v_primary_reserve.resize( boost::extents[ pr.shape()[ 0 ] ]
+                                  [ pr.shape()[ 1 ] ] );
+  v_primary_reserve = pr;
+  }
+
+ /// sets the secondary spinning reserve saved in this UnitBlockSolution
+
+ void set_secondary_spinning_reserve( boost::multi_array< double , 2 > && sr )
+ {
+  v_secondary_reserve.resize( boost::extents[ sr.shape()[ 0 ] ]
+                                  [ sr.shape()[ 1 ] ] );
+  v_secondary_reserve = sr;
+  }
+
+/** @} ---------------------------------------------------------------------*/
+
  UnitBlockSolution * clone( bool empty = false ) const override;
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

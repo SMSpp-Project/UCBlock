@@ -3612,6 +3612,21 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
 
  void sum( const Solution * solution , double multiplier ) override;
 
+/*----------- METHODS FOR READING AND WRITING THE SOLUTION -----------------*/
+
+ /// returns the value of the dimensioning variable saved here
+
+ [[nodiscard]] double get_design( void ) const { return( f_design ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets the value of the dimensioning variable saved here
+ /** Sets the value of the dimensioning variable saved in this
+  * ThermalUnitBlockSolution, which is what a Solver filling the Solution out
+  * of its own data structures uses [see set_active_power() and the like in
+  * UnitBlockSolution]. */
+
+ void set_design( double design ) { f_design = design; }
+
  ThermalUnitBlockSolution * clone( bool empty = false ) const override;
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `get_Solution()` for the three dynamic programming Solver of the
+  ThermalUnitBlock, which fill the ThermalUnitBlockSolution straight out of
+  the schedule the DP has found, without writing anything into the Block and
+  therefore without requiring any Variable to exist; the recovery of the
+  schedule, which get_var_solution() shares, is factored into
+  `recover_schedule()`
+
+- accessors and setters to the parts of the solution saved in
+  `UnitBlockSolution` and to the dimensioning variable saved in
+  `ThermalUnitBlockSolution`
+
 ### Added 
 
 ### Changed 

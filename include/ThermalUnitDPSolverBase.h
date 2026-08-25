@@ -177,6 +177,30 @@ class ThermalUnitDPSolverBase : public Solver
  double reserve_alloc( Index t , double p , double & pr , double & sr ,
                        double cap ) const;
 
+ /// packs a schedule into a ThermalUnitBlockSolution
+ /** Packs the schedule the dynamic programming has found, i.e., the active
+  * power \p p, the commitment \p u, the primary and secondary spinning
+  * reserve \p pr and \p sr, the reactive power \p q and the value \p
+  * design of the dimensioning variable, into a brand new
+  * ThermalUnitBlockSolution [see ThermalUnitBlock.h]. Each of the parts is
+  * only saved if the corresponding vector is nonempty, the active power and
+  * the commitment being always there; the Solution is filled directly, so
+  * that the ThermalUnitBlock is not written into and no Variable is required
+  * to exist. Ownership of the returned object is the caller's. */
+
+ Solution * pack_Solution( const std::vector< double > & p ,
+                           const std::vector< double > & u ,
+                           const std::vector< double > & pr ,
+                           const std::vector< double > & sr ,
+                           const std::vector< double > & q ,
+                           double design ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// true if the ThermalUnitBlock has reactive power data
+
+ bool has_reactive_power( void ) const;
+
+/*--------------------------------------------------------------------------*/
  /// like reserve_alloc() but with the shared reserve band H passed directly
  /** Greedily fills the reserves against the band \p H (rather than deriving
   * it from a power cap), writing the optimal pr, sr and returning the

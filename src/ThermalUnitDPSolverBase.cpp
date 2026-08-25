@@ -188,6 +188,63 @@ double ThermalUnitDPSolverBase::reserve_alloc( Index t , double p ,
 
 /*--------------------------------------------------------------------------*/
 
+Solution * ThermalUnitDPSolverBase::pack_Solution(
+                                       const std::vector< double > & p ,
+                                       const std::vector< double > & u ,
+                                       const std::vector< double > & pr ,
+                                       const std::vector< double > & sr ,
+                                       const std::vector< double > & q ,
+                                       double design ) const
+{
+ auto sol = new ThermalUnitBlockSolution();
+
+ // a ThermalUnitBlock is one generator over the time horizon
+ sol->set_dimensions( 1 , time_horizon );
+
+ auto sz = boost::multi_array< double , 2 >::extent_gen()[ 1 ][ time_horizon ];
+
+ auto pack = [ & ]( const std::vector< double > & v ) {
+  boost::multi_array< double , 2 > a( sz );
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   a[ 0 ][ i ] = v[ i ];
+  return( a );
+  };
+
+ sol->set_active_power( pack( p ) );
+ sol->set_commitment( pack( u ) );
+
+ if( ! pr.empty() )
+  sol->set_primary_spinning_reserve( pack( pr ) );
+
+ if( ! sr.empty() )
+  sol->set_secondary_spinning_reserve( pack( sr ) );
+
+ if( ! q.empty() )
+  sol->set_reactive_power( pack( q ) );
+
+ sol->set_design( design );
+
+ return( sol );
+
+ }  // end( ThermalUnitDPSolverBase::pack_Solution )
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitDPSolverBase::has_reactive_power( void ) const
+{
+ auto b = static_cast< ThermalUnitBlock * >( f_Block );
+
+ for( Index i = 0 ; i < time_horizon ; ++i )
+  if( b->get_min_reactive_power( i ) || b->get_max_reactive_power( i ) ||
+      b->get_min_reactive_power_on( i ) || b->get_max_reactive_power_on( i ) )
+   return( true );
+
+ return( false );
+
+ }  // end( ThermalUnitDPSolverBase::has_reactive_power )
+
+/*--------------------------------------------------------------------------*/
+
 double ThermalUnitDPSolverBase::reserve_alloc_band( Index t , double p ,
                                                    double H , double & pr ,
                                                    double & sr ) const
