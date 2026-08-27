@@ -645,6 +645,9 @@ class DesignNetworkBlock : public NetworkBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
+ /// the Solution version is not hidden by the one above [see Block]
+ using Block::is_feasible;
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- READING THE DATA ------------------------------*/
 /*--------------------------------------------------------------------------*/
