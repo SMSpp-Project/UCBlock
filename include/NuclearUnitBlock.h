@@ -400,6 +400,13 @@ class NuclearUnitBlock : public ThermalUnitBlock
   return( &( v_modulation.front() ) );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_modulation(), but returns a const * so that it can be const
+
+ const ColVariable * get_const_modulation( void ) const {
+  return( const_cast< NuclearUnitBlock * >( this )->get_modulation() );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE NuclearUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -632,6 +639,26 @@ private:
  }
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- Methods for handling Solution ----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Solution
+ *  @{ */
+
+ /// extends ThermalUnitBlock::get_Solution() with the modulation
+ /** Extends ThermalUnitBlock::get_Solution() to also save the modulation
+  * indicators, which go with the commitment (bit 1 of the Configuration,
+  * i.e., wsol & 2) since they are the same kind of information. */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" NuclearUnitBlockSolution
+
+ UnitBlockSolution * new_Solution( void ) const override;
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( NuclearUnitBlock ) )
@@ -763,6 +790,114 @@ class NuclearUnitBlockSbstMod : public NuclearUnitBlockMod {
  Block::Subset f_nms;  ///< the subset
 
  };  // end( class( NuclearUnitBlockSbstMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------ CLASS NuclearUnitBlockSolution ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a solution of a NuclearUnitBlock
+/** The NuclearUnitBlockSolution class derives from ThermalUnitBlockSolution
+ * and adds the only piece of solution information that a nuclear unit has
+ * and a thermal one does not, i.e., the modulation indicators m_t. */
+
+class NuclearUnitBlockSolution : public ThermalUnitBlockSolution
+{
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend NuclearUnitBlock;  ///< make NuclearUnitBlock friend
+
+/*--------- CONSTRUCTING AND DESTRUCTING NuclearUnitBlockSolution ----------*/
+
+ /// constructor, it has nothing to do
+ explicit NuclearUnitBlockSolution( void ) : ThermalUnitBlockSolution() {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void deserialize( const netCDF::NcGroup & group ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~NuclearUnitBlockSolution() override = default;
+ ///< destructor: it is virtual, and empty
+
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A NuclearUnitBlockSolution -----*/
+
+ void read( const Block * block ) override final;
+
+ void write( Block * block ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a NuclearUnitBlockSolution into a netCDF::NcGroup
+ /** Serialize a NuclearUnitBlockSolution into a netCDF::NcGroup. The format
+  * is the one of ThermalUnitBlockSolution [cf.
+  * ThermalUnitBlockSolution::serialize()], plus:
+  *
+  * - The variable "Modulation", of type netCDF::NcDouble and indexed over
+  *   "TimeHorizon", holding the modulation indicators; the variable is
+  *   optional, in that the modulation may not be saved. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ NuclearUnitBlockSolution * scale( double factor ) const override;
+
+ void sum( const Solution * solution , double multiplier ) override;
+
+ NuclearUnitBlockSolution * clone( bool empty = false ) const override;
+
+/*----------- METHODS FOR READING AND WRITING THE SOLUTION -----------------*/
+
+ /// returns the modulation indicators saved in this Solution
+ /** Returns the modulation indicators saved in this Solution, an empty
+  * vector if they are not saved. */
+
+ [[nodiscard]] const std::vector< double > & get_modulation( void ) const {
+  return( v_modulation );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets the modulation indicators saved in this Solution
+ /** Sets the modulation indicators saved in this Solution, which is what a
+  * Solver filling the Solution out of its own data structures uses [see
+  * set_active_power() and the like in UnitBlockSolution]. */
+
+ void set_modulation( std::vector< double > && m ) {
+  v_modulation = std::move( m );
+  }
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream & output ) const override {
+  output << "NuclearUnitBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ std::vector< double > v_modulation;  ///< the modulation indicators
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( NuclearUnitBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

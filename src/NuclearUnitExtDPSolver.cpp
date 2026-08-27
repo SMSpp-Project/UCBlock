@@ -669,6 +669,27 @@ void NuclearUnitExtDPSolver::recover_schedule( std::vector< double > & p ,
 
 /*--------------------------------------------------------------------------*/
 
+Solution * NuclearUnitExtDPSolver::get_Solution( Configuration * solc )
+{
+ // the base packs everything but the modulation, and it does so into a
+ // NuclearUnitBlockSolution because the shape is asked to the Block
+ auto sol = static_cast< NuclearUnitBlockSolution * >(
+			    ThermalUnitExtDPSolver::get_Solution( solc ) );
+
+ const bool built = ( ! has_design ) || design_on;
+
+ std::vector< double > m( time_horizon );
+ for( Index i = 0 ; i < time_horizon ; ++i )
+  m[ i ] = ( built && M[ i ] ) ? 1 : 0;
+
+ sol->set_modulation( std::move( m ) );
+
+ return( sol );
+
+ }  // end( NuclearUnitExtDPSolver::get_Solution )
+
+/*--------------------------------------------------------------------------*/
+
 void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
 {
  bool owned = f_Block->is_owned_by( f_id );

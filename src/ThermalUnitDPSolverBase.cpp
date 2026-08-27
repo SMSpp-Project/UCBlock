@@ -196,7 +196,13 @@ Solution * ThermalUnitDPSolverBase::pack_Solution(
                                        const std::vector< double > & q ,
                                        double design ) const
 {
- auto sol = new ThermalUnitBlockSolution();
+ // the shape of the Solution is a decision of the Block, not of the Solver:
+ // ask it for its own one [see UnitBlock::new_Solution()], which is how a
+ // NuclearUnitBlock gets a NuclearUnitBlockSolution out of this. note that
+ // new_Solution() only builds the object, it reads no Variable
+ auto sol = static_cast< ThermalUnitBlockSolution * >(
+		     static_cast< ThermalUnitBlock * >( f_Block
+						        )->new_Solution() );
 
  // a ThermalUnitBlock is one generator over the time horizon
  sol->set_dimensions( 1 , time_horizon );

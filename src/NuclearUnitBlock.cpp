@@ -39,6 +39,12 @@ using v_coeff_pair = LinearFunction::v_coeff_pair;
 SMSpp_insert_in_factory_cpp_1( NuclearUnitBlock );
 
 /*--------------------------------------------------------------------------*/
+
+// register NuclearUnitBlockSolution to the Solution factory
+
+SMSpp_insert_in_factory_cpp_0( NuclearUnitBlockSolution );
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -513,6 +519,42 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
  }  // end( NuclearUnitBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- Methods for handling Solution ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * NuclearUnitBlock::get_Solution( Configuration * csolc ,
+					  bool emptys )
+{
+ Index wsol = 15;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto sol = static_cast< NuclearUnitBlockSolution * >(
+			      ThermalUnitBlock::get_Solution( csolc , true ) );
+
+ // the modulation goes with the commitment: it is the same kind of
+ // information, and there is no point in saving one without the other
+ if( ( wsol & 2 ) && get_modulation() )
+  sol->v_modulation.resize( get_time_horizon() );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+
+ }  // end( NuclearUnitBlock::get_Solution )
+
+/*--------------------------------------------------------------------------*/
+
+UnitBlockSolution * NuclearUnitBlock::new_Solution( void ) const {
+ return( new NuclearUnitBlockSolution() );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE NuclearUnitBlock -----*/
 /*--------------------------------------------------------------------------*/
 
@@ -921,6 +963,131 @@ void NuclearUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  }  // end( NuclearUnitBlock::guts_of_add_Modification )
 
 ----------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS OF NuclearUnitBlockSolution -------------------*/
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ ThermalUnitBlockSolution::deserialize( group );
+
+ // deserialize the modulation - - - - - - - - - - - - - - - - - - - - - - -
+ auto ncVar = group.getVar( "Modulation" );
+ if( ncVar.isNull() )
+  v_modulation.clear();
+ else {
+  v_modulation.resize( f_time_horizon );
+  ncVar.getVar( { 0 } , { f_time_horizon } , v_modulation.data() );
+  }
+
+ }  // end( NuclearUnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::read( const Block * block )
+{
+ auto NUB = dynamic_cast< const NuclearUnitBlock * >( block );
+ if( ! NUB )
+  throw( std::invalid_argument( "NuclearUnitBlockSolution::read: block "
+				"is not a NuclearUnitBlock" ) );
+
+ // call the method of the base class
+ ThermalUnitBlockSolution::read( NUB );
+
+ // read the modulation- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_modulation.empty() )
+  if( auto mi = NUB->get_const_modulation() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_modulation[ t ] = mi[ t ].get_value();
+
+ }  // end( NuclearUnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::write( Block * block )
+{
+ auto NUB = dynamic_cast< NuclearUnitBlock * >( block );
+ if( ! NUB )
+  throw( std::invalid_argument( "NuclearUnitBlockSolution::write: block "
+				"is not a NuclearUnitBlock" ) );
+
+ // call the method of the base class
+ ThermalUnitBlockSolution::write( NUB );
+
+ // write the modulation - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_modulation.empty() )
+  if( auto mi = NUB->get_modulation() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    ( mi++ )->set_value( v_modulation[ t ] );
+
+ }  // end( NuclearUnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ // call the method of the base class
+ ThermalUnitBlockSolution::serialize( group );
+
+ // serialize the modulation - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_modulation.empty() )
+  group.addVar( "Modulation" , netCDF::NcDouble() ,
+		group.getDim( "TimeHorizon" ) ).putVar(
+		     { 0 } , { f_time_horizon } , v_modulation.data() );
+
+ }  // end( NuclearUnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitBlockSolution * NuclearUnitBlockSolution::scale( double factor )
+ const
+{
+ auto sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ if( ! std::isnan( get_design() ) )
+  sol->set_design( get_design() * factor );
+
+ // the modulation is an on/off indicator: scaling it makes no sense, and it
+ // is therefore left as it is
+
+ return( sol );
+
+ }  // end( NuclearUnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::sum( const Solution * solution ,
+				    double multiplier )
+{
+ // call the method of the base class
+ ThermalUnitBlockSolution::sum( solution , multiplier );
+
+ // as in scale(), summing the modulation indicators makes no sense
+
+ }  // end( NuclearUnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitBlockSolution * NuclearUnitBlockSolution::clone( bool empty ) const
+{
+ auto sol = new NuclearUnitBlockSolution();
+
+ if( ! empty ) {
+  guts_of_clone( sol );
+  sol->set_design( get_design() );
+  sol->v_modulation = v_modulation;
+  }
+
+ return( sol );
+
+ }  // end( NuclearUnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File NuclearUnitBlock.cpp ------------------------*/

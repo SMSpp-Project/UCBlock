@@ -3583,7 +3583,7 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void deserialize( const netCDF::NcGroup & group ) override final;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -3592,9 +3592,9 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
 
 /*----- METHODS DESCRIBING THE BEHAVIOR OF A ThermalUnitBlockSolution -----*/
 
- void read( const Block * block ) override final;
+ void read( const Block * block ) override;
 
- void write( Block * block ) override final;
+ void write( Block * block ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a ThermalUnitBlockSolution into a netCDF::NcGroup
