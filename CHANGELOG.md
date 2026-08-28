@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed 
 
+- the documentation of the formulations of the ThermalUnitBlock, which
+  numbered the p_t one 3 and the dynamic programming one 2, the other way
+  round with respect to ptForm and DPForm and to what set_variables() does
+
 ## [0.7.0] - 2025-12-12
 
 ### Added 

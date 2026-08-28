@@ -558,7 +558,14 @@ class ThermalUnitBlock : public UnitBlock
   * - wf & 7 == 1 is the "model T" (T) formulation, which has exactly the
   *   same variables of the 3bin formulation (wf & 7 == 0).
   *
-  * - wf & 7 == 2 is the "dynamic programming" inspired formulation (DP).
+  * - wf & 7 == 2: the p_t formulation, which has:
+  *
+  *   = the same variables of the 3bin formulation (wf & 7 == 0);
+  *
+  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP formulation
+  *     (wf & 7 == 3).
+  *
+  * - wf & 7 == 3 is the "dynamic programming" inspired formulation (DP).
   *   This formulation of the ThermalUnitBlock class has exactly the same
   *   variables of the 3bin formulation (wf & 7 == 0), plus three different
   *   variables:
@@ -577,19 +584,12 @@ class ThermalUnitBlock : public UnitBlock
   *     production of the unit at time instant t when it starts-up at time
   *     instant h and shuts-down at time instant k.
   *
-  * - wf & 7 == 3: the p_t formulation, which has:
-  *
-  *   = the same variables of the 3bin formulation (wf & 7 == 0);
-  *
-  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP formulation
-  *     (wf & 7 == 2).
-  *
   * - wf & 7 == 4: the "start-up" formulation (SU), which has:
   *
   *   = the same variables of the 3bin formulation (wf & 7 == 0);
   *
   *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
-  *     formulation (wf & 7 == 2);
+  *     formulation (wf & 7 == 3);
   *
   *   = active power variables \f$ p_t^h \f$ denoting the power production
   *     of the unit at time instant t if it starts-up at time instant h.
@@ -599,7 +599,7 @@ class ThermalUnitBlock : public UnitBlock
   *   = the same variables of the 3bin formulation (wf & 7 == 0);
   *
   *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
-  *     formulation (wf & 7 == 2);
+  *     formulation (wf & 7 == 3);
   *
   *   = active power variables \f$ \tilde p_t^k \f$ denoting the power
   *     production of the unit at time instant t if it shuts-down at time
