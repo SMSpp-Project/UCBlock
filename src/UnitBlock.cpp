@@ -245,28 +245,24 @@ Solution * UnitBlock::get_Solution( Configuration * csolc , bool emptys )
 
  auto sz = boost::multi_array< double , 2 >::extent_gen()
                            [ get_number_generators() ][ get_time_horizon() ];
+ /* Which parts the Solution is made of is asked to the *data*, not to the
+  * Variable: a Solution has to be possible even if the abstract
+  * representation has not been generated, in which case the Variable are not
+  * there and looking at them would say that the UnitBlock has nothing. */
+
  if( wsol & 1 ) {
   sol->v_active_power.resize( sz );
-  bool have_reactive = false;
-  for( Index i = 0 ; i < get_number_generators() ; ++i )
-   if( get_reactive_power( i ) ) {
-    have_reactive = true;
-    break;
-    }
-  if( have_reactive )
+  if( has_reactive_power() )
    sol->v_reactive_power.resize( sz );
   }
 
- // note: we assume that either all generators have commitment, or none has
- if( ( wsol & 2 ) && get_commitment( 0 ) )
+ if( ( wsol & 2 ) && has_commitment() )
   sol->v_commitment.resize( sz );
 
- // note: we assume that either all generators have primary, or none has
- if( ( wsol & 4 ) && get_primary_spinning_reserve( 0 ) )
+ if( ( wsol & 4 ) && has_primary_reserve() )
   sol->v_primary_reserve.resize( sz );
 
- // note: we assume that either all generators have secondary, or none has
- if( ( wsol & 8 ) && get_secondary_spinning_reserve( 0 ) )
+ if( ( wsol & 8 ) && has_secondary_reserve() )
   sol->v_secondary_reserve.resize( sz );
 
  if( ! emptys )

@@ -502,6 +502,52 @@ class UnitBlock : public Block
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if the units of this UnitBlock are committed
+ /** Returns true if this UnitBlock has commitment Variable, i.e., if the
+  * units it describes are switched on and off rather than being always on.
+  *
+  * This is a property of the *data*, not of the abstract representation:
+  * unlike get_commitment(), which is a Variable and therefore only exists
+  * once the latter has been generated, this can be asked at any time, which
+  * is what whoever has to decide what a Solution of this UnitBlock is made
+  * of needs [see get_Solution()]. The base class has no commitment, a
+  * :UnitBlock whose units are committed says so. */
+
+ virtual bool has_commitment( void ) const { return( false ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this UnitBlock has primary spinning reserve Variable
+ /** Returns true if this UnitBlock has primary spinning reserve Variable,
+  * i.e., if the enclosing UCBlock asked for them [see set_reserve_vars()]
+  * and the units can provide them: as has_commitment(), this is a property
+  * of the data and can be asked before the abstract representation is
+  * generated. A :UnitBlock that cannot provide the reserve, whatever it is
+  * asked, says so by redefining this. */
+
+ virtual bool has_primary_reserve( void ) const {
+  return( reserve_vars & 1u );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this UnitBlock has secondary spinning reserve Variable
+
+ virtual bool has_secondary_reserve( void ) const {
+  return( reserve_vars & 2u );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this UnitBlock has reactive power Variable
+ /** Returns true if this UnitBlock has reactive power Variable, i.e., if the
+  * enclosing UCBlock asked for them [see set_reactive_power()] and the units
+  * can produce them; as has_commitment(), it is a property of the data. A
+  * :UnitBlock that produces no reactive power, whatever it is asked, says so
+  * by redefining this. */
+
+ virtual bool has_reactive_power( void ) const {
+  return( f_reactive_power );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of reactive power variables
  /** The base UnitBlock class does not handle reactive power variables, so
   *  this method always returns nullptr. */

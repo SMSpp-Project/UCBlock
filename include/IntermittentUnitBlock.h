@@ -708,6 +708,24 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
 
+ /// the unit provides the reserve only if it has any to give
+ /** The enclosing UCBlock asking for the reserve is not enough, the unit has
+  * to have some to give, i.e., a nonzero fraction of its active power: this
+  * is the very condition with which the Variable are generated, said in
+  * terms of the data alone. */
+
+ bool has_primary_reserve( void ) const override {
+  return( ( reserve_vars & 1u ) && ( f_gamma != 0 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ bool has_secondary_reserve( void ) const override {
+  return( ( reserve_vars & 2u ) && ( f_gamma != 0 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
    return( nullptr );

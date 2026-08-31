@@ -1467,6 +1467,23 @@ class HydroUnitBlock : public UnitBlock
   * @return The array of ColVariable representing the primary spinning
   *         reserve of the given \p generator. */
 
+ /// the unit provides the reserve only if it has any to give
+ /** The enclosing UCBlock asking for the reserve is not enough, the unit has
+  * to have some to give: this is the very condition with which the Variable
+  * are generated, said in terms of the data alone. */
+
+ bool has_primary_reserve( void ) const override {
+  return( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ bool has_secondary_reserve( void ) const override {
+  return( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( generator < get_number_generators() ) {
    const auto offset = generator * f_time_horizon;
