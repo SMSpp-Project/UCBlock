@@ -451,54 +451,46 @@ void UnitBlockSolution::write( Block * block )
   throw( std::invalid_argument(
 	      "UnitBlockSolution::write: inconsistent generators number" ) );
 
+ /* Which parts the Solution is made of is decided by the data [see
+  * UnitBlock::get_Solution()], so a Solution can carry a part that some
+  * generator, or the whole UnitBlock, has no Variable for: as read() does,
+  * those generators are skipped, writing being possible on what is there. */
+
  if( ! v_active_power.empty() )
   // write the active power variables- - - - - - - - - - - - - - - - - - - -
-  for( Index i = 0 ; i < f_number_generators ; ++i ) {
-   auto APi = UB->get_active_power( i );
-   for( Index t = 0 ; t < f_time_horizon ; ++t )
-    APi[ t ].set_value( v_active_power[ i ][ t ] );
-   }
+  for( Index i = 0 ; i < f_number_generators ; ++i )
+   if( auto APi = UB->get_active_power( i ) )
+    for( Index t = 0 ; t < f_time_horizon ; ++t )
+     APi[ t ].set_value( v_active_power[ i ][ t ] );
 
  if( ! v_reactive_power.empty() )
   // write the reactive power variables- - - - - - - - - - - - - - - - - - -
-  for( Index i = 0 ; i < f_number_generators ; ++i ) {
+  for( Index i = 0 ; i < f_number_generators ; ++i )
    if( auto RPi = UB->get_reactive_power( i ) )
     for( Index t = 0 ; t < f_time_horizon ; ++t )
      RPi[ t ].set_value( v_reactive_power[ i ][ t ] );
-   }
 
- if( ! v_commitment.empty() ) {
+ if( ! v_commitment.empty() )
   // write the commitment variables- - - - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
    if( auto Ci = UB->get_commitment( i ) )
     for( Index t = 0 ; t < f_time_horizon ; ++t )
      Ci[ t ].set_value( v_commitment[ i ][ t ] );
-   else
-    throw( std::invalid_argument(
-	   "UnitBlockSolution::write: provided non-existent commitment" ) );
-  }
 
- if( ! v_primary_reserve.empty() ) {
+ if( ! v_primary_reserve.empty() )
   // write the primary reserve variables - - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
    if( auto PRi = UB->get_primary_spinning_reserve( i ) )
     for( Index t = 0 ; t < f_time_horizon ; ++t )
      PRi[ t ].set_value( v_primary_reserve[ i ][ t ] );
-   else
-    throw( std::invalid_argument(
-	  "UnitBlockSolution::write: provided non-existent primary" ) );
-  }
 
- if( ! v_secondary_reserve.empty() ) {
+ if( ! v_secondary_reserve.empty() )
   // write the secondary reserve variables - - - - - - - - - - - - - - - - -
   for( Index i = 0 ; i < f_number_generators ; ++i )
    if( auto SRi = UB->get_secondary_spinning_reserve( i ) )
     for( Index t = 0 ; t < f_time_horizon ; ++t )
      SRi[ t ].set_value( v_secondary_reserve[ i ][ t ] );
-   else
-    throw( std::invalid_argument(
-	  "UnitBlockSolution::write: provided non-existent secondary" ) );
-  }
+
  }  // end( UnitBlockSolution::write )
 
 /*--------------------------------------------------------------------------*/

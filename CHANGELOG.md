@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed 
 
+- `UnitBlockSolution::write()` threw on a generator having no Variable for a
+  part the Solution carries, while `read()` skips it: since what a Solution
+  is made of is now decided by the data, that part can be there while the
+  Variable are not, and writing on what is there is the only reading of it
+  consistent with the other direction
+
+- `HydroSystemUnitBlock` said it has the primary and the secondary reserve
+  whenever the enclosing UCBlock asks for them, whatever the HydroUnitBlock
+  it is made of have: it now answers for the units, which need not agree
+
 - the dynamic programming Solver of the ThermalUnitBlock crashed on a unit
   whose power domain collapses to a single point at some time instant, say
   min_power == max_power: the sliding minimum dropped the zero-width piece,

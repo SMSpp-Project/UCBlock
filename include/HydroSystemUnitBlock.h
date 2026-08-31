@@ -258,9 +258,23 @@ class HydroSystemUnitBlock : public UnitBlock
  ColVariable * get_primary_spinning_reserve( Index generator ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// true if any of the HydroUnitBlock provides the primary reserve
+ /** The generators of a HydroSystemUnitBlock come from different
+  * HydroUnitBlock, which need not agree on providing the reserve: the
+  * system has it if any of them has it, and the generators of those that do
+  * not are skipped when a Solution is read and written. */
+
+ bool has_primary_reserve( void ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of secondary reserve variables of each HydroUnitBlock
 
  ColVariable * get_secondary_spinning_reserve( Index generator ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// true if any of the HydroUnitBlock provides the secondary reserve
+
+ bool has_secondary_reserve( void ) const override;
 
 /*--------------------------------------------------------------------------*/
 

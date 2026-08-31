@@ -300,6 +300,28 @@ ColVariable * HydroSystemUnitBlock::get_primary_spinning_reserve(
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary reserve variables of each HydroUnitBlock
 
+bool HydroSystemUnitBlock::has_primary_reserve( void ) const
+{
+ for( Index i = 0 ; i < get_number_hydro_units() ; ++i )
+  if( get_hydro_unit_block( i )->has_primary_reserve() )
+   return( true );
+
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool HydroSystemUnitBlock::has_secondary_reserve( void ) const
+{
+ for( Index i = 0 ; i < get_number_hydro_units() ; ++i )
+  if( get_hydro_unit_block( i )->has_secondary_reserve() )
+   return( true );
+
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 ColVariable * HydroSystemUnitBlock::get_secondary_spinning_reserve(
 							    Index generator )
 {
