@@ -1702,6 +1702,18 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
                        zk , -1.0 );
   S->add_quadratic( zk , quad[ k ] , lin[ k ] , 0.0 );
 
+  if( zk.empty() ) {
+   // no power at k is compatible with the ramp out of k-1 [the domain comes
+   // out inverted, say max_power[ k ] below what the unit can ramp down to]:
+   // the run started at h cannot reach k, hence it cannot reach anything
+   // beyond it either
+   for( Index kk = k ; kk < T ; ++kk ) {
+    unc_p[ kk ] = con_p[ kk ] = min_power[ kk ];
+    costs[ kk ] = TUDPINF;
+    }
+   return;
+   }
+
   auto uu = S->min_over( zk , lo_k , hi_k );
   unc_p[ k ] = uu.second;
 

@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed 
 
+- the dynamic programming Solver of the ThermalUnitBlock crashed on a unit
+  whose power domain collapses to a single point at some time instant, say
+  min_power == max_power: the sliding minimum dropped the zero-width piece,
+  the value function came out empty, and the caller read that as no piece at
+  all. The point is now emitted as a zero-width piece, which the rest of the
+  machinery already handles, and a transition that really is infeasible
+  closes the run instead of being walked into
+
 - the documentation of the formulations of the ThermalUnitBlock, which
   numbered the p_t one 3 and the dynamic programming one 2, the other way
   round with respect to ptForm and DPForm and to what set_variables() does

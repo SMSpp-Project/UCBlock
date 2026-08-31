@@ -730,6 +730,23 @@ void ThermalUnitDPSolverBase::sliding_min(
    out.push_back( { pc.alfa , pc.beta , pc.gamma , l , r } );
   }
 
+ // a domain that collapses to a single point [min_power == max_power at t,
+ // say a unit that at t can only sit at one power] leaves no piece of
+ // positive width, and an empty output means to the caller that there is no
+ // feasible transition at all. The value function there is a point: emit it
+ // as a zero-width piece, which the rest of the machinery handles [see
+ // add_pwq() and min_over()]. If no piece of the transformed function
+ // covers that point the transition really is infeasible, and the output
+ // stays empty
+ if( out.empty() && ( lo <= hi + 1e-12 ) ) {
+  double v = TUEDPINF;
+  for( const auto & pc : raw )
+   if( ( pc.left <= lo + 1e-12 ) && ( lo <= pc.right + 1e-12 ) )
+    v = std::min( v , eval_piece( pc , lo ) );
+  if( v < TUEDPINF )
+   out.push_back( { 0 , 0 , v , lo , hi } );
+  }
+
  }  // end( ThermalUnitDPSolverBase::sliding_min )
 
 /*--------------------------------------------------------------------------*/
@@ -1950,6 +1967,13 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     std::cerr << "FRDIFF t=" << t << " md=" << md << " at p=" << pw
               << " napcs=" << a2.size() << " nbpcs=" << b2.size() << "\n";
    }
+  // as at the end of sliding_min(): a domain collapsed to a single point is
+  // a value, not the absence of one
+  if( out.empty() && ( plo <= phi + 1e-12 ) ) {
+   const double v = Geval( plo );
+   if( v < TUEDPINF )
+    out.push_back( { 0 , 0 , v , plo , phi } );
+   }
 #if TUEDPS_PROFILE
   g_pieces += out.size();                 // (g_smc already counted above)
 #endif
@@ -2077,6 +2101,14 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     m.push_back( c );
    }
   out.swap( m );
+  }
+
+ // as in sliding_min(): a domain collapsed to a single point is a value,
+ // not the absence of one, and must be emitted as a zero-width piece
+ if( out.empty() && ( plo <= phi + 1e-12 ) ) {
+  const double v = Geval( plo );
+  if( v < TUEDPINF )
+   out.push_back( { 0 , 0 , v , plo , phi } );
   }
 
 #if TUEDPS_PROFILE
