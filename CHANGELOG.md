@@ -63,6 +63,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   numbered the p_t one 3 and the dynamic programming one 2, the other way
   round with respect to ptForm and DPForm and to what set_variables() does
 
+- the intake and outtake bounds of a BatteryUnitBlock were held in a
+  LB0Constraint, whose LHS is fixed at zero by the type: right for the pair
+  of one-sided fences on the intake and the outtake, wrong once the pair is
+  folded onto the signed active power, where the bound is two-sided and its
+  charging side is negative. Generating the constraints of a battery in the
+  folded form threw "cannot change LHS in a LB0Constraint"; they are now a
+  BoxConstraint, which the split form uses with its default LHS of zero
+
 ## [0.7.0] - 2025-12-12
 
 ### Added 

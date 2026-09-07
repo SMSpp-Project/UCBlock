@@ -1581,7 +1581,7 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraints
- const LB0Constraint * get_max_intake_bounds( void ) const {
+ const BoxConstraint * get_max_intake_bounds( void ) const {
   if( intake_outtake_bounds_Const.empty() ||
       intake_outtake_bounds_Const[ 0 ].empty() )
    return( nullptr );
@@ -1590,7 +1590,7 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraint associated with time t
- const LB0Constraint * get_max_intake_bound( Index t ) const {
+ const BoxConstraint * get_max_intake_bound( Index t ) const {
   if( intake_outtake_bounds_Const.empty() ||
       intake_outtake_bounds_Const[ 0 ].empty() )
    return( nullptr );
@@ -1599,7 +1599,7 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints
- const LB0Constraint * get_max_outtake_bounds( void ) const {
+ const BoxConstraint * get_max_outtake_bounds( void ) const {
   if( intake_outtake_bounds_Const.empty() ||
       intake_outtake_bounds_Const[ 1 ].empty() )
    return( nullptr );
@@ -1608,7 +1608,7 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraint associated with time t
- const LB0Constraint * get_max_outtake_bound( Index t ) const {
+ const BoxConstraint * get_max_outtake_bound( Index t ) const {
   if( intake_outtake_bounds_Const.empty() ||
       intake_outtake_bounds_Const[ 1 ].empty() )
    return( nullptr );
@@ -2073,7 +2073,10 @@ class BatteryUnitBlock : public UnitBlock
  std::vector< BoxConstraint > storage_level_bounds_Const;
 
  /// the intake and outtake bounds constraints
- boost::multi_array< LB0Constraint , 2 > intake_outtake_bounds_Const;
+ /** Two-sided: folded onto the signed active power, the pair of one-sided
+  * fences on the intake and the outtake becomes a single bound whose LHS is
+  * the (negative) charging side. */
+ boost::multi_array< BoxConstraint , 2 > intake_outtake_bounds_Const;
 
  /// primary upper bound constraints
  std::vector< LB0Constraint > primary_upper_bound_Const;
