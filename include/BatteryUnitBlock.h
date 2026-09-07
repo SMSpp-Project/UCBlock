@@ -604,19 +604,20 @@ class BatteryUnitBlock : public UnitBlock
   *   extracting amount of active power are not always equal, to deal with
   *   this the usual trick of splitting the active power variable in two new
   *   non-negative variables called intake and outtake levels for each time
-  *   \f$ t \f$ (see equation (5)) is used. If
-  *   "StoringBatteryRho" == "ExtractingBatteryRho" == 1, we do not need to
-  *   split the active power and constraints ((5)–(7) and (10)–(11)) are
-  *   replaced by (8).
+  *   \f$ t \f$ (see equation (5)) is used. When "StoringBatteryRho" and
+  *   "ExtractingBatteryRho" agree at all times, however, nothing tells the
+  *   two directions apart: the active power is not split and constraints
+  *   ((5)–(7) and (10)–(11)) are replaced by (8).
   *
   * - The storage level variables.
   *
   * - The intake and outtake level variables. They are needed to split the
-  *   active power variable (if needed).
+  *   active power variable, and are only generated when the split is, see
+  *   needs_intake_outtake().
   *
   * - The binary variables. When "StoringBatteryRho" == "ExtractingBatteryRho"
-  *   == 1, then this binary variable and all constraints that depend on it
-  *   are not required.
+  *   there is no round trip loss to exploit, hence this binary variable and
+  *   all constraints that depend on it are not required.
   *
   * Each of these groups of variables either has size #f_time_horizon or is
   * empty (if the variables have not been generated).
@@ -2139,6 +2140,34 @@ class BatteryUnitBlock : public UnitBlock
   * @param issueAMod Controls how abstract Modifications are issued. */
 
  void update_objective( c_ModParam issueAMod ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// tells whether the active power has to be split in intake and outtake
+ /** The intake and the outtake level are the negative and the positive part
+  * of the active power, and only the level balance can tell them apart: it
+  * weights them with StoringBatteryRho and ExtractingBatteryRho, and the
+  * operating cost already prices them symmetrically. When the two weights
+  * agree at all times the balance reads the same on the active power alone,
+  * ( il , ol ) = ( max( 0 , -p ) , max( 0 , p ) ) satisfies every row that
+  * fences the pair, and the split is unnecessary.
+  *
+  * @return true if the intake and outtake level Variable are needed. */
+
+ bool needs_intake_outtake( void ) const {
+  if( v_StoringBatteryRho.empty() && v_ExtractingBatteryRho.empty() )
+   return( false );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const double storing = v_StoringBatteryRho.empty()
+                          ? 1. : v_StoringBatteryRho[ t ];
+   const double extracting = v_ExtractingBatteryRho.empty()
+                             ? 1. : v_ExtractingBatteryRho[ t ];
+   if( storing != extracting )
+    return( true );
+   }
+
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// verify whether the data in this BatteryUnitBlock is consistent

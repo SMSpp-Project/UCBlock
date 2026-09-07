@@ -2022,6 +2022,9 @@ class HydroUnitBlock : public UnitBlock
  /// active power bounds
  boost::multi_array< FRowConstraint , 2 > ActivePowerBounds_Const;
 
+ /// active power bounds when the unit produces no reserve
+ boost::multi_array< BoxConstraint , 2 > ActivePower_Bound_Const;
+
  /// the reactive power bound constraints
  boost::multi_array< BoxConstraint , 2 > ReactivePower_Bound_Const;
 

@@ -24,6 +24,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed 
 
+- an auxiliary Variable, and the rows that fence it, are only generated when
+  the data asks for them: the intake and the outtake level of the
+  `BatteryUnitBlock` when the storing and the extracting efficiency disagree
+  at some time instant, the linearisation of the flow cost of the
+  `DCNetworkBlock` and of the `OTSNetworkBlock` when some line is priced, the
+  minimum power row of the `IntermittentUnitBlock` and the maximum and minimum
+  power rows of the `HydroUnitBlock` when the unit produces reserve. Where the
+  rows are not generated, what they reduce to is a bound on the active power,
+  and it is stated as a bound
+
+- the flow-to-power relation of a `HydroUnitBlock` arc is an equality, rather
+  than the concave outer approximation a piecewise arc needs, when the arc has
+  a single piece with no constant term and the reservoir it leaves has a
+  spillage outlet: the flow can then be substituted away
+
 ### Fixed 
 
 - `UnitBlockSolution::write()` threw on a generator having no Variable for a

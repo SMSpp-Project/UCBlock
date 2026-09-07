@@ -853,7 +853,7 @@ void DCNetworkBlock::generate_PTDF_variables( void )
   var.set_type( ColVariable::kContinuous );
  add_static_variable( v_power_flow , "p_flow_network" );
 
- if( ! f_NetworkData->get_network_cost().empty() ) {
+ if( has_network_cost() ) {
   // the auxiliary Variable
   v_auxiliary_variable.resize( number_lines );
   for( auto & var : v_auxiliary_variable )
@@ -1332,7 +1332,7 @@ void DCNetworkBlock::generate_HVDC_nodal_constraints( bool full_formulation ) {
 void DCNetworkBlock::generate_network_cost_constraints( void )
 {
  // 0 <= V_l - F_l  and  0 <= V_l + F_l  (linearization of |F_l|)
- if( f_NetworkData->get_network_cost().empty() )
+ if( ! has_network_cost() )
   return;
 
  const auto number_lines = get_number_lines();
@@ -1605,13 +1605,22 @@ void DCNetworkBlock::generate_bound_constraints( void )
   *   UPPER: F_l - kappa * MaxP_l * x_l <= 0 */
 
  if( has_design() ) {
-  v_power_flow_limit_design_const.resize(  MAFRC_ext()[ 2 ][ number_lines ] );
+  // only the lines that have a design variable get a pair of rows: giving
+  // one to the others would leave rows with no term and no right-hand side
+  v_design_row.assign( number_lines , Inf< Index >() );
+  Index rows = 0;
+  for( Index l = 0 ; l < number_lines ; ++l )
+   if( get_design( l ) )
+    v_design_row[ l ] = rows++;
+
+  v_power_flow_limit_design_const.resize( MAFRC_ext()[ 2 ][ rows ] );
 
   for( Index l = 0 ; l < number_lines ; ++l ) {
    ColVariable * x = get_design( l );
    if( ! x )   // no design on this line:
     continue;  // handled in the "without design" block
 
+   const Index row = v_design_row[ l ];
    const double kappa = get_kappa( l );
    const double Pmn   = get_min_power_flow( l );
    const double Pmx   = get_max_power_flow( l );
@@ -1619,17 +1628,17 @@ void DCNetworkBlock::generate_bound_constraints( void )
    // LOWER:  F_l - kappa * Pmn * x_l >= 0
    vars.emplace_back( & v_power_flow[ l ] , 1.0 );
    vars.emplace_back( x , - kappa * Pmn );
-   v_power_flow_limit_design_const[ 0 ][ l ].set_lhs( 0.0 );
-   v_power_flow_limit_design_const[ 0 ][ l ].set_rhs( Inf< double >() );
-   v_power_flow_limit_design_const[ 0 ][ l ].set_function(
+   v_power_flow_limit_design_const[ 0 ][ row ].set_lhs( 0.0 );
+   v_power_flow_limit_design_const[ 0 ][ row ].set_rhs( Inf< double >() );
+   v_power_flow_limit_design_const[ 0 ][ row ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
 
    // UPPER:  F_l - kappa * Pmx * x_l <= 0
    vars.emplace_back( & v_power_flow[ l ] , 1.0 );
    vars.emplace_back( x , - kappa * Pmx );
-   v_power_flow_limit_design_const[ 1 ][ l ].set_lhs( -Inf< double >() );
-   v_power_flow_limit_design_const[ 1 ][ l ].set_rhs( 0.0 );
-   v_power_flow_limit_design_const[ 1 ][ l ].set_function(
+   v_power_flow_limit_design_const[ 1 ][ row ].set_lhs( -Inf< double >() );
+   v_power_flow_limit_design_const[ 1 ][ row ].set_rhs( 0.0 );
+   v_power_flow_limit_design_const[ 1 ][ row ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
    }
 
@@ -1671,7 +1680,8 @@ void DCNetworkBlock::generate_objective( Configuration * objc )
 
  LinearFunction::v_coeff_pair vars;
 
- if( const auto & nc = f_NetworkData->get_network_cost() ; ! nc.empty() ) {
+ if( has_network_cost() ) {
+  const auto & nc = f_NetworkData->get_network_cost();
   auto nl = get_number_lines();
   vars.resize( nl );
  
@@ -2241,6 +2251,16 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
   network_cost.assign( get_number_lines() , 0.0 );
   }
 
+ // pricing a line the abstract representation was built without has no
+ // auxiliary Variable to hang the cost on
+ if( variables_generated() && v_auxiliary_variable.empty() &&
+     std::any_of( values , values + subset.size() ,
+                  []( double cst ) { return( cst != 0.0 ); } ) )
+  throw( std::logic_error(
+   "DCNetworkBlock::set_network_cost: the abstract representation has been "
+   "generated with no priced line, hence it has no auxiliary Variable to "
+   "linearise the flow cost with" ) );
+
  bool identical = true;
  auto values_it = values;
  for( auto i : subset ) {
@@ -2314,6 +2334,16 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
 
   network_cost.assign( get_number_lines() , 0.0 );
  }
+
+ // pricing a line the abstract representation was built without has no
+ // auxiliary Variable to hang the cost on
+ if( variables_generated() && v_auxiliary_variable.empty() &&
+     std::any_of( values , values + sz ,
+                  []( double cst ) { return( cst != 0.0 ); } ) )
+  throw( std::logic_error(
+   "DCNetworkBlock::set_network_cost: the abstract representation has been "
+   "generated with no priced line, hence it has no auxiliary Variable to "
+   "linearise the flow cost with" ) );
 
  if( std::equal( values ,
                  values + sz ,
@@ -2460,16 +2490,18 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    // We only update the coefficient of x_i (which is the second variable in
    // the LF).
 
+   const Index row = v_design_row[ i ];
+
    // LOWER bound:  F_i - kappa * MinP_i * x_i >= 0
    double lower_coeff_x = -kappa * get_min_power_flow( i );
    auto * lf_low = static_cast< LinearFunction * >(
-		   v_power_flow_limit_design_const[ 0 ][ i ].get_function() );
+		 v_power_flow_limit_design_const[ 0 ][ row ].get_function() );
    lf_low->modify_coefficient( 1 , lower_coeff_x , issueAMod );
 
    // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
    double upper_coeff_x = -kappa * get_max_power_flow( i );
    auto * lf_up = static_cast< LinearFunction * >(
-		   v_power_flow_limit_design_const[ 1 ][ i ].get_function() );
+		 v_power_flow_limit_design_const[ 1 ][ row ].get_function() );
    lf_up->modify_coefficient( 1 , upper_coeff_x , issueAMod );
    }
   else {

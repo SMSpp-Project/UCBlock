@@ -340,34 +340,40 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
  if( f_InvestmentCost == 0 ) {
 
+  // the reserve Variable are the only terms these two rows carry beyond the
+  // active power: without them the rows reduce to the two sides of the
+  // active power bound below, which reaches the solver as a bound
+  const bool has_reserve = ( f_gamma != 0 ) && ( reserve_vars & 3u );
+
   // Minimum power constraints
 
-  min_power_Const.resize( f_time_horizon );
+  if( has_reserve ) {
 
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   min_power_Const.resize( f_time_horizon );
 
-   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   if( f_gamma != 0 ) {  // if unit produces any reserve
+    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+
     if( reserve_vars & 1u )  // if UCBlock has primary demand variables
      vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
                                      -1.0 ) );
     if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                      -1.0 ) );
+
+    min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
+    min_power_Const[ t ].set_rhs( Inf< double >() );
+    min_power_Const[ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
    }
 
-   min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] );
-   min_power_Const[ t ].set_rhs( Inf< double >() );
-   min_power_Const[ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+   add_static_constraint( min_power_Const , "MinPower_Intermittent" );
   }
-
-  add_static_constraint( min_power_Const , "MinPower_Intermittent" );
 
   // Maximum power constraints
 
-  if( f_gamma != 0 ) {  // if unit produces any reserve
+  if( has_reserve ) {
 
    max_power_Const.resize( f_time_horizon );
 

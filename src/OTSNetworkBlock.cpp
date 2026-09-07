@@ -224,7 +224,7 @@ void OTSNetworkBlock::generate_objective( Configuration * objc )
  if( ! lf )
   return;
 
- if( ! f_NetworkData->get_network_cost().empty() )
+ if( has_network_cost() )
   for( Index l = 0 ; l < get_number_lines() ; ++l )
    lf->add_variable( & v_auxiliary_variable[ l ] ,
                      f_NetworkData->get_network_cost()[ l ] , eNoMod );

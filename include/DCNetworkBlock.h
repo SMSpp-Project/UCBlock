@@ -53,6 +53,8 @@
 
 #include <Eigen/Sparse>
 
+#include <algorithm>
+
 #include <utility>
 
 /*--------------------------------------------------------------------------*/
@@ -1473,10 +1475,24 @@ class DCNetworkData : public NetworkData
   *   \f[
   *     V_l \ge  F_l, \quad V_l \ge -F_l \qquad \forall\, l \in \mathcal{L}
   *   \f]
-  * Does nothing if NetworkCost is empty. This method is intended to be
+  * Does nothing if no line is priced. This method is intended to be
   * called by generate_KIRCHHOFF_constraints() and overriding classes. */
 
  void generate_network_cost_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if some line carries a non-zero network cost
+ /** The auxiliary Variable linearising |F_l| and the two rows fencing it are
+  * only worth their place if the flow on some line is actually priced: an
+  * all-zero "NetworkCost" vector states the same thing as a missing one. */
+
+ bool has_network_cost( void ) const {
+  if( ! f_NetworkData )
+   return( false );
+  const auto & nc = f_NetworkData->get_network_cost();
+  return( std::any_of( nc.begin() , nc.end() ,
+                       []( double cost ) { return( cost != 0. ); } ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// generate the reference-node angle constraint
@@ -1863,9 +1879,11 @@ class DCNetworkData : public NetworkData
 
   dp.resize( nl );
   for( Index l = 0 ; l < nl ; ++l ) {
-   if( has_design() && get_design( l ) )  {  // design on this line
-    dp[ l ] = v_power_flow_limit_design_const[ 1 ][ l ].get_dual() -
-              v_power_flow_limit_design_const[ 0 ][ l ].get_dual();
+   if( ( l < v_design_row.size() ) &&
+       ( v_design_row[ l ] < Inf< Index >() ) ) {  // design on this line
+    const auto row = v_design_row[ l ];
+    dp[ l ] = v_power_flow_limit_design_const[ 1 ][ row ].get_dual() -
+              v_power_flow_limit_design_const[ 0 ][ row ].get_dual();
     continue;
     }
 
@@ -2381,7 +2399,15 @@ class DCNetworkData : public NetworkData
  std::vector< BoxConstraint > v_power_flow_limit_const;
 
  /// Power flow limit design constraints
+ /** Only the lines that have a design variable have a pair of rows here,
+  * hence the second index is not the line: it is v_design_row[ line ]. */
  boost::multi_array< FRowConstraint , 2 > v_power_flow_limit_design_const;
+
+ /// for each line, its row in v_power_flow_limit_design_const
+ /** v_design_row[ line ] is the index of the line in
+  * v_power_flow_limit_design_const, or Inf< Index >() if the line has no
+  * design variable and therefore no row there. */
+ std::vector< Index > v_design_row;
 
  /// injection equals to demand
  FRowConstraint overall_balanced_const;

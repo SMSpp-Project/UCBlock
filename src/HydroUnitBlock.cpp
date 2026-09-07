@@ -90,6 +90,7 @@ HydroUnitBlock::~HydroUnitBlock()
  Constraint::clear( ActivePowerSecondary_Const );
  Constraint::clear( FlowActivePower_Const );
  Constraint::clear( ActivePowerBounds_Const );
+ Constraint::clear( ActivePower_Bound_Const );
  Constraint::clear( RampUp_Const );
  Constraint::clear( RampDown_Const );
  Constraint::clear( FinalVolumeReservoir_Const );
@@ -563,80 +564,115 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  add_static_constraint( FinalVolumeReservoir_Const ,
                         "FinalVolumeReservoir_HydroUnit" );
 
+ // active power bounds when there is no reserve - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //
+ // the two primary-secondary rows below reduce to MinPower <= p <= MaxPower
+ // when the unit produces no reserve: a single bound then says the same
+ // thing, and reaches the solver as a bound rather than as two rows
+
+ const bool has_reserve =
+  ( ( reserve_vars & 1u ) && ( ! v_PrimaryRho.empty() ) ) ||
+  ( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) );
+
+ if( ! has_reserve ) {
+
+  assert( ActivePower_Bound_Const.empty() );
+
+  ActivePower_Bound_Const.resize(
+   boost::multi_array< BoxConstraint , 2 >::extent_gen()
+                              [ f_time_horizon ][ f_NumberArcs ] );
+
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    ActivePower_Bound_Const[ t ][ arc ].set_lhs(
+     v_MinPower.empty() ? 0.0 : v_MinPower[ t ][ arc ] );
+    ActivePower_Bound_Const[ t ][ arc ].set_rhs(
+     v_MaxPower.empty() ? 0.0 : v_MaxPower[ t ][ arc ] );
+    ActivePower_Bound_Const[ t ][ arc ].set_variable(
+					     get_active_power( arc , t ) );
+    }
+
+  add_static_constraint( ActivePower_Bound_Const , "ActivePower_HydroUnit" );
+  }
+
  // maximum power output according to primary-secondary reserves constraints
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- assert( MaxPowerPrimarySecondary_Const.empty() );
+ if( has_reserve ) {
 
- MaxPowerPrimarySecondary_Const.resize(
-		   maFRC2::extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+  assert( MaxPowerPrimarySecondary_Const.empty() );
 
- for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  MaxPowerPrimarySecondary_Const.resize(
+                    maFRC2::extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
 
-   vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    if( ! v_PrimaryRho.empty() )  // if unit produces any primary reserve
-     vars.push_back( std::make_pair( get_primary_spinning_reserve( arc , t ) ,
-                                     1.0 ) );
+    vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
 
-   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-    if( ! v_SecondaryRho.empty() )  // if unit produces any secondary reserve
-     vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
-                                     1.0 ) );
+    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+     if( ! v_PrimaryRho.empty() )  // if unit produces any primary reserve
+      vars.push_back( std::make_pair( get_primary_spinning_reserve( arc , t ) ,
+                                      1.0 ) );
 
-   MaxPowerPrimarySecondary_Const[ t ][ arc ].set_lhs( -Inf< double >() );
+    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+     if( ! v_SecondaryRho.empty() )  // if unit produces any secondary reserve
+      vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
+                                      1.0 ) );
 
-   if( ! v_MaxPower.empty() )
-    MaxPowerPrimarySecondary_Const[ t ][ arc ].set_rhs(
-						   v_MaxPower[ t ][ arc ] );
-   else
-    MaxPowerPrimarySecondary_Const[ t ][ arc ].set_rhs( 0.0 );
-   MaxPowerPrimarySecondary_Const[ t ][ arc ].set_function(
-				  new LinearFunction( std::move( vars ) ) );
+    MaxPowerPrimarySecondary_Const[ t ][ arc ].set_lhs( -Inf< double >() );
+
+    if( ! v_MaxPower.empty() )
+     MaxPowerPrimarySecondary_Const[ t ][ arc ].set_rhs(
+                                                    v_MaxPower[ t ][ arc ] );
+    else
+     MaxPowerPrimarySecondary_Const[ t ][ arc ].set_rhs( 0.0 );
+    MaxPowerPrimarySecondary_Const[ t ][ arc ].set_function(
+                                   new LinearFunction( std::move( vars ) ) );
+    }
    }
-  }
 
- add_static_constraint( MaxPowerPrimarySecondary_Const ,
-                        "MaxPowerPrimarySecondary_HydroUnit" );
+  add_static_constraint( MaxPowerPrimarySecondary_Const ,
+                         "MaxPowerPrimarySecondary_HydroUnit" );
 
- // minimum power output according to primary-secondary reserves constraints
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // minimum power output according to primary-secondary reserves constraints
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- assert( MinPowerPrimarySecondary_Const.empty() );
+  assert( MinPowerPrimarySecondary_Const.empty() );
 
- MinPowerPrimarySecondary_Const.resize(
-		   maFRC2::extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
+  MinPowerPrimarySecondary_Const.resize(
+                    maFRC2::extent_gen()[ f_time_horizon ][ f_NumberArcs ] );
 
- for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
-   vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
+    vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
 
-   if( reserve_vars & 1u )  // if UCBlock has primary demand variables
-    if( ! v_PrimaryRho.empty() )  // if unit produces any primary reserve
-     vars.push_back( std::make_pair( get_primary_spinning_reserve( arc , t ) ,
-                                     -1.0 ) );
+    if( reserve_vars & 1u )  // if UCBlock has primary demand variables
+     if( ! v_PrimaryRho.empty() )  // if unit produces any primary reserve
+      vars.push_back( std::make_pair( get_primary_spinning_reserve( arc , t ) ,
+                                      -1.0 ) );
 
-   if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
-    if( ! v_SecondaryRho.empty() )  // if unit produces any secondary reserve
-     vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
-                                     -1.0 ) );
+    if( reserve_vars & 2u )  // if UCBlock has secondary demand variables
+     if( ! v_SecondaryRho.empty() )  // if unit produces any secondary reserve
+      vars.push_back( std::make_pair( get_secondary_spinning_reserve( arc , t ) ,
+                                      -1.0 ) );
 
-   if( ! v_MinPower.empty() )
-    MinPowerPrimarySecondary_Const[ t ][ arc ].set_lhs(
-						   v_MinPower[ t ][ arc ] );
-   else
-    MinPowerPrimarySecondary_Const[ t ][ arc ].set_lhs( 0.0 );
-   MinPowerPrimarySecondary_Const[ t ][ arc ].set_rhs( Inf< double >() );
-   MinPowerPrimarySecondary_Const[ t ][ arc ].set_function(
-				  new LinearFunction( std::move( vars ) ) );
+    if( ! v_MinPower.empty() )
+     MinPowerPrimarySecondary_Const[ t ][ arc ].set_lhs(
+                                                    v_MinPower[ t ][ arc ] );
+    else
+     MinPowerPrimarySecondary_Const[ t ][ arc ].set_lhs( 0.0 );
+    MinPowerPrimarySecondary_Const[ t ][ arc ].set_rhs( Inf< double >() );
+    MinPowerPrimarySecondary_Const[ t ][ arc ].set_function(
+                                   new LinearFunction( std::move( vars ) ) );
+    }
    }
-  }
 
- add_static_constraint( MinPowerPrimarySecondary_Const ,
-                        "MinPowerPrimarySecondary_HydroUnit" );
+  add_static_constraint( MinPowerPrimarySecondary_Const ,
+                         "MinPowerPrimarySecondary_HydroUnit" );
+  }  // end( if( has_reserve ) )
 
  // power output relation with primary reserves constraints - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -739,6 +775,39 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
  FlowActivePower_Const.resize(
             maFRC2::extent_gen()[ f_time_horizon ][ f_TotalNumberPieces ] );
 
+ // an arc whose (only) piece has LinearTerm == 0 releases water without
+ // producing any power: it is the spillage outlet of the reservoir it
+ // leaves, see check_data_consistency(). A single-piece turbine arc with no
+ // constant term states the flow-to-power relation exactly, so its row is
+ // an equality rather than the concave outer approximation that a piecewise
+ // arc needs; the equality then lets the flow variable be substituted away.
+ // Both conditions are required: with more than one piece the inequality is
+ // the relaxation itself, and without a spillage outlet the inequality is
+ // the only way to release water without generating, so forcing the
+ // equality could turn a feasible instance infeasible
+
+ std::vector< Index > first_piece( f_NumberArcs , 0 );
+ for( Index arc = 1 ; arc < f_NumberArcs ; ++arc )
+  first_piece[ arc ] = first_piece[ arc - 1 ] +
+   ( v_NumberPieces.empty() ? 1 : v_NumberPieces[ arc - 1 ] );
+
+ std::vector< bool > single_piece( f_NumberArcs , true );
+ if( ! v_NumberPieces.empty() )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   single_piece[ arc ] = ( v_NumberPieces[ arc ] == 1 );
+
+ std::vector< bool > has_spillage( f_NumberArcs , false );
+ if( ! v_LinearTerm.empty() )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   for( Index out = 0 ; out < f_NumberArcs ; ++out )
+    if( single_piece[ out ] &&
+        ( v_LinearTerm[ first_piece[ out ] ] == 0. ) &&
+        ( v_StartArc.empty() ||
+          ( v_StartArc[ out ] == v_StartArc[ arc ] ) ) ) {
+     has_spillage[ arc ] = true;
+     break;
+     }
+
  if( f_NumberArcs > 0 ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    Index piece = 0;
@@ -763,11 +832,17 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       else
        vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
 
-      if( ! v_ConstTerm.empty() )
-       FlowActivePower_Const[ t ][ piece ].set_rhs( v_ConstTerm[ piece ] );
-      else
-       FlowActivePower_Const[ t ][ piece ].set_rhs( 0.0 );
-      FlowActivePower_Const[ t ][ piece ].set_lhs( -Inf< double >() );
+      const double const_term = v_ConstTerm.empty() ? 0.0
+                                                    : v_ConstTerm[ piece ];
+
+      if( single_piece[ arc ] && ( const_term == 0. ) &&
+          has_spillage[ arc ] )
+       FlowActivePower_Const[ t ][ piece ].set_both( 0.0 );
+      else {
+       FlowActivePower_Const[ t ][ piece ].set_rhs( const_term );
+       FlowActivePower_Const[ t ][ piece ].set_lhs( -Inf< double >() );
+       }
+
       FlowActivePower_Const[ t ][ piece ].set_function(
 				 new LinearFunction( std::move( vars ) ) );
       }
@@ -1054,6 +1129,7 @@ bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( ActivePowerSecondary_Const , tol , rel_viol )
   && RowConstraint::is_feasible( FlowActivePower_Const , tol , rel_viol )
   && RowConstraint::is_feasible( ActivePowerBounds_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol )
   && RowConstraint::is_feasible( RampUp_Const , tol , rel_viol )
   && RowConstraint::is_feasible( RampDown_Const , tol , rel_viol )
   && RowConstraint::is_feasible( FlowRateBounds_Const , tol , rel_viol )
