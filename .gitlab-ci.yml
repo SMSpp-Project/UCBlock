@@ -9,6 +9,7 @@ cache:
 stages:
   - build
   - test
+  - test-validation
   - test-heur
   - deploy
 
@@ -42,13 +43,15 @@ build:
 
 # the full ucblock suite exceeds the 3h GitLab.com shared-runner job cap when
 # run as one job (the PrimalProximalHeur cross-check alone is ~1.5h), so it is
-# split into two SEQUENTIAL stages, each comfortably under 3h. The heuristic is
-# what costs: in CI it only runs within the academic and energy community
-# batches of the UCBlock suite, which therefore make up the
-# second stage, while everything else (the other batches of that suite, TUDPS,
-# and every other suite carrying the same label) makes up the first. Sequential,
-# not parallel, to keep within the two concurrent Gurobi sessions the academic
-# WLS license grants.
+# split into three SEQUENTIAL stages, each comfortably under 3h. The heuristic
+# is what costs the most: in CI it only runs within the academic and energy
+# community batches of the UCBlock suite, which therefore make up the last
+# stage. Next come the two long TUDPS runs, the reserve sweep and the
+# validation of the paper's claim, which re-runs four batches end to end and
+# is therefore as long as they are together. Everything else (the other
+# batches of both suites and every other suite carrying the same label) makes
+# up the first. Sequential, not parallel, to keep within the two concurrent
+# Gurobi sessions the academic WLS license grants.
 .test_template:
   timeout: 24h
   # the academic Gurobi WLS license caps concurrent sessions: a test job may
@@ -82,7 +85,13 @@ test:
   extends: .test_template
   stage: test
   script:
-    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -E "UCBlock_test/batches/batch-(acad|ec)" --test-dir smspp-project/build --no-tests=error
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -E "UCBlock_test/batches/batch-(acad|ec)|TUDPS_test/batches/(batch-reserve|run-validation)" --test-dir smspp-project/build --no-tests=error
+
+test-validation:
+  extends: .test_template
+  stage: test-validation
+  script:
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -R "TUDPS_test/batches/(batch-reserve|run-validation)" --test-dir smspp-project/build --no-tests=error
 
 test-heur:
   extends: .test_template
