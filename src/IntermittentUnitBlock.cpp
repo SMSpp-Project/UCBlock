@@ -29,6 +29,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
+
 #include <iostream>
 
 #include <random>
@@ -414,9 +416,21 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
 
   // Active power bounds design constraints
 
+  // the lower fence carries the design Variable with coefficient
+  // - f_kappa * v_MinPower[ t ]: with no minimum power the design drops out
+  // of it and what is left is the sign of the active power, which reaches
+  // the solver as a bound rather than as a row
+  const bool has_min_power = std::any_of( v_MinPower.begin() ,
+                                          v_MinPower.end() ,
+                                          []( double p ) {
+                                           return( p != 0 );
+                                           } );
+
   active_power_bounds_design_Const.resize(
    boost::multi_array< FRowConstraint , 2 >::extent_gen()
-   [ 2 ][ f_time_horizon ] );  // 2 dims, i.e., the lower and upper bounds
+   [ has_min_power ? 2 : 1 ][ f_time_horizon ] );
+
+  const Index max_row = has_min_power ? 1 : 0;
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
 
@@ -425,13 +439,15 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
    //      v_MinPower x <= v_active_power
    // => 0 <= v_active_power - v_MinPower x
 
-   vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-   vars.push_back( std::make_pair( &design , -f_kappa * v_MinPower[ t ] ) );
+   if( has_min_power ) {
+    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+    vars.push_back( std::make_pair( &design , -f_kappa * v_MinPower[ t ] ) );
 
-   active_power_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
-   active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
-   active_power_bounds_design_Const[ 0 ][ t ].set_function(
-    new LinearFunction( std::move( vars ) ) );
+    active_power_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
+    active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
+    active_power_bounds_design_Const[ 0 ][ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+    }
 
    // Upper bound of the active power design constraints:
    //
@@ -441,14 +457,29 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( &design , -f_kappa * v_MaxPower[ t ] ) );
 
-   active_power_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
-   active_power_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
-   active_power_bounds_design_Const[ 1 ][ t ].set_function(
+   active_power_bounds_design_Const[ max_row ][ t ].set_lhs( -Inf< double >() );
+   active_power_bounds_design_Const[ max_row ][ t ].set_rhs( 0.0 );
+   active_power_bounds_design_Const[ max_row ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
   }
 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Intermittent" );
+
+  // the lower fence of a unit with no minimum power, as a bound
+
+  if( ! has_min_power ) {
+   active_power_bounds_Const.resize( f_time_horizon );
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    active_power_bounds_Const[ t ].set_lhs( 0.0 );
+    active_power_bounds_Const[ t ].set_rhs( Inf< double >() );
+    active_power_bounds_Const[ t ].set_variable( &v_active_power[ t ] );
+    }
+
+   add_static_constraint( active_power_bounds_Const ,
+                          "ActivePower_Intermittent" );
+   }
 
   // Design bounds. f_MaxCapacityDesign < 0 selects integer design with
   // bound |f_MaxCapacityDesign|; f_MaxCapacityDesign >= 0 selects
@@ -730,7 +761,9 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
    max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
                                  issueAMod );
 
- if( ! active_power_bounds_Const.empty() )
+ // with a design the bound is only the lower fence, its right-hand side
+ // stays infinite and the maximum power is a coefficient of the row below
+ if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
   for( auto t : time )
    active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
                                            issueAMod );
@@ -741,7 +774,7 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
  if( ! active_power_bounds_design_Const.empty() )
   for( auto t : time ) {
    auto f = static_cast< LinearFunction * >(
-    active_power_bounds_design_Const[ 1 ][ t ].get_function() );
+    active_power_bounds_design_Const[ design_max_row() ][ t ].get_function() );
 
    const auto design_idx = f->is_active( &design );
    if( design_idx == Inf< Index >() )
@@ -765,7 +798,9 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
    max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
                                  issueAMod );
  // FIXME: use a GroupModification
- if( ! active_power_bounds_Const.empty() )
+ // with a design the bound is only the lower fence, its right-hand side
+ // stays infinite and the maximum power is a coefficient of the row below
+ if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
   for( auto t = time.first ; t < time.second ; ++t )
    active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
                                            issueAMod );
@@ -776,7 +811,7 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
  if( ! active_power_bounds_design_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t ) {
    auto f = static_cast< LinearFunction * >(
-    active_power_bounds_design_Const[ 1 ][ t ].get_function() );
+    active_power_bounds_design_Const[ design_max_row() ][ t ].get_function() );
 
    const auto design_idx = f->is_active( &design );
    if( design_idx == Inf< Index >() )
@@ -1127,34 +1162,40 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
    if( constraints_generated() ) {
     // Update the constraints
 
+    // with a design the bound is only the lower fence, its right-hand side
+    // stays infinite and the maximum power is a coefficient of the rows below
     if( ! active_power_bounds_Const.empty() )
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       active_power_bounds_Const[ t ].set_lhs(
        f_kappa * v_MinPower[ t ] , issueAMod );
-      active_power_bounds_Const[ t ].set_rhs(
-       f_kappa * v_MaxPower[ t ] , issueAMod );
+      if( f_InvestmentCost == 0 )
+       active_power_bounds_Const[ t ].set_rhs(
+        f_kappa * v_MaxPower[ t ] , issueAMod );
      }
 
-    else if( ! active_power_bounds_design_Const.empty() )
+    if( ! active_power_bounds_design_Const.empty() )
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-      auto f0 = static_cast< LinearFunction * >(
-       active_power_bounds_design_Const[ 0 ][ t ].get_function() );
+      if( has_design_min_rows() ) {
+       auto f0 = static_cast< LinearFunction * >(
+        active_power_bounds_design_Const[ 0 ][ t ].get_function() );
 
-      const auto design_idx0 = f0->is_active( &design );
+       const auto design_idx0 = f0->is_active( &design );
 
-      if( design_idx0 == Inf< Index >() )
-       throw( std::logic_error( "IntermittentUnitBlock::set_kappa: expected "
-                                "Variable not found in "
-                                "active_power_bounds_design_Const." ) );
+       if( design_idx0 == Inf< Index >() )
+        throw( std::logic_error( "IntermittentUnitBlock::set_kappa: expected "
+                                 "Variable not found in "
+                                 "active_power_bounds_design_Const." ) );
 
-      f0->modify_coefficient( design_idx0 ,
-                              -f_kappa * v_MinPower[ t ] ,
-                              issueAMod );
+       f0->modify_coefficient( design_idx0 ,
+                               -f_kappa * v_MinPower[ t ] ,
+                               issueAMod );
+       }
 
       auto f1 = static_cast< LinearFunction * >(
-       active_power_bounds_design_Const[ 1 ][ t ].get_function() );
+       active_power_bounds_design_Const[ design_max_row() ][ t ].get_function()
+       );
 
       const auto design_idx1 = f1->is_active( &design );
 

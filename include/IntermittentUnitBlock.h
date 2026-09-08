@@ -1098,7 +1098,24 @@ class IntermittentUnitBlock : public UnitBlock
  std::vector< FRowConstraint > max_power_Const;
 
  /// the active power bounds design constraints
+ /** The lower-bound rows are only there when the unit has a nonzero minimum
+  * power, see generate_abstract_constraints(): with no minimum power the
+  * design Variable has a zero coefficient in them and what is left is the
+  * sign of the active power, which is a bound. Hence the first index is not
+  * the side of the fence: it is design_max_row() for the upper-bound rows,
+  * and 0 for the lower-bound ones when they are there. */
  boost::multi_array< FRowConstraint , 2 > active_power_bounds_design_Const;
+
+ /// index of the upper-bound slice of active_power_bounds_design_Const
+ [[nodiscard]] Index design_max_row( void ) const {
+  return( active_power_bounds_design_Const.empty() ? 0 :
+          Index( active_power_bounds_design_Const.shape()[ 0 ] ) - 1 );
+  }
+
+ /// true if active_power_bounds_design_Const carries the lower-bound rows
+ [[nodiscard]] bool has_design_min_rows( void ) const {
+  return( design_max_row() > 0 );
+  }
 
  /// the active power bounds constraints
  std::vector< BoxConstraint > active_power_bounds_Const;
