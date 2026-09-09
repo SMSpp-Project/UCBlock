@@ -219,6 +219,20 @@ Solution * ThermalUnitDPSolverBase::pack_Solution(
  sol->set_active_power( pack( p ) );
  sol->set_commitment( pack( u ) );
 
+ // the Objective pays the start-up through its own Variable, so the
+ // indicators travel with the Solution rather than being derived from the
+ // commitment when it is written back: deriving them works for one schedule
+ // and not for a convex combination of several, where the start-ups of the
+ // averaged commitment are fewer than the average of the start-ups
+ {
+  std::vector< double > su , sd;
+  static_cast< ThermalUnitBlock * >( f_Block )->derive_start_up( u , su , sd );
+  if( ! su.empty() ) {
+   sol->set_start_up( std::move( su ) );
+   sol->set_shut_down( std::move( sd ) );
+   }
+  }
+
  if( ! pr.empty() )
   sol->set_primary_spinning_reserve( pack( pr ) );
 

@@ -2328,6 +2328,33 @@ class ThermalUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
+ /// how many start-up (and shut-down) Variable this unit has
+ /** The start-up and shut-down Variable are as many as the time instants in
+  * which the unit can change state, which is fewer than the time horizon
+  * whenever the initial state forces the first ones [see init_t]. */
+
+ [[nodiscard]] Index get_number_start_up( void ) const {
+  return( v_start_up.size() );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// the start-up and shut-down indicators implied by a commitment profile
+ /** Fills su and sd, both sized get_number_start_up(), with the indicators
+  * that the given commitment profile implies: a start-up wherever the unit
+  * goes off to on, a shut-down wherever it goes the other way, the first
+  * instant being decided by the state the unit was in before the horizon.
+  *
+  * This is the same rule set_solution() applies to the Variable, in the
+  * form a Solver filling a Solution needs: the indicators have to be saved
+  * rather than derived later, because deriving them from a commitment that
+  * is the average of several schedules gives the start-ups of the average,
+  * which are fewer than the average of the start-ups. */
+
+ void derive_start_up( const std::vector< double > & u ,
+                       std::vector< double > & su ,
+                       std::vector< double > & sd ) const;
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of shut_down variables, or nullptr if not defined
  ColVariable * get_shut_down( void ) {
   if( v_shut_down.empty() )
@@ -3649,6 +3676,41 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
 
  void set_design( double design ) { f_design = design; }
 
+/*--------------------------------------------------------------------------*/
+ /// the start-up indicators, one per time instant, empty if not saved
+ /** The Objective pays the start-up through its own Variable, so a Solution
+  * that does not carry it can only have it derived from the commitment when
+  * it is written back. That is right for one schedule and wrong for a convex
+  * combination of several: the start-ups of an averaged commitment are fewer
+  * than the average of the start-ups, hence the combination would come out
+  * cheaper than it is. Whoever fills a Solution that may be combined has to
+  * set these. */
+
+ [[nodiscard]] const std::vector< double > & get_start_up( void ) const {
+  return( v_start_up );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the shut-down indicators, one per time instant, empty if not saved
+
+ [[nodiscard]] const std::vector< double > & get_shut_down( void ) const {
+  return( v_shut_down );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// set the start-up indicators [see get_start_up()]
+
+ void set_start_up( std::vector< double > && su ) {
+  v_start_up = std::move( su );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// set the shut-down indicators [see get_start_up()]
+
+ void set_shut_down( std::vector< double > && sd ) {
+  v_shut_down = std::move( sd );
+  }
+
  ThermalUnitBlockSolution * clone( bool empty = false ) const override;
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -3668,6 +3730,10 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  double f_design;    ///< the value of the dimensioning variable
+
+ std::vector< double > v_start_up;   ///< the start-up indicators, if saved
+
+ std::vector< double > v_shut_down;  ///< the shut-down indicators, if saved
 
 /*--------------------------------------------------------------------------*/
 

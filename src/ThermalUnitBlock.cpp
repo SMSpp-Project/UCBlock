@@ -6079,6 +6079,31 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::derive_start_up( const std::vector< double > & u ,
+                                       std::vector< double > & su ,
+                                       std::vector< double > & sd ) const
+{
+ const auto n = v_start_up.size();
+ su.assign( n , 0.0 );
+ sd.assign( n , 0.0 );
+ if( ( ! n ) || ( u.size() < f_time_horizon ) )
+  return;
+
+ // the first instant is decided by the state the unit was in before the
+ // horizon, the others by the profile itself
+ if( init_t == 0 ) {
+  su[ 0 ] = ( ( f_InitUpDownTime <= 0 ) && ( u[ 0 ] > 0.5 ) ) ? 1.0 : 0.0;
+  sd[ 0 ] = ( ( f_InitUpDownTime > 0 ) && ( u[ 0 ] <= 0.5 ) ) ? 1.0 : 0.0;
+  }
+
+ for( Index t = std::max( init_t , Index( 1 ) ) ; t < f_time_horizon ; ++t ) {
+  su[ t - init_t ] = ( ( u[ t ] > 0.5 ) && ( u[ t - 1 ] <= 0.5 ) ) ? 1.0 : 0.0;
+  sd[ t - init_t ] = ( ( u[ t ] <= 0.5 ) && ( u[ t - 1 ] > 0.5 ) ) ? 1.0 : 0.0;
+  }
+ }  // end( ThermalUnitBlock::derive_start_up )
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::set_solution( void )
 {
  // canonical part: the caller has already set v_active_power[t] and
@@ -6690,6 +6715,14 @@ void ThermalUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  if( ! ::deserialize< double >( group , f_design , "ThermalDesign" ) )
   f_design = dNaN;
 
+ // deserialize the start-up and shut-down indicators, if there - - - - - - -
+ // a Solution written before they were saved simply has none, and the
+ // indicators are derived from the commitment as they used to be
+ v_start_up.clear();
+ v_shut_down.clear();
+ ::deserialize( group , v_start_up , "ThermalStartUp" , "NumberStartUp" );
+ ::deserialize( group , v_shut_down , "ThermalShutDown" , "NumberStartUp" );
+
  }  // end( ThermalUnitBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -6705,6 +6738,29 @@ void ThermalUnitBlockSolution::read( const Block * block )
 
  // read the design- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  f_design = TUB->get_const_design().get_value();
+
+ // read the start-up and shut-down indicators - - - - - - - - - - - - - - -
+ // they are saved rather than left to be derived from the commitment when
+ // the Solution is written back, because deriving them only works for one
+ // schedule [see get_start_up() in ThermalUnitBlockSolution]
+ const auto nsu = TUB->get_number_start_up();
+ if( nsu ) {
+  auto tub = const_cast< ThermalUnitBlock * >( TUB );
+  v_start_up.resize( nsu );
+  auto su = tub->get_start_up();
+  for( Index i = 0 ; i < nsu ; ++i )
+   v_start_up[ i ] = su[ i ].get_value();
+  v_shut_down.resize( nsu );
+  if( auto sd = tub->get_shut_down() )
+   for( Index i = 0 ; i < nsu ; ++i )
+    v_shut_down[ i ] = sd[ i ].get_value();
+  else
+   v_shut_down.clear();
+  }
+ else {
+  v_start_up.clear();
+  v_shut_down.clear();
+  }
 
  }  // end( ThermalUnitBlockSolution::read )
 
@@ -6731,6 +6787,24 @@ void ThermalUnitBlockSolution::write( Block * block )
  // consistent with the saved (p, u).
  TUB->set_solution();
 
+ // ... unless the indicators were saved, in which case they are the ones to
+ // use: in a convex combination of Solution they have been averaged like
+ // everything else, while deriving them from the averaged commitment gives
+ // the start-ups of the average, which are fewer and therefore cheaper than
+ // the average of the start-ups
+ if( ! v_start_up.empty() ) {
+  const auto nsu = std::min( Index( v_start_up.size() ) ,
+                             TUB->get_number_start_up() );
+  if( auto su = TUB->get_start_up() )
+   for( Index i = 0 ; i < nsu ; ++i )
+    su[ i ].set_value( v_start_up[ i ] );
+  if( ! v_shut_down.empty() )
+   if( auto sd = TUB->get_shut_down() )
+    for( Index i = 0 ; i < std::min( Index( v_shut_down.size() ) , nsu ) ;
+         ++i )
+     sd[ i ].set_value( v_shut_down[ i ] );
+  }
+
  }  // end( ThermalUnitBlockSolution::write )
 
 /*--------------------------------------------------------------------------*/
@@ -6743,6 +6817,18 @@ void ThermalUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  if( ! std::isnan( f_design ) )
   ::serialize< double >( group , "ThermalDesign" , netCDF::NcDouble() ,
        f_design );
+
+ // serialize the start-up and shut-down indicators, if any - - - - - - - - -
+ // they are as many as the instants in which the unit can change state,
+ // which is its own dimension [see ThermalUnitBlock::get_number_start_up()]
+ if( ! v_start_up.empty() ) {
+  auto nsu = group.addDim( "NumberStartUp" , v_start_up.size() );
+  group.addVar( "ThermalStartUp" , netCDF::NcDouble() , nsu ).putVar(
+                    { 0 } , { v_start_up.size() } , v_start_up.data() );
+  if( ! v_shut_down.empty() )
+   group.addVar( "ThermalShutDown" , netCDF::NcDouble() , nsu ).putVar(
+                    { 0 } , { v_shut_down.size() } , v_shut_down.data() );
+  }
 
  }  // end( ThermalUnitBlockSolution::serialize )
 
@@ -6760,6 +6846,11 @@ ThermalUnitBlockSolution * ThermalUnitBlockSolution::scale( double factor )
 
  if( ! std::isnan( f_design ) )
   sol->f_design *= factor;
+
+ for( auto & v : sol->v_start_up )
+  v *= factor;
+ for( auto & v : sol->v_shut_down )
+  v *= factor;
 
  return( sol );
 
@@ -6781,6 +6872,18 @@ void ThermalUnitBlockSolution::sum( const Solution * solution ,
  if( ! std::isnan( f_design ) )
   f_design += TUBS->f_design * multiplier;
 
+ if( v_start_up.size() != TUBS->v_start_up.size() )
+  throw( std::invalid_argument( "ThermalUnitBlockSolution::sum: "
+        "inconsistent start-up indicators" ) );
+ for( Index i = 0 ; i < Index( v_start_up.size() ) ; ++i )
+  v_start_up[ i ] += TUBS->v_start_up[ i ] * multiplier;
+
+ if( v_shut_down.size() != TUBS->v_shut_down.size() )
+  throw( std::invalid_argument( "ThermalUnitBlockSolution::sum: "
+        "inconsistent shut-down indicators" ) );
+ for( Index i = 0 ; i < Index( v_shut_down.size() ) ; ++i )
+  v_shut_down[ i ] += TUBS->v_shut_down[ i ] * multiplier;
+
  }  // end( ThermalUnitBlockSolution::sum )
 
 /*--------------------------------------------------------------------------*/
@@ -6792,6 +6895,8 @@ ThermalUnitBlockSolution * ThermalUnitBlockSolution::clone( bool empty ) const
  if( ! empty ) {
   guts_of_clone( sol );
   sol->f_design = f_design;
+  sol->v_start_up = v_start_up;
+  sol->v_shut_down = v_shut_down;
   }
 
  return( sol );
