@@ -31,6 +31,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
+
 #include <map>
 
 #include <queue>
@@ -716,6 +718,7 @@ DCNetworkBlock::~DCNetworkBlock()
  Constraint::clear( v_power_flow_def);
  Constraint::clear( v_power_flow_limit_const );
  Constraint::clear( v_power_flow_limit_design_const );
+ Constraint::clear( v_power_flow_limit_design_min_const );
  overall_balanced_const.clear();
  Constraint::clear( v_CYCLE_def_flow_const );
  Constraint::clear( v_CYCLE_def_cycle_const );
@@ -1604,65 +1607,98 @@ void DCNetworkBlock::generate_bound_constraints( void )
   *   LOWER: F_l - kappa * MinP_l * x_l >= 0
   *   UPPER: F_l - kappa * MaxP_l * x_l <= 0 */
 
- if( has_design() ) {
-  // only the lines that have a design variable get a pair of rows: giving
-  // one to the others would leave rows with no term and no right-hand side
-  v_design_row.assign( number_lines , Inf< Index >() );
-  Index rows = 0;
-  for( Index l = 0 ; l < number_lines ; ++l )
-   if( get_design( l ) )
-    v_design_row[ l ] = rows++;
+ v_design_min_row.assign( number_lines , Inf< Index >() );
 
-  v_power_flow_limit_design_const.resize( MAFRC_ext()[ 2 ][ rows ] );
+ if( has_design() ) {
+  // only the lines that have a design variable get the upper row: giving one
+  // to the others would leave rows with no term and no right-hand side. The
+  // lower row goes to fewer lines still: with kappa * Pmn == 0 the design
+  // variable has a zero coefficient in it and what is left is F_l >= 0, the
+  // sign of the flow, which the "without design" block below turns into a
+  // bound
+  v_design_row.assign( number_lines , Inf< Index >() );
+  Index rows = 0 , min_rows = 0;
+  for( Index l = 0 ; l < number_lines ; ++l )
+   if( get_design( l ) ) {
+    v_design_row[ l ] = rows++;
+    if( get_kappa( l ) * get_min_power_flow( l ) != 0 )
+     v_design_min_row[ l ] = min_rows++;
+    }
+
+  v_power_flow_limit_design_const.resize( rows );
+  v_power_flow_limit_design_min_const.resize( min_rows );
 
   for( Index l = 0 ; l < number_lines ; ++l ) {
    ColVariable * x = get_design( l );
    if( ! x )   // no design on this line:
     continue;  // handled in the "without design" block
 
-   const Index row = v_design_row[ l ];
    const double kappa = get_kappa( l );
    const double Pmn   = get_min_power_flow( l );
    const double Pmx   = get_max_power_flow( l );
 
    // LOWER:  F_l - kappa * Pmn * x_l >= 0
-   vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-   vars.emplace_back( x , - kappa * Pmn );
-   v_power_flow_limit_design_const[ 0 ][ row ].set_lhs( 0.0 );
-   v_power_flow_limit_design_const[ 0 ][ row ].set_rhs( Inf< double >() );
-   v_power_flow_limit_design_const[ 0 ][ row ].set_function(
+   if( const Index min_row = v_design_min_row[ l ] ; min_row < Inf< Index >() ) {
+    vars.emplace_back( & v_power_flow[ l ] , 1.0 );
+    vars.emplace_back( x , - kappa * Pmn );
+    v_power_flow_limit_design_min_const[ min_row ].set_lhs( 0.0 );
+    v_power_flow_limit_design_min_const[ min_row ].set_rhs( Inf< double >() );
+    v_power_flow_limit_design_min_const[ min_row ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
+    }
 
    // UPPER:  F_l - kappa * Pmx * x_l <= 0
+   const Index row = v_design_row[ l ];
    vars.emplace_back( & v_power_flow[ l ] , 1.0 );
    vars.emplace_back( x , - kappa * Pmx );
-   v_power_flow_limit_design_const[ 1 ][ row ].set_lhs( -Inf< double >() );
-   v_power_flow_limit_design_const[ 1 ][ row ].set_rhs( 0.0 );
-   v_power_flow_limit_design_const[ 1 ][ row ].set_function(
+   v_power_flow_limit_design_const[ row ].set_lhs( -Inf< double >() );
+   v_power_flow_limit_design_const[ row ].set_rhs( 0.0 );
+   v_power_flow_limit_design_const[ row ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
    }
 
   add_static_constraint( v_power_flow_limit_design_const ,
 			 "Power_flow_limit_design" );
+
+  if( min_rows )
+   add_static_constraint( v_power_flow_limit_design_min_const ,
+			  "Power_flow_limit_design_min" );
   }
 
  /*------------------------- without design -------------------------------*/
  /** For lines with no design variable (get_design( l ) == nullptr),
   *  impose the standard box:
   *
-  *      kappa * MinP_l  <=  F_l  <=  kappa * MaxP_l */
+  *      kappa * MinP_l  <=  F_l  <=  kappa * MaxP_l
+  *
+  *  A line that has a design variable but no lower row (see above) gets the
+  *  lower half of the same box, its upper half being the design row:
+  *
+  *      kappa * MinP_l  <=  F_l  */
 
- if( ! all_design() ) {
+ // a line needs the box when it has no design variable at all, or when it
+ // has one but its lower row degenerated into the sign of the flow
+ bool needs_box = false;
+ for( Index l = 0 ; ( l < number_lines ) && ( ! needs_box ) ; ++l )
+  needs_box = ( ! get_design( l ) ) ||
+              ( v_design_min_row[ l ] == Inf< Index >() );
+
+ if( needs_box ) {
   v_power_flow_limit_const.resize( number_lines );
 
   for( Index l = 0 ; l < number_lines ; ++l ) {
-   if( get_design( l ) )  // already handled above
+   const bool design = ( get_design( l ) != nullptr );
+
+   // a line with a design variable and a lower row is entirely fenced by
+   // rows: it has nothing to do here
+   if( design && ( v_design_min_row[ l ] < Inf< Index >() ) )
     continue;
 
    const double kappa = get_kappa( l );
    v_power_flow_limit_const[ l ].set_lhs( kappa * f_C_v_scal *
 					  get_min_power_flow( l ) );
-   v_power_flow_limit_const[ l ].set_rhs( kappa * f_C_v_scal *
+   v_power_flow_limit_const[ l ].set_rhs( design ? Inf< double >() :
+					  kappa * f_C_v_scal *
 					  get_max_power_flow( l ) );
    v_power_flow_limit_const[ l ].set_variable( &v_power_flow[ l ] );
    }
@@ -1783,6 +1819,8 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // Constraints
   && RowConstraint::is_feasible( v_power_flow_limit_const , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_limit_design_const , tol ,
+         rel_viol )
+  && RowConstraint::is_feasible( v_power_flow_limit_design_min_const , tol ,
          rel_viol )
   && RowConstraint::is_feasible( v_power_flow_injection_const , tol ,
          rel_viol )
@@ -2486,22 +2524,24 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
   double kappa = get_kappa( i );
 
   if( get_design( i ) ) {
-   // Constraints *with* design variables: two per line (LOWER / UPPER).
-   // We only update the coefficient of x_i (which is the second variable in
-   // the LF).
-
-   const Index row = v_design_row[ i ];
+   // Constraints *with* design variables: the upper row, and the lower one
+   // when the line has it. We only update the coefficient of x_i (which is
+   // the second variable in the LF); a line whose lower fence is a bound has
+   // kappa * MinP_i == 0 there, which no kappa can change
 
    // LOWER bound:  F_i - kappa * MinP_i * x_i >= 0
-   double lower_coeff_x = -kappa * get_min_power_flow( i );
-   auto * lf_low = static_cast< LinearFunction * >(
-		 v_power_flow_limit_design_const[ 0 ][ row ].get_function() );
-   lf_low->modify_coefficient( 1 , lower_coeff_x , issueAMod );
+   if( const Index min_row = v_design_min_row[ i ] ; min_row < Inf< Index >() ) {
+    double lower_coeff_x = -kappa * get_min_power_flow( i );
+    auto * lf_low = static_cast< LinearFunction * >(
+		 v_power_flow_limit_design_min_const[ min_row ].get_function() );
+    lf_low->modify_coefficient( 1 , lower_coeff_x , issueAMod );
+    }
 
    // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
    double upper_coeff_x = -kappa * get_max_power_flow( i );
    auto * lf_up = static_cast< LinearFunction * >(
-		 v_power_flow_limit_design_const[ 1 ][ row ].get_function() );
+		 v_power_flow_limit_design_const[ v_design_row[ i ]
+						   ].get_function() );
    lf_up->modify_coefficient( 1 , upper_coeff_x , issueAMod );
    }
   else {

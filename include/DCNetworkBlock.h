@@ -1881,9 +1881,19 @@ class DCNetworkData : public NetworkData
   for( Index l = 0 ; l < nl ; ++l ) {
    if( ( l < v_design_row.size() ) &&
        ( v_design_row[ l ] < Inf< Index >() ) ) {  // design on this line
-    const auto row = v_design_row[ l ];
-    dp[ l ] = v_power_flow_limit_design_const[ 1 ][ row ].get_dual() -
-              v_power_flow_limit_design_const[ 0 ][ row ].get_dual();
+    // the upper side is always a row; the lower one is a row when the line
+    // has a nonzero minimum flow, and the lower half of the bound otherwise.
+    // A BoxConstraint carries the two sides in a single dual, with the sign
+    // the lower row has here once negated, so the two add up
+    dp[ l ] = v_power_flow_limit_design_const[ v_design_row[ l ] ].get_dual();
+
+    if( v_design_min_row[ l ] < Inf< Index >() )
+     dp[ l ] -= v_power_flow_limit_design_min_const[ v_design_min_row[ l ]
+                                                     ].get_dual();
+    else
+     if( ! v_power_flow_limit_const.empty() )
+      dp[ l ] += v_power_flow_limit_const[ l ].get_dual();
+
     continue;
     }
 
@@ -1976,6 +1986,9 @@ class DCNetworkData : public NetworkData
   auto nl = get_number_lines();
   if( ! nl )
    return;
+
+  if( v_power_flow_limit_const.size() < nl )
+   return;  // no bound to write the dual price on
 
   for( Index l = 0 ; l < nl ; ++l )
    v_power_flow_limit_const[ l ].set_dual( dp[ l ] );
@@ -2398,16 +2411,32 @@ class DCNetworkData : public NetworkData
  /// Power flow limit constraints
  std::vector< BoxConstraint > v_power_flow_limit_const;
 
- /// Power flow limit design constraints
- /** Only the lines that have a design variable have a pair of rows here,
-  * hence the second index is not the line: it is v_design_row[ line ]. */
- boost::multi_array< FRowConstraint , 2 > v_power_flow_limit_design_const;
+ /// Upper power flow limit design constraints
+ /** Only the lines that have a design variable have a row here, hence the
+  * index is not the line: it is v_design_row[ line ]. */
+ std::vector< FRowConstraint > v_power_flow_limit_design_const;
+
+ /// Lower power flow limit design constraints
+ /** Of the lines that have a design variable, only those whose minimum power
+  * flow is not zero have a row here: with a zero minimum flow the design
+  * variable has a zero coefficient in the row and what is left is the sign
+  * of the flow, which reaches the solver as a bound (the lower half of
+  * v_power_flow_limit_const) rather than as a row. The index is not the
+  * line: it is v_design_min_row[ line ]. */
+ std::vector< FRowConstraint > v_power_flow_limit_design_min_const;
 
  /// for each line, its row in v_power_flow_limit_design_const
  /** v_design_row[ line ] is the index of the line in
   * v_power_flow_limit_design_const, or Inf< Index >() if the line has no
   * design variable and therefore no row there. */
  std::vector< Index > v_design_row;
+
+ /// for each line, its row in v_power_flow_limit_design_min_const
+ /** v_design_min_row[ line ] is the index of the line in
+  * v_power_flow_limit_design_min_const, or Inf< Index >() if the line has
+  * no row there, be it because it has no design variable or because its
+  * minimum power flow is zero. */
+ std::vector< Index > v_design_min_row;
 
  /// injection equals to demand
  FRowConstraint overall_balanced_const;
