@@ -1581,36 +1581,42 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraints
+ /** The first row of the intake/outtake bound Constraints, one per time
+  * instant. When the unit keeps intake and outtake apart this bounds the
+  * intake level; when it does not there is a single row, one two-sided bound
+  * on the active power, and this is it: which of the two it is is told by
+  * get_max_outtake_bounds() being nullptr. */
+
  const BoxConstraint * get_max_intake_bounds( void ) const {
-  if( intake_outtake_bounds_Const.empty() ||
-      intake_outtake_bounds_Const[ 0 ].empty() )
+  if( intake_outtake_bounds_Const.num_elements() == 0 )
    return( nullptr );
-  return( &( intake_outtake_bounds_Const.data()[ 0 ] ) );
+  return( &( intake_outtake_bounds_Const[ 0 ][ 0 ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraint associated with time t
  const BoxConstraint * get_max_intake_bound( Index t ) const {
-  if( intake_outtake_bounds_Const.empty() ||
-      intake_outtake_bounds_Const[ 0 ].empty() )
+  if( intake_outtake_bounds_Const.num_elements() == 0 )
    return( nullptr );
   return( &( intake_outtake_bounds_Const[ 0 ][ t ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints
+ /** The second row of the intake/outtake bound Constraints, one per time
+  * instant, or nullptr when the unit keeps a single one [see
+  * get_max_intake_bounds()]. */
+
  const BoxConstraint * get_max_outtake_bounds( void ) const {
-  if( intake_outtake_bounds_Const.empty() ||
-      intake_outtake_bounds_Const[ 1 ].empty() )
+  if( intake_outtake_bounds_Const.shape()[ 0 ] < 2 )
    return( nullptr );
-  return( &( intake_outtake_bounds_Const.data()[ 1 ] ) );
+  return( &( intake_outtake_bounds_Const[ 1 ][ 0 ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraint associated with time t
  const BoxConstraint * get_max_outtake_bound( Index t ) const {
-  if( intake_outtake_bounds_Const.empty() ||
-      intake_outtake_bounds_Const[ 1 ].empty() )
+  if( intake_outtake_bounds_Const.shape()[ 0 ] < 2 )
    return( nullptr );
   return( &( intake_outtake_bounds_Const[ 1 ][ t ] ) );
   }

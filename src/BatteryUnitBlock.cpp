@@ -2284,9 +2284,23 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   *
   *   p^{ac}_{t} + p^{pr}_{t} + p^{sc}_{t} <= kappa * P^{max}_{t}  [lambda_max]
   *
-  * - Intake and outtake level bounds (alpha):
+  * - Intake and outtake level bounds (alpha), in the form the unit has: one
+  *   one-sided bound per variable when intake and outtake are kept apart,
   *
-  *   p^{+}_{t} <= kappa * P^{max}_{t}                             [alpha_max]
+  *   p^{+}_{t} <= - kappa * C^{c} * P^{min}_{t}                   [alpha_in]
+  *
+  *   p^{-}_{t} <= kappa * C^{d} * P^{max}_{t}                     [alpha_out]
+  *
+  *   or, when they are not, the single two-sided bound they collapse into,
+  *
+  *   kappa * C^{c} * P^{min}_{t} <= p^{ac}_{t} <= kappa * C^{d} * P^{max}_{t}
+  *
+  *   which for a battery carrying an investment is instead the converter
+  *   fence, where the converter has a power at all,
+  *
+  *   - kappa * P^{conv}_{t} <= p^{ac}_{t} <= kappa * P^{conv}_{t}
+  *
+  *   whose multiplier belongs to the side its sign points at [alpha]
   *
   *   p^{+}_{t} <= kappa * u^{+}_t * P^{max}_{t}                   [alpha_max_u]
   *
@@ -2307,10 +2321,12 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   * The name between [] represents the dual variable associated with each
   * constraint. The linearization coefficient is
   *
-  *   P^{min} ' (lambda_min + alpha_min + (1 - u^+) * alpha_min_u) -
-  *   P^{max} ' (lambda_max + alpha_max + u^+ * alpha_max_u) +
+  *   P^{min} ' (lambda_min + C^{c} alpha_in + (1 - u^+) * alpha_min_u) -
+  *   P^{max} ' (lambda_max + C^{d} alpha_out + u^+ * alpha_max_u) +
   *   V^{min} ' beta_min - V^{max} ' beta_max -
   *   P^{pr max} ' gamma_pr - P^{sc max} ' gamma_sc
+  *
+  * with the C-rates there because they multiply kappa in the bounds.
   */
 
  double linearization = 0;
@@ -2368,21 +2384,37 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
   linearization += min_power * lambda_min - max_power * lambda_max;
 
-  // Intake and outtake level bounds
+  /* Intake and outtake level bounds, in the very form the unit states them
+   * [see update_kappa_in_cnstrs()]: two one-sided bounds, one per variable,
+   * when intake and outtake are kept apart; one two-sided bound on the
+   * active power when they are not, whose fences are the C-rate pair for a
+   * battery that carries no investment and the converter fence for one that
+   * does. The coefficient is the multiplier times the derivative of the
+   * fence the Constraint actually holds, which is why the C-rates and the
+   * converter power belong here: they multiply kappa in it. */
 
   if( intake_bound_constraints ) {
-   const auto alpha_max =
-    std::abs( intake_bound_constraints[ t ].get_dual() );
+   if( outtake_bound_constraints ) {
+    linearization += intake_bound_constraints[ t ].get_dual() *
+                     f_MaxCRateCharge * min_power;
 
-   linearization += - alpha_max * max_power;
-  }
+    linearization += - outtake_bound_constraints[ t ].get_dual() *
+                     f_MaxCRateDischarge * max_power;
+    }
+   else {
+    const bool converter = ( f_BattInvestmentCost != 0 ) &&
+                           ( t < v_ConvMaxPower.size() ) &&
+                           ( v_ConvMaxPower[ t ] > 0 );
 
-  if( outtake_bound_constraints ) {
-   const auto alpha_min =
-    std::abs( outtake_bound_constraints[ t ].get_dual() );
+    const auto lower = converter ? - v_ConvMaxPower[ t ]
+                                 : f_MaxCRateCharge * min_power;
+    const auto upper = converter ? v_ConvMaxPower[ t ]
+                                 : f_MaxCRateDischarge * max_power;
 
-   linearization += min_power * alpha_min;
-  }
+    const auto alpha = intake_bound_constraints[ t ].get_dual();
+    linearization += - alpha * ( ( obj_sign * alpha > 0 ) ? lower : upper );
+    }
+   }
 
   if( max_intake_binary_constraints ) {
    const auto alpha_max_u =
