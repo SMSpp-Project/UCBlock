@@ -1703,6 +1703,17 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the factor the flow limits are scaled by
+ /** The bounds on the power flow are stated as
+  * \f$ \kappa C^{v} P^{mn} \leq F \leq \kappa C^{v} P^{mx} \f$, with
+  * \f$ C^{v} \f$ this factor, 1 unless the Configuration of the static
+  * Constraint says otherwise [see generate_abstract_constraints()]. Whoever
+  * reads the duals of those bounds needs it: the derivative of a bound with
+  * respect to the design is \f$ C^{v} P \f$ and not \f$ P \f$. */
+
+ double get_C_v_scal( void ) const { return( f_C_v_scal ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns the efficiency of the given \p line
 
  double get_line_efficiency( Index line ) const {
