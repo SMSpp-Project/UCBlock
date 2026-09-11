@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.8.0] - 2026-09-12
+
+### Added
+
 - `get_Solution()` for the three dynamic programming Solver of the
   ThermalUnitBlock, which fill the ThermalUnitBlockSolution straight out of
   the schedule the DP has found, without writing anything into the Block and
@@ -20,9 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UnitBlockSolution` and to the dimensioning variable saved in
   `ThermalUnitBlockSolution`
 
-### Added 
+- the factor the flow limits of a DCNetworkBlock are scaled by is readable,
+  since whoever reads their duals needs it
 
-### Changed 
+### Changed
 
 - an auxiliary Variable, and the rows that fence it, are only generated when
   the data asks for them: the intake and the outtake level of the
@@ -39,7 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a single piece with no constant term and the reservoir it leaves has a
   spillage outlet: the flow can then be substituted away
 
-### Fixed 
+- the version of the module is the git tag of its repository, or the
+  VERSION.txt of a release tarball, and the shared library carries it: its
+  SONAME is major.minor while the major is 0, and it is installed with an
+  RPATH relative to itself, so that an installed tree keeps working wherever
+  it is moved
+
+### Fixed
 
 - `UnitBlockSolution::write()` threw on a generator having no Variable for a
   part the Solution carries, while `read()` skips it: since what a Solution
@@ -321,7 +336,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.7.0...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.8.0...develop
+[0.8.0]: https://gitlab.com/smspp/ucblock/-/compare/0.7.0...0.8.0
 [0.7.0]: https://gitlab.com/smspp/ucblock/-/compare/0.6.3...0.7.0
 [0.6.3]: https://gitlab.com/smspp/ucblock/-/compare/0.6.2...0.6.3
 [0.6.2]: https://gitlab.com/smspp/ucblock/-/compare/0.6.1...0.6.2
@@ -330,7 +346,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.5.0]: https://gitlab.com/smspp/ucblock/-/compare/0.4.1...0.5.0
 [0.4.1]: https://gitlab.com/smspp/ucblock/-/compare/0.4.0...0.4.1
 [0.4.0]: https://gitlab.com/smspp/ucblock/-/compare/0.3.1...0.4.0
-[0.3.0]: https://gitlab.com/smspp/ucblock/-/compare/0.3.0...0.3.1
+[0.3.1]: https://gitlab.com/smspp/ucblock/-/compare/0.3.0...0.3.1
 [0.3.0]: https://gitlab.com/smspp/ucblock/-/compare/0.2.0...0.3.0
 [0.2.0]: https://gitlab.com/smspp/ucblock/-/compare/0.1.0...0.2.0
 [0.1.0]: https://gitlab.com/smspp/ucblock/-/tags/0.1.0
