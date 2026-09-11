@@ -7,17 +7,20 @@ The core of the module is the `UCBlock` class which represents the UC problem.
 The formulation is very flexible in that `UCBlock` only knows that is has a
 bunch of generating units, each one a concrete class deriving from the abstract
 base class `UnitBlock`; several of these are available, such as
-`ThermalUnitBlock`, `HydroUnitBlock`, `BatteryUnitBlock` and others. Also,
-`UCBlock` knows that energy must flow between generating units and consumption
-points through an energy network, represented by concrete class deriving from
-the abstract base class `NetworkBlock` (unless there is no network, i.e., the
-"bus" case, which is handled directly by `UCBlock`); some of these are
-available, such as `DCNetworkBlock` for the linear DC or HVDC (or hybrid)
-cases and `ECNetworkBlock` for Energy Communities having to share the
-energy between users and then with the external grid. Other kinds of
-units and networks can easily be added, and specialised solution methods for
-certain units and networks (e.g., `ThermalUnitDPSolver` for
-`ThermalUnitBlock`) can be developed.
+`ThermalUnitBlock`, `NuclearUnitBlock`, `HydroUnitBlock`,
+`HydroSystemUnitBlock`, `BatteryUnitBlock`, `IntermittentUnitBlock` and
+`SlackUnitBlock`. Also, `UCBlock` knows that energy must flow between generating
+units and consumption points through an energy network, represented by a
+concrete class deriving from the abstract base class `NetworkBlock` (unless
+there is no network, i.e., the "bus" case, which is handled directly by
+`UCBlock`); some of these are available, such as `DCNetworkBlock` for the linear
+DC or HVDC (or hybrid) cases, `ACNetworkBlock` for the AC case and
+`ECNetworkBlock` for Energy Communities having to share the energy between users
+and then with the external grid, with `OTSNetworkBlock` and `DesignNetworkBlock`
+also available. Other kinds of units and networks can easily be added, and
+specialised solution methods for certain units (e.g., `ThermalUnitDPSolver` and
+`ThermalUnitExtDPSolver` for `ThermalUnitBlock`, `NuclearUnitExtDPSolver` for
+`NuclearUnitBlock`) can be developed.
 
 
 ## Getting started
@@ -163,9 +166,13 @@ conduct, and the process for submitting merge requests to us.
 
 ### Current Lead Authors
 
-- **Tiziano Bacci**  
-  Istituto di Analisi dei Sistemi ed Informatica "A. Ruberti"  
-  Consiglio Nazionale delle Ricerche
+- **Antonio Frangioni**  
+  Dipartimento di Informatica  
+  Università di Pisa
+
+- **Donato Meoli**  
+  Dipartimento di Informatica  
+  Università di Pisa
 
 - **Rafael Durbano Lobato**  
   Dipartimento di Informatica  
@@ -174,14 +181,6 @@ conduct, and the process for submitting merge requests to us.
 - **Davide Fioriti**  
   Dipartimento di Ingegneria dell'Energia, dei Sistemi, del Territorio
   e delle Costruzioni  
-  Università di Pisa
-
-- **Antonio Frangioni**  
-  Dipartimento di Informatica  
-  Università di Pisa
-
-- **Donato Meoli**  
-  Dipartimento di Informatica  
   Università di Pisa
 
 ### Previous Contributors
@@ -193,6 +192,10 @@ conduct, and the process for submitting merge requests to us.
 - **Niccolo' Iardella**  
   Dipartimento di Informatica  
   Università di Pisa
+
+- **Tiziano Bacci**  
+  Istituto di Analisi dei Sistemi ed Informatica "A. Ruberti"  
+  Consiglio Nazionale delle Ricerche
 
 
 ## License

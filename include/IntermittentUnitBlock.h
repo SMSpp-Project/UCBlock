@@ -118,7 +118,7 @@ class IntermittentUnitBlock : public UnitBlock
  /// destructor of IntermittentUnitBlock
  virtual ~IntermittentUnitBlock() override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -142,20 +142,28 @@ class IntermittentUnitBlock : public UnitBlock
   *   not indexed over any dimension. This sets the lower bound of the design
   *   variable \( x \) in design mode (i.e., when InvestmentCost != 0). If not
   *   provided, the default is 0. Its meaning depends on "MaxCapacityDesign":
+  *
   *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), then
-  *     \( x \in \{0,1\} \) and \( \mathrm{MinCapacityDesign} > 0 \) implies
-  *     \( x = 1 \);
+  *     \( x \in \{ 0 , 1 \} \) and \( \mathrm{MinCapacityDesign} > 0 \)
+  *     implies \( x = 1 \);
+  *
   *   - otherwise (continuous design), \( x \) is nonnegative continuous with
   *     \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
   *
   * - The scalar variable "MaxCapacityDesign", of type netCDF::NcDouble and
   *   not indexed over any dimension. This limits the design variable \( x \):
-  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{0,1\} \) (binary);
-  *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [0,1] \) when
-  *     \( \mathrm{MinCapacityDesign} = 0 \); otherwise
+  *
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{ 0 , 1\} \)
+  *     (binary);
+  *
+  *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [ 0 , 1 ] \)
+  *     when \( \mathrm{MinCapacityDesign} = 0 \); otherwise
   *     \( x \in [\,\mathrm{MinCapacityDesign},\,1] \);
+  *
   *   - if \( \mathrm{MaxCapacityDesign} > 0 \) then \( x \) is nonnegative
-  *     continuous with \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
+  *     continuous with \( \mathrm{MinCapacityDesign} \le x \le
+  *     \mathrm{MaxCapacityDesign} \).
+  *
   *   If not provided, the default is 1.
   *
   * - The scalar variable "MaxCapacity", of type netCDF::NcDouble and not
@@ -165,14 +173,15 @@ class IntermittentUnitBlock : public UnitBlock
   * - The variable "MinPower", of type netCDF::NcDouble and either of size 1
   *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
   *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector \f$ \mathrm{MinP}
-  *   [ t ] \f$ that, for each time instant \f$ t \f$, contains the minimum
-  *   potential production value of the unit for the corresponding time step.
-  *   If "MinPower" has length 1 then \f$ \mathrm{MinP}[ t ] \f$ contains the
-  *   same value for all \f$ t \f$. Otherwise, \f$ \mathrm{MinPower}[ i ] \f$
-  *   is the fixed value of \f$ \mathrm{MinP}[ t ] \f$ for all \f$ t \f$ in
-  *   the interval \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
-  *   \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
+  *   "TimeHorizon"). This is meant to represent the vector
+  *   \f$ \mathrm{MinP} [ t ] \f$ that, for each time instant \f$ t \f$,
+  *   contains the minimum potential production value of the unit for the
+  *   corresponding time step. If "MinPower" has length 1 then
+  *   \f$ \mathrm{MinP}[ t ] \f$ contains the same value for all \f$ t \f$.
+  *   Otherwise, \f$ \mathrm{MinPower}[ i ] \f$  is the fixed value of
+  *   \f$ \mathrm{MinP}[ t ] \f$ for all \f$ t \f$ in the interval
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *         \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. If
   *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
@@ -216,8 +225,8 @@ class IntermittentUnitBlock : public UnitBlock
   *   for this unit and all time instants \f$ t \f$. Otherwise,
   *   \f$ \mathrm{InertiaPower}[ i ] \f$ is the fixed value of
   *   \f$ \mathrm{IP}[ t ] \f$ for all \f$ t \f$ in the interval
-  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}
-  *   [ i ] ] \f$, with the assumption that
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *         \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. If
   *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$ then the
@@ -237,13 +246,27 @@ class IntermittentUnitBlock : public UnitBlock
   *   contains the same value for all \f$ t \f$. Otherwise,
   *   \f$ \mathrm{ActivePowerCost}[ i ] \f$ is the fixed value of
   *   \f$ B[ t ] \f$ for all \f$ t \f$ in the interval
-  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}
-  *   [ i ] ] \f$, with the assumption that
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *         \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. If
   *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$ then the
   *   mapping clearly does not require "ChangeIntervals", which in fact is
   *   not loaded.
+  *
+  * - The scalar variable "MaxGeneration", of type netCDF::NcDouble and not
+  *   indexed over any dimention.
+  *   This is meant to represent the maximum generation \f$ \mathrm{MaxG} \f$
+  *   that is generated by the unit across all time instant \f$ t \f$.
+  *   By default, the value is +Inf, which means that the unit can generate
+  *   any amount of power
+  *
+  * - The scalar variable "MinGeneration", of type netCDF::NcDouble and not
+  *   indexed over any dimention.
+  *   This is meant to represent the minimum generation \f$ \mathrm{MinG} \f$
+  *   that is generated by the unit across all time instant \f$ t \f$.
+  *   By default, the value is -Inf, which means that the unit can generate
+  *   any amount of power
   *
   * - The scalar variable "Gamma", of type netCDF::NcDouble and not indexed
   *   over any dimension. This variable is used to take into account an
@@ -255,9 +278,41 @@ class IntermittentUnitBlock : public UnitBlock
   *   over any dimension. This variable multiplies the minimum and maximum
   *   power at each time instant \f$ t \f$. This variable is optional; if it
   *   is not provided it is taken to be \f$ \kappa = 1 \f$.
-  */
+  *
+  * - The scalar variable "Scale", of type netCDF::NcDouble and not indexed
+  *   over any dimension. Sets the scale factor \f$ S \f$ of this UnitBlock
+  *   (see UnitBlock::scale() for the general semantics); optional, default
+  *   1. "Scale" = N models a fleet of N identical IntermittentUnitBlock
+  *   modules sized per-module (i.e., "MaxPower" / "InvestmentCost"
+  *   describe a single module): the design variable stays in
+  *   \f$ [ 0 , \mathrm{MaxCapacityDesign} ] \f$ but every per-generator
+  *   power and every objective coefficient is multiplied by \f$ S \f$, so
+  *   the model is mathematically equivalent (LP-wise) to a single block
+  *   with per-fleet sizing and design bound \f$ N \times
+  *   \mathrm{MaxCapacityDesign} \f$. Because of this equivalence,
+  *   "Scale" \f$ \neq 1 \f$ and \f$ |\mathrm{MaxCapacityDesign}| > 1 \f$
+  *   are *mutually exclusive*: the two mechanisms encode the same
+  *   replication and combining them double-counts the fleet size.
+  *   check_data_consistency() rejects configurations that activate
+  *   both. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /* extends UnitBlock::expected_dims()
+  * not necessary, no new dimensions
+
+ std::vector< std::string > expected_dims( void ) const override;
+ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends UnitBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the IntermittentUnitBlock
@@ -283,12 +338,11 @@ class IntermittentUnitBlock : public UnitBlock
   * In addition, when \( \mathrm{MaxCapacityDesign} \ge 0 \) a lower bound
   * \( \mathrm{MinCapacityDesign} \) may be provided, yielding
   * \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
-  * When \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), \( x \in \{0,1\} \);
-  * if \( \mathrm{MinCapacityDesign} > 0 \), then \( x \) is effectively forced to 1.
-  */
+  * When \( \mathrm{MaxCapacityDesign} < 0 \) (binary design),
+  * \( x \in \{ 0 , 1 \} \); if \( \mathrm{MinCapacityDesign} > 0 \), then
+  * \( x \) is effectively forced to 1. */
 
- void generate_abstract_variables( Configuration * stvv = nullptr )
-  override;
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the static constraints of the IntermittentUnitBlock
@@ -344,6 +398,12 @@ class IntermittentUnitBlock : public UnitBlock
   *   \]
   *
   *   In the binary case, if \( \mathrm{MinCapacityDesign} > 0 \) then \( x = 1 \).
+  *
+  * - the generation constraints that limit the total generated power across all time instants \f$ t \f$ to:
+  * 
+  *  \f[
+  *    \sum_{t \in \mathcal{T}} p^{ac}_t \leq \mathrm{MaxG} \quad (4a)
+  *  \f]
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
@@ -471,6 +531,7 @@ class IntermittentUnitBlock : public UnitBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
+
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS FOR READING THE DATA OF THE IntermittentUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
@@ -486,6 +547,13 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the kappa value
  double get_kappa( void ) const { return( f_kappa ); }
 
+ /// returns the linearization coefficient of the kappa-parametrized objective
+ /** See UnitBlock::get_kappa_linearization(). The kappa of an
+  * IntermittentUnitBlock appears in its active power bound Constraints and in
+  * its minimum and maximum total power Constraints. */
+
+ double get_kappa_linearization( void ) const override;
+
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
@@ -493,38 +561,34 @@ class IntermittentUnitBlock : public UnitBlock
  double get_max_capacity_design( void ) const { return( f_MaxCapacityDesign ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of minimum power
- /** The method returns a std::vector< double > \f$ V \f$ and each element of
-  * \f$ V \f$ contains the minimum power at time \f$ t \f$. There are three
-  * possible cases:
-  *
-  * - if the vector is empty, then the minimum power of the unit is 0;
-  * - if the vector has only one element, then \f$ V[0] \f$ is the minimum
-  *   power of the unit for all time horizon;
-  * - otherwise, the std::vector< double > \f$ V \f$ must have size
-  *   get_time_horizon() and each \f$ V[t] \f$ represents the minimum power
-  *   value at time \f$ t \f$.
-  */
+ /// returns the minimum power of \p generator at time \p t
+
  double get_min_power( Index t , Index generator = 0 ) const override {
-  return( v_MinPower[ t ] );
- }
+  return( ( v_MinPower.size() > t ) ? v_MinPower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of maximum power
- /** The method returns a std::vector< double > \f$ V \f$ and each element of
-  * \f$ V \f$ contains the maximum power at time \f$ t \f$. There are three
-  * possible cases:
-  *
-  * - if the vector is empty, then the maximum power of the unit is 0;
-  * - if the vector has only one element, then \f$ V[0] \f$ is the maximum
-  *   power of the unit for all time horizon;
-  * - otherwise, the std::vector< double > \f$ V \f$ must have size
-  *   get_time_horizon() and each \f$ V[t] \f$ represents the maximum power
-  *   value at time \f$ t \f$.
-  */
+ /// returns the maximum power of \p generator at time \p t
+
  double get_max_power( Index t , Index generator = 0 ) const override {
-  return( v_MaxPower[ t ] );
- }
+  return( ( v_MaxPower.size() > t ) ? v_MaxPower[ t ] : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum reactive power of \p generator at time \t
+
+ double get_min_reactive_power( Index t , Index generator = 0 )
+  const override {
+  return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum reactive power of \p generator at time \t
+
+ double get_max_reactive_power( Index t , Index generator = 0 )
+  const override {
+  return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of inertia power
@@ -547,8 +611,8 @@ class IntermittentUnitBlock : public UnitBlock
   * - otherwise, the matrix has size get_time_horizon() per
   *   get_number_generators(), then \f$ \mathrm{InertiaPower}[t,g] \f$
   *   represents the inertia power for the problem at time \f$ t \f$ for
-  *   each electrical generator \f$ g \f$.
-  */
+  *   each electrical generator \f$ g \f$. */
+
  const double * get_inertia_power( Index generator ) const override {
   if( v_InertiaPower.empty() )
    return( nullptr );
@@ -564,15 +628,15 @@ class IntermittentUnitBlock : public UnitBlock
   * - if the vector has only one element, then that element is the active
   *   power cost for all the time horizon;
   * - otherwise, the vector must have size get_time_horizon() and each
-  *   element of the vector represents the active power cost at time \f$ t \f$.
-  */
+  *   element of the vector represents the active power cost at time 
+  *   \f$ t \f$. */
+
  const std::vector< double > & get_active_power_cost( void ) const {
   return( v_ActivePowerCost );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the coefficient of the active power cost of the power cost
- /// function
+ /// returns the coefficient of the active power cost function
  /** This function returns the coefficient of the linear active-power cost
   * term that represents the cost of the power produced by the unit at the
   * given time instant.
@@ -581,8 +645,8 @@ class IntermittentUnitBlock : public UnitBlock
   *
   * @return The coefficient of the active power cost of the linear function
   *         that represents the cost of the power produced by the unit at
-  *         the given time instant.
-  */
+  *         the given time instant. */
+
  double get_active_power_cost( Index t ) const {
   if( v_ActivePowerCost.empty() )
    return( 0 );
@@ -594,13 +658,20 @@ class IntermittentUnitBlock : public UnitBlock
     "IntermittentUnitBlock::get_active_power_cost: Invalid time index: " +
     std::to_string( t ) ) );
   return( v_ActivePowerCost[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor
+
  double get_scale( void ) const override { return( f_scale ); }
 
-/**@} ----------------------------------------------------------------------*/
+ double get_design_ub( void ) const override {
+  // f_MaxCapacityDesign < 0 → integer design ∈ {0, ..., |MaxCapacityDesign|};
+  // f_MaxCapacityDesign >= 0 → continuous design ∈ [0, MaxCapacityDesign].
+  return( std::abs( f_MaxCapacityDesign ) );
+ }
+
+/** @} ---------------------------------------------------------------------*/
 /*------ METHODS FOR READING THE Variable OF THE IntermittentUnitBlock -----*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the IntermittentUnitBlock
@@ -608,7 +679,7 @@ class IntermittentUnitBlock : public UnitBlock
  * These methods allow to read each group of Variable that any
  * IntermittentUnitBlock in principle has (although some may not):
  *
- * - active_power variables;
+ * - active and reactive power variables;
  *
  * - primary_spinning_reserve variables;
  *
@@ -616,27 +687,57 @@ class IntermittentUnitBlock : public UnitBlock
  * @{ */
 
  /// returns the vector of active_power variables
+
  ColVariable * get_active_power( Index generator ) override {
   if( v_active_power.empty() )
    return( nullptr );
   return( &( v_active_power.front() ) );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive power variables
+
+ ColVariable * get_reactive_power( Index generator ) override {
+  if( v_reactive_power.empty() )
+   return( nullptr );
+  return( &( v_reactive_power.front() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary_spinning_reserve variables
+
+ /// the unit provides the reserve only if it has any to give
+ /** The enclosing UCBlock asking for the reserve is not enough, the unit has
+  * to have some to give, i.e., a nonzero fraction of its active power: this
+  * is the very condition with which the Variable are generated, said in
+  * terms of the data alone. */
+
+ bool has_primary_reserve( void ) const override {
+  return( ( reserve_vars & 1u ) && ( f_gamma != 0 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ bool has_secondary_reserve( void ) const override {
+  return( ( reserve_vars & 2u ) && ( f_gamma != 0 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_primary_spinning_reserve.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary_spinning_reserve variables
+
  ColVariable * get_secondary_spinning_reserve( Index generator ) override {
   if( v_secondary_spinning_reserve.empty() )
    return( nullptr );
   return( &( v_secondary_spinning_reserve.front() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the design variable
@@ -650,20 +751,23 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum total power constraints
+
  const std::vector< FRowConstraint > &
  get_min_power_constraints( void ) const { return( min_power_Const ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum total power constraints
+ 
  const std::vector< FRowConstraint > &
  get_max_power_constraints( void ) const { return( max_power_Const ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the bound constraints on the active power
+ 
  const std::vector< BoxConstraint > &
  get_active_power_bound_constraints( void ) const {
   return( active_power_bounds_Const );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -730,36 +834,113 @@ class IntermittentUnitBlock : public UnitBlock
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the IntermittentUnitBlock
+ *  @{ */
+
+ /// set the maximum power values
+ /** This function sets the maximum power values of this IntermittentUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the maximum power values.
+  * @param subset  If non-empty, the maximum power values corresponding to the
+  *                indices in \p subset are set to the values pointed by
+  *                \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_maximum_power( MF_dbl_it values ,
                          Subset && subset ,
                          const bool ordered = false ,
-                         ModParam issuePMod = eNoBlck ,
-                         ModParam issueAMod = eNoBlck );
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the maximum power values
+ /** This function sets the maximum power values of this IntermittentUnitBlock.
+  *
+  * @param values Iterator to a vector containing the maximum power values.
+  * @param rng    If non-empty, the maximum power values corresponding to the
+  *               indices in \p rng are set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
 
  void set_maximum_power( MF_dbl_it values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
-                         ModParam issuePMod = eNoBlck ,
-                         ModParam issueAMod = eNoBlck );
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this
+  * IntermittentUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the active power cost
+  *                values.
+  * @param subset  If non-empty, the active power cost values corresponding
+  *                to the indices in \p subset are set to the values pointed
+  *                by \p values. If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( MF_dbl_it values ,
+                             Subset && subset ,
+                             bool ordered = false ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this
+  * IntermittentUnitBlock.
+  *
+  * @param values Iterator to a vector containing the active power cost
+  *               values.
+  * @param rng    If non-empty, the active power cost values corresponding
+  *               to the indices in \p rng are set to the values pointed by
+  *               \p values. If empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( MF_dbl_it values ,
+                             Range rng = Range( 0 , Inf< Index >() ) ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the active power cost values
+ /** This function sets the active power cost values of this
+  * IntermittentUnitBlock.
+  *
+  * @param value     The value of the active power cost.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_active_power_cost( double value ,
+                             c_ModParam issuePMod = eNoBlck ,
+                             c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_active_power_cost( vector.cbegin() ,
+                         Range( 0 , Inf< Index >() ) ,
+                         issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// sets the scale factor
- /** This method sets the scale factor.
+ /** This method sets the scale factor of this IntermittentUnitBlock.
   *
   * @param values An iterator to a vector containing the scale factor.
-  *
   * @param subset If non-empty, the scale factor is set to the value pointed
   *               by \p values. If empty, no operation is performed.
-  *
   * @param ordered This parameter is ignored.
-  *
   * @param issuePMod Controls how physical Modifications are issued.
-  *
-  * @param issueAMod Controls how abstract Modifications are issued.
-  */
+  * @param issueAMod Controls how abstract Modifications are issued. */
+
  void scale( MF_dbl_it values ,
-             Subset && subset ,
-             const bool ordered = false ,
+             Subset && subset , bool ordered = false ,
              c_ModParam issuePMod = eNoBlck ,
              c_ModParam issueAMod = eNoBlck ) override;
 
@@ -769,15 +950,15 @@ class IntermittentUnitBlock : public UnitBlock
   * maximum power in the constraints of this IntermittentUnitBlock.
   *
   * @param values  Iterator to a vector containing the kappa constants.
-  * @param subset  If non-empty, the kappa constant is set to the value
-  *                pointed by \p values. If empty, no operation is performed.
+  * @param subset  If non-empty, the kappa constant corresponding to the
+  *                indices in \p subset is set to the values pointed by
+  *                \p values. If empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
-  * @param issueAMod Controls how abstract Modifications are issued.
-  */
+  * @param issueAMod Controls how abstract Modifications are issued. */
+
  void set_kappa( MF_dbl_it values ,
-                 Subset && subset ,
-                 const bool ordered = false ,
+                 Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
 
@@ -787,8 +968,9 @@ class IntermittentUnitBlock : public UnitBlock
   * maximum power in the constraints of this IntermittentUnitBlock.
   *
   * @param values Iterator to a vector containing the kappa constants.
-  * @param rng    If non-empty, the kappa constant is set to the value
-  *               pointed by \p values. If empty, no operation is performed.
+  * @param rng    If non-empty, the kappa constant corresponding to the
+  *               indices in \p rng is set to the values pointed by
+  *               \p values. If empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
@@ -804,21 +986,21 @@ class IntermittentUnitBlock : public UnitBlock
   *
   * @param value     The value of the kappa constant.
   * @param issuePMod Controls how physical Modifications are issued.
-  * @param issueAMod Controls how abstract Modifications are issued.
-  */
+  * @param issueAMod Controls how abstract Modifications are issued. */
+
  void set_kappa( double value , c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) {
+                                c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
   set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
              issuePMod , issueAMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  // For the Range version, use the default implementation defined in UnitBlock
+
  using UnitBlock::scale;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -828,7 +1010,16 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// refresh the f_scale-aware coefficients in the Objective
+ /** Re-applies \f$ S \cdot c \f$ to every coefficient in the Objective that
+  * is meant to scale with the current scale factor \f$ S \f$ (see
+  * UnitBlock::scale()): the active-power costs and the investment cost on
+  * the design variable. Called by scale() after f_scale changes so the
+  * abstract representation stays in sync.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
 
+ void update_objective( c_ModParam issueAMod ) const;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -848,6 +1039,12 @@ class IntermittentUnitBlock : public UnitBlock
  /// the vector of ActivePowerCost
  std::vector< double > v_ActivePowerCost;
 
+ /// the vector of MinReactivePower
+ std::vector< double > v_MinReactivePower;
+
+ /// the vector of MaxReactivePower
+ std::vector< double > v_MaxReactivePower;
+
  /// the investment cost
  double f_InvestmentCost;
 
@@ -856,6 +1053,12 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the maximum capacity design allowed
  double f_MaxCapacityDesign;
+
+ /// the maximum generation allowed
+ double f_MaxGeneration;
+
+ /// the minimum generation allowed
+ double f_MinGeneration;
 
  /// the gamma value
  double f_gamma;
@@ -873,6 +1076,9 @@ class IntermittentUnitBlock : public UnitBlock
 
  /// the active power variables
  std::vector< ColVariable > v_active_power;
+
+ /// the reactive power variables
+ std::vector< ColVariable > v_reactive_power;
 
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
@@ -892,10 +1098,37 @@ class IntermittentUnitBlock : public UnitBlock
  std::vector< FRowConstraint > max_power_Const;
 
  /// the active power bounds design constraints
+ /** The lower-bound rows are only there when the unit has a nonzero minimum
+  * power, see generate_abstract_constraints(): with no minimum power the
+  * design Variable has a zero coefficient in them and what is left is the
+  * sign of the active power, which is a bound. Hence the first index is not
+  * the side of the fence: it is design_max_row() for the upper-bound rows,
+  * and 0 for the lower-bound ones when they are there. */
  boost::multi_array< FRowConstraint , 2 > active_power_bounds_design_Const;
+
+ /// index of the upper-bound slice of active_power_bounds_design_Const
+ [[nodiscard]] Index design_max_row( void ) const {
+  return( active_power_bounds_design_Const.empty() ? 0 :
+          Index( active_power_bounds_design_Const.shape()[ 0 ] ) - 1 );
+  }
+
+ /// true if active_power_bounds_design_Const carries the lower-bound rows
+ [[nodiscard]] bool has_design_min_rows( void ) const {
+  return( design_max_row() > 0 );
+  }
 
  /// the active power bounds constraints
  std::vector< BoxConstraint > active_power_bounds_Const;
+
+ /// the reactive power bound constraints
+ std::vector< BoxConstraint > ReactivePower_Bound_Const;
+
+ /// the active power bounds constraints
+ FRowConstraint MaxMinGeneration_Const;
+
+ /*!! Q <= P
+ std::vector< FRowConstraint > Reactive_2_Active_Const;
+ !!*/
 
  /// the design bound constraint
  BoxConstraint design_bound_Const;
@@ -967,43 +1200,39 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact
-   * MS_*_*::args(),
-   *
-   * register_method< IntermittentUnitBlock >
-   *                ( "IntermittentUnitBlock::set_maximum_power",
-   *                  &IntermittentUnitBlock::set_maximum_power,
-   *                  MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it.
-   */
-
+ static void static_initialization( void )
+ {
   register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
    "IntermittentUnitBlock::set_maximum_power" ,
-   &IntermittentUnitBlock::set_maximum_power );
+   & IntermittentUnitBlock::set_maximum_power );
 
   register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
    "IntermittentUnitBlock::set_maximum_power" ,
-   &IntermittentUnitBlock::set_maximum_power );
+   & IntermittentUnitBlock::set_maximum_power );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::set_active_power_cost" ,
+   & IntermittentUnitBlock::set_active_power_cost );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::set_active_power_cost" ,
+   & IntermittentUnitBlock::set_active_power_cost );
 
   register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
    "IntermittentUnitBlock::scale" ,
-   &IntermittentUnitBlock::scale );
+   & IntermittentUnitBlock::scale );
 
   register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
    "IntermittentUnitBlock::scale" ,
-   &IntermittentUnitBlock::scale );
+   & IntermittentUnitBlock::scale );
 
   register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
    "IntermittentUnitBlock::set_kappa" ,
-   &IntermittentUnitBlock::set_kappa );
+   & IntermittentUnitBlock::set_kappa );
 
   register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
    "IntermittentUnitBlock::set_kappa" ,
-   &IntermittentUnitBlock::set_kappa );
+   & IntermittentUnitBlock::set_kappa );
  }
 
 };  // end( class( IntermittentUnitBlock ) )
@@ -1023,7 +1252,8 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  {
   eSetMaxP = eUBModLastParam , ///< set max power values
   eSetKappa ,                  ///< set the kappa constant
-  eIUBModLastParam         ///< first allowed parameter for derived classes
+  eSetActPCost ,               ///< set active power cost values
+  eIUBModLastParam             ///< first allowed parameter for derived classes
   /**< Convenience value to easily allow derived classes to extend the set
    * of types of IntermittentUnitBlockMod. */
   };
@@ -1031,7 +1261,7 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  /// constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
                            const int type )
-  : UnitBlockMod( fblock , type ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
 
  /// destructor, does nothing
  virtual ~IntermittentUnitBlockMod() override = default;
@@ -1045,8 +1275,16 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  void print( std::ostream & output ) const override {
   output << "IntermittentUnitBlockMod[" << this << "]: ";
   switch( f_type ) {
-   default:
+   case( eSetMaxP ):
     output << "Set max power values ";
+    break;
+   case( eSetKappa ):
+    output << "Set the kappa constant ";
+    break;
+   case( eSetActPCost ):
+    output << "Set active power cost values ";
+    break;
+   default:;
   }
  }
 

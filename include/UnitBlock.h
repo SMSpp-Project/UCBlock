@@ -53,6 +53,10 @@
 
 #include "ColVariable.h"
 
+#include "FRowConstraint.h"
+
+#include "OneVarConstraint.h"
+
 #include "Solution.h"
 
 /*--------------------------------------------------------------------------*/
@@ -87,6 +91,9 @@ namespace SMSpp_di_unipi_it
  * - The number of generators in the unit (1 by default, see
  *   get_number_generators());
  *
+ * - Whether or not the unit produces also reactive power in addition to
+ *   active power.
+ *
  * - The default implementation of four variables which are assumed that the
  *   Variable (of each type) for each generator are organised in arrays of
  *   size get_time_horizon() which are:
@@ -97,17 +104,21 @@ namespace SMSpp_di_unipi_it
  *
  *     (iii) the secondary spinning reserve of the generators in the unit;
  *
- *     (iv)  the active power produced by the generators in the unit.
+ *     (iv)  the active power produced by the generators in the unit;
+ *
+ *     (v)   the reactive power produced by the generators in the unit.
+ *
+ * Note that not all units produce all types of variables, except for the
+ * active power ones.
  *
  * The class also outputs some general information regarding how the active
- * power and/or commitment status of each generator of the unit at a given
+ * power and / or commitment status of each generator of the unit at a given
  * time instant impact the unit's capability of satisfying inertia
  * constraints, and the fixed consumption (if any) of each generator in the
  * unit when it is off. */
 
 class UnitBlock : public Block
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -122,9 +133,11 @@ class UnitBlock : public Block
 
  /// constructor, takes the father block
  /** Constructor of UnitBlock, taking possibly a pointer of its father
-  * Block. */
+  * Block and doing nothing. */
 
- explicit UnitBlock( Block * father = nullptr ) : Block( father ) {}
+ explicit UnitBlock( Block * father = nullptr ) : Block( father ) ,
+  f_time_horizon( 0 ) , f_number_intervals( 0 ) , reserve_vars( 0 ) ,
+  f_reactive_power( false ) , AR( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of UnitBlock
@@ -135,7 +148,7 @@ class UnitBlock : public Block
   v_Block.clear();
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -191,17 +204,36 @@ class UnitBlock : public Block
   *   dimension "NumberIntervals". The time horizon is subdivided into
   *   NumberIntervals = k of the form [ 0 , i_0 ], [ i_0 + 1 , i_1 ], ... [
   *   i_{k-2} + 1 , "TimeHorizon" - 1 ]; "ChangeIntervals" then has to contain
-  *   [ i_0 , i_1 , ... , i_{k-2} ] as the first k-1 elements. Note that, since
-  *   the upper endpoint of the last interval must necessarily be "TimeHorizon"
-  *   - 1, the last element of "ChangeIntervals", namely ChangeIntervals[
-  *   NumberIntervals - 1 ], is ignored and does not need to be set (although
-  *   the variable has actually "NumberIntervals" elements). Anyway, the whole
-  *   variable is ignored if either "NumberIntervals" <= 1 (such as if it is
-  *   not defined), or "NumberIntervals" >= "TimeHorizon". */
+  *   [ i_0 , i_1 , ... , i_{k-2} ] as the first k-1 elements. Note that,
+  *   since the upper endpoint of the last interval must necessarily be
+  *   "TimeHorizon" - 1, the last element of "ChangeIntervals", namely
+  *   ChangeIntervals[ NumberIntervals - 1 ], is ignored and does not need
+  *   to be set (although the variable has actually "NumberIntervals"
+  *   elements). Anyway, the whole variable is ignored if either
+  *   "NumberIntervals" <= 1 (such as if it is not defined), or
+  *   "NumberIntervals" >= "TimeHorizon". */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ // extends Block::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Block::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
+
+/*--------------------------------------------------------------------------*/
+
+ void generate_abstract_variables( Configuration * stvv = nullptr ) override;
+
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the UnitBlock
@@ -256,7 +288,7 @@ class UnitBlock : public Block
 
  virtual const double * get_fixed_consumption( Index generator ) const {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia commitment of the given generator
@@ -275,7 +307,7 @@ class UnitBlock : public Block
 
  virtual const double * get_inertia_commitment( Index generator ) const {
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia power of the given generator
@@ -313,10 +345,10 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the minimum reactive power of \p generator at time \p t
 
-  virtual double get_min_reactive_power( Index t , Index generator = 0 )
-   const {
-   return( 0 );
-   }
+ virtual double get_min_reactive_power( Index t , Index generator = 0 )
+  const {
+  return( 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum reactive power of \p generator at time \p t
@@ -326,32 +358,7 @@ class UnitBlock : public Block
   return( 0 );
   }
 
-/*--------------------------------------------------------------------------*/
- /// returns the voltage magnitude of \p generator at time \p t
-
-  virtual double get_voltage_magnitude( Index t , Index generator = 0 )
-   const {
-   return( 0 );
-   }
-
-/*--------------------------------------------------------------------------*/
- /// returns the number of cost coefficients of \p generator
-
- virtual Index get_number_cost_coeffs( Index generator = 0 ) { return( 0 ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the i-th cost coefficient of \p generator
-
- virtual double get_cost_coeff( Index i , Index generator = 0 ) {
-  return( 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the cost model of \p generator
-
- virtual Index get_cost_model( Index generator = 0 ) { return( 0 ); }
-
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE Variable OF THE UnitBlock ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Variable of the UnitBlock
@@ -366,6 +373,8 @@ class UnitBlock : public Block
  * - secondary spinning reserve variables;
  *
  * - active power variables.
+ *
+ * - reactive power variables.
  * @{ */
 
  /// returns the array of commitment variables
@@ -420,8 +429,7 @@ class UnitBlock : public Block
  /// like get_primary_spinning_reserve(), but returns a const *
 
  const ColVariable * get_const_primary_spinning_reserve( Index generator )
-  const
- {
+  const {
   // this is a dirty trick: casting away const-ness to be able to call the
   // standard version of the method; however, this allows to avoid to
   // redefine the *const_* version in derived classes, assuming of course
@@ -454,8 +462,7 @@ class UnitBlock : public Block
  /// like get_secondary_spinning_reserve(), but returns a const *
 
  const ColVariable * get_const_secondary_spinning_reserve( Index generator )
-  const
- {
+  const {
   // this is a dirty trick: casting away const-ness to be able to call the
   // standard version of the method; however, this allows to avoid to
   // redefine the *const_* version in derived classes, assuming of course
@@ -485,8 +492,7 @@ class UnitBlock : public Block
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like get_active_power(), but returns a const * so that it can be const
 
- const ColVariable * get_const_active_power( Index generator ) const
- {
+ const ColVariable * get_const_active_power( Index generator ) const {
   // this is a dirty trick: casting away const-ness to be able to call the
   // standard version of the method; however, this allows to avoid to
   // redefine the *const_* version in derived classes, assuming of course
@@ -495,7 +501,75 @@ class UnitBlock : public Block
   return( const_cast< UnitBlock * >( this )->get_active_power( generator ) );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if the units of this UnitBlock are committed
+ /** Returns true if this UnitBlock has commitment Variable, i.e., if the
+  * units it describes are switched on and off rather than being always on.
+  *
+  * This is a property of the *data*, not of the abstract representation:
+  * unlike get_commitment(), which is a Variable and therefore only exists
+  * once the latter has been generated, this can be asked at any time, which
+  * is what whoever has to decide what a Solution of this UnitBlock is made
+  * of needs [see get_Solution()]. The base class has no commitment, a
+  * :UnitBlock whose units are committed says so. */
+
+ virtual bool has_commitment( void ) const { return( false ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this UnitBlock has primary spinning reserve Variable
+ /** Returns true if this UnitBlock has primary spinning reserve Variable,
+  * i.e., if the enclosing UCBlock asked for them [see set_reserve_vars()]
+  * and the units can provide them: as has_commitment(), this is a property
+  * of the data and can be asked before the abstract representation is
+  * generated. A :UnitBlock that cannot provide the reserve, whatever it is
+  * asked, says so by redefining this. */
+
+ virtual bool has_primary_reserve( void ) const {
+  return( reserve_vars & 1u );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this UnitBlock has secondary spinning reserve Variable
+
+ virtual bool has_secondary_reserve( void ) const {
+  return( reserve_vars & 2u );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if this UnitBlock has reactive power Variable
+ /** Returns true if this UnitBlock has reactive power Variable, i.e., if the
+  * enclosing UCBlock asked for them [see set_reactive_power()] and the units
+  * can produce them; as has_commitment(), it is a property of the data. A
+  * :UnitBlock that produces no reactive power, whatever it is asked, says so
+  * by redefining this. */
+
+ virtual bool has_reactive_power( void ) const {
+  return( f_reactive_power );
+  }
+
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive power variables
+ /** The base UnitBlock class does not handle reactive power variables, so
+  *  this method always returns nullptr. */
+
+ virtual ColVariable * get_reactive_power( Index generator ) {
+  return( nullptr );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_reactive_power(), but returns a const * so that it can be const
+
+ const ColVariable * get_const_reactive_power( Index generator ) const { 
+  // this is a dirty trick: casting away const-ness to be able to call the
+  // standard version of the method; however, this allows to avoid to
+  // redefine the *const_* version in derived classes, assuming of course
+  // that their methods will do nothing except returning the pointer
+
+  return( const_cast< UnitBlock * >( this )->get_reactive_power( generator )
+	  );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the scale factor of this UnitBlock
  /** This method returns the scale factor of this UnitBlock. Since not every
   * UnitBlock may support the notion of scaling, this method has a default
@@ -507,7 +581,27 @@ class UnitBlock : public Block
 
  virtual double get_scale( void ) const { return( 1 ); }
 
-/**@} ----------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the upper bound of the design variable
+ /** This method returns the upper bound of the design variable of this
+  * UnitBlock when the unit is in design mode. The intended use is for
+  * pre-computing fleet-level bounds on node injection in the embedding
+  * UCBlock: the per-time-step contribution of one unit to the node
+  * injection is bounded by `get_scale() * get_design_ub() *
+  * get_max_power( t , g )`.
+  *
+  * UnitBlock provides a default implementation returning 1 (which is
+  * correct for blocks whose design variable is binary, like
+  * ThermalUnitBlock). UnitBlocks that support a design upper bound
+  * greater than 1 (IntermittentUnitBlock / BatteryUnitBlock via
+  * MaxCapacityDesign) override it.
+  *
+  * @return The upper bound of the design variable (1 if no design is
+  *         in use or the design is binary). */
+
+ virtual double get_design_ub( void ) const { return( 1 ); }
+
+/** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
@@ -522,7 +616,9 @@ class UnitBlock : public Block
   * The parameter for deciding which kind of Solution must be returned is a
   * single int value, coded bitwise:
   *
-  * - bit 0 (& 1) means "store the active power"
+  * - bit 0 (& 1) means "store the power", which surely is the active one and
+  *         also the reactive one if any of the generators of the unit
+  *         produces it (the others will produce 0 reactive power)
   *
   * - bit 1 (& 2) means "store the commitment"
   *
@@ -617,23 +713,56 @@ class UnitBlock : public Block
  void set_time_horizon( Index t ) { f_time_horizon = t; }
 
 /*--------------------------------------------------------------------------*/
- /// sets reserve vars method
+ /// sets which reserve variables should be there
  /** This method can be called *after* that deserialize() and before
-  * generate_abstract_variables() and generate_abstract_constraints(). This is
-  * called to provide the UCBlock with the reserve variables if it's needed.
-  * The input parameter is a bitwise value that allows to specify which unit
-  * could have the reserve variables:
+  * generate_abstract_variables() and generate_abstract_constraints(). This
+  * is called to provide the UnitBlock with information about which of the
+  * possible reserve variables the enclosing UCBlock (if any) requires, and
+  * therfore should actually be created. This is because the reason for
+  * these variables existing is that there be constraints about the total
+  * amount of available reserve (of some type), which is something that the
+  * enclosing UCBlock (if any) knows about but the UnitBlock cannot possibly
+  * know unless it is informed by calling this method.
   *
-  * - 1 the unit could have primary spinning reserve variables
-  * - 2 the unit could have secondary spinning reserve variables
-  * - 4 the unit could have inertia reserve variables.
+  * The \p what parameter is a bitwise value that allows to specify which
+  * reserve variables (and, of course, the corresponding constraints) the
+  * UnitBlock should define:
   *
-  * Note: this method is only to "destroy" the (primary, secondary and inertia)
-  * reserve variables; it cannot create them if they are not there. */
+  * - bit 0 (& 1): define primary spinning reserve variables
+  *
+  * - bit 1 (& 2): define secondary spinning reserve variables
+  *
+  * - bit 2 (& 4): define inertia reserve variables
+  *
+  * If the method is not called, 0 (no reserve variables) is assumed. Note
+  * that calling this method will not guarantee that the variables will be
+  * there, since some units do not provide reserve of some type; hence, the
+  * method says "do define the variables if you can". */
 
- virtual void set_reserve_vars( unsigned char what ) {
+ virtual void set_reserve_vars( unsigned char what = 0 ) {
   reserve_vars = what;
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets whether or not reactive power variables should be there
+ /** This method can be called *after* that deserialize() and before
+  * generate_abstract_variables() and generate_abstract_constraints(). This
+  * is called to provide the UnitBlock with information about whether or not
+  * the enclosing UCBlock (if any) requires reactive power variables to be
+  * defined. This is because the reason for these variables existing is that
+  * the interconnection network has a treatment for both active and reactive
+  * power, which is something that the enclosing UCBlock (if any) knows about
+  * but the UnitBlock cannot possibly know unless it is informed by calling
+  * this method.
+  *
+  * If the method is not called, false (no reactive power variables) is
+  * assumed. Note that calling this method will not guarantee that the
+  * variables will be there, since some units do not provide reactive power;
+  * hence, the method says "do define the variables if you can". */
+
+ virtual void set_reactive_power( bool reactive = false ) {
+  f_reactive_power = reactive;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// sets the scale factor of this UnitBlock
@@ -745,6 +874,30 @@ class UnitBlock : public Block
  virtual void scale( double scale_factor , c_ModParam issuePMod = eNoBlck ,
                      c_ModParam issueAMod = eNoBlck );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the linearization coefficient of the kappa-parametrized objective
+ /** When the investment in this UnitBlock is represented by its kappa constant
+  * (rather than by its scale factor), the kappa multiplies the right-hand side
+  * of a set of the UnitBlock's own Constraints. By the envelope theorem, the
+  * derivative of the optimal objective value of this UnitBlock with respect to
+  * kappa is the sum, over those Constraints, of the dual value times the base
+  * coefficient that kappa multiplies. This method computes that derivative
+  * from the current (dual) solution of this UnitBlock, so that it can be used
+  * as the linearization coefficient of the value function with respect to the
+  * Variable associated with the kappa of this UnitBlock.
+  *
+  * Since not every UnitBlock supports the notion of kappa, this method has no
+  * meaningful default: UnitBlocks whose investment is represented by kappa
+  * (IntermittentUnitBlock, BatteryUnitBlock) override it; the default throws.
+  *
+  * @return The derivative of the optimal objective value of this UnitBlock
+  *         with respect to its kappa constant. */
+
+ virtual double get_kappa_linearization( void ) const {
+  throw( std::logic_error( "UnitBlock::get_kappa_linearization: kappa is not "
+                           "supported by this UnitBlock" ) );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR INITIALIZING THE UnitBlock ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -760,6 +913,22 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using MAdouble = boost::multi_array< double , 2 >;
+ using MAdouble_ext = MAdouble::extent_gen;
+ 
+ using MACV = boost::multi_array< ColVariable , 2 >;
+ using MACV_ext = MAdouble::extent_gen;
+
+ using MABC = boost::multi_array< BoxConstraint , 2 >;
+ using MABC_ext = MAdouble::extent_gen;
+
+ using MAFRC = boost::multi_array< FRowConstraint , 2 >;
+ using MAFRC_ext = MAdouble::extent_gen;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
@@ -794,19 +963,22 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  /// the time horizon of the problem
- Index f_time_horizon{};
+ Index f_time_horizon;
 
  /// the number of intervals
- Index f_number_intervals{};
+ Index f_number_intervals;
 
  /// the vector of change intervals
  std::vector< std::size_t > v_change_intervals;
 
  /// bit-wise coded: which reserve variables generate
- unsigned char reserve_vars{};
+ unsigned char reserve_vars;
+
+ /// bool: whether or not define reactive power variables
+ bool f_reactive_power;
 
  ///< bit-wise coded: what abstract is there
- unsigned char AR{};
+ unsigned char AR;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -898,7 +1070,7 @@ public:
 /** The UnitBlockSolution class, derived from Solution, represents a solution
  * of a "generic" UnitBlock, i.e., the values of
  *
- * - active power variables;
+ * - active [and possibly reactive] power variables;
  *
  * - [possibly] commitment variables;
  *
@@ -965,6 +1137,17 @@ class UnitBlockSolution : public Solution {
   *   contain the optimal active power for generator i at the time t. The
   *   variable is optional.
   *
+  * - The variable "ReactivePower", of type netCDF::NcDouble. If
+  *   "NumberGenerators" is defined then it is indexed both over the
+  *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
+  *   over the dimension "TimeHorizon". ReactivePower[ i , t ] is assumed to
+  *   contain the optimal active power for generator i at the time t. The
+  *   variable is optional: it is in principle there if "ActivePower" is
+  *   defined, but only if at least one of the generators of the unit
+  *   actually produces it (if only a subset of the generators do, the
+  *   variable is still defined for all of ones and will be filled with
+  *   zeros for those who do not).
+  *
   * - The variable "Commitment", of type netCDF::NcDouble (note that
   *   commitment variables are generally integer valued, in fact binary,
   *   but one may want to save the values of continuous relaxations).
@@ -995,6 +1178,99 @@ class UnitBlockSolution : public Solution {
  UnitBlockSolution * scale( double factor ) const override;
 
  void sum( const Solution * solution , double multiplier ) override;
+
+/*----------- METHODS FOR READING AND WRITING THE SOLUTION -----------------*/
+/** @name Reading and writing the solution
+ *
+ * The parts of the solution this UnitBlockSolution saves, each of which is
+ * empty if it does not save it [see UnitBlock::get_Solution()]. The setters
+ * are what a Solver fills the Solution with directly out of its own data
+ * structures, rather than writing the solution in the Variable of the
+ * UnitBlock and having it read back from there, which requires the Variable
+ * to exist at all.
+ *  @{ */
+
+ /// returns the active power saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > & get_active_power(
+  void ) const { return( v_active_power ); }
+
+ /// returns the reactive power saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > & get_reactive_power(
+  void ) const { return( v_reactive_power ); }
+
+ /// returns the commitment saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > & get_commitment(
+  void ) const { return( v_commitment ); }
+
+ /// returns the primary spinning reserve saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > &
+  get_primary_spinning_reserve( void ) const {
+  return( v_primary_reserve );
+  }
+
+ /// returns the secondary spinning reserve saved in this UnitBlockSolution
+
+ [[nodiscard]] const boost::multi_array< double , 2 > &
+  get_secondary_spinning_reserve( void ) const {
+  return( v_secondary_reserve );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets the number of generators and the time horizon of the solution
+ /** Sets the size of the solution, which the setters below must agree with;
+  * it is what read() takes from the UnitBlock. */
+
+ void set_dimensions( Index number_generators , Index time_horizon ) {
+  f_number_generators = number_generators;
+  f_time_horizon = time_horizon;
+  }
+
+ /// sets the active power saved in this UnitBlockSolution
+
+ void set_active_power( boost::multi_array< double , 2 > && ap ) {
+  v_active_power.resize( boost::extents[ ap.shape()[ 0 ] ]
+                                  [ ap.shape()[ 1 ] ] );
+  v_active_power = ap;
+  }
+
+ /// sets the reactive power saved in this UnitBlockSolution
+
+ void set_reactive_power( boost::multi_array< double , 2 > && rp ) {
+  v_reactive_power.resize( boost::extents[ rp.shape()[ 0 ] ]
+                                  [ rp.shape()[ 1 ] ] );
+  v_reactive_power = rp;
+  }
+
+ /// sets the commitment saved in this UnitBlockSolution
+
+ void set_commitment( boost::multi_array< double , 2 > && cm ) {
+  v_commitment.resize( boost::extents[ cm.shape()[ 0 ] ]
+                                  [ cm.shape()[ 1 ] ] );
+  v_commitment = cm;
+  }
+
+ /// sets the primary spinning reserve saved in this UnitBlockSolution
+
+ void set_primary_spinning_reserve( boost::multi_array< double , 2 > && pr ) {
+  v_primary_reserve.resize( boost::extents[ pr.shape()[ 0 ] ]
+                                  [ pr.shape()[ 1 ] ] );
+  v_primary_reserve = pr;
+  }
+
+ /// sets the secondary spinning reserve saved in this UnitBlockSolution
+
+ void set_secondary_spinning_reserve( boost::multi_array< double , 2 > && sr )
+ {
+  v_secondary_reserve.resize( boost::extents[ sr.shape()[ 0 ] ]
+                                  [ sr.shape()[ 1 ] ] );
+  v_secondary_reserve = sr;
+  }
+
+/** @} ---------------------------------------------------------------------*/
 
  UnitBlockSolution * clone( bool empty = false ) const override;
 
@@ -1037,6 +1313,9 @@ class UnitBlockSolution : public Solution {
 
  boost::multi_array< double , 2 > v_active_power;
  ///< v_active_power[ i ][ t ] = active power of generator i at time t
+
+ boost::multi_array< double , 2 > v_reactive_power;
+ ///< v_reactive_power[ i ][ t ] = reactive power of generator i at time t
 
  boost::multi_array< double , 2 > v_commitment;
  ///< v_commitment[ i ][ t ] = commitment of generator i at time t

@@ -7,11 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added 
+### Added
 
-### Changed 
+### Changed
 
-### Fixed 
+### Fixed
+
+## [0.8.0] - 2026-09-12
+
+### Added
+
+- `get_Solution()` for the three dynamic programming Solver of the
+  ThermalUnitBlock, which fill the ThermalUnitBlockSolution straight out of
+  the schedule the DP has found, without writing anything into the Block and
+  therefore without requiring any Variable to exist; the recovery of the
+  schedule, which get_var_solution() shares, is factored into
+  `recover_schedule()`
+
+- accessors and setters to the parts of the solution saved in
+  `UnitBlockSolution` and to the dimensioning variable saved in
+  `ThermalUnitBlockSolution`
+
+- the factor the flow limits of a DCNetworkBlock are scaled by is readable,
+  since whoever reads their duals needs it
+
+### Changed
+
+- an auxiliary Variable, and the rows that fence it, are only generated when
+  the data asks for them: the intake and the outtake level of the
+  `BatteryUnitBlock` when the storing and the extracting efficiency disagree
+  at some time instant, the linearisation of the flow cost of the
+  `DCNetworkBlock` and of the `OTSNetworkBlock` when some line is priced, the
+  minimum power row of the `IntermittentUnitBlock` and the maximum and minimum
+  power rows of the `HydroUnitBlock` when the unit produces reserve. Where the
+  rows are not generated, what they reduce to is a bound on the active power,
+  and it is stated as a bound
+
+- the flow-to-power relation of a `HydroUnitBlock` arc is an equality, rather
+  than the concave outer approximation a piecewise arc needs, when the arc has
+  a single piece with no constant term and the reservoir it leaves has a
+  spillage outlet: the flow can then be substituted away
+
+- the version of the module is the git tag of its repository, or the
+  VERSION.txt of a release tarball, and the shared library carries it: its
+  SONAME is major.minor while the major is 0, and it is installed with an
+  RPATH relative to itself, so that an installed tree keeps working wherever
+  it is moved
+
+### Fixed
+
+- `UnitBlockSolution::write()` threw on a generator having no Variable for a
+  part the Solution carries, while `read()` skips it: since what a Solution
+  is made of is now decided by the data, that part can be there while the
+  Variable are not, and writing on what is there is the only reading of it
+  consistent with the other direction
+
+- `HydroSystemUnitBlock` said it has the primary and the secondary reserve
+  whenever the enclosing UCBlock asks for them, whatever the HydroUnitBlock
+  it is made of have: it now answers for the units, which need not agree
+
+- the dynamic programming Solver of the ThermalUnitBlock crashed on a unit
+  whose power domain collapses to a single point at some time instant, say
+  min_power == max_power: the sliding minimum dropped the zero-width piece,
+  the value function came out empty, and the caller read that as no piece at
+  all. The point is now emitted as a zero-width piece, which the rest of the
+  machinery already handles, and a transition that really is infeasible
+  closes the run instead of being walked into
+
+- the documentation of the formulations of the ThermalUnitBlock, which
+  numbered the p_t one 3 and the dynamic programming one 2, the other way
+  round with respect to ptForm and DPForm and to what set_variables() does
+
+- the intake and outtake bounds of a BatteryUnitBlock were held in a
+  LB0Constraint, whose LHS is fixed at zero by the type: right for the pair
+  of one-sided fences on the intake and the outtake, wrong once the pair is
+  folded onto the signed active power, where the bound is two-sided and its
+  charging side is negative. Generating the constraints of a battery in the
+  folded form threw "cannot change LHS in a LB0Constraint"; they are now a
+  BoxConstraint, which the split form uses with its default LHS of zero
 
 ## [0.7.0] - 2025-12-12
 
@@ -107,7 +180,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - design variables in ThermalUnitBlock, BatteryUnitBlock,
   IntermittentUnitBlock
 
-- tools/DataConverter from Energy Community Julia codebase
+- `tools/csv2netCDF` from Energy Community Julia codebase
 
 - `data/nc4/EC_Data` test data sets
 
@@ -263,7 +336,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.7.0...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.8.0...develop
+[0.8.0]: https://gitlab.com/smspp/ucblock/-/compare/0.7.0...0.8.0
 [0.7.0]: https://gitlab.com/smspp/ucblock/-/compare/0.6.3...0.7.0
 [0.6.3]: https://gitlab.com/smspp/ucblock/-/compare/0.6.2...0.6.3
 [0.6.2]: https://gitlab.com/smspp/ucblock/-/compare/0.6.1...0.6.2
@@ -272,7 +346,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.5.0]: https://gitlab.com/smspp/ucblock/-/compare/0.4.1...0.5.0
 [0.4.1]: https://gitlab.com/smspp/ucblock/-/compare/0.4.0...0.4.1
 [0.4.0]: https://gitlab.com/smspp/ucblock/-/compare/0.3.1...0.4.0
-[0.3.0]: https://gitlab.com/smspp/ucblock/-/compare/0.3.0...0.3.1
+[0.3.1]: https://gitlab.com/smspp/ucblock/-/compare/0.3.0...0.3.1
 [0.3.0]: https://gitlab.com/smspp/ucblock/-/compare/0.2.0...0.3.0
 [0.2.0]: https://gitlab.com/smspp/ucblock/-/compare/0.1.0...0.2.0
 [0.1.0]: https://gitlab.com/smspp/ucblock/-/tags/0.1.0

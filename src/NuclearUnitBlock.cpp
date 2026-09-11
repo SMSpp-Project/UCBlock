@@ -39,6 +39,12 @@ using v_coeff_pair = LinearFunction::v_coeff_pair;
 SMSpp_insert_in_factory_cpp_1( NuclearUnitBlock );
 
 /*--------------------------------------------------------------------------*/
+
+// register NuclearUnitBlockSolution to the Solution factory
+
+SMSpp_insert_in_factory_cpp_0( NuclearUnitBlockSolution );
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -51,7 +57,7 @@ static LinearFunction * LF( Function * f )
 
 template< typename T >
 static bool identical( std::vector< T > & vec , const Block::Subset sbst ,
-		       typename std::vector< T >::const_iterator it )
+           typename std::vector< T >::const_iterator it )
 {
  // returns true if the sub-vector of vec[] corresponding to the indices
  // in sbst is identical to the vector starting at it
@@ -66,12 +72,12 @@ static bool identical( std::vector< T > & vec , const Block::Subset sbst ,
 
 template< typename T >
 static void assign( std::vector< T > & vec , const Block::Subset sbst ,
-		    typename std::vector< T >::const_iterator it )
+        typename std::vector< T >::const_iterator it )
 {
  // assign to the sub-vector of vec[] corresponding to the indices in sbst
  // the values found in vector starting at it
  for( auto t : sbst )
-  vec[ t ] = *(it++);
+  vec[ t ] = *( it++ );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -93,47 +99,17 @@ NuclearUnitBlock::~NuclearUnitBlock()
 
 void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
-#ifndef NDEBUG
- // check all expected variables, comprised those of the base class: see
- // ThermalUnitBlock::deserialize() for the rationale
- const std::vector< std::string > expected_vars = { "MinPower" , "MaxPower" ,
-  "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
-  "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
-  "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
-  "MinDownTime" , "InitUpDownTime" , "Availability" , "ModulationTime" ,
-  "InitModulation" , "ModulationDeltaRampUp" , "ModulationDeltaRampDown" };
-
- check_variables( group , expected_vars , std::cerr );
-#endif
-
  // call the method of the base class
  ThermalUnitBlock::deserialize( group );
 
- // check that DeltaRampUp/Down are defined
- if( v_DeltaRampUp.empty() )
-  throw( std::invalid_argument(
-		"NuclearUnitBlock::deserialize: DeltaRampUp not present" ) );
-
- if( v_DeltaRampDown.empty() )
-  throw( std::invalid_argument(
-	      "NuclearUnitBlock::deserialize: DeltaRampDown not present" ) );
-
  // load optional variables ModulationTime and InitModulation or give them
- // default values, check that the values are logically correct
+ // default values
 
  if( ! ::deserialize( group , f_modulation_interval , "ModulationTime" ) )
   f_modulation_interval = 2;
 
- if( f_modulation_interval < 2 )
-  throw( std::invalid_argument(
-		    "NuclearUnitBlock::deserialize: ModulationTime < 2" ) );
-
  if( ! ::deserialize( group , f_initial_modulation , "InitModulation" ) )
   f_initial_modulation = f_modulation_interval;
-
- if( f_modulation_interval < 1 )
-  throw( std::invalid_argument(
-		    "NuclearUnitBlock::deserialize: InitModulation < 1" ) );
 
  // load mandatory variables ModulationDeltaRampUp and
  // ModulationDeltaRampDown, create the expanded vectors (if needed)
@@ -143,34 +119,86 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ModulationDeltaRampDown" , f_time_horizon ,
                 v_modulation_ramp_down , false , true , v_change_intervals );
 
- // check the consistency of v_modulation_ramp_up and v_modulation_ramp_down
- check_modulation_consistency();
+ check_data_consistency();
 
  }  // end( NuclearUnitBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::check_modulation_consistency( void ) const
-{
- static const std::string fn =
-                             "NuclearUnitBlock::check_modulation_consistency";
+#ifndef NDEBUG
 
+/*
+std::vector< std::string > NuclearUnitBlock::expected_dims( void )
+ const {
+ static const std::vector< std::string > ed = { };
+
+ auto ret = UnitBlock::expected_dims();
+ ret.insert( ret.end() , ed.begin() , ed.end() );
+
+ return( ret );
+ }
+
+----------------------------------------------------------------------------*/
+
+std::vector< std::string > NuclearUnitBlock::expected_vars( void )
+ const {
+ static const std::vector< std::string > ev =
+ { "ModulationTime" , "InitModulation" , "ModulationDeltaRampUp" ,
+   "ModulationDeltaRampDown"
+   };
+
+ auto ret = ThermalUnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::check_data_consistency( void ) const
+{
+ static const std::string fn = "NuclearUnitBlock::check_data_consistency";
+
+ // DeltaRampUp/Down - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // both ramp vectors inherited from ThermalUnitBlock are mandatory here
+ if( v_DeltaRampUp.empty() )
+  throw( std::invalid_argument( fn + ": DeltaRampUp not present" ) );
+
+ if( v_DeltaRampDown.empty() )
+  throw( std::invalid_argument( fn + ": DeltaRampDown not present" ) );
+
+ // ModulationTime and InitModulation - - - - - - - - - - - - - - - - - - - -
+ if( f_modulation_interval < 2 )
+  throw( std::invalid_argument( fn + ": ModulationTime is " +
+                                std::to_string( f_modulation_interval ) +
+                                ", but it must be at least 2" ) );
+
+ if( f_initial_modulation < 1 )
+  throw( std::invalid_argument( fn + ": InitModulation is " +
+                                std::to_string( f_initial_modulation ) +
+                                ", but it must be at least 1" ) );
+
+ // ModulationDeltaRampUp/Down - - - - - - - - - - - - - - - - - - - - - - -
+ // for each t: 0 \leq v_modulation_ramp_up[t]   \leq v_DeltaRampUp[t]
+ //             0 \leq v_modulation_ramp_down[t] \leq v_DeltaRampUp[t]
  assert( v_modulation_ramp_up.size() == f_time_horizon );
  assert( v_modulation_ramp_down.size() == f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   if( v_modulation_ramp_up[ t ] < 0 )
    throw( std::logic_error( fn + ": modulation ramp up at time " +
-			    std::to_string( t ) + " is " +
+                            std::to_string( t ) + " is " +
                             std::to_string( v_modulation_ramp_up[ t ] ) +
                             " < 0" ) );
 
   if( v_modulation_ramp_up[ t ] > v_DeltaRampUp[ t ] )
    throw( std::logic_error( fn + ": modulation ramp up at time " +
-			    std::to_string( t ) + " is " +
-			    std::to_string( v_modulation_ramp_up[ t ] ) +
-                            "> ramp up = " +
-			    std::to_string( v_DeltaRampUp[ t ] ) ) );
+                            std::to_string( t ) + " is " +
+                            std::to_string( v_modulation_ramp_up[ t ] ) +
+                            " > ramp up = " +
+                            std::to_string( v_DeltaRampUp[ t ] ) ) );
 
   if( v_modulation_ramp_down[ t ] < 0 )
    throw( std::logic_error( fn + ": modulation ramp down at time " +
@@ -180,13 +208,13 @@ void NuclearUnitBlock::check_modulation_consistency( void ) const
 
   if( v_modulation_ramp_down[ t ] > v_DeltaRampUp[ t ] )
    throw( std::logic_error( fn + ": modulation ramp down at time " +
-			    std::to_string( t ) + " is " +
-			    std::to_string( v_modulation_ramp_down[ t ] ) +
-                            "> ramp up = " +
-			    std::to_string( v_DeltaRampDown[ t ] ) ) );
+                            std::to_string( t ) + " is " +
+                            std::to_string( v_modulation_ramp_down[ t ] ) +
+                            " > ramp up = " +
+                            std::to_string( v_DeltaRampDown[ t ] ) ) );
 
   }  // end( for t )
- }  // end( NuclearUnitBlock::check_modulation_consistency )
+ }  // end( NuclearUnitBlock::check_data_consistency )
 
 /*--------------------------------------------------------------------------*/
 
@@ -273,17 +301,17 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   double RHS = 0;
   auto cfit = cf.begin();
 
-  *(cfit++) = coeff_pair( & v_active_power[ t ] , 1.0 );
-  *(cfit++) = coeff_pair( & v_modulation[ t ] ,
-			  - ( v_DeltaRampUp[ t ] - v_modulation_ramp_up[ t ] )
-			);
+  *( cfit++ ) = coeff_pair( & v_active_power[ t ] , 1.0 );
+  *( cfit++ ) = coeff_pair( & v_modulation[ t ] ,
+        - ( v_DeltaRampUp[ t ] - v_modulation_ramp_up[ t ] )
+      );
   // the two terms "- p_{t-1}" and "- \Delta^M_{t+} u_{t-1}" only exist if
   // t > 0, as otherwise p_{t-1} and u_{t-1} are undefined
   if( t ) {
-   *(cfit++) = coeff_pair( & v_commitment[ t - 1 ] ,
-			 - v_modulation_ramp_up[ t ] );
+   *( cfit++ ) = coeff_pair( & v_commitment[ t - 1 ] ,
+       - v_modulation_ramp_up[ t ] );
 
-   *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , -1.0 );
+   *( cfit++ ) = coeff_pair( & v_active_power[ t - 1 ] , -1.0 );
    }
   else {
    // if t == 0, the "- p_{t-1}" term is fixed and equal to - f_InitialPower,
@@ -302,16 +330,16 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // the commitment status if fixed and start-ups are not allowed, hence
   // the corresponding start-up variables are not even defined
   if( t >= init_t )
-   *cfit = coeff_pair( & v_start_up[ t - init_t ] , v_StartUpLimit[ t ] );
+   *cfit = coeff_pair( & v_start_up[ t - init_t ] , - v_StartUpLimit[ t ] );
 
   Modulation_RampUp_Constraints[ t ].set_lhs( - Inf< double >() );
   Modulation_RampUp_Constraints[ t ].set_rhs( RHS );
   Modulation_RampUp_Constraints[ t ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
+            new LinearFunction( std::move( cf ) ) );
   }
 
  add_static_constraint( Modulation_RampUp_Constraints ,
-			"Modulation_RampUp_Constraints_Nuclear" );
+      "Modulation_RampUp_Constraints_Nuclear" );
 
  // construct the modulation ramp-down constraint - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -327,23 +355,23 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   LinearFunction::v_coeff_pair cf( np );
   auto cfit = cf.begin();
 
-  *(cfit++) = coeff_pair( & v_active_power[ t ] , -1.0 );
-  *(cfit++) = coeff_pair( & v_commitment[ t ] ,
-			- v_modulation_ramp_down[ t ] );
-  *(cfit++) = coeff_pair( & v_modulation[ t ] ,
-			- ( v_DeltaRampDown[ t ] -
-			    v_modulation_ramp_down[ t ] ) );
+  *( cfit++ ) = coeff_pair( & v_active_power[ t ] , -1.0 );
+  *( cfit++ ) = coeff_pair( & v_commitment[ t ] ,
+      - v_modulation_ramp_down[ t ] );
+  *( cfit++ ) = coeff_pair( & v_modulation[ t ] ,
+      - ( v_DeltaRampDown[ t ] -
+          v_modulation_ramp_down[ t ] ) );
 
   // the terms "p_{t-1}" only exists if t > 0, as otherwise p_{t-1} is
   // undefined
   if( t )
-   *(cfit++) = coeff_pair( & v_active_power[ t - 1 ] , 1.0 );
+   *( cfit++ ) = coeff_pair( & v_active_power[ t - 1 ] , 1.0 );
 
   // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
   // the commitment status if fixed and shut-downs are not allowed, hence
   // the corresponding shut-down variables are not even defined
   if( t >= init_t )
-   *cfit = coeff_pair( & v_shut_down[ t - init_t ] , v_ShutDownLimit[ t ] );
+   *cfit = coeff_pair( & v_shut_down[ t - init_t ] , - v_ShutDownLimit[ t ] );
 
   Modulation_RampDown_Constraints[ t ].set_lhs( - Inf< double >() );
   // if t == 0, the "p_{t-1}" term is fixed and equal to f_InitialPower, so
@@ -351,11 +379,11 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // not exist) and the RHS becomes - f_InitialPower
   Modulation_RampDown_Constraints[ t ].set_rhs( t ? 0 : - f_InitialPower );
   Modulation_RampDown_Constraints[ t ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
+            new LinearFunction( std::move( cf ) ) );
   }
 
  add_static_constraint( Modulation_RampDown_Constraints ,
-			"Modulation_RampDown_Constraints_Nuclear" );
+      "Modulation_RampDown_Constraints_Nuclear" );
 
  // construct the logical constraints - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -375,7 +403,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   NoDownModulation[ t - init_t ].set_lhs( - Inf< double >() );
   NoDownModulation[ t - init_t ].set_rhs( 0 );
   NoDownModulation[ t - init_t ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
+            new LinearFunction( std::move( cf ) ) );
   }
 
  add_static_constraint( NoDownModulation , "NoDownModulation_Nuclear" );
@@ -403,11 +431,11 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   NoStartUpModulation[ t - init_t ].set_lhs( - Inf< double >() );
   NoStartUpModulation[ t - init_t ].set_rhs( 1.0 );
   NoStartUpModulation[ t - init_t ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
+            new LinearFunction( std::move( cf ) ) );
   }
 
  add_static_constraint( NoStartUpModulation ,
-			"NoStartUpModulation_Nuclear" );
+      "NoStartUpModulation_Nuclear" );
 
  // construct the modulation constraint proper- - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -423,7 +451,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // that the m_t must be fixed to 0 due to the constraint m_t leq u_t;
  // hence the constraint is useless until t >= init_t + 1
  Index first_c = std::max( f_modulation_interval - f_initial_modulation ,
-			   int( 0 ) );
+         int( 0 ) );
  if( f_InitUpDownTime <= 0 )
   first_c = std::max( first_c , init_t );
  ++first_c;
@@ -435,12 +463,12 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   LinearFunction::v_coeff_pair cf( t - h + 1 );
 
   for( auto cfit = cf.begin() ; h <= t ; )
-   *(cfit++) = coeff_pair( & v_modulation[ h++ ] , 1.0 );
+   *( cfit++ ) = coeff_pair( & v_modulation[ h++ ] , 1.0 );
 
   ModulationConst[ t - first_c ].set_lhs( - Inf< double >() );
   ModulationConst[ t - first_c ].set_rhs( 1.0 );
   ModulationConst[ t - first_c ].set_function(
-				    new LinearFunction( std::move( cf ) ) );
+            new LinearFunction( std::move( cf ) ) );
   }
 
  add_static_constraint( ModulationConst , "ModulationConst_Nuclear" );
@@ -478,19 +506,53 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
  return( ThermalUnitBlock::is_feasible( useabstract )
-	 // Variable
-	 && ColVariable::is_feasible( v_modulation , tol )
-	 // Constraints
-	 && RowConstraint::is_feasible( Modulation_RampUp_Constraints ,
-					tol , rel_viol )
-	 && RowConstraint::is_feasible( Modulation_RampDown_Constraints ,
-					tol , rel_viol )
-	 && RowConstraint::is_feasible( NoDownModulation , tol , rel_viol )
-	 && RowConstraint::is_feasible( NoStartUpModulation , tol , rel_viol )
-	 && RowConstraint::is_feasible( ModulationConst , tol , rel_viol )
-	 );
+   // Variable
+   && ColVariable::is_feasible( v_modulation , tol )
+   // Constraints
+   && RowConstraint::is_feasible( Modulation_RampUp_Constraints , tol , rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampDown_Constraints , tol , rel_viol )
+   && RowConstraint::is_feasible( NoDownModulation , tol , rel_viol )
+   && RowConstraint::is_feasible( NoStartUpModulation , tol , rel_viol )
+   && RowConstraint::is_feasible( ModulationConst , tol , rel_viol )
+   );
 
  }  // end( NuclearUnitBlock::is_feasible )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- Methods for handling Solution ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution * NuclearUnitBlock::get_Solution( Configuration * csolc ,
+					  bool emptys )
+{
+ Index wsol = 15;
+ if( ( ! csolc ) && f_BlockConfig )
+  csolc = f_BlockConfig->f_solution_Configuration;
+
+ if( auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc ) )
+  wsol = config->f_value;
+
+ // call the method of the base class
+ auto sol = static_cast< NuclearUnitBlockSolution * >(
+			      ThermalUnitBlock::get_Solution( csolc , true ) );
+
+ // the modulation goes with the commitment: it is the same kind of
+ // information, and there is no point in saving one without the other
+ if( ( wsol & 2 ) && get_modulation() )
+  sol->v_modulation.resize( get_time_horizon() );
+
+ if( ! emptys )
+  sol->read( this );
+
+ return( sol );
+
+ }  // end( NuclearUnitBlock::get_Solution )
+
+/*--------------------------------------------------------------------------*/
+
+UnitBlockSolution * NuclearUnitBlock::new_Solution( void ) const {
+ return( new NuclearUnitBlockSolution() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE NuclearUnitBlock -----*/
@@ -502,9 +564,9 @@ void NuclearUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  // serialize scalar variables.
  ::serialize( group , "ModulationTime" , netCDF::NcUint() ,
-	      f_modulation_interval );
+        f_modulation_interval );
  ::serialize( group , "InitModulation" , netCDF::NcUint() ,
-	      f_initial_modulation );
+        f_initial_modulation );
 
  // serialize one-dimensional variables.
  auto TimeHorizon = group.getDim( "TimeHorizon" );
@@ -517,8 +579,8 @@ void NuclearUnitBlock::serialize( netCDF::NcGroup & group ) const
   * a scalar variable (in which case the variable must have dimension 1). */
  auto serialize = [ &group , &TimeHorizon , &NumberIntervals ]
   ( const std::string & var_name , const std::vector< double > & data ,
-	const netCDF::NcType & ncType = netCDF::NcDouble() ,
-	bool allow_scalar_var = true ) {
+  const netCDF::NcType & ncType = netCDF::NcDouble() ,
+  bool allow_scalar_var = true ) {
   if( data.empty() )
    return;
   netCDF::NcDim dimension;
@@ -530,7 +592,7 @@ void NuclearUnitBlock::serialize( netCDF::NcGroup & group ) const
    else
     if( data.size() != 1 ) {
      throw( std::logic_error(
-	  "NuclearUnitBlock::serialize: invalid dimension for variable " +
+    "NuclearUnitBlock::serialize: invalid dimension for variable " +
           var_name ) );
   }
 
@@ -560,10 +622,10 @@ void NuclearUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl )
 ----------------------------------------------------------------------------*/
 
 void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
-					       Subset && subset ,
-					       bool ordered ,
-					       ModParam issuePMod ,
-					       ModParam issueAMod )
+                 Subset && subset ,
+                 bool ordered ,
+                 ModParam issuePMod ,
+                 ModParam issueAMod )
 {
  static const std::string fn = "NuclearUnitBlock::set_modulation_ramp_up";
 
@@ -571,7 +633,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
   return;
 
  if( ! ordered )
-  std::sort( subset.begin(), subset.end() );
+  std::sort( subset.begin() , subset.end() );
 
  if( subset.back() >= f_time_horizon )
   throw( std::invalid_argument( fn + ": invalid index in subset" ) );
@@ -582,7 +644,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
  // check correctness of new values w.r.t. v_DeltaRampUp
  auto vit = values;
  for( auto t : subset ) {
-  auto mrut = *(vit++);
+  auto mrut = *( vit++ );
   if( mrut < 0 )
    throw( std::logic_error( fn + ": new modulation ramp up at time " +
                             std::to_string( t ) + " is " +
@@ -590,9 +652,9 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
 
   if( mrut > v_DeltaRampUp[ t ] )
    throw( std::logic_error( fn + ": new modulation ramp up at time " +
- 			    std::to_string( t ) + " is " +
-			    std::to_string( mrut ) + "> ramp up = " +
-			    std::to_string( v_DeltaRampUp[ t ] ) ) );
+          std::to_string( t ) + " is " +
+          std::to_string( mrut ) + "> ramp up = " +
+          std::to_string( v_DeltaRampUp[ t ] ) ) );
   }
 
  if( not_dry_run( issuePMod ) )  // change the physical representation
@@ -613,11 +675,11 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
   // since several "abstract Modification" will be issued, pack them all into
   // a single GroupModification
   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-				    open_channel( par2chnl( issueAMod ) ) ) );
+            open_channel( par2chnl( issueAMod ) ) ) );
 
   // TODO: make it more efficient by treating the t == 0 case offline
   for( auto t : subset ) {
-   auto mrut = *(values++);
+   auto mrut = *( values++ );
    auto lf = LF( Modulation_RampUp_Constraints[ t ].get_function() );
 
    // TODO: make it more efficient by calling modify_coefficients( subset )
@@ -628,7 +690,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
     lf->modify_coefficient( 2 , - mrut , nAM );
    else     // for t == 0, \Delta^M_{t+} is in the RHS
     Modulation_RampUp_Constraints[ t ].set_rhs(
-	       f_InitialPower + ( f_InitUpDownTime > 0 ? mrut : 0 ) , nAM );
+         f_InitialPower + ( f_InitUpDownTime > 0 ? mrut : 0 ) , nAM );
    }
 
   close_channel( par2chnl( nAM ) );  // at the end close the channel
@@ -645,8 +707,8 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
 /*--------------------------------------------------------------------------*/
 
 void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
-					       ModParam issuePMod ,
-					       ModParam issueAMod )
+                 ModParam issuePMod ,
+                 ModParam issueAMod )
 {
  static const std::string fn = "NuclearUnitBlock::set_modulation_ramp_up";
 
@@ -662,7 +724,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
  // check correctness of new values w.r.t. v_DeltaRampUp
  auto vit = values;
  for( auto t = rng.first ; t < rng.second ; ++t ) {
-  auto mrut = *(vit++);
+  auto mrut = *( vit++ );
   if( mrut < 0 )
    throw( std::logic_error( fn + ": new modulation ramp up at time " +
                             std::to_string( t ) + " is " +
@@ -670,9 +732,9 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
 
   if( mrut > v_DeltaRampUp[ t ] )
    throw( std::logic_error( fn + ": new modulation ramp up at time " +
- 			    std::to_string( t ) + " is " +
-			    std::to_string( mrut ) + "> ramp up = " +
-			    std::to_string( v_DeltaRampUp[ t ] ) ) );
+          std::to_string( t ) + " is " +
+          std::to_string( mrut ) + "> ramp up = " +
+          std::to_string( v_DeltaRampUp[ t ] ) ) );
   }
 
 
@@ -695,11 +757,11 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
   // since several "abstract Modification" will be issued, pack them all into
   // a single GroupModification
   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-				    open_channel( par2chnl( issueAMod ) ) ) );
+            open_channel( par2chnl( issueAMod ) ) ) );
 
   // TODO: make it more efficient by treating the t == 0 case offline
   for( auto t = rng.first ; t < rng.second ; ++t ) {
-   auto mrut = *(values++);
+   auto mrut = *( values++ );
    auto lf = LF( Modulation_RampUp_Constraints[ t ].get_function() );
 
    // TODO: make it more efficient by calling modify_coefficients( subset )
@@ -710,7 +772,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
     lf->modify_coefficient( 2 , - mrut , nAM );
    else     // for t == 0, \Delta^M_{t+} is in the RHS
     Modulation_RampUp_Constraints[ t ].set_rhs(
-	       f_InitialPower + ( f_InitUpDownTime > 0 ? mrut : 0 ) , nAM );
+         f_InitialPower + ( f_InitUpDownTime > 0 ? mrut : 0 ) , nAM );
    }
 
   close_channel( par2chnl( nAM ) );  // at the end close the channel
@@ -726,10 +788,10 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
 /*--------------------------------------------------------------------------*/
 
 void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
-						 Subset && subset ,
-						 bool ordered ,
-						 ModParam issuePMod ,
-						 ModParam issueAMod )
+             Subset && subset ,
+             bool ordered ,
+             ModParam issuePMod ,
+             ModParam issueAMod )
 {
  static const std::string fn = "NuclearUnitBlock::set_modulation_ramp_down";
 
@@ -737,7 +799,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
   return;
 
  if( ! ordered )
-  std::sort( subset.begin(), subset.end() );
+  std::sort( subset.begin() , subset.end() );
 
  if( subset.back() >= f_time_horizon )
   throw( std::invalid_argument( fn + ": invalid index in subset" ) );
@@ -748,7 +810,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  // check correctness of new values w.r.t. v_DeltaRampDown
  auto vit = values;
  for( auto t : subset ) {
-  auto mrdt = *(vit++);
+  auto mrdt = *( vit++ );
   if( mrdt < 0 )
    throw( std::logic_error( fn + ": new modulation ramp down at time " +
                             std::to_string( t ) + " is " +
@@ -756,9 +818,9 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
 
   if( mrdt > v_DeltaRampDown[ t ] )
    throw( std::logic_error( fn + ": new modulation ramp down at time " +
- 			    std::to_string( t ) + " is " +
-			    std::to_string( mrdt ) + "> ramp down = " +
-			    std::to_string( v_DeltaRampDown[ t ] ) ) );
+          std::to_string( t ) + " is " +
+          std::to_string( mrdt ) + "> ramp down = " +
+          std::to_string( v_DeltaRampDown[ t ] ) ) );
   }
 
  if( not_dry_run( issuePMod ) )  // change the physical representation
@@ -775,9 +837,9 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
   // since several "abstract Modification" will be issued, pack them all into
   // a single GroupModification
   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-				    open_channel( par2chnl( issueAMod ) ) ) );
+            open_channel( par2chnl( issueAMod ) ) ) );
   for( auto t : subset ) {
-   auto mrdt = *(values++);
+   auto mrdt = *( values++ );
    auto lf = LF( Modulation_RampDown_Constraints[ t ].get_function() );
 
    // TODO: make it more efficient by calling modify_coefficients( range )
@@ -801,9 +863,9 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
 /*--------------------------------------------------------------------------*/
 
 void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
-						 Range rng ,
-						 ModParam issuePMod ,
-						 ModParam issueAMod )
+             Range rng ,
+             ModParam issuePMod ,
+             ModParam issueAMod )
 {
  static const std::string fn = "NuclearUnitBlock::set_modulation_ramp_down";
 
@@ -819,7 +881,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  // check correctness of new values w.r.t. v_DeltaRampDown
  auto vit = values;
  for( auto t = rng.first ; t < rng.second ; ++t ) {
-  auto mrdt = *(vit++);
+  auto mrdt = *( vit++ );
   if( mrdt < 0 )
    throw( std::logic_error( fn + ": new modulation ramp down at time " +
                             std::to_string( t ) + " is " +
@@ -827,9 +889,9 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
 
   if( mrdt > v_DeltaRampDown[ t ] )
    throw( std::logic_error( fn + ": new modulation ramp down at time " +
- 			    std::to_string( t ) + " is " +
-			    std::to_string( mrdt ) + "> ramp up = " +
-			    std::to_string( v_DeltaRampDown[ t ] ) ) );
+          std::to_string( t ) + " is " +
+          std::to_string( mrdt ) + "> ramp up = " +
+          std::to_string( v_DeltaRampDown[ t ] ) ) );
   }
 
 
@@ -848,10 +910,10 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
   // since several "abstract Modification" will be issued, pack them all into
   // a single GroupModification
   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-				    open_channel( par2chnl( issueAMod ) ) ) );
+            open_channel( par2chnl( issueAMod ) ) ) );
 
   for( auto t = rng.first ; t < rng.second ; ++t ) {
-   auto mrdt = *(values++);
+   auto mrdt = *( values++ );
    auto lf = LF( Modulation_RampUp_Constraints[ t ].get_function() );
 
    // TODO: make it more efficient by calling modify_coefficients( range )
@@ -889,7 +951,7 @@ void NuclearUnitBlock::update_initial_power_in_cnstrs( ModParam issueAMod )
       ( f_InitUpDownTime > 0 ? v_modulation_ramp_up[ 0 ] : 0 ) , issueAMod );
 
  Modulation_RampDown_Constraints[ 0 ].set_rhs( - f_InitialPower ,
-					       issueAMod );
+                 issueAMod );
 
  }  // end( NuclearUnitBlock::update_initial_power_in_constraints )
 
@@ -901,6 +963,131 @@ void NuclearUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  }  // end( NuclearUnitBlock::guts_of_add_Modification )
 
 ----------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS OF NuclearUnitBlockSolution -------------------*/
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
+{
+ // call the method of the base class
+ ThermalUnitBlockSolution::deserialize( group );
+
+ // deserialize the modulation - - - - - - - - - - - - - - - - - - - - - - -
+ auto ncVar = group.getVar( "Modulation" );
+ if( ncVar.isNull() )
+  v_modulation.clear();
+ else {
+  v_modulation.resize( f_time_horizon );
+  ncVar.getVar( { 0 } , { f_time_horizon } , v_modulation.data() );
+  }
+
+ }  // end( NuclearUnitBlockSolution::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::read( const Block * block )
+{
+ auto NUB = dynamic_cast< const NuclearUnitBlock * >( block );
+ if( ! NUB )
+  throw( std::invalid_argument( "NuclearUnitBlockSolution::read: block "
+				"is not a NuclearUnitBlock" ) );
+
+ // call the method of the base class
+ ThermalUnitBlockSolution::read( NUB );
+
+ // read the modulation- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_modulation.empty() )
+  if( auto mi = NUB->get_const_modulation() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    v_modulation[ t ] = mi[ t ].get_value();
+
+ }  // end( NuclearUnitBlockSolution::read )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::write( Block * block )
+{
+ auto NUB = dynamic_cast< NuclearUnitBlock * >( block );
+ if( ! NUB )
+  throw( std::invalid_argument( "NuclearUnitBlockSolution::write: block "
+				"is not a NuclearUnitBlock" ) );
+
+ // call the method of the base class
+ ThermalUnitBlockSolution::write( NUB );
+
+ // write the modulation - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_modulation.empty() )
+  if( auto mi = NUB->get_modulation() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    ( mi++ )->set_value( v_modulation[ t ] );
+
+ }  // end( NuclearUnitBlockSolution::write )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
+{
+ // call the method of the base class
+ ThermalUnitBlockSolution::serialize( group );
+
+ // serialize the modulation - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_modulation.empty() )
+  group.addVar( "Modulation" , netCDF::NcDouble() ,
+		group.getDim( "TimeHorizon" ) ).putVar(
+		     { 0 } , { f_time_horizon } , v_modulation.data() );
+
+ }  // end( NuclearUnitBlockSolution::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitBlockSolution * NuclearUnitBlockSolution::scale( double factor )
+ const
+{
+ auto sol = clone();
+
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ if( ! std::isnan( get_design() ) )
+  sol->set_design( get_design() * factor );
+
+ // the modulation is an on/off indicator: scaling it makes no sense, and it
+ // is therefore left as it is
+
+ return( sol );
+
+ }  // end( NuclearUnitBlockSolution::scale )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlockSolution::sum( const Solution * solution ,
+				    double multiplier )
+{
+ // call the method of the base class
+ ThermalUnitBlockSolution::sum( solution , multiplier );
+
+ // as in scale(), summing the modulation indicators makes no sense
+
+ }  // end( NuclearUnitBlockSolution::sum )
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitBlockSolution * NuclearUnitBlockSolution::clone( bool empty ) const
+{
+ auto sol = new NuclearUnitBlockSolution();
+
+ if( ! empty ) {
+  guts_of_clone( sol );
+  sol->set_design( get_design() );
+  sol->v_modulation = v_modulation;
+  }
+
+ return( sol );
+
+ }  // end( NuclearUnitBlockSolution::clone )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File NuclearUnitBlock.cpp ------------------------*/

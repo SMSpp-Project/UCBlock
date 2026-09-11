@@ -3,7 +3,7 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Header file for class DesignNetworkBlock, which derives from Block and
+ * Header file for class DesignNetworkBlock, which derives from NetworkBlock and
  * defines the standard representation of **per-line design data** and
  * **per-line design variables** for transmission network models in the Unit
  * Commitment problem. The rationale is to centralize once-and-for-all the
@@ -13,8 +13,8 @@
  * - MinCapacityDesign
  * - MaxCapacityDesign
  *
- * indexed over the dimension "NumberDesignLines". The Block creates the design
- * variables \f$ x_l \f$ and their bound constraints, contributes the
+ * indexed over the dimension "NumberDesignLines". The Block creates the
+ * design variables \f$ x_l \f$ and their bound constraints, contributes the
  * investment term to the objective, and exposes / shares the variables with
  * child NetworkBlock objects (e.g., DCNetworkBlock, ACNetworkBlock) so that
  * all children operate on the very same \f$ x_l \f$ without additional
@@ -64,7 +64,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a "design" Block holding investment data and variables shared by children
-/** The DesignNetworkBlock class derives from Block, and defines the
+/** The DesignNetworkBlock class derives from NetworkBlock, and defines the
  * standard representation of **per-line design** for transmission networks.
  * It reads the design data (InvestmentCost, MinCapacityDesign,
  * MaxCapacityDesign) and creates one design variable \f$ x_l \f$ per line
@@ -148,6 +148,20 @@ class DesignNetworkBlock : public NetworkBlock
   * No network-topological information is handled here; only design data. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ // extends NetworkBlock::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends NetworkBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
 /*--------------------------------------------------------------------------*/
  /// serialize a DesignNetworkBlock into a netCDF::NcGroup
@@ -262,7 +276,7 @@ class DesignNetworkBlock : public NetworkBlock
  /// returns the number of lines for which design is defined
 
  Index get_number_design_lines( void ) const {
-  return( v_design_lines.size() );
+  return( f_num_design_lines );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -271,7 +285,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_investment_cost( Index line ) const {
   if( v_InvestmentCost.empty() )
    return( 0 );
-  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+  if( auto idx = get_design_index( line ); idx < Inf< Index >() )
    return( v_InvestmentCost[ idx ] );
   else
    return( 0 );
@@ -283,7 +297,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_min_capacity_design( Index line ) const {
   if( v_MinCapacityDesign.empty() )
    return( 0 );
-  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+  if( auto idx = get_design_index( line ); idx < Inf< Index >() )
    return( v_MinCapacityDesign[ idx ] );
   else
    return( 0 );
@@ -295,7 +309,7 @@ class DesignNetworkBlock : public NetworkBlock
  double get_max_capacity_design( Index line ) const {
   if( v_MaxCapacityDesign.empty() )
    return( 1 );
-  if( const auto idx = get_design_index( line ); idx < Inf< Index >() )
+  if( auto idx = get_design_index( line ); idx < Inf< Index >() )
    return( v_MaxCapacityDesign[ idx ] );
   else
    return( 1 );
@@ -322,12 +336,13 @@ class DesignNetworkBlock : public NetworkBlock
                                     v_design_lines.end() , line );
   if( ( it == v_design_lines.end() ) || ( *it != line ) )
    return( Inf< Index >() );
-  return( static_cast< Index >( std::distance( v_design_lines.begin() , it ) ) );
+  return( static_cast< Index >( std::distance( v_design_lines.begin() , it )
+				) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the design variable for the given design-line index
- /** Returns a pointer the design variable \f$ x_{\mathrm{line}} \f$ of the
+ /** Returns a pointer to the design variable \f$ x_{\mathrm{line}} \f$ of the
   * given design-line index \p line, or nullptr if the line has no design
   * variable. */
 
@@ -341,8 +356,7 @@ class DesignNetworkBlock : public NetworkBlock
   if( ( it == v_design_lines.end() ) || ( *it != line ) )
    return( nullptr );
 
-  return( &v_design[ static_cast< Index >(
-   std::distance( v_design_lines.begin() , it ) ) ] );
+  return( &v_design[ std::distance( v_design_lines.begin() , it ) ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -363,9 +377,7 @@ class DesignNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the vector of design variables
 
- std::vector< ColVariable > & get_design( void ) {
-  return( v_design );
-  }
+ std::vector< ColVariable > & get_design( void ) { return( v_design ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the (ordered) list of line indices that have a design variable
@@ -398,13 +410,12 @@ class DesignNetworkBlock : public NetworkBlock
    auto * nb = static_cast< NetworkBlock * >( nb_ptr );
    const Index ni = nb->get_number_intervals();
 
-#ifndef NDEBUG
-   if( offset + ni > total_intervals )
-    throw std::logic_error(
-      "DesignNetworkBlock::set_ActiveDemand: "
-      "inconsistent number of intervals between UCBlock and subnetworks"
-    );
-#endif
+   #ifndef NDEBUG
+    if( offset + ni > total_intervals )
+     throw( std::logic_error( "DesignNetworkBlock::set_ActiveDemand: "
+			      "inconsistent number of intervals between "
+			      "UCBlock and subnetworks" ) );
+   #endif
 
    boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ] );
 
@@ -415,26 +426,73 @@ class DesignNetworkBlock : public NetworkBlock
    }
 
    nb->set_ActiveDemand( sub );
-  }
+   }
 
-#ifndef NDEBUG
-  if( offset != total_intervals )
-   throw std::logic_error(
-     "DesignNetworkBlock::set_ActiveDemand: "
-     "unused intervals in ActiveDemand matrix"
-   );
-#endif
+  #ifndef NDEBUG
+   if( offset != total_intervals )
+    throw( std::logic_error( "DesignNetworkBlock::set_ActiveDemand: "
+			     "unused intervals in ActiveDemand matrix" ) );
+  #endif
   }
 
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( MF_dbl_it , Subset && , bool ,
-                         ModParam , ModParam ) override final;
+ void set_ReactiveDemand( const boost::multi_array< double , 2 > & apd )
+  override {
+  if( v_Block.empty() )
+   return;
+
+  const Index total_intervals = static_cast< Index >( apd.shape()[ 0 ] );
+  const Index number_nodes = static_cast< Index >( apd.shape()[ 1 ] );
+
+  Index offset = 0;
+  for( auto * nb_ptr : v_Block ) {
+   auto * nb = static_cast< NetworkBlock * >( nb_ptr );
+   const Index ni = nb->get_number_intervals();
+
+   #ifndef NDEBUG
+    if( offset + ni > total_intervals )
+     throw( std::logic_error( "DesignNetworkBlock::set_ActiveDemand: "
+			      "inconsistent number of intervals between "
+			      "UCBlock and subnetworks" ) );
+   #endif
+
+   boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ]
+					 );
+
+   for( Index i = 0 ; i < ni ; ++i , ++offset ) {
+    auto src_row = apd[ boost::indices[ offset ]
+                      [ boost::multi_array_types::index_range( 0 , number_nodes ) ] ];
+    std::copy( src_row.begin() , src_row.end() , sub[ i ].begin() );
+   }
+
+   nb->set_ReactiveDemand( sub );
+   }
+
+  #ifndef NDEBUG
+   if( offset != total_intervals )
+    throw( std::logic_error( "DesignNetworkBlock::set_ActiveDemand: "
+			     "unused intervals in ActiveDemand matrix" ) );
+  #endif
+  }
 
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( MF_dbl_it , Range ,
-                         ModParam , ModParam ) override final;
+ void set_active_demand( MF_dbl_it , Subset && , bool , ModParam , ModParam )
+  override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void set_active_demand( MF_dbl_it , Range , ModParam , ModParam )
+  override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void set_network_cost( MF_dbl_it , Subset && , bool , ModParam , ModParam );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_network_cost( MF_dbl_it , Range , ModParam , ModParam );
 
 /*--------------------------------------------------------------------------*/
 
@@ -446,15 +504,14 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_constant_term( const double const_term ) override {
+ void set_constant_term( double const_term ) override {
   for( auto * nb : v_Block )
    static_cast< NetworkBlock * >( nb )->set_constant_term( const_term );
   }
 
 /*--------------------------------------------------------------------------*/
 
- void set_min_node_injection( const double min_injection ,
-                              Index node ,
+ void set_min_node_injection( double min_injection , Index node ,
                               Index interval = 0 ) override {
   if( v_Block.empty() )
    return;
@@ -466,15 +523,14 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_max_node_injection( const double max_injection ,
-                              Index node ,
+ void set_max_node_injection( double max_injection , Index node ,
                               Index interval = 0 ) override {
   if( v_Block.empty() )
    return;
 
   if( interval < v_Block.size() )
    static_cast< NetworkBlock * >(
-    v_Block[ interval ] )->set_min_node_injection( max_injection , node );
+    v_Block[ interval ] )->set_max_node_injection( max_injection , node );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -485,7 +541,7 @@ class DesignNetworkBlock : public NetworkBlock
 
  /// returns a Solution representing the current solution of this NetworkBlock
  /** This method must construct and return a (pointer to a) Solution object
-  * representing the current "solution state" of this NetworkBlock.�, i.e., a
+  * representing the current "solution state" of this NetworkBlock, i.e., a
   * DesignNetworkBlockSolution.
   *
   * The parameter for deciding which kind of Solution must be returned is a
@@ -589,6 +645,7 @@ class DesignNetworkBlock : public NetworkBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- READING THE DATA ------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -634,6 +691,12 @@ class DesignNetworkBlock : public NetworkBlock
 
  Index f_number_subnetworks;             ///< number of subnetworks
 
+ /// the number of design lines
+ Index f_num_design_lines;
+
+ /// the list of line indices that have an associated design variable
+ Subset v_design_lines;
+
  /// the investment cost for each line
  std::vector< double > v_InvestmentCost;
 
@@ -648,13 +711,10 @@ class DesignNetworkBlock : public NetworkBlock
  /// the design variable for each design line
  std::vector< ColVariable > v_design;
 
- /// the list of line indices that have an associated design variable
- Subset v_design_lines;
-
 /*------------------------------- constraints ------------------------------*/
 
  /// the design bound constraint for each line
- std::vector< BoxConstraint > v_design_bound_const;
+ std::vector< BoxConstraint > v_design_bound_Const;
 
 /*-------------------------------- objective -------------------------------*/
 
@@ -698,7 +758,7 @@ class DesignNetworkBlock : public NetworkBlock
  *
  * - the design variables on (a subset of) the link(s)
  *
- * - the [DC]NetworkBlockSolution information corrseponding to the inner
+ * - the [DC]NetworkBlockSolution information corresponding to the inner
  *   [DC]NetworkBlock, in basically the same format as that of UCBlock,
  *   i.e., in two possible versions:
   *
@@ -761,7 +821,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
   * NetworkBlockSolution::serialize( netCDF::NcGroup & ), plus
   *
   * - The dimension "NumberDesignLines" containing the number of lines in
-  *   the transmission network that have design variables. It is opitonal,
+  *   the transmission network that have design variables. It is optional,
   *   but if it's not there then "DesignValue" must not be there.
   *
   * - The variable "DesignValue", of type netCDF::NcDouble and indexed over
@@ -778,15 +838,15 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
   *     optional, but if it's not there then the sub-groups (see below)
   *     cannot be there.
   *
-  *   = Sub-groups "SubNetworkBlock_0", "SubNetworkBlock_1", ...,
-  *     "SubNetworkBlock_T" with T = NumberSubNetworks - 1, with
-  *     "SubNetworkBlock_i" containing each the NetworkBlockSolution
+  *   = Sub-groups "NetworkBlock_0", "NetworkBlock_1", ...,
+  *     "NetworkBlock_T" with T = NumberSubNetworks - 1, with
+  *     "NetworkBlock_i" containing each the NetworkBlockSolution
   *     corresponding to that network constraints for some specific subset
   *     of time instants.
   *
   *   or in "nonstandard" format, cf. the comments to
   *   NetworkBlockSolution::serialize( netCDF::NcGroup & , * size_t ), where
-  *   the sub-NetworkBlock are all serialize()-d in \p group. */
+  *   the sub-NetworkBlock are all serialized in \p group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 

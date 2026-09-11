@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-julia csv2nc4.jl energy_community_model_CO_sto_simple --with-thermal-blocks

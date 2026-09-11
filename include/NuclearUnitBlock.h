@@ -80,8 +80,8 @@ namespace SMSpp_di_unipi_it
  *   ThermalUnitBlock, so one would get an exception)
  */
 
-class NuclearUnitBlock : public ThermalUnitBlock {
-
+class NuclearUnitBlock : public ThermalUnitBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -192,6 +192,22 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  * (although they are in principle optional for ThermalUnitBlock). */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /* extends ThermalUnitBlock::expected_dims()
+  * not necessary, no new dimensions
+
+ std::vector< std::string > expected_dims( void ) const override;
+ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends ThermalUnitBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the NuclearUnitBlock
@@ -333,6 +349,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
+
 /** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE NuclearUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
@@ -381,6 +398,13 @@ class NuclearUnitBlock : public ThermalUnitBlock {
   return( &( v_modulation.front() ) );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// like get_modulation(), but returns a const * so that it can be const
+
+ const ColVariable * get_const_modulation( void ) const {
+  return( const_cast< NuclearUnitBlock * >( this )->get_modulation() );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------------ METHODS FOR SAVING THE NuclearUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -409,6 +433,9 @@ class NuclearUnitBlock : public ThermalUnitBlock {
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the NuclearUnitBlock
+ *  @{ */
+
  /* Method for handling Modification.
   *
   * This method has to intercept any "abstract Modification" that
@@ -494,7 +521,7 @@ class NuclearUnitBlock : public ThermalUnitBlock {
 				ModParam issuePMod = eNoBlck ,
 				ModParam issueAMod = eNoBlck );
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -507,7 +534,28 @@ class NuclearUnitBlock : public ThermalUnitBlock {
  // void guts_of_add_Modification( p_Mod mod , ChnlName chnl );
  // not required, changes via the "abstract representation" are not supported
 
- void check_modulation_consistency( void ) const;
+ /// verify whether the data in this NuclearUnitBlock is consistent
+ /** This function checks whether the data in this NuclearUnitBlock is
+  * consistent. The data is consistent if all the following conditions are
+  * met.
+  *
+  * - The delta ramp-up and delta ramp-down vectors are not empty: they are
+  *   inherited from ThermalUnitBlock and are mandatory in the nuclear
+  *   specialization.
+  *
+  * - The modulation interval (ModulationTime) is at least 2.
+  *
+  * - The initial modulation (InitModulation) is at least 1.
+  *
+  * - For each time step t, the modulation ramp-up and ramp-down are
+  *   nonnegative and do not exceed the corresponding ThermalUnitBlock
+  *   ramp-up:
+  *   \f$ 0 \leq v\_modulation\_ramp\_up[t] \leq v\_DeltaRampUp[t] \f$ and
+  *   \f$ 0 \leq v\_modulation\_ramp\_down[t] \leq v\_DeltaRampUp[t] \f$.
+  *
+  * If any of the above conditions are not met, an exception is thrown. */
+
+ void check_data_consistency( void ) const;
 
  void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck )
   override;
@@ -569,34 +617,45 @@ private:
 /*--------------------------------------------------------------------------*/
  /// register the methods in the methods factory
 
- static void static_initialization( void ) {
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< NuclearUnitBlock >(
-   *           "NuclearUnitBlock::set_modulation_ramp_up" ,
-   *           & NuclearUnitBlock::set_availability , MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
+ static void static_initialization( void )
+ {
   register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
-                               "NuclearUnitBlock::set_modulation_ramp_up" ,
-                               & NuclearUnitBlock::set_modulation_ramp_up );
+   "NuclearUnitBlock::set_modulation_ramp_up" ,
+   & NuclearUnitBlock::set_modulation_ramp_up );
 
   register_method< NuclearUnitBlock , MF_dbl_it , Range >(
-                               "NuclearUnitBlock::set_modulation_ramp_up" ,
-                               & NuclearUnitBlock::set_modulation_ramp_up );
+   "NuclearUnitBlock::set_modulation_ramp_up" ,
+   & NuclearUnitBlock::set_modulation_ramp_up );
 
   register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
-                             "NuclearUnitBlock::set_modulation_ramp_down" ,
-                             & NuclearUnitBlock::set_modulation_ramp_down );
+   "NuclearUnitBlock::set_modulation_ramp_down" ,
+   & NuclearUnitBlock::set_modulation_ramp_down );
 
   register_method< NuclearUnitBlock , MF_dbl_it , Range >(
-                             "NuclearUnitBlock::set_modulation_ramp_down" ,
-                             & NuclearUnitBlock::set_modulation_ramp_down );
-  }
+   "NuclearUnitBlock::set_modulation_ramp_down" ,
+   & NuclearUnitBlock::set_modulation_ramp_down );
+ }
 
+/*--------------------------------------------------------------------------*/
+/*--------------------- Methods for handling Solution ----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Solution
+ *  @{ */
+
+ /// extends ThermalUnitBlock::get_Solution() with the modulation
+ /** Extends ThermalUnitBlock::get_Solution() to also save the modulation
+  * indicators, which go with the commitment (bit 1 of the Configuration,
+  * i.e., wsol & 2) since they are the same kind of information. */
+
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// return the "appropriate" NuclearUnitBlockSolution
+
+ UnitBlockSolution * new_Solution( void ) const override;
+
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -613,7 +672,7 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
 
  /// Public enum for the types of ThermalUnitBlockMod
  enum NUB_mod_type {
-  eSetModDP = eTUBBModLastParam , ///< set modulation delta ramp up
+  eSetModDP = eTUBModLastParam , ///< set modulation delta ramp up
   eSetModDM ,                     ///< set modulation delta ramp down
   eNUBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
@@ -631,34 +690,34 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
  void print( std::ostream & output ) const override {
   output << "NuclearUnitBlockMod[" << this << "]: ";
   switch( f_type ) {
-   case eSetMaxP:
+   case( eSetMaxP ):
     output << "set max power values";
     break;
-   case eSetInitP:
+   case( eSetInitP ):
     output << "set initial power values";
     break;
-   case eSetInitUD:
+   case( eSetInitUD ):
     output << "Set initial up/down times";
     break;
-   case eSetAv:
+   case( eSetAv ):
     output << "Set availability";
     break;
-   case eSetSUC:
+   case( eSetSUC ):
     output << "Set startup costs";
     break;
-   case eSetLinT:
+   case( eSetLinT ):
     output << "Set linear term";
     break;
-   case eSetQuadT:
+   case( eSetQuadT ):
     output << "Set quad term";
     break;
-   case eSetConstT:
+   case( eSetConstT ):
     output << "Set constant term";
     break;
-   case eSetModDP:
+   case( eSetModDP ):
     output << "set modulation delta ramp up";
     break;
-   case eSetModDM:
+   case( eSetModDM ):
     output << "set modulation delta ramp down";
     break;
    default:;
@@ -729,6 +788,114 @@ class NuclearUnitBlockSbstMod : public NuclearUnitBlockMod {
  Block::Subset f_nms;  ///< the subset
 
  };  // end( class( NuclearUnitBlockSbstMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------ CLASS NuclearUnitBlockSolution ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a solution of a NuclearUnitBlock
+/** The NuclearUnitBlockSolution class derives from ThermalUnitBlockSolution
+ * and adds the only piece of solution information that a nuclear unit has
+ * and a thermal one does not, i.e., the modulation indicators m_t. */
+
+class NuclearUnitBlockSolution : public ThermalUnitBlockSolution
+{
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*------------------------------- FRIENDS ----------------------------------*/
+
+ friend NuclearUnitBlock;  ///< make NuclearUnitBlock friend
+
+/*--------- CONSTRUCTING AND DESTRUCTING NuclearUnitBlockSolution ----------*/
+
+ /// constructor, it has nothing to do
+ explicit NuclearUnitBlockSolution( void ) : ThermalUnitBlockSolution() {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void deserialize( const netCDF::NcGroup & group ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ~NuclearUnitBlockSolution() override = default;
+ ///< destructor: it is virtual, and empty
+
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A NuclearUnitBlockSolution -----*/
+
+ void read( const Block * block ) override final;
+
+ void write( Block * block ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a NuclearUnitBlockSolution into a netCDF::NcGroup
+ /** Serialize a NuclearUnitBlockSolution into a netCDF::NcGroup. The format
+  * is the one of ThermalUnitBlockSolution [cf.
+  * ThermalUnitBlockSolution::serialize()], plus:
+  *
+  * - The variable "Modulation", of type netCDF::NcDouble and indexed over
+  *   "TimeHorizon", holding the modulation indicators; the variable is
+  *   optional, in that the modulation may not be saved. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ NuclearUnitBlockSolution * scale( double factor ) const override;
+
+ void sum( const Solution * solution , double multiplier ) override;
+
+ NuclearUnitBlockSolution * clone( bool empty = false ) const override;
+
+/*----------- METHODS FOR READING AND WRITING THE SOLUTION -----------------*/
+
+ /// returns the modulation indicators saved in this Solution
+ /** Returns the modulation indicators saved in this Solution, an empty
+  * vector if they are not saved. */
+
+ [[nodiscard]] const std::vector< double > & get_modulation( void ) const {
+  return( v_modulation );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets the modulation indicators saved in this Solution
+ /** Sets the modulation indicators saved in this Solution, which is what a
+  * Solver filling the Solution out of its own data structures uses [see
+  * set_active_power() and the like in UnitBlockSolution]. */
+
+ void set_modulation( std::vector< double > && m ) {
+  v_modulation = std::move( m );
+  }
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream & output ) const override {
+  output << "NuclearUnitBlockSolution [" << this << "]: " << std::endl;
+  }
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ std::vector< double > v_modulation;  ///< the modulation indicators
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( NuclearUnitBlockSolution ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

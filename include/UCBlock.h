@@ -133,11 +133,11 @@ class UCBlock : public Block
  /// constructor of UCBlock, taking possibly a pointer of its father Block
 
  explicit UCBlock( Block * father = nullptr )
-  : Block( father ), f_time_horizon( 0 ), f_number_networks( 0 ),
-    f_number_units( 0 ), f_number_elc_generators( 0 ),
-    f_total_number_pollutant_zones( 0 ),
-    f_number_primary_zones( 0 ), f_number_secondary_zones( 0 ),
-    f_number_inertia_zones( 0 ), f_number_pollutants( 0 ),
+  : Block( father ) , f_time_horizon( 0 ) , f_has_reactive( false ) ,
+    f_number_networks( 0 ) , f_number_units( 0 ) ,
+    f_number_elc_generators( 0 ) , f_total_number_pollutant_zones( 0 ) ,
+    f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
+    f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ) ,
     f_NetworkData( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -152,325 +152,339 @@ class UCBlock : public Block
  * @{ */
 
  /// extends Block::deserialize( netCDF::NcGroup )
-/** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
- * the UCBlock. Besides the mandatory "type" attribute of any :Block, the
- * group should contain the following:
- *
- * - The dimension "TimeHorizon" containing the number of time steps in the
- *   problem.
- *
- * - The dimension "NumberUnits" containing the number of units (UnitBlock) in
- *   the problem.
- *
- * - The dimension "NumberNetworks" containing the number of networks
- *   (NetworkBlock) in the problem. This dimension is optional. If it is not
- *   provided, it is taken to be the same as "TimeHorizon".
- *
- * - The dimension "NumberNodes" containing the number of nodes in the
- *   problem. This dimension is optional. If it is not provided, it is taken
- *   to be 1, so the NetworkBlock will be a transmission network, i.e., a
- *   DCNetworkBlock, with just one node (bus).
- *
- * - The dimension "NumberElectricalGenerators" containing the overall number
- *   of electrical generators for each UnitBlock of the problem. This
- *   dimension is optional. If it is not provided, it is taken to be the sum
- *   of the electrical generators of each UnitBlock, so, if each of these
- *   will have just one electrical generator, i.e., no HydroUnitBlock or
- *   HydroSystemUnitBlock will be provided, it is taken to be the same as
- *   "NumberUnits".
- *
- * - The groups "UnitBlock_0", "UnitBlock_1", ..., "UnitBlock_n" with
- *   n == NumberUnits - 1, containing each one UnitBlock corresponding to
- *   one or more electricity generating units (electrical generators). It is
- *   an error if the corresponding groups are not there. Each UnitBlock can
- *   have more than one electrical generator (cf.
- *   UnitBlock::get_number_generators()); a value that is useful in the
- *   following (cf. "GeneratorNode") is the total number of those, which we
- *   will refer to as "NumberElectricalGenerators". This is computed by just
- *   calling get_number_generators() on each of the UnitBlock and summing all
- *   the results. Clearly, NumberElectricalGenerators >= NumberUnits. Indeed,
- *   most of the UnitBlock can be expected to have just one electrical
- *   generator. If this happens for all the units, then
- *   NumberElectricalGenerators == NumberUnits. If, instead, some UnitBlock
- *   (like cascades of hydro generators or combined cycle plants) actually
- *   has more than one electrical generator, then NumberElectricalGenerators
- *   > NumberUnits (each UnitBlock must have at least one). It is then useful
- *   (cf. "GeneratorNode") to be able to assign a unique index g = 0, 1, ...,
- *   NumberElectricalGenerators - 1 to each of the electrical generators in
- *   the UCBlock. When NumberElectricalGenerators == NumberUnits, the index
- *   is the same as i = 0, 1, ..., NumberUnits - 1 (there is a one-to-one
- *   correspondence between UnitBlock and electrical generators). When,
- *   instead, NumberElectricalGenerators > NumberUnits, a mapping must be
- *   defined. The mapping is the obvious one: UnitBlock has an ordering
- *   i = 0, 1, ..., NumberUnits - 1 (cf. the groups "UnitBlock_0",
- *   "UnitBlock_1", ... above), and the electrical generators into each
- *   UnitBlock also have some natural ordering (corresponding to the columns
- *   of the matrices of variables, cf. e.g., UnitBlock::get_commitment()).
- *   Thus, in general, the mapping is:
- *   electrical generator 0 = first generator of UnitBlock_0
- *   electrical generator 1 = second generator of UnitBlock_0
- *   ...
- *   electrical generator k - 1 = k-th generator of UnitBlock_0
- *                        k     = UnitBlock_0->get_number_generators()
- *   electrical generator k     = first generator of UnitBlock_1
- *   electrical generator k + 1 = second generator of UnitBlock_1
- *   ...
- *   which of course boils down to "g = i" when each UnitBlock has exactly one
- *   electrical generator.
- *
- * - Optionally, the dimensions and variables necessary to deserialize a
- *   NetworkData object that describes the transmission network; see
- *   NetworkBlock::NetworkData::deserialize() for details. If that is not
- *   provided (basically, "NumberNodes" is not provided, or it is == 1),
- *   then the transmission network is taken to have only one node (a bus).
- *   If the data of a NetworkData is specified, the NetworkData is passed
- *   to each of the NetworkBlock (see below) of the UCBlock, if any. However,
- *   if a NetworkBlock also has a NetworkData specified in its own group,
- *   then the NetworkData inside the NetworkBlock overrules that inside the
- *   UCBlock, which is ignored by that NetworkBlock.
- *
- * - The variable "ActivePowerDemand", of type netCDF::NcDouble and indexed
- *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
- *   is optional if:
- *
- *   = a NetworkBlock is defined for all necessary intervals so that they
- *     collectively cover the entire "TimeHorizon" (see "NetworkBlock_i"
- *     below), and
- *
- *   = each defined NetworkBlock has the "ActiveDemand" variable specified
- *     in the corresponding group.
- *
- *   Otherwise, it is mandatory. When it is defined, the entry
- *   ActivePowerDemand[ n , t ] is assumed to contain the active power demand
- *   of node n of the transmission network at the given time instant t, where
- *   the first dimension "NumberNodes" can be read via get_number_nodes().
- *   When "ActivePowerDemand" is defined, and also the "ActiveDemand"
- *   variable is defined in the group of some NetworkBlock, then
- *   "ActiveDemand" overrules the value in the corresponding row of
- *   "ActivePowerDemand", which is ignored.
- *
- * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
- *   with T = NumberNetworks - 1 (or a subset of these, see below), each
- *   containing the network constraints for some subset of time intervals in
- *   the horizon. These can be handled in two different ways:
- *
- *   = If "NumberNodes" is == 1 (e.g., it is not provided), then the network
- *     is a "bus", i.e., there are no constraints on how the data flows ("no
- *     network") and all the units can contribute to satisfy the energy
- *     demand, which is then a unique value for each time instant t. In this
- *     case one would assume that the (total) demand for each time instant is
- *     provided by "ActivePowerDemand", and this would be enough. However,
- *     there is an extra mechanism: if some "NetworkBlock_i" is still
- *     provided (see below for details on how they are treated), then they
- *     are read. This is done in order to get the corresponding matrix of
- *     active demands (see NetworkBlock::get_active_demand()): if it is
- *     present (which it may not), then the corresponding values are used as
- *     active power demand for these intervals, superseeding the values found
- *     in "ActivePowerDemand". It is therefore possible that then
- *     "ActivePowerDemand" is not there at all, but this requires that
- *     "NetworkBlock_i" are given that cover the whole time horizon (this
- *     is otherwise not necessary, see below) so that active power demand
- *     data is specified for each time instant; if this fails to happen,
- *     exception is thrown.
- *
- *   = If, instead, "NumberNodes" > 1, then there are constraints (and,
- *     possibly, variables) limiting how energy flows between producing
- *     units and demand. Then, the sub-group "NetworkBlock_0",
- *     "NetworkBlock_1", ..., "NetworkBlock_T" with T = NumberNetworks - 1
- *     are attempted to be read. They are assumed to be arranged in
- *     chronological order according to their index. Each NetworkBlock
- *     specifies the number of consecutive time intervals it spans, see
- *     NetworkBlock::get_number_intervals(). Thus, "NetworkBlock_0" covers
- *     the intervals 0, ..., t - 1 with
- *     t = "NetworkBlock_0"->get_number_intervals(), "NetworkBlock_1" covers
- *     the intervals t, ..., t + w - 1 with
- *     w = "NetworkBlock_1"->get_number_intervals(), and so on. The last
- *     "NetworkBlock_T" has to cover the final intervals up to
- *     "TimeHorizon"; otherwise, an exception is raised. However, it is
- *     possible that some (or even, in principle, all) "NetworkBlock_i" is
- *     not specified, which is useful when (as it often happens, since the
- *     network may easily not change in the short time horizon typical of
- *     the UC problem) some (or all) of them are "equal". If any
- *     "NetworkBlock_i" is missing, a NetworkBlock is automatically built by
- *     using the "global" NetworkData in UCBlock. The corresponding value of
- *     NetworkBlock::get_number_intervals() is used to identify the subset of
- *     time instants it covers (starting from the initial time t identified as
- *     previously specified), and the "ActivePowerDemand" data for these
- *     intervals t is used to set its demand. Hence, an exception is raised
- *     if "ActivePowerDemand" or "NetworkData" are missing. In this way it
- *     is possible, e.g., to just specify "ActivePowerDemand" and one
- *     "NetworkData" and have UCBlock to automatically construct all the
- *     necessary NetworkBlock (which are then identical copies of one another
- *     save possibly for the active power demand). A typical case is that in
- *     which "NumberNetworks" is equal to "TimeHorizon", i.e., each
- *     "NetworkBlock_t" covers exactly one interval. In this case it is clear
- *     which time instant each "NetworkBlock_t" covers (i.e., "t"), and
- *     obviously it must be NetworkBlock::get_number_intervals() == 1 (the
- *     default).
- *
- * - The variable "GeneratorNode", of type netCDF::NcUint and indexed over
- *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
- *   tells to which node of the transmission network the specified electrical
- *   generator g belongs. Note that this means that different electrical
- *   generators in the same UnitBlock can belong to different nodes of the
- *   transmission network. This is justified, e.g., by hydro cascade units
- *   where different turbines can be rather far apart geographically, but
- *   still linked by (long) stretches of rivers. If NumberElectricalGenerators
- *   == NumberUnits (all UnitBlock have exactly one electrical generator),
- *   then this variable is indexed over NumberUnits. If NumberNodes == 1
- *   (say, it is not provided at all), then this variable need not be
- *   defined, since it is not loaded.
- *
- * - The dimension "NumberPrimaryZones" tells how many "primary spinning
- *   reserve zones" are there in the problem. The dimension is optional, if it
- *   is not provided then it is taken to be 0, which means that no primary
- *   reserve constraints are present in the problem.
- *
- * - The variable "PrimaryZones", of type netCDF::NcUint and indexed over
- *   the dimension "NumberNodes". The entry PrimaryZones[ i ] tells to which
- *   primary zone the node i belongs: if PrimaryZones[ i ] >=
- *   NumberPrimaryZones, this means that node i does not belong to any primary
- *   zone, and hence the corresponding electrical generators are not involved
- *   in the primary reserve constraints. If NumberPrimaryZones == 0 (say, it
- *   is not provided at all) then this variable need not be defined, since it
- *   is not loaded. If NumberPrimaryZones == 1, and this variable is not
- *   defined, then there is only one primary zone and all the nodes belong to
- *   it.
- *
- * - The variable "PrimaryDemand", of type netCDF::NcDouble and indexed both
- *   over the dimensions "NumberPrimaryZones" and "TimeHorizon": entry
- *   PrimaryDemand[ i , t ] is assumed to contain the primary reserve
- *   requirement specified on the primary reserve zone i in the time t. If
- *   NumberPrimaryZones == 0 (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded.
- *
- * - The dimension "NumberSecondaryZones" tells how many "secondary spinning
- *   reserve zones" are there in the problem. The dimension is optional, if it
- *   is not provided then it is taken to be 0, which means that no secondary
- *   reserve constraints are present in the problem.
- *
- * - The variable "SecondaryZones", of type netCDF::NcUint and indexed over
- *   the dimension "NumberNodes"; the entry SecondaryZones[ i ] tells to which
- *   secondary zone the node i belongs. If SecondaryZones[ i ] >=
- *   NumberSecondaryZones, this means that node i does not belong to any
- *   secondary zone, and hence the corresponding units are not involved in the
- *   secondary reserve constraints. If NumberSecondaryZones == 0 (say, it is
- *   not provided at all) then this variable need not be defined, since it is
- *   not loaded. If NumberSecondaryZones == 1 and this variable is not
- *   defined, then there is only one secondary zone and all the nodes belong
- *   to it.
- *
- * - The variable "SecondaryDemand", of type netCDF::NcDouble and indexed
- *   both over the dimensions "NumberSecondaryZones" and "TimeHorizon": entry
- *   SecondaryDemand[ i , t ] is assumed to contain the secondary reserve
- *   requirement specified on the secondary reserve zone i in the time t.
- *   If NumberSecondaryZones == 0 (say, it is not provided at all), then
- *   this variable need not be defined, since it is not loaded.
- *
- * - The dimension "NumberInertiaZones" tells how many "inertia constraints
- *   zones" are there in the problem. The dimension is optional, if it is not
- *   provided then it is taken to be 0, which means that no inertia
- *   constraints are present in the problem.
- *
- * - The variable "InertiaZones", of type netCDF::NcUint and indexed over
- *   the dimension "NumberNodes"; the entry InertiaZones[ n ] tells to which
- *   inertia zone the node n belongs. If InertiaZones[ n ] >=
- *   NumberInertiaZones, this means that node n does not belong to any
- *   inertia zone, and hence the corresponding units are not involved in the
- *   inertia reserve constraints. If NumberInertiaZones == 0 (say, it is not
- *   provided at all) then this variable need not be defined, since it is not
- *   loaded. If NumberInertiaZones == 1 and this variable is not defined,
- *   then there is only one inertia zone and all the nodes belong to it.
- *
- * - The variable "InertiaDemand", of type netCDF::NcDouble and indexed both
- *   over the dimensions "NumberInertiaZones" and "TimeHorizon": entry
- *   InertiaDemand[ i , t ] is assumed to contain the inertia reserve
- *   requirement specified on the inertia constraints zone i in the time t.
- *   If NumberInertiaZones == 0 (say, it is not provided at all), then this
- *   variable need not be defined, since it is not loaded.
- *
- * - The dimension "NumberPollutants" containing the number of pollutants in
- *   the problem. The dimension is optional, if it is not provided then it is
- *   taken to be 0, which means that no pollutant constraints are present in
- *   the problem.
- *
- * - The variable "NumberPollutantZones" of type netCDF::NcUint and indexed
- *   over the dimension "NumberPollutants": the entry
- *   NumberPollutantZones[ p ] is assumed to contain the number of pollutant
- *   zones associated with pollutant p. If NumberPollutants == 0 (say, it is
- *   not provided) then this variable need not be defined, since it is not
- *   loaded. The total number of pollutant zones is useful (cf.
- *   PollutantBudget); it will be referred to as "TotalNumberPollutantZones",
- *   and it is computed simply as TotalNumberPollutantZones =
- *   NumberPollutantZones[ 0 ] + ... +
- *   NumberPollutantZones[ NumberPollutants - 1 ].
- *
- * - The variable "PollutantZones", of type netCDF::NcUint and indexed over
- *   the dimensions "NumberPollutants" and "NumberNodes": the entry
- *   PollutantZones[ p , n ] tells to which pollutant zone associated with
- *   pollutant p the node n belongs. If PollutantZones[ p , n ] >=
- *   NumberPollutantZones[ p ], this means that node n does not belong to any
- *   pollutant zone, and hence the corresponding units are not involved in the
- *   pollutant budget constraints associated with pollutant p. If
- *   NumberPollutants == 0 (say, it is not provided) then this variable need
- *   not be defined, since it is not loaded.
- *
- * - The variable "PollutantBudget", of type netCDF::NcDouble and indexed
- *   over the set { 0 , ... , TotalNumberPollutantZones - 1 }: the entry
- *   PollutantBudget[ n ] for n == 0, ..., TotalNumberPollutantZones - 1 is
- *   assumed to contain the pollutant budget (across all the time horizon)
- *   for the pair (pollutant zone, pollutant) corresponding to n. In other
- *   words, since the number of pollutant zones of each pollutant may differ,
- *   it is useful (to avoid having to store PollutantBudget as an irregular
- *   matrix) to be able to assign a unique index
- *   n = 0, 1, ..., TotalNumberPollutantZones - 1
- *   to each pollutant budget of each pollutant zone. A mapping must be
- *   defined between each entry n and the pair (pollutant zone, pollutant).
- *   The mapping is the obvious one: UCBlock has a set of pollutants
- *   p = 0, 1, ..., NumberPollutants - 1, and each pollutant p may have
- *   several pollutant zones (see comments of variable "NumberPollutantZones"
- *   above). Thus, in general the mapping is:
- *   n = 0 corresponds to zone 0 of pollutant 0
- *   n = 1 corresponds to zone 1 of pollutant 0
- *   ...
- *   n = NumberPollutantZones[ 0 ] - 1 corresponds to zone
- *       NumberPollutantZones[ 0 ] - 1 of pollutant 0
- *   n = NumberPollutantZones[ 0 ] corresponds to zone 0 of pollutant 1
- *   n = NumberPollutantZones[ 0 ] + 1 corresponds to zone 1 of pollutant 1
- *   ...
- *   . If NumberPollutants == 0 (say, it is not provided) then this variable
- *   need not be defined, since it is not loaded.
- *
- * - The variable "PollutantRho", of type netCDF::NcDouble and indexed over
- *   three dimensions which are "TimeHorizon" and "NumberPollutants" and
- *   the set { 0, ..., NumberElectricalGenerators - 1 } (see comments above).
- *   The first dimension can have size either 1 or "TimeHorizon". In the
- *   former case the entry PollutantRho[ 0 , p , g ] is assumed to contain
- *   the conversion factor of pollutant p due to the electrical generator g
- *   which is equal for all time instants t. Otherwise, the first dimension
- *   has full size "TimeHorizon" and the entry PollutantRho[ t , p , g ]
- *   gives the conversion factor of pollutant p due to the electrical
- *   generator g for time t. If NumberPollutants == 0 (it is not provided)
- *   then this variable need not be defined, since it's not loaded.
- *
- * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
- *   indexed over the dimension "NumberNetworks"; the entry
- *   NetworkConstantTerms[ n ] tells the constant term, i.e., typically the
- *   fixed costs, of the NetworkBlock n.
- *
- * - The variable "NetworkBlockClassname", of type netCDF::NcString specifies
- *   the classname of the specific NetworkBlock to be instantiated, if no one
- *   is explicitly given in input. For backward compatibility reasons w.r.t.
- *   the netCDF input data files already given, the default value is
- *   "DCNetworkBlock".
- *
- * - The variable "NetworkDataClassname", of type netCDF::NcString specifies
- *   the classname of the specific NetworkData to be instantiated, if no one
- *   is explicitly given in input. For backward compatibility reasons w.r.t.
- *   the netCDF input data files already given, the default value is
- *   "DCNetworkData". */
+ /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
+  * the UCBlock. Besides the mandatory "type" attribute of any :Block, the
+  * group should contain the following:
+  *
+  * - The dimension "TimeHorizon" containing the number of time steps in the
+  *   problem.
+  *
+  * - The dimension "NumberUnits" containing the number of units (UnitBlock)
+  *   in the problem.
+  *
+  * - The dimension "NumberNetworks" containing the number of networks
+  *   (NetworkBlock) in the problem. This dimension is optional. If it is not
+  *   provided, it is taken to be the same as "TimeHorizon".
+  *
+  * - The dimension "NumberNodes" containing the number of nodes in the
+  *   problem. This dimension is optional. If it is not provided, it is taken
+  *   to be 1, so the NetworkBlock will be a transmission network, i.e., a
+  *   DCNetworkBlock, with just one node (bus).
+  *
+  * - The dimension "NumberElectricalGenerators" containing the overall number
+  *   of electrical generators for each UnitBlock of the problem. This
+  *   dimension is optional. If it is not provided, it is taken to be the sum
+  *   of the electrical generators of each UnitBlock, so, if each of these
+  *   will have just one electrical generator, i.e., no HydroUnitBlock or
+  *   HydroSystemUnitBlock will be provided, it is taken to be the same as
+  *   "NumberUnits".
+  *
+  * - The groups "UnitBlock_0", "UnitBlock_1", ..., "UnitBlock_n" with
+  *   n == NumberUnits - 1, containing each one UnitBlock corresponding to
+  *   one or more electricity generating units (electrical generators). It is
+  *   an error if the corresponding groups are not there. Each UnitBlock can
+  *   have more than one electrical generator (cf.
+  *   UnitBlock::get_number_generators()); a value that is useful in the
+  *   following (cf. "GeneratorNode") is the total number of those, which we
+  *   will refer to as "NumberElectricalGenerators". This is computed by just
+  *   calling get_number_generators() on each of the UnitBlock and summing all
+  *   the results. Clearly, NumberElectricalGenerators >= NumberUnits. Indeed,
+  *   most of the UnitBlock can be expected to have just one electrical
+  *   generator. If this happens for all the units, then
+  *   NumberElectricalGenerators == NumberUnits. If, instead, some UnitBlock
+  *   (like cascades of hydro generators or combined cycle plants) actually
+  *   has more than one electrical generator, then NumberElectricalGenerators
+  *   > NumberUnits (each UnitBlock must have at least one). It is then useful
+  *   (cf. "GeneratorNode") to be able to assign a unique index g = 0, 1, ...,
+  *   NumberElectricalGenerators - 1 to each of the electrical generators in
+  *   the UCBlock. When NumberElectricalGenerators == NumberUnits, the index
+  *   is the same as i = 0, 1, ..., NumberUnits - 1 (there is a one-to-one
+  *   correspondence between UnitBlock and electrical generators). When,
+  *   instead, NumberElectricalGenerators > NumberUnits, a mapping must be
+  *   defined. The mapping is the obvious one: UnitBlock has an ordering
+  *   i = 0, 1, ..., NumberUnits - 1 (cf. the groups "UnitBlock_0",
+  *   "UnitBlock_1", ... above), and the electrical generators into each
+  *   UnitBlock also have some natural ordering (corresponding to the columns
+  *   of the matrices of variables, cf. e.g., UnitBlock::get_commitment()).
+  *   Thus, in general, the mapping is:
+  *   electrical generator 0 = first generator of UnitBlock_0
+  *   electrical generator 1 = second generator of UnitBlock_0
+  *   ...
+  *   electrical generator k - 1 = k-th generator of UnitBlock_0
+  *                        k     = UnitBlock_0->get_number_generators()
+  *   electrical generator k     = first generator of UnitBlock_1
+  *   electrical generator k + 1 = second generator of UnitBlock_1
+  *   ...
+  *   which of course boils down to "g = i" when each UnitBlock has exactly one
+  *   electrical generator.
+  *
+  * - Optionally, the dimensions and variables necessary to deserialize a
+  *   NetworkData object that describes the transmission network; see
+  *   NetworkBlock::NetworkData::deserialize() for details. If that is not
+  *   provided (basically, "NumberNodes" is not provided, or it is == 1),
+  *   then the transmission network is taken to have only one node (a bus).
+  *   If the data of a NetworkData is specified, the NetworkData is passed
+  *   to each of the NetworkBlock (see below) of the UCBlock, if any. However,
+  *   if a NetworkBlock also has a NetworkData specified in its own group,
+  *   then the NetworkData inside the NetworkBlock overrules that inside the
+  *   UCBlock, which is ignored by that NetworkBlock.
+  *
+  * - The variable "ActivePowerDemand", of type netCDF::NcDouble and indexed
+  *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
+  *   is optional if:
+  *
+  *   = a NetworkBlock is defined for all necessary intervals so that they
+  *     collectively cover the entire "TimeHorizon" (see "NetworkBlock_i"
+  *     below), and
+  *
+  *   = each defined NetworkBlock has the "ActiveDemand" variable specified
+  *     in the corresponding group.
+  *
+  *   Otherwise, it is mandatory. When it is defined, the entry
+  *   ActivePowerDemand[ n , t ] is assumed to contain the active power demand
+  *   of node n of the transmission network at the given time instant t, where
+  *   the first dimension "NumberNodes" can be read via get_number_nodes().
+  *   When "ActivePowerDemand" is defined, and also the "ActiveDemand"
+  *   variable is defined in the group of some NetworkBlock, then
+  *   "ActiveDemand" overrules the value in the corresponding row of
+  *   "ActivePowerDemand", which is ignored.
+  *
+  * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
+  *   with T = NumberNetworks - 1 (or a subset of these, see below), each
+  *   containing the network constraints for some subset of time intervals in
+  *   the horizon. These can be handled in two different ways:
+  *
+  *   = If "NumberNodes" is == 1 (e.g., it is not provided), then the network
+  *     is a "bus", i.e., there are no constraints on how the data flows ("no
+  *     network") and all the units can contribute to satisfy the energy
+  *     demand, which is then a unique value for each time instant t. In this
+  *     case one would assume that the (total) demand for each time instant is
+  *     provided by "ActivePowerDemand", and this would be enough. However,
+  *     there is an extra mechanism: if some "NetworkBlock_i" is still
+  *     provided (see below for details on how they are treated), then they
+  *     are read. This is done in order to get the corresponding matrix of
+  *     active demands (see NetworkBlock::get_active_demand()): if it is
+  *     present (which it may not), then the corresponding values are used as
+  *     active power demand for these intervals, superseeding the values found
+  *     in "ActivePowerDemand". It is therefore possible that then
+  *     "ActivePowerDemand" is not there at all, but this requires that
+  *     "NetworkBlock_i" are given that cover the whole time horizon (this
+  *     is otherwise not necessary, see below) so that active power demand
+  *     data is specified for each time instant; if this fails to happen,
+  *     exception is thrown.
+  *
+  *   = If, instead, "NumberNodes" > 1, then there are constraints (and,
+  *     possibly, variables) limiting how energy flows between producing
+  *     units and demand. Then, the sub-group "NetworkBlock_0",
+  *     "NetworkBlock_1", ..., "NetworkBlock_T" with T = NumberNetworks - 1
+  *     are attempted to be read. They are assumed to be arranged in
+  *     chronological order according to their index. Each NetworkBlock
+  *     specifies the number of consecutive time intervals it spans, see
+  *     NetworkBlock::get_number_intervals(). Thus, "NetworkBlock_0" covers
+  *     the intervals 0, ..., t - 1 with
+  *     t = "NetworkBlock_0"->get_number_intervals(), "NetworkBlock_1" covers
+  *     the intervals t, ..., t + w - 1 with
+  *     w = "NetworkBlock_1"->get_number_intervals(), and so on. The last
+  *     "NetworkBlock_T" has to cover the final intervals up to
+  *     "TimeHorizon"; otherwise, an exception is raised. However, it is
+  *     possible that some (or even, in principle, all) "NetworkBlock_i" is
+  *     not specified, which is useful when (as it often happens, since the
+  *     network may easily not change in the short time horizon typical of
+  *     the UC problem) some (or all) of them are "equal". If any
+  *     "NetworkBlock_i" is missing, a NetworkBlock is automatically built by
+  *     using the "global" NetworkData in UCBlock. The corresponding value of
+  *     NetworkBlock::get_number_intervals() is used to identify the subset of
+  *     time instants it covers (starting from the initial time t identified as
+  *     previously specified), and the "ActivePowerDemand" data for these
+  *     intervals t is used to set its demand. Hence, an exception is raised
+  *     if "ActivePowerDemand" or "NetworkData" are missing. In this way it
+  *     is possible, e.g., to just specify "ActivePowerDemand" and one
+  *     "NetworkData" and have UCBlock to automatically construct all the
+  *     necessary NetworkBlock (which are then identical copies of one another
+  *     save possibly for the active power demand). A typical case is that in
+  *     which "NumberNetworks" is equal to "TimeHorizon", i.e., each
+  *     "NetworkBlock_t" covers exactly one interval. In this case it is clear
+  *     which time instant each "NetworkBlock_t" covers (i.e., "t"), and
+  *     obviously it must be NetworkBlock::get_number_intervals() == 1 (the
+  *     default).
+  *
+  * - The variable "GeneratorNode", of type netCDF::NcUint and indexed over
+  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
+  *   tells to which node of the transmission network the specified electrical
+  *   generator g belongs. Note that this means that different electrical
+  *   generators in the same UnitBlock can belong to different nodes of the
+  *   transmission network. This is justified, e.g., by hydro cascade units
+  *   where different turbines can be rather far apart geographically, but
+  *   still linked by (long) stretches of rivers. If NumberElectricalGenerators
+  *   == NumberUnits (all UnitBlock have exactly one electrical generator),
+  *   then this variable is indexed over NumberUnits. If NumberNodes == 1
+  *   (say, it is not provided at all), then this variable need not be
+  *   defined, since it is not loaded.
+  *
+  * - The dimension "NumberPrimaryZones" tells how many "primary spinning
+  *   reserve zones" are there in the problem. The dimension is optional, if it
+  *   is not provided then it is taken to be 0, which means that no primary
+  *   reserve constraints are present in the problem.
+  *
+  * - The variable "PrimaryZones", of type netCDF::NcUint and indexed over
+  *   the dimension "NumberNodes". The entry PrimaryZones[ i ] tells to which
+  *   primary zone the node i belongs: if PrimaryZones[ i ] >=
+  *   NumberPrimaryZones, this means that node i does not belong to any primary
+  *   zone, and hence the corresponding electrical generators are not involved
+  *   in the primary reserve constraints. If NumberPrimaryZones == 0 (say, it
+  *   is not provided at all) then this variable need not be defined, since it
+  *   is not loaded. If NumberPrimaryZones == 1, and this variable is not
+  *   defined, then there is only one primary zone and all the nodes belong to
+  *   it.
+  *
+  * - The variable "PrimaryDemand", of type netCDF::NcDouble and indexed both
+  *   over the dimensions "NumberPrimaryZones" and "TimeHorizon": entry
+  *   PrimaryDemand[ i , t ] is assumed to contain the primary reserve
+  *   requirement specified on the primary reserve zone i in the time t. If
+  *   NumberPrimaryZones == 0 (say, it is not provided at all), then this
+  *   variable need not be defined, since it is not loaded.
+  *
+  * - The dimension "NumberSecondaryZones" tells how many "secondary spinning
+  *   reserve zones" are there in the problem. The dimension is optional, if it
+  *   is not provided then it is taken to be 0, which means that no secondary
+  *   reserve constraints are present in the problem.
+  *
+  * - The variable "SecondaryZones", of type netCDF::NcUint and indexed over
+  *   the dimension "NumberNodes"; the entry SecondaryZones[ i ] tells to which
+  *   secondary zone the node i belongs. If SecondaryZones[ i ] >=
+  *   NumberSecondaryZones, this means that node i does not belong to any
+  *   secondary zone, and hence the corresponding units are not involved in the
+  *   secondary reserve constraints. If NumberSecondaryZones == 0 (say, it is
+  *   not provided at all) then this variable need not be defined, since it is
+  *   not loaded. If NumberSecondaryZones == 1 and this variable is not
+  *   defined, then there is only one secondary zone and all the nodes belong
+  *   to it.
+  *
+  * - The variable "SecondaryDemand", of type netCDF::NcDouble and indexed
+  *   both over the dimensions "NumberSecondaryZones" and "TimeHorizon": entry
+  *   SecondaryDemand[ i , t ] is assumed to contain the secondary reserve
+  *   requirement specified on the secondary reserve zone i in the time t.
+  *   If NumberSecondaryZones == 0 (say, it is not provided at all), then
+  *   this variable need not be defined, since it is not loaded.
+  *
+  * - The dimension "NumberInertiaZones" tells how many "inertia constraints
+  *   zones" are there in the problem. The dimension is optional, if it is not
+  *   provided then it is taken to be 0, which means that no inertia
+  *   constraints are present in the problem.
+  *
+  * - The variable "InertiaZones", of type netCDF::NcUint and indexed over
+  *   the dimension "NumberNodes"; the entry InertiaZones[ n ] tells to which
+  *   inertia zone the node n belongs. If InertiaZones[ n ] >=
+  *   NumberInertiaZones, this means that node n does not belong to any
+  *   inertia zone, and hence the corresponding units are not involved in the
+  *   inertia reserve constraints. If NumberInertiaZones == 0 (say, it is not
+  *   provided at all) then this variable need not be defined, since it is not
+  *   loaded. If NumberInertiaZones == 1 and this variable is not defined,
+  *   then there is only one inertia zone and all the nodes belong to it.
+  *
+  * - The variable "InertiaDemand", of type netCDF::NcDouble and indexed both
+  *   over the dimensions "NumberInertiaZones" and "TimeHorizon": entry
+  *   InertiaDemand[ i , t ] is assumed to contain the inertia reserve
+  *   requirement specified on the inertia constraints zone i in the time t.
+  *   If NumberInertiaZones == 0 (say, it is not provided at all), then this
+  *   variable need not be defined, since it is not loaded.
+  *
+  * - The dimension "NumberPollutants" containing the number of pollutants in
+  *   the problem. The dimension is optional, if it is not provided then it is
+  *   taken to be 0, which means that no pollutant constraints are present in
+  *   the problem.
+  *
+  * - The variable "NumberPollutantZones" of type netCDF::NcUint and indexed
+  *   over the dimension "NumberPollutants": the entry
+  *   NumberPollutantZones[ p ] is assumed to contain the number of pollutant
+  *   zones associated with pollutant p. If NumberPollutants == 0 (say, it is
+  *   not provided) then this variable need not be defined, since it is not
+  *   loaded. The total number of pollutant zones is useful (cf.
+  *   PollutantBudget); it will be referred to as "TotalNumberPollutantZones",
+  *   and it is computed simply as TotalNumberPollutantZones =
+  *   NumberPollutantZones[ 0 ] + ... +
+  *   NumberPollutantZones[ NumberPollutants - 1 ].
+  *
+  * - The variable "PollutantZones", of type netCDF::NcUint and indexed over
+  *   the dimensions "NumberPollutants" and "NumberNodes": the entry
+  *   PollutantZones[ p , n ] tells to which pollutant zone associated with
+  *   pollutant p the node n belongs. If PollutantZones[ p , n ] >=
+  *   NumberPollutantZones[ p ], this means that node n does not belong to any
+  *   pollutant zone, and hence the corresponding units are not involved in the
+  *   pollutant budget constraints associated with pollutant p. If
+  *   NumberPollutants == 0 (say, it is not provided) then this variable need
+  *   not be defined, since it is not loaded.
+  *
+  * - The variable "PollutantBudget", of type netCDF::NcDouble and indexed
+  *   over the set { 0 , ... , TotalNumberPollutantZones - 1 }: the entry
+  *   PollutantBudget[ n ] for n == 0, ..., TotalNumberPollutantZones - 1 is
+  *   assumed to contain the pollutant budget (across all the time horizon)
+  *   for the pair (pollutant zone, pollutant) corresponding to n. In other
+  *   words, since the number of pollutant zones of each pollutant may differ,
+  *   it is useful (to avoid having to store PollutantBudget as an irregular
+  *   matrix) to be able to assign a unique index
+  *   n = 0, 1, ..., TotalNumberPollutantZones - 1
+  *   to each pollutant budget of each pollutant zone. A mapping must be
+  *   defined between each entry n and the pair (pollutant zone, pollutant).
+  *   The mapping is the obvious one: UCBlock has a set of pollutants
+  *   p = 0, 1, ..., NumberPollutants - 1, and each pollutant p may have
+  *   several pollutant zones (see comments of variable "NumberPollutantZones"
+  *   above). Thus, in general the mapping is:
+  *   n = 0 corresponds to zone 0 of pollutant 0
+  *   n = 1 corresponds to zone 1 of pollutant 0
+  *   ...
+  *   n = NumberPollutantZones[ 0 ] - 1 corresponds to zone
+  *       NumberPollutantZones[ 0 ] - 1 of pollutant 0
+  *   n = NumberPollutantZones[ 0 ] corresponds to zone 0 of pollutant 1
+  *   n = NumberPollutantZones[ 0 ] + 1 corresponds to zone 1 of pollutant 1
+  *   ...
+  *   . If NumberPollutants == 0 (say, it is not provided) then this variable
+  *   need not be defined, since it is not loaded.
+  *
+  * - The variable "PollutantRho", of type netCDF::NcDouble and indexed over
+  *   three dimensions which are "TimeHorizon" and "NumberPollutants" and
+  *   the set { 0, ..., NumberElectricalGenerators - 1 } (see comments above).
+  *   The first dimension can have size either 1 or "TimeHorizon". In the
+  *   former case the entry PollutantRho[ 0 , p , g ] is assumed to contain
+  *   the conversion factor of pollutant p due to the electrical generator g
+  *   which is equal for all time instants t. Otherwise, the first dimension
+  *   has full size "TimeHorizon" and the entry PollutantRho[ t , p , g ]
+  *   gives the conversion factor of pollutant p due to the electrical
+  *   generator g for time t. If NumberPollutants == 0 (it is not provided)
+  *   then this variable need not be defined, since it's not loaded.
+  *
+  * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
+  *   indexed over the dimension "NumberNetworks"; the entry
+  *   NetworkConstantTerms[ n ] tells the constant term, i.e., typically the
+  *   fixed costs, of the NetworkBlock n.
+  *
+  * - The variable "NetworkBlockClassname", of type netCDF::NcString specifies
+  *   the classname of the specific NetworkBlock to be instantiated, if no one
+  *   is explicitly given in input. For backward compatibility reasons w.r.t.
+  *   the netCDF input data files already given, the default value is
+  *   "DCNetworkBlock".
+  *
+  * - The variable "NetworkDataClassname", of type netCDF::NcString specifies
+  *   the classname of the specific NetworkData to be instantiated, if no one
+  *   is explicitly given in input. For backward compatibility reasons w.r.t.
+  *   the netCDF input data files already given, the default value is
+  *   "DCNetworkData". */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /// extends Block::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends UnitBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
 /*--------------------------------------------------------------------------*/
  /// generates the static constraint of the UCBlock
@@ -506,53 +520,83 @@ class UCBlock : public Block
   * \f$ g \in \mathcal{G} \f$ and the set \f$ \mathcal{G}_n \f$ will indicate
   * electrical generators connected to node \f$ n \in \mathcal{N} \f$.
   *
-  * In the UCBlock there is not defined any variable but the decision
-  * variables here are present by using method get_variable() from UnitBlock
-  * and NetworkBlock as follow:
+  * UCBlock does not have any Variable of its own, but it defines Constraint
+  * on theVariable from UnitBlock and NetworkBlock as follows:
   *
   * - \f$ p^{ac}_{t,g} \f$ : the active power variable for each time period
   *   \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_active_power()
-  *   method;
+  *   \f$ g \in \mathcal{G} \f$, obtained from
+  *   UnitBlock::get_active_power();
   *
-  * - \f$ S_{t,n} \f$ : the node injection variable for each time period
-  *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$ is
-  *   called from NetworkBlock by get_node_injection() method;
+  * - \f$ p^{rc}_{t,g} \f$ : the reactive power variable for each time period
+  *   \f$ t \in \mathcal{T} \f$ and each electrical generator
+  *   \f$ g \in \mathcal{G} \f$ obtained from UnitBlock by
+  *   get_reactive_power() method (may not be defined);
+  *
+  * - \f$ S_{t,n} \f$ : the active power node injection variable for each
+  *   time period \f$ t \in \mathcal{T} \f$ and each node
+  *   \f$ n \in \mathcal{N} \f$ obtained from
+  *   NetworkBlock::get_node_injection();
+  *
+  * - \f$ R_{t,n} \f$ : the reactive power node injection variable for each
+  *   time period \f$ t \in \mathcal{T} \f$ and each node
+  *   \f$ n \in \mathcal{N} \f$ obtained from
+  *   NetworkBlock::get_reactive_node_injection() (may not be defined);
   *
   * - \f$ p^{pr}_{t,g} \f$ : the primary spinning reserves variable for each
   *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
-  *   get_primary_spinning_reserve() method;
+  *   \f$ g \in \mathcal{G} \f$ obtained from
+  *   UnitBlock::get_primary_spinning_reserve() (may not be defined);
   *
   * - \f$ p^{sc}_{t,g} \f$ : the secondary spinning reserves variable for each
   *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by
-  *   get_secondary_spinning_reserve() method;
+  *   \f$ g \in \mathcal{G} \f$ obtained from
+  *   UnitBlock by::get_secondary_spinning_reserve() (may not be defined);
   *
   * - \f$ u_{t,g}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
   *   \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock by get_commitment()
-  *   method;
+  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock::get_commitment()
+  *   (may not be defined).
   *
   * The global constraints of unit commitment problem, on the time horizon
   * \f$ \mathcal{T} \f$ write as follow:
   *
-  * - Node injection Constraints:
+  * - Active power node injection Constraints:
   *   In the unit commitment problem, \f$ P^{au}_{t , g} \f$ denotes the fixed
   *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is
   *   the node injection variable for each time period \f$ t \in \mathcal{T}
   *   \f$ and each node \f$ n \in \mathcal{N} \f$. Therefore, if the
   *   NetworkBlock::get_number_nodes() > 0, a
-  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
-  *   get_time_horizon() and NetworkBlock::get_number_nodes() entries, where
-  *   the entry t = 0, ..., f_time_horizon - 1 and the entry n = 1, ...,
-  *   get_number_nodes() being the node injection constraints at time t and
-  *   node n as follows:
+  *   boost::multi_array< FRowConstraint , 2 > is defined with the two
+  *   dimensions being get_time_horizon() and
+  *   NetworkBlock::get_number_nodes(). The entry [ t , n ] with t = 0, ...,
+  *   f_time_horizon - 1 and n = 1, ...,  get_number_nodes() contains the
+  *   active power node injection constraint at time t and node n
   *   \f[
   *    \sum_{ g \in \mathcal{G}_n } ( p^{ac}_{t,g} +
   *                                   P^{au}_{t , g}(1 - u_{t,g}) ) = S_{t,n}
   *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
   *   \f]
+  *
+  * - Reactive power node injection Constraints:
+  *   These are only defined if NetworkBlock::get_number_nodes() > 0 and
+  *   NetworkBlock::handles_reactive() == true: thus, \f$ S_{t,n} \f$ is
+  *   the reactive power node injection variable for each time period
+  *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$.
+  *   A boost::multi_array< FRowConstraint , 2 > is defined with the two
+  *   dimensions being get_time_horizon() and
+  *   NetworkBlock::get_number_nodes(). The entry [ t , n ] with t = 0, ...,
+  *   f_time_horizon - 1 and n = 1, ...,  get_number_nodes() contains the
+  *   re active power node injection constraint at time t and node n
+  *   \f[
+  *    \sum_{ g \in \mathcal{G}_n } p^{rc}_{t,g} = R_{t,n}
+  *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
+  *   \f]
+  *   Note that
+  *
+  *       IT IS ASSUMED THAT EITHER ALL :NetworkBlock HANDLE REACTIVE
+  *       POWER OR NONE DOES, HENCE NetworkBlock::handles_reactive() IS
+  *       ONLY CALLED TO THE FIRST ONE OF THEM
   *
   * - Primary Demand Constraints:
   *   In the unit commitment problem, the primary demand
@@ -618,6 +662,10 @@ class UCBlock : public Block
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
 /*--------------------------------------------------------------------------*/
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- Methods for R3 Blocks --------------------------*/
@@ -1136,6 +1184,11 @@ class UCBlock : public Block
   get_node_injection_constraints( void ) {
   return( v_node_injection_Const );
   }
+ 
+ boost::multi_array< FRowConstraint , 2 > &
+  get_reactive_node_injection_constraints( void ) {
+  return( v_reactive_node_injection_Const );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the (const) node injection constraints
@@ -1268,6 +1321,9 @@ class UCBlock : public Block
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the ThermalUnitBlock
+ *  @{ */
+
  /** Method for handling Modification.
   *
   * This method has to intercept any "abstract Modification" that modifies the
@@ -1282,24 +1338,85 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// update the active power demand
+ /** Updates the active power demand for the entries specified by \p subset.
+  *
+  * The active power demand is conceptually stored as a matrix
+  * ActivePowerDemand[ n ][ t ], where n is the node index and t is the time
+  * instant. The iterator \p values must therefore provide the new demand
+  * values in the same order as the entries identified by \p subset, where
+  * each element of \p subset is interpreted as the flattened index
+  *
+  *    index = n * get_time_horizon() + t .
+  *
+  * Hence, for a generic element \c index in \p subset, the corresponding
+  * demand value read from \p values is assigned to
+  *
+  *    ActivePowerDemand[ index / get_time_horizon() ]
+  *                     [ index % get_time_horizon() ] .
+  *
+  * Therefore, the underlying flattened layout is node-major, i.e., all time
+  * instants of node 0 come first, then all time instants of node 1, and so
+  * on:
+  *
+  *    [ (0,0), (0,1), ... , (0,T-1), (1,0), ... , (N-1,T-1) ] .
+  *
+  * If \p ordered is true, \p subset is assumed to be already sorted in
+  * increasing order; otherwise it may be reordered internally before issuing
+  * the corresponding Modification. If NetworkBlock-s are present, the method
+  * forwards each updated entry to the corresponding NetworkBlock covering the
+  * associated time interval. */
 
  void set_active_power_demand( MF_dbl_it values , Subset && subset = { 0 } ,
-			       bool ordered = false ,
+                               bool ordered = false ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// update the active power demand
+ /** Updates the active power demand for the flattened range \p rng.
+  *
+  * The active power demand is conceptually stored as a matrix
+  * ActivePowerDemand[ n ][ t ], where n is the node index and t is the time
+  * instant. The iterator \p values must provide one value for each flattened
+  * entry in the half-open range [ rng.first , rng.second ), in increasing
+  * index order, with each flattened index interpreted as
+  *
+  *    index = n * get_time_horizon() + t .
+  *
+  * Hence, the k-th value read from \p values is assigned to the entry
+  * corresponding to the k-th flattened index in the range, namely
+  *
+  *    ActivePowerDemand[ index / get_time_horizon() ]
+  *                     [ index % get_time_horizon() ] .
+  *
+  * Therefore, the underlying flattened layout is node-major, i.e., all time
+  * instants of node 0 come first, then all time instants of node 1, and so
+  * on:
+  *
+  *    [ (0,0), (0,1), ... , (0,T-1), (1,0), ... , (N-1,T-1) ] .
+  *
+  * If NetworkBlock-s are present, each updated entry is forwarded to the
+  * corresponding NetworkBlock covering the associated time interval. */
 
  void set_active_power_demand( MF_dbl_it values , Range rng = Range( 0 , 1 ) ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using MAdouble = boost::multi_array< double , 2 >;
+ using MAdouble_ext = MAdouble::extent_gen;
+
+ using MAFRC = boost::multi_array< FRowConstraint , 2 >;
+ using MAFRC_ext = MAdouble::extent_gen;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
@@ -1333,7 +1450,7 @@ class UCBlock : public Block
  NetworkBlock::NetworkData * f_NetworkData;
 
  /// the specific classname of the networks that need to be instantiated,
- /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, ecc.
+ /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, etc.
  std::string network_block_classname;
  std::string network_data_classname;
 
@@ -1349,6 +1466,9 @@ class UCBlock : public Block
  /// the number of electrical generators of the problem
  Index f_number_elc_generators;
 
+ /// true if reactive power constraints have to be managed
+ bool f_has_reactive;
+ 
  /// the total number of pollutant zones of the problem
  Index f_total_number_pollutant_zones;
 
@@ -1363,7 +1483,6 @@ class UCBlock : public Block
 
  /// the number of pollutants
  Index f_number_pollutants;
-
 
  /// the constant terms of each NetworkBlock
  std::vector< double > v_network_constant_terms;
@@ -1418,12 +1537,13 @@ class UCBlock : public Block
 
 /*-------------------------------- variables -------------------------------*/
 
-
-
 /*------------------------------- constraints ------------------------------*/
 
  /// node injection constraints for each time and node
  boost::multi_array< FRowConstraint , 2 > v_node_injection_Const;
+
+ /// node injection constraints for each time and node
+ boost::multi_array< FRowConstraint , 2 > v_reactive_node_injection_Const;
 
  /// primary demand constraints for each time and primary zone
  boost::multi_array< FRowConstraint , 2 > v_PrimaryDemand_Const;
@@ -1437,9 +1557,7 @@ class UCBlock : public Block
  /// pollutant demand constraints for each pollutant and pollutant zone
  std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
 
-
- /// the objective function
- FRealObjective objective;
+ FRealObjective objective;  ///< the objective function
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1509,8 +1627,10 @@ class UCBlock : public Block
   *
   * Notice that these indices do not depend on the time instant. This is
   * because we assume that, if a generator has commitment variable, inertia
-  * commitment, inertia power, or active power variable, for some time instant,
-  * then it has the same thing for all time instants. */
+  * commitment, inertia power, or active power variable, for some time
+  * instant, then it has the same thing for all time instants. */
+
+/*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;
 
@@ -1533,6 +1653,8 @@ class UCBlock : public Block
  /// generate the node injection constraints
 
  void generate_node_injection_constraints( void );
+
+ void generate_reactive_node_injection_constraints( void );
 
 /*--------------------------------------------------------------------------*/
  /// generate the primary demand constraints
@@ -1563,8 +1685,8 @@ class UCBlock : public Block
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered. */
 
- void update_node_injection_constraints
-  ( const std::vector< Index > & modified_units );
+ void update_node_injection_constraints(
+			       const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the primary demand constraints
@@ -1575,32 +1697,32 @@ class UCBlock : public Block
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered. */
 
- void update_primary_demand_constraints
-  ( const std::vector< Index > & modified_units );
+ void update_primary_demand_constraints(
+			       const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the secondary demand constraints
- /** This function updates the secondary demand constraints considering that the
-  * scale factors of the given units may have been modified. The vector \p
-  * modified_units is assumed to be ordered.
+ /** This function updates the secondary demand constraints considering that
+  * the scale factors of the given units may have been modified. The vector
+  * \p modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered. */
 
- void update_secondary_demand_constraints
-  ( const std::vector< Index > & modified_units );
+ void update_secondary_demand_constraints(
+			       const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the inertia demand constraints
- /** This function updates the inertia demand constraints considering that the
-  * scale factors of the given units may have been modified. The vector \p
-  * modified_units is assumed to be ordered.
+ /** This function updates the inertia demand constraints considering that
+  * the scale factors of the given units may have been modified. The vector
+  * \p modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered. */
 
- void update_inertia_demand_constraints
-  ( const std::vector< Index > & modified_units );
+ void update_inertia_demand_constraints(
+			       const std::vector< Index > & modified_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand
@@ -1617,7 +1739,7 @@ class UCBlock : public Block
                                          double demand );
 
 /*--------------------------------------------------------------------------*/
- /// returns the primary zone to which the given electrical generator belongs
+ /// returns the primary zone to which the given generator belongs
 
  Index get_primary_zone( Index elc_generator ) const {
   if( f_number_primary_zones == 0 )
@@ -1629,10 +1751,10 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_primary_zones[ node ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the secondary zone to which the given electrical generator belongs
+ /// returns the secondary zone to which the given generator belongs
 
  Index get_secondary_zone( Index elc_generator ) const {
   if( f_number_secondary_zones == 0 )
@@ -1644,10 +1766,10 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_secondary_zones[ node ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the inertia zone to which the given electrical generator belongs
+ /// returns the inertia zone to which the given generator belongs
 
  Index get_inertia_zone( Index elc_generator ) const {
   if( f_number_inertia_zones == 0 )
@@ -1659,35 +1781,38 @@ class UCBlock : public Block
    node = v_generator_node[ elc_generator ];
 
   return( v_inertia_zones[ node ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
+ static void static_initialization( void )
+ {
   register_method< UCBlock , MF_dbl_it , Subset && , bool >(
-   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
+   "UCBlock::set_active_power_demand" , & UCBlock::set_active_power_demand );
 
   register_method< UCBlock , MF_dbl_it , Range >(
-   "UCBlock::set_active_power_demand" , &UCBlock::set_active_power_demand );
+   "UCBlock::set_active_power_demand" , & UCBlock::set_active_power_demand );
  }
 
-};  // end( class( UCBlock ) )
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( UCBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- CLASS UCBlockMod ----------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// derived class from Modification for modifications to a UCBlock
-class UCBlockMod : public Modification
-{
 
+ class UCBlockMod : public Modification
+{
  public:
 
  /// public enum for the types of UCBlockMod
  enum UCB_mod_type
  {
   eSetActD = 0    ///< set active power demand
- };
+  };
 
  /// constructor, takes the UCBlock and the type
  UCBlockMod( UCBlock * const fblock , const int type )
@@ -1710,24 +1835,23 @@ class UCBlockMod : public Modification
   switch( f_type ) {
    default:
     output << "Set active power demand";
+   }
   }
- }
 
  UCBlock * f_Block{};
  ///< pointer to the Block to which the Modification refers
 
  int f_type;  ///< type of modification
 
-};  // end( class( UCBlockMod ) )
+ };  // end( class( UCBlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS UCBlockRngdMod ---------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// derived from UCBlockMod for "ranged" modifications
+
 class UCBlockRngdMod : public UCBlockMod
 {
-
  public:
 
  /// constructor: takes the UCBlock, the type, and the range
@@ -1746,11 +1870,11 @@ class UCBlockRngdMod : public UCBlockMod
  void print( std::ostream & output ) const override {
   UCBlockMod::print( output );
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
- }
+  }
 
  Block::Range f_rng;  ///< the range
 
-};  // end( class( UCBlockRngdMod ) )
+ };  // end( class( UCBlockRngdMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS UCBlockSbstMod -------------------------*/
@@ -1778,7 +1902,7 @@ class UCBlockSbstMod : public UCBlockMod
  void print( std::ostream & output ) const override {
   UCBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
- }
+  }
 
  Block::Subset f_nms;  ///< the subset
 

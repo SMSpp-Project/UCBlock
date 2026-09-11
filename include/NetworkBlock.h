@@ -44,15 +44,11 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Block.h"
-
 #include "UnitBlock.h"
 
-#include "ColVariable.h"
+#include "FRowConstraint.h"
 
 #include "OneVarConstraint.h"
-
-#include "Solution.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -93,7 +89,6 @@ namespace SMSpp_di_unipi_it
 
 class NetworkBlock : public Block
 {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -126,14 +121,13 @@ class NetworkBlock : public Block
 
  class NetworkData
  {
-
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
   public:
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -204,7 +198,7 @@ class NetworkBlock : public Block
    return( ( it->second )() );
    }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -228,6 +222,51 @@ class NetworkBlock : public Block
   * add the information that they need. */
 
   virtual void deserialize( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+ /// mimic Block::expected_dims()
+ /** Like Block::expected_dims(), returns the names of the dimensions that
+  * can be expected in the netCDF::NcGroup from where the NetworkData is
+  * being deserialized(). It is virtual since NetworkData is expected to
+  * be extended via derived classes, and so this set of names will grow.
+  * However, note that these names are *not* checked in 
+  * NetworkData::deserialize() since the object is not "alone" in that
+  * group but together with a NetworkBlock (or a UCBlock), so the
+  * assumption is that it will be the deserialize() that will do the
+  * checking (this is why the method is public).
+  *
+  * The base class version returns the set of dimensions expected by the
+  * base class. */
+  
+ virtual std::vector< std::string > expected_dims( void ) const {
+  static const std::vector< std::string > ed( { "NumberNodes" } );
+  return( ed );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// mimic Block::expected_vars()
+ /** Like Block::expected_vars(), returns the names of the variables that
+  * can be expected in the netCDF::NcGroup from where the NetworkData is
+  * being deserialized(). It is virtual since NetworkData is expected to
+  * be extended via derived classes, and so this set of names will grow.
+  * However, note that these names are *not* checked in 
+  * NetworkData::deserialize() since the object is not "alone" in that
+  * group but together with a NetworkBlock (or a UCBlock), so the
+  * assumption is that it will be the deserialize() that will do the
+  * checking (this is why the method is public).
+  *
+  * The base class version returns the set of variables expected by the
+  * base class. */
+
+ virtual std::vector< std::string > expected_vars( void ) const {
+  static const std::vector< std::string > ev( { "NodeName" } );
+  return( ev );
+  }
+
+#endif
 
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
@@ -321,7 +360,7 @@ class NetworkBlock : public Block
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-  Index f_number_nodes{};  ///< number of nodes of the network
+  Index f_number_nodes;  ///< number of nodes of the network
 
   std::vector< std::string > v_node_names;  ///< node names
 
@@ -347,7 +386,7 @@ class NetworkBlock : public Block
 
   };  // end( class( NetworkData ) )
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -358,14 +397,17 @@ class NetworkBlock : public Block
   * Block. */
 
  explicit NetworkBlock( Block * father = nullptr ) :
-  Block( father ) , f_local_NetworkData( false ) , f_ConstTerm( 0 ) {}
+  Block( father ) , f_local_NetworkData( false ) , f_ConstTerm( 0 ) ,
+  f_time_instant( Inf< Index >() ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor of NetworkBlock
 
- virtual ~NetworkBlock() override = default;
+ virtual ~NetworkBlock() override {
+  Constraint::clear( node_injection_bounds_const );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -383,9 +425,51 @@ class NetworkBlock : public Block
   *   set_NetworkData(). Note that if set_NetworkData() is called, but
   *   the representation of a NetworkData object is found in the NcGroup,
   *   then the NetworkData passed by set_NetworkData() is ignored, and a new
-  *   NetworkData object is read from the NcGroup and used instead. */
+  *   NetworkData object is read from the NcGroup and used instead.
+  *
+  * - The scalar variable "ConstantTerm", of type netCDF::NcDouble,
+  *   representing the constant term in the objective value of this
+  *   NetowrkBlock. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+ /// extends Block::expected_dims()
+ /** extends Block::expected_dims() by concatenating the expected dimensions
+  * found there (if any) with those of the NetworkData (if any), since the
+  * base NetworkBlock class does not have any dimensions of its own. */
+
+ std::vector< std::string > expected_dims( void ) const override {
+  auto ret = Block::expected_dims();
+  if( auto nd = get_NetworkData() ) {
+   auto nded = nd->expected_dims();
+   ret.insert( ret.end() , nded.begin() , nded.end() );
+   }
+
+  return( ret );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Block::expected_vars()
+ /** extends Block::expected_vars() by concatenating the expected variables
+  * found there (if any) with those of the NetworkData (if any), and those
+  * of the base NetworkBlock class. */
+
+ std::vector< std::string > expected_vars( void ) const override {
+  auto ret = Block::expected_vars();
+  ret.push_back( "ConstantTerm" );
+  if( auto nd = get_NetworkData() ) {
+   auto nded = nd->expected_vars();
+   ret.insert( ret.end() , nded.begin() , nded.end() );
+   }
+
+  return( ret );
+  }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
@@ -467,7 +551,16 @@ class NetworkBlock : public Block
   * no data structures to hold the NetworkData pointer, so it is demanded
   * to derived classes. */
 
- virtual void set_NetworkData( NetworkData * nd = nullptr ) {}
+ virtual void set_NetworkData( NetworkData * nd = nullptr ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// tells the NetworkBlock to which time instant it refers to
+ /** Tells the NetworkBlock that it refers to the time instants from \p t to
+  * t + get_number_intervals() - 1. This may be irrelevant in most cases, as
+  * the NetworkBlock may not care of this, but it may still be useful to some
+  * derived classes and therefore it is done to be ready general. */
+ 
+ void set_time_instant( Index t ) { f_time_instant = t; }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the constant term
@@ -502,28 +595,73 @@ class NetworkBlock : public Block
                             const boost::multi_array< double , 2 > & v ) = 0;
 
 /*--------------------------------------------------------------------------*/
- /// method to set the MinNodeInjection
+ /// method to set the ReactiveDemand
+ /** Works as set_ActiveDemand() but for the reactive part of the power. Since
+  *  not all :NetworkBlock will handle reactive power, unlike
+  *  set_ActiveDemand() the method is not pure virtual but it is given a
+  *  default implementation throwing exceptiom. */
 
- virtual void set_min_node_injection( const double min_injection ,
-                                      Index node ,
-                                      Index interval = 0 ) {
+ virtual void set_ReactiveDemand( const boost::multi_array< double , 2 > & )
+ {
+  throw( std::logic_error( "set_ReactiveDemand called for a :NetworkBlock "
+			   "not handling reactive power" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MinNodeInjection
+ /** Externally provides the lower bound (maybe negative) \p min_injection
+  *  to the minimum value that the power injection at node \p node can
+  *  possibly have on interval \p interval.
+  *  This data depends on the generation and therefore cannot possibly be
+  *  autonomously found by the :NewtorkData, but it can stll be of use when
+  *  writing down the constraints as it bounds variables that otherwise may
+  *  be ubounded (which is especially bad in the design case). */
+
+ virtual void set_min_node_injection( double min_inj , Index node ,
+				      Index interval = 0 ) {
   if( v_MinNodeInjection.empty() )
    v_MinNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
-  v_MinNodeInjection[ interval ][ node ] = min_injection;
- }
+                              [ get_number_intervals() ][ get_number_nodes() ]
+			      );
+  v_MinNodeInjection[ interval ][ node ] = min_inj;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the MaxNodeInjection
+ /** Externally provides the upper bound (typically positive) \p max_injection
+  *  to the maximum value that the power injection at node \p node can
+  *  possibly have on interval \p interval.
+  *  This data depends on the generation and therefore cannot possibly be
+  *  autonomously found by the :NewtorkData, but it can stll be of use when
+  *  writing down the constraints as it bounds variables that otherwise may
+  *  be ubounded (which is especially bad in the design case). */
 
- virtual void set_max_node_injection( const double max_injection ,
-                                      Index node ,
-                                      Index interval = 0 ) {
+ virtual void set_max_node_injection( double max_inj , Index node ,
+				      Index interval = 0 ) {
   if( v_MaxNodeInjection.empty() )
    v_MaxNodeInjection.resize( boost::multi_array< double , 2 >::extent_gen()
-                              [ get_number_intervals() ][ get_number_nodes() ] );
-  v_MaxNodeInjection[ interval ][ node ] = max_injection;
- }
+                              [ get_number_intervals() ][ get_number_nodes() ]
+			      );
+  v_MaxNodeInjection[ interval ][ node ] = max_inj;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MinReactiveNodeInjection
+ /** Works as set_min_node_injection( but for the reactive part of the power.
+  *  Since not all :NetworkBlock will handle reactive power, the method is 
+  *  given an empty default implementation. */
+
+ virtual void set_min_reactive_node_injection( double min_inj , Index node ,
+					       Index t ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// method to set the MaxReactiveNodeInjection
+ /** Works as set_max_node_injection( but for the reactive part of the power.
+  *  Since not all :NetworkBlock will handle reactive power, the method is 
+  *  given an empty default implementation. */
+
+ virtual void set_max_reactive_node_injection( double max_inj , Index node ,
+					       Index t ) {}
 
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE NetworkBlock -------------*/
@@ -553,48 +691,65 @@ class NetworkBlock : public Block
  virtual NetworkData * get_NetworkData( void ) const { return( nullptr ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns whether or not the :NetworkBlock handles reactive power
+ /** Method for returning true if the :NetworkBlock handles reactive power.
+  * The base class implementation returns false. */
+
+ virtual bool handles_reactive( void ) const { return( false ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns the matrix of active demands
  /** Method for returning the active demand for the given interval, which is
   * assumed to have size get_number_intervals() by get_number_nodes().
   * There are two possible cases:
   *
   * - if the matrix only has one row (i.e., the first dimension has size 1),
-  *   then the active demand for each user u is D[ 0 , u ] for all intervals
-  *   t, which means that the second dimension has size get_number_nodes().
-  *   This will be the default case;
+  *   then the active demand for each node n is D[ 0 , n ] for all intervals
+  *   t, which means that the second dimension has size get_number_nodes();
   *
   * - otherwise, the matrix has size get_number_intervals() per
-  *   get_number_nodes(), then the D[ i , u ] represents the active demand
-  *   for the problem at time t for each user u, e.g., ECNetwork case;
+  *   get_number_nodes(), then the D[ i , n ] represents the active demand
+  *   for the problem at interval i for each node n.
   *
   * @param interval The interval wrt the vector of demands for each user is
-  *                 returned. */
+  *                 returned.
+  *
+  * Since the base class does not handle this data, the method is given a
+  * default implementation returning nullptr. */
 
  virtual const double * get_active_demand( Index interval = 0 ) const {
   return( nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum production of the electrical generators
- /** Returns the minimum production for the given interval, which is assumed
-  * to have size get_number_nodes().
+ /// returns the matrix of reactive demands
+ /** Like get_active_demand() for the reactive part of the demand. */
+
+ virtual const double * get_reactive_demand( Index interval = 0 ) const {
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum node injection of the electrical generators
+ /** Returns the minimum node injection for the given interval, which is
+  * assumed to have size get_number_nodes().
   *
-  * @param interval The interval wrt the vector of minimum productions for
-  *                 each user is returned. */
+  * @param interval The interval wrt the vector of minimum node injection is
+  *                 returned. */
 
  const double * get_min_node_injection( Index interval = 0 ) const {
   if( v_MinNodeInjection.empty() )
    return( nullptr );
   return( &( v_MinNodeInjection.data()[ interval * get_number_nodes() ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum production of the electrical generators
- /** Returns the maximum production for the given interval, which is assumed
-  * to have size get_number_nodes().
+ /// returns the maximum node injection of the electrical generators
+ /** Returns the maximum node injection for the given interval, which is
+  * assumed to have size get_number_nodes().
   *
-  * @param interval The interval wrt the vector of maximum productions for
-                    each user is returned. */
+  * @param interval The interval wrt the vector of maximum node injection is
+  *                 returned. */
 
  const double * get_max_node_injection( Index interval = 0 ) const {
   if( v_MaxNodeInjection.empty() )
@@ -605,7 +760,7 @@ class NetworkBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the constant term
 
- const double & get_const_term( void ) const { return( f_ConstTerm ); }
+ const double get_const_term( void ) const { return( f_ConstTerm ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE Variable OF THE NetworkBlock ---------*/
@@ -613,9 +768,9 @@ class NetworkBlock : public Block
 /** @name Reading the Variable of the NetworkBlock
  * @{ */
 
- /// returns the matrix of node injection variables
- /** Method for returning the node injection variables for the given interval,
-  * which is assumed to have size get_number_intervals() by
+ /// returns the node injection active power variables
+ /** Method for returning the node active power injection variables for the
+  * given interval, which is assumed to have size get_number_intervals() by
   * get_number_nodes(). There are two possible cases:
   *
   * - if the matrix only has one row (i.e., the first dimension has size 1),
@@ -637,6 +792,16 @@ class NetworkBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the node injection reactive power variables
+ /** Works as get_node_injection() but for the reactive part of the power.
+  *  Since not all :NetworkBlock will handle reactive power, the method is 
+  *  given a default implementation returning nullptr. */
+
+ virtual ColVariable * get_reactive_node_injection( Index interval = 0 ) {
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the read-only matrix of node injection variables
  /** Like get_node_injection(), but returns a const pointer so that the
   * method itself can be const. */
@@ -646,6 +811,19 @@ class NetworkBlock : public Block
   if( v_node_injection.empty() )
    return( nullptr );
   return( &( v_node_injection.data()[ interval * get_number_nodes() ] ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the read-only node injection reactive power variables
+ /** Like get_reactive_node_node_injection(), but returns a const pointer so
+  * that the method itself can be const. Since not all :NetworkBlock will
+  * handle reactive power, the method is  given a default implementation
+  * returning nullptr. */
+
+ virtual const ColVariable * get_const_reactive_node_injection(
+						      Index interval = 0 )
+  const {
+  return( nullptr );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -705,6 +883,8 @@ class NetworkBlock : public Block
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for changing the data of the NetworkBlock
+ *  @{ */
 
  /// set the active demand at the nodes specified by \p subset
  /** This function sets the active demand at each node in the given \p
@@ -749,14 +929,41 @@ class NetworkBlock : public Block
                                  ModParam issuePMod ,
                                  ModParam issueAMod ) = 0;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- PROTECTED PART OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using MAdouble = boost::multi_array< double , 2 >;
+ using MAdouble_ext = MAdouble::extent_gen;
+ 
+ using MACV = boost::multi_array< ColVariable , 2 >;
+ using MACV_ext = MAdouble::extent_gen;
+
+ using MABC = boost::multi_array< BoxConstraint , 2 >;
+ using MABC_ext = MAdouble::extent_gen;
+
+ using MAFRC = boost::multi_array< FRowConstraint , 2 >;
+ using MAFRC_ext = MAdouble::extent_gen;
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// returns the "right" NetworkData for this NetworkBlock
+ /** Derived classew will have to extend NetworkData to add their own data;
+  * this method can be called at any level of the hierarchy to generate the
+  * "right" (bottom-most) NetworkData for the object. */
+ 
+ virtual NetworkData * get_new_NetworkData( void ) const {
+  return( new NetworkData() );
+  }
+
 /*--------------------------------------------------------------------------*/
 
  /// states that the Variable of the NetworkBlock have been generated
@@ -781,6 +988,9 @@ class NetworkBlock : public Block
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// the starting time instant of the covered interval
+ Index f_time_instant;
+ 
 /*---------------------------------- data ----------------------------------*/
 
  /// true if the NetworkData object has not been passed from outside
@@ -790,20 +1000,20 @@ class NetworkBlock : public Block
  double f_ConstTerm;
 
  /// minimum production of the electrical generators
- boost::multi_array< double , 2 > v_MinNodeInjection;
+ MAdouble v_MinNodeInjection;
 
  /// maximum production of the electrical generators
- boost::multi_array< double , 2 > v_MaxNodeInjection;
+ MAdouble v_MaxNodeInjection;
 
 /*-------------------------------- variables -------------------------------*/
 
  /// power injection for each interval at each node
- boost::multi_array< ColVariable , 2 > v_node_injection;
+ MACV v_node_injection;
 
 /*------------------------------- constraints ------------------------------*/
 
  /// the node injection bound constraints
- boost::multi_array< BoxConstraint , 2 > node_injection_bounds_const;
+ MABC node_injection_bounds_const;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -1178,6 +1388,11 @@ class NetworkBlockSolution : public Solution
 
  protected:
 
+/*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
+
+ using MAdouble = boost::multi_array< double , 2 >;
+ using MAdouble_ext = MAdouble::extent_gen;
+ 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  void print( std::ostream &output ) const override {

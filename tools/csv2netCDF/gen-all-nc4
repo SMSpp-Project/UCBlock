@@ -1,37 +1,114 @@
 #!/usr/bin/env bash
 
+# Default: include the thermal generator (output gets the `_TUB` suffix).
+# `--no-thermal` opts out, mirroring the EC.jl@stochastic flag of the same
+# name. `--no-asset` strips every installable asset and produces the
+# TSSB_EC_NA_*.nc4 family.
+
 # deterministic
 
-#for f in energy_community_model_CO \
-#         energy_community_model_NA \
-#         energy_community_model_NC; do
-#
-#  julia csv2nc4.jl ${f}
-#  julia csv2nc4.jl ${f} --with-network-blocks
-#
-#  if [ "$f" != "energy_community_model_NA" ]; then
-#
-#    julia csv2nc4.jl ${f} --with-thermal-blocks
-#    julia csv2nc4.jl ${f} --with-thermal-blocks --with-network-blocks
-#
-#  fi
-#
-#done
+for f in energy_community_model_CO \
+         energy_community_model_NC; do
 
-# stochastic
+  julia csv2nc4.jl ${f}                                       # _TUB
+  julia csv2nc4.jl ${f} --with-network-blocks                 # _TUB_NB
 
-for f in energy_community_model_CO_sto \
-         energy_community_model_NA_sto \
-         energy_community_model_NC_sto; do
-
-  julia csv2nc4.jl ${f}
-  julia csv2nc4.jl ${f} --with-network-blocks
-
-  if [ "$f" != "energy_community_model_NA_sto" ]; then
-
-    julia csv2nc4.jl ${f} --with-thermal-blocks
-    julia csv2nc4.jl ${f} --with-thermal-blocks --with-network-blocks
-
-  fi
+  julia csv2nc4.jl ${f} --no-thermal                          # (no _TUB)
+  julia csv2nc4.jl ${f} --no-thermal --with-network-blocks    # _NB
 
 done
+
+# NA: derived from CO with every installable asset disabled.
+julia csv2nc4.jl energy_community_model_CO --no-asset
+julia csv2nc4.jl energy_community_model_CO --no-asset --with-network-blocks
+
+# two-stage stochastic (TwoStageStochasticBlock, TSSB_EC_*.nc4)
+
+for f in energy_community_model_CO_two_stage \
+         energy_community_model_NC_two_stage; do
+
+  julia csv2nc4.jl ${f}                                       # _TUB
+  julia csv2nc4.jl ${f} --with-network-blocks                 # _TUB_NB
+
+  julia csv2nc4.jl ${f} --no-thermal                          # (no _TUB)
+  julia csv2nc4.jl ${f} --no-thermal --with-network-blocks    # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_two_stage --no-asset
+julia csv2nc4.jl energy_community_model_CO_two_stage --no-asset --with-network-blocks
+
+# two-stage multi-stage (MultiStageStochasticBlock wrapping one inner
+# TwoStageStochasticBlock per long-period scenario, MSSB_EC_*_2S.nc4): the
+# two-stage YAMLs have a single short-period scenario, so the extensive form
+# coincides with the flattened TwoStageStochasticBlock above.
+
+for f in energy_community_model_CO_two_stage \
+         energy_community_model_NC_two_stage; do
+
+  julia csv2nc4.jl ${f} --multistage                          # _TUB
+  julia csv2nc4.jl ${f} --multistage --with-network-blocks    # _TUB_NB
+
+  julia csv2nc4.jl ${f} --multistage --no-thermal                       # (no _TUB)
+  julia csv2nc4.jl ${f} --multistage --no-thermal --with-network-blocks  # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_two_stage --multistage --no-asset
+julia csv2nc4.jl energy_community_model_CO_two_stage --multistage --no-asset --with-network-blocks
+
+# three-stage multi-stage (MultiStageStochasticBlock, MSSB_EC_*_3S.nc4): the
+# three-stage YAMLs have several short-period scenarios per long-period one, so
+# the day-ahead declared-dispatch bid is shared within each long-period
+# scenario while the dispatch and imbalance vary per short-period one.
+
+for f in energy_community_model_CO_three_stage \
+         energy_community_model_NC_three_stage; do
+
+  julia csv2nc4.jl ${f} --multistage                          # _TUB
+  julia csv2nc4.jl ${f} --multistage --with-network-blocks    # _TUB_NB
+
+  julia csv2nc4.jl ${f} --multistage --no-thermal                       # (no _TUB)
+  julia csv2nc4.jl ${f} --multistage --no-thermal --with-network-blocks  # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --no-asset
+julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --no-asset --with-network-blocks
+
+# shared-tree multi-stage (same MultiStageStochasticBlock extensive form as the
+# two MSSB sections above, but with the scenario data held in a single shared
+# MultiStageDiscreteScenarioSet consumed by the inner TwoStageStochasticBlock
+# through views, instead of one baked DiscreteScenarioSet per inner Block;
+# MSSB_EC_*_{2,3}S_tree.nc4). They solve to the same objective as the baked
+# MSSB_EC_*_{2,3}S instances. `--shared-tree` requires `--multistage`.
+
+# two-stage, shared tree (MSSB_EC_*_2S_tree.nc4)
+for f in energy_community_model_CO_two_stage \
+         energy_community_model_NC_two_stage; do
+
+  julia csv2nc4.jl ${f} --multistage --shared-tree                        # _TUB
+  julia csv2nc4.jl ${f} --multistage --shared-tree --with-network-blocks  # _TUB_NB
+
+  julia csv2nc4.jl ${f} --multistage --shared-tree --no-thermal                       # (no _TUB)
+  julia csv2nc4.jl ${f} --multistage --shared-tree --no-thermal --with-network-blocks  # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_two_stage --multistage --shared-tree --no-asset
+julia csv2nc4.jl energy_community_model_CO_two_stage --multistage --shared-tree --no-asset --with-network-blocks
+
+# three-stage, shared tree (MSSB_EC_*_3S_tree.nc4)
+for f in energy_community_model_CO_three_stage \
+         energy_community_model_NC_three_stage; do
+
+  julia csv2nc4.jl ${f} --multistage --shared-tree                        # _TUB
+  julia csv2nc4.jl ${f} --multistage --shared-tree --with-network-blocks  # _TUB_NB
+
+  julia csv2nc4.jl ${f} --multistage --shared-tree --no-thermal                       # (no _TUB)
+  julia csv2nc4.jl ${f} --multistage --shared-tree --no-thermal --with-network-blocks  # _NB
+
+done
+
+julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --shared-tree --no-asset
+julia csv2nc4.jl energy_community_model_CO_three_stage --multistage --shared-tree --no-asset --with-network-blocks

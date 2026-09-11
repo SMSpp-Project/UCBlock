@@ -2,13 +2,15 @@ default:
   image: registry.gitlab.com/smspp/smspp-project
 
 cache:
-  key: ${CI_COMMIT_REF_SLUG}
+  key: ${CI_PROJECT_PATH_SLUG}-${CI_COMMIT_REF_SLUG}
   paths:
     - smspp-project
 
 stages:
   - build
   - test
+  - test-validation
+  - test-heur
   - deploy
 
 build:
@@ -17,8 +19,11 @@ build:
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$SMSPP_DEPLOY_KEY")
     - mkdir -p ~/.ssh && ssh-keyscan -H gitlab.com >> ~/.ssh/known_hosts
-    - if [ -d smspp-project ]; then (cd smspp-project && git pull); else git clone --branch develop git@gitlab.com:smspp/smspp-project.git; fi
-    - cmake -S smspp-project -B smspp-project/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_UCBlock=ON -DBUILD_LagrangianDualSolver=ON -DBUILD_BundleSolver=ON -DBUILD_MILPSolver=ON -DBUILD_tests=ON
+    # the pull does not recurse into the submodules: CMake initializes
+    # the ones the enabled modules need, and a revision the pull walks
+    # through may pin a submodule commit no longer on its remote
+    - if [ -d smspp-project ]; then (cd smspp-project && git pull --no-recurse-submodules && git submodule update --recursive); else git clone --branch develop git@gitlab.com:smspp/smspp-project.git; fi
+    - cmake -S smspp-project -B smspp-project/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBUILD_UCBlock=ON -DBUILD_LagrangianDualSolver=ON -DBUILD_BundleSolver=ON -DBUILD_MILPSolver=ON -DBUILD_tests=ON
     - cmake --build smspp-project/build --target install
   artifacts:
     paths:
@@ -34,12 +39,35 @@ build:
       - test/*
       - tools/*
       - CMakeLists.txt
+      - .gitlab-ci.yml
 
-test:
-  stage: test
+# the full ucblock suite exceeds the 3h GitLab.com shared-runner job cap when
+# run as one job (the PrimalProximalHeur cross-check alone is ~1.5h), so it is
+# split into three SEQUENTIAL stages, each comfortably under 3h. The heuristic
+# is what costs the most: in CI it only runs within the academic and energy
+# community batches of the UCBlock suite, which therefore make up the last
+# stage. Next come the two long TUDPS runs, the reserve sweep and the
+# validation of the paper's claim, which re-runs four batches end to end and
+# is therefore as long as they are together. Everything else (the other
+# batches of both suites and every other suite carrying the same label) makes
+# up the first. Sequential, not parallel, to keep within the two concurrent
+# Gurobi sessions the academic WLS license grants.
+.test_template:
   timeout: 24h
-  script:
-    - ctest -V -C Release --test-dir smspp-project/build
+  # the academic Gurobi WLS license caps concurrent sessions: a test job may
+  # abort at startup with "GRBstartenv returned with status 10030" when other
+  # Gurobi-heavy pipelines hold the sessions. Retry to ride out the contention.
+  retry:
+    max: 2
+    when: script_failure
+  before_script:
+    # write the Gurobi WLS license from the masked CI/CD variables, if set
+    - |
+      if [ -n "$GRB_WLSSECRET" ]; then
+        printf 'LICENSEID=%s\nWLSACCESSID=%s\nWLSSECRET=%s\n' \
+          "$GRB_LICENSEID" "$GRB_WLSACCESSID" "$GRB_WLSSECRET" > /tmp/gurobi.lic
+        export GRB_LICENSE_FILE=/tmp/gurobi.lic
+      fi
   only:
     refs:
       - develop
@@ -51,6 +79,25 @@ test:
       - test/*
       - tools/*
       - CMakeLists.txt
+      - .gitlab-ci.yml
+
+test:
+  extends: .test_template
+  stage: test
+  script:
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -E "UCBlock_test/batches/batch-(acad|ec)|TUDPS_test/batches/(batch-reserve|run-validation)" --test-dir smspp-project/build --no-tests=error
+
+test-validation:
+  extends: .test_template
+  stage: test-validation
+  script:
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -R "TUDPS_test/batches/(batch-reserve|run-validation)" --test-dir smspp-project/build --no-tests=error
+
+test-heur:
+  extends: .test_template
+  stage: test-heur
+  script:
+    - ctest -V -C Release -L "$CI_PROJECT_TITLE" -R "UCBlock_test/batches/batch-(acad|ec)" --test-dir smspp-project/build --no-tests=error
 
 deploy:
   stage: deploy

@@ -1,0 +1,12 @@
+[deps]
+# Dependencies of the converter json2nc4.jl (the part this Project/Manifest
+# pins for reproducible JSON -> netCDF conversion).
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
+
+# The generator (DatasetGenerator_UCOTS.jl / gen_singlebus_batch.jl) needs, in
+# addition, JuMP + a MILP solver. They are intentionally NOT pinned here so
+# that the lightweight converter environment instantiates without a solver
+# (and without a Gurobi license). To run the generator, add them to your
+# environment, e.g.:
+#   julia -e 'using Pkg; Pkg.add(["JuMP","Gurobi","HiGHS"])'

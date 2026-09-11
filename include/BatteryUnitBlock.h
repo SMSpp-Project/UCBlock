@@ -182,13 +182,15 @@ class BatteryUnitBlock : public UnitBlock
   * crucial dimensions "TimeHorizon", "NumberIntervals" and
   * "ChangeIntervals". The netCDF::NcGroup must then also contain:
   *
-  * - The scalar variable "BatteryInvestmentCost", of type netCDF::NcDouble and
-  *   not indexed over any dimension. When provided and nonzero, a battery design
-  *   variable \( x_b \) is created and contributes \( I_b x_b \) to the objective.
+  * - The scalar variable "BatteryInvestmentCost", of type netCDF::NcDouble
+  *   and not indexed over any dimension. When provided and nonzero, a
+  *   battery design variable \( x_b \) is created and contributes
+  *   \( I_b x_b \) to the objective.
   *
-  * - The scalar variable "ConverterInvestmentCost", of type netCDF::NcDouble and
-  *   not indexed over any dimension. When provided and nonzero, a converter design
-  *   variable \( x_c \) is created and contributes \( I_c x_c \) to the objective.
+  * - The scalar variable "ConverterInvestmentCost", of type netCDF::NcDouble
+  *   and not indexed over any dimension. When provided and nonzero, a 
+  *   converter design variable \( x_c \) is created and contributes
+  *   \( I_c x_c \) to the objective.
   *
   * - The scalar variable "BatteryMaxCapacityDesign", of type netCDF::NcDouble
   *   and not indexed over any dimension. This limits the design variable
@@ -199,42 +201,59 @@ class BatteryUnitBlock : public UnitBlock
   *     \f$ 0 \le x \le \mathrm{BatteryMaxCapacityDesign} \f$.
   *   If not provided, the default is 1.
   *
-  * - The scalar variable "BatteryMinCapacityDesign", of type netCDF::NcDouble and
-  *   not indexed over any dimension. This sets the lower bound of the battery
-  *   design variable \( x_b \) in design mode. If not provided, the default is 0.
-  *   Its meaning depends on "BatteryMaxCapacityDesign":
-  *   - if \( \mathrm{BatteryMaxCapacityDesign} < 0 \) (binary design), then
-  *     \( x_b \in \{0,1\} \) and \( \mathrm{BatteryMinCapacityDesign} > 0 \)
-  *     implies \( x_b = 1 \);
-  *   - otherwise (continuous design), \( x_b \) is nonnegative continuous with
-  *     \( \mathrm{BatteryMinCapacityDesign} \le x_b \le \mathrm{BatteryMaxCapacityDesign} \).
+  * - The scalar variable "BatteryMinCapacityDesign", of type
+  *   netCDF::NcDouble and not indexed over any dimension. This sets the
+  *   lower bound of the battery design variable \( x_b \) in design mode.
+  *   If not provided, the default is 0. Its meaning depends on
+  *   "BatteryMaxCapacityDesign":
   *
-  * - The scalar variable "ConverterMaxCapacityDesign", of type netCDF::NcDouble
-  *   and not indexed over any dimension. This limits the design variable
-  *   \f$ x_c \f$:
-  *   - if \f$ \mathrm{ConverterMaxCapacityDesign} < 0 \f$ then \f$ x_c \f$ is
-  *     binary;
+  *   - if \( \mathrm{BatteryMaxCapacityDesign} < 0 \) (binary design), then
+  *     \( x_b \in \{ 0 , 1 \} \) and
+  *     \( \mathrm{BatteryMinCapacityDesign} > 0 \) implies \( x_b = 1 \);
+  *
+  *   - otherwise (continuous design), \( x_b \) is nonnegative continuous
+  *     with
+  *     \$[
+  *       \mathrm{BatteryMinCapacityDesign} \le x_b \le
+  *       \mathrm{BatteryMaxCapacityDesign}
+  *     \$]
+  *
+  * - The scalar variable "ConverterMaxCapacityDesign", of type 
+  *   netCDF::NcDouble and not indexed over any dimension. This limits the
+  *   design variable \f$ x_c \f$:
+  *
+  *   - if \f$ \mathrm{ConverterMaxCapacityDesign} < 0 \f$ then \f$ x_c \f$
+  *     is binary;
+  *
   *   - otherwise \f$ x_c \f$ is a nonnegative continuous variable with
   *     \f$ 0 \le x \le \mathrm{ConverterMaxCapacityDesign} \f$.
+  *
   *   If not provided, the default is 1.
   *
-  * - The scalar variable "ConverterMinCapacityDesign", of type netCDF::NcDouble and
-  *   not indexed over any dimension. This sets the lower bound of the converter
-  *   design variable \( x_c \) in design mode. If not provided, the default is 0.
-  *   Its meaning depends on "ConverterMaxCapacityDesign":
-  *   - if \( \mathrm{ConverterMaxCapacityDesign} < 0 \) (binary design), then
-  *     \( x_c \in \{0,1\} \) and \( \mathrm{ConverterMinCapacityDesign} > 0 \)
-  *     implies \( x_c = 1 \);
-  *   - otherwise (continuous design), \( x_c \) is nonnegative continuous with
-  *     \( \mathrm{ConverterMinCapacityDesign} \le x_c \le \mathrm{ConverterMaxCapacityDesign} \).
+  * - The scalar variable "ConverterMinCapacityDesign", of type
+  *   netCDF::NcDouble and not indexed over any dimension. This sets the
+  *   lower bound of the converter design variable \( x_c \) in design mode.
+  *   If not provided, the default is 0. Its meaning depends on
+  *   "ConverterMaxCapacityDesign":
   *
-  * - The scalar variable "BatteryMaxCapacity", of type netCDF::NcDouble and not
-  *   indexed over any dimension. This is the maximum installable battery capacity
-  *   chosen by the user.
+  *   - if \( \mathrm{ConverterMaxCapacityDesign} < 0 \) (binary design),
+  *     then \( x_c \in \{ 0 , 1 \} \) and
+  *     \( \mathrm{ConverterMinCapacityDesign} > 0 \) implies \( x_c = 1 \);
   *
-  * - The scalar variable "ConverterMaxCapacity", of type netCDF::NcDouble and not
-  *   indexed over any dimension. This is the maximum installable converter capacity
-  *   chosen by the user.
+  *   - otherwise (continuous design), \( x_c \) is nonnegative continuous
+  *     with
+  *     \$[
+  *       \mathrm{ConverterMinCapacityDesign} \le x_c \le
+  *       \mathrm{ConverterMaxCapacityDesign}
+  *     \$]
+  *
+  * - The scalar variable "BatteryMaxCapacity", of type netCDF::NcDouble and
+  *   not indexed over any dimension. This is the maximum installable battery
+  *   capacity chosen by the user.
+  *
+  * - The scalar variable "ConverterMaxCapacity", of type netCDF::NcDouble
+  *   and not indexed over any dimension. This is the maximum installable
+  *   converter capacity chosen by the user.
   *
   * - The variable "MinStorage", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
@@ -340,11 +359,11 @@ class BatteryUnitBlock : public UnitBlock
   *   \f$ \mathrm{MaxPP}[ t ] \f$ contains the same value for all \f$ t \f$.
   *   Otherwise, \f$ \mathrm{MaxPrimaryPower}[ i ] \f$ is the fixed value of
   *   \f$ \mathrm{MaxPP}[ t ] \f$ for all \f$ t \f$ in the interval
-  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}[ i ] ]
-  *   \f$, with the assumption that \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$.
-  *   This variable is optional; if it is not provided then
-  *   \f$ \mathrm{MaxPP}[ t ] = 0 \f$ for all \f$ t \f$. If
-  *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *         \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that
+  *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. This variable is optional;
+  *   if it is not provided then \f$ \mathrm{MaxPP}[ t ] = 0 \f$ for all
+  *   \f$ t \f$. If \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
   *   mapping clearly does not require "ChangeIntervals", which in fact is not
   *   loaded.
@@ -382,11 +401,12 @@ class BatteryUnitBlock : public UnitBlock
   *   has length 1 then \f$ \mathrm{DP}[ t ] \f$ contains the same value for
   *   all \f$ t \f$. Otherwise, \f$ \mathrm{DeltaRampUp}[ i ] \f$ is the fixed
   *   value of \f$ \mathrm{DP}[ t ] \f$ for all \f$ t \f$ in the interval
-  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}[ i ] ]
-  *   \f$, with the assumption that \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$.
-  *   This variable is optional; if it is not provided then it is assumed that
-  *   \f$ \mathrm{DP}[ t ] = \mathrm{MaxP}[ t ] \f$, i.e., the unit can ramp up
-  *   by an arbitrary amount (no ramp-up constraints). If
+  *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *        \mathrm{ChangeIntervals}[ i ] ] \f$, with the assumption that 
+  *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. This variable is optional;
+  *   if it is not provided then it is assumed that
+  *   \f$ \mathrm{DP}[ t ] = \mathrm{MaxP}[ t ] \f$, i.e., the unit can ramp
+  *   up by an arbitrary amount (no ramp-up constraints). If
   *   \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
   *   mapping clearly does not require "ChangeIntervals", which in fact is not
@@ -430,7 +450,7 @@ class BatteryUnitBlock : public UnitBlock
   *   interval \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
   *   \mathrm{ChangeIntervals}[ i ] ] \f$ with the assumption that
   *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$. Note that it must always
-  *   be \f$ \mathrm{SBR}[ t ] \le 1 \f$ for all \f$ t \f$ (as \f$ \mathrm{SBR}
+  *   be \f$ \mathrm{SBR}[ t ] / \mathrm{EBR}[ t ] \le 1 \f$ for all \f$ t \f$ (as \f$ \mathrm{SBR}
   *   [ t ] \f$ is the amount of energy actually going in the battery for each
   *   1 unit of input energy). If \f$ \mathrm{NumberIntervals} \le 1 \f$ or
   *   \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then the
@@ -453,8 +473,8 @@ class BatteryUnitBlock : public UnitBlock
   *   \f$ \mathrm{EBR}[ t ] \f$ for all \f$ t \f$ in the interval
   *   \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] , \mathrm{ChangeIntervals}
   *   [ i ] ] \f$ with the assumption that \f$ \mathrm{ChangeIntervals}[ - 1 ]
-  *   = 0 \f$. Note that it must always be \f$ \mathrm{EBR}[ t ] \ge 1 \f$
-  *   [\f$ \ge \mathrm{SBR}[ t ] \f$] for all \f$ t \f$ (as \f$ \mathrm{EBR}
+  *   = 0 \f$. Note that it must always be \f$ \mathrm{SBR}[ t ] / \mathrm{EBR}[ t ] \le 1 \f$
+  *   for all \f$ t \f$ (as \f$ \mathrm{EBR}
   *   [ t ] \f$ is the amount of energy that is taken away from the battery to
   *   obtain 1 unit of output energy). If \f$ \mathrm{NumberIntervals} \le 1
   *   \f$ or \f$ \mathrm{NumberIntervals} \ge \mathrm{TimeHorizon} \f$, then
@@ -470,6 +490,23 @@ class BatteryUnitBlock : public UnitBlock
   * defined, since this also requires using two), and the binary variables
   * need not be defined. For details, see the comments to
   * generate_abstract_variables() and generate_abstract_constraints().
+  *
+  * - The variable "StandingBatteryRho", of type netCDF::NcDouble and either
+  *   of size 1 or indexed over the dimension "NumberIntervals" (if
+  *   "NumberIntervals" is not provided, then this variable can also be
+  *   indexed over "TimeHorizon"). This is meant to represent the vector
+  *   \f$ \mathrm{STBR}[ t ] \f$ that, for each time instant \f$ t \f$,
+  *   contains the inefficiency of holding the energy of the unit for the
+  *   corresponding time step. This variable is optional; if it is not
+  *   provided then \f$ \mathrm{STBR}[ t ] = 1. \f$ for all \f$ t \f$, i.e., no
+  *   energy is spent just for holding energy in the battery (this
+  *   simplifies the model somewhat, see below). If "StandingBatteryRho" has
+  *   length 1 then \f$ \mathrm{STBR}[ t ] \f$ contains the same value for all
+  *   \f$ t \f$. Otherwise, \f$ \mathrm{StandingBatteryRho}[ i ] \f$ is the
+  *   fixed value of \f$ \mathrm{STBR}[ t ] \f$ for all \f$ t \f$ in the
+  *   interval \f$ [ \mathrm{ChangeIntervals}[ i - 1 ] ,
+  *   \mathrm{ChangeIntervals}[ i ] ] \f$ with the assumption that
+  *   \f$ \mathrm{ChangeIntervals}[ - 1 ] = 0 \f$.
   *
   * - The scalar variable "InitialStorage", of type netCDF::NcDouble and not
   *   indexed over any dimension. This variable indicates the amount of
@@ -513,9 +550,44 @@ class BatteryUnitBlock : public UnitBlock
   *   contains the factor that multiplies the minimum and maximum active
   *   power, maximum primary and secondary reserve, and the minimum and
   *   maximum storage levels, at each time instant \f$ t \f$. This variable is
-  *   optional; if it is not provided it is taken to be \f$ \kappa = 1 \f$. */
+  *   optional; if it is not provided it is taken to be \f$ \kappa = 1 \f$.
+  *
+  * - The scalar variable "Scale", of type netCDF::NcDouble and not indexed
+  *   over any dimension. Sets the scale factor \f$ S \f$ of this UnitBlock
+  *   (see UnitBlock::scale() for the general semantics); optional, default
+  *   1. "Scale" = N models a fleet of N identical BatteryUnitBlock modules
+  *   sized per-module (i.e., "MaxPower", "MinStorage", "MaxStorage", the
+  *   two "InvestmentCost" variables and the converter side describe a
+  *   single module): the battery and converter design variables stay in
+  *   \f$ [ 0 , \mathrm{BatteryMaxCapacityDesign} ] \f$ and
+  *   \f$ [ 0 , \mathrm{ConverterMaxCapacityDesign} ] \f$ but every
+  *   per-generator power, storage bound and objective coefficient is
+  *   multiplied by \f$ S \f$, so the model is mathematically equivalent
+  *   (LP-wise) to a single block with per-fleet sizing and design bounds
+  *   \f$ N \times \mathrm{BatteryMaxCapacityDesign} \f$ and
+  *   \f$ N \times \mathrm{ConverterMaxCapacityDesign} \f$. Because of this
+  *   equivalence, "Scale" \f$ \neq 1 \f$ and
+  *   \f$ |\mathrm{BatteryMaxCapacityDesign}| > 1 \f$ (or
+  *   \f$ |\mathrm{ConverterMaxCapacityDesign}| > 1 \f$) are *mutually
+  *   exclusive*: the two mechanisms encode the same replication and
+  *   combining them double-counts the fleet size. check_data_consistency()
+  *   rejects configurations that activate both. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ // extends UnitBlock::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends UnitBlock::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the BatteryUnitBlock
@@ -532,19 +604,20 @@ class BatteryUnitBlock : public UnitBlock
   *   extracting amount of active power are not always equal, to deal with
   *   this the usual trick of splitting the active power variable in two new
   *   non-negative variables called intake and outtake levels for each time
-  *   \f$ t \f$ (see equation (5)) is used. If
-  *   "StoringBatteryRho" == "ExtractingBatteryRho" == 1, we do not need to
-  *   split the active power and constraints ((5)–(7) and (10)–(11)) are
-  *   replaced by (8).
+  *   \f$ t \f$ (see equation (5)) is used. When "StoringBatteryRho" and
+  *   "ExtractingBatteryRho" agree at all times, however, nothing tells the
+  *   two directions apart: the active power is not split and constraints
+  *   ((5)–(7) and (10)–(11)) are replaced by (8).
   *
   * - The storage level variables.
   *
   * - The intake and outtake level variables. They are needed to split the
-  *   active power variable (if needed).
+  *   active power variable, and are only generated when the split is, see
+  *   needs_intake_outtake().
   *
   * - The binary variables. When "StoringBatteryRho" == "ExtractingBatteryRho"
-  *   == 1, then this binary variable and all constraints that depend on it
-  *   are not required.
+  *   there is no round trip loss to exploit, hence this binary variable and
+  *   all constraints that depend on it are not required.
   *
   * Each of these groups of variables either has size #f_time_horizon or is
   * empty (if the variables have not been generated).
@@ -732,7 +805,7 @@ class BatteryUnitBlock : public UnitBlock
   *   f_time_horizon:
   *
   *   \f[
-  *     v^{ba}_t = v^{ba}_{t-1} + ρ^+_t · p^+_t − ρ^-_t · p^-_t − d^{ba}_t
+  *     v^{ba}_t = v^{ba}_{t-1} ρ^{st}_t + ρ^+_t · p^+_t − ρ^-_t · p^-_t − d^{ba}_t
   *                                         \quad t \in \mathcal{T} \quad (7)
   *   \f]
   *
@@ -904,6 +977,7 @@ class BatteryUnitBlock : public UnitBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
+
 /** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE BatteryUnitBlock -----------*/
 /*--------------------------------------------------------------------------*/
@@ -928,21 +1002,21 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the battery investment cost
  double get_batt_investment_cost( void ) const {
   return( f_BattInvestmentCost );
- }
+  }
 
  /// returns the converter investment cost
  double get_conv_investment_cost( void ) const {
   return( f_ConvInvestmentCost );
- }
+  }
 
  /// returns the maximum battery installable capacity by the user
  double get_batt_max_capacity_design( void ) const {
-  return ( f_BattMaxCapacityDesign );
+  return( f_BattMaxCapacityDesign );
   }
 
  /// returns the maximum converter installable capacity by the user
  double get_conv_max_capacity_design( void ) const {
-  return ( f_ConvMaxCapacityDesign );
+  return( f_ConvMaxCapacityDesign );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -962,7 +1036,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_min_storage( void ) const {
   return( v_MinStorage );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum storage
@@ -979,7 +1053,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_storage( void ) const {
   return( v_MaxStorage );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the minimum power at a given time
@@ -998,7 +1072,7 @@ class BatteryUnitBlock : public UnitBlock
 
  double get_min_power( Index t , Index generator = 0 ) const override {
   return( v_MinPower[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power at a given time
@@ -1017,7 +1091,7 @@ class BatteryUnitBlock : public UnitBlock
 
  double get_max_power( Index t , Index generator = 0 ) const override {
   return( v_MaxPower[ t ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum converter power at a given time
@@ -1031,12 +1105,28 @@ class BatteryUnitBlock : public UnitBlock
   *   maximum converter power for all time instants;
   *
   * - otherwise, the internal vector has size get_time_horizon() and
-  *   the entry at position t represents the maximum converter power at time t.
-  */
+  *   the entry at position t represents the maximum converter power at
+  *   time t. */
 
- const std::vector< double > & get_converter_max_power( ) const {
+ const std::vector< double > & get_converter_max_power( void ) const {
   return( v_ConvMaxPower );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the minimum reactive power of the \p generator at time \p t
+
+ double get_min_reactive_power( Index t , Index generator = 0 )
+  const override {
+  return( ( v_MinReactivePower.size() > t ) ? v_MinReactivePower[ t ] : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the maximum reactive power of the \p generator at time \p t
+
+ double get_max_reactive_power( Index t , Index generator = 0 )
+  const override {
+  return( ( v_MaxReactivePower.size() > t ) ? v_MaxReactivePower[ t ] : 0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum primary reserve power
@@ -1054,7 +1144,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_primary_power( void ) const {
   return( v_MaxPrimaryPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of maximum secondary reserve power
@@ -1072,7 +1162,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_max_secondary_power( void ) const {
   return( v_MaxSecondaryPower );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp up
@@ -1089,7 +1179,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp down
@@ -1106,7 +1196,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inefficiency of storing energy
@@ -1124,7 +1214,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_storing_battery_rho( void ) const {
   return( v_StoringBatteryRho );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inefficiency of extracting energy of the unit
@@ -1143,7 +1233,25 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_extracting_battery_rho( void ) const {
   return( v_ExtractingBatteryRho );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of inefficiency of holding energy of the unit
+ /** This method returns a vector V containing the standing battery rho
+  * (inefficiency of standing/holding energy of the unit) at all time instants.
+  * There are three possible cases:
+  *
+  * - if the vector is empty, then the standing battery rho of the unit is 1;
+  *
+  * - if the vector has only one element, then V[ 0 ] is the standing battery
+  *   rho of the unit for all time instants;
+  *
+  * - otherwise, the vector V must have size get_time_horizon() and each
+  *   V[ t ] represents the standing battery rho value at time t. */
+
+  const std::vector< double > & get_standing_battery_rho( void ) const {
+   return( v_StandingBatteryRho );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of storage and extraction cost of energy
@@ -1162,7 +1270,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_cost( void ) const {
   return( v_Cost );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of E-mobility demand
@@ -1176,11 +1284,20 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< double > & get_demand( void ) const {
   return( v_Demand );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the scale factor of this BatteryUnitBlock
+
  double get_scale( void ) const override { return( f_scale ); }
+
+ double get_design_ub( void ) const override {
+  // Both batt_design and conv_design constrain the active power; the
+  // effective ub for fleet-level bounding is the smaller of the two
+  // capacity-design bounds in absolute value.
+  return( std::min( std::abs( f_BattMaxCapacityDesign ) ,
+                    std::abs( f_ConvMaxCapacityDesign ) ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE Variable OF THE BatteryUnitBlock --------*/
@@ -1208,6 +1325,14 @@ class BatteryUnitBlock : public UnitBlock
  double get_kappa( void ) const { return( f_kappa ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the linearization coefficient of the kappa-parametrized objective
+ /** See UnitBlock::get_kappa_linearization(). The kappa of a BatteryUnitBlock
+  * appears in its power output, intake/outtake level, storage level and
+  * primary/secondary reserve bound Constraints. */
+
+ double get_kappa_linearization( void ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of storage level variables
  /** This method returns a vector V containing the storage level
   * variables. There are two possible cases:
@@ -1219,7 +1344,7 @@ class BatteryUnitBlock : public UnitBlock
 
  std::vector< ColVariable > & get_storage_level( void ) {
   return( v_storage_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the const vector of storage level variables
@@ -1233,7 +1358,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_const_storage_level( void ) const {
   return( v_storage_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of intake level variables
@@ -1261,7 +1386,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_const_intake_level( void ) const {
   return( v_intake_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of outtake level variables
@@ -1275,7 +1400,7 @@ class BatteryUnitBlock : public UnitBlock
 
  std::vector< ColVariable > & get_outtake_level( void ) {
   return( v_outtake_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the const vector of outtake level variables
@@ -1289,7 +1414,7 @@ class BatteryUnitBlock : public UnitBlock
 
  const std::vector< ColVariable > & get_const_outtake_level( void ) const {
   return( v_outtake_level );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables
@@ -1301,7 +1426,33 @@ class BatteryUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of reactive power variables
+
+ ColVariable * get_reactive_power( Index generator ) override {
+  if( v_reactive_power.empty() )
+   return( nullptr );
+  return( &( v_reactive_power.front() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of primary spinning reserve variables
+
+ /// the unit provides the reserve only if it has any to give
+ /** The enclosing UCBlock asking for the reserve is not enough, the unit has
+  * to have some to give: this is the very condition with which the Variable
+  * are generated, said in terms of the data alone. */
+
+ bool has_primary_reserve( void ) const override {
+  return( ( reserve_vars & 1u ) && ( ! v_MaxPrimaryPower.empty() ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ bool has_secondary_reserve( void ) const override {
+  return( ( reserve_vars & 2u ) && ( ! v_MaxSecondaryPower.empty() ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( v_primary_spinning_reserve.empty() )
@@ -1366,7 +1517,7 @@ class BatteryUnitBlock : public UnitBlock
       active_power_bounds_Const[ 0 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const[ 0 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power output constraints
@@ -1375,7 +1526,7 @@ class BatteryUnitBlock : public UnitBlock
       active_power_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const.data()[ 1 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the maximum power output constraint associated with time t
@@ -1384,7 +1535,7 @@ class BatteryUnitBlock : public UnitBlock
       active_power_bounds_Const[ 1 ].empty() )
    return( nullptr );
   return( &( active_power_bounds_Const[ 1 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraints with binary variables
@@ -1393,7 +1544,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const.data()[ 0 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraint with binary variables for time t
@@ -1402,7 +1553,7 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 0 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const[ 0 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints with binary variables
@@ -1411,72 +1562,78 @@ class BatteryUnitBlock : public UnitBlock
       intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const.data()[ 1 ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraint + binary variables for time t
- const FRowConstraint * get_max_outtake_binary_constraints( Index t ) const {
+ const FRowConstraint * get_max_outtake_binary_constraint( Index t ) const {
   if( intake_outtake_binary_Const.empty() ||
       intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
   return( &( intake_outtake_binary_Const[ 1 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the storage level bound constraints
  const std::vector< BoxConstraint > & get_storage_level_bounds( void ) const {
   return( storage_level_bounds_Const );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraints
- const LB0Constraint * get_max_intake_bounds( void ) const {
-  if( intake_outtake_bounds_Const.empty() ||
-      intake_outtake_bounds_Const[ 0 ].empty() )
+ /** The first row of the intake/outtake bound Constraints, one per time
+  * instant. When the unit keeps intake and outtake apart this bounds the
+  * intake level; when it does not there is a single row, one two-sided bound
+  * on the active power, and this is it: which of the two it is is told by
+  * get_max_outtake_bounds() being nullptr. */
+
+ const BoxConstraint * get_max_intake_bounds( void ) const {
+  if( intake_outtake_bounds_Const.num_elements() == 0 )
    return( nullptr );
-  return( &( intake_outtake_bounds_Const.data()[ 0 ] ) );
- }
+  return( &( intake_outtake_bounds_Const[ 0 ][ 0 ] ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the intake upper bound constraint associated with time t
- const LB0Constraint * get_max_intake_bound( Index t ) const {
-  if( intake_outtake_bounds_Const.empty() ||
-      intake_outtake_bounds_Const[ 0 ].empty() )
+ const BoxConstraint * get_max_intake_bound( Index t ) const {
+  if( intake_outtake_bounds_Const.num_elements() == 0 )
    return( nullptr );
   return( &( intake_outtake_bounds_Const[ 0 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraints
- const LB0Constraint * get_max_outtake_bounds( void ) const {
-  if( intake_outtake_bounds_Const.empty() ||
-      intake_outtake_bounds_Const[ 1 ].empty() )
+ /** The second row of the intake/outtake bound Constraints, one per time
+  * instant, or nullptr when the unit keeps a single one [see
+  * get_max_intake_bounds()]. */
+
+ const BoxConstraint * get_max_outtake_bounds( void ) const {
+  if( intake_outtake_bounds_Const.shape()[ 0 ] < 2 )
    return( nullptr );
-  return( &( intake_outtake_bounds_Const.data()[ 1 ] ) );
- }
+  return( &( intake_outtake_bounds_Const[ 1 ][ 0 ] ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the outtake upper bound constraint associated with time t
- const LB0Constraint * get_max_outtake_bound( Index t ) const {
-  if( intake_outtake_bounds_Const.empty() ||
-      intake_outtake_bounds_Const[ 1 ].empty() )
+ const BoxConstraint * get_max_outtake_bound( Index t ) const {
+  if( intake_outtake_bounds_Const.shape()[ 0 ] < 2 )
    return( nullptr );
   return( &( intake_outtake_bounds_Const[ 1 ][ t ] ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the primary reserve bound constraints
  const std::vector< LB0Constraint > & get_primary_reserve_bounds( void )
   const {
   return( primary_upper_bound_Const );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the secondary reserve bound constraints
  const std::vector< LB0Constraint > & get_secondary_reserve_bounds( void )
   const {
   return( secondary_upper_bound_Const );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -1541,7 +1698,7 @@ class BatteryUnitBlock : public UnitBlock
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "BatteryUnitBlock::load not implemented yet" ) );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
@@ -1588,6 +1745,57 @@ class BatteryUnitBlock : public UnitBlock
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the cost values
+ /** This function sets the cost values of this BatteryUnitBlock.
+  *
+  * @param values  Iterator to a vector containing the cost values.
+  * @param subset  If non-empty, the cost values corresponding to the indices
+  *                in \p subset are set to the values pointed by \p values.
+  *                If empty, no operation is performed.
+  * @param ordered It indicates whether \p subset is ordered.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_cost( MF_dbl_it values ,
+                Subset && subset ,
+                bool ordered = false ,
+                c_ModParam issuePMod = eNoBlck ,
+                c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the cost values
+ /** This function sets the cost values of this BatteryUnitBlock.
+  *
+  * @param values Iterator to a vector containing the cost values.
+  * @param rng    If non-empty, the cost values corresponding to the indices
+  *               in \p rng are set to the values pointed by \p values. If
+  *               empty, no operation is performed.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_cost( MF_dbl_it values ,
+                Range rng = Range( 0 , Inf< Index >() ) ,
+                c_ModParam issuePMod = eNoBlck ,
+                c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// set the cost values
+ /** This function sets the cost values of this BatteryUnitBlock.
+  *
+  * @param value     The value of the cost.
+  * @param issuePMod Controls how physical Modifications are issued.
+  * @param issueAMod Controls how abstract Modifications are issued.
+  */
+ void set_cost( double value ,
+                c_ModParam issuePMod = eNoBlck ,
+                c_ModParam issueAMod = eNoBlck ) {
+  std::vector< double > vector = { value };
+  set_cost( vector.cbegin() ,
+            Range( 0 , Inf< Index >() ) ,
+            issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// sets the scale factor of this BatteryUnitBlock
@@ -1673,7 +1881,7 @@ class BatteryUnitBlock : public UnitBlock
   std::vector< double > vector = { value };
   set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
              issuePMod , issueAMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1708,6 +1916,12 @@ class BatteryUnitBlock : public UnitBlock
  /// the vector of MaxPower
  std::vector< double > v_MaxPower;
 
+ /// the vector of MinReactivePower
+ std::vector< double > v_MinReactivePower;
+
+ /// the vector of MaxReactivePower
+ std::vector< double > v_MaxReactivePower;
+
  /// the vector of ConverterMaxPower
  std::vector< double > v_ConvMaxPower;
 
@@ -1729,6 +1943,9 @@ class BatteryUnitBlock : public UnitBlock
  /// the vector of ExtractingBatteryRho
  std::vector< double > v_ExtractingBatteryRho;
 
+ /// the vector of StandingBatteryRho
+ std::vector< double > v_StandingBatteryRho;
+
  /// the vector of Cost
  std::vector< double > v_Cost;
 
@@ -1741,20 +1958,26 @@ class BatteryUnitBlock : public UnitBlock
  /// the converter investment cost
  double f_ConvInvestmentCost;
 
- /// the minimum battery capacity design allowed (lower bound on x_b in design mode); default 0.
- /// If BatteryMaxCapacityDesign < 0 (binary), BatteryMinCapacityDesign > 0 forces x_b = 1.
+ /** the minimum battery capacity design allowed (lower bound on x_b in
+  * design mode); default 0.
+  * If BatteryMaxCapacityDesign < 0 (binary), BatteryMinCapacityDesign > 0 
+  * forces x_b = 1 */
  double f_BattMinCapacityDesign;
 
  /// the maximum battery capacity design allowed
- /// If < 0, x_b is binary; if > 0, x_b is continuous with bounds [BatteryMinCapacityDesign, BatteryMaxCapacityDesign].
+ /** If < 0, x_b is binary; if > 0, x_b is continuous with bounds
+  * [BatteryMinCapacityDesign, BatteryMaxCapacityDesign]. */
  double f_BattMaxCapacityDesign;
 
- /// the minimum converter capacity design allowed (lower bound on x_c in design mode); default 0.
- /// If ConverterMaxCapacityDesign < 0 (binary), ConverterMinCapacityDesign > 0 forces x_c = 1.
+ /** the minimum converter capacity design allowed (lower bound on x_c in
+  * design mode); default 0.
+  * If ConverterMaxCapacityDesign < 0 (binary),
+  * ConverterMinCapacityDesign > 0 forces x_c = 1 */
  double f_ConvMinCapacityDesign;
 
- /// the maximum converter capacity design allowed
- /// If < 0, x_c is binary; if > 0, x_c is continuous with bounds [ConverterMinCapacityDesign, ConverterMaxCapacityDesign].
+ /** the maximum converter capacity design allowed
+  * If < 0, x_c is binary; if > 0, x_c is continuous with bounds
+  * [ConverterMinCapacityDesign, ConverterMaxCapacityDesign] */
  double f_ConvMaxCapacityDesign;
 
  /// the InitialStorage value
@@ -1775,6 +1998,9 @@ class BatteryUnitBlock : public UnitBlock
  /// the scale factor
  double f_scale;
 
+ /// the reference Schedule to deviate minimally from if there
+ std::vector< double > v_RefSchedule;
+
 /*-------------------------------- variables -------------------------------*/
 
  /// the vector of storage level variables
@@ -1792,6 +2018,9 @@ class BatteryUnitBlock : public UnitBlock
  /// the active power variables
  std::vector< ColVariable > v_active_power;
 
+ /// the reactive power variables
+ std::vector< ColVariable > v_reactive_power;
+
  /// the primary spinning reserve variables
  std::vector< ColVariable > v_primary_spinning_reserve;
 
@@ -1804,7 +2033,13 @@ class BatteryUnitBlock : public UnitBlock
  /// the converter design variable
  ColVariable conv_design;
 
+ /// the variables for deviation to reference schedule
+ std::vector< ColVariable > v_abs_ref_schedule;
+
 /*------------------------------- constraints ------------------------------*/
+
+/// the reference schedule constraints
+ std::vector< FRowConstraint > Reference_Schedule_Const;
 
  /// the active power bounds constraints
  boost::multi_array< FRowConstraint , 2 > active_power_bounds_Const;
@@ -1820,7 +2055,7 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the intake outtake upper bounds design constraints
  boost::multi_array< FRowConstraint , 2 >
-  intake_outtake_upper_bounds_design_Const;
+                                   intake_outtake_upper_bounds_design_Const;
 
  /// the storage level bounds design constraints
  boost::multi_array< FRowConstraint , 2 > storage_level_bounds_design_Const;
@@ -1844,7 +2079,10 @@ class BatteryUnitBlock : public UnitBlock
  std::vector< BoxConstraint > storage_level_bounds_Const;
 
  /// the intake and outtake bounds constraints
- boost::multi_array< LB0Constraint , 2 > intake_outtake_bounds_Const;
+ /** Two-sided: folded onto the signed active power, the pair of one-sided
+  * fences on the intake and the outtake becomes a single bound whose LHS is
+  * the (negative) charging side. */
+ boost::multi_array< BoxConstraint , 2 > intake_outtake_bounds_Const;
 
  /// primary upper bound constraints
  std::vector< LB0Constraint > primary_upper_bound_Const;
@@ -1854,6 +2092,13 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the vector of binary bound constraints
  std::vector< ZOConstraint > battery_binary_bound_Const;
+
+ /// the reactive power bound constraints
+ std::vector< BoxConstraint > ReactivePower_Bound_Const;
+
+ /*!! Q <= P
+ std::vector< FRowConstraint > Reactive_2_Active_Const;
+ */
 
  /// the objective function
  FRealObjective objective;
@@ -1906,6 +2151,34 @@ class BatteryUnitBlock : public UnitBlock
  void update_objective( c_ModParam issueAMod ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// tells whether the active power has to be split in intake and outtake
+ /** The intake and the outtake level are the negative and the positive part
+  * of the active power, and only the level balance can tell them apart: it
+  * weights them with StoringBatteryRho and ExtractingBatteryRho, and the
+  * operating cost already prices them symmetrically. When the two weights
+  * agree at all times the balance reads the same on the active power alone,
+  * ( il , ol ) = ( max( 0 , -p ) , max( 0 , p ) ) satisfies every row that
+  * fences the pair, and the split is unnecessary.
+  *
+  * @return true if the intake and outtake level Variable are needed. */
+
+ bool needs_intake_outtake( void ) const {
+  if( v_StoringBatteryRho.empty() && v_ExtractingBatteryRho.empty() )
+   return( false );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const double storing = v_StoringBatteryRho.empty()
+                          ? 1. : v_StoringBatteryRho[ t ];
+   const double extracting = v_ExtractingBatteryRho.empty()
+                             ? 1. : v_ExtractingBatteryRho[ t ];
+   if( storing != extracting )
+    return( true );
+   }
+
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// verify whether the data in this BatteryUnitBlock is consistent
  /** This function checks whether the data in this BatteryUnitBlock is
   * consistent. The data is consistent if all the following conditions are met.
@@ -1923,6 +2196,8 @@ class BatteryUnitBlock : public UnitBlock
   *
   * - The inefficiency of extracting energy is greater than or equal to the
   *   inefficiency of storing energy.
+  *
+  * - The inefficiency of standing energy is less than or equal to 1.
   *
   * - The demand is nonnegative.
   *
@@ -1955,34 +2230,40 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void ) {
-
-  /* Warning: Not all C++ compilers enjoy the template wizardry behind the
-   * three-args version of register_method<> with the compact MS_*_*::args(),
-   *
-   * register_method< BatteryUnitBlock >( "BatteryUnitBlock::set_initial_storage",
-   *                                      &BatteryUnitBlock::set_initial_storage,
-   *                                      MS_dbl_sbst::args() );
-   *
-   * so we just use the slightly less compact one with the explicit argument
-   * and be done with it. */
-
+ static void static_initialization( void )
+ {
   register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
    "BatteryUnitBlock::set_initial_storage" ,
-   &BatteryUnitBlock::set_initial_storage );
+   & BatteryUnitBlock::set_initial_storage );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Range >(
    "BatteryUnitBlock::set_initial_storage" ,
-   &BatteryUnitBlock::set_initial_storage );
+   & BatteryUnitBlock::set_initial_storage );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_initial_power" ,
+   & BatteryUnitBlock::set_initial_power );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_initial_power" ,
+   & BatteryUnitBlock::set_initial_power );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::set_cost" ,
+   & BatteryUnitBlock::set_cost );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::set_cost" ,
+   & BatteryUnitBlock::set_cost );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
    "BatteryUnitBlock::set_kappa" ,
-   &BatteryUnitBlock::set_kappa );
+   & BatteryUnitBlock::set_kappa );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Range >(
    "BatteryUnitBlock::set_kappa" ,
-   &BatteryUnitBlock::set_kappa );
- }
+   & BatteryUnitBlock::set_kappa );
+  }
 
 };  // end( class( BatteryUnitBlock ) )
 
@@ -2001,12 +2282,16 @@ class BatteryUnitBlockMod : public UnitBlockMod
  {
   eSetInitS = eUBModLastParam , ///< set initial storage values
   eSetInitP ,                   ///< set initial power values
+  eSetCost ,                    ///< set cost values
   eSetKappa ,                   ///< set the kappa constant
- };
+  eBUBModLastParam  ///< first allowed parameter value for derived classes
+  /**< Convenience value to easily allow derived classes to extend the set of
+   * types of BatteryUnitBlockMod. */
+  };
 
  /// constructor, takes the BatteryUnitBlock and the type
  BatteryUnitBlockMod( BatteryUnitBlock * const fblock , const int type )
-  : UnitBlockMod( fblock , type ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
 
  /// destructor, does nothing
  virtual ~BatteryUnitBlockMod() override = default;
@@ -2026,10 +2311,13 @@ class BatteryUnitBlockMod : public UnitBlockMod
    case( eSetInitP ):
     output << "set initial power values ";
     break;
+   case( eSetCost ):
+    output << "set cost values ";
+    break;
    case( eSetKappa ):
     output << "set kappa ";
     break;
-   default: ;
+   default:;
   }
  }
 
@@ -2058,7 +2346,7 @@ class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod
  virtual ~BatteryUnitBlockRngdMod() override = default;
 
  /// accessor to the range
- Block::c_Range & rng( void ) { return( f_rng ); }
+ Block::c_Range & rng( void ) const { return( f_rng ); }
 
  protected:
 
@@ -2066,7 +2354,7 @@ class BatteryUnitBlockRngdMod : public BatteryUnitBlockMod
  void print( std::ostream & output ) const override {
   BatteryUnitBlockMod::print( output );
   output << "[ " << f_rng.first << ", " << f_rng.second << " )" << std::endl;
- }
+  }
 
  Block::Range f_rng;  ///< the range
 
@@ -2092,7 +2380,7 @@ class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod
  virtual ~BatteryUnitBlockSbstMod() override = default;
 
  /// accessor to the subset
- Block::c_Subset & nms( void ) { return( f_nms ); }
+ Block::c_Subset & nms( void ) const { return( f_nms ); }
 
  protected:
 
@@ -2100,7 +2388,7 @@ class BatteryUnitBlockSbstMod : public BatteryUnitBlockMod
  void print( std::ostream & output ) const override {
   BatteryUnitBlockMod::print( output );
   output << "(# " << f_nms.size() << ")" << std::endl;
- }
+  }
 
  Block::Subset f_nms;  ///< the subset
 
@@ -2214,7 +2502,7 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
 
  void print( std::ostream & output ) const override {
   output << "BatteryUnitBlockSolution [" << this << "]: " << std::endl;
- }
+  }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 

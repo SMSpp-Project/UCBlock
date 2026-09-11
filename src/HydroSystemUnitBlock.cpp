@@ -31,6 +31,14 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- STATIC FUNCTIONS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+static inline HydroUnitBlock * HUB( Block * b ) {
+ return( static_cast< HydroUnitBlock * >( b ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -51,14 +59,20 @@ HydroSystemUnitBlock::~HydroSystemUnitBlock()
  v_Block.clear();
 
  objective.clear();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
 HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const
 {
- return( dynamic_cast< HydroUnitBlock * >( v_Block[ i ] ) );
-}
+ #ifndef NDEBUG
+ if( i > f_number_hydro_units )
+  throw( std::invalid_argument( "HydroSystemUnitBlock::get_hydro_unit_block:"
+				" invalid index " + std::to_string( i ) ) );
+ #endif
+
+ return( HUB( v_Block[ i ] ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -67,9 +81,9 @@ HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const
 void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
  #ifndef NDEBUG
-  static std::vector< std::string > expected_dims = { "TimeHorizon" ,
-                                                      "NumberIntervals" ,
-                                                      "NumberHydroUnits" };
+  static const std::vector< std::string > expected_dims =
+  { "TimeHorizon" , "NumberIntervals" , "NumberHydroUnits" };
+
   check_dimensions( group , expected_dims , std::cerr );
  #endif
 
@@ -79,6 +93,30 @@ void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  Block::deserialize( group );
  }
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > HydroSystemUnitBlock::expected_dims( void ) const {
+ auto ret = UnitBlock::expected_dims();
+ ret.push_back( "NumberHydroUnits" );
+
+ return( ret );
+ }
+
+/*----------------------------------------------------------------------------
+
+std::vector< std::string > HydroSystemUnitBlock::expected_vars( void ) const {
+ static const std::vector< std::string > ev = { };
+
+ auto ret = UnitBlock::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+*/
+#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -92,6 +130,17 @@ void HydroSystemUnitBlock::deserialize_sub_blocks(
  v_Block.reserve( f_number_hydro_units + 1 );
 
  deserialize_sub_blocks( group , "HydroUnitBlock_" , f_number_hydro_units );
+ // meanwhile, compute the number of generators and the map
+ Index ngen = 0;
+ for( auto bi : v_Block )
+  ngen += HUB( bi )->get_number_generators();
+
+ // ... and build the map
+ v_gen_map.resize( ngen );
+ for( Index i = ngen = 0 ; i < f_number_hydro_units ; ++i )
+  for( Index g = 0 ; g < HUB( v_Block[ i ] )->get_number_generators() ; )
+   v_gen_map[ ngen++ ] = std::make_pair( i , g++ );
+
  deserialize_polyhedral_function_block( group , "PolyhedralFunctionBlock" );
  }
 
@@ -102,9 +151,7 @@ Block::Index HydroSystemUnitBlock::get_total_number_reservoirs( void ) const
  Index total_number_reservoirs = 0;
  assert( v_Block.size() >= f_number_hydro_units );
  for( Index i = 0 ; i < f_number_hydro_units ; ++i )
-  if( auto hydro_unit_block = dynamic_cast< HydroUnitBlock * >( v_Block[ i ]
-								) )
-   total_number_reservoirs += hydro_unit_block->get_number_reservoirs();
+  total_number_reservoirs += HUB( v_Block[ i ] )->get_number_reservoirs();
  return( total_number_reservoirs );
  }
 
@@ -121,7 +168,7 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block(
  if( sub_group.isNull() )
   return;
 
- // Create the PolyhedralFunctionBlock
+ // create the PolyhedralFunctionBlock
  std::string class_name = "PolyhedralFunctionBlock";
  auto class_name_attribute = sub_group.getAtt( "type" );
  if( ! class_name_attribute.isNull() )
@@ -133,11 +180,11 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block(
  if( ! polyhedral_function_block )
   throw( std::logic_error( "HydroSystemUnitBlock::deserialize: the type "
                            "attribute of group " + sub_group_name +
-                           " must be either 'PolyhedralFunctionBlock' or the "
-                           "name of a class derived from "
-                           "PolyhedralFunctionBlock." ) );
+                           " must be either 'PolyhedralFunctionBlock'"
+                           " or the name of a class derived from "
+                           "PolyhedralFunctionBlock" ) );
 
- // Deserialize the PolyhedralFunctionBlock
+ // deserialize the PolyhedralFunctionBlock
  polyhedral_function_block->deserialize( sub_group );
 
  v_Block.push_back( polyhedral_function_block );
@@ -154,12 +201,10 @@ void HydroSystemUnitBlock::deserialize_sub_blocks(
   std::string sub_group_name = sub_group_name_prefix + std::to_string( i );
   auto sub_group = group.getGroup( sub_group_name );
   auto sub_block = new_Block( sub_group , this );
-
   if( ! sub_block )
    throw( std::invalid_argument( "HydroSystemUnitBlock::deserialize: error "
                                  "when creating Block from group " +
-                                 sub_group_name + "." ) );
-
+                                 sub_group_name ) );
   v_Block.push_back( sub_block );
   }
  }
@@ -174,8 +219,8 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv )
  for( auto block : v_Block )
   block->generate_abstract_variables();
 
- // Collect the active Variables of the PolyhedralFunction: these are the
- // variables representing the final volume of each reservoir.
+ // collect the active Variables of the PolyhedralFunction: these are the
+ // variables representing the final volume of each reservoir
 
  std::vector< ColVariable * > x;
  x.reserve( get_total_number_reservoirs() );
@@ -189,10 +234,9 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv )
    x.push_back( hydro_unit_block->get_volume( r , f_time_horizon - 1 ) );
   }
 
- // Set the active Variable of the PolyhedralFunction
- get_polyhedral_function_block()->get_PolyhedralFunction().
-  set_variables( std::move( x ) );
-
+ // set the active Variable of the PolyhedralFunction
+ get_polyhedral_function_block()->get_PolyhedralFunction().set_variables(
+							    std::move( x ) );
  set_variables_generated();
 
  }  // end( HydroSystemUnitBlock::generate_abstract_variables )
@@ -210,11 +254,116 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc )
  objective.set_function( new LinearFunction() );
 
  // Set Block objective
- this->set_objective( &objective );
+ this->set_objective( &objective , eNoMod );
 
  set_objective_generated();
 
-}  // end( HydroSystemUnitBlock::generate_objective )
+ }  // end( HydroSystemUnitBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+/*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/
+/*--------------------------------------------------------------------------*/
+
+ColVariable * HydroSystemUnitBlock::get_active_power( Index generator )
+{
+ if( generator >= v_gen_map.size() )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_active_power(
+					   v_gen_map[ generator ].second ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable * HydroSystemUnitBlock::get_reactive_power( Index generator )
+{
+ if( ( ! f_reactive_power ) || ( generator >= v_gen_map.size() ) )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_reactive_power(
+					   v_gen_map[ generator ].second ) );
+ } 
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of primary reserve variables of each HydroUnitBlock
+
+ColVariable * HydroSystemUnitBlock::get_primary_spinning_reserve(
+							    Index generator )
+{
+ if( generator >= v_gen_map.size() )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_primary_spinning_reserve(
+					   v_gen_map[ generator ].second ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of secondary reserve variables of each HydroUnitBlock
+
+bool HydroSystemUnitBlock::has_primary_reserve( void ) const
+{
+ for( Index i = 0 ; i < get_number_hydro_units() ; ++i )
+  if( get_hydro_unit_block( i )->has_primary_reserve() )
+   return( true );
+
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool HydroSystemUnitBlock::has_secondary_reserve( void ) const
+{
+ for( Index i = 0 ; i < get_number_hydro_units() ; ++i )
+  if( get_hydro_unit_block( i )->has_secondary_reserve() )
+   return( true );
+
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable * HydroSystemUnitBlock::get_secondary_spinning_reserve(
+							    Index generator )
+{
+ if( generator >= v_gen_map.size() )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_secondary_spinning_reserve(
+					   v_gen_map[ generator ].second ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+const double * HydroSystemUnitBlock::get_inertia_power( Index generator )
+ const {
+ if( generator >= v_gen_map.size() )
+  return( nullptr );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_inertia_power(
+					   v_gen_map[ generator ].second ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double HydroSystemUnitBlock::get_min_power( Index t , Index generator )
+ const {
+ if( generator >= v_gen_map.size() )
+  return( 0 );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_min_power( t , 
+					   v_gen_map[ generator ].second ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double HydroSystemUnitBlock::get_max_power( Index t , Index generator )
+ const {
+ if( generator >= v_gen_map.size() )
+  return( 0 );
+ return( get_hydro_unit_block( v_gen_map[ generator ].first
+			       )->get_max_power( t , 
+					   v_gen_map[ generator ].second ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -267,13 +416,14 @@ void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  auto dim_number_hydro_units = group.addDim( "NumberHydroUnits" ,
                                              f_number_hydro_units );
- // Serialize sub-blocks
+ // serialize all the sub-HydroUnitBlock
  for( Index i = 0 ; i < f_number_hydro_units ; ++i ) {
   auto sub_block = get_hydro_unit_block( i );
   auto sub_group = group.addGroup( "HydroUnitBlock_" + std::to_string( i ) );
   sub_block->serialize( sub_group );
- }
+  }
 
+ // serialize the PolyhedralFunctionBlock
  if( v_Block.size() > f_number_hydro_units ) {
   auto sub_group = group.addGroup( "PolyhedralFunctionBlock" );
   v_Block.back()->serialize( sub_group );
@@ -301,7 +451,7 @@ void HydroSystemUnitBlockSolution::deserialize(
   auto HSUSi = dynamic_cast< HydroUnitBlockSolution * >(
 				       Solution::new_Solution( sub_group ) );
   if( ! HSUSi )
-    throw( std::invalid_argument(
+   throw( std::invalid_argument(
 		              "HydroSystemUnitBlockSolution::deserialize: " +
 			      sub_group_name +
 			      " not a valid HydroUnitBlockSolution" ) );
@@ -357,7 +507,7 @@ void HydroSystemUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i ) {
   std::string sub_group_name = "HydroSystemUnitSolution_" +
                                                         std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
+  auto sub_group = group.addGroup( sub_group_name );
   v_innerSol[ i ]->serialize( sub_group );
   }
  }  // end( HydroSystemUnitBlockSolution::serialize )
@@ -369,9 +519,17 @@ HydroSystemUnitBlockSolution * HydroSystemUnitBlockSolution::scale(
 {
  auto sol = clone();
 
- if( factor != 1 )
-  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
-   v_innerSol[ i ]->scale( factor );
+ if( factor == 1 )
+  return( sol );
+
+ guts_of_scale( sol , factor );
+
+ // replace each inner Solution of the clone with its scaled version
+ for( std::size_t i = 0 ; i < sol->v_innerSol.size() ; ++i ) {
+  auto inner = sol->v_innerSol[ i ];
+  sol->v_innerSol[ i ] = inner->scale( factor );
+  delete inner;
+  }
 
  return( sol );
 

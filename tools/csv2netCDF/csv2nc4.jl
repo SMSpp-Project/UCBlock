@@ -1,9 +1,14 @@
 using Pkg
 Pkg.activate(".")  # Activate environment from Project.toml
-Pkg.instantiate()
+# `Pkg.instantiate()` is intentionally NOT called here: this driver does not
+# import `EnergyCommunity` or `Gurobi`, but they are still listed as optional
+# deps in Project.toml; running `instantiate` would force their resolution
+# (and on Julia 1.11 the EC.jl version pin clashes with newer XLSX). The
+# direct deps used below are loaded individually below — if any is missing,
+# add it manually (`Pkg.add(...)`) once and the Manifest will pin it.
 
 using YAML
-# the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl, 
+# the official repo, i.e., https://github.com/JuliaGeo/NetCDF.jl,
 # does not support (yet) the concept of group :(
 using NCDatasets
 using DataStructures
@@ -12,7 +17,6 @@ using Parameters
 using DataFrames
 using XLSX
 using JLD2
-using YAML
 using CSV
 
 using Distributions
@@ -32,36 +36,186 @@ include("scenario_definition.jl")
 include("pem_extraction.jl")
 
 # Include the sampler for distributions associated to short period uncertainty and a function to generate scenarios
-include("Scen_eps_sampler.jl")
+include("scen_eps_sampler.jl")
 
-# setting the seed
-Random.seed!(123)
+# YAML layout:
+#   * EC-wide profiles (`time_res`, `energy_weight`, `reward_price`,
+#     `peak_categories`) under `general.profile` or `market.profile`.
+#   * Pricing fields (`buy_price`, `sell_price`, `consumption_price`,
+#     `penalty_price`, `peak_tariff`, `peak_weight`) under a single flat
+#     `market.profile` group, or per-user via `tariff_name` keys.
+
+# EC-wide profile lookup: try the market profile, fall back to general.
+@inline ec_profile(name) = let p = profile_d(market_data, name, nothing)
+    isnothing(p) ? profile(gen_data, name) : p
+end
+@inline ec_profile_d(name, default) = let p = profile_d(market_data, name, nothing)
+    isnothing(p) ? profile_d(gen_data, name, default) : p
+end
+# Per-user market block: the flat schema returns `market_data` directly,
+# the two-tier schema follows `tariff_name`.
+@inline user_market_data(u) = haskey(market_data, "profile") ?
+    market_data : field(market_data, field(users_data[u], "tariff_name"))
+
+
+# Group the sampled (s, eps) scenarios by their long-period index `scen_s`,
+# preserving first-seen order. Returns a vector of vectors, one per distinct
+# `scen_s`: this is the outer-stage partition consumed by the `--multistage`
+# flow, where each group becomes the short-period scenario set of one inner
+# TwoStageStochasticBlock.
+function group_by_scen_s(scens)
+    order = Int[]
+    groups = Dict{Int,Vector{eltype(scens)}}()
+    for sc in scens
+        if !haskey(groups, sc.scen_s)
+            push!(order, sc.scen_s)
+            groups[sc.scen_s] = eltype(scens)[]
+        end
+        push!(groups[sc.scen_s], sc)
+    end
+    return [groups[s] for s in order]
+end
+
+# Recursively copy the full content (dimensions, attributes, variables and
+# nested groups) of a netCDF group `src` into the already-created group `dst`.
+# Used to replicate an inner TwoStageStochasticBlock across the outer-stage
+# scenarios of a MultiStageStochasticBlock: the inner Blocks share an identical
+# structure and differ only in their per-group `NumberScenarios` dimension and
+# DiscreteScenarioSet, which are excluded here (via `skip_dims` / `skip_groups`)
+# and written afterwards. The exclusions apply only at the top level of the
+# copy; nested groups are copied in full.
+#
+# The copy is done in two passes (all definitions first, then all data) so that
+# the netCDF library performs a single define -> data mode transition for the
+# whole subtree, rather than one per variable: the latter trips over scalar
+# variables (NetCDF error -38, "Operation not allowed in data mode").
+
+# Pass 1: dimensions, attributes, (empty) variables and nested groups.
+function copy_structure!(dst, src; skip_dims=String[], skip_groups=String[])
+    for dn in keys(src.dim)
+        (dn in skip_dims) && continue
+        (dn in keys(dst.dim)) || defDim(dst, dn, src.dim[dn])
+    end
+    for (k, v) in src.attrib
+        dst.attrib[k] = v
+    end
+    for vn in keys(src)
+        sv = src[vn]
+        defVar(dst, vn, eltype(sv.var), dimnames(sv))
+        for (k, v) in sv.attrib
+            dst[vn].attrib[k] = v
+        end
+    end
+    for gn in keys(src.group)
+        (gn in skip_groups) && continue
+        copy_structure!(defGroup(dst, gn), src.group[gn])
+    end
+end
+
+# Pass 2: variable data (the structure must already exist in `dst`).
+function copy_data!(dst, src; skip_groups=String[])
+    for vn in keys(src)
+        A = Array(src[vn])
+        if ndims(A) == 0
+            dst[vn][:] = A[]
+        else
+            dst[vn][ntuple(_ -> Colon(), ndims(A))...] = A
+        end
+    end
+    for gn in keys(src.group)
+        (gn in skip_groups) && continue
+        copy_data!(dst.group[gn], src.group[gn])
+    end
+end
+
+function copy_group!(dst, src; skip_dims=String[], skip_groups=String[])
+    copy_structure!(dst, src; skip_dims=skip_dims, skip_groups=skip_groups)
+    copy_data!(dst, src; skip_groups=skip_groups)
+end
+
 
 function csvEC2nc4(
     deterministic::Bool=false,
-    sampled_scenarios::Union{Nothing, Vector{Scenario_Load_Renewable}}=nothing,
+    sampled_scenarios::Union{Nothing,Vector{Scenario_Load_Renewable}}=nothing,
 )
 
     middle = "_"
-    if occursin("_CO", file_name)
-        middle = string(middle, "CO_")
-    elseif occursin("_NA", file_name)
+    if "--no-asset" in OPTION_ARGS
         middle = string(middle, "NA_")
+    elseif occursin("_CO", file_name)
+        middle = string(middle, "CO_")
     elseif occursin("_NC", file_name)
         middle = string(middle, "NC_")
     end
 
     last = ""
-    if "--with-thermal-blocks" in OPTION_ARGS && !occursin("_NA", file_name)
+    # Default = include the thermal generator (output gets the `_TUB` suffix,
+    # i.e. SMS++ models the generator as a `ThermalUnitBlock`). `--no-thermal`
+    # opts out, mirroring the EC.jl@stochastic flag of the same name (which
+    # fixes `x_us[u, a] = 0` for `THER` assets). `--no-asset` strips every
+    # installable asset and therefore implies no thermal either.
+    if !("--no-thermal" in OPTION_ARGS) && !("--no-asset" in OPTION_ARGS)
         last = string(last, "_TUB")
     end
     if "--with-network-blocks" in OPTION_ARGS
         last = string(last, "_NB")
     end
 
-    # The mode "c" stands for creating a new file (clobber)
-    ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-    block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+    # Deterministic YAMLs produce a standalone UCBlock nc4; stochastic YAMLs
+    # produce a TSSB nc4 with the inner UCBlock as a child Block of the
+    # StochasticBlock group.
+    if deterministic
+        ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+        tssb = nothing
+        sb = nothing
+        mssb = nothing
+        scenario_groups = nothing
+        three_stage = false
+    else
+        # `--multistage` builds a MultiStageStochasticBlock that aggregates one
+        # inner TwoStageStochasticBlock per long-period (`scen_s`) scenario: the
+        # sampled (s, eps) set is partitioned by `scen_s`, each group becoming
+        # the short-period scenario set of one inner TSSB, and the outer
+        # non-anticipativity ties the first-stage variables across them. The
+        # extensive form is identical to the flattened standalone TSSB, which
+        # is what validates the MultiStageStochasticBlock machinery against the
+        # existing TwoStageStochasticBlock reference values.
+        multistage = "--multistage" in OPTION_ARGS
+        # `--shared-tree` (only with `--multistage`): emit the scenario data as a
+        # single shared MultiStageDiscreteScenarioSet consumed by all inner
+        # TwoStageStochasticBlock via views, instead of one baked
+        # DiscreteScenarioSet per inner Block. Additive: the baked format is the
+        # default and is left untouched.
+        shared_tree = multistage && ( "--shared-tree" in OPTION_ARGS )
+        scenario_groups = multistage ? group_by_scen_s(sampled_scenarios) :
+                          nothing
+        # number of stages of the MultiStageStochasticBlock: 2 with a single
+        # short-period (eps) scenario per long-period (s) one, 3 with several
+        # (a three-stage instance additionally ties the day-ahead
+        # declared-dispatch bid across the eps). Every MSSB instance carries an
+        # explicit `_<n>S` suffix, since a MultiStageStochasticBlock can be 2-,
+        # 3-, ...-stage; the TwoStageStochasticBlock ones are always two-stage
+        # and stay unsuffixed.
+        n_stages = scen_eps_sample > 1 ? 3 : 2
+        three_stage = multistage && n_stages == 3
+        prefix = multistage ? "MSSB_EC" : "TSSB_EC"
+        last_out = multistage ? string(last, "_", n_stages, "S") : last
+        # distinct suffix so a shared-tree instance never overwrites the baked
+        # one and the two can be compared side by side
+        last_out = shared_tree ? string(last_out, "_tree") : last_out
+        ds = NCDataset(string("../../data/nc4/EC_Data/", prefix, middle, "Test", last_out, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        if multistage
+            mssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "MultiStageStochasticBlock"))
+            defDim(mssb, "NumberSubBlocks", length(scenario_groups))
+            tssb = defGroup(mssb, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        else
+            mssb = nothing
+            tssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        end
+        sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+        block = defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
+    end
 
     # Store the number of nodes
     n_users = length(user_set)
@@ -71,57 +225,76 @@ function csvEC2nc4(
     defDim(block, "TimeHorizon", n_steps)
 
     # Store the number of `ECNetworkBlock`(s), i.e., the number of peak periods/categories
-    peak_categories = profile(market_data, "peak_categories")[time_set]
+    peak_categories = ec_profile("peak_categories")[time_set]
     peak_set = unique(peak_categories)
     n_peaks = length(peak_set)
     defDim(block, "NumberNetworks", n_peaks)
 
-    # Create buy, sell, reward, and consumption, i.e., the constant term, price data arrays
+    # Create buy, sell, reward, and consumption, i.e., the constant term, price data arrays.
+    # UCBlock applies a single scalar BuyPrice/SellPrice/PeakTariff to the community-wide
+    # imports/exports/peaks, so the cost is `price · Σ_u flow_u`. To stay consistent with
+    # EnergyCommunity.jl — which computes Σ_u price_u · flow_u with the same per-user data —
+    # we read the price ONCE from a representative tariff (all `tariff_name` blocks point to
+    # the same CSV column in the current setup); summing across users would scale every
+    # cost term by the number of users.
     project_lifetime = field(gen_data, "project_lifetime")
     year_set = 1:project_lifetime
+    discount_factor = sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    energy_weight_profile = ec_profile("energy_weight")
+    time_res_profile = ec_profile("time_res")
+    ref_market = user_market_data(first(user_set))
 
     # `BuyPrice`, i.e., the tariff that user pay to buy electricity at each time horizon
-    buy_price_data = [profile(market_data, "buy_price")[t] *
-                      profile(market_data, "energy_weight")[t] *
-                      profile(market_data, "time_res")[t]
-                      for t in time_set] *
-                     sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    buy_price_data = [profile(ref_market, "buy_price")[t] *
+                      energy_weight_profile[t] *
+                      time_res_profile[t]
+                      for t in time_set] * discount_factor
 
     # `SellPrice`, i.e., the tariff that user gain to sell electricity at each time horizon
-    sell_price_data = [profile(market_data, "sell_price")[t] *
-                       profile(market_data, "energy_weight")[t] *
-                       profile(market_data, "time_res")[t]
-                       for t in time_set] *
-                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    sell_price_data = [profile(ref_market, "sell_price")[t] *
+                       energy_weight_profile[t] *
+                       time_res_profile[t]
+                       for t in time_set] * discount_factor
 
     # `RewardPrice`, i.e., the reward awarded to the community
-    reward_price_data = [profile(market_data, "reward_price")[t] *
-                         profile(market_data, "energy_weight")[t] *
-                         profile(market_data, "time_res")[t]
-                         for t in time_set] *
-                        sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
-
-    # `PenaltyPrice`, i.e., the penalty price for energy squilibrium
-    #= penalty_price_data = [profile(market_data, "penalty_price")[t] *
-                            profile(market_data, "energy_weight")[t] *
-                            profile(market_data, "time_res")[t]
-                            for t in time_set] *
-                            sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set) =#
+    reward_price_data = [ec_profile_d("reward_price", fill(0.0, n_steps))[t] *
+                         energy_weight_profile[t] *
+                         time_res_profile[t]
+                         for t in time_set] * discount_factor
 
     # `PeakTariff`, i.e., the peak tariff cost
-    peak_tariff_data = [profile(market_data, "peak_tariff")[w] *
-                        profile(market_data, "peak_weight")[w]
-                        for w in peak_set] *
-                       sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    peak_tariff_data = [profile(ref_market, "peak_tariff")[w] *
+                        profile(ref_market, "peak_weight")[w]
+                        for w in peak_set] * discount_factor
 
-    # `ConstantTerm`, i.e., the consumption price
-    const_term_data = [sum(profile(market_data, "consumption_price")[t] *
-                           profile_component(users_data[u], l, "load")[t]
-                           for u in user_set for l in asset_names(users_data[u], LOAD)) *
-                       profile(market_data, "energy_weight")[t] *
-                       profile(market_data, "time_res")[t]
-                       for t in time_set] *
-                      sum(1 / ((1 + field(gen_data, "d_rate"))^y) for y in year_set)
+    # `ConstantTerm`, i.e., the consumption price applied to total user load.
+    # Stochastic: probability-weighted expected scenario load. Deterministic:
+    # YAML baseline load.
+    expected_total_load_at_t = if isnothing(sampled_scenarios) ||
+                                  isempty(sampled_scenarios)
+        t -> sum(profile_component(users_data[u], l, "load")[t]
+                 for u in user_set for l in asset_names(users_data[u], LOAD))
+    else
+        t -> sum(probability(scen) *
+                 sum(scen.Load[u][t] for u in user_set)
+                 for scen in sampled_scenarios)
+    end
+    const_term_data = [profile(ref_market, "consumption_price")[t] *
+                       expected_total_load_at_t(t) *
+                       energy_weight_profile[t] *
+                       time_res_profile[t]
+                       for t in time_set] * discount_factor
+
+    # `PenaltyPrice`, i.e., the unit cost of unmet demand. Optional: only
+    # written to the netCDF when the YAML market profile defines it. When
+    # present, ECNetworkBlock creates the imbalance slack variables and the
+    # corresponding term in the objective.
+    penalty_price_raw = profile_d(ref_market, "penalty_price", nothing)
+    penalty_price_data = isnothing(penalty_price_raw) ? nothing :
+                         [penalty_price_raw[t] *
+                          energy_weight_profile[t] *
+                          time_res_profile[t]
+                          for t in time_set] * discount_factor
 
     if (!("--with-network-blocks" in OPTION_ARGS) &&
         allequal(sell_price_data) &&
@@ -180,6 +353,14 @@ function csvEC2nc4(
             last_t += n_intervals
         end
 
+        # `PenaltyPrice` is shared across all peaks here (consolidated branch is
+        # taken only when prices are constant across peaks); it is consumed by
+        # ECNetworkBlock to instantiate the imbalance slack variables.
+        if !isnothing(penalty_price_data) && !iszero(penalty_price_data[1])
+            penalty_price = defVar(block, "PenaltyPrice", Float64, ("NumberIntervals",))
+            penalty_price[:] = penalty_price_data[1:n_intervals[1]]
+        end
+
     else
 
         # Store the specific classname of the NetworkData to inform UCBlock
@@ -187,6 +368,20 @@ function csvEC2nc4(
         # transmission and community networks)
         network_data_classname = defVar(block, "NetworkDataClassname", String, ())
         network_data_classname[1] = "NetworkData"
+
+        # `NetworkConstantTerms` MUST be written at the top-level UCBlock even when
+        # individual `NetworkBlock_n` groups carry their own scalar `ConstantTerm`:
+        # `UCBlock::deserialize` (UCBlock.cpp ~408) overwrites every NetworkBlock's
+        # constant_term with `v_network_constant_terms[n]`. Without the top-level
+        # vector that array is zero-filled and the per-block ConstantTerm is lost.
+        nct = defVar(block, "NetworkConstantTerms", Float64, ("NumberNetworks",))
+        last_t = 1
+        for (i_w, w) in enumerate(peak_set)
+            last_i = findlast(x -> x == w, peak_categories)
+            nct[i_w] = sum(const_term_data[last_t:last_i])
+            n_intervals = count(x -> x == w, peak_categories)
+            last_t += n_intervals
+        end
 
         # Create w `ECNetworkBlock`(s) for each peak period/category, each of them span w_t time steps/horizons
         last_t = 1
@@ -252,6 +447,14 @@ function csvEC2nc4(
             const_term = defVar(ecnb, "ConstantTerm", Float64, ())
             const_term[:] = sum(const_term_data[last_t:last_i])
 
+            # `PenaltyPrice` (optional): triggers the imbalance slack
+            # variables in ECNetworkBlock.
+            if !isnothing(penalty_price_data) &&
+               any(!iszero, penalty_price_data[last_t:last_i])
+                penalty_price = defVar(ecnb, "PenaltyPrice", Float64, ("NumberIntervals",))
+                penalty_price[:] = penalty_price_data[last_t:last_i]
+            end
+
             last_t += n_intervals
         end
     end
@@ -260,20 +463,42 @@ function csvEC2nc4(
 
     # Create g `UnitBlock`(s) for each electrical generator/device
 
-    n_devices = reduce(+, [d != "generator" ? 1 :
-                          div(field_component(users_data[u], d, "max_capacity"), field_component(users_data[u], d, "nom_capacity"))
-                          for u in user_set
-                          for d in asset_names(users_data[u], SMSPP_DEVICES)], init=0)
-    # number of UnitBlock
+    # one UnitBlock per installable device, with the following dispatch on
+    # `design_mode` for thermal generators (PV/wind/batt always carry the
+    # fleet size inside a single block via Scale / MaxCapacityDesign):
+    #   - design (default): replicate the ThermalUnitBlock N = max_capacity
+    #     / nom_capacity times, each replica with binary design + its own
+    #     commitment u_t. The sum over replicas gives the integer fleet
+    #     count, matching EC.jl `n_us`; each replica can commit independently.
+    #   - scale: 1 ThermalUnitBlock per-module (nom_capacity) + Scale = N.
+    #     UCBlock multiplies the per-module output by N at network coupling
+    #     and the objective coefficients by N. Commitment u_t is binary
+    #     and shared by the N modules ⇒ synchronous on/off fleet.
+    #   - fleet: 1 ThermalUnitBlock sized per max_capacity, no Scale.
+    #     Mathematically equivalent to scale-mode (same synchronous fleet),
+    #     simpler encoding.
+    n_devices = reduce(+, [d != "generator" || design_mode != "design" ? 1 :
+                           div(field_component(users_data[u], d, "max_capacity"),
+                               field_component(users_data[u], d, "nom_capacity"))
+                           for u in user_set
+                           for d in asset_names(users_data[u], SMSPP_DEVICES)],
+                       init=0)
     defDim(block, "NumberUnits", n_devices)
 
     # AbstractPath
     if !deterministic # stochastic model
         path_dim = 0
-        # path_group_idx_data = Int[]
         path_group_idx_data = String[]
         path_element_idx_data = Int[]
         path_range_idx_data = Int[]
+        # IntermittentUnitBlock(s) whose MaxPower changes per scenario.
+        # For each entry we record:
+        #   ub_idx       = UnitBlock_<ub_idx> position inside the UCBlock
+        #   user, asset  = keys to look up scen.Ren[user][asset]
+        #   nom_capacity = per-module scaling factor applied to the renewable
+        #                  profile to obtain per-module MaxPower (Scale on the
+        #                  block side aggregates to fleet)
+        intermittent_units = Tuple{Int,String,String,Float64}[]
     end
 
     if n_devices > 0
@@ -294,12 +519,27 @@ function csvEC2nc4(
 
                     ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "IntermittentUnitBlock"))
 
-                    # store the maximum installable capacity of the pv/wind asset
+                    # The fleet of N = max_capacity / nom_capacity identical
+                    # modules is encoded according to the top-level
+                    # `design_mode` flag (see the CLI parser at the bottom of
+                    # this file). The three modes are LP-equivalent on the
+                    # install bound; only "design" with negative MaxCapacityDesign
+                    # actually enforces an integer install at MILP level.
+                    n_modules = div(field_component(users_data[u], g, "max_capacity"),
+                                    field_component(users_data[u], g, "nom_capacity"))
+
+                    # maximum installable capacity (always the fleet total)
                     max_capacity = defVar(ub, "MaxCapacity", Float64, ())
                     max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
-                    # store the maximum power of the pv/wind asset
-                    max_power_data = [field_component(users_data[u], g, "max_capacity") *
+                    # "fleet" mode sizes MaxPower / InvestmentCost by
+                    # max_capacity; "scale" and "design" by nom_capacity.
+                    size_capacity = design_mode == "fleet" ?
+                                    field_component(users_data[u], g, "max_capacity") :
+                                    field_component(users_data[u], g, "nom_capacity")
+
+                    # maximum power
+                    max_power_data = [size_capacity *
                                       profile_component(users_data[u], g, "ren_pu")[t]
                                       for t in time_set]
                     if (allequal(max_power_data))
@@ -310,25 +550,47 @@ function csvEC2nc4(
                         max_power[:] = max_power_data[:]
                     end
 
-                    # store the Net Present Value of the pv/wind asset
+                    # Net Present Value
                     investment_cost = defVar(ub, "InvestmentCost", Float64, ())
-                    investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                             ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                    investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") :
+                                             ((field_component(users_data[u], g, "OEM_lin") +
                                                ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                field_component(users_data[u], g, "CAPEX_lin") : 0.0) -
                                                ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
                                                 field_component(users_data[u], g, "CAPEX_lin") *
                                                 (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                       field_component(users_data[u], g, "lifetime_y")) : 0.0)) *
                                               (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                         field_component(users_data[u], g, "max_capacity")
+                                         size_capacity
+
+                    if design_mode == "scale" && n_modules > 1
+                        # Scale = N: f_scale on the block aggregates the
+                        # per-module sizing to fleet level.
+                        scale_var = defVar(ub, "Scale", Float64, ())
+                        scale_var[:] = n_modules
+                    elseif design_mode == "design" && n_modules != 1
+                        # MaxCapacityDesign = ±N: design bound widened to N;
+                        # sign is negative ⇔ integer ∈ {0,…,N}. The
+                        # per-asset YAML `modularity` field uses the same
+                        # convention as `EnergyCommunity.jl`: `true` ⇒
+                        # integer design, `false` (the EC.jl default) ⇒
+                        # continuous. The stochastic flow currently keeps
+                        # n_us integer regardless of this field (via
+                        # StochasticPrograms); honouring `modularity` here
+                        # leaves the encoding forward-compatible with a
+                        # future EC.jl@stochastic that exposes the same
+                        # toggle.
+                        is_integer_design = field_component(users_data[u], g, "modularity", false)
+                        mcd_var = defVar(ub, "MaxCapacityDesign", Float64, ())
+                        mcd_var[:] = is_integer_design ? -float(n_modules) : float(n_modules)
+                    end
 
                     if !deterministic # stochastic model
                         path_dim += 1
-                        # append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_intermittent
                         append!(path_group_idx_data, [string(last_g), "x_intermittent"]) # i.e., last_g wrt B, V x_intermittent
                         append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_intermittent
                         append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_intermittent
+                        push!(intermittent_units, (last_g, u, g, size_capacity))
                     end
 
                     last_g += 1
@@ -338,15 +600,42 @@ function csvEC2nc4(
 
                     ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "BatteryUnitBlock"))
 
+                    # The fleet of N identical modules is encoded according
+                    # to the top-level `design_mode` flag (see the CLI parser
+                    # at the bottom of this file). batt_n_modules and
+                    # conv_n_modules must match because they live in the
+                    # same block.
+                    g_conv = field_component(users_data[u], g, "corr_asset")
+                    n_modules_batt = div(field_component(users_data[u], g, "max_capacity"),
+                                         field_component(users_data[u], g, "nom_capacity"))
+                    n_modules_conv = div(field_component(users_data[u], g_conv, "max_capacity"),
+                                         field_component(users_data[u], g_conv, "nom_capacity"))
+                    if n_modules_batt != n_modules_conv
+                        error("BatteryUnitBlock fleet size mismatch for user $(u): " *
+                              "batt has $(n_modules_batt) modules but " *
+                              "conv has $(n_modules_conv); they must match.")
+                    end
+                    n_modules = n_modules_batt
+
+                    # "fleet" mode sizes per-component MaxPower / storage /
+                    # InvestmentCost by max_capacity; "scale" and "design" by
+                    # nom_capacity.
+                    batt_size = design_mode == "fleet" ?
+                                field_component(users_data[u], g, "max_capacity") :
+                                field_component(users_data[u], g, "nom_capacity")
+                    conv_size = design_mode == "fleet" ?
+                                field_component(users_data[u], g_conv, "max_capacity") :
+                                field_component(users_data[u], g_conv, "nom_capacity")
+
                     # ----------- Battery -----------
 
-                    # store the maximum installable capacity of the battery
+                    # maximum installable capacity (always the fleet total)
                     batt_max_capacity = defVar(ub, "BatteryMaxCapacity", Float64, ())
                     batt_max_capacity[:] = field_component(users_data[u], g, "max_capacity")
 
-                    # store the maximum power of the battery
+                    # maximum power
                     batt_max_power = defVar(ub, "MaxPower", Float64, ())
-                    batt_max_power[:] = field_component(users_data[u], g, "max_capacity")
+                    batt_max_power[:] = batt_size
 
                     # store the maximum C-rate of the battery in charge
                     max_C_ch = field_component(users_data[u], g, "max_C_ch")
@@ -362,14 +651,14 @@ function csvEC2nc4(
                         batt_max_C_dch[:] = max_C_dch
                     end
 
-                    # set a negative initial power negative to use the cyclical notation
+                    # negative initial storage triggers cyclical notation
                     initial_storage = defVar(ub, "InitialStorage", Float64, ())
                     initial_storage[:] = -1
 
-                    # store the minimum storage of the battery
+                    # minimum storage
                     min_storage_data = [field_component(users_data[u], g, "min_SOC") /
-                                        profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                        for t in time_set] * field_component(users_data[u], g, "max_capacity")
+                                        time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                        for t in time_set] * batt_size
                     if (allequal(min_storage_data))
                         min_storage = defVar(ub, "MinStorage", Float64, ())
                         min_storage[:] = min_storage_data[1]
@@ -378,10 +667,10 @@ function csvEC2nc4(
                         min_storage[:] = min_storage_data[:]
                     end
 
-                    # store the maximum storage of the battery
+                    # maximum storage
                     max_storage_data = [field_component(users_data[u], g, "max_SOC") /
-                                        profile(market_data, "time_res")[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
-                                        for t in time_set] * field_component(users_data[u], g, "max_capacity")
+                                        time_res_profile[t] # energy (kWh), i.e., power * time, to power (kW), i.e., energy / time
+                                        for t in time_set] * batt_size
                     if (allequal(max_storage_data))
                         max_storage = defVar(ub, "MaxStorage", Float64, ())
                         max_storage[:] = max_storage_data[1]
@@ -390,57 +679,80 @@ function csvEC2nc4(
                         max_storage[:] = max_storage_data[:]
                     end
 
-                    # store the Net Present Value of the battery
+                    # Net Present Value of the battery
                     batt_investment_cost = defVar(ub, "BatteryInvestmentCost", Float64, ())
-                    batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
-                                                   ((field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
+                    batt_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") :
+                                                   ((field_component(users_data[u], g, "OEM_lin") +
                                                      ((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                      field_component(users_data[u], g, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                      field_component(users_data[u], g, "CAPEX_lin") : 0.0) -
                                                      ((mod(y, field_component(users_data[u], g, "lifetime_y")) != 0 && y == project_lifetime) ?
                                                       field_component(users_data[u], g, "CAPEX_lin") *
                                                       (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
-                                                             field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                             field_component(users_data[u], g, "lifetime_y")) : 0.0)) *
                                                     (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                               field_component(users_data[u], g, "max_capacity"))
+                                               batt_size)
 
                     # ---------- Converter ----------
 
-                    g_conv = field_component(users_data[u], g, "corr_asset") # corresponding converter, i.e., "conv"
-
-                    # store the maximum installable capacity of the converter
+                    # maximum installable capacity (always the fleet total)
                     conv_max_capacity = defVar(ub, "ConverterMaxCapacity", Float64, ())
                     conv_max_capacity[:] = field_component(users_data[u], g_conv, "max_capacity")
 
-                    # store the maximum power of the converter
+                    # maximum power
                     conv_max_power = defVar(ub, "ConverterMaxPower", Float64, ())
-                    conv_max_power[:] = field_component(users_data[u], g_conv, "max_capacity")
+                    conv_max_power[:] = conv_size
 
-                    # store the intake roundtrip efficiency of the battery
+                    # intake roundtrip efficiency
                     intake_coeff = defVar(ub, "ExtractingBatteryRho", Float64, ())
                     intake_coeff[:] = 1 / (sqrt(field_component(users_data[u], g, "eta")) *
-                                           field_component(users_data[u], g_conv, "eta")) # corresponding converter, i.e., "conv"
+                                           field_component(users_data[u], g_conv, "eta"))
 
-                    # store the outtake roundtrip efficiency of the battery
+                    # outtake roundtrip efficiency
                     outtake_coeff = defVar(ub, "StoringBatteryRho", Float64, ())
                     outtake_coeff[:] = sqrt(field_component(users_data[u], g, "eta")) *
-                                       field_component(users_data[u], g_conv, "eta") # corresponding converter, i.e., "conv"
+                                       field_component(users_data[u], g_conv, "eta")
 
-                    # store the Net Present Value of the converter
+                    # Net Present Value of the converter
                     conv_investment_cost = defVar(ub, "ConverterInvestmentCost", Float64, ())
-                    conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") : # investment cost of the component
-                                                   ((field_component(users_data[u], g_conv, "OEM_lin") + # operation and maintenance cost of the component
+                    conv_investment_cost[:] = (sum(y == 0 ? field_component(users_data[u], g_conv, "CAPEX_lin") :
+                                                   ((field_component(users_data[u], g_conv, "OEM_lin") +
                                                      ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) == 0 && y != project_lifetime) ?
-                                                      field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) - # replacement cost of the component
+                                                      field_component(users_data[u], g_conv, "CAPEX_lin") : 0.0) -
                                                      ((mod(y, field_component(users_data[u], g_conv, "lifetime_y")) != 0 && y == project_lifetime) ?
                                                       field_component(users_data[u], g_conv, "CAPEX_lin") *
                                                       (1.0 - mod(y, field_component(users_data[u], g_conv, "lifetime_y")) /
-                                                             field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) * # residual value of the component
+                                                             field_component(users_data[u], g_conv, "lifetime_y")) : 0.0)) *
                                                     (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                               field_component(users_data[u], g_conv, "max_capacity"))
+                                               conv_size)
+
+                    if design_mode == "scale" && n_modules > 1
+                        # Scale = N: f_scale on the block aggregates the
+                        # per-module sizing to fleet level (batt and conv
+                        # share the same n_modules by construction).
+                        scale_var = defVar(ub, "Scale", Float64, ())
+                        scale_var[:] = n_modules
+                    elseif design_mode == "design"
+                        # Per-component MaxCapacityDesign = ±N: sign is
+                        # negative ⇔ integer ∈ {0,…,N}. Each component
+                        # (batt / conv) consults its own `modularity` YAML
+                        # field with the same convention as EC.jl: `true`
+                        # ⇒ integer, `false` (EC.jl default) ⇒ continuous.
+                        batt_integer_design = field_component(users_data[u], g, "modularity", false)
+                        conv_integer_design = field_component(users_data[u], g_conv, "modularity", false)
+                        if n_modules_batt != 1
+                            batt_mcd_var = defVar(ub, "BatteryMaxCapacityDesign", Float64, ())
+                            batt_mcd_var[:] = batt_integer_design ? -float(n_modules_batt) :
+                                                                     float(n_modules_batt)
+                        end
+                        if n_modules_conv != 1
+                            conv_mcd_var = defVar(ub, "ConverterMaxCapacityDesign", Float64, ())
+                            conv_mcd_var[:] = conv_integer_design ? -float(n_modules_conv) :
+                                                                     float(n_modules_conv)
+                        end
+                    end
 
                     if !deterministic # stochastic model
                         path_dim += 2
-                        # append!(path_group_idx_data, [last_g, 0, last_g, 1]) # i.e., last_g wrt B, 0 wrt V x_battery, 1 wrt V x_converter
                         append!(path_group_idx_data, [string(last_g), "x_battery", string(last_g), "x_converter"]) # i.e., last_g wrt B, V x_battery, x_converter
                         append!(path_element_idx_data, [typemax(UInt32), 0, typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_battery, x_converter
                         append!(path_range_idx_data, [typemax(UInt32), 1, typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_battery, x_converter
@@ -451,35 +763,56 @@ function csvEC2nc4(
 
                 elseif g == "generator"
 
-                    for _ in 1:div(field_component(users_data[u], g, "max_capacity"), field_component(users_data[u], g, "nom_capacity"))
+                    # The fleet of N = max_capacity / nom_capacity identical
+                    # thermal modules is encoded according to the top-level
+                    # `design_mode` flag:
+                    #   - design (default): N replicated ThermalUnitBlocks
+                    #     sized per nom_capacity, each with its own binary
+                    #     design + independent commitment u_t. Granular
+                    #     integer install ∈ {0,…,N}, matches EC.jl `n_us`.
+                    #   - scale: 1 ThermalUnitBlock per-module + Scale = N.
+                    #     Synchronous fleet: u_t shared ⇒ install ∈ {0,N}.
+                    #   - fleet: 1 ThermalUnitBlock sized per max_capacity,
+                    #     no Scale. Mathematically equivalent to scale-mode.
+                    # All three modes are LP-equivalent; design-mode is
+                    # strictly more expressive than scale/fleet at MILP.
+                    n_modules = div(field_component(users_data[u], g, "max_capacity"),
+                                    field_component(users_data[u], g, "nom_capacity"))
+                    n_replicas = design_mode == "design" ? n_modules : 1
+                    therm_size = design_mode == "fleet" ?
+                                 field_component(users_data[u], g, "max_capacity") :
+                                 field_component(users_data[u], g, "nom_capacity")
+
+                    for _ in 1:n_replicas
 
                         ub = defGroup(block, "UnitBlock_$(last_g)", attrib=OrderedDict("type" => "ThermalUnitBlock"))
 
-                        # store the installable capacity of the thermal
+                        # installable capacity (per module in scale/design,
+                        # fleet total in fleet mode)
                         thermal_capacity = defVar(ub, "Capacity", Float64, ())
-                        thermal_capacity[:] = field_component(users_data[u], g, "nom_capacity")
+                        thermal_capacity[:] = therm_size
 
-                        # store the minimum power of the thermal
+                        # minimum power
                         thermal_min_power = defVar(ub, "MinPower", Float64, ())
                         thermal_min_power[:] = (field_component(users_data[u], g, "min_technical") *
-                                                field_component(users_data[u], g, "nom_capacity"))
+                                                therm_size)
 
-                        # store the maximum power of the thermal
+                        # maximum power
                         thermal_max_power = defVar(ub, "MaxPower", Float64, ())
                         thermal_max_power_val =
                             field_component(users_data[u], g, "max_technical") *
-                            field_component(users_data[u], g, "nom_capacity")
+                            therm_size
                         thermal_max_power[:] = thermal_max_power_val
 
-                        # store the start-up limit
+                        # start-up limit
                         thermal_start_up_limit = defVar(ub, "StartUpLimit", Float64, ())
                         thermal_start_up_limit[:] = thermal_max_power_val
 
-                        # store the shut-down limit
+                        # shut-down limit
                         thermal_shut_up_limit = defVar(ub, "ShutDownLimit", Float64, ())
                         thermal_shut_up_limit[:] = thermal_max_power_val
 
-                        # store the Net Present Value of the thermal
+                        # Net Present Value of the thermal
                         investment_cost = defVar(ub, "InvestmentCost", Float64, ())
                         investment_cost[:] = sum(y == 0 ? field_component(users_data[u], g, "CAPEX_lin") : # investment cost of the component
                                                  ((((mod(y, field_component(users_data[u], g, "lifetime_y")) == 0 && y != project_lifetime) ?
@@ -489,13 +822,14 @@ function csvEC2nc4(
                                                     (1.0 - mod(y, field_component(users_data[u], g, "lifetime_y")) /
                                                            field_component(users_data[u], g, "lifetime_y")) : 0.0)) * # residual value of the component
                                                   (1 / (1 + field(gen_data, "d_rate"))^y)) for y in append!([0], year_set)) *
-                                             field_component(users_data[u], g, "nom_capacity")
+                                             therm_size
 
                         # store the linear term of the thermal
+                        # (fuel intensity is in EUR/kWh, independent of module size)
                         linear_term_data = sum([(field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the slope of the piece-wise linear cost function
                                                  field_component(users_data[u], g, "slope_map")) *
-                                                profile(market_data, "energy_weight")[t] *
-                                                profile(market_data, "time_res")[t]
+                                                energy_weight_profile[t] *
+                                                time_res_profile[t]
                                                 for t in time_set] *
                                                (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set)
                         if (allequal(linear_term_data))
@@ -506,15 +840,18 @@ function csvEC2nc4(
                             linear_term[:] = linear_term_data[:]
                         end
 
-                        # store the constant term of the thermal
-                        const_term_data = sum([(field_component(users_data[u], g, "OEM_lin") + # operation and maintenance cost of the component
-                                                (field_component(users_data[u], g, "fuel_price") * # fuel consumption wrt the intercept of the piece-wise linear cost function
+                        # constant term: commitment-based O&M (OEM_com, else OEM_lin)
+                        # plus fuel intercept, scaled by module size
+                        oem_com = field_component(users_data[u], g, "OEM_com",
+                                                  field_component(users_data[u], g, "OEM_lin"))
+                        const_term_data = sum([(oem_com +
+                                                (field_component(users_data[u], g, "fuel_price") *
                                                  field_component(users_data[u], g, "inter_map"))) *
-                                               profile(market_data, "energy_weight")[t] *
-                                               profile(market_data, "time_res")[t]
+                                               energy_weight_profile[t] *
+                                               time_res_profile[t]
                                                for t in time_set] *
                                               (1 / (1 + field(gen_data, "d_rate"))^y) for y in year_set) *
-                                          field_component(users_data[u], g, "nom_capacity")
+                                          therm_size
                         if (allequal(const_term_data))
                             const_term = defVar(ub, "ConstTerm", Float64, ())
                             const_term[:] = const_term_data[1]
@@ -523,35 +860,99 @@ function csvEC2nc4(
                             const_term[:] = const_term_data[:]
                         end
 
+                        if design_mode == "scale" && n_modules > 1
+                            # Scale = N: f_scale on the block aggregates the
+                            # per-module sizing to fleet level (synchronous
+                            # on/off, see ThermalUnitBlock.h Scale Doxygen).
+                            scale_var = defVar(ub, "Scale", Float64, ())
+                            scale_var[:] = n_modules
+                        end
+
                         if !deterministic # stochastic model
                             path_dim += 1
-                            # append!(path_group_idx_data, [last_g, 0]) # i.e., last_g wrt B, 0 wrt V x_thermal
                             append!(path_group_idx_data, [string(last_g), "x_thermal"]) # i.e., last_g wrt B, V x_thermal
                             append!(path_element_idx_data, [typemax(UInt32), 0]) # i.e., _ wrt B, 0 wrt V x_thermal
                             append!(path_range_idx_data, [typemax(UInt32), 1]) # i.e., _ wrt B, 1 or _ wrt V x_thermal
                         end
 
                         last_g += 1
-                        generator_node[last_g] = i_u - 1 # assign the ownership of the current therms generator to the respective user
+                        generator_node[last_g] = i_u - 1 # assign the ownership of the current thermal generator to the respective user
                     end
                 end
             end
         end
     end
 
-    close(ds)
-
     if !deterministic # stochastic model
 
-        # The mode "c" stands for creating a new file (clobber)
-        tssb_ds = NCDataset(string("../../data/nc4/EC_Data/TSSB_EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
-        tssb = defGroup(tssb_ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "TwoStageStochasticBlock"))
+        # The TSSB structures (top-level Block_0 + StochasticBlock + inner
+        # UCBlock Block group) were pre-defined above; the inner UCBlock has
+        # just been populated by the deterministic branch of this function.
+        # Now we add the dimensions and groups that depend on the UCBlock
+        # metadata collected above (n_devices, intermittent_units, peak_set).
 
-        ## Number of scenarios in the TwoStageStochasticBlock.
-        ## We use the number of sampled_scenarios, which already encodes
-        ## the (s, eps) combinations returned by scenarios_generator.
+        ## Number of scenarios in the TwoStageStochasticBlock. In the flat
+        ## (TSSB) flow this is the full sampled (s, eps) set; in the
+        ## `--multistage` flow each inner TSSB carries only its long-period
+        ## group, so Block_0 (built here) gets the first group's size and the
+        ## copies get theirs below.
         n_scen = length(sampled_scenarios)
-        defDim(tssb, "NumberScenarios", n_scen)
+        tssb_scenarios = (mssb !== nothing) ? scenario_groups[1] : sampled_scenarios
+        defDim(tssb, "NumberScenarios", length(tssb_scenarios))
+
+        # ----------------------------------------------------------------
+        # Stochastic-price detection.
+        # ----------------------------------------------------------------
+        # `scen_eps_sampler.jl` perturbs market-level prices whenever the
+        # YAML market profile defines `std_<name>` (`std_buy_price`,
+        # `std_sell_price`, `std_consumption_price`, `std_penalty_price`,
+        # `std_peak_tariff`); without those entries the corresponding price
+        # is left deterministic. We scan the sampled scenarios to find
+        # which price fields actually vary, then emit one
+        # `SimpleDataMapping` per (varying field, peak period) targeting the
+        # matching ECNetworkBlock setter (registered in
+        # `ECNetworkBlock::static_initialization`):
+        #   buy_price          -> ECNetworkBlock::set_buy_price
+        #   sell_price         -> ECNetworkBlock::set_sell_price
+        #   peak_tariff        -> ECNetworkBlock::set_peak_tariff   (scalar)
+        #   consumption_price  -> ECNetworkBlock::set_const_term    (scalar)
+        #   penalty_price      -> ECNetworkBlock::set_penalty_price
+        function _scenario_field_varies(field_extractor)
+            isempty(sampled_scenarios) && return false
+            ref = field_extractor(sampled_scenarios[1])
+            return any(s -> field_extractor(s) != ref, sampled_scenarios)
+        end
+        varying_price_fields = String[]
+        _scenario_field_varies(s -> s.buy_price)         && push!(varying_price_fields, "buy_price")
+        _scenario_field_varies(s -> s.sell_price)        && push!(varying_price_fields, "sell_price")
+        _scenario_field_varies(s -> s.consumption_price) && push!(varying_price_fields, "consumption_price")
+        _scenario_field_varies(s -> s.penalty_price)     && push!(varying_price_fields, "penalty_price")
+        _scenario_field_varies(s -> s.peak_tariff)       && push!(varying_price_fields, "peak_tariff")
+
+        # peak_tariff and consumption_price feed scalar setters (slice length 1);
+        # the other three feed per-time vectors of length equal to the peak's
+        # number of intervals.
+        ec_setter_for = Dict(
+            "buy_price"         => "ECNetworkBlock::set_buy_price",
+            "sell_price"        => "ECNetworkBlock::set_sell_price",
+            "peak_tariff"       => "ECNetworkBlock::set_peak_tariff",
+            "consumption_price" => "ECNetworkBlock::set_const_term",
+            "penalty_price"     => "ECNetworkBlock::set_penalty_price",
+        )
+        scalar_price_field(name) = name == "peak_tariff" || name == "consumption_price"
+
+        n_intervals_per_peak = [count(x -> x == w, peak_categories) for w in peak_set]
+
+        # price_mappings[k] = (field_name, peak_index_1based, slice_length)
+        price_mappings = Tuple{String,Int,Int}[]
+        for field_name in varying_price_fields
+            for i_w in 1:n_peaks
+                len = scalar_price_field(field_name) ? 1 : n_intervals_per_peak[i_w]
+                push!(price_mappings, (field_name, i_w, len))
+            end
+        end
+        N_price_tail = isempty(price_mappings) ? 0 : sum(m[3] for m in price_mappings)
+        # ----------------------------------------------------------------
 
         # DiscreteScenarioSet
         #
@@ -567,23 +968,139 @@ function csvEC2nc4(
         # as (ScenarioSize, NumberScenarios) so that C++ will see it as
         # [NumberScenarios][ScenarioSize].
         #
-        dss = defGroup(
-            tssb,
-            "DiscreteScenarioSet",
-            attrib = OrderedDict("type" => "DiscreteScenarioSet"),
-        )
-
         # ScenarioSize = number of entries in each scenario vector.
-        # Here we take the active power demand of all users on the whole
-        # time horizon, flattened in (t, u) order, consistent with the
-        # way ActivePowerDemand is written in UCBlock.
+        # Layout (in scenario-vector order):
+        #   1. ActivePowerDemand: n_steps * n_users entries, flattened (t, u)
+        #      consistent with UCBlock::ActivePowerDemand[t, u].
+        #   2. For each IntermittentUnitBlock (PV / wind), in the order they
+        #      were emitted into the UCBlock: n_steps entries with
+        #      max_capacity * scen.Ren[user][asset][t]. These feed
+        #      IntermittentUnitBlock::set_maximum_power on the corresponding
+        #      UnitBlock_<ub_idx>.
+        #   3. Price tail (only when `varying_price_fields` is non-empty):
+        #      one slice per (varying field, peak period) ordered as in
+        #      `price_mappings`, of length 1 for the scalar setters
+        #      (peak_tariff, consumption_price) and `n_intervals_per_peak[i_w]`
+        #      for the vector setters (buy_price, sell_price, penalty_price).
         n_users = length(user_set)
-        scenario_size = n_steps * n_users
+        n_intermittent = length(intermittent_units)
+        N_dem = n_steps * n_users
+        N_mp  = n_steps
+        scenario_size = N_dem + n_intermittent * N_mp + N_price_tail
 
-        defDim(dss, "NumberScenarios", n_scen)
-        defDim(dss, "ScenarioSize", scenario_size)
-        # For "NumberScenarios" we re-use the dimension already defined
-        # in the parent group, by referring to it by name in defVar.
+        # `write_dss!` writes one DiscreteScenarioSet group (Scenarios +
+        # PoolWeights) under `parent_grp` for the given scenario list and
+        # weights. The flat (TSSB) flow calls it once with the full sampled
+        # set; the `--multistage` flow calls it once per inner
+        # TwoStageStochasticBlock with that Block's long-period group and the
+        # corresponding short-period (conditional) probabilities.
+        # Build the flat scenario data vector for one sampled scenario, in the
+        # layout consumed by the UCBlock DataMappings. It is reused both as the
+        # rows of the DiscreteScenarioSet (baked format) and as the leaf
+        # NodeData of the shared scenario tree (shared-tree format).
+        scenario_vec = function (scen)
+            vec = Array{Float64}(undef, scenario_size)
+            idx = 1
+
+            # Section 1: ActivePowerDemand in (user, time) order, matching
+            # the layout expected by `UCBlock::set_active_power_demand` which
+            # interprets each scenario index as `(node × TimeHorizon + time)`,
+            # i.e., outer loop on user (node), inner loop on time.
+            for u in user_set
+                for t in time_set
+                    vec[idx] = scen.Load[u][t]
+                    idx += 1
+                end
+            end
+
+            # Section 2: per-IntermittentUnitBlock per-module MaxPower time
+            # series (Scale on the block side aggregates to fleet).
+            for (_, u, asset, nom_cap) in intermittent_units
+                ren_profile = scen.Ren[u][asset]
+                for t in time_set
+                    vec[idx] = nom_cap * ren_profile[t]
+                    idx += 1
+                end
+            end
+
+            # Section 3: per-(price_field, peak) tail. For each varying price
+            # field we lay one slice per peak period, in the same order as
+            # `price_mappings`. The aggregation mirrors the deterministic
+            # scaling (energy_weight, time_res, peak_weight, discount_factor)
+            # so the C++ obj coefficient matches the deterministic case when
+            # the perturbation amplitude is zero.
+            if !isempty(price_mappings)
+                last_t_per_peak = let lt = 1, out = Int[]
+                    for nint in n_intervals_per_peak
+                        push!(out, lt)
+                        lt += nint
+                    end
+                    out
+                end
+                for (field_name, i_w, _len) in price_mappings
+                    w = peak_set[i_w]
+                    last_t = last_t_per_peak[i_w]
+                    last_i = last_t + n_intervals_per_peak[i_w] - 1
+                    if field_name == "buy_price"
+                        for tt in last_t:last_i
+                            t = time_set[tt]
+                            vec[idx] = scen.buy_price[t] *
+                                       energy_weight_profile[t] *
+                                       time_res_profile[t] * discount_factor
+                            idx += 1
+                        end
+                    elseif field_name == "sell_price"
+                        for tt in last_t:last_i
+                            t = time_set[tt]
+                            vec[idx] = scen.sell_price[t] *
+                                       energy_weight_profile[t] *
+                                       time_res_profile[t] * discount_factor
+                            idx += 1
+                        end
+                    elseif field_name == "penalty_price"
+                        for tt in last_t:last_i
+                            t = time_set[tt]
+                            vec[idx] = scen.penalty_price[t] *
+                                       energy_weight_profile[t] *
+                                       time_res_profile[t] * discount_factor
+                            idx += 1
+                        end
+                    elseif field_name == "consumption_price"
+                        # ConstantTerm aggregates Σ_t consumption_price[t] · Σ_u Load_u[t]
+                        # over the peak's time window (mirrors deterministic const_term_data).
+                        acc = 0.0
+                        for tt in last_t:last_i
+                            t = time_set[tt]
+                            acc += scen.consumption_price[t] *
+                                   sum(scen.Load[u][t] for u in user_set) *
+                                   energy_weight_profile[t] *
+                                   time_res_profile[t]
+                        end
+                        vec[idx] = acc * discount_factor
+                        idx += 1
+                    elseif field_name == "peak_tariff"
+                        vec[idx] = scen.peak_tariff[w] *
+                                   profile(ref_market, "peak_weight")[w] *
+                                   discount_factor
+                        idx += 1
+                    else
+                        error("Unhandled stochastic price field: $field_name")
+                    end
+                end
+            end
+
+            return vec
+        end  # scenario_vec
+
+        # Write one DiscreteScenarioSet group (Scenarios + PoolWeights) into
+        # `parent_grp` for the given scenarios and (conditional) weights.
+        write_dss! = function (parent_grp, dss_scens, dss_weights)
+            n_sc = length(dss_scens)
+            dss = defGroup(parent_grp, "DiscreteScenarioSet",
+                           attrib=OrderedDict("type" => "DiscreteScenarioSet"))
+
+            defDim(dss, "NumberScenarios", n_sc)
+            defDim(dss, "ScenarioSize", scenario_size)
 
         ## A T T E N T I O N: The data is stored in the NetCDF file in the
         ## same order as they are stored in memory. As Julia uses the
@@ -594,24 +1111,12 @@ function csvEC2nc4(
         ## To store the scenario set in the correct shape, i.e.,
         ## NumberScenarios x ScenarioSize in C++, we store it here as
         ## ScenarioSize x NumberScenarios in Julia.
-        scen_mat = Array{Float64}(undef, scenario_size, n_scen)
-        weights  = Array{Float64}(undef, n_scen)
+        scen_mat = Array{Float64}(undef, scenario_size, n_sc)
+        weights = Array{Float64}(undef, n_sc)
 
-        for (k, scen) in enumerate(sampled_scenarios)
-            vec = Array{Float64}(undef, scenario_size)
-            idx = 1
-
-            # Flatten scenario Load in (time, user) order, consistent
-            # with ActivePowerDemand written as [t, u].
-            for t in time_set
-                for u in user_set
-                    vec[idx] = scen.Load[u][t]
-                    idx += 1
-                end
-            end
-
-            scen_mat[:, k] = vec
-            weights[k] = probability(scen)
+        for (k, scen) in enumerate(dss_scens)
+            scen_mat[:, k] = scenario_vec(scen)
+            weights[k] = dss_weights[k]
         end
 
         # Scenarios: stored as (ScenarioSize, NumberScenarios) in Julia
@@ -632,157 +1137,447 @@ function csvEC2nc4(
             ("NumberScenarios",),
         )
         pool_weights_var[:] = weights
+        end  # write_dss!
 
-        # AbstractPath
-        ap = defGroup(tssb, "StaticAbstractPath")
+        # Write the shared scenario tree as a MultiStageDiscreteScenarioSet under
+        # `parent_grp`/"ScenarioGenerator": root (stage 0) -> one node per
+        # long-period group `s` (stage 1, P(s)) -> one node per `eps` of that
+        # group (stage 2, P(eps|s), data = the scenario vector). Only the leaves
+        # carry data; the inner TwoStageStochasticBlock read it through a view.
+        write_tree! = function (parent_grp, groups, marginals)
+            sg = defGroup(parent_grp, "ScenarioGenerator",
+                          attrib=OrderedDict("type" =>
+                                             "MultiStageDiscreteScenarioSet"))
 
-        defDim(ap, "PathDim", path_dim)
+            n_eps_total = sum(length(g) for g in groups)
+            n_nodes = 1 + length(groups) + n_eps_total   # root + s + eps
 
-        path_length = 2 # 1 B (UnitBlock_*) + 1 V (x_design) for each path
-        total_length = path_length * path_dim
-        defDim(ap, "TotalLength", total_length)
+            defDim(sg, "NumberStages", 3)
+            defDim(sg, "NumberNodes", n_nodes)
+            defDim(sg, "ScenarioDataSize", scenario_size)
 
-        path_start = defVar(ap, "PathStart", UInt32, ("PathDim",))
-        path_start[:] = collect(0:path_length:total_length-1)[:] # range from 0 to total_length each path_length
+            stage  = Array{UInt32}(undef, n_nodes)
+            parent = Array{UInt32}(undef, n_nodes)
+            prob   = Array{Float64}(undef, n_nodes)
+            # NodeData stored (ScenarioDataSize, NumberNodes) in Julia so C++
+            # sees [NumberNodes][ScenarioDataSize]; only leaves are non-zero.
+            data   = zeros(Float64, scenario_size, n_nodes)
 
-        path_node_types = defVar(ap, "PathNodeTypes", Char, ("TotalLength",))
-        path_node_types[:] = collect("BV"^path_dim)[:] # repeat BV path_dim times
+            # root (node index 0 in C++ == column 1 in Julia)
+            stage[1]  = 0
+            parent[1] = n_nodes          # >= NumberNodes == "no parent" marker
+            prob[1]   = 1.0
 
-        # path_group_idx = defVar(ap, "PathGroupIndices", UInt32, ("TotalLength",))
-        path_group_idx = defVar(ap, "PathGroupIndices", String, ("TotalLength",))
-        path_group_idx[:] = path_group_idx_data[:]
+            next = 2                      # 1-based Julia column of the next node
+            s_cols = Int[]                # Julia column of each s-node
+            for (j, g) in enumerate(groups)
+                stage[next]  = 1
+                parent[next] = 0          # child of the root (C++ index 0)
+                prob[next]   = marginals[j]
+                push!(s_cols, next)
+                next += 1
+            end
+            for (j, g) in enumerate(groups)
+                s_cpp = s_cols[j] - 1     # C++ index of this s-node
+                for sc in g
+                    stage[next]  = 2
+                    parent[next] = s_cpp
+                    prob[next]   = probability(sc) / marginals[j]   # P(eps|s)
+                    data[:, next] = scenario_vec(sc)
+                    next += 1
+                end
+            end
 
-        path_element_idx = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
-        path_element_idx[:] = path_element_idx_data[:]
+            defVar(sg, "StageScenarioSize", UInt32, ("NumberStages",))[:] =
+                UInt32[0, 0, scenario_size]
+            defVar(sg, "NodeStage", UInt32, ("NumberNodes",))[:] = stage
+            defVar(sg, "NodeParent", UInt32, ("NumberNodes",))[:] = parent
+            defVar(sg, "NodeProbability", Float64, ("NumberNodes",))[:] = prob
+            defVar(sg, "NodeData", Float64,
+                   ("ScenarioDataSize", "NumberNodes"))[:, :] = data
+        end  # write_tree!
 
-        path_range_idx = defVar(ap, "PathRangeIndices", UInt32, ("TotalLength",))
-        path_range_idx[:] = path_range_idx_data[:]
+        # AbstractPath to the first-stage (here-and-now) variables. The design
+        # paths (UnitBlock -> x_design) were built during the UCBlock population
+        # above. For a three-stage instance the inner TwoStageStochasticBlock
+        # additionally ties the day-ahead declared-dispatch bid (the aggregate
+        # p_agg_dec_pos/neg of every ECNetworkBlock) across the short-period
+        # scenarios, so those nodes are appended to the inner-TSSB path here.
+        # The MultiStageStochasticBlock ties only the design across the
+        # long-period scenarios, so its own path (written at the end) uses the
+        # design nodes only.
 
-        # StochasticBlock
-        sb = defGroup(tssb, "StochasticBlock", attrib=OrderedDict("type" => "StochasticBlock"))
+        # `write_static_path!` writes a StaticAbstractPath group from the given
+        # per-node arrays (each path is a 'B' node followed by a 'V' node).
+        write_static_path! = function (parent_grp, gidx, eidx, ridx)
+            pd = length(gidx) ÷ 2
+            ap = defGroup(parent_grp, "StaticAbstractPath")
+            defDim(ap, "PathDim", pd)
+            defDim(ap, "TotalLength", 2 * pd)
+            defVar(ap, "PathStart", UInt32, ("PathDim",))[:] = collect(0:2:2*pd-1)
+            defVar(ap, "PathNodeTypes", Char, ("TotalLength",))[:] = collect("BV"^pd)
+            defVar(ap, "PathGroupIndices", String, ("TotalLength",))[:] = gidx
+            defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))[:] = eidx
+            defVar(ap, "PathRangeIndices", UInt32, ("TotalLength",))[:] = ridx
+        end
 
-        # SimpleDataMapping
+        # design-only nodes (used by the MultiStageStochasticBlock outer path)
+        design_group_idx = copy(path_group_idx_data)
+        design_element_idx = copy(path_element_idx_data)
+        design_range_idx = copy(path_range_idx_data)
+
+        # inner-TSSB nodes = design (+ declared-dispatch bid for three-stage)
+        tssb_group_idx = copy(design_group_idx)
+        tssb_element_idx = copy(design_element_idx)
+        tssb_range_idx = copy(design_range_idx)
+
+        if three_stage
+            isnothing(penalty_price_data) && error(
+                "csv2nc4: a three-stage instance requires a penalty_price (the " *
+                "imbalance / declared-dispatch bid is generated only then)")
+            # for every ECNetworkBlock (one per peak period, at UCBlock nested
+            # index n_devices + w) append two paths: the aggregate declared
+            # dispatch p_agg_dec_pos / _neg over the peak's intervals
+            for i_w in 1:n_peaks
+                nb_idx = n_devices + (i_w - 1)       # NetworkBlock nested index
+                len = n_intervals_per_peak[i_w]      # intervals in this peak
+                for vname in ("p_agg_dec_pos_network", "p_agg_dec_neg_network")
+                    # 'B' node: ECNetworkBlock by (stringified) nested index
+                    push!(tssb_group_idx, string(nb_idx))
+                    push!(tssb_element_idx, typemax(UInt32))
+                    push!(tssb_range_idx, typemax(UInt32))
+                    # 'V' node: the whole p_agg_dec vector, i.e. [0, len)
+                    push!(tssb_group_idx, vname)
+                    push!(tssb_element_idx, UInt32(0))
+                    push!(tssb_range_idx, UInt32(len))
+                end
+            end
+        end
+
+        write_static_path!(tssb, tssb_group_idx, tssb_element_idx, tssb_range_idx)
+
+        # StochasticBlock was pre-declared at the top of this function; its
+        # inner UCBlock was populated above by the deterministic branch.
+        # Below we add the SimpleDataMapping section + nested AbstractPath.
+
+        # SimpleDataMapping (compact form)
         #
-        # We build a vector of SimpleDataMapping for the StochasticBlock so that,
-        # when deserialized by SMS++, each scenario gets its own slice of the
-        # input data and maps it onto the UCBlock "active power demand" target range.
+        # The scenario vector is split as described above: Section 1
+        # (demand), then one slice per intermittent unit (Section 2), then
+        # one slice per (varying price field, peak period) (Section 3, only
+        # when price perturbations are detected). With SMS++'s compact
+        # DataMapping form we emit:
         #
-        # - We assume 3 scenarios -> 3 mappings (one per scenario).
-        # - Function name (as registered in the C++ methods factory):
-        #       UCBlock::set_active_power_demand
-        # - DataType = 'D' (double)
-        # - Caller   = 'B' (Block)  -> the caller will be the UCBlock itself
-        #   (we provide an *empty* AbstractPath so that the caller resolves to
-        #    the StochasticBlock's inner_block passed as block_reference).
-        # - SetFrom / SetTo are both Ranges (encoded with SetSize = 0),
-        #   with bounds provided in SetElements as concatenated [a,b) intervals.
+        #   * one mapping for the demand (`UCBlock::set_active_power_demand`,
+        #     empty AbstractPath),
+        #   * ONE compact mapping for ALL intermittent units
+        #     (`IntermittentUnitBlock::set_maximum_power`): its SetFrom
+        #     covers the entire intermittent slice (n_intermittent * N_mp
+        #     consecutive entries of the scenario), its SetTo is the
+        #     per-block [0, N_mp), and its AbstractPath is a single 'B'
+        #     node whose explicit Block subset (PathSubset) lists the
+        #     nested-Block indices of all intermittent units. SMS++
+        #     transparently expands this at deserialize time into one
+        #     concrete mapping per intermittent Block, with SetFrom sliced
+        #     into n_intermittent consecutive N_mp-chunks,
+        #   * one mapping per (price_field, peak): each targets a single
+        #     NetworkBlock via a single 'B' hop (no subset).
         #
-        # Slicing convention (contiguous, non-overlapping):
-        #   Let N be the number of time steps the C++ setter expects.
-        #   We take a single "large" input data vector of length 3N (one chunk per scenario),
-        #   and define:
-        #     mapping 0: SetFrom = [0,   N)  -> SetTo = [0, N)
-        #     mapping 1: SetFrom = [N,  2N)  -> SetTo = [0, N)
-        #     mapping 2: SetFrom = [2N, 3N)  -> SetTo = [0, N)
+        # Each mapping declares which C++ setter consumes the slice,
+        # SetSize=(0,0) i.e. Range/Range mode, and SetElements as the
+        # quadruplet (fromStart, fromEnd, toStart, toEnd).
         #
-        # IMPORTANT:
-        # - If your C++ setter expects exactly TimeHorizon points, keep N = n_steps (used below).
-        # - If it expects the "NumberIntervals" length instead, replace the N definition with:
-        #       N = dimlen(block, "NumberIntervals")  # (alt)
-        #
-        # At runtime, SMS++ will call set_data(...) on each SimpleDataMapping, passing the
-        # beginning of the large input vector. The mapping extracts the proper N-sized
-        # slice (SetFrom) and forwards it to UCBlock::set_active_power_demand with SetTo = [0,N).
+        # UCBlock orders its sub-blocks as [UnitBlock_0..n_devices-1,
+        # NetworkBlock_0..n_peaks-1], so the NetworkBlock for peak (i_w-1)
+        # lives at sub-Block index n_devices + (i_w-1).
 
-        number_mappings = n_scen
+        has_intermittent = n_intermittent > 0
+        number_mappings  = 1 + (has_intermittent ? 1 : 0) + length(price_mappings)
 
-        # Length per scenario (time steps consumed by the C++ setter).
-        # Default: the full horizon length (TimeHorizon).
-        N = n_steps * n_users   # = ScenarioSize
-
-        # Declare the dimensions required by SMS++ deserialization:
-        # - NumberDataMappings: number of mappings in the vector.
-        # - SetSize_dim: 2 entries per mapping (SetFrom, SetTo).
-        # - SetElements_dim: for Range/Range each mapping contributes 4 UInt32s:
-        #       [from_a, from_b, to_a, to_b]
         defDim(sb, "NumberDataMappings", number_mappings)
         defDim(sb, "SetSize_dim", 2 * number_mappings)
         defDim(sb, "SetElements_dim", 4 * number_mappings)
 
-        # Define the variables that describe the vector of mappings.
         v_FunctionName = defVar(sb, "FunctionName", String, ("NumberDataMappings",))
         v_DataType     = defVar(sb, "DataType",     Char,   ("NumberDataMappings",))
         v_Caller       = defVar(sb, "Caller",       Char,   ("NumberDataMappings",))
         v_SetSize      = defVar(sb, "SetSize",      UInt32, ("SetSize_dim",))
         v_SetElements  = defVar(sb, "SetElements",  UInt32, ("SetElements_dim",))
 
-        # Function name (must match the C++ registration exactly).
-        v_FunctionName[:] = fill("UCBlock::set_active_power_demand", number_mappings)
-
-        # Data type for the small vector passed to the function: 'D' = double.
-        # Caller type: 'B' = Block (we'll point to the UCBlock via an empty path).
+        function_names = String["UCBlock::set_active_power_demand"]
+        if has_intermittent
+            push!(function_names, "IntermittentUnitBlock::set_maximum_power")
+        end
+        for (field_name, _i_w, _len) in price_mappings
+            push!(function_names, ec_setter_for[field_name])
+        end
+        v_FunctionName[:] = function_names
         v_DataType[:]     = fill('D', number_mappings)
         v_Caller[:]       = fill('B', number_mappings)
 
-        # SetSize encodes the *types* of SetFrom and SetTo:
-        #   0 -> Range, >0 -> Subset(size)
-        # Here we want Range/Range for all mappings, so the array is:
-        #   [0,0,  0,0,  0,0]
-        v_SetSize[:]      = fill(UInt32(0), 2 * number_mappings)
+        # Range/Range for every mapping
+        v_SetSize[:] = fill(UInt32(0), 2 * number_mappings)
 
-        # mapping i: always [0,N) -> [0,N)
-        v_SetElements[:] = repeat(UInt32.([0, N, 0, N]), number_mappings)
+        set_elements = UInt32[]
+        # Mapping 0: scenario [0, N_dem) -> demand argument [0, N_dem)
+        append!(set_elements, UInt32[0, N_dem, 0, N_dem])
+        # Mapping 1 (compact intermittent, when present): SetFrom covers the
+        # full intermittent slice; SetTo is the per-block [0, N_mp). The
+        # SMS++ deserializer slices SetFrom into n_intermittent consecutive
+        # chunks of N_mp entries and applies one per Block of the subset.
+        if has_intermittent
+            append!(set_elements,
+                    UInt32[N_dem, N_dem + n_intermittent * N_mp, 0, N_mp])
+        end
+        # Per-(price_field, peak) tail.
+        let tail_offset = N_dem + n_intermittent * N_mp
+            for (_field_name, _i_w, len) in price_mappings
+                append!(set_elements, UInt32[tail_offset, tail_offset + len, 0, len])
+                tail_offset += len
+            end
+        end
+        v_SetElements[:] = set_elements
 
-        # AbstractPath vector for the mappings
-        #
-        # Each mapping needs an AbstractPath telling SMS++ how to reach the caller.
-        # Since Caller = 'B' and we want the *inner UCBlock* (i.e., the reference
-        # passed by the StochasticBlock at deserialization time), we can use an
-        # *empty* path: it resolves to the block_reference itself.
-        #
-        # Vector format:
-        #   - PathDim      = number_mappings
-        #   - TotalLength  = total number of nodes across all paths
-        #                    (0 here, because all paths are empty)
-        #   - PathStart    = offsets in [0, TotalLength) where each path starts
-        #   - PathNodeTypes, PathGroupIndices, PathElementIndices, PathRangeIndices
-        #                    are empty arrays when TotalLength = 0
-        ap = defGroup(sb, "AbstractPath")
+        # AbstractPath nested in StochasticBlock: tells the deserializer how
+        # to navigate from the inner Block (the loaded UCBlock) to each
+        # setter target.
+        #   * Empty path  -> the UCBlock itself (demand).
+        #   * 'B' node with PathSubset -> the listed nested-Block indices
+        #     (compact intermittent).
+        #   * 'B' node alone -> the single nested Block at PathGroupIndices.
+        ap = defGroup(sb, "AbstractPath", attrib=OrderedDict("type" => "AbstractPath"))
+
+        # Concatenated nodes across all paths: 0 for the (empty) demand
+        # path, 1 for the compact intermittent path (when present), and 1
+        # per (price_field, peak) path.
+        total_length_inner = (has_intermittent ? 1 : 0) + length(price_mappings)
 
         defDim(ap, "PathDim", number_mappings)
-        defDim(ap, "TotalLength", 0)  # empty paths
+        defDim(ap, "TotalLength", total_length_inner)
 
         v_PathStart        = defVar(ap, "PathStart",         UInt32, ("PathDim",))
         v_PathNodeTypes    = defVar(ap, "PathNodeTypes",     Char,   ("TotalLength",))
-        v_PathGroupIndices = defVar(ap, "PathGroupIndices",  String, ("TotalLength",))
-        v_PathElementIdx   = defVar(ap, "PathElementIndices",UInt32, ("TotalLength",))
-        v_PathRangeIdx     = defVar(ap, "PathRangeIndices",  UInt32, ("TotalLength",))
+        v_PathGroupIndices = defVar(ap, "PathGroupIndices",  UInt32, ("TotalLength",))
+        v_PathElementIdx   = defVar(ap, "PathElementIndices", UInt32, ("TotalLength",))
+        v_PathRangeIdx     = defVar(ap, "PathRangeIndices",   UInt32, ("TotalLength",))
 
-        # With empty paths, PathStart can be zero for all entries.
-        v_PathStart[:] = fill(UInt32(0), number_mappings)
-        # The variables sized on TotalLength=0 remain empty.
+        # PathStart[k] is the start position in the concatenated TotalLength
+        # array for the k-th mapping; the k-th path covers indices
+        # [PathStart[k], PathStart[k+1]) (with the last path running to the
+        # end). Mapping 0 (demand) has length 0 (empty path); the compact
+        # intermittent (when present) is 1 node; each price mapping is 1
+        # node.
+        path_starts_inner = UInt32[0]
+        node_offset = 0
+        if has_intermittent
+            push!(path_starts_inner, UInt32(node_offset))
+            node_offset += 1
+        end
+        for _ in 1:length(price_mappings)
+            push!(path_starts_inner, UInt32(node_offset))
+            node_offset += 1
+        end
+        v_PathStart[:] = path_starts_inner
 
-        # UCBlock nc4 file
-        defGroup(sb, "Block", attrib=OrderedDict("id" => "0", "filename" => string("EC", middle, "Test", last, ".nc4[0]")))
+        if total_length_inner > 0
+            node_types    = Char[]
+            group_indices = UInt32[]
+            range_indices = UInt32[]
 
-        close(tssb_ds)
+            # Detect whether the intermittent unit indices form a contiguous
+            # range [start, start+N): when they do, the compact mapping is
+            # encoded as a Block RANGE (group_index = start, range_index =
+            # end), which costs nothing beyond the existing PathGroupIndices /
+            # PathRangeIndices entries. Otherwise the indices are emitted as
+            # an explicit Block SUBSET via the optional PathSubsetSizes /
+            # PathSubset variables.
+            intermittent_indices = UInt32[]
+            intermittent_is_contiguous = false
+            if has_intermittent
+                intermittent_indices = UInt32[UInt32(u[1])
+                                              for u in intermittent_units]
+                intermittent_is_contiguous = all(i -> intermittent_indices[i] ==
+                                                     intermittent_indices[1] +
+                                                     UInt32(i - 1),
+                                                 1:length(intermittent_indices))
+
+                # Compact intermittent node: PathGroupIndices is set to the
+                # FIRST selected index so that any consumer ignoring the
+                # multi-selection still resolves to a valid Block.
+                push!(node_types, 'B')
+                push!(group_indices, intermittent_indices[1])
+                if intermittent_is_contiguous
+                    # Contiguous range form: [start, end).
+                    push!(range_indices,
+                          intermittent_indices[1] + UInt32(n_intermittent))
+                else
+                    # Subset form: range_index stays +Inf; the actual
+                    # selection is emitted below in PathSubset.
+                    push!(range_indices, typemax(UInt32))
+                end
+            end
+
+            for (_field_name, i_w, _len) in price_mappings
+                push!(node_types, 'B')
+                push!(group_indices, UInt32(n_devices + (i_w - 1)))
+                push!(range_indices, typemax(UInt32))
+            end
+
+            v_PathNodeTypes[:]    = node_types
+            v_PathGroupIndices[:] = group_indices
+            v_PathElementIdx[:]   = fill(typemax(UInt32), total_length_inner)
+            v_PathRangeIdx[:]     = range_indices
+
+            # Optional explicit per-node Block subset: emitted only when the
+            # compact intermittent mapping is present AND the indices are
+            # not contiguous (otherwise the contiguous-range form above is
+            # used and these optional variables are simply omitted, keeping
+            # the file footprint smaller and the ncdump output cleaner).
+            # PathSubsetSizes[i] is the number of nested-Block indices
+            # selected by node i (0 for nodes that select a single Block or
+            # a contiguous range via PathGroupIndices / PathRangeIndices);
+            # the consecutive PathSubsetSizes[i] entries of PathSubset hold
+            # the corresponding indices.
+            if has_intermittent && !intermittent_is_contiguous
+                subset_sizes = UInt32[UInt32(n_intermittent);
+                                      fill(UInt32(0), length(price_mappings))]
+
+                defDim(ap, "PathSubsetTotalLength", n_intermittent)
+                v_PathSubsetSizes = defVar(ap, "PathSubsetSizes",
+                                           UInt32, ("TotalLength",))
+                v_PathSubset      = defVar(ap, "PathSubset",
+                                           UInt32, ("PathSubsetTotalLength",))
+
+                v_PathSubsetSizes[:] = subset_sizes
+                v_PathSubset[:]      = intermittent_indices
+            end
+        end
+
+        # The inner UCBlock is embedded as `sb.Block` (created at the top of
+        # this function). No separate inner-UCBlock nc4 file is written.
+
+        if mssb === nothing
+            # Flat TwoStageStochasticBlock: a single DiscreteScenarioSet over
+            # the full sampled set, with the raw scenario probabilities.
+            write_dss!(tssb, sampled_scenarios,
+                       [probability(sc) for sc in sampled_scenarios])
+        else
+            # MultiStageStochasticBlock: Block_0 (built above) is the first
+            # long-period group; the remaining groups are byte-identical inner
+            # TwoStageStochasticBlock that differ only in their per-group
+            # NumberScenarios and DiscreteScenarioSet, so they are obtained by
+            # copying Block_0 (excluding those two) and writing the group's own.
+            # Each inner TSSB carries the SHORT-period (conditional) weights
+            # P(eps | s) and the outer SubBlockProbabilities carry the
+            # LONG-period marginals P(s), whose product P(s) · P(eps | s) is the
+            # joint probability of the flattened scenario.
+            marginals = [sum(probability(sc) for sc in g) for g in scenario_groups]
+            for (j, g) in enumerate(scenario_groups)
+                bj = if j == 1
+                    tssb
+                else
+                    grp = defGroup(mssb, "Block_$(j - 1)",
+                                   attrib=OrderedDict("id" => string(j - 1),
+                                                      "type" => "TwoStageStochasticBlock"))
+                    copy_group!(grp, tssb;
+                                skip_dims=["NumberScenarios"],
+                                skip_groups=["DiscreteScenarioSet"])
+                    grp.attrib["id"] = string(j - 1)  # copy_group! overwrote it
+                    defDim(grp, "NumberScenarios", length(g))
+                    grp
+                end
+                # baked format: one DiscreteScenarioSet per inner Block. In the
+                # shared-tree format the inner Blocks carry no DiscreteScenarioSet
+                # (the data lives in the shared tree, read through a view).
+                if !shared_tree
+                    cond_weights = [probability(sc) / marginals[j] for sc in g]
+                    write_dss!(bj, g, cond_weights)
+                end
+            end
+
+            if shared_tree
+                # single shared scenario tree; the MSSB derives P(s) from it
+                write_tree!(mssb, scenario_groups, marginals)
+            else
+                # outer-stage (long-period) scenario probabilities P(s)
+                sub_block_prob = defVar(mssb, "SubBlockProbabilities", Float64,
+                                        ("NumberSubBlocks",))
+                sub_block_prob[:] = marginals
+            end
+
+            # the MultiStageStochasticBlock ties only the design (a subset of
+            # the inner-TSSB here-and-now), resolved against each inner Block's
+            # representative scenario sub-Block (get_first_stage_block); the
+            # declared-dispatch bid is tied by the inner TSSB only.
+            write_static_path!(mssb, design_group_idx, design_element_idx,
+                               design_range_idx)
+        end
     end
+
+    close(ds)
 end
 
 ## Parameters
 
-@assert 0 <= length(ARGS) <= 3
+# at most: 1 YAML name + 1 --design-mode= + up to 4 boolean option flags
+# (--multistage, --shared-tree, --no-thermal/--no-asset, --with-network-blocks)
+@assert 0 <= length(ARGS) <= 6
 
 NO_OPTION_ARGS = filter(arg -> !startswith(arg, "--"), ARGS)
 @assert 0 <= length(NO_OPTION_ARGS) <= 1
 
-OPTION_ARGS = setdiff(ARGS, NO_OPTION_ARGS)
-@assert 0 <= length(OPTION_ARGS) <= 2
-@assert issubset(OPTION_ARGS, ["--with-thermal-blocks", "--with-network-blocks"])
+# Separate the value-taking --design-mode= flag from the boolean ones.
+# `design_mode` selects how PV/wind, batt/conv and thermal encode a fleet
+# of N identical modules in the IntermittentUnitBlock /
+# BatteryUnitBlock / ThermalUnitBlock netCDF schema. The three modes are
+# mathematically equivalent at the LP-relaxation level (so the SMS++
+# tests pass under any of them):
+#   - "fleet"  : single block sized by max_capacity, design ∈ [0, 1]
+#                continuous (MaxCapacityDesign defaults to 1, no Scale).
+#                For thermal, equivalent to "scale" at MILP since both
+#                produce a synchronous on/off fleet.
+#   - "scale"  : per-module sizing (nom_capacity) + Scale = N. The
+#                f_scale factor multiplies cost / power in the abstract
+#                Objective so the block behaves as a fleet of N modules.
+#                For thermal, the commitment u_t is binary and shared by
+#                the N modules ⇒ synchronous fleet, install ∈ {0, N}.
+#   - "design" : per-module sizing (nom_capacity) + MaxCapacityDesign
+#                = ±N for PV/wind/batt; for thermal, the block is
+#                replicated N times (each replica with its own binary
+#                design + independent u_t) since ThermalUnitBlock has no
+#                MaxCapacityDesign and the granular integer install
+#                ∈ {0,…,N} with independent commitments is achievable
+#                only by replication. PV/wind/batt: the sign is set by
+#                the per-asset YAML field `modularity`, using the same
+#                convention as EnergyCommunity.jl: `true` ⇒ −N (integer
+#                ∈ {0,…,N}), `false` (the EC.jl default, also ours when
+#                the field is missing) ⇒ +N (continuous in [0, N]).
+#                The convention is applied uniformly on both
+#                deterministic and stochastic flow — the stochastic
+#                flow currently keeps n_us integer regardless of this
+#                field (via StochasticPrograms), but honouring
+#                `modularity` here makes the encoding forward-compatible
+#                with a future EC.jl@stochastic that exposes the same
+#                toggle. `modularity` is read only in this mode;
+#                "fleet" and "scale" never emit a MaxCapacityDesign and
+#                ignore the field.
+all_option_args = setdiff(ARGS, NO_OPTION_ARGS)
+DESIGN_MODE_PREFIX = "--design-mode="
+design_mode_args = filter(a -> startswith(a, DESIGN_MODE_PREFIX), all_option_args)
+@assert length(design_mode_args) <= 1 "at most one --design-mode= may be provided"
+design_mode = isempty(design_mode_args) ? "design" :
+              string(design_mode_args[1][length(DESIGN_MODE_PREFIX)+1:end])
+@assert design_mode in ("fleet", "scale", "design") "Unknown --design-mode value: $(design_mode) (use fleet, scale, or design)"
+
+OPTION_ARGS = setdiff(all_option_args, design_mode_args)
+@assert 0 <= length(OPTION_ARGS) <= 4
+@assert issubset(OPTION_ARGS, ["--no-thermal", "--no-asset", "--with-network-blocks", "--multistage", "--shared-tree"])
+@assert !( ("--shared-tree" in OPTION_ARGS) && !("--multistage" in OPTION_ARGS) ) "--shared-tree requires --multistage"
+@assert !(("--no-thermal" in OPTION_ARGS) && ("--no-asset" in OPTION_ARGS)) "--no-thermal is implied by --no-asset; do not pass both"
 
 file_name = !isempty(NO_OPTION_ARGS) ?
             string(NO_OPTION_ARGS[1], endswith(NO_OPTION_ARGS[1], ".yml") ? "" : ".yml") :
-            "energy_community_model_CO_sto.yml"
+            "energy_community_model_CO_two_stage.yml"
 
 ## Initialization
 
@@ -797,54 +1592,63 @@ final_step = field(gen_data, "final_step")
 time_set = init_step:final_step
 n_steps = length(time_set)
 
-# number of scenarios to be extracted
-scen_s_sample = field(gen_data, "scen_s_sample")
-scen_eps_sample = field(gen_data, "scen_eps_sample")
+# Peak set is required as a global by scen_eps_sampler / scenario_definition.
+peak_set = unique(ec_profile("peak_categories")[time_set])
 
-is_det = false
-if scen_s_sample == 1 && scen_eps_sample == 1
-    is_det = true
+# Number of scenarios; `scen_s_sample == scen_eps_sample == 1` means deterministic.
+scen_s_sample = field_d(gen_data, "n_s",
+                        field_d(gen_data, "scen_s_sample", 1))
+scen_eps_sample = field_d(gen_data, "n_eps",
+                          field_d(gen_data, "scen_eps_sample", 1))
+
+is_det = (scen_s_sample == 1 && scen_eps_sample == 1)
+
+# Long-period uncertainty parameters; `uncertain_var` is a string of letters
+# in {"L","P","W"} selecting which sources are sampled.
+sigma_load = field_d(gen_data, "sigma_load", 0.3)
+mean_pv    = field_d(gen_data, "mean_pv",    1.0)
+sigma_pv   = field_d(gen_data, "sigma_pv",   0.1)
+mean_wind  = field_d(gen_data, "mean_wind",  0.95)
+sigma_wind = field_d(gen_data, "sigma_wind", 0.15)
+unc_var    = field_d(gen_data, "uncertain_var", "L")
+
+# Installable assets exposed to SMS++. CONV is always elided (modeled
+# inside the corresponding BatteryUnitBlock); --no-thermal skips THER;
+# --no-asset skips everything (NA case).
+SMSPP_DEVICES = if "--no-asset" in OPTION_ARGS
+    eltype(DEVICES)[]
+elseif "--no-thermal" in OPTION_ARGS
+    setdiff(DEVICES, [CONV, THER])
 else
-    # standard deviation associated with load and renewable production in long period uncertainty
-    sigma_load = field(gen_data, "sigma_load")
-    sigma_ren = field(gen_data, "sigma_ren")
+    setdiff(DEVICES, [CONV])
 end
 
-# converters, i.e., CONV, are modeled with the corresponding BatteryUnitBlock in SMS++
-SMSPP_DEVICES = setdiff(DEVICES, "--with-thermal-blocks" in OPTION_ARGS ? [CONV] : [CONV, THER])  # devices codes in SMS++
 
-
-# Preprocessing to create the data structure (sampled_scenarios) for stochastic applications.
-# If the model is deterministic, sampled_scenarios is nothing.
+# `sampled_scenarios` carries the (s, eps) scenario set in the stochastic
+# flow; it is `nothing` in the deterministic flow.
 sampled_scenarios = nothing
 if !is_det
-
-    # Number of scenarios to be extracted
-    scen_s_sample = 3
-    scen_eps_sample = 3
 
     scen_s_set = 1:scen_s_sample
     scen_eps_set = 1:scen_eps_sample
 
-    # Standard deviation associated with load and renewable production in long period uncertainty
+    # Reset the RNG so the draws are bit-identical with
+    # test_instance_with_EC_jl.jl (which seeds the same value).
+    Random.seed!(123)
 
-    sigma_load = 0.4
-    sigma_ren = 0.2
-
-    # Extraction of the point used to sample the distributions associated to the long period uncertainty
     (point_s_load,
-    point_s_ren,
-    scen_probability) = pem_extraction(scen_s_sample,sigma_load,sigma_ren)
+        point_s_pv,
+        point_s_wind,
+        scen_probability) = pem_extraction(scen_s_sample, sigma_load,
+                                           mean_pv, sigma_pv,
+                                           mean_wind, sigma_wind,
+                                           unc_var)
 
-    # To define an empty stochastic model we have to declare previously the scenarios
-    # sampled_scenarios is a list of Scenario_Load_Renewable defined in scenario_definition.jl; see definition for more information
-    # Notable quantities are:
-    #   sampled_scenarios[i].scen_s : scenario s
-    #   sampled_scenarios[i].scen_eps : scenario epsilon
-    #   probability(sampled_scenarios[1]) : denotes the probability of the scenario
-    #   sampled_scenarios[i].Load : is a dictionary that denotes the load profiles of each user; e.g. sampled_scenarios[1].Load["user1"][1] is the load of user1 in time 1
-    #   sampled_scenarios[i].Ren : is a dictionary that denotes the renewable profiles of each user by asset; e.g. sampled_scenarios[1].Ren["user1"]["PV"][1] is the PV production of user1 in time 1
-    sampled_scenarios = scenarios_generator(data,point_s_load,point_s_ren,scen_probability,scen_s_sample,scen_eps_sample)
+    sampled_scenarios = scenarios_generator(data,
+                                            point_s_load, point_s_pv, point_s_wind,
+                                            scen_s_sample, scen_eps_sample,
+                                            unc_var;
+                                            point_probability=scen_probability)
 end
 
 ## Data aggregation and netCDF files generation

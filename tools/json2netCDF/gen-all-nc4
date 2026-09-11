@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# gen-all-nc4  --  (re)build the .nc4 of the single-bus thermal UC suite from
+# the JSON instances under instances_singlebus/.
+#
+# This only runs the JSON -> netCDF conversion (json2nc4.jl), which is
+# deterministic: re-running it must reproduce the .nc4 byte for byte. It does
+# NOT re-generate the JSON instances themselves; for that (which needs JuMP +
+# a MILP solver) use the Julia generator directly:
+#
+#     julia --project=. gen_singlebus_batch.jl [outdir]
+#
+# The .nc4 are written under data/nc4/UC_singlebus/ (the standard location the
+# tests and tools expect), NOT next to their JSON source: only the JSON are
+# kept in instances_singlebus/, the .nc4 are generated artifacts.
+#
+# Usage:
+#     ./gen-all-nc4 [instances_dir] [out_dir]
+#       instances_dir  default: instances_singlebus
+#       out_dir        default: ../../data/nc4/UC_singlebus
+#
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="${1:-$HERE/instances_singlebus}"
+OUTDIR="${2:-$HERE/../../data/nc4/UC_singlebus}"
+
+shopt -s nullglob
+jsons=( "$DIR"/sb_*.json )
+if [ ${#jsons[@]} -eq 0 ]; then
+  echo "gen-all-nc4: no sb_*.json found in $DIR" >&2
+  exit 1
+fi
+
+mkdir -p "$OUTDIR"
+for j in "${jsons[@]}"; do
+  nc="$OUTDIR/$(basename "${j%.json}").nc4"
+  julia --project="$HERE" "$HERE/json2nc4.jl" "$j" "$nc"
+done
+
+echo "gen-all-nc4: converted ${#jsons[@]} instance(s) from $DIR into $OUTDIR"
