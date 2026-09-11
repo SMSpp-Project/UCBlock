@@ -141,6 +141,13 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   override;
 
 /*--------------------------------------------------------------------------*/
+ /// the Solution is filled from the data of the DP, not from the Variable
+
+ [[nodiscard]] bool is_get_Solution_physical( void ) const override {
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// recovers the schedule the DP has found
  /** Recovers the schedule the dynamic programming has found: the active
   * power \p p, the commitment \p u, the primary and secondary spinning
