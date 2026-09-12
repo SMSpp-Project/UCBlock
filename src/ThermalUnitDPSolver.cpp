@@ -1178,9 +1178,12 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      // the reactive price feeds the off-box constant Q_star and, when the box
      // is commitment-gated, the per-on-period increment reactive_delta that
      // enters the on-arc fixed costs; a full re-run (stage = start) rebuilds
-     // both from the refreshed price
-     retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
-     fill_reactive_delta();
+     // both from the refreshed price; a unit without reactive power (no box,
+     // see load_parameters()) keeps it empty
+     if( ! reactive_min.empty() ) {
+      retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
+      fill_reactive_delta();
+      }
      stage = start;
      return( false );
 

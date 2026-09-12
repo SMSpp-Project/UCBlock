@@ -42,10 +42,12 @@ using NCDatasets
     convert_json_to_nc4(json_path::String, nc_path::String)
 
 Read a single-bus thermal UC JSON instance and write the SMS++ netCDF file.
+With `nuclear` every unit is a NuclearUnitBlock, and the remaining keywords
+(`rules`) are its operating rules, see `def_nuclear_rules`.
 """
 function convert_json_to_nc4(json_path::String, nc_path::String;
                              nuclear::Bool = false, mod_time::Int = 8,
-                             mod_frac::Float64 = 0.25)
+                             mod_frac::Float64 = 0.25, rules...)
 
     data = JSON.parsefile(json_path)
 
@@ -219,6 +221,7 @@ function convert_json_to_nc4(json_path::String, nc_path::String;
                     mod_frac * ramp_up[g]
                 defVar(ug, "ModulationDeltaRampDown", Float64, ())[:] =
                     mod_frac * ramp_down[g]
+                def_nuclear_rules(ug, p_min[g], p_max[g], ramp_down[g]; rules...)
             end
         end
 
@@ -339,6 +342,78 @@ function emit_thermal_single_tubs(json_path::String, outdir::String;
 end
 
 # =========================================================================
+#  The operating rules of a NuclearUnitBlock
+# =========================================================================
+
+"""
+    def_nuclear_rules(grp, p_min, p_max, ramp_down; mod_length, day_length,
+                      mods_per_day, starts_per_day, deep, deeps_per_day,
+                      down_cost, deep_cost)
+
+Write into the NuclearUnitBlock group `grp` the operating rules of the
+nuclear units (see NuclearUnitBlock), each only when it differs from its
+default, so that with the default keywords nothing is written and the unit is
+the original model:
+
+- `mod_length`: `MaxModulationLength`, the longest modulation (1 = single
+  instant, the original model);
+- `stab_start`: `StabilityAfterStartUp`, the instants of stability that follow
+  a start-up (0 = none);
+- `bands`: the fraction of the range of the output at which the two
+  breakpoints of `PowerBands` are put (0 = the output is not banded);
+- `init_off`: the unit enters the horizon off, and its start-up cost is
+  zeroed, so that it does start up inside the horizon;
+- `day_length`, `mods_per_day`, `starts_per_day`: `DayLength` and the daily
+  limits on the modulations and the start-ups (-1 = unlimited);
+- `deep`: add the deep decreases, with threshold `MinPower + deep_frac
+  (MaxPower - MinPower)` and gradient `deep_grad DeltaRampDown`, and
+  `deeps_per_day` of them at most per day (-1 = unlimited);
+- `down_cost`, `deep_cost`: the cost of a downward modulation step and of a
+  deep decrease (0 = none).
+"""
+function def_nuclear_rules(grp, p_min::Float64, p_max::Float64,
+                           ramp_down::Float64;
+                           mod_length::Int = 1, stab_start::Int = 0,
+                           bands::Float64 = 0.0, p_min_b::Float64 = 0.0,
+                           p_max_b::Float64 = 0.0, day_length::Int = 0,
+                           mods_per_day::Int = -1, starts_per_day::Int = -1,
+                           deep::Bool = false, deeps_per_day::Int = -1,
+                           deep_frac::Float64 = 0.4, deep_grad::Float64 = 0.8,
+                           down_cost::Float64 = 0.0, deep_cost::Float64 = 0.0)
+    mod_length != 1 &&
+        (defVar(grp, "MaxModulationLength", UInt32, ())[:] = UInt32(mod_length))
+    stab_start > 0 &&
+        (defVar(grp, "StabilityAfterStartUp", UInt32, ())[:] = UInt32(stab_start))
+    if bands > 0
+        # the two breakpoints at `bands` and `1 - bands` of the range
+        defDim(grp, "NumberPowerBands", 2)
+        defVar(grp, "PowerBands", Float64, ("NumberPowerBands",))[:] =
+            [p_min_b + bands * (p_max_b - p_min_b),
+             p_max_b - bands * (p_max_b - p_min_b)]
+    end
+    day_length > 0 &&
+        (defVar(grp, "DayLength", UInt32, ())[:] = UInt32(day_length))
+    mods_per_day >= 0 &&
+        (defVar(grp, "ModulationsPerDay", UInt32, ())[:] = UInt32(mods_per_day))
+    starts_per_day >= 0 &&
+        (defVar(grp, "StartUpsPerDay", UInt32, ())[:] = UInt32(starts_per_day))
+    if deep
+        defVar(grp, "DeepDecreaseThreshold", Float64, ())[:] =
+            p_min + deep_frac * (p_max - p_min)
+        defVar(grp, "DeepDecreaseGradient", Float64, ())[:] =
+            deep_grad * ramp_down
+        deeps_per_day >= 0 &&
+            (defVar(grp, "DeepDecreasesPerDay", UInt32, ())[:] = UInt32(deeps_per_day))
+        deep_cost > 0 &&
+            (defVar(grp, "DeepDecreaseCost", Float64, ())[:] = deep_cost)
+    end
+    down_cost > 0 &&
+        (defVar(grp, "DownModulationCost", Float64, ())[:] = down_cost)
+    return nothing
+end
+
+
+# =========================================================================
 #  Standalone single-unit NuclearUnitBlock instances (for testing NUDPS)
 # =========================================================================
 
@@ -359,13 +434,62 @@ modulate.
 
 The unconstrained per-period optimum of `a p^2 + b_t p` is `p* = -b_t/(2a)`; we
 set `b_t = -2 a * p_target_t` so that `p*` tracks `p_target_t`, a load-following
-target swinging between `MinPower` and `MaxPower` with the (normalised) demand.
+target swinging between `MinPower` and `MaxPower` with the (normalised) demand,
+or, with `swing`, between a trough that lies *below* `MinPower` and `MaxPower`,
+so that in the trough the unit is better off shut down and the commitment is a
+decision rather than a foregone conclusion.
+
+The remaining keywords add the operating rules of the nuclear units
+(see NuclearUnitBlock), each only when it differs from its default, so that
+the default output is unchanged:
+
+- `periods`: keep only the first `periods` periods (0 = all);
+- `mod_length`: `MaxModulationLength`, the longest modulation (1 = single
+  instant, the original model);
+- `stab_start`: `StabilityAfterStartUp`, the instants of stability that follow
+  a start-up (0 = none);
+- `bands`: the fraction of the range of the output at which the two
+  breakpoints of `PowerBands` are put (0 = the output is not banded);
+- `init_off`: the unit enters the horizon off, and its start-up cost is
+  zeroed, so that it does start up inside the horizon;
+- `swing`: how far below `MinPower`, as a fraction of the range, the trough of
+  the load-following target goes, which is what makes shutting down worth it
+  (0 = the target stays within `[MinPower, MaxPower]`);
+- `su_frac`: the start-up cost is multiplied by this, so that a unit whose one
+  is worth thousands of periods of production can still afford to cycle;
+- `day_length`, `mods_per_day`, `starts_per_day`: `DayLength` and the daily
+  limits on the modulations and the start-ups (-1 = unlimited);
+- `deep`: add the deep decreases, with threshold `MinPower + deep_frac
+  (MaxPower - MinPower)` and gradient `deep_grad DeltaRampDown`, and
+  `deeps_per_day` of them at most per day (-1 = unlimited);
+- `down_cost`, `deep_cost`: the cost of a downward modulation step and of a
+  deep decrease (0 = none);
+- `reserve`: primary and secondary spinning reserve (`PrimaryRho = 0.05`,
+  `SecondaryRho = 0.08`);
+- `reactive`: a commitment-gated reactive box (`[-1, 1]` when off, widened by
+  `[-0.3, 0.45] MaxPower` when on);
+- `suffix`: appended to the name of each file.
 
 Returns the list of written file paths.
 """
 function emit_nuclear_single_tubs(json_path::String, outdir::String;
                                   mod_time::Int = 8, mod_frac::Float64 = 0.25,
-                                  n_units::Int = 5)
+                                  n_units::Int = 5, periods::Int = 0,
+                                  mod_length::Int = 1, stab_start::Int = 0,
+                                  bands::Float64 = 0.0, day_length::Int = 0,
+                                  mods_per_day::Int = -1,
+                                  starts_per_day::Int = -1,
+                                  init_off::Bool = false,
+                                  swing::Float64 = 0.0,
+                                  su_frac::Float64 = 1.0,
+                                  deep::Bool = false, deeps_per_day::Int = -1,
+                                  deep_frac::Float64 = 0.4,
+                                  deep_grad::Float64 = 0.8,
+                                  down_cost::Float64 = 0.0,
+                                  deep_cost::Float64 = 0.0,
+                                  reserve::Bool = false,
+                                  reactive::Bool = false,
+                                  suffix::String = "")
     data = JSON.parsefile(json_path)
     meta = data["metadata"]
     th   = data["generators"]["thermal"]
@@ -388,6 +512,10 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
     storia0       = Int.(th["storia0"])
 
     demand = Float64.(data["loads"]["profile"][1])
+    if periods > 0 && periods < n_periods
+        n_periods = periods
+        demand = demand[1:n_periods]
+    end
     dmin, dmax = extrema(demand)
     dn = dmax > dmin ? (demand .- dmin) ./ (dmax - dmin) : fill(0.5, n_periods)
 
@@ -399,10 +527,15 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
     for g in 1:K
         # ensure a strictly positive quadratic so the vertex p* is well defined
         a = c_quad[g] > 1e-9 ? c_quad[g] : 0.01
-        p_target = p_min[g] .+ dn .* (p_max[g] - p_min[g])
+        # with `swing` the trough of the load-following target goes below the
+        # minimum power, where producing costs money rather than earning it,
+        # so that the commitment becomes a decision instead of a foregone
+        # conclusion and the unit has to cycle
+        p_lo = p_min[g] - swing * (p_max[g] - p_min[g])
+        p_target = p_lo .+ dn .* (p_max[g] - p_lo)
         lin = -2.0 .* a .* p_target           # places p* on the load-following target
 
-        nc_path = joinpath(outdir, "$(base)_NUB$(g-1).nc4")
+        nc_path = joinpath(outdir, "$(base)_NUB$(g-1)$(suffix).nc4")
         isfile(nc_path) && rm(nc_path)
         NCDataset(nc_path, "c") do ds
             ds.attrib["SMS++_file_type"] = Int64(1)   # Block file
@@ -424,19 +557,46 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
             # constraints bind. With the unit's real (positive) fixed cost it
             # would just stay off and the test would not exercise modulation.
             defVar(blk, "ConstTerm",      Float64, ())[:] = 0.0
-            defVar(blk, "StartUpCost",    Float64, ())[:] = startup_cost[g]
+            # with `init_off` the start-up cost is zeroed as well: the real
+            # one is worth thousands of periods of production, so the unit
+            # would simply never start and the rules that follow a start-up
+            # would never be exercised
+            defVar(blk, "StartUpCost",    Float64, ())[:] =
+                init_off ? 0.0 : su_frac * startup_cost[g]
             defVar(blk, "StartUpLimit",   Float64, ())[:] = min(ramp_up_str[g],   p_max[g])
             defVar(blk, "ShutDownLimit",  Float64, ())[:] = min(ramp_down_str[g], p_max[g])
             defVar(blk, "MinUpTime",      UInt32,  ())[:] = UInt32(min_up_time[g])
             defVar(blk, "MinDownTime",    UInt32,  ())[:] = UInt32(min_down_time[g])
-            defVar(blk, "InitialPower",   Float64, ())[:] = pt0[g]
-            defVar(blk, "InitUpDownTime", Int32,   ())[:] = Int32(storia0[g])
+            # with `init_off` the unit enters the horizon off and with no
+            # output, so that it has to start up inside it and the rules
+            # that concern a start-up are actually exercised
+            defVar(blk, "InitialPower",   Float64, ())[:] =
+                init_off ? 0.0 : pt0[g]
+            defVar(blk, "InitUpDownTime", Int32,   ())[:] =
+                init_off ? Int32(-1) : Int32(storia0[g])
 
             # modulation data
             defVar(blk, "ModulationTime", UInt32, ())[:] = UInt32(mod_time)
             defVar(blk, "InitModulation", UInt32, ())[:] = UInt32(mod_time)
             defVar(blk, "ModulationDeltaRampUp",   Float64, ())[:] = mod_frac * ramp_up[g]
             defVar(blk, "ModulationDeltaRampDown", Float64, ())[:] = mod_frac * ramp_down[g]
+
+            def_nuclear_rules(blk, p_min[g], p_max[g], ramp_down[g];
+                              mod_length, stab_start, bands,
+                              p_min_b = p_min[g], p_max_b = p_max[g],
+                              day_length, mods_per_day, starts_per_day, deep,
+                              deeps_per_day, deep_frac, deep_grad,
+                              down_cost, deep_cost)
+            if reserve
+                defVar(blk, "PrimaryRho",   Float64, ())[:] = 0.05
+                defVar(blk, "SecondaryRho", Float64, ())[:] = 0.08
+            end
+            if reactive
+                defVar(blk, "MinReactivePower",   Float64, ())[:] = -1.0
+                defVar(blk, "MaxReactivePower",   Float64, ())[:] = 1.0
+                defVar(blk, "MinReactivePowerOn", Float64, ())[:] = -0.3 * p_max[g]
+                defVar(blk, "MaxReactivePowerOn", Float64, ())[:] = 0.45 * p_max[g]
+            end
 
             blk.attrib["source_json"] = basename(json_path)
             blk.attrib["unit"]        = g - 1
@@ -467,6 +627,31 @@ Options (nuclear modes):
   --mod-time N    modulation interval tau^M (>=2), default 8
   --mod-frac F    modulation ramp = F * thermal ramp (0..1), default 0.25
   --n-units K     (single modes only) number of units to emit, default 5
+Options (nuclear modes; the operating rules of NuclearUnitBlock):
+  --mod-length L      longest modulation (MaxModulationLength), default 1
+  --stab-start A      instants of stability after a start-up, default 0
+  --bands F           split the output into three bands at the fractions F
+                      and 1 - F of its range, default none
+  --init-off          the unit enters the horizon off
+  --swing F           the trough of the load-following target goes F of the
+                      range below MinPower, default 0
+  --su-frac F         multiply the start-up cost by F, default 1
+  --day-length D      periods of a day (DayLength), default the horizon
+  --mods-per-day C    modulations per day, default unlimited
+  --starts-per-day V  start-ups per day, default unlimited
+  --deep              add the deep decreases
+  --deeps-per-day A   deep decreases per day, default unlimited
+  --deep-frac F       the threshold of the deep decreases at F of the range
+                      above MinPower, default 0.4
+  --deep-grad F       the gradient of the deep decreases at F of the ramp
+                      down, default 0.8
+  --down-cost X       cost of a downward modulation step, default 0
+  --deep-cost X       cost of a deep decrease, default 0
+Options (--nuclear-single only):
+  --periods N         keep the first N periods only
+  --reserve           primary and secondary spinning reserve
+  --reactive          commitment-gated reactive power box
+  --suffix S          appended to the name of each file
 """
 
 function main()
@@ -483,6 +668,7 @@ function main()
     mod_time = 8
     mod_frac = 0.25
     n_units = 5
+    rules = Dict{Symbol,Any}()
     i = 1
     while i <= length(ARGS)
         a = ARGS[i]
@@ -498,6 +684,44 @@ function main()
             mod_frac = parse(Float64, ARGS[i += 1])
         elseif a == "--n-units"
             n_units = parse(Int, ARGS[i += 1])
+        elseif a == "--periods"
+            rules[:periods] = parse(Int, ARGS[i += 1])
+        elseif a == "--mod-length"
+            rules[:mod_length] = parse(Int, ARGS[i += 1])
+        elseif a == "--stab-start"
+            rules[:stab_start] = parse(Int, ARGS[i += 1])
+        elseif a == "--bands"
+            rules[:bands] = parse(Float64, ARGS[i += 1])
+        elseif a == "--init-off"
+            rules[:init_off] = true
+        elseif a == "--swing"
+            rules[:swing] = parse(Float64, ARGS[i += 1])
+        elseif a == "--su-frac"
+            rules[:su_frac] = parse(Float64, ARGS[i += 1])
+        elseif a == "--day-length"
+            rules[:day_length] = parse(Int, ARGS[i += 1])
+        elseif a == "--mods-per-day"
+            rules[:mods_per_day] = parse(Int, ARGS[i += 1])
+        elseif a == "--starts-per-day"
+            rules[:starts_per_day] = parse(Int, ARGS[i += 1])
+        elseif a == "--deep"
+            rules[:deep] = true
+        elseif a == "--deeps-per-day"
+            rules[:deeps_per_day] = parse(Int, ARGS[i += 1])
+        elseif a == "--deep-frac"
+            rules[:deep_frac] = parse(Float64, ARGS[i += 1])
+        elseif a == "--deep-grad"
+            rules[:deep_grad] = parse(Float64, ARGS[i += 1])
+        elseif a == "--down-cost"
+            rules[:down_cost] = parse(Float64, ARGS[i += 1])
+        elseif a == "--deep-cost"
+            rules[:deep_cost] = parse(Float64, ARGS[i += 1])
+        elseif a == "--reserve"
+            rules[:reserve] = true
+        elseif a == "--reactive"
+            rules[:reactive] = true
+        elseif a == "--suffix"
+            rules[:suffix] = ARGS[i += 1]
         elseif startswith(a, "--")
             println(stderr, "Unknown option: $a"); print(stderr, USAGE); exit(1)
         else
@@ -526,7 +750,7 @@ function main()
     if !isempty(single_dir)
         emit_nuclear_single_tubs(json_path, single_dir;
                                  mod_time = mod_time, mod_frac = mod_frac,
-                                 n_units = n_units)
+                                 n_units = n_units, rules...)
         return
     end
 
@@ -535,9 +759,17 @@ function main()
               (replace(json_path, r"\.json$" => ".nc4") == json_path ?
                json_path * ".nc4" : replace(json_path, r"\.json$" => ".nc4"))
 
+    single_only = intersect(keys(rules),
+                            (:periods, :reserve, :reactive, :suffix,
+                             :init_off, :swing, :su_frac))
+    if !isempty(single_only) || (!nuclear && !isempty(rules))
+        println(stderr, "Error: option(s) $(collect(isempty(single_only) ? keys(rules) : single_only)) " *
+                "not allowed in this mode")
+        print(stderr, USAGE); exit(1)
+    end
     convert_json_to_nc4(json_path, nc_path;
                         nuclear = nuclear, mod_time = mod_time,
-                        mod_frac = mod_frac)
+                        mod_frac = mod_frac, rules...)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

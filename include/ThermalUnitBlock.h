@@ -48,6 +48,8 @@
 
 #include "FRealObjective.h"
 
+#include "DQuadFunction.h"
+
 #include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -2455,7 +2457,7 @@ class ThermalUnitBlock : public UnitBlock
   * state-space graph). Calling this method on such a formulation
   * leaves those auxiliaries untouched. */
 
- void set_solution( void );
+ virtual void set_solution( void );
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -2801,6 +2803,44 @@ class ThermalUnitBlock : public UnitBlock
   * constraints that depend on the initial power). */
 
  virtual void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// number of Variable a derived class appends to the Objective
+ /** generate_objective() puts the Variable of the ThermalUnitBlock in the
+  * Objective in a fixed order, the design variable (if any) being the last;
+  * a derived class may append further Variable of its own after it, and it
+  * must then return their number here, so that the sections of the
+  * ThermalUnitBlock are found at the same indices. A change of the
+  * coefficients of those Variable via the abstract representation is
+  * routed to objective_tail_change(). */
+
+ virtual Index objective_tail( void ) const { return( 0 ); }
+
+/*--------------------------------------------------------------------------*/
+ /// handles a change of the coefficients of the appended Variable
+ /** Called by handle_objective_change() when a change of the coefficients
+  * of the Objective reaches the Variable appended by a derived class [see
+  * objective_tail()], [ \p first , \p last ) being the positions, among
+  * them, of the changed ones (a Subset change may not change all of those
+  * in between). The default throws, as the ThermalUnitBlock has no such
+  * Variable. */
+
+ virtual void objective_tail_change( const DQuadFunction * qf , Index first ,
+                                     Index last ) {
+  throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
+   "coefficients of the Variable appended to the Objective cannot change" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the index of the first reactive power Variable in the Objective
+ /** The reactive power Variable are the last section of the Objective before
+  * the design variable (if any) and the Variable appended by a derived
+  * class [see objective_tail()]. */
+
+ Index reactive_objective_start( const DQuadFunction * qf ) const {
+  return( qf->get_num_active_var() - objective_tail() -
+          ( ( f_InvestmentCost != 0 ) ? 1 : 0 ) - f_time_horizon );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if the given availability is consistent

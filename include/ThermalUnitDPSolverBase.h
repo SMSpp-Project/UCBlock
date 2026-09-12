@@ -59,6 +59,7 @@
 
 #include "ThermalUnitBlock.h"
 
+#include <cmath>
 #include <vector>
 
 /*--------------------------------------------------------------------------*/
@@ -230,32 +231,46 @@ class ThermalUnitDPSolverBase : public Solver
  /** Computes
   * \f[
   *  out( p ) = \min \{ F( q ) + corr_t( q , p ) \, : \,
-  *                     q \in [ p - ramp\_up , p + ramp\_down ] \}
+  *                     q \in [ p - win\_up , p + win\_down ] \}
   * \f]
   * on \f$ p \in [ lo , hi ] \f$, where \f$ corr_t( q , p ) \f$ is the
   * reserve reward under the residual-ramp band \f$ \min( A_t( p ) ,
   * B( p - q ) ) \f$, with \f$ A_t( p ) = \min( p - min\_power , cap - p )
   * \f$ the capacity band and \f$ B( d ) = \min( ramp\_up - d ,
   * ramp\_down + d ) \f$ the ramp tent. When no reserve is rewarded
-  * corr == 0 and this falls back to the exact sliding_min().
+  * corr == 0 and this falls back to the exact sliding_min() on the window.
+  *
+  * The window of the scheduled move and the tent of the reserve
+  * deliverability are the same ramp for a thermal unit, and this is the
+  * default. A unit whose scheduled move is limited further than its
+  * physical ramp (the modulation of a nuclear unit) passes a window
+  * \f$ [ -win\_down , win\_up ] \f$ contained in \f$ [ -ramp\_down ,
+  * ramp\_up ] \f$, the tent staying that of the physical ramp.
   * @param acap upper cap of the capacity band \f$ A_t \f$: defaults
   * (acap < 0) to max_power[t] at an interior step, set to the shut-down cap
-  * bound_down[t+1] when the transition closes a run. */
+  * bound_down[t+1] when the transition closes a run.
+  * @param win_up upper half-width of the window, \p ramp_up if NaN
+  * @param win_down lower half-width of the window, \p ramp_down if NaN */
  void sliding_min_corr( const PQFun & F ,
                         double ramp_up , double ramp_down ,
                         double lo , double hi , Index t , PQFun & out ,
-                        double acap = -1.0 );
+                        double acap = -1.0 ,
+                        double win_up = std::nan( "" ) ,
+                        double win_down = std::nan( "" ) );
 
- /// argmin over the ramp window of \f$ F( q ) + corr_t( q , p ) \f$ at a
+ /// argmin over the window of \f$ F( q ) + corr_t( q , p ) \f$ at a
  /// fixed landing \f$ p \f$
  /** The corr-aware predecessor power for the on->on transition into \p t:
   * the \f$ q \f$ that minimises \f$ F( q ) + corr_t( q , p ) \f$ over
-  * \f$ [ p - ramp\_up , p + ramp\_down ] \cap dom( F ) \f$. Used by the
-  * backward pass so the recovered power profile is the one the DP value
+  * \f$ [ p - win\_up , p + win\_down ] \cap dom( F ) \f$, the tent being
+  * that of \p ramp_up and \p ramp_down as in sliding_min_corr(). Used by
+  * the backward pass so the recovered power profile is the one the DP value
   * priced. Returns the energy argmin when no reserve is rewarded at \p t. */
  double reserve_corr_argmin( const PQFun & F , double ramp_up ,
                              double ramp_down , Index t , double p ,
-                             double acap = -1.0 ) const;
+                             double acap = -1.0 ,
+                             double win_up = std::nan( "" ) ,
+                             double win_down = std::nan( "" ) ) const;
 
 /*--------------------------------------------------------------------------*/
 /*---------------- PIECEWISE-QUADRATIC FUNCTION HELPERS --------------------*/

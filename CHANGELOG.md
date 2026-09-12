@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the operating rules of a nuclear unit in the `NuclearUnitBlock`:
+  modulations of up to `MaxModulationLength` steps at the full ramp with the
+  last one free, the stability of `ModulationTime` instants that follows a
+  modulation and the `StabilityAfterStartUp` instants that follow a start-up,
+  the daily limits (`DayLength`, `ModulationsPerDay`, `StartUpsPerDay`,
+  `DeepDecreasesPerDay`), the deep decreases (`DeepDecreaseThreshold`,
+  `DeepDecreaseGradient`, `DeepDecreaseCost`), the cost of a downward
+  modulation step (`DownModulationCost`) and the splitting of the output
+  into `PowerBands`, each written only when the data asks for it, so that a
+  file of the previous model keeps its meaning
+
+- a tight version of the rules, selected by two further bits of the same
+  integer `Configuration` that chooses the formulation (`TightRules`,
+  `TightRamp` and `TightCuts`), the third of which gives the tight rows by
+  separation, in `generate_dynamic_constraints()`, rather than writing them
+
+- `NuclearUnitExtDPSolver` rewritten as a labelled run-length dynamic
+  program over the `ThermalUnitExtDPSolver`, which grows the hooks the
+  labels need (`on_moves()`, `shut_label()`, `idle_label()`,
+  `start_labels()`, `label_dominates()`, `trim_domination()`)
+
 ### Changed
 
 ### Fixed

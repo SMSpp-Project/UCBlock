@@ -16,9 +16,16 @@
  * auxiliary sequence v_shutdown[t] (cost of a schedule on through t plus
  * the shutdown cost, ready to feed the long shutdown arc).
  *
- * Data loading, Modification handling and Solution writing follow the
- * same pattern as ThermalUnitDPSolver, but are implemented independently
- * (no code shared at build time).
+ * Every state carries a label, a small integer recording the extra history
+ * a unit derived from ThermalUnitBlock needs for its own temporal
+ * constraints (none for a thermal unit, whose states all have label 0; the
+ * modulation lockout for a nuclear unit, see NuclearUnitExtDPSolver). The
+ * DP only asks the label methods which moves leave an on-state and how the
+ * label evolves, so the same recurrences serve every unit.
+ *
+ * Data loading, the piecewise-quadratic machinery and the reserve model are
+ * shared with ThermalUnitDPSolver through the base class
+ * ThermalUnitDPSolverBase.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -365,6 +372,8 @@ void ThermalUnitExtDPSolver::load_parameters( void )
  // reset output buffers and pipeline state
  P.assign( time_horizon , 0 );
  U.assign( time_horizon , false );
+ U_lab.assign( time_horizon , 0 );
+ U_move.assign( time_horizon , -1 );
  stage = start;
  f_solved = false;
  f_best_cost = TUEDPINF;
@@ -602,7 +611,10 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
     return( false );
 
    case( ThermalUnitBlockMod::eSetReactiveLinT ):
-    retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
+    // a unit without reactive power (no box, see load_parameters()) keeps
+    // the term empty
+    if( ! reactive_min.empty() )
+     retrieve_term( reactive_linear_term , b->get_reactive_linear_term() );
     stage = start;
     return( false );
 
@@ -717,43 +729,127 @@ void ThermalUnitExtDPSolver::dump_states_at( Index t , double p ) const
  }
 
 /*--------------------------------------------------------------------------*/
+/*------------------------- THE LABELS OF THE STATES -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+// The single move of a thermal unit: the window of the scheduled move is the
+// ramp of the step, which for the step t-1 -> t is indexed by t-1 (and by 0
+// for the step from the initial state into t = 0).
+
+void ThermalUnitExtDPSolver::on_moves( Index t , Index lab ,
+                                      std::vector< OnMove > & mv ) const
+{
+ const Index k = t ? t - 1 : 0;
+ mv.push_back( { 0 , delta_ramp_up[ k ] , delta_ramp_down[ k ] , 0.0 ,
+                 - TUEDPINF , TUEDPINF , 0 } );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// The intervals of [ a , b ] (within the domains of both) where G <= F, up to
+// a tolerance, in increasing order and merged when contiguous. On each
+// segment on which both are a single quadratic piece the difference is a
+// quadratic, whose sign changes at most at its two roots.
+
+void ThermalUnitExtDPSolver::not_larger( const PQFun & F , const PQFun & G ,
+                                        double a , double b ,
+                                        std::vector< std::pair< double ,
+                                                     double > > & out )
+{
+ out.clear();
+ auto add = [ & ]( double l , double r ) {
+  if( r - l <= 1e-12 )
+   return;
+  if( ( ! out.empty() ) && ( l <= out.back().second + 1e-12 ) )
+   out.back().second = std::max( out.back().second , r );
+  else
+   out.emplace_back( l , r );
+  };
+ std::size_t i = 0 , j = 0;
+ while( ( i < F.size() ) && ( F[ i ].right <= a + 1e-12 ) ) ++i;
+ while( ( j < G.size() ) && ( G[ j ].right <= a + 1e-12 ) ) ++j;
+ double p = a;
+ while( ( p < b - 1e-12 ) && ( i < F.size() ) && ( j < G.size() ) ) {
+  const double q = std::min( { F[ i ].right , G[ j ].right , b } );
+  // D = F - G on [ p , q ]: G <= F where D >= - tol
+  const double da = F[ i ].alfa - G[ j ].alfa;
+  const double db = F[ i ].beta - G[ j ].beta;
+  const double dc = F[ i ].gamma - G[ j ].gamma;
+  auto D = [ & ]( double x ) { return( ( da * x + db ) * x + dc ); };
+  const double tol = 1e-9 * std::max( 1.0 , std::abs( eval_piece( F[ i ] ,
+                                                                   p ) ) );
+  // the candidate sign changes: the roots of D inside ( p , q )
+  double cut[ 4 ] = { p , 0 , 0 , q };
+  int nc = 1;
+  if( std::abs( da ) > 1e-14 ) {
+   const double disc = db * db - 4 * da * dc;
+   if( disc > 0 ) {
+    const double sq = std::sqrt( disc );
+    double r1 = ( - db - sq ) / ( 2 * da ) , r2 = ( - db + sq ) / ( 2 * da );
+    if( r1 > r2 ) std::swap( r1 , r2 );
+    if( ( r1 > p ) && ( r1 < q ) ) cut[ nc++ ] = r1;
+    if( ( r2 > p ) && ( r2 < q ) ) cut[ nc++ ] = r2;
+    }
+   }
+  else
+   if( std::abs( db ) > 1e-14 ) {
+    const double r = - dc / db;
+    if( ( r > p ) && ( r < q ) ) cut[ nc++ ] = r;
+    }
+  cut[ nc ] = q;
+  for( int k = 0 ; k < nc ; ++k )
+   if( D( 0.5 * ( cut[ k ] + cut[ k + 1 ] ) ) >= - tol )
+    add( cut[ k ] , cut[ k + 1 ] );
+  p = q;
+  if( F[ i ].right <= p + 1e-12 ) ++i;
+  if( G[ j ].right <= p + 1e-12 ) ++j;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------- CORE DP ----------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 // Forward dynamic programming on the hybrid "multi-layer ON / single-layer
-// OFF" state space. At each time t we maintain:
+// OFF" state space, each state carrying a label (see on_moves() and the
+// other label methods; a thermal unit has the single label 0). At each time
+// t we maintain:
 //
-//  - a *sparse* list of surviving F^tau_t value functions (parallel
-//    vectors f_F[t], f_tau[t], f_on[t] sorted by tau); these are the
-//    ON-side states (on^tau, t) not yet proven irrelevant by RRF+;
-//  - two OFF-side scalars c_off_ready[t] (ready to restart) and
-//    c_off_any[t] (regardless of duration), plus their back-pointers
-//    f_ready_pred[t] / f_any_pred[t];
-//  - v_shutdown[t] and (v_shutdown_tau[t], v_shutdown_p[t]): the cost
-//    and witness of arriving at the "long shutdown arc" at end of t.
+//  - a *sparse* list of surviving F^{tau,lab}_t value functions (parallel
+//    vectors f_F[t], f_tau[t], f_on[t], f_link[t]); these are the ON-side
+//    states not yet proven irrelevant by the domination pruning;
+//  - the OFF-side values c_off_ready[t * E + e] (ready to restart, label e)
+//    and c_off_any[t] (regardless of duration and label), plus their
+//    back-pointers;
+//  - v_shutdown[t * E + e] and its witness: the cost of arriving at the
+//    "long shutdown arc" at the end of t with label e.
 //
-// At t = 0 the relevant states are seeded from the initial condition of
-// the unit (init_up_down_time): either a single F^{init+1}_0 piece if the
-// unit was already on, or a restart F^1_0 plus the initial off-trail
-// contribution to c_off_ready[0] / c_off_any[0] if it was off long enough.
+// At t = 0 the relevant states are seeded from the initial condition of the
+// unit (init_up_down_time): the on-states reached from the initial power by
+// the moves out of init_label() if the unit was already on, or a restart
+// plus the initial off-trail contribution to the OFF-side values if it was
+// off long enough.
 //
 // For t >= 1 the recurrence is:
-//  - c_off_any[t]   = min( c_off_any[t-1], v_shutdown[t-1] )
-//  - c_off_ready[t] = min( c_off_ready[t-1],
-//                          v_shutdown[t - mdt] if t >= mdt,
-//                          0 if init_up_down_time <= 0 and
-//                              |init_up_down_time| + t + 1 >= mdt )
-//  - new F^1_t            built from c_off_ready[t-1] (restart arc);
-//  - new F^{tau+1}_t      built from each surviving F^tau_{t-1} via
-//                         sliding_min + add_quadratic + clamp_domain;
-//  - prune the new list with RRF+ (pairwise domination check);
-//  - finally v_shutdown[t] is the min over surviving tau >= mut of
-//    F^tau_t(p) restricted to [P, SD_{t+1}].
+//  - c_off_any[t] = min( c_off_any[t-1] , min_e v_shutdown[t-1][e] );
+//  - c_off_ready[t][e] = min over the ways of being ready at t with label e:
+//    stay ready from t-1 (label idle_label( t , e' , 1 ) == e), the long
+//    shutdown arc from t - mdt (label idle_label( t - mdt + 1 , e' , mdt )
+//    == e), and the initial off trail (label
+//    idle_label( 0 , init_label() , t + 1 ) == e);
+//  - new F^{1,lab}_t built from c_off_ready[t-1][e] with
+//    start_label( t , e ) == lab (restart arc);
+//  - new F^{tau+1,lab}_t built from each surviving F^{tau,lab'}_{t-1} and
+//    each move out of lab' via sliding_min_corr + add_quadratic;
+//  - prune the new list (pairwise domination check);
+//  - finally v_shutdown[t][e] is the min over surviving tau >= mut of
+//    F^{tau,lab}_t(p) restricted to [P, SD_{t+1}], with
+//    shut_label( t , lab ) == e.
 //
-// The RRF+ pruning is the key to speed: without it the number of F^tau
-// entries grows ~ n per time step, making the DP O(n^2) overall; with it
-// the surviving set stays O(1) in practice (Wuijts reports k <= 5 on
-// the benchmark instances), bringing the DP down to O(n).
+// The pruning is the key to speed: without it the number of F entries grows
+// ~ n per time step, making the DP O(n^2) overall; with it the surviving set
+// stays O(1) in practice (Wuijts reports k <= 5 on the benchmark instances),
+// bringing the DP down to O(n).
 
 void ThermalUnitExtDPSolver::run_DP( void )
 {
@@ -774,29 +870,38 @@ void ThermalUnitExtDPSolver::run_DP( void )
   return( f_has_fixings && ( nxt_off[ t ] == t ) );
   };
 
+ const Index n = time_horizon;
+ const Index E = std::max( off_labels() , Index( 1 ) );  // off labels
+ const Index NL = std::max( on_labels() , Index( 1 ) );  // on labels
+ const Index l0 = init_label();
+
  // initialise all the per-time-step state vectors to empty / +INF.
  // recycle the previous solve's PQFun buffers into the pool first, then
  // empty the per-step lists keeping their outer-vector capacity
  for( auto & ft : f_F )
   for( auto & f : ft )
    pool_give( f );
- f_F  .resize( time_horizon );
- f_tau.resize( time_horizon );
- f_on .resize( time_horizon );
- for( auto & v : f_F   ) v.clear();
- for( auto & v : f_tau ) v.clear();
- for( auto & v : f_on  ) v.clear();
- c_off_ready.assign( time_horizon , TUEDPINF );
- c_off_any  .assign( time_horizon , TUEDPINF );
- v_shutdown .assign( time_horizon , TUEDPINF );
- v_shutdown_tau.assign( time_horizon , 0 );
- v_shutdown_p  .assign( time_horizon , 0.0 );
- f_ready_pred.assign( time_horizon , -1 );
- f_any_pred  .assign( time_horizon , -1 );
+ f_F   .resize( n );
+ f_tau .resize( n );
+ f_on  .resize( n );
+ f_link.resize( n );
+ for( auto & v : f_F    ) v.clear();
+ for( auto & v : f_tau  ) v.clear();
+ for( auto & v : f_on   ) v.clear();
+ for( auto & v : f_link ) v.clear();
+ c_off_ready    .assign( n * E , TUEDPINF );
+ c_off_any      .assign( n , TUEDPINF );
+ v_shutdown     .assign( n * E , TUEDPINF );
+ v_shutdown_tau .assign( n * E , 0 );
+ v_shutdown_p   .assign( n * E , 0.0 );
+ v_shutdown_link.assign( n * E , OnLink{ 0 , BAD , 0 , -1 , 0.0 , 0.0 } );
+ f_ready_pred   .assign( n * E , -1 );
+ f_ready_lab    .assign( n * E , 0 );
+ f_any_pred     .assign( n , -1 );
+ f_any_lab      .assign( n , 0 );
 
  // mut / mdt: at least 1, since shut-down and re-start cannot happen in
  // the same instant regardless of the values coming from the Block
- const Index n = time_horizon;
  const Index mut = std::max( min_up_time   , Index( 1 ) );
  const Index mdt = std::max( min_down_time , Index( 1 ) );
 
@@ -846,31 +951,52 @@ void ThermalUnitExtDPSolver::run_DP( void )
                          std::min( c * lo_off , c * hi_off );
    }
 
- // RRF+ pairwise-domination pruning (Wuijts et al. 2021, Prop. 6.1): a
- // F^tau_t with tau >= mut is "irrelevant" if it is pointwise dominated
- // by some F^tau'_t with tau' >= mut; if so it cannot appear in any
- // optimal schedule, since its downstream F^{tau+k}_{t+k} is dominated
- // too. For tau < mut the function is kept (it is the unique path
+ // domination pruning (RRF+ of Wuijts et al. 2021, Prop. 6.1, extended to
+ // the labels): an on-state is "irrelevant" if it is pointwise dominated by
+ // another one whose label is at least as good (label_dominates()) and which
+ // is interchangeable with it for the minimum up time, i.e., either both are
+ // past it (tau >= mut) or they have the same run-length; if so its
+ // downstream states are dominated too, and it cannot appear in any optimal
+ // schedule. A state with tau < mut is otherwise kept (it is the unique path
  // through that run-length signature).
- auto prune_RRF_plus = [ & ]( std::vector< PQFun > & v_F ,
-                              std::vector< Index > & v_tau ,
-                              std::vector< OnSlot > & v_on ) {
-  const std::size_t sz = v_F.size();
-  if( sz <= 1 )
+ //
+ // With trim_domination() a longer run-length also dominates a shorter one,
+ // since it reaches the minimum up time no later. Moreover, the argument is
+ // pointwise in the power p, and hence, if trim_domination(),
+ // a state i whose domain only partly overlaps that of a dominating
+ // candidate j, which is not larger on the overlap, loses the overlap: what
+ // remains of its domain is one or two intervals, i.e., one or two states,
+ // each with the restriction of the (convex) function of i. This keeps the
+ // states few when the domains are narrow and shifted with respect to each
+ // other, as with moves at the full ramp and a stable output that does not
+ // change.
+ const bool trim = trim_domination();
+ auto prune = [ & ]( std::vector< PQFun > & v_F ,
+                     std::vector< Index > & v_tau ,
+                     std::vector< OnSlot > & v_on ,
+                     std::vector< OnLink > & v_link ) {
+  if( v_F.size() <= 1 )
    return;
 #if TUEDPS_PROFILE
-  // diagnostic: keep ALL states (no RRF+ pruning)
+  // diagnostic: keep ALL states (no pruning)
   if( std::getenv( "TUEDPS_NOPRUNE" ) )
    return;
 #endif
-  std::vector< char > keep( sz , 1 );
-  for( std::size_t i = 0 ; i < sz ; ++i ) {
+  std::vector< char > keep( v_F.size() , 1 );
+  for( std::size_t i = 0 ; i < v_F.size() ; ++i ) {
    if( ! keep[ i ] ) continue;
-   if( v_tau[ i ] < mut ) continue;  // keep all tau < mut
-   for( std::size_t j = 0 ; j < sz ; ++j ) {
+   for( std::size_t j = 0 ; j < v_F.size() ; ++j ) {
     if( j == i ) continue;
     if( ! keep[ j ] ) continue;
-    if( v_tau[ j ] < mut ) continue;
+    // j can do what i can if it reaches the minimum up time no later; the
+    // thermal rule (Wuijts et al.) only compares equal run-lengths or
+    // run-lengths both past it
+    if( ! ( ( ( v_tau[ i ] >= mut ) && ( v_tau[ j ] >= mut ) ) ||
+            ( trim ? ( v_tau[ j ] >= v_tau[ i ] )
+                   : ( v_tau[ i ] == v_tau[ j ] ) ) ) )
+     continue;
+    if( ! label_dominates( v_link[ j ].lab , v_link[ i ].lab ) )
+     continue;
     double domeps = 0.0;
 #if TUEDPS_PROFILE
     if( std::getenv( "TUEDPS_DOMEPS" ) )
@@ -880,37 +1006,97 @@ void ThermalUnitExtDPSolver::run_DP( void )
      keep[ i ] = 0;
      break;
      }
+    if( ! trim )
+     continue;
+    // the part of the domain of i where j is not larger
+    const double li = v_F[ i ].front().left , ri = v_F[ i ].back().right;
+    const double oa = std::max( li , v_F[ j ].front().left );
+    const double ob = std::min( ri , v_F[ j ].back().right );
+    if( ob - oa <= 1e-9 )
+     continue;
+    not_larger( v_F[ i ] , v_F[ j ] , oa , ob , m_cover );
+    if( m_cover.empty() )
+     continue;
+    // what remains of [ li , ri ]: its first part stays in i, the others
+    // become new states at the end of the list (they will be checked too)
+    m_rest.clear();
+    double from = li;
+    for( const auto & iv : m_cover ) {
+     if( iv.first > from + 1e-9 )
+      m_rest.emplace_back( from , iv.first );
+     from = std::max( from , iv.second );
+     }
+    if( ri > from + 1e-9 )
+     m_rest.emplace_back( from , ri );
+    if( m_rest.empty() ) {       // dominated on the whole domain
+     keep[ i ] = 0;
+     break;
+     }
+    for( std::size_t k = 1 ; k < m_rest.size() ; ++k ) {
+     PQFun Fr = v_F[ i ];
+     clamp_domain( Fr , m_rest[ k ].first , m_rest[ k ].second );
+     if( Fr.empty() )
+      continue;
+     const auto vp = min_over( Fr , m_rest[ k ].first , m_rest[ k ].second );
+     v_F.push_back( std::move( Fr ) );
+     v_tau.push_back( v_tau[ i ] );
+     v_on.push_back( { vp.first , vp.second } );
+     v_link.push_back( v_link[ i ] );
+     keep.push_back( 1 );
+     }
+    clamp_domain( v_F[ i ] , m_rest[ 0 ].first , m_rest[ 0 ].second );
+    if( v_F[ i ].empty() ) {
+     keep[ i ] = 0;
+     break;
+     }
+    const auto vp = min_over( v_F[ i ] , m_rest[ 0 ].first ,
+                              m_rest[ 0 ].second );
+    v_on[ i ] = { vp.first , vp.second };
     }
    }
   // compact in-place, preserving order
   std::size_t out = 0;
-  for( std::size_t i = 0 ; i < sz ; ++i )
+  for( std::size_t i = 0 ; i < v_F.size() ; ++i )
    if( keep[ i ] ) {
     if( out != i ) {
-     v_F  [ out ] = std::move( v_F  [ i ] );
-     v_tau[ out ] = v_tau[ i ];
-     v_on [ out ] = v_on [ i ];
+     v_F   [ out ] = std::move( v_F  [ i ] );
+     v_tau [ out ] = v_tau [ i ];
+     v_on  [ out ] = v_on  [ i ];
+     v_link[ out ] = v_link[ i ];
      }
     ++out;
     }
-  v_F  .resize( out );
-  v_tau.resize( out );
-  v_on .resize( out );
+  v_F   .resize( out );
+  v_tau .resize( out );
+  v_on  .resize( out );
+  v_link.resize( out );
   };
 
- // helper to compute v_shutdown[t]: the min cost of a run that CLOSES at
- // t (unit off at t+1). The closing period's reserve must fit under the
- // shut-down cap sd_hi, NOT the interior max_power. The g0 (per-period
- // band) AND the corr (ramp-residual band) both depend on that cap, and
- // corr is already baked into f_F[t] with cap=max_power, so a scalar
- // delta cannot fix it. When the cap actually bites the closing
- // transition t-1 -> t is re-run from the predecessor f_F[t-1] with
- // acap=sd_hi (exact); otherwise the plain readout of f_F[t] holds.
+ // helper to compute v_shutdown[t][.]: the min cost of a run that CLOSES at
+ // t (unit off at t+1), for each label the unit is off with at t+1. The
+ // closing period's reserve must fit under the shut-down cap sd_hi, NOT the
+ // interior max_power. The g0 (per-period band) AND the corr (ramp-residual
+ // band) both depend on that cap, and corr is already baked into f_F[t] with
+ // cap=max_power, so a scalar delta cannot fix it. When the cap actually
+ // bites the closing transition t-1 -> t is re-run from the predecessor
+ // f_F[t-1], move by move, with acap=sd_hi (exact); otherwise the plain
+ // readout of f_F[t] holds.
  auto compute_v_shutdown = [ & ]( Index t , double sd_hi ) {
-  double best = TUEDPINF;
-  Index best_tau = 0;
-  double best_p = 0;
   const double Plo = min_power[ t ];
+  const auto upd = [ & ]( Index e , double v , Index tau , double p ,
+                          const OnLink & lk ) {
+   if( e == NO_LABEL )                   // the shut-down is forbidden
+    return;
+   const Index k = t * E + e;
+   if( v < v_shutdown[ k ] ) {
+    v_shutdown     [ k ] = v;
+    v_shutdown_tau [ k ] = tau;
+    v_shutdown_p   [ k ] = p;
+    v_shutdown_link[ k ] = lk;
+    }
+   };
+  if( fixed_off( t ) )                   // no on-state at t: nothing closes
+   return;
   const bool cap_bites = ( ! eff_disc[ t ].empty() ) &&
                          ( sd_hi < max_power[ t ] - 1e-12 );
 #if TUEDPS_PROFILE
@@ -919,10 +1105,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
    for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i ) {
     if( f_tau[ t ][ i ] < mut ) continue;
     auto [ v , p ] = min_over( f_F[ t ][ i ] , Plo , sd_hi );
-    if( v < best ) { best = v; best_tau = f_tau[ t ][ i ]; best_p = p; } }
-   v_shutdown[ t ] = best;
-   v_shutdown_tau[ t ] = best_tau;
-   v_shutdown_p[ t ] = best_p;
+    upd( shut_label( t , f_link[ t ][ i ].lab ) , v , f_tau[ t ][ i ] , p ,
+         f_link[ t ][ i ] ); }
    return;
    }
 #endif
@@ -946,8 +1130,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
      vp = min_over( F , Plo , sd_hi );
      }
     else vp = min_over( f_F[ t ][ i ] , Plo , sd_hi );
-    if( vp.first < best ) { best = vp.first; best_tau = f_tau[ t ][ i ];
-                            best_p = vp.second; }
+    upd( shut_label( t , f_link[ t ][ i ].lab ) , vp.first ,
+         f_tau[ t ][ i ] , vp.second , f_link[ t ][ i ] );
     }
    }
   else {                               // re-run the closing transition capped
@@ -957,15 +1141,22 @@ void ThermalUnitExtDPSolver::run_DP( void )
    for( std::size_t i = 0 ; i < f_F[ t - 1 ].size() ; ++i ) {
     const Index tau = f_tau[ t - 1 ][ i ] + 1;   // this closing period is on
     if( tau < mut ) continue;                    // run too short to shut down
-    Fsd.clear();
-    // acap = sd_hi (shut-down band)
-    sliding_min_corr( f_F[ t - 1 ][ i ] , ru_prev , rd_prev , Plo ,
-                      sd_hi , t , Fsd , sd_hi );
-    if( Fsd.empty() ) continue;
-    add_quadratic( Fsd , quad_term[ t ] , linear_term[ t ] ,
-                   const_term[ t ] + reactive_delta[ t ] );
-    auto [ v , p ] = min_over( Fsd , Plo , sd_hi );
-    if( v < best ) { best = v; best_tau = tau; best_p = p; }
+    m_moves.clear();
+    on_moves( t , f_link[ t - 1 ][ i ].lab , m_moves );
+    for( std::size_t k = 0 ; k < m_moves.size() ; ++k ) {
+     const OnMove & mv = m_moves[ k ];
+     Fsd.clear();
+     // acap = sd_hi (shut-down band)
+     sliding_min_corr( f_F[ t - 1 ][ i ] , ru_prev , rd_prev ,
+                       std::max( Plo , mv.lo ) , std::min( sd_hi , mv.hi ) ,
+                       t , Fsd , sd_hi , mv.win_up , mv.win_down );
+     if( Fsd.empty() ) continue;
+     add_quadratic( Fsd , quad_term[ t ] , linear_term[ t ] ,
+                    const_term[ t ] + reactive_delta[ t ] + mv.cost );
+     auto [ v , p ] = min_over( Fsd , Plo , sd_hi );
+     upd( shut_label( t , mv.lab ) , v , tau , p ,
+          OnLink{ mv.lab , i , 0 , mv.tag , mv.win_up , mv.win_down } );
+     }
     }
    // tau == 1 (mut == 1: start-up and shut-down in the same period) is not
    // produced by the t-1 -> t transition; read it off f_F[t] as before. Its
@@ -975,12 +1166,10 @@ void ThermalUnitExtDPSolver::run_DP( void )
     for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i ) {
      if( f_tau[ t ][ i ] != 1 ) continue;
      auto [ v , p ] = min_over( f_F[ t ][ i ] , Plo , sd_hi );
-     if( v < best ) { best = v; best_tau = 1; best_p = p; }
+     upd( shut_label( t , f_link[ t ][ i ].lab ) , v , 1 , p ,
+          f_link[ t ][ i ] );
      }
    }
-  v_shutdown[ t ] = best;
-  v_shutdown_tau[ t ] = best_tau;
-  v_shutdown_p  [ t ] = best_p;
   };
 
  // -------------------------------------------------------------- t = 0 --
@@ -990,28 +1179,38 @@ void ThermalUnitExtDPSolver::run_DP( void )
   // the unit was on for init_up_down_time instants strictly before t = 0
   // and is still on at t = 0; the current on-run therefore has length
   // tau0 = init_up_down_time + 1 at t = 0. The power p_0 is constrained
-  // to respect the ramp bounds around initial_power, giving a restricted
+  // by the window of each move around initial_power, giving a restricted
   // domain [lo, hi] for F^tau0_0(p_0) = f_0(p_0) on that domain.
-  Index tau0 = Index( init_up_down_time + 1 );
-  double lo = std::max( min_power[ 0 ] ,
-                        initial_power - delta_ramp_down[ 0 ] );
-  double hi = std::min( max_power[ 0 ] ,
-                        initial_power + delta_ramp_up[ 0 ] );
-  if( ( ! fixed_off( 0 ) ) && ( lo < hi + 1e-12 ) ) {
-   PQFun F;
-   F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] ,
-                  const_term[ 0 ] + reactive_delta[ 0 ] , lo , hi } );
-   add_pwq( F , eff_disc[ 0 ] );
-   auto [ v , p ] = min_over( F , lo , hi );
-   f_F  [ 0 ].push_back( std::move( F ) );
-   f_tau[ 0 ].push_back( tau0 );
-   f_on [ 0 ].push_back( { v , p } );
+  const Index tau0 = Index( init_up_down_time + 1 );
+  if( ! fixed_off( 0 ) ) {
+   m_moves.clear();
+   on_moves( 0 , l0 , m_moves );
+   for( std::size_t k = 0 ; k < m_moves.size() ; ++k ) {
+    const OnMove & mv = m_moves[ k ];
+    const double lo = std::max( { min_power[ 0 ] ,
+                                  initial_power - mv.win_down , mv.lo } );
+    const double hi = std::min( { max_power[ 0 ] ,
+                                  initial_power + mv.win_up , mv.hi } );
+    if( lo < hi + 1e-12 ) {
+     PQFun F;
+     F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] ,
+                    const_term[ 0 ] + reactive_delta[ 0 ] + mv.cost ,
+                    lo , hi } );
+     add_pwq( F , eff_disc[ 0 ] );
+     auto [ v , p ] = min_over( F , lo , hi );
+     f_F   [ 0 ].push_back( std::move( F ) );
+     f_tau [ 0 ].push_back( tau0 );
+     f_on  [ 0 ].push_back( { v , p } );
+     f_link[ 0 ].push_back( { mv.lab , BAD , 0 , mv.tag ,
+                              mv.win_up , mv.win_down } );
+     }
+    }
    }
   // when init_up_down_time >= min_up_time the min-up-time is already
   // satisfied at t = 0, and the unit could equivalently have been shut
   // down at the end of t = -1 (a pre-horizon decision, hence "free"
   // within the horizon) and be off at t = 0. We must seed the OFF-side
-  // scalars accordingly, otherwise the DP misses any schedule that
+  // values accordingly, otherwise the DP misses any schedule that
   // starts off and pays no cost: with high linear costs this is
   // typically the cheapest option, and overlooking it makes f_best_cost
   // too large (the on-only schedules are forced to pay f_t at t = 0).
@@ -1039,8 +1238,9 @@ void ThermalUnitExtDPSolver::run_DP( void )
    // instant t = 0, since the shutdown happened at end of t = -1) is at
    // least mdt long; this only happens when mdt <= 1
    if( Index( 1 ) >= min_down_time ) {
-    c_off_ready[ 0 ] = 0;
-    f_ready_pred[ 0 ] = -1;
+    const Index e = idle_label( 0 , l0 , 1 );
+    c_off_ready[ e ] = 0;
+    f_ready_pred[ e ] = -1;
     }
    }
   }
@@ -1054,16 +1254,22 @@ void ThermalUnitExtDPSolver::run_DP( void )
    // pays the start-up cost and constrains p by the start-up ramp limit
    double lo = min_power[ 0 ];
    double hi = std::min( max_power[ 0 ] , bound_on[ 0 ] );
-   if( lo < hi + 1e-12 ) {
+   start_labels( 0 , l0 , m_start_labs );
+   for( const auto & [ lab0 , rng ] : m_start_labs ) {
+    const double lo0 = std::max( lo , rng.first );
+    const double hi0 = std::min( hi , rng.second );
+    if( lo0 > hi0 + 1e-12 )
+     continue;
     double suc = startup_costs.empty() ? 0.0 : startup_costs[ 0 ];
     PQFun F;
     F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] ,
-                   const_term[ 0 ] + suc + reactive_delta[ 0 ] , lo , hi } );
+                   const_term[ 0 ] + suc + reactive_delta[ 0 ] , lo0 , hi0 } );
     add_pwq( F , eff_disc_su[ 0 ] );  // start-up: reserve band under bound_on
-    auto [ v , p ] = min_over( F , lo , hi );
-    f_F  [ 0 ].push_back( std::move( F ) );
-    f_tau[ 0 ].push_back( 1 );
-    f_on [ 0 ].push_back( { v , p } );
+    auto [ v , p ] = min_over( F , lo0 , hi0 );
+    f_F   [ 0 ].push_back( std::move( F ) );
+    f_tau [ 0 ].push_back( 1 );
+    f_on  [ 0 ].push_back( { v , p } );
+    f_link[ 0 ].push_back( { lab0 , BAD , l0 , -1 , 0.0 , 0.0 } );
     }
    }
   // "unit off at t = 0, any duration": cost 0 from the initial off state;
@@ -1075,15 +1281,16 @@ void ThermalUnitExtDPSolver::run_DP( void )
    // |init| instants and t = 0 itself adds one more, so the condition is
    // |init| + 1 >= mdt (equivalently, the unit is ready right at t = 0)
    if( Index( - init_up_down_time ) + 1 >= mdt ) {
-    c_off_ready[ 0 ] = 0;
-    f_ready_pred[ 0 ] = -1;
+    const Index e = idle_label( 0 , l0 , 1 );
+    c_off_ready[ e ] = 0;
+    f_ready_pred[ e ] = -1;
     }
    }
   }
 
  // prune at t = 0 (with a single seeded entry this is a no-op, but for
  // completeness we apply it to every time step)
- prune_RRF_plus( f_F[ 0 ] , f_tau[ 0 ] , f_on[ 0 ] );
+ prune( f_F[ 0 ] , f_tau[ 0 ] , f_on[ 0 ] , f_link[ 0 ] );
 
  // v_shutdown[0]: only meaningful if there is at least one more instant
  // in the horizon after t = 0 (so that being off at t = 1 is possible)
@@ -1173,146 +1380,203 @@ void ThermalUnitExtDPSolver::run_DP( void )
   std::exit( 0 );
   }
 #endif
+ // cheapest ready off-state of each on label a restart can land in, and the
+ // off label it comes from
+ std::vector< double > rs_best( NL );
+ std::vector< Index > rs_off( NL );
+ // the range of the landing power that goes with each of those labels
+ std::vector< std::pair< double , double > > rs_rng( NL );
 
  // ----------------------------------------------------- main loop: t >=1 -
  for( Index t = 1 ; t < n ; ++t ) {
 
   // -- OFF-side updates ------------------------------------------------ //
   // c_off_any[t] : min of (stay off from t-1) and (just shut down at end
-  // of t-1). The freshly-shutdown path uses v_shutdown[t-1], while the
-  // stay path carries over whatever last shutdown contributed to
-  // c_off_any[t-1] (through f_any_pred[t-1]).
-  double stay_any = c_off_any[ t - 1 ];
-  double fresh_any = v_shutdown[ t - 1 ];
-  if( fresh_any < stay_any ) {
-   c_off_any [ t ] = fresh_any;
-   f_any_pred[ t ] = int( t - 1 );
-   }
-  else {
-   c_off_any [ t ] = stay_any;
-   f_any_pred[ t ] = f_any_pred[ t - 1 ];
+  // of t-1, whatever the label). The freshly-shutdown path uses
+  // v_shutdown[t-1][.], while the stay path carries over whatever last
+  // shutdown contributed to c_off_any[t-1] (through f_any_pred[t-1]).
+  {
+   const double stay_any = c_off_any[ t - 1 ];
+   double fresh_any = TUEDPINF;
+   Index fresh_e = 0;
+   for( Index e = 0 ; e < E ; ++e )
+    if( v_shutdown[ ( t - 1 ) * E + e ] < fresh_any ) {
+     fresh_any = v_shutdown[ ( t - 1 ) * E + e ];
+     fresh_e = e;
+     }
+   if( fresh_any < stay_any ) {
+    c_off_any [ t ] = fresh_any;
+    f_any_pred[ t ] = int( t - 1 );
+    f_any_lab [ t ] = fresh_e;
+    }
+   else {
+    c_off_any [ t ] = stay_any;
+    f_any_pred[ t ] = f_any_pred[ t - 1 ];
+    f_any_lab [ t ] = f_any_lab [ t - 1 ];
+    }
    }
 
-  // c_off_ready[t] : min of three contributions,
-  //  - stay ready from t-1;
-  //  - "long shutdown arc": a shutdown decided at the end of time
-  //    (t - mdt) reaches c_off_ready[t] through the long arc spanning
-  //    mdt instants (the min-down-time window);
+  // c_off_ready[t][.] : min of three contributions, relaxed in this order so
+  // that on ties the initial trail wins over a fresh shutdown, which wins
+  // over staying ready:
   //  - initial-off trail: when init_up_down_time <= 0 and
   //    |init_up_down_time| + t + 1 >= mdt the unit has been off for at
   //    least mdt consecutive instants ending at t even without any
-  //    in-horizon shutdown, with zero accumulated cost.
-  double stay_ready = c_off_ready[ t - 1 ];
-  double fresh_ready = TUEDPINF;
-  int fresh_h = -1;
-  // the "long shutdown arc" spans the off instants [ t - mdt + 1 , t ]
-  // directly, so it must be checked against the fixed-ON instants (which
-  // the per-instant kill below cannot intercept)
-  if( ( t >= mdt ) &&
-      ( ( ! f_has_fixings ) || ( nxt_on[ t - mdt + 1 ] > t ) ) ) {
-   fresh_ready = v_shutdown[ t - mdt ];
-   fresh_h = int( t - mdt );
-   }
-  // initial-off trail covers t when the off run by end of t reaches mdt:
+  //    in-horizon shutdown, with zero accumulated cost;
+  //  - "long shutdown arc": a shutdown decided at the end of time
+  //    (t - mdt) reaches c_off_ready[t] through the long arc spanning
+  //    mdt instants (the min-down-time window);
+  //  - stay ready from t-1.
+  const auto relax_ready = [ & ]( Index e , double v , int h , Index eh ) {
+   const Index k = t * E + e;
+   if( v < c_off_ready[ k ] ) {
+    c_off_ready [ k ] = v;
+    f_ready_pred[ k ] = h;
+    f_ready_lab [ k ] = eh;
+    }
+   };
+  // the initial-off trail covers t when the off run by end of t reaches mdt:
   //  - if init_up_down_time <= 0, the off run includes the |init| pre-
   //    horizon instants plus the in-horizon ones up to and including t,
   //    i.e. -init_ud + t + 1 instants;
   //  - if init_up_down_time > 0 but >= mut, the unit could have shut
   //    down at end of t = -1 (a free pre-horizon decision since mut is
-  //    already satisfied), so the in-horizon off run is t + 1 instants
-  double init_ready = TUEDPINF;
-  // the initial-off trail spans the off instants [ 0 , t ] directly, so it
-  // must be checked against the fixed-ON instants too
+  //    already satisfied), so the in-horizon off run is t + 1 instants.
+  // It spans the off instants [ 0 , t ] directly, so it must be checked
+  // against the fixed-ON instants (which the per-instant kill below cannot
+  // intercept)
   if( ( ! f_has_fixings ) || ( nxt_on[ 0 ] > t ) ) {
+   bool init_ready = false;
    if( ( init_up_down_time <= 0 ) &&
        ( Index( - init_up_down_time ) + t + 1 >= mdt ) )
-    init_ready = 0;
+    init_ready = true;
    else if( ( init_up_down_time > 0 ) &&
 	    ( Index( init_up_down_time ) >= min_up_time ) &&
 	    ( t + 1 >= mdt ) &&
 	    ( ! startup_in_progress ) && ( ! shutdown_in_progress ) )
     // the "free pre-horizon shutdown" is unavailable while the unit is still
     // inside its initial start-up / shut-down trajectory (see t = 0 seeding)
-    init_ready = 0;
+    init_ready = true;
+   if( init_ready )
+    relax_ready( idle_label( 0 , l0 , t + 1 ) , 0 , -1 , 0 );
    }
-  double best_ready = std::min( { stay_ready , fresh_ready , init_ready } );
-  c_off_ready[ t ] = best_ready;
-  // record the source so backtracking knows where the "ready" came from;
-  // the init-ready case has no in-horizon shutdown and uses -1
-  if( best_ready == init_ready && init_ready < TUEDPINF )
-   f_ready_pred[ t ] = -1;
-  else if( best_ready == fresh_ready && fresh_ready < TUEDPINF )
-   f_ready_pred[ t ] = fresh_h;
-  else
-   f_ready_pred[ t ] = f_ready_pred[ t - 1 ];
+  // the "long shutdown arc" spans the off instants [ t - mdt + 1 , t ]
+  // directly, so it must be checked against the fixed-ON instants too
+  if( ( t >= mdt ) &&
+      ( ( ! f_has_fixings ) || ( nxt_on[ t - mdt + 1 ] > t ) ) ) {
+   const Index h = t - mdt;
+   for( Index e = 0 ; e < E ; ++e )
+    if( v_shutdown[ h * E + e ] < TUEDPINF )
+     relax_ready( idle_label( h + 1 , e , mdt ) , v_shutdown[ h * E + e ] ,
+                  int( h ) , e );
+   }
+  for( Index e = 0 ; e < E ; ++e ) {
+   const Index k = ( t - 1 ) * E + e;
+   if( c_off_ready[ k ] < TUEDPINF )
+    relax_ready( idle_label( t , e , 1 ) , c_off_ready[ k ] , f_ready_pred[ k ] ,
+                 f_ready_lab[ k ] );
+   }
 
-  if( fixed_on( t ) ) {   // the unit cannot be off at t: kill both OFF
-   c_off_any   [ t ] = TUEDPINF;   // states (the "stay off" paths through
-   f_any_pred  [ t ] = -1;         // t die here, the arcs jumping over t
-   c_off_ready [ t ] = TUEDPINF;   // have been checked above)
-   f_ready_pred[ t ] = -1;
+  if( fixed_on( t ) ) {   // the unit cannot be off at t: kill all the OFF
+   c_off_any [ t ] = TUEDPINF;   // states (the "stay off" paths through t
+   f_any_pred[ t ] = -1;         // die here, the arcs jumping over t have
+   for( Index e = 0 ; e < E ; ++e ) {  // been checked above)
+    c_off_ready [ t * E + e ] = TUEDPINF;
+    f_ready_pred[ t * E + e ] = -1;
+    }
    }
 
   // -- ON-side updates ------------------------------------------------- //
-  // build a fresh sparse list for time t from (a) a possible restart
-  // tau=1 and (b) the increments of each surviving entry at t-1
+  // build a fresh sparse list for time t from (a) the possible restarts
+  // tau=1 and (b) the moves out of each surviving entry at t-1
   double Plo = min_power[ t ];
   double Phi = max_power[ t ];
   double ru_prev = delta_ramp_up  [ t - 1 ];
   double rd_prev = delta_ramp_down[ t - 1 ];
 
   // per-step build buffers: reused member scratch (cleared, capacity kept)
-  m_new_F .clear();
-  m_new_tau.clear();
-  m_new_on.clear();
-  m_new_F  .reserve( f_F[ t - 1 ].size() + 1 );
-  m_new_tau.reserve( f_F[ t - 1 ].size() + 1 );
-  m_new_on .reserve( f_F[ t - 1 ].size() + 1 );
+  m_new_F   .clear();
+  m_new_tau .clear();
+  m_new_on  .clear();
+  m_new_link.clear();
+  m_new_F   .reserve( f_F[ t - 1 ].size() + NL );
+  m_new_tau .reserve( f_F[ t - 1 ].size() + NL );
+  m_new_on  .reserve( f_F[ t - 1 ].size() + NL );
+  m_new_link.reserve( f_F[ t - 1 ].size() + NL );
 
-  // (a) tau = 1 entry (restart arc): F^1_t(p) = f_t(p) + SUC[t]
-  //     + c_off_ready[t-1], defined for p in [P, min(Pbar, SU)]. Only
-  //     built if c_off_ready[t-1] is finite (otherwise the unit cannot
-  //     legally restart at t).
-  if( ( ! fixed_off( t ) ) && ( c_off_ready[ t - 1 ] < TUEDPINF ) ) {
+  // (a) tau = 1 entries (restart arcs): F^{1,lab}_t(p) = f_t(p) + SUC[t]
+  //     + c_off_ready[t-1][e], with lab = start_label( t , e ), defined for
+  //     p in [P, min(Pbar, SU)]; for each lab only the cheapest e is kept.
+  //     Only built if some c_off_ready[t-1][.] is finite (otherwise the unit
+  //     cannot legally restart at t).
+  if( ! fixed_off( t ) ) {
+   std::fill( rs_best.begin() , rs_best.end() , TUEDPINF );
+   for( Index e = 0 ; e < E ; ++e ) {
+    const double c = c_off_ready[ ( t - 1 ) * E + e ];
+    if( c >= TUEDPINF )
+     continue;
+    start_labels( t , e , m_start_labs );
+    for( const auto & [ lab , rng ] : m_start_labs )
+     if( c < rs_best[ lab ] ) {
+      rs_best[ lab ] = c;
+      rs_off [ lab ] = e;
+      rs_rng [ lab ] = rng;
+      }
+    }
    double lo = Plo;
    double hi = std::min( Phi , bound_on[ t ] );
-   if( lo < hi + 1e-12 ) {
+   for( Index lab = 0 ; ( lab < NL ) && ( lo < hi + 1e-12 ) ; ++lab ) {
+    if( rs_best[ lab ] >= TUEDPINF )
+     continue;
+    const double lol = std::max( lo , rs_rng[ lab ].first );
+    const double hil = std::min( hi , rs_rng[ lab ].second );
+    if( lol > hil + 1e-12 )
+     continue;
     double suc = startup_costs.empty() ? 0.0 : startup_costs[ t ];
     PQFun F = pool_take();
     F.push_back( { quad_term[ t ] , linear_term[ t ] ,
-                   const_term[ t ] + suc + c_off_ready[ t - 1 ] +
+                   const_term[ t ] + suc + rs_best[ lab ] +
                    reactive_delta[ t ] ,
-                   lo , hi } );
+                   lol , hil } );
     add_pwq( F , eff_disc_su[ t ] );  // start-up: reserve band under bound_on
-    auto [ v , p ] = min_over( F , lo , hi );
-    m_new_F  .push_back( std::move( F ) );
-    m_new_tau.push_back( 1 );
-    m_new_on .push_back( { v , p } );
+    auto [ v , p ] = min_over( F , lol , hil );
+    m_new_F   .push_back( std::move( F ) );
+    m_new_tau .push_back( 1 );
+    m_new_on  .push_back( { v , p } );
+    m_new_link.push_back( { lab , BAD , rs_off[ lab ] , -1 , 0.0 , 0.0 } );
     }
    }
 
-  // (b) tau > 1 entries: from each surviving entry of f_F[t-1] apply
-  //     sliding_min (ramp window from t-1 to t) to get the value
-  //     function restricted to [Plo, Phi], then add f_t(p). The output
-  //     tau is the previous tau + 1 (continuing the on-run). No ON state
-  //     exists at t if the commitment there is fixed OFF.
+  // (b) tau > 1 entries: from each surviving entry of f_F[t-1] and each move
+  //     out of its label, apply sliding_min_corr (the window of the move
+  //     from t-1 to t) to get the value function restricted to [Plo, Phi]
+  //     and to the range of the move, then add f_t(p). The output tau is the
+  //     previous tau + 1 (continuing the on-run). No ON state exists at t if
+  //     the commitment there is fixed OFF.
   for( std::size_t i = 0 ;
        ( ! fixed_off( t ) ) && ( i < f_F[ t - 1 ].size() ) ; ++i ) {
-   PQFun F = pool_take();
-   // interior on->on step with the residual-ramp reserve penalty corr folded
-   // into the ramp-window minimisation (falls back to the plain sliding_min
-   // when no reserve is rewarded at t, keeping energy-only bit-identical)
-   sliding_min_corr( f_F[ t - 1 ][ i ] , ru_prev , rd_prev , Plo , Phi ,
-                     t , F );
-   if( F.empty() ) {           // intersection with [Plo, Phi] empty
-    pool_give( F );            // hand the unused buffer back to the pool
-    continue;
-    }
-   add_quadratic( F , quad_term[ t ] , linear_term[ t ] ,
-                  const_term[ t ] + reactive_delta[ t ] );
-   // g^0 for period t is folded into corr (=g(p,min(A,B))) inside
-   // sliding_min_corr, so no separate eff_disc add here (keeps F
-   // exactly convex).
+   m_moves.clear();
+   on_moves( t , f_link[ t - 1 ][ i ].lab , m_moves );
+   for( std::size_t k = 0 ; k < m_moves.size() ; ++k ) {
+    const OnMove & mv = m_moves[ k ];
+    PQFun F = pool_take();
+    // interior on->on step with the residual-ramp reserve penalty corr
+    // folded into the minimisation over the window of the move, the tent of
+    // the reserve being the ramp of the step (falls back to the plain
+    // sliding_min when no reserve is rewarded at t, keeping energy-only
+    // bit-identical)
+    sliding_min_corr( f_F[ t - 1 ][ i ] , ru_prev , rd_prev ,
+                      std::max( Plo , mv.lo ) , std::min( Phi , mv.hi ) ,
+                      t , F , -1.0 , mv.win_up , mv.win_down );
+    if( F.empty() ) {           // intersection with [Plo, Phi] empty
+     pool_give( F );            // hand the unused buffer back to the pool
+     continue;
+     }
+    add_quadratic( F , quad_term[ t ] , linear_term[ t ] ,
+                   const_term[ t ] + reactive_delta[ t ] + mv.cost );
+    // g^0 for period t is folded into corr (=g(p,min(A,B))) inside
+    // sliding_min_corr, so no separate eff_disc add here (keeps F
+    // exactly convex).
 #if TUEDPS_PROFILE
    // DIAGNOSTIC (env TUEDPS_SIMP=eps): lossy compressor of the convex
    // F. Greedily fuses a maximal run of adjacent pieces into one
@@ -1360,27 +1624,24 @@ void ThermalUnitExtDPSolver::run_DP( void )
       F.swap( sout );
       } }
 #endif
-   auto [ v , p ] = min_over( F , Plo , Phi );
-   m_new_F  .push_back( std::move( F ) );
-   m_new_tau.push_back( f_tau[ t - 1 ][ i ] + 1 );
-   m_new_on .push_back( { v , p } );
+    auto [ v , p ] = min_over( F , Plo , Phi );
+    m_new_F   .push_back( std::move( F ) );
+    m_new_tau .push_back( f_tau[ t - 1 ][ i ] + 1 );
+    m_new_on  .push_back( { v , p } );
+    m_new_link.push_back( { mv.lab , i , 0 , mv.tag ,
+                            mv.win_up , mv.win_down } );
+    }
    }
 
-  // the new_tau vector is already sorted ascending: the restart entry
-  // (tau = 1) was pushed first, and each subsequent entry has
-  // tau = (old tau) + 1 >= 2 with the old taus appearing in ascending
-  // order; since the old list had tau >= 1, we have new tau >= 2 and
-  // monotonicity is preserved.
-
-  // RRF+ pruning: remove functions with tau >= mut that are pointwise
-  // dominated by some other function with tau >= mut in the new list.
-  prune_RRF_plus( m_new_F , m_new_tau , m_new_on );
+  // domination pruning of the new list
+  prune( m_new_F , m_new_tau , m_new_on , m_new_link );
 
   // hand the per-step lists over to f_F[t] (emptied at reset); the build
   // buffers are left empty and regrow on the next step
-  f_F  [ t ] = std::move( m_new_F );
-  f_tau[ t ] = std::move( m_new_tau );
-  f_on [ t ] = std::move( m_new_on );
+  f_F   [ t ] = std::move( m_new_F );
+  f_tau [ t ] = std::move( m_new_tau );
+  f_on  [ t ] = std::move( m_new_on );
+  f_link[ t ] = std::move( m_new_link );
 
 #if TUEDPS_PROFILE
   // GROWTH TRACE (env TUEDPS_TRACE): for the max-|F| state at selected
@@ -1420,7 +1681,6 @@ void ThermalUnitExtDPSolver::run_DP( void )
     }
    }
 #endif
-
   // v_shutdown[t] is meaningful only if there is at least one more
   // instant in the horizon after t, since an in-horizon off period
   // triggered by shutdown at end of t starts at t + 1
@@ -1435,16 +1695,15 @@ void ThermalUnitExtDPSolver::run_DP( void )
    for( const auto & Fv : f_F[ t ] ) nf += Fv.size();
    std::cerr.precision( 12 );
    std::cerr << "TT t=" << t << " bon=" << bon << " coff=" << c_off_any[ t ]
-             << " vsd=" << v_shutdown[ t ] << " states=" << f_F[ t ].size()
+             << " vsd=" << v_shutdown[ t * E ] << " states=" << f_F[ t ].size()
              << " sumF=" << nf << "\n";
    }
 #endif
-
   }  // end( for( t ) )
 
  // finalise best cost at the end of the horizon. Two options:
  //  - terminate *on*: the optimal cost is the minimum of F^tau_{n-1}(p)
- //    over all surviving tau and p (no SD constraint on p: the unit is
+ //    over all surviving states and p (no SD constraint on p: the unit is
  //    free to remain on after the horizon);
  //  - terminate *off*: c_off_any[n-1] aggregates both "stayed off since
  //    before the horizon" and "shut down at some point during the
@@ -1519,22 +1778,25 @@ void ThermalUnitExtDPSolver::run_DP( void )
 
 // Reconstruct the optimal schedule by walking the DP backward. The
 // output is written to P[] (power per time step) and U[] (commitment per
-// time step). The walk alternates two phases:
+// time step), plus the label and the move of each on instant in U_lab[]
+// and U_move[]. The walk alternates two phases:
 //
-//  - ON-phase (walk_on): given a state (t, tau, p), set P[t]=p, U[t]=1,
-//    then step to the predecessor (t-1, tau-1, p_{t-1}). The predecessor
-//    power is given by Wuijts eq. (16): p_{t-1} is the point of
-//    [p - Delta+, p + Delta-] closest to p_star_{t-1, tau-1}. Iterate
-//    until tau reaches 1 (meaning the on-run just started at this t) or
-//    t reaches 0 (meaning we hit the initial on state from before the
-//    horizon). Returns the time at which the on-run starts.
+//  - ON-phase (walk_on): given a state (t, tau, p) and its link, set
+//    P[t]=p, U[t]=1, then step to the predecessor state recorded in the
+//    link, at power p_{t-1}. The predecessor power is given by Wuijts
+//    eq. (16): p_{t-1} is the point of the window of the move closest to
+//    p_star of the predecessor (the corr-aware minimiser when the reserve
+//    is rewarded). Iterate until tau reaches 1 (meaning the on-run just
+//    started at this t) or t reaches 0 (meaning we hit the initial on state
+//    from before the horizon). Returns the time at which the on-run starts
+//    and the label of the off-state it restarted from.
 //
-//  - OFF-phase (handled in the main loop): a just-finished on-run ends
-//    at t_start = 1 means the preceding off-period at t_start - 1 was
-//    caused by some earlier shutdown h, recoverable from f_ready_pred.
-//    If h >= 0, we jump to (h, v_shutdown_tau[h], v_shutdown_p[h]) and
-//    continue with walk_on. If h == -1, the off period came from the
-//    initial state and backtracking ends.
+//  - OFF-phase (handled in the main loop): a just-finished on-run starting
+//    at t_start >= 1 means the preceding off-period at t_start - 1 was
+//    caused by some earlier shutdown h, recoverable from f_ready_pred with
+//    the label of the off-state. If h >= 0, we jump to the witness of
+//    v_shutdown[h][.] and continue with walk_on. If h == -1, the off period
+//    came from the initial state and backtracking ends.
 //
 // When the horizon terminates *off* (best_off < best_on), the chain is
 // bootstrapped from f_any_pred[n-1] instead of an end-of-horizon on-state.
@@ -1543,6 +1805,8 @@ void ThermalUnitExtDPSolver::build_solution( void )
 {
  std::fill( P.begin() , P.end() , 0.0 );
  std::fill( U.begin() , U.end() , false );
+ std::fill( U_lab.begin() , U_lab.end() , 0 );
+ std::fill( U_move.begin() , U_move.end() , -1 );
 
  // fast paths: nothing to recover from
  if( ! f_solved ) {
@@ -1556,32 +1820,22 @@ void ThermalUnitExtDPSolver::build_solution( void )
   return;
   }
 
- // binary-search helper: find the index i with f_tau[t][i] == tau in the
- // sorted sparse list, or report "not found" (returns the size of the
- // list, analogous to std::lower_bound's end sentinel)
- auto find_tau = [ & ]( Index t , Index tau ) -> std::size_t {
-  const auto & v = f_tau[ t ];
-  auto it = std::lower_bound( v.begin() , v.end() , tau );
-  if( it != v.end() && *it == tau )
-   return( std::size_t( it - v.begin() ) );
-  return( v.size() );
-  };
+ const Index E = std::max( off_labels() , Index( 1 ) );
 
- // choose the optimal terminal state: either some (tau, p) at t = n-1
+ // choose the optimal terminal state: either some on-state at t = n-1
  // (for an on-termination) or c_off_any[n-1] (for an off-termination)
  double best_on = TUEDPINF;
- Index  best_tau = 0;
- double best_p = 0;
+ std::size_t best_i = 0;
  for( std::size_t i = 0 ; i < f_on[ n - 1 ].size() ; ++i )
   if( f_on[ n - 1 ][ i ].min_val < best_on ) {
    best_on = f_on[ n - 1 ][ i ].min_val;
-   best_tau = f_tau[ n - 1 ][ i ];
-   best_p = f_on[ n - 1 ][ i ].argmin_p;
+   best_i = i;
    }
  double best_off = c_off_any[ n - 1 ];
 
- // walk_on: steps one on-run back from (t, tau, p), writing P[] / U[] as
- // it goes, and returns the time at which the run started. The caller
+ // walk_on: steps one on-run back from (t, tau, p) reached through the link
+ // lk, writing P[] / U[] as it goes, and returns the time at which the run
+ // started and the label of the off-state it restarted from. The caller
  // then decides whether (and where) to resume with an earlier on-run via
  // f_ready_pred[].
  // acap0 is the shut-down reserve cap of the CLOSING period
@@ -1590,34 +1844,35 @@ void ThermalUnitExtDPSolver::build_solution( void )
  // so its predecessor must be recovered with the same cap. Only the
  // first predecessor step is the closing one; interior steps (acap = -1)
  // use max_power as usual.
- auto walk_on = [ & ]( Index t , Index tau , double p ,
-                       double acap0 ) -> Index {
+ auto walk_on = [ & ]( Index t , Index tau , double p , OnLink lk ,
+                       double acap0 ) -> std::pair< Index , Index > {
   double acap = acap0;
   while( true ) {
    P[ t ] = p;
    U[ t ] = true;
+   U_lab[ t ] = lk.lab;
+   U_move[ t ] = lk.move;
    if( tau == 1 )
-    return( t );            // first instant of this on-run
+    return( std::make_pair( t , lk.off ) );    // first instant of this on-run
    if( t == 0 )
-    return( 0 );            // hit initial on state (init_up_down_time > 0)
-   // locate the predecessor (t-1, tau-1) in the sparse list
-   std::size_t idx = find_tau( t - 1 , tau - 1 );
-   if( idx == f_tau[ t - 1 ].size() )
-    // defensive: by RRF+ invariants this never happens (a surviving
-    // F^tau_t was built from a then-surviving F^{tau-1}_{t-1}), but if
-    // numerical effects prune the predecessor anyway we stop cleanly
-    return( t );
+    return( std::make_pair( Index( 0 ) , Index( 0 ) ) );         // hit initial on state (init > 0)
+   if( lk.back == BAD )
+    // defensive: by the pruning invariants this never happens (a surviving
+    // state at t was built from a then-surviving state at t-1)
+    return( std::make_pair( t , lk.off ) );
    // recover the predecessor power. With no reserve this is Wuijts
-   // eq. (16), the projection of argmin F^{tau-1}_{t-1} onto the ramp
-   // window; with reserve rewarded the transition minimised
+   // eq. (16), the projection of the argmin of the predecessor onto the
+   // window of the move; with reserve rewarded the transition minimised
    // F(q)+corr_t(q,p), so the corr-aware argmin must be used instead
    // (reserve_corr_argmin subsumes both and clamps to F's own domain,
    // which already carries the tau-1==1 start-up cap).
-   const double ru = delta_ramp_up  [ t - 1 ];
-   const double rd = delta_ramp_down[ t - 1 ];
+   const std::size_t idx = lk.back;
    const double p_prev =
-    reserve_corr_argmin( f_F[ t - 1 ][ idx ] , ru , rd , t , p , acap );
+    reserve_corr_argmin( f_F[ t - 1 ][ idx ] , delta_ramp_up[ t - 1 ] ,
+                         delta_ramp_down[ t - 1 ] , t , p , acap ,
+                         lk.win_up , lk.win_down );
    acap = -1.0;             // only the closing step carries the shut-down cap
+   lk = f_link[ t - 1 ][ idx ];
    t   -= 1;
    tau -= 1;
    p = p_prev;
@@ -1631,19 +1886,32 @@ void ThermalUnitExtDPSolver::build_solution( void )
  // from before the horizon. The loop below walks these segments until
  // either time 0 is reached, or the initial off state is reached.
 
- Index on_t;
- Index on_tau;
- double on_p;
- double on_acap;   // closing period's shut-down cap (-1 if on-to-end)
- bool have_on;
+ Index on_t = 0;
+ Index on_tau = 0;
+ double on_p = 0;
+ OnLink on_lk{ 0 , BAD , 0 , -1 , 0.0 , 0.0 };
+ double on_acap = -1.0;   // closing period's shut-down cap (-1 if on-to-end)
+ bool have_on = false;
+
+ // jump to the witness of the shutdown at the end of h with label e
+ const auto at_shutdown = [ & ]( Index h , Index e ) {
+  const Index k = h * E + e;
+  on_t = h;
+  on_tau = v_shutdown_tau[ k ];
+  on_p = v_shutdown_p[ k ];
+  on_lk = v_shutdown_link[ k ];
+  on_acap = ( h + 1 < n ) ? bound_down[ h + 1 ] : -1.0;
+  have_on = true;
+  };
 
  // bootstrap the alternating on/off walk
  if( best_on <= best_off ) {
-  // on-termination: the last on-run ends at (n-1, best_tau, best_p) -- no
+  // on-termination: the last on-run ends at the best on-state at n-1 -- no
   // shut-down closes it (the unit is on at the horizon end), so acap = -1.
   on_t = n - 1;
-  on_tau = best_tau;
-  on_p = best_p;
+  on_tau = f_tau[ n - 1 ][ best_i ];
+  on_p = f_on[ n - 1 ][ best_i ].argmin_p;
+  on_lk = f_link[ n - 1 ][ best_i ];
   on_acap = -1.0;
   have_on = true;
   }
@@ -1653,42 +1921,31 @@ void ThermalUnitExtDPSolver::build_solution( void )
   // on that range because P[] and U[] are already 0/false. If
   // f_any_pred[n-1] >= 0 we continue with the last shutdown event;
   // otherwise the unit has been off throughout the horizon and we're done.
-  have_on = false;
-  int h = f_any_pred[ n - 1 ];
-  if( h >= 0 ) {
-   on_t = Index( h );
-   on_tau = v_shutdown_tau[ h ];
-   on_p = v_shutdown_p[ h ];
-   on_acap = ( Index( h ) + 1 < n ) ? bound_down[ h + 1 ] : -1.0;
-   have_on = true;
-   }
+  const int h = f_any_pred[ n - 1 ];
+  if( h >= 0 )
+   at_shutdown( Index( h ) , f_any_lab[ n - 1 ] );
   }
 
  // alternate on-runs and off-gaps until we reach the beginning of the
  // horizon (t_start == 0) or an off-gap that was inherited from before
- // the horizon (f_ready_pred[t_start - 1] == -1)
+ // the horizon (f_ready_pred == -1)
  while( have_on ) {
-  Index t_start = walk_on( on_t , on_tau , on_p , on_acap );
-
-  if( t_start == 0 ) {
-   have_on = false;
+  const auto [ t_start , e ] = walk_on( on_t , on_tau , on_p , on_lk ,
+                                        on_acap );
+  have_on = false;
+  if( t_start == 0 )
    break;
-   }
-  // the on-run ended at t_start, so t_start - 1 was off. Find the
-  // shutdown event that produced the ready state at t_start - 1
-  int h = f_ready_pred[ t_start - 1 ];
-  if( h < 0 ) {
+  // the on-run started at t_start, so t_start - 1 was off and ready with
+  // label e. Find the shutdown event that produced that ready state
+  const Index k = ( t_start - 1 ) * E + e;
+  const int h = f_ready_pred[ k ];
+  if( h < 0 )
    // the ready came from the initial off trail (pre-horizon); no
    // earlier on-run exists, so backtracking is complete
-   have_on = false;
    break;
-   }
   // jump to the shutdown event and continue the walk; this on-run closes with
-  // a shut-down at on_t (off at on_t+1), so its closing period is capped.
-  on_t = Index( h );
-  on_tau = v_shutdown_tau[ h ];
-  on_p = v_shutdown_p[ h ];
-  on_acap = ( Index( h ) + 1 < n ) ? bound_down[ h + 1 ] : -1.0;
+  // a shut-down at h (off at h+1), so its closing period is capped.
+  at_shutdown( Index( h ) , f_ready_lab[ k ] );
   }
 
  stage = sol_OK;

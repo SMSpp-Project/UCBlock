@@ -641,9 +641,56 @@ void ThermalUnitDPSolverBase::sliding_min(
  if( F.empty() || lo > hi + 1e-12 )
   return;
 
- // clamp negative ramps defensively (should not occur in normal use)
- if( ramp_up   < 0 ) ramp_up = 0;
- if( ramp_down < 0 ) ramp_down = 0;
+ // a window [ -ramp_down , ramp_up ] of the move p_t - q that does not
+ // contain 0, i.e., a move that must be strictly upwards (ramp_down < 0) or
+ // strictly downwards (ramp_up < 0), is a one-sided window translated by its
+ // endpoint nearest to 0: with d that endpoint,
+ //   min{ F( q ) : p_t - q in [ a , b ] } = H( p_t - d ) ,
+ //   H( x ) = min{ F( q ) : x - q in [ a - d , b - d ] }
+ // where [ a - d , b - d ] contains 0; the degenerate window a = b is the
+ // exact shift p_t = q + a (a move at the full ramp rate). An empty window
+ // ( ramp_up + ramp_down < 0 ) admits no move at all
+ if( ( ramp_up < 0 ) || ( ramp_down < 0 ) ) {
+  if( ramp_up + ramp_down < -1e-12 )
+   return;
+  const double d = ( ramp_down < 0 ) ? - ramp_down : ramp_up;
+  PQFun H;
+  if( ramp_down < 0 )
+   sliding_min( F , ramp_up - d , 0.0 , lo - d , hi - d , H );
+  else
+   sliding_min( F , 0.0 , ramp_down + d , lo - d , hi - d , H );
+  out.reserve( H.size() );
+  for( const auto & pc : H )  // H( p_t - d ) as a function of p_t
+   out.push_back( { pc.alfa , pc.beta - 2 * pc.alfa * d ,
+                    pc.alfa * d * d - pc.beta * d + pc.gamma ,
+                    pc.left + d , pc.right + d } );
+  return;
+  }
+
+ // the null window is the identity: F itself, restricted to [ lo , hi ]
+ // (the construction below would split the piece containing the minimiser);
+ // a domain that is a single point stays a single point, rather than being
+ // taken for the collapse of [ lo , hi ] handled at the end
+ if( ( ramp_up == 0 ) && ( ramp_down == 0 ) ) {
+  const double dl = std::max( F.front().left , lo );
+  const double dr = std::min( F.back().right , hi );
+  if( dr < dl - 1e-12 )
+   return;                      // no common point: no feasible move
+  if( dr - dl <= 1e-12 ) {       // a single common point
+   const double v = eval( F , dl );
+   if( v < TUEDPINF )
+    out.push_back( { 0 , 0 , v , dl , dl } );
+   return;
+   }
+  out.reserve( F.size() );
+  for( const auto & pc : F ) {
+   const double l = std::max( pc.left , lo );
+   const double r = std::min( pc.right , hi );
+   if( l < r - 1e-15 )
+    out.push_back( { pc.alfa , pc.beta , pc.gamma , l , r } );
+   }
+  return;
+  }
 
  // locate the unconstrained minimiser p_star and its value f_star by
  // scanning each piece's own argmin (all pieces are convex so the piece-wise
@@ -752,14 +799,22 @@ void ThermalUnitDPSolverBase::sliding_min(
  // add_pwq() and min_over()]. If no piece of the transformed function
  // covers that point the transition really is infeasible, and the output
  // stays empty
- if( out.empty() && ( lo <= hi + 1e-12 ) ) {
-  double v = TUEDPINF;
-  for( const auto & pc : raw )
-   if( ( pc.left <= lo + 1e-12 ) && ( lo <= pc.right + 1e-12 ) )
-    v = std::min( v , eval_piece( pc , lo ) );
-  if( v < TUEDPINF )
-   out.push_back( { 0 , 0 , v , lo , hi } );
-  }
+ // (if [ lo , hi ] is not a single point the transformed function only
+ // touches it at one of its ends, and the value is at that point alone)
+ if( out.empty() && ( lo <= hi + 1e-12 ) )
+  for( const double x : { lo , hi } ) {
+   double v = TUEDPINF;
+   for( const auto & pc : raw )
+    if( ( pc.left <= x + 1e-12 ) && ( x <= pc.right + 1e-12 ) )
+     v = std::min( v , eval_piece( pc , x ) );
+   if( v < TUEDPINF ) {
+    if( hi - lo <= 1e-12 )
+     out.push_back( { 0 , 0 , v , lo , hi } );
+    else
+     out.push_back( { 0 , 0 , v , x , x } );
+    break;
+    }
+   }
 
  }  // end( ThermalUnitDPSolverBase::sliding_min )
 
@@ -795,9 +850,14 @@ double ThermalUnitDPSolverBase::reserve_reward( Index t , double p ,
 
 void ThermalUnitDPSolverBase::sliding_min_corr(
  const PQFun & F , double ramp_up , double ramp_down ,
- double lo , double hi , Index t , PQFun & out , double acap )
+ double lo , double hi , Index t , PQFun & out , double acap ,
+ double win_up , double win_down )
 {
  out.clear();
+ // window of the scheduled move q in [ p - wu , p + wd ], the tent of the
+ // reserve deliverability being that of ramp_up / ramp_down
+ const double wu = std::isnan( win_up ) ? ramp_up : win_up;
+ const double wd = std::isnan( win_down ) ? ramp_down : win_down;
  const double cp = primary_reserve_cost.empty()   ? 0
                                                   : primary_reserve_cost[ t ];
  const double cs = secondary_reserve_cost.empty()
@@ -805,12 +865,12 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  // no reserve rewarded at t (no negative price) => corr == 0 => exact
  // standard sliding minimum (energy-only stays bit-identical to sliding_min)
  if( ( cp >= 0 ) && ( cs >= 0 ) ) {
-  sliding_min( F , ramp_up , ramp_down , lo , hi , out );
+  sliding_min( F , wu , wd , lo , hi , out );
   return;
   }
 #if TUEDPS_PROFILE
  if( std::getenv( "TUEDPS_NOCORR" ) ) {  // diagnostic: capacity-band model
-  sliding_min( F , ramp_up , ramp_down , lo , hi , out );
+  sliding_min( F , wu , wd , lo , hi , out );
   return;                               // (g0 still added by add_pwq outside)
   }
 #endif
@@ -883,8 +943,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
 #if TUEDPS_PROFILE
   ++g_gmin;
 #endif
-  const double qL = std::max( p - ramp_up , domL );
-  const double qR = std::min( p + ramp_down , domR );
+  const double qL = std::max( p - wu , domL );
+  const double qR = std::min( p + wd , domR );
   if( qL > qR + 1e-12 ) return std::make_pair( TUEDPINF , 0.0 );
   if( qR - qL <= 1e-12 )                 // degenerate window: single point
    return std::make_pair( evalF( qL ) + corr( qL , p ) , qL );
@@ -972,8 +1032,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  // as a belt-and-suspenders guard against any numerical non-convexity.
  // Values good to ~1e-12.
  auto Gtrue = [ & ]( double p ) -> std::pair< double , double > {
-  const double qL = std::max( p - ramp_up , domL );
-  const double qR = std::min( p + ramp_down , domR );
+  const double qL = std::max( p - wu , domL );
+  const double qR = std::min( p + wd , domR );
   if( qL > qR + 1e-12 ) return std::make_pair( TUEDPINF , 0.0 );
   auto phi = [ & ]( double q ) { return( evalF( q ) + corr( q , p ) ); };
   if( qR - qL <= 1e-13 ) return std::make_pair( phi( qL ) , qL );
@@ -1000,7 +1060,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
 #endif
 
  // reconstruct out(p) over the finite-G domain. KEY STRUCTURE: the
- // minimiser q*(p) is either a window edge (q = p-ramp_up or p+ramp_down)
+ // minimiser q*(p) is either a window edge (q = p-wu or p+wd)
  // and then G is quadratic in p (F shifted, minus a pw-linear reserve term)
  // or interior and CONSTANT in p on a fixed configuration, and then
  // G(p) = F(q*)+corr(q*,p) is LINEAR in p. So each piece is fitted by exact
@@ -1008,8 +1068,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  // (3 points, edge) on a config-constant sub-interval; a verify probe
  // subdivides where the configuration changes, and at the depth cap a
  // straight segment is emitted (never a spurious curvature).
- const double plo = std::max( lo , domL - ramp_down );
- const double phi = std::min( hi , domR + ramp_up );
+ const double plo = std::max( lo , domL - wd );
+ const double phi = std::min( hi , domR + wu );
  if( plo > phi + 1e-12 )
   return;
 
@@ -1063,16 +1123,16 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   auto g = Gmin( pe );
   if( g.first >= TUEDPINF ) return( r );
   const double q = g.second , tol = 1e-6 * std::max( 1.0 , std::abs( pe ) );
-  const double qLb = std::max( pe - ramp_up , domL );
-  const double qRb = std::min( pe + ramp_down , domR );
+  const double qLb = std::max( pe - wu , domL );
+  const double qRb = std::min( pe + wd , domR );
   if( std::abs( q - qRb ) < tol ) {          // upper bound binds (1 probe)
-   if( pe + ramp_down < domR - tol )
-    { r.form = 2; r.sl = 1; r.ic = ramp_down; }        // WDN
+   if( pe + wd < domR - tol )
+    { r.form = 2; r.sl = 1; r.ic = wd; }               // WDN
    else { r.form = 0; r.qbar = domR; }                 // PIN domR
    return( r ); }
   if( std::abs( q - qLb ) < tol ) {          // lower bound binds (1 probe)
-   if( pe - ramp_up > domL + tol )
-    { r.form = 1; r.sl = 1; r.ic = -ramp_up; }         // WUP
+   if( pe - wu > domL + tol )
+    { r.form = 1; r.sl = 1; r.ic = -wu; }              // WUP
    else { r.form = 0; r.qbar = domL; }                 // PIN domL
    return( r ); }
   // interior minimiser: a stationary q* can coincide with a moving-locus
@@ -1143,17 +1203,17 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     if( std::abs( 1 - segcum[ m ] ) > 1e-14 )
      rel( ( qbar - ramp_down ) / ( 1 - segcum[ m ] ) );
     rel( ( ramp_up + qbar ) / ( 1 + segcum[ m ] ) ); }
-   rel( qbar + ramp_up ); rel( qbar - ramp_down );  // window-reach
+   rel( qbar + wu ); rel( qbar - wd );              // window-reach
    }                                                // (-> WUP / WDN)
   else if( ( r.form == 1 ) || ( r.form == 2 ) ) {  // WUP / WDN, q = p - sh
-   const double sh = ( r.form == 1 ) ? ramp_up : -ramp_down;
+   const double sh = ( r.form == 1 ) ? wu : -wd;
    for( const auto & pc2 : F )
     { rel( pc2.left + sh ); rel( pc2.right + sh ); }        // F-cross
    const int i = findF( pc - sh );
    const double a = F[ i ].alfa , b = F[ i ].beta;
    if( a > 1e-16 )                          // stationary point enters piece
-    rel( ( r.form == 1 ) ? ( ramp_up - ( b + segc[ 0 ] ) / ( 2 * a ) )
-                         : ( ( segc[ 0 ] - b ) / ( 2 * a ) - ramp_down ) );
+    rel( ( r.form == 1 ) ? ( wu - ( b + segc[ 0 ] ) / ( 2 * a ) )
+                         : ( ( segc[ 0 ] - b ) / ( 2 * a ) - wd ) );
    }
   else if( r.form == 3 ) {                  // TENT q*=p-dpk
    for( const auto & pc2 : F )
@@ -1214,7 +1274,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
    if( ( pe > pc + 1e-9 ) && ( pe < best ) ) best = pe; };
   if( r.form == 0 ) {                               // PIN: q* starts to move
    const double qbar = r.qbar;
-   rel( qbar + ramp_up ); rel( qbar - ramp_down );  // window-reach -> WUP/WDN
+   rel( qbar + wu ); rel( qbar - wd );              // window-reach -> WUP/WDN
    rel( qbar + dpk );                               // tent peak -> TENT
    rel( 0.5 * ( ramp_up + qbar + pmin ) );          // B=A -> BAND
    rel( 0.5 * ( pmax - ramp_down + qbar ) );
@@ -1227,8 +1287,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
    rel( ( domL - r.ic ) / r.sl );                   // q* hits domain -> PIN
    rel( ( domR - r.ic ) / r.sl );
    if( std::abs( r.sl - 1.0 ) > 1e-12 ) {  // q* hits a window edge -> WUP/WDN
-    rel( ( -ramp_up - r.ic ) / ( r.sl - 1.0 ) );
-    rel( ( ramp_down - r.ic ) / ( r.sl - 1.0 ) ); }
+    rel( ( -wu - r.ic ) / ( r.sl - 1.0 ) );
+    rel( ( wd - r.ic ) / ( r.sl - 1.0 ) ); }
    rel( pmin + Bmax ); rel( pmax - Bmax );  // Bmax = A (<-> TENT / corr off)
    // stationary point enters (-> PIN): the moving locus q*(p) sweeps
    // through F as p grows, so the entry can land in ANY F-piece (and any
@@ -1238,9 +1298,9 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     const double a = fp.alfa , b = fp.beta;
     if( a <= 1e-16 ) continue;
     if( r.form == 1 )                                                  // WUP
-     rel( ramp_up - ( b + segc[ 0 ] ) / ( 2 * a ) );
+     rel( wu - ( b + segc[ 0 ] ) / ( 2 * a ) );
     else if( r.form == 2 )                                             // WDN
-     rel( ( segc[ 0 ] - b ) / ( 2 * a ) - ramp_down );
+     rel( ( segc[ 0 ] - b ) / ( 2 * a ) - wd );
     else if( r.form == 3 )                                             // TENT
      for( int m = 0 ; m < K ; ++m ) { const double sc = segc[ m ];
       rel( dpk - ( b + sc ) / ( 2 * a ) );
@@ -1350,8 +1410,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  // phi'(q^-/+) = F'(q^-/+) + corr'(q^-/+) (directional).
  auto formOK = [ & ]( const Reg & rr , double pp ) -> bool {
   if( rr.form < 0 ) return( false );
-  const double qL = std::max( pp - ramp_up , domL );
-  const double qR = std::min( pp + ramp_down , domR );
+  const double qL = std::max( pp - wu , domL );
+  const double qR = std::min( pp + wd , domR );
   const double q = qstarR( rr , pp );
   if( ( q < qL - 1e-7 ) || ( q > qR + 1e-7 ) )
    return( false );                                 // q* left the window
@@ -1432,8 +1492,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                                   - GformR( rc , pm ) );
       if( gr > 1.0 ) {      // real value error -> dump formOK internals
        const double q = qstarR( r , pm );
-       const double qL = std::max( pm - ramp_up , domL ) ,
-                    qR = std::min( pm + ramp_down , domR );
+       const double qL = std::max( pm - wu , domL ) ,
+                    qR = std::min( pm + wd , domR );
        const double e = 1e-7 * std::max( 1.0 , std::abs( q ) );
        const double dL = 2 * F[ findF( q - e ) ].alfa * q +
                          F[ findF( q - e ) ].beta + corrDer( q - e , pm );
@@ -1492,7 +1552,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                 << " Bs:" << b1 << ">" << b2 << " bite:" << i1 << ">" << i2
                 << " br:" << r1 << ">" << r2 << " Asd:" << d1 << ">" << d2
                 << " midA=" << midA
-                << " qL=" << std::max( p - ramp_up , domL ) << "\n";
+                << " qL=" << std::max( p - wu , domL ) << "\n";
      }
     if( std::getenv( "TUEDPS_JOINT" ) && ! dst.empty() ) {  // convexity at
      const PieceQuad & pv = dst.back();                     // the joint
@@ -1562,8 +1622,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   dst.clear();
   static thread_local std::vector< std::pair< double , double > > Lall;
   Lall.clear();
-  Lall.push_back( { 1.0 , -ramp_up } );                          // window
-  Lall.push_back( { 1.0 , ramp_down } );
+  Lall.push_back( { 1.0 , -wu } );                               // window
+  Lall.push_back( { 1.0 , wd } );
   Lall.push_back( { 0.0 , domL } );                              // domain
   Lall.push_back( { 0.0 , domR } );
   Lall.push_back( { 1.0 , -dpk } );                              // tent peak
@@ -1584,6 +1644,9 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   static thread_local std::vector< double > RB; RB.clear();
   RB.push_back( midA ); RB.push_back( pmin + ramp_up );
   RB.push_back( domR - ramp_down );
+  if( ( wu != ramp_up ) || ( wd != ramp_down ) ) {  // a narrower window
+   RB.push_back( pmin + wu ); RB.push_back( domL + wu );
+   RB.push_back( domR - wd ); }
   RB.push_back( pmin + Bmax ); RB.push_back( pmax - Bmax );
   RB.push_back( pmin ); RB.push_back( pmax );
   for( int m = 0 ; m < K ; ++m ) {
@@ -2001,8 +2064,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   if( ( x > plo + 1e-12 ) && ( x < phi - 1e-12 ) ) ps.push_back( x );
   };
  for( const auto & pc : F ) {
-  addp( pc.left  + ramp_up ); addp( pc.left  - ramp_down );
-  addp( pc.right + ramp_up ); addp( pc.right - ramp_down );
+  addp( pc.left  + wu ); addp( pc.left  - wd );
+  addp( pc.right + wu ); addp( pc.right - wd );
   }
  addp( pmin ); addp( 0.5 * ( pmin + pmax ) ); addp( pmax );
  if( rho1 < 1 ) addp( pmin / ( 1 - rho1 ) );
@@ -2052,12 +2115,12 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
    // no spurious curvature can be manufactured. An interior or
    // F-domain-edge minimiser is constant in p on the piece, so G is linear.
    double qedge = 0; bool windowedge = false;
-   if( std::abs( qm - ( pm - ramp_up ) ) <=
+   if( std::abs( qm - ( pm - wu ) ) <=
        1e-7 * std::max( 1.0 , std::abs( pm ) ) )
-    { qedge = pm - ramp_up; windowedge = true; }
-   else if( std::abs( qm - ( pm + ramp_down ) ) <=
+    { qedge = pm - wu; windowedge = true; }
+   else if( std::abs( qm - ( pm + wd ) ) <=
             1e-7 * std::max( 1.0 , std::abs( pm ) ) )
-    { qedge = pm + ramp_down; windowedge = true; }
+    { qedge = pm + wd; windowedge = true; }
    double a , b , c;
    if( windowedge ) {             // G(p) = F(p∓Δ) + (linear reserve term)
     const double aF = F[ findF( qedge ) ].alfa;
@@ -2453,13 +2516,16 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
 
 double ThermalUnitDPSolverBase::reserve_corr_argmin(
  const PQFun & F , double ramp_up , double ramp_down , Index t , double p ,
- double acap ) const
+ double acap , double win_up , double win_down ) const
 {
  if( F.empty() ) return( p );
+ // window of the scheduled move, the tent being that of ramp_up / ramp_down
+ const double wu = std::isnan( win_up ) ? ramp_up : win_up;
+ const double wd = std::isnan( win_down ) ? ramp_down : win_down;
  const double domL = F.front().left , domR = F.back().right;
- const double qL = std::max( p - ramp_up , domL );
- const double qR = std::min( p + ramp_down , domR );
- if( qR - qL <= 1e-12 ) return( std::min( std::max( p - ramp_up , domL ) ,
+ const double qL = std::max( p - wu , domL );
+ const double qR = std::min( p + wd , domR );
+ if( qR - qL <= 1e-12 ) return( std::min( std::max( p - wu , domL ) ,
                                           domR ) );
 
  const double cp = primary_reserve_cost.empty()   ? 0
@@ -2475,8 +2541,8 @@ double ThermalUnitDPSolverBase::reserve_corr_argmin(
   if( v < fstar ) { fstar = v; pstar = q; }
   }
  double qeng = pstar;
- if( p > pstar + ramp_up )        qeng = p - ramp_up;
- else if( p < pstar - ramp_down ) qeng = p + ramp_down;
+ if( p > pstar + wu )        qeng = p - wu;
+ else if( p < pstar - wd ) qeng = p + wd;
  if( qeng < qL ) qeng = qL;
  if( qeng > qR ) qeng = qR;
  if( ( cp >= 0 ) && ( cs >= 0 ) )

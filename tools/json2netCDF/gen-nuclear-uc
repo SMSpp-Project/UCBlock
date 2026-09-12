@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# gen-nuclear-uc  --  (re)build the UCBlock instances whose units are all
+# NuclearUnitBlocks with the operating rules of the nuclear units,
+# from the single-bus JSON instances under instances_singlebus/: the same
+# fleet, load, reserve and reactive power as the thermal instances, every unit
+# being a nuclear one with
+#
+#   - no change of the output outside the modulations (modulation ramp 0);
+#   - modulations of up to 2 hours at the full ramp, then 2 hours of stability
+#     (ModulationTime 8, MaxModulationLength 8);
+#   - days of 24 hours, at most 2 modulations, 1 start-up and 1 deep decrease
+#     a day;
+#   - a cost of 2 per downward modulation step and of 20 per deep decrease.
+#
+# The instances are quarter-hourly, so 8 periods are 2 hours and a day is 96.
+# Like gen-all-nc4 this only runs the (deterministic) JSON -> netCDF
+# conversion of json2nc4.jl.
+#
+# Usage:
+#     ./gen-nuclear-uc [instances_dir] [out_dir] ["sizes"] ["seeds"]
+#       instances_dir  default: instances_singlebus
+#       out_dir        default: ../../data/nc4/UC_singlebus-nuclear
+#                      (the files go to <out_dir>/<periods>/)
+#       sizes          default: "50u"
+#       seeds          default: "1 2 3 4 5"
+#
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="${1:-$HERE/instances_singlebus}"
+OUTDIR="${2:-$HERE/../../data/nc4/UC_singlebus-nuclear}"
+SIZES="${3:-50u}"
+SEEDS="${4:-1 2 3 4 5}"
+
+rules=( --nuclear --mod-frac 0 --mod-time 8 --mod-length 8
+        --day-length 96 --mods-per-day 2 --starts-per-day 1
+        --deep --deeps-per-day 1 --down-cost 2 --deep-cost 20 )
+
+for z in $SIZES; do
+  for h in day week month; do
+    case $h in day) n=96 ;; week) n=672 ;; month) n=2976 ;; esac
+    mkdir -p "$OUTDIR/$n"
+    for a in nores_noreac nores_reac res_noreac res_reac; do
+      for s in $SEEDS; do
+        j="$DIR/sb_${z}_${h}_${a}_seed$s.json"
+        if [ ! -f "$j" ]; then
+          echo "gen-nuclear-uc: $j not found" >&2
+          exit 1
+        fi
+        if ! grep -Eq '"dt_hours": *0\.25[,}]' "$j"; then
+          echo "gen-nuclear-uc: $j is not quarter-hourly" >&2
+          exit 1
+        fi
+        julia --project="$HERE" "$HERE/json2nc4.jl" "$j" \
+              "$OUTDIR/$n/sb_${z}_${h}_${a}_seed$s.nc4" "${rules[@]}"
+      done
+    done
+  done
+done
