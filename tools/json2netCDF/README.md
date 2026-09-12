@@ -86,11 +86,27 @@ start-ups, the deep decreases and their daily limit, the costs of the
 downward modulation steps and of the deep decreases, spinning reserves, a
 commitment-gated reactive box and the number of periods. Each of them is only
 written when it differs from its default, so that the default output does not
-change. `./gen-nuclear` builds with them the instances of the test battery
-of the nuclear operating rules under `data/nc4/1UC_Data/nuclear/48/`, and
-`./gen-nuclear-scaling` the same units with the full set of the rules at the
+change.
+
+Three further options decide how hard the instance is, i.e., whether the
+optimal schedule uses the rules at all. `--swing F` puts the trough of the
+load-following target `F` of the range below `MinPower`, so that producing
+there costs money rather than earning it and shutting the unit down for the
+night is what it wants to do, which is what brings the minimum times, the
+start-up ramp and the stability that follows a start-up into play;
+`--su-frac F` scales the start-up cost, whose real value is worth thousands
+of periods of production and would keep the unit from ever cycling; and
+`--deep-frac F` and `--deep-grad F` place the threshold and the gradient of
+the deep decreases, whose defaults (`0.4` of the range and `0.8` of the ramp)
+make them too deep for the optimum to ever use one at a short horizon.
+
+`./gen-nuclear` builds with them the instances of the test battery
+of the nuclear operating rules under `data/nc4/1UC_Data/nuclear/48/`, in
+eight families of rules, and `./gen-nuclear-scaling` the same units at the
 horizons of one day, one week and one month, under
-`data/nc4/1UC_Data/nuclear/{96,672,2976}/`.
+`data/nc4/1UC_Data/nuclear/{96,672,2976}/`, in the two regimes of the load:
+the family `e4`, which the unit follows while on throughout, and the family
+`e7`, whose trough lies below the minimum power.
 
 ### Nuclear UCBlock
 
