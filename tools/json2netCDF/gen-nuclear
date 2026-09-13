@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# gen-nuclear  --  (re)build the standalone NuclearUnitBlock instances of
+# the test battery of the operating rules of nuclear units (the batch
+# batch-nuclear of tests/ThermalUnitBlock_Solver), from the JSON instances
+# under instances_singlebus/.
+#
+# The first 5 units of the 10-unit day instances of each seed are converted
+# into NuclearUnitBlock files with the first 48 periods only, spinning
+# reserves and a commitment-gated reactive box, in eight families:
+#
+#   l0  the original model (single-instant modulations, modulation ramp
+#       0.25 Delta, ModulationTime 8)
+#   e1  modulations of up to 6 instants at the full ramp, a stable output
+#       that does not change, ModulationTime 4
+#   e2  e1 + days of 24 periods, at most 2 modulations and 1 start-up a day
+#   e3  e2 + deep decreases, at most 1 a day
+#   e4  e3 + a cost of the downward modulation steps and of the deep decreases
+#   e6  e4 + the output split into three bands at 30% and 70% of its range,
+#       a stable instant staying in its band and a modulation moving to an
+#       adjacent one
+#   e5  e4 + 6 instants of stability after a start-up, with the unit off at
+#       the beginning of the horizon, and no start-up cost, so that the unit
+#       does start up inside the horizon and the rule is exercised
+#   e7  e4 + 3 instants of stability after a start-up, a load-following
+#       target whose trough lies below MinPower and a start-up cost reduced
+#       to 2%, so that the unit really cycles, and a deep decrease threshold
+#       at 75% of the range, so that the rules that a start-up brings into play are exercised too
+#
+# Like gen-all-nc4 this only runs the (deterministic) JSON -> netCDF
+# conversion of json2nc4.jl.
+#
+# Usage:
+#     ./gen-nuclear [instances_dir] [out_dir]
+#       instances_dir  default: instances_singlebus
+#       out_dir        default: ../../data/nc4/1UC_Data/nuclear/48
+#
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="${1:-$HERE/instances_singlebus}"
+OUTDIR="${2:-$HERE/../../data/nc4/1UC_Data/nuclear/48}"
+
+common=( --n-units 5 --periods 48 --reserve --reactive )
+rules=( --mod-frac 0 --mod-time 4 --mod-length 6 )
+daily=( --day-length 24 --mods-per-day 2 --starts-per-day 1 )
+deep=( --deep --deeps-per-day 1 )
+costs=( --down-cost 2 --deep-cost 20 )
+# what turns the commitment into a decision: a trough of the load-following
+# target below MinPower, an affordable start-up, and deep decreases whose
+# threshold is high enough to be met while the unit is on
+hard=( --swing 1.5 --su-frac 0.02 --stab-start 3
+       --deep-frac 0.75 --deep-grad 0.5 )
+
+mkdir -p "$OUTDIR"
+for s in 1 2 3 4 5; do
+  j="$DIR/sb_10u_day_nores_noreac_seed$s.json"
+  if [ ! -f "$j" ]; then
+    echo "gen-nuclear: $j not found" >&2
+    exit 1
+  fi
+  conv() { julia --project="$HERE" "$HERE/json2nc4.jl" "$j" \
+                 --nuclear-single "$OUTDIR" "${common[@]}" "$@"; }
+  conv --suffix _l0
+  conv "${rules[@]}" --suffix _e1
+  conv "${rules[@]}" "${daily[@]}" --suffix _e2
+  conv "${rules[@]}" "${daily[@]}" "${deep[@]}" --suffix _e3
+  conv "${rules[@]}" "${daily[@]}" "${deep[@]}" "${costs[@]}" --suffix _e4
+  conv "${rules[@]}" "${daily[@]}" "${deep[@]}" "${costs[@]}" \
+       --stab-start 6 --init-off --suffix _e5
+  conv "${rules[@]}" "${daily[@]}" "${deep[@]}" "${costs[@]}" \
+       --bands 0.3 --suffix _e6
+  conv "${rules[@]}" "${daily[@]}" "${deep[@]}" "${costs[@]}" "${hard[@]}" \
+       --suffix _e7
+done

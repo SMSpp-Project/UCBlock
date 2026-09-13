@@ -5119,7 +5119,7 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
 
  if( not_dry_run( issueAMod ) && objective_generated() && f_reactive_power ) {
   auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
-  const Index dpos = qf->get_num_active_var() - f_time_horizon;
+  const Index dpos = reactive_objective_start( qf );
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
   qf->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
@@ -5164,7 +5164,7 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
 
  if( not_dry_run( issueAMod ) && objective_generated() && f_reactive_power ) {
   auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
-  const Index dpos = qf->get_num_active_var() - f_time_horizon;
+  const Index dpos = reactive_objective_start( qf );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   qf->modify_linear_coefficients( std::move( tmpv ) ,
                                   Range( rng.first + dpos , rng.second + dpos ) ,
@@ -6241,6 +6241,18 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
 		  "ThermalUnitBlock::add_Modification: invalid Range [" +
 		  std::to_string( l ) + ", " + std::to_string( r ) + ")" ) );
 
+  // the Variable appended by a derived class [see objective_tail()] are the
+  // very last ones: peel off a change to them, and route it to the derived
+  // class; afterwards work with the count of the ThermalUnitBlock ones
+  const Index ntail = objective_tail();
+  const Index ntub = qf->get_num_active_var() - ntail;
+  if( ntail && ( r > ntub ) ) {
+   objective_tail_change( qf , std::max( l , ntub ) - ntub , r - ntub );
+   r = ntub;
+   if( r <= l )
+    return;  // only the appended coefficients changed
+   }
+
   // the design (investment) variable, if present, is the trailing single-var
   // block at index num_active_var - 1: peel off a change to it and route it to
   // update_objective_investment(), which (re)issues a eSetInvCost
@@ -6248,7 +6260,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
   // changed already, hence eDryRun). Afterwards work with the design-free count
   // nav, which makes the time-indexed sections below start at index 0.
   const Index has_design = ( f_InvestmentCost != 0 ) ? Index( 1 ) : Index( 0 );
-  const Index nav = qf->get_num_active_var() - has_design;
+  const Index nav = ntub - has_design;
   if( has_design && ( r > nav ) ) {
    update_objective_investment( par , eDryRun );
    r = nav;
@@ -6340,9 +6352,22 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
   if( ! v_RefSchedule.empty() ) {  // schedule-deviation variables
    gl = gr;
    gr += th;
-   if( l < gr )  // their coefficient is fixed to 1 and cannot change
-    throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
-     "coefficients of the schedule-deviation variables cannot change" ) );
+
+   if( l < gr ) {
+    // their coefficient is fixed to 1: a Modification whose range crosses
+    // this section is fine as long as it leaves it there, which is what a
+    // restore of the original costs does
+    Index r2 = std::min( r , gr );
+    for( Index i = l ; i < r2 ; ++i )
+     if( ( qf->get_linear_coefficient( i ) != 1 ) ||
+	 ( with_quad && ( qf->get_quadratic_coefficient( i ) != 0 ) ) )
+      throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
+       "coefficients of the schedule-deviation variables cannot change" ) );
+
+    l = r2;
+    if( l == r )
+     return;
+    }
    }
 
   if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
@@ -6459,6 +6484,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    with_quad = true;
    }
 
+ Subset tail_reduced;  // storage when the appended indices are peeled off
  Subset des_reduced;  // storage when the trailing design index is peeled off
  Subset reduced;  // storage when the reactive tail has to be peeled off
  if( sbs ) {
@@ -6466,12 +6492,24 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: "
 				 "invalid Subset" ) );
 
+  // the Variable appended by a derived class (see the ranged case)
+  const Index ntail = objective_tail();
+  const Index ntub = qf->get_num_active_var() - ntail;
+  if( ntail && ( ! sbs->empty() ) && ( sbs->back() >= ntub ) ) {
+   auto it = std::lower_bound( sbs->begin() , sbs->end() , ntub );
+   objective_tail_change( qf , *it - ntub , sbs->back() + 1 - ntub );
+   tail_reduced.assign( sbs->begin() , it );
+   sbs = & tail_reduced;
+   if( sbs->empty() )
+    return;  // only the appended coefficients changed
+   }
+
   // the design (investment) variable, if present, is the trailing single-var
   // block at index num_active_var - 1 (i.e., nav): peel a change to it off the
   // (sorted) Subset and route it to update_objective_investment() (see the
   // ranged case). Afterwards work with the design-free count nav.
   const Index has_design = ( f_InvestmentCost != 0 ) ? Index( 1 ) : Index( 0 );
-  const Index nav = qf->get_num_active_var() - has_design;
+  const Index nav = ntub - has_design;
   if( has_design && ( ! sbs->empty() ) && ( sbs->back() >= nav ) ) {
    update_objective_investment( par , eDryRun );
    des_reduced.assign( sbs->begin() , sbs->end() - 1 );
@@ -6581,9 +6619,22 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
   if( ! v_RefSchedule.empty() ) {  // schedule-deviation variables
    gl = gr;
    gr += th;
-   if( *l < gr )  // their coefficient is fixed to 1 and cannot change
-    throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
-     "coefficients of the schedule-deviation variables cannot change" ) );
+
+   if( *l < gr ) {
+    // their coefficient is fixed to 1 [see the ranged case]
+    auto r = l;
+    for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
+     ++r;
+    while( l != r ) {
+     if( ( qf->get_linear_coefficient( *l ) != 1 ) ||
+	 ( with_quad && ( qf->get_quadratic_coefficient( *l ) != 0 ) ) )
+      throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
+       "coefficients of the schedule-deviation variables cannot change" ) );
+     ++l;
+     }
+    if( r == sbs->end() )
+     return;
+    }
    }
 
   if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
@@ -6874,13 +6925,17 @@ void ThermalUnitBlockSolution::sum( const Solution * solution ,
 
  if( v_start_up.size() != TUBS->v_start_up.size() )
   throw( std::invalid_argument( "ThermalUnitBlockSolution::sum: "
-        "inconsistent start-up indicators" ) );
+        "inconsistent start-up indicators, " +
+        std::to_string( v_start_up.size() ) + " against " +
+        std::to_string( TUBS->v_start_up.size() ) ) );
  for( Index i = 0 ; i < Index( v_start_up.size() ) ; ++i )
   v_start_up[ i ] += TUBS->v_start_up[ i ] * multiplier;
 
  if( v_shut_down.size() != TUBS->v_shut_down.size() )
   throw( std::invalid_argument( "ThermalUnitBlockSolution::sum: "
-        "inconsistent shut-down indicators" ) );
+        "inconsistent shut-down indicators, " +
+        std::to_string( v_shut_down.size() ) + " against " +
+        std::to_string( TUBS->v_shut_down.size() ) ) );
  for( Index i = 0 ; i < Index( v_shut_down.size() ) ; ++i )
   v_shut_down[ i ] += TUBS->v_shut_down[ i ] * multiplier;
 

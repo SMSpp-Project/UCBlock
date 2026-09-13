@@ -2,12 +2,10 @@
 /*-------------------- File NuclearUnitExtDPSolver.cpp ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the NuclearUnitExtDPSolver class: the Ext hybrid DP of
- * ThermalUnitExtDPSolver augmented with the modulation lockout counter that
- * enforces the nuclear modulation constraints of NuclearUnitBlock.
- *
- * See the design document (reserves-DP, "Extending the DP to nuclear units")
- * and the class header for the model and the algorithm.
+ * Implementation of the NuclearUnitExtDPSolver class: the labels of the
+ * states of the DP of ThermalUnitExtDPSolver are the modulation lockout,
+ * which enforces the modulation constraints of NuclearUnitBlock. See the
+ * header for the model and the algorithm.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -62,8 +60,8 @@ void NuclearUnitExtDPSolver::set_Block( Block * block )
 
 void NuclearUnitExtDPSolver::load_parameters( void )
 {
- // load all the base (thermal + reserve + design) parameters first; this
- // also resets the pipeline state (stage = start, P/U cleared)
+ // load all the base (thermal + reserve + reactive + design) parameters
+ // first; this also resets the pipeline state (stage = start, P/U cleared)
  ThermalUnitExtDPSolver::load_parameters();
 
  bool owned = f_Block->is_owned_by( f_id );
@@ -78,11 +76,31 @@ void NuclearUnitExtDPSolver::load_parameters( void )
  mod_ramp_up = b->get_modulation_ramp_up();
  mod_ramp_down = b->get_modulation_ramp_down();
 
+ f_max_mod_length = std::max( b->get_max_modulation_length() , Index( 1 ) );
+ f_stab_start = b->get_stability_after_start_up();
+ f_bands = b->get_power_bands();
+ f_mod_per_day = b->get_modulations_per_day();
+ f_deep_per_day = b->get_deep_decreases_per_day();
+ f_starts_per_day = b->get_start_ups_per_day();
+ f_day_length = b->get_day_length();
+ f_direction = b->has_modulation_direction();
+ f_down_cost = b->get_down_modulation_cost();
+ f_deep_thr = b->get_deep_decrease_threshold();
+ f_deep_grad = b->get_deep_decrease_gradient();
+ f_deep_cost = b->get_deep_decrease_cost();
+
  if( ! owned )
   f_Block->read_unlock();
 
- // the modulation profile output buffer
- M.assign( time_horizon , false );
+ // the sizes of the parts of the labels: the (mode, lockout or steps)
+ // pairs, and the ranges of the counters that are limited
+ f_ncore = lockout_max() + 1 + 2 * ( f_max_mod_length - 1 );
+ f_nc = ( f_mod_per_day >= 0 ) ? Index( f_mod_per_day ) + 1 : 1;
+ f_na = ( ( ! f_deep_thr.empty() ) && ( f_deep_per_day >= 0 ) )
+        ? Index( f_deep_per_day ) + 1 : 1;
+ f_nv = ( f_starts_per_day >= 0 ) ? Index( f_starts_per_day ) + 1 : 1;
+ f_nband = f_bands.empty() ? 1 : 3;
+ f_ncount = f_nband * f_nc * f_na * f_nv;
 
  }  // end( NuclearUnitExtDPSolver::load_parameters )
 
@@ -90,599 +108,400 @@ void NuclearUnitExtDPSolver::load_parameters( void )
 
 bool NuclearUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
 {
- // a change in the modulation ramp data invalidates everything: force a full
- // reload (modulation ramp changes are rare, so a reload is acceptable)
+ // a change in the modulation ramps is rare: reload everything
  if( auto tmod = dynamic_cast< NuclearUnitBlockMod * >( mod ) )
   if( ( tmod->type() == NuclearUnitBlockMod::eSetModDP ) ||
       ( tmod->type() == NuclearUnitBlockMod::eSetModDM ) )
    return( true );
 
- // everything else: defer to the base handling
  return( ThermalUnitExtDPSolver::guts_of_process_modifications( mod ) );
 
  }  // end( NuclearUnitExtDPSolver::guts_of_process_modifications )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------------- THE DP ----------------------------------*/
+
+void NuclearUnitExtDPSolver::load_fixings( void )
+{
+ ThermalUnitExtDPSolver::load_fixings();
+
+ bool owned = f_Block->is_owned_by( f_id );
+ if( ( ! owned ) && ( ! f_Block->read_lock() ) )
+  throw( std::runtime_error(
+   "NuclearUnitExtDPSolver::load_fixings: unable to lock the Block." ) );
+
+ auto b = static_cast< NuclearUnitBlock * >( f_Block );
+
+ // the fixed Variable of the rules: -1 where free, the fixed value where
+ // fixed. The structural fixings to 0 of the initial conditions (the
+ // instants in which the unit is still locked out, and those before the
+ // first free commitment of a unit initially off) are read like any other,
+ // the label forbidding those moves anyway
+ auto scan = [ & ]( const ColVariable * v , std::vector< signed char > & f ) {
+  f.clear();
+  if( ! v )
+   return;
+  for( Index t = 0 ; t < time_horizon ; ++t )
+   if( v[ t ].is_fixed() ) {
+    const double val = v[ t ].get_value();
+    if( ( val < -1e-9 ) || ( val > 1 + 1e-9 ) ||
+        ( ( val > 1e-9 ) && ( val < 1 - 1e-9 ) ) )
+     throw( std::logic_error( "NuclearUnitExtDPSolver::load_fixings: the "
+      "fixed value of a Variable of the operating rules is not 0 or 1" ) );
+    if( f.empty() )
+     f.assign( time_horizon , -1 );
+    f[ t ] = ( val > 0.5 ) ? 1 : 0;
+    }
+  };
+ scan( b->get_const_modulation() , f_fix_mod );
+ scan( b->get_const_modulation_down() , f_fix_down );
+ scan( b->get_const_deep_decrease() , f_fix_deep );
+
+ if( ! owned )
+  f_Block->read_unlock();
+
+ }  // end( NuclearUnitExtDPSolver::load_fixings )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- THE LABELS OF THE STATES -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitExtDPSolver::run_DP( void )
+// The lockout entering t = 0: the unit last modulated InitModulation
+// instants before 0, hence it is locked out for tau^M - InitModulation more
+// instants (none if that is not positive).
+
+NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::init_label( void ) const
 {
- const Index n = time_horizon;
- if( n == 0 ) {
-  f_best_cost = 0;
-  stage = dp_OK;
+ // the stable state with the initial lockout and no count yet: its on- and
+ // off-code coincide. The lockout the unit enters the horizon with comes
+ // from the last modulation, hence from tau^M, and not from the largest
+ // lockout a label may carry, which the stability after a start-up may
+ // have made larger
+ const Index L = mod_lockout() + 1;
+ const Index im = ( f_init_modulation > 0 ) ? Index( f_init_modulation )
+                                            : Index( 0 );
+ Label l;
+ l.mode = 0;
+ l.lk = ( im < L ) ? L - im : Index( 0 );
+ l.c = l.a = l.s = 0;
+ l.b = band_of( initial_power );
+ return( on_code( l ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Label NuclearUnitExtDPSolver::on_label( Index lab )
+ const
+{
+ Label l;
+ Index core = lab % f_ncore;
+ Index cnt = lab / f_ncore;
+ const Index B = lockout_max();
+ if( core <= B ) {
+  l.mode = 0;
+  l.lk = core;
+  }
+ else {
+  core -= B;                                // 1 .. 2 ( L^M - 1 )
+  l.mode = ( core < f_max_mod_length ) ? 1 : 2;
+  l.lk = ( l.mode == 1 ) ? core : core - ( f_max_mod_length - 1 );
+  }
+ l.b = cnt % f_nband;
+ cnt /= f_nband;
+ l.c = cnt % f_nc;
+ cnt /= f_nc;
+ l.a = cnt % f_na;
+ l.s = cnt / f_na;
+ return( l );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Label NuclearUnitExtDPSolver::off_label( Index e )
+ const
+{
+ Label l;
+ const Index L = lockout_max() + 1;
+ l.mode = 0;
+ l.lk = e % L;
+ Index cnt = e / L;
+ l.b = cnt % f_nband;
+ cnt /= f_nband;
+ l.c = cnt % f_nc;
+ cnt /= f_nc;
+ l.a = cnt % f_na;
+ l.s = cnt / f_na;
+ return( l );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::shut_label(
+                                               Index t , Index lab ) const
+{
+ Label l = on_label( lab );
+ if( l.mode != 0 )                    // no shut-down during a modulation
+  return( NO_LABEL );
+ l.b = 0;              // an off unit has no output, hence no band
+ return( off_code( l ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::idle_label(
+                                        Index t , Index e , Index k ) const
+{
+ Label l = off_label( e );
+ l.lk = ( l.lk > k ) ? l.lk - k : 0;
+ if( day( t + k ) != day( t ) )
+  l.c = l.a = l.s = 0;
+ return( off_code( l ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitExtDPSolver::start_labels( Index t , Index e ,
+    std::vector< std::pair< Index , std::pair< double , double > > > & ls )
+ const
+{
+ ls.clear();
+ const Index lab = start_label( t , e );
+ if( lab == NO_LABEL )
+  return;
+ if( f_bands.empty() ) {          // one label over the whole range
+  ls.push_back( { lab , { - TUEDPINF , TUEDPINF } } );
+  return;
+  }
+ // one label per band, each over the range of its own band: which band a
+ // unit restarts in is decided by the power it restarts at
+ Label l = on_label( lab );
+ for( Index b = 0 ; b < f_nband ; ++b ) {
+  l.b = b;
+  ls.push_back( { on_code( l ) ,
+                  { b ? f_bands[ b - 1 ] : - TUEDPINF ,
+                    ( b + 1 < f_nband ) ? f_bands[ b ] : TUEDPINF } } );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::start_label(
+                                                   Index t , Index e ) const
+{
+ Label l = off_label( e );
+ if( ( f_starts_per_day >= 0 ) && ( l.s >= Index( f_starts_per_day ) ) )
+  return( NO_LABEL );                 // the start-ups of the day are over
+ if( f_nv > 1 )
+  ++l.s;
+ // no modulation at a start-up, and none for the A - 1 instants that
+ // follow it either, which is the lockout the restart is born with
+ l.lk = std::max( l.lk ? l.lk - 1 : Index( 0 ) ,
+                  f_stab_start ? f_stab_start - 1 : Index( 0 ) );
+ if( day( t + 1 ) != day( t ) )
+  l.c = l.a = l.s = 0;
+ return( on_code( l ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool NuclearUnitExtDPSolver::label_dominates( Index a , Index b ) const
+{
+ const Label la = on_label( a );
+ const Label lb = on_label( b );
+ // two labels of different bands are not comparable: the band says where
+ // the output is, not how much history the unit carries
+ return( ( la.mode == lb.mode ) && ( la.b == lb.b ) && ( la.lk <= lb.lk ) &&
+         ( la.c <= lb.c ) && ( la.a <= lb.a ) && ( la.s <= lb.s ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// The moves out of an on-state with label lab at t - 1 [see the table in the
+// header]. The ramp of the ThermalUnitBlock for the step t-1 -> t is indexed
+// by t-1 (by 0 for the step into t = 0), those of the modulation by t, and
+// each window is the intersection of the two; a full-ramp step is only
+// possible if the ramp of the ThermalUnitBlock allows it. The tag of a move
+// has bit 0 for a modulation step, bit 1 for a downward one and bit 2 for a
+// deep decrease.
+
+void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
+                                      std::vector< OnMove > & mv ) const
+{
+ const Index k = t ? t - 1 : 0;
+ const double ru = delta_ramp_up[ k ];
+ const double rd = delta_ramp_down[ k ];
+ const double fu = delta_ramp_up[ t ];     // the full ramps of the step
+ const double fd = delta_ramp_down[ t ];
+ const double wu = std::min( ru , fu );
+ const double wd = std::min( rd , fd );
+ const double cdn = f_down_cost.empty() ? 0.0 : f_down_cost[ t ];
+ const bool deep = ! f_deep_thr.empty();
+ const Index B = mod_lockout();      // what a modulation leaves behind
+ const bool newday = ( t + 1 < time_horizon ) && ( day( t + 1 ) != day( t ) );
+
+ const Label from = on_label( lab );
+
+ // a fixed Variable of the operating rules [see load_fixings()] admits only
+ // the moves that agree with it: bit 0 of the tag of a move says that it is
+ // a modulation step, bit 1 that it goes downwards and bit 2 that it is a
+ // deep decrease
+ auto agree = [ & ]( const std::vector< signed char > & f , bool what ) {
+  return( f.empty() || ( f[ t ] < 0 ) || ( ( f[ t ] > 0 ) == what ) );
+  };
+ const bool no_deep = agree( f_fix_deep , false );
+ const bool yes_deep = agree( f_fix_deep , true );
+
+ // the range of the output in each band: the bands only exist if the two
+ // breakpoints are there, otherwise there is the one range of everything
+ auto band_lo = [ & ]( Index b ) {
+  return( f_bands.empty() || ( b == 0 ) ? - TUEDPINF : f_bands[ b - 1 ] );
+  };
+ auto band_hi = [ & ]( Index b ) {
+  return( f_bands.empty() || ( b + 1 >= f_nband ) ? TUEDPINF : f_bands[ b ] );
+  };
+
+ // append the move landing in label to, whose landing power is restricted
+ // to [ lo , hi ], splitting it for the deep decrease if its window reaches
+ // a decrease of the deep-decrease gradient
+ auto emit = [ & ]( Label to , double w_up , double w_dn , double cost ,
+                    int tag , double lo = - TUEDPINF ,
+                    double hi = TUEDPINF ) {
+  if( newday )
+   to.c = to.a = to.s = 0;
+  if( ( ! agree( f_fix_mod , tag & 1 ) ) ||
+      ( ! agree( f_fix_down , tag & 2 ) ) )
+   return;
+  if( ( ! deep ) || ( w_dn < f_deep_grad[ t ] - 1e-9 ) ) {
+   if( no_deep )
+    mv.push_back( { on_code( to ) , w_up , w_dn , cost , lo , hi , tag } );
+   return;
+   }
+  const double dg = f_deep_grad[ t ];
+  const double th = f_deep_thr[ t ];
+  const double wu_deep = std::min( w_up , - dg );
+  // a decrease of at least the gradient to at most the threshold: deep
+  if( yes_deep && ( ( f_deep_per_day < 0 ) ||
+                    ( from.a < Index( f_deep_per_day ) ) ) ) {
+   Label td = to;
+   if( ( f_na > 1 ) && ( ! newday ) )
+    ++td.a;
+   mv.push_back( { on_code( td ) , wu_deep , w_dn ,
+                   cost + ( f_deep_cost.empty() ? 0.0 : f_deep_cost[ t ] ) ,
+                   lo , std::min( hi , th ) , tag | 4 } );
+   }
+  if( ! no_deep )      // the deep decrease is imposed: nothing else is left
+   return;
+  // the same decrease to at least the threshold
+  mv.push_back( { on_code( to ) , wu_deep , w_dn , cost ,
+                  std::max( lo , th ) , hi , tag } );
+  // a decrease of at most the gradient (or an increase)
+  if( w_up >= - dg - 1e-9 )
+   mv.push_back( { on_code( to ) , w_up , std::min( w_dn , dg ) , cost ,
+                   lo , hi , tag } );
+  };
+
+ const bool can_count = ( f_mod_per_day < 0 ) ||
+                        ( from.c < Index( f_mod_per_day ) );
+ Label counted = from;
+ if( f_nc > 1 )
+  ++counted.c;
+
+ // with the bands a modulation moves to an adjacent one, hence the two
+ // directions never share a move, and the landing power of a stable
+ // instant and of the last step of a modulation is that of a band
+ const bool banded = ! f_bands.empty();
+ const bool split = f_direction || banded;
+
+ if( from.mode == 0 ) {                          // stable
+  Label st = from;
+  st.lk = from.lk ? from.lk - 1 : 0;
+  emit( st , std::min( ru , mod_ramp_up[ t ] ) ,
+        std::min( rd , mod_ramp_down[ t ] ) , 0.0 , 0 ,
+        band_lo( from.b ) , band_hi( from.b ) );
+  if( ( from.lk == 0 ) && can_count ) {          // start a modulation
+   Label end = counted;
+   end.mode = 0;
+   end.lk = B;
+   const bool can_up = ( ! banded ) || ( from.b + 1 < f_nband );
+   const bool can_dn = ( ! banded ) || ( from.b > 0 );
+   Label eu = end , ed = end;
+   if( banded ) {
+    eu.b = from.b + 1;
+    ed.b = from.b ? from.b - 1 : 0;
+    }
+   if( ! split )                                 // the two merged
+    emit( end , wu , wd , 0.0 , 1 );
+   else {
+    if( can_up )                                         // up, ends
+     emit( eu , wu , 0.0 , 0.0 , 1 , band_lo( eu.b ) , band_hi( eu.b ) );
+    if( can_dn )                                         // down, ends
+     emit( ed , 0.0 , wd , cdn , 3 , band_lo( ed.b ) , band_hi( ed.b ) );
+    }
+   if( f_max_mod_length > 1 ) {                  // up / down, continues
+    Label go = counted;
+    go.lk = 1;
+    if( can_up && ( fu <= ru + 1e-9 ) ) {
+     go.mode = 1;
+     emit( go , fu , - fu , 0.0 , 1 );
+     }
+    if( can_dn && ( fd <= rd + 1e-9 ) ) {
+     go.mode = 2;
+     emit( go , - fd , fd , cdn , 3 );
+     }
+    }
+   }
   return;
   }
 
- // the lockout-augmented DP does not honor fixed Variable: unlike the base
- // class it does not kill the incompatible states, so it must refuse them
- // rather than silently ignoring them. The only tolerated fixings are the
- // structural ones with which ThermalUnitBlock encodes the initial
- // conditions (the commitments before t_init fixed to the initial state),
- // which this DP enforces natively anyway
- load_fixings();
- bool foreign = f_no_build ||
-                ( f_must_build && ( init_up_down_time <= 0 ) );
- if( f_has_fixings ) {
-  if( init_up_down_time > 0 )
-   foreign = foreign || ( nxt_off[ 0 ] < n ) || ( nxt_on[ t_init ] < n );
-  else
-   foreign = foreign || ( nxt_on[ 0 ] < n ) || ( nxt_off[ t_init ] < n );
+ // in the middle of a modulation: continue it or end it, the end landing
+ // in the band next to the one the modulation left
+ Label end = from;
+ end.mode = 0;
+ end.lk = B;
+ if( banded )
+  end.b = ( from.mode == 1 ) ? from.b + 1 : ( from.b ? from.b - 1 : 0 );
+ Label go = from;
+ ++go.lk;
+ if( from.mode == 1 ) {                          // upward
+  if( ( go.lk < f_max_mod_length ) && ( fu <= ru + 1e-9 ) )
+   emit( go , fu , - fu , 0.0 , 1 );
+  emit( end , wu , 0.0 , 0.0 , 1 , band_lo( end.b ) , band_hi( end.b ) );
   }
- if( foreign )
-  throw( std::logic_error( "NuclearUnitExtDPSolver: fixed Variable not "
-                           "supported (yet)" ) );
-
- const Index mut = std::max( min_up_time   , Index( 1 ) );
- const Index mdt = std::max( min_down_time , Index( 1 ) );
- const Index L = std::max( f_mod_interval , Index( 2 ) );  // tau^M
- const Index lockmax = L - 1;
- // lockout entering t = 0 (max{ tau^M - InitModulation , 0 }); a negative
- // InitModulation is clamped to 0 (the Index cast would otherwise wrap)
- const Index im = ( f_init_modulation > 0 ) ? Index( f_init_modulation )
-                                            : Index( 0 );
- const Index l0 = ( im < L ) ? ( L - im ) : Index( 0 );
-
- // ell after one idle (no-modulation / off) instant
- auto dec = []( Index ell ) -> Index { return( ell ? ell - 1 : 0 ); };
- // ell after k idle instants
- auto dec_by = []( Index ell , Index k ) -> Index {
-  return( ell > k ? ell - k : Index( 0 ) ); };
-
- // -- per-step effective ramp half-widths (Remark "Effective per-step ramp
- // window"): the base ramp at step (t-1 -> t) is indexed by t-1 (by t for
- // the special t = 0 step), the modulation ramp of the same step by t; the
- // min keeps the DP faithful to both. "mod" uses the full thermal ramp.
- auto nomod_up = [ & ]( Index t ) -> double {
-  double base = ( t == 0 ) ? delta_ramp_up[ 0 ] : delta_ramp_up[ t - 1 ];
-  return( std::min( base , mod_ramp_up[ t ] ) ); };
- auto nomod_dn = [ & ]( Index t ) -> double {
-  double base = ( t == 0 ) ? delta_ramp_down[ 0 ] : delta_ramp_down[ t - 1 ];
-  return( std::min( base , mod_ramp_down[ t ] ) ); };
- auto mod_up = [ & ]( Index t ) -> double {
-  double base = ( t == 0 ) ? delta_ramp_up[ 0 ] : delta_ramp_up[ t - 1 ];
-  return( std::min( base , delta_ramp_up[ t ] ) ); };
- auto mod_dn = [ & ]( Index t ) -> double {
-  double base = ( t == 0 ) ? delta_ramp_down[ 0 ] : delta_ramp_down[ t - 1 ];
-  return( std::min( base , delta_ramp_down[ t ] ) ); };
-
- // -- reset all the per-time-step state --------------------------------- //
- f_F  .assign( n , std::vector< PQFun >() );
- f_tau.assign( n , std::vector< Index >() );
- f_on .assign( n , std::vector< OnSlot >() );
- f_lock     .assign( n , std::vector< Index >() );
- f_back_lock.assign( n , std::vector< Index >() );
- f_back_idx .assign( n , std::vector< std::size_t >() );
-
- co_ready       .assign( n , std::vector< double >( L , TUEDPINF ) );
- ready_pred     .assign( n , std::vector< int >( L , -1 ) );
- ready_pred_lock.assign( n , std::vector< Index >( L , 0 ) );
- vs    .assign( n , std::vector< double >( L , TUEDPINF ) );
- vs_tau.assign( n , std::vector< Index >( L , 0 ) );
- vs_p  .assign( n , std::vector< double >( L , 0.0 ) );
- vs_idx.assign( n , std::vector< std::size_t >( L , BAD ) );
-
- c_off_any  .assign( n , TUEDPINF );
- f_any_pred .assign( n , -1 );
- f_any_lock .assign( n , 0 );
-
- // per-period reserve discount g_t(p), added wherever f_t is (energy-only
- // path: all empty, no-op). Shared by all ON nodes at the same t.
- // NOTE: interior cap (max_power); the start-up / shut-down boundary
- // correction of the thermal solver is not mirrored in the nuclear DP.
- // With the common bound_on = bound_down = min_power data it is moot.
- std::vector< PQFun > eff_disc( n );
- for( Index t = 0 ; t < n ; ++t )
-  eff_disc[ t ] = build_reserve_discount( t , max_power[ t ] );
-
- const bool startup_in_progress =
-  has_ramp_up && ( initial_power < min_power[ 0 ] - 1e-9 );
- const bool shutdown_in_progress =
-  has_ramp_down && ( initial_power > bound_down[ 0 ] + 1e-9 );
-
- // -- generalised RRF+ domination prune of an on-side slot list --------- //
- // slot i is pruned if some slot j has: cost pointwise <= i's, lockout
- // ell_j <= ell_i (at least as much modulation freedom), and either both
- // tau >= mut (min-up no longer distinguishes them) or tau_j == tau_i.
- auto prune = [ & ]( std::vector< PQFun > & vF , std::vector< Index > & vT ,
-                     std::vector< Index > & vL , std::vector< OnSlot > & vO ,
-                     std::vector< Index > & vBL ,
-                     std::vector< std::size_t > & vBI ) {
-  const std::size_t sz = vF.size();
-  if( sz <= 1 )
-   return;
-  std::vector< char > keep( sz , 1 );
-  for( std::size_t i = 0 ; i < sz ; ++i ) {
-   if( ! keep[ i ] ) continue;
-   for( std::size_t j = 0 ; j < sz ; ++j ) {
-    if( ( j == i ) || ( ! keep[ j ] ) ) continue;
-    const bool tau_ok = ( ( vT[ i ] >= mut ) && ( vT[ j ] >= mut ) ) ||
-                        ( vT[ i ] == vT[ j ] );
-    if( ! tau_ok ) continue;
-    if( vL[ j ] > vL[ i ] ) continue;      // j less flexible: cannot dominate
-    if( is_dominated_by( vF[ i ] , vF[ j ] ) ) {
-     // tie-break to avoid mutual elimination of identical slots: when j is
-     // not strictly better, only let the lower-index one survive
-     if( is_dominated_by( vF[ j ] , vF[ i ] ) && ( vL[ j ] == vL[ i ] ) &&
-         ( vT[ j ] == vT[ i ] ) && ( j > i ) )
-      continue;
-     keep[ i ] = 0;
-     break;
-     }
-    }
-   }
-  std::size_t out = 0;
-  for( std::size_t i = 0 ; i < sz ; ++i )
-   if( keep[ i ] ) {
-    if( out != i ) {
-     vF [ out ] = std::move( vF[ i ] );
-     vT [ out ] = vT [ i ];  vL [ out ] = vL [ i ];  vO [ out ] = vO [ i ];
-     vBL[ out ] = vBL[ i ];  vBI[ out ] = vBI[ i ];
-     }
-    ++out;
-    }
-  vF .resize( out );  vT .resize( out );  vL .resize( out );
-  vO .resize( out );  vBL.resize( out );  vBI.resize( out );
-  };
-
- // -- v_shutdown at time t: per lockout ell, best (tau >= mut, p) slot -- //
- auto compute_vs = [ & ]( Index t , double sd_hi ) {
-  double Plo = min_power[ t ];
-  for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i ) {
-   if( f_tau[ t ][ i ] < mut ) continue;
-   const Index ell = f_lock[ t ][ i ];
-   auto [ v , p ] = min_over( f_F[ t ][ i ] , Plo , sd_hi );
-   if( v < vs[ t ][ ell ] ) {
-    vs    [ t ][ ell ] = v;
-    vs_tau[ t ][ ell ] = f_tau[ t ][ i ];
-    vs_p  [ t ][ ell ] = p;
-    vs_idx[ t ][ ell ] = i;
-    }
-   }
-  };
-
- // ============================================================= t = 0 ====
- if( init_up_down_time > 0 ) {
-  // unit on at t = 0 with run-length tau0 = init + 1
-  const Index tau0 = Index( init_up_down_time + 1 );
-  // (a) no-modulation step from the initial power
-  {
-   double lo = std::max( min_power[ 0 ] , initial_power - nomod_dn( 0 ) );
-   double hi = std::min( max_power[ 0 ] , initial_power + nomod_up( 0 ) );
-   if( lo < hi + 1e-12 ) {
-    PQFun F;
-    F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] , const_term[ 0 ] ,
-                   lo , hi } );
-    add_pwq( F , eff_disc[ 0 ] );
-    auto [ v , p ] = min_over( F , lo , hi );
-    f_F  [ 0 ].push_back( std::move( F ) );
-    f_tau[ 0 ].push_back( tau0 );
-    f_lock[ 0 ].push_back( dec( l0 ) );
-    f_on [ 0 ].push_back( { v , p } );
-    f_back_lock[ 0 ].push_back( 0 );
-    f_back_idx [ 0 ].push_back( BAD );
-    }
-   }
-  // (b) modulation step (only if free to modulate entering t = 0)
-  if( l0 == 0 ) {
-   double lo = std::max( min_power[ 0 ] , initial_power - mod_dn( 0 ) );
-   double hi = std::min( max_power[ 0 ] , initial_power + mod_up( 0 ) );
-   if( lo < hi + 1e-12 ) {
-    PQFun F;
-    F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] , const_term[ 0 ] ,
-                   lo , hi } );
-    add_pwq( F , eff_disc[ 0 ] );
-    auto [ v , p ] = min_over( F , lo , hi );
-    f_F  [ 0 ].push_back( std::move( F ) );
-    f_tau[ 0 ].push_back( tau0 );
-    f_lock[ 0 ].push_back( lockmax );
-    f_on [ 0 ].push_back( { v , p } );
-    f_back_lock[ 0 ].push_back( 0 );
-    f_back_idx [ 0 ].push_back( BAD );
-    }
-   }
-  // free pre-horizon shutdown (mirrors the base): only if min-up already
-  // satisfied and the unit is not still inside a start-up / shut-down ramp
-  if( ( Index( init_up_down_time ) >= min_up_time ) &&
-      ( ! startup_in_progress ) && ( ! shutdown_in_progress ) ) {
-   c_off_any [ 0 ] = 0;
-   f_any_pred[ 0 ] = -1;
-   if( Index( 1 ) >= min_down_time ) {
-    const Index lr = dec( l0 );
-    co_ready  [ 0 ][ lr ] = 0;
-    ready_pred[ 0 ][ lr ] = -1;
-    }
-   }
+ else {                                          // downward
+  if( ( go.lk < f_max_mod_length ) && ( fd <= rd + 1e-9 ) )
+   emit( go , - fd , fd , cdn , 3 );
+  emit( end , 0.0 , wd , cdn , 3 , band_lo( end.b ) , band_hi( end.b ) );
   }
- else {
-  // unit off at t = 0 for |init| pre-horizon instants
-  const bool can_restart_t0 = ( Index( - init_up_down_time ) >= mdt );
-  if( can_restart_t0 ) {
-   double lo = min_power[ 0 ];
-   double hi = std::min( max_power[ 0 ] , bound_on[ 0 ] );
-   if( lo < hi + 1e-12 ) {
-    double suc = startup_costs.empty() ? 0.0 : startup_costs[ 0 ];
-    PQFun F;
-    F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] ,
-                   const_term[ 0 ] + suc , lo , hi } );
-    add_pwq( F , eff_disc[ 0 ] );
-    auto [ v , p ] = min_over( F , lo , hi );
-    f_F  [ 0 ].push_back( std::move( F ) );
-    f_tau[ 0 ].push_back( 1 );
-    f_lock[ 0 ].push_back( dec( l0 ) );  // m_0 = 0 forced at start-up
-    f_on [ 0 ].push_back( { v , p } );
-    f_back_lock[ 0 ].push_back( l0 );    // off-ready lockout into 0
-    f_back_idx [ 0 ].push_back( BAD );
-    }
-   }
-  c_off_any [ 0 ] = 0;
-  f_any_pred[ 0 ] = -1;
-  if( Index( - init_up_down_time ) + 1 >= mdt ) {
-   const Index lr = dec( l0 );
-   co_ready  [ 0 ][ lr ] = 0;
-   ready_pred[ 0 ][ lr ] = -1;
-   }
-  }
-
- prune( f_F[ 0 ] , f_tau[ 0 ] , f_lock[ 0 ] , f_on[ 0 ] ,
-        f_back_lock[ 0 ] , f_back_idx[ 0 ] );
-
- if( n > 1 )
-  compute_vs( 0 , bound_down[ 1 ] );
-
- // ============================================================ t >= 1 ====
- for( Index t = 1 ; t < n ; ++t ) {
-
-  // -- OFF-side: c_off_any (1D, never feeds a restart) ----------------- //
-  {
-   double stay = c_off_any[ t - 1 ];
-   double fresh = TUEDPINF;  Index fresh_ell = 0;
-   for( Index e = 0 ; e < L ; ++e )
-    if( vs[ t - 1 ][ e ] < fresh ) {
-     fresh = vs[ t - 1 ][ e ];  fresh_ell = e;
-     }
-   if( fresh < stay ) {
-    c_off_any [ t ] = fresh;
-    f_any_pred[ t ] = int( t - 1 );
-    f_any_lock[ t ] = fresh_ell;
-    }
-   else {
-    c_off_any [ t ] = stay;
-    f_any_pred[ t ] = f_any_pred[ t - 1 ];
-    f_any_lock[ t ] = f_any_lock[ t - 1 ];
-    }
-   }
-
-  // -- OFF-side: co_ready[t][.] (scatter into targets) ----------------- //
-  // helper that relaxes co_ready[t][tgt] with priority init > fresh > stay
-  auto relax_ready = [ & ]( Index tgt , double cost , int h , Index ellh ) {
-   if( cost < co_ready[ t ][ tgt ] ) {
-    co_ready  [ t ][ tgt ] = cost;
-    ready_pred[ t ][ tgt ] = h;
-    ready_pred_lock[ t ][ tgt ] = ellh;
-    }
-   };
-  // init-off trail (highest priority on ties): reaches "ready" at t with
-  // lockout dec_by( l0 , t + 1 ) (l0 idle instants 0..t)
-  {
-   bool init_ready = false;
-   if( ( init_up_down_time <= 0 ) &&
-       ( Index( - init_up_down_time ) + t + 1 >= mdt ) )
-    init_ready = true;
-   else if( ( init_up_down_time > 0 ) &&
-            ( Index( init_up_down_time ) >= min_up_time ) &&
-            ( t + 1 >= mdt ) &&
-            ( ! startup_in_progress ) && ( ! shutdown_in_progress ) )
-    init_ready = true;
-   if( init_ready )
-    relax_ready( dec_by( l0 , t + 1 ) , 0 , -1 , 0 );
-   }
-  // fresh long shutdown arc: shutdown at end of h = t - mdt with lockout
-  // ell_h into h+1, then mdt idle instants -> dec_by( ell_h , mdt )
-  if( t >= mdt ) {
-   const Index h = t - mdt;
-   for( Index e = 0 ; e < L ; ++e )
-    if( vs[ h ][ e ] < TUEDPINF )
-     relax_ready( dec_by( e , mdt ) , vs[ h ][ e ] , int( h ) , e );
-   }
-  // stay ready from t-1 (lowest priority on ties)
-  for( Index e = 0 ; e < L ; ++e )
-   if( co_ready[ t - 1 ][ e ] < TUEDPINF )
-    relax_ready( dec( e ) , co_ready[ t - 1 ][ e ] ,
-                 ready_pred[ t - 1 ][ e ] , ready_pred_lock[ t - 1 ][ e ] );
-
-  // -- ON-side build --------------------------------------------------- //
-  const double Plo = min_power[ t ];
-  const double Phi = max_power[ t ];
-
-  // (a) restart arcs (tau = 1): for each target lockout, take the cheapest
-  // ready source mapping into it. dec( ell' ) = tgt, so tgt in [0, lockmax-1]
-  for( Index tgt = 0 ; tgt < lockmax ; ++tgt ) {
-   double best = TUEDPINF;  Index best_ell = 0;
-   for( Index e = 0 ; e < L ; ++e )
-    if( ( dec( e ) == tgt ) && ( co_ready[ t - 1 ][ e ] < best ) ) {
-     best = co_ready[ t - 1 ][ e ];  best_ell = e;
-     }
-   if( best >= TUEDPINF )
-    continue;
-   double lo = Plo;
-   double hi = std::min( Phi , bound_on[ t ] );
-   if( lo >= hi + 1e-12 )
-    continue;
-   double suc = startup_costs.empty() ? 0.0 : startup_costs[ t ];
-   PQFun F;
-   F.push_back( { quad_term[ t ] , linear_term[ t ] ,
-                  const_term[ t ] + suc + best , lo , hi } );
-   add_pwq( F , eff_disc[ t ] );
-   auto [ v , p ] = min_over( F , lo , hi );
-   f_F  [ t ].push_back( std::move( F ) );
-   f_tau[ t ].push_back( 1 );
-   f_lock[ t ].push_back( tgt );
-   f_on [ t ].push_back( { v , p } );
-   f_back_lock[ t ].push_back( best_ell );  // off-ready lockout used
-   f_back_idx [ t ].push_back( BAD );
-   }
-
-  // (b) continuation arcs (tau > 1) from each surviving slot at t-1
-  for( std::size_t i = 0 ; i < f_F[ t - 1 ].size() ; ++i ) {
-   const Index taup = f_tau [ t - 1 ][ i ];
-   const Index ellp = f_lock[ t - 1 ][ i ];
-
-   // Option A: no modulation (always available)
-   {
-    PQFun F;
-    sliding_min( f_F[ t - 1 ][ i ] , nomod_up( t ) , nomod_dn( t ) ,
-                 Plo , Phi , F );
-    if( ! F.empty() ) {
-     add_quadratic( F , quad_term[ t ] , linear_term[ t ] , const_term[ t ] );
-     add_pwq( F , eff_disc[ t ] );
-     auto [ v , p ] = min_over( F , Plo , Phi );
-     f_F  [ t ].push_back( std::move( F ) );
-     f_tau[ t ].push_back( taup + 1 );
-     f_lock[ t ].push_back( dec( ellp ) );
-     f_on [ t ].push_back( { v , p } );
-     f_back_lock[ t ].push_back( ellp );
-     f_back_idx [ t ].push_back( i );
-     }
-    }
-
-   // Option B: modulation (only if free, ell' == 0); full ramp; ell = lockmax
-   if( ellp == 0 ) {
-    PQFun F;
-    sliding_min( f_F[ t - 1 ][ i ] , mod_up( t ) , mod_dn( t ) ,
-                 Plo , Phi , F );
-    if( ! F.empty() ) {
-     add_quadratic( F , quad_term[ t ] , linear_term[ t ] , const_term[ t ] );
-     add_pwq( F , eff_disc[ t ] );
-     auto [ v , p ] = min_over( F , Plo , Phi );
-     f_F  [ t ].push_back( std::move( F ) );
-     f_tau[ t ].push_back( taup + 1 );
-     f_lock[ t ].push_back( lockmax );
-     f_on [ t ].push_back( { v , p } );
-     f_back_lock[ t ].push_back( 0 );
-     f_back_idx [ t ].push_back( i );
-     }
-    }
-   }
-
-  prune( f_F[ t ] , f_tau[ t ] , f_lock[ t ] , f_on[ t ] ,
-         f_back_lock[ t ] , f_back_idx[ t ] );
-
-  if( t < n - 1 )
-   compute_vs( t , bound_down[ t + 1 ] );
-
-  }  // end( for( t ) )
-
- // -- finalise best cost ------------------------------------------------ //
- double best_on = TUEDPINF;
- for( const auto & slot : f_on[ n - 1 ] )
-  if( slot.min_val < best_on )
-   best_on = slot.min_val;
- double best_off = c_off_any[ n - 1 ];
-
- f_best_cost = std::min( best_on , best_off );
-
- // design (investment) decision, identical rule to the base solver
- if( has_design ) {
-  if( f_best_cost + design_cost <= 0 ) {
-   design_on = true;
-   f_best_cost += design_cost;
-   }
-  else {
-   design_on = false;
-   f_best_cost = 0;
-   }
-  }
-
- f_solved = ( f_best_cost < TUEDPINF );
- stage = dp_OK;
-
- }  // end( NuclearUnitExtDPSolver::run_DP )
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------- BUILDING SOLUTION ----------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void NuclearUnitExtDPSolver::build_solution( void )
-{
- std::fill( P.begin() , P.end() , 0.0 );
- std::fill( U.begin() , U.end() , false );
- std::fill( M.begin() , M.end() , false );
-
- if( ! f_solved ) { stage = sol_OK; return; }
-
- const Index n = time_horizon;
- if( n == 0 ) { stage = sol_OK; return; }
-
- const Index L = std::max( f_mod_interval , Index( 2 ) );
- const Index lockmax = L - 1;
-
- auto dec = []( Index ell ) -> Index { return( ell ? ell - 1 : 0 ); };
-
- auto nomod_up = [ & ]( Index t ) -> double {
-  double base = ( t == 0 ) ? delta_ramp_up[ 0 ] : delta_ramp_up[ t - 1 ];
-  return( std::min( base , mod_ramp_up[ t ] ) ); };
- auto nomod_dn = [ & ]( Index t ) -> double {
-  double base = ( t == 0 ) ? delta_ramp_down[ 0 ] : delta_ramp_down[ t - 1 ];
-  return( std::min( base , mod_ramp_down[ t ] ) ); };
- auto mod_up = [ & ]( Index t ) -> double {
-  double base = ( t == 0 ) ? delta_ramp_up[ 0 ] : delta_ramp_up[ t - 1 ];
-  return( std::min( base , delta_ramp_up[ t ] ) ); };
- auto mod_dn = [ & ]( Index t ) -> double {
-  double base = ( t == 0 ) ? delta_ramp_down[ 0 ] : delta_ramp_down[ t - 1 ];
-  return( std::min( base , delta_ramp_down[ t ] ) ); };
-
- // walk one on-run back from on-slot (t, idx) with power p, writing
- // P/U/M; returns the run-start time and, via off_lock, the off-ready
- // lockout used by the restart (NONE if the run hit t = 0)
- const Index NONE = Index( -1 );
- auto walk_on = [ & ]( Index t , std::size_t idx , double p ,
-                       Index & off_lock ) -> Index {
-  while( true ) {
-   const Index tau = f_tau [ t ][ idx ];
-   const Index ell = f_lock[ t ][ idx ];
-   P[ t ] = p;
-   U[ t ] = true;
-   M[ t ] = ( ell == lockmax );   // a slot at lockmax is reached only by mod
-   if( tau == 1 ) { off_lock = f_back_lock[ t ][ idx ]; return( t ); }
-   if( t == 0 )   { off_lock = NONE; return( 0 ); }
-   const std::size_t pidx = f_back_idx[ t ][ idx ];
-   if( pidx == BAD ) { off_lock = NONE; return( t ); }  // defensive
-   const double p_prev_star = f_on[ t - 1 ][ pidx ].argmin_p;
-   const bool was_mod = ( ell == lockmax );
-   const double ru = was_mod ? mod_up( t ) : nomod_up( t );
-   const double rd = was_mod ? mod_dn( t ) : nomod_dn( t );
-   double p_prev;
-   if( p > p_prev_star + ru )      p_prev = p - ru;
-   else if( p < p_prev_star - rd ) p_prev = p + rd;
-   else                            p_prev = p_prev_star;
-   double lo_prev = min_power[ t - 1 ];
-   double hi_prev = max_power[ t - 1 ];
-   if( f_tau[ t - 1 ][ pidx ] == 1 )
-    hi_prev = std::min( hi_prev , bound_on[ t - 1 ] );
-   if( p_prev < lo_prev ) p_prev = lo_prev;
-   if( p_prev > hi_prev ) p_prev = hi_prev;
-   t = t - 1;  idx = pidx;  p = p_prev;
-   }
-  };
-
- // choose the optimal terminal state
- double best_on = TUEDPINF;  std::size_t best_idx = BAD;
- for( std::size_t i = 0 ; i < f_on[ n - 1 ].size() ; ++i )
-  if( f_on[ n - 1 ][ i ].min_val < best_on ) {
-   best_on = f_on[ n - 1 ][ i ].min_val;  best_idx = i;
-   }
- double best_off = c_off_any[ n - 1 ];
-
- // bootstrap the alternating on/off walk
- bool have_on = false;
- Index on_t = 0;  std::size_t on_idx = BAD;  double on_p = 0;
- if( best_on <= best_off ) {
-  on_t = n - 1;  on_idx = best_idx;
-  on_p = f_on[ n - 1 ][ best_idx ].argmin_p;
-  have_on = ( best_idx != BAD );
-  }
- else {
-  int h = f_any_pred[ n - 1 ];
-  if( h >= 0 ) {
-   const Index ellh = f_any_lock[ n - 1 ];
-   on_t = Index( h );  on_idx = vs_idx[ h ][ ellh ];
-   on_p = vs_p[ h ][ ellh ];
-   have_on = ( on_idx != BAD );
-   }
-  }
-
- // alternate on-runs and off-gaps
- while( have_on ) {
-  Index off_lock = NONE;
-  Index t_start = walk_on( on_t , on_idx , on_p , off_lock );
-
-  if( t_start == 0 ) break;
-  if( off_lock == NONE ) break;
-
-  // the on-run started at t_start with a restart; the off-ready state used
-  // is co_ready[ t_start - 1 ][ off_lock ], whose shutdown origin is
-  const int h = ready_pred[ t_start - 1 ][ off_lock ];
-  if( h < 0 ) break;   // ready came from the initial off trail (pre-horizon)
-  const Index ellh = ready_pred_lock[ t_start - 1 ][ off_lock ];
-  on_t = Index( h );
-  on_idx = vs_idx[ h ][ ellh ];
-  on_p = vs_p  [ h ][ ellh ];
-  if( on_idx == BAD ) break;
-  }
-
- stage = sol_OK;
-
- }  // end( NuclearUnitExtDPSolver::build_solution )
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- WRITING THE SOLUTION -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitExtDPSolver::recover_schedule( std::vector< double > & p ,
-                                               std::vector< double > & u ,
-                                               std::vector< double > & pr ,
-                                               std::vector< double > & sr ,
-                                               std::vector< double > & q ,
-                                               bool & built ) const
-{
- built = ( ! has_design ) || design_on;
-
- p.resize( time_horizon );
- u.resize( time_horizon );
- pr.resize( time_horizon );
- sr.resize( time_horizon );
- q.clear();   // a nuclear unit has no reactive power
-
- for( Index i = 0 ; i < time_horizon ; ++i ) {
-  p[ i ] = built ? P[ i ] : 0;
-  u[ i ] = ( built && U[ i ] ) ? 1 : 0;
-  }
-
- /* The reserve band of a nuclear unit is the plain capacity one around the
-  * scheduled power, which is what its own dynamic programming prices. */
- for( Index i = 0 ; i < time_horizon ; ++i )
-  reserve_alloc( i , p[ i ] , pr[ i ] , sr[ i ] , max_power[ i ] );
-
- }  // end( NuclearUnitExtDPSolver::recover_schedule )
-
-/*--------------------------------------------------------------------------*/
+// m_t = 1 exactly at the on instants reached by the move with modulation,
+// which is the second one of on_moves()
 
 Solution * NuclearUnitExtDPSolver::get_Solution( Configuration * solc )
 {
  // the base packs everything but the modulation, and it does so into a
  // NuclearUnitBlockSolution because the shape is asked to the Block
  auto sol = static_cast< NuclearUnitBlockSolution * >(
-			    ThermalUnitExtDPSolver::get_Solution( solc ) );
+                            ThermalUnitExtDPSolver::get_Solution( solc ) );
 
  const bool built = ( ! has_design ) || design_on;
 
  std::vector< double > m( time_horizon );
  for( Index i = 0 ; i < time_horizon ; ++i )
-  m[ i ] = ( built && M[ i ] ) ? 1 : 0;
-
+  m[ i ] = ( built && U[ i ] && ( U_move[ i ] >= 0 ) && ( U_move[ i ] & 1 ) )
+           ? 1 : 0;
  sol->set_modulation( std::move( m ) );
+
+ if( f_direction ) {
+  std::vector< double > d( time_horizon );
+  for( Index i = 0 ; i < time_horizon ; ++i )
+   d[ i ] = ( built && U[ i ] && ( U_move[ i ] >= 0 ) && ( U_move[ i ] & 2 ) )
+            ? 1 : 0;
+  sol->set_modulation_down( std::move( d ) );
+  }
 
  return( sol );
 
@@ -697,38 +516,50 @@ void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
   throw( std::runtime_error(
    "NuclearUnitExtDPSolver::get_var_solution: unable to lock the Block." ) );
 
- std::vector< double > p , u , pr , sr , q;
- bool built;
- recover_schedule( p , u , pr , sr , q , built );
-
  auto b = static_cast< NuclearUnitBlock * >( f_Block );
+ const bool built = ( ! has_design ) || design_on;
 
- if( has_design )
-  b->get_design().set_value( design_on ? 1 : 0 );
+ auto tag = [ & ]( Index i , int bit ) -> double {
+  return( ( built && U[ i ] && ( U_move[ i ] >= 0 ) && ( U_move[ i ] & bit ) )
+          ? 1 : 0 );
+  };
 
- if( auto pow_it = b->get_active_power( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i )
-   ( pow_it++ )->set_value( p[ i ] );
-
- if( auto com_it = b->get_commitment( 0 ) )
-  for( Index i = 0 ; i < time_horizon ; ++i )
-   ( com_it++ )->set_value( u[ i ] );
-
- // the modulation indicators recovered by build_solution(), which live in
- // the NuclearUnitBlock alone and have no counterpart in the Solution
  if( auto mod_it = b->get_modulation() )
   for( Index i = 0 ; i < time_horizon ; ++i )
-   ( mod_it++ )->set_value( ( built && M[ i ] ) ? 1 : 0 );
+   ( mod_it++ )->set_value( tag( i , 1 ) );
 
- if( auto pr_it = b->get_primary_spinning_reserve( 0 ) )
+ if( auto mod_it = b->get_modulation_down() )
   for( Index i = 0 ; i < time_horizon ; ++i )
-   ( pr_it++ )->set_value( pr[ i ] );
+   ( mod_it++ )->set_value( tag( i , 2 ) );
 
- if( auto sr_it = b->get_secondary_spinning_reserve( 0 ) )
+ // the start of the modulations
+ if( auto s_it = b->get_modulation_start() )
   for( Index i = 0 ; i < time_horizon ; ++i )
-   ( sr_it++ )->set_value( sr[ i ] );
+   ( s_it++ )->set_value( std::max( tag( i , 1 ) -
+                                    ( i ? tag( i - 1 , 1 ) : 0.0 ) , 0.0 ) );
 
- b->set_solution();
+ // the deep decrease and its two auxiliaries (a decrease by more than the
+ // gradient, an output below the threshold) out of the recovered schedule,
+ // at the instants with an on predecessor
+ if( auto dd = b->get_deep_decrease() ) {
+  auto ddrop = b->get_deep_drop();
+  auto dlow = b->get_deep_low();
+  for( Index i = 0 ; i < time_horizon ; ++i ) {
+   const bool on_pred = built && U[ i ] &&
+                        ( i ? bool( U[ i - 1 ] ) : ( init_up_down_time > 0 ) );
+   const double prev = i ? P[ i - 1 ] : initial_power;
+   const double tol = 1e-7 * std::max( 1.0 , std::abs( P[ i ] ) );
+   dd[ i ].set_value( tag( i , 4 ) );
+   ddrop[ i ].set_value( ( on_pred &&
+                           ( prev - P[ i ] > f_deep_grad[ i ] + tol ) )
+                         ? 1 : 0 );
+   dlow[ i ].set_value( ( on_pred && ( P[ i ] < f_deep_thr[ i ] - tol ) )
+                        ? 1 : 0 );
+   }
+  }
+
+ // all the rest, the Block being already locked by this Solver
+ ThermalUnitExtDPSolver::get_var_solution( solc );
 
  if( ! owned )
   f_Block->unlock( f_id );

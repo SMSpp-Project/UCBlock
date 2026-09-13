@@ -312,6 +312,13 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
  [[nodiscard]] Solution * get_Solution( Configuration * solc = nullptr )
   override;
 
+/*--------------------------------------------------------------------------*/
+ /// the Solution is filled from the data of the DP, not from the Variable
+
+ [[nodiscard]] bool is_get_Solution_physical( void ) const override {
+  return( true );
+  }
+
  /// returns a valid lower bound on the optimal objective function value
  OFValue get_lb( void ) override { return( f_end.lab ); }
 

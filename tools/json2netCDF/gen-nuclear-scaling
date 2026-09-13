@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#
+# gen-nuclear-scaling  --  (re)build the standalone NuclearUnitBlock instances
+# of the scaling study: the full set of the operating rules of the nuclear
+# units (the families e4 and e7 of gen-nuclear) at the three horizons of one
+# day, one week and one month, i.e., 96, 672 and 2976 quarter-hourly instants,
+# from the JSON instances under instances_singlebus/.
+#
+# The first 5 units of the 10-unit instances of each seed are converted, with
+# spinning reserves and a commitment-gated reactive box, modulations of up to
+# 8 instants (2 hours) at the full ramp followed by 3 stable ones, days of 96
+# instants with at most 2 modulations, 1 start-up and 1 deep decrease each,
+# and a cost of the downward steps and of the deep decreases.
+#
+# The family e4 follows a load between MinPower and MaxPower, so the unit is
+# on throughout and the commitment is not in question; the family e7 adds a
+# trough of the load-following target below MinPower, a start-up cost reduced
+# to 2% and 3 instants of stability after a start-up, so that the unit has to
+# shut down at night and start up again, and a deep decrease threshold at 75%
+# of the range, so that the rules that a start-up brings into play are exercised too.
+#
+# Like gen-all-nc4 this only runs the (deterministic) JSON -> netCDF
+# conversion of json2nc4.jl.
+#
+# Usage:
+#     ./gen-nuclear-scaling [instances_dir] [out_dir] ["seeds"]
+#       instances_dir  default: instances_singlebus
+#       out_dir        default: ../../data/nc4/1UC_Data/nuclear
+#                      (the files go to <out_dir>/<periods>/)
+#       seeds          default: "1 2 3 4 5"
+#
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="${1:-$HERE/instances_singlebus}"
+OUTDIR="${2:-$HERE/../../data/nc4/1UC_Data/nuclear}"
+SEEDS="${3:-1 2 3 4 5}"
+
+rules=( --n-units 5 --reserve --reactive --mod-frac 0 --mod-time 4
+        --mod-length 8 --day-length 96 --mods-per-day 2 --starts-per-day 1
+        --deep --deeps-per-day 1 --down-cost 2 --deep-cost 20 )
+hard=( --swing 1.5 --su-frac 0.02 --stab-start 3
+       --deep-frac 0.75 --deep-grad 0.5 )
+
+for h in day week month; do
+  case $h in day) n=96 ;; week) n=672 ;; month) n=2976 ;; esac
+  mkdir -p "$OUTDIR/$n"
+  for s in $SEEDS; do
+    j="$DIR/sb_10u_${h}_nores_noreac_seed$s.json"
+    if [ ! -f "$j" ]; then
+      echo "gen-nuclear-scaling: $j not found" >&2
+      exit 1
+    fi
+    julia --project="$HERE" "$HERE/json2nc4.jl" "$j" \
+          --nuclear-single "$OUTDIR/$n" "${rules[@]}" --suffix _e4
+    julia --project="$HERE" "$HERE/json2nc4.jl" "$j" \
+          --nuclear-single "$OUTDIR/$n" "${rules[@]}" "${hard[@]}" --suffix _e7
+  done
+done
