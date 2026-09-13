@@ -27,6 +27,15 @@ specialised solution methods for certain units (e.g., `ThermalUnitDPSolver` and
 
 These instructions will let you build UCBlock on your system.
 
+The module also comes ready-made: `sudo apt install libsmspp-ucblock-dev` from
+the [PPA of the project](https://launchpad.net/~smspp/+archive/ubuntu/ppa),
+which has `smspp-ucblock` for its command-line tool as well, and `vcpkg install
+"smspp[core,ucblock]"` from the [SMS++ vcpkg
+registry](https://gitlab.com/smspp/vcpkg-registry); `conda install -c
+conda-forge smspp-project` and `brew install smspp`, from the [tap of the
+project](https://github.com/SMSpp-Project/homebrew-smspp), carry the whole
+framework. What follows is about building it yourself.
+
 ### Requirements
 
 - [SMS++ core library](https://gitlab.com/smspp/smspp)
