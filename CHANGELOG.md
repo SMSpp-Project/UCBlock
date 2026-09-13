@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.9.0] - 2026-09-13
+
+### Added
+
 - the operating rules of a nuclear unit in the `NuclearUnitBlock`:
   modulations of up to `MaxModulationLength` steps at the full ramp with the
   last one free, the stability of `ModulationTime` instants that follows a
@@ -29,10 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   program over the `ThermalUnitExtDPSolver`, which grows the hooks the
   labels need (`on_moves()`, `shut_label()`, `idle_label()`,
   `start_labels()`, `label_dominates()`, `trim_domination()`)
-
-### Changed
-
-### Fixed
 
 ## [0.8.0] - 2026-09-12
 
