@@ -16,8 +16,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                      Rafael Durbano Lobato
+ *                      Rafael Durbano Lobato,
+ *                      Donato Meoli
  */
 
 /*--------------------------------------------------------------------------*/
