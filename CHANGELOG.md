@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- the setters that change one datum spanning the whole time horizon issue
+  their "abstract" Modification inside a GroupModification, one per setter,
+  rather than one loose Modification per instant: a Solver able to execute a
+  whole set of changes in one operation can then do so, while one that is not
+  takes the group apart and sees exactly what it saw before. So far
+  `SlackUnitBlock::set_active_power_cost`, `HydroUnitBlock::set_inflow`,
+  `HydroUnitBlock::update_initial_flow_rate_in_cnstrs` and
+  `ThermalUnitBlock::set_maximum_power`
+
 ### Added
 
 - the operating rules of a nuclear unit in the `NuclearUnitBlock`:

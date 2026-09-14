@@ -1321,8 +1321,15 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
    v_inflows[ r ][ t ] = *( values_it++ );
   }
 
-  if( constraints_generated() )
+  if( constraints_generated() ) {
    // Change the abstract representation
+   // one side per instant and per reservoir, hence one abstract Modification
+   // each: they all go into a single GroupModification, so that a Solver able
+   // to write a whole set of sides in one operation does that instead of one
+   // call per instant [see MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    for( auto i : subset ) {
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
@@ -1330,11 +1337,14 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
     if( t == 0 ) {
      const auto volume = get_initial_volumetric( r );
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      volume + v_inflows[ r ][ t ] , issueAMod );
+      volume + v_inflows[ r ][ t ] , nAM );
     }
     else
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      v_inflows[ r ][ t ] , issueAMod );
+      v_inflows[ r ][ t ] , nAM );
+   }
+
+   close_channel( par2chnl( nAM ) );  // at the end close the channel
    }
  }
 
@@ -1385,6 +1395,12 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
 
   if( constraints_generated() ) {
    // Change the abstract representation
+   // one side per instant and per reservoir, hence one abstract Modification
+   // each: they all go into a single GroupModification, so that a Solver able
+   // to write a whole set of sides in one operation does that instead of one
+   // call per instant [see MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
 
    for( Index i = rng.first ; i < rng.second ; ++i ) {
     Index t = i % f_time_horizon;
@@ -1393,12 +1409,14 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
     if( t == 0 ) {
      const auto volume = get_initial_volumetric( r );
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      volume + v_inflows[ r ][ t ] , issueAMod );
+      volume + v_inflows[ r ][ t ] , nAM );
     }
     else
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      v_inflows[ r ][ t ] , issueAMod );
+      v_inflows[ r ][ t ] , nAM );
    }
+
+   close_channel( par2chnl( nAM ) );  // at the end close the channel
   }
  }
 
@@ -1660,11 +1678,19 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( const Block::Subset & a
  if( ! constraints_generated() )
   return;
 
+ // the initial flow rate is one datum, but it is the right-hand side of a
+ // ramp row for each arc, hence one abstract Modification each: they all go
+ // into a single GroupModification, so that a Solver able to write a whole
+ // set of sides in one operation does that instead of one call per arc [see
+ // MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  // ramp-up constraints
  if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
   for( auto arc : arcs )
    RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
-                                     v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
+                                     v_DeltaRampUp[ 0 ][ arc ] , nAM );
  }
 
  // ramp-down constraints
@@ -1672,8 +1698,10 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( const Block::Subset & a
   for( auto arc : arcs )
    RampDown_Const[ 0 ][ arc ].set_lhs( get_initial_flow_rate( arc ) -
                                        v_DeltaRampDown[ 0 ][ arc ] ,
-                                       issueAMod );
+                                       nAM );
  }
+ close_channel( par2chnl( nAM ) );  // at the end close the channel
+
 }  // end( HydroUnitBlock::update_initial_flow_rate_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
@@ -1684,11 +1712,19 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( Block::Range arcs ,
  if( ! constraints_generated() )
   return;
 
+ // the initial flow rate is one datum, but it is the right-hand side of a
+ // ramp row for each arc, hence one abstract Modification each: they all go
+ // into a single GroupModification, so that a Solver able to write a whole
+ // set of sides in one operation does that instead of one call per arc [see
+ // MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  // ramp-up constraints
  if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
    RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
-                                     v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
+                                     v_DeltaRampUp[ 0 ][ arc ] , nAM );
  }
 
  // ramp-down constraints
@@ -1696,8 +1732,10 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( Block::Range arcs ,
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
    RampDown_Const[ 0 ][ arc ].set_lhs
     ( get_initial_flow_rate( arc ) - v_DeltaRampDown[ 0 ][ arc ] ,
-      issueAMod );
+      nAM );
  }
+ close_channel( par2chnl( nAM ) );  // at the end close the channel
+
 }  // end( HydroUnitBlock::update_initial_flow_rate_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
