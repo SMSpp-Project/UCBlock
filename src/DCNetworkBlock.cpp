@@ -2097,6 +2097,11 @@ void DCNetworkBlock::change_active_demand_constraints_PTDF(
                            c_Subset & modified_nodes ,
                            c_ModParam issueAMod )
 {
+ // the whole cascade is one group, so that a Solver can change every side
+ // with one call instead of paying a call per line
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  auto & DC_lines = f_NetworkData->get_DC_lines();
  SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines , f_tikhonov_coeff );
 
@@ -2119,19 +2124,21 @@ void DCNetworkBlock::change_active_demand_constraints_PTDF(
         }
   }
 
-  v_power_flow_def[ line_id ].set_lhs( constant_term , issueAMod );
-  v_power_flow_def[ line_id ].set_rhs( constant_term , issueAMod );
+  v_power_flow_def[ line_id ].set_lhs( constant_term , nAM );
+  v_power_flow_def[ line_id ].set_rhs( constant_term , nAM );
  }
 
  double balance_const = 0.0;
  for( Index node_id = 0 ; node_id < get_number_nodes() ; ++node_id )
   balance_const += v_ActiveDemand[ node_id ];
 
- overall_balanced_const.set_lhs( balance_const , issueAMod );
- overall_balanced_const.set_rhs( balance_const , issueAMod );
+ overall_balanced_const.set_lhs( balance_const , nAM );
+ overall_balanced_const.set_rhs( balance_const , nAM );
 
  if( f_NetworkData->is_DC_HVDC() )
-  change_DC_HVDC_power_flow_injection_constraints( modified_nodes , issueAMod );
+  change_DC_HVDC_power_flow_injection_constraints( modified_nodes , nAM );
+
+ close_channel( par2chnl( nAM ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2140,6 +2147,11 @@ void DCNetworkBlock::change_active_demand_constraints_CYCLE(
                            c_Subset & modified_nodes ,
                            c_ModParam issueAMod )
 {
+ // the whole cascade is one group, so that a Solver can change every side
+ // with one call instead of paying a call per line
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  const auto number_nodes = get_number_nodes();
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
@@ -2199,8 +2211,8 @@ void DCNetworkBlock::change_active_demand_constraints_CYCLE(
    }
   }
 
-  v_CYCLE_def_flow_const[ id_dc_line ].set_lhs( constant_term , issueAMod );
-  v_CYCLE_def_flow_const[ id_dc_line ].set_rhs( constant_term , issueAMod );
+  v_CYCLE_def_flow_const[ id_dc_line ].set_lhs( constant_term , nAM );
+  v_CYCLE_def_flow_const[ id_dc_line ].set_rhs( constant_term , nAM );
   ++id_dc_line;
  }
 
@@ -2208,11 +2220,13 @@ void DCNetworkBlock::change_active_demand_constraints_CYCLE(
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
   balance_const += v_ActiveDemand[ node_id ];
 
- overall_balanced_const.set_lhs( balance_const , issueAMod );
- overall_balanced_const.set_rhs( balance_const , issueAMod );
+ overall_balanced_const.set_lhs( balance_const , nAM );
+ overall_balanced_const.set_rhs( balance_const , nAM );
 
  if( f_NetworkData->is_DC_HVDC() )
-  change_DC_HVDC_power_flow_injection_constraints( modified_nodes , issueAMod );
+  change_DC_HVDC_power_flow_injection_constraints( modified_nodes , nAM );
+
+ close_channel( par2chnl( nAM ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2236,6 +2250,11 @@ void DCNetworkBlock::change_DC_HVDC_power_flow_injection_constraints(
                            c_Subset & modified_nodes ,
                            c_ModParam issueAMod )
 {
+ // the whole cascade is one group, so that a Solver can change every side
+ // with one call instead of paying a call per line
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  const auto number_nodes = get_number_nodes();
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
  const auto & start_line = f_NetworkData->get_start_line();
@@ -2259,13 +2278,15 @@ void DCNetworkBlock::change_DC_HVDC_power_flow_injection_constraints(
   if( std::find( modified_nodes.begin() , modified_nodes.end() , n ) !=
       modified_nodes.end() ) {
    v_DC_HVDC_power_flow_const[ iDCnode ].set_lhs( -v_ActiveDemand[ n ] ,
-                                                  issueAMod );
+                                                  nAM );
    v_DC_HVDC_power_flow_const[ iDCnode ].set_rhs( -v_ActiveDemand[ n ] ,
-                                                  issueAMod );
+                                                  nAM );
       }
 
   ++iDCnode;
  }
+
+ close_channel( par2chnl( nAM ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2520,6 +2541,12 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 void DCNetworkBlock::change_power_flow_limit_constraints(
 			   c_Subset & modified_lines , c_ModParam issueAMod )
 {
+ // the whole cascade is one group, so that a Solver can change every side
+ // with one call and every coefficient with another, instead of paying a
+ // call per line
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  for( auto i : modified_lines ) {
   double kappa = get_kappa( i );
 
@@ -2534,7 +2561,7 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
     double lower_coeff_x = -kappa * get_min_power_flow( i );
     auto * lf_low = static_cast< LinearFunction * >(
 		 v_power_flow_limit_design_min_const[ min_row ].get_function() );
-    lf_low->modify_coefficient( 1 , lower_coeff_x , issueAMod );
+    lf_low->modify_coefficient( 1 , lower_coeff_x , nAM );
     }
 
    // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
@@ -2542,16 +2569,18 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    auto * lf_up = static_cast< LinearFunction * >(
 		 v_power_flow_limit_design_const[ v_design_row[ i ]
 						   ].get_function() );
-   lf_up->modify_coefficient( 1 , upper_coeff_x , issueAMod );
+   lf_up->modify_coefficient( 1 , upper_coeff_x , nAM );
    }
   else {
    // Constraints *without* design variable: simple bounds update
    v_power_flow_limit_const[ i ].set_lhs( kappa * get_min_power_flow( i ) ,
-					  issueAMod );
+					  nAM );
    v_power_flow_limit_const[ i ].set_rhs( kappa * get_max_power_flow( i ) ,
-					  issueAMod );
+					  nAM );
     }
   }
+ close_channel( par2chnl( nAM ) );
+
  }  // end( DCNetworkBlock::change_power_flow_limit_constraints )
 
 /*--------------------------------------------------------------------------*/

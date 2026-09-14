@@ -1991,6 +1991,12 @@ void BatteryUnitBlock::scale( MF_dbl_it values ,
 
 void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 {
+ // the whole cascade is one group, so that a Solver can change every side
+ // with one call and every coefficient with another, instead of paying a
+ // call per period
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  // with no intake/outtake pair the fences are stated on the active power:
  // the C-rate pair is a single bound when the battery is not designed, and
  // the converter fence is a bound when the converter is not
@@ -2001,25 +2007,25 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
   if( split )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-     -f_kappa * f_MaxCRateCharge * v_MinPower[ t ] , issueAMod );
+     -f_kappa * f_MaxCRateCharge * v_MinPower[ t ] , nAM );
     intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
-     f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] , issueAMod );
+     f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] , nAM );
    }
   else
    if( f_BattInvestmentCost == 0 )
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      intake_outtake_bounds_Const[ 0 ][ t ].set_lhs(
-      f_kappa * f_MaxCRateCharge * v_MinPower[ t ] , issueAMod );
+      f_kappa * f_MaxCRateCharge * v_MinPower[ t ] , nAM );
      intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-      f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] , issueAMod );
+      f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] , nAM );
     }
    else
     for( Index t = 0 ; t < f_time_horizon ; ++t )
      if( v_ConvMaxPower[ t ] > 0 ) {
       intake_outtake_bounds_Const[ 0 ][ t ].set_lhs(
-       -f_kappa * v_ConvMaxPower[ t ] , issueAMod );
+       -f_kappa * v_ConvMaxPower[ t ] , nAM );
       intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-       f_kappa * v_ConvMaxPower[ t ] , issueAMod );
+       f_kappa * v_ConvMaxPower[ t ] , nAM );
      }
   }
 
@@ -2039,7 +2045,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
    f0->modify_coefficient( batt_design_idx0 ,
                            f_kappa * f_MaxCRateCharge * v_MinPower[ t ] ,
-                           issueAMod );
+                           nAM );
 
    auto f1 = static_cast< LinearFunction * >(
     intake_outtake_upper_bounds_design_Const[ 1 ][ t ].get_function() );
@@ -2053,7 +2059,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
    f1->modify_coefficient( batt_design_idx1 ,
                            -f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] ,
-                           issueAMod );
+                           nAM );
 
    if( v_ConvMaxPower.empty() || ( v_ConvMaxPower[ t ] <= 0 ) )
     continue;  // the converter fence is not binding
@@ -2076,22 +2082,22 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
      f2->modify_coefficient( conv_design_idx2 ,
                              -f_kappa * v_ConvMaxPower[ t ] ,
-                             issueAMod );
+                             nAM );
      }
     }
    else
     if( split )
      intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_rhs(
-      f_kappa * v_ConvMaxPower[ t ] , issueAMod );
+      f_kappa * v_ConvMaxPower[ t ] , nAM );
    }
 
  if( ! active_power_bounds_Const.empty() )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    active_power_bounds_Const[ 0 ][ t ].set_lhs(
-    f_kappa * v_MinPower[ t ] , issueAMod );
+    f_kappa * v_MinPower[ t ] , nAM );
    active_power_bounds_Const[ 1 ][ t ].set_rhs(
-    f_kappa * v_MaxPower[ t ] , issueAMod );
+    f_kappa * v_MaxPower[ t ] , nAM );
   }
 
  else if( ! active_power_bounds_design_Const.empty() )
@@ -2109,7 +2115,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
    f0->modify_coefficient( batt_design_idx0 ,
                            -f_kappa * v_MinPower[ t ] ,
-                           issueAMod );
+                           nAM );
 
    auto f1 = static_cast< LinearFunction * >(
     active_power_bounds_design_Const[ 1 ][ t ].get_function() );
@@ -2123,16 +2129,16 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
    f1->modify_coefficient( batt_design_idx1 ,
                            -f_kappa * v_MaxPower[ t ] ,
-                           issueAMod );
+                           nAM );
   }
 
  if( ! storage_level_bounds_Const.empty() )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    storage_level_bounds_Const[ t ].set_lhs(
-    f_kappa * v_MinStorage[ t ] , issueAMod );
+    f_kappa * v_MinStorage[ t ] , nAM );
    storage_level_bounds_Const[ t ].set_rhs(
-    f_kappa * v_MaxStorage[ t ] , issueAMod );
+    f_kappa * v_MaxStorage[ t ] , nAM );
   }
 
  else if( ! storage_level_bounds_design_Const.empty() )
@@ -2151,7 +2157,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
    f0->modify_coefficient( batt_design_idx0 ,
                            -f_kappa * v_MinStorage[ t ] ,
-                           issueAMod );
+                           nAM );
 
    auto f1 = static_cast< LinearFunction * >(
     storage_level_bounds_design_Const[ 1 ][ t ].get_function() );
@@ -2165,7 +2171,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
    f1->modify_coefficient( batt_design_idx1 ,
                            -f_kappa * v_MaxStorage[ t ] ,
-                           issueAMod );
+                           nAM );
   }
 
  if( ( ! intake_outtake_binary_Const.empty() ) &&
@@ -2185,7 +2191,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    // intake bound is - v_MinPower b (v_MinPower is the charging-side limit,
    // negative by convention): coefficient on v_battery_binary is + kappa
    // v_MinPower, see the construction at the top of the file
-   f->modify_coefficient( index , f_kappa * v_MinPower[ t ] , issueAMod );
+   f->modify_coefficient( index , f_kappa * v_MinPower[ t ] , nAM );
   }
 
  if( ( ! intake_outtake_binary_Const.empty() ) &&
@@ -2205,21 +2211,23 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    // outtake bound is v_MaxPower (1 - b): coefficient on v_battery_binary
    // is + kappa v_MaxPower and the RHS is kappa v_MaxPower, see the
    // construction at the top of the file
-   f->modify_coefficient( index , f_kappa * v_MaxPower[ t ] , issueAMod );
+   f->modify_coefficient( index , f_kappa * v_MaxPower[ t ] , nAM );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_rhs(
-    f_kappa * v_MaxPower[ t ] , issueAMod );
+    f_kappa * v_MaxPower[ t ] , nAM );
   }
 
  if( ! primary_upper_bound_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    primary_upper_bound_Const[ t ].set_rhs( f_kappa * v_MaxPrimaryPower[ t ] ,
-                                           issueAMod );
+                                           nAM );
 
  if( ! secondary_upper_bound_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    secondary_upper_bound_Const[ t ].set_rhs( f_kappa * v_MaxSecondaryPower[ t ] ,
-                                             issueAMod );
+                                             nAM );
+
+ close_channel( par2chnl( nAM ) );
 
  }  // end( BatteryUnitBlock::update_kappa_in_cnstrs )
 

@@ -681,6 +681,12 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
  if( not_dry_run( issuePMod ) &&
      not_dry_run( issueAMod ) &&
      constraints_generated() ) {
+      // the whole cascade is one group, so that a Solver can change every
+      // coefficient with one call instead of paying a call, and a model
+      // synchronisation, per period
+      auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                        open_channel( par2chnl( issueAMod ) ) ) );
+
   // Change the abstract representation
 
   for( auto i : subset ) {
@@ -688,9 +694,11 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
    Index n = i % get_number_nodes();
 
    power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
-                                           issueAMod );
+                                           nAM );
   }
- }
+ 
+      close_channel( par2chnl( nAM ) );
+     }
 
  if( issue_pmod( issuePMod ) ) {
   // Issue a Physical Modification
@@ -738,6 +746,12 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
              v_ActiveDemand.data() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // the whole cascade is one group, so that a Solver can change every
+   // coefficient with one call instead of paying a call, and a model
+   // synchronisation, per period
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                     open_channel( par2chnl( issueAMod ) ) ) );
+
    // Change the abstract representation
 
    for( Index i = rng.first ; i < rng.second ; ++i ) {
@@ -745,8 +759,10 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
     Index n = i % get_number_nodes();
 
     power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
-                                            issueAMod );
+                                            nAM );
    }
+  
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -801,6 +817,12 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
    buy_price[ i ] = *( values_it++ );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // the whole cascade is one group, so that a Solver can change every
+   // coefficient with one call instead of paying a call, and a model
+   // synchronisation, per period
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                     open_channel( par2chnl( issueAMod ) ) ) );
+
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
    const auto N = get_number_nodes();
    for( auto i : subset )
@@ -810,8 +832,10 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
       throw( std::logic_error(
        "ECNetworkBlock::set_buy_price: expected Variable not found in "
        "objective." ) );
-     lf->modify_coefficient( idx , buy_price[ i ] , issueAMod );
+     lf->modify_coefficient( idx , buy_price[ i ] , nAM );
     }
+  
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -854,6 +878,12 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
   std::copy( values , values + sz , buy_price.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // the whole cascade is one group, so that a Solver can change every
+   // coefficient with one call instead of paying a call, and a model
+   // synchronisation, per period
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                     open_channel( par2chnl( issueAMod ) ) ) );
+
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
    const auto N = get_number_nodes();
    for( Index t = rng.first ; t < rng.second ; ++t )
@@ -863,8 +893,10 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
       throw( std::logic_error(
        "ECNetworkBlock::set_buy_price: expected Variable not found in "
        "objective." ) );
-     lf->modify_coefficient( idx , buy_price[ t ] , issueAMod );
+     lf->modify_coefficient( idx , buy_price[ t ] , nAM );
     }
+  
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -917,6 +949,12 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
    sell_price[ i ] = *( values_it++ );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // the whole cascade is one group, so that a Solver can change every
+   // coefficient with one call instead of paying a call, and a model
+   // synchronisation, per period
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                     open_channel( par2chnl( issueAMod ) ) ) );
+
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
    const auto N = get_number_nodes();
    for( auto i : subset )
@@ -926,8 +964,10 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
       throw( std::logic_error(
        "ECNetworkBlock::set_sell_price: expected Variable not found in "
        "objective." ) );
-     lf->modify_coefficient( idx , -sell_price[ i ] , issueAMod );
+     lf->modify_coefficient( idx , -sell_price[ i ] , nAM );
     }
+  
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -970,6 +1010,12 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
   std::copy( values , values + sz , sell_price.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // the whole cascade is one group, so that a Solver can change every
+   // coefficient with one call instead of paying a call, and a model
+   // synchronisation, per period
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                     open_channel( par2chnl( issueAMod ) ) ) );
+
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
    const auto N = get_number_nodes();
    for( Index t = rng.first ; t < rng.second ; ++t )
@@ -979,8 +1025,10 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
       throw( std::logic_error(
        "ECNetworkBlock::set_sell_price: expected Variable not found in "
        "objective." ) );
-     lf->modify_coefficient( idx , -sell_price[ t ] , issueAMod );
+     lf->modify_coefficient( idx , -sell_price[ t ] , nAM );
     }
+  
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -1013,6 +1061,12 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
   peak_tariff = v;
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // the whole cascade is one group, so that a Solver can change every
+   // coefficient with one call instead of paying a call, and a model
+   // synchronisation, per period
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                     open_channel( par2chnl( issueAMod ) ) ) );
+
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
    const auto N = get_number_nodes();
    for( Index n = 0 ; n < N ; ++n ) {
@@ -1021,8 +1075,10 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
      throw( std::logic_error(
       "ECNetworkBlock::set_peak_tariff: expected Variable not found in "
       "objective." ) );
-    lf->modify_coefficient( idx , peak_tariff , issueAMod );
+    lf->modify_coefficient( idx , peak_tariff , nAM );
    }
+  
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -1055,6 +1111,12 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
   peak_tariff = v;
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
+   // the whole cascade is one group, so that a Solver can change every
+   // coefficient with one call instead of paying a call, and a model
+   // synchronisation, per period
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                     open_channel( par2chnl( issueAMod ) ) ) );
+
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
    const auto N = get_number_nodes();
    for( Index n = 0 ; n < N ; ++n ) {
@@ -1063,8 +1125,10 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
      throw( std::logic_error(
       "ECNetworkBlock::set_peak_tariff: expected Variable not found in "
       "objective." ) );
-    lf->modify_coefficient( idx , peak_tariff , issueAMod );
+    lf->modify_coefficient( idx , peak_tariff , nAM );
    }
+  
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -1183,6 +1247,12 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
  // so guard the coefficient update accordingly
  if( ! v_power_squilibrium_pos.empty() && not_dry_run( issueAMod ) &&
      not_dry_run( issuePMod ) && objective_generated() ) {
+      // the whole cascade is one group, so that a Solver can change every
+      // coefficient with one call instead of paying a call, and a model
+      // synchronisation, per period
+      auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                        open_channel( par2chnl( issueAMod ) ) ) );
+
   auto * lf = static_cast< LinearFunction * >( objective.get_function() );
   for( auto i : subset ) {
    const auto idx_pos = lf->is_active( &v_power_squilibrium_pos[ i ] );
@@ -1191,10 +1261,12 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
     throw( std::logic_error(
      "ECNetworkBlock::set_penalty_price: expected Variable not found in "
      "objective." ) );
-   lf->modify_coefficient( idx_pos , penalty_price[ i ] , issueAMod );
-   lf->modify_coefficient( idx_neg , penalty_price[ i ] , issueAMod );
+   lf->modify_coefficient( idx_pos , penalty_price[ i ] , nAM );
+   lf->modify_coefficient( idx_neg , penalty_price[ i ] , nAM );
   }
- }
+ 
+      close_channel( par2chnl( nAM ) );
+     }
 
  if( issue_pmod( issuePMod ) ) {
   if( ! ordered )
@@ -1239,6 +1311,12 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
   // so guard the coefficient update accordingly
   if( ! v_power_squilibrium_pos.empty() && not_dry_run( issueAMod ) &&
       objective_generated() ) {
+       // the whole cascade is one group, so that a Solver can change every
+       // coefficient with one call instead of paying a call, and a model
+       // synchronisation, per period
+       auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                         open_channel( par2chnl( issueAMod ) ) ) );
+
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
    for( Index t = rng.first ; t < rng.second ; ++t ) {
     const auto idx_pos = lf->is_active( &v_power_squilibrium_pos[ t ] );
@@ -1247,10 +1325,12 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
      throw( std::logic_error(
       "ECNetworkBlock::set_penalty_price: expected Variable not found in "
       "objective." ) );
-    lf->modify_coefficient( idx_pos , penalty_price[ t ] , issueAMod );
-    lf->modify_coefficient( idx_neg , penalty_price[ t ] , issueAMod );
+    lf->modify_coefficient( idx_pos , penalty_price[ t ] , nAM );
+    lf->modify_coefficient( idx_neg , penalty_price[ t ] , nAM );
    }
-  }
+  
+       close_channel( par2chnl( nAM ) );
+      }
  }
 
  if( issue_pmod( issuePMod ) )
