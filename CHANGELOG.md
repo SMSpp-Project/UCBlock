@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- the pollutant budget constraints of `UCBlock`: for each zone of each
+  pollutant, the emission of the electrical generators at the nodes of the
+  zone summed over the whole time horizon, i.e., the conversion factor
+  `PollutantRho` (which may depend on time, and includes the duration of the
+  time instant) times the active power, cannot exceed `PollutantBudget`. The
+  constraints are one vector with the zones of all the pollutants one after
+  the other, as the budgets are in the file, they follow the scaling of the
+  units, their duals are in the `UCBlockSolution` (bit 128), and the budget
+  can be changed with `set_pollutant_budget()`; if `NumberPollutantZones` is
+  not given every pollutant has one zone, and if `PollutantZones` is not given
+  then all the nodes are in it
+
 ### Fixed
+
+- `SecondaryZones`, `InertiaZones` and `NumberPollutantZones` were only read
+  if the demand of the previous family of constraints was in the file
 
 - `UCBlock::add_Modification` looked for the scaling of a unit only at the
   first level of the Modification it is given: the scaling of several units
