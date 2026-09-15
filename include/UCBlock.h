@@ -111,9 +111,9 @@ namespace SMSpp_di_unipi_it
  *     defined subset of the nodes of the transmission network) and for
  *     each time instant;
  *
- *   - possibly, constraints maximum pollutants emission for different kinds
- *     of pollutant, each "zone" (appropriately defined subset of the nodes
- *     of the transmission network) and for each time instant. */
+ *   - possibly, constraints on the maximum emission of different kinds of
+ *     pollutant, for each "zone" (appropriately defined subset of the nodes
+ *     of the transmission network) and across the whole time horizon. */
 
 class UCBlock : public Block
 {
@@ -399,11 +399,14 @@ class UCBlock : public Block
   *   NumberPollutantZones[ p ] is assumed to contain the number of pollutant
   *   zones associated with pollutant p. If NumberPollutants == 0 (say, it is
   *   not provided) then this variable need not be defined, since it is not
-  *   loaded. The total number of pollutant zones is useful (cf.
-  *   PollutantBudget); it will be referred to as "TotalNumberPollutantZones",
-  *   and it is computed simply as TotalNumberPollutantZones =
-  *   NumberPollutantZones[ 0 ] + ... +
-  *   NumberPollutantZones[ NumberPollutants - 1 ].
+  *   loaded. If NumberPollutants > 0 and this variable is not defined, then
+  *   each pollutant has exactly one zone. The total number of pollutant zones
+  *   is useful (cf. PollutantBudget); it will be referred to as
+  *   "TotalNumberPollutantZones", and it is computed simply as
+  *   TotalNumberPollutantZones = NumberPollutantZones[ 0 ] + ... +
+  *   NumberPollutantZones[ NumberPollutants - 1 ]. A dimension with this name
+  *   may be present (typically, to index PollutantBudget), in which case it
+  *   is an error if its size is not that sum.
   *
   * - The variable "PollutantZones", of type netCDF::NcUint and indexed over
   *   the dimensions "NumberPollutants" and "NumberNodes": the entry
@@ -411,9 +414,12 @@ class UCBlock : public Block
   *   pollutant p the node n belongs. If PollutantZones[ p , n ] >=
   *   NumberPollutantZones[ p ], this means that node n does not belong to any
   *   pollutant zone, and hence the corresponding units are not involved in the
-  *   pollutant budget constraints associated with pollutant p. If
-  *   NumberPollutants == 0 (say, it is not provided) then this variable need
-  *   not be defined, since it is not loaded.
+  *   pollutant budget constraints associated with pollutant p. The first
+  *   dimension can have size 1, in which case the same zones are used for
+  *   all pollutants. If NumberPollutants == 0 (say, it is not provided) then
+  *   this variable need not be defined, since it is not loaded. If each
+  *   pollutant has exactly one zone and this variable is not defined, then
+  *   all the nodes belong to the unique zone of each pollutant.
   *
   * - The variable "PollutantBudget", of type netCDF::NcDouble and indexed
   *   over the set { 0 , ... , TotalNumberPollutantZones - 1 }: the entry
@@ -439,7 +445,7 @@ class UCBlock : public Block
   *   n = NumberPollutantZones[ 0 ] + 1 corresponds to zone 1 of pollutant 1
   *   ...
   *   . If NumberPollutants == 0 (say, it is not provided) then this variable
-  *   need not be defined, since it is not loaded.
+  *   need not be defined, since it is not loaded; otherwise it is mandatory.
   *
   * - The variable "PollutantRho", of type netCDF::NcDouble and indexed over
   *   three dimensions which are "TimeHorizon" and "NumberPollutants" and
@@ -450,8 +456,11 @@ class UCBlock : public Block
   *   which is equal for all time instants t. Otherwise, the first dimension
   *   has full size "TimeHorizon" and the entry PollutantRho[ t , p , g ]
   *   gives the conversion factor of pollutant p due to the electrical
-  *   generator g for time t. If NumberPollutants == 0 (it is not provided)
-  *   then this variable need not be defined, since it's not loaded.
+  *   generator g for time t. The conversion factor multiplies the active
+  *   power of the generator, hence it also accounts for the duration of the
+  *   time instant (it is, say, in tonnes per MW over one time instant). If
+  *   NumberPollutants == 0 (it is not provided) then this variable need not
+  *   be defined, since it's not loaded; otherwise it is mandatory.
   *
   * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
   *   indexed over the dimension "NumberNetworks"; the entry
@@ -649,6 +658,28 @@ class UCBlock : public Block
   *        \quad t \in \mathcal{T}
   *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N})     \quad (4)
   *   \f]
+  *
+  * - Pollutant Budget Constraints:
+  *   The emission of pollutant \f$ p \in \mathcal{P} \f$ due to the
+  *   electrical generators in the zone \f$ \mathcal{B} \in
+  *   \mathcal{B}^{p}(\mathcal{N}) \f$, summed over the whole time horizon,
+  *   cannot exceed the budget \f$ O_{\mathcal{B},p} \f$ of the zone; the
+  *   conversion factor \f$ \rho_{t,p,g} \f$ (see get_pollutant_rho())
+  *   includes the duration of the time instant. Therefore, if
+  *   get_number_pollutants() > 0, a std::vector< FRowConstraint > C of size
+  *   get_total_number_pollutant_zones() is defined, with the zones of all
+  *   the pollutants one after the other as in PollutantBudget (see
+  *   deserialize()): the entry of zone \f$ \mathcal{B} \f$ = 0, ...,
+  *   get_number_pollutant_zones()[ p ] - 1 of pollutant p is
+  *   C[ get_number_pollutant_zones()[ 0 ] + ... +
+  *   get_number_pollutant_zones()[ p - 1 ] + \f$ \mathcal{B} \f$ ], and it
+  *   is the constraint
+  *   \f[
+  *    \sum_{t \in \mathcal{T}} \sum_{n \in \mathcal{B}}
+  *     \sum_{ g \in \mathcal{G}_n } \rho_{t,p,g} p^{ac}_{t,g} \leq
+  *     O_{\mathcal{B},p} \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
+  *     \quad p \in \mathcal{P}                                    \quad (5)
+  *   \f]
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
@@ -730,6 +761,9 @@ class UCBlock : public Block
   *
   *   = bit 6 (& 64): means "save the dual variables of the inertia demand
   *                   constraints"
+  *
+  *   = bit 7 (& 128): means "save the dual variables of the pollutant budget
+  *                    constraints"
   *
   * Note that UCBlock may not contain some or all of the required solution,
   * if the corresponding Variable/Constraint have not been constructed yet:
@@ -1060,60 +1094,55 @@ class UCBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the total number of pollutant zones
+ /** This method returns the sum, over all pollutants, of the number of
+  * pollutant zones associated with each pollutant (cf.
+  * get_number_pollutant_zones()). */
+
+ Index get_total_number_pollutant_zones( void ) const {
+  return( f_total_number_pollutant_zones );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the matrix of pollutant zones
- /** The method returned a two-dimensional boost::multi_array<> M such that
+ /** The method returns a two-dimensional boost::multi_array<> M such that
   * M[ p , n ] tells to which pollutant zone associated with pollutant p the
-  * node n belongs. There are four possible cases:
+  * node n belongs. There are two possible cases:
   *
-  * - if the boost::multi_array<> M is empty() then no pollutant zones are
-  *   defined, and there are no pollutant budget constraints;
+  * - if the boost::multi_array<> M is empty() then either there are no
+  *   pollutants, or each pollutant has exactly one zone and all the nodes
+  *   belong to it;
   *
-  * - if the boost::multi_array<> M has only one row, it is a vector
-  *   with size NetworkBlock::get_number_nodes(). In this case, only one
-  *   pollutant zone exists in the problem, and the nodes may belong (or not)
-  *   to that pollutant zone. Therefore, each n_th element of the vector
-  *   tells if the node n belongs to the unique pollutant zone or not;
-  *
-  * - if the boost::multi_array<> M has only one element, the transmission
-  *   network is a bus with one pollutant zone;
-  *
-  * - otherwise, the two-dimensional boost::multi_array<> M must have
-  *   get_number_pollutants() rows and NetworkBlock::get_number_nodes()
-  *   columns, and each element of matrix M[ p , n ] tells to which pollutant
-  *   zone associated with pollutant p the node n belongs. */
+  * - otherwise, M has get_number_pollutants() rows and get_number_nodes()
+  *   columns, and M[ p , n ] tells to which pollutant zone associated with
+  *   pollutant p the node n belongs; if M[ p , n ] >=
+  *   get_number_pollutant_zones()[ p ], node n belongs to no zone of
+  *   pollutant p. */
 
  const boost::multi_array< Index , 2 > & get_pollutant_zone( void ) const {
   return( v_pollutant_zones );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the two-dimensional vector of pollutant budget
- /** The method returned a two-dimensional boost::multi_array<> V such that
-  * V[ p ] contains the pollutant budget (across all the time horizon) for
-  * all the pollutant zone of the pollutant p. There are two possible cases:
+ /// returns the vector of pollutant budget
+ /** The method returns the vector V of the pollutant budgets (across all the
+  * time horizon) of the zones of all the pollutants, one after the other as
+  * in the netCDF variable PollutantBudget (see deserialize()): the budget of
+  * zone z of pollutant p is
   *
-  * - If V is empty() then no pollutant zones are defined, and there are no
-  *   pollutant budget constraints (in this case, get_number_pollutants()
-  *   must return zero).
+  *    V[ get_number_pollutant_zones()[ 0 ] + ... +
+  *       get_number_pollutant_zones()[ p - 1 ] + z ] .
   *
-  * - Otherwise, V.size() == get_number_pollutants(). For each pollutant
-  *   p = 0, ..., get_number_pollutants() - 1, V[ p ].size() is the number
-  *   of different pollutant areas for p, and V[ p ][ z ] is the pollutant
-  *   budget (across all the time horizon) for zone z of pollutant p. Note
-  *   that, therefore, get_pollutant_zone()[ p ][ i ] is either a number <
-  *   V[ p ].size(), which means that node i belongs to one particular
-  *   pollutant zone, or get_pollutant_zone()[ p ][ i ] >= V[ p ].size(),
-  *   which means that node i does not belong to any pollutant zone for
-  *   pollutant p. */
+  * V is empty() if there are no pollutants, otherwise its size is
+  * get_total_number_pollutant_zones(). */
 
- const boost::multi_array< double , 2 > & get_pollutant_budget( void )
-  const {
+ const std::vector< double > & get_pollutant_budget( void ) const {
   return( v_pollutant_budget );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of pollutant rho
- /** The method returned a three-dimensional boost::multi_array<> M such that
+ /** The method returns a three-dimensional boost::multi_array<> M such that
   * M[ t , p , g ] gives the production of pollutant p from electrical
   * generator g at time t. This three-dimensional boost::multi_array<> M
   * considers two possible cases:
@@ -1135,6 +1164,18 @@ class UCBlock : public Block
 
  const boost::multi_array< double , 3 > & get_pollutant_rho( void ) const {
   return( v_pollutant_rho );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the conversion factor of pollutant p for generator g at time t
+ /** This method returns the conversion factor of pollutant \p p due to the
+  * electrical generator \p g at time \p t, whether or not the factors
+  * depend on time (cf. get_pollutant_rho()). It must not be called if
+  * get_number_pollutants() == 0. */
+
+ double get_pollutant_rho( Index t , Index p , Index g ) const {
+  return( v_pollutant_rho[ v_pollutant_rho.shape()[ 0 ] > 1 ? t : 0 ]
+                         [ p ][ g ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1270,22 +1311,21 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the maximum pollutant emission constraints
  /** This method returns the vector C containing the maximum pollutant
-  * emission constraints. C[ p ][ z ] is the maximum pollutant emission
-  * constraint associated with pollutant p and pollutant zone z. */
+  * emission constraints, with the zones of all the pollutants one after the
+  * other as in get_pollutant_budget(): C[ k ] is the constraint whose budget
+  * is get_pollutant_budget()[ k ]. */
 
- std::vector< std::vector< FRowConstraint > > &
-  get_pollutant_constraints( void ) {
+ std::vector< FRowConstraint > & get_pollutant_constraints( void ) {
   return( v_PollutantBudget_Const );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the (const) maximum pollutant emission constraints
  /** This method returns (a const reference to) the vector C containing the
-  * maximum pollutant emission constraints. C[ p ][ z ] is the maximum
-  * pollutant emission constraint associated with pollutant p and pollutant
-  * zone z. */
+  * maximum pollutant emission constraints, ordered as in
+  * get_pollutant_constraints(). */
 
- const std::vector< std::vector< FRowConstraint > > &
+ const std::vector< FRowConstraint > &
  get_const_pollutant_constraints( void ) const {
   return( v_PollutantBudget_Const );
   }
@@ -1401,6 +1441,39 @@ class UCBlock : public Block
  void set_active_power_demand( MF_dbl_it values , Range rng = Range( 0 , 1 ) ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// update the pollutant budget
+ /** Updates the pollutant budget for the (flattened) indices in \p subset.
+  *
+  * The budget is indexed as get_pollutant_budget(), i.e., as the netCDF
+  * variable "PollutantBudget" (see deserialize()): all the zones of pollutant
+  * 0 come first, then all the zones of pollutant 1, and so on, i.e., index k
+  * corresponds to zone z of pollutant p with
+  *
+  *    k = NumberPollutantZones[ 0 ] + ... + NumberPollutantZones[ p - 1 ] + z .
+  *
+  * The iterator \p values must provide one value for each element of
+  * \p subset, in the same order. If \p ordered is true, \p subset is assumed
+  * to be already sorted in increasing order; otherwise it may be reordered
+  * internally before issuing the corresponding Modification. */
+
+ void set_pollutant_budget( MF_dbl_it values , Subset && subset ,
+                            bool ordered = false ,
+                            ModParam issuePMod = eNoBlck ,
+                            ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// update the pollutant budget
+ /** Updates the pollutant budget for the (flattened) indices in the
+  * half-open range [ rng.first , rng.second ), with the same flattening as
+  * set_pollutant_budget( subset ). The iterator \p values must provide one
+  * value for each index in the range, in increasing index order. */
+
+ void set_pollutant_budget( MF_dbl_it values ,
+                            Range rng = Range( 0 , Inf< Index >() ) ,
+                            ModParam issuePMod = eNoBlck ,
+                            ModParam issueAMod = eNoBlck );
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1524,12 +1597,13 @@ class UCBlock : public Block
  /** Indexed over the dimensions "InertiaZones" and "TimeHorizon". */
  boost::multi_array< double , 2 > v_inertia_demand;
 
- /// the matrix of PollutantBudget
- /** Indexed over the pair of each "NumberPollutantZone" and "NumberPollutants". */
- boost::multi_array< double , 2 > v_pollutant_budget;
+ /// the PollutantBudget
+ /** The budgets of the zones of all the pollutants, one after the other. */
+ std::vector< double > v_pollutant_budget;
 
  /// the matrix of PollutantRho
- /** Indexed over "TimeHorizon", "NumberPollutants", and "NumberElcGenerators". */
+ /** Indexed over "TimeHorizon" (or a singleton), "NumberPollutants", and
+  * "NumberElectricalGenerators". */
  boost::multi_array< double , 3 > v_pollutant_rho;
 
  /// v_generator_node[ g ] tells to which node generator g belongs
@@ -1554,8 +1628,10 @@ class UCBlock : public Block
  /// inertia demand constraints for each time and inertia zone
  boost::multi_array< FRowConstraint , 2 > v_InertiaDemand_Const;
 
- /// pollutant demand constraints for each pollutant and pollutant zone
- std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
+ /// pollutant budget constraints for each pollutant and pollutant zone
+ /** The constraints of the zones of all the pollutants, one after the other
+  * as in v_pollutant_budget. */
+ std::vector< FRowConstraint > v_PollutantBudget_Const;
 
  FRealObjective objective;  ///< the objective function
 
@@ -1729,6 +1805,29 @@ class UCBlock : public Block
 			       ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// updates the pollutant budget constraints
+ /** This function updates the pollutant budget constraints considering that
+  * the scale factors of the given units may have been modified. The vector
+  * \p modified_units is assumed to be ordered.
+  *
+  * @param modified_units The indices of the UnitBlocks that may have been
+  *        modified. This vector is assumed to be ordered. */
+
+ void update_pollutant_budget_constraints(
+			       const std::vector< Index > & modified_units ,
+			       ModParam issueMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the pollutant budget of the (flattened) index k
+ /** Sets the budget of the pollutant zone with (flattened) index \p k [see
+  * set_pollutant_budget()] to \p budget, and changes the right-hand side of
+  * the corresponding constraint, if any, according to \p issueAMod. Returns
+  * true if the budget has changed. */
+
+ bool set_pollutant_budget_k( Index k , double budget ,
+                              ModParam issuePMod , ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand
  /** This function updates the node injection constraint at the given \p time
   * for the node whose index is \p node_index considering the given \p demand.
@@ -1788,6 +1887,21 @@ class UCBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the zone of pollutant p to which the given generator belongs
+
+ Index get_pollutant_zone( Index p , Index elc_generator ) const {
+  if( v_pollutant_zones.empty() )
+   return( 0 );  // the unique zone of each pollutant
+
+  // Node to which the given electrical generator belongs
+  Index node = 0;
+  if( get_number_nodes() > 1 )
+   node = v_generator_node[ elc_generator ];
+
+  return( v_pollutant_zones[ p ][ node ] );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  static void static_initialization( void )
  {
@@ -1796,6 +1910,12 @@ class UCBlock : public Block
 
   register_method< UCBlock , MF_dbl_it , Range >(
    "UCBlock::set_active_power_demand" , & UCBlock::set_active_power_demand );
+
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::set_pollutant_budget" , & UCBlock::set_pollutant_budget );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::set_pollutant_budget" , & UCBlock::set_pollutant_budget );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1815,7 +1935,8 @@ class UCBlock : public Block
  /// public enum for the types of UCBlockMod
  enum UCB_mod_type
  {
-  eSetActD = 0    ///< set active power demand
+  eSetActD = 0 ,  ///< set active power demand
+  eSetPolB        ///< set pollutant budget
   };
 
  /// constructor, takes the UCBlock and the type
@@ -1837,6 +1958,9 @@ class UCBlock : public Block
  void print( std::ostream & output ) const override {
   output << "UCBlockMod[" << this << "]: ";
   switch( f_type ) {
+   case( eSetPolB ):
+    output << "Set pollutant budget";
+    break;
    default:
     output << "Set active power demand";
    }
@@ -1933,7 +2057,7 @@ class UCBlockSbstMod : public UCBlockMod
  *
  * - [optionally] the dual variables of inertia constraints
  *
- * TODO: handle duals of pollutant constraints */
+ * - [optionally] the dual variables of pollutant budget constraints */
 
 class UCBlockSolution : public Solution {
 
@@ -1956,7 +2080,7 @@ class UCBlockSolution : public Solution {
  explicit UCBlockSolution( void ) : f_time_horizon( 0 ) ,
   f_number_nodes( 0 ) , f_number_primary_zones( 0 ) ,
   f_number_secondary_zones( 0 ) , f_number_inertia_zones( 0 ) ,
-  f_compressed_network( true ) {}
+  f_total_number_pollutant_zones( 0 ) , f_compressed_network( true ) {}
  /// constructor, it has nothing to do
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2070,7 +2194,20 @@ class UCBlockSolution : public Solution {
   *   variable is only required to be present if "NumberInertiaZones" is
   *   present, otherwise it is optional (since it is ignored). Entry
   *   InertiaDuals[ i , t ] is assumed to contain the dual of the inertia
-  *   reserve constraints for zone i in the time t. */
+  *   reserve constraints for zone i in the time t.
+  *
+  * - The dimension "TotalNumberPollutantZones" tells how many pollutant
+  *   budget constraints are there in the problem (cf.
+  *   UCBlock::get_total_number_pollutant_zones()). The dimension is
+  *   optional, if it is not provided then it is taken to be 0, which means
+  *   that no dual solution for the pollutant budget constraints is present.
+  *
+  * - The variable "PollutantDuals", of type netCDF::NcDouble and indexed
+  *   over the dimension "TotalNumberPollutantZones". This variable is only
+  *   required to be present if "TotalNumberPollutantZones" is present,
+  *   otherwise it is optional (since it is ignored). The entries are ordered
+  *   as in the PollutantBudget of the UCBlock: all the zones of pollutant 0,
+  *   then all the zones of pollutant 1, and so on. */
 
  void serialize( netCDF::NcGroup & group ) const override final;
 
@@ -2103,6 +2240,8 @@ class UCBlockSolution : public Solution {
  Index f_number_primary_zones;    ///< the number of primary zones
  Index f_number_secondary_zones;  ///< the number of secondary zones
  Index f_number_inertia_zones;    ///< the number of inertia zones
+ Index f_total_number_pollutant_zones;
+ ///< the total number of pollutant zones
 
  bool f_compressed_network;
  ///< true if using the "compressed" format for NetworkBlock
@@ -2132,6 +2271,11 @@ class UCBlockSolution : public Solution {
  ///< the dual variables for the inertia demand constraints
  /**< v_inertia_duals[ t ][ n ] is the dual variable of the inertia demand
   * constraint for zone at time t. */
+
+ std::vector< double > v_pollutant_duals;
+ ///< the dual variables for the pollutant budget constraints
+ /**< The dual variables of the pollutant budget constraints of all the zones
+  * of pollutant 0, then of all those of pollutant 1, and so on. */
 
 /*--------------------------------------------------------------------------*/
 
