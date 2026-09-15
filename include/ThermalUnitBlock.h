@@ -2920,7 +2920,7 @@ class ThermalUnitBlock : public UnitBlock
   * @param issueAMod controls how abstract Modification are issued. */
 
  void update_objective_active_power( const Subset & subset ,
-                                     c_ModParam issueAMod ) const;
+                                     c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// updates the terms of the Objective associated with the fixed cost

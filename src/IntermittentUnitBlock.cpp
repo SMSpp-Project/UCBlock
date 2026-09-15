@@ -1015,6 +1015,13 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
    for( auto t : subset ) {
     const auto idx = lf->is_active( &v_active_power[ t ] );
 
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx == Inf< Index >() )
      throw( std::logic_error(
       "IntermittentUnitBlock::set_active_power_cost: expected Variable not "
@@ -1022,7 +1029,9 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
     lf->modify_coefficient( idx ,
                             f_scale * v_ActivePowerCost[ t ] ,
-                            issueAMod );
+                            nAM );
+
+    close_channel( par2chnl( nAM ) );
    }
   }
  }
@@ -1076,6 +1085,13 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
    for( Index t = rng.first ; t < rng.second ; ++t ) {
     const auto idx = lf->is_active( &v_active_power[ t ] );
 
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx == Inf< Index >() )
      throw( std::logic_error(
       "IntermittentUnitBlock::set_active_power_cost: expected Variable not "
@@ -1083,7 +1099,9 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
     lf->modify_coefficient( idx ,
                             f_scale * v_ActivePowerCost[ t ] ,
-                            issueAMod );
+                            nAM );
+
+    close_channel( par2chnl( nAM ) );
    }
   }
  }
@@ -1126,12 +1144,19 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::update_objective( c_ModParam issueAMod ) const
+void IntermittentUnitBlock::update_objective( c_ModParam issueAMod )
 {
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
 
  auto function = static_cast< LinearFunction * >( objective.get_function() );
+
+ // one coefficient of the Objective per instant, plus the one of the design:
+ // they all go into a single GroupModification, so that a Solver able to
+ // write a whole set of them in one operation does that instead of one call
+ // per instant [see MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
 
  // refresh the active-power operating costs (when present)
  if( ! v_ActivePowerCost.empty() )
@@ -1139,18 +1164,17 @@ void IntermittentUnitBlock::update_objective( c_ModParam issueAMod ) const
    const auto idx = function->is_active( & v_active_power[ t ] );
    assert( idx < function->get_num_active_var() );
    function->modify_coefficient( idx ,
-                                 f_scale * v_ActivePowerCost[ t ] ,
-                                 issueAMod );
+                                 f_scale * v_ActivePowerCost[ t ] , nAM );
   }
 
  // refresh the scale-aware investment cost on the design variable
  if( f_InvestmentCost != 0 ) {
   const auto idx = function->is_active( & design );
   assert( idx < function->get_num_active_var() );
-  function->modify_coefficient( idx ,
-                                f_scale * f_InvestmentCost ,
-                                issueAMod );
+  function->modify_coefficient( idx , f_scale * f_InvestmentCost , nAM );
  }
+
+ close_channel( par2chnl( nAM ) );
 
 }  // end( IntermittentUnitBlock::update_objective )
 

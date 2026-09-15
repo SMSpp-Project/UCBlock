@@ -5875,7 +5875,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
 /*--------------------------------------------------------------------------*/
 
 void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
-                                                      c_ModParam issueAMod ) const
+                                                      c_ModParam issueAMod )
 {
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
@@ -5885,14 +5885,23 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
  if( ! function )
   return;
 
+ // one term of the Objective per instant, hence one abstract Modification
+ // each: they all go into a single GroupModification, so that a Solver able
+ // to write a whole set of them in one operation does that instead of one
+ // call per instant [see MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  for( auto t : subset ) {
   auto var_index = function->is_active( &v_active_power[ t ] );
   assert( var_index < function->get_num_active_var() );
   function->modify_term( var_index ,
                          f_scale * v_LinearTerm[ t ] ,
                          AR & PCuts ? 0.0 : f_scale * v_QuadTerm[ t ] ,
-                         issueAMod );
+                         nAM );
  }
+
+ close_channel( par2chnl( nAM ) );
 }  // end( ThermalUnitBlock::update_objective_active_power )
 
 /*--------------------------------------------------------------------------*/

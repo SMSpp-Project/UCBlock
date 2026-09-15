@@ -2348,6 +2348,13 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
    for( auto i : subset ) {
     const auto idx = lf->is_active( &v_auxiliary_variable[ i ] );
 
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx == Inf< Index >() )
      throw( std::logic_error(
       "DCNetworkBlock::set_network_cost: expected Variable not found in "
@@ -2355,7 +2362,9 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
 
     lf->modify_coefficient( idx ,
                             network_cost[ i ] ,
-                            issueAMod );
+                            nAM );
+
+    close_channel( par2chnl( nAM ) );
     }
    }
   }
@@ -2420,6 +2429,13 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
    for( Index i = rng.first ; i < rng.second ; ++i ) {
     const auto idx = lf->is_active( &v_auxiliary_variable[ i ] );
 
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx == Inf< Index >() )
      throw( std::logic_error(
       "DCNetworkBlock::set_network_cost: expected Variable not found in "
@@ -2427,7 +2443,9 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
 
     lf->modify_coefficient( idx ,
                             network_cost[ i ] ,
-                            issueAMod );
+                            nAM );
+
+    close_channel( par2chnl( nAM ) );
    }
   }
  }

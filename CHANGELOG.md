@@ -30,7 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DCNetworkBlock::change_power_flow_limit_constraints`, the four setters of
   the prices and of the demand of `ECNetworkBlock`, and the reaction of
   `UCBlock` to the scaling of a unit, where the four `update_*_constraints`
-  now travel in one channel
+  now travel in one channel, `DCNetworkBlock::set_network_cost`, the
+  `set_active_power_cost` of `HydroUnitBlock` and of
+  `IntermittentUnitBlock`, `IntermittentUnitBlock::update_objective` and
+  `ThermalUnitBlock::update_objective_active_power`. The last two were
+  `const`, which opening a channel is not: they are private helpers called
+  only from methods that are not const, and the const is gone
 
 ## [0.9.0] - 2026-09-13
 

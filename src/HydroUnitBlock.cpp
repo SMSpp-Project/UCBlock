@@ -1893,6 +1893,13 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      const auto idx = lf->is_active( &v_active_power[ arc ][ t ] );
 
+     // one abstract Modification per element: they all go into a single
+     // GroupModification, so that a Solver able to write a whole set of
+     // them in one operation does that instead of one call per element
+     // [see MILPSolver::process_group_modification()]
+     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                       open_channel( par2chnl( issueAMod ) ) ) );
+
      if( idx == Inf< Index >() )
       throw( std::logic_error(
        "HydroUnitBlock::set_active_power_cost: expected Variable not "
@@ -1900,7 +1907,9 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
      lf->modify_coefficient( idx ,
                              v_ActivePowerCost[ arc ] ,
-                             issueAMod );
+                             nAM );
+
+     close_channel( par2chnl( nAM ) );
     }
    }
   }
@@ -1956,6 +1965,13 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      const auto idx = lf->is_active( &v_active_power[ arc ][ t ] );
 
+     // one abstract Modification per element: they all go into a single
+     // GroupModification, so that a Solver able to write a whole set of
+     // them in one operation does that instead of one call per element
+     // [see MILPSolver::process_group_modification()]
+     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                       open_channel( par2chnl( issueAMod ) ) ) );
+
      if( idx == Inf< Index >() )
       throw( std::logic_error(
        "HydroUnitBlock::set_active_power_cost: expected Variable not "
@@ -1963,7 +1979,9 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
      lf->modify_coefficient( idx ,
                              v_ActivePowerCost[ arc ] ,
-                             issueAMod );
+                             nAM );
+
+     close_channel( par2chnl( nAM ) );
     }
    }
   }

@@ -1019,7 +1019,7 @@ class IntermittentUnitBlock : public UnitBlock
   *
   * @param issueAMod controls how abstract Modification are issued. */
 
- void update_objective( c_ModParam issueAMod ) const;
+ void update_objective( c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
