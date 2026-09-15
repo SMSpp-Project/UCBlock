@@ -21,7 +21,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -602,6 +607,14 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
 
+   // one coefficient of the Objective per instant, hence one abstract
+   // Modification each: they all go into a single GroupModification, so that
+   // a Solver able to write a whole set of coefficients in one operation
+   // does that instead of one call per instant [see
+   // MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    for( auto t : subset ) {
     auto idx = lf->is_active( &v_active_power[ t ] );
     if( idx == Inf< Index >() )
@@ -609,7 +622,7 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
       "SlackUnitBlock::set_active_power_cost: expected active_power Variable "
       "not found in objective." ) );
 
-    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , issueAMod );
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , nAM );
 
     if( f_reactive_power ) {
      idx = lf->is_active( &v_abs_reactive_power[ t ] );
@@ -619,9 +632,11 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
        "Variable not found in objective." ) );
 
      lf->modify_coefficient( idx ,
-                             0.7 * v_ActivePowerCost[ t ] , issueAMod );
+                             0.7 * v_ActivePowerCost[ t ] , nAM );
      }
     }
+
+   close_channel( par2chnl( nAM ) );  // at the end close the channel
    }
   }
 
@@ -670,6 +685,14 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
 
+   // one coefficient of the Objective per instant, hence one abstract
+   // Modification each: they all go into a single GroupModification, so that
+   // a Solver able to write a whole set of coefficients in one operation
+   // does that instead of one call per instant [see
+   // MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    for( Index t = rng.first ; t < rng.second ; ++t ) {
     auto idx = lf->is_active( &v_active_power[ t ] );
     if( idx == Inf< Index >() )
@@ -677,7 +700,7 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
       "SlackUnitBlock::set_active_power_cost: expected active_power Variable "
       "not found in objective." ) );
 
-    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , issueAMod );
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , nAM );
 
     if( f_reactive_power ) {
      idx = lf->is_active( &v_abs_reactive_power[ t ] );
@@ -687,9 +710,11 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
        "Variable not found in objective." ) );
 
      lf->modify_coefficient( idx ,
-                             0.7 * v_ActivePowerCost[ t ] , issueAMod );
+                             0.7 * v_ActivePowerCost[ t ] , nAM );
      }
     }
+
+   close_channel( par2chnl( nAM ) );  // at the end close the channel
    }
   }
 

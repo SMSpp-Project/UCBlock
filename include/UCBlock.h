@@ -1686,7 +1686,8 @@ class UCBlock : public Block
   *        modified. This vector is assumed to be ordered. */
 
  void update_node_injection_constraints(
-			       const std::vector< Index > & modified_units );
+			       const std::vector< Index > & modified_units ,
+			       ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates the primary demand constraints
@@ -1698,7 +1699,8 @@ class UCBlock : public Block
   *        modified. This vector is assumed to be ordered. */
 
  void update_primary_demand_constraints(
-			       const std::vector< Index > & modified_units );
+			       const std::vector< Index > & modified_units ,
+			       ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates the secondary demand constraints
@@ -1710,7 +1712,8 @@ class UCBlock : public Block
   *        modified. This vector is assumed to be ordered. */
 
  void update_secondary_demand_constraints(
-			       const std::vector< Index > & modified_units );
+			       const std::vector< Index > & modified_units ,
+			       ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates the inertia demand constraints
@@ -1722,7 +1725,8 @@ class UCBlock : public Block
   *        modified. This vector is assumed to be ordered. */
 
  void update_inertia_demand_constraints(
-			       const std::vector< Index > & modified_units );
+			       const std::vector< Index > & modified_units ,
+			       ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand
