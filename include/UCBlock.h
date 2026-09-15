@@ -138,6 +138,7 @@ class UCBlock : public Block
     f_number_elc_generators( 0 ) , f_total_number_pollutant_zones( 0 ) ,
     f_number_primary_zones( 0 ) , f_number_secondary_zones( 0 ) ,
     f_number_inertia_zones( 0 ) , f_number_pollutants( 0 ) ,
+    f_number_storages( 0 ) ,
     f_NetworkData( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -462,6 +463,34 @@ class UCBlock : public Block
   *   NumberPollutants == 0 (it is not provided) then this variable need not
   *   be defined, since it's not loaded; otherwise it is mandatory.
   *
+  * - The variable "PollutantMinBudget", of type netCDF::NcDouble and indexed
+  *   over the set { 0 , ... , TotalNumberPollutantZones - 1 } as
+  *   PollutantBudget: the entry PollutantMinBudget[ n ] is the lower bound on
+  *   the same emission that PollutantBudget[ n ] bounds from above (hence a
+  *   limit that the emission must reach, or with PollutantMinBudget[ n ] ==
+  *   PollutantBudget[ n ] that it must match). The variable is optional, if
+  *   it is not provided then there is no lower bound, i.e., all the entries
+  *   are -INF.
+  *
+  * - The dimension "NumberStorages", the number of storages of all the units
+  *   (see UnitBlock::get_number_storages()), those of unit 0 first, then
+  *   those of unit 1, and so on. The dimension is optional, since the number
+  *   is known from the units, and if it is provided then it is an error if
+  *   it is a different one.
+  *
+  * - The variable "PollutantStorageRho", of type netCDF::NcDouble and indexed
+  *   over three dimensions which are "TimeHorizon", "NumberPollutants" and
+  *   "NumberStorages", with the first that can have size either 1 or
+  *   "TimeHorizon" as in PollutantRho. The entry PollutantStorageRho[ t , p ,
+  *   s ] is the factor of the level of storage s at the end of time t in the
+  *   pollutant budget constraints of pollutant p (with t == 0 for all t if
+  *   the first dimension has size 1), which is how the change of the level
+  *   of a storage that holds a pollutant (or a fuel that emits one) is
+  *   accounted for, typically with a nonzero factor at the last time instant
+  *   only. The storages of a unit belong to the node of the first electrical
+  *   generator of the unit. The variable is optional, if it is not provided
+  *   then all the factors are 0; if NumberPollutants == 0 it is not loaded.
+  *
   * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
   *   indexed over the dimension "NumberNetworks"; the entry
   *   NetworkConstantTerms[ n ] tells the constant term, i.e., typically the
@@ -675,11 +704,20 @@ class UCBlock : public Block
   *   get_number_pollutant_zones()[ p - 1 ] + \f$ \mathcal{B} \f$ ], and it
   *   is the constraint
   *   \f[
-  *    \sum_{t \in \mathcal{T}} \sum_{n \in \mathcal{B}}
-  *     \sum_{ g \in \mathcal{G}_n } \rho_{t,p,g} p^{ac}_{t,g} \leq
-  *     O_{\mathcal{B},p} \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
+  *    O^{mn}_{\mathcal{B},p} \leq \sum_{t \in \mathcal{T}}
+  *     \sum_{n \in \mathcal{B}} \Big( \sum_{ g \in \mathcal{G}_n }
+  *     \rho_{t,p,g} p^{ac}_{t,g} + \sum_{ s \in \mathcal{S}_n }
+  *     \sigma_{t,p,s} v_{t,s} \Big) \leq O_{\mathcal{B},p}
+  *     \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
   *     \quad p \in \mathcal{P}                                    \quad (5)
   *   \f]
+  *   where \f$ \mathcal{S}_n \f$ are the storages at node \f$ n \f$ (see
+  *   UnitBlock::get_number_storages()), \f$ v_{t,s} \f$ the level of storage
+  *   \f$ s \f$ at the end of time \f$ t \f$ (see
+  *   UnitBlock::get_storage_level()), \f$ \sigma_{t,p,s} \f$ its factor
+  *   (see get_pollutant_storage_rho()), and \f$ O^{mn}_{\mathcal{B},p} \f$
+  *   the lower bound (see get_pollutant_min_budget()), -INF if there is
+  *   none. All the terms of a scaled unit are multiplied by its scale.
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
@@ -693,6 +731,17 @@ class UCBlock : public Block
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// checks whether the current solution is feasible for the UCBlock
+ /** The solution is feasible if every sub-Block is, and the violation of
+  * each Constraint of the UCBlock is not greater than the tolerance. The
+  * tolerance and the type of violation are taken from \p fsbc if it is a
+  * SimpleConfiguration< double > (tolerance, relative violation) or a
+  * SimpleConfiguration< std::pair< double , int > > (tolerance, relative
+  * violation if the second is nonzero), otherwise from
+  * f_BlockConfig->f_is_feasible_Configuration in the same way, otherwise
+  * they are 1e-6 and the relative violation. Each sub-Block is checked with
+  * the same tolerance and type of violation, unless its BlockConfig has its
+  * own f_is_feasible_Configuration, which is then the one used. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -1179,6 +1228,43 @@ class UCBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of the lower bounds of the pollutant budget
+ /** The method returns the vector of the lower bounds on the emissions of the
+  * zones of all the pollutants, ordered as get_pollutant_budget(); an entry
+  * is -INF if there is no lower bound. */
+
+ const std::vector< double > & get_pollutant_min_budget( void ) const {
+  return( v_pollutant_min_budget );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the number of storages of all the units
+
+ Index get_number_storages( void ) const { return( f_number_storages ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the factors of the storage levels in the pollutant budget
+ /** The method returns the three-dimensional boost::multi_array<> M such that
+  * M[ t , p , s ] is the factor of the level of storage s at the end of time
+  * t in the pollutant budget constraints of pollutant p, with the first
+  * dimension of size 1 if the factors do not depend on time; M is empty() if
+  * no storage level is in those constraints. */
+
+ const boost::multi_array< double , 3 > & get_pollutant_storage_rho( void )
+  const {
+  return( v_pollutant_storage_rho );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the factor of the level of storage s for pollutant p at time t
+ /** It must not be called if get_pollutant_storage_rho() is empty(). */
+
+ double get_pollutant_storage_rho( Index t , Index p , Index s ) const {
+  return( v_pollutant_storage_rho[ v_pollutant_storage_rho.shape()[ 0 ] > 1 ?
+                                   t : 0 ][ p ][ s ] );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the u-th UnitBlock
 
  UnitBlock * get_unit_block( Index u ) const {
@@ -1475,6 +1561,26 @@ class UCBlock : public Block
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
 
+/*--------------------------------------------------------------------------*/
+ /// update the lower bound of the pollutant budget
+ /** As set_pollutant_budget( subset ), but for the lower bounds of the
+  * emissions [see get_pollutant_min_budget()]. */
+
+ void set_pollutant_min_budget( MF_dbl_it values , Subset && subset ,
+                                bool ordered = false ,
+                                ModParam issuePMod = eNoBlck ,
+                                ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// update the lower bound of the pollutant budget
+ /** As set_pollutant_budget( range ), but for the lower bounds of the
+  * emissions [see get_pollutant_min_budget()]. */
+
+ void set_pollutant_min_budget( MF_dbl_it values ,
+                                Range rng = Range( 0 , Inf< Index >() ) ,
+                                ModParam issuePMod = eNoBlck ,
+                                ModParam issueAMod = eNoBlck );
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1605,6 +1711,17 @@ class UCBlock : public Block
  /** Indexed over "TimeHorizon" (or a singleton), "NumberPollutants", and
   * "NumberElectricalGenerators". */
  boost::multi_array< double , 3 > v_pollutant_rho;
+
+ /// the PollutantMinBudget, ordered as v_pollutant_budget
+ std::vector< double > v_pollutant_min_budget;
+
+ /// the number of storages of all the units
+ Index f_number_storages;
+
+ /// the matrix of PollutantStorageRho
+ /** Indexed over "TimeHorizon" (or a singleton), "NumberPollutants", and
+  * "NumberStorages"; empty if no storage level is in the constraints. */
+ boost::multi_array< double , 3 > v_pollutant_storage_rho;
 
  /// v_generator_node[ g ] tells to which node generator g belongs
  std::vector< Index > v_generator_node;
@@ -1820,12 +1937,24 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// sets the pollutant budget of the (flattened) index k
  /** Sets the budget of the pollutant zone with (flattened) index \p k [see
-  * set_pollutant_budget()] to \p budget, and changes the right-hand side of
-  * the corresponding constraint, if any, according to \p issueAMod. Returns
-  * true if the budget has changed. */
+  * set_pollutant_budget()], its lower bound if \p lower, to \p budget, and
+  * changes the corresponding side of the constraint, if any, according to
+  * \p issueAMod. Returns true if the budget has changed. */
 
- bool set_pollutant_budget_k( Index k , double budget ,
+ bool set_pollutant_budget_k( Index k , double budget , bool lower ,
                               ModParam issuePMod , ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// calls visit on each term of the pollutant budget constraints of p
+ /** Calls visit( unit_id , unit_block , zone_id , var , factor ) for each
+  * term of the constraints of pollutant \p p, unit by unit and in the order
+  * in which they are in the constraints: the active power of each generator
+  * of the unit at each time, then the level of each of its storages at each
+  * time; \p factor is the one of the data, i.e., not yet multiplied by the
+  * scale of the unit, and the terms with a zero factor are not visited. */
+
+ template< class F >
+ void for_each_pollutant_term( Index p , F && visit );
 
 /*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand
@@ -1887,18 +2016,24 @@ class UCBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the zone of pollutant p to which the given node belongs
+
+ Index get_pollutant_zone_of_node( Index p , Index node ) const {
+  if( v_pollutant_zones.empty() )
+   return( 0 );  // the unique zone of each pollutant
+  return( v_pollutant_zones[ p ][ node ] );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the zone of pollutant p to which the given generator belongs
 
  Index get_pollutant_zone( Index p , Index elc_generator ) const {
-  if( v_pollutant_zones.empty() )
-   return( 0 );  // the unique zone of each pollutant
-
   // Node to which the given electrical generator belongs
   Index node = 0;
   if( get_number_nodes() > 1 )
    node = v_generator_node[ elc_generator ];
 
-  return( v_pollutant_zones[ p ][ node ] );
+  return( get_pollutant_zone_of_node( p , node ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1916,6 +2051,12 @@ class UCBlock : public Block
 
   register_method< UCBlock , MF_dbl_it , Range >(
    "UCBlock::set_pollutant_budget" , & UCBlock::set_pollutant_budget );
+
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::set_pollutant_min_budget" , & UCBlock::set_pollutant_min_budget );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::set_pollutant_min_budget" , & UCBlock::set_pollutant_min_budget );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1936,7 +2077,8 @@ class UCBlock : public Block
  enum UCB_mod_type
  {
   eSetActD = 0 ,  ///< set active power demand
-  eSetPolB        ///< set pollutant budget
+  eSetPolB ,      ///< set pollutant budget
+  eSetPolMinB     ///< set the lower bound of the pollutant budget
   };
 
  /// constructor, takes the UCBlock and the type
@@ -1960,6 +2102,9 @@ class UCBlock : public Block
   switch( f_type ) {
    case( eSetPolB ):
     output << "Set pollutant budget";
+    break;
+   case( eSetPolMinB ):
+    output << "Set pollutant minimum budget";
     break;
    default:
     output << "Set active power demand";

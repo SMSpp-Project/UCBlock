@@ -1310,6 +1310,20 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the storages of a hydro unit are its reservoirs
+
+ Index get_number_storages( void ) const override {
+  return( get_number_reservoirs() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the volumes of the given reservoir [see get_storage_level()]
+
+ ColVariable * get_storage_level( Index storage ) override {
+  return( get_volumetric( storage ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the array of active power variables of the given \p generator
  /** This method returns the array of ColVariable representing the active
   * power of the given \p generator at all time instants t in {0, ...,

@@ -569,6 +569,35 @@ class UnitBlock : public Block
 	  );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the number of storages of this UnitBlock
+ /** A storage is anything in the unit whose level carries over from one time
+  * instant to the next, such as the charge of a battery or the volume of a
+  * reservoir; the enclosing UCBlock can put a term on these levels in its own
+  * constraints [see get_storage_level()]. The base UnitBlock has none, and
+  * this method returns 0: derived classes with storages must redefine it and
+  * get_storage_level(). The number must be known right after deserialize(),
+  * i.e., before the Variable are generated. */
+
+ virtual Index get_number_storages( void ) const { return( 0 ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the array of level variables of the given storage
+ /** This method returns a pointer to the array containing the level
+  * variables of the given \p storage at all time instants. Being V the value
+  * returned by this method, V[ t ] is the level of the storage at the end of
+  * time instant t, for each t in { 0 , ... , time_horizon - 1 }.
+  *
+  * The default implementation returns nullptr, and so does any derived class
+  * whose Variable have not been generated yet.
+  *
+  * @param storage The index of the storage whose level variables are
+  *                desired, between 0 and get_number_storages() - 1. */
+
+ virtual ColVariable * get_storage_level( Index storage ) {
+  return( nullptr );
+  }
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the scale factor of this UnitBlock
  /** This method returns the scale factor of this UnitBlock. Since not every

@@ -243,6 +243,16 @@ class HydroSystemUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the storages are the reservoirs of all the HydroUnitBlock, in order
+
+ Index get_number_storages( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the volumes of the given reservoir [see get_number_storages()]
+
+ ColVariable * get_storage_level( Index storage ) override;
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables of each HydroUnitBlock
 
  ColVariable * get_active_power( Index generator ) override;
@@ -331,6 +341,20 @@ class HydroSystemUnitBlock : public UnitBlock
 
  Solution * get_Solution( Configuration * solc = nullptr ,
 			  bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// checks whether the current solution is feasible for the hydro system
+ /** The solution is feasible if every sub-Block is. The tolerance and the
+  * type of violation are taken from \p fsbc if it is a
+  * SimpleConfiguration< double > (tolerance, relative violation) or a
+  * SimpleConfiguration< std::pair< double , int > > (tolerance, relative
+  * violation if the second is nonzero), otherwise from
+  * f_BlockConfig->f_is_feasible_Configuration in the same way, otherwise
+  * they are 0 and the relative violation; each sub-Block is checked with
+  * them, unless its BlockConfig has its own f_is_feasible_Configuration. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" [HydroSystem]UnitBlockSolution

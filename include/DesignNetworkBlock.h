@@ -600,6 +600,9 @@ class DesignNetworkBlock : public NetworkBlock
   * -# the violation of each Constraint of this DesignNetworkBlock is not
   *    greater than the tolerance.
   *
+  * Each sub-Block is checked with the same tolerance and type of violation,
+  * unless its BlockConfig has its own f_is_feasible_Configuration.
+  *
   * Every Constraint of this DesignNetworkBlock is a RowConstraint and its
   * violation is given by either the relative (see RowConstraint::rel_viol())
   * or the absolute violation (see RowConstraint::abs_viol()), depending on

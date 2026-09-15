@@ -1826,7 +1826,10 @@ bool DCNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
          rel_viol )
   && RowConstraint::is_feasible( v_power_flow_def , tol , rel_viol )
   && RowConstraint::is_feasible( v_power_flow_relax_abs , tol , rel_viol )
-  && RowConstraint::is_feasible( overall_balanced_const , tol , rel_viol )
+  // the overall balance is only there in some formulations, and a
+  // constraint that has not been generated has nothing to be checked
+  && ( ( ! overall_balanced_const.get_function() ) ||
+       RowConstraint::is_feasible( overall_balanced_const , tol , rel_viol ) )
   && RowConstraint::is_feasible( node_injection_bounds_const , tol ,
          rel_viol )
   && RowConstraint::is_feasible( v_CYCLE_def_flow_const , tol , rel_viol )

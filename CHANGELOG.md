@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the pollutant budget constraints of `UCBlock` can also bound the emission
+  from below (`PollutantMinBudget`, and with an equal upper bound match a
+  value, changed with `set_pollutant_min_budget()`) and take the levels of
+  the storages into account (`PollutantStorageRho`, a factor on the level of
+  each storage at each time, the storages of a unit being at the node of its
+  first generator), which is how a limit that charges a storage for the
+  change of its level is written. To this end `UnitBlock` has
+  `get_number_storages()` and `get_storage_level()`, returning 0 and nullptr
+  unless redefined, as `BatteryUnitBlock` (its charge), `HydroUnitBlock` (its
+  reservoirs) and `HydroSystemUnitBlock` (the reservoirs of all its units) do
+
 - the pollutant budget constraints of `UCBlock`: for each zone of each
   pollutant, the emission of the electrical generators at the nodes of the
   zone summed over the whole time horizon, i.e., the conversion factor
@@ -22,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   then all the nodes are in it
 
 ### Fixed
+
+- `UCBlock::is_feasible()` answered false on an optimal solution: it checked
+  the sub-Block with no Configuration, i.e., with tolerance 0 whatever the
+  tolerance of the UCBlock, and `DCNetworkBlock::is_feasible()` checked the
+  overall balance constraint also in the formulations that do not generate
+  it, where a constraint with no Function cannot be computed. The sub-Block
+  of `UCBlock`, `DesignNetworkBlock` and `HydroSystemUnitBlock` are now
+  checked with the tolerance and type of violation of their father, unless
+  their BlockConfig has a Configuration of its own, and the overall balance
+  only where it exists
 
 - `SecondaryZones`, `InertiaZones` and `NumberPollutantZones` were only read
   if the demand of the previous family of constraints was in the file

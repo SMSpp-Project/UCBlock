@@ -264,6 +264,31 @@ void HydroSystemUnitBlock::generate_objective( Configuration * objc )
 /*-------- METHODS FOR READING THE DATA OF THE HydroSystemUnitBlock --------*/
 /*--------------------------------------------------------------------------*/
 
+HydroSystemUnitBlock::Index HydroSystemUnitBlock::get_number_storages( void )
+ const
+{
+ Index number_storages = 0;
+ for( Index i = 0 ; i < f_number_hydro_units ; ++i )
+  number_storages += get_hydro_unit_block( i )->get_number_storages();
+ return( number_storages );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable * HydroSystemUnitBlock::get_storage_level( Index storage )
+{
+ for( Index i = 0 ; i < f_number_hydro_units ; ++i ) {
+  auto hub = get_hydro_unit_block( i );
+  if( storage < hub->get_number_storages() )
+   return( hub->get_storage_level( storage ) );
+  storage -= hub->get_number_storages();
+  }
+
+ return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 ColVariable * HydroSystemUnitBlock::get_active_power( Index generator )
 {
  if( generator >= v_gen_map.size() )
@@ -367,6 +392,47 @@ double HydroSystemUnitBlock::get_max_power( Index t , Index generator )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
+/*--------------------------------------------------------------------------*/
+
+bool HydroSystemUnitBlock::is_feasible( bool useabstract ,
+                                        Configuration * fsbc )
+{
+ double tol = 0;
+ bool rel_viol = true;
+
+ auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
+  -> bool {
+  if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
+   tol = tc->f_value;
+   return( true );
+   }
+  if( auto tc = dynamic_cast< SimpleConfiguration<
+                                     std::pair< double , int > > * >( c ) ) {
+   tol = tc->f_value.first;
+   rel_viol = tc->f_value.second;
+   return( true );
+   }
+  return( false );
+  };
+
+ if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
+  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+
+ // the sub-Block are checked with the same tolerance and type of violation,
+ // unless they have their own in their BlockConfig
+ SimpleConfiguration< std::pair< double , int > > subc(
+                                  std::pair< double , int >( tol , rel_viol ) );
+ for( const auto & sbi : get_nested_Blocks() )
+  if( ! sbi->is_feasible( useabstract ,
+                          ( sbi->get_BlockConfig() &&
+                            sbi->get_BlockConfig()->f_is_feasible_Configuration )
+                          ? nullptr : & subc ) )
+   return( false );
+
+ return( true );
+
+ }  // end( HydroSystemUnitBlock::is_feasible )
+
 /*--------------------------------------------------------------------------*/
 
 Solution * HydroSystemUnitBlock::get_Solution( Configuration * csolc ,

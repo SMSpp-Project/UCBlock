@@ -433,10 +433,20 @@ bool DesignNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // if the given Configuration is not valid, try the one from the BlockConfig
   extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
+ // the sub-Block are checked with the same tolerance and type of violation,
+ // unless they have their own in their BlockConfig
+ SimpleConfiguration< std::pair< double , int > > subc(
+                                  std::pair< double , int >( tol , rel_viol ) );
+ for( const auto & sbi : get_nested_Blocks() )
+  if( ! sbi->is_feasible( useabstract ,
+                          ( sbi->get_BlockConfig() &&
+                            sbi->get_BlockConfig()->f_is_feasible_Configuration )
+                          ? nullptr : & subc ) )
+   return( false );
+
  return(
-  NetworkBlock::is_feasible( useabstract )
   // Variables
-  && ColVariable::is_feasible( v_design , tol )
+  ColVariable::is_feasible( v_design , tol )
   // Constraints
   && RowConstraint::is_feasible( v_design_bound_Const , tol , rel_viol ) );
 

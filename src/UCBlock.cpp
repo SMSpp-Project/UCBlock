@@ -518,9 +518,16 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  v_pollutant_budget.clear();
+ v_pollutant_min_budget.clear();
  if( f_number_pollutants ) {
   ::deserialize( group , "PollutantBudget" , f_total_number_pollutant_zones ,
                  v_pollutant_budget , false , false );
+
+  if( ! ::deserialize( group , "PollutantMinBudget" ,
+                       f_total_number_pollutant_zones ,
+                       v_pollutant_min_budget , true , false ) )
+   v_pollutant_min_budget.assign( f_total_number_pollutant_zones ,
+                                  -Inf< double >() );
 
   // the size is checked here, since the first dimension may be a singleton
   ::deserialize( group , "PollutantRho" , {} , v_pollutant_rho , false ,
@@ -534,9 +541,34 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 				 "have size [ 1 or TimeHorizon , "
 				 "NumberPollutants , "
 				 "NumberElectricalGenerators ]" ) );
+
+  // the storages of all the units, one after the other
+  f_number_storages = 0;
+  for( Index i = 0 ; i < f_number_units ; ++i )
+   f_number_storages += UB( v_Block[ i ] )->get_number_storages();
+
+  Index nst = 0;
+  if( deserialize_dim( group , "NumberStorages" , nst ) &&
+      ( nst != f_number_storages ) )
+   throw( std::invalid_argument( "UCBlock::deserialize: NumberStorages is "
+				 "not the number of storages of the units"
+				 ) );
+
+  if( ::deserialize( group , "PollutantStorageRho" , {} ,
+                     v_pollutant_storage_rho , true , false ) ) {
+   auto shs = v_pollutant_storage_rho.shape();
+   if( ( ( shs[ 0 ] != 1 ) && ( shs[ 0 ] != f_time_horizon ) ) ||
+       ( shs[ 1 ] != f_number_pollutants ) ||
+       ( shs[ 2 ] != f_number_storages ) )
+    throw( std::invalid_argument( "UCBlock::deserialize: PollutantStorageRho "
+				  "must have size [ 1 or TimeHorizon , "
+				  "NumberPollutants , NumberStorages ]" ) );
+   }
   }
- else
+ else {
   v_pollutant_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
+  v_pollutant_storage_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
+  }
 
  // compute and store the min and max node injection into each NetworkBlock -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -631,6 +663,7 @@ std::vector< std::string > UCBlock::expected_dims( void ) const {
    "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" ,
    "NumberNodes" , "NumberLines" , "NumberBranches" ,
    "NumberElectricalGenerators" , "TotalNumberPollutantZones" ,
+   "NumberStorages" ,
    "NumberIntervals" };
 
  auto ret = Block::expected_dims();
@@ -651,7 +684,8 @@ std::vector< std::string > UCBlock::expected_vars( void ) const {
    "PrimaryZones" , "PrimaryDemand" ,
    "SecondaryZones" , "SecondaryDemand" , "InertiaZones" , "InertiaDemand" ,
    "NumberPollutantZones" , "PollutantZones" , "PollutantBudget" ,
-   "PollutantRho" , "NetworkConstantTerms" , "NetworkBlockClassname" ,
+   "PollutantRho" , "PollutantMinBudget" , "PollutantStorageRho" ,
+   "NetworkConstantTerms" , "NetworkBlockClassname" ,
    "NetworkDataClassname"
    };
 
@@ -1224,6 +1258,56 @@ void UCBlock::generate_inertia_demand_constraints( void )
 
 /*--------------------------------------------------------------------------*/
 
+template< class F >
+void UCBlock::for_each_pollutant_term( Index p , F && visit )
+{
+ const auto number_zones = v_number_pollutant_zones[ p ];
+
+ Index elc_generator = 0;
+ Index storage = 0;
+ for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
+
+  const auto unit_block = get_unit_block( unit_id );
+
+  // the storages of a unit are at the node of its first generator
+  const auto storage_zone = unit_block->get_number_generators() ?
+                            get_pollutant_zone( p , elc_generator ) :
+                            get_pollutant_zone_of_node( p , 0 );
+
+  for( Index generator = 0 ;
+       generator < unit_block->get_number_generators() ;
+       ++generator , ++elc_generator ) {
+
+   const auto zone_id = get_pollutant_zone( p , elc_generator );
+   if( zone_id >= number_zones )
+    continue;  // the generator belongs to no zone of pollutant p
+
+   auto active_power = unit_block->get_active_power( generator );
+   if( ! active_power )
+    continue;
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( const auto rho = get_pollutant_rho( t , p , elc_generator ) )
+     visit( unit_id , unit_block , zone_id , &active_power[ t ] , rho );
+   }
+
+  const auto number_storages = unit_block->get_number_storages();
+  if( ( ! v_pollutant_storage_rho.empty() ) &&
+      ( storage_zone < number_zones ) )
+   for( Index s = 0 ; s < number_storages ; ++s )
+    if( auto level = unit_block->get_storage_level( s ) )
+     for( Index t = 0 ; t < f_time_horizon ; ++t )
+      if( const auto sigma = get_pollutant_storage_rho( t , p ,
+							storage + s ) )
+       visit( unit_id , unit_block , storage_zone , &level[ t ] , sigma );
+
+  storage += number_storages;
+  }  // end( for( unit_id ) )
+
+ }  // end( UCBlock::for_each_pollutant_term )
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::generate_pollutant_budget_constraints( void )
 {
  if( f_number_pollutants == 0 )
@@ -1240,40 +1324,23 @@ void UCBlock::generate_pollutant_budget_constraints( void )
   const auto number_zones = v_number_pollutant_zones[ p ];
 
   // the terms of the constraint of each zone of pollutant p: those of a
-  // unit are consecutive, generator by generator and time by time, which
-  // is the order update_pollutant_budget_constraints() relies upon
+  // unit are consecutive, which is what update_pollutant_budget_constraints()
+  // relies upon
   std::vector< LinearFunction::v_coeff_pair > vcp( number_zones );
 
-  Index elc_generator = 0;
-  for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-   const auto unit_block = get_unit_block( unit_id );
-   const auto scale = unit_block->get_scale();
-
-   for( Index generator = 0 ;
-        generator < unit_block->get_number_generators() ;
-        ++generator , ++elc_generator ) {
-
-    const auto zone_id = get_pollutant_zone( p , elc_generator );
-    if( zone_id >= number_zones )
-     continue;  // the generator belongs to no zone of pollutant p
-
-    auto active_power = unit_block->get_active_power( generator );
-    if( ! active_power )
-     continue;
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t )
-     if( const auto rho = get_pollutant_rho( t , p , elc_generator ) )
-      vcp[ zone_id ].push_back( std::make_pair( &active_power[ t ] ,
-                                                scale * rho ) );
-
-    }  // end( for( generator ) )
-   }  // end( for( unit_id ) )
+  for_each_pollutant_term( p , [ & ]( Index , UnitBlock * unit_block ,
+                                      Index zone_id , ColVariable * var ,
+                                      double factor ) {
+   vcp[ zone_id ].push_back( std::make_pair( var ,
+                                             unit_block->get_scale() *
+                                             factor ) );
+   } );
 
   for( Index zone_id = 0 ; zone_id < number_zones ; ++zone_id ) {
-   auto & constraint = v_PollutantBudget_Const[ first_zone + zone_id ];
-   constraint.set_lhs( -Inf< double >() );
-   constraint.set_rhs( v_pollutant_budget[ first_zone + zone_id ] );
+   const auto k = first_zone + zone_id;
+   auto & constraint = v_PollutantBudget_Const[ k ];
+   constraint.set_lhs( v_pollutant_min_budget[ k ] );
+   constraint.set_rhs( v_pollutant_budget[ k ] );
    constraint.set_function(
                      new LinearFunction( std::move( vcp[ zone_id ] ) ) );
    }
@@ -1335,9 +1402,16 @@ bool UCBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // if the given Configuration is not valid, try the one from the BlockConfig
   extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
+ // the sub-Block are checked with the same tolerance and type of violation,
+ // unless they have their own in their BlockConfig
+ SimpleConfiguration< std::pair< double , int > > subc(
+                                  std::pair< double , int >( tol , rel_viol ) );
  for( const auto & sbi : this->get_nested_Blocks() )
-  if( ! sbi->is_feasible() )
-    return( false );
+  if( ! sbi->is_feasible( useabstract ,
+                          ( sbi->get_BlockConfig() &&
+                            sbi->get_BlockConfig()->f_is_feasible_Configuration )
+                          ? nullptr : & subc ) )
+   return( false );
 
  return(
   // Constraints: notice that the ZOConstraints are not checked, since the
@@ -1474,11 +1548,24 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "PollutantBudget" , netCDF::NcDouble() ,
                TotalNumberPollutantZones , v_pollutant_budget );
 
+  if( std::any_of( v_pollutant_min_budget.begin() ,
+                   v_pollutant_min_budget.end() ,
+                   []( double b ) { return( b > -Inf< double >() ); } ) )
+   ::serialize( group , "PollutantMinBudget" , netCDF::NcDouble() ,
+                TotalNumberPollutantZones , v_pollutant_min_budget );
+
   // the first dimension is a singleton if the rates do not depend on time
   ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
                { TimeHorizon , NumberPollutants ,
                  NumberElectricalGenerators } , v_pollutant_rho ,
                false , true );
+
+  if( ! v_pollutant_storage_rho.empty() ) {
+   auto NumberStorages = group.addDim( "NumberStorages" , f_number_storages );
+   ::serialize( group , "PollutantStorageRho" , netCDF::NcDouble() ,
+                { TimeHorizon , NumberPollutants , NumberStorages } ,
+                v_pollutant_storage_rho , false , true );
+   }
   }
 
  if( std::any_of( v_network_constant_terms.begin() ,
@@ -2149,47 +2236,23 @@ void UCBlock::update_pollutant_budget_constraints(
 
   // the walk is the one of generate_pollutant_budget_constraints(), so that
   // the active Variables are met in the order they have been added
-  auto mit = modified_units.begin();
-  Index elc_generator = 0;
-  for( Index unit_id = 0 ;
-       ( unit_id < f_number_units ) && ( mit != modified_units.end() ) ;
-       ++unit_id ) {
-
-   const auto unit_block = get_unit_block( unit_id );
-   const auto scale = unit_block->get_scale();
-   const bool modified = ( *mit == unit_id );
-   if( modified )
-    ++mit;
-
-   for( Index generator = 0 ;
-        generator < unit_block->get_number_generators() ;
-        ++generator , ++elc_generator ) {
-
-    const auto zone_id = get_pollutant_zone( p , elc_generator );
-    if( ( zone_id >= number_zones ) ||
-        ( ! unit_block->get_active_power( generator ) ) )
-     continue;
-
-    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-     const auto rho = get_pollutant_rho( t , p , elc_generator );
-     if( ! rho )
-      continue;
-
-     if( modified ) {
-      assert( next_var_index[ zone_id ] <
-              v_PollutantBudget_Const[ first_zone + zone_id ]
-                                                  .get_num_active_var() );
-      assert( v_PollutantBudget_Const[ first_zone + zone_id ].get_active_var(
+  for_each_pollutant_term( p , [ & ]( Index unit_id , UnitBlock * unit_block ,
+                                      Index zone_id , ColVariable * ,
+                                      double factor ) {
+   if( std::binary_search( modified_units.begin() , modified_units.end() ,
+                           unit_id ) ) {
+    assert( next_var_index[ zone_id ] <
+            v_PollutantBudget_Const[ first_zone + zone_id ]
+                                                .get_num_active_var() );
+    assert( v_PollutantBudget_Const[ first_zone + zone_id ].get_active_var(
                        next_var_index[ zone_id ] )->get_Block() == unit_block );
 
-      coefficients[ zone_id ].push_back( scale * rho );
-      subset[ zone_id ].push_back( next_var_index[ zone_id ] );
-      }
+    coefficients[ zone_id ].push_back( unit_block->get_scale() * factor );
+    subset[ zone_id ].push_back( next_var_index[ zone_id ] );
+    }
 
-     ++next_var_index[ zone_id ];
-     }
-    }  // end( for( generator ) )
-   }  // end( for( unit_id ) )
+   ++next_var_index[ zone_id ];
+   } );
 
   for( Index zone_id = 0 ; zone_id < number_zones ; ++zone_id )
    if( ! subset[ zone_id ].empty() )
@@ -2419,21 +2482,26 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-bool UCBlock::set_pollutant_budget_k( Index k , double budget ,
+bool UCBlock::set_pollutant_budget_k( Index k , double budget , bool lower ,
                                       ModParam issuePMod , ModParam issueAMod )
 {
  if( k >= f_total_number_pollutant_zones )
   throw( std::out_of_range(
 		  "UCBlock::set_pollutant_budget: index out of range" ) );
 
- if( v_pollutant_budget[ k ] == budget )
+ auto & current = lower ? v_pollutant_min_budget[ k ] : v_pollutant_budget[ k ];
+ if( current == budget )
   return( false );
 
  if( not_dry_run( issuePMod ) ) {
-  v_pollutant_budget[ k ] = budget;
+  current = budget;
 
-  if( not_dry_run( issueAMod ) && constraints_generated() )
-   v_PollutantBudget_Const[ k ].set_rhs( budget , issueAMod );
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   if( lower )
+    v_PollutantBudget_Const[ k ].set_lhs( budget , issueAMod );
+   else
+    v_PollutantBudget_Const[ k ].set_rhs( budget , issueAMod );
+   }
   }
 
  return( true );
@@ -2461,7 +2529,8 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values ,
 
  bool changed = false;
  for( auto k : subset )
-  if( set_pollutant_budget_k( k , *( values++ ) , issuePMod , amod ) )
+  if( set_pollutant_budget_k( k , *( values++ ) , false , issuePMod ,
+                              amod ) )
    changed = true;
 
  if( grouped )
@@ -2497,7 +2566,8 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
 
  bool changed = false;
  for( Index k = rng.first ; k < rng.second ; ++k )
-  if( set_pollutant_budget_k( k , *( values++ ) , issuePMod , amod ) )
+  if( set_pollutant_budget_k( k , *( values++ ) , false , issuePMod ,
+                              amod ) )
    changed = true;
 
  if( grouped )
@@ -2509,6 +2579,78 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
                            Observer::par2chnl( issuePMod ) );
 
  }  // end( UCBlock::set_pollutant_budget( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_min_budget( MF_dbl_it values ,
+                                        Block::Subset && subset ,
+                                        bool ordered ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ // the abstract representation is changed right here, and all the changes
+ // of the left-hand sides travel together in one channel
+ auto amod = un_ModBlock( issueAMod );
+ const bool grouped = not_dry_run( issuePMod ) && not_dry_run( amod ) &&
+                      constraints_generated();
+ if( grouped )
+  amod = make_par( par2mod( amod ) , open_channel( par2chnl( amod ) ) );
+
+ bool changed = false;
+ for( auto k : subset )
+  if( set_pollutant_budget_k( k , *( values++ ) , true , issuePMod ,
+                              amod ) )
+   changed = true;
+
+ if( grouped )
+  close_channel( par2chnl( amod ) );
+
+ if( changed && issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+
+  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
+                            UCBlockMod::eSetPolMinB , std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+  }
+ }  // end( UCBlock::set_pollutant_min_budget( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
+ rng.second = std::min( rng.second , f_total_number_pollutant_zones );
+ if( rng.first >= rng.second )
+  return;
+
+ // the abstract representation is changed right here, and all the changes
+ // of the left-hand sides travel together in one channel
+ auto amod = un_ModBlock( issueAMod );
+ const bool grouped = not_dry_run( issuePMod ) && not_dry_run( amod ) &&
+                      constraints_generated();
+ if( grouped )
+  amod = make_par( par2mod( amod ) , open_channel( par2chnl( amod ) ) );
+
+ bool changed = false;
+ for( Index k = rng.first ; k < rng.second ; ++k )
+  if( set_pollutant_budget_k( k , *( values++ ) , true , issuePMod ,
+                              amod ) )
+   changed = true;
+
+ if( grouped )
+  close_channel( par2chnl( amod ) );
+
+ if( changed && issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< UCBlockRngdMod >(
+                            this , UCBlockMod::eSetPolMinB , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+ }  // end( UCBlock::set_pollutant_min_budget( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF UCBlockSolution -------------------------*/

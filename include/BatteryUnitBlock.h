@@ -1417,6 +1417,20 @@ class BatteryUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// a battery has one storage, its charge
+
+ Index get_number_storages( void ) const override { return( 1 ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the array of storage level variables [see get_storage_level()]
+
+ ColVariable * get_storage_level( Index storage ) override {
+  if( ( storage > 0 ) || v_storage_level.empty() )
+   return( nullptr );
+  return( v_storage_level.data() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables
 
  ColVariable * get_active_power( Index generator ) override {
