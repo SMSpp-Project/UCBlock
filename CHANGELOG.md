@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `UCBlock::add_Modification` looked for the scaling of a unit only at the
+  first level of the Modification it is given: the scaling of several units
+  can arrive inside one GroupModification, and there the rows that use the
+  Variable of those units, i.e., the node injection and the demand ones,
+  were left untouched
+
 ### Changed
 
 - the setters that change one datum spanning the whole time horizon issue
@@ -15,8 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   whole set of changes in one operation can then do so, while one that is not
   takes the group apart and sees exactly what it saw before. So far
   `SlackUnitBlock::set_active_power_cost`, `HydroUnitBlock::set_inflow`,
-  `HydroUnitBlock::update_initial_flow_rate_in_cnstrs` and
-  `ThermalUnitBlock::set_maximum_power`
+  `HydroUnitBlock::update_initial_flow_rate_in_cnstrs`,
+  `ThermalUnitBlock::set_maximum_power`,
+  `IntermittentUnitBlock::update_max_power_in_cnstrs` and `set_kappa`,
+  `BatteryUnitBlock::update_kappa_in_cnstrs`,
+  `DCNetworkBlock::change_power_flow_limit_constraints`, the four setters of
+  the prices and of the demand of `ECNetworkBlock`, and the reaction of
+  `UCBlock` to the scaling of a unit, where the four `update_*_constraints`
+  now travel in one channel
 
 ### Added
 

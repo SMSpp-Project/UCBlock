@@ -2520,6 +2520,13 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 void DCNetworkBlock::change_power_flow_limit_constraints(
 			   c_Subset & modified_lines , c_ModParam issueAMod )
 {
+ // one coefficient, or one right-hand side, per line: they all go into a
+ // single GroupModification, so that a Solver able to write a whole set of
+ // them in one operation does that instead of one call per line [see
+ // MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  for( auto i : modified_lines ) {
   double kappa = get_kappa( i );
 
@@ -2534,7 +2541,7 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
     double lower_coeff_x = -kappa * get_min_power_flow( i );
     auto * lf_low = static_cast< LinearFunction * >(
 		 v_power_flow_limit_design_min_const[ min_row ].get_function() );
-    lf_low->modify_coefficient( 1 , lower_coeff_x , issueAMod );
+    lf_low->modify_coefficient( 1 , lower_coeff_x , nAM );
     }
 
    // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
@@ -2542,16 +2549,18 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    auto * lf_up = static_cast< LinearFunction * >(
 		 v_power_flow_limit_design_const[ v_design_row[ i ]
 						   ].get_function() );
-   lf_up->modify_coefficient( 1 , upper_coeff_x , issueAMod );
+   lf_up->modify_coefficient( 1 , upper_coeff_x , nAM );
    }
   else {
    // Constraints *without* design variable: simple bounds update
    v_power_flow_limit_const[ i ].set_lhs( kappa * get_min_power_flow( i ) ,
-					  issueAMod );
+					  nAM );
    v_power_flow_limit_const[ i ].set_rhs( kappa * get_max_power_flow( i ) ,
-					  issueAMod );
+					  nAM );
     }
   }
+ close_channel( par2chnl( nAM ) );
+
  }  // end( DCNetworkBlock::change_power_flow_limit_constraints )
 
 /*--------------------------------------------------------------------------*/

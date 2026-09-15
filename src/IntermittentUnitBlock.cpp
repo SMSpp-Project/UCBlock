@@ -756,17 +756,23 @@ UnitBlockSolution * IntermittentUnitBlock::new_Solution( void ) const {
 void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
                                                         c_ModParam issueAMod )
 {
+ // one right-hand side, or one coefficient, per instant, hence one abstract
+ // Modification each: they all go into a single GroupModification, so that a
+ // Solver able to write a whole set of them in one operation does that
+ // instead of one call per instant [see
+ // MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  if( ! max_power_Const.empty() )
   for( auto t : time )
-   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
-                                 issueAMod );
+   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] , nAM );
 
  // with a design the bound is only the lower fence, its right-hand side
  // stays infinite and the maximum power is a coefficient of the row below
  if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
   for( auto t : time )
-   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
-                                           issueAMod );
+   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] , nAM );
 
  // when InvestmentCost != 0 the upper bound on the active power is
  // v_active_power - f_kappa * v_MaxPower * design <= 0, so v_MaxPower is a
@@ -782,10 +788,11 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
      "IntermittentUnitBlock::update_max_power_in_cnstrs: expected Variable "
      "not found in active_power_bounds_design_Const." ) );
 
-   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] ,
-                          issueAMod );
+   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] , nAM );
   }
- // FIXME: use a GroupModification
+
+ close_channel( par2chnl( nAM ) );
+
  }  // end( IntermittentUnitBlock::update_max_power_in_cnstrs ( subset ) )
 
 /*--------------------------------------------------------------------------*/
@@ -793,17 +800,19 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
 void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
                                                         c_ModParam issueAMod )
 {
+ // see the subset version above for why the Modification travel in one group
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  if( ! max_power_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t )
-   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
-                                 issueAMod );
- // FIXME: use a GroupModification
+   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] , nAM );
+
  // with a design the bound is only the lower fence, its right-hand side
  // stays infinite and the maximum power is a coefficient of the row below
  if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
   for( auto t = time.first ; t < time.second ; ++t )
-   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
-                                           issueAMod );
+   active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] , nAM );
 
  // when InvestmentCost != 0 the upper bound on the active power is
  // v_active_power - f_kappa * v_MaxPower * design <= 0, so v_MaxPower is a
@@ -819,9 +828,10 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
      "IntermittentUnitBlock::update_max_power_in_cnstrs: expected Variable "
      "not found in active_power_bounds_design_Const." ) );
 
-   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] ,
-                          issueAMod );
+   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] , nAM );
   }
+
+ close_channel( par2chnl( nAM ) );
 
  }  // end( IntermittentUnitBlock::update_max_power_in_cnstrs ( range ) )
 
@@ -1158,6 +1168,14 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
   f_kappa = *values;  // Update the kappa constant
 
   if( not_dry_run( issueAMod ) ) {
+   // one side, or one coefficient, per instant, hence one abstract
+   // Modification each: they all go into a single GroupModification, so
+   // that a Solver able to write a whole set of them in one operation does
+   // that instead of one call per instant [see
+   // MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    // Update the abstract representation
    if( constraints_generated() ) {
     // Update the constraints
@@ -1168,10 +1186,10 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       active_power_bounds_Const[ t ].set_lhs(
-       f_kappa * v_MinPower[ t ] , issueAMod );
+       f_kappa * v_MinPower[ t ] , nAM );
       if( f_InvestmentCost == 0 )
        active_power_bounds_Const[ t ].set_rhs(
-        f_kappa * v_MaxPower[ t ] , issueAMod );
+        f_kappa * v_MaxPower[ t ] , nAM );
      }
 
     if( ! active_power_bounds_design_Const.empty() )
@@ -1190,7 +1208,7 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
 
        f0->modify_coefficient( design_idx0 ,
                                -f_kappa * v_MinPower[ t ] ,
-                               issueAMod );
+                               nAM );
        }
 
       auto f1 = static_cast< LinearFunction * >(
@@ -1206,19 +1224,21 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
 
       f1->modify_coefficient( design_idx1 ,
                               -f_kappa * v_MaxPower[ t ] ,
-                              issueAMod );
+                              nAM );
      }
 
     if( ! min_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
       min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] ,
-                                    issueAMod );
+                                    nAM );
 
     if( ! max_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
       max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] ,
-                                    issueAMod );
+                                    nAM );
    }  // end( constraints_generated )
+
+   close_channel( par2chnl( nAM ) );
   }  // end( if( not_dry_run( issueAMod ) )
  }  // end( if( not_dry_run( issuePMod ) )
 

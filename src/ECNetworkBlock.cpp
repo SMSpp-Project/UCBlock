@@ -683,13 +683,22 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
      constraints_generated() ) {
   // Change the abstract representation
 
+  // one abstract Modification per element: they all go into a single
+  // GroupModification, so that a Solver able to write a whole set of
+  // them in one operation does that instead of one call per element
+  // [see MILPSolver::process_group_modification()]
+  auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                    open_channel( par2chnl( issueAMod ) ) ) );
+
   for( auto i : subset ) {
    Index t = i / get_number_nodes();
    Index n = i % get_number_nodes();
 
    power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
-                                           issueAMod );
+                                           nAM );
   }
+
+  close_channel( par2chnl( nAM ) );
  }
 
  if( issue_pmod( issuePMod ) ) {
@@ -740,13 +749,22 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
 
+   // one abstract Modification per element: they all go into a single
+   // GroupModification, so that a Solver able to write a whole set of
+   // them in one operation does that instead of one call per element
+   // [see MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    for( Index i = rng.first ; i < rng.second ; ++i ) {
     Index t = i / get_number_nodes();
     Index n = i % get_number_nodes();
 
     power_balance_const[ n ][ t ].set_both( -v_ActiveDemand[ t ][ n ] ,
-                                            issueAMod );
+                                            nAM );
    }
+
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -806,11 +824,20 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
    for( auto i : subset )
     for( Index n = 0 ; n < N ; ++n ) {
      const auto idx = lf->is_active( &v_power_absorption[ i ][ n ] );
+     // one abstract Modification per element: they all go into a single
+     // GroupModification, so that a Solver able to write a whole set of
+     // them in one operation does that instead of one call per element
+     // [see MILPSolver::process_group_modification()]
+     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                       open_channel( par2chnl( issueAMod ) ) ) );
+
      if( idx == Inf< Index >() )
       throw( std::logic_error(
        "ECNetworkBlock::set_buy_price: expected Variable not found in "
        "objective." ) );
-     lf->modify_coefficient( idx , buy_price[ i ] , issueAMod );
+     lf->modify_coefficient( idx , buy_price[ i ] , nAM );
+
+     close_channel( par2chnl( nAM ) );
     }
   }
  }
@@ -859,11 +886,20 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
    for( Index t = rng.first ; t < rng.second ; ++t )
     for( Index n = 0 ; n < N ; ++n ) {
      const auto idx = lf->is_active( &v_power_absorption[ t ][ n ] );
+     // one abstract Modification per element: they all go into a single
+     // GroupModification, so that a Solver able to write a whole set of
+     // them in one operation does that instead of one call per element
+     // [see MILPSolver::process_group_modification()]
+     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                       open_channel( par2chnl( issueAMod ) ) ) );
+
      if( idx == Inf< Index >() )
       throw( std::logic_error(
        "ECNetworkBlock::set_buy_price: expected Variable not found in "
        "objective." ) );
-     lf->modify_coefficient( idx , buy_price[ t ] , issueAMod );
+     lf->modify_coefficient( idx , buy_price[ t ] , nAM );
+
+     close_channel( par2chnl( nAM ) );
     }
   }
  }
@@ -922,11 +958,20 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
    for( auto i : subset )
     for( Index n = 0 ; n < N ; ++n ) {
      const auto idx = lf->is_active( &v_power_injection[ i ][ n ] );
+     // one abstract Modification per element: they all go into a single
+     // GroupModification, so that a Solver able to write a whole set of
+     // them in one operation does that instead of one call per element
+     // [see MILPSolver::process_group_modification()]
+     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                       open_channel( par2chnl( issueAMod ) ) ) );
+
      if( idx == Inf< Index >() )
       throw( std::logic_error(
        "ECNetworkBlock::set_sell_price: expected Variable not found in "
        "objective." ) );
-     lf->modify_coefficient( idx , -sell_price[ i ] , issueAMod );
+     lf->modify_coefficient( idx , -sell_price[ i ] , nAM );
+
+     close_channel( par2chnl( nAM ) );
     }
   }
  }
@@ -975,11 +1020,20 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
    for( Index t = rng.first ; t < rng.second ; ++t )
     for( Index n = 0 ; n < N ; ++n ) {
      const auto idx = lf->is_active( &v_power_injection[ t ][ n ] );
+     // one abstract Modification per element: they all go into a single
+     // GroupModification, so that a Solver able to write a whole set of
+     // them in one operation does that instead of one call per element
+     // [see MILPSolver::process_group_modification()]
+     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                       open_channel( par2chnl( issueAMod ) ) ) );
+
      if( idx == Inf< Index >() )
       throw( std::logic_error(
        "ECNetworkBlock::set_sell_price: expected Variable not found in "
        "objective." ) );
-     lf->modify_coefficient( idx , -sell_price[ t ] , issueAMod );
+     lf->modify_coefficient( idx , -sell_price[ t ] , nAM );
+
+     close_channel( par2chnl( nAM ) );
     }
   }
  }
@@ -1017,11 +1071,20 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
    const auto N = get_number_nodes();
    for( Index n = 0 ; n < N ; ++n ) {
     const auto idx = lf->is_active( &v_peak_power[ n ] );
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx == Inf< Index >() )
      throw( std::logic_error(
       "ECNetworkBlock::set_peak_tariff: expected Variable not found in "
       "objective." ) );
-    lf->modify_coefficient( idx , peak_tariff , issueAMod );
+    lf->modify_coefficient( idx , peak_tariff , nAM );
+
+    close_channel( par2chnl( nAM ) );
    }
   }
  }
@@ -1059,11 +1122,20 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
    const auto N = get_number_nodes();
    for( Index n = 0 ; n < N ; ++n ) {
     const auto idx = lf->is_active( &v_peak_power[ n ] );
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx == Inf< Index >() )
      throw( std::logic_error(
       "ECNetworkBlock::set_peak_tariff: expected Variable not found in "
       "objective." ) );
-    lf->modify_coefficient( idx , peak_tariff , issueAMod );
+    lf->modify_coefficient( idx , peak_tariff , nAM );
+
+    close_channel( par2chnl( nAM ) );
    }
   }
  }
@@ -1187,12 +1259,21 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
   for( auto i : subset ) {
    const auto idx_pos = lf->is_active( &v_power_squilibrium_pos[ i ] );
    const auto idx_neg = lf->is_active( &v_power_squilibrium_neg[ i ] );
+   // one abstract Modification per element: they all go into a single
+   // GroupModification, so that a Solver able to write a whole set of
+   // them in one operation does that instead of one call per element
+   // [see MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    if( idx_pos == Inf< Index >() || idx_neg == Inf< Index >() )
     throw( std::logic_error(
      "ECNetworkBlock::set_penalty_price: expected Variable not found in "
      "objective." ) );
-   lf->modify_coefficient( idx_pos , penalty_price[ i ] , issueAMod );
-   lf->modify_coefficient( idx_neg , penalty_price[ i ] , issueAMod );
+   lf->modify_coefficient( idx_pos , penalty_price[ i ] , nAM );
+   lf->modify_coefficient( idx_neg , penalty_price[ i ] , nAM );
+
+   close_channel( par2chnl( nAM ) );
   }
  }
 
@@ -1243,12 +1324,21 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
    for( Index t = rng.first ; t < rng.second ; ++t ) {
     const auto idx_pos = lf->is_active( &v_power_squilibrium_pos[ t ] );
     const auto idx_neg = lf->is_active( &v_power_squilibrium_neg[ t ] );
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx_pos == Inf< Index >() || idx_neg == Inf< Index >() )
      throw( std::logic_error(
       "ECNetworkBlock::set_penalty_price: expected Variable not found in "
       "objective." ) );
-    lf->modify_coefficient( idx_pos , penalty_price[ t ] , issueAMod );
-    lf->modify_coefficient( idx_neg , penalty_price[ t ] , issueAMod );
+    lf->modify_coefficient( idx_pos , penalty_price[ t ] , nAM );
+    lf->modify_coefficient( idx_neg , penalty_price[ t ] , nAM );
+
+    close_channel( par2chnl( nAM ) );
    }
   }
  }

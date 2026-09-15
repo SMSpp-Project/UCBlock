@@ -40,6 +40,8 @@
 
 #include "Objective.h"
 
+#include <functional>
+
 #include "UCBlock.h"
 
 /*--------------------------------------------------------------------------*/
@@ -1556,24 +1558,50 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 {
  std::vector< Index > modified_units;
 
- // TODO Handle GroupModification in order to deal with multiple UnitBlockMod
- // at the same time.
+ /* A scaled UnitBlock has its Variable multiplied by the scale wherever this
+  * Block uses them [see UnitBlock::scale()], hence the rows that use them
+  * have to be rewritten. The scaling of several units can arrive inside one
+  * GroupModification, which is why the walk goes into the groups: looking
+  * only at the top level would leave the rows of those units untouched. */
 
- if( const auto tmod = dynamic_cast< UnitBlockMod * >( mod.get() ) ) {
-  if( tmod->type() == UnitBlockMod::eScale ) {
-   auto unit_id = inspection::get_block_index( tmod->get_Block() );
-   modified_units.push_back( unit_id );
-  }
- }
+ std::function< void( const Modification * ) > collect =
+  [ & ]( const Modification * m ) {
+   if( const auto grp = dynamic_cast< const GroupModification * >( m ) ) {
+    for( const auto & submod : grp->sub_Modifications() )
+     collect( submod.get() );
+    return;
+    }
+
+   if( const auto tmod = dynamic_cast< const UnitBlockMod * >( m ) )
+    if( tmod->type() == UnitBlockMod::eScale )
+     modified_units.push_back(
+                      inspection::get_block_index( tmod->get_Block() ) );
+   };
+
+ collect( mod.get() );
 
  if( ! modified_units.empty() ) {
-  // Sort the IDs of the modified units
+  // Sort the IDs of the modified units, and name each of them once: a group
+  // can carry more than one scaling of the same unit
   std::sort( modified_units.begin() , modified_units.end() );
+  modified_units.erase( std::unique( modified_units.begin() ,
+                                     modified_units.end() ) ,
+                        modified_units.end() );
 
-  update_node_injection_constraints( modified_units );
-  update_primary_demand_constraints( modified_units );
-  update_secondary_demand_constraints( modified_units );
-  update_inertia_demand_constraints( modified_units );
+  /* Each of these rewrites one row per time instant, and per node where
+   * there are nodes: the whole reaction to the scaling travels in one
+   * channel, so that a Solver able to write a set of coefficients, or of
+   * sides, in one operation does that once instead of once per instant [see
+   * MILPSolver::process_group_modification()]. */
+  auto chnl = open_channel();
+  const auto upar = make_par( eNoBlck , chnl );
+
+  update_node_injection_constraints( modified_units , upar );
+  update_primary_demand_constraints( modified_units , upar );
+  update_secondary_demand_constraints( modified_units , upar );
+  update_inertia_demand_constraints( modified_units , upar );
+
+  close_channel( chnl );
 
   // TODO Implement the following methods when their constraints have been
   // properly implemented.
@@ -1587,7 +1615,7 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints(
- const std::vector< Index > & modified_units )
+ const std::vector< Index > & modified_units , ModParam issueMod )
 {
  if( ( ! constraints_generated() ) ||
      ( v_node_injection_Const.empty() ) || modified_units.empty() )
@@ -1686,11 +1714,11 @@ void UCBlock::update_node_injection_constraints(
     // do not concern this UCBlock.
 
     // update the RHS of the constraint (equality constraint)
-    constraint.set_both( rhs , eNoBlck );
+    constraint.set_both( rhs , issueMod );
 
     // update the coefficients
     LF( constraint.get_function() )->modify_coefficients(
-	 std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
+	 std::move( coefficients ) , std::move( subset ) , true , issueMod );
 
     }  // end( for( t ) )
    }
@@ -1781,11 +1809,11 @@ void UCBlock::update_node_injection_constraints(
      // update do not concern this UCBlock.
 
      // update the RHS of the constraint (equality constraint)
-     constraint.set_both( rhs , eNoBlck );
+     constraint.set_both( rhs , issueMod );
 
      // update the coefficients
      LF( constraint.get_function() )->modify_coefficients(
-	  std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
+	  std::move( coefficients ) , std::move( subset ) , true , issueMod );
 
     }  // end( for( node_id ) )
    }  // end( for( t ) )
@@ -1797,7 +1825,8 @@ void UCBlock::update_node_injection_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_primary_demand_constraints(
-                               const std::vector< Index > & modified_units )
+                               const std::vector< Index > & modified_units ,
+                               ModParam issueMod )
 {
  if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -1885,7 +1914,7 @@ void UCBlock::update_primary_demand_constraints(
 
    // Update the coefficients of the active variables
    LF( constraint.get_function() )->modify_coefficients(
-	 std::move( coefficients ) , std::move( subset ) , false , eNoBlck );
+	 std::move( coefficients ) , std::move( subset ) , false , issueMod );
 
    }  // end( for( zone_id ) )
   }  // end( for( t ) )
@@ -1894,7 +1923,8 @@ void UCBlock::update_primary_demand_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_secondary_demand_constraints(
-			        const std::vector< Index > & modified_units )
+			        const std::vector< Index > & modified_units ,
+			        ModParam issueMod )
 {
  if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -1983,7 +2013,7 @@ void UCBlock::update_secondary_demand_constraints(
 
    // Update the coefficients of the active variables
    LF( constraint.get_function() )->modify_coefficients(
-	 std::move( coefficients ) , std::move( subset ) , false , eNoBlck );
+	 std::move( coefficients ) , std::move( subset ) , false , issueMod );
 
    }  // end( for( zone_id ) )
   }  // end( for( t ) )
@@ -1992,7 +2022,8 @@ void UCBlock::update_secondary_demand_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_inertia_demand_constraints(
-			        const std::vector< Index > & modified_units )
+			        const std::vector< Index > & modified_units ,
+			        ModParam issueMod )
 {
  if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.empty() ) ||
      modified_units.empty() )
@@ -2119,7 +2150,7 @@ void UCBlock::update_inertia_demand_constraints(
 
     // Update the coefficients of the active variables
     LF( constraint.get_function() )->modify_coefficients(
-	  std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
+	  std::move( coefficients ) , std::move( subset ) , true , issueMod );
 
     }  // end( for( node_id ) )
    }  // end( for( zone_id ) )
