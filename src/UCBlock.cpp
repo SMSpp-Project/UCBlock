@@ -519,6 +519,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 
  v_pollutant_budget.clear();
  v_pollutant_min_budget.clear();
+ f_number_storages = 0;
  if( f_number_pollutants ) {
   ::deserialize( group , "PollutantBudget" , f_total_number_pollutant_zones ,
                  v_pollutant_budget , false , false );
@@ -543,7 +544,6 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 				 "NumberElectricalGenerators ]" ) );
 
   // the storages of all the units, one after the other
-  f_number_storages = 0;
   for( Index i = 0 ; i < f_number_units ; ++i )
    f_number_storages += UB( v_Block[ i ] )->get_number_storages();
 
@@ -564,6 +564,8 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
 				  "must have size [ 1 or TimeHorizon , "
 				  "NumberPollutants , NumberStorages ]" ) );
    }
+  else
+   v_pollutant_storage_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
   }
  else {
   v_pollutant_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
@@ -2486,8 +2488,9 @@ bool UCBlock::set_pollutant_budget_k( Index k , double budget , bool lower ,
                                       ModParam issuePMod , ModParam issueAMod )
 {
  if( k >= f_total_number_pollutant_zones )
-  throw( std::out_of_range(
-		  "UCBlock::set_pollutant_budget: index out of range" ) );
+  throw( std::out_of_range( lower ?
+                "UCBlock::set_pollutant_min_budget: index out of range" :
+                "UCBlock::set_pollutant_budget: index out of range" ) );
 
  auto & current = lower ? v_pollutant_min_budget[ k ] : v_pollutant_budget[ k ];
  if( current == budget )
@@ -2510,9 +2513,8 @@ bool UCBlock::set_pollutant_budget_k( Index k , double budget , bool lower ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_budget( MF_dbl_it values ,
-                                    Block::Subset && subset ,
-                                    bool ordered ,
+void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Subset && subset ,
+                                    bool ordered , bool lower ,
                                     c_ModParam issuePMod ,
                                     c_ModParam issueAMod )
 {
@@ -2520,7 +2522,7 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values ,
   return;
 
  // the abstract representation is changed right here, and all the changes
- // of the right-hand sides travel together in one channel
+ // of the sides travel together in one channel
  auto amod = un_ModBlock( issueAMod );
  const bool grouped = not_dry_run( issuePMod ) && not_dry_run( amod ) &&
                       constraints_generated();
@@ -2529,8 +2531,7 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values ,
 
  bool changed = false;
  for( auto k : subset )
-  if( set_pollutant_budget_k( k , *( values++ ) , false , issuePMod ,
-                              amod ) )
+  if( set_pollutant_budget_k( k , *( values++ ) , lower , issuePMod , amod ) )
    changed = true;
 
  if( grouped )
@@ -2541,15 +2542,17 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values ,
    std::sort( subset.begin() , subset.end() );
 
   Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
-                            UCBlockMod::eSetPolB , std::move( subset ) ) ,
+                            lower ? UCBlockMod::eSetPolMinB :
+                                    UCBlockMod::eSetPolB ,
+                            std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
   }
- }  // end( UCBlock::set_pollutant_budget( subset ) )
+ }  // end( UCBlock::set_pollutant_bounds( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
-                                    c_ModParam issuePMod ,
+void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Range rng ,
+                                    bool lower , c_ModParam issuePMod ,
                                     c_ModParam issueAMod )
 {
  rng.second = std::min( rng.second , f_total_number_pollutant_zones );
@@ -2557,7 +2560,7 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
   return;
 
  // the abstract representation is changed right here, and all the changes
- // of the right-hand sides travel together in one channel
+ // of the sides travel together in one channel
  auto amod = un_ModBlock( issueAMod );
  const bool grouped = not_dry_run( issuePMod ) && not_dry_run( amod ) &&
                       constraints_generated();
@@ -2566,19 +2569,39 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
 
  bool changed = false;
  for( Index k = rng.first ; k < rng.second ; ++k )
-  if( set_pollutant_budget_k( k , *( values++ ) , false , issuePMod ,
-                              amod ) )
+  if( set_pollutant_budget_k( k , *( values++ ) , lower , issuePMod , amod ) )
    changed = true;
 
  if( grouped )
   close_channel( par2chnl( amod ) );
 
  if( changed && issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< UCBlockRngdMod >(
-                            this , UCBlockMod::eSetPolB , rng ) ,
+  Block::add_Modification( std::make_shared< UCBlockRngdMod >( this ,
+                            lower ? UCBlockMod::eSetPolMinB :
+                                    UCBlockMod::eSetPolB , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
- }  // end( UCBlock::set_pollutant_budget( range ) )
+ }  // end( UCBlock::set_pollutant_bounds( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_budget( MF_dbl_it values ,
+                                    Block::Subset && subset , bool ordered ,
+                                    c_ModParam issuePMod ,
+                                    c_ModParam issueAMod )
+{
+ set_pollutant_bounds( values , std::move( subset ) , ordered , false ,
+                       issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
+                                    c_ModParam issuePMod ,
+                                    c_ModParam issueAMod )
+{
+ set_pollutant_bounds( values , rng , false , issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2588,35 +2611,9 @@ void UCBlock::set_pollutant_min_budget( MF_dbl_it values ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
 {
- if( subset.empty() )
-  return;
-
- // the abstract representation is changed right here, and all the changes
- // of the left-hand sides travel together in one channel
- auto amod = un_ModBlock( issueAMod );
- const bool grouped = not_dry_run( issuePMod ) && not_dry_run( amod ) &&
-                      constraints_generated();
- if( grouped )
-  amod = make_par( par2mod( amod ) , open_channel( par2chnl( amod ) ) );
-
- bool changed = false;
- for( auto k : subset )
-  if( set_pollutant_budget_k( k , *( values++ ) , true , issuePMod ,
-                              amod ) )
-   changed = true;
-
- if( grouped )
-  close_channel( par2chnl( amod ) );
-
- if( changed && issue_pmod( issuePMod ) ) {
-  if( ! ordered )
-   std::sort( subset.begin() , subset.end() );
-
-  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
-                            UCBlockMod::eSetPolMinB , std::move( subset ) ) ,
-                           Observer::par2chnl( issuePMod ) );
-  }
- }  // end( UCBlock::set_pollutant_min_budget( subset ) )
+ set_pollutant_bounds( values , std::move( subset ) , ordered , true ,
+                       issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2624,33 +2621,8 @@ void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
 {
- rng.second = std::min( rng.second , f_total_number_pollutant_zones );
- if( rng.first >= rng.second )
-  return;
-
- // the abstract representation is changed right here, and all the changes
- // of the left-hand sides travel together in one channel
- auto amod = un_ModBlock( issueAMod );
- const bool grouped = not_dry_run( issuePMod ) && not_dry_run( amod ) &&
-                      constraints_generated();
- if( grouped )
-  amod = make_par( par2mod( amod ) , open_channel( par2chnl( amod ) ) );
-
- bool changed = false;
- for( Index k = rng.first ; k < rng.second ; ++k )
-  if( set_pollutant_budget_k( k , *( values++ ) , true , issuePMod ,
-                              amod ) )
-   changed = true;
-
- if( grouped )
-  close_channel( par2chnl( amod ) );
-
- if( changed && issue_pmod( issuePMod ) )
-  Block::add_Modification( std::make_shared< UCBlockRngdMod >(
-                            this , UCBlockMod::eSetPolMinB , rng ) ,
-                           Observer::par2chnl( issuePMod ) );
-
- }  // end( UCBlock::set_pollutant_min_budget( range ) )
+ set_pollutant_bounds( values , rng , true , issuePMod , issueAMod );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF UCBlockSolution -------------------------*/

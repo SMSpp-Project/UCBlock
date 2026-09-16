@@ -1945,6 +1945,23 @@ class UCBlock : public Block
                               ModParam issuePMod , ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
+ /// sets the pollutant budget, or its lower bound, of the given indices
+ /** Does what set_pollutant_budget( subset ) does, or
+  * set_pollutant_min_budget( subset ) if \p lower is true. */
+
+ void set_pollutant_bounds( MF_dbl_it values , Subset && subset ,
+                            bool ordered , bool lower ,
+                            c_ModParam issuePMod , c_ModParam issueAMod );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets the pollutant budget, or its lower bound, of the given range
+ /** Does what set_pollutant_budget( range ) does, or
+  * set_pollutant_min_budget( range ) if \p lower is true. */
+
+ void set_pollutant_bounds( MF_dbl_it values , Range rng , bool lower ,
+                            c_ModParam issuePMod , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
  /// calls visit on each term of the pollutant budget constraints of p
  /** Calls visit( unit_id , unit_block , zone_id , var , factor ) for each
   * term of the constraints of pollutant \p p, unit by unit and in the order
