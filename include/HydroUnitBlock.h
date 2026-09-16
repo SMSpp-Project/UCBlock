@@ -693,7 +693,12 @@ class HydroUnitBlock : public UnitBlock
   *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (7)
   *   \f]
   *
-  * - flow-to-active-power function at each time and for each turbine ;
+  * - flow-to-active-power function at each time and for each turbine (8),
+  *   and relation (7) for each pump: they are a
+  *   boost::multi_array< std::vector< FRowConstraint > , 2 > with dimensions
+  *   f_time_horizon and f_NumberArcs, the entry [ t , l ] having a row for
+  *   each piece \f$ j \in \mathcal{J}_l \f$ if arc l is a turbine at time t
+  *   (see NumberPieces), and a single row otherwise
   *   \f[
   *     p^{ac}_{t,l} \leq P_j + \rho^{hy}_{j}f_{t,l} \quad j \in \mathcal{J}_l
   *       \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad with
@@ -2031,7 +2036,9 @@ class HydroUnitBlock : public UnitBlock
  boost::multi_array< FRowConstraint , 2 > ActivePowerSecondary_Const;
 
  /// flow to active power function constraints
- boost::multi_array< FRowConstraint , 2 > FlowActivePower_Const;
+ /** FlowActivePower_Const[ t ][ l ] has a row for each piece of arc l if it
+  * is a turbine at time t, and a single row otherwise. */
+ boost::multi_array< std::vector< FRowConstraint > , 2 > FlowActivePower_Const;
 
  /// active power bounds
  boost::multi_array< FRowConstraint , 2 > ActivePowerBounds_Const;

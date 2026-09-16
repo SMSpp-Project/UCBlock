@@ -778,7 +778,7 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  assert( FlowActivePower_Const.empty() );
  FlowActivePower_Const.resize(
-            maFRC2::extent_gen()[ f_time_horizon ][ f_TotalNumberPieces ] );
+                   boost::extents[ f_time_horizon ][ f_NumberArcs ] );
 
  // an arc whose (only) piece has LinearTerm == 0 releases water without
  // producing any power: it is the spillage outlet of the reservoir it
@@ -814,22 +814,20 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
      }
 
  if( f_NumberArcs > 0 ) {
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   Index piece = 0;
-   Index cnstr_idx = 0;
-   Index end = 0;
-
+  // FlowActivePower_Const[ t ][ arc ] has a row for each piece of the arc if
+  // it is a turbine at time t, and a single row otherwise: the number of
+  // rows depends on both indices
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
    for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-    if( v_NumberPieces.empty() )
-     ++end;
-    else
-     end += v_NumberPieces[ arc ];
-
-    auto MinF = get_min_flow( t , arc );
-    auto MaxF = get_max_flow( t , arc );
+    auto & rows = FlowActivePower_Const[ t ][ arc ];
+    const auto first = first_piece[ arc ];
+    const auto MinF = get_min_flow( t , arc );
+    const auto MaxF = get_max_flow( t , arc );
 
     if( ( MinF >= 0 ) && ( MaxF > 0 ) ) {  // Turbines
-     for( ; piece < end ; ++piece , ++cnstr_idx ) {
+     rows.resize( v_NumberPieces.empty() ? 1 : v_NumberPieces[ arc ] );
+     for( Index j = 0 ; j < rows.size() ; ++j ) {
+      const auto piece = first + j;
       vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
       if( ! v_LinearTerm.empty() )
        vars.push_back( std::make_pair( get_flow_rate( arc , t ) ,
@@ -842,32 +840,30 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
       if( single_piece[ arc ] && ( const_term == 0. ) &&
           has_spillage[ arc ] )
-       FlowActivePower_Const[ t ][ piece ].set_both( 0.0 );
+       rows[ j ].set_both( 0.0 );
       else {
-       FlowActivePower_Const[ t ][ piece ].set_rhs( const_term );
-       FlowActivePower_Const[ t ][ piece ].set_lhs( -Inf< double >() );
+       rows[ j ].set_rhs( const_term );
+       rows[ j ].set_lhs( -Inf< double >() );
        }
 
-      FlowActivePower_Const[ t ][ piece ].set_function(
-				 new LinearFunction( std::move( vars ) ) );
+      rows[ j ].set_function( new LinearFunction( std::move( vars ) ) );
       }
      continue;
      }
 
+    rows.resize( 1 );
     vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
 
-    if( ( MaxF <= 0 ) && ( MinF < 0 ) )  // Pumps
+    if( ( MaxF <= 0 ) && ( MinF < 0 ) )  // Pumps, which have one piece
      vars.push_back( std::make_pair( get_flow_rate( arc , t ) ,
-                                     -v_LinearTerm[ cnstr_idx ] ) );
+                                     v_LinearTerm.empty() ? -1.0 :
+                                     -v_LinearTerm[ first ] ) );
     else  // MinF == MaxF == 0:  f_hydro == p_hydro [== 0]
      vars.push_back( std::make_pair( get_flow_rate( arc , t ) , -1.0 ) );
 
-    FlowActivePower_Const[ t ][ cnstr_idx ].set_both( 0.0 );
-    FlowActivePower_Const[ t ][ cnstr_idx++ ].set_function(
-				 new LinearFunction( std::move( vars ) ) );
-    piece = cnstr_idx;
+    rows[ 0 ].set_both( 0.0 );
+    rows[ 0 ].set_function( new LinearFunction( std::move( vars ) ) );
     }
-   }
 
   add_static_constraint( FlowActivePower_Const , "FlowActivePower_HydroUnit" );
 
