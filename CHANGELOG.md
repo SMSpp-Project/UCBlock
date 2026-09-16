@@ -30,9 +30,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   units, their duals are in the `UCBlockSolution` (bit 128), and the budget
   can be changed with `set_pollutant_budget()`; if `NumberPollutantZones` is
   not given every pollutant has one zone, and if `PollutantZones` is not given
-  then all the nodes are in it
+  then all the nodes are in it. The constraints are grouped by pollutant, each
+  with as many as its zones (`get_pollutant_constraints()[ p ][ z ]`), while
+  the budgets and the duals keep the zones of all the pollutants one after
+  the other, as the file does
 
 ### Fixed
+
+- `HydroUnitBlock` gave an arc that is neither a turbine nor a pump at some
+  instant (no flow allowed) a single flow-to-power row, but then went on as if
+  it had one per piece: with more than one piece on that arc, the rows of the
+  arcs after it at that instant took the linear and constant terms of other
+  pieces. `FlowActivePower_Const` is now grouped by instant and arc, the rows
+  of an arc being its own
+
+- `DCNetworkBlock` had a flow definition row for every line, and left those
+  of the HVDC lines without a Function, which `is_feasible()` cannot compute;
+  `ACNetworkBlock` had the two product-of-voltages variables for every line,
+  and used them only on the DC lines; `DesignNetworkBlock` had a bound for
+  every design variable, and left empty those of the variables fixed to 1.
+  They now have them only where they are used
 
 - `UCBlock::is_feasible()` answered false on an optimal solution: it checked
   the sub-Block with no Configuration, i.e., with tolerance 0 whatever the
@@ -54,6 +71,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were left untouched
 
 ### Changed
+
+- `NuclearUnitBlock` keeps each family of operating rules in a group of its
+  own (the tight rows on the starts of a modulation, `ModulationStartsApart`,
+  `ModulationEndStarts` and `ModulationStepStarted`, are no longer mixed with
+  `ModulationStability` and `ModulationMaxLength`), and the groups whose
+  number of rows depends on the instant (`StartUpStability`, `BandKeep`,
+  `BandMove`, `ModulationEndLink`) have the rows of instant t in their entry
+  t
 
 - the setters that change one datum spanning the whole time horizon issue
   their "abstract" Modification inside a GroupModification, one per setter,
