@@ -845,10 +845,17 @@ class ACNetworkData : public DCNetworkData
   * Alternative representations can be derived making appear the angle
   * difference on the line (on which bounds are known, typically +/- 30°). */
  std::vector< ColVariable > v_sum_product_voltages;
- ///< c_{n,n'} = v_n v_n' cos( theta_n - theta_n' )
+ ///< c_{n,n'} = v_n v_n' cos( theta_n - theta_n' ), for the DC lines only
+ ///< [see v_dc_line_position]
 
  std::vector< ColVariable > v_diff_product_voltages;
  ///< s_{n,n'} = v_n v_n' sin( theta_n - theta_n' )
+ ///< (for the DC lines only [see v_dc_line_position])
+
+ std::vector< Index > v_dc_line_position;
+ ///< the position of each line among the DC lines, Inf< Index >() for an
+ ///< HVDC line, which has no v_sum_product_voltages and
+ ///< v_diff_product_voltages
 
  std::vector< ColVariable > v_sqrd_voltages;  ///< c_{n,n} = |V_n|^2
 

@@ -2417,9 +2417,15 @@ class DCNetworkData : public NetworkData
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;
 
  /// Definition of power flow
+ /** One row for each DC line, in the order of DCNetworkData::get_DC_lines():
+  * the HVDC lines have none. */
  std::vector< FRowConstraint > v_power_flow_def;
 
  /// Power flow limit constraints
+ /** v_power_flow_limit_const[ l ] is the bound of line l, whose dual is the
+  * price of its flow limit [see get_dual_prices()]; a line that has a design
+  * variable and a lower row is entirely fenced by rows, and its entry is an
+  * empty BoxConstraint, whose dual is 0. */
  std::vector< BoxConstraint > v_power_flow_limit_const;
 
  /// Upper power flow limit design constraints

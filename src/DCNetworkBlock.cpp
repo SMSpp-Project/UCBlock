@@ -1527,8 +1527,10 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
     f_NetworkData->compute_DCDF( HVDC_lines , PTDF_matrix , f_time_instant );
 
   // Flow limit constraints
-  v_power_flow_def.resize( number_lines );
+  // one row per DC line, in the order of DC_lines: the HVDC lines have none
+  v_power_flow_def.resize( DC_lines.size() );
 
+  Index row = 0;
   for( auto & line_id : DC_lines ) {
    // TODO : verify if this does not entail a copy of the information
    // which would be inefficient
@@ -1565,10 +1567,10 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
     }
 
    // Set the constraint (AC)
-   v_power_flow_def[ line_id ].set_function(
+   v_power_flow_def[ row ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
-   v_power_flow_def[ line_id ].set_lhs( constant_term );
-   v_power_flow_def[ line_id ].set_rhs( constant_term );
+   v_power_flow_def[ row ].set_lhs( constant_term );
+   v_power_flow_def[ row++ ].set_rhs( constant_term );
 
    }  // end( for( DC lines ) )
 
@@ -2110,6 +2112,7 @@ void DCNetworkBlock::change_active_demand_constraints_PTDF(
 
  const Index ref = f_NetworkData->get_reference_node();
 
+ Index row = 0;  // the rows follow the order of DC_lines
  for( auto & line_id : DC_lines ) {
   double constant_term = 0.0;
 
@@ -2127,8 +2130,8 @@ void DCNetworkBlock::change_active_demand_constraints_PTDF(
         }
   }
 
-  v_power_flow_def[ line_id ].set_lhs( constant_term , nAM );
-  v_power_flow_def[ line_id ].set_rhs( constant_term , nAM );
+  v_power_flow_def[ row ].set_lhs( constant_term , nAM );
+  v_power_flow_def[ row++ ].set_rhs( constant_term , nAM );
  }
 
  double balance_const = 0.0;

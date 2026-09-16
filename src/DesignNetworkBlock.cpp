@@ -289,7 +289,10 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  Block::generate_abstract_constraints( stcc );
 
  if( f_num_design_lines ) {
-  v_design_bound_Const.resize( f_num_design_lines );
+  // a bound for each design variable that is not fixed to 1, which is
+  // stated on the variable itself: the vector is reserved to its largest
+  // size, so that no bound moves
+  v_design_bound_Const.reserve( f_num_design_lines );
 
   for( Index p = 0 ; p < f_num_design_lines ; ++p ) {
    Index l = v_design_lines.empty() ? p : v_design_lines[ p ];
@@ -301,9 +304,10 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    if( ( lb == 1.0 ) && ( ub == 1.0 ) )
     v_design[ p ].is_unitary( true , eNoMod );
    else {
-    v_design_bound_Const[ p ].set_lhs( lb , eNoMod );
-    v_design_bound_Const[ p ].set_rhs( ub , eNoMod );
-    v_design_bound_Const[ p ].set_variable( &v_design[ p ] , eNoMod );
+    v_design_bound_Const.emplace_back();
+    v_design_bound_Const.back().set_lhs( lb , eNoMod );
+    v_design_bound_Const.back().set_rhs( ub , eNoMod );
+    v_design_bound_Const.back().set_variable( &v_design[ p ] , eNoMod );
     }
 
    if( is_binary )
