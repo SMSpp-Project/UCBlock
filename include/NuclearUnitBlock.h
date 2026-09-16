@@ -1132,14 +1132,26 @@ class NuclearUnitBlock : public ThermalUnitBlock
  std::vector< FRowConstraint > Modulation_FullRampUp;
  std::vector< FRowConstraint > Modulation_FullRampDown;
 
- /// the stability after a modulation, if L^M > 1
+ /// the stability after a modulation, if the direction matters
  std::vector< FRowConstraint > ModulationStability;
 
- /// the stability after a start-up, if there is any
- std::vector< FRowConstraint > StartUpStability;
+ /// with the tight rules, at most one start in any tau^M instants
+ std::vector< FRowConstraint > ModulationStartsApart;
 
- /// the maximum length of a modulation, if L^M > 1
+ /// with the tight rules, no start in the tau^M - 1 instants after the end
+ /// of a modulation
+ std::vector< FRowConstraint > ModulationEndStarts;
+
+ /// the stability after a start-up, if there is any:
+ /// StartUpStability[ t ] has the rows of a start-up at t
+ std::vector< std::vector< FRowConstraint > > StartUpStability;
+
+ /// the maximum length of a modulation, if the direction matters
  std::vector< FRowConstraint > ModulationMaxLength;
+
+ /// with the tight rules, each step belongs to a modulation started in the
+ /// last L^M instants
+ std::vector< FRowConstraint > ModulationStepStarted;
 
  /// s_t >= m_t - m_{t-1}, if needed
  std::vector< FRowConstraint > ModulationStartLink;
@@ -1163,9 +1175,10 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// modulation moving it to an adjacent one
  std::vector< FRowConstraint > BandChoice;
  std::vector< FRowConstraint > BandPower;
- std::vector< FRowConstraint > BandKeep;
- std::vector< FRowConstraint > BandMove;
- std::vector< FRowConstraint > ModulationEndLink;
+ /// (the last three have the rows of instant t in their entry [ t ])
+ std::vector< std::vector< FRowConstraint > > BandKeep;
+ std::vector< std::vector< FRowConstraint > > BandMove;
+ std::vector< std::vector< FRowConstraint > > ModulationEndLink;
 
  /// the tight rows that have been separated [see TightCuts]
  std::list< FRowConstraint > Nuclear_cuts;

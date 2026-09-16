@@ -109,6 +109,9 @@ NuclearUnitBlock::~NuclearUnitBlock()
  Constraint::clear( BandChoice );
  Constraint::clear( StartUpStability );
  Constraint::clear( ModulationStability );
+ Constraint::clear( ModulationStartsApart );
+ Constraint::clear( ModulationEndStarts );
+ Constraint::clear( ModulationStepStarted );
  Constraint::clear( Modulation_FullRampDown );
  Constraint::clear( Modulation_FullRampUp );
  Constraint::clear( ModulationSameDirection );
@@ -832,7 +835,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
   // sum_{h=2}^{K} m_{t+h} + ( K - 1 ) ( m_t - m_{t+1} ) <= K - 1 with
   // K = min{ tau^M - 1 , T - 1 - t }, whose relaxation is much weaker, the
   // end of the modulation being spread over m_t - m_{t+1}
-  ModulationStability.reserve( 3 * T );
+  ModulationStability.reserve( T );
   for( Index t = 0 ; t + 2 < T ; ++t ) {
    const Index K = std::min( Index( f_modulation_interval - 1 ) , T - 1 - t );
    if( K < 2 )
@@ -844,6 +847,10 @@ void NuclearUnitBlock::generate_operating_rules( void )
    cf.push_back( coeff_pair( & v_modulation[ t + 1 ] , - double( K - 1 ) ) );
    row( ModulationStability , std::move( cf ) , -INF , double( K - 1 ) );
    }
+  if( f_tight_rules && ( ! f_tight_cuts ) ) {
+   ModulationStartsApart.reserve( T );
+   ModulationEndStarts.reserve( T );
+   }
   if( f_tight_rules && ( ! f_tight_cuts ) )
    for( Index t = 0 ; t + 1 < T ; ++t ) {
     // at most one start in any tau^M instants, two of them being at least
@@ -853,7 +860,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
      LinearFunction::v_coeff_pair cf;
      for( Index h = 0 ; h < K ; ++h )
       cf.push_back( coeff_pair( & v_modulation_start[ t + h ] , 1.0 ) );
-     row( ModulationStability , std::move( cf ) , -INF , 1.0 );
+     row( ModulationStartsApart , std::move( cf ) , -INF , 1.0 );
      }
     // a modulation ending at t forbids the starts up to t + tau^M - 1:
     // m_t - m_{t+1} + sum_{h=t+1}^{t+tau^M-1} s_h <= 1
@@ -865,30 +872,39 @@ void NuclearUnitBlock::generate_operating_rules( void )
      cf.push_back( coeff_pair( & v_modulation[ t + 1 ] , -1.0 ) );
      for( Index h = 1 ; h <= K1 ; ++h )
       cf.push_back( coeff_pair( & v_modulation_start[ t + h ] , 1.0 ) );
-     row( ModulationStability , std::move( cf ) , -INF , 1.0 );
+     row( ModulationEndStarts , std::move( cf ) , -INF , 1.0 );
      }
     }
   add_static_constraint( ModulationStability , "ModulationStability_Nuclear" );
+  if( f_tight_rules && ( ! f_tight_cuts ) ) {
+   add_static_constraint( ModulationStartsApart ,
+                          "ModulationStartsApart_Nuclear" );
+   add_static_constraint( ModulationEndStarts , "ModulationEndStarts_Nuclear" );
+   }
 
   // maximum length: sum_{h=t}^{t+L} m_h <= L, and, with the tight rows, each
   // step belongs to a modulation started in the last L instants, i.e.,
   // m_t <= sum_{h=(t-L+1)^+}^{t} s_h
-  ModulationMaxLength.reserve( 2 * T );
+  ModulationMaxLength.reserve( T );
   for( Index t = 0 ; t + L < T ; ++t ) {
    LinearFunction::v_coeff_pair cf;
    for( Index h = t ; h <= t + L ; ++h )
     cf.push_back( coeff_pair( & v_modulation[ h ] , 1.0 ) );
    row( ModulationMaxLength , std::move( cf ) , -INF , double( L ) );
    }
-  if( f_tight_rules && ( ! f_tight_cuts ) )
+  add_static_constraint( ModulationMaxLength , "ModulationMaxLength_Nuclear" );
+  if( f_tight_rules && ( ! f_tight_cuts ) ) {
+   ModulationStepStarted.reserve( T );
    for( Index t = 0 ; t < T ; ++t ) {
     LinearFunction::v_coeff_pair cf;
     cf.push_back( coeff_pair( & v_modulation[ t ] , 1.0 ) );
     for( Index h = ( t >= L ? t - L + 1 : 0 ) ; h <= t ; ++h )
      cf.push_back( coeff_pair( & v_modulation_start[ h ] , -1.0 ) );
-    row( ModulationMaxLength , std::move( cf ) , -INF , 0.0 );
+    row( ModulationStepStarted , std::move( cf ) , -INF , 0.0 );
     }
-  add_static_constraint( ModulationMaxLength , "ModulationMaxLength_Nuclear" );
+   add_static_constraint( ModulationStepStarted ,
+                          "ModulationStepStarted_Nuclear" );
+   }
   }
 
  // the bands of the output - - - - - - - - - - - - - - - - - - - - - - - -
@@ -907,9 +923,17 @@ void NuclearUnitBlock::generate_operating_rules( void )
 
   BandChoice.reserve( T );
   BandPower.reserve( 2 * T );
-  ModulationEndLink.reserve( 3 * T );
-  BandKeep.reserve( 6 * T );
-  BandMove.reserve( 5 * T );
+
+  // the rows of instant t, whose number depends on t: the inner vectors
+  // are reserved to their largest size, so that no row moves
+  ModulationEndLink.resize( T );
+  BandKeep.resize( T );
+  BandMove.resize( T );
+  for( Index t = 0 ; t < T ; ++t ) {
+   ModulationEndLink[ t ].reserve( 3 );
+   BandKeep[ t ].reserve( 6 );
+   BandMove[ t ].reserve( 5 );
+   }
 
   for( Index t = 0 ; t < T ; ++t ) {
    const double pmin = get_min_power( t ) , pmax = get_max_power( t );
@@ -935,14 +959,14 @@ void NuclearUnitBlock::generate_operating_rules( void )
                       coeff_pair( & v_modulation_end[ t ] , M ) } , -INF , 0 );
 
    // e_t = m_t ( 1 - m_{t+1} ), the last step of a modulation
-   row( ModulationEndLink , { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
+   row( ModulationEndLink[ t ] , { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
                               coeff_pair( & v_modulation[ t ] , -1.0 ) } ,
         -INF , 0 );
    if( t + 1 < T ) {
-    row( ModulationEndLink ,
+    row( ModulationEndLink[ t ] ,
          { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
            coeff_pair( & v_modulation[ t + 1 ] , 1.0 ) } , -INF , 1 );
-    row( ModulationEndLink ,
+    row( ModulationEndLink[ t ] ,
          { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
            coeff_pair( & v_modulation[ t ] , -1.0 ) ,
            coeff_pair( & v_modulation[ t + 1 ] , 1.0 ) } , 0 , INF );
@@ -958,7 +982,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
     for( Index h = ( T >= L ? T - L : 0 ) ; h < T ; ++h )
      cf.push_back( coeff_pair( & v_modulation[ h ] , 1.0 ) );
     cf.push_back( coeff_pair( & v_modulation_end[ T - 1 ] , -1.0 ) );
-    row( ModulationEndLink , std::move( cf ) , -INF , double( L - 1 ) );
+    row( ModulationEndLink[ t ] , std::move( cf ) , -INF , double( L - 1 ) );
     }
 
    if( ! t ) {
@@ -973,48 +997,48 @@ void NuclearUnitBlock::generate_operating_rules( void )
     // the term in the commitment leaves room for
     for( Index k = 0 ; k < 3 ; ++k ) {
      const double d0 = ( k == b0 ) ? 1.0 : 0.0;
-     row( BandKeep , { coeff_pair( band( k , 0 ) , 1.0 ) ,
+     row( BandKeep[ t ] , { coeff_pair( band( k , 0 ) , 1.0 ) ,
                        coeff_pair( & v_modulation_end[ 0 ] , -1.0 ) } ,
           -INF , d0 );
      // d0 - b^k_0 <= e_0 + ( 1 - u_0 ): the band is the initial one unless
      // a modulation ends at 0, and the unit that shuts down there has none
-     row( BandKeep , { coeff_pair( band( k , 0 ) , -1.0 ) ,
+     row( BandKeep[ t ] , { coeff_pair( band( k , 0 ) , -1.0 ) ,
                        coeff_pair( & v_modulation_end[ 0 ] , -1.0 ) ,
                        coeff_pair( & v_commitment[ 0 ] , 1.0 ) } ,
           -INF , 1 - d0 );
-     row( BandMove , { coeff_pair( band( k , 0 ) , 1.0 ) ,
+     row( BandMove[ t ] , { coeff_pair( band( k , 0 ) , 1.0 ) ,
                        coeff_pair( & v_modulation_end[ 0 ] , 1.0 ) } ,
           -INF , 2 - d0 );
      }
     if( b0 == 2 )
-     row( BandMove , { coeff_pair( band( 0 , 0 ) , 1.0 ) } , -INF , 0 );
+     row( BandMove[ t ] , { coeff_pair( band( 0 , 0 ) , 1.0 ) } , -INF , 0 );
     if( b0 == 0 )
-     row( BandMove , { coeff_pair( band( 2 , 0 ) , 1.0 ) } , -INF , 0 );
+     row( BandMove[ t ] , { coeff_pair( band( 2 , 0 ) , 1.0 ) } , -INF , 0 );
     continue;
     }
 
    for( Index k = 0 ; k < 3 ; ++k ) {
     // the band does not change, unless a modulation ends or the unit was
     // off (in which case the band it restarts in is free)
-    row( BandKeep , { coeff_pair( band( k , t ) , 1.0 ) ,
+    row( BandKeep[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
                       coeff_pair( band( k , t - 1 ) , -1.0 ) ,
                       coeff_pair( & v_modulation_end[ t ] , -1.0 ) ,
                       coeff_pair( & v_commitment[ t - 1 ] , 1.0 ) } ,
          -INF , 1 );
-    row( BandKeep , { coeff_pair( band( k , t - 1 ) , 1.0 ) ,
+    row( BandKeep[ t ] , { coeff_pair( band( k , t - 1 ) , 1.0 ) ,
                       coeff_pair( band( k , t ) , -1.0 ) ,
                       coeff_pair( & v_modulation_end[ t ] , -1.0 ) ,
                       coeff_pair( & v_commitment[ t ] , 1.0 ) } , -INF , 1 );
     // when a modulation ends the band does change
-    row( BandMove , { coeff_pair( band( k , t ) , 1.0 ) ,
+    row( BandMove[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
                       coeff_pair( band( k , t - 1 ) , 1.0 ) ,
                       coeff_pair( & v_modulation_end[ t ] , 1.0 ) } ,
          -INF , 2 );
     }
    // and it moves to an adjacent band, never across the whole range
-   row( BandMove , { coeff_pair( band( 0 , t ) , 1.0 ) ,
+   row( BandMove[ t ] , { coeff_pair( band( 0 , t ) , 1.0 ) ,
                      coeff_pair( band( 2 , t - 1 ) , 1.0 ) } , -INF , 1 );
-   row( BandMove , { coeff_pair( band( 2 , t ) , 1.0 ) ,
+   row( BandMove[ t ] , { coeff_pair( band( 2 , t ) , 1.0 ) ,
                      coeff_pair( band( 0 , t - 1 ) , 1.0 ) } , -INF , 1 );
    }
 
@@ -1032,13 +1056,16 @@ void NuclearUnitBlock::generate_operating_rules( void )
  // modulation step anyway); the tight form says the same one instant at a
  // time, m_h + v_t <= 1, which the relaxation cannot spread over the sum
  if( f_stability_after_start > 1 ) {
-  StartUpStability.reserve( ( f_tight_rules ? f_stability_after_start : 1 )
-                            * T );
+  // the rows of a start-up at t, which are fewer towards the end of the
+  // horizon: the inner vectors are reserved to their size, so that no row
+  // moves
+  StartUpStability.resize( T );
   for( Index t = init_t ; t < T ; ++t ) {
    const Index h1 = std::min( t + f_stability_after_start , T );
+   StartUpStability[ t ].reserve( f_tight_rules ? h1 - t - 1 : 1 );
    if( f_tight_rules )
     for( Index h = t + 1 ; h < h1 ; ++h )
-     row( StartUpStability ,
+     row( StartUpStability[ t ] ,
           { coeff_pair( & v_modulation[ h ] , 1.0 ) ,
             coeff_pair( & v_start_up[ t - init_t ] , 1.0 ) } , -INF , 1 );
    else {
@@ -1047,7 +1074,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
      cf.push_back( coeff_pair( & v_modulation[ h ] , 1.0 ) );
     cf.push_back( coeff_pair( & v_start_up[ t - init_t ] ,
                               double( h1 - t ) ) );
-    row( StartUpStability , std::move( cf ) , -INF , double( h1 - t ) );
+    row( StartUpStability[ t ] , std::move( cf ) , -INF , double( h1 - t ) );
     }
    }
   add_static_constraint( StartUpStability , "StartUpStability_Nuclear" );
@@ -1392,6 +1419,9 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    && RowConstraint::is_feasible( Modulation_FullRampUp , tol , rel_viol )
    && RowConstraint::is_feasible( Modulation_FullRampDown , tol , rel_viol )
    && RowConstraint::is_feasible( ModulationStability , tol , rel_viol )
+   && RowConstraint::is_feasible( ModulationStartsApart , tol , rel_viol )
+   && RowConstraint::is_feasible( ModulationEndStarts , tol , rel_viol )
+   && RowConstraint::is_feasible( ModulationStepStarted , tol , rel_viol )
    && RowConstraint::is_feasible( StartUpStability , tol , rel_viol )
    && ColVariable::is_feasible( v_band , tol )
    && ColVariable::is_feasible( v_modulation_end , tol )
