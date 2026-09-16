@@ -689,20 +689,18 @@ class UCBlock : public Block
   *   \f]
   *
   * - Pollutant Budget Constraints:
-  *   The emission of pollutant \f$ p \in \mathcal{P} \f$ due to the
-  *   electrical generators in the zone \f$ \mathcal{B} \in
-  *   \mathcal{B}^{p}(\mathcal{N}) \f$, summed over the whole time horizon,
-  *   cannot exceed the budget \f$ O_{\mathcal{B},p} \f$ of the zone; the
-  *   conversion factor \f$ \rho_{t,p,g} \f$ (see get_pollutant_rho())
-  *   includes the duration of the time instant. Therefore, if
-  *   get_number_pollutants() > 0, a std::vector< FRowConstraint > C of size
-  *   get_total_number_pollutant_zones() is defined, with the zones of all
-  *   the pollutants one after the other as in PollutantBudget (see
-  *   deserialize()): the entry of zone \f$ \mathcal{B} \f$ = 0, ...,
-  *   get_number_pollutant_zones()[ p ] - 1 of pollutant p is
-  *   C[ get_number_pollutant_zones()[ 0 ] + ... +
-  *   get_number_pollutant_zones()[ p - 1 ] + \f$ \mathcal{B} \f$ ], and it
-  *   is the constraint
+  *   For each pollutant \f$ p \in \mathcal{P} \f$ the nodes are partitioned
+  *   in zones \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$ (a node
+  *   may also belong to no zone), and the emission of pollutant \f$ p \f$ in
+  *   the zone \f$ \mathcal{B} \f$, summed over the whole time horizon, is
+  *   bounded from above by the budget \f$ O_{\mathcal{B},p} \f$ and from
+  *   below by \f$ O^{mn}_{\mathcal{B},p} \f$ (-INF if there is no lower
+  *   bound, and equal to \f$ O_{\mathcal{B},p} \f$ for a limit the emission
+  *   has to match). Therefore, if get_number_pollutants() > 0, a
+  *   std::vector< std::vector< FRowConstraint > > C is defined, where C[ p ]
+  *   has get_number_pollutant_zones()[ p ] entries (the pollutants may have
+  *   a different number of zones, and no row is wasted on the zones one of
+  *   them does not have): C[ p ][ \f$ \mathcal{B} \f$ ] is the constraint
   *   \f[
   *    O^{mn}_{\mathcal{B},p} \leq \sum_{t \in \mathcal{T}}
   *     \sum_{n \in \mathcal{B}} \Big( \sum_{ g \in \mathcal{G}_n }
@@ -711,13 +709,24 @@ class UCBlock : public Block
   *     \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
   *     \quad p \in \mathcal{P}                                    \quad (5)
   *   \f]
-  *   where \f$ \mathcal{S}_n \f$ are the storages at node \f$ n \f$ (see
-  *   UnitBlock::get_number_storages()), \f$ v_{t,s} \f$ the level of storage
-  *   \f$ s \f$ at the end of time \f$ t \f$ (see
-  *   UnitBlock::get_storage_level()), \f$ \sigma_{t,p,s} \f$ its factor
-  *   (see get_pollutant_storage_rho()), and \f$ O^{mn}_{\mathcal{B},p} \f$
-  *   the lower bound (see get_pollutant_min_budget()), -INF if there is
-  *   none. All the terms of a scaled unit are multiplied by its scale.
+  *   The conversion factor \f$ \rho_{t,p,g} \f$ (see get_pollutant_rho()) is
+  *   the emission of pollutant \f$ p \f$ per unit of active power of the
+  *   electrical generator \f$ g \f$ over the time instant \f$ t \f$, i.e.,
+  *   the emission per unit of energy times the duration \f$ \Delta t \f$ of
+  *   the time instant (and divided by the efficiency of the generator, if
+  *   the emission is that of the fuel it burns); the heat produced by the
+  *   units, if any, is not accounted for. The second sum is on the storages
+  *   \f$ \mathcal{S}_n \f$ of the units at node \f$ n \f$ (see
+  *   UnitBlock::get_number_storages(); the storages of a unit are at the node
+  *   of its first electrical generator), \f$ v_{t,s} \f$ being the level of
+  *   storage \f$ s \f$ at the end of time \f$ t \f$ (see
+  *   UnitBlock::get_storage_level()) and \f$ \sigma_{t,p,s} \f$ its factor
+  *   (see get_pollutant_storage_rho()). This is how a limit accounts for the
+  *   change of the level of a storage over the horizon, as that of a store of
+  *   CO2 or of a fuel that emits it: the storage then has a nonzero factor at
+  *   the last time instant only, and the contribution of its initial level,
+  *   which is a constant, is already subtracted from both bounds. All the
+  *   terms of a unit are multiplied by its scale.
   */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
@@ -1395,23 +1404,24 @@ class UCBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum pollutant emission constraints
- /** This method returns the vector C containing the maximum pollutant
-  * emission constraints, with the zones of all the pollutants one after the
-  * other as in get_pollutant_budget(): C[ k ] is the constraint whose budget
-  * is get_pollutant_budget()[ k ]. */
+ /// returns the pollutant budget constraints
+ /** This method returns the vector C of the pollutant budget constraints:
+  * C[ p ] has get_number_pollutant_zones()[ p ] entries, C[ p ][ z ] being
+  * the constraint of zone z of pollutant p, whose budget is
+  * get_pollutant_budget()[ get_number_pollutant_zones()[ 0 ] + ... +
+  * get_number_pollutant_zones()[ p - 1 ] + z ]. */
 
- std::vector< FRowConstraint > & get_pollutant_constraints( void ) {
+ std::vector< std::vector< FRowConstraint > > &
+  get_pollutant_constraints( void ) {
   return( v_PollutantBudget_Const );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the (const) maximum pollutant emission constraints
- /** This method returns (a const reference to) the vector C containing the
-  * maximum pollutant emission constraints, ordered as in
-  * get_pollutant_constraints(). */
+ /// returns the (const) pollutant budget constraints
+ /** This method returns (a const reference to) the pollutant budget
+  * constraints, indexed as in get_pollutant_constraints(). */
 
- const std::vector< FRowConstraint > &
+ const std::vector< std::vector< FRowConstraint > > &
  get_const_pollutant_constraints( void ) const {
   return( v_PollutantBudget_Const );
   }
@@ -1746,9 +1756,9 @@ class UCBlock : public Block
  boost::multi_array< FRowConstraint , 2 > v_InertiaDemand_Const;
 
  /// pollutant budget constraints for each pollutant and pollutant zone
- /** The constraints of the zones of all the pollutants, one after the other
-  * as in v_pollutant_budget. */
- std::vector< FRowConstraint > v_PollutantBudget_Const;
+ /** v_PollutantBudget_Const[ p ][ z ] is the constraint of zone z of
+  * pollutant p. */
+ std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
 
  FRealObjective objective;  ///< the objective function
 

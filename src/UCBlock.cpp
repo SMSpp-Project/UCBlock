@@ -1315,15 +1315,15 @@ void UCBlock::generate_pollutant_budget_constraints( void )
  if( f_number_pollutants == 0 )
   return;
 
- // the constraints of all the zones of all the pollutants, one after the
- // other as the entries of PollutantBudget: the pollutants may have a
+ // one constraint per zone of each pollutant: the pollutants may have a
  // different number of zones, so a two-dimensional array would have
  // useless rows
- v_PollutantBudget_Const.resize( f_total_number_pollutant_zones );
+ v_PollutantBudget_Const.resize( f_number_pollutants );
 
- Index first_zone = 0;  // index of the constraint of zone 0 of pollutant p
+ Index first_zone = 0;  // index in the budgets of zone 0 of pollutant p
  for( Index p = 0 ; p < f_number_pollutants ; ++p ) {
   const auto number_zones = v_number_pollutant_zones[ p ];
+  v_PollutantBudget_Const[ p ].resize( number_zones );
 
   // the terms of the constraint of each zone of pollutant p: those of a
   // unit are consecutive, which is what update_pollutant_budget_constraints()
@@ -1340,7 +1340,7 @@ void UCBlock::generate_pollutant_budget_constraints( void )
 
   for( Index zone_id = 0 ; zone_id < number_zones ; ++zone_id ) {
    const auto k = first_zone + zone_id;
-   auto & constraint = v_PollutantBudget_Const[ k ];
+   auto & constraint = v_PollutantBudget_Const[ p ][ zone_id ];
    constraint.set_lhs( v_pollutant_min_budget[ k ] );
    constraint.set_rhs( v_pollutant_budget[ k ] );
    constraint.set_function(
@@ -2225,9 +2225,9 @@ void UCBlock::update_pollutant_budget_constraints(
      modified_units.empty() )
   return;  // there is nothing to be updated
 
- Index first_zone = 0;  // index of the constraint of zone 0 of pollutant p
  for( Index p = 0 ; p < f_number_pollutants ; ++p ) {
   const auto number_zones = v_number_pollutant_zones[ p ];
+  auto & constraints = v_PollutantBudget_Const[ p ];
 
   // for the constraint of each zone of pollutant p, the index of its next
   // active Variable and the coefficients that change, with their indices
@@ -2244,9 +2244,8 @@ void UCBlock::update_pollutant_budget_constraints(
    if( std::binary_search( modified_units.begin() , modified_units.end() ,
                            unit_id ) ) {
     assert( next_var_index[ zone_id ] <
-            v_PollutantBudget_Const[ first_zone + zone_id ]
-                                                .get_num_active_var() );
-    assert( v_PollutantBudget_Const[ first_zone + zone_id ].get_active_var(
+            constraints[ zone_id ].get_num_active_var() );
+    assert( constraints[ zone_id ].get_active_var(
                        next_var_index[ zone_id ] )->get_Block() == unit_block );
 
     coefficients[ zone_id ].push_back( unit_block->get_scale() * factor );
@@ -2258,11 +2257,9 @@ void UCBlock::update_pollutant_budget_constraints(
 
   for( Index zone_id = 0 ; zone_id < number_zones ; ++zone_id )
    if( ! subset[ zone_id ].empty() )
-    LF( v_PollutantBudget_Const[ first_zone + zone_id ].get_function() )->
+    LF( constraints[ zone_id ].get_function() )->
      modify_coefficients( std::move( coefficients[ zone_id ] ) ,
                           std::move( subset[ zone_id ] ) , true , issueMod );
-
-  first_zone += number_zones;
   }  // end( for( p ) )
 
  }  // end( UCBlock::update_pollutant_budget_constraints )
@@ -2500,10 +2497,16 @@ bool UCBlock::set_pollutant_budget_k( Index k , double budget , bool lower ,
   current = budget;
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // the pollutant p and the zone z of the index k
+   Index p = 0;
+   Index z = k;
+   while( z >= v_number_pollutant_zones[ p ] )
+    z -= v_number_pollutant_zones[ p++ ];
+
    if( lower )
-    v_PollutantBudget_Const[ k ].set_lhs( budget , issueAMod );
+    v_PollutantBudget_Const[ p ][ z ].set_lhs( budget , issueAMod );
    else
-    v_PollutantBudget_Const[ k ].set_rhs( budget , issueAMod );
+    v_PollutantBudget_Const[ p ][ z ].set_rhs( budget , issueAMod );
    }
   }
 
@@ -2801,9 +2804,10 @@ void UCBlockSolution::read( const Block * block )
    throw( std::invalid_argument(
        "UCBlockSolution::read-ing duals of non-existent pollutant budget" ) );
 
-  v_pollutant_duals.resize( f_total_number_pollutant_zones );
-  for( Index i = 0 ; i < f_total_number_pollutant_zones ; ++i )
-   v_pollutant_duals[ i ] = PBC[ i ].get_dual();
+  v_pollutant_duals.clear();
+  for( const auto & zones : PBC )
+   for( const auto & constraint : zones )
+    v_pollutant_duals.push_back( constraint.get_dual() );
   }
  }  // end( UCBlockSolution::read )
 
@@ -2901,8 +2905,10 @@ void UCBlockSolution::write( Block * block )
    throw( std::invalid_argument(
      "UCBlockSolution::write-ing duals of non-existent pollutant budget" ) );
 
-  for( Index i = 0 ; i < f_total_number_pollutant_zones ; ++i )
-   PBC[ i ].set_dual( v_pollutant_duals[ i ] );
+  auto dual = v_pollutant_duals.begin();
+  for( auto & zones : PBC )
+   for( auto & constraint : zones )
+    constraint.set_dual( *(dual++) );
   }
  }  // end( UCBlockSolution::write )
 
