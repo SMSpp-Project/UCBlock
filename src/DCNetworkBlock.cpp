@@ -435,18 +435,22 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
   B_hat.insert( line_id , end_line[ line_id ] ) = - s;
   }
 
+ // two nodes can be joined by more than one line, and then the susceptances
+ // of all of them add up in the same entry: the entries are therefore summed
+ // into, insert() being only for one that is not there yet
  SpMat B_bar = SpMat( number_nodes , number_nodes );
  std::vector< double > B_bar_diag( number_nodes , 0.0 );
  for( auto line_id : DC_lines ) {
   auto s = v_line_susceptance[ line_id ];
-  B_bar.insert( start_line[ line_id ] , end_line[ line_id ] ) = - s;
-  B_bar.insert( end_line[ line_id ] , start_line[ line_id ] ) = - s;
+  B_bar.coeffRef( start_line[ line_id ] , end_line[ line_id ] ) -= s;
+  B_bar.coeffRef( end_line[ line_id ] , start_line[ line_id ] ) -= s;
   B_bar_diag[ start_line[ line_id ] ] += s;
   B_bar_diag[ end_line[ line_id ] ] += s;
   }
 
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id )
-  B_bar.insert( node_id , node_id ) = B_bar_diag[ node_id ] + tikhonov_coeff;
+  B_bar.coeffRef( node_id , node_id ) += B_bar_diag[ node_id ] +
+                                         tikhonov_coeff;
 
  /*
  * When only a single connected component is there, the situation is simple
@@ -930,7 +934,7 @@ void DCNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   stcc = f_BlockConfig->f_static_constraints_Configuration;
 
  f_C_v_scal = 1;
- f_tikhonov_coeff = 1e-4;
+ f_tikhonov_coeff = 0;
  f_ptdf_round = 1e-16; // Default value doing nothing
 
  if( auto SCdd = dynamic_cast< SimpleConfiguration< double > * >( stcc ) )

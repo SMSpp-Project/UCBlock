@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The PTDF matrix of a `DCNetworkBlock` is no longer perturbed by a Tikhonov
+  term on the diagonal (`f_tikhonov_coeff` is 0 by default), the reduced
+  Laplacian being nonsingular once a reference node per connected component is
+  removed. The perturbation broke the conservation of the flows: the PTDF rows,
+  the nodal balance of the nodes an HVDC line touches and the overall balance
+  are then no longer consistent, and together they pin a relation among the
+  injections that has nothing to do with the network, so that on a network of
+  both kinds of lines the PTDF formulation gave an optimum far from that of the
+  KIRCHHOFF one, and could even declare the problem infeasible. The two now
+  agree, on a network of 8 countries as on a triangle.
+
+- Two lines that join the same two nodes sum their susceptances in the PTDF
+  matrix, instead of the second one overwriting the entry of the first.
+
 - The costs of the operating rules of a `NuclearUnitBlock`, i.e., those of a
   downward modulation step and of a deep decrease, can change:
   `set_down_modulation_costs()` and `set_deep_decrease_costs()` do it, and a
