@@ -5969,6 +5969,29 @@ void ThermalUnitBlock::set_init_updown_time( MF_int_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::set_min_up_down_time( Index min_up_time ,
+                                             Index min_down_time ,
+                                             ModParam issuePMod )
+{
+ if( variables_generated() )
+  throw( std::logic_error( "ThermalUnitBlock::set_min_up_down_time: the "
+                           "Variable have been generated already, and the "
+                           "minimum times decide how many there are" ) );
+
+ f_MinUpTime = std::min( std::max( min_up_time , Index( 1 ) ) ,
+                         f_time_horizon + 1 );
+ f_MinDownTime = std::min( std::max( min_down_time , Index( 1 ) ) ,
+                           f_time_horizon + 1 );
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
+                            this , ThermalUnitBlockMod::eSetInitUD ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+ }  // end( ThermalUnitBlock::set_min_up_down_time )
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::scale( MF_dbl_it values ,
                               Subset && subset ,
                               const bool ordered ,

@@ -2792,6 +2792,20 @@ class ThermalUnitBlock : public UnitBlock
                             ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// sets the minimum up and down times, before the Variable are generated
+ /** Sets the minimum up time and the minimum down time of the unit. Unlike
+  * the other data, these two decide the structure of the model (how many
+  * instants of the commitment the initial state fixes, and therefore how many
+  * start-up and shut-down Variable there are), hence they can only be set
+  * before the Variable are generated, and the method throws otherwise. Each
+  * of them is taken between 1 and the time horizon plus one, the latter
+  * saying that the unit, being on (off) before the horizon, never switches
+  * within it. */
+
+ void set_min_up_down_time( Index min_up_time , Index min_down_time ,
+                            ModParam issuePMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
  /// sets the scale factor
  /** This method sets the scale factor.
   *
