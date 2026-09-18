@@ -135,7 +135,13 @@ This builds the following folders:
 
 - [data/nc4/EC_Data](data/nc4/EC_Data), which contains instances of UC
   related to the optimal design of Energy Communities (and hence in
-  particular containing `ECNetworkBlock`)
+  particular containing `ECNetworkBlock`), in one sub-folder per kind of
+  problem: `ucblock`, `tssb` (`TwoStageStochasticBlock`) and `mssb`
+  (`MultiStageStochasticBlock`)
+
+- [data/nc4/pypsa-data](data/nc4/pypsa-data), which contains the networks
+  translated from PyPSA by pypsa2smspp, in the sub-folders `ucblock`,
+  `pollutants` (those with pollutant budget constraints), `tssb` and `mssb`
 
 - [data/nc4/UC_Data](data/nc4/UC_Data), which contains pure thermal and
   hydro-thermal instances produced by

@@ -170,15 +170,15 @@ market CSV are needed:
 
 ## Output
 
-The script writes one or two files into `../../data/nc4/EC_Data/`:
+The script writes one or two files into `../../data/nc4/EC_Data/`, in the
+sub-folder of the kind of problem (`ucblock`, `tssb` or `mssb`):
 
-- `EC_<MODE>_Test[_TUB][_NB].nc4` — the deterministic UCBlock instance, always
-  produced.
-- `TSSB_EC_<MODE>_Test[_TUB][_NB].nc4` — the TwoStageStochasticBlock instance,
-  produced only when `scen_s_sample * scen_eps_sample > 1`. The TSSB does NOT
-  embed the deterministic UCBlock inline; instead its inner `Block` group
-  references the `EC_*.nc4` companion file via the `filename` attribute.
-- `MSSB_EC_<MODE>_Test[_TUB][_NB]_<n>S.nc4` — the MultiStageStochasticBlock
+- `ucblock/EC_<MODE>_Test[_TUB][_NB].nc4` — the deterministic UCBlock instance,
+  always produced.
+- `tssb/TSSB_EC_<MODE>_Test[_TUB][_NB].nc4` — the TwoStageStochasticBlock
+  instance, produced only when `scen_s_sample * scen_eps_sample > 1`, whose
+  inner UCBlock is a child Block of the StochasticBlock group.
+- `mssb/MSSB_EC_<MODE>_Test[_TUB][_NB]_<n>S.nc4` — the MultiStageStochasticBlock
   instance, produced with `--multistage` from a stochastic YAML. It aggregates
   the `TwoStageStochasticBlock` as its inner sub-Block(s). The `_<n>S` suffix
   is the number of stages: `_2S` from a `_two_stage` YAML, `_3S` from a
