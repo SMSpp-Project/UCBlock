@@ -1233,6 +1233,59 @@ class IntermittentUnitBlock : public UnitBlock
   register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
    "IntermittentUnitBlock::set_kappa" ,
    & IntermittentUnitBlock::set_kappa );
+
+  // The same two methods are registered again under names that say which of
+  // the two ways of sizing a Block [see Design and scaling of this Block in
+  // Block.h] they implement, so that a consumer can pick the operation
+  // without knowing the class:
+  //
+  // - replicate: this UnitBlock stands for k identical copies of itself. Its
+  //   Constraint and Variable keep describing one copy and whoever holds a
+  //   coupling multiplies by get_scale(); only its Objective is rewritten;
+  //
+  // - resize: this UnitBlock stands for one unit of k times the size it was
+  //   given. Its own rows are rewritten and no consumer multiplies anything.
+  //
+  // The old names are kept so that instances naming them keep working: a
+  // registered name travels inside the instances, and dropping one breaks
+  // them at load time with no diagnostic.
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::replicate" ,
+   & IntermittentUnitBlock::scale );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::replicate" ,
+   & IntermittentUnitBlock::scale );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+   "IntermittentUnitBlock::resize" ,
+   & IntermittentUnitBlock::set_kappa );
+
+  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+   "IntermittentUnitBlock::resize" ,
+   & IntermittentUnitBlock::set_kappa );
+
+  // ... and the getter reading the sensitivity back, registered under a name
+  // that says which of the two it answers for. It is the same virtual that
+  // UnitBlock declares; what the factory adds is that a consumer can reach it
+  // without holding a UnitBlock *, and that a class not answering for it
+  // simply does not register the name.
+
+  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
+  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+
+  register_method< qry_sbst >(
+   "IntermittentUnitBlock::get_resize_linearization" , new qry_sbst(
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & , bool ) {
+     msp[ 0 ] = static_cast< const IntermittentUnitBlock * >( blck )->get_kappa_linearization();
+     } ) );
+
+  register_method< qry_rngd >(
+   "IntermittentUnitBlock::get_resize_linearization" , new qry_rngd(
+    []( const Block * blck , MF_dbl_msp msp , Range ) {
+     msp[ 0 ] = static_cast< const IntermittentUnitBlock * >( blck )->get_kappa_linearization();
+     } ) );
  }
 
 };  // end( class( IntermittentUnitBlock ) )

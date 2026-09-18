@@ -2277,6 +2277,50 @@ class BatteryUnitBlock : public UnitBlock
   register_method< BatteryUnitBlock , MF_dbl_it , Range >(
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
+
+  // The two ways of sizing this Block [see Design and scaling of this Block
+  // in Block.h], each under the name that says which one it is. Note that
+  // scale() was not registered at all until now, so the "k copies" road was
+  // not reachable through the factory for a battery, although the method has
+  // always been there. set_kappa keeps its old name as well: a registered
+  // name travels inside the instances that name it.
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::replicate" ,
+   & BatteryUnitBlock::scale );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::replicate" ,
+   & BatteryUnitBlock::scale );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+   "BatteryUnitBlock::resize" ,
+   & BatteryUnitBlock::set_kappa );
+
+  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+   "BatteryUnitBlock::resize" ,
+   & BatteryUnitBlock::set_kappa );
+
+  // ... and the getter reading the sensitivity back, registered under a name
+  // that says which of the two it answers for. It is the same virtual that
+  // UnitBlock declares; what the factory adds is that a consumer can reach it
+  // without holding a UnitBlock *, and that a class not answering for it
+  // simply does not register the name.
+
+  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
+  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+
+  register_method< qry_sbst >(
+   "BatteryUnitBlock::get_resize_linearization" , new qry_sbst(
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & , bool ) {
+     msp[ 0 ] = static_cast< const BatteryUnitBlock * >( blck )->get_kappa_linearization();
+     } ) );
+
+  register_method< qry_rngd >(
+   "BatteryUnitBlock::get_resize_linearization" , new qry_rngd(
+    []( const Block * blck , MF_dbl_msp msp , Range ) {
+     msp[ 0 ] = static_cast< const BatteryUnitBlock * >( blck )->get_kappa_linearization();
+     } ) );
   }
 
 };  // end( class( BatteryUnitBlock ) )
