@@ -1311,6 +1311,43 @@ class UCBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the derivative of the value of this UCBlock w.r.t. the scale of a unit
+ /** The scale factor of a UnitBlock [see UnitBlock::get_scale()] appears in
+  * the rows this UCBlock builds on top of its units, and not in the rows of
+  * the unit itself: the coefficient of the active power of the unit in the
+  * node injection balance *is* that factor, and the fixed consumption is
+  * multiplied by it, and the same happens in the reserve and inertia
+  * balances. The derivative of the value of this UCBlock with respect to
+  * that factor is therefore a sum over those rows, of the dual of each row
+  * times what the factor multiplies there, and only this UCBlock can compute
+  * it, the rows being its own.
+  *
+  * To that sum is added the term of the Objective of the unit, which under
+  * the "k copies" reading carries the factor already
+  * [see UnitBlock.h, the comment on the scale factor and the Objective]: if
+  * the Objective of the unit is \f$ k f(x) \f$, its contribution here is
+  * \f$ f(x) \f$.
+  *
+  * The duals are read as they are: this method does not solve anything, and
+  * it is the caller's business to have solved this UCBlock, and as a
+  * continuous relaxation, before asking.
+  *
+  * @param unit the index of the UnitBlock, between 0 and
+  *        get_number_units() - 1
+  *
+  * @return the derivative of the value of this UCBlock with respect to the
+  *         scale factor of the given unit
+  *
+  * @note This method is not const because of one case: when the scale factor
+  *       of the unit is 0 the term of its Objective cannot be recovered by
+  *       dividing, and the unit is scaled to 1, read, and scaled back. No
+  *       Modification is issued and the unit is left as it was found. */
+
+ double get_replicate_linearization( Index unit );
+
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
  /// returns the node injection constraints
  /** This method returns the boost multi_array C containing the node
   * injection constraints. C[ t ][ n ] is the node injection constraint
@@ -2084,6 +2121,39 @@ class UCBlock : public Block
 
   register_method< UCBlock , MF_dbl_it , Range >(
    "UCBlock::set_pollutant_min_budget" , & UCBlock::set_pollutant_min_budget );
+
+  /* The getter reading back the sensitivity to the scale factor of a unit
+   * [see get_replicate_linearization()]. It is registered here, on the
+   * container, and not on the unit, because the rows in which that factor
+   * appears are this UCBlock's own: a UnitBlock asked the same question
+   * would have to read the rows of its parent, which is what having it here
+   * avoids. The index is over the units of this UCBlock, so it is the one
+   * that get_unit_block() takes.
+   *
+   * The adapter of a query receives a const Block *, while the method is not
+   * const: with a scale factor of 0 it scales the unit to 1, reads its
+   * Objective and scales it back. The const_cast is here, in the open, and
+   * not inside the method, which stays honest about what it does. */
+
+  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
+  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+
+  register_method< qry_sbst >(
+   "UCBlock::get_replicate_linearization" , new qry_sbst(
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & units , bool ) {
+     auto ucb = const_cast< UCBlock * >( static_cast< const UCBlock * >( blck ) );
+     for( Index i = 0 ; i < units.size() ; ++i )
+      msp[ i ] = ucb->get_replicate_linearization( units[ i ] );
+     } ) );
+
+  register_method< qry_rngd >(
+   "UCBlock::get_replicate_linearization" , new qry_rngd(
+    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
+     auto ucb = const_cast< UCBlock * >( static_cast< const UCBlock * >( blck ) );
+     rng.second = std::min( rng.second , ucb->get_number_units() );
+     for( Index u = rng.first ; u < rng.second ; ++u )
+      msp[ u - rng.first ] = ucb->get_replicate_linearization( u );
+     } ) );
  }
 
 /*--------------------------------------------------------------------------*/

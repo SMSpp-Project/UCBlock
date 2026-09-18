@@ -2387,6 +2387,144 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+double UCBlock::get_replicate_linearization( Index unit )
+{
+ /* TODO The following does not take into account the pollutant budget
+  * constraints and the heat constraints. When these constraints are
+  * correctly implemented, this method must be updated. */
+
+ const auto block = get_unit_block( unit );
+ const auto time_horizon = get_time_horizon();
+ const auto num_generators = block->get_number_generators();
+
+ const auto number_nodes =
+  f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+
+ /* The index, among the electrical generators of this UCBlock, of the first
+  * generator of this unit: the generators are numbered consecutively, unit
+  * after unit. */
+
+ Index first_generator = 0;
+ for( Index u = 0 ; u < unit ; ++u )
+  first_generator += get_unit_block( u )->get_number_generators();
+
+ double linearization = 0;
+
+ // The node injection constraints - - - - - - - - - - - - - - - - - - - - -
+
+ for( Index t = 0 ; t < time_horizon ; ++t )
+  for( Index g = 0 ; g < num_generators ; ++g ) {
+
+   const auto node = v_generator_node.empty()
+                     ? 0 : v_generator_node[ first_generator + g ];
+
+   const auto & constraint = v_node_injection_Const[ t ][ node ];
+   const auto dual = constraint.get_dual();
+
+   const auto & active_power = block->get_active_power( g )[ t ];
+   linearization += dual * active_power.get_value();
+
+   assert( active_power.is_active( & constraint ) < Inf< Index >() );
+
+   // the fixed consumption is subtracted when the unit is off, and the
+   // factor multiplies it as it multiplies the power
+   if( auto fc = block->get_fixed_consumption( g ) )
+    if( auto u = block->get_commitment( g ) )
+     linearization += dual * fc[ t ] * ( 1.0 - u[ t ].get_value() );
+
+   }  // end( for each generator, for each time instant )
+
+ // The reserve and inertia constraints - - - - - - - - - - - - - - - - - - -
+
+ /* The three groups have the same shape: a row per zone and time instant,
+  * and a generator contributes to it only if its node belongs to that zone.
+  * What the factor multiplies is the reserve in the first two and the
+  * commitment and the active power, weighted by their inertia, in the
+  * third. */
+
+ const auto zone_contribution =
+  [ & ]( const auto & constraints , Index number_zones ,
+         auto belongs_to_zone , auto term ) {
+
+   if( constraints.empty() )
+    return;
+
+   for( Index t = 0 ; t < time_horizon ; ++t )
+    for( Index zone = 0 ; zone < number_zones ; ++zone )
+     for( Index node = 0 ; node < number_nodes ; ++node ) {
+
+      if( ! belongs_to_zone( node , zone ) )
+       continue;
+
+      const auto dual = constraints[ t ][ zone ].get_dual();
+
+      for( Index g = 0 ; g < num_generators ; ++g )
+       if( generator_belongs_to_node( first_generator + g , node ) )
+        linearization += dual * term( g , t );
+      }
+   };
+
+ zone_contribution( v_PrimaryDemand_Const , f_number_primary_zones ,
+                    [ this ]( Index node , Index zone ) {
+                     return( node_belongs_to_primary_zone( node , zone ) ); } ,
+                    [ block ]( Index g , Index t ) {
+                     const auto r = block->get_primary_spinning_reserve( g );
+                     return( r ? r[ t ].get_value() : 0.0 ); } );
+
+ zone_contribution( v_SecondaryDemand_Const , f_number_secondary_zones ,
+                    [ this ]( Index node , Index zone ) {
+                     return( node_belongs_to_secondary_zone( node , zone ) ); } ,
+                    [ block ]( Index g , Index t ) {
+                     const auto r = block->get_secondary_spinning_reserve( g );
+                     return( r ? r[ t ].get_value() : 0.0 ); } );
+
+ zone_contribution( v_InertiaDemand_Const , f_number_inertia_zones ,
+                    [ this ]( Index node , Index zone ) {
+                     return( node_belongs_to_inertia_zone( node , zone ) ); } ,
+                    [ block ]( Index g , Index t ) {
+                     double term = 0;
+                     const auto u = block->get_commitment( g );
+                     const auto iu = block->get_inertia_commitment( g );
+                     if( u && iu )
+                      term += iu[ t ] * u[ t ].get_value();
+                     const auto p = block->get_active_power( g );
+                     const auto ip = block->get_inertia_power( g );
+                     if( p && ip )
+                      term += ip[ t ] * p[ t ].get_value();
+                     return( term ); } );
+
+ // The Objective of the unit - - - - - - - - - - - - - - - - - - - - - - - -
+
+ /* The Objective of a UnitBlock carrying the factor has the form k f(x)
+  * [see UnitBlock.h], so what it contributes here is f(x). With k != 0 that
+  * is the value divided by k; with k == 0 dividing says nothing, and the
+  * only way of reading f(x) is to scale the unit to 1, read, and put it
+  * back. No Modification is issued, and the unit is left as it was found. */
+
+ if( const auto objective =
+     dynamic_cast< FRealObjective * >( block->get_objective() ) ) {
+
+  const auto scale = block->get_scale();
+
+  if( scale != 0 ) {
+   objective->compute();
+   linearization += objective->value() / scale;
+   }
+  else {
+   block->scale( 1.0 , eNoMod , eNoMod );
+   objective->compute();
+   linearization += objective->value();
+   block->scale( scale , eNoMod , eNoMod );
+   objective->compute();  // back to the value it had
+   }
+  }
+
+ return( linearization );
+
+} // end( UCBlock::get_replicate_linearization )
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
