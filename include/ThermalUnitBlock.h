@@ -386,7 +386,10 @@ class ThermalUnitBlock : public UnitBlock
   *   which it starts up, we also know that starting up a unit only to
   *   power it down again immediately is never a good idea, so we force
   *   up-time periods to be at least of length 1, even if it is given equals
-  *   to 0.
+  *   to 0. It is taken to be at most "TimeHorizon" + 1: that value says that
+  *   the unit, being on before the horizon, never shuts down within it, and
+  *   then the commitment is fixed at every instant and there is neither a
+  *   start-up nor a shut-down variable; anything larger means the same.
   *
   * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
   *   not indexed over any dimension, which indicates the minimum allowed down
@@ -396,7 +399,9 @@ class ThermalUnitBlock : public UnitBlock
   *   timestamp in which it shuts down, we also know that shutting down a
   *   unit only to power it up again immediately is never a good idea, so
   *   we force down-time periods to be at least of length 1, even if it is
-  *   given equals to 0.
+  *   given equals to 0. It is taken to be at most "TimeHorizon" + 1, which
+  *   says that the unit, being off before the horizon, never starts within
+  *   it.
   *
   * - The variable "FixedConsumption", of type netCDF::NcDouble and either
   *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is

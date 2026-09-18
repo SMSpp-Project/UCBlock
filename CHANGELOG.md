@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ThermalUnitBlock` accepts a `MinUpTime` (`MinDownTime`) of one instant more
+  than the horizon, which says that the unit, being on (off) before it, never
+  switches within it: the commitment is then fixed at every instant and there
+  is no start-up or shut-down variable. The bound was the horizon itself, so
+  that the last instant was free however long the minimum time.
+
 - `ThermalUnitBlock` reads the optional variable `ShutDownCost`, the cost the
   unit pays at the instant it goes off, mapped over the time horizon as
   `StartUpCost` is and changed with `set_shutdown_costs()`. A unit that pays

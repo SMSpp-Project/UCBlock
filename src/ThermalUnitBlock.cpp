@@ -176,11 +176,11 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
-                          f_time_horizon );
+                          f_time_horizon + 1 );
 
  if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) )
   f_MinDownTime = std::min( std::max( f_MinDownTime , static_cast< Index >( 1 ) ) ,
-                            f_time_horizon );
+                            f_time_horizon + 1 );
 
  ::deserialize( group , f_InitialPower , "InitialPower" );
 
@@ -579,6 +579,10 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  else
   init_t = ( -f_InitUpDownTime >= f_MinDownTime ? 0 :
              f_MinDownTime + f_InitUpDownTime );
+
+ // the unit never switches within the horizon: the commitment is fixed
+ // everywhere and there is no start-up or shut-down variable
+ init_t = std::min( init_t , f_time_horizon );
 
  // Design Binary Variable- - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
