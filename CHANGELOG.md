@@ -30,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The costs of the operating rules of a `NuclearUnitBlock`, i.e., those of a
   downward modulation step and of a deep decrease, can change:
-  `set_down_modulation_costs()` and `set_deep_decrease_costs()` do it, and a
+  `set_down_modulation_costs()` and `set_deep_decrease_costs()` do it, each in
+  its Range and Subset form and both in the methods factory, and a
   change of the corresponding coefficients of the Objective is folded into
   them, so that the physical representation follows and the DP Solver hears of
   it. They used to be refused, which stopped any Solver that writes on the

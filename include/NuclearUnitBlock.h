@@ -876,6 +876,14 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * corresponding term [see generate_objective()]; a unit that pays nothing
   * has no such term, and giving it one is not possible any longer. */
 
+ void set_down_modulation_costs( MF_dbl_it values ,
+                                 Subset && subset ,
+                                 const bool ordered = false ,
+                                 ModParam issuePMod = eNoBlck ,
+                                 ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
  void set_down_modulation_costs( MF_dbl_it values , Range rng = INFRange ,
                                  ModParam issuePMod = eNoBlck ,
                                  ModParam issueAMod = eNoBlck );
@@ -884,6 +892,14 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// changes the cost of a deep decrease
  /** Changes the cost the unit pays for a deep decrease at each instant of
   * \p rng, with the same proviso of set_down_modulation_costs(). */
+
+ void set_deep_decrease_costs( MF_dbl_it values ,
+                               Subset && subset ,
+                               const bool ordered = false ,
+                               ModParam issuePMod = eNoBlck ,
+                               ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
 
  void set_deep_decrease_costs( MF_dbl_it values , Range rng = INFRange ,
                                ModParam issuePMod = eNoBlck ,
@@ -1018,6 +1034,16 @@ class NuclearUnitBlock : public ThermalUnitBlock
  void guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
                               std::vector< double > & cost , Index pos ,
                               int type , ModParam issuePMod ,
+                              ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// changes one of the two costs at the instants of a Subset
+ /** The Subset version of guts_of_set_rule_costs(), with the same
+  * parameters. */
+
+ void guts_of_set_rule_costs( MF_dbl_it values , Subset && subset ,
+                              bool ordered , std::vector< double > & cost ,
+                              Index pos , int type , ModParam issuePMod ,
                               ModParam issueAMod );
 
  /// the big-M of the full ramp up at t: D+_t + max{ D-_t , SD_t }
@@ -1251,6 +1277,22 @@ private:
   register_method< NuclearUnitBlock , MF_dbl_it , Range >(
    "NuclearUnitBlock::set_modulation_ramp_down" ,
    & NuclearUnitBlock::set_modulation_ramp_down );
+
+  register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
+   "NuclearUnitBlock::set_down_modulation_costs" ,
+   & NuclearUnitBlock::set_down_modulation_costs );
+
+  register_method< NuclearUnitBlock , MF_dbl_it , Range >(
+   "NuclearUnitBlock::set_down_modulation_costs" ,
+   & NuclearUnitBlock::set_down_modulation_costs );
+
+  register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
+   "NuclearUnitBlock::set_deep_decrease_costs" ,
+   & NuclearUnitBlock::set_deep_decrease_costs );
+
+  register_method< NuclearUnitBlock , MF_dbl_it , Range >(
+   "NuclearUnitBlock::set_deep_decrease_costs" ,
+   & NuclearUnitBlock::set_deep_decrease_costs );
  }
 
 /*--------------------------------------------------------------------------*/

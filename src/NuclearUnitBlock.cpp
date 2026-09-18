@@ -1365,6 +1365,25 @@ void NuclearUnitBlock::generate_objective( Configuration * objc )
 /*--------------------------------------------------------------------------*/
 
 void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_it values ,
+                                                  Subset && subset ,
+                                                  const bool ordered ,
+                                                  ModParam issuePMod ,
+                                                  ModParam issueAMod )
+{
+ const bool has_mod = ( ! v_modulation_down.empty() ) &&
+                      ( ! v_down_modulation_cost.empty() );
+
+ guts_of_set_rule_costs( values , std::move( subset ) , ordered ,
+                         v_down_modulation_cost ,
+                         has_mod ? 0 : v_obj_tail.size() ,
+                         NuclearUnitBlockMod::eSetModCost ,
+                         issuePMod , issueAMod );
+
+ }  // end( NuclearUnitBlock::set_down_modulation_costs( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_it values ,
                                                   Range rng ,
                                                   ModParam issuePMod ,
                                                   ModParam issueAMod )
@@ -1379,6 +1398,26 @@ void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_it values ,
                          issuePMod , issueAMod );
 
  }  // end( NuclearUnitBlock::set_down_modulation_costs )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::set_deep_decrease_costs( MF_dbl_it values ,
+                                                Subset && subset ,
+                                                const bool ordered ,
+                                                ModParam issuePMod ,
+                                                ModParam issueAMod )
+{
+ const bool has_mod = ( ! v_modulation_down.empty() ) &&
+                      ( ! v_down_modulation_cost.empty() );
+ const bool has_deep = ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() );
+
+ guts_of_set_rule_costs( values , std::move( subset ) , ordered , v_deep_cost ,
+                         has_deep ? ( has_mod ? f_time_horizon : 0 )
+                                  : v_obj_tail.size() ,
+                         NuclearUnitBlockMod::eSetDeepCost ,
+                         issuePMod , issueAMod );
+
+ }  // end( NuclearUnitBlock::set_deep_decrease_costs( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1446,7 +1485,74 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
                             this , type , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
- }  // end( NuclearUnitBlock::guts_of_set_rule_costs )
+ }  // end( NuclearUnitBlock::guts_of_set_rule_costs( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
+                                               Subset && subset ,
+                                               bool ordered ,
+                                               std::vector< double > & cost ,
+                                               Index pos , int type ,
+                                               ModParam issuePMod ,
+                                               ModParam issueAMod )
+{
+ if( subset.empty() || cost.empty() )
+  return;
+
+ if( ! ordered )
+  std::sort( subset.begin() , subset.end() );
+
+ if( subset.back() >= cost.size() )
+  throw( std::invalid_argument( "NuclearUnitBlock::set_rule_costs: invalid "
+                                "index in subset" ) );
+
+ {   // if nothing changes, return
+  auto vit = values;
+  bool same = true;
+  for( auto t : subset )
+   if( cost[ t ] != *( vit++ ) ) {
+    same = false;
+    break;
+    }
+  if( same )
+   return;
+  }
+
+ if( not_dry_run( issuePMod ) ) {
+  // change the physical representation, and with it the copy of the
+  // coefficients of the Objective [see objective_tail_change()]
+  auto vit = values;
+  for( auto t : subset )
+   cost[ t ] = *( vit++ );
+
+  if( pos < v_obj_tail.size() )
+   for( auto t : subset )
+    v_obj_tail[ pos + t ] = f_scale * cost[ t ];
+  }
+
+ if( not_dry_run( issueAMod ) && objective_generated() &&
+     ( pos < v_obj_tail.size() ) ) {
+  // change the abstract representation
+  auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
+  const Index base = qf->get_num_active_var() - v_obj_tail.size() + pos;
+  Subset tmps( subset.size() );
+  for( Index i = 0 ; i < subset.size() ; ++i )
+   tmps[ i ] = subset[ i ] + base;
+  DQuadFunction::Vec_FunctionValue tmpv( subset.size() );
+  auto vit = values;
+  for( Index i = 0 ; i < subset.size() ; ++i )
+   tmpv[ i ] = f_scale * *( vit++ );
+  qf->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
+                                  true , un_ModBlock( issueAMod ) );
+  }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , type , std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+ }  // end( NuclearUnitBlock::guts_of_set_rule_costs( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
