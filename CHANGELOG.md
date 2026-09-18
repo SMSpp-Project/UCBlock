@@ -50,6 +50,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `BatteryUnitBlock::get_max_power_constraints()` and
+  `get_max_outtake_binary_constraints()` returned the second element of the
+  first row of their two-row group rather than the first element of the
+  second, so that `get_kappa_linearization()` read, for every instant, the
+  multiplier of the row of the instant after it, and the coefficient the
+  InvestmentFunction gets for a battery under investment was that of the
+  wrong rows. The coefficient is now also read off one side at a time: where
+  kappa is 0 the two rows pin the variable and both multipliers can be
+  nonzero on what is a single equality, and summing the two terms made the
+  linearization steeper than the function it linearizes
+
 - `HydroUnitBlock` gave an arc that is neither a turbine nor a pump at some
   instant (no flow allowed) a single flow-to-power row, but then went on as if
   it had one per piece: with more than one piece on that arc, the rows of the
