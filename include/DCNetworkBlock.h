@@ -1865,6 +1865,54 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the derivative of the value of this Block w.r.t. the kappa of \p line
+ /** The flow limit constraints of a line l are
+
+     \f[ \kappa_l \mathrm{Pmin}_l \leq F_l \leq \kappa_l \mathrm{Pmax}_l \f]
+
+  * so the derivative of the value of this Block with respect to \f$
+  * \kappa_l \f$ is minus the dual of whichever of the two bounds is active,
+  * times that bound. Which one it is, is told by the sign of the dual read
+  * against the sense of the Objective.
+  *
+  * Returns 0 if the constraints have not been generated. This is the same
+  * computation that a consumer holding this Block would otherwise have to do
+  * from outside out of get_power_flow_limit_HVDC_bounds(), get_min_power_flow()
+  * and get_max_power_flow(), together with the sign rule; it is here because
+  * the rows in which \f$ \kappa \f$ appears are this Block's own.
+  *
+  * @param line the index of the line
+  *
+  * @return the derivative of the value of this Block w.r.t. the kappa of the
+  *         given line */
+
+ double get_kappa_linearization( Index line ) const {
+  const auto & constraints = get_power_flow_limit_HVDC_bounds();
+
+  if( constraints.empty() )
+   return( 0 );
+
+  const auto obj_sign =
+   ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+
+  const auto dual = constraints[ line ].get_dual();
+
+  /* The bounds read kappa C^v P, with C^v the factor this Block scales its
+   * flow limits by, so the derivative of a bound with respect to the design
+   * is C^v P: leaving the factor out is right only while it is 1, which is
+   * its default but not its only value. */
+  const auto scale = get_C_v_scal();
+
+  // The dual is associated with either the lower or the upper bound; the
+  // sign of obj_sign * dual says which one.
+  const auto bound = scale * ( ( obj_sign * dual > 0 )
+			       ? get_min_power_flow( line )
+			       : get_max_power_flow( line ) );
+
+  return( - dual * bound );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of power flow limit HVDC bounds
 
  const std::vector< BoxConstraint > &
@@ -2523,6 +2571,45 @@ class DCNetworkData : public NetworkData
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
    "DCNetworkBlock::set_kappa" ,
    & DCNetworkBlock::set_kappa );
+
+  // set_kappa is registered again under the name that says which of the ways
+  // of sizing a Block [see Design and scaling of this Block in Block.h] it
+  // implements: a line standing for k times the capacity it was given. There
+  // is no "replicate" here on purpose, k copies of a line being a line of k
+  // times the capacity. The old name is kept: a registered name travels
+  // inside the instances that name it.
+
+  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "DCNetworkBlock::resize" ,
+   & DCNetworkBlock::set_kappa );
+
+  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+   "DCNetworkBlock::resize" ,
+   & DCNetworkBlock::set_kappa );
+
+  // ... and the getter reading the sensitivity back, which is what makes the
+  // pair usable without knowing this class: a consumer writes k through the
+  // first name and reads the derivative through the second one.
+
+  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
+  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+
+  register_method< qry_sbst >(
+   "DCNetworkBlock::get_resize_linearization" , new qry_sbst(
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & lines , bool ) {
+     const auto dcn = static_cast< const DCNetworkBlock * >( blck );
+     for( Index i = 0 ; i < lines.size() ; ++i )
+      msp[ i ] = dcn->get_kappa_linearization( lines[ i ] );
+     } ) );
+
+  register_method< qry_rngd >(
+   "DCNetworkBlock::get_resize_linearization" , new qry_rngd(
+    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
+     const auto dcn = static_cast< const DCNetworkBlock * >( blck );
+     rng.second = std::min( rng.second , dcn->get_number_lines() );
+     for( Index l = rng.first ; l < rng.second ; ++l )
+      msp[ l - rng.first ] = dcn->get_kappa_linearization( l );
+     } ) );
   }
 
 /*--------------------------------------------------------------------------*/
