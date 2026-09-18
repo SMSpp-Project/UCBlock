@@ -309,6 +309,16 @@ class ThermalUnitBlock : public UnitBlock
   *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
   *   require "ChangeIntervals", which in fact is not loaded.
   *
+  * - The variable "ShutDownCost", of type netCDF::NcDouble and either of size
+  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
+  *   is not provided, then this variable can also be indexed over
+  *   "TimeHorizon"). This is meant to represent the vector DC[ t ] that, for
+  *   each time instant t, contains the cost the unit pays if it shuts down at
+  *   t, i.e., if it is on at t - 1 and off at t. It is mapped as
+  *   "StartUpCost", it is optional as well, and when it is not provided, or
+  *   it is all 0, the unit pays nothing to shut down and the Objective has no
+  *   term for it.
+  *
   * - The variable "LinearTerm", of type netCDF::NcDouble and either of size
   *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
   *   is not provided, then this variable can also be indexed over
@@ -2174,6 +2184,18 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the vector of shut-down costs
+ /** The returned vector contains the shut-down cost at all time instants,
+  * with the three cases of get_start_up_cost(): empty if the unit pays
+  * nothing to shut down, of one element if the cost is the same at all time
+  * instants, of get_time_horizon() elements otherwise. The cost is paid at
+  * the instant the unit goes off. */
+
+ const std::vector< double > & get_shut_down_cost( void ) const {
+  return( v_ShutDownCost );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of fixed consumption
  /** The returned value U = get_fixed_consumption() contains the contribution
   * to fixed consumption (basically, the constants to be multiplied by the
@@ -2616,6 +2638,20 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
+ void set_shutdown_costs( MF_dbl_it values ,
+                          Subset && subset ,
+                          const bool ordered = false ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_shutdown_costs( MF_dbl_it values , Range rng = INFRange ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
  void set_const_term( MF_dbl_it values ,
                       Subset && subset ,
                       const bool ordered = false ,
@@ -3012,6 +3048,16 @@ class ThermalUnitBlock : public UnitBlock
  Index cut_section_start( void ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// the shift that the shut-down section adds to the later Objective sections
+ /** The shut-down variables sit right after the start-up ones when the unit
+  * pays anything to shut down [see generate_objective()], so every section
+  * after them starts this much further on. */
+
+ Index shut_down_offset( void ) const {
+  return( f_shut_down_in_obj ? f_time_horizon - init_t : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -3067,6 +3113,16 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the vector of StartUpCost
  std::vector< double > v_StartUpCost;
+
+ /// the vector of ShutDownCost, empty if the unit pays nothing to shut down
+ std::vector< double > v_ShutDownCost;
+
+ /// true if the Objective has the shut-down variables
+ /** The shut-down variables enter the Objective only if the unit pays
+  * anything to shut down when generate_objective() runs: a shut-down cost
+  * set afterwards changes the physical representation alone, as the reactive
+  * linear term does when the unit has no reactive power. */
+ bool f_shut_down_in_obj = false;
 
  /// the vector of fixed consumption of generator
  std::vector< double > v_FixedConsumption;
@@ -3409,6 +3465,14 @@ class ThermalUnitBlock : public UnitBlock
    & ThermalUnitBlock::set_startup_costs );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_shutdown_costs" ,
+   & ThermalUnitBlock::set_shutdown_costs );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_shutdown_costs" ,
+   & ThermalUnitBlock::set_shutdown_costs );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
    "ThermalUnitBlock::set_const_term" ,
    & ThermalUnitBlock::set_const_term );
 
@@ -3492,6 +3556,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
   eSetInitUD ,                 ///< set initial up/down times
   eSetAv ,                     ///< set availability
   eSetSUC ,                    ///< set start-up costs
+  eSetSDC ,                    ///< set shut-down costs
   eSetLinT ,                   ///< set linear term
   eSetQuadT ,                  ///< set quad term
   eSetConstT ,                 ///< set constant term
@@ -3535,6 +3600,9 @@ class ThermalUnitBlockMod : public UnitBlockMod
     break;
    case( eSetSUC ):
     output << "Set start-up costs";
+    break;
+   case( eSetSDC ):
+    output << "Set shut-down costs";
     break;
    case( eSetLinT ):
     output << "Set linear term";

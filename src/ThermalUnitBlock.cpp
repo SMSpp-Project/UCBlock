@@ -230,6 +230,14 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
                       true , true , v_change_intervals ) )
   v_StartUpCost.resize( f_time_horizon );
 
+ // a unit that pays nothing to shut down keeps the vector empty, and then
+ // the Objective has no term for the shut-down variables
+ if( ::deserialize( group , "ShutDownCost" , f_time_horizon , v_ShutDownCost ,
+                    true , true , v_change_intervals ) &&
+     std::all_of( v_ShutDownCost.begin() , v_ShutDownCost.end() ,
+                  []( double cst ) { return( cst == 0 ); } ) )
+  v_ShutDownCost.clear();
+
  ::deserialize( group , "DeltaRampUp" , f_time_horizon , v_DeltaRampUp ,
                 true , true , v_change_intervals );
 
@@ -404,6 +412,7 @@ std::vector< std::string > ThermalUnitBlock::expected_vars( void )
     "PrimarySpinningReserveCost" , "SecondarySpinningReserveCost" ,
     "ReactiveLinearTerm" ,
     "LinearTerm" , "QuadTerm" , "ConstTerm" , "StartUpCost" ,
+    "ShutDownCost" ,
     "FixedConsumption" , "InertiaCommitment" , "InitialPower" , "MinUpTime" ,
     "MinDownTime" , "InitUpDownTime" , "Availability" , "StartUpLimit" ,
     "ShutDownLimit" , "MaxRampUpSteps" , "MaxRampDownSteps" ,
@@ -3920,6 +3929,9 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  //
  // - first f_time_horizon - init_t start-up variables
  //
+ // - then, if the unit pays to shut down, f_time_horizon - init_t shut-down
+ //   variables
+ //
  // - then f_time_horizon active power variables (which may have the
  //   nonzero quadratic cost coefficient, while the others do not)
  //
@@ -3964,6 +3976,13 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  for( Index t = init_t ; t < f_time_horizon ; ++t )
   vars.push_back( std::make_tuple( & v_start_up[ t - init_t ] ,
                                    f_scale * v_StartUpCost[ t ] , 0 ) );
+
+ // add the shut-down variables, if the unit pays anything to shut down - - -
+ f_shut_down_in_obj = ! v_ShutDownCost.empty();
+ if( f_shut_down_in_obj )
+  for( Index t = init_t ; t < f_time_horizon ; ++t )
+   vars.push_back( std::make_tuple( & v_shut_down[ t - init_t ] ,
+                                    f_scale * v_ShutDownCost[ t ] , 0 ) );
  // add start-up variables for pt, DP, SU, SD and SUSD formulations
  /*
  if( ( AR & FormMsk ) == ptForm || ( AR & FormMsk ) == DPForm ||
@@ -4272,6 +4291,7 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "ReactiveLinearTerm" , v_ReactiveLinearTerm );
  serialize( "ConstTerm" , v_ConstTerm );
  serialize( "StartUpCost" , v_StartUpCost );
+ serialize( "ShutDownCost" , v_ShutDownCost );
  serialize( "FixedConsumption" , v_FixedConsumption );
  serialize( "InertiaCommitment" , v_InertiaCommitment );
  serialize( "StartUpLimit" , v_StartUpLimit );
@@ -4847,6 +4867,138 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
+                                           Subset && subset ,
+                                           const bool ordered ,
+                                           ModParam issuePMod ,
+                                           ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ if( v_ShutDownCost.empty() ) {
+  if( std::all_of( values ,
+                   values + subset.size() ,
+                   []( double cst ) { return( cst == 0 ); } ) )
+   return;
+
+  v_ShutDownCost.assign( f_time_horizon , 0 );
+  }
+
+ // a unit that was built with no shut-down cost has no shut-down variable
+ // in its Objective [see generate_objective()], hence the cost cannot be
+ // changed there any longer
+ if( objective_generated() && ( ! f_shut_down_in_obj ) )
+  throw( std::logic_error( "ThermalUnitBlock::set_shutdown_costs: the "
+                           "Objective has no shut-down variables, the unit "
+                           "having been generated with no shut-down cost" ) );
+
+ if( ! ordered )
+  std::sort( subset.begin() , subset.end() );
+
+ if( subset.back() >= v_ShutDownCost.size() )
+  throw( std::invalid_argument(
+   "ThermalUnitBlock::set_shutdown_costs: invalid index in subset." ) );
+
+ if( identical( v_ShutDownCost , subset , values ) )  // if nothing changes
+  return;                                            // return
+
+ // the shut-down variable t is in position ( f_time_horizon - init_t ) +
+ // ( t - init_t ): those in the range [ 0 , init_t ) do not exist and their
+ // cost cannot be changed
+ if( subset.front() < init_t )
+  throw( std::invalid_argument(
+   "ThermalUnitBlock::set_shutdown_costs: invalid starting index in "
+   "subset." ) );
+
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
+  assign( v_ShutDownCost , subset , values );
+
+ if( not_dry_run( issueAMod ) && objective_generated() &&
+     f_shut_down_in_obj ) {
+  // Change the abstract representation
+  Subset tmps = subset_sbtrct( subset , 2 * init_t );
+  tmps = subset_add( tmps , f_time_horizon );
+  DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  static_cast< DQuadFunction * >( objective.get_function()
+  )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
+                                 true , un_ModBlock( issueAMod ) );
+  }
+
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
+                            this , ThermalUnitBlockMod::eSetSDC ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+}  // end( ThermalUnitBlock::set_shutdown_costs( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
+                                           Range rng ,
+                                           ModParam issuePMod ,
+                                           ModParam issueAMod )
+{
+ rng.second = std::min( rng.second , f_time_horizon );
+ if( rng.second <= rng.first )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+ if( v_ShutDownCost.empty() ) {
+  if( std::all_of( values ,
+                   values + sz ,
+                   []( double cst ) { return( cst == 0 ); } ) )
+   return;
+
+  v_ShutDownCost.assign( f_time_horizon , 0 );
+  }
+
+ // If nothing changes, return
+ if( std::equal( values , values + sz , v_ShutDownCost.begin() + rng.first ) )
+  return;
+
+ // a unit that was built with no shut-down cost has no shut-down variable
+ // in its Objective [see generate_objective()], hence the cost cannot be
+ // changed there any longer
+ if( objective_generated() && ( ! f_shut_down_in_obj ) )
+  throw( std::logic_error( "ThermalUnitBlock::set_shutdown_costs: the "
+                           "Objective has no shut-down variables, the unit "
+                           "having been generated with no shut-down cost" ) );
+
+ // see the comment in the Subset version
+ if( rng.first < init_t )
+  throw( std::invalid_argument( "ThermalUnitBlock::set_shutdown_costs: "
+                                "invalid starting index in range." ) );
+
+ if( not_dry_run( issuePMod ) )
+  // Change the physical representation
+  std::copy( values , values + sz , v_ShutDownCost.begin() + rng.first );
+
+ if( not_dry_run( issueAMod ) && objective_generated() &&
+     f_shut_down_in_obj ) {
+  // Change the abstract representation
+  c_Index shift = f_time_horizon - 2 * init_t;
+  DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  static_cast< DQuadFunction * >( objective.get_function()
+  )->modify_linear_coefficients( std::move( tmpv ) ,
+                                 Range( rng.first + shift ,
+                                        rng.second + shift ) ,
+                                 un_ModBlock( issueAMod ) );
+  }
+
+ if( issue_pmod( issuePMod ) )
+  // Issue a Physical Modification
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , ThermalUnitBlockMod::eSetSDC , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+}  // end( ThermalUnitBlock::set_shutdown_costs( range ) )
+
+/*--------------------------------------------------------------------------*/
+
 void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
                                        Subset && subset ,
                                        const bool ordered ,
@@ -4893,7 +5045,7 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
   //
   // hence, the commitment variables, whose coefficient is the fixed
   // cost, start from position 2 * f_time_horizon - init_t
-  const Index dpos = 2 * f_time_horizon - init_t;
+  const Index dpos = 2 * f_time_horizon - init_t + shut_down_offset();
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
@@ -4956,7 +5108,7 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
   //
   // hence, the commitment variables, whose coefficient is the fixed
   // cost, start from position 2 * f_time_horizon - init_t
-  const Index dpos = 2 * f_time_horizon - init_t;
+  const Index dpos = 2 * f_time_horizon - init_t + shut_down_offset();
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   static_cast< DQuadFunction * >( objective.get_function()
@@ -5020,7 +5172,7 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
   //
   // hence, the active power  variables, whose coefficient is the linear
   // term of the cost, start from position f_time_horizon - init_t
-  const Index dpos = f_time_horizon - init_t;
+  const Index dpos = f_time_horizon - init_t + shut_down_offset();
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
@@ -5079,7 +5231,7 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
   //
   // hence, the active power variables, whose coefficient is the linear
   // term of the cost, start from position f_time_horizon - init_t
-  const Index dpos = f_time_horizon - init_t;
+  const Index dpos = f_time_horizon - init_t + shut_down_offset();
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
   static_cast< DQuadFunction * >( objective.get_function()
@@ -5253,7 +5405,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
 
   if( ! ( AR & PCuts ) ) {
 
-   Subset tmps = subset_add( subset , f_time_horizon - init_t );
+   Subset tmps = subset_add( subset ,
+                             f_time_horizon - init_t + shut_down_offset() );
    DQuadFunction::Vec_FunctionValue tmplv( subset.size() , 0 );
    if( ! v_LinearTerm.empty() ) {
     auto tmplvit = tmplv.begin();
@@ -5370,7 +5523,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
 
   if( ! ( AR & PCuts ) ) {
 
-   const Index dpos = f_time_horizon - init_t;
+   const Index dpos = f_time_horizon - init_t + shut_down_offset();
    DQuadFunction::Vec_FunctionValue tmplv( sz , 0 );
    if( ! v_LinearTerm.empty() )
     std::copy( v_LinearTerm.begin() + rng.first ,
@@ -5488,7 +5641,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   // primary spinning reserve cost, start from position
   // 3 * f_time_horizon - init_t, plus f_time_horizon if the
   // schedule-deviation variables are there
-  const Index dpos = 3 * f_time_horizon - init_t +
+  const Index dpos = 3 * f_time_horizon - init_t + shut_down_offset() +
                      ( v_RefSchedule.empty() ? 0 : f_time_horizon );
 
   Subset tmps = subset_add( subset , dpos );
@@ -5562,7 +5715,7 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   // primary spinning reserve cost, start from position
   // 3 * f_time_horizon - init_t, plus f_time_horizon if the
   // schedule-deviation variables are there
-  const Index dpos = 3 * f_time_horizon - init_t +
+  const Index dpos = 3 * f_time_horizon - init_t + shut_down_offset() +
                      ( v_RefSchedule.empty() ? 0 : f_time_horizon );
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
@@ -6208,9 +6361,10 @@ void ThermalUnitBlock::set_solution( void )
 Block::Index ThermalUnitBlock::cut_section_start( void ) const
 {
  // the start-up, active power and commitment variables always come first
- // (see the layout in generate_objective()); the schedule-deviation and
- // reserve sections are present only when the corresponding variables are
- Index pos = 3 * f_time_horizon - init_t;
+ // (see the layout in generate_objective()); the shut-down, the
+ // schedule-deviation and the reserve sections are present only when the
+ // corresponding variables are
+ Index pos = 3 * f_time_horizon - init_t + shut_down_offset();
  if( ! v_RefSchedule.empty() )
   pos += f_time_horizon;
  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) )
@@ -6338,8 +6492,28 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     return;
    }
 
+  if( f_shut_down_in_obj ) {  // shut-down variables
+   gl = gr;
+   gr += th - init_t;
+
+   if( l < gr ) {
+    Index r2 = std::min( r , gr );
+    auto nvit = nv.begin();
+    for( Index i = l ; i < r2 ; )
+     *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    // as for the start-up ones, the active-var indices [ gl , gr ) map to
+    // the time indices [ init_t , f_time_horizon )
+    set_shutdown_costs( nv.begin() ,
+                        Range( l - gl + init_t , r2 - gl + init_t ) ,
+                        par , eDryRun );
+    l = r2;
+    if( l == r )
+     return;
+    }
+   }
+
   gl = gr;
-  gr = 2 * th - init_t;
+  gr += th;
 
   if( l < gr ) {  // active power variables
    Index r2 = std::min( r , gr );
@@ -6362,7 +6536,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    }
 
   gl = gr;
-  gr = 3 * th - init_t;
+  gr += th;
 
   if( l < gr ) {  // commitment variables
    Index r2 = std::min( r , gr );
@@ -6596,8 +6770,30 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     return;
    }
 
+  if( f_shut_down_in_obj ) {  // shut-down variables
+   gl = gr;
+   gr += th - init_t;
+
+   if( *l < gr ) {
+    auto r = l;
+    for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
+     ++r;
+    Subset nms( std::distance( l , r ) );
+    auto nvit = nv.begin();
+    auto nmsit = nms.begin();
+    while( l != r ) {
+     *( nvit++ ) = qf->get_linear_coefficient( *l );
+     *( nmsit++ ) = *( l++ ) - gl + init_t;
+     }
+    set_shutdown_costs( nv.begin() , std::move( nms ) , true , par ,
+                        eDryRun );
+    if( r == sbs->end() )
+     return;
+    }
+   }
+
   gl = gr;
-  gr = 2 * th - init_t;
+  gr += th;
 
   if( *l < gr ) {  // active power variables
    auto r = l;
@@ -6625,7 +6821,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    }
 
   gl = gr;
-  gr = 3 * th - init_t;
+  gr += th;
 
   if( *l < gr ) {  // commitment variables
    auto r = l;

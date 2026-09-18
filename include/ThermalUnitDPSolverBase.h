@@ -358,6 +358,7 @@ class ThermalUnitDPSolverBase : public Solver
  Index t_init;                ///< first instant in which commitment is free
 
  std::vector< double > startup_costs;
+ std::vector< double > shutdown_costs;   ///< empty if shutting down is free
  std::vector< double > delta_ramp_up;
  std::vector< double > delta_ramp_down;
  // whether the Block actually defines ramp limits (as opposed to defaulting

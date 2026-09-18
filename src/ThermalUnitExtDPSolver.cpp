@@ -581,6 +581,11 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
     stage = start;
     return( false );
 
+   case( ThermalUnitBlockMod::eSetSDC ):
+    shutdown_costs = b->get_shut_down_cost();
+    stage = start;
+    return( false );
+
    case( ThermalUnitBlockMod::eSetLinT ):
     retrieve_term( linear_term , b->get_linear_term() );
     stage = start;
@@ -1083,10 +1088,17 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // readout of f_F[t] holds.
  auto compute_v_shutdown = [ & ]( Index t , double sd_hi ) {
   const double Plo = min_power[ t ];
-  const auto upd = [ & ]( Index e , double v , Index tau , double p ,
+  // the run closes at t, i.e., the unit is off at t + 1 and pays the
+  // shut-down cost of that instant; a run that reaches the end of the
+  // horizon never shuts down
+  const double sdc = ( shutdown_costs.empty() ||
+                       ( t + 1 >= time_horizon ) ) ? 0.0
+                                                   : shutdown_costs[ t + 1 ];
+  const auto upd = [ & ]( Index e , double v0 , Index tau , double p ,
                           const OnLink & lk ) {
    if( e == NO_LABEL )                   // the shut-down is forbidden
     return;
+   const double v = v0 + sdc;
    const Index k = t * E + e;
    if( v < v_shutdown[ k ] ) {
     v_shutdown     [ k ] = v;
@@ -1232,14 +1244,17 @@ void ThermalUnitExtDPSolver::run_DP( void )
   if( ( Index( init_up_down_time ) >= min_up_time ) &&
       ( ! startup_in_progress ) && ( ! shutdown_in_progress ) &&
       ( ! fixed_on( 0 ) ) ) {
-   c_off_any[ 0 ] = 0;
+   // the unit is on before the horizon and off at t = 0, i.e., it shuts
+   // down at t = 0 and pays the shut-down cost of that instant
+   const double sdc0 = shutdown_costs.empty() ? 0.0 : shutdown_costs[ 0 ];
+   c_off_any[ 0 ] = sdc0;
    f_any_pred[ 0 ] = -1;
    // ready at t = 0 means the off run ending at t = 0 (just the single
    // instant t = 0, since the shutdown happened at end of t = -1) is at
    // least mdt long; this only happens when mdt <= 1
    if( Index( 1 ) >= min_down_time ) {
     const Index e = idle_label( 0 , l0 , 1 );
-    c_off_ready[ e ] = 0;
+    c_off_ready[ e ] = sdc0;
     f_ready_pred[ e ] = -1;
     }
    }
@@ -1457,8 +1472,14 @@ void ThermalUnitExtDPSolver::run_DP( void )
     // the "free pre-horizon shutdown" is unavailable while the unit is still
     // inside its initial start-up / shut-down trajectory (see t = 0 seeding)
     init_ready = true;
-   if( init_ready )
-    relax_ready( idle_label( 0 , l0 , t + 1 ) , 0 , -1 , 0 );
+   if( init_ready ) {
+    // as in the t = 0 seeding, an off run that starts at t = 0 with the
+    // unit on before the horizon pays the shut-down cost of t = 0
+    const double sdc0 = ( shutdown_costs.empty() ||
+                          ( init_up_down_time <= 0 ) ) ? 0.0
+                                                       : shutdown_costs[ 0 ];
+    relax_ready( idle_label( 0 , l0 , t + 1 ) , sdc0 , -1 , 0 );
+    }
    }
   // the "long shutdown arc" spans the off instants [ t - mdt + 1 , t ]
   // directly, so it must be checked against the fixed-ON instants too

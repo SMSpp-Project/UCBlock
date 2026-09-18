@@ -458,7 +458,7 @@ void ThermalUnitDPSolver::build_graph( void )
 
   // construct the "normal" arcs up to ( s , jend - 1 )
   for( ; j < jend ; ++j , ++ai ) {
-   ai->cost1 = fc;
+   ai->cost1 = fc + compute_shutdown_costs( 0 , j );
    ai->cost2 = 0;
    ai->tail = & v_off_nodes[ j ];
    ai->tail->lab = 1;      // mark the tail node as reachable
@@ -591,7 +591,7 @@ void ThermalUnitDPSolver::build_graph( void )
 
    // construct the "normal" arcs up to ( i , jend - 1 )
    for( ; j < jend ; ++j , ++ai ) {
-    ai->cost1 = fc;
+    ai->cost1 = fc + compute_shutdown_costs( i , j );
     ai->cost2 = 0;
     ai->tail = & v_off_nodes[ j ];
     ai->tail->lab = 1;      // mark the tail node as reachable
@@ -1137,6 +1137,12 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
 
     case( ThermalUnitBlockMod::eSetSUC ):
      startup_costs = b->get_start_up_cost();
+     if( stage > edps_OK )
+      stage = edps_OK;
+     return( false );
+
+    case( ThermalUnitBlockMod::eSetSDC ):
+     shutdown_costs = b->get_shut_down_cost();
      if( stage > edps_OK )
       stage = edps_OK;
      return( false );

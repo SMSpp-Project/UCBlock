@@ -746,6 +746,16 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
  }
 
 /*--------------------------------------------------------------------------*/
+
+ double compute_shutdown_costs( Index h , Index k ) {
+  // the cost of the ON-run [ h , k ), which shuts down at k; a run that
+  // reaches the end of the horizon never shuts down and pays nothing
+  if( shutdown_costs.empty() )
+   return( 0 );
+  return( shutdown_costs[ k ] );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PRIVATE FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

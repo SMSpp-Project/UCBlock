@@ -80,8 +80,9 @@ void ThermalUnitDPSolverBase::load_common_parameters( void )
   else
    t_init = 0;
 
- // startup costs, power bounds and shutdown/startup ramp bounds
+ // startup and shutdown costs, power bounds and shutdown/startup ramp bounds
  startup_costs = b->get_start_up_cost();
+ shutdown_costs = b->get_shut_down_cost();
  min_power = b->get_min_power();
  max_power = b->get_max_power();
  bound_on = b->get_start_up_limit();

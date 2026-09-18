@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ThermalUnitBlock` reads the optional variable `ShutDownCost`, the cost the
+  unit pays at the instant it goes off, mapped over the time horizon as
+  `StartUpCost` is and changed with `set_shutdown_costs()`. A unit that pays
+  nothing to shut down keeps the vector empty and its Objective has no term
+  for the shut-down variables, as before; the two DP Solvers charge the cost
+  on the arc that closes an ON run.
+
 - the pollutant budget constraints of `UCBlock` can also bound the emission
   from below (`PollutantMinBudget`, and with an equal upper bound match a
   value, changed with `set_pollutant_min_budget()`) and take the levels of
