@@ -1521,7 +1521,7 @@ class BatteryUnitBlock : public UnitBlock
   if( active_power_bounds_Const.empty() ||
       active_power_bounds_Const[ 0 ].empty() )
    return( nullptr );
-  return( &( active_power_bounds_Const.data()[ 0 ] ) );
+  return( &( active_power_bounds_Const[ 0 ][ 0 ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1539,7 +1539,7 @@ class BatteryUnitBlock : public UnitBlock
   if( active_power_bounds_Const.empty() ||
       active_power_bounds_Const[ 1 ].empty() )
    return( nullptr );
-  return( &( active_power_bounds_Const.data()[ 1 ] ) );
+  return( &( active_power_bounds_Const[ 1 ][ 0 ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1557,7 +1557,7 @@ class BatteryUnitBlock : public UnitBlock
   if( intake_outtake_binary_Const.empty() ||
       intake_outtake_binary_Const[ 0 ].empty() )
    return( nullptr );
-  return( &( intake_outtake_binary_Const.data()[ 0 ] ) );
+  return( &( intake_outtake_binary_Const[ 0 ][ 0 ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1575,7 +1575,7 @@ class BatteryUnitBlock : public UnitBlock
   if( intake_outtake_binary_Const.empty() ||
       intake_outtake_binary_Const[ 1 ].empty() )
    return( nullptr );
-  return( &( intake_outtake_binary_Const.data()[ 1 ] ) );
+  return( &( intake_outtake_binary_Const[ 1 ][ 0 ] ) );
   }
 
 /*--------------------------------------------------------------------------*/

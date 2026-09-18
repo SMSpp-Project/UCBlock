@@ -2376,6 +2376,15 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
  const auto obj_sign =
   ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
+ /* Where kappa is 0 its fences pin the variable and their multipliers no
+  * longer say which side they hold: a coefficient read off the wrong side
+  * cuts the optimum away, so of the two the one that keeps the linearization
+  * below the value function is taken, the smaller one where the objective is
+  * minimised and the larger one where it is maximised. */
+ const auto safe = [ & ]( double one , double other ) {
+  return( obj_sign < 0 ? std::min( one , other ) : std::max( one , other ) );
+  };
+
  const auto time_horizon = get_time_horizon();
 
  for( Index t = 0 ; t < time_horizon ; ++t ) {
@@ -2387,10 +2396,18 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
   // Minimum and maximum power output constraint
 
+  /* The two rows fence the same variable, and when the fences meet, as they
+   * do wherever kappa is 0, both multipliers can be nonzero on what is one
+   * equality: the two terms would then be summed as if the variable were
+   * pushed against two distinct sides, which makes the coefficient steeper
+   * than the value function is and the linearization invalid. The net of the
+   * two multipliers is what the variable is pushed by, and it belongs to the
+   * side its sign points at. */
+
   const auto lambda_min = std::abs( min_power_constraints[ t ].get_dual() );
   const auto lambda_max = std::abs( max_power_constraints[ t ].get_dual() );
 
-  linearization += min_power * lambda_min - max_power * lambda_max;
+  linearization += safe( min_power * lambda_min , - max_power * lambda_max );
 
   /* Intake and outtake level bounds, in the very form the unit states them
    * [see update_kappa_in_cnstrs()]: two one-sided bounds, one per variable,
@@ -2420,7 +2437,9 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
                                  : f_MaxCRateDischarge * max_power;
 
     const auto alpha = intake_bound_constraints[ t ].get_dual();
-    linearization += - alpha * ( ( obj_sign * alpha > 0 ) ? lower : upper );
+    linearization += ( f_kappa == 0 )
+     ? safe( - alpha * lower , - alpha * upper )
+     : - alpha * ( ( obj_sign * alpha > 0 ) ? lower : upper );
     }
    }
 
