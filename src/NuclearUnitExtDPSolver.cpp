@@ -108,10 +108,13 @@ void NuclearUnitExtDPSolver::load_parameters( void )
 
 bool NuclearUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
 {
- // a change in the modulation ramps is rare: reload everything
+ // a change in the modulation ramps or in the costs of the operating rules
+ // is rare: reload everything
  if( auto tmod = dynamic_cast< NuclearUnitBlockMod * >( mod ) )
   if( ( tmod->type() == NuclearUnitBlockMod::eSetModDP ) ||
-      ( tmod->type() == NuclearUnitBlockMod::eSetModDM ) )
+      ( tmod->type() == NuclearUnitBlockMod::eSetModDM ) ||
+      ( tmod->type() == NuclearUnitBlockMod::eSetModCost ) ||
+      ( tmod->type() == NuclearUnitBlockMod::eSetDeepCost ) )
    return( true );
 
  return( ThermalUnitExtDPSolver::guts_of_process_modifications( mod ) );

@@ -869,6 +869,27 @@ class NuclearUnitBlock : public ThermalUnitBlock
 				ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// changes the cost of a downward modulation step
+ /** Changes the cost the unit pays for a downward modulation step at each
+  * instant of \p rng. The cost is only where the unit has the modulation
+  * variables and a cost of its own, i.e., where the Objective has the
+  * corresponding term [see generate_objective()]; a unit that pays nothing
+  * has no such term, and giving it one is not possible any longer. */
+
+ void set_down_modulation_costs( MF_dbl_it values , Range rng = INFRange ,
+                                 ModParam issuePMod = eNoBlck ,
+                                 ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// changes the cost of a deep decrease
+ /** Changes the cost the unit pays for a deep decrease at each instant of
+  * \p rng, with the same proviso of set_down_modulation_costs(). */
+
+ void set_deep_decrease_costs( MF_dbl_it values , Range rng = INFRange ,
+                               ModParam issuePMod = eNoBlck ,
+                               ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
  /// derive the auxiliary Variable of the operating rules
  /** Extends ThermalUnitBlock::set_solution(): once the active power, the
   * commitment and the modulation indicators are set, the start of a
@@ -981,10 +1002,23 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// the number of Variable appended to the Objective [see generate_objective]
  Index objective_tail( void ) const override { return( v_obj_tail.size() ); }
 
- /// accepts a change of the appended coefficients only if it does not
- /// change them
+ /// folds a change of the appended coefficients into the costs they come
+ /// from [see set_down_modulation_costs()]
  void objective_tail_change( const DQuadFunction * qf , Index first ,
                              Index last ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// changes one of the two costs of the operating rules
+ /** The common guts of set_down_modulation_costs() and of
+  * set_deep_decrease_costs(): \p cost is the vector of the costs, \p pos the
+  * position at which its coefficients start in the tail of the Objective
+  * (v_obj_tail.size() if the unit has no such term), and \p type the type of
+  * the Modification to issue. */
+
+ void guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
+                              std::vector< double > & cost , Index pos ,
+                              int type , ModParam issuePMod ,
+                              ModParam issueAMod );
 
  /// the big-M of the full ramp up at t: D+_t + max{ D-_t , SD_t }
  double full_ramp_up_M( Index t ) const {
@@ -1257,6 +1291,8 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
  enum NUB_mod_type {
   eSetModDP = eTUBModLastParam , ///< set modulation delta ramp up
   eSetModDM ,                     ///< set modulation delta ramp down
+  eSetModCost ,                   ///< set the cost of a modulation step
+  eSetDeepCost ,                  ///< set the cost of a deep decrease
   eNUBModLastParam  ///< first allowed parameter value for derived classes
   /**< Convenience value to easily allow derived classes to extend the set of
    * types of NuclearUnitBlockMod. */
@@ -1302,6 +1338,12 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
     break;
    case( eSetModDM ):
     output << "set modulation delta ramp down";
+    break;
+   case( eSetModCost ):
+    output << "set the cost of a modulation step";
+    break;
+   case( eSetDeepCost ):
+    output << "set the cost of a deep decrease";
     break;
    default:;
    }

@@ -1312,8 +1312,17 @@ void NuclearUnitBlock::set_solution( void )
    const double p = Pi[ t ].get_value();
    const double pp = t ? Pi[ t - 1 ].get_value() : f_InitialPower;
    const bool on = Ci[ t ].get_value() > 0.5;
-   const bool low = p <= v_deep_threshold[ t ] + 1e-9;
-   const bool drop = pp - p >= v_deep_gradient[ t ] - 1e-9;
+   // the rows force the two indicators only where the output is below the
+   // threshold and the drop exceeds the gradient; at the boundary they leave
+   // them free, and since the deep decrease is paid for, a Solver leaves them
+   // at 0 there: the derivation has to be strict as well, or it marks a deep
+   // decrease that the solution does not have. the margin is relative to the
+   // quantity compared, since a Solver satisfies the rows to its own
+   // tolerance and its output may sit that little below the threshold
+   const double ptol = 1e-6 * std::max( 1.0 , v_deep_threshold[ t ] );
+   const double dtol = 1e-6 * std::max( 1.0 , v_deep_gradient[ t ] );
+   const bool low = p < v_deep_threshold[ t ] - ptol;
+   const bool drop = pp - p > v_deep_gradient[ t ] + dtol;
    v_deep_low[ t ].set_value( low ? 1 : 0 );
    v_deep_drop[ t ].set_value( drop ? 1 : 0 );
    v_deep[ t ].set_value( ( on && low && drop ) ? 1 : 0 );
@@ -1355,18 +1364,139 @@ void NuclearUnitBlock::generate_objective( Configuration * objc )
 
 /*--------------------------------------------------------------------------*/
 
+void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_it values ,
+                                                  Range rng ,
+                                                  ModParam issuePMod ,
+                                                  ModParam issueAMod )
+{
+ // the section of the Objective, if the unit has one
+ const bool has_mod = ( ! v_modulation_down.empty() ) &&
+                      ( ! v_down_modulation_cost.empty() );
+
+ guts_of_set_rule_costs( values , rng , v_down_modulation_cost ,
+                         has_mod ? 0 : v_obj_tail.size() ,
+                         NuclearUnitBlockMod::eSetModCost ,
+                         issuePMod , issueAMod );
+
+ }  // end( NuclearUnitBlock::set_down_modulation_costs )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::set_deep_decrease_costs( MF_dbl_it values , Range rng ,
+                                                ModParam issuePMod ,
+                                                ModParam issueAMod )
+{
+ // the section of the Objective, which follows that of the modulation
+ const bool has_mod = ( ! v_modulation_down.empty() ) &&
+                      ( ! v_down_modulation_cost.empty() );
+ const bool has_deep = ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() );
+
+ guts_of_set_rule_costs( values , rng , v_deep_cost ,
+                         has_deep ? ( has_mod ? f_time_horizon : 0 )
+                                  : v_obj_tail.size() ,
+                         NuclearUnitBlockMod::eSetDeepCost ,
+                         issuePMod , issueAMod );
+
+ }  // end( NuclearUnitBlock::set_deep_decrease_costs )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
+                                               std::vector< double > & cost ,
+                                               Index pos , int type ,
+                                               ModParam issuePMod ,
+                                               ModParam issueAMod )
+{
+ rng.second = std::min( rng.second , f_time_horizon );
+ if( ( rng.second <= rng.first ) || cost.empty() )
+  return;
+
+ c_Index sz = rng.second - rng.first;
+ if( std::equal( values , values + sz , cost.begin() + rng.first ) )
+  return;                                       // if nothing changes, return
+
+ if( not_dry_run( issuePMod ) ) {
+  // change the physical representation, and with it the copy of the
+  // coefficients of the Objective [see objective_tail_change()]
+  std::copy( values , values + sz , cost.begin() + rng.first );
+
+  if( pos < v_obj_tail.size() )
+   for( Index t = rng.first ; t < rng.second ; ++t )
+    v_obj_tail[ pos + t ] = f_scale * cost[ t ];
+  }
+
+ if( not_dry_run( issueAMod ) && objective_generated() ) {
+  // change the abstract representation
+  if( pos < v_obj_tail.size() ) {
+   auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
+   const Index base = qf->get_num_active_var() - v_obj_tail.size() + pos;
+   DQuadFunction::Vec_FunctionValue tmpv( sz );
+   auto vit = values;
+   for( Index i = 0 ; i < sz ; ++i )
+    tmpv[ i ] = f_scale * *( vit++ );
+   qf->modify_linear_coefficients( std::move( tmpv ) ,
+                                   Range( base + rng.first ,
+                                          base + rng.second ) ,
+                                   un_ModBlock( issueAMod ) );
+   }
+  }
+
+ if( issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
+                            this , type , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+ }  // end( NuclearUnitBlock::guts_of_set_rule_costs )
+
+/*--------------------------------------------------------------------------*/
+
 void NuclearUnitBlock::objective_tail_change( const DQuadFunction * qf ,
                                              Index first , Index last )
 {
- // the costs of the operating rules cannot change via the abstract
- // representation: a change is fine as long as it leaves them as they are,
- // which is what a restore of the original costs does
+ // the appended coefficients are the costs of the downward modulation steps
+ // and of the deep decreases, in this order [see generate_objective()]: a
+ // change of them is folded into those costs, so that the physical
+ // representation follows the abstract one and the Solver that reads the
+ // former, i.e., the DP one, hears of it
  const Index base = qf->get_num_active_var() - v_obj_tail.size();
+
  for( Index i = first ; i < last ; ++i )
-  if( ( qf->get_linear_coefficient( base + i ) != v_obj_tail[ i ] ) ||
-      ( qf->get_quadratic_coefficient( base + i ) != 0 ) )
+  if( qf->get_quadratic_coefficient( base + i ) != 0 )
    throw( std::invalid_argument( "NuclearUnitBlock::add_Modification: the "
-    "costs of the modulation and of the deep decreases cannot change" ) );
+    "costs of the modulation and of the deep decreases have no quadratic "
+    "term" ) );
+
+ // the two sections, each of them present only if the unit has both the
+ // variables and a cost of its own
+ const bool has_mod = ( ! v_modulation_down.empty() ) &&
+                      ( ! v_down_modulation_cost.empty() );
+ const bool has_deep = ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() );
+
+ auto section = [ & ]( Index pos , std::vector< double > & cost ,
+                       void ( NuclearUnitBlock::*setter )
+                        ( MF_dbl_it , Range , ModParam , ModParam ) ) {
+  const Index l = std::max( first , pos );
+  const Index r = std::min( last , pos + f_time_horizon );
+  if( l >= r )
+   return;
+
+  std::vector< double > nv( r - l );
+  for( Index i = l ; i < r ; ++i )
+   nv[ i - l ] = f_scale ? qf->get_linear_coefficient( base + i ) / f_scale
+                         : qf->get_linear_coefficient( base + i );
+
+  // the abstract representation has been changed already, the physical one
+  // has not
+  ( this->*setter )( nv.begin() , Range( l - pos , r - pos ) , eNoBlck ,
+                     eDryRun );
+  };
+
+ if( has_mod )
+  section( 0 , v_down_modulation_cost ,
+           & NuclearUnitBlock::set_down_modulation_costs );
+ if( has_deep )
+  section( has_mod ? f_time_horizon : 0 , v_deep_cost ,
+           & NuclearUnitBlock::set_deep_decrease_costs );
 
  }  // end( NuclearUnitBlock::objective_tail_change )
 

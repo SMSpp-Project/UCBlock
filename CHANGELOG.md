@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The costs of the operating rules of a `NuclearUnitBlock`, i.e., those of a
+  downward modulation step and of a deep decrease, can change:
+  `set_down_modulation_costs()` and `set_deep_decrease_costs()` do it, and a
+  change of the corresponding coefficients of the Objective is folded into
+  them, so that the physical representation follows and the DP Solver hears of
+  it. They used to be refused, which stopped any Solver that writes on the
+  Objective of the unit, such as the primal proximal heuristic of
+  `LagrangianDualSolver` with its penalty term.
+
 - `ThermalUnitBlock` accepts a `MinUpTime` (`MinDownTime`) of one instant more
   than the horizon, which says that the unit, being on (off) before it, never
   switches within it: the commitment is then fixed at every instant and there
