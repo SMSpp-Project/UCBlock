@@ -11,7 +11,17 @@
 #     (ModulationTime 8, MaxModulationLength 8);
 #   - days of 24 hours, at most 2 modulations, 1 start-up and 1 deep decrease
 #     a day;
+#   - 3 instants of stability after a start-up, and the output split into
+#     three bands at 30% and 70% of its range;
 #   - a cost of 2 per downward modulation step and of 20 per deep decrease.
+#
+# Two instances come out of each JSON source: one with the fleet as the data
+# has it, whose start-up costs are worth thousands of periods of production
+# and therefore keep every unit on for the whole horizon, and one with the
+# suffix _cyc, whose start-up costs are scaled to 2% and whose deep decreases
+# are cheaper to reach, so that the marginal units shut down at night and
+# start up again, which is the regime in which the rules that follow a
+# start-up are exercised.
 #
 # The instances are quarter-hourly, so 8 periods are 2 hours and a day is 96.
 # Like gen-all-nc4 this only runs the (deterministic) JSON -> netCDF
@@ -35,7 +45,11 @@ SEEDS="${4:-1 2 3 4 5}"
 
 rules=( --nuclear --mod-frac 0 --mod-time 8 --mod-length 8
         --day-length 96 --mods-per-day 2 --starts-per-day 1
+        --stab-start 3 --bands 0.3
         --deep --deeps-per-day 1 --down-cost 2 --deep-cost 20 )
+# what makes the marginal units cycle: an affordable start-up and a deep
+# decrease that a unit following the load actually reaches
+cyc=( --su-frac 0.02 --deep-frac 0.75 --deep-grad 0.5 )
 
 for z in $SIZES; do
   for h in day week month; do
@@ -54,6 +68,9 @@ for z in $SIZES; do
         fi
         julia --project="$HERE" "$HERE/json2nc4.jl" "$j" \
               "$OUTDIR/$n/sb_${z}_${h}_${a}_seed$s.nc4" "${rules[@]}"
+        julia --project="$HERE" "$HERE/json2nc4.jl" "$j" \
+              "$OUTDIR/$n/sb_${z}_${h}_${a}_seed${s}_cyc.nc4" \
+              "${rules[@]}" "${cyc[@]}"
       done
     done
   done
