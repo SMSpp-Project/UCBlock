@@ -79,6 +79,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ACNetworkBlock` registered `"DCNetworkBlock::set_active_demand"` again,
+  with an adapter casting to `ACNetworkBlock`, so that which of the two
+  registrations survived depended on the order of the static initialization,
+  and a call by name on a `DCNetworkBlock` could go through a cast to a class
+  it is not. `DCNetworkBlock` registers it, and it reaches an
+  `ACNetworkBlock` as well
+
 - `DCNetworkBlock` scaled its flow limits by `C_v_scal` only in the box of
   the lines without a design variable, and lost the factor there too as soon
   as `set_kappa()` rewrote them: the rows of the lines with a design variable

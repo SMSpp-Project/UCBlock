@@ -968,16 +968,19 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void )
- {
-  register_method< ACNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "DCNetworkBlock::set_active_demand" ,
-   & ACNetworkBlock::set_active_demand );
+ /// nothing of its own to register in the methods factory
+ /** The methods an ACNetworkBlock can be asked for by name are those of
+  * DCNetworkBlock, registered by DCNetworkBlock::static_initialization():
+  * they reach an ACNetworkBlock as well, being called on it as on the
+  * DCNetworkBlock it is, and set_active_demand() is virtual. Registering
+  * them again here, under the same names, would replace the adapter of
+  * DCNetworkBlock with one casting to ACNetworkBlock, which is wrong on a
+  * DCNetworkBlock that is not one, and which of the two survives would
+  * depend on the order of the static initialization. This one is defined
+  * all the same so that the factory does not call the inherited one, which
+  * would register the same methods twice. */
 
-  register_method< ACNetworkBlock , MF_dbl_it , Range >(
-   "DCNetworkBlock::set_active_demand" ,
-   & ACNetworkBlock::set_active_demand );
-  }
+ static void static_initialization( void ) {}
 
 /*--------------------------------------------------------------------------*/
 
