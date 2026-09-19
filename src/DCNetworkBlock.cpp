@@ -1610,24 +1610,27 @@ void DCNetworkBlock::generate_bound_constraints( void )
  /** For lines having a design variable x_l (get_design( l ) != nullptr),
   *  impose:
   *
-  *   LOWER: F_l - kappa * MinP_l * x_l >= 0
-  *   UPPER: F_l - kappa * MaxP_l * x_l <= 0 */
+  *   LOWER: F_l - kappa * C_v * MinP_l * x_l >= 0
+  *   UPPER: F_l - kappa * C_v * MaxP_l * x_l <= 0
+  *
+  *  with C_v = f_C_v_scal the factor all the flow limits are scaled by. */
 
  v_design_min_row.assign( number_lines , Inf< Index >() );
 
  if( has_design() ) {
   // only the lines that have a design variable get the upper row: giving one
   // to the others would leave rows with no term and no right-hand side. The
-  // lower row goes to fewer lines still: with kappa * Pmn == 0 the design
-  // variable has a zero coefficient in it and what is left is F_l >= 0, the
-  // sign of the flow, which the "without design" block below turns into a
-  // bound
+  // lower row goes to fewer lines still: with Pmn == 0 the design variable
+  // has a zero coefficient in it whatever kappa is, and what is left is
+  // F_l >= 0, the sign of the flow, which the "without design" block below
+  // turns into a bound. A zero kappa does not count, since set_kappa() can
+  // make it nonzero afterwards, and then the row has to be there
   v_design_row.assign( number_lines , Inf< Index >() );
   Index rows = 0 , min_rows = 0;
   for( Index l = 0 ; l < number_lines ; ++l )
    if( get_design( l ) ) {
     v_design_row[ l ] = rows++;
-    if( get_kappa( l ) * get_min_power_flow( l ) != 0 )
+    if( get_min_power_flow( l ) != 0 )
      v_design_min_row[ l ] = min_rows++;
     }
 
@@ -1643,20 +1646,20 @@ void DCNetworkBlock::generate_bound_constraints( void )
    const double Pmn   = get_min_power_flow( l );
    const double Pmx   = get_max_power_flow( l );
 
-   // LOWER:  F_l - kappa * Pmn * x_l >= 0
+   // LOWER:  F_l - kappa * C_v * Pmn * x_l >= 0
    if( const Index min_row = v_design_min_row[ l ] ; min_row < Inf< Index >() ) {
     vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-    vars.emplace_back( x , - kappa * Pmn );
+    vars.emplace_back( x , - kappa * f_C_v_scal * Pmn );
     v_power_flow_limit_design_min_const[ min_row ].set_lhs( 0.0 );
     v_power_flow_limit_design_min_const[ min_row ].set_rhs( Inf< double >() );
     v_power_flow_limit_design_min_const[ min_row ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
     }
 
-   // UPPER:  F_l - kappa * Pmx * x_l <= 0
+   // UPPER:  F_l - kappa * C_v * Pmx * x_l <= 0
    const Index row = v_design_row[ l ];
    vars.emplace_back( & v_power_flow[ l ] , 1.0 );
-   vars.emplace_back( x , - kappa * Pmx );
+   vars.emplace_back( x , - kappa * f_C_v_scal * Pmx );
    v_power_flow_limit_design_const[ row ].set_lhs( -Inf< double >() );
    v_power_flow_limit_design_const[ row ].set_rhs( 0.0 );
    v_power_flow_limit_design_const[ row ].set_function(
@@ -1675,12 +1678,12 @@ void DCNetworkBlock::generate_bound_constraints( void )
  /** For lines with no design variable (get_design( l ) == nullptr),
   *  impose the standard box:
   *
-  *      kappa * MinP_l  <=  F_l  <=  kappa * MaxP_l
+  *      kappa * C_v * MinP_l  <=  F_l  <=  kappa * C_v * MaxP_l
   *
   *  A line that has a design variable but no lower row (see above) gets the
   *  lower half of the same box, its upper half being the design row:
   *
-  *      kappa * MinP_l  <=  F_l  */
+  *      kappa * C_v * MinP_l  <=  F_l  */
 
  // a line needs the box when it has no design variable at all, or when it
  // has one but its lower row degenerated into the sign of the flow
@@ -2582,18 +2585,18 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    // Constraints *with* design variables: the upper row, and the lower one
    // when the line has it. We only update the coefficient of x_i (which is
    // the second variable in the LF); a line whose lower fence is a bound has
-   // kappa * MinP_i == 0 there, which no kappa can change
+   // MinP_i == 0 there, which no kappa can change
 
-   // LOWER bound:  F_i - kappa * MinP_i * x_i >= 0
+   // LOWER bound:  F_i - kappa * C_v * MinP_i * x_i >= 0
    if( const Index min_row = v_design_min_row[ i ] ; min_row < Inf< Index >() ) {
-    double lower_coeff_x = -kappa * get_min_power_flow( i );
+    double lower_coeff_x = -kappa * f_C_v_scal * get_min_power_flow( i );
     auto * lf_low = static_cast< LinearFunction * >(
 		 v_power_flow_limit_design_min_const[ min_row ].get_function() );
     lf_low->modify_coefficient( 1 , lower_coeff_x , nAM );
     }
 
-   // UPPER bound:  F_i - kappa * MaxP_i * x_i <= 0
-   double upper_coeff_x = -kappa * get_max_power_flow( i );
+   // UPPER bound:  F_i - kappa * C_v * MaxP_i * x_i <= 0
+   double upper_coeff_x = -kappa * f_C_v_scal * get_max_power_flow( i );
    auto * lf_up = static_cast< LinearFunction * >(
 		 v_power_flow_limit_design_const[ v_design_row[ i ]
 						   ].get_function() );
@@ -2601,10 +2604,10 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    }
   else {
    // Constraints *without* design variable: simple bounds update
-   v_power_flow_limit_const[ i ].set_lhs( kappa * get_min_power_flow( i ) ,
-					  nAM );
-   v_power_flow_limit_const[ i ].set_rhs( kappa * get_max_power_flow( i ) ,
-					  nAM );
+   v_power_flow_limit_const[ i ].set_lhs( kappa * f_C_v_scal *
+					  get_min_power_flow( i ) , nAM );
+   v_power_flow_limit_const[ i ].set_rhs( kappa * f_C_v_scal *
+					  get_max_power_flow( i ) , nAM );
     }
   }
  close_channel( par2chnl( nAM ) );
