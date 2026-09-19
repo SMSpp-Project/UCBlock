@@ -1620,16 +1620,17 @@ void DCNetworkBlock::generate_bound_constraints( void )
  if( has_design() ) {
   // only the lines that have a design variable get the upper row: giving one
   // to the others would leave rows with no term and no right-hand side. The
-  // lower row goes to fewer lines still: with kappa * Pmn == 0 the design
-  // variable has a zero coefficient in it and what is left is F_l >= 0, the
-  // sign of the flow, which the "without design" block below turns into a
-  // bound
+  // lower row goes to fewer lines still: with Pmn == 0 the design variable
+  // has a zero coefficient in it whatever kappa is, and what is left is
+  // F_l >= 0, the sign of the flow, which the "without design" block below
+  // turns into a bound. A zero kappa does not count, since set_kappa() can
+  // make it nonzero afterwards, and then the row has to be there
   v_design_row.assign( number_lines , Inf< Index >() );
   Index rows = 0 , min_rows = 0;
   for( Index l = 0 ; l < number_lines ; ++l )
    if( get_design( l ) ) {
     v_design_row[ l ] = rows++;
-    if( get_kappa( l ) * get_min_power_flow( l ) != 0 )
+    if( get_min_power_flow( l ) != 0 )
      v_design_min_row[ l ] = min_rows++;
     }
 
@@ -2584,7 +2585,7 @@ void DCNetworkBlock::change_power_flow_limit_constraints(
    // Constraints *with* design variables: the upper row, and the lower one
    // when the line has it. We only update the coefficient of x_i (which is
    // the second variable in the LF); a line whose lower fence is a bound has
-   // kappa * MinP_i == 0 there, which no kappa can change
+   // MinP_i == 0 there, which no kappa can change
 
    // LOWER bound:  F_i - kappa * C_v * MinP_i * x_i >= 0
    if( const Index min_row = v_design_min_row[ i ] ; min_row < Inf< Index >() ) {

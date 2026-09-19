@@ -79,6 +79,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DCNetworkBlock` scaled its flow limits by `C_v_scal` only in the box of
+  the lines without a design variable, and lost the factor there too as soon
+  as `set_kappa()` rewrote them: the rows of the lines with a design variable
+  now carry it as well, and keep it through `set_kappa()`. The default factor
+  is 1, which is why nothing showed
+
+- `DCNetworkBlock` gave a line with a design variable its lower row only when
+  kappa times the minimum flow was not zero, so that a line starting with a
+  zero kappa and a nonzero minimum flow was left with the lower half of the
+  box, i.e., with a nonnegative flow, and `set_kappa()` had no row to write
+  the new lower limit in: the row now depends on the minimum flow alone, as
+  the documentation of `v_design_min_row` already said
+
 - `BatteryUnitBlock::get_max_power_constraints()` and
   `get_max_outtake_binary_constraints()` returned the second element of the
   first row of their two-row group rather than the first element of the
