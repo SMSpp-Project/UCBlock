@@ -79,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `IntermittentUnitBlock::check_data_consistency()` refused a
+  `MinCapacityDesign` above 1 when `MaxCapacityDesign` is negative, as if the
+  design were binary, while that design is an integer between 0 and
+  `|MaxCapacityDesign|` (e.g., the number of modules of a modular asset): it
+  now asks only that `MinCapacityDesign` be at most `|MaxCapacityDesign|`.
+
 - `NuclearUnitBlock::set_solution()` derived the start of a modulation and the
   three indicators of a deep decrease, and left the end of a modulation and
   the band of the output as they were, so that a Solver that writes the
