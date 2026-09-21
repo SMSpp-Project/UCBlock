@@ -921,6 +921,11 @@ void NuclearUnitBlock::generate_operating_rules( void )
  // only changes there, and when it does it moves to an adjacent one:
  //   b^k_t - b^k_{t-1} <= e_t + ( 1 - u_{t-1} ) , and the other way round
  //   b^k_t + b^k_{t-1} <= 2 - e_t , b^1_t + b^3_{t-1} <= 1 , and vice versa
+ // and it moves in the direction of the modulation, a step that does not
+ // decrease the output leaving the unit no lower than it found it:
+ //   b^k_t + b^{k+1}_{t-1} <= 1 + d_t , b^{k+1}_t + b^k_{t-1} <= 2 - d_t
+ // which matters where the landing power is a breakpoint of the bands and
+ // both of them would hold it
  if( has_power_bands() ) {
   const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
   auto band = [ & ]( Index k , Index t ) { return( & v_band[ k * T + t ] ); };
@@ -936,7 +941,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
   for( Index t = 0 ; t < T ; ++t ) {
    ModulationEndLink[ t ].reserve( 3 );
    BandKeep[ t ].reserve( 6 );
-   BandMove[ t ].reserve( 5 );
+   BandMove[ t ].reserve( 9 );
    }
 
   for( Index t = 0 ; t < T ; ++t ) {
@@ -1018,6 +1023,15 @@ void NuclearUnitBlock::generate_operating_rules( void )
      row( BandMove[ t ] , { coeff_pair( band( 0 , 0 ) , 1.0 ) } , -INF , 0 );
     if( b0 == 0 )
      row( BandMove[ t ] , { coeff_pair( band( 2 , 0 ) , 1.0 ) } , -INF , 0 );
+    // the band it may move to is the one the direction points at
+    if( b0 > 0 )
+     row( BandMove[ t ] , { coeff_pair( band( b0 - 1 , 0 ) , 1.0 ) ,
+                       coeff_pair( & v_modulation_down[ 0 ] , -1.0 ) } ,
+          -INF , 0 );
+    if( b0 < 2 )
+     row( BandMove[ t ] , { coeff_pair( band( b0 + 1 , 0 ) , 1.0 ) ,
+                       coeff_pair( & v_modulation_down[ 0 ] , 1.0 ) } ,
+          -INF , 1 );
     continue;
     }
 
@@ -1044,6 +1058,19 @@ void NuclearUnitBlock::generate_operating_rules( void )
                      coeff_pair( band( 2 , t - 1 ) , 1.0 ) } , -INF , 1 );
    row( BandMove[ t ] , { coeff_pair( band( 2 , t ) , 1.0 ) ,
                      coeff_pair( band( 0 , t - 1 ) , 1.0 ) } , -INF , 1 );
+   // ... in the direction the modulation has: the unit ends a step that
+   // does not decrease its output no lower than it began it, and a step
+   // that does not increase it no higher
+   for( Index k = 0 ; k + 1 < 3 ; ++k ) {
+    row( BandMove[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
+                      coeff_pair( band( k + 1 , t - 1 ) , 1.0 ) ,
+                      coeff_pair( & v_modulation_down[ t ] , -1.0 ) } ,
+         -INF , 1 );
+    row( BandMove[ t ] , { coeff_pair( band( k + 1 , t ) , 1.0 ) ,
+                      coeff_pair( band( k , t - 1 ) , 1.0 ) ,
+                      coeff_pair( & v_modulation_down[ t ] , 1.0 ) } ,
+         -INF , 2 );
+    }
    }
 
   add_static_constraint( BandChoice , "BandChoice_Nuclear" );

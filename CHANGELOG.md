@@ -90,6 +90,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   modulation ends and a band that holds the output at one instant may leave
   none at the next
 
+- The band of a `NuclearUnitBlock` could move against the direction of the
+  modulation that moves it, the rows asking only that it change by one: where
+  the landing power is a breakpoint, and both bands hold it, a modulation
+  upwards could therefore leave the unit a band lower, which costs nothing
+  while a downward one is paid for. The move now follows the direction, as it
+  does in the dynamic program, the two having disagreed by up to `1.2e-4` on
+  the instances of the battery. `has_modulation_direction()` is true whenever
+  the output is banded, the direction Variable being what says which way the
+  band goes
+
 - `ACNetworkBlock` registered `"DCNetworkBlock::set_active_demand"` again,
   with an adapter casting to `ACNetworkBlock`, so that which of the two
   registrations survived depended on the order of the static initialization,

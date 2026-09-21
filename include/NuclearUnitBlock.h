@@ -671,12 +671,14 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
  /// true if the direction of a modulation step matters
  /** That is, if the modulations may last more than one instant, or the
-  * downward steps have a cost, or the unit has deep decreases; the
+  * downward steps have a cost, or the unit has deep decreases, or the output
+  * is banded, a modulation moving the band in its own direction; the
   * variables d[ t ] exist exactly in this case. */
 
  bool has_modulation_direction( void ) const {
   return( ( f_max_modulation_length > 1 ) ||
-          ( ! v_down_modulation_cost.empty() ) || has_deep_decrease() );
+          ( ! v_down_modulation_cost.empty() ) || has_deep_decrease() ||
+          has_power_bands() );
   }
 
 /** @} ---------------------------------------------------------------------*/
