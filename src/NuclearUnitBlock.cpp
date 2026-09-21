@@ -26,6 +26,10 @@
 
 #include <algorithm>
 
+#include <array>
+
+#include <cmath>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1327,6 +1331,111 @@ void NuclearUnitBlock::set_solution( void )
    v_deep_drop[ t ].set_value( drop ? 1 : 0 );
    v_deep[ t ].set_value( ( on && low && drop ) ? 1 : 0 );
    }
+  }
+
+ // the last step of a modulation and the band of the output, if the output
+ // is banded: e_t = m_t ( 1 - m_{t+1} ), save at the last instant of the
+ // horizon, where a modulation that the horizon cuts still owes its last
+ // step and e is forced only when the whole window is modulating
+ if( has_power_bands() && ( ! v_modulation.empty() ) ) {
+  const Index T = f_time_horizon;
+  const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
+
+  for( Index t = 0 ; t + 1 < T ; ++t )
+   v_modulation_end[ t ].set_value(
+    ( ( v_modulation[ t ].get_value() > 0.5 ) &&
+      ( v_modulation[ t + 1 ].get_value() < 0.5 ) ) ? 1 : 0 );
+
+  if( T ) {
+   bool forced = ( f_max_modulation_length > 1 ) &&
+                 ( v_modulation[ T - 1 ].get_value() > 0.5 );
+   for( Index h = ( T >= f_max_modulation_length ?
+                    T - f_max_modulation_length : 0 ) ;
+        forced && ( h < T ) ; ++h )
+    if( v_modulation[ h ].get_value() < 0.5 )
+     forced = false;
+   v_modulation_end[ T - 1 ].set_value( forced ? 1 : 0 );
+   }
+
+  // the band is not a pointwise choice: it has to contain p_t, but it only
+  // changes where a modulation ends, it has to change there, and it moves
+  // to an adjacent one, so a band that fits p_t at one instant may leave
+  // none that fits at the next. It is therefore picked by a sweep over the
+  // three of them, the fourth state standing for the instants in which the
+  // unit is off and has no band; a solution whose bands cannot be made
+  // consistent is left with the one that fits each instant, so that the
+  // rows it breaks are the ones that say why
+  auto fits = [ & ]( Index k , Index t ) -> bool {
+   if( ( v_modulation[ t ].get_value() > 0.5 ) &&
+       ( v_modulation_end[ t ].get_value() < 0.5 ) )
+    return( true );          // travelling between two bands: any of them
+   const double lo = k ? ( ( k > 1 ) ? B2 : B1 ) : get_min_power( t );
+   const double hi = ( k > 1 ) ? get_max_power( t ) : ( k ? B2 : B1 );
+   const double p = Pi[ t ].get_value();
+   const double tol = 1e-6 * std::max( 1.0 , std::max( std::abs( lo ) ,
+                                                       std::abs( hi ) ) );
+   return( ( p >= lo - tol ) && ( p <= hi + tol ) );
+   };
+
+  const Index none = 3;      // the state of an instant with no band
+  std::vector< std::array< bool , 4 > > seen( T , { false , false , false ,
+                                                    false } );
+  std::vector< std::array< unsigned char , 4 > > back( T , { 0 , 0 , 0 , 0 } );
+  const Index b_init = ( f_InitUpDownTime <= 0 ) ? none :
+                       ( ( f_InitialPower <= B1 ) ? 0 :
+                         ( ( f_InitialPower <= B2 ) ? 1 : 2 ) );
+
+  auto step = [ & ]( Index t , Index j , Index k ) -> bool {
+   if( k == none )
+    return( Ci[ t ].get_value() <= 0.5 );
+   if( Ci[ t ].get_value() <= 0.5 )
+    return( false );
+   if( ! fits( k , t ) )
+    return( false );
+   if( j == none )                    // a start-up picks its band freely
+    return( true );
+   if( v_modulation_end[ t ].get_value() > 0.5 )
+    return( ( k != j ) && ( ( k > j ? k - j : j - k ) == 1 ) );
+   return( k == j );
+   };
+
+  for( Index k = 0 ; k < 4 ; ++k )
+   if( step( 0 , b_init , k ) ) {
+    seen[ 0 ][ k ] = true;
+    back[ 0 ][ k ] = b_init;
+    }
+  for( Index t = 1 ; t < T ; ++t )
+   for( Index j = 0 ; j < 4 ; ++j ) {
+    if( ! seen[ t - 1 ][ j ] )
+     continue;
+    for( Index k = 0 ; k < 4 ; ++k )
+     if( ( ! seen[ t ][ k ] ) && step( t , j , k ) ) {
+      seen[ t ][ k ] = true;
+      back[ t ][ k ] = j;
+      }
+    }
+
+  std::vector< Index > b( T , none );
+  Index last = 4;
+  for( Index k = 0 ; ( k < 4 ) && ( last > 3 ) ; ++k )
+   if( T && seen[ T - 1 ][ k ] )
+    last = k;
+  if( last < 4 )
+   for( Index t = T ; t-- ; ) {
+    b[ t ] = last;
+    last = back[ t ][ last ];
+    }
+  else
+   for( Index t = 0 ; t < T ; ++t ) {
+    b[ t ] = none;
+    if( Ci[ t ].get_value() > 0.5 )
+     for( Index k = 0 ; k < 3 ; ++k )
+      if( fits( k , t ) ) { b[ t ] = k; break; }
+    }
+
+  for( Index t = 0 ; t < T ; ++t )
+   for( Index k = 0 ; k < 3 ; ++k )
+    v_band[ k * T + t ].set_value( ( b[ t ] == k ) ? 1 : 0 );
   }
  }  // end( NuclearUnitBlock::set_solution )
 

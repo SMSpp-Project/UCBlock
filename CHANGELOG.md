@@ -79,6 +79,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `NuclearUnitBlock::set_solution()` derived the start of a modulation and the
+  three indicators of a deep decrease, and left the end of a modulation and
+  the band of the output as they were, so that a Solver that writes the
+  canonical Variable alone left them with the values of whoever had written
+  them before: the schedule that came out then broke `ModulationEnd` by one
+  and, since the band rows are relaxed by `MaxPower - MinPower` while a
+  modulation travels, `BandPower` by that much. Both are derived now, the
+  band by a sweep over the three of them, since it only changes where a
+  modulation ends and a band that holds the output at one instant may leave
+  none at the next
+
 - `ACNetworkBlock` registered `"DCNetworkBlock::set_active_demand"` again,
   with an adapter casting to `ACNetworkBlock`, so that which of the two
   registrations survived depended on the order of the static initialization,
