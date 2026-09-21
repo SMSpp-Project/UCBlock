@@ -277,7 +277,9 @@ class NuclearUnitBlock : public ThermalUnitBlock
  *   provided the output is not banded, which is the default. With the bands,
  *   a stable instant keeps the output in the band it is in and a modulation
  *   moves it to an adjacent band, where it has to land at its last step,
- *   while the instants in between are free [see
+ *   while the instants in between are free; at the last instant of the
+ *   horizon a modulation either ends and lands in its band, or is still in
+ *   progress and moves the output by the full ramp [see
  *   generate_abstract_constraints()].
  *
  * - The scalar variable "StabilityAfterStartUp" of type netCDF::NcUint for

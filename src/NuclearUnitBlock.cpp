@@ -755,12 +755,19 @@ void NuclearUnitBlock::generate_operating_rules( void )
   // with M_t = D+_t + max{ D-_t , SD_t } and M'_t = D-_t + max{ D+_t , SU_t },
   // since the modulation ramp constraints bound the decrease of the output
   // by max{ D-_t , SD_t } and its increase by max{ D+_t , SU_t }; at t = 0
-  // p_{-1} is the (fixed) initial power
+  // p_{-1} is the (fixed) initial power. With the bands, at the last instant
+  // m_T is replaced by m_{T-1} - e_{T-1}: a modulation that the horizon cuts
+  // is still in progress past it, hence its step there is not the last one
+  // and it is a full ramp, while one ending there has the window of a last
+  // step and lands in a band
   Modulation_FullRampUp.reserve( T );
   Modulation_FullRampDown.reserve( T );
   for( Index t = 0 ; t < T ; ++t ) {
    const double M = full_ramp_up_M( t );
    const double Md = full_ramp_down_M( t );
+   const bool cut = ( t + 1 == T ) && ( ! v_modulation_end.empty() );
+   const double Du = cut ? v_DeltaRampUp[ t ] : 0.0;
+   const double Dd = cut ? v_DeltaRampDown[ t ] : 0.0;
 
    LinearFunction::v_coeff_pair cu , cd;
    cu.push_back( coeff_pair( & v_active_power[ t ] , 1.0 ) );
@@ -775,6 +782,10 @@ void NuclearUnitBlock::generate_operating_rules( void )
     cd.push_back( coeff_pair( & v_modulation[ t + 1 ] ,
                               - v_DeltaRampDown[ t ] ) );
     }
+   else if( cut ) {
+    cu.push_back( coeff_pair( & v_modulation_end[ t ] , Du ) );
+    cd.push_back( coeff_pair( & v_modulation_end[ t ] , Dd ) );
+    }
    if( f_tight_ramp ) {
     // the same rows with one coefficient per case rather than one for all:
     // a stable instant moves down by at most the stability ramp, a downward
@@ -787,10 +798,10 @@ void NuclearUnitBlock::generate_operating_rules( void )
     const double Ad = full_ramp_down_const( t );
     const double Bd = std::max( v_DeltaRampUp[ t ] -
                                 v_modulation_ramp_up[ t ] , 0.0 );
-    cu.push_back( coeff_pair( & v_modulation[ t ] , - A ) );
+    cu.push_back( coeff_pair( & v_modulation[ t ] , - A - Du ) );
     cu.push_back( coeff_pair( & v_modulation_down[ t ] , B ) );
     cd.push_back( coeff_pair( & v_modulation_down[ t ] , - ( Ad + Bd ) ) );
-    cd.push_back( coeff_pair( & v_modulation[ t ] , Bd ) );
+    cd.push_back( coeff_pair( & v_modulation[ t ] , Bd - Dd ) );
     if( t >= init_t ) {
      cu.push_back( coeff_pair( & v_shut_down[ t - init_t ] ,
                                v_ShutDownLimit[ t ] ) );
@@ -803,9 +814,11 @@ void NuclearUnitBlock::generate_operating_rules( void )
          - Ad - ( t ? 0 : f_InitialPower ) , INF );
     }
    else {
-    cu.push_back( coeff_pair( & v_modulation[ t ] , - M ) );
+    cu.push_back( coeff_pair( & v_modulation[ t ] , - M - Du ) );
     cu.push_back( coeff_pair( & v_modulation_down[ t ] , M ) );
     cd.push_back( coeff_pair( & v_modulation_down[ t ] , - Md ) );
+    if( cut )
+     cd.push_back( coeff_pair( & v_modulation[ t ] , - Dd ) );
     row( Modulation_FullRampUp , std::move( cu ) ,
          - M + ( t ? 0 : f_InitialPower ) , INF );
     row( Modulation_FullRampDown , std::move( cd ) ,
@@ -986,7 +999,8 @@ void NuclearUnitBlock::generate_operating_rules( void )
    // the horizon cuts, however, still owes its last step, hence it may
    // only have L^M - 1 of them:
    // sum_{h=T-L^M}^{T-1} m_h - e_{T-1} <= L^M - 1
-   else if( L > 1 ) {
+   // which for L^M = 1 says that a single-step modulation always ends
+   else {
     LinearFunction::v_coeff_pair cf;
     for( Index h = ( T >= L ? T - L : 0 ) ; h < T ; ++h )
      cf.push_back( coeff_pair( & v_modulation[ h ] , 1.0 ) );
@@ -1362,8 +1376,10 @@ void NuclearUnitBlock::set_solution( void )
 
  // the last step of a modulation and the band of the output, if the output
  // is banded: e_t = m_t ( 1 - m_{t+1} ), save at the last instant of the
- // horizon, where a modulation that the horizon cuts still owes its last
- // step and e is forced only when the whole window is modulating
+ // horizon, where a modulation that the horizon cuts may be still in
+ // progress; it has ended there if the whole window is modulating, or if
+ // its step is not a full ramp in its direction, which only a last step is
+ // allowed to be
  if( has_power_bands() && ( ! v_modulation.empty() ) ) {
   const Index T = f_time_horizon;
   const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
@@ -1374,14 +1390,24 @@ void NuclearUnitBlock::set_solution( void )
       ( v_modulation[ t + 1 ].get_value() < 0.5 ) ) ? 1 : 0 );
 
   if( T ) {
-   bool forced = ( f_max_modulation_length > 1 ) &&
-                 ( v_modulation[ T - 1 ].get_value() > 0.5 );
-   for( Index h = ( T >= f_max_modulation_length ?
-                    T - f_max_modulation_length : 0 ) ;
-        forced && ( h < T ) ; ++h )
-    if( v_modulation[ h ].get_value() < 0.5 )
-     forced = false;
-   v_modulation_end[ T - 1 ].set_value( forced ? 1 : 0 );
+   const Index t = T - 1;
+   bool ended = v_modulation[ t ].get_value() > 0.5;
+   if( ended ) {
+    bool forced = true;
+    for( Index h = ( T >= f_max_modulation_length ?
+                     T - f_max_modulation_length : 0 ) ;
+         forced && ( h < T ) ; ++h )
+     if( v_modulation[ h ].get_value() < 0.5 )
+      forced = false;
+    const double pp = t ? Pi[ t - 1 ].get_value() : f_InitialPower;
+    const bool down = ( ! v_modulation_down.empty() ) &&
+                      ( v_modulation_down[ t ].get_value() > 0.5 );
+    const double mv = down ? pp - Pi[ t ].get_value()
+                           : Pi[ t ].get_value() - pp;
+    const double D = down ? v_DeltaRampDown[ t ] : v_DeltaRampUp[ t ];
+    ended = forced || ( mv < D - 1e-6 * std::max( 1.0 , D ) );
+    }
+   v_modulation_end[ t ].set_value( ended ? 1 : 0 );
    }
 
   // the band is not a pointwise choice: it has to contain p_t, but it only

@@ -100,6 +100,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the output is banded, the direction Variable being what says which way the
   band goes
 
+- At the last instant of the horizon a `NuclearUnitBlock` with the bands could
+  take a modulation step that was neither a full ramp nor landed in a band:
+  the full ramp of a step is imposed through the modulation of the next
+  instant, which is not there, while the end of the modulation, which the band
+  rows are relaxed without, was free. The step was therefore a last one for the
+  ramp and not for the band, and on one instance of the battery the unit kept a
+  lower output for the whole day and then modulated by a fraction of the ramp
+  at its end, `5e-6` below what the dynamic program, where a modulation either
+  ends in a band or goes on by the full ramp, could reach. At the last instant
+  the next modulation is now replaced by the one that goes on past the horizon,
+  i.e., `m_{T-1} - e_{T-1}`, a single-step modulation always ends there, and
+  `set_solution()` marks as ended a modulation whose last step is not a full
+  ramp
+
 - `ACNetworkBlock` registered `"DCNetworkBlock::set_active_demand"` again,
   with an adapter casting to `ACNetworkBlock`, so that which of the two
   registrations survived depended on the order of the static initialization,
