@@ -79,6 +79,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The ramps of a `ThermalUnitBlock` that change over time are read as the
+  documentation says in every formulation and Solver: `DeltaRampUp[ t ]`
+  (`DeltaRampDown[ t ]`) bounds the increase (decrease) of the power from
+  t - 1 to t, from `InitialPower` if t = 0. The 3bin and pt formulations,
+  the reserve deliverability rows and the three dynamic programming Solvers
+  used `DeltaRampUp[ t - 1 ]` for that step, so that `DeltaRampUp[ 0 ]` bound
+  both the first two steps and the formulations disagreed with each other;
+  the T formulation mixed the two indices in its ramp-down rows, and the
+  formulations whose rows span several steps (SUSD, the bounds of T, the
+  maximum powers of the interval formulations) multiplied one ramp by the
+  number of steps instead of summing the ramps of the steps. With constant
+  ramps nothing changes.
+
 - `IntermittentUnitBlock::check_data_consistency()` refused a
   `MinCapacityDesign` above 1 when `MaxCapacityDesign` is negative, as if the
   design were binary, while that design is an integer between 0 and

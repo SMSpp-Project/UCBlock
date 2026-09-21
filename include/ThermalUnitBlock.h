@@ -2003,7 +2003,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the delta ramp-up at the time \p t
  /** This function return the delta ramp-up at time \p t, which is assumed
-  * to be between 0 and get_time_horizon() - 1. */
+  * to be between 0 and get_time_horizon() - 1, i.e., the maximum increase
+  * of the active power from t - 1 to t (from InitialPower if t == 0). */
 
  double get_delta_ramp_up( Index t ) const {
   if( t >= f_time_horizon )
@@ -2026,7 +2027,9 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the delta ramp-down at the time \p t
  /** This function return the delta ramp-down at the time \p t, which is
-  * assumed to be between 0 and get_time_horizon() - 1. */
+  * assumed to be between 0 and get_time_horizon() - 1, i.e., the maximum
+  * decrease of the active power from t - 1 to t (from InitialPower if
+  * t == 0). */
 
  double get_delta_ramp_down( Index t ) const {
   if( t >= f_time_horizon )
@@ -2035,6 +2038,32 @@ class ThermalUnitBlock : public UnitBlock
   if( v_DeltaRampDown.empty() )
    return( get_max_power( t ) );
   return( v_DeltaRampDown[ t ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the increase the ramp-up limits allow from \p from - 1 to \p to
+ /** Returns \f$ \sum_{\tau = from}^{to} DP[ \tau ] \f$, i.e., the
+  * maximum increase of the active power over the steps from \p from - 1
+  * (InitialPower if \p from == 0) to \p to, 0 if \p from > \p to. */
+
+ double ramp_up_sum( Index from , Index to ) const {
+  double sum = 0;
+  for( Index t = from ; t <= to ; ++t )
+   sum += get_delta_ramp_up( t );
+  return( sum );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the decrease the ramp-down limits allow from \p from - 1 to \p to
+ /** Returns \f$ \sum_{\tau = from}^{to} DM[ \tau ] \f$, i.e., the
+  * maximum decrease of the active power over the steps from \p from - 1
+  * (InitialPower if \p from == 0) to \p to, 0 if \p from > \p to. */
+
+ double ramp_down_sum( Index from , Index to ) const {
+  double sum = 0;
+  for( Index t = from ; t <= to ; ++t )
+   sum += get_delta_ramp_down( t );
+  return( sum );
   }
 
 /*--------------------------------------------------------------------------*/
