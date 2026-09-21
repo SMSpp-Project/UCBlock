@@ -1261,7 +1261,7 @@ void NuclearUnitBlock::generate_dynamic_constraints( Configuration * dycc )
   std::list< FRowConstraint > one( 1 );
   one.front().set_lhs( - Inf< double >() );
   one.front().set_rhs( rhs );
-  one.front().set_function( new LinearFunction( std::move( cf ) , eNoMod ) );
+  one.front().set_function( new LinearFunction( std::move( cf ) ) , eNoMod );
   add_dynamic_constraints( Nuclear_cuts , one , eNoBlck );
   };
 

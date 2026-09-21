@@ -114,6 +114,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set_solution()` marks as ended a modulation whose last step is not a full
   ramp
 
+- The cuts that `ThermalUnitBlock` and `NuclearUnitBlock` separate carried a
+  constant term of 1 in their `LinearFunction`, `eNoMod` having been passed to
+  its constructor, where it is the constant, rather than to `set_function()`.
+  The `MILPSolver` reads the coefficients and not the constant, hence the rows
+  it got were right, but every check done on the `Block`, `is_feasible()`
+  comprised, saw each separated cut violated by 1 at any solution
+
 - `ACNetworkBlock` registered `"DCNetworkBlock::set_active_demand"` again,
   with an adapter casting to `ACNetworkBlock`, so that which of the two
   registrations survived depended on the order of the static initialization,

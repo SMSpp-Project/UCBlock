@@ -3713,7 +3713,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
       cut.front().set_lhs( -Inf< double >() );
       cut.front().set_rhs( 0.0 );
       cut.front().set_function(
-       new LinearFunction( std::move( vars ) , eNoMod ) );
+       new LinearFunction( std::move( vars ) ) , eNoMod );
 
       add_dynamic_constraints( PC_cuts , cut , eNoBlck );
      }
@@ -3756,7 +3756,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
       cut.front().set_lhs( -Inf< double >() );
       cut.front().set_rhs( 0.0 );
       cut.front().set_function(
-       new LinearFunction( std::move( vars ) , eNoMod ) );
+       new LinearFunction( std::move( vars ) ) , eNoMod );
 
       add_dynamic_constraints( PC_cuts , cut , eNoBlck );
      }
@@ -3806,7 +3806,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
           cut.front().set_lhs( -Inf< double >() );
           cut.front().set_rhs( 0.0 );
           cut.front().set_function(
-           new LinearFunction( std::move( vars ) , eNoMod ) );
+           new LinearFunction( std::move( vars ) ) , eNoMod );
 
           add_dynamic_constraints( PC_cuts , cut , eNoBlck );
          }
@@ -3858,7 +3858,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
           cut.front().set_lhs( -Inf< double >() );
           cut.front().set_rhs( 0.0 );
           cut.front().set_function(
-           new LinearFunction( std::move( vars ) , eNoMod ) );
+           new LinearFunction( std::move( vars ) ) , eNoMod );
 
           add_dynamic_constraints( PC_cuts , cut , eNoBlck );
          }
@@ -3908,7 +3908,7 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
           cut.front().set_lhs( -Inf< double >() );
           cut.front().set_rhs( 0.0 );
           cut.front().set_function(
-           new LinearFunction( std::move( vars ) , eNoMod ) );
+           new LinearFunction( std::move( vars ) ) , eNoMod );
 
           add_dynamic_constraints( PC_cuts , cut , eNoBlck );
          }
