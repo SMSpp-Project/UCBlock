@@ -1770,6 +1770,41 @@ void NuclearUnitBlock::objective_tail_change( const DQuadFunction * qf ,
 
 /*--------------------------------------------------------------------------*/
 
+void NuclearUnitBlock::update_objective_tail( const Subset & subset ,
+                                             c_ModParam issueAMod )
+{
+ if( ( ! objective_generated() ) || v_obj_tail.empty() )
+  return;
+
+ // the two sections, in the order of generate_objective(), each of them
+ // present only if the unit has both the variables and a cost of its own
+ std::vector< const std::vector< double > * > sections;
+ if( ( ! v_modulation_down.empty() ) && ( ! v_down_modulation_cost.empty() ) )
+  sections.push_back( & v_down_modulation_cost );
+ if( ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() ) )
+  sections.push_back( & v_deep_cost );
+
+ auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
+ const Index base = qf->get_num_active_var() - v_obj_tail.size();
+
+ Subset nms;
+ DQuadFunction::Vec_FunctionValue coeff;
+ for( Index k = 0 ; k < sections.size() ; ++k )
+  for( auto t : subset ) {
+   const Index pos = k * f_time_horizon + t;
+   v_obj_tail[ pos ] = f_scale * ( *sections[ k ] )[ t ];
+   nms.push_back( base + pos );
+   coeff.push_back( v_obj_tail[ pos ] );
+   }
+
+ if( ! nms.empty() )
+  qf->modify_linear_coefficients( std::move( coeff ) , std::move( nms ) ,
+                                  true , un_ModBlock( issueAMod ) );
+
+ }  // end( NuclearUnitBlock::update_objective_tail )
+
+/*--------------------------------------------------------------------------*/
+
 bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // retrieve the tolerance and the type of violation

@@ -6040,7 +6040,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
   assert( var_index < function->get_num_active_var() );
   function->modify_linear_coefficient( var_index ,
                                        f_scale * v_StartUpCost[ t ] ,
-                                       issueAMod );
+                                       un_ModBlock( issueAMod ) );
  }
 }  // end( ThermalUnitBlock::update_objective_start_up )
 
@@ -6094,7 +6094,7 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
   assert( var_index < function->get_num_active_var() );
   function->modify_linear_coefficient( var_index ,
                                        f_scale * v_ConstTerm[ t ] ,
-                                       issueAMod );
+                                       un_ModBlock( issueAMod ) );
  }
 }  // end( ThermalUnitBlock::update_objective_commitment )
 
@@ -6177,7 +6177,88 @@ void ThermalUnitBlock::update_objective( const Subset & subset ,
  update_objective_start_up( subset , issueAMod );
  update_objective_active_power( subset , issueAMod );
  update_objective_commitment( subset , issueAMod );
+ update_objective_other_terms( subset , issueAMod );
+ update_objective_tail( subset , issueAMod );
 }  // end( ThermalUnitBlock::update_objective( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ThermalUnitBlock::update_objective_other_terms( const Subset & subset ,
+                                                     c_ModParam issueAMod )
+{
+ if( ! objective_generated() )
+  return;  // the Objective has not been generated: nothing to be done
+
+ auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
+
+ if( ! function )
+  return;
+
+ // the shut-down, reserve, perspective-cut and reactive power terms, each
+ // f_scale times the cost of one copy as in generate_objective(): they all
+ // go into a single Modification
+ Subset nms;
+ DQuadFunction::Vec_FunctionValue coeff;
+ auto add = [ & ]( const ColVariable & var , double cost ) {
+  const auto idx = function->is_active( & var );
+  assert( idx < function->get_num_active_var() );
+  nms.push_back( idx );
+  coeff.push_back( f_scale * cost );
+  };
+
+ if( f_shut_down_in_obj )
+  for( auto t : subset )
+   if( t >= init_t )
+    add( v_shut_down[ t - init_t ] , v_ShutDownCost[ t ] );
+
+ if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) &&
+     ( ! v_PrimarySpinningReserveCost.empty() ) )
+  for( auto t : subset )
+   add( v_primary_spinning_reserve[ t ] , v_PrimarySpinningReserveCost[ t ] );
+
+ if( ( reserve_vars & 2u ) && ( ! v_secondary_spinning_reserve.empty() ) &&
+     ( ! v_SecondarySpinningReserveCost.empty() ) )
+  for( auto t : subset )
+   add( v_secondary_spinning_reserve[ t ] ,
+        v_SecondarySpinningReserveCost[ t ] );
+
+ if( AR & PCuts ) {
+  const auto form = AR & FormMsk;
+  if( ( form == tbinForm ) || ( form == TForm ) || ( form == ptForm ) )
+   for( auto t : subset )
+    add( v_cut[ t ] , v_QuadTerm[ t ] );
+  else
+   if( form == SUSDForm )
+    for( auto t : subset )
+     add( v_cut_teta[ t ] , v_QuadTerm[ t ] );
+   else {
+    // arc-indexed cut variables, each carrying the quadratic term of the
+    // time instant of its arc
+    auto arcs = [ & ]( const auto & Z , const std::vector< ColVariable > & cut ) {
+     for( Index i = 0 ; i < Z.size() ; ++i )
+      if( std::binary_search( subset.begin() , subset.end() , Z[ i ].first ) )
+       add( cut[ i ] , v_QuadTerm[ Z[ i ].first ] );
+     };
+    if( form == DPForm )
+     arcs( v_Z_h_k , v_cut_h_k );
+    else
+     if( form == SUForm )
+      arcs( v_Z_h , v_cut_h );
+     else
+      if( form == SDForm )
+       arcs( v_Z_k , v_cut_k );
+    }
+  }
+
+ if( f_reactive_power && ( ! v_ReactiveLinearTerm.empty() ) )
+  for( auto t : subset )
+   add( v_reactive_power[ t ] , v_ReactiveLinearTerm[ t ] );
+
+ if( ! nms.empty() )
+  function->modify_linear_coefficients( std::move( coeff ) , std::move( nms ) ,
+                                        false , un_ModBlock( issueAMod ) );
+
+}  // end( ThermalUnitBlock::update_objective_other_terms )
 
 /*--------------------------------------------------------------------------*/
 
@@ -6409,6 +6490,20 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
  // abstract representation has been changed already)
  Index th = f_time_horizon;
 
+ // the Objective carries f_scale times the cost of one copy of the unit
+ // [see UnitBlock::scale()], the physical representation the cost of one
+ // copy, hence the coefficients are divided back before being stored; with
+ // a zero scale the Objective tells nothing of the cost of a copy, which is
+ // then kept as it is
+ if( f_scale == 0 )
+  return;
+ auto coef = [ qf , this ]( Index i ) {
+  return( qf->get_linear_coefficient( i ) / f_scale );
+  };
+ auto qcoef = [ qf , this ]( Index i ) {
+  return( qf->get_quadratic_coefficient( i ) / f_scale );
+  };
+
  // C05FunctionModLinRngd / DQuadFunctionModRngd - - - - - - - - - - - - - - -
  // split the Modification in up to 5 physical Modification by calling the
  // appropriate set_*() methods (ranged version) for those among startup,
@@ -6478,7 +6573,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     std::vector< double > qv( r - rl );
     auto qvit = qv.begin();
     for( Index i = rl ; i < r ; )
-     *( qvit++ ) = qf->get_linear_coefficient( i++ );
+     *( qvit++ ) = coef( i++ );
     set_reactive_linear_term( qv.begin() ,
                               Range( rl - q_start , r - q_start ) ,
                               par , eDryRun );
@@ -6499,7 +6594,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    *( nvit++ ) = coef( i++ );
    // set_startup_costs( Range ) expects rng in time-space [ init_t ,
    // f_time_horizon ); active-var indices [ l , r2 ) correspond to time
    // indices [ l + init_t , r2 + init_t )
@@ -6519,7 +6614,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     Index r2 = std::min( r , gr );
     auto nvit = nv.begin();
     for( Index i = l ; i < r2 ; )
-     *( nvit++ ) = qf->get_linear_coefficient( i++ );
+     *( nvit++ ) = coef( i++ );
     // as for the start-up ones, the active-var indices [ gl , gr ) map to
     // the time indices [ init_t , f_time_horizon )
     set_shutdown_costs( nv.begin() ,
@@ -6538,14 +6633,14 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    *( nvit++ ) = coef( i++ );
    set_linear_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
    // with perspective cuts the active power variables carry no quadratic
    // coefficient (the quadratic term lives on the cut variables, see below)
    if( with_quad && ! ( AR & PCuts ) ) {
     auto nvqit = nvq.begin();
     for( Index i = l ; i < r2 ; )
-     *( nvqit++ ) = qf->get_quadratic_coefficient( i++ );
+     *( nvqit++ ) = qcoef( i++ );
     set_quad_term( nvq.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
     }
 
@@ -6561,7 +6656,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    Index r2 = std::min( r , gr );
    auto nvit = nv.begin();
    for( Index i = l ; i < r2 ; )
-    *( nvit++ ) = qf->get_linear_coefficient( i++ );
+    *( nvit++ ) = coef( i++ );
    set_const_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
 
    l = r2;
@@ -6598,7 +6693,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     Index r2 = std::min( r , gr );
     auto nvit = nv.begin();
     for( Index i = l ; i < r2 ; )
-     *( nvit++ ) = qf->get_linear_coefficient( i++ );
+     *( nvit++ ) = coef( i++ );
     set_primary_spinning_reserve_cost( nv.begin() ,
                                        Range( l - gl , r2 - gl ) ,
                                        par , eDryRun );
@@ -6616,7 +6711,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     Index r2 = std::min( r , gr );
     auto nvit = nv.begin();
     for( Index i = l ; i < r2 ; )
-     *( nvit++ ) = qf->get_linear_coefficient( i++ );
+     *( nvit++ ) = coef( i++ );
     set_secondary_spinning_reserve_cost( nv.begin() ,
                                          Range( l - gl , r2 - gl ) ,
                                          par , eDryRun );
@@ -6640,7 +6735,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
      Index r2 = std::min( r , gr );
      auto nvit = nv.begin();
      for( Index i = l ; i < r2 ; )
-      *( nvit++ ) = qf->get_linear_coefficient( i++ );
+      *( nvit++ ) = coef( i++ );
      set_quad_term( nv.begin() , Range( l - gl , r2 - gl ) , par , eDryRun );
      if( r2 == r )
       return;
@@ -6655,7 +6750,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
      Index r2 = std::min( r , gr );
      std::map< Index , double > tv;
      for( Index i = l ; i < r2 ; ++i )
-      tv[ Z[ i - gl ].first ] = qf->get_linear_coefficient( i );
+      tv[ Z[ i - gl ].first ] = coef( i );
      Subset nms( tv.size() );
      std::vector< double > tvv( tv.size() );
      auto nmsit = nms.begin();
@@ -6750,7 +6845,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     auto qvit = qv.begin();
     auto qmsit = qms.begin();
     for( auto it = qit ; it != sbs->end() ; ++it ) {
-     *( qvit++ ) = qf->get_linear_coefficient( *it );
+     *( qvit++ ) = coef( *it );
      *( qmsit++ ) = *it - q_start;
      }
     set_reactive_linear_term( qv.begin() , std::move( qms ) , true ,
@@ -6781,7 +6876,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    // [ init_t , f_time_horizon ); active-var indices [ 0 , th - init_t )
    // map to time indices by adding init_t
    while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
+    *( nvit++ ) = coef( *l );
     *( nmsit++ ) = *( l++ ) + init_t;
     }
    set_startup_costs( nv.begin() , std::move( nms ) , true , par , eDryRun );
@@ -6801,7 +6896,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     auto nvit = nv.begin();
     auto nmsit = nms.begin();
     while( l != r ) {
-     *( nvit++ ) = qf->get_linear_coefficient( *l );
+     *( nvit++ ) = coef( *l );
      *( nmsit++ ) = *( l++ ) - gl + init_t;
      }
     set_shutdown_costs( nv.begin() , std::move( nms ) , true , par ,
@@ -6823,9 +6918,9 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    auto nmsit = nms.begin();
    auto nvqit = nvq.begin();
    while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
+    *( nvit++ ) = coef( *l );
     if( with_quad )
-     *( nvqit++ ) = qf->get_quadratic_coefficient( *l );
+     *( nvqit++ ) = qcoef( *l );
     *( nmsit++ ) = *( l++ ) - gl;
     }
    // with perspective cuts the active power variables carry no quadratic
@@ -6850,7 +6945,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    auto nvit = nv.begin();
    auto nmsit = nms.begin();
    while( l != r ) {
-    *( nvit++ ) = qf->get_linear_coefficient( *l );
+    *( nvit++ ) = coef( *l );
     *( nmsit++ ) = *( l++ ) - gl;
     }
    set_const_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
@@ -6891,7 +6986,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     auto nvit = nv.begin();
     auto nmsit = nms.begin();
     while( l != r ) {
-     *( nvit++ ) = qf->get_linear_coefficient( *l );
+     *( nvit++ ) = coef( *l );
      *( nmsit++ ) = *( l++ ) - gl;
      }
     set_primary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
@@ -6913,7 +7008,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     auto nvit = nv.begin();
     auto nmsit = nms.begin();
     while( l != r ) {
-     *( nvit++ ) = qf->get_linear_coefficient( *l );
+     *( nvit++ ) = coef( *l );
      *( nmsit++ ) = *( l++ ) - gl;
      }
     set_secondary_spinning_reserve_cost( nv.begin() , std::move( nms ) ,
@@ -6941,7 +7036,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
      auto nvit = nv.begin();
      auto nmsit = nms.begin();
      while( l != r ) {
-      *( nvit++ ) = qf->get_linear_coefficient( *l );
+      *( nvit++ ) = coef( *l );
       *( nmsit++ ) = *( l++ ) - gl;
       }
      set_quad_term( nv.begin() , std::move( nms ) , true , par , eDryRun );
@@ -6955,7 +7050,7 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
       return;
      std::map< Index , double > tv;
      while( ( l != sbs->end() ) && ( *l < gr ) ) {
-      tv[ Z[ *l - gl ].first ] = qf->get_linear_coefficient( *l );
+      tv[ Z[ *l - gl ].first ] = coef( *l );
       ++l;
       }
      Subset nms( tv.size() );

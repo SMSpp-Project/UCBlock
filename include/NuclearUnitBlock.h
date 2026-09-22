@@ -1027,6 +1027,10 @@ class NuclearUnitBlock : public ThermalUnitBlock
  void objective_tail_change( const DQuadFunction * qf , Index first ,
                              Index last ) override;
 
+ /// makes the appended coefficients follow the scale factor
+ void update_objective_tail( const Subset & subset ,
+                             c_ModParam issueAMod ) override;
+
 /*--------------------------------------------------------------------------*/
  /// changes one of the two costs of the operating rules
  /** The common guts of set_down_modulation_costs() and of

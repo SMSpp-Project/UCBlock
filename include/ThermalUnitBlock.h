@@ -3020,6 +3020,31 @@ class ThermalUnitBlock : public UnitBlock
                                    c_ModParam issueAMod ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// updates the remaining terms of the Objective that carry the scale
+ /** This method updates the terms of the Objective associated with the
+  * shut-down, the primary and secondary spinning reserves, the perspective
+  * cuts and the reactive power, each being \f$ S \f$ times the cost of one
+  * copy of the unit (see UnitBlock::scale()).
+  *
+  * @param subset A set of time instants at which the terms must be updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective_other_terms( const Subset & subset ,
+                                    c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the coefficients of the Variable appended by a derived class
+ /** Called by update_objective() after the scale factor has changed, so
+  * that the coefficients of the Variable appended to the Objective by a
+  * derived class [see objective_tail()] follow it at the time instants in
+  * \p subset. The default does nothing, as the ThermalUnitBlock has no such
+  * Variable. */
+
+ virtual void update_objective_tail( const Subset & subset ,
+                                     c_ModParam issueAMod ) { }
+
+/*--------------------------------------------------------------------------*/
  /// updates the term of the Objective associated with the investment cost
  /** This method updates the coefficient of the design variable in the
   * Objective, i.e., the term \f$ S \cdot I \cdot x \f$ where \f$ S \f$ is
