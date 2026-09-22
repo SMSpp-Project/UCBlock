@@ -1886,11 +1886,15 @@ class UCBlock : public Block
   * modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered. */
+  *        modified. This vector is assumed to be ordered.
+  *
+  * @param reactive If true, the reactive node injection constraints are
+  *        updated instead of the active ones. */
 
  void update_node_injection_constraints(
 			       const std::vector< Index > & modified_units ,
-			       ModParam issueMod = eNoBlck );
+			       ModParam issueMod = eNoBlck ,
+			       bool reactive = false );
 
 /*--------------------------------------------------------------------------*/
  /// updates the primary demand constraints
@@ -2001,7 +2005,9 @@ class UCBlock : public Block
  /// returns the primary zone to which the given generator belongs
 
  Index get_primary_zone( Index elc_generator ) const {
-  if( f_number_primary_zones == 0 )
+  // with at most one zone the vector of the zones may well be empty [see
+  // node_belongs_to_primary_zone()]
+  if( f_number_primary_zones <= 1 )
    return( 0 );
 
   // Node to which the given electrical generator belongs
@@ -2016,7 +2022,9 @@ class UCBlock : public Block
  /// returns the secondary zone to which the given generator belongs
 
  Index get_secondary_zone( Index elc_generator ) const {
-  if( f_number_secondary_zones == 0 )
+  // with at most one zone the vector of the zones may well be empty [see
+  // node_belongs_to_secondary_zone()]
+  if( f_number_secondary_zones <= 1 )
    return( 0 );
 
   // Node to which the given electrical generator belongs
@@ -2031,7 +2039,9 @@ class UCBlock : public Block
  /// returns the inertia zone to which the given generator belongs
 
  Index get_inertia_zone( Index elc_generator ) const {
-  if( f_number_inertia_zones == 0 )
+  // with at most one zone the vector of the zones may well be empty [see
+  // node_belongs_to_inertia_zone()]
+  if( f_number_inertia_zones <= 1 )
    return( 0 );
 
   // Node to which the given electrical generator belongs

@@ -1659,6 +1659,7 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
   const auto upar = make_par( eNoBlck , chnl );
 
   update_node_injection_constraints( modified_units , upar );
+  update_node_injection_constraints( modified_units , upar , true );
   update_primary_demand_constraints( modified_units , upar );
   update_secondary_demand_constraints( modified_units , upar );
   update_inertia_demand_constraints( modified_units , upar );
@@ -1673,10 +1674,22 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints(
- const std::vector< Index > & modified_units , ModParam issueMod )
+ const std::vector< Index > & modified_units , ModParam issueMod ,
+ bool reactive )
 {
+ // the active and the reactive rows have the same structure, the power
+ // Variable of the units and the demand being the only difference
+ auto & node_injection_Const = reactive ? v_reactive_node_injection_Const
+                                        : v_node_injection_Const;
+ const auto & power_demand = reactive ? v_reactive_power_demand
+                                      : v_active_power_demand;
+ auto power = [ reactive ]( auto unit_block , Index g ) {
+  return( reactive ? unit_block->get_reactive_power( g )
+                   : unit_block->get_active_power( g ) );
+  };
+
  if( ( ! constraints_generated() ) ||
-     ( v_node_injection_Const.empty() ) || modified_units.empty() )
+     ( node_injection_Const.empty() ) || modified_units.empty() )
   return;
 
  // Lambda for determining if some unit has been modified
@@ -1704,7 +1717,7 @@ void UCBlock::update_node_injection_constraints(
   if( number_nodes == 1 ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
 
-    auto & constraint = v_node_injection_Const[ t ][ 0 ];
+    auto & constraint = node_injection_Const[ t ][ 0 ];
 
     // This will store the coefficients that must be updated, i.e., those of
     // the active Variables that belong to the units that have been modified.
@@ -1720,7 +1733,7 @@ void UCBlock::update_node_injection_constraints(
     Index active_var_index = 0;
 
     // Initialise demand as active power
-    auto rhs = v_active_power_demand[ 0 ][ t ];
+    auto rhs = power_demand[ 0 ][ t ];
 
     for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
 
@@ -1752,7 +1765,7 @@ void UCBlock::update_node_injection_constraints(
 
          if( modified ) {
           // update the coefficient of the commitment variable
-          coefficients.push_back( scale );
+          coefficients.push_back( fixed_consumption );
           subset.push_back( active_var_index );
 
           assert( active_var_index < constraint.get_num_active_var() );
@@ -1801,7 +1814,7 @@ void UCBlock::update_node_injection_constraints(
      // Index of the current active Variable
      Index active_var_index = 0;
 
-     auto & constraint = v_node_injection_Const[ t ][ node_id ];
+     auto & constraint = node_injection_Const[ t ][ node_id ];
 
      // increment due to the node injection variable
      ++active_var_index;
@@ -1822,7 +1835,7 @@ void UCBlock::update_node_injection_constraints(
        if( node_id != v_generator_node[ elc_generator ] )
         continue;
 
-       if( unit_block->get_active_power( generator ) ) {
+       if( power( unit_block , generator ) ) {
 
         if( modified ) {
          // update the coefficient of the active power variable
