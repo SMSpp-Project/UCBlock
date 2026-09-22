@@ -104,6 +104,23 @@ class ThermalUnitDPSolverBase : public Solver
  protected:
 
 /*--------------------------------------------------------------------------*/
+ /// the value of \p v for all the copies of the unit
+ /** The DP works on the data of one copy of the unit, while its Objective
+  * is the scale factor times the cost of one copy [see UnitBlock::scale()]:
+  * the values it reports are multiplied by the scale factor. A unit with no
+  * copies costs nothing, unless it is infeasible. */
+
+ OFValue scaled_value( OFValue v ) const {
+  const auto scale = f_Block ?
+   static_cast< const UnitBlock * >( f_Block )->get_scale() : 1.0;
+  if( scale == 1 )
+   return( v );
+  if( scale == 0 )
+   return( std::isinf( v ) ? v : 0 );
+  return( scale * v );
+  }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------- PROTECTED TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
