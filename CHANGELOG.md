@@ -79,6 +79,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Scaling a `ThermalUnitBlock` after its Objective has been generated
+  rewrites every term that carries the scale factor, i.e., also those of the
+  shut-down, of the primary and secondary reserves, of the perspective cuts
+  and of the reactive power, and in a `NuclearUnitBlock` those of the
+  downward modulation steps and of the deep decreases, which used to keep the
+  old factor; the model of a unit scaled after being built is now the same as
+  that of a unit scaled before.
+
+- A change of the coefficients of the Objective of a `ThermalUnitBlock`, as
+  a dualizing Solver makes, is divided by the scale factor before being
+  stored in the costs of the unit, which are those of one copy; they used to
+  be stored as they are, i.e., multiplied by the scale factor, and a scaling
+  made with `eModBlck` went the same way through the start-up and fixed
+  costs.
+
+- The dynamic programming Solvers of the `ThermalUnitBlock` and of the
+  `NuclearUnitBlock` report the value of all the copies of the unit, i.e.,
+  the scale factor times that of the one copy they solve for, which is the
+  value of the Objective; the Solution they produce is still that of one
+  copy, as the Variable of the unit are.
+
+- The reactive node injection constraints of a `UCBlock` follow the scale
+  factor of a unit as the active ones do, and a scaled unit with a fixed
+  consumption at a single node gets the fixed consumption, and no longer the
+  scale factor, as the coefficient of its commitment.
+
+- Scaling a unit of a `UCBlock` with a single primary, secondary or inertia
+  zone no longer reads the zone of its generators out of an empty vector,
+  which crashed.
+
+- `IntermittentUnitBlock::scale()` tells the `UCBlock` even when no Solver
+  is listening, as the thermal unit and the battery do, so that the rows
+  carrying the scale factor are rewritten anyway.
+
 - The ramps of a `ThermalUnitBlock` that change over time are read as the
   documentation says in every formulation and Solver: `DeltaRampUp[ t ]`
   (`DeltaRampDown[ t ]`) bounds the increase (decrease) of the power from
@@ -205,6 +239,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were left untouched
 
 ### Changed
+
+- `ThermalUnitBlock` has the new virtual `update_objective_tail()`, with
+  which a derived class makes the coefficients it appends to the Objective
+  follow the scale factor: what includes its header has to be rebuilt.
 
 - `NuclearUnitBlock` keeps each family of operating rules in a group of its
   own (the tight rows on the starts of a modulation, `ModulationStartsApart`,
