@@ -1141,6 +1141,12 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                                            this , UnitBlockMod::eScale ) ,
                                            Observer::par2chnl( issuePMod ) );
+ else if( auto f_Block = get_f_Block() )
+  // the father rewrites the rows that carry the scale factor even if no
+  // Solver is listening
+  f_Block->add_Modification( std::make_shared< UnitBlockMod >(
+                              this , UnitBlockMod::eScale ) ,
+                             Observer::par2chnl( issuePMod ) );
 
  }  // end( IntermittentUnitBlock::scale )
 
