@@ -240,6 +240,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A `UCBlock` whose `NumberElectricalGenerators` is not the number of
+  generators its units have is refused, instead of being read with the
+  number the file states: everything indexed over the generators, from
+  `GeneratorNode` to the emission rates, would be read over the wrong
+  length, and the rows the `UCBlock` builds over them are sized with it, so
+  that the model it gives depends on how far the two numbers are apart.
+
 - `ThermalUnitBlock` has the new virtual `update_objective_tail()`, with
   which a derived class makes the coefficients it appends to the Objective
   follow the scale factor: what includes its header has to be rebuilt.
