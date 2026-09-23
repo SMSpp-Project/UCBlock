@@ -136,6 +136,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old factor; the model of a unit scaled after being built is now the same as
   that of a unit scaled before.
 
+- The reactive node injection constraints of a `UCBlock` carry the reactive
+  power of the generators and nothing else, as their documentation says: they
+  used to carry the fixed consumption too, which is an ACTIVE power, on the
+  commitment variables. Whether a unit that is off also absorbs reactive
+  power is not settled; were it to, it would call for a datum of its own.
+
 - The fixed consumption of a unit that is off raises the right-hand side of
   the node injection constraints at a single node, as it already did with
   more than one node and as the setter of the demand already recomputed it:
