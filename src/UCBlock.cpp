@@ -882,10 +882,11 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
    // initialise demand as active power
    auto rhs = v_reactive_power_demand[ 0 ][ t ];
 
-   // each generator surely contributes with active power, but it may also
-   // contribute with fixed consumption linked to commitment status, so
-   // the number of nonzeros can be at most twice the number of generators
-   LinearFunction::v_coeff_pair vc( 2 * f_number_elc_generators );
+   // the reactive power of each generator, and nothing else: the fixed
+   // consumption of a unit that is off is an ACTIVE power, and whether such
+   // a unit also absorbs reactive power is not settled [see the comment on
+   // these constraints in UCBlock.h]
+   LinearFunction::v_coeff_pair vc( f_number_elc_generators );
    auto vcit = vc.begin();
 
    for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
@@ -893,26 +894,9 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
     const auto scale = unit_block->get_scale();
 
     // for each electrical generator within the unit
-    for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
-     // surely add the contribution of the corresponding active power
+    for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g )
      *( vcit++ ) = std::pair( &unit_block->get_reactive_power( g )[ t ] ,
 			      scale );
-
-     // if the generator also has nonzero fixed consumption at t
-     // fixed consumption happens when the generator is off, and it
-     // therefore has the form fc[ t ] * ( 1 - u[ t ] ); thus, the
-     // RHS of the constraint also has to be increased by fc[ t ]. note
-     // that a unit with no commitment is always on, and therefore the
-     // fixed consumption is always 0
-     if( auto fc = unit_block->get_fixed_consumption( g ) )
-      if( fc[ t ] )
-       if( auto u = unit_block->get_commitment( g ) ) {
-	const auto fixed_consumption = fc[ t ] * scale;
-	// add the contribution of the corresponding commitment variables
-	*( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
-	rhs += fixed_consumption;    // update the RHS
-        }
-     }  // end( for( g ) )
     }  // end( for( i ) )
 
    // set the final RHS of the constraint (equality constraint)
@@ -951,18 +935,11 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
         if( node_id != v_generator_node[ elc_generator ] )
          continue;
 
+        // the reactive power alone [see the single-node case above]
         if( auto ap = unit_block->get_reactive_power( generator ) ) {
          auto reactive_power = &ap[ t ];
          lf->add_variable( reactive_power , scale , eNoMod );
          }
-
-        if( auto fc = unit_block->get_fixed_consumption( generator ) )
-         if( auto c = unit_block->get_commitment( generator ) ) {
-          auto fixed_consumption = fc[ t ] * scale;
-          auto commitment = &c[ t ];
-          lf->add_variable( commitment , fixed_consumption , eNoMod );
-          rhs += fixed_consumption;
-          }
         }
        }
 
@@ -1769,7 +1746,9 @@ void UCBlock::update_node_injection_constraints(
       // increment due to the active power variable
       ++active_var_index;
 
-      if( auto fc = unit_block->get_fixed_consumption( g ) )
+      // the fixed consumption is an active power and is in the active rows
+      // alone [see generate_reactive_node_injection_constraints()]
+      if( auto fc = reactive ? nullptr : unit_block->get_fixed_consumption( g ) )
        if( fc[ t ] )
         if( unit_block->get_commitment( g ) ) {
          const auto fixed_consumption = fc[ t ] * scale;
@@ -1863,7 +1842,8 @@ void UCBlock::update_node_injection_constraints(
         ++active_var_index;
        }
 
-       if( auto fc = unit_block->get_fixed_consumption( generator ) ) {
+       if( auto fc = reactive ? nullptr
+                              : unit_block->get_fixed_consumption( generator ) ) {
         if( unit_block->get_commitment( generator ) ) {
          auto fixed_consumption = fc[ t ] * scale;
 

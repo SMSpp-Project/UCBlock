@@ -630,6 +630,12 @@ class UCBlock : public Block
   *    \sum_{ g \in \mathcal{G}_n } p^{rc}_{t,g} = R_{t,n}
   *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
   *   \f]
+  *   The fixed consumption \f$ P^{au}_{t,g} \f$ is an ACTIVE power and only
+  *   appears in the active rows: whether a unit that is off also absorbs
+  *   reactive power is not settled, and were it to, it would need a datum of
+  *   its own rather than the active one, which these rows used to carry.
+  *   TODO: ask again when someone writes an instance with both a fixed
+  *   consumption and a reactive demand.
   *   Note that
   *
   *       IT IS ASSUMED THAT EITHER ALL :NetworkBlock HANDLE REACTIVE
