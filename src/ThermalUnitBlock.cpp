@@ -4003,9 +4003,13 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   vars.push_back( std::make_tuple( &v_commitment[ t ] ,
                                    f_scale * v_ConstTerm[ t ] , 0 ) );
 
+ // the schedule is that of one unit, from which each of the copies deviates
+ // on its own, so that the deviation costs the scale factor times what one
+ // copy pays [see UnitBlock::scale()]
  if ( ! v_RefSchedule.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_tuple( & v_abs_ref_schedule[ t ] , 1 , 0 ) );
+   vars.push_back( std::make_tuple( & v_abs_ref_schedule[ t ] , f_scale ,
+                                    0 ) );
 
  if( ( reserve_vars & 1u ) && ( ! v_primary_spinning_reserve.empty() ) ) {
   // add the primary spinning reserve variables - - - - - - - - - - - - - - -
@@ -6250,6 +6254,10 @@ void ThermalUnitBlock::update_objective_other_terms( const Subset & subset ,
     }
   }
 
+ if( ! v_RefSchedule.empty() )
+  for( auto t : subset )
+   add( v_abs_ref_schedule[ t ] , 1 );
+
  if( f_reactive_power && ( ! v_ReactiveLinearTerm.empty() ) )
   for( auto t : subset )
    add( v_reactive_power[ t ] , v_ReactiveLinearTerm[ t ] );
@@ -6669,12 +6677,12 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    gr += th;
 
    if( l < gr ) {
-    // their coefficient is fixed to 1: a Modification whose range crosses
-    // this section is fine as long as it leaves it there, which is what a
-    // restore of the original costs does
+    // their coefficient is the scale factor: a Modification whose range
+    // crosses this section is fine as long as it leaves it there, which is
+    // what a restore of the original costs does
     Index r2 = std::min( r , gr );
     for( Index i = l ; i < r2 ; ++i )
-     if( ( qf->get_linear_coefficient( i ) != 1 ) ||
+     if( ( qf->get_linear_coefficient( i ) != f_scale ) ||
 	 ( with_quad && ( qf->get_quadratic_coefficient( i ) != 0 ) ) )
       throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
        "coefficients of the schedule-deviation variables cannot change" ) );
@@ -6958,12 +6966,12 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    gr += th;
 
    if( *l < gr ) {
-    // their coefficient is fixed to 1 [see the ranged case]
+    // their coefficient is the scale factor [see the ranged case]
     auto r = l;
     for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
      ++r;
     while( l != r ) {
-     if( ( qf->get_linear_coefficient( *l ) != 1 ) ||
+     if( ( qf->get_linear_coefficient( *l ) != f_scale ) ||
 	 ( with_quad && ( qf->get_quadratic_coefficient( *l ) != 0 ) ) )
       throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
        "coefficients of the schedule-deviation variables cannot change" ) );
