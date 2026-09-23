@@ -789,7 +789,7 @@ void UCBlock::generate_node_injection_constraints( void )
          const auto fixed_consumption = fc[ t ] * scale;
          // add the contribution of the corresponding commitment variables
          *( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
-         rhs -= fixed_consumption;    // update the RHS
+         rhs += fixed_consumption;    // update the RHS
         }
      }  // end( for( g ) )
     }  // end( for( i ) )
@@ -910,7 +910,7 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
 	const auto fixed_consumption = fc[ t ] * scale;
 	// add the contribution of the corresponding commitment variables
 	*( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
-	rhs -= fixed_consumption;    // update the RHS
+	rhs += fixed_consumption;    // update the RHS
         }
      }  // end( for( g ) )
     }  // end( for( i ) )

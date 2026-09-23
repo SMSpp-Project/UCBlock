@@ -611,7 +611,7 @@ class UCBlock : public Block
   *   f_time_horizon - 1 and n = 1, ...,  get_number_nodes() contains the
   *   active power node injection constraint at time t and node n
   *   \f[
-  *    \sum_{ g \in \mathcal{G}_n } ( p^{ac}_{t,g} +
+  *    \sum_{ g \in \mathcal{G}_n } ( p^{ac}_{t,g} -
   *                                   P^{au}_{t , g}(1 - u_{t,g}) ) = S_{t,n}
   *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
   *   \f]
