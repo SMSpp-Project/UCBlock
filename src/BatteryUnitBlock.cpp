@@ -158,6 +158,10 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                       true , true , v_change_intervals ) )
   v_Cost.resize( f_time_horizon );
 
+ // the profile the unit is asked to follow, if it has one
+ ::deserialize( group , "ReferenceSchedule" , f_time_horizon , v_RefSchedule ,
+                true , true , v_change_intervals );
+
  if( ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" ) ) {
 
   ::deserialize( group , f_BattMinCapacityDesign , "BatteryMinCapacityDesign" );
