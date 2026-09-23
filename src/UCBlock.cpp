@@ -504,12 +504,24 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // recover the generator --> node mapping- - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ Index total_generators = 0;
+ for( Index i = 0 ; i < f_number_units ; ++i )
+  total_generators += UB( v_Block[ i ] )->get_number_generators();
+
  if( ! deserialize_dim( group , "NumberElectricalGenerators" ,
-                        f_number_elc_generators ) ) {
-  f_number_elc_generators = 0;
-  for( Index i = 0 ; i < f_number_units ; ++i )
-   f_number_elc_generators += UB( v_Block[ i ] )->get_number_generators();
-  }
+                        f_number_elc_generators ) )
+  f_number_elc_generators = total_generators;
+ else
+  // a number that the units do not have is refused: everything indexed over
+  // the generators, from GeneratorNode to the emission rates, would then be
+  // read over the wrong length, and the rows this Block builds over them are
+  // sized with it
+  if( f_number_elc_generators != total_generators )
+   throw( std::invalid_argument( "UCBlock::deserialize: "
+	  "NumberElectricalGenerators is " +
+	  std::to_string( f_number_elc_generators ) + " while the " +
+	  std::to_string( f_number_units ) + " units have " +
+	  std::to_string( total_generators ) + " generators" ) );
 
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
                 v_generator_node , true , true );
