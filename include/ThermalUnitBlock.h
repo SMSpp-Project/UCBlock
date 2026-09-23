@@ -2218,6 +2218,16 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the reference schedule of the unit, if it has one
+ /** Returns the vector of the power the unit is asked to follow, empty if it
+  * has none; the deviation from it is a term of the Objective, weighed with
+  * the scale factor [see generate_objective()]. */
+
+ const std::vector< double > & get_reference_schedule( void ) const {
+  return( v_RefSchedule );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of shut-down costs
  /** The returned vector contains the shut-down cost at all time instants,
   * with the three cases of get_start_up_cost(): empty if the unit pays

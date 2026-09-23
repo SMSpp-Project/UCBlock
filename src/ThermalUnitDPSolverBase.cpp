@@ -46,6 +46,16 @@ thread_local ThermalUnitDPSolverBase::PQFun
 
 void ThermalUnitDPSolverBase::load_common_parameters( void )
 {
+ // the deviation from a reference schedule is a term of the Objective of the
+ // unit that this Solver does not have, i.e., it would answer for a unit
+ // that pays nothing to depart from its schedule: rather than a value that
+ // is not the one of the Objective, it refuses the unit
+ if( ! static_cast< ThermalUnitBlock * >( f_Block
+                                          )->get_reference_schedule().empty() )
+  throw( std::invalid_argument(
+   "ThermalUnitDPSolverBase::load_common_parameters: a unit with a reference "
+   "schedule is not supported" ) );
+
  bool owned = f_Block->is_owned_by( f_id );
  if( ( ! owned ) && ( ! f_Block->read_lock() ) )
   throw( std::runtime_error(
