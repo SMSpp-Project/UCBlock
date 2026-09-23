@@ -136,6 +136,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old factor; the model of a unit scaled after being built is now the same as
   that of a unit scaled before.
 
+- The fixed consumption of a unit that is off raises the right-hand side of
+  the node injection constraints at a single node, as it already did with
+  more than one node and as the setter of the demand already recomputed it:
+  the generation lowered it instead, so that a unit consuming while off made
+  the others generate less, and merely writing the demand back into the
+  `UCBlock` changed the model. The value of the plan4res instances that carry
+  a fixed consumption moves by 8 to 12%. The formula in the documentation,
+  which wrote the consumption as a positive term of the injection, follows.
+
 - An `ACNetworkBlock` and an `OTSNetworkBlock` refuse a kappa on one of
   their lines, `DCNetworkBlock::set_kappa()` being virtual now and their
   override throwing: they build their own rows and not the power flow limit
