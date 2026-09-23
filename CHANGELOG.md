@@ -136,6 +136,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old factor; the model of a unit scaled after being built is now the same as
   that of a unit scaled before.
 
+- An `ACNetworkBlock` and an `OTSNetworkBlock` refuse a kappa on one of
+  their lines, `DCNetworkBlock::set_kappa()` being virtual now and their
+  override throwing: they build their own rows and not the power flow limit
+  ones the kappa is written into, so that sizing a line of theirs used to
+  reach rows that are not there. What supporting it would take is written
+  where they refuse it. The method that writes the kappa into the rows
+  refuses as well when there are none, so that any other derived class is
+  told rather than left to write where there is nothing.
+
 - The dynamic programming Solvers refuse a unit that has a reference
   schedule, of which they have no term: they used to answer for a unit that
   pays nothing to depart from its schedule, i.e., a value that is not the one
