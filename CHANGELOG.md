@@ -77,6 +77,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the budgets and the duals keep the zones of all the pollutants one after
   the other, as the file does
 
+### Changed
+
+- A `DCNetworkBlock` takes the KIRCHHOFF formulation where no Configuration
+  says which one it wants, the PTDF one being both larger, since it carries a
+  dense row per line, and the one whose flows a mixed network of AC lines and
+  HVDC links used to get wrong; a `SimpleConfiguration< int >` of value 0 in
+  the static-variables slot of the `BlockConfig` still asks for the PTDF
+  formulation, and one of value 1 for the CYCLE one. A network whose lines
+  all have a zero susceptance is a transport model under either formulation.
+
+- A `UCBlock` whose `NumberElectricalGenerators` is not the number of
+  generators its units have is refused, instead of being read with the
+  number the file states: everything indexed over the generators, from
+  `GeneratorNode` to the emission rates, would be read over the wrong
+  length, and the rows the `UCBlock` builds over them are sized with it, so
+  that the model it gives depends on how far the two numbers are apart.
+
+- `ThermalUnitBlock` has the new virtual `update_objective_tail()`, with
+  which a derived class makes the coefficients it appends to the Objective
+  follow the scale factor: what includes its header has to be rebuilt.
+
+- `NuclearUnitBlock` keeps each family of operating rules in a group of its
+  own (the tight rows on the starts of a modulation, `ModulationStartsApart`,
+  `ModulationEndStarts` and `ModulationStepStarted`, are no longer mixed with
+  `ModulationStability` and `ModulationMaxLength`), and the groups whose
+  number of rows depends on the instant (`StartUpStability`, `BandKeep`,
+  `BandMove`, `ModulationEndLink`) have the rows of instant t in their entry
+  t
+
+- the setters that change one datum spanning the whole time horizon issue
+  their "abstract" Modification inside a GroupModification, one per setter,
+  rather than one loose Modification per instant: a Solver able to execute a
+  whole set of changes in one operation can then do so, while one that is not
+  takes the group apart and sees exactly what it saw before. So far
+  `SlackUnitBlock::set_active_power_cost`, `HydroUnitBlock::set_inflow`,
+  `HydroUnitBlock::update_initial_flow_rate_in_cnstrs`,
+  `ThermalUnitBlock::set_maximum_power`,
+  `IntermittentUnitBlock::update_max_power_in_cnstrs` and `set_kappa`,
+  `BatteryUnitBlock::update_kappa_in_cnstrs`,
+  `DCNetworkBlock::change_power_flow_limit_constraints`, the four setters of
+  the prices and of the demand of `ECNetworkBlock`, and the reaction of
+  `UCBlock` to the scaling of a unit, where the four `update_*_constraints`
+  now travel in one channel, `DCNetworkBlock::set_network_cost`, the
+  `set_active_power_cost` of `HydroUnitBlock` and of
+  `IntermittentUnitBlock`, `IntermittentUnitBlock::update_objective` and
+  `ThermalUnitBlock::update_objective_active_power`. The last two were
+  `const`, which opening a channel is not: they are private helpers called
+  only from methods that are not const, and the const is gone
+
 ### Fixed
 
 - Scaling a `ThermalUnitBlock` after its Objective has been generated
@@ -254,55 +303,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can arrive inside one GroupModification, and there the rows that use the
   Variable of those units, i.e., the node injection and the demand ones,
   were left untouched
-
-### Changed
-
-- A `DCNetworkBlock` takes the KIRCHHOFF formulation where no Configuration
-  says which one it wants, the PTDF one being both larger, since it carries a
-  dense row per line, and the one whose flows a mixed network of AC lines and
-  HVDC links used to get wrong; a `SimpleConfiguration< int >` of value 0 in
-  the static-variables slot of the `BlockConfig` still asks for the PTDF
-  formulation, and one of value 1 for the CYCLE one. A network whose lines
-  all have a zero susceptance is a transport model under either formulation.
-
-- A `UCBlock` whose `NumberElectricalGenerators` is not the number of
-  generators its units have is refused, instead of being read with the
-  number the file states: everything indexed over the generators, from
-  `GeneratorNode` to the emission rates, would be read over the wrong
-  length, and the rows the `UCBlock` builds over them are sized with it, so
-  that the model it gives depends on how far the two numbers are apart.
-
-- `ThermalUnitBlock` has the new virtual `update_objective_tail()`, with
-  which a derived class makes the coefficients it appends to the Objective
-  follow the scale factor: what includes its header has to be rebuilt.
-
-- `NuclearUnitBlock` keeps each family of operating rules in a group of its
-  own (the tight rows on the starts of a modulation, `ModulationStartsApart`,
-  `ModulationEndStarts` and `ModulationStepStarted`, are no longer mixed with
-  `ModulationStability` and `ModulationMaxLength`), and the groups whose
-  number of rows depends on the instant (`StartUpStability`, `BandKeep`,
-  `BandMove`, `ModulationEndLink`) have the rows of instant t in their entry
-  t
-
-- the setters that change one datum spanning the whole time horizon issue
-  their "abstract" Modification inside a GroupModification, one per setter,
-  rather than one loose Modification per instant: a Solver able to execute a
-  whole set of changes in one operation can then do so, while one that is not
-  takes the group apart and sees exactly what it saw before. So far
-  `SlackUnitBlock::set_active_power_cost`, `HydroUnitBlock::set_inflow`,
-  `HydroUnitBlock::update_initial_flow_rate_in_cnstrs`,
-  `ThermalUnitBlock::set_maximum_power`,
-  `IntermittentUnitBlock::update_max_power_in_cnstrs` and `set_kappa`,
-  `BatteryUnitBlock::update_kappa_in_cnstrs`,
-  `DCNetworkBlock::change_power_flow_limit_constraints`, the four setters of
-  the prices and of the demand of `ECNetworkBlock`, and the reaction of
-  `UCBlock` to the scaling of a unit, where the four `update_*_constraints`
-  now travel in one channel, `DCNetworkBlock::set_network_cost`, the
-  `set_active_power_cost` of `HydroUnitBlock` and of
-  `IntermittentUnitBlock`, `IntermittentUnitBlock::update_objective` and
-  `ThermalUnitBlock::update_objective_active_power`. The last two were
-  `const`, which opening a channel is not: they are private helpers called
-  only from methods that are not const, and the const is gone
 
 ## [0.9.0] - 2026-09-13
 
@@ -510,6 +510,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - updated Julia and nc4 files with the stochastic logic
 
+### Removed
+
+- test/ moved to ThermalUnitBlock_Solver in test repository
+
+- useless test_package
+
+
 ### Fixed
 
 - bug in `ThermalUnitBlock::update_objective_start_up()` in which
@@ -527,13 +534,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - default value for f_MinDownTime
 
 - too many minor others to list
-
-### Removed
-
-- test/ moved to ThermalUnitBlock_Solver in test repository
-
-- useless test_package
-
 
 ## [0.6.2] - 2023-05-17
 
