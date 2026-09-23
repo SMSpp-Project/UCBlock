@@ -136,6 +136,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old factor; the model of a unit scaled after being built is now the same as
   that of a unit scaled before.
 
+- A `BatteryUnitBlock` reads the `ReferenceSchedule` its file declares: the
+  variable was among the ones it expects and all the machinery was there, the
+  deviation variables, the rows and the term of the Objective, but the datum
+  was never deserialized, so that the schedule of a battery was thrown away
+  in silence while a thermal or a hydro unit followed the one it is given.
+  The AC instances carry one on each of their 15 batteries, as they do on
+  their 153 thermal units, hence the two kinds of unit now behave the same
+  way.
+
 - A `BatteryUnitBlock` that follows a reference schedule refuses to have its
   kappa changed, i.e. to be resized: whether the profile a resized battery is
   asked to follow is the same one in absolute terms or one resized with it is
