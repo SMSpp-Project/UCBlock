@@ -1330,7 +1330,13 @@ class UCBlock : public Block
   *
   * The duals are read as they are: this method does not solve anything, and
   * it is the caller's business to have solved this UCBlock, and as a
-  * continuous relaxation, before asking.
+  * continuous relaxation, before asking. It is also the caller's business to
+  * ask only where that solve left the duals: a RowConstraint hands back the
+  * value it has, which before any solve is 0 and after a failed one is the
+  * one the previous solve left, and neither case is distinguishable here from
+  * a fresh optimal dual. What this method does check is the one state it can
+  * see by itself, that the abstract representation exists: it throws if the
+  * Constraint it has to read have not been generated.
   *
   * @param unit the index of the UnitBlock, between 0 and
   *        get_number_units() - 1
@@ -1340,10 +1346,25 @@ class UCBlock : public Block
   *
   * @note This method is not const because of one case: when the scale factor
   *       of the unit is 0 the term of its Objective cannot be recovered by
-  *       dividing, and the unit is scaled to 1, read, and scaled back. No
-  *       Modification is issued and the unit is left as it was found. */
+  *       dividing, so the unit is scaled to 1, read, and scaled back. The
+  *       unit tells this UCBlock each time, even if asked to issue no
+  *       Modification, and this UCBlock rewrites the rows that carry the
+  *       factor and passes the change on to whoever listens: the rows end as
+  *       they were found, but its Solvers receive two changes that cancel
+  *       out. */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /* The supported way in is the name: a consumer that holds a Block it does
+  * not know composes "UCBlock::get_replicate_linearization" and finds the
+  * adapter below. The method itself is therefore not public, so that reading
+  * this sensitivity cannot become one more reason to recognise the class. */
+
+ protected:
 
  double get_replicate_linearization( Index unit );
+
+ public:
+
 
 /*--------------------------------------------------------------------------*/
 
@@ -2131,9 +2152,10 @@ class UCBlock : public Block
    * that get_unit_block() takes.
    *
    * The adapter of a query receives a const Block *, while the method is not
-   * const: with a scale factor of 0 it scales the unit to 1, reads its
-   * Objective and scales it back. The const_cast is here, in the open, and
-   * not inside the method, which stays honest about what it does. */
+   * const: with a scale factor of 0 it scales the unit to 1 and back, and
+   * each time the unit has this UCBlock rewrite its rows
+   * [see get_replicate_linearization()]. The const_cast is here, in the
+   * open, and not inside the method, which stays honest about what it does. */
 
   using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
   using qry_rngd = QueryType< MF_dbl_msp , Range >;
@@ -2142,8 +2164,17 @@ class UCBlock : public Block
    "UCBlock::get_replicate_linearization" , new qry_sbst(
     []( const Block * blck , MF_dbl_msp msp , c_Subset & units , bool ) {
      auto ucb = const_cast< UCBlock * >( static_cast< const UCBlock * >( blck ) );
-     for( Index i = 0 ; i < units.size() ; ++i )
+     if( units.size() > msp.size() )
+      throw( std::invalid_argument(
+       "UCBlock::get_replicate_linearization: the span is shorter than the "
+       "subset it is asked to answer for" ) );
+     for( Index i = 0 ; i < units.size() ; ++i ) {
+      if( units[ i ] >= ucb->get_number_units() )
+       throw( std::invalid_argument(
+        "UCBlock::get_replicate_linearization: there is no unit of index " +
+        std::to_string( units[ i ] ) ) );
       msp[ i ] = ucb->get_replicate_linearization( units[ i ] );
+      }
      } ) );
 
   register_method< qry_rngd >(
@@ -2151,6 +2182,11 @@ class UCBlock : public Block
     []( const Block * blck , MF_dbl_msp msp , Range rng ) {
      auto ucb = const_cast< UCBlock * >( static_cast< const UCBlock * >( blck ) );
      rng.second = std::min( rng.second , ucb->get_number_units() );
+     if( ( rng.first < rng.second ) &&
+         ( msp.size() < rng.second - rng.first ) )
+      throw( std::invalid_argument(
+       "UCBlock::get_replicate_linearization: the span is shorter than the "
+       "range it is asked to answer for" ) );
      for( Index u = rng.first ; u < rng.second ; ++u )
       msp[ u - rng.first ] = ucb->get_replicate_linearization( u );
      } ) );

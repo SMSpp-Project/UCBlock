@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The way a Block is sized has a name in the methods factory, so that a
+  consumer can write it and read the sensitivity back without knowing which
+  class it is holding. `ThermalUnitBlock`, `IntermittentUnitBlock` and
+  `BatteryUnitBlock` register `scale()` as `<class>::replicate`, which stands
+  for k identical copies of the unit; `IntermittentUnitBlock`,
+  `BatteryUnitBlock` and `DCNetworkBlock` register `set_kappa()` as
+  `<class>::resize`, which stands for one copy of k times the size. The
+  thermal unit deliberately does not offer the second road, its commitment
+  being binary. The old names stay registered, a registered name travelling
+  inside the instances that name it.
+
+- The sensitivity that mirrors each of those names. `<class>::get_resize_
+  linearization` gives the derivative of the value with respect to kappa, and
+  is answered by the Block that owns the rows kappa writes into;
+  `UCBlock::get_replicate_linearization` gives the derivative with respect to
+  the number of copies of one of its units, and is answered by the container,
+  because that factor lives in the rows the container builds on top of the
+  unit and not in the rows of the unit. Both come in the range and the subset
+  form, both refuse a span shorter than what they are asked for, and both
+  refuse an index that does not exist.
+
+- `DCNetworkBlock::get_resize_linearization( line )` and
+  `UCBlock::get_replicate_linearization( unit )`, the two protected methods
+  those sensitivities are read from.
+
 - `ThermalUnitBlock::set_min_up_down_time()` sets the minimum up and down
   times before the Variable are generated, which is when they can still be
   set: unlike the other data they decide how many Variable there are, and the

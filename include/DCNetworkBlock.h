@@ -1886,7 +1886,16 @@ class DCNetworkData : public NetworkData
   * @return the derivative of the value of this Block w.r.t. the kappa of the
   *         given line */
 
- double get_kappa_linearization( Index line ) const {
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /* As for the container's one [see UCBlock.h], the supported way in is the
+  * name "DCNetworkBlock::get_resize_linearization": the method is not public,
+  * so that reading this sensitivity cannot become one more reason to
+  * recognise the class. It stays protected, and not private, because a
+  * derived network that resizes its lines the same way can reuse it. */
+
+ protected:
+
+ double get_resize_linearization( Index line ) const {
   const auto & constraints = get_power_flow_limit_HVDC_bounds();
 
   if( constraints.empty() )
@@ -1911,6 +1920,9 @@ class DCNetworkData : public NetworkData
 
   return( - dual * bound );
   }
+
+ public:
+
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of power flow limit HVDC bounds
@@ -2598,8 +2610,17 @@ class DCNetworkData : public NetworkData
    "DCNetworkBlock::get_resize_linearization" , new qry_sbst(
     []( const Block * blck , MF_dbl_msp msp , c_Subset & lines , bool ) {
      const auto dcn = static_cast< const DCNetworkBlock * >( blck );
-     for( Index i = 0 ; i < lines.size() ; ++i )
-      msp[ i ] = dcn->get_kappa_linearization( lines[ i ] );
+     if( lines.size() > msp.size() )
+      throw( std::invalid_argument(
+       "DCNetworkBlock::get_resize_linearization: the span is shorter than "
+       "the subset it is asked to answer for" ) );
+     for( Index i = 0 ; i < lines.size() ; ++i ) {
+      if( lines[ i ] >= dcn->get_number_lines() )
+       throw( std::invalid_argument(
+        "DCNetworkBlock::get_resize_linearization: there is no line of index " +
+        std::to_string( lines[ i ] ) ) );
+      msp[ i ] = dcn->get_resize_linearization( lines[ i ] );
+      }
      } ) );
 
   register_method< qry_rngd >(
@@ -2607,8 +2628,13 @@ class DCNetworkData : public NetworkData
     []( const Block * blck , MF_dbl_msp msp , Range rng ) {
      const auto dcn = static_cast< const DCNetworkBlock * >( blck );
      rng.second = std::min( rng.second , dcn->get_number_lines() );
+     if( ( rng.first < rng.second ) &&
+         ( msp.size() < rng.second - rng.first ) )
+      throw( std::invalid_argument(
+       "DCNetworkBlock::get_resize_linearization: the span is shorter than "
+       "the range it is asked to answer for" ) );
      for( Index l = rng.first ; l < rng.second ; ++l )
-      msp[ l - rng.first ] = dcn->get_kappa_linearization( l );
+      msp[ l - rng.first ] = dcn->get_resize_linearization( l );
      } ) );
   }
 

@@ -2312,13 +2312,32 @@ class BatteryUnitBlock : public UnitBlock
 
   register_method< qry_sbst >(
    "BatteryUnitBlock::get_resize_linearization" , new qry_sbst(
-    []( const Block * blck , MF_dbl_msp msp , c_Subset & , bool ) {
-     msp[ 0 ] = static_cast< const BatteryUnitBlock * >( blck )->get_kappa_linearization();
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & idxs , bool ) {
+     // one size parameter, so the only index that exists here is 0
+     if( idxs.size() > msp.size() )
+      throw( std::invalid_argument(
+       "BatteryUnitBlock::get_resize_linearization: the span is shorter "
+       "than the subset it is asked to answer for" ) );
+     for( Index i = 0 ; i < idxs.size() ; ++i ) {
+      if( idxs[ i ] )
+       throw( std::invalid_argument(
+        "BatteryUnitBlock::get_resize_linearization: a unit has one size "
+        "parameter, and there is no index " + std::to_string( idxs[ i ] ) ) );
+      msp[ i ] = static_cast< const BatteryUnitBlock * >( blck )->get_kappa_linearization();
+      }
      } ) );
 
   register_method< qry_rngd >(
    "BatteryUnitBlock::get_resize_linearization" , new qry_rngd(
-    []( const Block * blck , MF_dbl_msp msp , Range ) {
+    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
+     // one size parameter: the family has one element, of index 0
+     rng.second = std::min( rng.second , Index( 1 ) );
+     if( rng.first >= rng.second )
+      return;
+     if( msp.empty() )
+      throw( std::invalid_argument(
+       "BatteryUnitBlock::get_resize_linearization: the span is shorter "
+       "than the range it is asked to answer for" ) );
      msp[ 0 ] = static_cast< const BatteryUnitBlock * >( blck )->get_kappa_linearization();
      } ) );
   }

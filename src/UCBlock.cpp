@@ -2389,6 +2389,11 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 
 double UCBlock::get_replicate_linearization( Index unit )
 {
+ if( ! constraints_generated() )
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: the abstract "
+                           "representation has not been generated, so there "
+                           "are no rows to read the duals of" ) );
+
  /* TODO The following does not take into account the pollutant budget
   * constraints and the heat constraints. When these constraints are
   * correctly implemented, this method must be updated. */
@@ -2499,7 +2504,9 @@ double UCBlock::get_replicate_linearization( Index unit )
   * [see UnitBlock.h], so what it contributes here is f(x). With k != 0 that
   * is the value divided by k; with k == 0 dividing says nothing, and the
   * only way of reading f(x) is to scale the unit to 1, read, and put it
-  * back. No Modification is issued, and the unit is left as it was found. */
+  * back. The unit is left as it was found, but it tells this UCBlock each
+  * time, eNoMod notwithstanding, and the rows of this UCBlock that carry the
+  * factor are rewritten twice, back to what they were. */
 
  if( const auto objective =
      dynamic_cast< FRealObjective * >( block->get_objective() ) ) {
