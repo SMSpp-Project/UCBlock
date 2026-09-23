@@ -87,6 +87,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old factor; the model of a unit scaled after being built is now the same as
   that of a unit scaled before.
 
+- The deviation from the reference schedule of a `ThermalUnitBlock` or of a
+  `BatteryUnitBlock` is weighed with the scale factor, as every other term of
+  their Objective: the schedule is that of one unit, from which each of the
+  copies deviates on its own, so that the fleet pays the scale factor times
+  what one copy pays; it used to be weighed with 1, so that the Objective of
+  a scaled unit was neither the cost of one copy nor that of all of them. The
+  guard that refuses a change of those coefficients now asks them to be the
+  scale factor. A `HydroUnitBlock` has no scale factor, hence its own
+  deviation is unchanged, and the reference schedule of a `BatteryUnitBlock`
+  whose kappa changes is left as it is [see `set_kappa()`].
+
 - A change of the coefficients of the Objective of a `ThermalUnitBlock`, as
   a dualizing Solver makes, is divided by the scale factor before being
   stored in the costs of the unit, which are those of one copy; they used to
