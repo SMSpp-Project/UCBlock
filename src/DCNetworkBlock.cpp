@@ -2572,6 +2572,13 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 void DCNetworkBlock::change_power_flow_limit_constraints(
 			   c_Subset & modified_lines , c_ModParam issueAMod )
 {
+ // a derived class that builds its own rows, and not these, has no row here
+ // to carry the kappa: rather than writing where there is nothing, say so
+ if( v_power_flow_limit_const.empty() &&
+     v_power_flow_limit_design_const.empty() )
+  throw( std::logic_error( "DCNetworkBlock::change_power_flow_limit_"
+   "constraints: there are no power flow limit rows to write the kappa in" ) );
+
  // the whole cascade is one group, so that a Solver can change every side
  // with one call and every coefficient with another, instead of paying a
  // call per line

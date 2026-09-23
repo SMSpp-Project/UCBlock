@@ -435,6 +435,34 @@ class OTSNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
+ /// the size of a line of an OTSNetworkBlock is not changed by a kappa
+ /** An OTSNetworkBlock builds its own rows and not the power flow limit
+  * ones of DCNetworkBlock, which are those a kappa is written into, hence
+  * sizing a line this way is not supported and these throw.
+  *
+  * Supporting it means saying what the size of such a line is and writing
+  * the kappa into the rows that carry it, i.e., the flow bounds coupled
+  * with the switching variables and the big-M of the Kirchhoff rows, which
+  * is the limit itself and has to follow it: a modelling choice rather than
+  * a translation, left to whoever needs it. */
+
+ void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "OTSNetworkBlock::set_kappa: sizing a line of an "
+   "OTSNetworkBlock is not supported" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "OTSNetworkBlock::set_kappa: sizing a line of an "
+   "OTSNetworkBlock is not supported" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// generate the objective of the OTSNetworkBlock
  /** Generates the objective function. Extends the parent objective with
   * switching costs:

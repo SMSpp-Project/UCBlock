@@ -2141,9 +2141,10 @@ class DCNetworkData : public NetworkData
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
-                 c_ModParam issuePMod = eNoBlck ,
-		 c_ModParam issueAMod = eNoBlck );
+ virtual void set_kappa( MF_dbl_it values , Subset && subset ,
+                         bool ordered = false ,
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// set the kappa constants for the lines specified by \p rng
@@ -2162,9 +2163,10 @@ class DCNetworkData : public NetworkData
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
-                 c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck );
+ virtual void set_kappa( MF_dbl_it values ,
+                         Range rng = Range( 0 , Inf< Index >() ) ,
+                         c_ModParam issuePMod = eNoBlck ,
+                         c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// change the abstract representation of the power flow limit constraints
