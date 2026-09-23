@@ -319,23 +319,22 @@ bool NuclearUnitExtDPSolver::label_dominates( Index a , Index b ) const
 /*--------------------------------------------------------------------------*/
 
 // The moves out of an on-state with label lab at t - 1 [see the table in the
-// header]. The ramp of the ThermalUnitBlock for the step t-1 -> t is indexed
-// by t-1 (by 0 for the step into t = 0), those of the modulation by t, and
-// each window is the intersection of the two; a full-ramp step is only
-// possible if the ramp of the ThermalUnitBlock allows it. The tag of a move
+// header]. The ramps of the ThermalUnitBlock and those of the modulation for
+// the step t-1 -> t are indexed by t (the step from the initial state into
+// t = 0 by 0), and each window is the intersection of the two; a full-ramp
+// step is only possible if the ramp of the ThermalUnitBlock allows it. The tag of a move
 // has bit 0 for a modulation step, bit 1 for a downward one and bit 2 for a
 // deep decrease.
 
 void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
                                       std::vector< OnMove > & mv ) const
 {
- const Index k = t ? t - 1 : 0;
- const double ru = delta_ramp_up[ k ];
- const double rd = delta_ramp_down[ k ];
- const double fu = delta_ramp_up[ t ];     // the full ramps of the step
- const double fd = delta_ramp_down[ t ];
- const double wu = std::min( ru , fu );
- const double wd = std::min( rd , fd );
+ const double ru = delta_ramp_up[ t ];     // the full ramps of the step
+ const double rd = delta_ramp_down[ t ];
+ const double fu = ru;
+ const double fd = rd;
+ const double wu = ru;
+ const double wd = rd;
  const double cdn = f_down_cost.empty() ? 0.0 : f_down_cost[ t ];
  const bool deep = ! f_deep_thr.empty();
  const Index B = mod_lockout();      // what a modulation leaves behind

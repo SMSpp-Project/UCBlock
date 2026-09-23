@@ -26,6 +26,10 @@
 
 #include <algorithm>
 
+#include <array>
+
+#include <cmath>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -751,12 +755,19 @@ void NuclearUnitBlock::generate_operating_rules( void )
   // with M_t = D+_t + max{ D-_t , SD_t } and M'_t = D-_t + max{ D+_t , SU_t },
   // since the modulation ramp constraints bound the decrease of the output
   // by max{ D-_t , SD_t } and its increase by max{ D+_t , SU_t }; at t = 0
-  // p_{-1} is the (fixed) initial power
+  // p_{-1} is the (fixed) initial power. With the bands, at the last instant
+  // m_T is replaced by m_{T-1} - e_{T-1}: a modulation that the horizon cuts
+  // is still in progress past it, hence its step there is not the last one
+  // and it is a full ramp, while one ending there has the window of a last
+  // step and lands in a band
   Modulation_FullRampUp.reserve( T );
   Modulation_FullRampDown.reserve( T );
   for( Index t = 0 ; t < T ; ++t ) {
    const double M = full_ramp_up_M( t );
    const double Md = full_ramp_down_M( t );
+   const bool cut = ( t + 1 == T ) && ( ! v_modulation_end.empty() );
+   const double Du = cut ? v_DeltaRampUp[ t ] : 0.0;
+   const double Dd = cut ? v_DeltaRampDown[ t ] : 0.0;
 
    LinearFunction::v_coeff_pair cu , cd;
    cu.push_back( coeff_pair( & v_active_power[ t ] , 1.0 ) );
@@ -771,6 +782,10 @@ void NuclearUnitBlock::generate_operating_rules( void )
     cd.push_back( coeff_pair( & v_modulation[ t + 1 ] ,
                               - v_DeltaRampDown[ t ] ) );
     }
+   else if( cut ) {
+    cu.push_back( coeff_pair( & v_modulation_end[ t ] , Du ) );
+    cd.push_back( coeff_pair( & v_modulation_end[ t ] , Dd ) );
+    }
    if( f_tight_ramp ) {
     // the same rows with one coefficient per case rather than one for all:
     // a stable instant moves down by at most the stability ramp, a downward
@@ -783,10 +798,10 @@ void NuclearUnitBlock::generate_operating_rules( void )
     const double Ad = full_ramp_down_const( t );
     const double Bd = std::max( v_DeltaRampUp[ t ] -
                                 v_modulation_ramp_up[ t ] , 0.0 );
-    cu.push_back( coeff_pair( & v_modulation[ t ] , - A ) );
+    cu.push_back( coeff_pair( & v_modulation[ t ] , - A - Du ) );
     cu.push_back( coeff_pair( & v_modulation_down[ t ] , B ) );
     cd.push_back( coeff_pair( & v_modulation_down[ t ] , - ( Ad + Bd ) ) );
-    cd.push_back( coeff_pair( & v_modulation[ t ] , Bd ) );
+    cd.push_back( coeff_pair( & v_modulation[ t ] , Bd - Dd ) );
     if( t >= init_t ) {
      cu.push_back( coeff_pair( & v_shut_down[ t - init_t ] ,
                                v_ShutDownLimit[ t ] ) );
@@ -799,9 +814,11 @@ void NuclearUnitBlock::generate_operating_rules( void )
          - Ad - ( t ? 0 : f_InitialPower ) , INF );
     }
    else {
-    cu.push_back( coeff_pair( & v_modulation[ t ] , - M ) );
+    cu.push_back( coeff_pair( & v_modulation[ t ] , - M - Du ) );
     cu.push_back( coeff_pair( & v_modulation_down[ t ] , M ) );
     cd.push_back( coeff_pair( & v_modulation_down[ t ] , - Md ) );
+    if( cut )
+     cd.push_back( coeff_pair( & v_modulation[ t ] , - Dd ) );
     row( Modulation_FullRampUp , std::move( cu ) ,
          - M + ( t ? 0 : f_InitialPower ) , INF );
     row( Modulation_FullRampDown , std::move( cd ) ,
@@ -917,6 +934,11 @@ void NuclearUnitBlock::generate_operating_rules( void )
  // only changes there, and when it does it moves to an adjacent one:
  //   b^k_t - b^k_{t-1} <= e_t + ( 1 - u_{t-1} ) , and the other way round
  //   b^k_t + b^k_{t-1} <= 2 - e_t , b^1_t + b^3_{t-1} <= 1 , and vice versa
+ // and it moves in the direction of the modulation, a step that does not
+ // decrease the output leaving the unit no lower than it found it:
+ //   b^k_t + b^{k+1}_{t-1} <= 1 + d_t , b^{k+1}_t + b^k_{t-1} <= 2 - d_t
+ // which matters where the landing power is a breakpoint of the bands and
+ // both of them would hold it
  if( has_power_bands() ) {
   const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
   auto band = [ & ]( Index k , Index t ) { return( & v_band[ k * T + t ] ); };
@@ -932,7 +954,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
   for( Index t = 0 ; t < T ; ++t ) {
    ModulationEndLink[ t ].reserve( 3 );
    BandKeep[ t ].reserve( 6 );
-   BandMove[ t ].reserve( 5 );
+   BandMove[ t ].reserve( 9 );
    }
 
   for( Index t = 0 ; t < T ; ++t ) {
@@ -977,7 +999,8 @@ void NuclearUnitBlock::generate_operating_rules( void )
    // the horizon cuts, however, still owes its last step, hence it may
    // only have L^M - 1 of them:
    // sum_{h=T-L^M}^{T-1} m_h - e_{T-1} <= L^M - 1
-   else if( L > 1 ) {
+   // which for L^M = 1 says that a single-step modulation always ends
+   else {
     LinearFunction::v_coeff_pair cf;
     for( Index h = ( T >= L ? T - L : 0 ) ; h < T ; ++h )
      cf.push_back( coeff_pair( & v_modulation[ h ] , 1.0 ) );
@@ -1014,6 +1037,15 @@ void NuclearUnitBlock::generate_operating_rules( void )
      row( BandMove[ t ] , { coeff_pair( band( 0 , 0 ) , 1.0 ) } , -INF , 0 );
     if( b0 == 0 )
      row( BandMove[ t ] , { coeff_pair( band( 2 , 0 ) , 1.0 ) } , -INF , 0 );
+    // the band it may move to is the one the direction points at
+    if( b0 > 0 )
+     row( BandMove[ t ] , { coeff_pair( band( b0 - 1 , 0 ) , 1.0 ) ,
+                       coeff_pair( & v_modulation_down[ 0 ] , -1.0 ) } ,
+          -INF , 0 );
+    if( b0 < 2 )
+     row( BandMove[ t ] , { coeff_pair( band( b0 + 1 , 0 ) , 1.0 ) ,
+                       coeff_pair( & v_modulation_down[ 0 ] , 1.0 ) } ,
+          -INF , 1 );
     continue;
     }
 
@@ -1040,6 +1072,19 @@ void NuclearUnitBlock::generate_operating_rules( void )
                      coeff_pair( band( 2 , t - 1 ) , 1.0 ) } , -INF , 1 );
    row( BandMove[ t ] , { coeff_pair( band( 2 , t ) , 1.0 ) ,
                      coeff_pair( band( 0 , t - 1 ) , 1.0 ) } , -INF , 1 );
+   // ... in the direction the modulation has: the unit ends a step that
+   // does not decrease its output no lower than it began it, and a step
+   // that does not increase it no higher
+   for( Index k = 0 ; k + 1 < 3 ; ++k ) {
+    row( BandMove[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
+                      coeff_pair( band( k + 1 , t - 1 ) , 1.0 ) ,
+                      coeff_pair( & v_modulation_down[ t ] , -1.0 ) } ,
+         -INF , 1 );
+    row( BandMove[ t ] , { coeff_pair( band( k + 1 , t ) , 1.0 ) ,
+                      coeff_pair( band( k , t - 1 ) , 1.0 ) ,
+                      coeff_pair( & v_modulation_down[ t ] , 1.0 ) } ,
+         -INF , 2 );
+    }
    }
 
   add_static_constraint( BandChoice , "BandChoice_Nuclear" );
@@ -1216,7 +1261,7 @@ void NuclearUnitBlock::generate_dynamic_constraints( Configuration * dycc )
   std::list< FRowConstraint > one( 1 );
   one.front().set_lhs( - Inf< double >() );
   one.front().set_rhs( rhs );
-  one.front().set_function( new LinearFunction( std::move( cf ) , eNoMod ) );
+  one.front().set_function( new LinearFunction( std::move( cf ) ) , eNoMod );
   add_dynamic_constraints( Nuclear_cuts , one , eNoBlck );
   };
 
@@ -1327,6 +1372,123 @@ void NuclearUnitBlock::set_solution( void )
    v_deep_drop[ t ].set_value( drop ? 1 : 0 );
    v_deep[ t ].set_value( ( on && low && drop ) ? 1 : 0 );
    }
+  }
+
+ // the last step of a modulation and the band of the output, if the output
+ // is banded: e_t = m_t ( 1 - m_{t+1} ), save at the last instant of the
+ // horizon, where a modulation that the horizon cuts may be still in
+ // progress; it has ended there if the whole window is modulating, or if
+ // its step is not a full ramp in its direction, which only a last step is
+ // allowed to be
+ if( has_power_bands() && ( ! v_modulation.empty() ) ) {
+  const Index T = f_time_horizon;
+  const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
+
+  for( Index t = 0 ; t + 1 < T ; ++t )
+   v_modulation_end[ t ].set_value(
+    ( ( v_modulation[ t ].get_value() > 0.5 ) &&
+      ( v_modulation[ t + 1 ].get_value() < 0.5 ) ) ? 1 : 0 );
+
+  if( T ) {
+   const Index t = T - 1;
+   bool ended = v_modulation[ t ].get_value() > 0.5;
+   if( ended ) {
+    bool forced = true;
+    for( Index h = ( T >= f_max_modulation_length ?
+                     T - f_max_modulation_length : 0 ) ;
+         forced && ( h < T ) ; ++h )
+     if( v_modulation[ h ].get_value() < 0.5 )
+      forced = false;
+    const double pp = t ? Pi[ t - 1 ].get_value() : f_InitialPower;
+    const bool down = ( ! v_modulation_down.empty() ) &&
+                      ( v_modulation_down[ t ].get_value() > 0.5 );
+    const double mv = down ? pp - Pi[ t ].get_value()
+                           : Pi[ t ].get_value() - pp;
+    const double D = down ? v_DeltaRampDown[ t ] : v_DeltaRampUp[ t ];
+    ended = forced || ( mv < D - 1e-6 * std::max( 1.0 , D ) );
+    }
+   v_modulation_end[ t ].set_value( ended ? 1 : 0 );
+   }
+
+  // the band is not a pointwise choice: it has to contain p_t, but it only
+  // changes where a modulation ends, it has to change there, and it moves
+  // to an adjacent one, so a band that fits p_t at one instant may leave
+  // none that fits at the next. It is therefore picked by a sweep over the
+  // three of them, the fourth state standing for the instants in which the
+  // unit is off and has no band; a solution whose bands cannot be made
+  // consistent is left with the one that fits each instant, so that the
+  // rows it breaks are the ones that say why
+  auto fits = [ & ]( Index k , Index t ) -> bool {
+   if( ( v_modulation[ t ].get_value() > 0.5 ) &&
+       ( v_modulation_end[ t ].get_value() < 0.5 ) )
+    return( true );          // travelling between two bands: any of them
+   const double lo = k ? ( ( k > 1 ) ? B2 : B1 ) : get_min_power( t );
+   const double hi = ( k > 1 ) ? get_max_power( t ) : ( k ? B2 : B1 );
+   const double p = Pi[ t ].get_value();
+   const double tol = 1e-6 * std::max( 1.0 , std::max( std::abs( lo ) ,
+                                                       std::abs( hi ) ) );
+   return( ( p >= lo - tol ) && ( p <= hi + tol ) );
+   };
+
+  const Index none = 3;      // the state of an instant with no band
+  std::vector< std::array< bool , 4 > > seen( T , { false , false , false ,
+                                                    false } );
+  std::vector< std::array< unsigned char , 4 > > back( T , { 0 , 0 , 0 , 0 } );
+  const Index b_init = ( f_InitUpDownTime <= 0 ) ? none :
+                       ( ( f_InitialPower <= B1 ) ? 0 :
+                         ( ( f_InitialPower <= B2 ) ? 1 : 2 ) );
+
+  auto step = [ & ]( Index t , Index j , Index k ) -> bool {
+   if( k == none )
+    return( Ci[ t ].get_value() <= 0.5 );
+   if( Ci[ t ].get_value() <= 0.5 )
+    return( false );
+   if( ! fits( k , t ) )
+    return( false );
+   if( j == none )                    // a start-up picks its band freely
+    return( true );
+   if( v_modulation_end[ t ].get_value() > 0.5 )
+    return( ( k != j ) && ( ( k > j ? k - j : j - k ) == 1 ) );
+   return( k == j );
+   };
+
+  for( Index k = 0 ; k < 4 ; ++k )
+   if( step( 0 , b_init , k ) ) {
+    seen[ 0 ][ k ] = true;
+    back[ 0 ][ k ] = b_init;
+    }
+  for( Index t = 1 ; t < T ; ++t )
+   for( Index j = 0 ; j < 4 ; ++j ) {
+    if( ! seen[ t - 1 ][ j ] )
+     continue;
+    for( Index k = 0 ; k < 4 ; ++k )
+     if( ( ! seen[ t ][ k ] ) && step( t , j , k ) ) {
+      seen[ t ][ k ] = true;
+      back[ t ][ k ] = j;
+      }
+    }
+
+  std::vector< Index > b( T , none );
+  Index last = 4;
+  for( Index k = 0 ; ( k < 4 ) && ( last > 3 ) ; ++k )
+   if( T && seen[ T - 1 ][ k ] )
+    last = k;
+  if( last < 4 )
+   for( Index t = T ; t-- ; ) {
+    b[ t ] = last;
+    last = back[ t ][ last ];
+    }
+  else
+   for( Index t = 0 ; t < T ; ++t ) {
+    b[ t ] = none;
+    if( Ci[ t ].get_value() > 0.5 )
+     for( Index k = 0 ; k < 3 ; ++k )
+      if( fits( k , t ) ) { b[ t ] = k; break; }
+    }
+
+  for( Index t = 0 ; t < T ; ++t )
+   for( Index k = 0 ; k < 3 ; ++k )
+    v_band[ k * T + t ].set_value( ( b[ t ] == k ) ? 1 : 0 );
   }
  }  // end( NuclearUnitBlock::set_solution )
 
@@ -1605,6 +1767,41 @@ void NuclearUnitBlock::objective_tail_change( const DQuadFunction * qf ,
            & NuclearUnitBlock::set_deep_decrease_costs );
 
  }  // end( NuclearUnitBlock::objective_tail_change )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::update_objective_tail( const Subset & subset ,
+                                             c_ModParam issueAMod )
+{
+ if( ( ! objective_generated() ) || v_obj_tail.empty() )
+  return;
+
+ // the two sections, in the order of generate_objective(), each of them
+ // present only if the unit has both the variables and a cost of its own
+ std::vector< const std::vector< double > * > sections;
+ if( ( ! v_modulation_down.empty() ) && ( ! v_down_modulation_cost.empty() ) )
+  sections.push_back( & v_down_modulation_cost );
+ if( ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() ) )
+  sections.push_back( & v_deep_cost );
+
+ auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
+ const Index base = qf->get_num_active_var() - v_obj_tail.size();
+
+ Subset nms;
+ DQuadFunction::Vec_FunctionValue coeff;
+ for( Index k = 0 ; k < sections.size() ; ++k )
+  for( auto t : subset ) {
+   const Index pos = k * f_time_horizon + t;
+   v_obj_tail[ pos ] = f_scale * ( *sections[ k ] )[ t ];
+   nms.push_back( base + pos );
+   coeff.push_back( v_obj_tail[ pos ] );
+   }
+
+ if( ! nms.empty() )
+  qf->modify_linear_coefficients( std::move( coeff ) , std::move( nms ) ,
+                                  true , un_ModBlock( issueAMod ) );
+
+ }  // end( NuclearUnitBlock::update_objective_tail )
 
 /*--------------------------------------------------------------------------*/
 

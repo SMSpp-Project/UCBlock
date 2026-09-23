@@ -224,8 +224,8 @@ void ThermalUnitDPSolver::recover_schedule( std::vector< double > & p ,
   double H = std::min( P[ i ] - min_power[ i ] , cap - P[ i ] );
   if( ( i > 0 ) && U[ i - 1 ] && U[ i ] ) {          // interior transition
    const double d = P[ i ] - P[ i - 1 ];
-   H = std::min( H , std::min( delta_ramp_up[ i - 1 ] - d ,
-                               delta_ramp_down[ i - 1 ] + d ) );
+   H = std::min( H , std::min( delta_ramp_up[ i ] - d ,
+                               delta_ramp_down[ i ] + d ) );
    }
   return( std::max( H , 0.0 ) );
   };
@@ -1387,13 +1387,13 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    pos[ k ].begt = coeffcnt;
 
    m[ mcnt ] = std::max( min_power[ k ] ,
-			 m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k - 1 ] );
+			 m[ pos[ k - 1 ].begm ] - delta_ramp_down[ k ] );
   #else
    pos[ nextk ].begm = mcnt;
    pos[ nextk ].begt = coeffcnt;
 
    m[ mcnt ] = std::max( min_power[ k ] ,
-			 m[ pos[ 1 - nextk ].begm ] - delta_ramp_down[ k - 1 ]
+			 m[ pos[ 1 - nextk ].begm ] - delta_ramp_down[ k ]
 			 );
   #endif
 
@@ -1405,9 +1405,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
   double pstar;  // p^*(\bar{p})
 
   if( p_bar < unc_p[ k - 1 ] )
-   pstar = std::min( unc_p[ k - 1 ] , p_bar + delta_ramp_down[ k - 1 ] );
+   pstar = std::min( unc_p[ k - 1 ] , p_bar + delta_ramp_down[ k ] );
   else
-   pstar = std::max( unc_p[ k - 1 ] , p_bar - delta_ramp_up[ k - 1 ] );
+   pstar = std::max( unc_p[ k - 1 ] , p_bar - delta_ramp_up[ k ] );
 
   #if( COMPUTE_DUALS )
    Index qm = pos[ k - 1 ].begm;
@@ -1419,7 +1419,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
    // compute the last endpoint of the piece, \bar{u}
    double u_bar = std::min( max_power[ k ] ,
-			    m[ mcnt - 1 ] + delta_ramp_up[ k - 1 ] );
+			    m[ mcnt - 1 ] + delta_ramp_up[ k ] );
   #else
    Index qm = pos[ 1 - nextk ].begm;
    /*!!
@@ -1442,37 +1442,37 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    // compute the last endpoint of the piece, \bar{u}
    double u_bar = std::min( max_power[ k ] ,
 			    m[ pos[ 1 - nextk ].begm + v[ 1 - nextk ] + 1 ]
-			    + delta_ramp_up[ k - 1 ] );
+			    + delta_ramp_up[ k ] );
   #endif
   ++mcnt;
 
   bool firstTime = true;
 
   // CASE 1- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  while( unc_p[ k - 1 ] > p_bar + delta_ramp_down[ k - 1 ] + f_solver->eps )
+  while( unc_p[ k - 1 ] > p_bar + delta_ramp_down[ k ] + f_solver->eps )
   {
    // set coeffs fields to compute \bar{z}^{\bar{v}}(p)
 
    coeffs[ coeffcnt ].alfa = quad_term[ k ] + coeffs[ q ].alfa;
    coeffs[ coeffcnt ].beta = linear_term[ k ] + coeffs[ q ].beta +
-                             2 * delta_ramp_down[ k - 1 ] * coeffs[ q ].alfa;
+                             2 * delta_ramp_down[ k ] * coeffs[ q ].alfa;
    coeffs[ coeffcnt ].gamma = coeffs[ q ].gamma +
-    coeffs[ q ].alfa * delta_ramp_down[ k - 1 ] * delta_ramp_down[ k - 1 ] +
-    coeffs[ q ].beta * delta_ramp_down[ k - 1 ];
+    coeffs[ q ].alfa * delta_ramp_down[ k ] * delta_ramp_down[ k ] +
+    coeffs[ q ].beta * delta_ramp_down[ k ];
 
    /* Compute the maximum value for \bar{p} such that:
     * - p^*_k(\bar{p}) stays in the q-th interval;
     * - unc_p stays out of the admissible range;
     * - \bar{p} stays admissible. */
 
-   if( m[ qm + 1 ] - delta_ramp_down[ k - 1 ] <
-       unc_p[ k - 1 ] - delta_ramp_down[ k - 1 ] - f_solver->eps ) {
-    p_bar = m[ qm + 1 ] - delta_ramp_down[ k - 1 ];
+   if( m[ qm + 1 ] - delta_ramp_down[ k ] <
+       unc_p[ k - 1 ] - delta_ramp_down[ k ] - f_solver->eps ) {
+    p_bar = m[ qm + 1 ] - delta_ramp_down[ k ];
     ++q;
     ++qm;
     }
    else
-    p_bar = unc_p[ k - 1 ] - delta_ramp_down[ k - 1 ];
+    p_bar = unc_p[ k - 1 ] - delta_ramp_down[ k ];
 
    if( p_bar > u_bar )
     p_bar = u_bar;
@@ -1501,7 +1501,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    }  // end( while( CASE 1 ) )
 
   // CASE 2- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  if( unc_p[ k - 1 ] >= p_bar - delta_ramp_up[ k - 1 ] ) {
+  if( unc_p[ k - 1 ] >= p_bar - delta_ramp_up[ k ] ) {
 
    // set coeffs fields to compute \bar{z}^{\bar{v}}(p)
 
@@ -1515,7 +1515,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
     * - unc_p stays out of the admissible range;
     * - \bar{p} stays admissible. */
 
-   p_bar = std::min( u_bar , unc_p[ k - 1 ] + delta_ramp_up[ k - 1 ] );
+   p_bar = std::min( u_bar , unc_p[ k - 1 ] + delta_ramp_up[ k ] );
 
    ++v_bar;
    m[ mcnt++ ] = p_bar;
@@ -1544,16 +1544,16 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
    coeffs[ coeffcnt ].alfa = quad_term[ k ] + coeffs[ q ].alfa;
    coeffs[ coeffcnt ].beta = linear_term[ k ] + coeffs[ q ].beta -
-                              2 * delta_ramp_up[ k - 1 ] * coeffs[ q ].alfa;
+                              2 * delta_ramp_up[ k ] * coeffs[ q ].alfa;
    coeffs[ coeffcnt ].gamma = coeffs[ q ].gamma +
-    coeffs[ q ].alfa * delta_ramp_up[ k - 1 ] * delta_ramp_up[ k - 1 ] -
-    coeffs[ q ].beta * delta_ramp_up[ k - 1 ];
+    coeffs[ q ].alfa * delta_ramp_up[ k ] * delta_ramp_up[ k ] -
+    coeffs[ q ].beta * delta_ramp_up[ k ];
 
    /* Compute the maximum value for \bar{p} such that:
     * - p^*_k(\bar{p}) stays in the q-th interval;
     * - \bar{p} stays admissible. */
 
-   p_bar = std::min( m[ qm + 1 ] + delta_ramp_up[ k - 1 ] , u_bar );
+   p_bar = std::min( m[ qm + 1 ] + delta_ramp_up[ k ] , u_bar );
 
    ++v_bar;
    m[ mcnt++ ] = p_bar;
@@ -1701,13 +1701,13 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
  // forward sweep k = h+1 .. T-1- - - - - - - - - - - - - - - - - - - - - - -
  for( Index k = h + 1 ; k < T ; ++k ) {
   const double plo = z.front().left , phi = z.back().right;
-  const double lo_k = std::max( min_power[ k ] , plo - drd[ k - 1 ] );
-  const double hi_k = std::min( max_power[ k ] , phi + dru[ k - 1 ] );
+  const double lo_k = std::max( min_power[ k ] , plo - drd[ k ] );
+  const double hi_k = std::min( max_power[ k ] , phi + dru[ k ] );
 
   // interior transition into k (capacity cap = max_power): fold the full
   // residual-ramp reward via sliding_min_corr, then add the energy f^k
   PQFun zk;
-  S->sliding_min_corr( z , dru[ k - 1 ] , drd[ k - 1 ] , lo_k , hi_k , k ,
+  S->sliding_min_corr( z , dru[ k ] , drd[ k ] , lo_k , hi_k , k ,
                        zk , -1.0 );
   S->add_quadratic( zk , quad[ k ] , lin[ k ] , 0.0 );
 
@@ -1735,7 +1735,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
    if( shi >= lo_k - 1e-12 ) {         // nonempty, possibly a single point
     // (shut_down_limit == min_power, the default, collapses it to one)
     PQFun zsd;
-    S->sliding_min_corr( z , dru[ k - 1 ] , drd[ k - 1 ] , lo_k , shi , k ,
+    S->sliding_min_corr( z , dru[ k ] , drd[ k ] , lo_k , shi , k ,
                          zsd , double( bound_down[ k + 1 ] ) );
     S->add_quadratic( zsd , quad[ k ] , lin[ k ] , 0.0 );
     auto cc = S->min_over( zsd , lo_k , shi );
@@ -1805,10 +1805,10 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables(
   Z[ h ] = z;
   for( Index t = h + 1 ; t <= k ; ++t ) {
    const double plo = z.front().left , phi = z.back().right;
-   const double lo_t = std::max( min_power[ t ] , plo - drd[ t - 1 ] );
-   const double hi_t = std::min( max_power[ t ] , phi + dru[ t - 1 ] );
+   const double lo_t = std::max( min_power[ t ] , plo - drd[ t ] );
+   const double hi_t = std::min( max_power[ t ] , phi + dru[ t ] );
    PQFun zt;
-   S->sliding_min_corr( z , dru[ t - 1 ] , drd[ t - 1 ] , lo_t , hi_t , t ,
+   S->sliding_min_corr( z , dru[ t ] , drd[ t ] , lo_t , hi_t , t ,
                         zt , -1.0 );
    S->add_quadratic( zt , quad[ t ] , lin[ t ] , 0.0 );
    z.swap( zt );
@@ -1820,8 +1820,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables(
                   ( bound_down[ k + 1 ] < max_power[ k ] - 1e-12 ) )
               ? double( bound_down[ k + 1 ] ) : -1.0;
   for( Index t = k ; t > h ; --t ) {
-   p[ t - 1 ] = S->reserve_corr_argmin( Z[ t - 1 ] , dru[ t - 1 ] ,
-                                        drd[ t - 1 ] , t , p[ t ] , acap );
+   p[ t - 1 ] = S->reserve_corr_argmin( Z[ t - 1 ] , dru[ t ] ,
+                                        drd[ t ] , t , p[ t ] , acap );
    acap = -1.0;   // only the closing step carries the shut-down cap
    }
   return;
@@ -1831,7 +1831,7 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables(
 
  for( Index t = k ; t-- > f_h ; ) {
   /* Project unconstrained optimal value unc_p[ t ] on the interval:
-   * [ p[ t + 1 ] - delta_ramp_up[ t ] , p[ t + 1 ] + delta_ramp_down[ t ] ]
+   * [ p[ t + 1 ] - delta_ramp_up[ t + 1 ] , p[ t + 1 ] + delta_ramp_down[ t + 1 ] ]
    *
    * If the unconstrained optimal value is on the left of the interval,
    * then the optimal power value is the left endpoint of the function.
@@ -1843,13 +1843,13 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables(
    * then the optimal power value is the right endpoint of the function.
    */
 
-  if( unc_p[ t ] < p[ t + 1 ] - delta_ramp_up[ t ] )
-   p[ t ] = p[ t + 1 ] - delta_ramp_up[ t ];
+  if( unc_p[ t ] < p[ t + 1 ] - delta_ramp_up[ t + 1 ] )
+   p[ t ] = p[ t + 1 ] - delta_ramp_up[ t + 1 ];
   else
-   if( unc_p[ t ] <= p[ t + 1 ] + delta_ramp_down[ t ] )
+   if( unc_p[ t ] <= p[ t + 1 ] + delta_ramp_down[ t + 1 ] )
     p[ t ] = unc_p[ t ];
    else
-    p[ t ] = p[ t + 1 ] + delta_ramp_down[ t ];
+    p[ t ] = p[ t + 1 ] + delta_ramp_down[ t + 1 ];
   }
  }  // end( ThermalUnitDPSolver::DPEDSolver::compute_power_variables )
 

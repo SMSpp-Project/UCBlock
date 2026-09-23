@@ -2003,7 +2003,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the delta ramp-up at the time \p t
  /** This function return the delta ramp-up at time \p t, which is assumed
-  * to be between 0 and get_time_horizon() - 1. */
+  * to be between 0 and get_time_horizon() - 1, i.e., the maximum increase
+  * of the active power from t - 1 to t (from InitialPower if t == 0). */
 
  double get_delta_ramp_up( Index t ) const {
   if( t >= f_time_horizon )
@@ -2026,7 +2027,9 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the delta ramp-down at the time \p t
  /** This function return the delta ramp-down at the time \p t, which is
-  * assumed to be between 0 and get_time_horizon() - 1. */
+  * assumed to be between 0 and get_time_horizon() - 1, i.e., the maximum
+  * decrease of the active power from t - 1 to t (from InitialPower if
+  * t == 0). */
 
  double get_delta_ramp_down( Index t ) const {
   if( t >= f_time_horizon )
@@ -2035,6 +2038,32 @@ class ThermalUnitBlock : public UnitBlock
   if( v_DeltaRampDown.empty() )
    return( get_max_power( t ) );
   return( v_DeltaRampDown[ t ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the increase the ramp-up limits allow from \p from - 1 to \p to
+ /** Returns \f$ \sum_{\tau = from}^{to} DP[ \tau ] \f$, i.e., the
+  * maximum increase of the active power over the steps from \p from - 1
+  * (InitialPower if \p from == 0) to \p to, 0 if \p from > \p to. */
+
+ double ramp_up_sum( Index from , Index to ) const {
+  double sum = 0;
+  for( Index t = from ; t <= to ; ++t )
+   sum += get_delta_ramp_up( t );
+  return( sum );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the decrease the ramp-down limits allow from \p from - 1 to \p to
+ /** Returns \f$ \sum_{\tau = from}^{to} DM[ \tau ] \f$, i.e., the
+  * maximum decrease of the active power over the steps from \p from - 1
+  * (InitialPower if \p from == 0) to \p to, 0 if \p from > \p to. */
+
+ double ramp_down_sum( Index from , Index to ) const {
+  double sum = 0;
+  for( Index t = from ; t <= to ; ++t )
+   sum += get_delta_ramp_down( t );
+  return( sum );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2186,6 +2215,16 @@ class ThermalUnitBlock : public UnitBlock
 
  const std::vector< double > & get_start_up_cost( void ) const {
   return( v_StartUpCost );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the reference schedule of the unit, if it has one
+ /** Returns the vector of the power the unit is asked to follow, empty if it
+  * has none; the deviation from it is a term of the Objective, weighed with
+  * the scale factor [see generate_objective()]. */
+
+ const std::vector< double > & get_reference_schedule( void ) const {
+  return( v_RefSchedule );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2989,6 +3028,31 @@ class ThermalUnitBlock : public UnitBlock
 
  void update_objective_commitment( const Subset & subset ,
                                    c_ModParam issueAMod ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// updates the remaining terms of the Objective that carry the scale
+ /** This method updates the terms of the Objective associated with the
+  * shut-down, the primary and secondary spinning reserves, the perspective
+  * cuts and the reactive power, each being \f$ S \f$ times the cost of one
+  * copy of the unit (see UnitBlock::scale()).
+  *
+  * @param subset A set of time instants at which the terms must be updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective_other_terms( const Subset & subset ,
+                                    c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the coefficients of the Variable appended by a derived class
+ /** Called by update_objective() after the scale factor has changed, so
+  * that the coefficients of the Variable appended to the Objective by a
+  * derived class [see objective_tail()] follow it at the time instants in
+  * \p subset. The default does nothing, as the ThermalUnitBlock has no such
+  * Variable. */
+
+ virtual void update_objective_tail( const Subset & subset ,
+                                     c_ModParam issueAMod ) { }
 
 /*--------------------------------------------------------------------------*/
  /// updates the term of the Objective associated with the investment cost

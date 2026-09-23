@@ -1454,9 +1454,12 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  if( f_ConvInvestmentCost != 0 )
   lf->add_variable( &conv_design , f_scale * f_ConvInvestmentCost );
 
+ // the schedule is that of one unit, from which each of the copies deviates
+ // on its own, so that the deviation costs the scale factor times what one
+ // copy pays [see UnitBlock::scale()]
  if( ! v_RefSchedule.empty() ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   lf->add_variable( &v_abs_ref_schedule[ t ] , 1.0 );
+   lf->add_variable( &v_abs_ref_schedule[ t ] , f_scale );
  }
 
  objective.set_function( lf );
@@ -2514,6 +2517,15 @@ void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) const {
                                  Range( 0 , terms ) ,
                                  issueAMod );
  }
+
+ // the deviations from the reference schedule, which the scale factor
+ // weighs as it does the operating costs
+ if( ! v_RefSchedule.empty() )
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const auto idx = function->is_active( & v_abs_ref_schedule[ t ] );
+   assert( idx < function->get_num_active_var() );
+   function->modify_coefficient( idx , f_scale , issueAMod );
+   }
 
  // refresh the scale-aware design coefficients (battery / converter)
  if( f_BattInvestmentCost != 0 ) {

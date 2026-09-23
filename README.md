@@ -167,6 +167,10 @@ We provide some tool to generate input data for UCBlock:
 
 - [a Matlab-based data generator](tools/UC2SMSpp/README.md)
 
+- [a replicator of the thermal units of an instance](tools/replicate_units/README.md),
+  which writes an instance with many times the units of a given one, the
+  demand scaled accordingly
+
 - [a converter from .yml and .csv data files](tools/csv2netCDF/README.md)
   used to describe UC instances corresponding to Energy Community design
   problems used in the [EnergyCommunity.jl JuMP

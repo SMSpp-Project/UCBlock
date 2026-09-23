@@ -611,7 +611,7 @@ class UCBlock : public Block
   *   f_time_horizon - 1 and n = 1, ...,  get_number_nodes() contains the
   *   active power node injection constraint at time t and node n
   *   \f[
-  *    \sum_{ g \in \mathcal{G}_n } ( p^{ac}_{t,g} +
+  *    \sum_{ g \in \mathcal{G}_n } ( p^{ac}_{t,g} -
   *                                   P^{au}_{t , g}(1 - u_{t,g}) ) = S_{t,n}
   *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
   *   \f]
@@ -630,6 +630,12 @@ class UCBlock : public Block
   *    \sum_{ g \in \mathcal{G}_n } p^{rc}_{t,g} = R_{t,n}
   *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
   *   \f]
+  *   The fixed consumption \f$ P^{au}_{t,g} \f$ is an ACTIVE power and only
+  *   appears in the active rows: whether a unit that is off also absorbs
+  *   reactive power is not settled, and were it to, it would need a datum of
+  *   its own rather than the active one, which these rows used to carry.
+  *   TODO: ask again when someone writes an instance with both a fixed
+  *   consumption and a reactive demand.
   *   Note that
   *
   *       IT IS ASSUMED THAT EITHER ALL :NetworkBlock HANDLE REACTIVE
@@ -1944,11 +1950,15 @@ class UCBlock : public Block
   * modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered. */
+  *        modified. This vector is assumed to be ordered.
+  *
+  * @param reactive If true, the reactive node injection constraints are
+  *        updated instead of the active ones. */
 
  void update_node_injection_constraints(
 			       const std::vector< Index > & modified_units ,
-			       ModParam issueMod = eNoBlck );
+			       ModParam issueMod = eNoBlck ,
+			       bool reactive = false );
 
 /*--------------------------------------------------------------------------*/
  /// updates the primary demand constraints
@@ -2059,7 +2069,9 @@ class UCBlock : public Block
  /// returns the primary zone to which the given generator belongs
 
  Index get_primary_zone( Index elc_generator ) const {
-  if( f_number_primary_zones == 0 )
+  // with at most one zone the vector of the zones may well be empty [see
+  // node_belongs_to_primary_zone()]
+  if( f_number_primary_zones <= 1 )
    return( 0 );
 
   // Node to which the given electrical generator belongs
@@ -2074,7 +2086,9 @@ class UCBlock : public Block
  /// returns the secondary zone to which the given generator belongs
 
  Index get_secondary_zone( Index elc_generator ) const {
-  if( f_number_secondary_zones == 0 )
+  // with at most one zone the vector of the zones may well be empty [see
+  // node_belongs_to_secondary_zone()]
+  if( f_number_secondary_zones <= 1 )
    return( 0 );
 
   // Node to which the given electrical generator belongs
@@ -2089,7 +2103,9 @@ class UCBlock : public Block
  /// returns the inertia zone to which the given generator belongs
 
  Index get_inertia_zone( Index elc_generator ) const {
-  if( f_number_inertia_zones == 0 )
+  // with at most one zone the vector of the zones may well be empty [see
+  // node_belongs_to_inertia_zone()]
+  if( f_number_inertia_zones <= 1 )
    return( 0 );
 
   // Node to which the given electrical generator belongs

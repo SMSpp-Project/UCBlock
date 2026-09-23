@@ -1837,7 +1837,11 @@ class BatteryUnitBlock : public UnitBlock
  /** This function sets the kappa constant, which multiplies the minimum and
   * maximum active power, maximum primary and secondary reserve, and the
   * minimum and maximum storage levels in the constraints of this
-  * BatteryUnitBlock.
+  * BatteryUnitBlock. The reference schedule, where the unit has one, is left
+  * as it is: the kappa changes the size of the unit rather than the number of
+  * its copies, and whether the profile a resized battery is asked to follow
+  * is the same one in absolute terms or one resized with it is a question for
+  * whoever writes the instance, which is still open.
   *
   * @param values An iterator to a vector containing the kappa constants.
   *
@@ -1861,7 +1865,11 @@ class BatteryUnitBlock : public UnitBlock
  /** This function sets the kappa constant, which multiplies the minimum and
   * maximum active power, maximum primary and secondary reserve, and the
   * minimum and maximum storage levels in the constraints of this
-  * BatteryUnitBlock.
+  * BatteryUnitBlock. The reference schedule, where the unit has one, is left
+  * as it is: the kappa changes the size of the unit rather than the number of
+  * its copies, and whether the profile a resized battery is asked to follow
+  * is the same one in absolute terms or one resized with it is a question for
+  * whoever writes the instance, which is still open.
   *
   * @param values An iterator to a vector containing the kappa constants.
   *

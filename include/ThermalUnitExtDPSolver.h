@@ -263,13 +263,13 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
                                 bool & built ) const;
 
  /// returns a valid lower bound on the optimal objective function value
- OFValue get_lb( void ) override { return( f_best_cost ); }
+ OFValue get_lb( void ) override { return( scaled_value( f_best_cost ) ); }
 
  /// returns a valid upper bound on the optimal objective function value
- OFValue get_ub( void ) override { return( f_best_cost ); }
+ OFValue get_ub( void ) override { return( scaled_value( f_best_cost ) ); }
 
  /// returns the value of the current solution, if any
- OFValue get_var_value( void ) override { return( f_best_cost ); }
+ OFValue get_var_value( void ) override { return( scaled_value( f_best_cost ) ); }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

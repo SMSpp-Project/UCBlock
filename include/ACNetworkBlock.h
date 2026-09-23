@@ -562,6 +562,34 @@ class ACNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
+ /// the size of a line of an ACNetworkBlock is not changed by a kappa
+ /** An ACNetworkBlock builds its own rows and not the power flow limit ones
+  * of DCNetworkBlock, which are those a kappa is written into, hence sizing
+  * a line this way is not supported and these throw.
+  *
+  * Supporting it means saying what the size of such a line is and writing
+  * the kappa into the rows that carry it, i.e., the thermal limit and the
+  * bounds of the reactive flow, and answering whether the susceptance
+  * follows the size, which it does not do linearly: a modelling choice
+  * rather than a translation, left to whoever needs it. */
+
+ void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "ACNetworkBlock::set_kappa: sizing a line of an "
+   "ACNetworkBlock is not supported" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "ACNetworkBlock::set_kappa: sizing a line of an "
+   "ACNetworkBlock is not supported" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// separate the McCormick strengthening inequalities as dynamic cuts
  /** Separates, at the current point, the McCormick valid inequalities that
   * strengthen the SOCP relaxation (the z / c / beta / s families), adding to

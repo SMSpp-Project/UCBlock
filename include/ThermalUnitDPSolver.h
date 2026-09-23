@@ -320,13 +320,13 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
   }
 
  /// returns a valid lower bound on the optimal objective function value
- OFValue get_lb( void ) override { return( f_end.lab ); }
+ OFValue get_lb( void ) override { return( scaled_value( f_end.lab ) ); }
 
  /// returns a valid upper bound on the optimal objective function value
- OFValue get_ub( void ) override { return( f_end.lab ); }
+ OFValue get_ub( void ) override { return( scaled_value( f_end.lab ) ); }
 
  /// returns the value of the current solution, if any
- OFValue get_var_value( void ) override { return( f_end.lab ); }
+ OFValue get_var_value( void ) override { return( scaled_value( f_end.lab ) ); }
 
 /*--------------------------------------------------------------------------*/
 

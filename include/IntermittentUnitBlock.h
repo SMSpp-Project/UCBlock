@@ -143,9 +143,10 @@ class IntermittentUnitBlock : public UnitBlock
   *   variable \( x \) in design mode (i.e., when InvestmentCost != 0). If not
   *   provided, the default is 0. Its meaning depends on "MaxCapacityDesign":
   *
-  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary design), then
-  *     \( x \in \{ 0 , 1 \} \) and \( \mathrm{MinCapacityDesign} > 0 \)
-  *     implies \( x = 1 \);
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (integer design), then
+  *     \( x \) is integer with \( \mathrm{MinCapacityDesign} \le x \le
+  *     |\mathrm{MaxCapacityDesign}| \), i.e., binary when
+  *     \( \mathrm{MaxCapacityDesign} = -1 \);
   *
   *   - otherwise (continuous design), \( x \) is nonnegative continuous with
   *     \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
@@ -153,8 +154,9 @@ class IntermittentUnitBlock : public UnitBlock
   * - The scalar variable "MaxCapacityDesign", of type netCDF::NcDouble and
   *   not indexed over any dimension. This limits the design variable \( x \):
   *
-  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{ 0 , 1\} \)
-  *     (binary);
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) then \( x \in \{ 0 , \ldots ,
+  *     |\mathrm{MaxCapacityDesign}| \} \) (integer, e.g., the number of
+  *     modules of a modular asset);
   *
   *   - if \( \mathrm{MaxCapacityDesign} = 1 \) then \( x \in [ 0 , 1 ] \)
   *     when \( \mathrm{MinCapacityDesign} = 0 \); otherwise
@@ -331,16 +333,14 @@ class IntermittentUnitBlock : public UnitBlock
   * In the design scenario of the UC problem (i.e., when an investment cost
   * is provided), an additional design variable \f$ x \f$ is created. Its
   * type depends on \f$ \mathrm{MaxCapacityDesign} \f$: if
-  * \f$ \mathrm{MaxCapacityDesign} < 0 \f$ then \f$ x \f$ is binary; otherwise
-  * \f$ x \f$ is nonnegative continuous and bounded by
+  * \f$ \mathrm{MaxCapacityDesign} < 0 \f$ then \f$ x \f$ is integer and
+  * bounded by \f$ 0 \le x \le |\mathrm{MaxCapacityDesign}| \f$ (binary when
+  * \f$ \mathrm{MaxCapacityDesign} = -1 \f$); otherwise \f$ x \f$ is
+  * nonnegative continuous and bounded by
   * \f$ 0 \le x \le \mathrm{MaxCapacityDesign} \f$.
   *
-  * In addition, when \( \mathrm{MaxCapacityDesign} \ge 0 \) a lower bound
-  * \( \mathrm{MinCapacityDesign} \) may be provided, yielding
-  * \( \mathrm{MinCapacityDesign} \le x \le \mathrm{MaxCapacityDesign} \).
-  * When \( \mathrm{MaxCapacityDesign} < 0 \) (binary design),
-  * \( x \in \{ 0 , 1 \} \); if \( \mathrm{MinCapacityDesign} > 0 \), then
-  * \( x \) is effectively forced to 1. */
+  * In both cases a lower bound \( \mathrm{MinCapacityDesign} \) may be
+  * provided, which replaces the 0 above. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -391,13 +391,13 @@ class IntermittentUnitBlock : public UnitBlock
   *   \[
   *     x \in
   *     \begin{cases}
-  *       \{0,1\} & \text{if } \mathrm{MaxCapacityDesign} < 0 \\
+  *       \{\,\mathrm{MinCapacityDesign} , \ldots ,
+  *         |\mathrm{MaxCapacityDesign}|\,\}
+  *         & \text{if } \mathrm{MaxCapacityDesign} < 0 \\
   *       [\,\mathrm{MinCapacityDesign},\,\mathrm{MaxCapacityDesign}\,]
   *         & \text{if } \mathrm{MaxCapacityDesign} \ge 0
   *     \end{cases}
   *   \]
-  *
-  *   In the binary case, if \( \mathrm{MinCapacityDesign} > 0 \) then \( x = 1 \).
   *
   * - the generation constraints that limit the total generated power across all time instants \f$ t \f$ to:
   * 
@@ -1190,9 +1190,8 @@ class IntermittentUnitBlock : public UnitBlock
   *     \( \mathrm{MinCapacityDesign} \le \mathrm{MaxCapacityDesign} \);
   *   - if \( |\mathrm{MaxCapacityDesign}| = 1 \), then
   *     \( \mathrm{MinCapacityDesign} \le 1 \);
-  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (binary), then
-  *     \( \mathrm{MinCapacityDesign} \le 1 \)
-  *     (note: \( \mathrm{MinCapacityDesign} > 0 \Rightarrow x = 1 \)).
+  *   - if \( \mathrm{MaxCapacityDesign} < 0 \) (integer), then
+  *     \( \mathrm{MinCapacityDesign} \le |\mathrm{MaxCapacityDesign}| \).
   *
   * If any of the above conditions are not met, an exception is thrown.
   */

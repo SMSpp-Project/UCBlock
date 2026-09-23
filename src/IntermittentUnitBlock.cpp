@@ -198,10 +198,12 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                            "MinCapacityDesign must be <= 1 when |MaxCapacityDesign| == 1." ) );
 
- // Binary case (max < 0): MinCapacityDesign <= 1
- if( ( f_MaxCapacityDesign < 0 ) && ( f_MinCapacityDesign > 1.0 ) )
+ // Integer case (max < 0): MinCapacityDesign <= |MaxCapacityDesign|
+ if( ( f_MaxCapacityDesign < 0 ) &&
+     ( f_MinCapacityDesign > -f_MaxCapacityDesign ) )
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
-                           "MinCapacityDesign must be <= 1 for binary design." ) );
+                           "MinCapacityDesign > |MaxCapacityDesign| for "
+                           "integer design." ) );
 
  // Scale and design granularity are two equivalent ways to model multiple
  // identical modules; combining them with both > 1 over-counts the fleet.
@@ -1139,6 +1141,12 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                                            this , UnitBlockMod::eScale ) ,
                                            Observer::par2chnl( issuePMod ) );
+ else if( auto f_Block = get_f_Block() )
+  // the father rewrites the rows that carry the scale factor even if no
+  // Solver is listening
+  f_Block->add_Modification( std::make_shared< UnitBlockMod >(
+                              this , UnitBlockMod::eScale ) ,
+                             Observer::par2chnl( issuePMod ) );
 
  }  // end( IntermittentUnitBlock::scale )
 

@@ -102,7 +102,192 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the budgets and the duals keep the zones of all the pollutants one after
   the other, as the file does
 
+### Changed
+
+- A `DCNetworkBlock` takes the KIRCHHOFF formulation where no Configuration
+  says which one it wants, the PTDF one being both larger, since it carries a
+  dense row per line, and the one whose flows a mixed network of AC lines and
+  HVDC links used to get wrong; a `SimpleConfiguration< int >` of value 0 in
+  the static-variables slot of the `BlockConfig` still asks for the PTDF
+  formulation, and one of value 1 for the CYCLE one. A network whose lines
+  all have a zero susceptance is a transport model under either formulation.
+
+- A `UCBlock` whose `NumberElectricalGenerators` is not the number of
+  generators its units have is refused, instead of being read with the
+  number the file states: everything indexed over the generators, from
+  `GeneratorNode` to the emission rates, would be read over the wrong
+  length, and the rows the `UCBlock` builds over them are sized with it, so
+  that the model it gives depends on how far the two numbers are apart.
+
+- `ThermalUnitBlock` has the new virtual `update_objective_tail()`, with
+  which a derived class makes the coefficients it appends to the Objective
+  follow the scale factor: what includes its header has to be rebuilt.
+
+- `NuclearUnitBlock` keeps each family of operating rules in a group of its
+  own (the tight rows on the starts of a modulation, `ModulationStartsApart`,
+  `ModulationEndStarts` and `ModulationStepStarted`, are no longer mixed with
+  `ModulationStability` and `ModulationMaxLength`), and the groups whose
+  number of rows depends on the instant (`StartUpStability`, `BandKeep`,
+  `BandMove`, `ModulationEndLink`) have the rows of instant t in their entry
+  t
+
+- the setters that change one datum spanning the whole time horizon issue
+  their "abstract" Modification inside a GroupModification, one per setter,
+  rather than one loose Modification per instant: a Solver able to execute a
+  whole set of changes in one operation can then do so, while one that is not
+  takes the group apart and sees exactly what it saw before. So far
+  `SlackUnitBlock::set_active_power_cost`, `HydroUnitBlock::set_inflow`,
+  `HydroUnitBlock::update_initial_flow_rate_in_cnstrs`,
+  `ThermalUnitBlock::set_maximum_power`,
+  `IntermittentUnitBlock::update_max_power_in_cnstrs` and `set_kappa`,
+  `BatteryUnitBlock::update_kappa_in_cnstrs`,
+  `DCNetworkBlock::change_power_flow_limit_constraints`, the four setters of
+  the prices and of the demand of `ECNetworkBlock`, and the reaction of
+  `UCBlock` to the scaling of a unit, where the four `update_*_constraints`
+  now travel in one channel, `DCNetworkBlock::set_network_cost`, the
+  `set_active_power_cost` of `HydroUnitBlock` and of
+  `IntermittentUnitBlock`, `IntermittentUnitBlock::update_objective` and
+  `ThermalUnitBlock::update_objective_active_power`. The last two were
+  `const`, which opening a channel is not: they are private helpers called
+  only from methods that are not const, and the const is gone
+
 ### Fixed
+
+- Scaling a `ThermalUnitBlock` after its Objective has been generated
+  rewrites every term that carries the scale factor, i.e., also those of the
+  shut-down, of the primary and secondary reserves, of the perspective cuts
+  and of the reactive power, and in a `NuclearUnitBlock` those of the
+  downward modulation steps and of the deep decreases, which used to keep the
+  old factor; the model of a unit scaled after being built is now the same as
+  that of a unit scaled before.
+
+- The reactive node injection constraints of a `UCBlock` carry the reactive
+  power of the generators and nothing else, as their documentation says: they
+  used to carry the fixed consumption too, which is an ACTIVE power, on the
+  commitment variables. Whether a unit that is off also absorbs reactive
+  power is not settled; were it to, it would call for a datum of its own.
+
+- The fixed consumption of a unit that is off raises the right-hand side of
+  the node injection constraints at a single node, as it already did with
+  more than one node and as the setter of the demand already recomputed it:
+  the generation lowered it instead, so that a unit consuming while off made
+  the others generate less, and merely writing the demand back into the
+  `UCBlock` changed the model. The value of the plan4res instances that carry
+  a fixed consumption moves by 8 to 12%. The formula in the documentation,
+  which wrote the consumption as a positive term of the injection, follows.
+
+- An `ACNetworkBlock` and an `OTSNetworkBlock` refuse a kappa on one of
+  their lines, `DCNetworkBlock::set_kappa()` being virtual now and their
+  override throwing: they build their own rows and not the power flow limit
+  ones the kappa is written into, so that sizing a line of theirs used to
+  reach rows that are not there. What supporting it would take is written
+  where they refuse it. The method that writes the kappa into the rows
+  refuses as well when there are none, so that any other derived class is
+  told rather than left to write where there is nothing.
+
+- The dynamic programming Solvers refuse a unit that has a reference
+  schedule, of which they have no term: they used to answer for a unit that
+  pays nothing to depart from its schedule, i.e., a value that is not the one
+  of the Objective, and silently. `ThermalUnitBlock::get_reference_schedule()`
+  gives the schedule, empty where there is none.
+
+- The deviation from the reference schedule of a `ThermalUnitBlock` or of a
+  `BatteryUnitBlock` is weighed with the scale factor, as every other term of
+  their Objective: the schedule is that of one unit, from which each of the
+  copies deviates on its own, so that the fleet pays the scale factor times
+  what one copy pays; it used to be weighed with 1, so that the Objective of
+  a scaled unit was neither the cost of one copy nor that of all of them. The
+  guard that refuses a change of those coefficients now asks them to be the
+  scale factor. A `HydroUnitBlock` has no scale factor, hence its own
+  deviation is unchanged, and the reference schedule of a `BatteryUnitBlock`
+  whose kappa changes is left as it is [see `set_kappa()`].
+
+- A change of the coefficients of the Objective of a `ThermalUnitBlock`, as
+  a dualizing Solver makes, is divided by the scale factor before being
+  stored in the costs of the unit, which are those of one copy; they used to
+  be stored as they are, i.e., multiplied by the scale factor, and a scaling
+  made with `eModBlck` went the same way through the start-up and fixed
+  costs.
+
+- The dynamic programming Solvers of the `ThermalUnitBlock` and of the
+  `NuclearUnitBlock` report the value of all the copies of the unit, i.e.,
+  the scale factor times that of the one copy they solve for, which is the
+  value of the Objective; the Solution they produce is still that of one
+  copy, as the Variable of the unit are.
+
+- The reactive node injection constraints of a `UCBlock` follow the scale
+  factor of a unit as the active ones do, and a scaled unit with a fixed
+  consumption at a single node gets the fixed consumption, and no longer the
+  scale factor, as the coefficient of its commitment.
+
+- Scaling a unit of a `UCBlock` with a single primary, secondary or inertia
+  zone no longer reads the zone of its generators out of an empty vector,
+  which crashed.
+
+- `IntermittentUnitBlock::scale()` tells the `UCBlock` even when no Solver
+  is listening, as the thermal unit and the battery do, so that the rows
+  carrying the scale factor are rewritten anyway.
+
+- The ramps of a `ThermalUnitBlock` that change over time are read as the
+  documentation says in every formulation and Solver: `DeltaRampUp[ t ]`
+  (`DeltaRampDown[ t ]`) bounds the increase (decrease) of the power from
+  t - 1 to t, from `InitialPower` if t = 0. The 3bin and pt formulations,
+  the reserve deliverability rows and the three dynamic programming Solvers
+  used `DeltaRampUp[ t - 1 ]` for that step, so that `DeltaRampUp[ 0 ]` bound
+  both the first two steps and the formulations disagreed with each other;
+  the T formulation mixed the two indices in its ramp-down rows, and the
+  formulations whose rows span several steps (SUSD, the bounds of T, the
+  maximum powers of the interval formulations) multiplied one ramp by the
+  number of steps instead of summing the ramps of the steps. With constant
+  ramps nothing changes.
+
+- `IntermittentUnitBlock::check_data_consistency()` refused a
+  `MinCapacityDesign` above 1 when `MaxCapacityDesign` is negative, as if the
+  design were binary, while that design is an integer between 0 and
+  `|MaxCapacityDesign|` (e.g., the number of modules of a modular asset): it
+  now asks only that `MinCapacityDesign` be at most `|MaxCapacityDesign|`.
+
+- `NuclearUnitBlock::set_solution()` derived the start of a modulation and the
+  three indicators of a deep decrease, and left the end of a modulation and
+  the band of the output as they were, so that a Solver that writes the
+  canonical Variable alone left them with the values of whoever had written
+  them before: the schedule that came out then broke `ModulationEnd` by one
+  and, since the band rows are relaxed by `MaxPower - MinPower` while a
+  modulation travels, `BandPower` by that much. Both are derived now, the
+  band by a sweep over the three of them, since it only changes where a
+  modulation ends and a band that holds the output at one instant may leave
+  none at the next
+
+- The band of a `NuclearUnitBlock` could move against the direction of the
+  modulation that moves it, the rows asking only that it change by one: where
+  the landing power is a breakpoint, and both bands hold it, a modulation
+  upwards could therefore leave the unit a band lower, which costs nothing
+  while a downward one is paid for. The move now follows the direction, as it
+  does in the dynamic program, the two having disagreed by up to `1.2e-4` on
+  the instances of the battery. `has_modulation_direction()` is true whenever
+  the output is banded, the direction Variable being what says which way the
+  band goes
+
+- At the last instant of the horizon a `NuclearUnitBlock` with the bands could
+  take a modulation step that was neither a full ramp nor landed in a band:
+  the full ramp of a step is imposed through the modulation of the next
+  instant, which is not there, while the end of the modulation, which the band
+  rows are relaxed without, was free. The step was therefore a last one for the
+  ramp and not for the band, and on one instance of the battery the unit kept a
+  lower output for the whole day and then modulated by a fraction of the ramp
+  at its end, `5e-6` below what the dynamic program, where a modulation either
+  ends in a band or goes on by the full ramp, could reach. At the last instant
+  the next modulation is now replaced by the one that goes on past the horizon,
+  i.e., `m_{T-1} - e_{T-1}`, a single-step modulation always ends there, and
+  `set_solution()` marks as ended a modulation whose last step is not a full
+  ramp
+
+- The cuts that `ThermalUnitBlock` and `NuclearUnitBlock` separate carried a
+  constant term of 1 in their `LinearFunction`, `eNoMod` having been passed to
+  its constructor, where it is the constant, rather than to `set_function()`.
+  The `MILPSolver` reads the coefficients and not the constant, hence the rows
+  it got were right, but every check done on the `Block`, `is_feasible()`
+  comprised, saw each separated cut violated by 1 at any solution
 
 - `ACNetworkBlock` registered `"DCNetworkBlock::set_active_demand"` again,
   with an adapter casting to `ACNetworkBlock`, so that which of the two
@@ -167,36 +352,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can arrive inside one GroupModification, and there the rows that use the
   Variable of those units, i.e., the node injection and the demand ones,
   were left untouched
-
-### Changed
-
-- `NuclearUnitBlock` keeps each family of operating rules in a group of its
-  own (the tight rows on the starts of a modulation, `ModulationStartsApart`,
-  `ModulationEndStarts` and `ModulationStepStarted`, are no longer mixed with
-  `ModulationStability` and `ModulationMaxLength`), and the groups whose
-  number of rows depends on the instant (`StartUpStability`, `BandKeep`,
-  `BandMove`, `ModulationEndLink`) have the rows of instant t in their entry
-  t
-
-- the setters that change one datum spanning the whole time horizon issue
-  their "abstract" Modification inside a GroupModification, one per setter,
-  rather than one loose Modification per instant: a Solver able to execute a
-  whole set of changes in one operation can then do so, while one that is not
-  takes the group apart and sees exactly what it saw before. So far
-  `SlackUnitBlock::set_active_power_cost`, `HydroUnitBlock::set_inflow`,
-  `HydroUnitBlock::update_initial_flow_rate_in_cnstrs`,
-  `ThermalUnitBlock::set_maximum_power`,
-  `IntermittentUnitBlock::update_max_power_in_cnstrs` and `set_kappa`,
-  `BatteryUnitBlock::update_kappa_in_cnstrs`,
-  `DCNetworkBlock::change_power_flow_limit_constraints`, the four setters of
-  the prices and of the demand of `ECNetworkBlock`, and the reaction of
-  `UCBlock` to the scaling of a unit, where the four `update_*_constraints`
-  now travel in one channel, `DCNetworkBlock::set_network_cost`, the
-  `set_active_power_cost` of `HydroUnitBlock` and of
-  `IntermittentUnitBlock`, `IntermittentUnitBlock::update_objective` and
-  `ThermalUnitBlock::update_objective_active_power`. The last two were
-  `const`, which opening a channel is not: they are private helpers called
-  only from methods that are not const, and the const is gone
 
 ## [0.9.0] - 2026-09-13
 
@@ -404,6 +559,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - updated Julia and nc4 files with the stochastic logic
 
+### Removed
+
+- test/ moved to ThermalUnitBlock_Solver in test repository
+
+- useless test_package
+
+
 ### Fixed
 
 - bug in `ThermalUnitBlock::update_objective_start_up()` in which
@@ -421,13 +583,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - default value for f_MinDownTime
 
 - too many minor others to list
-
-### Removed
-
-- test/ moved to ThermalUnitBlock_Solver in test repository
-
-- useless test_package
-
 
 ## [0.6.2] - 2023-05-17
 
@@ -546,7 +701,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.8.0...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.9.0...develop
+[0.9.0]: https://gitlab.com/smspp/ucblock/-/compare/0.8.0...0.9.0
 [0.8.0]: https://gitlab.com/smspp/ucblock/-/compare/0.7.0...0.8.0
 [0.7.0]: https://gitlab.com/smspp/ucblock/-/compare/0.6.3...0.7.0
 [0.6.3]: https://gitlab.com/smspp/ucblock/-/compare/0.6.2...0.6.3

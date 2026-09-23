@@ -237,8 +237,8 @@ void ThermalUnitExtDPSolver::recover_schedule( std::vector< double > & p ,
   double H = std::min( P[ i ] - min_power[ i ] , cap - P[ i ] );
   if( ( i >= 1 ) && U[ i - 1 ] ) {                    // interior transition
    const double d = P[ i ] - P[ i - 1 ];
-   H = std::min( H , std::min( delta_ramp_up[ i - 1 ] - d ,
-                               delta_ramp_down[ i - 1 ] + d ) );
+   H = std::min( H , std::min( delta_ramp_up[ i ] - d ,
+                               delta_ramp_down[ i ] + d ) );
    }
   return( H );
   };
@@ -677,8 +677,8 @@ double ThermalUnitExtDPSolver::eval_allon_cost(
   double H = ( A > 0 ) ? A : 0;   // t=0: capacity band (no in-horizon ramp)
   if( t > 0 ) {
    const double d = P[ t ] - P[ t - 1 ];
-   double B = std::min( delta_ramp_up[ t - 1 ] - d ,
-                        delta_ramp_down[ t - 1 ] + d );
+   double B = std::min( delta_ramp_up[ t ] - d ,
+                        delta_ramp_down[ t ] + d );
    if( B < 0 )
     B = 0;
    H = ( A > 0 ) ? std::min( A , B ) : 0;
@@ -738,14 +738,13 @@ void ThermalUnitExtDPSolver::dump_states_at( Index t , double p ) const
 /*--------------------------------------------------------------------------*/
 
 // The single move of a thermal unit: the window of the scheduled move is the
-// ramp of the step, which for the step t-1 -> t is indexed by t-1 (and by 0
-// for the step from the initial state into t = 0).
+// ramp of the step, which for the step t-1 -> t is indexed by t (the step
+// from the initial state into t = 0 by 0).
 
 void ThermalUnitExtDPSolver::on_moves( Index t , Index lab ,
                                       std::vector< OnMove > & mv ) const
 {
- const Index k = t ? t - 1 : 0;
- mv.push_back( { 0 , delta_ramp_up[ k ] , delta_ramp_down[ k ] , 0.0 ,
+ mv.push_back( { 0 , delta_ramp_up[ t ] , delta_ramp_down[ t ] , 0.0 ,
                  - TUEDPINF , TUEDPINF , 0 } );
  }
 
@@ -1147,8 +1146,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
     }
    }
   else {                               // re-run the closing transition capped
-   const double ru_prev = delta_ramp_up  [ t - 1 ];
-   const double rd_prev = delta_ramp_down[ t - 1 ];
+   const double ru_prev = delta_ramp_up  [ t ];
+   const double rd_prev = delta_ramp_down[ t ];
    PQFun Fsd;   // g0 under sd_hi is folded into corr (acap=sd_hi)
    for( std::size_t i = 0 ; i < f_F[ t - 1 ].size() ; ++i ) {
     const Index tau = f_tau[ t - 1 ][ i ] + 1;   // this closing period is on
@@ -1351,7 +1350,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
                         ? std::atof( getenv( "TUEDPS_CRSTOP" ) ) : 1e30;
   for( Index t = 1 ; t < n ; ++t ) {
    PQFun Fprev = cfToPQ(); if( Fprev.empty() ) break;
-   const double dru = delta_ramp_up[ t - 1 ] , drd = delta_ramp_down[ t - 1 ];
+   const double dru = delta_ramp_up[ t ] , drd = delta_ramp_down[ t ];
    PQFun outM;
    sliding_min_corr( Fprev , dru , drd , min_power[ t ] ,
                      max_power[ t ] , t , outM );
@@ -1512,8 +1511,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
   // tau=1 and (b) the moves out of each surviving entry at t-1
   double Plo = min_power[ t ];
   double Phi = max_power[ t ];
-  double ru_prev = delta_ramp_up  [ t - 1 ];
-  double rd_prev = delta_ramp_down[ t - 1 ];
+  double ru_prev = delta_ramp_up  [ t ];
+  double rd_prev = delta_ramp_down[ t ];
 
   // per-step build buffers: reused member scratch (cleared, capacity kept)
   m_new_F   .clear();
@@ -1889,8 +1888,8 @@ void ThermalUnitExtDPSolver::build_solution( void )
    // which already carries the tau-1==1 start-up cap).
    const std::size_t idx = lk.back;
    const double p_prev =
-    reserve_corr_argmin( f_F[ t - 1 ][ idx ] , delta_ramp_up[ t - 1 ] ,
-                         delta_ramp_down[ t - 1 ] , t , p , acap ,
+    reserve_corr_argmin( f_F[ t - 1 ][ idx ] , delta_ramp_up[ t ] ,
+                         delta_ramp_down[ t ] , t , p , acap ,
                          lk.win_up , lk.win_down );
    acap = -1.0;             // only the closing step carries the shut-down cap
    lk = f_link[ t - 1 ][ idx ];

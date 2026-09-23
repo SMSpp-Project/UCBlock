@@ -277,7 +277,9 @@ class NuclearUnitBlock : public ThermalUnitBlock
  *   provided the output is not banded, which is the default. With the bands,
  *   a stable instant keeps the output in the band it is in and a modulation
  *   moves it to an adjacent band, where it has to land at its last step,
- *   while the instants in between are free [see
+ *   while the instants in between are free; at the last instant of the
+ *   horizon a modulation either ends and lands in its band, or is still in
+ *   progress and moves the output by the full ramp [see
  *   generate_abstract_constraints()].
  *
  * - The scalar variable "StabilityAfterStartUp" of type netCDF::NcUint for
@@ -671,12 +673,14 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
  /// true if the direction of a modulation step matters
  /** That is, if the modulations may last more than one instant, or the
-  * downward steps have a cost, or the unit has deep decreases; the
+  * downward steps have a cost, or the unit has deep decreases, or the output
+  * is banded, a modulation moving the band in its own direction; the
   * variables d[ t ] exist exactly in this case. */
 
  bool has_modulation_direction( void ) const {
   return( ( f_max_modulation_length > 1 ) ||
-          ( ! v_down_modulation_cost.empty() ) || has_deep_decrease() );
+          ( ! v_down_modulation_cost.empty() ) || has_deep_decrease() ||
+          has_power_bands() );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1022,6 +1026,10 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// from [see set_down_modulation_costs()]
  void objective_tail_change( const DQuadFunction * qf , Index first ,
                              Index last ) override;
+
+ /// makes the appended coefficients follow the scale factor
+ void update_objective_tail( const Subset & subset ,
+                             c_ModParam issueAMod ) override;
 
 /*--------------------------------------------------------------------------*/
  /// changes one of the two costs of the operating rules
