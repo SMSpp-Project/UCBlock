@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tools/replicate_units`, which writes an instance with K times the thermal
+  units of a given one, each copy carrying the data of the original, and
+  multiplies by K what counts the replicated components, i.e., the
+  generators, the storages, the demands and the budgets of the pollutants
 - `ThermalUnitBlock::set_min_up_down_time()` sets the minimum up and down
   times before the Variable are generated, which is when they can still be
   set: unlike the other data they decide how many Variable there are, and the
@@ -79,6 +83,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the folders of the instances have one sub-folder per kind of problem, and
+  the converters write into the one of the problem they translate, an
+  instance of one kind having landed among those of another
+- the fleet instances carry the rules that follow a start-up and a cycling
+  copy of the load, so that the units they hold are exercised on the whole
+  set of the operating rules and not on the part of it a flat load reaches
+- whoever links the module keeps it: the classes of a module register
+  themselves in the factory from a static initialiser, and a linker that
+  drops what looks unused takes the registration away with it, so the target
+  now tells whoever links it to keep the symbol that forces the module in,
+  and on ELF, where naming the symbol is not enough, the library as a whole
 - A `DCNetworkBlock` takes the KIRCHHOFF formulation where no Configuration
   says which one it wants, the PTDF one being both larger, since it carries a
   dense row per line, and the one whose flows a mixed network of AC lines and
@@ -555,7 +570,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - test/ moved to ThermalUnitBlock_Solver in test repository
 
 - useless test_package
-
 
 ### Fixed
 
