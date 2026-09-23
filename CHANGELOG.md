@@ -87,6 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old factor; the model of a unit scaled after being built is now the same as
   that of a unit scaled before.
 
+- The dynamic programming Solvers refuse a unit that has a reference
+  schedule, of which they have no term: they used to answer for a unit that
+  pays nothing to depart from its schedule, i.e., a value that is not the one
+  of the Objective, and silently. `ThermalUnitBlock::get_reference_schedule()`
+  gives the schedule, empty where there is none.
+
 - The deviation from the reference schedule of a `ThermalUnitBlock` or of a
   `BatteryUnitBlock` is weighed with the scale factor, as every other term of
   their Objective: the schedule is that of one unit, from which each of the
