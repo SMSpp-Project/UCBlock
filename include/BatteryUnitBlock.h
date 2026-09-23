@@ -1165,6 +1165,16 @@ class BatteryUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the reference schedule of the unit, if it has one
+ /** Returns the vector of the power the unit is asked to follow, empty if it
+  * has none; the deviation from it is a term of the Objective, weighed with
+  * the scale factor [see generate_objective()]. */
+
+ const std::vector< double > & get_reference_schedule( void ) const {
+  return( v_RefSchedule );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp up
  /** This method returns a vector V containing the delta ramp up at all time
   * instants. There are three possible cases:
@@ -1837,11 +1847,12 @@ class BatteryUnitBlock : public UnitBlock
  /** This function sets the kappa constant, which multiplies the minimum and
   * maximum active power, maximum primary and secondary reserve, and the
   * minimum and maximum storage levels in the constraints of this
-  * BatteryUnitBlock. The reference schedule, where the unit has one, is left
-  * as it is: the kappa changes the size of the unit rather than the number of
+  * BatteryUnitBlock. A unit that follows a reference schedule refuses to be
+  * resized: the kappa changes the size of the unit rather than the number of
   * its copies, and whether the profile a resized battery is asked to follow
   * is the same one in absolute terms or one resized with it is a question for
-  * whoever writes the instance, which is still open.
+  * whoever writes the instance, which is still open; leaving the profile
+  * where it is would answer it in silence.
   *
   * @param values An iterator to a vector containing the kappa constants.
   *
@@ -1865,11 +1876,12 @@ class BatteryUnitBlock : public UnitBlock
  /** This function sets the kappa constant, which multiplies the minimum and
   * maximum active power, maximum primary and secondary reserve, and the
   * minimum and maximum storage levels in the constraints of this
-  * BatteryUnitBlock. The reference schedule, where the unit has one, is left
-  * as it is: the kappa changes the size of the unit rather than the number of
+  * BatteryUnitBlock. A unit that follows a reference schedule refuses to be
+  * resized: the kappa changes the size of the unit rather than the number of
   * its copies, and whether the profile a resized battery is asked to follow
   * is the same one in absolute terms or one resized with it is a question for
-  * whoever writes the instance, which is still open.
+  * whoever writes the instance, which is still open; leaving the profile
+  * where it is would answer it in silence.
   *
   * @param values An iterator to a vector containing the kappa constants.
   *
