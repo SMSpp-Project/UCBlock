@@ -136,6 +136,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old factor; the model of a unit scaled after being built is now the same as
   that of a unit scaled before.
 
+- A `BatteryUnitBlock` that follows a reference schedule refuses to have its
+  kappa changed, i.e. to be resized: whether the profile a resized battery is
+  asked to follow is the same one in absolute terms or one resized with it is
+  not settled, and leaving the profile where it is would answer it in
+  silence. `get_reference_schedule()` gives the schedule, empty where there
+  is none.
+
 - The reactive node injection constraints of a `UCBlock` carry the reactive
   power of the generators and nothing else, as their documentation says: they
   used to carry the fixed consumption too, which is an ACTIVE power, on the
