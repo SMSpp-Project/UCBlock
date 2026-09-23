@@ -1242,10 +1242,11 @@ class DCNetworkData : public NetworkData
   *   and it is a SimpleConfiguration< int >, then wf is the f_value of the
   *   SimpleConfiguration< int >
   *
-  * - otherwise, wf is 0
+  * - otherwise, wf is 2
   *
-  * The chosen formulation is CYCLE if wf == 1,KIRCHHOFF if wf == 2,
-  * and PTDF in all other cases (default). */
+  * The chosen formulation is CYCLE if wf == 1, KIRCHHOFF if wf == 2, which
+  * is the one taken when no Configuration says otherwise, and PTDF in all
+  * other cases, wf == 0 among them. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 

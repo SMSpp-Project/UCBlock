@@ -823,7 +823,7 @@ void DCNetworkBlock::generate_abstract_variables( Configuration * stvv )
  NetworkBlock::generate_abstract_variables( stvv );
 
  // read Configuration to set the formulation
- Index wf = 0;  // 0: PTDF (default), 1: cycle, 2: Kirchhoff
+ Index wf = 2;  // 0: PTDF, 1: cycle, 2: Kirchhoff (default)
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
  if( auto sci = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )

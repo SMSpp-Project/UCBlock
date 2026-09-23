@@ -257,6 +257,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A `DCNetworkBlock` takes the KIRCHHOFF formulation where no Configuration
+  says which one it wants, the PTDF one being both larger, since it carries a
+  dense row per line, and the one whose flows a mixed network of AC lines and
+  HVDC links used to get wrong; a `SimpleConfiguration< int >` of value 0 in
+  the static-variables slot of the `BlockConfig` still asks for the PTDF
+  formulation, and one of value 1 for the CYCLE one. A network whose lines
+  all have a zero susceptance is a transport model under either formulation.
+
 - A `UCBlock` whose `NumberElectricalGenerators` is not the number of
   generators its units have is refused, instead of being read with the
   number the file states: everything indexed over the generators, from
