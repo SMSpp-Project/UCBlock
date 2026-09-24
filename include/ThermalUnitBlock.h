@@ -627,9 +627,9 @@ class ThermalUnitBlock : public UnitBlock
   *   = the same variables of the 3bin formulation (wf & 7 == 0);
   *
   *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
-  *     formulation (wf & 7 == 4);
+  *     formulation (wf & 7 == 3);
   *
-  *   = the \f$ p_t^h \f$ variables of the SU formulation (wf & 7 == 2);
+  *   = the \f$ p_t^h \f$ variables of the SU formulation (wf & 7 == 4);
   *
   *   = the \f$ \tilde p_t^k \f$ variables of the SD formulation
   *     (wf & 7 == 5).
@@ -641,50 +641,50 @@ class ThermalUnitBlock : public UnitBlock
   * corresponding formulation uses the perspective cuts and new variables
   * are added.
   *
-  * - wf & 7 == 8 is the "three binaries" formulation with perspective cuts
+  * - wf & 15 == 8 is the "three binaries" formulation with perspective
   *   cuts (3binPC), which has the same variables of the 3bin formulation 
   *   (wf & 7 == 0), plus the perspective cuts variables \f$ z_t \f$ that
   *   regulates the quadratic part in the objective function of the power
   *   variable \f$ p_t \f$.
   *
-  * - wf & 7 == 9 is the "model T"formulation with perspective cuts (TPC),
+  * - wf & 15 == 9 is the "model T" formulation with perspective cuts (TPC),
   *   which has exactly the same variables of the (3binPC) formulation;
   *
-  * - wf & 7 == 10 is the "dynamic programming" inspired formulation with
-  *   perspective cuts (DPPC), which has the same variables of the DP
-  *   formulation (wf & 7 == 2), plus the perspective cuts variables
-  *   \f$ z_t^{hk} \f$ that regulates the quadratic part in the
-  *   objective function of the power variable \f$ p_t^{hk} \f$;
-  *
-  * - wf & 7 == 11 is the p_t formulation with perspective cuts (p_tPC),
-  *   which has the same variables of the pt formulation (wf & 7 == 3) plus
+  * - wf & 15 == 10 is the p_t formulation with perspective cuts (p_tPC),
+  *   which has the same variables of the p_t formulation (wf & 7 == 2) plus
   *   the perspective cuts variables \f$ z_t \f$ that regulates the
   *   quadratic part in the objective function of the power variable
   *   \f$ p_t \f$;
   *
-  * - wf & 7 == 12 is the "start-up" formulation with perspective cuts
+  * - wf & 15 == 11 is the "dynamic programming" inspired formulation with
+  *   perspective cuts (DPPC), which has the same variables of the DP
+  *   formulation (wf & 7 == 3), plus the perspective cuts variables
+  *   \f$ z_t^{hk} \f$ that regulates the quadratic part in the
+  *   objective function of the power variable \f$ p_t^{hk} \f$;
+  *
+  * - wf & 15 == 12 is the "start-up" formulation with perspective cuts
   *   (SUPC), which has exactly the same variables of the SU formulation
   *   (wf & 7 == 4), plus the perspective cuts variables \f$ z_t^h \f$ that
   *   regulates the quadratic part in the objective function of the power
   *   variable \f$ p_t^h \f$;
   *
-  * - wf & 7 == 13 is the "shut-down" formulation with perspective cuts
+  * - wf & 15 == 13 is the "shut-down" formulation with perspective cuts
   *   (SDPC), which has exactly the same variables of the SD formulation
   *   (wf & 7 == 5), plus the perspective cuts variables 
   *   \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
   *   objective function of the power variable \f$ \tilde p_t^k \f$;
   *
-  * - wf & 7 == 14 is the "start-up/shut-down" formulation with perspective
+  * - wf & 15 == 14 is the "start-up/shut-down" formulation with perspective
   *   cuts (SUSDPC), which has exactly the same variables of the SUSD
   *   formulation (wf & 7 == 6), plus
   *
   *   = the perspective cuts variables \f$ z_t^h \f$ that regulates the
   *     quadratic part in the objective function of the power variable
-  *     \f$ p_t^h \f$ (as in SUPC, wf & 7 == 12);
+  *     \f$ p_t^h \f$ (as in SUPC, wf & 15 == 12);
   *
   *   = the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates
   *     the quadratic part in the objective function of the power variable
-  *     \f$ \tilde p_t^k \f$ (as in SDPC, wf & 7 == 13);
+  *     \f$ \tilde p_t^k \f$ (as in SDPC, wf & 15 == 13);
   *
   *   = the variables \f$\theta_t\f$ for each time period \f$t\f$, that
   *     substitute \f$z_t^h\f$ and \f$\tilde z_t^k\f$ for regulating the
