@@ -1747,6 +1747,37 @@ class ThermalUnitBlock : public UnitBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// returns true if the schedule in the Solution is feasible
+ /** Returns true if the schedule that the given :UnitBlockSolution holds,
+  * i.e. the commitment, the active power and the spinning reserves of the
+  * unit, is feasible: the values are read out of it and checked against the
+  * data of the unit, i.e. the operational bounds of the power, the ramps
+  * with the limits of the start-up and of the shut-down, the minimum up and
+  * down times and the state the unit comes from, so that the Variable of the
+  * ThermalUnitBlock are neither needed nor touched
+  * [see Block::is_sol_feasible()]. Those are the constraints of the unit for
+  * an integral commitment, which is what the formulations of it encode; a
+  * commitment that is not integral is therefore not declared feasible, as a
+  * Solution that says it holds a direction is not, the feasible region of a
+  * unit being bounded. A unit that carries something the schedule does not
+  * answer for is left to the check of the base class
+  * [see is_sol_feasible_physical()]. */
+
+ bool is_sol_feasible( Solution * sol ,
+		       Configuration * fsbc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// true if is_sol_feasible() reads the Solution and leaves the Variable be
+ /** Returns true if is_sol_feasible() checks the schedule against the data of
+  * the unit, which it does unless the unit carries something that the
+  * schedule does not answer for: a dimensioning variable, the reactive
+  * power, a reference schedule, a scale of its own or a Variable that is
+  * fixed. In those cases the check goes through the abstract representation,
+  * and therefore through the Variable, as the base class does it. */
+
+ [[nodiscard]] bool is_sol_feasible_physical( void ) const override;
+
 
 /** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE ThermalUnitBlock -----------*/

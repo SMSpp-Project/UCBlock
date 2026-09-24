@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ThermalUnitBlock::is_sol_feasible()` reads the schedule out of the
+  `:UnitBlockSolution` it is given and checks it against the data of the unit,
+  i.e. the operational bounds of the power, the reserves it takes room for,
+  the ramps with the limits of the start-up and of the shut-down and the
+  minimum up and down times with the state the unit comes from, so that the
+  Variable of the unit are neither needed nor touched, which
+  `is_sol_feasible_physical()` says. Those are the constraints of the unit for
+  an integral commitment, which is what every formulation of it encodes,
+  hence a commitment that is not integral is not declared feasible; a unit
+  that carries something the schedule does not answer for, i.e. a
+  dimensioning variable, the reactive power, a reference schedule, a scale of
+  its own or a Variable that is fixed, is left to the check of the base class,
+  which goes through the Variable and pays an allocation and two passes over
+  them for each entry of a global pool that is revalidated
+
 - `tools/replicate_units`, which writes an instance with K times the thermal
   units of a given one, each copy carrying the data of the original, and
   multiplies by K what counts the replicated components, i.e., the
