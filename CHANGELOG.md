@@ -140,6 +140,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the reserve band of a unit that is on for a single period, i.e., starts up
+  at t and shuts down at t+1, is capped by the smaller of the start-up and the
+  shut-down limit in both `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver`,
+  in their solutions as in their values, and so is that of a unit that is on
+  before the horizon and shuts down at the first instant; the cap was that of
+  the start-up alone, and the two DPs could give a value below the optimum
+
+- `ThermalUnitExtDPSolver` builds the solution with the shut-down cap only
+  where it bites, i.e., where it is below the maximum power, and restricts the
+  value function to the domain of the shut-down before adding its term at the
+  first instant, which was read at a point where the band was still uncapped
+
+- the formulations of `ThermalUnitBlock` with time-varying minimum and maximum
+  power are exact: in the T formulation the ramp rows weigh the state of the
+  previous instant with the minimum power of the right instant, every
+  coefficient of the max-power rows is measured against the maximum power of
+  the row, and a single on period is capped by the smaller of the start-up and
+  shut-down limits (the sign test was inverted and took the larger); in the
+  pt, DP, SU, SD and SUSD formulations every shut-down cap is the limit of the
+  instant the unit shuts down at, and the start-up limit of the SD ramp-up no
+  longer reads one instant past the horizon
+
+- in the design MIP of a unit with reactive power, the off-bounds of the
+  reactive power are multiplied by the design variable, so that a unit that is
+  not built produces no reactive power, as in the DPs
+
+- `ThermalUnitDPSolver` with time-varying minimum and maximum power no longer
+  writes out of bounds in the energy sweep when the lower end of the domain
+  lies more than a ramp-down below the previous one, and a domain that is
+  empty or below the shut-down cap makes the run infeasible instead
+
+- the dominance test of `ThermalUnitExtDPSolver` between two value functions
+  is linear in their pieces, and the profiling switches of the solver are read
+  from the environment only when `TUEDPS_PROFILE` is set
+
 - `ThermalUnitExtDPSolver` (and so `NuclearUnitExtDPSolver`) reads the label
   of the initial state as an off-state through `shut_label()` when the unit
   shuts down at the first instant or restarts from an initial off period,

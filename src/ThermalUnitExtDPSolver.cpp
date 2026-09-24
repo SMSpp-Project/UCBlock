@@ -64,6 +64,15 @@
  #include <iostream>
 #endif
 
+// diagnostic environment switches are read only when profiling is compiled
+// in; in production every switch is off and the default path is taken
+#if TUEDPS_PROFILE
+ #include <cstdlib>
+ #define TUEDPS_ENV( n ) std::getenv( n )
+#else
+ #define TUEDPS_ENV( n ) ( static_cast< const char * >( nullptr ) )
+#endif
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -126,8 +135,8 @@ int ThermalUnitExtDPSolver::compute( bool changedvars )
  using clk = std::chrono::steady_clock;
  auto tic = clk::now();
  if( stage < dp_OK ) {
-  static const long REP = std::getenv( "TUEDPS_REPEAT" )
-                          ? std::atol( std::getenv( "TUEDPS_REPEAT" ) ) : 1;
+  static const long REP = TUEDPS_ENV( "TUEDPS_REPEAT" )
+                          ? std::atol( TUEDPS_ENV( "TUEDPS_REPEAT" ) ) : 1;
   for( long r = 1 ; r < REP ; ++r ) {  // extra reps for profiling
    run_DP();
    stage = start;
@@ -229,11 +238,12 @@ void ThermalUnitExtDPSolver::recover_schedule( std::vector< double > & p ,
    return( 0 );                                      // off: no reserve
   const bool is_su = ( i == 0 ) ? ( init_up_down_time <= 0 )
                                 : ( ! U[ i - 1 ] );
-  double cap = max_power[ i ];                        // interior / on-to-end
-  if( is_su )
-   cap = bound_on[ i ];                               // start-up
-  else if( ( i + 1 < time_horizon ) && ( ! U[ i + 1 ] ) )
-   cap = bound_down[ i + 1 ];                        // shut-down (off at i+1)
+  double cap = is_su ? double( bound_on[ i ] )       // start-up
+                     : max_power[ i ];               // interior / on-to-end
+  if( ( i + 1 < time_horizon ) && ( ! U[ i + 1 ] ) &&
+      ( bound_down[ i + 1 ] < cap ) )
+   cap = bound_down[ i + 1 ];                        // shut-down (off at i+1),
+                                                     // also after a start-up
   double H = std::min( P[ i ] - min_power[ i ] , cap - P[ i ] );
   if( ( i >= 1 ) && U[ i - 1 ] ) {                    // interior transition
    const double d = P[ i ] - P[ i - 1 ];
@@ -988,7 +998,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
    return;
 #if TUEDPS_PROFILE
   // diagnostic: keep ALL states (no pruning)
-  if( std::getenv( "TUEDPS_NOPRUNE" ) )
+  if( TUEDPS_ENV( "TUEDPS_NOPRUNE" ) )
    return;
 #endif
   std::vector< char > keep( v_F.size() , 1 );
@@ -1008,8 +1018,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
      continue;
     double domeps = 0.0;
 #if TUEDPS_PROFILE
-    if( std::getenv( "TUEDPS_DOMEPS" ) )
-     domeps = std::atof( getenv( "TUEDPS_DOMEPS" ) );
+    if( TUEDPS_ENV( "TUEDPS_DOMEPS" ) )
+     domeps = std::atof( TUEDPS_ENV( "TUEDPS_DOMEPS" ) );
 #endif
     if( is_dominated_by( v_F[ i ] , v_F[ j ] , domeps ) ) {
      keep[ i ] = 0;
@@ -1115,9 +1125,41 @@ void ThermalUnitExtDPSolver::run_DP( void )
    return;
   const bool cap_bites = ( ! eff_disc[ t ].empty() ) &&
                          ( sd_hi < max_power[ t ] - 1e-12 );
+  // a run of one period (tau == 1) opens and closes at t: its band, priced
+  // under bound_on[t], is also capped by sd_hi, which the scalar
+  // delta1 = g_sd - g_su fixes exactly (no transition, hence no corr)
+  PQFun delta1;
+  const bool use_delta1 = ( ! eff_disc[ t ].empty() ) &&
+                          ( sd_hi < bound_on[ t ] - 1e-12 );
+  if( use_delta1 ) {
+   delta1 = build_reserve_discount( t , sd_hi );
+   PQFun neg = eff_disc_su[ t ];
+   for( auto & pc : neg ) { pc.beta = -pc.beta; pc.gamma = -pc.gamma; }
+   add_pwq( delta1 , neg );
+   }
+  // the readout of G + d over [Plo, sd_hi], d being defined only there: G is
+  // first cut to [Plo, sd_hi] (a single point if that is all there is), or
+  // a piece of G starting at sd_hi, which d leaves untouched, would reach
+  // the readout with the value of the uncapped band
+  const auto read_capped = [ & ]( const PQFun & G , const PQFun & d ) {
+   PQFun F;
+   for( const auto & pc : G ) {
+    const double l = std::max( pc.left , Plo );
+    const double r = std::min( pc.right , sd_hi );
+    if( ( l < r - 1e-15 ) || ( F.empty() && ( l <= r + 1e-12 ) ) )
+     F.push_back( { pc.alfa , pc.beta , pc.gamma , l , std::max( l , r ) } );
+    }
+   add_pwq( F , d );
+   return( min_over( F , Plo , sd_hi ) );
+   };
+  const auto read_tau1 = [ & ]( std::size_t i ) {
+   if( ! use_delta1 )
+    return( min_over( f_F[ t ][ i ] , Plo , sd_hi ) );
+   return( read_capped( f_F[ t ][ i ] , delta1 ) );
+   };
 #if TUEDPS_PROFILE
   // diagnostic: skip the shut-down re-run
-  if( std::getenv( "TUEDPS_NOSDFIX" ) ) {
+  if( TUEDPS_ENV( "TUEDPS_NOSDFIX" ) ) {
    for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i ) {
     if( f_tau[ t ][ i ] < mut ) continue;
     auto [ v , p ] = min_over( f_F[ t ][ i ] , Plo , sd_hi );
@@ -1141,10 +1183,10 @@ void ThermalUnitExtDPSolver::run_DP( void )
    for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i ) {
     if( f_tau[ t ][ i ] < mut ) continue;
     std::pair< double , double > vp;
-    if( use_delta && ( f_tau[ t ][ i ] > 1 ) ) {  // tau==1 carries g_su, skip
-     PQFun F = f_F[ t ][ i ]; add_pwq( F , delta );
-     vp = min_over( F , Plo , sd_hi );
-     }
+    if( f_tau[ t ][ i ] == 1 )            // tau == 1 carries g_su
+     vp = read_tau1( i );
+    else if( use_delta )
+     vp = read_capped( f_F[ t ][ i ] , delta );
     else vp = min_over( f_F[ t ][ i ] , Plo , sd_hi );
     upd( shut_label( t , f_link[ t ][ i ].lab ) , vp.first ,
          f_tau[ t ][ i ] , vp.second , f_link[ t ][ i ] );
@@ -1175,13 +1217,11 @@ void ThermalUnitExtDPSolver::run_DP( void )
      }
     }
    // tau == 1 (mut == 1: start-up and shut-down in the same period) is not
-   // produced by the t-1 -> t transition; read it off f_F[t] as before. Its
-   // band is under bound_on already; the extra min(bound_on,sd_hi) tightening
-   // is a rare (mut==1) refinement left for a follow-up.
+   // produced by the t-1 -> t transition; read it off f_F[t]
    if( mut <= 1 )
     for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i ) {
      if( f_tau[ t ][ i ] != 1 ) continue;
-     auto [ v , p ] = min_over( f_F[ t ][ i ] , Plo , sd_hi );
+     auto [ v , p ] = read_tau1( i );
      upd( shut_label( t , f_link[ t ][ i ].lab ) , v , 1 , p ,
           f_link[ t ][ i ] );
      }
@@ -1323,14 +1363,14 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // sliding_min_corr (mpQP if TUEDPS_MPQP), (2) a dense-grid BRUTE of the
  // identical formula min_q[F(q)+reserve_reward(min(A,B))]. Reveals the
  // true per-transition drift (breaks the out=Gmin self-consistency).
- if( std::getenv( "TUEDPS_CLEANREF" ) ) {
+ if( TUEDPS_ENV( "TUEDPS_CLEANREF" ) ) {
   double glo = 1e300 , ghi = -1e300;
   for( Index t = 0 ; t < n ; ++t ) { glo = std::min( glo , min_power[ t ] );
                                      ghi = std::max( ghi , max_power[ t ] ); }
-  const int N = std::getenv( "TUEDPS_CRN" )
-                ? std::atoi( getenv( "TUEDPS_CRN" ) ) : 2000;
-  const int NQ = std::getenv( "TUEDPS_CRNQ" )
-                 ? std::atoi( getenv( "TUEDPS_CRNQ" ) ) : 1500;
+  const int N = TUEDPS_ENV( "TUEDPS_CRN" )
+                ? std::atoi( TUEDPS_ENV( "TUEDPS_CRN" ) ) : 2000;
+  const int NQ = TUEDPS_ENV( "TUEDPS_CRNQ" )
+                 ? std::atoi( TUEDPS_ENV( "TUEDPS_CRNQ" ) ) : 1500;
   std::vector< double > cf( N + 1 );
   auto gp = [ & ]( int i ){ return glo + ( ghi - glo ) * i / N; };
   for( int i = 0 ; i <= N ; ++i ) { double p = gp( i );
@@ -1352,8 +1392,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
            sl = ( cf[ i + 1 ] - cf[ i ] ) / ( pb - pa );
     G.push_back( { 0.0 , sl , cf[ i ] - sl * pa , pa , pb } ); }
    return G; };
-  const double crstop = std::getenv( "TUEDPS_CRSTOP" )
-                        ? std::atof( getenv( "TUEDPS_CRSTOP" ) ) : 1e30;
+  const double crstop = TUEDPS_ENV( "TUEDPS_CRSTOP" )
+                        ? std::atof( TUEDPS_ENV( "TUEDPS_CRSTOP" ) ) : 1e30;
   for( Index t = 1 ; t < n ; ++t ) {
    PQFun Fprev = cfToPQ(); if( Fprev.empty() ) break;
    const double dru = delta_ramp_up[ t ] , drd = delta_ramp_down[ t ];
@@ -1609,7 +1649,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
    // quadratic interpolating the run endpoints+midpoint, accepted only
    // if within eps*(1+|f|) at 11 samples and still convex. Measures the
    // accuracy/speed tradeoff of bounding |F|.
-   { static const char * senv = std::getenv( "TUEDPS_SIMP" );
+   { static const char * senv = TUEDPS_ENV( "TUEDPS_SIMP" );
      if( senv && ( F.size() > 2 ) ) {
       const double eps = std::atof( senv );
       auto ev = []( const PieceQuad & pc , double x )
@@ -1674,7 +1714,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
   // periods, report |F| and how many pieces survive a value-merge at
   // 1e-10/1e-8/1e-6, distinguishing genuine cost-to-go complexity from
   // representation bloat.
-  if( std::getenv( "TUEDPS_TRACE" ) ) {
+  if( TUEDPS_ENV( "TUEDPS_TRACE" ) ) {
    std::size_t bi = 0 , bm = 0;
    for( std::size_t i = 0 ; i < f_F[ t ].size() ; ++i )
     if( f_F[ t ][ i ].size() > bm ) { bm = f_F[ t ][ i ].size(); bi = i; }
@@ -1715,7 +1755,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
 
 #if TUEDPS_PROFILE
   // per-t objective trajectory (diff mpQP vs param)
-  if( std::getenv( "TUEDPS_TTRACE" ) ) {
+  if( TUEDPS_ENV( "TUEDPS_TTRACE" ) ) {
    double bon = TUEDPINF; std::size_t nf = 0;
    for( const auto & s : f_on[ t ] ) bon = std::min( bon , s.min_val );
    for( const auto & Fv : f_F[ t ] ) nf += Fv.size();
@@ -1926,7 +1966,11 @@ void ThermalUnitExtDPSolver::build_solution( void )
   on_tau = v_shutdown_tau[ k ];
   on_p = v_shutdown_p[ k ];
   on_lk = v_shutdown_link[ k ];
-  on_acap = ( h + 1 < n ) ? bound_down[ h + 1 ] : -1.0;
+  // the shut-down cap bites the closing transition only below max_power,
+  // as in compute_v_shutdown()
+  on_acap = ( ( h + 1 < n ) &&
+              ( bound_down[ h + 1 ] < max_power[ h ] - 1e-12 ) )
+            ? double( bound_down[ h + 1 ] ) : -1.0;
   have_on = true;
   };
 
