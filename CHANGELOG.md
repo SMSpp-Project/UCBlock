@@ -28,26 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   units of a given one, each copy carrying the data of the original, and
   multiplies by K what counts the replicated components, i.e., the
   generators, the storages, the demands and the budgets of the pollutants
+
 - `ThermalUnitBlock::set_min_up_down_time()` sets the minimum up and down
   times before the Variable are generated, which is when they can still be
   set: unlike the other data they decide how many Variable there are, and the
-  method throws once those exist.
+  method throws once those exist
 
-- The PTDF matrix of a `DCNetworkBlock` is no longer perturbed by a Tikhonov
-  term on the diagonal (`f_tikhonov_coeff` is 0 by default), the reduced
-  Laplacian being nonsingular once a reference node per connected component is
-  removed. The perturbation broke the conservation of the flows: the PTDF rows,
-  the nodal balance of the nodes an HVDC line touches and the overall balance
-  are then no longer consistent, and together they pin a relation among the
-  injections that has nothing to do with the network, so that on a network of
-  both kinds of lines the PTDF formulation gave an optimum far from that of the
-  KIRCHHOFF one, and could even declare the problem infeasible. The two now
-  agree, on a network of 8 countries as on a triangle.
-
-- Two lines that join the same two nodes sum their susceptances in the PTDF
-  matrix, instead of the second one overwriting the entry of the first.
-
-- The costs of the operating rules of a `NuclearUnitBlock`, i.e., those of a
+- the costs of the operating rules of a `NuclearUnitBlock`, i.e., those of a
   downward modulation step and of a deep decrease, can change:
   `set_down_modulation_costs()` and `set_deep_decrease_costs()` do it, each in
   its Range and Subset form and both in the methods factory, and a
@@ -55,78 +42,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them, so that the physical representation follows and the DP Solver hears of
   it. They used to be refused, which stopped any Solver that writes on the
   Objective of the unit, such as the primal proximal heuristic of
-  `LagrangianDualSolver` with its penalty term.
-
-- `ThermalUnitBlock` accepts a `MinUpTime` (`MinDownTime`) of one instant more
-  than the horizon, which says that the unit, being on (off) before it, never
-  switches within it: the commitment is then fixed at every instant and there
-  is no start-up or shut-down variable. The bound was the horizon itself, so
-  that the last instant was free however long the minimum time.
+  `LagrangianDualSolver` with its penalty term
 
 - `ThermalUnitBlock` reads the optional variable `ShutDownCost`, the cost the
   unit pays at the instant it goes off, mapped over the time horizon as
   `StartUpCost` is and changed with `set_shutdown_costs()`. A unit that pays
   nothing to shut down keeps the vector empty and its Objective has no term
   for the shut-down variables, as before; the two DP Solvers charge the cost
-  on the arc that closes an ON run.
-
-- the pollutant budget constraints of `UCBlock` can also bound the emission
-  from below (`PollutantMinBudget`, and with an equal upper bound match a
-  value, changed with `set_pollutant_min_budget()`) and take the levels of
-  the storages into account (`PollutantStorageRho`, a factor on the level of
-  each storage at each time, the storages of a unit being at the node of its
-  first generator), which is how a limit that charges a storage for the
-  change of its level is written. To this end `UnitBlock` has
-  `get_number_storages()` and `get_storage_level()`, returning 0 and nullptr
-  unless redefined, as `BatteryUnitBlock` (its charge), `HydroUnitBlock` (its
-  reservoirs) and `HydroSystemUnitBlock` (the reservoirs of all its units) do
+  on the arc that closes an ON run
 
 - the pollutant budget constraints of `UCBlock`: for each zone of each
   pollutant, the emission of the electrical generators at the nodes of the
   zone summed over the whole time horizon, i.e., the conversion factor
   `PollutantRho` (which may depend on time, and includes the duration of the
-  time instant) times the active power, cannot exceed `PollutantBudget`. The
+  time instant) times the active power, lies between `PollutantMinBudget` and
+  `PollutantBudget`, the two matching a value when they are equal. The
   constraints are one vector with the zones of all the pollutants one after
   the other, as the budgets are in the file, they follow the scaling of the
-  units, their duals are in the `UCBlockSolution` (bit 128), and the budget
-  can be changed with `set_pollutant_budget()`; if `NumberPollutantZones` is
-  not given every pollutant has one zone, and if `PollutantZones` is not given
-  then all the nodes are in it. The constraints are grouped by pollutant, each
-  with as many as its zones (`get_pollutant_constraints()[ p ][ z ]`), while
-  the budgets and the duals keep the zones of all the pollutants one after
-  the other, as the file does
+  units, their duals are in the `UCBlockSolution` (bit 128), and the two
+  budgets are changed with `set_pollutant_budget()` and
+  `set_pollutant_min_budget()`; if `NumberPollutantZones` is not given every
+  pollutant has one zone, and if `PollutantZones` is not given then all the
+  nodes are in it. The constraints are grouped by pollutant, each with as many
+  as its zones (`get_pollutant_constraints()[ p ][ z ]`), while the budgets
+  and the duals keep the zones of all the pollutants one after the other, as
+  the file does. They also take the levels of the storages into account
+  (`PollutantStorageRho`, a factor on the level of each storage at each time,
+  the storages of a unit being at the node of its first generator), which is
+  how a limit that charges a storage for the change of its level is written;
+  to this end `UnitBlock` has `get_number_storages()` and
+  `get_storage_level()`, returning 0 and nullptr unless redefined, as
+  `BatteryUnitBlock` (its charge), `HydroUnitBlock` (its reservoirs) and
+  `HydroSystemUnitBlock` (the reservoirs of all its units) do
 
 ### Changed
 
 - the folders of the instances have one sub-folder per kind of problem, and
   the converters write into the one of the problem they translate, an
   instance of one kind having landed among those of another
+
 - the fleet instances carry the rules that follow a start-up and a cycling
   copy of the load, so that the units they hold are exercised on the whole
   set of the operating rules and not on the part of it a flat load reaches
+
 - whoever links the module keeps it: the classes of a module register
   themselves in the factory from a static initialiser, and a linker that
   drops what looks unused takes the registration away with it, so the target
   now tells whoever links it to keep the symbol that forces the module in,
   and on ELF, where naming the symbol is not enough, the library as a whole
+
 - A `DCNetworkBlock` takes the KIRCHHOFF formulation where no Configuration
   says which one it wants, the PTDF one being both larger, since it carries a
   dense row per line, and the one whose flows a mixed network of AC lines and
   HVDC links used to get wrong; a `SimpleConfiguration< int >` of value 0 in
   the static-variables slot of the `BlockConfig` still asks for the PTDF
   formulation, and one of value 1 for the CYCLE one. A network whose lines
-  all have a zero susceptance is a transport model under either formulation.
+  all have a zero susceptance is a transport model under either formulation
 
 - A `UCBlock` whose `NumberElectricalGenerators` is not the number of
   generators its units have is refused, instead of being read with the
   number the file states: everything indexed over the generators, from
   `GeneratorNode` to the emission rates, would be read over the wrong
   length, and the rows the `UCBlock` builds over them are sized with it, so
-  that the model it gives depends on how far the two numbers are apart.
+  that the model it gives depends on how far the two numbers are apart
 
 - `ThermalUnitBlock` has the new virtual `update_objective_tail()`, with
   which a derived class makes the coefficients it appends to the Objective
-  follow the scale factor: what includes its header has to be rebuilt.
+  follow the scale factor: what includes its header has to be rebuilt
 
 - `NuclearUnitBlock` keeps each family of operating rules in a group of its
   own (the tight rows on the starts of a modulation, `ModulationStartsApart`,
@@ -158,13 +140,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Scaling a `ThermalUnitBlock` after its Objective has been generated
+- the PTDF matrix of a `DCNetworkBlock` is no longer perturbed by a Tikhonov
+  term on the diagonal (`f_tikhonov_coeff` is 0 by default), the reduced
+  Laplacian being nonsingular once a reference node per connected component is
+  removed. The perturbation broke the conservation of the flows: the PTDF rows,
+  the nodal balance of the nodes an HVDC line touches and the overall balance
+  are then no longer consistent, and together they pin a relation among the
+  injections that has nothing to do with the network, so that on a network of
+  both kinds of lines the PTDF formulation gave an optimum far from that of the
+  KIRCHHOFF one, and could even declare the problem infeasible. The two now
+  agree, on a network of 8 countries as on a triangle
+
+- two lines that join the same two nodes sum their susceptances in the PTDF
+  matrix, instead of the second one overwriting the entry of the first
+
+- `ThermalUnitBlock` accepts a `MinUpTime` (`MinDownTime`) of one instant more
+  than the horizon, which says that the unit, being on (off) before it, never
+  switches within it: the commitment is then fixed at every instant and there
+  is no start-up or shut-down variable. The bound was the horizon itself, so
+  that the last instant was free however long the minimum time
+
+- scaling a `ThermalUnitBlock` after its Objective has been generated
   rewrites every term that carries the scale factor, i.e., also those of the
   shut-down, of the primary and secondary reserves, of the perspective cuts
   and of the reactive power, and in a `NuclearUnitBlock` those of the
   downward modulation steps and of the deep decreases, which used to keep the
   old factor; the model of a unit scaled after being built is now the same as
-  that of a unit scaled before.
+  that of a unit scaled before
 
 - A `BatteryUnitBlock` reads the `ReferenceSchedule` its file declares: the
   variable was among the ones it expects and all the machinery was there, the
@@ -173,46 +175,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in silence while a thermal or a hydro unit followed the one it is given.
   The AC instances carry one on each of their 15 batteries, as they do on
   their 153 thermal units, hence the two kinds of unit now behave the same
-  way.
+  way
 
 - A `BatteryUnitBlock` that follows a reference schedule refuses to have its
   kappa changed, i.e. to be resized: whether the profile a resized battery is
   asked to follow is the same one in absolute terms or one resized with it is
   not settled, and leaving the profile where it is would answer it in
   silence. `get_reference_schedule()` gives the schedule, empty where there
-  is none.
+  is none
 
-- The reactive node injection constraints of a `UCBlock` carry the reactive
+- the reactive node injection constraints of a `UCBlock` carry the reactive
   power of the generators and nothing else, as their documentation says: they
   used to carry the fixed consumption too, which is an ACTIVE power, on the
   commitment variables. Whether a unit that is off also absorbs reactive
-  power is not settled; were it to, it would call for a datum of its own.
+  power is not settled; were it to, it would call for a datum of its own
 
-- The fixed consumption of a unit that is off raises the right-hand side of
+- the fixed consumption of a unit that is off raises the right-hand side of
   the node injection constraints at a single node, as it already did with
   more than one node and as the setter of the demand already recomputed it:
   the generation lowered it instead, so that a unit consuming while off made
   the others generate less, and merely writing the demand back into the
   `UCBlock` changed the model. The value of the plan4res instances that carry
   a fixed consumption moves by 8 to 12%. The formula in the documentation,
-  which wrote the consumption as a positive term of the injection, follows.
+  which wrote the consumption as a positive term of the injection, follows
 
-- An `ACNetworkBlock` and an `OTSNetworkBlock` refuse a kappa on one of
+- an `ACNetworkBlock` and an `OTSNetworkBlock` refuse a kappa on one of
   their lines, `DCNetworkBlock::set_kappa()` being virtual now and their
   override throwing: they build their own rows and not the power flow limit
   ones the kappa is written into, so that sizing a line of theirs used to
   reach rows that are not there. What supporting it would take is written
   where they refuse it. The method that writes the kappa into the rows
   refuses as well when there are none, so that any other derived class is
-  told rather than left to write where there is nothing.
+  told rather than left to write where there is nothing
 
-- The dynamic programming Solvers refuse a unit that has a reference
+- the dynamic programming Solvers refuse a unit that has a reference
   schedule, of which they have no term: they used to answer for a unit that
   pays nothing to depart from its schedule, i.e., a value that is not the one
   of the Objective, and silently. `ThermalUnitBlock::get_reference_schedule()`
-  gives the schedule, empty where there is none.
+  gives the schedule, empty where there is none
 
-- The deviation from the reference schedule of a `ThermalUnitBlock` or of a
+- the deviation from the reference schedule of a `ThermalUnitBlock` or of a
   `BatteryUnitBlock` is weighed with the scale factor, as every other term of
   their Objective: the schedule is that of one unit, from which each of the
   copies deviates on its own, so that the fleet pays the scale factor times
@@ -221,35 +223,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   guard that refuses a change of those coefficients now asks them to be the
   scale factor. A `HydroUnitBlock` has no scale factor, hence its own
   deviation is unchanged, and the reference schedule of a `BatteryUnitBlock`
-  whose kappa changes is left as it is [see `set_kappa()`].
+  whose kappa changes is left as it is [see `set_kappa()`]
 
 - A change of the coefficients of the Objective of a `ThermalUnitBlock`, as
   a dualizing Solver makes, is divided by the scale factor before being
   stored in the costs of the unit, which are those of one copy; they used to
   be stored as they are, i.e., multiplied by the scale factor, and a scaling
   made with `eModBlck` went the same way through the start-up and fixed
-  costs.
+  costs
 
-- The dynamic programming Solvers of the `ThermalUnitBlock` and of the
+- the dynamic programming Solvers of the `ThermalUnitBlock` and of the
   `NuclearUnitBlock` report the value of all the copies of the unit, i.e.,
   the scale factor times that of the one copy they solve for, which is the
   value of the Objective; the Solution they produce is still that of one
-  copy, as the Variable of the unit are.
+  copy, as the Variable of the unit are
 
-- The reactive node injection constraints of a `UCBlock` follow the scale
+- the reactive node injection constraints of a `UCBlock` follow the scale
   factor of a unit as the active ones do, and a scaled unit with a fixed
   consumption at a single node gets the fixed consumption, and no longer the
-  scale factor, as the coefficient of its commitment.
+  scale factor, as the coefficient of its commitment
 
-- Scaling a unit of a `UCBlock` with a single primary, secondary or inertia
+- scaling a unit of a `UCBlock` with a single primary, secondary or inertia
   zone no longer reads the zone of its generators out of an empty vector,
-  which crashed.
+  which crashed
 
 - `IntermittentUnitBlock::scale()` tells the `UCBlock` even when no Solver
   is listening, as the thermal unit and the battery do, so that the rows
-  carrying the scale factor are rewritten anyway.
+  carrying the scale factor are rewritten anyway
 
-- The ramps of a `ThermalUnitBlock` that change over time are read as the
+- the ramps of a `ThermalUnitBlock` that change over time are read as the
   documentation says in every formulation and Solver: `DeltaRampUp[ t ]`
   (`DeltaRampDown[ t ]`) bounds the increase (decrease) of the power from
   t - 1 to t, from `InitialPower` if t = 0. The 3bin and pt formulations,
@@ -260,13 +262,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   formulations whose rows span several steps (SUSD, the bounds of T, the
   maximum powers of the interval formulations) multiplied one ramp by the
   number of steps instead of summing the ramps of the steps. With constant
-  ramps nothing changes.
+  ramps nothing changes
 
 - `IntermittentUnitBlock::check_data_consistency()` refused a
   `MinCapacityDesign` above 1 when `MaxCapacityDesign` is negative, as if the
   design were binary, while that design is an integer between 0 and
   `|MaxCapacityDesign|` (e.g., the number of modules of a modular asset): it
-  now asks only that `MinCapacityDesign` be at most `|MaxCapacityDesign|`.
+  now asks only that `MinCapacityDesign` be at most `|MaxCapacityDesign|`
 
 - `NuclearUnitBlock::set_solution()` derived the start of a modulation and the
   three indicators of a deep decrease, and left the end of a modulation and
@@ -279,7 +281,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   modulation ends and a band that holds the output at one instant may leave
   none at the next
 
-- The band of a `NuclearUnitBlock` could move against the direction of the
+- the band of a `NuclearUnitBlock` could move against the direction of the
   modulation that moves it, the rows asking only that it change by one: where
   the landing power is a breakpoint, and both bands hold it, a modulation
   upwards could therefore leave the unit a band lower, which costs nothing
@@ -289,7 +291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the output is banded, the direction Variable being what says which way the
   band goes
 
-- At the last instant of the horizon a `NuclearUnitBlock` with the bands could
+- at the last instant of the horizon a `NuclearUnitBlock` with the bands could
   take a modulation step that was neither a full ramp nor landed in a band:
   the full ramp of a step is imposed through the modulation of the next
   instant, which is not there, while the end of the modulation, which the band
@@ -303,7 +305,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set_solution()` marks as ended a modulation whose last step is not a full
   ramp
 
-- The cuts that `ThermalUnitBlock` and `NuclearUnitBlock` separate carried a
+- the cuts that `ThermalUnitBlock` and `NuclearUnitBlock` separate carried a
   constant term of 1 in their `LinearFunction`, `eNoMod` having been passed to
   its constructor, where it is the constant, rather than to `set_function()`.
   The `MILPSolver` reads the coefficients and not the constant, hence the rows
