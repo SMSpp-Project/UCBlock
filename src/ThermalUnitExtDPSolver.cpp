@@ -840,7 +840,7 @@ void ThermalUnitExtDPSolver::not_larger( const PQFun & F , const PQFun & G ,
 //    stay ready from t-1 (label idle_label( t , e' , 1 ) == e), the long
 //    shutdown arc from t - mdt (label idle_label( t - mdt + 1 , e' , mdt )
 //    == e), and the initial off trail (label
-//    idle_label( 0 , init_label() , t + 1 ) == e);
+//    idle_label( 0 , shut_label( 0 , init_label() ) , t + 1 ) == e);
 //  - new F^{1,lab}_t built from c_off_ready[t-1][e] with
 //    start_label( t , e ) == lab (restart arc);
 //  - new F^{tau+1,lab}_t built from each surviving F^{tau,lab'}_{t-1} and
@@ -878,6 +878,11 @@ void ThermalUnitExtDPSolver::run_DP( void )
  const Index E = std::max( off_labels() , Index( 1 ) );  // off labels
  const Index NL = std::max( on_labels() , Index( 1 ) );  // on labels
  const Index l0 = init_label();
+ // the label of the initial state read as an off-state: the on-state of a
+ // unit that was on shuts down with shut_label(), while the one of a unit
+ // that was off is the off-state it would have after a shut-down, the two
+ // codes being different in general
+ const Index e0 = shut_label( 0 , l0 );
 
  // initialise all the per-time-step state vectors to empty / +INF.
  // recycle the previous solve's PQFun buffers into the pool first, then
@@ -1242,7 +1247,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
   // path through v_shutdown handles the trajectory, possibly multi-period).
   if( ( Index( init_up_down_time ) >= min_up_time ) &&
       ( ! startup_in_progress ) && ( ! shutdown_in_progress ) &&
-      ( ! fixed_on( 0 ) ) ) {
+      ( e0 != NO_LABEL ) && ( ! fixed_on( 0 ) ) ) {
    // the unit is on before the horizon and off at t = 0, i.e., it shuts
    // down at t = 0 and pays the shut-down cost of that instant
    const double sdc0 = shutdown_costs.empty() ? 0.0 : shutdown_costs[ 0 ];
@@ -1252,7 +1257,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
    // instant t = 0, since the shutdown happened at end of t = -1) is at
    // least mdt long; this only happens when mdt <= 1
    if( Index( 1 ) >= min_down_time ) {
-    const Index e = idle_label( 0 , l0 , 1 );
+    const Index e = idle_label( 0 , e0 , 1 );
     c_off_ready[ e ] = sdc0;
     f_ready_pred[ e ] = -1;
     }
@@ -1262,13 +1267,14 @@ void ThermalUnitExtDPSolver::run_DP( void )
   // init_up_down_time <= 0: the unit has been off for |init| instants
   // strictly before t = 0. We can immediately *restart* at t = 0 if the
   // off period satisfies mdt, i.e. iff |init| >= mdt.
-  bool can_restart_t0 = ( Index( - init_up_down_time ) >= mdt );
+  bool can_restart_t0 = ( Index( - init_up_down_time ) >= mdt ) &&
+                        ( e0 != NO_LABEL );
   if( can_restart_t0 && ( ! fixed_off( 0 ) ) ) {
    // F^1_0(p) = f_0(p) + SUC[0] on [P, min(Pbar, SU)]: the restart arc
    // pays the start-up cost and constrains p by the start-up ramp limit
    double lo = min_power[ 0 ];
    double hi = std::min( max_power[ 0 ] , bound_on[ 0 ] );
-   start_labels( 0 , l0 , m_start_labs );
+   start_labels( 0 , e0 , m_start_labs );
    for( const auto & [ lab0 , rng ] : m_start_labs ) {
     const double lo0 = std::max( lo , rng.first );
     const double hi0 = std::min( hi , rng.second );
@@ -1283,7 +1289,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
     f_F   [ 0 ].push_back( std::move( F ) );
     f_tau [ 0 ].push_back( 1 );
     f_on  [ 0 ].push_back( { v , p } );
-    f_link[ 0 ].push_back( { lab0 , BAD , l0 , -1 , 0.0 , 0.0 } );
+    f_link[ 0 ].push_back( { lab0 , BAD , e0 , -1 , 0.0 , 0.0 } );
     }
    }
   // "unit off at t = 0, any duration": cost 0 from the initial off state;
@@ -1294,8 +1300,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
    // "unit off at t = 0 AND ready": the off trail before t = 0 counts
    // |init| instants and t = 0 itself adds one more, so the condition is
    // |init| + 1 >= mdt (equivalently, the unit is ready right at t = 0)
-   if( Index( - init_up_down_time ) + 1 >= mdt ) {
-    const Index e = idle_label( 0 , l0 , 1 );
+   if( ( Index( - init_up_down_time ) + 1 >= mdt ) && ( e0 != NO_LABEL ) ) {
+    const Index e = idle_label( 0 , e0 , 1 );
     c_off_ready[ e ] = 0;
     f_ready_pred[ e ] = -1;
     }
@@ -1471,13 +1477,13 @@ void ThermalUnitExtDPSolver::run_DP( void )
     // the "free pre-horizon shutdown" is unavailable while the unit is still
     // inside its initial start-up / shut-down trajectory (see t = 0 seeding)
     init_ready = true;
-   if( init_ready ) {
+   if( init_ready && ( e0 != NO_LABEL ) ) {
     // as in the t = 0 seeding, an off run that starts at t = 0 with the
     // unit on before the horizon pays the shut-down cost of t = 0
     const double sdc0 = ( shutdown_costs.empty() ||
                           ( init_up_down_time <= 0 ) ) ? 0.0
                                                        : shutdown_costs[ 0 ];
-    relax_ready( idle_label( 0 , l0 , t + 1 ) , sdc0 , -1 , 0 );
+    relax_ready( idle_label( 0 , e0 , t + 1 ) , sdc0 , -1 , 0 );
     }
    }
   // the "long shutdown arc" spans the off instants [ t - mdt + 1 , t ]

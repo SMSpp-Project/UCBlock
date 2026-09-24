@@ -140,6 +140,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ThermalUnitExtDPSolver` (and so `NuclearUnitExtDPSolver`) reads the label
+  of the initial state as an off-state through `shut_label()` when the unit
+  shuts down at the first instant or restarts from an initial off period,
+  since the on-code of that label and the off-code a shut-down produces are
+  different in general; the label was used as it was, i.e., as an on-code,
+  and a unit whose initial state has no off-code does not take those arcs
+
 - the PTDF matrix of a `DCNetworkBlock` is no longer perturbed by a Tikhonov
   term on the diagonal (`f_tikhonov_coeff` is 0 by default), the reduced
   Laplacian being nonsingular once a reference node per connected component is
