@@ -1624,9 +1624,17 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
     }
 
    if( const auto tmod = dynamic_cast< const UnitBlockMod * >( m ) )
-    if( tmod->type() == UnitBlockMod::eScale )
-     modified_units.push_back(
-                      inspection::get_block_index( tmod->get_Block() ) );
+    if( tmod->type() == UnitBlockMod::eScale ) {
+     /* The index is looked up among the units of this UCBlock rather than
+      * among the sub-Block of the father of the unit: while a
+      * LagrangianDualSolver is attached, that father is the LagBFunction
+      * holding the unit alone, where the unit is always the 0-th. */
+     const auto units_end = v_Block.begin() + f_number_units;
+     const auto it = std::find( v_Block.begin() , units_end ,
+                                tmod->get_Block() );
+     if( it != units_end )
+      modified_units.push_back( std::distance( v_Block.begin() , it ) );
+     }
    };
 
  collect( mod.get() );

@@ -147,6 +147,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the scaling of a unit rewrites the rows of that unit also while a
+  `LagrangianDualSolver` is attached: the index of the unit was asked to its
+  father, which is then the `LagBFunction` holding the unit alone, so that
+  every unit was taken for unit 0; the index is now looked up among the
+  units of the `UCBlock`
+
 - the reserve band of a unit that is on for a single period, i.e., starts up
   at t and shuts down at t+1, is capped by the smaller of the start-up and the
   shut-down limit in both `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver`,
