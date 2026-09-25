@@ -147,6 +147,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- on macOS a program linking the module lost the classes the module
+  registers in the factories when the linker dropped the library, as it
+  does under `-dead_strip_dylibs`, which conda sets: the target now asks the
+  linker for the symbol that forces the module in (`-u`), which ld64,
+  unlike the ELF linker, counts as a use of the library
+
 - the scaling of a unit rewrites the rows of that unit also while a
   `LagrangianDualSolver` is attached: the index of the unit was asked to its
   father, which is then the `LagBFunction` holding the unit alone, so that
