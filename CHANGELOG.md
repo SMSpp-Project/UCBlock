@@ -106,20 +106,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now tells whoever links it to keep the symbol that forces the module in,
   and on ELF, where naming the symbol is not enough, the library as a whole
 
-- A `DCNetworkBlock` takes the KIRCHHOFF formulation where no Configuration
+- a `DCNetworkBlock` takes the KIRCHHOFF formulation where no Configuration
   says which one it wants, the PTDF one being both larger, since it carries a
   dense row per line, and the one whose flows a mixed network of AC lines and
   HVDC links used to get wrong; a `SimpleConfiguration< int >` of value 0 in
   the static-variables slot of the `BlockConfig` still asks for the PTDF
-  formulation, and one of value 1 for the CYCLE one. A network whose lines
-  all have a zero susceptance is a transport model under either formulation
+  formulation, and one of value 1 for the CYCLE one. A network whose lines all
+  have a zero susceptance is a transport model under either formulation
 
-- A `UCBlock` whose `NumberElectricalGenerators` is not the number of
-  generators its units have is refused, instead of being read with the
-  number the file states: everything indexed over the generators, from
-  `GeneratorNode` to the emission rates, would be read over the wrong
-  length, and the rows the `UCBlock` builds over them are sized with it, so
-  that the model it gives depends on how far the two numbers are apart
+- a `UCBlock` whose `NumberElectricalGenerators` is not the number of
+  generators its units have is refused, instead of being read with the number
+  the file states: everything indexed over the generators, from `GeneratorNode`
+  to the emission rates, would be read over the wrong length, and the rows the
+  `UCBlock` builds over them are sized with it, so that the model it gives
+  depends on how far the two numbers are apart
 
 - `ThermalUnitBlock` has the new virtual `update_objective_tail()`, with
   which a derived class makes the coefficients it appends to the Objective
@@ -229,7 +229,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is no start-up or shut-down variable. The bound was the horizon itself, so
   that the last instant was free however long the minimum time
 
-- scaling a `ThermalUnitBlock` after its Objective has been generated
 - the step that fetches the data archive of this module says what went wrong
   when it goes wrong: the download is checked, an archive that did not arrive
   is removed instead of being left on disk for the build to take for the real
@@ -238,29 +237,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   while extracting it, with the message of `tar` and no mention of the
   download
 
-- Scaling a `ThermalUnitBlock` after its Objective has been generated
-  rewrites every term that carries the scale factor, i.e., also those of the
-  shut-down, of the primary and secondary reserves, of the perspective cuts
-  and of the reactive power, and in a `NuclearUnitBlock` those of the
-  downward modulation steps and of the deep decreases, which used to keep the
-  old factor; the model of a unit scaled after being built is now the same as
-  that of a unit scaled before
+- scaling a `ThermalUnitBlock` after its Objective has been generated rewrites
+  every term that carries the scale factor, i.e., also those of the shut-down,
+  of the primary and secondary reserves, of the perspective cuts and of the
+  reactive power, and in a `NuclearUnitBlock` those of the downward modulation
+  steps and of the deep decreases, which used to keep the old factor; the model
+  of a unit scaled after being built is now the same as that of a unit scaled
+  before
 
-- A `BatteryUnitBlock` reads the `ReferenceSchedule` its file declares: the
+- a `BatteryUnitBlock` reads the `ReferenceSchedule` its file declares: the
   variable was among the ones it expects and all the machinery was there, the
   deviation variables, the rows and the term of the Objective, but the datum
-  was never deserialized, so that the schedule of a battery was thrown away
-  in silence while a thermal or a hydro unit followed the one it is given.
-  The AC instances carry one on each of their 15 batteries, as they do on
-  their 153 thermal units, hence the two kinds of unit now behave the same
-  way
+  was never deserialized, so that the schedule of a battery was thrown away in
+  silence while a thermal or a hydro unit followed the one it is given. The AC
+  instances carry one on each of their 15 batteries, as they do on their 153
+  thermal units, hence the two kinds of unit now behave the same way
 
-- A `BatteryUnitBlock` that follows a reference schedule refuses to have its
+- a `BatteryUnitBlock` that follows a reference schedule refuses to have its
   kappa changed, i.e. to be resized: whether the profile a resized battery is
   asked to follow is the same one in absolute terms or one resized with it is
-  not settled, and leaving the profile where it is would answer it in
-  silence. `get_reference_schedule()` gives the schedule, empty where there
-  is none
+  not settled, and leaving the profile where it is would answer it in silence.
+  `get_reference_schedule()` gives the schedule, empty where there is none
 
 - the reactive node injection constraints of a `UCBlock` carry the reactive
   power of the generators and nothing else, as their documentation says: they
@@ -303,12 +300,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deviation is unchanged, and the reference schedule of a `BatteryUnitBlock`
   whose kappa changes is left as it is [see `set_kappa()`]
 
-- A change of the coefficients of the Objective of a `ThermalUnitBlock`, as
-  a dualizing Solver makes, is divided by the scale factor before being
-  stored in the costs of the unit, which are those of one copy; they used to
-  be stored as they are, i.e., multiplied by the scale factor, and a scaling
-  made with `eModBlck` went the same way through the start-up and fixed
-  costs
+- a change of the coefficients of the Objective of a `ThermalUnitBlock`, as a
+  dualizing Solver makes, is divided by the scale factor before being stored in
+  the costs of the unit, which are those of one copy; they used to be stored as
+  they are, i.e., multiplied by the scale factor, and a scaling made with
+  `eModBlck` went the same way through the start-up and fixed costs
 
 - the dynamic programming Solvers of the `ThermalUnitBlock` and of the
   `NuclearUnitBlock` report the value of all the copies of the unit, i.e.,
