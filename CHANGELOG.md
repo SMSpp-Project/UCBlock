@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the data archive 2026-09-26, which adds to `pypsa-data` the networks of
+  pypsa2smspp that the batteries of `tests` read in the form of each module:
+  one scenario of the modular family with the design in the units
+  (`ucblock/smspp_mod_t48_s1_b2c_det_ucblock.nc`), the modular family as an
+  MSSB (`mssb/smspp_mod_t48_s10_b2c_o2_mssb_ucblock.nc`) and a TSSB of the
+  thermal family, whose scenarios are unit commitments
+  (`tssb-thermal/smspp_tuc_u10_t24_s3_b1.nc4`)
+
 - `ThermalUnitBlock::is_sol_feasible()` reads the schedule out of the
   `:UnitBlockSolution` it is given and checks it against the data of the unit,
   i.e. the operational bounds of the power, the reserves it takes room for,
