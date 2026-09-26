@@ -2698,6 +2698,19 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  ~DCNetworkBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
+/*--------------------------------------------------------------------------*/
+ /// tells whether the dual prices of the lines held here are feasible
+ /** Returns true if this DCNetworkBlockSolution holds the dual prices of the
+  * capacity of the lines, false if it holds none [see Solution::
+  * is_dual_feasible()]: the price of a line is the dual value of its ranged
+  * capacity constraint, or the sum of those of the two design constraints
+  * of opposite sense, and in both cases any value of it is feasible. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override {
+  return( ! v_cost.empty() );
+  }
+
 /*------ METHODS DESCRIBING THE BEHAVIOR OF A DCNetworkBlockSolution ------*/
 
  void read( const Block * block ) override;

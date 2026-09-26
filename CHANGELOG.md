@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `is_dual_feasible()` of the Solution of the module [see
+  `Solution::is_dual_feasible()`]: `UCBlockSolution` checks the sign of the
+  duals of the demand, reserve, inertia and pollutant constraints against
+  the finite sides of those rows and asks its `NetworkBlockSolution`,
+  `DCNetworkBlockSolution` holds the prices of the lines, which may have any
+  sign, `DesignNetworkBlockSolution` asks its sub-networks, and the
+  Solution of the units and `NetworkBlockSolution`, which hold no dual
+  values, return false
+
 - the data archive 2026-09-26, which adds to `pypsa-data` the networks of
   pypsa2smspp that the batteries of `tests` read in the form of each module:
   one scenario of the modular family with the design in the units

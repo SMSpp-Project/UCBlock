@@ -2826,6 +2826,71 @@ void UCBlockSolution::read( const Block * block )
 
 /*--------------------------------------------------------------------------*/
 
+bool UCBlockSolution::is_dual_feasible( Block * block , Configuration * fsbc )
+{
+ auto UCB = dynamic_cast< UCBlock * >( block );
+ if( ! UCB )
+  throw( std::invalid_argument( "UCBlockSolution::is_dual_feasible: block "
+				"is not a UCBlock" ) );
+
+ double eps = 1e-6;
+ if( auto c = dynamic_cast< SimpleConfiguration< double > * >( fsbc ) )
+  eps = c->f_value;
+
+ const auto obj = UCB->get_objective();
+ const bool minimize = ( ! obj ) || ( obj->get_sense() == Objective::eMin );
+
+ bool any = ! v_demand_duals.empty();  // the duals of equalities are free
+
+ // the duals of the rows of a [ t ][ zone ] array against those rows
+ auto check = [ & ]( const auto & duals , const auto & rows , Index nz ) {
+  if( duals.empty() )
+   return( true );
+  any = true;
+  if( rows.empty() )
+   return( false );
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   for( Index z = 0 ; z < nz ; ++z )
+    if( ! rows[ t ][ z ].dual_sign_feasible( duals[ t ][ z ] , eps ,
+					     minimize ) )
+     return( false );
+  return( true );
+  };
+
+ if( ! ( check( v_primary_duals , UCB->get_const_primary_demand_constraints() ,
+		f_number_primary_zones ) &&
+	 check( v_secondary_duals ,
+		UCB->get_const_secondary_demand_constraints() ,
+		f_number_secondary_zones ) &&
+	 check( v_inertia_duals , UCB->get_const_inertia_demand_constraints() ,
+		f_number_inertia_zones ) ) )
+  return( false );
+
+ if( ! v_pollutant_duals.empty() ) {
+  any = true;
+  auto d = v_pollutant_duals.begin();
+  for( const auto & zones : UCB->get_const_pollutant_constraints() )
+   for( const auto & constraint : zones ) {
+    if( d == v_pollutant_duals.end() )
+     return( false );
+    if( ! constraint.dual_sign_feasible( *(d++) , eps , minimize ) )
+     return( false );
+    }
+  }
+
+ // the NetworkBlockSolution, which say false if they hold no dual value
+ for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+  if( v_network_Solution[ i ] )
+   if( auto NBi = UCB->get_network_block( i ) )
+    if( v_network_Solution[ i ]->is_dual_feasible( NBi , fsbc ) )
+     any = true;
+
+ return( any );
+
+ }  // end( UCBlockSolution::is_dual_feasible )
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlockSolution::write( Block * block )
 {
  auto UCB = dynamic_cast< UCBlock * >( block );

@@ -2284,6 +2284,18 @@ class UCBlockSolution : public Solution {
    delete nbs;
   }
 
+/*--------------------------------------------------------------------------*/
+ /// tells whether the dual values held here are feasible for the Block
+ /** Checks that the duals of the primary, secondary and inertia demand
+  * constraints and of the pollutant budget constraints held here have the
+  * sign that the finite sides of those constraints allow [see RowConstraint::
+  * dual_sign_feasible()], the duals of the node injection constraints being
+  * those of equalities, and asks the NetworkBlockSolution held here; false if
+  * none of them holds any dual value [see Solution::is_dual_feasible()]. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override;
+
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A UCBlockSolution ---------*/
 
  void read( const Block * block ) override final;
