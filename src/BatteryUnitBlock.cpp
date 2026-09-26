@@ -2326,9 +2326,9 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   *
   *   whose multiplier belongs to the side its sign points at [alpha]
   *
-  *   p^{+}_{t} <= kappa * u^{+}_t * P^{max}_{t}                   [alpha_max_u]
+  *   p^{+}_{t} <= - kappa * u^{+}_t * P^{min}_{t}                 [alpha_max_u]
   *
-  *   p^{-}_{t} <= - kappa * (1 - u^{+}_t) * P^{min}_{t}           [alpha_min_u]
+  *   p^{-}_{t} <= kappa * (1 - u^{+}_t) * P^{max}_{t}             [alpha_min_u]
   *
   * - Storage level bounds (beta):
   *
@@ -2345,8 +2345,8 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   * The name between [] represents the dual variable associated with each
   * constraint. The linearization coefficient is
   *
-  *   P^{min} ' (lambda_min + C^{c} alpha_in + (1 - u^+) * alpha_min_u) -
-  *   P^{max} ' (lambda_max + C^{d} alpha_out + u^+ * alpha_max_u) +
+  *   P^{min} ' (lambda_min + C^{c} alpha_in + u^+ * alpha_max_u) -
+  *   P^{max} ' (lambda_max + C^{d} alpha_out + (1 - u^+) * alpha_min_u) +
   *   V^{min} ' beta_min - V^{max} ' beta_max -
   *   P^{pr max} ' gamma_pr - P^{sc max} ' gamma_sc
   *
@@ -2462,13 +2462,13 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   if( max_intake_binary_constraints ) {
    const auto alpha_max_u =
     std::abs( max_intake_binary_constraints[ t ].get_dual() );
-   linearization += - alpha_max_u * u[ t ].get_value() * max_power;
+   linearization += alpha_max_u * u[ t ].get_value() * min_power;
   }
 
   if( max_outtake_binary_constraints ) {
    const auto alpha_min_u =
     std::abs( max_outtake_binary_constraints[ t ].get_dual() );
-   linearization += ( 1.0 - u[ t ].get_value() ) * alpha_min_u * min_power;
+   linearization += - ( 1.0 - u[ t ].get_value() ) * alpha_min_u * max_power;
   }
 
   // Storage level bounds
