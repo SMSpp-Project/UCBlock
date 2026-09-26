@@ -11,13 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The way a Block is sized has a name in the methods factory, so that a
   consumer can write it and read the sensitivity back without knowing which
-  class it is holding. `ThermalUnitBlock`, `IntermittentUnitBlock` and
-  `BatteryUnitBlock` register `scale()` as `<class>::replicate`, which stands
-  for k identical copies of the unit; `IntermittentUnitBlock`,
-  `BatteryUnitBlock` and `DCNetworkBlock` register `set_kappa()` as
-  `<class>::resize`, which stands for one copy of k times the size. The
-  thermal unit deliberately does not offer the second road, its commitment
-  being binary. The old names stay registered, a registered name travelling
+  class it is holding. `ThermalUnitBlock`, `NuclearUnitBlock`,
+  `IntermittentUnitBlock` and `BatteryUnitBlock` register `scale()` as
+  `<class>::replicate`, which stands for k identical copies of the unit;
+  `IntermittentUnitBlock`, `BatteryUnitBlock` and `DCNetworkBlock` register
+  `set_kappa()` as `<class>::resize`, which stands for one copy of k times the
+  size. The thermal and the nuclear units deliberately do not offer the
+  second road, their commitment being binary. The old names stay registered, a registered name travelling
   inside the instances that name it.
 
 - The sensitivity that mirrors each of those names. `<class>::get_resize_
@@ -28,7 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   because that factor lives in the rows the container builds on top of the
   unit and not in the rows of the unit. Both come in the range and the subset
   form, both refuse a span shorter than what they are asked for, and both
-  refuse an index that does not exist.
+  refuse an index that does not exist. The derivative with respect to the
+  copies sums, row by row, what the factor multiplies there: the power of the
+  unit in the active and in the reactive node injection, with the fixed
+  consumption of a unit that is off subtracted, its reserves, its inertia,
+  its emissions in the pollutant budget with the levels of its storages, and
+  the cost of one copy.
 
 - `DCNetworkBlock::get_resize_linearization( line )` and
   `UCBlock::get_replicate_linearization( unit )`, the two protected methods
@@ -179,6 +184,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only from methods that are not const, and the const is gone
 
 ### Fixed
+
+- `BatteryUnitBlock::get_kappa_linearization()` reads the two rows that keep
+  a battery from charging and discharging at once with the sizes they carry,
+  the minimum power on the charging row and the maximum one on the
+  discharging row: it had them swapped, which gave a wrong sensitivity for a
+  battery whose two powers differ, while a symmetric one hid it
 
 - on macOS a program linking the module lost the classes the module
   registers in the factories when the linker dropped the library, as it
