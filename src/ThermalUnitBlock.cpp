@@ -995,6 +995,16 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                          "CommitmentDesign_Const_Thermal" );
   }
 
+ // the cap on the last on-power p_t of an on-interval that closes at t: the
+ // ShutDownLimit of the shut-down instant t + 1, none (the operational
+ // maximum power) if t is the last period, as in the 3bin and T formulations
+ // and in the DP solvers
+ auto sd_cap = [ this ]( Index t ) -> double {
+  const double pmax = get_operational_max_power( t );
+  return( t + 1 < f_time_horizon ?
+          std::min( double( v_ShutDownLimit[ t + 1 ] ) , pmax ) : pmax );
+  };
+
  // compute the \psi constants for DP-related formulations- - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1007,11 +1017,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
    Index t = v_P_h_k[ j ].first;
    v_psi[ j ] = get_operational_max_power( t );
-   if( v_P_h_k[ j ].second.second <= f_time_horizon )
+   // the interval ( h , k ) is on in the periods h - 1 , ... , k - 1: it
+   // starts up at h - 1 and shuts down at k
+   if( v_P_h_k[ j ].second.second < f_time_horizon )
     if( ! v_DeltaRampDown.empty() )
      if( v_P_h_k[ j ].second.first > 0 )
       v_psi[ j ] = std::min( v_psi[ j ] ,
-			     v_ShutDownLimit[ t ] +
+			     v_ShutDownLimit[ v_P_h_k[ j ].second.second ] +
 			     ramp_down_sum( t + 1 , v_P_h_k[ j ].second.second - 1 ) );
 
    if( ! v_DeltaRampUp.empty() ) {
@@ -1021,7 +1033,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     if( v_P_h_k[ j ].second.first > 0 )
      v_psi[ j ] = std::min( v_psi[ j ] ,
-			    v_StartUpLimit[ t ] +
+			    v_StartUpLimit[ v_P_h_k[ j ].second.first - 1 ] +
 			    ramp_up_sum( v_P_h_k[ j ].second.first , t ) );
     }
 
@@ -1439,10 +1451,18 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
     vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
 
+    // on at t - 1 and t the row is p_t - p_{t-1} <= DeltaRampUp[ t ], at a
+    // shut-down at t it is p_{t-1} >= MinPower[ t - 1 ]: the shut-down term
+    // makes up for the difference of the minimum powers
     if( t > 0 ) {
      vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , -1.0 ) );
      vars.push_back( std::make_pair( &v_commitment[ t - 1 ] ,
-                                     get_operational_min_power( t - 1 ) ) );
+                                     get_operational_min_power( t ) ) );
+     if( ( t >= init_t ) && ( get_operational_min_power( t - 1 ) !=
+                              get_operational_min_power( t ) ) )
+      vars.push_back( std::make_pair( &v_shut_down[ t - init_t ] ,
+                                      get_operational_min_power( t - 1 ) -
+                                      get_operational_min_power( t ) ) );
     }
 
     if( t >= init_t )
@@ -1841,14 +1861,15 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
             if( ( t + k + 1 == v_Y_plus[ i ].first ) &&
                 ( t + k + 1 < v_Y_plus[ i ].second ) )
             vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                             -v_StartUpLimit[ t + k + 1 ] ) );
+                                             -v_StartUpLimit[ t + k ] ) );
 
        if( ( t + k + 1 == v_Y_plus[ i ].first ) &&
           ( t + k + 1 == v_Y_plus[ i ].second ) )
             vars.push_back(
              std::make_pair( &v_commitment_plus[ i ] ,
-                                    -std::min( v_StartUpLimit[ t + k + 1 ],
-                                               v_ShutDownLimit[ t + k + 1 ] ) ) );
+                                    -std::min( double(
+                                                v_StartUpLimit[ t + k ] ) ,
+                                               sd_cap( t + k ) ) ) );
            }
 
           RampUp_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -1909,7 +1930,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      vars.push_back( std::make_pair( &v_active_power[ t - 1 ] , 1.0 ) );
      vars.push_back( std::make_pair( &v_commitment[ t - 1 ] ,
                                      -( v_DeltaRampDown[ t ] +
-                                        get_operational_min_power( t - 1 ) ) ) );
+                                        get_operational_min_power( t ) ) ) );
     }
 
     if( t >= init_t )
@@ -1954,7 +1975,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                         -v_DeltaRampDown[ t ] ) );
        if( ( v_Y_plus[ i ].first <= t ) && ( t == v_Y_plus[ i ].second ) )
         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        -v_ShutDownLimit[ t - 1 ] ) );
+                                        -v_ShutDownLimit[ t ] ) );
        if( ( v_Y_plus[ i ].first == t + 1 ) &&
            ( t + 1 <= v_Y_plus[ i ].second ) )
         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
@@ -2086,7 +2107,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                           -v_DeltaRampDown[ t ] ) );
          if( t == v_Y_plus[ i ].second )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          -v_ShutDownLimit[ t - 1 ] ) );
+                                          -v_ShutDownLimit[ t ] ) );
         }
 
        RampDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2172,13 +2193,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
             if( ( t + 1 == v_Y_plus[ i ].second ) &&
                 ( t + 1 > v_Y_plus[ i ].first ) )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                             -v_ShutDownLimit[ t ] ) );
+                                             -v_ShutDownLimit[ t + 1 ] ) );
 
             if( ( t + 1 == v_Y_plus[ i ].second ) &&
                 ( t + 1 == v_Y_plus[ i ].first ) )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
                                              -std::min( v_StartUpLimit[ t ] ,
-                                              v_ShutDownLimit[ t ] ) ) );
+                                              v_ShutDownLimit[ t + 1 ] ) ) );
            }
 
           RampDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2253,7 +2274,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
             if( ( t + 1 < v_Y_plus[ i ].first ) &&
                 ( t + k + 1 >= v_Y_plus[ i ].first ) )
              vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                              get_operational_min_power( t ) ) );
+                                    get_operational_min_power( t + k ) ) );
            }
 
           RampDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2314,7 +2335,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                           -v_DeltaRampDown[ t ] ) );
          if( t + 1 == v_Y_plus[ i ].first )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          get_operational_min_power( t - 1 ) ) );
+                                          get_operational_min_power( t ) ) );
         }
 
        RampDown_Const[ cnstr_idx ].set_lhs( -Inf< double >() );
@@ -2667,8 +2688,8 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                         v_StartUpLimit[ t ] ) ) );
      if( t < ( f_time_horizon - 1 ) )
       vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
-                                      -( get_operational_max_power( t + 1 ) -
-                                         v_ShutDownLimit[ t + 1 ] ) ) );
+                                      -( get_operational_max_power( t ) -
+                                         sd_cap( t ) ) ) );
     }
 
     MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -2693,12 +2714,16 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
      vars.push_back( std::make_pair( &v_start_up[ t - init_t ] ,
                                      -( get_operational_max_power( t ) -
                                         v_StartUpLimit[ t ] ) ) );
-     if( v_ShutDownLimit[ t ] != v_StartUpLimit[ t ] )
-      if( t < ( f_time_horizon - 1 ) )
-       vars.push_back( std::make_pair(
-        &v_shut_down[ t + 1 - init_t ] ,
-        -( v_StartUpLimit[ t + 1 ] - v_ShutDownLimit[ t + 1 ] ) > 0 ?
-        -( v_StartUpLimit[ t + 1 ] - v_ShutDownLimit[ t + 1 ] ) : 0.0 ) );
+     // a single on period t (v_t = w_{t+1} = 1) is capped by the smaller of
+     // the start-up and shut-down caps
+     if( t < ( f_time_horizon - 1 ) ) {
+      const double gap = std::min( double( v_StartUpLimit[ t ] ) ,
+                                   get_operational_max_power( t ) ) -
+                         sd_cap( t );
+      if( gap > 0 )
+       vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
+                                       -gap ) );
+      }
     }
 
     MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -2718,15 +2743,16 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
 
     if( t >= init_t ) {
-     if( t < ( f_time_horizon - 1 ) )
+     if( t < ( f_time_horizon - 1 ) ) {
       vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
-                                      -( get_operational_max_power( t + 1 ) -
-                                         v_ShutDownLimit[ t + 1 ] ) ) );
-     if( v_ShutDownLimit[ t ] != v_StartUpLimit[ t ] )
-      vars.push_back( std::make_pair(
-       &v_start_up[ t - init_t ] ,
-       -( v_ShutDownLimit[ t ] - v_StartUpLimit[ t ] ) > 0 ?
-       -( v_ShutDownLimit[ t ] - v_StartUpLimit[ t ] ) : 0.0 ) );
+                                      -( get_operational_max_power( t ) -
+                                         sd_cap( t ) ) ) );
+      const double gap = sd_cap( t ) -
+                         std::min( double( v_StartUpLimit[ t ] ) ,
+                                   get_operational_max_power( t ) );
+      if( gap > 0 )
+       vars.push_back( std::make_pair( &v_start_up[ t - init_t ] , -gap ) );
+      }
     }
 
     MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -2753,16 +2779,16 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     if( t >= init_t ) {
      if( t < ( f_time_horizon - 1 ) )
        vars.push_back( std::make_pair( &v_shut_down[ t + 1 - init_t ] ,
-                                       -( get_operational_max_power( t + 1 ) -
-                                          v_ShutDownLimit[ t + 1 ] ) ) );
+                                       -( get_operational_max_power( t ) -
+                                          sd_cap( t ) ) ) );
 
      for( int s = 0 ; s < min_RU ; ++s )
       if( t - init_t >= s )
        vars.push_back( std::make_pair(
         &v_start_up[ t - s - init_t ] ,
-        -( get_operational_max_power( t - s ) -
-           v_StartUpLimit[ t - s ] -
-           ramp_up_sum( t - s , t ) ) ) );
+        -std::max( 0.0 , get_operational_max_power( t ) -
+                         v_StartUpLimit[ t - s ] -
+                         ramp_up_sum( t - s , t ) ) ) );
     }
 
     MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -2789,9 +2815,9 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        if( t - init_t >= s )
         vars.push_back( std::make_pair(
          &v_start_up[ t - s - init_t ] ,
-         -( get_operational_max_power( t - s ) -
-            v_StartUpLimit[ t - s ] -
-            ramp_up_sum( t - s , t ) ) ) );
+         -std::max( 0.0 , get_operational_max_power( t ) -
+                          v_StartUpLimit[ t - s ] -
+                          ramp_up_sum( t - s , t ) ) ) );
      }
 
      MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -2818,17 +2844,17 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
        if( ( t + 1 + s ) < f_time_horizon )
         vars.push_back( std::make_pair(
          &v_shut_down[ t + 1 + s - init_t ] ,
-         -( get_operational_max_power( t + 1 + s ) -
-            v_ShutDownLimit[ t + 1 + s ] -
-            ramp_down_sum( t + 1 , t + 1 + s ) ) ) );
+         -std::max( 0.0 , get_operational_max_power( t ) -
+                          v_ShutDownLimit[ t + 1 + s ] -
+                          ramp_down_sum( t + 1 , t + 1 + s ) ) ) );
 
       for( int s = 0 ; s < v_K_SU[ t ] ; ++s )
        if( t - init_t >= s )
         vars.push_back( std::make_pair(
          &v_start_up[ t - s - init_t ] ,
-         -( get_operational_max_power( t - s ) -
-            v_StartUpLimit[ t - s ] -
-            ramp_up_sum( t - s , t ) ) ) );
+         -std::max( 0.0 , get_operational_max_power( t ) -
+                          v_StartUpLimit[ t - s ] -
+                          ramp_up_sum( t - s , t ) ) ) );
      }
 
      MaxPower_Const[ cnstr_idx ].set_lhs( 0.0 );
@@ -2855,7 +2881,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                       v_StartUpLimit[ t ] ) );
      else if( v_Y_plus[ i ].second == t + 1 )
       vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                      v_ShutDownLimit[ t ] ) );
+                                      sd_cap( t ) ) );
      else
       vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
                                       get_operational_max_power( t ) ) );
@@ -2899,7 +2925,7 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
          if( ( v_Y_plus[ i ].first <= t + 1 ) &&
              ( t + 1 == v_Y_plus[ i ].second ) )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          v_ShutDownLimit[ t ] ) );
+                                          sd_cap( t ) ) );
         }
         if( f_MinUpTime == 1 ) {
          if( ( v_Y_plus[ i ].first == t + 1 ) &&
@@ -2909,12 +2935,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
          if( ( v_Y_plus[ i ].first < t + 1 ) &&
              ( t + 1 == v_Y_plus[ i ].second ) )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          v_ShutDownLimit[ t ] ) );
+                                          sd_cap( t ) ) );
          if( ( v_Y_plus[ i ].first == t + 1 ) &&
              ( t + 1 == v_Y_plus[ i ].second ) )
           vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          std::min( v_StartUpLimit[ t ] ,
-                                                    v_ShutDownLimit[ t ] ) ) );
+                                          std::min( double(
+                                                     v_StartUpLimit[ t ] ) ,
+                                                    sd_cap( t ) ) ) );
         }
        }
 
@@ -2947,14 +2974,15 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
        if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        std::min( v_StartUpLimit[ t ] ,
-                                                  v_ShutDownLimit[ t ] ) ) );
+                                        std::min( double(
+                                                   v_StartUpLimit[ t ] ) ,
+                                                  sd_cap( t ) ) ) );
 
       } else {
 
        if( t + 1 == v_Y_plus[ i ].second )
         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        v_ShutDownLimit[ t ] ) );
+                                        sd_cap( t ) ) );
 
        if( t + 1 < v_Y_plus[ i ].second )
         for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
@@ -2991,12 +3019,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
        if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        v_ShutDownLimit[ t ] ) );
+                                        sd_cap( t ) ) );
 
        if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        std::min( v_StartUpLimit[ t ] ,
-                                                  v_ShutDownLimit[ t ] ) ) );
+                                        std::min( double(
+                                                   v_StartUpLimit[ t ] ) ,
+                                                  sd_cap( t ) ) ) );
 
       } else {
 
@@ -3562,9 +3591,13 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // the bound is Qmin_off + Qmin_on u <= q <= Qmax_off + Qmax_on u; when the
  // commitment coefficients Qmin/max_on are all zero (the default) it is the
  // plain box on q and a BoxConstraint suffices, otherwise q is coupled to the
- // commitment u and two FRowConstraints are needed
+ // commitment u and two FRowConstraints are needed. If the unit has a design
+ // variable x, an unbuilt unit has no reactive power either: the off bounds
+ // Qmin/max_off then multiply x (when finite), which also needs the rows
+ const bool reactive_design = ( f_InvestmentCost != 0 );
  const bool reactive_gated = ( ! v_MinReactivePowerOn.empty() ) ||
-                             ( ! v_MaxReactivePowerOn.empty() );
+                             ( ! v_MaxReactivePowerOn.empty() ) ||
+                             reactive_design;
 
  if( f_reactive_power &&
      ( ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) ||
@@ -3590,22 +3623,30 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
     ReactivePowerMin_Const.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    // q[t] - Qmax_on[t] u[t] <= Qmax_off[t]
+    // q[t] - Qmax_on[t] u[t] - Qmax_off[t] x <= 0, or <= Qmax_off[t]
+    const double qmax = get_max_reactive_power( t );
+    const bool dmax = reactive_design && ( qmax < Inf< double >() );
     LinearFunction::v_coeff_pair vmax;
     vmax.push_back( std::make_pair( & v_reactive_power[ t ] , 1.0 ) );
     vmax.push_back( std::make_pair( & v_commitment[ t ] ,
                                     - get_max_reactive_power_on( t ) ) );
+    if( dmax && ( qmax != 0 ) )
+     vmax.push_back( std::make_pair( & design , - qmax ) );
     ReactivePowerMax_Const[ t ].set_lhs( - Inf< double >() );
-    ReactivePowerMax_Const[ t ].set_rhs( get_max_reactive_power( t ) );
+    ReactivePowerMax_Const[ t ].set_rhs( dmax ? 0.0 : qmax );
     ReactivePowerMax_Const[ t ].set_function(
                                  new LinearFunction( std::move( vmax ) ) );
 
-    // q[t] - Qmin_on[t] u[t] >= Qmin_off[t]
+    // q[t] - Qmin_on[t] u[t] - Qmin_off[t] x >= 0, or >= Qmin_off[t]
+    const double qmin = get_min_reactive_power( t );
+    const bool dmin = reactive_design && ( qmin > - Inf< double >() );
     LinearFunction::v_coeff_pair vmin;
     vmin.push_back( std::make_pair( & v_reactive_power[ t ] , 1.0 ) );
     vmin.push_back( std::make_pair( & v_commitment[ t ] ,
                                     - get_min_reactive_power_on( t ) ) );
-    ReactivePowerMin_Const[ t ].set_lhs( get_min_reactive_power( t ) );
+    if( dmin && ( qmin != 0 ) )
+     vmin.push_back( std::make_pair( & design , - qmin ) );
+    ReactivePowerMin_Const[ t ].set_lhs( dmin ? 0.0 : qmin );
     ReactivePowerMin_Const[ t ].set_rhs( Inf< double >() );
     ReactivePowerMin_Const[ t ].set_function(
                                  new LinearFunction( std::move( vmin ) ) );
@@ -4135,15 +4176,12 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
 /*---------------- METHODS FOR CHECKING THE ThermalUnitBlock ---------------*/
 /*--------------------------------------------------------------------------*/
 
-bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
-{
- // Retrieve the tolerance and the type of violation.
- double tol = 0;
- bool rel_viol = true;
+// the tolerance and the kind of violation that a Configuration carries: the
+// one it is given, or the one of the BlockConfig if that carries none
 
- // Try to extract, from "c", the parameters that determine feasibility.
- // If it succeeds, it sets the values of the parameters and returns
- // true. Otherwise, it returns false.
+static void extract_tolerance( Configuration * fsbc , BlockConfig * bcfg ,
+			       double & tol , bool & rel_viol )
+{
  auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )
   -> bool {
   if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
@@ -4158,9 +4196,17 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   return( false );
  };
 
- if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
-  // if the given Configuration is not valid, try the one from the BlockConfig
-  extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
+ if( ( ! extract_parameters( fsbc ) ) && bcfg )
+  extract_parameters( bcfg->f_is_feasible_Configuration );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
+{
+ double tol = 0;
+ bool rel_viol = true;
+ extract_tolerance( fsbc , f_BlockConfig , tol , rel_viol );
 
  return(
   UnitBlock::is_feasible( useabstract )
@@ -4211,6 +4257,199 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( ReactivePowerMin_Const , tol , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitBlock::is_sol_feasible_physical( void ) const
+{
+ /* The check of is_sol_feasible() reads the schedule of the unit and tests it
+  * against the data of the unit: a unit that carries something the schedule
+  * does not answer for, i.e. a dimensioning variable, the reactive power, a
+  * reference schedule, a scale of its own or a Variable that is fixed, is
+  * left to the check of the base class, which goes through the Variable. */
+ if( ( f_scale != 1 ) || ( f_InvestmentCost != 0 ) || ( f_Capacity != 0 ) ||
+     ( ! v_RefSchedule.empty() ) ||
+     ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) ||
+     ( ! v_MinReactivePowerOn.empty() ) || ( ! v_MaxReactivePowerOn.empty() ) )
+  return( false );
+
+ return( true );
+
+ }  // end( ThermalUnitBlock::is_sol_feasible_physical )
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitBlock::is_sol_feasible( Solution * sol , Configuration * fsbc )
+{
+ if( ! ThermalUnitBlock::is_sol_feasible_physical() )
+  // the schedule does not answer for this unit
+  return( Block::is_sol_feasible( sol , fsbc ) );
+
+ auto usol = dynamic_cast< UnitBlockSolution * >( sol );
+ if( ! usol )
+  throw( std::invalid_argument( "ThermalUnitBlock::is_sol_feasible: the "
+				"Solution is not a UnitBlockSolution" ) );
+
+ // the feasible region of a unit is bounded, hence it has no rays
+ if( usol->is_direction() )
+  return( false );
+
+ const auto & PP = usol->get_active_power();
+ const auto & UU = usol->get_commitment();
+ if( ( PP.shape()[ 0 ] < 1 ) || ( PP.shape()[ 1 ] < f_time_horizon ) ||
+     ( UU.shape()[ 0 ] < 1 ) || ( UU.shape()[ 1 ] < f_time_horizon ) )
+  return( false );  // it holds no schedule of this unit
+
+ /* The reserves are part of the schedule when the unit produces them: a
+  * Solution that does not carry those the unit has cannot answer for the
+  * constraints they are in. */
+ const auto & R1 = usol->get_primary_spinning_reserve();
+ const auto & R2 = usol->get_secondary_spinning_reserve();
+ const bool has_r1 = ( R1.shape()[ 0 ] >= 1 ) &&
+                     ( R1.shape()[ 1 ] >= f_time_horizon );
+ const bool has_r2 = ( R2.shape()[ 0 ] >= 1 ) &&
+                     ( R2.shape()[ 1 ] >= f_time_horizon );
+ if( ( ( ! v_primary_spinning_reserve.empty() ) && ( ! has_r1 ) ) ||
+     ( ( ! v_secondary_spinning_reserve.empty() ) && ( ! has_r2 ) ) )
+  return( false );
+
+ double tol = 0;
+ bool rel_viol = true;
+ extract_tolerance( fsbc , f_BlockConfig , tol , rel_viol );
+
+ /* lhs <= rhs, up to the tolerance and, in any case, up to a few ulp of the
+  * numbers at hand: the data of the unit and the values of the schedule are
+  * floating point, hence a constraint that is tight comes out violated by the
+  * rounding of one difference, and the check that goes through the abstract
+  * representation sees it violated or not depending on the order in which the
+  * Function of the row sums its terms. */
+ auto le = [ tol , rel_viol ]( double lhs , double rhs ) {
+  const double big = std::max( { 1.0 , std::abs( lhs ) , std::abs( rhs ) } );
+  return( lhs - rhs <= std::max( rel_viol ? tol * big : tol , 1e-12 * big ) );
+  };
+
+ /* The constraints below are those of the unit for an integral commitment,
+  * which is what every formulation of it encodes; a commitment that is not
+  * integral is one the formulations do not agree on, and what cannot be told
+  * is not declared feasible. */
+ std::vector< bool > on( f_time_horizon );
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  const double u = UU[ 0 ][ t ];
+  if( ( u < - tol ) || ( u > 1 + tol ) )
+   return( false );
+  if( ( u > tol ) && ( u < 1 - tol ) )
+   return( false );
+  on[ t ] = u > 0.5;
+  }
+
+ /* A Variable that is fixed only holds the value it is fixed to, which is
+  * how the state the unit comes from is written when it leaves it no choice
+  * for the first time instants; a schedule that says otherwise is none of
+  * this unit. The Variable are only read, never written. */
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  if( ( t < v_commitment.size() ) && v_commitment[ t ].is_fixed() &&
+      ( ! le( std::abs( UU[ 0 ][ t ] - v_commitment[ t ].get_value() ) ,
+	      0 ) ) )
+   return( false );
+  if( ( t < v_active_power.size() ) && v_active_power[ t ].is_fixed() &&
+      ( ! le( std::abs( PP[ 0 ][ t ] - v_active_power[ t ].get_value() ) ,
+	      0 ) ) )
+   return( false );
+  }
+
+ // the power and the reserves against the operational bounds of the unit
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  const double p = PP[ 0 ][ t ];
+  const double r1 = has_r1 ? R1[ 0 ][ t ] : 0;
+  const double r2 = has_r2 ? R2[ 0 ][ t ] : 0;
+
+  if( ( ! le( 0 , r1 ) ) || ( ! le( 0 , r2 ) ) )
+   return( false );
+
+  if( ! on[ t ] ) {  // the unit is off: it produces nothing
+   if( ( ! le( p , 0 ) ) || ( ! le( 0 , p ) ) ||
+       ( ! le( r1 + r2 , 0 ) ) )
+    return( false );
+   continue;
+   }
+
+  // the reserves take room from the power, on both sides
+  if( ( ! le( get_operational_min_power( t ) , p - r1 - r2 ) ) ||
+      ( ! le( p + r1 + r2 , get_operational_max_power( t ) ) ) )
+   return( false );
+
+  // and each of them is a fraction of the power produced
+  if( has_r1 && ( ! v_PrimaryRho.empty() ) &&
+      ( ! le( r1 , v_PrimaryRho[ t ] * p ) ) )
+   return( false );
+  if( has_r2 && ( ! v_SecondaryRho.empty() ) &&
+      ( ! le( r2 , v_SecondaryRho[ t ] * p ) ) )
+   return( false );
+  }
+
+ // the ramps, with the limits of the start-up and of the shut-down and the
+ // state the unit comes from
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  const double p = PP[ 0 ][ t ];
+  const bool prev_on = t > 0 ? on[ t - 1 ] : ( f_InitUpDownTime > 0 );
+  const double prev_p = t > 0 ? PP[ 0 ][ t - 1 ]
+			      : ( f_InitUpDownTime > 0 ? f_InitialPower : 0 );
+
+  if( on[ t ] ) {
+   if( prev_on ) {
+    if( ( ! v_DeltaRampUp.empty() ) &&
+	( ! le( p - prev_p , v_DeltaRampUp[ t ] ) ) )
+     return( false );
+    if( ( ! v_DeltaRampDown.empty() ) &&
+	( ! le( prev_p - p , v_DeltaRampDown[ t ] ) ) )
+     return( false );
+    }
+   else                                   // the unit starts up at t
+    if( ! le( p , v_StartUpLimit[ t ] ) )
+     return( false );
+   }
+  else
+   if( prev_on )                          // the unit shuts down at t
+    if( ! le( prev_p , v_ShutDownLimit[ t ] ) )
+     return( false );
+  }
+
+ // the minimum up and down times, the state the unit comes from included
+ if( ( f_MinUpTime > 1 ) || ( f_MinDownTime > 1 ) ) {
+  const int init = f_InitUpDownTime;
+
+  if( init > 0 ) {  // the unit is on, and has been for init time instants
+   for( Index t = 0 ; ( t < f_time_horizon ) &&
+	  ( int( t ) + init < int( f_MinUpTime ) ) ; ++t )
+    if( ! on[ t ] )
+     return( false );
+   }
+  else              // it is off, and has been for -init time instants
+   for( Index t = 0 ; ( t < f_time_horizon ) &&
+	  ( int( t ) - init < int( f_MinDownTime ) ) ; ++t )
+    if( on[ t ] )
+     return( false );
+
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const bool prev_on = t > 0 ? on[ t - 1 ] : ( f_InitUpDownTime > 0 );
+
+   if( on[ t ] && ( ! prev_on ) )         // the unit starts up at t
+    for( Index s = t + 1 ;
+	 ( s < f_time_horizon ) && ( s < t + f_MinUpTime ) ; ++s )
+     if( ! on[ s ] )
+      return( false );
+
+   if( ( ! on[ t ] ) && prev_on )         // the unit shuts down at t
+    for( Index s = t + 1 ;
+	 ( s < f_time_horizon ) && ( s < t + f_MinDownTime ) ; ++s )
+     if( on[ s ] )
+      return( false );
+   }
+  }
+
+ return( true );
+
+ }  // end( ThermalUnitBlock::is_sol_feasible )
 
 /*--------------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE ThermalUnitBlock -----*/

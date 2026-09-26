@@ -627,9 +627,9 @@ class ThermalUnitBlock : public UnitBlock
   *   = the same variables of the 3bin formulation (wf & 7 == 0);
   *
   *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
-  *     formulation (wf & 7 == 4);
+  *     formulation (wf & 7 == 3);
   *
-  *   = the \f$ p_t^h \f$ variables of the SU formulation (wf & 7 == 2);
+  *   = the \f$ p_t^h \f$ variables of the SU formulation (wf & 7 == 4);
   *
   *   = the \f$ \tilde p_t^k \f$ variables of the SD formulation
   *     (wf & 7 == 5).
@@ -641,50 +641,50 @@ class ThermalUnitBlock : public UnitBlock
   * corresponding formulation uses the perspective cuts and new variables
   * are added.
   *
-  * - wf & 7 == 8 is the "three binaries" formulation with perspective cuts
+  * - wf & 15 == 8 is the "three binaries" formulation with perspective
   *   cuts (3binPC), which has the same variables of the 3bin formulation 
   *   (wf & 7 == 0), plus the perspective cuts variables \f$ z_t \f$ that
   *   regulates the quadratic part in the objective function of the power
   *   variable \f$ p_t \f$.
   *
-  * - wf & 7 == 9 is the "model T"formulation with perspective cuts (TPC),
+  * - wf & 15 == 9 is the "model T" formulation with perspective cuts (TPC),
   *   which has exactly the same variables of the (3binPC) formulation;
   *
-  * - wf & 7 == 10 is the "dynamic programming" inspired formulation with
-  *   perspective cuts (DPPC), which has the same variables of the DP
-  *   formulation (wf & 7 == 2), plus the perspective cuts variables
-  *   \f$ z_t^{hk} \f$ that regulates the quadratic part in the
-  *   objective function of the power variable \f$ p_t^{hk} \f$;
-  *
-  * - wf & 7 == 11 is the p_t formulation with perspective cuts (p_tPC),
-  *   which has the same variables of the pt formulation (wf & 7 == 3) plus
+  * - wf & 15 == 10 is the p_t formulation with perspective cuts (p_tPC),
+  *   which has the same variables of the p_t formulation (wf & 7 == 2) plus
   *   the perspective cuts variables \f$ z_t \f$ that regulates the
   *   quadratic part in the objective function of the power variable
   *   \f$ p_t \f$;
   *
-  * - wf & 7 == 12 is the "start-up" formulation with perspective cuts
+  * - wf & 15 == 11 is the "dynamic programming" inspired formulation with
+  *   perspective cuts (DPPC), which has the same variables of the DP
+  *   formulation (wf & 7 == 3), plus the perspective cuts variables
+  *   \f$ z_t^{hk} \f$ that regulates the quadratic part in the
+  *   objective function of the power variable \f$ p_t^{hk} \f$;
+  *
+  * - wf & 15 == 12 is the "start-up" formulation with perspective cuts
   *   (SUPC), which has exactly the same variables of the SU formulation
   *   (wf & 7 == 4), plus the perspective cuts variables \f$ z_t^h \f$ that
   *   regulates the quadratic part in the objective function of the power
   *   variable \f$ p_t^h \f$;
   *
-  * - wf & 7 == 13 is the "shut-down" formulation with perspective cuts
+  * - wf & 15 == 13 is the "shut-down" formulation with perspective cuts
   *   (SDPC), which has exactly the same variables of the SD formulation
   *   (wf & 7 == 5), plus the perspective cuts variables 
   *   \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
   *   objective function of the power variable \f$ \tilde p_t^k \f$;
   *
-  * - wf & 7 == 14 is the "start-up/shut-down" formulation with perspective
+  * - wf & 15 == 14 is the "start-up/shut-down" formulation with perspective
   *   cuts (SUSDPC), which has exactly the same variables of the SUSD
   *   formulation (wf & 7 == 6), plus
   *
   *   = the perspective cuts variables \f$ z_t^h \f$ that regulates the
   *     quadratic part in the objective function of the power variable
-  *     \f$ p_t^h \f$ (as in SUPC, wf & 7 == 12);
+  *     \f$ p_t^h \f$ (as in SUPC, wf & 15 == 12);
   *
   *   = the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates
   *     the quadratic part in the objective function of the power variable
-  *     \f$ \tilde p_t^k \f$ (as in SDPC, wf & 7 == 13);
+  *     \f$ \tilde p_t^k \f$ (as in SDPC, wf & 15 == 13);
   *
   *   = the variables \f$\theta_t\f$ for each time period \f$t\f$, that
   *     substitute \f$z_t^h\f$ and \f$\tilde z_t^k\f$ for regulating the
@@ -1746,6 +1746,37 @@ class ThermalUnitBlock : public UnitBlock
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the schedule in the Solution is feasible
+ /** Returns true if the schedule that the given :UnitBlockSolution holds,
+  * i.e. the commitment, the active power and the spinning reserves of the
+  * unit, is feasible: the values are read out of it and checked against the
+  * data of the unit, i.e. the operational bounds of the power, the ramps
+  * with the limits of the start-up and of the shut-down, the minimum up and
+  * down times and the state the unit comes from, so that the Variable of the
+  * ThermalUnitBlock are neither needed nor touched
+  * [see Block::is_sol_feasible()]. Those are the constraints of the unit for
+  * an integral commitment, which is what the formulations of it encode; a
+  * commitment that is not integral is therefore not declared feasible, as a
+  * Solution that says it holds a direction is not, the feasible region of a
+  * unit being bounded. A unit that carries something the schedule does not
+  * answer for is left to the check of the base class
+  * [see is_sol_feasible_physical()]. */
+
+ bool is_sol_feasible( Solution * sol ,
+		       Configuration * fsbc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// true if is_sol_feasible() reads the Solution and leaves the Variable be
+ /** Returns true if is_sol_feasible() checks the schedule against the data of
+  * the unit, which it does unless the unit carries something that the
+  * schedule does not answer for: a dimensioning variable, the reactive
+  * power, a reference schedule, a scale of its own or a Variable that is
+  * fixed. In those cases the check goes through the abstract representation,
+  * and therefore through the Variable, as the base class does it. */
+
+ [[nodiscard]] bool is_sol_feasible_physical( void ) const override;
 
 
 /** @} ---------------------------------------------------------------------*/

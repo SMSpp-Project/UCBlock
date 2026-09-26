@@ -26,6 +26,18 @@
  #include <iostream>
 #endif
 
+// diagnostic environment switches are read only when profiling is compiled
+// in; in production every switch is off and the default path is taken
+#if TUEDPS_PROFILE
+ #include <cstdlib>
+ #define TUEDPS_ENV( n ) std::getenv( n )
+ #define TUEDPS_ENVD( n , d ) \
+  ( std::getenv( n ) ? std::atof( std::getenv( n ) ) : ( d ) )
+#else
+ #define TUEDPS_ENV( n ) ( static_cast< const char * >( nullptr ) )
+ #define TUEDPS_ENVD( n , d ) ( d )
+#endif
+
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
@@ -566,7 +578,9 @@ bool ThermalUnitDPSolverBase::is_dominated_by( const PQFun & F1 ,
 
  const double tol = 1e-12;
 
- // outer loop: iterate over the pieces of F1 in order
+ // both lists are sorted by left end: the F2 cursor j only moves forward,
+ // so the whole test is linear in |F1| + |F2|
+ std::size_t j = 0;
  for( std::size_t i = 0 ; i < F1.size() ; ++i ) {
   double l1 = F1[ i ].left;
   double r1 = F1[ i ].right;
@@ -578,24 +592,20 @@ bool ThermalUnitDPSolverBase::is_dominated_by( const PQFun & F1 ,
   // iff F2 is defined at the point and lies at or below F1 there.
   if( r1 - l1 <= tol ) {
    const double p0 = l1;
-   bool covered = false;
-   for( const auto & q : F2 )
-    if( ( q.left <= p0 + tol ) && ( p0 <= q.right + tol ) ) {
-     const double d = ( F1[ i ].alfa  - q.alfa  ) * p0 * p0
-                    + ( F1[ i ].beta  - q.beta  ) * p0
-                    + ( F1[ i ].gamma - q.gamma );
-     if( d < - eps )
-      return( false );  // F1 strictly below F2 at the point
-     covered = true;
-     break;
-     }
-   if( ! covered )
+   while( j < F2.size() && F2[ j ].right < p0 - tol )
+    ++j;
+   if( ( j >= F2.size() ) || ( F2[ j ].left > p0 + tol ) )
     return( false );    // F2 is +INF at the point: not dominated
+   const auto & q = F2[ j ];
+   const double d = ( F1[ i ].alfa  - q.alfa  ) * p0 * p0
+                  + ( F1[ i ].beta  - q.beta  ) * p0
+                  + ( F1[ i ].gamma - q.gamma );
+   if( d < - eps )
+    return( false );    // F1 strictly below F2 at the point
    continue;
    }
 
   double p = l1;
-  std::size_t j = 0;
   // advance j to the first F2-piece that overlaps [p, r1] at all
   while( j < F2.size() && F2[ j ].right <= p + tol )
    ++j;
@@ -880,7 +890,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   return;
   }
 #if TUEDPS_PROFILE
- if( std::getenv( "TUEDPS_NOCORR" ) ) {  // diagnostic: capacity-band model
+ if( TUEDPS_ENV( "TUEDPS_NOCORR" ) ) {  // diagnostic: capacity-band model
   sliding_min( F , wu , wd , lo , hi , out );
   return;                               // (g0 still added by add_pwq outside)
   }
@@ -1443,16 +1453,15 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                        ( dphiR >= -tol );           // can't improve right
   return( leftok && rightok );
   };
- const double pctol = std::getenv( "TUEDPS_CTOL" )
-                      ? std::atof( std::getenv( "TUEDPS_CTOL" ) ) : 1e-6;
+ const double pctol = TUEDPS_ENVD( "TUEDPS_CTOL" , 1e-6 );
  // sweep p left->right, emit one closed-form piece per regime, then coalesce
  // adjacent identical pieces (over-generated events split real pieces).
- const bool bcchk = std::getenv( "TUEDPS_BCCHECK" );  // hoisted out of the
- const bool formreuse = std::getenv( "TUEDPS_FORMREUSE" );      // loop
- const bool frdbg = std::getenv( "TUEDPS_FRDBG" );
+ const bool bcchk = TUEDPS_ENV( "TUEDPS_BCCHECK" );  // hoisted out of the
+ const bool formreuse = TUEDPS_ENV( "TUEDPS_FORMREUSE" );      // loop
+ const bool frdbg = TUEDPS_ENV( "TUEDPS_FRDBG" );
  auto sweepParam = [ & ]( PQFun & dst , bool reuse ) {
   dst.clear();
-  if( std::getenv( "TUEDPS_FINCHK" ) )       // is the INPUT F convex?
+  if( TUEDPS_ENV( "TUEDPS_FINCHK" ) )       // is the INPUT F convex?
    for( std::size_t i = 1 ; i < F.size() ; ++i ) {
     const double bp = F[ i ].left;
     const double sL = 2 * F[ i - 1 ].alfa * bp + F[ i - 1 ].beta ,
@@ -1480,7 +1489,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     double pn = ( r.form < 0 ) ? phi : next_event( r , p );        // stale
     if( pn > phi ) pn = phi;
     const double w = pn - p;                // verify q* optimal (convex phi
-    const int nv = std::getenv( "TUEDPS_V1" ) ? 1 : 3;   // at continuous F
+    const int nv = TUEDPS_ENV( "TUEDPS_V1" ) ? 1 : 3;   // at continuous F
     bool ok = ( r.form >= 0 );                           // => 1 point sound
     if( ok && nv == 1 ) ok = formOK( r , p + 0.5 * w );
     else if( ok ) ok = formOK( r , p + 0.25 * w ) && formOK( r , p + 0.5 * w )
@@ -1533,7 +1542,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                 << " w=" << ( pnext - p )
                 << " [" << p << "," << pnext << "]\n";
      }
-    if( std::getenv( "TUEDPS_RCHK" ) ) {   // does the piece SPAN a
+    if( TUEDPS_ENV( "TUEDPS_RCHK" ) ) {   // does the piece SPAN a
      auto sig = [ & ]( double x , int & f , int & as , int & bs , int & bi ,
                        int & br , int & asd ) {   // sub-regime change?
       const double q = qstarR( r , x );
@@ -1565,7 +1574,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                 << " midA=" << midA
                 << " qL=" << std::max( p - wu , domL ) << "\n";
      }
-    if( std::getenv( "TUEDPS_JOINT" ) && ! dst.empty() ) {  // convexity at
+    if( TUEDPS_ENV( "TUEDPS_JOINT" ) && ! dst.empty() ) {  // convexity at
      const PieceQuad & pv = dst.back();                     // the joint
      const double vL = eval_piece( pv , p ) , vR = ( a * p + b ) * p + c;
      const double sL = 2 * pv.alfa * p + pv.beta , sR = 2 * a * p + b;
@@ -1600,7 +1609,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     }
    dst.swap( m );
    }
-  if( std::getenv( "TUEDPS_FCHK" ) )    // convexity audit of the built VF
+  if( TUEDPS_ENV( "TUEDPS_FCHK" ) )    // convexity audit of the built VF
    for( std::size_t i = 0 ; i < dst.size() ; ++i ) {
     if( dst[ i ].alfa < -1e-9 )
      std::cerr << "FCHK negcurv a=" << dst[ i ].alfa
@@ -1675,13 +1684,37 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   // still fails an unforeseen sub-event is bisected toward p (progress
   // guaranteed). Re-Gmin fires only at genuine form changes, not at every
   // z-kink.
+  // configuration of q*(pp) = s pp + t: the piece of F holding it and, for
+  // the reward g(pp, H), H = min(A,B), which bound gives H (the ramp on
+  // either branch of the tent or at its peak, the band on either side of
+  // midA or at A = B) and the segment of the reward that H falls in
+  auto config = [ & ]( const Reg & rr , double pp ) -> int {
+   const double q = qstarR( rr , pp );
+   const double A = std::min( pp - pmin , pmax - pp );
+   int rg = 0 , sg = 0;
+   if( A > 0 ) {
+    const double d = pp - q , tol = 1e-9 * std::max( 1.0 , std::abs( pp ) );
+    double B = std::min( ramp_up - d , ramp_down + d ); if( B < 0 ) B = 0;
+    double H;
+    if( std::abs( B - A ) <= tol ) { rg = 1; H = A; }
+    else if( B < A ) { H = B;
+     rg = ( d > dpk + tol ) ? 2 : ( ( d < dpk - tol ) ? 3 : 4 ); }
+    else { H = A; rg = ( pp < midA ) ? 5 : 6; }
+    if( H <= 1e-12 ) sg = 0;
+    else if( ( K > 0 ) && ( H >= segcum[ K - 1 ] * pp - 1e-12 ) ) sg = K + 1;
+    else {
+     sg = 1;
+     while( ( sg < K ) && ( H > segcum[ sg - 1 ] * pp + 1e-9 ) ) ++sg; }
+    }
+   return( ( findF( q ) * 8 + rg ) * 4 + sg );
+   };
   auto okPiece = [ & ]( const Reg & rr , double pa , double pb ) -> bool {
-   // q*(p)=s*p+t is monotone (s>0), so the carried (F-piece x corr-segment)
-   // form is active on a CONTIGUOUS p-interval: if the optimality
-   // certificate holds at both endpoints it holds throughout, so two probes
-   // bracket validity (midpoint redundant).
-   const double w = pb - pa;
-   return( formOK( rr , pa + 0.02 * w ) && formOK( rr , pa + 0.98 * w ) ); };
+   // within a fixed configuration the optimality conditions are affine in
+   // p, so they hold on an interval: if q* is in the same configuration at
+   // both probes and the certificate holds there, it holds in between
+   const double w = pb - pa , p1 = pa + 0.02 * w , p2 = pa + 0.98 * w;
+   return( ( config( rr , p1 ) == config( rr , p2 ) ) &&
+           formOK( rr , p1 ) && formOK( rr , p2 ) ); };
   // ROBUST TAIL FILL: cover [p0,phi] with an adaptive-linear Gmin
   // subdivision. Used when the finite-diff form-ID fails (okPiece rejects /
   // bisection collapses): a plain BREAK would TRUNCATE the value function's
@@ -1712,7 +1745,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
            stk.push_back( { a , m } ); }   // left first (in order)
     }
    };
-  const bool doSnap = ! std::getenv( "TUEDPS_NOSNAP" );  // snap locus to
+  const bool doSnap = ! TUEDPS_ENV( "TUEDPS_NOSNAP" );  // snap locus to
                                            // exact loci (A/B only)
   double p = plo; int guard = 0; bool haveForm = false; double s = 0 , t = 0;
   int zkptr = 0;   // sweep-line cursor into the sorted z-kinks
@@ -1734,7 +1767,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     const auto g1 = Gmin( p + e1 );
     if( g1.first >= TUEDPINF ) {
 #if TUEDPS_PROFILE
-     if( std::getenv( "TUEDPS_BRKLOG" ) && ( p < phi - 1.0 ) )
+     if( TUEDPS_ENV( "TUEDPS_BRKLOG" ) && ( p < phi - 1.0 ) )
       std::cerr << "MPBREAK reason=Gmin-INF p=" << p << " phi=" << phi
                 << " domL=" << domL << " domR=" << domR << " ru=" << ramp_up
                 << " rd=" << ramp_down << "\n";
@@ -1808,7 +1841,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
    if( pnext > phi ) pnext = phi;
    if( pnext <= p + 1e-12 ) {
 #if TUEDPS_PROFILE
-    if( std::getenv( "TUEDPS_BRKLOG" ) && ( p < phi - 1.0 ) )
+    if( TUEDPS_ENV( "TUEDPS_BRKLOG" ) && ( p < phi - 1.0 ) )
      std::cerr << "MPBREAK reason=noadvance p=" << p << " phi=" << phi
                << " s=" << s << " t=" << t << " pnext=" << pnext << "\n";
 #endif
@@ -1828,7 +1861,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
      pnext = 0.5 * ( p + pnext );
     if( pnext <= p + 1e-9 ) {
 #if TUEDPS_PROFILE
-     if( std::getenv( "TUEDPS_BRKLOG" ) && ( p < phi - 1.0 ) )
+     if( TUEDPS_ENV( "TUEDPS_BRKLOG" ) && ( p < phi - 1.0 ) )
       std::cerr << "MPBREAK reason=bisect-collapse p=" << p << " phi=" << phi
                 << " s=" << s << " t=" << t << " justAcq=" << justAcq << "\n";
 #endif
@@ -1837,9 +1870,9 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     }
    double a , b , c; closedABCst( s , t , pm , a , b , c );
 #if TUEDPS_PROFILE
-   if( std::getenv( "TUEDPS_MPTRACE" )
+   if( TUEDPS_ENV( "TUEDPS_MPTRACE" )
        && ( F.size() ==
-            ( std::size_t ) std::atoi( getenv( "TUEDPS_MPTRACE" ) ) )
+            ( std::size_t ) std::atoi( TUEDPS_ENV( "TUEDPS_MPTRACE" ) ) )
        && ( p >= 213.0 ) && ( p <= 215.0 ) )
     std::cerr.precision( 10 ) ,
     std::cerr << "MPTR p=" << p << " s=" << s << " t=" << t
@@ -1870,7 +1903,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     }
    dst.swap( m );
    }
-  if( std::getenv( "TUEDPS_FCHK" ) )    // convexity audit of the mpQP VF
+  if( TUEDPS_ENV( "TUEDPS_FCHK" ) )    // convexity audit of the mpQP VF
    for( std::size_t i = 0 ; i < dst.size() ; ++i ) {
     if( dst[ i ].alfa < -1e-9 )
      std::cerr << "FCHK negcurv a=" << dst[ i ].alfa
@@ -1906,8 +1939,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  // whole [plo,phi] with robust adaptive-linear Gmin pieces. Legacy
  // sweepParam is kept gated (TUEDPS_PARAM) for A/B; the seed+subdivide
  // oracle (also exactly convex, but far slower) via TUEDPS_ORACLE.
- if( ! std::getenv( "TUEDPS_ORACLE" ) ) {
-  const bool useParam = std::getenv( "TUEDPS_PARAM" );
+ if( ! TUEDPS_ENV( "TUEDPS_ORACLE" ) ) {
+  const bool useParam = TUEDPS_ENV( "TUEDPS_PARAM" );
   if( ! useParam ) sweepMPQP( out );    // DEFAULT: convex + fast + correct
   else sweepParam( out , formreuse );   // legacy 6-form (gated, non-convex)
 #if TUEDPS_PROFILE
@@ -1915,7 +1948,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   // (CORRECT, from correct F). Build mpQP from the SAME F and compare ->
   // isolates mpQP's construction error vs the known-good reference. Dumps
   // the first transition that diverges.
-  if( std::getenv( "TUEDPS_MPCMP" ) && ! std::getenv( "TUEDPS_MPQP" ) ) {
+  if( TUEDPS_ENV( "TUEDPS_MPCMP" ) && ! TUEDPS_ENV( "TUEDPS_MPQP" ) ) {
    PQFun outM; sweepMPQP( outM );
    double mdm = 0 , mx = plo;
    const int NS = 100;              // vs Gmin (fast, exact pointwise min);
@@ -1927,8 +1960,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
      { mdm = std::abs( gm - gt ); mx = x; }
     }
    static double gworst = 0;        // GLOBAL worst over the whole horizon
-   const double th = std::getenv( "TUEDPS_MPTH" )
-                     ? std::atof( getenv( "TUEDPS_MPTH" ) ) : 1e-3;
+   const double th = TUEDPS_ENV( "TUEDPS_MPTH" )
+                     ? std::atof( TUEDPS_ENV( "TUEDPS_MPTH" ) ) : 1e-3;
    if( ( mdm > gworst + 1e-12 ) && ( mdm > th ) ) {  // dump each NEW
     gworst = mdm; std::cerr.precision( 10 );   // global-worst (last = worst)
     std::cerr << "MPCMP maxdev=" << mdm << " at p=" << mx
@@ -1952,7 +1985,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                << "  T=" << gt.first << "  q*=" << gt.second;
      }
     std::cerr << "\n";
-    if( std::getenv( "TUEDPS_MPEXIT" ) ) std::exit( 0 );
+    if( TUEDPS_ENV( "TUEDPS_MPEXIT" ) ) std::exit( 0 );
     }
    }
 #endif
@@ -1961,7 +1994,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   // just-built `out` against Gtrue using the SAME (mpQP-propagated) F. A
   // large gap here = a transition CONSTRUCTION bug (not accumulation, which
   // would leave each transition gap ~0).
-  if( std::getenv( "TUEDPS_MPSELF" ) ) {
+  if( TUEDPS_ENV( "TUEDPS_MPSELF" ) ) {
    double mdm = 0 , mx = plo , mgt = 0 , mgx = plo;  // mdm=|out-Gmin|,
    for( const auto & pc : out ) {                    // mgt=|Gmin-Gtrue|;
     // check only at out's breakpoints+mid
@@ -1978,8 +2011,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
       { mgt = std::abs( gmin - gtr ); mgx = x; }
      } }
    { static double gwt = 0;
-     const double tt = std::getenv( "TUEDPS_MPTH" )
-                        ? std::atof( getenv( "TUEDPS_MPTH" ) ) : 1e-4;
+     const double tt = TUEDPS_ENV( "TUEDPS_MPTH" )
+                        ? std::atof( TUEDPS_ENV( "TUEDPS_MPTH" ) ) : 1e-4;
      if( ( mgt > gwt + 1e-12 ) && ( mgt > tt ) ) {
       gwt = mgt; std::cerr.precision( 12 );
       auto gg = Gmin( mgx ); auto tg = Gtrue( mgx );
@@ -1989,10 +2022,10 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                 << ") Gtrue=" << tg.first
                 << "(q*=" << tg.second << ") plo=" << plo << " phi=" << phi
                 << " acap-note pmax=" << pmax << "\n";
-      if( std::getenv( "TUEDPS_MPEXIT" ) ) std::exit( 0 ); } }
+      if( TUEDPS_ENV( "TUEDPS_MPEXIT" ) ) std::exit( 0 ); } }
    { static double gwg = 0;
-     const double th2 = std::getenv( "TUEDPS_MPTH" )
-                         ? std::atof( getenv( "TUEDPS_MPTH" ) ) : 1e-3;
+     const double th2 = TUEDPS_ENV( "TUEDPS_MPTH" )
+                         ? std::atof( TUEDPS_ENV( "TUEDPS_MPTH" ) ) : 1e-3;
      if( ( mgt > gwg + 1e-12 ) && ( mgt > th2 ) ) {
       gwg = mgt; std::cerr.precision( 10 );
       std::cerr << "GMINBAD |Gmin-Gtrue|=" << mgt << " at p=" << mgx
@@ -2002,8 +2035,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                 << " q*mpq=... acap-note plo=" << plo
                 << " phi=" << phi << "\n"; } }
    static double gworst = 0;        // GLOBAL worst over the whole horizon
-   const double th = std::getenv( "TUEDPS_MPTH" )
-                      ? std::atof( getenv( "TUEDPS_MPTH" ) ) : 1e-3;
+   const double th = TUEDPS_ENV( "TUEDPS_MPTH" )
+                      ? std::atof( TUEDPS_ENV( "TUEDPS_MPTH" ) ) : 1e-3;
    if( ( mdm > gworst + 1e-12 ) && ( mdm > th ) ) {  // dump each new
     gworst = mdm; std::cerr.precision( 10 );   // global-worst (last = worst)
     std::cerr << "MPSELF maxdev=" << mdm << " at p=" << mx
@@ -2029,11 +2062,11 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                << "  gap=" << ( eval( out , x ) - gt.first );
      }
     std::cerr << "\n";
-    if( std::getenv( "TUEDPS_MPEXIT" ) ) std::exit( 0 );
+    if( TUEDPS_ENV( "TUEDPS_MPEXIT" ) ) std::exit( 0 );
     }
    }
 #endif
-  if( std::getenv( "TUEDPS_FRDIFF" ) ) {  // A/B: reuse vs classify-every
+  if( TUEDPS_ENV( "TUEDPS_FRDIFF" ) ) {  // A/B: reuse vs classify-every
    PQFun a2 , b2; sweepParam( a2 , false ); sweepParam( b2 , true );
    double md = 0 , pw = 0;
    for( int k = 0 ; k <= 200 ; ++k ) {    // sample G(p) from both, max |diff|
@@ -2181,8 +2214,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
    const double e1 = std::abs( eval_piece( b , x1 ) - eval_piece( c , x1 ) );
    const double e2 = std::abs( eval_piece( b , x2 ) - eval_piece( c , x2 ) );
    const double sc = std::max( 1.0 , std::abs( eval_piece( c , x2 ) ) );
-   const double ctol = std::getenv( "TUEDPS_CTOL" )
-                       ? std::atof( std::getenv( "TUEDPS_CTOL" ) ) : 1e-6;
+   const double ctol = TUEDPS_ENVD( "TUEDPS_CTOL" , 1e-6 );
    if( ( e1 <= ctol * sc ) && ( e2 <= ctol * sc ) )
     m.back().right = c.right;       // same quadratic: extend b over c
    else
@@ -2210,12 +2242,12 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  // reference the event algebra must reproduce with NO verify. Dumps the
  // call with |F|==TUEDPS_REGIMEF (default 1), the TUEDPS_REGIMEN-th such
  // occurrence (default 1).
- if( std::getenv( "TUEDPS_REGIME" ) ) {
+ if( TUEDPS_ENV( "TUEDPS_REGIME" ) ) {
   static int r_seen = 0;
-  const std::size_t fwant = std::getenv( "TUEDPS_REGIMEF" )
-   ? ( std::size_t ) std::atoi( std::getenv( "TUEDPS_REGIMEF" ) ) : 1;
-  const int nwant = std::getenv( "TUEDPS_REGIMEN" )
-                    ? std::atoi( std::getenv( "TUEDPS_REGIMEN" ) ) : 1;
+  const std::size_t fwant = TUEDPS_ENV( "TUEDPS_REGIMEF" )
+   ? ( std::size_t ) std::atoi( TUEDPS_ENV( "TUEDPS_REGIMEF" ) ) : 1;
+  const int nwant = TUEDPS_ENV( "TUEDPS_REGIMEN" )
+                    ? std::atoi( TUEDPS_ENV( "TUEDPS_REGIMEN" ) ) : 1;
   if( ( F.size() == fwant ) && ( ++r_seen == nwant ) ) {
    double segcum2[ 2 ] = { 0 , 0 }; int Kr = 0;
    if( ( cp < 0 ) && ( cs < 0 ) ) {
@@ -2294,8 +2326,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     std::cerr << " [" << pc.left << "," << pc.right << "|a=" << pc.alfa
               << ",b=" << pc.beta << ",c=" << pc.gamma << "]";
    std::cerr << "\n";
-   const int NSW = std::getenv( "TUEDPS_REGIMENSW" )
-                   ? std::atoi( getenv( "TUEDPS_REGIMENSW" ) ) : 8000;
+   const int NSW = TUEDPS_ENV( "TUEDPS_REGIMENSW" )
+                   ? std::atoi( TUEDPS_ENV( "TUEDPS_REGIMENSW" ) ) : 8000;
    row( plo , "START" );
    double pprev = plo; Sig sprev = sig( plo ); int nbr = 0;
    for( int s = 1 ; s <= NSW ; ++s ) {
@@ -2329,14 +2361,14 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  // shipped. Generic in the number K of active reward segments (1 or 2
  // reserves): the events loop over the segment list, so single-reserve just
  // has fewer of them.
- if( std::getenv( "TUEDPS_PARAM" ) ) {
+ if( TUEDPS_ENV( "TUEDPS_PARAM" ) ) {
   PQFun outP;
   sweepParam( outP , false );          // the shared production engine
   // mpQP-vs-Gtrue construction probe (env TUEDPS_MPDUMP): here F is the
   // CORRECT oracle-propagated input, so any outM-vs-Gtrue gap is a mpQP
   // CONSTRUCTION bug (isolated from horizon accumulation). Dumps the FIRST
   // transition that diverges.
-  if( std::getenv( "TUEDPS_MPDUMP" ) ) {
+  if( TUEDPS_ENV( "TUEDPS_MPDUMP" ) ) {
    PQFun outM; sweepMPQP( outM );
    double mdm = 0 , mx = plo;
    const int NS = 2000;        // vs Gmin (fast) on the CORRECT oracle F
@@ -2348,8 +2380,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
      { mdm = std::abs( gm - gt ); mx = x; }
     }
    static bool mdumped = false;
-   const double mth = std::getenv( "TUEDPS_MPTH" )
-                       ? std::atof( getenv( "TUEDPS_MPTH" ) ) : 1e-3;
+   const double mth = TUEDPS_ENV( "TUEDPS_MPTH" )
+                       ? std::atof( TUEDPS_ENV( "TUEDPS_MPTH" ) ) : 1e-3;
    if( ( mdm > mth ) && ! mdumped ) {
     mdumped = true; std::cerr.precision( 10 );
     std::cerr << "MPDUMP maxdev=" << mdm << " at p=" << mx
@@ -2373,7 +2405,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
                << "  gap=" << ( eval( outM , x ) - gt.first );
      }
     std::cerr << "\n";
-    if( std::getenv( "TUEDPS_MPEXIT" ) )
+    if( TUEDPS_ENV( "TUEDPS_MPEXIT" ) )
      std::exit( 0 );                   // stop after first dump (fast)
     }
    }
@@ -2381,7 +2413,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   swtrace.clear();                                          // (debug slot)
   // grid probe of the (q*, B, A, kappa) config, to derive the exact events
   static bool gridded = false;
-  if( ! gridded && ( F.size() == 1 ) && std::getenv( "TUEDPS_PARAMGRID" ) ) {
+  if( ! gridded && ( F.size() == 1 ) && TUEDPS_ENV( "TUEDPS_PARAMGRID" ) ) {
    gridded = true;
    std::cerr.precision( 8 );
    std::cerr << "PARAMGRID plo=" << plo << " phi=" << phi
@@ -2414,7 +2446,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   // parametric with exact events can be MORE accurate than the oracle, so
   // the oracle is the wrong ruler.
   double maxdev = 0 , maxdev_or = 0 , maxdev_gm = 0;
-  if( std::getenv( "TUEDPS_PARAMDIFF" ) ) {  // expensive Gtrue-based diff,
+  if( TUEDPS_ENV( "TUEDPS_PARAMDIFF" ) ) {  // expensive Gtrue-based diff,
    const int NS = 100;                       // opt-in
    for( int s = 0 ; s <= NS ; ++s ) {
     const double x = plo + ( phi - plo ) * s / NS;
@@ -2432,7 +2464,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     // is visible
     if( ( gm < TUEDPINF ) && ( std::abs( gm - gt ) > g_gmin_maxdev + 1e-15 )
         && ( std::abs( gm - gt ) > 1e-6 ) &&
-        std::getenv( "TUEDPS_GMINDUMP" ) ) {
+        TUEDPS_ENV( "TUEDPS_GMINDUMP" ) ) {
      auto [ vg , qg ] = Gmin( x );
      auto [ vtt , qt ] = Gtrue( x );
      const double dg = x - qg , dt = x - qt;
@@ -2466,12 +2498,12 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   if( maxdev > 1e-4 ) g_param_bad++;
   g_param_pcs += outP.size();
   static bool dumped = false;
-  const std::size_t dumpF = std::getenv( "TUEDPS_DUMPF" )
-   ? ( std::size_t ) std::atoi( std::getenv( "TUEDPS_DUMPF" ) ) : 1;
-  const double dumpTh = std::getenv( "TUEDPS_DUMPTH" )
-                        ? std::atof( std::getenv( "TUEDPS_DUMPTH" ) ) : 1e-4;
+  const std::size_t dumpF = TUEDPS_ENV( "TUEDPS_DUMPF" )
+   ? ( std::size_t ) std::atoi( TUEDPS_ENV( "TUEDPS_DUMPF" ) ) : 1;
+  const double dumpTh = TUEDPS_ENV( "TUEDPS_DUMPTH" )
+                        ? std::atof( TUEDPS_ENV( "TUEDPS_DUMPTH" ) ) : 1e-4;
   if( ( maxdev > dumpTh ) && ! dumped && ( F.size() <= dumpF )
-      && std::getenv( "TUEDPS_PARAMDUMP" ) ) {
+      && TUEDPS_ENV( "TUEDPS_PARAMDUMP" ) ) {
    dumped = true;
    std::cerr.precision( 10 );
    std::cerr << "PARAMDUMP plo=" << plo << " phi=" << phi
@@ -2497,10 +2529,10 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
               << " form=" << ( int )swtrace[ i + 1 ]
               << " q/k=" << swtrace[ i + 2 ] << " pnext=" << swtrace[ i + 3 ];
    std::cerr << "\n samples (p | param | Gtrue | q* | B | A):";
-   const double slo = std::getenv( "TUEDPS_SLO" )
-                       ? std::atof( getenv( "TUEDPS_SLO" ) ) : plo;
-   const double shi = std::getenv( "TUEDPS_SHI" )
-                       ? std::atof( getenv( "TUEDPS_SHI" ) ) : phi;
+   const double slo = TUEDPS_ENV( "TUEDPS_SLO" )
+                       ? std::atof( TUEDPS_ENV( "TUEDPS_SLO" ) ) : plo;
+   const double shi = TUEDPS_ENV( "TUEDPS_SHI" )
+                       ? std::atof( TUEDPS_ENV( "TUEDPS_SHI" ) ) : phi;
    for( int s = 0 ; s <= 20 ; ++s ) {
     const double x = slo + ( shi - slo ) * s / 20;
     auto gt = Gtrue( x );

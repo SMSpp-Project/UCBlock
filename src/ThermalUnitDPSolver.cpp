@@ -211,15 +211,14 @@ void ThermalUnitDPSolver::recover_schedule( std::vector< double > & p ,
  auto res_band = [ & ]( Index i ) -> double {
   if( ! ( built && U[ i ] ) )
    return( 0.0 );                                    // off: no reserve
-  double cap;
   const bool is_su = ( i == 0 ) ? ( init_up_down_time <= 0 )
                                 : ( ! U[ i - 1 ] );
-  if( is_su )
-   cap = bound_on[ i ];                              // start-up
-  else if( ( i + 1 < time_horizon ) && ( ! U[ i + 1 ] ) )
-   cap = bound_down[ i + 1 ];                        // shut-down (off at i+1)
-  else
-   cap = max_power[ i ];                             // interior / on-to-end
+  double cap = is_su ? double( bound_on[ i ] )       // start-up
+                     : max_power[ i ];               // interior / on-to-end
+  if( ( i + 1 < time_horizon ) && ( ! U[ i + 1 ] ) &&
+      ( bound_down[ i + 1 ] < cap ) )
+   cap = bound_down[ i + 1 ];                        // shut-down (off at i+1),
+                                                     // also after a start-up
   // capacity band
   double H = std::min( P[ i ] - min_power[ i ] , cap - P[ i ] );
   if( ( i > 0 ) && U[ i - 1 ] && U[ i ] ) {          // interior transition
@@ -1373,6 +1372,10 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
   costs[ k ] = coeffs[ 0 ].alfa * con_p[ k ] * con_p[ k ] +
                coeffs[ 0 ].beta * con_p[ k ];
+  // a shut-down cap below the domain: the run cannot close at k
+  if( ( k < time_horizon - 1 ) &&
+      ( bound_down[ k + 1 ] < m[ 0 ] - f_solver->eps ) )
+   costs[ k ] = TUDPINF;
   }
 
  // outermost loop - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1444,9 +1447,23 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 			    m[ pos[ 1 - nextk ].begm + v[ 1 - nextk ] + 1 ]
 			    + delta_ramp_up[ k ] );
   #endif
+
+  // no power at k is compatible with the ramp out of k-1 (the domain comes
+  // out inverted, say min_power[ k ] above what the unit can ramp up to):
+  // the run started at h cannot reach k, hence nothing beyond it either
+  if( p_bar > u_bar + f_solver->eps ) {
+   for( Index kk = k ; kk < time_horizon ; ++kk ) {
+    unc_p[ kk ] = con_p[ kk ] = min_power[ kk ];
+    costs[ kk ] = TUDPINF;
+    }
+   return;
+   }
+  const double lo_k = p_bar;  // the left end of the domain at k
+
   ++mcnt;
 
   bool firstTime = true;
+  bool at_u_bar = false;  // CASE 1 has covered the domain up to u_bar
 
   // CASE 1- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   while( unc_p[ k - 1 ] > p_bar + delta_ramp_down[ k ] + f_solver->eps )
@@ -1474,8 +1491,10 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
    else
     p_bar = unc_p[ k - 1 ] - delta_ramp_down[ k ];
 
-   if( p_bar > u_bar )
-    p_bar = u_bar;
+   if( p_bar >= u_bar ) {  // u_bar is more than a ramp-down below unc_p[k-1]
+    p_bar = u_bar;         // (say max_power[ k ] is), so the domain ends here
+    at_u_bar = true;
+    }
 
    ++v_bar;
    m[ mcnt++ ] = p_bar;
@@ -1498,10 +1517,12 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
    ++coeffcnt;
 
+   if( at_u_bar )
+    break;
    }  // end( while( CASE 1 ) )
 
   // CASE 2- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  if( unc_p[ k - 1 ] >= p_bar - delta_ramp_up[ k ] ) {
+  if( ( ! at_u_bar ) && ( unc_p[ k - 1 ] >= p_bar - delta_ramp_up[ k ] ) ) {
 
    // set coeffs fields to compute \bar{z}^{\bar{v}}(p)
 
@@ -1628,6 +1649,10 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs(
 
   costs[ k ] = coeffs[ q ].alfa * con_p[ k ] * con_p[ k ] +
                coeffs[ q ].beta * con_p[ k ] + coeffs[ q ].gamma;
+  // a shut-down cap below the domain: the run cannot close at k
+  if( ( k < time_horizon - 1 ) &&
+      ( bound_down[ k + 1 ] < lo_k - f_solver->eps ) )
+   costs[ k ] = TUDPINF;
 
   }  // end( for( k ) )
  }  // end( ThermalUnitDPSolver::DPEDSolver::compute_costs )
@@ -1684,18 +1709,27 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
  S->add_pwq( z , S->build_reserve_discount(
                   h , init_on ? max_power[ h ] : bound_on[ h ] ) );
 
- // readout ED(h,h): single-period interval; keep the start-up band (no
- // shut-down swap at the base case), read over the base domain capped by
- // bound_down[h+1]
+ // readout ED(h,h): single-period interval, read over the base domain
+ // capped by bound_down[h+1]; the capacity band is the base one, capped
+ // by bound_down[h+1] as well when the unit is shut down at h+1
  {
-  double rhi = hi0;
-  if( ( h < T - 1 ) && ( bound_down[ h + 1 ] < rhi ) )
-   rhi = bound_down[ h + 1 ];
   auto uu = S->min_over( z , lo0 , hi0 );
-  auto cc = S->min_over( z , lo0 , rhi );
   unc_p[ h ] = uu.second;
-  con_p[ h ] = cc.second;
-  costs[ h ] = cc.first;
+  const double cap0 = init_on ? max_power[ h ] : bound_on[ h ];
+  if( ( h < T - 1 ) && ( bound_down[ h + 1 ] < std::max( hi0 , cap0 ) ) ) {
+   const double rhi = std::min( double( bound_down[ h + 1 ] ) , hi0 );
+   PQFun zsd;
+   zsd.push_back( PieceQuad{ quad[ h ] , lin[ h ] , 0.0 , lo0 , hi0 } );
+   S->add_pwq( zsd , S->build_reserve_discount(
+                      h , std::min( cap0 , double( bound_down[ h + 1 ] ) ) ) );
+   auto cc = S->min_over( zsd , lo0 , rhi );
+   con_p[ h ] = ( rhi >= lo0 - 1e-12 ) ? cc.second : rhi;
+   costs[ h ] = cc.first;
+   }
+  else {
+   con_p[ h ] = uu.second;
+   costs[ h ] = uu.first;
+   }
   }
 
  // forward sweep k = h+1 .. T-1- - - - - - - - - - - - - - - - - - - - - - -

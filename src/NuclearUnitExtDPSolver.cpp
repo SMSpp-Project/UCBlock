@@ -174,8 +174,11 @@ void NuclearUnitExtDPSolver::load_fixings( void )
 
 NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::init_label( void ) const
 {
- // the stable state with the initial lockout and no count yet: its on- and
- // off-code coincide. The lockout the unit enters the horizon with comes
+ // the stable state with the initial lockout, no count yet and the band of
+ // the initial output, as an on-code; where it is needed as an off-state
+ // it is read through shut_label(), which drops the band and encodes it as
+ // an off-code [see ThermalUnitExtDPSolver::run_DP()]. The lockout the unit
+ // enters the horizon with comes
  // from the last modulation, hence from tau^M, and not from the largest
  // lockout a label may carry, which the stability after a start-up may
  // have made larger

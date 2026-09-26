@@ -5,8 +5,8 @@
 # --- Project-specific ---------------------------------------
 # netCDF datasets (downloaded/extracted on demand)
 data/nc4
-data/nc4.tgz
-data/.extracted
+data/nc4*.tgz
+data/.extracted*
 netCDF
 
 # Tool binaries / Julia env

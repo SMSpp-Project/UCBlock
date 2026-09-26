@@ -158,6 +158,10 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
                       true , true , v_change_intervals ) )
   v_Cost.resize( f_time_horizon );
 
+ // the profile the unit is asked to follow, if it has one
+ ::deserialize( group , "ReferenceSchedule" , f_time_horizon , v_RefSchedule ,
+                true , true , v_change_intervals );
+
  if( ::deserialize( group , f_BattInvestmentCost , "BatteryInvestmentCost" ) ) {
 
   ::deserialize( group , f_BattMinCapacityDesign , "BatteryMinCapacityDesign" );
@@ -2247,6 +2251,15 @@ void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
 
  if( f_kappa == *values )
   return;  // The kappa constant does not change: nothing to do
+
+ // a kappa changes the size of the unit, and whether the profile a resized
+ // battery is asked to follow is the same one in absolute terms or one
+ // resized with it is not settled: rather than deciding it by leaving the
+ // profile where it is, a unit that has one refuses to be resized
+ if( ! v_RefSchedule.empty() )
+  throw( std::logic_error( "BatteryUnitBlock::set_kappa: resizing a unit "
+   "that follows a reference schedule is not supported, the schedule having "
+   "to be resized with it or not" ) );
 
  if( not_dry_run( issuePMod ) ) {
   f_kappa = *values;  // Update the kappa constant
