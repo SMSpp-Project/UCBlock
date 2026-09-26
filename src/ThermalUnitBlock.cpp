@@ -102,6 +102,27 @@ SMSpp_insert_in_factory_cpp_1( ThermalUnitBlock );
 SMSpp_insert_in_factory_cpp_0( ThermalUnitBlockSolution );
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------------- FUNCTIONS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+/* The minimum up (down) time m of a unit with initial up/down time init over
+ * a horizon of T instants, taken at least 1 and at most T + max( 1 , k ),
+ * where k is the number of instants the unit has been on (off) before the
+ * horizon, i.e. init if up and the unit is on, - init if down and the unit
+ * is off, 0 otherwise. The unit has then to stay as it is for m - k more
+ * instants, which is at most T when m is taken to be the bound, i.e. the
+ * unit never switches within the horizon, and anything larger means the
+ * same; a smaller bound would free the unit before the minimum time. */
+
+static Block::Index clamp_min_time( Block::Index m , Block::Index T ,
+                                    int init , bool up )
+{
+ const Block::Index k = up ? ( init > 0 ? Block::Index( init ) : 0 )
+                           : ( init <= 0 ? Block::Index( - init ) : 0 );
+ return( std::min( std::max( m , Block::Index( 1 ) ) ,
+                   T + std::max( k , Block::Index( 1 ) ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ThermalUnitBlock ----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -175,12 +196,10 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_scale , "Scale" );
 
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
-  f_MinUpTime = std::min( std::max( f_MinUpTime , static_cast< Index >( 1 ) ) ,
-                          f_time_horizon + 1 );
+  f_MinUpTime = std::max( f_MinUpTime , static_cast< Index >( 1 ) );
 
  if( ::deserialize( group , f_MinDownTime , "MinDownTime" ) )
-  f_MinDownTime = std::min( std::max( f_MinDownTime , static_cast< Index >( 1 ) ) ,
-                            f_time_horizon + 1 );
+  f_MinDownTime = std::max( f_MinDownTime , static_cast< Index >( 1 ) );
 
  ::deserialize( group , f_InitialPower , "InitialPower" );
 
@@ -190,6 +209,12 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
   else
    f_InitUpDownTime = f_MinUpTime;
  }
+
+ // the bound of the minimum times depends on the initial state
+ f_MinUpTime = clamp_min_time( f_MinUpTime , f_time_horizon ,
+                               f_InitUpDownTime , true );
+ f_MinDownTime = clamp_min_time( f_MinDownTime , f_time_horizon ,
+                                 f_InitUpDownTime , false );
 
  if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
                       true , true , v_change_intervals ) )
@@ -5028,6 +5053,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
   // Change the abstract representation
   Subset tmps = subset_sbtrct( subset , init_t );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5089,6 +5116,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first - init_t ,
@@ -5160,6 +5189,8 @@ void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
   Subset tmps = subset_sbtrct( subset , 2 * init_t );
   tmps = subset_add( tmps , f_time_horizon );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5221,6 +5252,8 @@ void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
   // Change the abstract representation
   c_Index shift = f_time_horizon - 2 * init_t;
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + shift ,
@@ -5288,6 +5321,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5350,6 +5385,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
   const Index dpos = 2 * f_time_horizon - init_t + shut_down_offset();
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
@@ -5415,6 +5452,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5473,6 +5512,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
   const Index dpos = f_time_horizon - init_t + shut_down_offset();
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
@@ -5531,6 +5572,8 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
   const Index dpos = reactive_objective_start( qf );
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   qf->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                   true , un_ModBlock( issueAMod ) );
  }
@@ -5575,6 +5618,8 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
   auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
   const Index dpos = reactive_objective_start( qf );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   qf->modify_linear_coefficients( std::move( tmpv ) ,
                                   Range( rng.first + dpos , rng.second + dpos ) ,
                                   un_ModBlock( issueAMod ) );
@@ -5623,6 +5668,11 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   assign( v_QuadTerm , subset , values );
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
+  // the Objective carries f_scale times the cost
+  DQuadFunction::Vec_FunctionValue svalues( values , values + subset.size() );
+  for( auto & c : svalues )
+   c *= f_scale;
+
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -5650,12 +5700,12 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
    if( ! v_LinearTerm.empty() ) {
     auto tmplvit = tmplv.begin();
     for( auto t : subset )
-     *( tmplvit++ ) = v_LinearTerm[ t ];
+     *( tmplvit++ ) = f_scale * v_LinearTerm[ t ];
    }
 
    static_cast< DQuadFunction * >( objective.get_function()
-   )->modify_terms( values , tmplv.begin() , std::move( tmps ) , true ,
-                    un_ModBlock( issueAMod ) );
+   )->modify_terms( svalues.begin() , tmplv.begin() , std::move( tmps ) ,
+                    true , un_ModBlock( issueAMod ) );
 
   } else {
 
@@ -5666,7 +5716,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
        ( form == ptForm ) || ( form == SUSDForm ) ) {
     // time-indexed cut variables
     Subset tmps = subset_add( subset , dpos );
-    DQuadFunction::Vec_FunctionValue tmplv( values , values + subset.size() );
+    DQuadFunction::Vec_FunctionValue tmplv( svalues );
     static_cast< DQuadFunction * >( objective.get_function()
     )->modify_linear_coefficients( std::move( tmplv ) , std::move( tmps ) ,
                                    true , un_ModBlock( issueAMod ) );
@@ -5681,7 +5731,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
                                   Z[ i ].first );
       if( ( it != subset.end() ) && ( *it == Z[ i ].first ) ) {
        nms.push_back( dpos + i );
-       tmplv.push_back( *( values +
+       tmplv.push_back( *( svalues.begin() +
                            std::distance( subset.begin() , it ) ) );
        }
       }
@@ -5741,6 +5791,11 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   std::copy( values , values + sz , v_QuadTerm.begin() + rng.first );
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
+  // the Objective carries f_scale times the cost
+  DQuadFunction::Vec_FunctionValue svalues( values , values + sz );
+  for( auto & c : svalues )
+   c *= f_scale;
+
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
   //
@@ -5765,11 +5820,12 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
    const Index dpos = f_time_horizon - init_t + shut_down_offset();
    DQuadFunction::Vec_FunctionValue tmplv( sz , 0 );
    if( ! v_LinearTerm.empty() )
-    std::copy( v_LinearTerm.begin() + rng.first ,
-               v_LinearTerm.begin() + rng.second , tmplv.begin() );
+    std::transform( v_LinearTerm.begin() + rng.first ,
+                    v_LinearTerm.begin() + rng.second , tmplv.begin() ,
+                    [ this ]( double c ) { return( f_scale * c ); } );
 
    static_cast< DQuadFunction * >( objective.get_function()
-   )->modify_terms( values , tmplv.begin() ,
+   )->modify_terms( svalues.begin() , tmplv.begin() ,
                     Range( rng.first + dpos , rng.second + dpos ) ,
                     un_ModBlock( issueAMod ) );
 
@@ -5781,7 +5837,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
    if( ( form == tbinForm ) || ( form == TForm ) ||
        ( form == ptForm ) || ( form == SUSDForm ) ) {
     // time-indexed cut variables
-    DQuadFunction::Vec_FunctionValue tmplv( values , values + sz );
+    DQuadFunction::Vec_FunctionValue tmplv( svalues );
     static_cast< DQuadFunction * >( objective.get_function()
     )->modify_linear_coefficients( std::move( tmplv ) ,
                                    Range( rng.first + dpos ,
@@ -5796,7 +5852,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
      for( Index i = 0 ; i < Z.size() ; ++i )
       if( ( Z[ i ].first >= rng.first ) && ( Z[ i ].first < rng.second ) ) {
        nms.push_back( dpos + i );
-       tmplv.push_back( *( values + ( Z[ i ].first - rng.first ) ) );
+       tmplv.push_back( *( svalues.begin() + ( Z[ i ].first - rng.first ) ) );
        }
      if( ! nms.empty() )
       static_cast< DQuadFunction * >( objective.get_function()
@@ -5885,6 +5941,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5958,6 +6016,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                      ( v_RefSchedule.empty() ? 0 : f_time_horizon );
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
@@ -6038,6 +6098,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -6115,6 +6177,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                      ( v_RefSchedule.empty() ? 0 : f_time_horizon );
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
+  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
+   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
@@ -6213,10 +6277,10 @@ void ThermalUnitBlock::set_min_up_down_time( Index min_up_time ,
                            "Variable have been generated already, and the "
                            "minimum times decide how many there are" ) );
 
- f_MinUpTime = std::min( std::max( min_up_time , Index( 1 ) ) ,
-                         f_time_horizon + 1 );
- f_MinDownTime = std::min( std::max( min_down_time , Index( 1 ) ) ,
-                           f_time_horizon + 1 );
+ f_MinUpTime = clamp_min_time( min_up_time , f_time_horizon ,
+                               f_InitUpDownTime , true );
+ f_MinDownTime = clamp_min_time( min_down_time , f_time_horizon ,
+                                 f_InitUpDownTime , false );
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(

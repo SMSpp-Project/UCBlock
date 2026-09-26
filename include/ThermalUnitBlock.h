@@ -386,10 +386,12 @@ class ThermalUnitBlock : public UnitBlock
   *   which it starts up, we also know that starting up a unit only to
   *   power it down again immediately is never a good idea, so we force
   *   up-time periods to be at least of length 1, even if it is given equals
-  *   to 0. It is taken to be at most "TimeHorizon" + 1: that value says that
-  *   the unit, being on before the horizon, never shuts down within it, and
-  *   then the commitment is fixed at every instant and there is neither a
-  *   start-up nor a shut-down variable; anything larger means the same.
+  *   to 0. It is taken to be at most "TimeHorizon" + max( 1 ,
+  *   "InitUpDownTime" ) if the unit is on before the horizon, and at most
+  *   "TimeHorizon" + 1 otherwise: the first value says that the unit, being
+  *   on before the horizon, never shuts down within it, and then the
+  *   commitment is fixed at every instant and there is neither a start-up
+  *   nor a shut-down variable; anything larger means the same.
   *
   * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
   *   not indexed over any dimension, which indicates the minimum allowed down
@@ -399,9 +401,10 @@ class ThermalUnitBlock : public UnitBlock
   *   timestamp in which it shuts down, we also know that shutting down a
   *   unit only to power it up again immediately is never a good idea, so
   *   we force down-time periods to be at least of length 1, even if it is
-  *   given equals to 0. It is taken to be at most "TimeHorizon" + 1, which
-  *   says that the unit, being off before the horizon, never starts within
-  *   it.
+  *   given equals to 0. It is taken to be at most "TimeHorizon" + max( 1 ,
+  *   - "InitUpDownTime" ) if the unit is off before the horizon, which says
+  *   that the unit never starts within it, and at most "TimeHorizon" + 1
+  *   otherwise.
   *
   * - The variable "FixedConsumption", of type netCDF::NcDouble and either
   *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
@@ -2868,9 +2871,13 @@ class ThermalUnitBlock : public UnitBlock
   * instants of the commitment the initial state fixes, and therefore how many
   * start-up and shut-down Variable there are), hence they can only be set
   * before the Variable are generated, and the method throws otherwise. Each
-  * of them is taken between 1 and the time horizon plus one, the latter
-  * saying that the unit, being on (off) before the horizon, never switches
-  * within it. */
+  * of them is taken between 1 and the time horizon plus the number of
+  * instants the unit has been on (off) before it, or plus one if that is
+  * smaller or the unit has been off (on), the bound saying that the unit,
+  * being on (off) before the horizon, never switches within it [see
+  * deserialize()]. The bound is that of the initial up/down time the unit
+  * has when the method is called, which set_init_updown_time() does not
+  * change afterwards. */
 
  void set_min_up_down_time( Index min_up_time , Index min_down_time ,
                             ModParam issuePMod = eNoBlck );

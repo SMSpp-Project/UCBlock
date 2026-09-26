@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Solution of the units and `NetworkBlockSolution`, which hold no dual
   values, return false
 
+- the module has a unit test of its own in `test/`, which needs nothing but
+  the core SMS++ and builds all of its instances in memory: the three DP
+  Solvers are compared with each other and with a brute force on small units
+  (a horizon of one instant, minimum up and down times cut by the initial
+  state or by the end of the horizon, ramps with the limits of the start-up
+  and of the shut-down, the commitment fixed in some instants, the scale
+  factor, the modulations of a nuclear unit), every UnitBlock and
+  NetworkBlock and a `UCBlock` go through a netCDF round trip, and the
+  setters of a `ThermalUnitBlock` and of a `UCBlock` are checked against a
+  `FakeSolver`. The CI of the module builds it with `SMS++` alone and runs it
+
 - the data archive 2026-09-26, which adds to `pypsa-data` the networks of
   pypsa2smspp that the batteries of `tests` read in the form of each module:
   one scenario of the modular family with the design in the units
@@ -163,6 +174,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only from methods that are not const, and the const is gone
 
 ### Fixed
+
+- the cost setters of a `ThermalUnitBlock` (`set_linear_term()`,
+  `set_quad_term()`, `set_const_term()`, `set_startup_costs()`,
+  `set_shutdown_costs()`, `set_reactive_linear_term()` and those of the
+  spinning reserves) write in the Objective the scale factor times the cost,
+  as the Objective is generated. They wrote the cost of one copy, so that on
+  a unit with a `Scale` other than 1 the Objective no longer agreed with the
+  data after a change
+
+- the minimum up (down) time of a `ThermalUnitBlock` is bounded by the
+  horizon plus the number of instants the unit has been on (off) before it,
+  both when it is read and when `set_min_up_down_time()` sets it, so that
+  the unit stays as it is for as long as the minimum time says. The bound was
+  the horizon plus one, which freed a unit that had been on (off) for more
+  than one instant before the minimum time was over: a unit off since 3
+  instants with a `MinDownTime` of 4 could start at the first instant of a
+  horizon of one
+
+- `ThermalUnitDPSolver.h` can be included where FastFlow is not seen: the
+  constructor, which needs the destructor of the `ff::ParallelFor` should it
+  throw, is defined in the `.cpp` as the destructor is
 
 - on macOS a program linking the module lost the classes the module
   registers in the factories when the linker dropped the library, as it
