@@ -2407,9 +2407,9 @@ double UCBlock::get_replicate_linearization( Index unit )
                            "representation has not been generated, so there "
                            "are no rows to read the duals of" ) );
 
- /* TODO The following does not take into account the pollutant budget
-  * constraints and the heat constraints. When these constraints are
-  * correctly implemented, this method must be updated. */
+ /* TODO The following does not take into account the reactive node
+  * injection constraints and the heat constraints. When these constraints
+  * are correctly implemented, this method must be updated. */
 
  const auto block = get_unit_block( unit );
  const auto time_horizon = get_time_horizon();
@@ -2448,7 +2448,7 @@ double UCBlock::get_replicate_linearization( Index unit )
    // factor multiplies it as it multiplies the power
    if( auto fc = block->get_fixed_consumption( g ) )
     if( auto u = block->get_commitment( g ) )
-     linearization += dual * fc[ t ] * ( 1.0 - u[ t ].get_value() );
+     linearization -= dual * fc[ t ] * ( 1.0 - u[ t ].get_value() );
 
    }  // end( for each generator, for each time instant )
 
@@ -2510,6 +2510,20 @@ double UCBlock::get_replicate_linearization( Index unit )
                      if( p && ip )
                       term += ip[ t ] * p[ t ].get_value();
                      return( term ); } );
+
+ // The pollutant budget constraints - - - - - - - - - - - - - - - - - - - - -
+
+ // in the constraint of each zone the factor multiplies rho * p for each
+ // generator of the unit and sigma * v for each of its storages [see
+ // for_each_pollutant_term()]
+ for( Index p = 0 ; p < v_PollutantBudget_Const.size() ; ++p )
+  for_each_pollutant_term( p , [ & ]( Index unit_id , UnitBlock * ,
+                                      Index zone_id , ColVariable * var ,
+                                      double factor ) {
+   if( unit_id == unit )
+    linearization += v_PollutantBudget_Const[ p ][ zone_id ].get_dual() *
+                     factor * var->get_value();
+   } );
 
  // The Objective of the unit - - - - - - - - - - - - - - - - - - - - - - - -
 
