@@ -2407,9 +2407,9 @@ double UCBlock::get_replicate_linearization( Index unit )
                            "representation has not been generated, so there "
                            "are no rows to read the duals of" ) );
 
- /* TODO The following does not take into account the reactive node
-  * injection constraints and the heat constraints. When these constraints
-  * are correctly implemented, this method must be updated. */
+ /* TODO The following does not take into account the heat constraints.
+  * When these constraints are correctly implemented, this method must be
+  * updated. */
 
  const auto block = get_unit_block( unit );
  const auto time_horizon = get_time_horizon();
@@ -2449,6 +2449,14 @@ double UCBlock::get_replicate_linearization( Index unit )
    if( auto fc = block->get_fixed_consumption( g ) )
     if( auto u = block->get_commitment( g ) )
      linearization -= dual * fc[ t ] * ( 1.0 - u[ t ].get_value() );
+
+   // the reactive node injection constraints, if any, carry the reactive
+   // power alone, which the factor multiplies as it multiplies the active
+   // one [see generate_reactive_node_injection_constraints()]
+   if( ! v_reactive_node_injection_Const.empty() )
+    if( auto q = block->get_reactive_power( g ) )
+     linearization += v_reactive_node_injection_Const[ t ][ node ].get_dual()
+                      * q[ t ].get_value();
 
    }  // end( for each generator, for each time instant )
 
