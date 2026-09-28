@@ -2499,7 +2499,8 @@ double UCBlock::get_replicate_linearization( Index unit )
 
  zone_contribution( v_SecondaryDemand_Const , f_number_secondary_zones ,
                     [ this ]( Index node , Index zone ) {
-                     return( node_belongs_to_secondary_zone( node , zone ) ); } ,
+                     return( node_belongs_to_secondary_zone( node ,
+                                                             zone ) ); } ,
                     [ block ]( Index g , Index t ) {
                      const auto r = block->get_secondary_spinning_reserve( g );
                      return( r ? r[ t ].get_value() : 0.0 ); } );

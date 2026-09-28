@@ -3660,7 +3660,7 @@ class ThermalUnitBlock : public UnitBlock
   // copies of this unit. There is no "resize" here, and the omission is the
   // statement: the commitment of a thermal unit is binary, so one unit of k
   // times the size is not k units, and this class does not offer that road.
-  // The old name is kept, instances naming it keeping to work.
+  // The old name is kept, instances naming it still working.
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
    "ThermalUnitBlock::replicate" , & ThermalUnitBlock::scale );

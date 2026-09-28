@@ -2179,7 +2179,8 @@ class UCBlock : public Block
   register_method< qry_sbst >(
    "UCBlock::get_replicate_linearization" , new qry_sbst(
     []( const Block * blck , MF_dbl_msp msp , c_Subset & units , bool ) {
-     auto ucb = const_cast< UCBlock * >( static_cast< const UCBlock * >( blck ) );
+     auto ucb = const_cast< UCBlock * >(
+                 static_cast< const UCBlock * >( blck ) );
      if( units.size() > msp.size() )
       throw( std::invalid_argument(
        "UCBlock::get_replicate_linearization: the span is shorter than the "
@@ -2196,7 +2197,8 @@ class UCBlock : public Block
   register_method< qry_rngd >(
    "UCBlock::get_replicate_linearization" , new qry_rngd(
     []( const Block * blck , MF_dbl_msp msp , Range rng ) {
-     auto ucb = const_cast< UCBlock * >( static_cast< const UCBlock * >( blck ) );
+     auto ucb = const_cast< UCBlock * >(
+                 static_cast< const UCBlock * >( blck ) );
      rng.second = std::min( rng.second , ucb->get_number_units() );
      if( ( rng.first < rng.second ) &&
          ( msp.size() < rng.second - rng.first ) )

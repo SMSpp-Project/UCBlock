@@ -2343,7 +2343,8 @@ class BatteryUnitBlock : public UnitBlock
        throw( std::invalid_argument(
         "BatteryUnitBlock::get_resize_linearization: a unit has one size "
         "parameter, and there is no index " + std::to_string( idxs[ i ] ) ) );
-      msp[ i ] = static_cast< const BatteryUnitBlock * >( blck )->get_kappa_linearization();
+      msp[ i ] = static_cast< const BatteryUnitBlock * >( blck )->
+                 get_kappa_linearization();
       }
      } ) );
 
@@ -2358,7 +2359,8 @@ class BatteryUnitBlock : public UnitBlock
       throw( std::invalid_argument(
        "BatteryUnitBlock::get_resize_linearization: the span is shorter "
        "than the range it is asked to answer for" ) );
-     msp[ 0 ] = static_cast< const BatteryUnitBlock * >( blck )->get_kappa_linearization();
+     msp[ 0 ] = static_cast< const BatteryUnitBlock * >( blck )->
+                get_kappa_linearization();
      } ) );
   }
 
