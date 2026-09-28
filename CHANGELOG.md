@@ -211,6 +211,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discharging row: it had them swapped, which gave a wrong sensitivity for a
   battery whose two powers differ, while a symmetric one hid it
 
+- `BatteryUnitBlock::get_kappa_linearization()` of a battery that gives
+  reserve sums the terms of the two rows fencing its active power, which the
+  reserve sets apart so that both can hold, where it took the smaller of the
+  two; and it reads the fences of intake and outtake only on their upper
+  side, their dual being the reduced cost of a column, which is not zero at
+  the lower bound 0 that kappa does not move. Both gave a wrong sensitivity
+  as soon as the battery gave reserve
+
 - the cost setters of a `ThermalUnitBlock` (`set_linear_term()`,
   `set_quad_term()`, `set_const_term()`, `set_startup_costs()`,
   `set_shutdown_costs()`, `set_reactive_linear_term()` and those of the

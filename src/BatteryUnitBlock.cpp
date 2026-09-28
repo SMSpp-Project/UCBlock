@@ -2418,12 +2418,16 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
    * pushed against two distinct sides, which makes the coefficient steeper
    * than the value function is and the linearization invalid. The net of the
    * two multipliers is what the variable is pushed by, and it belongs to the
-   * side its sign points at. */
+   * side its sign points at. Elsewhere both terms are summed: with reserves
+   * the rows fence p - r and p + r, two distinct sides that can both hold,
+   * the reserve taking all the room between them. */
 
   const auto lambda_min = std::abs( min_power_constraints[ t ].get_dual() );
   const auto lambda_max = std::abs( max_power_constraints[ t ].get_dual() );
 
-  linearization += safe( min_power * lambda_min , - max_power * lambda_max );
+  linearization += ( f_kappa == 0 )
+   ? safe( min_power * lambda_min , - max_power * lambda_max )
+   : min_power * lambda_min - max_power * lambda_max;
 
   /* Intake and outtake level bounds, in the very form the unit states them
    * [see update_kappa_in_cnstrs()]: two one-sided bounds, one per variable,
@@ -2436,11 +2440,17 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
   if( intake_bound_constraints ) {
    if( outtake_bound_constraints ) {
-    linearization += intake_bound_constraints[ t ].get_dual() *
-                     f_MaxCRateCharge * min_power;
+    /* Each is a bound on a nonnegative variable, whose dual is the reduced
+     * cost of the column [see MILPSolver]: at the lower bound 0, which kappa
+     * does not move, it is still nonzero, and it belongs to the fence only
+     * where its sign points at the upper side. */
+    const auto alpha_in = intake_bound_constraints[ t ].get_dual();
+    if( obj_sign * alpha_in <= 0 )
+     linearization += alpha_in * f_MaxCRateCharge * min_power;
 
-    linearization += - outtake_bound_constraints[ t ].get_dual() *
-                     f_MaxCRateDischarge * max_power;
+    const auto alpha_out = outtake_bound_constraints[ t ].get_dual();
+    if( obj_sign * alpha_out <= 0 )
+     linearization += - alpha_out * f_MaxCRateDischarge * max_power;
     }
    else {
     const bool converter = ( f_BattInvestmentCost != 0 ) &&
