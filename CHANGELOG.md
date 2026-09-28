@@ -205,19 +205,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `BatteryUnitBlock::get_kappa_linearization()` reads the two rows that keep
-  a battery from charging and discharging at once with the sizes they carry,
-  the minimum power on the charging row and the maximum one on the
-  discharging row: it had them swapped, which gave a wrong sensitivity for a
-  battery whose two powers differ, while a symmetric one hid it
-
-- `BatteryUnitBlock::get_kappa_linearization()` of a battery that gives
-  reserve sums the terms of the two rows fencing its active power, which the
-  reserve sets apart so that both can hold, where it took the smaller of the
-  two; and it reads the fences of intake and outtake only on their upper
-  side, their dual being the reduced cost of a column, which is not zero at
-  the lower bound 0 that kappa does not move. Both gave a wrong sensitivity
-  as soon as the battery gave reserve
+- `BatteryUnitBlock::get_kappa_linearization()` reads the binary rows with
+  the right sizes, sums the power rows under a reserve, and counts the intake
+  and outtake bounds only on their upper side
 
 - the cost setters of a `ThermalUnitBlock` (`set_linear_term()`,
   `set_quad_term()`, `set_const_term()`, `set_startup_costs()`,

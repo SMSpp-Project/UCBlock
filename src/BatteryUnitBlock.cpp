@@ -2418,9 +2418,8 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
    * pushed against two distinct sides, which makes the coefficient steeper
    * than the value function is and the linearization invalid. The net of the
    * two multipliers is what the variable is pushed by, and it belongs to the
-   * side its sign points at. Elsewhere both terms are summed: with reserves
-   * the rows fence p - r and p + r, two distinct sides that can both hold,
-   * the reserve taking all the room between them. */
+   * side its sign points at. Elsewhere the terms are summed: with a reserve
+   * the rows fence p - r and p + r, which can hold together. */
 
   const auto lambda_min = std::abs( min_power_constraints[ t ].get_dual() );
   const auto lambda_max = std::abs( max_power_constraints[ t ].get_dual() );
@@ -2440,10 +2439,9 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
   if( intake_bound_constraints ) {
    if( outtake_bound_constraints ) {
-    /* Each is a bound on a nonnegative variable, whose dual is the reduced
-     * cost of the column [see MILPSolver]: at the lower bound 0, which kappa
-     * does not move, it is still nonzero, and it belongs to the fence only
-     * where its sign points at the upper side. */
+    /* The dual of a bound is the reduced cost of the column [see
+     * MILPSolver], nonzero also at the lower bound 0, which kappa does not
+     * move: only the upper side counts. */
     const auto alpha_in = intake_bound_constraints[ t ].get_dual();
     if( obj_sign * alpha_in <= 0 )
      linearization += alpha_in * f_MaxCRateCharge * min_power;
