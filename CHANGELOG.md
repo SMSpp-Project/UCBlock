@@ -175,6 +175,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `NuclearUnitExtDPSolver` ignored a modulation (or a downward modulation,
+  or a deep decrease) fixed to 1 at an instant in which the unit is off,
+  since the fixings of those Variable were only checked on the moves of an
+  on unit: a modulation at t needs the unit on at t and not starting up
+  there (m_t <= u_t and m_t <= 1 - v_t), which is now what such a fixing
+  imposes, and the DP no longer goes below the MILP when the tester fixes
+  the modulations (TUDPS_FIXMOD)
+
 - `BatteryUnitBlock::get_kappa_linearization()` reads the binary rows with
   the right sizes, sums the power rows under a reserve, and counts the intake
   and outtake bounds only on their upper side

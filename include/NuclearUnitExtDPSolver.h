@@ -371,6 +371,15 @@ class NuclearUnitExtDPSolver : public ThermalUnitExtDPSolver
  std::vector< signed char > f_fix_down;
  std::vector< signed char > f_fix_deep;
 
+ /// true if a Variable of the operating rules is fixed to 1 at t, which
+ /// needs the unit on at t and not starting up at t
+ bool on_forced( Index t ) const {
+  auto one = [ t ]( const std::vector< signed char > & f ) {
+   return( ( ! f.empty() ) && ( f[ t ] == 1 ) );
+   };
+  return( one( f_fix_mod ) || one( f_fix_down ) || one( f_fix_deep ) );
+  }
+
  Index f_ncore{ 2 };   ///< number of (mode, lockout or steps) pairs
  Index f_nc{ 1 };      ///< range of the counter of the modulations
  Index f_na{ 1 };      ///< range of the counter of the deep decreases
