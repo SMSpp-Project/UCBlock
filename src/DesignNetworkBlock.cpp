@@ -851,6 +851,32 @@ void DesignNetworkBlockSolution::write( Block * block )
 
 /*--------------------------------------------------------------------------*/
 
+bool DesignNetworkBlockSolution::is_dual_feasible( Block * block ,
+						   Configuration * fsbc )
+{
+ auto DCNB = dynamic_cast< DesignNetworkBlock * >( block );
+ if( ! DCNB )
+  throw( std::invalid_argument( "DesignNetworkBlockSolution::"
+				"is_dual_feasible: block is not a "
+				"DesignNetworkBlock" ) );
+
+ if( v_network_Solution.size() != DCNB->get_number_nested_Blocks() )
+  return( false );
+
+ // the sub-Network Solution, which say false if they hold no dual value
+ bool any = false;
+ auto & NB = DCNB->get_nested_Blocks();
+ for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
+  if( v_network_Solution[ i ] &&
+      v_network_Solution[ i ]->is_dual_feasible( NB[ i ] , fsbc ) )
+   any = true;
+
+ return( any );
+
+ }  // end( DesignNetworkBlockSolution::is_dual_feasible )
+
+/*--------------------------------------------------------------------------*/
+
 void DesignNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
 {
  // call the method of the base class

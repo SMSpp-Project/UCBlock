@@ -271,7 +271,7 @@ class ThermalUnitDPSolver : public ThermalUnitDPSolverBase
 /** @name Constructor and destructor
  * @{ */
 
- ThermalUnitDPSolver( void ) {};
+ ThermalUnitDPSolver( void );  // defined in the .cpp (pimpl'd FastFlow)
 
  ~ThermalUnitDPSolver() override;  // defined in the .cpp (pimpl'd FastFlow)
 

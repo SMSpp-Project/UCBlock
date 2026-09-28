@@ -1141,6 +1141,15 @@ class UnitBlockSolution : public Solution {
  ~UnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
+/*--------------------------------------------------------------------------*/
+ /// a UnitBlockSolution holds no dual values, hence none that is feasible
+ /** Returns false [see Solution::is_dual_feasible()]. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override {
+  return( false );
+  }
+
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A UnitBlockSolution --------*/
 
  void read( const Block * block ) override;

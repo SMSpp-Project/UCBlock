@@ -1247,6 +1247,15 @@ class NetworkBlockSolution : public Solution
 
  Index get_number_nodes( void ) const { return( f_number_nodes ); }
 
+/*--------------------------------------------------------------------------*/
+ /// a NetworkBlockSolution holds no dual values, hence none that is feasible
+ /** Returns false [see Solution::is_dual_feasible()]. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override {
+  return( false );
+  }
+
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A NetworkBlockSolution ------*/
 
  void read( const Block * block ) override;

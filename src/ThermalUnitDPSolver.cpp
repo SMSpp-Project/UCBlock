@@ -95,8 +95,12 @@ SMSpp_insert_in_factory_cpp_0( ThermalUnitDPSolver );
 /*--------------------------- Solver INTERFACE -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// defined here (not defaulted in the header) so that the destructor of the
-// pimpl'd ff::ParallelFor is instantiated where the type is complete
+// defined here (not in the header) so that the destructor of the pimpl'd
+// ff::ParallelFor, which the constructor also needs should it throw, is
+// instantiated where the type is complete, and the header can be included
+// by whoever does not see FastFlow
+
+ThermalUnitDPSolver::ThermalUnitDPSolver( void ) {}
 
 ThermalUnitDPSolver::~ThermalUnitDPSolver() = default;
 

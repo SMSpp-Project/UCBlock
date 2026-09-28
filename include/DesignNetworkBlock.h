@@ -811,6 +811,14 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
    delete nbs;
   }
 
+/*--------------------------------------------------------------------------*/
+ /// tells whether the dual values held here are feasible for the Block
+ /** Asks the NetworkBlockSolution held here, each with its own NetworkBlock;
+  * false if none of them holds any dual value [see Solution::is_dual_feasible()]. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override;
+
 /*---- METHODS DESCRIBING THE BEHAVIOR OF A DesignNetworkBlockSolution ----*/
 
  void read( const Block * block ) override final;
