@@ -175,6 +175,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `BatteryUnitBlock::get_kappa_linearization()` reads the binary rows with
+  the right sizes, sums the power rows under a reserve, and counts the intake
+  and outtake bounds only on their upper side
+
 - the cost setters of a `ThermalUnitBlock` (`set_linear_term()`,
   `set_quad_term()`, `set_const_term()`, `set_startup_costs()`,
   `set_shutdown_costs()`, `set_reactive_linear_term()` and those of the

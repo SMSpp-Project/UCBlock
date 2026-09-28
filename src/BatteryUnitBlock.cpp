@@ -2326,9 +2326,9 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   *
   *   whose multiplier belongs to the side its sign points at [alpha]
   *
-  *   p^{+}_{t} <= kappa * u^{+}_t * P^{max}_{t}                   [alpha_max_u]
+  *   p^{+}_{t} <= - kappa * u^{+}_t * P^{min}_{t}                 [alpha_max_u]
   *
-  *   p^{-}_{t} <= - kappa * (1 - u^{+}_t) * P^{min}_{t}           [alpha_min_u]
+  *   p^{-}_{t} <= kappa * (1 - u^{+}_t) * P^{max}_{t}             [alpha_min_u]
   *
   * - Storage level bounds (beta):
   *
@@ -2345,8 +2345,8 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   * The name between [] represents the dual variable associated with each
   * constraint. The linearization coefficient is
   *
-  *   P^{min} ' (lambda_min + C^{c} alpha_in + (1 - u^+) * alpha_min_u) -
-  *   P^{max} ' (lambda_max + C^{d} alpha_out + u^+ * alpha_max_u) +
+  *   P^{min} ' (lambda_min + C^{c} alpha_in + u^+ * alpha_max_u) -
+  *   P^{max} ' (lambda_max + C^{d} alpha_out + (1 - u^+) * alpha_min_u) +
   *   V^{min} ' beta_min - V^{max} ' beta_max -
   *   P^{pr max} ' gamma_pr - P^{sc max} ' gamma_sc
   *
@@ -2418,12 +2418,15 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
    * pushed against two distinct sides, which makes the coefficient steeper
    * than the value function is and the linearization invalid. The net of the
    * two multipliers is what the variable is pushed by, and it belongs to the
-   * side its sign points at. */
+   * side its sign points at. Elsewhere the terms are summed: with a reserve
+   * the rows fence p - r and p + r, which can hold together. */
 
   const auto lambda_min = std::abs( min_power_constraints[ t ].get_dual() );
   const auto lambda_max = std::abs( max_power_constraints[ t ].get_dual() );
 
-  linearization += safe( min_power * lambda_min , - max_power * lambda_max );
+  linearization += ( f_kappa == 0 )
+   ? safe( min_power * lambda_min , - max_power * lambda_max )
+   : min_power * lambda_min - max_power * lambda_max;
 
   /* Intake and outtake level bounds, in the very form the unit states them
    * [see update_kappa_in_cnstrs()]: two one-sided bounds, one per variable,
@@ -2436,11 +2439,16 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
   if( intake_bound_constraints ) {
    if( outtake_bound_constraints ) {
-    linearization += intake_bound_constraints[ t ].get_dual() *
-                     f_MaxCRateCharge * min_power;
+    /* The dual of a bound is the reduced cost of the column [see
+     * MILPSolver], nonzero also at the lower bound 0, which kappa does not
+     * move: only the upper side counts. */
+    const auto alpha_in = intake_bound_constraints[ t ].get_dual();
+    if( obj_sign * alpha_in <= 0 )
+     linearization += alpha_in * f_MaxCRateCharge * min_power;
 
-    linearization += - outtake_bound_constraints[ t ].get_dual() *
-                     f_MaxCRateDischarge * max_power;
+    const auto alpha_out = outtake_bound_constraints[ t ].get_dual();
+    if( obj_sign * alpha_out <= 0 )
+     linearization += - alpha_out * f_MaxCRateDischarge * max_power;
     }
    else {
     const bool converter = ( f_BattInvestmentCost != 0 ) &&
@@ -2462,13 +2470,13 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   if( max_intake_binary_constraints ) {
    const auto alpha_max_u =
     std::abs( max_intake_binary_constraints[ t ].get_dual() );
-   linearization += - alpha_max_u * u[ t ].get_value() * max_power;
+   linearization += alpha_max_u * u[ t ].get_value() * min_power;
   }
 
   if( max_outtake_binary_constraints ) {
    const auto alpha_min_u =
     std::abs( max_outtake_binary_constraints[ t ].get_dual() );
-   linearization += ( 1.0 - u[ t ].get_value() ) * alpha_min_u * min_power;
+   linearization += - ( 1.0 - u[ t ].get_value() ) * alpha_min_u * max_power;
   }
 
   // Storage level bounds
