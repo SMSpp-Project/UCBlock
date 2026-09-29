@@ -562,34 +562,6 @@ class ACNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
- /// the size of a line of an ACNetworkBlock is not changed by a kappa
- /** An ACNetworkBlock builds its own rows and not the power flow limit ones
-  * of DCNetworkBlock, which are those a kappa is written into, hence sizing
-  * a line this way is not supported and these throw.
-  *
-  * Supporting it means saying what the size of such a line is and writing
-  * the kappa into the rows that carry it, i.e., the thermal limit and the
-  * bounds of the reactive flow, and answering whether the susceptance
-  * follows the size, which it does not do linearly: a modelling choice
-  * rather than a translation, left to whoever needs it. */
-
- void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
-                 c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) override {
-  throw( std::logic_error( "ACNetworkBlock::set_kappa: sizing a line of an "
-   "ACNetworkBlock is not supported" ) );
-  }
-
-/*--------------------------------------------------------------------------*/
-
- void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
-                 c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) override {
-  throw( std::logic_error( "ACNetworkBlock::set_kappa: sizing a line of an "
-   "ACNetworkBlock is not supported" ) );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// separate the McCormick strengthening inequalities as dynamic cuts
  /** Separates, at the current point, the McCormick valid inequalities that
   * strengthen the SOCP relaxation (the z / c / beta / s families), adding to
@@ -996,9 +968,9 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
- /// nothing of its own to register in the methods factory
- /** The methods an ACNetworkBlock can be asked for by name are those of
-  * DCNetworkBlock, registered by DCNetworkBlock::static_initialization():
+ /// register the sizing of a line under the names of this class
+ /** The other methods an ACNetworkBlock can be asked for by name are those
+  * of DCNetworkBlock, registered by DCNetworkBlock::static_initialization():
   * they reach an ACNetworkBlock as well, being called on it as on the
   * DCNetworkBlock it is, and set_active_demand() is virtual. Registering
   * them again here, under the same names, would replace the adapter of
@@ -1006,9 +978,60 @@ class ACNetworkData : public DCNetworkData
   * DCNetworkBlock that is not one, and which of the two survives would
   * depend on the order of the static initialization. This one is defined
   * all the same so that the factory does not call the inherited one, which
-  * would register the same methods twice. */
+  * would register the same methods twice.
+  *
+  * What is registered here is the sizing of a line, under names of this
+  * class since a consumer looks them up by the exact class of the Block:
+  * the kappa of DCNetworkBlock::set_kappa(), which this class inherits,
+  * scales the power flow limit rows built by generate_bound_constraints(),
+  * and nothing else, i.e., not the thermal limit, the bounds of the
+  * reactive flow or the susceptance. These are the rows, and the only
+  * ones, that the design variable of a DesignNetworkBlock scales, so that
+  * a line of kappa k behaves as a designed line whose design is k. The
+  * sensitivity is read off those rows as in DCNetworkBlock. */
 
- static void static_initialization( void ) {}
+ static void static_initialization( void )
+ {
+  register_method< ACNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "ACNetworkBlock::resize" , & ACNetworkBlock::set_kappa );
+
+  register_method< ACNetworkBlock , MF_dbl_it , Range >(
+   "ACNetworkBlock::resize" , & ACNetworkBlock::set_kappa );
+
+  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
+  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+
+  register_method< qry_sbst >(
+   "ACNetworkBlock::get_resize_linearization" , new qry_sbst(
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & lines , bool ) {
+     const auto acn = static_cast< const ACNetworkBlock * >( blck );
+     if( lines.size() > msp.size() )
+      throw( std::invalid_argument(
+       "ACNetworkBlock::get_resize_linearization: the span is shorter than "
+       "the subset it is asked to answer for" ) );
+     for( Index i = 0 ; i < lines.size() ; ++i ) {
+      if( lines[ i ] >= acn->get_number_lines() )
+       throw( std::invalid_argument(
+        "ACNetworkBlock::get_resize_linearization: there is no line of index " +
+        std::to_string( lines[ i ] ) ) );
+      msp[ i ] = acn->get_resize_linearization( lines[ i ] );
+      }
+     } ) );
+
+  register_method< qry_rngd >(
+   "ACNetworkBlock::get_resize_linearization" , new qry_rngd(
+    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
+     const auto acn = static_cast< const ACNetworkBlock * >( blck );
+     rng.second = std::min( rng.second , acn->get_number_lines() );
+     if( ( rng.first < rng.second ) &&
+         ( msp.size() < rng.second - rng.first ) )
+      throw( std::invalid_argument(
+       "ACNetworkBlock::get_resize_linearization: the span is shorter than "
+       "the range it is asked to answer for" ) );
+     for( Index l = rng.first ; l < rng.second ; ++l )
+      msp[ l - rng.first ] = acn->get_resize_linearization( l );
+     } ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 

@@ -14,9 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class it is holding. `ThermalUnitBlock`, `NuclearUnitBlock`,
   `IntermittentUnitBlock` and `BatteryUnitBlock` register `scale()` as
   `<class>::replicate`, which stands for k identical copies of the unit;
-  `IntermittentUnitBlock`, `BatteryUnitBlock` and `DCNetworkBlock` register
-  `set_kappa()` as `<class>::resize`, which stands for one copy of k times the
-  size. The thermal and the nuclear units deliberately do not offer the
+  `IntermittentUnitBlock`, `BatteryUnitBlock`, `DCNetworkBlock`,
+  `ACNetworkBlock` and `OTSNetworkBlock` register `set_kappa()` as
+  `<class>::resize`, which stands for one copy of k times the size. The thermal and the nuclear units deliberately do not offer the
   second road, their commitment being binary. The old names stay registered, a registered name travelling
   inside the instances that name it.
 
@@ -38,6 +38,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DCNetworkBlock::get_resize_linearization( line )` and
   `UCBlock::get_replicate_linearization( unit )`, the two protected methods
   those sensitivities are read from.
+
+- A line of an `ACNetworkBlock` or of an `OTSNetworkBlock` can be sized, as
+  a line of a `DesignNetworkBlock` is designed. Both classes build the power
+  flow limit rows of `DCNetworkBlock`, and the kappa goes into them as the
+  design variable does; nothing else follows it, as nothing else follows the
+  design: not the thermal limit, the bounds of the reactive flow or the
+  susceptance of an AC line, not the flow bounds coupled with the switching,
+  the big-M of the Kirchhoff rows or the susceptance of an OTS one. A
+  switchable line of an `OTSNetworkBlock` also has its switching limited by
+  min(1, kappa), as the design variable limits it: through a bound in the
+  standard and elastic formulations, through the exclusivity row in the
+  directional ones. The sensitivity of an OTS line adds the dual of that
+  limit while kappa is below 1.
 
 - `is_dual_feasible()` of the Solution of the module [see
   `Solution::is_dual_feasible()`]: `UCBlockSolution` checks the sign of the
@@ -349,14 +362,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a fixed consumption moves by 8 to 12%. The formula in the documentation,
   which wrote the consumption as a positive term of the injection, follows
 
-- an `ACNetworkBlock` and an `OTSNetworkBlock` refuse a kappa on one of
-  their lines, `DCNetworkBlock::set_kappa()` being virtual now and their
-  override throwing: they build their own rows and not the power flow limit
-  ones the kappa is written into, so that sizing a line of theirs used to
-  reach rows that are not there. What supporting it would take is written
-  where they refuse it. The method that writes the kappa into the rows
-  refuses as well when there are none, so that any other derived class is
-  told rather than left to write where there is nothing
+- `DCNetworkBlock::set_kappa()` is virtual, and the method that writes the
+  kappa into the power flow limit rows refuses when there are none, so that
+  a derived class that does not build them is told rather than left to write
+  where there is nothing. An `ACNetworkBlock` and an `OTSNetworkBlock` build
+  them, which is why their lines can be sized [see Added]
 
 - the dynamic programming Solvers refuse a unit that has a reference
   schedule, of which they have no term: they used to answer for a unit that

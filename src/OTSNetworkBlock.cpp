@@ -97,6 +97,7 @@ OTSNetworkBlock::~OTSNetworkBlock()
  Constraint::clear( v_OTS_flow_upper );
  Constraint::clear( v_OTS_flow_lower );
  Constraint::clear( v_switching_exclusivity );
+ Constraint::clear( v_switching_bound );
  Constraint::clear( v_elastic_precedence );
  Constraint::clear( v_design_coupling );
  }
@@ -193,6 +194,9 @@ void OTSNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  // 6. OTS flow bounds (coupled with switching variables)
  generate_OTS_flow_bounds();
+
+ // 6b. the limit of the switching by the kappa (Standard/Elastic)
+ generate_OTS_switching_bounds();
 
  // 7. Design coupling constraints (z <= x or z+ + z- <= x)
  generate_design_coupling_constraints();
@@ -310,6 +314,7 @@ bool OTSNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( v_OTS_flow_upper , tol , rel_viol )
   && RowConstraint::is_feasible( v_OTS_flow_lower , tol , rel_viol )
   && RowConstraint::is_feasible( v_switching_exclusivity , tol , rel_viol )
+  && RowConstraint::is_feasible( v_switching_bound , tol , rel_viol )
   && RowConstraint::is_feasible( v_elastic_precedence , tol , rel_viol )
   && RowConstraint::is_feasible( v_design_coupling , tol , rel_viol )
   );
@@ -559,11 +564,11 @@ void OTSNetworkBlock::generate_OTS_Directional_constraints( void )
   v_OTS_KVL_lower[ idx ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
 
-  // exclusivity: z+ + z- <= 1
+  // exclusivity: z+ + z- <= min( 1 , kappa ) [see set_kappa()]
   vars.emplace_back( & v_switching_pos[ idx ] , 1.0 );
   vars.emplace_back( & v_switching_neg[ idx ] , 1.0 );
   v_switching_exclusivity[ idx ].set_lhs( -Inf< double >() );
-  v_switching_exclusivity[ idx ].set_rhs( 1.0 );
+  v_switching_exclusivity[ idx ].set_rhs( std::min( 1.0 , get_kappa( l ) ) );
   v_switching_exclusivity[ idx ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
   }
@@ -708,11 +713,11 @@ void OTSNetworkBlock::generate_OTS_ElasticDirectional_constraints( void )
   v_OTS_KVL_lower[ idx ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
 
-  // exclusivity: z+ + z- <= 1
+  // exclusivity: z+ + z- <= min( 1 , kappa ) [see set_kappa()]
   vars.emplace_back( & v_switching_pos[ idx ] , 1.0 );
   vars.emplace_back( & v_switching_neg[ idx ] , 1.0 );
   v_switching_exclusivity[ idx ].set_lhs( -Inf< double >() );
-  v_switching_exclusivity[ idx ].set_rhs( 1.0 );
+  v_switching_exclusivity[ idx ].set_rhs( std::min( 1.0 , get_kappa( l ) ) );
   v_switching_exclusivity[ idx ].set_function(
                                    new LinearFunction( std::move( vars ) ) );
 
@@ -875,6 +880,143 @@ void OTSNetworkBlock::generate_design_coupling_constraints( void )
  add_static_constraint( v_design_coupling , "OTS_design_coupling" );
 
  }  // end( OTSNetworkBlock::generate_design_coupling_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void OTSNetworkBlock::generate_OTS_switching_bounds( void )
+{
+ // z_l <= min( 1 , kappa_l ) for the formulations with a single switching
+ // variable, the directional ones carrying the same limit in their
+ // exclusivity rows. It is a bound, and not a row: in SMS++ a ColVariable
+ // has only the bounds of its type, every other one being a Constraint of
+ // the Block. Its left-hand side is -Inf, so that a Solver gives it the dual
+ // of the upper side only
+
+ if( ( f_ots_type != kOTS_Standard ) && ( f_ots_type != kOTS_Elastic ) )
+  return;
+
+ auto & DC_lines = f_NetworkData->get_DC_lines();
+ auto n_dc = DC_lines.size();
+ if( n_dc == 0 )
+  return;
+
+ v_switching_bound.resize( n_dc );
+ for( Index idx = 0 ; idx < n_dc ; ++idx ) {
+  v_switching_bound[ idx ].set_rhs( std::min( 1.0 ,
+                                              get_kappa( DC_lines[ idx ] ) ) );
+  v_switching_bound[ idx ].set_variable( & v_switching[ idx ] );
+  }
+
+ add_static_constraint( v_switching_bound , "OTS_switching_bound" );
+
+ }  // end( OTSNetworkBlock::generate_OTS_switching_bounds )
+
+/*--------------------------------------------------------------------------*/
+
+void OTSNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
+                                 bool ordered , c_ModParam issuePMod ,
+                                 c_ModParam issueAMod )
+{
+ // the parent consumes the Subset, and the lines are needed afterwards
+ const Subset lines( subset );
+
+ DCNetworkBlock::set_kappa( values , std::move( subset ) , ordered ,
+                            issuePMod , issueAMod );
+
+ if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
+     constraints_generated() )
+  change_switching_bounds( lines , issueAMod );
+
+ }  // end( OTSNetworkBlock::set_kappa( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void OTSNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
+                                 c_ModParam issuePMod , c_ModParam issueAMod )
+{
+ DCNetworkBlock::set_kappa( values , rng , issuePMod , issueAMod );
+
+ rng.second = std::min( rng.second , get_number_lines() );
+ if( ( rng.second <= rng.first ) || ( ! not_dry_run( issuePMod ) ) ||
+     ( ! not_dry_run( issueAMod ) ) || ( ! constraints_generated() ) )
+  return;
+
+ Subset lines( rng.second - rng.first );
+ std::iota( lines.begin() , lines.end() , rng.first );
+ change_switching_bounds( lines , issueAMod );
+
+ }  // end( OTSNetworkBlock::set_kappa( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void OTSNetworkBlock::change_switching_bounds( c_Subset & lines ,
+                                               c_ModParam issueAMod )
+{
+ // the switchable lines are the DC lines, in increasing order, and the rows
+ // of the switching are indexed by the position of the line among them. A
+ // row whose value does not change is left alone, so that a kappa that
+ // stays at or above 1 issues no Modification here
+ auto & DC_lines = f_NetworkData->get_DC_lines();
+
+ const bool directional = ( f_ots_type == kOTS_Directional ) ||
+                          ( f_ots_type == kOTS_ElasticDirectional );
+
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
+ for( auto l : lines ) {
+  const auto it = std::lower_bound( DC_lines.begin() , DC_lines.end() , l );
+  if( ( it == DC_lines.end() ) || ( *it != l ) )
+   continue;  // a line with no switching
+
+  const Index idx = it - DC_lines.begin();
+  const double bound = std::min( 1.0 , get_kappa( l ) );
+
+  if( directional ) {
+   if( v_switching_exclusivity[ idx ].get_rhs() != bound )
+    v_switching_exclusivity[ idx ].set_rhs( bound , nAM );
+   }
+  else
+   if( v_switching_bound[ idx ].get_rhs() != bound )
+    v_switching_bound[ idx ].set_rhs( bound , nAM );
+  }
+
+ close_channel( par2chnl( nAM ) );
+
+ }  // end( OTSNetworkBlock::change_switching_bounds )
+
+/*--------------------------------------------------------------------------*/
+
+double OTSNetworkBlock::get_resize_linearization( Index line ) const
+{
+ auto linearization = DCNetworkBlock::get_resize_linearization( line );
+
+ // from 1 on the limit of the switching stays at 1, whatever the kappa
+ if( get_kappa( line ) >= 1 )
+  return( linearization );
+
+ auto & DC_lines = f_NetworkData->get_DC_lines();
+ const auto it = std::lower_bound( DC_lines.begin() , DC_lines.end() , line );
+ if( ( it == DC_lines.end() ) || ( *it != line ) )
+  return( linearization );  // a line with no switching
+
+ const Index idx = it - DC_lines.begin();
+
+ // the right-hand side of the limit is the kappa itself, so the derivative
+ // is minus its dual, as DCNetworkBlock reads minus the dual times the
+ // coefficient of the kappa
+ if( ( f_ots_type == kOTS_Directional ) ||
+     ( f_ots_type == kOTS_ElasticDirectional ) ) {
+  if( idx < v_switching_exclusivity.size() )
+   linearization -= v_switching_exclusivity[ idx ].get_dual();
+  }
+ else
+  if( idx < v_switching_bound.size() )
+   linearization -= v_switching_bound[ idx ].get_dual();
+
+ return( linearization );
+
+ }  // end( OTSNetworkBlock::get_resize_linearization )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File OTSNetworkBlock.cpp -----------------------*/

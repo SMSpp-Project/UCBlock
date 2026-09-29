@@ -410,7 +410,9 @@ class OTSNetworkData : public DCNetworkData
   *      \f$ -f^{\max}_l z_l^- \le F_l \le f^{\max}_l z_l^+ \f$
   *
   * 4. **Switching exclusivity** (Directional/ElasticDirectional only):
-  *    \f$ z_l^+ + z_l^- \le 1 \f$
+  *    \f$ z_l^+ + z_l^- \le \min( 1 , \kappa_l ) \f$, and **switching
+  *    bound** (Standard/Elastic only): \f$ z_l \le \min( 1 , \kappa_l ) \f$
+  *    [see set_kappa()].
   *
   * 5. **Elastic precedence** (Elastic/ElasticDirectional only):
   *    - Elastic: \f$ z_l \le z_{1,l} \f$
@@ -435,32 +437,30 @@ class OTSNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
- /// the size of a line of an OTSNetworkBlock is not changed by a kappa
- /** An OTSNetworkBlock builds its own rows and not the power flow limit
-  * ones of DCNetworkBlock, which are those a kappa is written into, hence
-  * sizing a line this way is not supported and these throw.
-  *
-  * Supporting it means saying what the size of such a line is and writing
-  * the kappa into the rows that carry it, i.e., the flow bounds coupled
-  * with the switching variables and the big-M of the Kirchhoff rows, which
-  * is the limit itself and has to follow it: a modelling choice rather than
-  * a translation, left to whoever needs it. */
+ /// set the kappa constants for the lines specified by \p subset
+ /** As DCNetworkBlock::set_kappa(), which writes the kappa of a line into
+  * the power flow limit rows built by generate_bound_constraints(), and in
+  * addition into the limit of the switching of the line when it is
+  * switchable: \f$ z_l \le \min( 1 , \kappa_l ) \f$, or \f$ z_l^+ + z_l^-
+  * \le \min( 1 , \kappa_l ) \f$ in the directional formulations. These are
+  * the rows, and the only ones, that the design variable of a
+  * DesignNetworkBlock enters, as \f$ \kappa \f$ in the former and as \f$ z_l
+  * \le x_l \f$ [see generate_design_coupling_constraints()], so that a line
+  * of kappa k behaves as a designed line whose design is k. The flow bounds
+  * coupled with the switching, the big-M of the Kirchhoff rows and the
+  * susceptance do not change, as they do not with the design. */
 
  void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) override {
-  throw( std::logic_error( "OTSNetworkBlock::set_kappa: sizing a line of an "
-   "OTSNetworkBlock is not supported" ) );
-  }
+                 c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// set the kappa constants for the lines specified by \p rng
+ /** As the Subset version above. */
 
  void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) override {
-  throw( std::logic_error( "OTSNetworkBlock::set_kappa: sizing a line of an "
-   "OTSNetworkBlock is not supported" ) );
-  }
+                 c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the OTSNetworkBlock
@@ -649,6 +649,31 @@ class OTSNetworkData : public DCNetworkData
  void generate_design_coupling_constraints( void );
 
 /*--------------------------------------------------------------------------*/
+ /// generate the limit of the switching by the kappa
+ /** Generates \f$ z_l \le \min( 1 , \kappa_l ) \f$ for each switchable line
+  * (Standard/Elastic); the directional formulations carry it in the
+  * exclusivity rows. It is generated whatever the kappa, since set_kappa()
+  * can change it afterwards. */
+
+ void generate_OTS_switching_bounds( void );
+
+/*--------------------------------------------------------------------------*/
+ /// write min( 1 , kappa ) into the limit of the switching of \p lines
+
+ void change_switching_bounds( c_Subset & lines , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative of the value of this Block w.r.t. the kappa of \p line
+ /** That of DCNetworkBlock, read off the power flow limit rows, plus, for a
+  * switchable line whose kappa is below 1, minus the dual of the limit of
+  * its switching, whose right-hand side is the kappa itself; from 1 on that
+  * right-hand side stays at 1, and its derivative is 0. It hides the one of
+  * DCNetworkBlock, which is not virtual: the supported way in is the name
+  * "OTSNetworkBlock::get_resize_linearization". */
+
+ double get_resize_linearization( Index line ) const;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -691,8 +716,12 @@ class OTSNetworkData : public DCNetworkData
  std::vector< FRowConstraint > v_OTS_flow_upper;
  std::vector< FRowConstraint > v_OTS_flow_lower;
 
- /// switching exclusivity: z+ + z- <= 1 (Directional formulations)
+ /// switching exclusivity: z+ + z- <= min( 1 , kappa ) (Directional
+ /// formulations)
  std::vector< FRowConstraint > v_switching_exclusivity;
+
+ /// limit of the switching: z <= min( 1 , kappa ) (Standard, Elastic)
+ std::vector< UBConstraint > v_switching_bound;
 
  /// elastic precedence: z <= z1 (or z+ <= z1, z- <= z1)
  std::vector< FRowConstraint > v_elastic_precedence;
@@ -715,10 +744,54 @@ class OTSNetworkData : public DCNetworkData
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
 /*--------------------------------------------------------------------------*/
- // static_initialization() needs be defined, even if void, for otherwise the
- // method of the base class DCNetworkBlock is called, which is private
+ // static_initialization() needs be defined, for otherwise the method of the
+ // base class DCNetworkBlock is called, which is private and would register
+ // its names again. What is registered here is the sizing of a line [see
+ // set_kappa()], under names of this class, since a consumer looks them up
+ // by the exact class of the Block
 
- static void static_initialization( void ) {}
+ static void static_initialization( void )
+ {
+  register_method< OTSNetworkBlock , MF_dbl_it , Subset && , bool >(
+   "OTSNetworkBlock::resize" , & OTSNetworkBlock::set_kappa );
+
+  register_method< OTSNetworkBlock , MF_dbl_it , Range >(
+   "OTSNetworkBlock::resize" , & OTSNetworkBlock::set_kappa );
+
+  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
+  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+
+  register_method< qry_sbst >(
+   "OTSNetworkBlock::get_resize_linearization" , new qry_sbst(
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & lines , bool ) {
+     const auto otsn = static_cast< const OTSNetworkBlock * >( blck );
+     if( lines.size() > msp.size() )
+      throw( std::invalid_argument(
+       "OTSNetworkBlock::get_resize_linearization: the span is shorter than "
+       "the subset it is asked to answer for" ) );
+     for( Index i = 0 ; i < lines.size() ; ++i ) {
+      if( lines[ i ] >= otsn->get_number_lines() )
+       throw( std::invalid_argument(
+        "OTSNetworkBlock::get_resize_linearization: there is no line of "
+        "index " + std::to_string( lines[ i ] ) ) );
+      msp[ i ] = otsn->get_resize_linearization( lines[ i ] );
+      }
+     } ) );
+
+  register_method< qry_rngd >(
+   "OTSNetworkBlock::get_resize_linearization" , new qry_rngd(
+    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
+     const auto otsn = static_cast< const OTSNetworkBlock * >( blck );
+     rng.second = std::min( rng.second , otsn->get_number_lines() );
+     if( ( rng.first < rng.second ) &&
+         ( msp.size() < rng.second - rng.first ) )
+      throw( std::invalid_argument(
+       "OTSNetworkBlock::get_resize_linearization: the span is shorter than "
+       "the range it is asked to answer for" ) );
+     for( Index l = rng.first ; l < rng.second ; ++l )
+      msp[ l - rng.first ] = otsn->get_resize_linearization( l );
+     } ) );
+  }
  
 /*--------------------------------------------------------------------------*/
 
