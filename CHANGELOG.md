@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `is_dual_feasible()` of the Solution of the module [see
-  `Solution::is_dual_feasible()`]: `UCBlockSolution` checks the sign of the
-  duals of the demand, reserve, inertia and pollutant constraints against
-  the finite sides of those rows and asks its `NetworkBlockSolution`,
-  `DCNetworkBlockSolution` holds the prices of the lines, which may have any
-  sign, `DesignNetworkBlockSolution` asks its sub-networks, and the
-  Solution of the units and `NetworkBlockSolution`, which hold no dual
-  values, return false
-
 - the module has a unit test of its own in `test/`, which needs nothing but
   the core SMS++ and builds all of its instances in memory: the three DP
   Solvers are compared with each other and with a brute force on small units
