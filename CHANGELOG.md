@@ -39,6 +39,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UCBlock::get_replicate_linearization( unit )`, the two protected methods
   those sensitivities are read from.
 
+- A `UCBlock` sizes its units and its lines by name, so that a Block holding
+  it calls the `UCBlock` alone and never its sub-Blocks.
+  `UCBlock::resize_unit` and `UCBlock::replicate` hand each unit of a subset
+  its value through `<class>::resize` or `<class>::replicate` of the class of
+  that unit; `UCBlock::resize_line` hands the lines of a subset their value
+  through `<class>::resize` of each of its NetworkBlocks, a line being the
+  same asset at every time instant. Their sensitivities are
+  `UCBlock::get_resize_unit_linearization`, which asks each unit,
+  `UCBlock::get_resize_line_linearization`, which sums what the NetworkBlocks
+  answer, and `UCBlock::get_replicate_linearization`. A unit or a
+  NetworkBlock whose class does not register the name makes the call throw,
+  naming it. `replicate` rewrites the rows carrying the factor once for all
+  the units it scales, where scaling them one by one rewrites them once per
+  unit. All come in the range and the subset form.
+
 - A line of an `ACNetworkBlock` or of an `OTSNetworkBlock` can be sized, as
   a line of a `DesignNetworkBlock` is designed. Both classes build the power
   flow limit rows of `DCNetworkBlock`, and the kappa goes into them as the

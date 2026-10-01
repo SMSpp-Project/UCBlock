@@ -1361,13 +1361,52 @@ class UCBlock : public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /* The supported way in is the name: a consumer that holds a Block it does
-  * not know composes "UCBlock::get_replicate_linearization" and finds the
+  * not know asks for "UCBlock::get_replicate_linearization" and finds the
   * adapter below. The method itself is therefore not public, so that reading
   * this sensitivity cannot become one more reason to recognise the class. */
 
  protected:
 
  double get_replicate_linearization( Index unit );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives with respect to the size of the units in \p units
+ /** Writes in msp[ k ] the derivative of the value of this UCBlock with
+  * respect to the size parameter of the unit units[ k ], as resize_unit()
+  * sets it: each unit answers through the getter that its class registers
+  * as "<classname>::get_resize_linearization", the parameter living in the
+  * rows of the unit. It is reached by the name
+  * "UCBlock::get_resize_unit_linearization", for the reason given above.
+  *
+  * @throws std::invalid_argument if \p msp is shorter than \p units or an
+  *         index is not that of a unit, and std::logic_error if the class of
+  *         a unit does not register the getter. */
+
+ void get_resize_unit_linearization( MF_dbl_msp msp , c_Subset & units )
+  const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives with respect to the size of the lines in \p lines
+ /** Writes in msp[ k ] the derivative of the value of this UCBlock with
+  * respect to the size parameter of the line lines[ k ], as resize_line()
+  * sets it: the sum, over the NetworkBlock, of what the getter that the
+  * class of each registers as "<classname>::get_resize_linearization"
+  * answers. It is reached by the name
+  * "UCBlock::get_resize_line_linearization".
+  *
+  * @throws std::invalid_argument if \p msp is shorter than \p lines, and
+  *         std::logic_error if this UCBlock has no NetworkBlock or the class
+  *         of one does not register the getter. */
+
+ void get_resize_line_linearization( MF_dbl_msp msp , c_Subset & lines ,
+                                     bool ordered ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// as get_resize_line_linearization( subset ), for the lines in \p rng
+ /** Each NetworkBlock stops the range at its own number of lines, and only
+  * the first that many entries of \p msp are written. */
+
+ void get_resize_line_linearization( MF_dbl_msp msp , Range rng ) const;
 
  public:
 
@@ -1655,6 +1694,80 @@ class UCBlock : public Block
                                 ModParam issuePMod = eNoBlck ,
                                 ModParam issueAMod = eNoBlck );
 
+/*--------------------------------------------------------------------------*/
+ /// sets the size of the units in \p subset, each in the way of its class
+ /** Sets the size parameter of each UnitBlock whose index is in \p subset to
+  * the value in the same position of \p values. What being resized means is
+  * the business of the unit, not of this UCBlock: the value is handed to the
+  * method that the class of the unit registers in the methods factory as
+  * "<classname>::resize", over the range [ 0 , 1 ) of its size parameters.
+  *
+  * This is what a Block holding this UCBlock calls, by the name
+  * "UCBlock::resize_unit", to size a unit without knowing its class [see
+  * InvestmentFunction]; the derivative of the value of this UCBlock with
+  * respect to the same parameters is read back by the name
+  * "UCBlock::get_resize_unit_linearization". The name of the method of a
+  * unit is looked up again only when the class changes from one unit of
+  * \p subset to the next.
+  *
+  * @throws std::invalid_argument if an index in \p subset is not that of a
+  *         unit, and std::logic_error if the class of a unit does not
+  *         register "<classname>::resize"; the units before it are resized
+  *         all the same. */
+
+ void resize_unit( MF_dbl_it values , Subset && subset , bool ordered = false ,
+                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// as resize_unit( subset ), for the units in the range \p rng
+
+ void resize_unit( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the number of copies of the units in \p subset
+ /** As resize_unit( subset ), but through the method that the class of each
+  * unit registers as "<classname>::replicate": the unit stands for that many
+  * identical copies of itself [see UnitBlock::scale()].
+  *
+  * The factor appears in the rows of this UCBlock, which a unit asks to
+  * rewrite each time its factor changes [see add_Modification()]; here they
+  * are rewritten once, for all the units in \p subset, after the last one
+  * has been scaled, also when one of them throws. The derivative is read
+  * back by the name "UCBlock::get_replicate_linearization". */
+
+ void replicate( MF_dbl_it values , Subset && subset , bool ordered = false ,
+                 ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// as replicate( subset ), for the units in the range \p rng
+
+ void replicate( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+                 ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the size of the lines in \p subset, in every NetworkBlock
+ /** Sets the size parameter of each transmission line whose index is in
+  * \p subset to the value in the same position of \p values, in each of the
+  * NetworkBlock of this UCBlock, a line being the same asset at every time
+  * instant. On each NetworkBlock it calls the method that its class
+  * registers as "<classname>::resize". The derivative, summed over the
+  * NetworkBlock, is read back by the name
+  * "UCBlock::get_resize_line_linearization".
+  *
+  * @throws std::logic_error if this UCBlock has no NetworkBlock, that is,
+  *         it is a single bus and has no lines, or if the class of a
+  *         NetworkBlock does not register "<classname>::resize". */
+
+ void resize_line( MF_dbl_it values , Subset && subset , bool ordered = false ,
+                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// as resize_line( subset ), for the lines in the range \p rng
+
+ void resize_line( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1847,6 +1960,16 @@ class UCBlock : public Block
  static constexpr unsigned char HasObj = 4;
  ///< third bit of AR == 1 if the Objective has been constructed
 
+ bool f_defer_scaled_rows = false;
+ ///< whether the rows of a scaled unit wait for the end of replicate()
+ /**< While true, add_Modification() puts the index of a unit whose scale
+  * factor changed in v_scaled_units instead of rewriting the rows that
+  * carry it: replicate() sets it, so that those rows are rewritten once for
+  * all the units it scales. */
+
+ std::vector< Index > v_scaled_units;
+ ///< the units scaled while f_defer_scaled_rows is true
+
  boost::multi_array< Range , 2 > primary_var_index;
  ///< indices of active Variable in the primary demand constraints
  /**< The active Variables of each LinearFunction defining a primary demand
@@ -1942,6 +2065,15 @@ class UCBlock : public Block
  /// generate the pollutant budget constraints
 
  void generate_pollutant_budget_constraints( void );
+
+/*--------------------------------------------------------------------------*/
+ /// rewrites the rows that carry the scale factor of the given units
+ /** Each of the rows of this UCBlock in which the scale factor of a unit
+  * appears [see add_Modification()] is rewritten for the units in
+  * \p scaled_units, which is sorted, and cleared of repetitions, here. The
+  * whole rewriting travels in one channel. */
+
+ void update_scaled_rows( std::vector< Index > & scaled_units );
 
 /*--------------------------------------------------------------------------*/
  /// updates the node injection constraints
@@ -2159,6 +2291,27 @@ class UCBlock : public Block
   register_method< UCBlock , MF_dbl_it , Range >(
    "UCBlock::set_pollutant_min_budget" , & UCBlock::set_pollutant_min_budget );
 
+  // the size of the units and of the lines, by the methods of their classes
+  // [see resize_unit(), replicate() and resize_line()]
+
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::resize_unit" , & UCBlock::resize_unit );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::resize_unit" , & UCBlock::resize_unit );
+
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::replicate" , & UCBlock::replicate );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::replicate" , & UCBlock::replicate );
+
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::resize_line" , & UCBlock::resize_line );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::resize_line" , & UCBlock::resize_line );
+
   /* The getter reading back the sensitivity to the scale factor of a unit
    * [see get_replicate_linearization()]. It is registered here, on the
    * container, and not on the unit, because the rows in which that factor
@@ -2207,6 +2360,42 @@ class UCBlock : public Block
        "range it is asked to answer for" ) );
      for( Index u = rng.first ; u < rng.second ; ++u )
       msp[ u - rng.first ] = ucb->get_replicate_linearization( u );
+     } ) );
+
+  // ... and the getters going with resize_unit() and resize_line(), which
+  // ask the units and the NetworkBlock, the size living in their own rows
+
+  register_method< qry_sbst >(
+   "UCBlock::get_resize_unit_linearization" , new qry_sbst(
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & units , bool ) {
+     static_cast< const UCBlock * >( blck )->
+      get_resize_unit_linearization( msp , units );
+     } ) );
+
+  register_method< qry_rngd >(
+   "UCBlock::get_resize_unit_linearization" , new qry_rngd(
+    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
+     const auto ucb = static_cast< const UCBlock * >( blck );
+     rng.second = std::min( rng.second , ucb->get_number_units() );
+     Subset units;
+     for( Index u = rng.first ; u < rng.second ; ++u )
+      units.push_back( u );
+     ucb->get_resize_unit_linearization( msp , units );
+     } ) );
+
+  register_method< qry_sbst >(
+   "UCBlock::get_resize_line_linearization" , new qry_sbst(
+    []( const Block * blck , MF_dbl_msp msp , c_Subset & lines ,
+        bool ordered ) {
+     static_cast< const UCBlock * >( blck )->
+      get_resize_line_linearization( msp , lines , ordered );
+     } ) );
+
+  register_method< qry_rngd >(
+   "UCBlock::get_resize_line_linearization" , new qry_rngd(
+    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
+     static_cast< const UCBlock * >( blck )->
+      get_resize_line_linearization( msp , rng );
      } ) );
  }
 

@@ -95,6 +95,77 @@ static inline LinearFunction * LF( Function * f ) {
  }
 
 /*--------------------------------------------------------------------------*/
+/* The method that the class of a sub-Block registers in the methods factory
+ * as "<classname>" + suffix, for the methods of UCBlock that hand a size to
+ * the units or to the NetworkBlock [see resize_unit()]. It is looked up again
+ * only when the class changes from one sub-Block to the next, so that a run
+ * of sub-Block of the same class costs one lookup. */
+
+template< class F >
+class ClassMethod {
+ public:
+
+ ClassMethod( const char * caller , const char * suffix )
+  : f_caller( caller ) , f_suffix( suffix ) {}
+
+ /// the method of the class of block, the kind-th sub-Block of that kind
+ F & operator()( const Block * block , const char * kind , Block::Index i ) {
+  if( ( ! f_method ) || ( block->classname() != f_class ) ) {
+   f_class = block->classname();
+   f_method = Block::get_method< F >( f_class + f_suffix );
+   if( ! f_method )
+    throw( std::logic_error( std::string( "UCBlock::" ) + f_caller + ": " +
+                             kind + " " + std::to_string( i ) + " is a " +
+                             f_class + ", which does not register '" +
+                             f_class + f_suffix + "'" ) );
+   }
+  return( *f_method );
+  }
+
+ private:
+
+ const char * f_caller;
+ const char * f_suffix;
+ std::string f_class;
+ F * f_method = nullptr;
+ };
+
+/*--------------------------------------------------------------------------*/
+/* Hands each unit in units the value in the same position of values, through
+ * the method that its class registers as "<classname>" + suffix, over the
+ * range [ 0 , 1 ) of its size parameters [see UCBlock::resize_unit()]. */
+
+static void size_units( UCBlock & ucb , const char * caller ,
+                        const char * suffix , Block::MF_dbl_it values ,
+                        Block::c_Subset & units , ModParam issuePMod ,
+                        ModParam issueAMod )
+{
+ ClassMethod< Block::FunctionType< Block::MF_dbl_it , Block::Range > >
+  method( caller , suffix );
+
+ for( const auto u : units ) {
+  if( u >= ucb.get_number_units() )
+   throw( std::invalid_argument( std::string( "UCBlock::" ) + caller +
+                                 ": there is no unit of index " +
+                                 std::to_string( u ) ) );
+  const auto unit = ucb.get_unit_block( u );
+  std::invoke( method( unit , "unit" , u ) , unit , values++ ,
+               Block::Range( 0 , 1 ) , issuePMod , issueAMod );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static Block::Subset units_in( const UCBlock & ucb , Block::Range rng )
+{
+ rng.second = std::min( rng.second , ucb.get_number_units() );
+ Block::Subset units;
+ for( auto u = rng.first ; u < rng.second ; ++u )
+  units.push_back( u );
+ return( units );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS OF UCBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -1640,32 +1711,48 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
  collect( mod.get() );
 
  if( ! modified_units.empty() ) {
-  // Sort the IDs of the modified units, and name each of them once: a group
-  // can carry more than one scaling of the same unit
-  std::sort( modified_units.begin() , modified_units.end() );
-  modified_units.erase( std::unique( modified_units.begin() ,
-                                     modified_units.end() ) ,
-                        modified_units.end() );
-
-  /* Each of these rewrites one row per time instant, and per node where
-   * there are nodes: the whole reaction to the scaling travels in one
-   * channel, so that a Solver able to write a set of coefficients, or of
-   * sides, in one operation does that once instead of once per instant [see
-   * MILPSolver::process_group_modification()]. */
-  auto chnl = open_channel();
-  const auto upar = make_par( eNoBlck , chnl );
-
-  update_node_injection_constraints( modified_units , upar );
-  update_node_injection_constraints( modified_units , upar , true );
-  update_primary_demand_constraints( modified_units , upar );
-  update_secondary_demand_constraints( modified_units , upar );
-  update_inertia_demand_constraints( modified_units , upar );
-  update_pollutant_budget_constraints( modified_units , upar );
-
-  close_channel( chnl );
- }
+  if( f_defer_scaled_rows )
+   // replicate() is scaling a set of units, and rewrites their rows once
+   // when it is done with the last one
+   v_scaled_units.insert( v_scaled_units.end() , modified_units.begin() ,
+                          modified_units.end() );
+  else
+   update_scaled_rows( modified_units );
+  }
 
  Block::add_Modification( mod , chnl );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_scaled_rows( std::vector< Index > & scaled_units )
+{
+ if( scaled_units.empty() )
+  return;
+
+ // Sort the IDs of the modified units, and name each of them once: a group
+ // can carry more than one scaling of the same unit
+ std::sort( scaled_units.begin() , scaled_units.end() );
+ scaled_units.erase( std::unique( scaled_units.begin() ,
+                                  scaled_units.end() ) ,
+                     scaled_units.end() );
+
+ /* Each of these rewrites one row per time instant, and per node where there
+  * are nodes: the whole reaction to the scaling travels in one channel, so
+  * that a Solver able to write a set of coefficients, or of sides, in one
+  * operation does that once instead of once per instant [see
+  * MILPSolver::process_group_modification()]. */
+ auto chnl = open_channel();
+ const auto upar = make_par( eNoBlck , chnl );
+
+ update_node_injection_constraints( scaled_units , upar );
+ update_node_injection_constraints( scaled_units , upar , true );
+ update_primary_demand_constraints( scaled_units , upar );
+ update_secondary_demand_constraints( scaled_units , upar );
+ update_inertia_demand_constraints( scaled_units , upar );
+ update_pollutant_budget_constraints( scaled_units , upar );
+
+ close_channel( chnl );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2806,6 +2893,191 @@ void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
                                         c_ModParam issueAMod )
 {
  set_pollutant_bounds( values , rng , true , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_unit( MF_dbl_it values , Subset && subset , bool ,
+                           ModParam issuePMod , ModParam issueAMod )
+{
+ size_units( *this , "resize_unit" , "::resize" , values , subset ,
+             issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_unit( MF_dbl_it values , Range rng ,
+                           ModParam issuePMod , ModParam issueAMod )
+{
+ resize_unit( values , units_in( *this , rng ) , true , issuePMod ,
+              issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::replicate( MF_dbl_it values , Subset && subset , bool ,
+                         ModParam issuePMod , ModParam issueAMod )
+{
+ /* Each unit, scaled, asks this UCBlock to rewrite the rows that carry its
+  * factor [see add_Modification()]. Those of all the units are rewritten
+  * here, once, after the last one: also when a unit throws, since the units
+  * scaled before it keep their new factor. */
+
+ v_scaled_units.clear();
+ f_defer_scaled_rows = true;
+
+ try {
+  size_units( *this , "replicate" , "::replicate" , values , subset ,
+              issuePMod , issueAMod );
+  }
+ catch( ... ) {
+  f_defer_scaled_rows = false;
+  update_scaled_rows( v_scaled_units );
+  throw;
+  }
+
+ f_defer_scaled_rows = false;
+ update_scaled_rows( v_scaled_units );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::replicate( MF_dbl_it values , Range rng ,
+                         ModParam issuePMod , ModParam issueAMod )
+{
+ replicate( values , units_in( *this , rng ) , true , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_line( MF_dbl_it values , Subset && subset , bool ordered ,
+                           ModParam issuePMod , ModParam issueAMod )
+{
+ if( v_network_blocks.empty() )
+  throw( std::logic_error( "UCBlock::resize_line: this UCBlock is a single "
+                           "bus, and has no lines" ) );
+
+ ClassMethod< FunctionType< MF_dbl_it , Subset && , bool > >
+  resize( "resize_line" , "::resize" );
+
+ for( Index n = 0 ; n < f_number_networks ; ++n ) {
+  const auto network = v_network_blocks[ n ];
+  // each NetworkBlock takes a Subset of its own, the last one this one
+  auto lines = ( n + 1 < f_number_networks ) ? subset : std::move( subset );
+  std::invoke( resize( network , "NetworkBlock" , n ) , network , values ,
+               std::move( lines ) , ordered , issuePMod , issueAMod );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_line( MF_dbl_it values , Range rng ,
+                           ModParam issuePMod , ModParam issueAMod )
+{
+ if( v_network_blocks.empty() )
+  throw( std::logic_error( "UCBlock::resize_line: this UCBlock is a single "
+                           "bus, and has no lines" ) );
+
+ ClassMethod< FunctionType< MF_dbl_it , Range > >
+  resize( "resize_line" , "::resize" );
+
+ for( Index n = 0 ; n < f_number_networks ; ++n ) {
+  const auto network = v_network_blocks[ n ];
+  std::invoke( resize( network , "NetworkBlock" , n ) , network , values ,
+               rng , issuePMod , issueAMod );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
+                                             c_Subset & units ) const
+{
+ if( units.size() > msp.size() )
+  throw( std::invalid_argument( "UCBlock::get_resize_unit_linearization: the "
+                                "span is shorter than the subset it is asked "
+                                "to answer for" ) );
+
+ ClassMethod< QueryType< MF_dbl_msp , Range > >
+  query( "get_resize_unit_linearization" , "::get_resize_linearization" );
+
+ for( Index k = 0 ; k < units.size() ; ++k ) {
+  if( units[ k ] >= f_number_units )
+   throw( std::invalid_argument( "UCBlock::get_resize_unit_linearization: "
+                                 "there is no unit of index " +
+                                 std::to_string( units[ k ] ) ) );
+  const auto unit = get_unit_block( units[ k ] );
+  std::invoke( query( unit , "unit" , units[ k ] ) , unit ,
+               msp.subspan( k , 1 ) , Range( 0 , 1 ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::get_resize_line_linearization( MF_dbl_msp msp ,
+                                             c_Subset & lines ,
+                                             bool ordered ) const
+{
+ if( lines.size() > msp.size() )
+  throw( std::invalid_argument( "UCBlock::get_resize_line_linearization: the "
+                                "span is shorter than the subset it is asked "
+                                "to answer for" ) );
+ if( v_network_blocks.empty() )
+  throw( std::logic_error( "UCBlock::get_resize_line_linearization: this "
+                           "UCBlock is a single bus, and has no lines" ) );
+
+ ClassMethod< QueryType< MF_dbl_msp , c_Subset & , bool > >
+  query( "get_resize_line_linearization" , "::get_resize_linearization" );
+
+ // the first NetworkBlock writes its answer in place, and the answer of each
+ // of the others is added to it
+ std::vector< double > answer;
+
+ for( Index n = 0 ; n < f_number_networks ; ++n ) {
+  const auto network = v_network_blocks[ n ];
+  auto & q = query( network , "NetworkBlock" , n );
+  if( ! n ) {
+   std::invoke( q , network , msp.first( lines.size() ) , lines , ordered );
+   continue;
+   }
+  answer.resize( lines.size() );
+  std::invoke( q , network , MF_dbl_msp( answer ) , lines , ordered );
+  for( Index k = 0 ; k < lines.size() ; ++k )
+   msp[ k ] += answer[ k ];
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::get_resize_line_linearization( MF_dbl_msp msp , Range rng )
+ const
+{
+ if( v_network_blocks.empty() )
+  throw( std::logic_error( "UCBlock::get_resize_line_linearization: this "
+                           "UCBlock is a single bus, and has no lines" ) );
+
+ ClassMethod< QueryType< MF_dbl_msp , Range > >
+  query( "get_resize_line_linearization" , "::get_resize_linearization" );
+
+ /* Each NetworkBlock stops the range at its own number of lines, which is
+  * not known here, and writes that many entries. The first writes them in
+  * place; the others write in a buffer of zeros as long as msp, all of which
+  * is added, so that the entries past the range are added 0 and stay as the
+  * caller left them. */
+ std::vector< double > answer;
+
+ for( Index n = 0 ; n < f_number_networks ; ++n ) {
+  const auto network = v_network_blocks[ n ];
+  auto & q = query( network , "NetworkBlock" , n );
+  if( ! n ) {
+   std::invoke( q , network , msp , rng );
+   continue;
+   }
+  answer.assign( msp.size() , 0.0 );
+  std::invoke( q , network , MF_dbl_msp( answer ) , rng );
+  for( Index k = 0 ; k < msp.size() ; ++k )
+   msp[ k ] += answer[ k ];
+  }
  }
 
 /*--------------------------------------------------------------------------*/
