@@ -397,7 +397,7 @@ double HydroSystemUnitBlock::get_max_power( Index t , Index generator )
 bool HydroSystemUnitBlock::is_feasible( bool useabstract ,
                                         Configuration * fsbc )
 {
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
 
  auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )

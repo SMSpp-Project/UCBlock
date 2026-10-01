@@ -277,7 +277,7 @@ bool OTSNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
   return( false );
 
  // retrieve tolerance and violation type (same logic as parent)
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
 
  auto extract_parameters = [ & tol , & rel_viol ]( Configuration * c )

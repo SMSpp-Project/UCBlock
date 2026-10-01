@@ -4229,7 +4229,7 @@ static void extract_tolerance( Configuration * fsbc , BlockConfig * bcfg ,
 
 bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
  extract_tolerance( fsbc , f_BlockConfig , tol , rel_viol );
 
@@ -4338,7 +4338,7 @@ bool ThermalUnitBlock::is_sol_feasible( Solution * sol , Configuration * fsbc )
      ( ( ! v_secondary_spinning_reserve.empty() ) && ( ! has_r2 ) ) )
   return( false );
 
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
  extract_tolerance( fsbc , f_BlockConfig , tol , rel_viol );
 

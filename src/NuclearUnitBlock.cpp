@@ -1808,7 +1808,7 @@ void NuclearUnitBlock::update_objective_tail( const Subset & subset ,
 bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // retrieve the tolerance and the type of violation
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
 
  // try to extract, from "c", the parameters that determine feasibility.

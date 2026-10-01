@@ -610,7 +610,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
                                          Configuration * fsbc )
 {
  // Retrieve the tolerance and the type of violation.
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
 
  // Try to extract, from "c", the parameters that determine feasibility.
