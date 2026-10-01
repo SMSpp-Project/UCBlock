@@ -1,3 +1,0 @@
-[submodule "tools/pypsa2smspp"]
-	path = tools/pypsa2smspp
-	url = https://github.com/SPSUnipi/pypsa2smspp.git
