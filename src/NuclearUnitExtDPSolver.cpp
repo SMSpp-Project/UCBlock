@@ -159,6 +159,27 @@ void NuclearUnitExtDPSolver::load_fixings( void )
  scan( b->get_const_modulation_down() , f_fix_down );
  scan( b->get_const_deep_decrease() , f_fix_deep );
 
+ // a modulation (or a deep decrease) fixed to 1 needs the unit on at that
+ // instant, since m_t <= u_t (and d_t <= m_t): it is a fixing ON of the
+ // commitment for the tables of the base DP [see start_label() for the
+ // start-up, which cannot happen at that instant either]
+ bool forced = false;
+ for( Index t = 0 ; t < time_horizon ; ++t )
+  forced |= on_forced( t );
+ if( forced ) {
+  if( nxt_on.size() != time_horizon + 1 ) {
+   nxt_on.assign( time_horizon + 1 , time_horizon );
+   nxt_off.assign( time_horizon + 1 , time_horizon );
+   }
+  for( Index t = time_horizon ; t-- > 0 ; )
+   if( on_forced( t ) )
+    nxt_on[ t ] = t;
+   else
+    if( nxt_on[ t ] != t )
+     nxt_on[ t ] = nxt_on[ t + 1 ];
+  f_has_fixings = f_must_build = true;
+  }
+
  if( ! owned )
   f_Block->read_unlock();
 
@@ -293,6 +314,8 @@ void NuclearUnitExtDPSolver::start_labels( Index t , Index e ,
 NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::start_label(
                                                    Index t , Index e ) const
 {
+ if( on_forced( t ) )                 // a modulation fixed at t: m_t <= 1 - v_t
+  return( NO_LABEL );
  Label l = off_label( e );
  if( ( f_starts_per_day >= 0 ) && ( l.s >= Index( f_starts_per_day ) ) )
   return( NO_LABEL );                 // the start-ups of the day are over

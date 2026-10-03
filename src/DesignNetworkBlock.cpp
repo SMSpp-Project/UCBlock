@@ -413,7 +413,7 @@ NetworkBlockSolution * DesignNetworkBlock::new_Solution( void ) const {
 bool DesignNetworkBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // Retrieve the tolerance and the type of violation.
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
 
  // Try to extract, from "c", the parameters that determine feasibility.
@@ -848,32 +848,6 @@ void DesignNetworkBlockSolution::write( Block * block )
    v_network_Solution[ i ]->write( NB[ i ] );
   }
  }  // end( DesignNetworkBlockSolution::write )
-
-/*--------------------------------------------------------------------------*/
-
-bool DesignNetworkBlockSolution::is_dual_feasible( Block * block ,
-						   Configuration * fsbc )
-{
- auto DCNB = dynamic_cast< DesignNetworkBlock * >( block );
- if( ! DCNB )
-  throw( std::invalid_argument( "DesignNetworkBlockSolution::"
-				"is_dual_feasible: block is not a "
-				"DesignNetworkBlock" ) );
-
- if( v_network_Solution.size() != DCNB->get_number_nested_Blocks() )
-  return( false );
-
- // the sub-Network Solution, which say false if they hold no dual value
- bool any = false;
- auto & NB = DCNB->get_nested_Blocks();
- for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
-  if( v_network_Solution[ i ] &&
-      v_network_Solution[ i ]->is_dual_feasible( NB[ i ] , fsbc ) )
-   any = true;
-
- return( any );
-
- }  // end( DesignNetworkBlockSolution::is_dual_feasible )
 
 /*--------------------------------------------------------------------------*/
 

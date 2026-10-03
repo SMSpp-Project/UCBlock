@@ -39,6 +39,8 @@
 
 #include <map>
 
+#include <numbers>
+
 #include <sstream>
 
 #include "ACNetworkBlock.h"
@@ -52,10 +54,6 @@
 #include "QuadFunction.h"
 
 #include <Eigen/Sparse>
-
-#ifndef PI
- #define PI 3.14159265358979323846
-#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -620,8 +618,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  for( auto & line_id : DC_lines ) {
   // all angles are typically input as degrees, but we need radians
 
-  double phi_min = PI * min_angle[ line_id ] / 180.;
-  double phi_max = PI * max_angle[ line_id ] / 180.;
+  double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
+  double phi_max = std::numbers::pi * max_angle[ line_id ] / 180.;
   double delta_phi = phi_max - phi_min;
   // assuming phi_min <= phi_max evidently
 
@@ -844,7 +842,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   return( f_net->get_line_ratio().at( line_id ) );
   };
  auto theta = [ f_net ]( int line_id ) {
-  return( PI * f_net->get_line_angle().at( line_id ) / 180 );
+  return( std::numbers::pi * f_net->get_line_angle().at( line_id ) / 180 );
   };
 
  auto Y = [ r , x ]( int l ) { return( 1.0 / ( r( l ) + 1i * x( l ) ) ); };
@@ -878,8 +876,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    // values for the basic bound check
    double v_flow_lower = 0.0;
    double v_flow_upper = 0.0;
-   double phi_min = PI * min_angle[ line_id ] / 180.;
-   double phi_max = PI * max_angle[ line_id ] / 180.;
+   double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
+   double phi_max = std::numbers::pi * max_angle[ line_id ] / 180.;
    double delta_phi = phi_max - phi_min;
    // assuming phi_min <= phi_max evidently
    double c_cos = std::min( cos( std::abs( phi_min ) ) ,
@@ -1191,10 +1189,10 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   auto lfunc = new LinearFunction();
   lfunc->add_variable( & v_theta[ p ] , 1.0 );
   lfunc->add_variable( & v_theta[ n ] , -1.0 );
-  v_theta_bounds[ i_line ].set_lhs( PI * v_line_min_angle[ line_id ] /
-                                    180.0 );
-  v_theta_bounds[ i_line ].set_rhs( PI * v_line_max_angle[ line_id ] /
-                                    180.0 );
+  v_theta_bounds[ i_line ].set_lhs( std::numbers::pi *
+                                    v_line_min_angle[ line_id ] / 180.0 );
+  v_theta_bounds[ i_line ].set_rhs( std::numbers::pi *
+                                    v_line_max_angle[ line_id ] / 180.0 );
   v_theta_bounds[ i_line ].set_function( lfunc );
   ++i_line;
   }
@@ -1211,8 +1209,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   * | theta_n | <= ( number_nodes - 1 ) max_phi. */
  double max_phi = 0.0;
  for( auto & line_id : DC_lines )
-  max_phi = std::max( max_phi , PI * std::max( v_line_max_angle[ line_id ] ,
-                      - v_line_min_angle[ line_id ] ) / 180.0 );
+  max_phi = std::max( max_phi , std::numbers::pi *
+                      std::max( v_line_max_angle[ line_id ] ,
+                                - v_line_min_angle[ line_id ] ) / 180.0 );
  const double theta_bound = ( number_nodes - 1 ) * max_phi;
 
  v_theta_box_bounds.resize( number_nodes );
@@ -1294,8 +1293,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : DC_lines ) {
   const Index p = start_line[ line_id ];
   const Index n = end_line[ line_id ];
-  const double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                      - v_line_min_angle[ line_id ] ) ) / 180.0;
+  const double delta_theta = std::numbers::pi *
+   ( ( std::max )( v_line_max_angle[ line_id ] ,
+                   - v_line_min_angle[ line_id ] ) ) / 180.0;
   const double alpha_coeff = ( 1 - cos( delta_theta ) ) / pow( delta_theta , 2 );
 
   auto qfunc = new QuadFunction();
@@ -1388,8 +1388,9 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
  for( auto & line_id : DC_lines ) {
   const Index p = start_line[ line_id ];
   const Index n = end_line[ line_id ];
-  const double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                      - v_line_min_angle[ line_id ] ) ) / 180.0;
+  const double delta_theta = std::numbers::pi *
+   ( ( std::max )( v_line_max_angle[ line_id ] ,
+                   - v_line_min_angle[ line_id ] ) ) / 180.0;
   const double cos_d = cos( delta_theta );          // cos( theta^Delta )
   const double sin_d = sin( delta_theta );          // sin( theta^Delta )
   const double cos_h = cos( delta_theta / 2.0 );    // cos( theta^Delta / 2 )

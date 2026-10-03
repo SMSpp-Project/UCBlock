@@ -67,15 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directional ones. The sensitivity of an OTS line adds the dual of that
   limit while kappa is below 1.
 
-- `is_dual_feasible()` of the Solution of the module [see
-  `Solution::is_dual_feasible()`]: `UCBlockSolution` checks the sign of the
-  duals of the demand, reserve, inertia and pollutant constraints against
-  the finite sides of those rows and asks its `NetworkBlockSolution`,
-  `DCNetworkBlockSolution` holds the prices of the lines, which may have any
-  sign, `DesignNetworkBlockSolution` asks its sub-networks, and the
-  Solution of the units and `NetworkBlockSolution`, which hold no dual
-  values, return false
-
 - the module has a unit test of its own in `test/`, which needs nothing but
   the core SMS++ and builds all of its instances in memory: the three DP
   Solvers are compared with each other and with a brute force on small units
@@ -163,6 +154,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the `is_feasible()` of `ThermalUnitBlock`, `NuclearUnitBlock`,
+  `HydroUnitBlock`, `HydroSystemUnitBlock`, `BatteryUnitBlock`,
+  `IntermittentUnitBlock`, `SlackUnitBlock`, `DCNetworkBlock`,
+  `DesignNetworkBlock`, `ECNetworkBlock` and `OTSNetworkBlock` accept the
+  relative violation `Block::DefaultFeasTol` of the core when no
+  Configuration gives a tolerance, instead of none
+
 - the data archive is downloaded by version: `DATA_VERSION` in CMakeLists.txt
   names the version of the Package Registry to read, and the archive and the
   marker of its extraction carry it in their name, so that a tree holding
@@ -232,6 +230,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only from methods that are not const, and the const is gone
 
 ### Fixed
+
+- `NuclearUnitExtDPSolver` ignored a modulation (or a downward modulation,
+  or a deep decrease) fixed to 1 at an instant in which the unit is off,
+  since the fixings of those Variable were only checked on the moves of an
+  on unit: a modulation at t needs the unit on at t and not starting up
+  there (m_t <= u_t and m_t <= 1 - v_t), which is now what such a fixing
+  imposes, and the DP no longer goes below the MILP when the tester fixes
+  the modulations (TUDPS_FIXMOD)
 
 - `BatteryUnitBlock::get_kappa_linearization()` reads the binary rows with
   the right sizes, sums the power rows under a reserve, and counts the intake
