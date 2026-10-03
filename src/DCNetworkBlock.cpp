@@ -1046,33 +1046,9 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
   add_static_constraint( v_CYCLE_def_cycle_const , "v_CYCLE_def_cycle_const" );
  }
 
- // eq (25): sum_i p_i = 0
- auto lfunc = new LinearFunction();
+ // eq (25): sum_i p_i = 0, less the losses of the HVDC lines
  double constant_term = 0.;
- for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-  lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , 1.0 );
-  constant_term += v_ActiveDemand[ node_id ];
- }
- // In case the hypergraph is specified (only HVDC lines) and if these have non-1
- // efficiency, these need to enter the overall balance since they can imply
- // a) Losses (when flows are in the sense of the line and efficiency < 1) or
- //         against the sense of the line and efficiency > 1
- // b) Additional Generation (when flows are against the sense of the line and efficiency < 1)
- //         with the flow of the line and efficiency > 1 
- // 
- double eta;
- for( auto & hvdc_l : HVDC_lines ) {
-  if( ! f_NetworkData->is_hypergraph() ) {
-   // if not hyperarc, losses are 1 - eta
-   eta = get_line_efficiency( hvdc_l );
-   lfunc->add_variable( &v_power_flow[ hvdc_l ] , eta - 1.0 );
-  }
-  else { // if hyperarc, losses are 1 - sum(etas)
-   auto & etas = get_line_efficiencies( hvdc_l );
-   double eta_sum = std::accumulate( etas.begin() , etas.end() , 0.0 );
-   lfunc->add_variable( &v_power_flow[ hvdc_l ] , eta_sum - 1.0 );
-  }
- }
+ auto lfunc = overall_balance_function( constant_term );
  overall_balanced_const.set_function( lfunc );
  overall_balanced_const.set_lhs( constant_term );
  overall_balanced_const.set_rhs( constant_term );
@@ -1506,18 +1482,44 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
   add_static_constraint( v_power_flow_def , "AC/HVDC_powerflow_def" );
 
   double constant_term = 0.;
-  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ node_id ] , 1. ) );
-   constant_term += v_ActiveDemand[ node_id ];
-   }
-
-  overall_balanced_const.set_function( new LinearFunction(
-						       std::move( vars ) ) );
+  overall_balanced_const.set_function(
+                               overall_balance_function( constant_term ) );
   overall_balanced_const.set_lhs( constant_term );
   overall_balanced_const.set_rhs( constant_term );
   add_static_constraint( overall_balanced_const , "overall_balanced_const" );
   }  // end( if( there are DC lines ) )
  }  // end( DCNetworkBlock::generate_PTDF_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+LinearFunction * DCNetworkBlock::overall_balance_function(
+						       double & constant_term )
+{
+ const auto number_nodes = get_number_nodes();
+ auto lfunc = new LinearFunction();
+ constant_term = 0.;
+ for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
+  lfunc->add_variable( &v_node_injection[ 0 ][ node_id ] , 1.0 );
+  constant_term += v_ActiveDemand[ node_id ];
+  }
+
+ // an HVDC line delivers eta times what it takes, hence it loses
+ // ( 1 - eta ) f, or adds ( eta - 1 ) f for an efficiency above 1; a
+ // hyperarc delivers to each of its end nodes its own share
+ for( auto hvdc_l : f_NetworkData->get_HVDC_lines() ) {
+  double eta;
+  if( ! f_NetworkData->is_hypergraph() )
+   eta = get_line_efficiency( hvdc_l );
+  else {
+   const auto & etas = get_line_efficiencies( hvdc_l );
+   eta = std::accumulate( etas.begin() , etas.end() , 0.0 );
+   }
+  if( eta != 1.0 )
+   lfunc->add_variable( &v_power_flow[ hvdc_l ] , eta - 1.0 );
+  }
+
+ return( lfunc );
+ }
 
 /*--------------------------------------------------------------------------*/
 

@@ -186,7 +186,7 @@ endif ()
 # in their name, so that a tree holding the data of an older version (a cache
 # of the CI, or a clone that has been extracted before) downloads and extracts
 # again instead of taking them for the current ones.
-set(DATA_VERSION 2026-09-26)
+set(DATA_VERSION 2026-10-03)
 
 # Download nc4.tgz from GitLab Package Registry if it doesn't exist
 set(DATA_URL "https://gitlab.com/api/v4/projects/14857791/packages/generic/nc4/${DATA_VERSION}/nc4.tgz")

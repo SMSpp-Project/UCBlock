@@ -1267,6 +1267,15 @@ class DCNetworkData : public NetworkData
  void generate_CYCLE_constraints( Configuration * stcc = nullptr );
 
 /*--------------------------------------------------------------------------*/
+ /// the overall balance of the PTDF and CYCLE formulations
+ /** Returns the LinearFunction of the overall balance of the network, the
+  * sum of the node injections less the losses of the HVDC lines, whose
+  * right hand side, the total active demand, is written in
+  * \p constant_term. */
+
+ LinearFunction * overall_balance_function( double & constant_term );
+
+/*--------------------------------------------------------------------------*/
 
  void generate_KIRCHHOFF_constraints( Configuration * stcc = nullptr );
 

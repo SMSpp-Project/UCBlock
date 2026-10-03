@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- data/gen_network_cases.py writes the instances of the edge cases of the
+  network, small PyPSA dispatch networks whose DC lines have a susceptance
+  (parallel lines in the same and in opposite directions, a triangle with a
+  parallel side, DC components joined by a link, nodes reached only by
+  links with losses), together with the optimum of PyPSA as their
+  reference; they are in pypsa-data/ucblock of the data from 2026-10-03
+
 - the module has a unit test of its own in `test/`, which needs nothing but
   the core SMS++ and builds all of its instances in memory: the three DP
   Solvers are compared with each other and with a brute force on small units
@@ -172,6 +179,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only from methods that are not const, and the const is gone
 
 ### Fixed
+
+- the overall balance of the PTDF formulation of DCNetworkBlock counts the
+  losses of the HVDC lines, as the CYCLE one does: before, an HVDC line with
+  an efficiency below 1 was forced to carry nothing, and a node reached
+  only by such lines shed its whole demand
 
 - the CYCLE formulation of DCNetworkBlock handles parallel DC lines: the
   spanning forest and the fundamental cycles are built on the lines rather
