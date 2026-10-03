@@ -45,6 +45,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include <algorithm>
+#include <memory>
 #include <cmath>
 #include <cstdio>
 #include <iostream>
@@ -1118,6 +1119,156 @@ static Block * round_trip( const netCDF::NcGroup & g ,
  }
 
 /*--------------------------------------------------------------------------*/
+/// the spanning forest and the cycles of the CYCLE formulation
+/** The DC graph has three parallel lines between nodes 0 and 1, one of them
+ * reversed, a triangle 0, 1, 2, a second component 3, 4 with two opposite
+ * lines, a node with no DC line and HVDC lines (zero susceptance) between
+ * the components and towards a node reached only by them. The forest must
+ * have one DC line per non-root node, oriented as its parent, of the three
+ * parallel lines exactly one, and no HVDC line; every cycle must be a
+ * circulation and every DC line out of the forest in some cycle. Then, on
+ * two parallel DC lines 0 -> 1 and an HVDC line 2 -> 1 with efficiency 0.5,
+ * a point that satisfies the nodal balance with the losses must satisfy the
+ * constraints of the CYCLE formulation, which a flow of a tree line written
+ * without the efficiency would violate, while one off the balance must
+ * not. */
+
+static void test_cycle_basis( void )
+{
+ auto g = new_group( "CY" , true );
+ g.putAtt( "type" , "DCNetworkBlock" );
+ auto N = g.addDim( "NumberNodes" , 7 );
+ auto L = g.addDim( "NumberLines" , 9 );
+ //                  0  1  2  3  4  5  6  7  8
+ put_int( g , "StartLine" , L , { 0 , 0 , 1 , 1 , 2 , 3 , 4 , 2 , 5 } );
+ put_int( g , "EndLine" ,   L , { 1 , 1 , 0 , 2 , 0 , 4 , 3 , 3 , 6 } );
+ put( g , "MinPowerFlow" , L , std::vector< double >( 9 , -100 ) );
+ put( g , "MaxPowerFlow" , L , std::vector< double >( 9 , 100 ) );
+ put( g , "LineSusceptance" , L , { 1 , 2 , 3 , 1 , 1 , 1 , 1 , 0 , 0 } );
+ put( g , "ActiveDemand" , N , std::vector< double >( 7 , 0 ) );
+
+ std::unique_ptr< Block > b;
+ try {
+  b.reset( Block::new_Block( g ) );
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "cycle basis: reading throws " ) + e.what() );
+  return;
+  }
+ auto nb = dynamic_cast< DCNetworkBlock * >( b.get() );
+ auto nd = nb ? dynamic_cast< DCNetworkBlock::DCNetworkData * >(
+                                         nb->get_NetworkData() ) : nullptr;
+ if( ! nd ) {
+  check( false , "cycle basis: the DCNetworkBlock is not read" );
+  return;
+  }
+
+ const auto & st = nd->get_start_line();
+ const auto & en = nd->get_end_line();
+ const auto tree = nd->get_lines_in_spanning_tree();
+ const auto cycles = nd->get_lines_in_cycles();
+ const auto & parent = nd->get_spanning_parent();
+
+ check( tree.size() == 3 , "cycle basis: 3 DC lines in the forest, " +
+	std::to_string( tree.size() ) );
+ check( cycles.size() == 4 , "cycle basis: 4 cycles, " +
+	std::to_string( cycles.size() ) );
+
+ int parallel = 0;
+ for( const auto & [ l , sign ] : tree ) {
+  const Index child = ( sign > 0 ) ? en[ l ] : st[ l ];
+  const Index father = ( sign > 0 ) ? st[ l ] : en[ l ];
+  check( parent[ child ] == int( father ) ,
+	 "cycle basis: tree line " + std::to_string( l ) + " oriented as "
+	 "the parent of its child" );
+  check( l < 7 , "cycle basis: HVDC line " + std::to_string( l ) +
+	 " in the forest" );
+  if( l < 3 )
+   ++parallel;
+  }
+ check( parallel == 1 , "cycle basis: " + std::to_string( parallel ) +
+	" of the 3 parallel lines in the forest" );
+
+ std::vector< bool > covered( 9 , false );
+ for( const auto & [ l , sign ] : tree )
+  covered[ l ] = true;
+ for( std::size_t c = 0 ; c < cycles.size() ; ++c ) {
+  std::vector< int > balance( 7 , 0 );
+  for( const auto & [ l , sign ] : cycles[ c ] ) {
+   check( l < 7 , "cycle basis: HVDC line in a cycle" );
+   check( ( sign == 1 ) || ( sign == -1 ) ,
+	  "cycle basis: a line twice in a cycle" );
+   covered[ l ] = true;
+   if( st[ l ] != en[ l ] ) {
+    balance[ st[ l ] ] -= sign;
+    balance[ en[ l ] ] += sign;
+    }
+   }
+  check( std::all_of( balance.begin() , balance.end() ,
+		      []( int x ) { return( x == 0 ); } ) ,
+	 "cycle basis: cycle " + std::to_string( c ) +
+	 " is not a circulation" );
+  }
+ for( Index l = 0 ; l < 7 ; ++l )
+  check( covered[ l ] , "cycle basis: DC line " + std::to_string( l ) +
+	 " neither in the forest nor in a cycle" );
+ check( parent[ 5 ] == -1 && parent[ 6 ] == -1 ,
+	"cycle basis: nodes with no DC line have no parent" );
+
+ // the HVDC line with losses in the flows of the CYCLE formulation
+ g = new_group( "CY" , true );
+ g.putAtt( "type" , "DCNetworkBlock" );
+ N = g.addDim( "NumberNodes" , 3 );
+ L = g.addDim( "NumberLines" , 3 );
+ put_int( g , "StartLine" , L , { 0 , 0 , 2 } );
+ put_int( g , "EndLine" ,   L , { 1 , 1 , 1 } );
+ put( g , "MinPowerFlow" , L , { -100 , -100 , 0 } );
+ put( g , "MaxPowerFlow" , L , { 100 , 100 , 100 } );
+ put( g , "LineSusceptance" , L , { 1 , 1 , 0 } );
+ put( g , "Efficiency" , L , { 1 , 1 , 0.5 } );
+ put( g , "ActiveDemand" , N , { 4 , 1 , 0 } );
+
+ b.reset( Block::new_Block( g ) );
+ nb = dynamic_cast< DCNetworkBlock * >( b.get() );
+ if( ! nb ) {
+  check( false , "cycle flows: the DCNetworkBlock is not read" );
+  return;
+  }
+ SimpleConfiguration< int > cycle( 1 );
+ nb->generate_abstract_variables( & cycle );
+ nb->generate_abstract_constraints();
+
+ // node 2 injects 10 on the HVDC line, which brings 5 to node 1, whose
+ // demand is 1: the 4 left go to node 0 over the two parallel lines, 2 each
+ // as their susceptances are the same, with the cycle flow that makes it so
+ auto set_point = [ & ]( double hvdc ) {
+  auto inj = nb->get_node_injection( 0 );
+  inj[ 0 ].set_value( 0 );
+  inj[ 1 ].set_value( 0 );
+  inj[ 2 ].set_value( hvdc );
+  auto & f = nb->get_power_flow();
+  const_cast< ColVariable & >( f[ 0 ] ).set_value( -2 );
+  const_cast< ColVariable & >( f[ 1 ] ).set_value( -2 );
+  const_cast< ColVariable & >( f[ 2 ] ).set_value( hvdc );
+  auto & h = nb->get_cycle_flow();
+  auto nd2 = static_cast< DCNetworkBlock::DCNetworkData * >(
+                                                  nb->get_NetworkData() );
+  const auto tree2 = nd2->get_lines_in_spanning_tree();
+  const auto cycles2 = nd2->get_lines_in_cycles();
+  for( std::size_t c = 0 ; c < h.size() ; ++c )
+   for( const auto & [ l , sign ] : cycles2[ c ] )
+    if( ! tree2.contains( l ) )
+     const_cast< ColVariable & >( h[ c ] ).set_value( -2.0 * sign );
+  };
+
+ set_point( 10 );
+ check( nb->is_feasible() ,
+	"cycle flows: the balance with the losses of the HVDC line" );
+ set_point( 5 );  // node 1 gets 2.5 from the HVDC line instead of 5
+ check( ! nb->is_feasible() , "cycle flows: a point off the balance" );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// ThermalUnitBlock and NuclearUnitBlock, with all the data and with the
 /// fewest
 
@@ -1778,6 +1929,7 @@ int main( void )
   test_RT_hydro();
   test_RT_other_units();
   test_RT_networks();
+  test_cycle_basis();
   test_RT_UCBlock();
 
   test_setters_thermal( 1 );

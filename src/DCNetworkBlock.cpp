@@ -524,72 +524,6 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
 /*--------------------------------------------------------------------------*/
 
 
-/**
- * Compute a fundamental cycle basis of the DC network using
- * a depth‑first search (DFS)–based variant of Paton's algorithm.
- *
- * The algorithm operates on the DC subgraph only:
- *  - Nodes represent buses.
- *  - Edges represent DC transmission lines.
- *  - HVDC lines are explicitly excluded from the topology.
- *
- * Overview of the algorithm:
- * --------------------------
- * 1. Build an undirected adjacency list of the DC graph.
- *
- * 2. Traverse each connected component of the DC graph using
- *    an explicit (iterative) depth‑first search.
- *
- * 3. During DFS, build a spanning forest:
- *      - Each node stores its parent in the DFS tree.
- *      - Roots satisfy parent[root] == root.
- *
- * 4. Track the current DFS path explicitly using an `in_stack` flag.
- *    This is crucial to distinguish true back‑edges to ancestors
- *    from cross‑edges when using an iterative DFS.
- *
- * 5. Whenever a back‑edge (u → v) is encountered such that:
- *      - v is already on the current DFS path (v is an ancestor of u),
- *      - v is not the parent of u,
- *    a fundamental cycle is detected.
- *
- * 6. Construct the cycle by:
- *      - Starting from the back‑edge endpoint v,
- *      - Walking up the parent pointers from u until v is reached,
- *      - Closing the cycle at v.
- *
- *    The resulting cycle is stored as an ordered list of nodes
- *    with cycle.front() == cycle.back().
- *
- * 7. Repeat until all connected components have been explored.
- *
- * Properties of the computed cycle basis:
- * ---------------------------------------
- * - Each cycle corresponds to exactly one non‑tree (back) edge.
- * - The set of cycles forms a fundamental cycle basis:
- *      |cycles| = |E_DC| − |V_DC| + (number of DC connected components)
- * - Cycles are expressed in node form here and later converted
- *   to edge / line incidence form in a separate routine.
- *
- * Design notes:
- * -------------
- * - An explicit stack is used instead of recursion to avoid
- *   stack overflows on large networks.
- *
- * - The `in_stack` array replaces the recursion stack marker
- *   normally used in recursive DFS and is required for correctness.
- *
- * - Self‑loops are handled explicitly and added as trivial cycles.
- *
- * - The algorithm is root‑agnostic: each DC connected component
- *   has its own DFS root.
- *
- * References:
- * -----------
- * - K. Paton, "An algorithm for finding a fundamental set of
- *   cycles of a graph", Communications of the ACM, 1969.
- * - NetworkX implementation of cycle_basis (adapted to C++).
- */
 void DCNetworkData::compute_cycle_basis( void ) {
  if( cycle_basis_was_computed )
   return;
@@ -604,109 +538,91 @@ void DCNetworkData::compute_cycle_basis( void ) {
 
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
-
- /*------------------------------------------------------------
-  * Build adjacency list (undirected)
-  *------------------------------------------------------------*/
- std::vector< std::vector< Index > > neighbors( number_nodes );
+ const auto & DC_lines = get_DC_lines();
 
  v_cycle_basis.clear();
- const auto & DC_lines = get_DC_lines();
- for( Index line_id : DC_lines ) {
-  Index u = start_line[ line_id ];
-  Index v = end_line[ line_id ];
+ v_line_cycles.clear();
 
+ // the DC lines at each node, with the node at their other end; a DC line
+ // from a node to itself is a cycle of its own
+ std::vector< std::vector< std::pair< Index , Index > > > adj( number_nodes );
+ for( Index line_id : DC_lines ) {
+  const Index u = start_line[ line_id ];
+  const Index v = end_line[ line_id ];
   if( u == v ) {
-   // self-loop → trivial cycle
-   v_cycle_basis.push_back( { u } );
+   v_cycle_basis.push_back( { u , u } );
+   v_line_cycles.push_back( { { line_id , +1 } } );
    continue;
+   }
+  adj[ u ].emplace_back( v , line_id );
+  adj[ v ].emplace_back( u , line_id );
   }
 
-  neighbors[ u ].push_back( v );
-  neighbors[ v ].push_back( u );
- }
-
- /*------------------------------------------------------------
-  * Initialise DFS / Paton state
-  *------------------------------------------------------------*/
-
+ // a spanning forest of the DC lines, one tree per connected component,
+ // each node recording its parent and the line joining it to the parent
  m_spanning_parent.assign( number_nodes , -1 );
-
- std::vector< int > depth( number_nodes , -1 );
-
- // marks nodes on the current DFS path
- std::vector< bool > in_stack( number_nodes , false );
-
- // explicit DFS stack
+ m_spanning_line.assign( number_nodes , -1 );
+ std::vector< Index > depth( number_nodes , 0 );
  std::vector< Index > stack;
 
- /*------------------------------------------------------------
-  * DFS over connected components
-  *------------------------------------------------------------*/
- for( Index start = 0 ; start < number_nodes ; ++start ) {
-  if( depth[ start ] != -1 || neighbors[ start ].empty() )
+ for( Index root = 0 ; root < number_nodes ; ++root ) {
+  if( ( m_spanning_parent[ root ] != -1 ) || adj[ root ].empty() )
    continue;
 
-  // new connected component
-  depth[ start ] = 0;
-  m_spanning_parent[ start ] = start;
-  stack.push_back( start );
-  in_stack[ start ] = true;
-
+  m_spanning_parent[ root ] = int( root );
+  stack.push_back( root );
   while( ! stack.empty() ) {
-   Index u = stack.back();
+   const Index u = stack.back();
    stack.pop_back();
-
-   bool pushed_child = false;
-   for( Index v : neighbors[ u ] ) {
-    // Tree edge
-    if( depth[ v ] == -1 ) {
+   for( const auto & [ v , line_id ] : adj[ u ] )
+    if( m_spanning_parent[ v ] == -1 ) {
+     m_spanning_parent[ v ] = int( u );
+     m_spanning_line[ v ] = int( line_id );
      depth[ v ] = depth[ u ] + 1;
-     m_spanning_parent[ v ] = static_cast< int >( u );
-
-     stack.push_back( u ); // resume u later
-     stack.push_back( v ); // DFS into v
-     in_stack[ v ] = true;
-
-     pushed_child = true;
-     break; // important: depth-first
-    }
-
-    // -------------------------------------------------
-    // Back edge to ANCESTOR → fundamental cycle
-    // -------------------------------------------------
-    if( v != static_cast< Index >( m_spanning_parent[ u ] ) &&
-     in_stack[ v ] ) {
-     Subset cycle;
-     cycle.push_back( v );
-
-     int x = static_cast< int >( u );
-#ifndef NDEBUG
-     int guard = 0;
-#endif
-     while( x != static_cast< int >( v ) ) {
-      cycle.push_back( static_cast< Index >( x ) );
-      x = m_spanning_parent[ x ];
-#ifndef NDEBUG
-      // Safety guards
-      assert( x >= 0 && x < static_cast< int >( number_nodes ) );
-      assert( ++guard <= static_cast< int >( number_nodes ) );
-#endif
+     stack.push_back( v );
      }
-
-     cycle.push_back( v ); // close cycle
-     v_cycle_basis.push_back( std::move( cycle ) );
-    }
-   }
-
-   // -------------------------------------------------
-   // Finished exploring u
-   // -------------------------------------------------
-   if( ! pushed_child ) {
-    in_stack[ u ] = false;
    }
   }
- }
+
+ // the fundamental cycle of each DC line out of the forest: the line from
+ // its start node u to its end node v, then the path in the forest from v
+ // back to u, going up from v to the common ancestor and down to u
+ for( Index line_id : DC_lines ) {
+  const Index u = start_line[ line_id ];
+  const Index v = end_line[ line_id ];
+  if( ( u == v ) || ( m_spanning_line[ u ] == int( line_id ) ) ||
+      ( m_spanning_line[ v ] == int( line_id ) ) )
+   continue;
+
+  std::map< Index , int > cycle = { { line_id , +1 } };
+  Subset up = { u , v };  // the nodes from u to v, then up from v
+  Subset down;            // the nodes up from u, to be reversed
+
+  Index a = v;
+  Index b = u;
+  while( a != b ) {
+   if( depth[ a ] >= depth[ b ] ) {  // a goes up, along the cycle
+    const Index l = m_spanning_line[ a ];
+    const Index p = m_spanning_parent[ a ];
+    cycle[ l ] += ( start_line[ l ] == a ) ? +1 : -1;
+    up.push_back( p );
+    a = p;
+    }
+   else {                            // b goes up, against the cycle
+    const Index l = m_spanning_line[ b ];
+    const Index p = m_spanning_parent[ b ];
+    cycle[ l ] += ( start_line[ l ] == p ) ? +1 : -1;
+    down.push_back( b );
+    b = p;
+    }
+   }
+
+  // the node cycle u, v, ..., common ancestor, ..., u
+  up.insert( up.end() , down.rbegin() , down.rend() );
+  v_cycle_basis.push_back( std::move( up ) );
+  v_line_cycles.push_back( std::move( cycle ) );
+  }
+
  cycle_basis_was_computed = true;
 }
 
@@ -1072,19 +988,28 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
     constant_term += sign * v_ActiveDemand[ i ];
    }
 
-   /* HVDC contributions: only if the line crosses the cut */
+   /* HVDC contributions: as in the nodal balance, the flow leaves its
+    * start node and reaches each end node times the efficiency, so that
+    * the subtree loses f if it holds the start node and gains eta f for
+    * each end node it holds; a line with all its nodes in the subtree
+    * thus counts its losses (eta - 1) f, and one with none counts 0 */
+   const bool hyper = f_NetworkData->is_hypergraph();
    for( auto hvdc_line : HVDC_lines ) {
-    Index a = start_line[ hvdc_line ];
-    Index b = end_line[ hvdc_line ];
+    double coeff = in_S[ start_line[ hvdc_line ] ] ? -1.0 : 0.0;
+    if( ! hyper ) {
+     if( in_S[ end_line[ hvdc_line ] ] )
+      coeff += get_line_efficiency( hvdc_line );
+     }
+    else {
+     const auto & ends = f_NetworkData->get_end_lines()[ hvdc_line ];
+     const auto & etas = get_line_efficiencies( hvdc_line );
+     for( Index i = 0 ; i < ends.size() ; ++i )
+      if( in_S[ ends[ i ] ] )
+       coeff += etas[ i ];
+     }
 
-    bool a_in = in_S[ a ];
-    bool b_in = in_S[ b ];
-
-    if( a_in && ! b_in )
-     lfunc->add_variable( &v_power_flow[ hvdc_line ] , -1.0 * sign );
-    else if( b_in && ! a_in )
-     lfunc->add_variable( &v_power_flow[ hvdc_line ] , 1.0 * sign );
-    // else: does not cross cut → zero contribution
+    if( coeff != 0 )
+     lfunc->add_variable( &v_power_flow[ hvdc_line ] , coeff * sign );
    }
   }
 

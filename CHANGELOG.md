@@ -173,6 +173,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the CYCLE formulation of DCNetworkBlock handles parallel DC lines: the
+  spanning forest and the fundamental cycles are built on the lines rather
+  than on the pairs of nodes, so that of two parallel lines one is in the
+  forest and the other closes a cycle with it, while before both were taken
+  as tree edges and forced to carry the whole flow between their nodes (on
+  a PyPSA network with two parallel lines the optimum was 5.6e-3 too high);
+  also, an HVDC line with an efficiency other than 1 enters the flow of a
+  tree edge with the efficiency at its end node, as in the nodal balance
+
 - `NuclearUnitExtDPSolver` ignored a modulation (or a downward modulation,
   or a deep decrease) fixed to 1 at an instant in which the unit is off,
   since the fixings of those Variable were only checked on the moves of an
