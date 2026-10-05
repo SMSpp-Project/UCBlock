@@ -4288,10 +4288,11 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 bool ThermalUnitBlock::is_sol_feasible_physical( void ) const
 {
  /* The check of is_sol_feasible() reads the schedule of the unit and tests it
-  * against the data of the unit: a unit that carries something the schedule
-  * does not answer for, i.e. a dimensioning variable, the reactive power, a
-  * reference schedule, a scale of its own or a Variable that is fixed, is
-  * left to the check of the base class, which goes through the Variable. */
+  * against the data of the unit, the Variable that are fixed included: a
+  * unit that carries something the schedule does not answer for, i.e. a
+  * dimensioning variable, the reactive power, a reference schedule or a
+  * scale of its own, is left to the check of the base class, which goes
+  * through the Variable. */
  if( ( f_scale != 1 ) || ( f_InvestmentCost != 0 ) || ( f_Capacity != 0 ) ||
      ( ! v_RefSchedule.empty() ) ||
      ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) ||
@@ -4380,6 +4381,47 @@ bool ThermalUnitBlock::is_sol_feasible( Solution * sol , Configuration * fsbc )
       ( ! le( std::abs( PP[ 0 ][ t ] - v_active_power[ t ].get_value() ) ,
 	      0 ) ) )
    return( false );
+  if( has_r1 && ( t < v_primary_spinning_reserve.size() ) &&
+      v_primary_spinning_reserve[ t ].is_fixed() &&
+      ( ! le( std::abs( R1[ 0 ][ t ] -
+			v_primary_spinning_reserve[ t ].get_value() ) , 0 ) ) )
+   return( false );
+  if( has_r2 && ( t < v_secondary_spinning_reserve.size() ) &&
+      v_secondary_spinning_reserve[ t ].is_fixed() &&
+      ( ! le( std::abs( R2[ 0 ][ t ] -
+			v_secondary_spinning_reserve[ t ].get_value() ) , 0 ) ) )
+   return( false );
+  }
+
+ /* The same for the start-up and shut-down indicators, which the Solution
+  * holds if it has saved them and the commitment implies otherwise [see
+  * derive_start_up()]. */
+ const auto fixed = []( const ColVariable & v ) { return( v.is_fixed() ); };
+ if( std::any_of( v_start_up.begin() , v_start_up.end() , fixed ) ||
+     std::any_of( v_shut_down.begin() , v_shut_down.end() , fixed ) ) {
+  std::vector< double > su;
+  std::vector< double > sd;
+  const auto tsol = dynamic_cast< const ThermalUnitBlockSolution * >( sol );
+  if( tsol && ( tsol->get_start_up().size() == v_start_up.size() ) &&
+      ( tsol->get_shut_down().size() == v_start_up.size() ) ) {
+   su = tsol->get_start_up();
+   sd = tsol->get_shut_down();
+   }
+  else {
+   std::vector< double > u( f_time_horizon );
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    u[ t ] = UU[ 0 ][ t ];
+   derive_start_up( u , su , sd );
+   }
+
+  for( Index j = 0 ; j < v_start_up.size() ; ++j )
+   if( v_start_up[ j ].is_fixed() &&
+       ( ! le( std::abs( su[ j ] - v_start_up[ j ].get_value() ) , 0 ) ) )
+    return( false );
+  for( Index j = 0 ; ( j < v_shut_down.size() ) && ( j < sd.size() ) ; ++j )
+   if( v_shut_down[ j ].is_fixed() &&
+       ( ! le( std::abs( sd[ j ] - v_shut_down[ j ].get_value() ) , 0 ) ) )
+    return( false );
   }
 
  // the power and the reserves against the operational bounds of the unit

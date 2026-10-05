@@ -180,6 +180,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ThermalUnitBlock::is_sol_feasible()` also holds a schedule to the
+  start-up, shut-down and reserve Variable that are fixed, which it used to
+  leave out: a Solution of the global pool of a `LagBFunction` that a
+  branching on one of them had made infeasible was kept, and writing it in
+  the unit threw
+
 - the overall balance of the PTDF formulation of DCNetworkBlock counts the
   losses of the HVDC lines, as the CYCLE one does: before, an HVDC line with
   an efficiency below 1 was forced to carry nothing, and a node reached
