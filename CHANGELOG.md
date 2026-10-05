@@ -180,6 +180,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `NuclearUnitBlock::is_sol_feasible()` checks a schedule through the
+  Variable, and hence against the modulation and the constraints of the
+  nuclear unit, instead of against the data of a thermal unit alone;
+  `ThermalUnitBlock::is_sol_feasible()` does the same when a Variable of a
+  formulation that the schedule only implies (the commitment differences,
+  the pieces of the power, the cuts, the deviation from the reference
+  schedule) is fixed
+
+- `NuclearUnitExtDPSolver` refuses a fixed band of the output, deep drop,
+  deep low, modulation start or modulation end, whose fixings its labels
+  cannot honor, instead of giving a schedule that may violate them, save the
+  fixings at 0 of the first instant of a unit initially off;
+  `NuclearUnitBlock` has the accessors of the band, modulation start and
+  modulation end Variable
+
 - `ThermalUnitBlock::is_sol_feasible()` also holds a schedule to the
   start-up, shut-down and reserve Variable that are fixed, which it used to
   leave out: a Solution of the global pool of a `LagBFunction` that a
