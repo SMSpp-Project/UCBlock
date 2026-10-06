@@ -159,6 +159,27 @@ void NuclearUnitExtDPSolver::load_fixings( void )
  scan( b->get_const_modulation_down() , f_fix_down );
  scan( b->get_const_deep_decrease() , f_fix_deep );
 
+ // the other Variable of the rules the labels do not read, hence their
+ // fixings cannot be honored, save the structural ones at 0 of the first
+ // instant of a unit initially off [see generate_abstract_variables()]
+ auto refuse = [ & ]( const ColVariable * v , Index n , const char * name ) {
+  for( Index t = 0 ; v && ( t < n ) ; ++t )
+   if( v[ t ].is_fixed() &&
+       ( ! ( ( t == 0 ) && ( init_up_down_time <= 0 ) &&
+	     ( v[ t ].get_value() == 0 ) ) ) ) {
+    if( ! owned )
+     f_Block->read_unlock();
+    throw( std::logic_error( std::string( "NuclearUnitExtDPSolver::"
+     "load_fixings: fixed " ) + name + " Variable not supported (yet)" ) );
+    }
+  };
+ refuse( b->get_const_deep_drop() , time_horizon , "deep drop" );
+ refuse( b->get_const_deep_low() , time_horizon , "deep low" );
+ refuse( b->get_const_modulation_start() , time_horizon ,
+	 "modulation start" );
+ refuse( b->get_const_modulation_end() , time_horizon , "modulation end" );
+ refuse( b->get_const_band() , 3 * time_horizon , "band" );
+
  // a modulation (or a deep decrease) fixed to 1 needs the unit on at that
  // instant, since m_t <= u_t (and d_t <= m_t): it is a fixing ON of the
  // commitment for the tables of the base DP [see start_label() for the

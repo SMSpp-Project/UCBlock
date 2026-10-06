@@ -231,6 +231,7 @@ struct TUData {
  unsigned int initMod = 2;    // InitModulation
  double mru = 0;              // ModulationDeltaRampUp
  double mrd = 0;              // ModulationDeltaRampDown
+ std::vector< double > bands; // PowerBands, the two breakpoints, if any
  };
 
 /*--------------------------------------------------------------------------*/
@@ -278,6 +279,8 @@ static void write_TU( netCDF::NcGroup g , const TUData & d )
   put_uint( g , "InitModulation" , d.initMod );
   put( g , "ModulationDeltaRampUp" , NI , cst( d.mru ) );
   put( g , "ModulationDeltaRampDown" , NI , cst( d.mrd ) );
+  if( ! d.bands.empty() )
+   put( g , "PowerBands" , g.addDim( "NumberPowerBands" , 2 ) , d.bands );
   }
  }
 
@@ -938,6 +941,120 @@ static void test_DP_nuclear( void )
   tr.nuclear = false;
   const auto bf = brute_force( tr , std::vector< int >( r.T , -1 ) );
   check_all_DP( tub , bf , what + ", full modulation ramps" );
+  delete tub;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/*------------------- THE CHECK OF A SCHEDULE IN A Solution ----------------*/
+/*--------------------------------------------------------------------------*/
+/// a schedule against the fixed Variable of the unit, and a nuclear one
+
+static void test_sol_feasible( void )
+{
+ SimpleConfiguration< double > tol( 1e-7 );
+
+ // off since long, then on at 1 and 2: the start-up is at 1
+ TUData d;
+ d.T = 3;
+ d.maxP = d.su = d.sd = d.ru = d.rd = 5;
+ d.initUD = -10;
+ d.lin = { -10 , -10 , -10 };
+ auto tub = new_TU( d );
+ generate_all( tub );
+ auto u = tub->get_commitment( 0 );
+ auto p = tub->get_active_power( 0 );
+ auto su = tub->get_start_up();
+ const std::vector< double > U = { 0 , 1 , 1 };
+ const std::vector< double > P = { 0 , 5 , 5 };
+ for( Index t = 0 ; t < d.T ; ++t ) {
+  u[ t ].set_value( U[ t ] );
+  p[ t ].set_value( P[ t ] );
+  }
+ check( tub->get_number_start_up() == d.T ,
+	"schedule: one start-up Variable per instant" );
+ for( Index t = 0 ; t < tub->get_number_start_up() ; ++t )
+  su[ t ].set_value( t == 1 ? 1 : 0 );
+
+ auto sol = tub->get_Solution( nullptr , false );
+ check( tub->is_sol_feasible_physical() ,
+	"schedule: a thermal unit reads the Solution" );
+ check( tub->is_sol_feasible( sol , & tol ) , "schedule: nothing fixed" );
+
+ su[ 2 ].set_value( 1 );
+ su[ 2 ].is_fixed( true );
+ check( ! tub->is_sol_feasible( sol , & tol ) ,
+	"schedule: a start-up fixed where the schedule has none" );
+ su[ 2 ].is_fixed( false );
+ su[ 2 ].set_value( 0 );
+ su[ 1 ].is_fixed( true );
+ check( tub->is_sol_feasible( sol , & tol ) ,
+	"schedule: a start-up fixed where the schedule has it" );
+ su[ 1 ].is_fixed( false );
+ delete sol;
+ delete tub;
+
+ // on at 2, then 5 and 2: the ramps of a thermal unit allow it, while a
+ // nuclear one modulates twice within its ModulationTime
+ TUData n;
+ n.nuclear = true;
+ n.T = 2;
+ n.minP = 2;
+ n.maxP = n.su = n.sd = 5;
+ n.ru = n.rd = 3;
+ n.mru = n.mrd = 1;
+ n.initUD = 10;
+ n.initP = 2;
+ n.modT = 3;
+ n.initMod = 3;
+ n.lin = { -10 , 10 };
+
+ for( bool nuclear : { false , true } ) {
+  n.nuclear = nuclear;
+  const std::string who = nuclear ? "nuclear" : "the thermal twin";
+  tub = new_TU( n );
+  generate_all( tub );
+  u = tub->get_commitment( 0 );
+  p = tub->get_active_power( 0 );
+  u[ 0 ].set_value( 1 );
+  u[ 1 ].set_value( 1 );
+  p[ 0 ].set_value( 5 );
+  p[ 1 ].set_value( 2 );
+  sol = tub->get_Solution( nullptr , false );
+  check( tub->is_sol_feasible_physical() != nuclear ,
+	 who + ": the schedule answers for a thermal unit only" );
+  check( tub->is_sol_feasible( sol , & tol ) != nuclear ,
+	 who + ": up by 3 and down by 3" );
+  delete sol;
+  delete tub;
+  }
+
+ // the nuclear DP does not read the bands of the output: a band that is
+ // fixed is refused, rather than left out of the schedule it gives
+ n.nuclear = true;
+ n.bands = { 3 , 4 };
+ for( bool fix : { false , true } ) {
+  tub = new_TU( n );
+  generate_all( tub );
+  auto nub = static_cast< NuclearUnitBlock * >( tub );
+  check( nub->get_band() , "bands: the band Variable are there" );
+  if( fix && nub->get_band() ) {
+   nub->get_band()[ 1 ].set_value( 1 );
+   nub->get_band()[ 1 ].is_fixed( true );
+   }
+  auto slv = Solver::new_Solver( "NuclearUnitExtDPSolver" );
+  tub->register_Solver( slv );
+  bool refused = false;
+  int status = Solver::kError;
+  try { status = slv->compute(); }
+  catch( std::logic_error & ) { refused = true; }
+  if( fix )
+   check( refused , "bands: a fixed band is refused by the nuclear DP" );
+  else
+   check( ( ! refused ) && ( status == Solver::kOK ) ,
+	  "bands: with no band fixed the nuclear DP solves, status " +
+	  std::to_string( status ) );
+  tub->unregister_Solver( slv , true );
   delete tub;
   }
  }
@@ -1924,6 +2041,7 @@ int main( void )
   test_DP_set_min_up_down();
   test_DP_clamped_min_up_down();
   test_DP_nuclear();
+  test_sol_feasible();
 
   test_RT_thermal();
   test_RT_hydro();
