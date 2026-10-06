@@ -3531,6 +3531,11 @@ class ThermalUnitBlock : public UnitBlock
  /// the reactive power bound constraints (plain box; no commitment gating)
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
 
+ /// the active power bound constraints, 0 <= p[ t ] <= the operational
+ /// maximum power: redundant with the rows of the commitment, but readable
+ /// by a Solver that only reads the boxes (say, a BoxSolver)
+ std::vector< BoxConstraint > ActivePower_Bound_Const;
+
  /// the reactive power upper bound constraints (commitment-gated variant):
  /// q[t] - Qmax_on[t] u[t] <= Qmax_off[t]
  std::vector< FRowConstraint > ReactivePowerMax_Const;

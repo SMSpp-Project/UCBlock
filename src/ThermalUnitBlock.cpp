@@ -3684,6 +3684,21 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
    }
   }
 
+ // the box of the active power, 0 <= p[ t ] <= the operational maximum
+ // power: the rows that tie the power to the commitment imply it, but a
+ // Solver that only reads the boxes (say, a BoxSolver bounding the
+ // Objective) needs it to see the power bounded
+ if( ActivePower_Bound_Const.empty() )
+  ActivePower_Bound_Const.resize( f_time_horizon );
+
+ for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+  ActivePower_Bound_Const[ t ].set_lhs( 0 );
+  ActivePower_Bound_Const[ t ].set_rhs( get_operational_max_power( t ) );
+  ActivePower_Bound_Const[ t ].set_variable( & v_active_power[ t ] );
+  }
+
+ add_static_constraint( ActivePower_Bound_Const , "ActivePowerBound_thermal" );
+
  set_constraints_generated();
 
  }  // end( ThermalUnitBlock::generate_abstract_constraints )
@@ -4279,7 +4294,8 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( ReactivePower_Bound_Const , tol
 				 , rel_viol )
   && RowConstraint::is_feasible( ReactivePowerMax_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( ReactivePowerMin_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( ReactivePowerMin_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )
 
@@ -4678,6 +4694,10 @@ void ThermalUnitBlock::update_availability_dependents( Index t ,
  static_cast< LinearFunction * >( MaxPower_Const[ t ].get_function()
  )->modify_coefficient( 0 , get_operational_max_power( t ) , issueAMod );
 
+ // the box of the active power
+ ActivePower_Bound_Const[ t ].set_rhs( get_operational_max_power( t ) ,
+                                       issueAMod );
+
  // MinPower_Const: the commitment variable is in position 0
  static_cast< LinearFunction * >( MinPower_Const[ t ].get_function()
  )->modify_coefficient( 0 , -get_operational_min_power( t ) , issueAMod );
@@ -4897,10 +4917,13 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
                                     open_channel( par2chnl( issueAMod ) ) ) );
 
-  for( auto t : subset )
+  for( auto t : subset ) {
    // the commitment variable is in position 0 in the LF
    static_cast< LinearFunction * >( MaxPower_Const[ t ].get_function()
    )->modify_coefficient( 0 , get_operational_max_power( t ) , nAM );
+   ActivePower_Bound_Const[ t ].set_rhs( get_operational_max_power( t ) ,
+                                         nAM );
+   }
 
   close_channel( par2chnl( nAM ) );  // at the end close the channel
   }
@@ -4956,10 +4979,13 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
                                     open_channel( par2chnl( issueAMod ) ) ) );
 
-  for( Index t = rng.first ; t < rng.second ; ++t )
+  for( Index t = rng.first ; t < rng.second ; ++t ) {
    // the commitment variable is in position 0 in the LF
    static_cast< LinearFunction * >( MaxPower_Const[ t ].get_function()
    )->modify_coefficient( 0 , get_operational_max_power( t ) , nAM );
+   ActivePower_Bound_Const[ t ].set_rhs( get_operational_max_power( t ) ,
+                                         nAM );
+   }
 
   close_channel( par2chnl( nAM ) );  // at the end close the channel
   }

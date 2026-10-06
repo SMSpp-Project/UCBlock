@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ThermalUnitBlock` has the box of the active power, `0 <= p[ t ] <=` the
+  operational maximum power, as the static group of `BoxConstraint`
+  `ActivePowerBound_thermal`, kept up to date by `set_maximum_power()` and by
+  the availability: the rows of the commitment already imply it, but a Solver
+  that only reads the boxes (say, a `BoxSolver` bounding the Objective, as
+  `LagrangianDualSolver` does) needs it to see the power bounded
+
 - data/gen_network_cases.py writes the instances of the edge cases of the
   network, small PyPSA dispatch networks whose DC lines have a susceptance
   (parallel lines in the same and in opposite directions, a triangle with a
