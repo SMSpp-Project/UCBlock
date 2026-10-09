@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- the unit test checks the continuous relaxations of the pt, SU, SD and SUSD
+  formulations against the integer optimum on units on and off before the
+  horizon, with both ramps, one or none, and the MILP of every formulation
+  of a `NuclearUnitBlock`, with and without bands, against
+  `NuclearUnitExtDPSolver`
+
+### Fixed
+
+- the maximum power rows of the pt, SU, SD and SUSD formulations of
+  `ThermalUnitBlock` (and so of `NuclearUnitBlock`) cap every instant of a
+  run by the start-up limit plus the ramps up from the start-up and by the
+  shut-down limit plus the ramps down to the shut-down, the first and the
+  last instant included, where only the limits were used: the two arcs of a
+  run that reaches the end of the horizon, which describe the same schedule,
+  had different caps at its last instant, and the continuous relaxations of
+  the pt, SU and SD formulations could be weaker than that of the DP one; a
+  cap below the minimum power is no longer raised to it, so that a run that
+  the limits and the ramps make impossible at an instant is excluded there
+
 ## [0.10.0] - 2026-10-09
 
 ### Added

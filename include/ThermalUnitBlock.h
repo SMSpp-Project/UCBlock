@@ -171,7 +171,10 @@ namespace SMSpp_di_unipi_it
  *  Report R. 20-01, IASI-CNR, Rome, 2020
  *
  * the SUSD one with, in addition, the ramp rows over several steps, which
- * extend the single-step ones of the report [see
+ * extend the single-step ones of the report. In the pt, SU, SD and SUSD
+ * formulations the maximum power rows (27) cap the first and the last
+ * instant of a run by the ramps as well as by the start-up and shut-down
+ * limits, and are thus stronger than those of the two papers [see
  * generate_abstract_constraints()]. Finally, the perspective cuts (33) are
  * those of
  *
@@ -1059,36 +1062,52 @@ class ThermalUnitBlock : public UnitBlock
   *   instant (\f$ h = t + 1 < k \f$), \f$ P = \bar{P}^{sd}_t \f$ at its
   *   last one (\f$ h < t + 1 = k \f$), and \f$ P = P^{mx}_t \f$ otherwise.
   *
-  * - pt, SU, SD and SUSD formulations: for the instant \f$ t \f$ of a run
-  *   \f$ (h,k) \f$ which is neither its first nor its last one, let
+  * - pt, SU, SD and SUSD formulations: for every instant \f$ t \f$ of a
+  *   run \f$ (h,k) \f$, i.e., \f$ h \leq t + 1 \leq k \f$, the first and
+  *   the last one included, let
   *   \f[
-  *     \psi^{hk}_t = \max\Bigl\{ P^{mn}_t , \min\Bigl\{ P^{mx}_t ,
-  *       \Xi^h_t , P^{sd}_k + \sum_{ r = t + 1 }^{ k - 1 } \Delta^-_r
-  *       \Bigr\} \Bigr\} \; , \qquad
+  *     \psi^{hk}_t = \min\{ P^{mx}_t , \Xi^h_t , \Theta^k_t \} \; ,
+  *     \qquad
   *     \Xi^h_t = P^{su}_{h-1} + \sum_{ r = h }^{ t } \Delta^+_r \; ,
-  *     \quad \Xi^0_t = p_{-1} + \sum_{ r = 0 }^{ t } \Delta^+_r \; ,
+  *     \quad \Theta^k_t = P^{sd}_k + \sum_{ r = t + 1 }^{ k - 1 }
+  *     \Delta^-_r \; ,
   *   \f]
-  *   the largest power the ramps allow at \f$ t \f$ in that run, where
-  *   \f$ \Xi^h_t \f$ is dropped if DeltaRampUp is not given (\f$ \Xi^0_t \f$
-  *   also if \f$ \tau_0 \leq 0 \f$), and the shut-down term is dropped if
-  *   DeltaRampDown is not given or if \f$ k \geq T \f$ (no shut-down
-  *   within the horizon); the run from before the horizon (\f$ h = 0 \f$)
-  *   keeps it, as every other run. Then the pt formulation has, for
+  *   and \f$ \Xi^0_t = p_{-1} + \sum_{ r = 0 }^{ t } \Delta^+_r \f$ for the
+  *   run from before the horizon, the largest power that the start-up and
+  *   shut-down limits and the ramps allow at \f$ t \f$ in that run: the sums
+  *   are empty at the first instant, \f$ \Xi^h_{h-1} = P^{su}_{h-1} \f$, and
+  *   at the last one, \f$ \Theta^k_{k-1} = P^{sd}_k \f$. Without
+  *   DeltaRampUp, \f$ \Xi^h_t \f$ is there only at the first instant and
+  *   \f$ \Xi^0_t \f$ is dropped (as it is if \f$ \tau_0 \leq 0 \f$);
+  *   without DeltaRampDown, \f$ \Theta^k_t \f$ is there only at the last
+  *   instant; and \f$ \Theta^k_t \f$ is dropped if \f$ k \geq T \f$, there
+  *   being no shut-down within the horizon (the run from before the horizon
+  *   keeps it, as every other run). Then the pt formulation has, for
   *   \f$ t \in \mathcal{T} \f$,
   *   \f[
-  *     p^{ac}_t \leq \sum_{ h < t + 1 < k } \psi^{hk}_t y^{hk}_+
-  *     + P^{su}_t \sum_{ k > t + 1 } y^{t+1,k}_+
-  *     + \bar{P}^{sd}_t \sum_{ h < t + 1 } y^{h,t+1}_+
-  *     + \min\{ P^{su}_t , \bar{P}^{sd}_t \} \, y^{t+1,t+1}_+ \; ,
-  *     \tag{27}
+  *     p^{ac}_t \leq \sum_{ (h,k) \,:\, h \leq t + 1 \leq k }
+  *     \psi^{hk}_t y^{hk}_+ \; , \tag{27}
   *   \f]
-  *   the runs of one instant \f$ y^{t+1,t+1}_+ \f$ existing only if
-  *   \f$ \tau^+ = 1 \f$; the SU (and SUSD) formulation has
-  *   \f$ p^h_t \leq \sum_{ k \geq t + 1 } P^{hk}_t y^{hk}_+ \f$ for every
-  *   start \f$ h \leq t + 1 \f$, and the SD (and SUSD) formulation
-  *   \f$ \tilde{p}^k_t \leq \sum_{ h \leq t + 1 } P^{hk}_t y^{hk}_+ \f$ for
-  *   every end \f$ k \geq t + 1 \f$, where \f$ P^{hk}_t \f$ is the
-  *   coefficient of \f$ y^{hk}_+ \f$ in (27).
+  *   the SU (and SUSD) formulation has \f$ p^h_t \leq \sum_{ k \geq t + 1 }
+  *   \psi^{hk}_t y^{hk}_+ \f$ for every start \f$ h \leq t + 1 \f$, and the
+  *   SD (and SUSD) formulation has \f$ \tilde{p}^k_t \leq \sum_{ h \leq t +
+  *   1 } \psi^{hk}_t y^{hk}_+ \f$ for every end \f$ k \geq t + 1 \f$. If
+  *   \f$ \psi^{hk}_t < P^{mn}_t \f$ the run cannot be on at \f$ t \f$, and
+  *   the rows (27) and (19) together exclude it; this happens, e.g., when
+  *   the shut-down limit \f$ P^{sd}_k \f$, which deserialize() checks
+  *   against the bounds of \f$ k \f$, is below \f$ P^{mn}_{k-1} \f$, as at
+  *   an instant \f$ k \f$ at which the unit is unavailable. Also,
+  *   \f$ \psi^{hk}_t \f$ is at most \f$ P^{su}_t \f$ at the first instant of
+  *   a run, at most \f$ \bar{P}^{sd}_t \f$ at its last one, and at most
+  *   \f$ \min\{ P^{su}_t , \bar{P}^{sd}_t \} \f$ for a run of one instant
+  *   (\f$ h = k = t + 1 \f$, which exists only if \f$ \tau^+ = 1 \f$). The
+  *   rows of the papers cited in the class description, which cap the first
+  *   and the last instant of a run by these limits alone, are therefore
+  *   implied by (27), which is stronger
+  *   at the first instant of a run that shuts down soon after it and at the
+  *   last instant of a run that started shortly before; also, the arcs
+  *   \f$ ( h , T ) \f$ and \f$ ( h , T + 1 ) \f$, which describe the same
+  *   schedule, have the same coefficients in (27).
   *
   * <b>Spinning reserves.</b> If the reserve variables exist, then
   * ("PrimaryRho_Const_Thermal", "SecondaryRho_Const_Thermal")

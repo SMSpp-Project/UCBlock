@@ -9235,6 +9235,221 @@ static void test_thermal_SUSD_ramp_rows( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The bound psi of the maximum power rows (27) of the pt, SU, SD and SUSD
+ * formulations holds at every instant of a run, the first and the last one
+ * included, where the start-up and shut-down limits alone were used. With
+ * MinPower 10 and MaxPower 100 at every instant, in the cases
+ *
+ * - A: T = 2, StartUpLimit 40, ShutDownLimit 30, both ramps 10, minimum up
+ *   and down times 1, on since 3 instants at 20: the run from before the
+ *   horizon that the end of the horizon cuts is at most 20 + 2 * 10 = 40
+ *   at 1, both as the arc ( 0 , T ) and as the arc ( 0 , T + 1 ), which
+ *   describe the same schedule (the former had 100, the maximum power);
+ *
+ * - B: T = 3, StartUpLimit 50, ShutDownLimit 30, DeltaRampUp 40 and no
+ *   DeltaRampDown, minimum up and down times 1, off since 4 instants;
+ *
+ * - C: T = 3, StartUpLimit = ShutDownLimit = 50, DeltaRampUp 10,
+ *   DeltaRampDown 30, minimum up time 2, on since 3 instants at 20: the
+ *   run from before the horizon that shuts down at 2 is at most
+ *   20 + 2 * 10 = 40 at its last instant 1, below the shut-down limit;
+ *
+ * - E: T = 3, StartUpLimit 40, ShutDownLimit 30, no ramps, on since 2
+ *   instants at 60; F: T = 3, StartUpLimit 30, ShutDownLimit 40, only
+ *   DeltaRampDown 20, minimum up time 2, off since 1 instant;
+ *
+ * with the costs below, the continuous relaxation of every formulation but
+ * the 3bin and T ones is the integer optimum, which also the MILP of every
+ * formulation and both DP Solvers give; before, those of the pt and SU
+ * formulations were -137 in A and -134 in C, those of the pt and SD ones
+ * -108 in B. The values come from an independent model of the rows. In A,
+ * set_initial_power() to 30 gives the relaxation of the unit generated with
+ * 30. A NuclearUnitBlock keeps the rows, which its operating rules do not
+ * make invalid: A and C as nuclear units (modulation ramps 5, a modulation
+ * every 2 instants, C also with the bands 30 and 60 and modulations of at
+ * most 2 instants) and random small nuclear units have the same MILP value
+ * in every formulation as the NuclearUnitExtDPSolver, and as the brute
+ * force without bands. */
+
+static void test_thermal_psi_first_last( void )
+{
+ struct Case {
+  std::string name; Index T; double su , sd , ru , rd; unsigned int up;
+  int init; double ip; std::vector< double > lin , cnst , suc;
+  double opt;
+  };
+ const std::vector< Case > cases = {
+  { "A" , 2 , 40 , 30 , 10 , 10 , 1 , 3 , 20 , { -5 , -2 } , { 51 , 48 } ,
+    { 8 , 151 } , -131 } ,
+  { "B" , 3 , 50 , 30 , 40 , -1 , 1 , -4 , 0 , { 1 , -1 , -3 } ,
+    { 52 , 72 , 81 } , { 102 , 64 , 177 } , -103 } ,
+  { "C" , 3 , 50 , 50 , 10 , 30 , 2 , 3 , 20 , { -4 , -2 , 2 } ,
+    { 18 , 52 , 80 } , { 61 , 147 , 151 } , -130 } ,
+  { "E" , 3 , 40 , 30 , -1 , -1 , 1 , 2 , 60 , { 0 , 1 , -6 } ,
+    { 80 , 46 , 51 } , { 126 , 57 , 195 } , -413 } ,
+  { "F" , 3 , 30 , 40 , -1 , 20 , 2 , -1 , 0 , { -3 , -5 , -2 } ,
+    { 86 , 16 , 80 } , { 92 , 110 , 18 } , -516 } };
+
+ auto make = []( const Case & c , double ip ) {
+  auto cst = [ & ]( double v ) { return( std::vector< double >( c.T , v ) ); };
+  std::vector< std::pair< std::string , std::vector< double > > > vecs = {
+   { "MinPower" , cst( 10 ) } , { "MaxPower" , cst( 100 ) } ,
+   { "StartUpLimit" , cst( c.su ) } , { "ShutDownLimit" , cst( c.sd ) } ,
+   { "QuadTerm" , cst( 0 ) } , { "LinearTerm" , c.lin } ,
+   { "ConstTerm" , c.cnst } , { "StartUpCost" , c.suc } };
+  if( c.ru >= 0 )
+   vecs.push_back( { "DeltaRampUp" , cst( c.ru ) } );
+  if( c.rd >= 0 )
+   vecs.push_back( { "DeltaRampDown" , cst( c.rd ) } );
+  std::vector< std::pair< std::string , double > > dbls;
+  if( c.init > 0 )
+   dbls.push_back( { "InitialPower" , ip } );
+  return( new_unit_gen( false , c.T , vecs , dbls ,
+                        { { "InitUpDownTime" , c.init } } ,
+                        { { "MinUpTime" , c.up } , { "MinDownTime" , 1 } } ) );
+  };
+
+ const std::vector< std::string > forms = { "TUBCfg-pt.txt" ,
+  "TUBCfg-DP.txt" , "TUBCfg-SU.txt" , "TUBCfg-SD.txt" , "TUBCfg-SUSD.txt" };
+
+ for( const auto & c : cases ) {
+  const auto who = "psi at the first and last instant, case " + c.name;
+
+  // the integer optimum, every formulation and both DP Solvers
+  check_all_forms( [ & ]() { return( make( c , c.ip ) ); } , c.opt , who );
+
+  // the continuous relaxations
+  for( const auto & form : forms ) {
+   auto tub = make( c , c.ip );
+   if( ! generate_from_file( tub , form ) ) {
+    check( false , who + ": cannot read " + form );
+    delete tub;
+    continue;
+    }
+   const auto v = relaxation_value( tub );
+   if( std::isnan( v ) )
+    std::cout << who << ", " << form << ": no relaxation value (no "
+              << ":MILPSolver of LPRelaxBSCfg.txt?), skipped" << std::endl;
+   else
+    check( close( v , c.opt ) , who + ", " + form + ": the continuous "
+           "relaxation is " + str( v ) + " instead of " + str( c.opt ) );
+   delete tub;
+   }
+  }
+
+ // A and C as nuclear units, and random small nuclear units
+ auto nuclear = []( const Case & c ) {
+  TUData d;
+  d.nuclear = true;
+  d.T = c.T;
+  d.minP = 10;
+  d.maxP = 100;
+  d.su = c.su;
+  d.sd = c.sd;
+  d.ru = c.ru;
+  d.rd = c.rd;
+  d.initUD = c.init;
+  d.initP = c.ip;
+  d.minUp = c.up;
+  d.lin = c.lin;
+  d.cnst = c.cnst;
+  d.suc = c.suc;
+  d.modT = 2;
+  d.initMod = 2;
+  d.mru = d.mrd = 5;
+  return( d );
+  };
+ for( Index i : { 0 , 2 } ) {
+  const auto d = nuclear( cases[ i ] );
+  const auto who = "psi at the first and last instant, nuclear case " +
+                   cases[ i ].name;
+  const double bf = brute_force( d , std::vector< int >( d.T , -1 ) );
+  check_all_forms( [ & ]() { return( new_TU( d ) ); } , bf , who );
+  auto nb = [ & ]() { return( new_band_NU( d , 2 , { 30 , 60 } ) ); };
+  auto nub = nb();
+  const double v = nuclear_DP_value( nub );
+  delete nub;
+  check_all_forms( nb , v , who + " with bands" );
+  }
+ for( int i = 0 ; i < 30 ; ++i ) {
+  TUData d;
+  d.nuclear = true;
+  d.T = rnd( 2 , 4 );
+  d.minP = 10;
+  d.maxP = 100;
+  d.su = rnd( 2 , 8 ) * 10;
+  d.sd = rnd( 2 , 8 ) * 10;
+  d.ru = rnd( 1 , 5 ) * 10;
+  d.rd = rnd( 1 , 5 ) * 10;
+  d.minUp = rnd( 1 , 3 );
+  d.minDown = rnd( 1 , 2 );
+  d.initUD = rnd( 0 , 1 ) ? rnd( 1 , 4 ) : -rnd( 1 , 4 );
+  d.initP = rnd( 1 , 10 ) * 10;
+  d.modT = rnd( 2 , 4 );
+  d.initMod = rnd( 1 , int( d.modT ) );
+  d.mru = rnd( 0 , int( d.ru ) );
+  d.mrd = rnd( 0 , int( d.rd ) );
+  for( Index t = 0 ; t < d.T ; ++t ) {
+   d.lin.push_back( rnd( -6 , 2 ) );
+   d.cnst.push_back( rnd( 0 , 99 ) );
+   d.suc.push_back( rnd( 0 , 199 ) );
+   }
+  const double bf = brute_force( d , std::vector< int >( d.T , -1 ) );
+  check_all_forms( [ & ]() { return( new_TU( d ) ); } , bf ,
+                   "psi at the first and last instant, random nuclear " +
+                   describe( d ) , { 2 , 3 , 4 , 5 , 6 } );
+  }
+
+ // A: the row (27) of the pt formulation at the last instant caps every
+ // run on at it by 40, the arcs ( 0 , T ) and ( 0 , T + 1 ) included
+ {
+  auto tub = make( cases[ 0 ] , 20 );
+  generate_from_file( tub , "TUBCfg-pt.txt" );
+  auto rows = tub->get_static_constraint_v< FRowConstraint >(
+                                                  "MaxPower_Const_Thermal" );
+  std::string got;
+  bool ok = rows && ( rows->size() == 2 );
+  if( ok )
+   if( auto lf = dynamic_cast< const LinearFunction * >(
+                                       ( *rows )[ 1 ].get_function() ) )
+    for( Index k = 0 ; k < lf->get_num_active_var() ; ++k ) {
+     const auto cf = lf->get_coefficient( k );
+     got += " " + str( cf );
+     if( ( cf != -1 ) && ( cf != 40 ) )
+      ok = false;
+     }
+  check( ok , "psi at the last instant, case A: the row (27) at 1 has" +
+         got + " instead of 40 for every run" );
+  delete tub;
+  }
+
+ // A: set_initial_power() to 30, the relaxation of the unit generated
+ // with 30, in the pt and SU formulations
+ for( const std::string form : { "TUBCfg-pt.txt" , "TUBCfg-SU.txt" } ) {
+  auto tub = make( cases[ 0 ] , 20 );
+  auto ref = make( cases[ 0 ] , 30 );
+  generate_from_file( tub , form );
+  generate_from_file( ref , form );
+  std::vector< double > ip = { 30 };
+  try {
+   tub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+   const auto v = relaxation_value( tub );
+   const auto r = relaxation_value( ref );
+   check( ( std::isnan( v ) && std::isnan( r ) ) || close( v , r ) ,
+          "psi at the first and last instant, case A, " + form +
+          ", initial power 20 -> 30: the relaxation is " + str( v ) +
+          " instead of " + str( r ) );
+   }
+  catch( std::exception & e ) {
+   check( false , "psi at the first and last instant, case A, " + form +
+          ": set_initial_power( 30 ) throws " + e.what() );
+   }
+  delete ref;
+  delete tub;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -9357,6 +9572,7 @@ int main( int argc , char ** argv )
   test_thermal_shut_down_limit_at_t0();
   test_thermal_psi_initial_run();
   test_thermal_SUSD_ramp_rows();
+  test_thermal_psi_first_last();
 
   test_hydro_set_inflow_subset();
   test_hydro_initial_flow_absent();

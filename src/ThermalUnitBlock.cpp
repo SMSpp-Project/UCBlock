@@ -1059,30 +1059,41 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
   v_psi.resize( v_P_h_k.size() );
 
   for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
-   Index t = v_P_h_k[ j ].first;
-   v_psi[ j ] = get_operational_max_power( t );
+   const Index t = v_P_h_k[ j ].first;
+   const Index h = v_P_h_k[ j ].second.first;
+   const Index k = v_P_h_k[ j ].second.second;
    // the interval ( h , k ) is on in the periods h - 1 , ... , k - 1: it
-   // starts up at h - 1 and shuts down at k
-   // (the run from before the horizon, h = 0, included)
-   if( v_P_h_k[ j ].second.second < f_time_horizon )
-    if( ! v_DeltaRampDown.empty() )
-     v_psi[ j ] = std::min( v_psi[ j ] ,
-                            v_ShutDownLimit[ v_P_h_k[ j ].second.second ] +
-                            ramp_down_sum( t + 1 ,
-                                           v_P_h_k[ j ].second.second - 1 ) );
+   // starts up at h - 1 (before the horizon if h == 0) and shuts down at k
+   // (beyond the horizon if k >= T); every instant of it, the first and
+   // the last included, is capped by the maximum power, by the start-up
+   // limit plus the ramps up from the start-up (the initial power plus the
+   // ramps from -1 for h == 0) and by the shut-down limit plus the ramps
+   // down to the shut-down, the limits alone if the ramps are not given
+   v_psi[ j ] = get_operational_max_power( t );
 
-   if( ! v_DeltaRampUp.empty() ) {
-    if( ( v_P_h_k[ j ].second.first == 0 ) && ( f_InitUpDownTime > 0 ) )
-     v_psi[ j ] = std::min( v_psi[ j ] ,
-			    f_InitialPower + ramp_up_sum( 0 , t ) );
-
-    if( v_P_h_k[ j ].second.first > 0 )
-     v_psi[ j ] = std::min( v_psi[ j ] ,
-			    v_StartUpLimit[ v_P_h_k[ j ].second.first - 1 ] +
-			    ramp_up_sum( v_P_h_k[ j ].second.first , t ) );
+   if( k < f_time_horizon ) {
+    if( t + 1 == k )
+     v_psi[ j ] = std::min( v_psi[ j ] , double( v_ShutDownLimit[ k ] ) );
+    else
+     if( ! v_DeltaRampDown.empty() )
+      v_psi[ j ] = std::min( v_psi[ j ] , v_ShutDownLimit[ k ] +
+                                          ramp_down_sum( t + 1 , k - 1 ) );
     }
 
-   v_psi[ j ] = std::max( v_psi[ j ] , get_operational_min_power( t ) );
+   if( h > 0 ) {
+    if( t + 1 == h )
+     v_psi[ j ] = std::min( v_psi[ j ] , double( v_StartUpLimit[ t ] ) );
+    else
+     if( ! v_DeltaRampUp.empty() )
+      v_psi[ j ] = std::min( v_psi[ j ] , v_StartUpLimit[ h - 1 ] +
+                                          ramp_up_sum( h , t ) );
+    }
+   else
+    if( ( f_InitUpDownTime > 0 ) && ( ! v_DeltaRampUp.empty() ) )
+     v_psi[ j ] = std::min( v_psi[ j ] ,
+                            f_InitialPower + ramp_up_sum( 0 , t ) );
+   // a cap below the minimum power means that the run cannot be on at t,
+   // which the maximum and minimum power rows then say together
    }
   }
 
@@ -2674,40 +2685,11 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
 
 
 
+    // every run on at t, with the cap \psi of the instant t of the run
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-     for( Index j : psi_index( t , i ) ) {
-
-        if( ( v_Y_plus[ i ].first < t + 1 ) &&
-            ( t + 1 < v_Y_plus[ i ].second ) )
-         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                         v_psi[ j ] ) );
-        if( f_MinUpTime >= 2 ) {
-         if( ( v_Y_plus[ i ].first == t + 1 ) &&
-             ( t + 1 <= v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          v_StartUpLimit[ t ] ) );
-         if( ( v_Y_plus[ i ].first <= t + 1 ) &&
-             ( t + 1 == v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          sd_cap( t ) ) );
-        }
-        if( f_MinUpTime == 1 ) {
-         if( ( v_Y_plus[ i ].first == t + 1 ) &&
-             ( t + 1 < v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          v_StartUpLimit[ t ] ) );
-         if( ( v_Y_plus[ i ].first < t + 1 ) &&
-             ( t + 1 == v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          sd_cap( t ) ) );
-         if( ( v_Y_plus[ i ].first == t + 1 ) &&
-             ( t + 1 == v_Y_plus[ i ].second ) )
-          vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                          std::min( double(
-                                                     v_StartUpLimit[ t ] ) ,
-                                                    sd_cap( t ) ) ) );
-        }
-       }
+     for( Index j : psi_index( t , i ) )
+      vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                      v_psi[ j ] ) );
 
     put_row( MaxPower_Const , t , std::move( vars ) , 0.0 , Inf< double >() );
    }
@@ -2724,34 +2706,14 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
    for( Index j = 0 ; j < v_P_h.size() ; ++j ) {
 
     auto t = v_P_h[ j ].first;
+    // every run started at h - 1 and on at t, with the cap \psi of the
+    // instant t of the run
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( ( v_P_h[ j ].second == v_Y_plus[ i ].first ) &&
-         ( t + 1 <= v_Y_plus[ i ].second ) ) {
-
-      if( t + 1 == v_Y_plus[ i ].first ) {
-
-       if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        v_StartUpLimit[ t ] ) );
-
-       if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        std::min( double(
-                                                   v_StartUpLimit[ t ] ) ,
-                                                  sd_cap( t ) ) ) );
-
-      } else {
-
-       if( t + 1 == v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        sd_cap( t ) ) );
-
-       if( t + 1 < v_Y_plus[ i ].second )
-        for( Index s : psi_index( t , i ) )
-         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                         v_psi[ s ] ) );
-      }
-     }
+         ( t + 1 <= v_Y_plus[ i ].second ) )
+      for( Index s : psi_index( t , i ) )
+       vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                       v_psi[ s ] ) );
 
     vars.push_back( std::make_pair( &v_active_power_h[ j ] , -1.0 ) );
 
@@ -2768,34 +2730,14 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
    for( Index j = 0 ; j < v_P_k.size() ; ++j ) {
 
     auto t = v_P_k[ j ].first;
+    // every run shut down at k and on at t, with the cap \psi of the
+    // instant t of the run
     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
      if( ( v_P_k[ j ].second == v_Y_plus[ i ].second ) &&
-         ( v_Y_plus[ i ].first <= t + 1 ) ) {
-
-      if( t + 1 == v_Y_plus[ i ].second ) {
-
-       if( v_Y_plus[ i ].first < v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        sd_cap( t ) ) );
-
-       if( v_Y_plus[ i ].first == v_Y_plus[ i ].second )
-        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        std::min( double(
-                                                   v_StartUpLimit[ t ] ) ,
-                                                  sd_cap( t ) ) ) );
-
-      } else {
-
-       if( t + 1 == v_Y_plus[ i ].first )
-        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                        v_StartUpLimit[ t ] ) );
-
-       if( v_Y_plus[ i ].first < t + 1 )
-        for( Index s : psi_index( t , i ) )
-         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                         v_psi[ s ] ) );
-      }
-     }
+         ( v_Y_plus[ i ].first <= t + 1 ) )
+      for( Index s : psi_index( t , i ) )
+       vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                       v_psi[ s ] ) );
 
     vars.push_back( std::make_pair( &v_active_power_k[ j ] , -1.0 ) );
 
