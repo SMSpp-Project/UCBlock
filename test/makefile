@@ -74,8 +74,9 @@ MOBJ =  $(UCBckOBJ)
 # libraries
 MLIB =  $(UCBckLIB)
 
-$(DIR)/$(NAME): $(MOBJ) $(DIR)/test.o
-	$(CC) -o $(DIR)/$(NAME) $(DIR)/test.o $(MOBJ) $(MLIB) $(SW)
+$(DIR)/$(NAME): $(MOBJ) $(DIR)/test.o $(DIR)/test_power_limits.o
+	$(CC) -o $(DIR)/$(NAME) $(DIR)/test.o $(DIR)/test_power_limits.o \
+	$(MOBJ) $(MLIB) $(SW)
 
 # dependencies: every .o from its .cpp + every recursively included .h- - - -
 
@@ -88,6 +89,10 @@ MH =    $(UCBckH)
 # compile command
 
 $(DIR)/test.o: $(DIR)/test.cpp $(MH)
+	$(CC) -c $*.cpp -o $@ $(MINC) $(SW) -DUCBLOCK_TEST_DIR=\"$(DIR)\"
+
+$(DIR)/test_power_limits.o: $(DIR)/test_power_limits.cpp \
+	$(DIR)/lp_compare.h $(MH)
 	$(CC) -c $*.cpp -o $@ $(MINC) $(SW)
 
 # distclean target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

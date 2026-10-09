@@ -3,8 +3,8 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the class ECNetworkBlock, which derives from NetworkBlock
- * and describe the behaviour of the energy community network at a specific time
- * instant or in a time interval, i.e., a peak period that can span an
+ * and describes the behavior of the energy community network at a specific
+ * time instant or in a time interval, i.e., a peak period that can span an
  * arbitrary number of sub time horizons, in the Unit Commitment problem.
  *
  * \author Antonio Frangioni \n
@@ -50,15 +50,14 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an energy community NetworkBlock, i.e., an "EC" network
-/** The ECNetworkBlock class derives from NetworkBlock, and embeds the idea
- * that a number of users with no pre-installed electrical generators are
- * joining to create an energy community. Each user is connected to the
- * public grid through each own Point-of-Delivery (PoD), and each user is
- * billed for the energy he consumes and sells. The aggregation of the users,
- * under the umbrella of the formal entity Energy Community, is awarded with an
- * economic benefit that is proportional to the energy shared among the
- * users, which is the energy that in each time step is produced and sold by
- * users within the community. */
+/** ECNetworkBlock derives from NetworkBlock and represents a number of users
+ * with no pre-installed electrical generators who join to create an energy
+ * community. Each user, connected to the public grid through its
+ * Point-of-Delivery (PoD), is billed for the energy that it consumes and
+ * sells. Under the umbrella of the formal entity Energy Community, the
+ * aggregation of the users is awarded an economic benefit proportional to the
+ * energy shared among the users, i.e., the energy that in each time step is
+ * produced and sold by users within the community. */
 
 class ECNetworkBlock : public NetworkBlock
 {
@@ -119,9 +118,12 @@ class ECNetworkBlock : public NetworkBlock
   /** Deserialize an ECNetworkData out of a netCDF::NcGroup in case the
    * following variables are the same for each ECNetworkBlock of the
    * problem, so they were given just one time in the netCDF, at the head of
-   * the hierarchy, which should contain the following:
+   * the hierarchy. The data of NetworkData::deserialize() are read first,
+   * and std::invalid_argument is thrown if they have one node only, since
+   * a community has at least two users. The group should also contain the
+   * following:
    *
-   *  - The dimension "NumberIntervals" containing the number of intervals
+   * - The dimension "NumberIntervals" containing the number of intervals
    *   spanned by this network block; this dimension is optional, if it is
    *   not provided then it is taken to be equal to 1;
    *
@@ -149,7 +151,9 @@ class ECNetworkBlock : public NetworkBlock
    *   time instant t, contains the reward benefit awarded to the energy
    *   community for the energy consumed within the community itself, for the
    *   corresponding time step. If "RewardPrice" has length 1 then
-   *   RewardP[ t ] contains the same value for all t;
+   *   RewardP[ t ] contains the same value for all t. This variable is
+   *   optional: if it is not provided, RewardP[ t ] = 0 for all t, and the
+   *   community is not cooperative [see is_cooperative()];
    *
    * - The variable "PeakTariff", of type netCDF::NcDouble and containing the
    *   tariff that the user pays due to the peak power;
@@ -158,10 +162,10 @@ class ECNetworkBlock : public NetworkBlock
    *   size 1 or indexed over the dimension "NumberIntervals". This is meant
    *   to represent the vector PenP[ t ] that, for each time instant t,
    *   contains the tariff that the user pays on the (positive and negative)
-   *   squilibrium for the corresponding time step. If "PenaltyPrice" has
+   *   imbalance for the corresponding time step. If "PenaltyPrice" has
    *   length 1 then PenP[ t ] contains the same value for all t. This
    *   variable is optional: if it is not provided, the ECNetworkBlock does
-   *   not generate the squilibrium variables and the corresponding term in
+   *   not generate the imbalance variables and the corresponding term in
    *   the objective. */
 
   void deserialize( const netCDF::NcGroup & group ) override;
@@ -249,9 +253,9 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
   /// returns the penalty price
   /** Returns the tariff that the user pays on the (positive and negative)
-   * squilibrium at each time horizon. The vector may be empty when no
+   * imbalance at each time horizon. The vector may be empty when no
    * penalty has been defined for this ECNetworkData; in that case the
-   * ECNetworkBlock does not generate the squilibrium variables. */
+   * ECNetworkBlock does not generate the imbalance variables. */
 
   const std::vector< double > & get_penalty_price( void ) const {
    return( v_PenaltyPrice );
@@ -298,7 +302,7 @@ class ECNetworkBlock : public NetworkBlock
   /// tariff that the user pays due to the peak power
   double f_PeakTariff{};
 
-  /// tariff that the user pays on the squilibrium at each time horizon
+  /// tariff that the user pays on the imbalance at each time horizon
   std::vector< double > v_PenaltyPrice;
 
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -345,14 +349,15 @@ class ECNetworkBlock : public NetworkBlock
   *
   * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
   *   the dimensions "NumberIntervals" and "NumberNodes".
-  *   If the NetworkData object description is present in the NcGroup this is
-  *   the dimension "NumberNodes", but the NetworkData object is optional and it
-  *   may not be there. Thus, if "NumberNodes" is not there and "ActiveDemand"
-  *   is, then the NetworkData object must have been passed by set_NetworkData(),
-  *   and the number of nodes can be read via NetworkData::get_number_nodes().
-  *   However, "ActiveDemand" itself is optional. If it is not found in the
-  *   NcGroup, then it *must* be passed (either before or after the call to
-  *   deserialize()) by calling set_active_demand(). Since both groups of data
+  *   If the NetworkData object description is present in the NcGroup this
+  *   is the dimension "NumberNodes", but the NetworkData object is optional
+  *   and it may not be there. Thus, if "NumberNodes" is not there and
+  *   "ActiveDemand" is, then the NetworkData object must have been passed by
+  *   set_NetworkData(), and the number of nodes can be read via
+  *   NetworkData::get_number_nodes(). However, "ActiveDemand" itself is
+  *   optional. If it is not found in the NcGroup, then it must be passed
+  *   (either before or after the call to deserialize()) by calling
+  *   set_active_demand(). Since both groups of data
   *   are optional, the NcGroup  can actually be empty which implies that all
   *   the data will be (or have been) passed by the in-memory interface. In
   *   this case, it would clearly be preferable to *entirely avoid the NcGroup
@@ -425,18 +430,31 @@ class ECNetworkBlock : public NetworkBlock
   *                       \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (2b)
   *   \f]
   *
-  * - The max power shared within the microgrid w.r.t. the public market:
+  * - If some "RewardPrice" is nonzero [see is_cooperative()], the energy
+  *   shared within the community at each instant, one variable
+  *   \f$ P^{M}_t \geq 0 \f$, is at most what the users inject and at most
+  *   what they absorb:
   *
   *   \f[
-  *    P_{n,t}^{M} \leq P_{n,t}^{P+}
-  *                       \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3a)
+  *    P^{M}_t \leq \sum_{ n \in \mathcal{N} } P_{n,t}^{P+} \; , \quad
+  *    P^{M}_t \leq \sum_{ n \in \mathcal{N} } P_{n,t}^{P-}
+  *                                  \quad t \in \mathcal{T} \quad (3)
   *   \f]
   *
+  * - If "PenaltyPrice" is given, the aggregate exchange with the public
+  *   market equals a declared one, \f$ P^{d+}_t - P^{d-}_t \f$, plus the
+  *   imbalance \f$ P^{q+}_t - P^{q-}_t \f$:
+  *
   *   \f[
-  *    P_{n,t}^{M} \leq P_{n,t}^{P-}
-  *                       \quad n \in \mathcal{N}, t \in \mathcal{T} \quad (3b)
+  *    \sum_{ n \in \mathcal{N} } ( P_{n,t}^{P+} - P_{n,t}^{P-} )
+  *    = P^{d+}_t - P^{d-}_t + P^{q+}_t - P^{q-}_t
+  *                                  \quad t \in \mathcal{T} \quad (4)
   *   \f]
-  */
+  *
+  * All these variables, as well as \f$ P_{n,t}^{P+} \f$,
+  * \f$ P_{n,t}^{P-} \f$ and \f$ P_n^{mx} \f$, are nonnegative; besides,
+  * the node injections \f$ S_n \f$ have the bounds of
+  * NetworkBlock::generate_abstract_constraints(). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
@@ -445,27 +463,23 @@ class ECNetworkBlock : public NetworkBlock
  /** Method that generates the objective of the ECNetworkBlock.
   *
   * - Objective function: the objective function of the ECNetworkBlock
-  *   is given as below:
+  *   is
   *
   *   \f[
-  *     \min ( \sum_{ n \in \mathcal{N} } \pi^{mx} P_n^{mx} +
-  *         \sum_{ t \in \mathcal{T} }
-  *         ( \pi_t^{-,v} P_{n,t}^{P-} -
-  *         \pi_t^+ P_{n,t}^{P+} -
-  *         \pi_t^r P_{n,t}^{M} ) + \pi_t^{-,f} ) )
+  *     c^{0} + \sum_{ n \in \mathcal{N} } \Bigl( \pi^{mx} P_n^{mx}
+  *       + \sum_{ t \in \mathcal{T} } ( \pi^{-}_t P_{n,t}^{P-}
+  *       - \pi^{+}_t P_{n,t}^{P+} ) \Bigr)
+  *       - \sum_{ t \in \mathcal{T} } \pi^{r}_t P^{M}_t
+  *       + \sum_{ t \in \mathcal{T} } \pi^{q}_t ( P^{q+}_t + P^{q-}_t ) \; ,
   *   \f]
   *
-  *   where \f$ \pi^{mx} \f$ is the cost due to peak power and \f$ P_n^{mx}
-  *   \f$ is the peak power variable; \f$ \pi_t^{-,v} \f$ and
-  *   \f$ \pi_t^{-,f} \f$ are the buy prices of the energy bought from the
-  *   public market, the variable and fixed costs, i.e., the constant term,
-  *   respectively, and \f$ \pi_t^r \f$ is the tariff that user gains
-  *   when it absorbs power from the microgrid instead of from the
-  *   public market, while \f$ P_{n,t}^{P-} \f$ and \f$ P_{n,t}^{P+} \f$
-  *   are the absorption and injection variables form the public market
-  *   respectively; \f$ \pi_t^+ \f$ is the sell price of the energy, and
-  *   finally \f$ P_{n,t}^{M} \f$ are the energy shard variables into the
-  *   microgrid market. */
+  *   to be minimized, where \f$ c^{0} \f$ is "ConstantTerm" [see
+  *   NetworkBlock::deserialize()], added once, \f$ \pi^{mx} \f$ is
+  *   "PeakTariff", \f$ \pi^{-}_t \f$ "BuyPrice", \f$ \pi^{+}_t \f$
+  *   "SellPrice", \f$ \pi^{r}_t \f$ "RewardPrice" and \f$ \pi^{q}_t \f$
+  *   "PenaltyPrice"; the term of \f$ P^{M}_t \f$ is there only if some
+  *   reward is nonzero, and that of the imbalance only if "PenaltyPrice" is
+  *   given [see generate_abstract_constraints()]. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -492,7 +506,7 @@ class ECNetworkBlock : public NetworkBlock
   * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * or f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
   * - If \p fsbc is not a nullptr and it is a pointer to a
@@ -505,7 +519,7 @@ class ECNetworkBlock : public NetworkBlock
   *   fsbc->f_value.second (any nonzero number for relative violation and
   *   zero for absolute violation);
   *
-  * - Otherwise, if both #f_BlockConfig and
+  * - Otherwise, if both f_BlockConfig and
   *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *   latter is a pointer to either a SimpleConfiguration< double > or to a
   *   SimpleConfiguration< std::pair< double , int > >, then the values of the
@@ -514,15 +528,15 @@ class ECNetworkBlock : public NetworkBlock
   * - Otherwise, by default, the tolerance is 0 and the relative violation
   *   is considered.
   *
-  * This function currently considers only the abstract representation to
+  * This function considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, then this
+  * ignored. If no abstract Variable has been generated, then this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
   * set of Variable only. Notice also that, before checking if the solution
   * satisfies a Constraint, the Constraint is computed (Constraint::compute()).
   *
-  * @param useabstract This parameter is currently ignored.
+  * @param useabstract This parameter is ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
   *             and the type of violation that must be considered. */
@@ -610,7 +624,8 @@ class ECNetworkBlock : public NetworkBlock
  /** Returns the tariff that the user pays to buy electricity from the public
   * market at the given interval.
   *
-  * @param interval The interval wrt the buy price of the energy is returned. */
+  * @param interval The interval whose buy price of the energy is returned.
+  */
 
  double get_buy_price( Index interval ) const {
   return( f_NetworkData->get_buy_price()[ interval ] );
@@ -622,8 +637,8 @@ class ECNetworkBlock : public NetworkBlock
   * microgrid market / network (instead of from the public grid) at the given
   * interval.
   *
-  * @param interval The interval wrt the reward price of the energy is returned.
-  */
+  * @param interval The interval whose reward price of the energy is
+  *                 returned. */
 
  double get_reward_price( Index interval ) const {
   return( f_NetworkData->get_reward_price()[ interval ] );
@@ -640,8 +655,8 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// returns the penalty price at the given interval
  /** Returns the tariff that the user pays on the (positive and negative)
-  * squilibrium at the given interval. Returns 0 when no penalty has been
-  * defined for this ECNetworkData (i.e. when the squilibrium variables
+  * imbalance at the given interval. Returns 0 when no penalty has been
+  * defined for this ECNetworkData (i.e. when the imbalance variables
   * have not been generated).
   *
   * @param interval The interval wrt the penalty price is returned. */
@@ -711,26 +726,26 @@ class ECNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of positive aggregate squilibrium variables
+ /// returns the vector of positive aggregate imbalance variables
  /** Returns a const reference to the vector of positive aggregate
-  * squilibrium variables. The vector is empty when no penalty has been
+  * imbalance variables. The vector is empty when no penalty has been
   * defined for the underlying ECNetworkData (i.e., when the
-  * squilibrium variables have not been generated); otherwise it has
+  * imbalance variables have not been generated); otherwise it has
   * size get_number_intervals() and entry t represents the positive
-  * squilibrium at time t. */
+  * imbalance at time t. */
 
  const std::vector< ColVariable > & get_power_squilibrium_pos( void ) const {
   return( v_power_squilibrium_pos );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of negative aggregate squilibrium variables
+ /// returns the vector of negative aggregate imbalance variables
  /** Returns a const reference to the vector of negative aggregate
-  * squilibrium variables. The vector is empty when no penalty has been
+  * imbalance variables. The vector is empty when no penalty has been
   * defined for the underlying ECNetworkData (i.e., when the
-  * squilibrium variables have not been generated); otherwise it has
+  * imbalance variables have not been generated); otherwise it has
   * size get_number_intervals() and entry t represents the negative
-  * squilibrium at time t. */
+  * imbalance at time t. */
 
  const std::vector< ColVariable > & get_power_squilibrium_neg( void ) const {
   return( v_power_squilibrium_neg );
@@ -823,7 +838,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * - bit 3 (& 8) means "store the peak power variables"
   *
-  * - bit 4 (& 16) means "store the squilibrium variables" (effective
+  * - bit 4 (& 16) means "store the imbalance variables" (effective
   *   only when the underlying ECNetworkBlock generates them)
   *
   * The value of the configuration is taken, in order, from \p solc,
@@ -840,7 +855,7 @@ class ECNetworkBlock : public NetworkBlock
   * holding all the ECNetworkBlock-specific solution information (the
   * public-market injection / absorption variables, the shared power
   * variables, the peak power variables, and -- if present -- the positive /
-  * negative aggregate squilibrium variables). */
+  * negative aggregate imbalance variables). */
 
  NetworkBlockSolution * new_Solution( void ) const override;
 
@@ -1173,19 +1188,19 @@ class ECNetworkBlock : public NetworkBlock
   * a specific interval in "NumberIntervals" */
  std::vector< ColVariable > v_peak_power;
 
- /** positive aggregate squilibrium of the community at each time horizon
+ /** positive aggregate imbalance of the community at each time horizon
   * that is referred to a specific peak period, i.e., a specific interval in
   * "NumberIntervals" */
  std::vector< ColVariable > v_power_squilibrium_pos;
 
- /** negative aggregate squilibrium of the community at each time horizon
+ /** negative aggregate imbalance of the community at each time horizon
   * that is referred to a specific peak period, i.e., a specific interval in
   * "NumberIntervals" */
  std::vector< ColVariable > v_power_squilibrium_neg;
 
  /** positive aggregate declared-dispatch (day-ahead bid) of the community at
   * each time horizon, i.e., a specific interval in "NumberIntervals". The
-  * actual aggregate export deviates from it by the squilibrium variables. */
+  * actual aggregate export deviates from it by the imbalance variables. */
  std::vector< ColVariable > v_power_agg_dec_pos;
 
  /** negative aggregate declared-dispatch (day-ahead bid) of the community at
@@ -1418,8 +1433,8 @@ class ECNetworkBlockSbstMod : public ECNetworkBlockMod
  *
  * - the peak-power variables P^{mx}_{n} (one value per node);
  *
- * - [optionally, when squilibrium variables are generated] the positive
- *   and negative aggregate squilibrium variables P_sq^+_{t} and
+ * - [optionally, when imbalance variables are generated] the positive
+ *   and negative aggregate imbalance variables P_sq^+_{t} and
  *   P_sq^-_{t} (one value per time interval each).
  *
  * As the parent NetworkBlockSolution, ECNetworkBlockSolution can serialize
@@ -1498,7 +1513,7 @@ class ECNetworkBlockSolution : public NetworkBlockSolution
   * - The variable "PowerSquilibriumPos" and "PowerSquilibriumNeg", of
   *   type netCDF::NcDouble. They are indexed over "NumberInstants" if
   *   defined, otherwise scalar. PowerSquilibrium*[ t ] is the optimal
-  *   value of the corresponding aggregate squilibrium variable at
+  *   value of the corresponding aggregate imbalance variable at
   *   time t. Both variables are optional, and they are present only if
   *   the underlying ECNetworkBlock generates them. */
 
@@ -1580,11 +1595,11 @@ class ECNetworkBlockSolution : public NetworkBlockSolution
  ///< v_peak_power[ n ] = peak-power at node n
 
  std::vector< double > v_power_squilibrium_pos;
- ///< v_power_squilibrium_pos[ t ] = positive aggregate squilibrium at
+ ///< v_power_squilibrium_pos[ t ] = positive aggregate imbalance at
  ///< time t (empty if the ECNetworkBlock does not generate it)
 
  std::vector< double > v_power_squilibrium_neg;
- ///< v_power_squilibrium_neg[ t ] = negative aggregate squilibrium at
+ ///< v_power_squilibrium_neg[ t ] = negative aggregate imbalance at
  ///< time t (empty if the ECNetworkBlock does not generate it)
 
  std::vector< double > v_power_agg_dec_pos;

@@ -210,8 +210,9 @@ void ThermalUnitDPSolver::recover_schedule( std::vector< double > & p ,
  // its on-interval (bound_on at a start-up, bound_down[i+1] at a shut-down,
  // max_power at an interior / on-to-end period); at an interior transition
  // (both i-1 and i on) it is intersected with the ramp tent around the
- // scheduled move, exactly as the on->on transition (sliding_min_corr) does.
- // No ramp term at a start-up or at i == 0
+ // scheduled move, exactly as the on->on transition (sliding_min_corr) does,
+ // and at i == 0 with the unit on before the horizon with the ramp left
+ // after the move from InitialPower. No ramp term at a start-up
  auto res_band = [ & ]( Index i ) -> double {
   if( ! ( built && U[ i ] ) )
    return( 0.0 );                                    // off: no reserve
@@ -225,8 +226,9 @@ void ThermalUnitDPSolver::recover_schedule( std::vector< double > & p ,
                                                      // also after a start-up
   // capacity band
   double H = std::min( P[ i ] - min_power[ i ] , cap - P[ i ] );
-  if( ( i > 0 ) && U[ i - 1 ] && U[ i ] ) {          // interior transition
-   const double d = P[ i ] - P[ i - 1 ];
+  if( i ? bool( U[ i - 1 ] ) : ( init_up_down_time > 0 ) ) {
+   // interior transition, or the move from InitialPower at 0
+   const double d = P[ i ] - ( i ? P[ i - 1 ] : initial_power );
    H = std::min( H , std::min( delta_ramp_up[ i ] - d ,
                                delta_ramp_down[ i ] + d ) );
    }
@@ -408,12 +410,19 @@ void ThermalUnitDPSolver::build_graph( void )
 
   // compute kMin, the first time step the unit can be turned OFF due to
   // the need to reach power bound_down[ i ] from the initial power
-  // initial_power respecting the ramp-down constraints
+  // initial_power respecting the ramp-down constraints: the power before a
+  // shut-down at k is at most bound_down[ k ], whatever the ramps, hence
+  // the unit cannot be off at 0 if initial_power > bound_down[ 0 ]; without
+  // DeltaRampDown nothing else binds, and it can be off at 1
 
   Index kMin = 0;
-  for( auto tmp = initial_power ;
-       ( kMin < time_horizon ) && ( tmp >= bound_down[ kMin ] + eps ) ; )
-   tmp -= delta_ramp_down[ kMin++ ];
+  if( has_ramp_down )
+   for( auto tmp = initial_power ;
+        ( kMin < time_horizon ) && ( tmp >= bound_down[ kMin ] + eps ) ; )
+    tmp -= delta_ramp_down[ kMin++ ];
+  else
+   if( ( time_horizon > 0 ) && ( initial_power >= bound_down[ 0 ] + eps ) )
+    kMin = 1;
 
   if( kMin < t_init )  // the ramp-down time is less than the time required
    kMin = t_init;      // by the min up-time constraints: use the latter
@@ -1050,9 +1059,22 @@ void ThermalUnitDPSolver::load_fixings( void )
 	 [ & ]( Index k , double val ) {
 	  return( ( ! init_on ) && ( k < min_up_time ) && ( val == 0 ) ); } );
 
+ // nor can a fixing of a Variable of an extended formulation be honoured,
+ // and ThermalUnitBlock makes none
+ const auto ext = fixed_extended_variable();
+ if( ! ext.empty() ) {
+  if( ! owned )
+   f_Block->read_unlock();
+  throw( std::logic_error( std::string( "ThermalUnitDPSolver::load_fixings: "
+					   "fixed Variable of the group " ) +
+			   ext + " not supported" ) );
+  }
+
  // unlock the Block
  if( ! owned )
   f_Block->read_unlock();
+
+ force_on_fixed_to_maximum();
 
  }  // end( ThermalUnitDPSolver::load_fixings )
 
@@ -1108,10 +1130,7 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
 
    switch( tubm->type() ) {
     case( ThermalUnitBlockMod::eSetMaxP ):
-     max_power = b->get_max_power();
-     if( stage > graph_OK )
-      stage = graph_OK;
-     return( false );
+     return( true );  // the bounds and the default ramps are derived
 
     case( ThermalUnitBlockMod::eSetInitP ):
      initial_power = b->get_initial_power();
@@ -1136,18 +1155,16 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      return( false );
 
     case( ThermalUnitBlockMod::eSetAv ):
-     return( true );  // TODO
+     return( true );  // the operational bounds are reloaded
 
     case( ThermalUnitBlockMod::eSetSUC ):
      startup_costs = b->get_start_up_cost();
-     if( stage > edps_OK )
-      stage = edps_OK;
+     stage = start;  // they are in the costs of the arcs [see build_graph()]
      return( false );
 
     case( ThermalUnitBlockMod::eSetSDC ):
      shutdown_costs = b->get_shut_down_cost();
-     if( stage > edps_OK )
-      stage = edps_OK;
+     stage = start;  // they are in the costs of the arcs [see build_graph()]
      return( false );
 
     case( ThermalUnitBlockMod::eSetLinT ):
@@ -1169,16 +1186,12 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
 
     case( ThermalUnitBlockMod::eSetPrSpResCost ):
      primary_reserve_cost = b->get_primary_spinning_reserve_cost();
-     if( primary_reserve_cost.empty() )
-      primary_reserve_cost = primary_rho;
      if( stage > graph_OK )
       stage = graph_OK;  // reserve price feeds the per-period ED
      return( false );
 
     case( ThermalUnitBlockMod::eSetSecSpResCost ):
      secondary_reserve_cost = b->get_secondary_spinning_reserve_cost();
-     if( secondary_reserve_cost.empty() )
-      secondary_reserve_cost = secondary_rho;
      if( stage > graph_OK )
       stage = graph_OK;
      return( false );
@@ -1694,7 +1707,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
 
  // base case z_{h,h}- - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // energy f^h on the start-up domain + the start-up capacity-band reserve
- // (no predecessor => no ramp coupling => no corr)
+ // (no predecessor => no ramp coupling => no corr), or, for the run that
+ // continues from before the horizon, the band of the move from
+ // InitialPower [see initial_reserve_discount()]
  const bool init_on = ( h == 0 ) && ( S->init_up_down_time > 0 );
  double lo0 , hi0;
  if( init_on ) {                       // already on at t=0: ramp domain
@@ -1708,10 +1723,10 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
 
  PQFun z;
  z.push_back( PieceQuad{ quad[ h ] , lin[ h ] , 0.0 , lo0 , hi0 } );  // f^h
- // start-up capacity band (interior cap max_power if already on at t=0,
- // matching the run-length solver and the energy path's init_on exception)
- S->add_pwq( z , S->build_reserve_discount(
-                  h , init_on ? max_power[ h ] : bound_on[ h ] ) );
+ // start-up capacity band, or that of the move from InitialPower if already
+ // on at t=0 (interior cap max_power), as the run-length solver does
+ S->add_pwq( z , init_on ? S->initial_reserve_discount( max_power[ h ] )
+                         : S->build_reserve_discount( h , bound_on[ h ] ) );
 
  // readout ED(h,h): single-period interval, read over the base domain
  // capped by bound_down[h+1]; the capacity band is the base one, capped
@@ -1724,8 +1739,9 @@ void ThermalUnitDPSolver::DPEDSolver::compute_costs_reserve(
    const double rhi = std::min( double( bound_down[ h + 1 ] ) , hi0 );
    PQFun zsd;
    zsd.push_back( PieceQuad{ quad[ h ] , lin[ h ] , 0.0 , lo0 , hi0 } );
-   S->add_pwq( zsd , S->build_reserve_discount(
-                      h , std::min( cap0 , double( bound_down[ h + 1 ] ) ) ) );
+   const double capsd = std::min( cap0 , double( bound_down[ h + 1 ] ) );
+   S->add_pwq( zsd , init_on ? S->initial_reserve_discount( capsd )
+                             : S->build_reserve_discount( h , capsd ) );
    auto cc = S->min_over( zsd , lo0 , rhi );
    con_p[ h ] = ( rhi >= lo0 - 1e-12 ) ? cc.second : rhi;
    costs[ h ] = cc.first;
@@ -1838,8 +1854,8 @@ void ThermalUnitDPSolver::DPEDSolver::compute_power_variables(
    }
   PQFun z;
   z.push_back( PieceQuad{ quad[ h ] , lin[ h ] , 0.0 , lo0 , hi0 } );
-  S->add_pwq( z , S->build_reserve_discount(
-                   h , init_on ? max_power[ h ] : bound_on[ h ] ) );
+  S->add_pwq( z , init_on ? S->initial_reserve_discount( max_power[ h ] )
+                          : S->build_reserve_discount( h , bound_on[ h ] ) );
   Z[ h ] = z;
   for( Index t = h + 1 ; t <= k ; ++t ) {
    const double plo = z.front().left , phi = z.back().right;

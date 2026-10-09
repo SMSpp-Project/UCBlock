@@ -73,40 +73,196 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a "DC" transmission NetworkBlock
-/** The DCNetworkBlock class derives from NetworkBlock, and defines the
- * linear constraints corresponding to the "DC model" of the transmission
- * network in the Unit Commitment problem. Generally, there exist
- * three different kinds of DCNetworkBlock:
+/** DCNetworkBlock derives from NetworkBlock and defines the linear
+ * constraints of the transmission network at one instant of a Unit Commitment
+ * problem under the DC approximation of the power flow. In this approximation
+ * the voltage magnitudes are at their nominal value, the lines have no
+ * resistance and the differences of the voltage angles are small enough for
+ * their sine to be replaced by the angle; hence, the flow on a line that
+ * obeys Kirchhoff's laws is a linear function of the angles at its two ends,
+ * and no power is lost on it. A DCNetworkBlock is the network of one instant
+ * (or of the instants that share it) of the model described in
+ * \ref ucblock_model.
  *
- * - DCNetworkBlock with just HVDC lines, i.e., where the susceptance for
- *   all lines is equal to zero. It's also known as the Net Transfer
- *   Capacity (NTC) model.
+ * \par Notation
+ * Let \f$ \mathcal{N} \f$ be the set of the nodes, \f$ N = |\mathcal{N}| \f$,
+ * and \f$ \mathcal{L} \f$ the set of the lines. Each line \f$ l \f$ has a
+ * start node \f$ s(l) \f$, an end node \f$ e(l) \f$ (several end nodes
+ * \f$ e_j(l) \f$ for a hyperarc, see DCNetworkData::deserialize()) and a flow
+ * \f$ F_l \f$, positive when power leaves \f$ s(l) \f$ towards the end
+ * node(s). We split the lines into the set \f$ \mathcal{L}^{S} \f$ of those
+ * with a nonzero susceptance \f$ \mathfrak{S}_l \f$, whose flow is fixed by
+ * the angles of their end nodes, and the set \f$ \mathcal{L}^{H} \f$ of those
+ * with zero susceptance, whose flow is fully controllable. In the methods of
+ * this class the former are called "DC lines" (e.g.,
+ * DCNetworkData::get_DC_lines()), since the DC approximation applies to them,
+ * and the latter "HVDC lines" (DCNetworkData::get_HVDC_lines()). Of the flow
+ * of a line in \f$ \mathcal{L}^{H} \f$ only the fraction \f$ \eta_l \f$ (the
+ * efficiency, \f$ \eta_{l,j} \f$ for the branch \f$ j \f$ of a hyperarc)
+ * reaches the end node, while the efficiency of a line in
+ * \f$ \mathcal{L}^{S} \f$ is 1 whatever the data say. For each node
+ * \f$ n \f$, \f$ S_n \f$ is the node injection variable that UCBlock links to
+ * the units at the node, \f$ D^{ac}_n \f$ the active demand ("ActiveDemand")
+ * and \f$ a_n = S_n - D^{ac}_n \f$ the net injection. Furthermore, the HVDC
+ * incidence matrix \f$ A^{H} \f$, of size \f$ |\mathcal{L}^{H}| \times N \f$,
+ * has \f$ A^{H}_{l,s(l)} = 1 \f$, \f$ A^{H}_{l,e_j(l)} = -\eta_{l,j} \f$ and
+ * 0 elsewhere; with \f$ F^{H} \f$ the vector of the flows of the lines in
+ * \f$ \mathcal{L}^{H} \f$, the vector \f$ a - ( A^{H} )^\top F^{H} \f$ is the
+ * injection that the lines in \f$ \mathcal{L}^{S} \f$ have to carry. Hence,
+ * the node balance of node \f$ n \f$ is
+ * \f[
+ *   - S_n + \sum_{ l \in \mathcal{L} : s(l) = n } F_l
+ *         - \sum_{ l \in \mathcal{L} , j : e_j(l) = n } \eta_{l,j} F_l
+ *   = - D^{ac}_n \; ,
+ *   \tag{B}
+ * \f]
+ * the sums running over all the lines incident to \f$ n \f$: the net
+ * injection of the node equals the power that leaves it along the lines
+ * minus the power that reaches it. A network is pure HVDC when
+ * \f$ \mathcal{L}^{S} = \emptyset \f$, pure DC when \f$ \mathcal{L}^{H} =
+ * \emptyset \f$ and mixed otherwise (see DCNetworkData::is_HVDC(),
+ * DCNetworkData::is_DC() and DCNetworkData::is_DC_HVDC()).
  *
- * - DCNetworkBlock with just DC lines, i.e., where the susceptance for all
- *   lines is a non-zero value.
+ * \par Components and references
+ * Removing the lines in \f$ \mathcal{L}^{H} \f$ splits the network into the
+ * components \f$ \mathcal{N}_1 , \ldots , \mathcal{N}_{n_c} \f$ that the
+ * lines in \f$ \mathcal{L}^{S} \f$ connect, a node with no such line forming
+ * a single-node component (see
+ * DCNetworkData::identify_connected_components()). In particular, the network
+ * need not be connected. One reference node \f$ r_k \f$ is taken in each
+ * component, and \f$ R = \{ r_1 , \ldots , r_{n_c} \} \f$. If \f$ n_c = 1 \f$
+ * the reference is "ReferenceNode"; otherwise \f$ r_k \f$ is the node of
+ * lowest index of \f$ \mathcal{N}_k \f$, except in the KIRCHHOFF formulation,
+ * where the component that holds "ReferenceNode" takes it as its reference.
+ * Note that the choice changes neither the flows nor the node injections that
+ * the model admits, although it may change its numerical behavior.
  *
- * - DCNetworkBlock of a hybrid DC-HVDC grid (both DC and HVDC lines).
- *   This is a combination of first and second cases, where some lines but
- *   not all of them have zero susceptance.
+ * \par The PTDF matrix
+ * Let \f$ \hat B \f$ be the \f$ |\mathcal{L}| \times N \f$ matrix with
+ * \f$ \hat B_{l,s(l)} = \mathfrak{S}_l \f$ and \f$ \hat B_{l,e(l)} =
+ * -\mathfrak{S}_l \f$ for \f$ l \in \mathcal{L}^{S} \f$ and 0 elsewhere.
+ * The \f$ N \times N \f$ nodal susceptance matrix \f$ \bar B \f$ has
+ * \f$ \bar B_{nn} = \sum_{ l \in \mathcal{L}^{S} : n \in \{ s(l) , e(l) \}
+ * } \mathfrak{S}_l \f$ and \f$ \bar B_{nm} = - \sum_{ l \in
+ * \mathcal{L}^{S} : \{ s(l) , e(l) \} = \{ n , m \} } \mathfrak{S}_l \f$
+ * for \f$ n \neq m \f$ (parallel lines add up), i.e., \f$ \bar B =
+ * \hat A^\top \hat B \f$ with \f$ \hat A \f$ the \f$ |\mathcal{L}| \times N
+ * \f$ incidence matrix of the lines in \f$ \mathcal{L}^{S} \f$ (\f$ +1 \f$
+ * at the start node, \f$ -1 \f$ at the end node, and a zero row for each
+ * line in \f$ \mathcal{L}^{H} \f$). With \f$ I_R \f$ the
+ * \f$ N \times ( N - n_c ) \f$ identity matrix without the columns of the
+ * nodes in \f$ R \f$, the Power Transfer Distribution Factor (PTDF) matrix
+ * is
+ * \f[
+ *   \Psi = \hat B I_R \bigl( I_R^\top \bar B I_R + \tau^T I \bigr)^{-1} ,
+ *   \tag{P}
+ * \f]
+ * where \f$ \tau^T \ge 0 \f$ is the Tikhonov coefficient, 0 by default (see
+ * generate_abstract_constraints()), and DCNetworkData::get_PTDF() computes it
+ * with a sparse LU factorization. Let \f$ \tau^T = 0 \f$. For any vector
+ * \f$ x \f$ of injections, the flows \f$ F = \Psi I_R^\top x \f$ satisfy
+ * \f$ I_R^\top \hat A^\top F = I_R^\top x \f$, i.e., the balance of the lines
+ * in \f$ \mathcal{L}^{S} \f$ at every node not in \f$ R \f$: indeed, since
+ * \f$ \hat A^\top \hat B = \bar B \f$,
+ * \f[
+ *   I_R^\top \hat A^\top \Psi = I_R^\top \hat A^\top \hat B I_R
+ *     ( I_R^\top \bar B I_R )^{-1} = ( I_R^\top \bar B I_R )
+ *     ( I_R^\top \bar B I_R )^{-1} = I \; .
+ * \f]
+ * Each column of \f$ \hat A^\top \f$ (a line) has its two nonzeros in one
+ * component, and therefore the entries of \f$ \hat A^\top F \f$ sum to zero
+ * over each \f$ \mathcal{N}_k \f$; hence, the balance at \f$ r_k \f$, i.e.,
+ * \f$ ( \hat A^\top F )_{r_k} = x_{r_k} \f$, holds if and only if
+ * \f$ \sum_{ n \in \mathcal{N}_k } x_n = 0 \f$. In that case \f$ F \f$ are
+ * the flows \f$ \hat B \theta \f$ given by the angles \f$ \theta \f$ with
+ * \f$ \theta_{r_k} = 0 \f$ that solve \f$ \bar B \theta = x \f$, since
+ * \f$ \theta = I_R ( I_R^\top \bar B I_R )^{-1} I_R^\top x \f$ satisfies the
+ * rows of \f$ \bar B \theta = x \f$ of the nodes not in \f$ R \f$, and those
+ * of \f$ R \f$ by the same sums. Since \f$ I_R^\top \bar B I_R \f$ is block
+ * diagonal with one block per component (up to a permutation of the nodes),
+ * \f$ \Psi \f$ is the juxtaposition of the PTDF matrices of the components,
+ * each computed with the reference of its component; a component with a
+ * single node has no column. The matrix \f$ I_R^\top \bar B I_R \f$ is
+ * regular when each component is connected by lines with positive
+ * susceptance. If it is singular (which may happen with susceptances of
+ * opposite sign), the factorization fails and get_PTDF() throws
+ * std::logic_error. With \f$ \tau^T > 0 \f$, instead, the rows that use
+ * \f$ \Psi \f$ no longer imply the node balances exactly. As for the HVDC
+ * lines, their distribution factors are \f$ \mathrm{DCDF} = - \Psi I_R^\top (
+ * A^{H} )^\top \f$ (see DCNetworkData::compute_DCDF()), hence \f$ \Psi
+ * I_R^\top ( a - ( A^{H} )^\top F^{H} ) = \Psi I_R^\top a + \mathrm{DCDF} \,
+ * F^{H} \f$. This matrix depends on the instant through the efficiencies.
  *
- * These can be implemented with at least three different formulations:
+ * \par Formulations
+ * One can write the network in three formulations, which are chosen when the
+ * variables are generated (see generate_abstract_variables()) and whose rows
+ * are given in generate_abstract_constraints(). First, the KIRCHHOFF one (the
+ * default) has the angle \f$ \theta_n \f$ of each node, the relation \f$ F_l
+ * = \mathfrak{S}_l ( \theta_{s(l)} - \theta_{e(l)} ) \f$ for each
+ * \f$ l \in \mathcal{L}^{S} \f$, the balance (B) at each node and one fixed
+ * angle per component. Second, the PTDF one defines the flows of the lines in
+ * \f$ \mathcal{L}^{S} \f$ through \f$ \Psi \f$ and DCDF, and completes them
+ * with the balance of each component. Third, the CYCLE one writes the flows
+ * of the lines in \f$ \mathcal{L}^{S} \f$ on a spanning forest and on the
+ * fundamental cycles of the lines out of it, with the voltage law on each
+ * cycle. The PTDF (with explicit flows) and CYCLE formulations are those
+ * of
  *
- * - The PTDF formulation using the Power Transfer Distribution Factor
- *   matrix for the DC lines and standard flow conservation constraints
- *   for the HVDC lines.
+ *   J. H&ouml;rsch, H. Ronellenfitsch, D. Witthaut and T. Brown, "Linear
+ *   optimal power flow using cycle flows", Electric Power Systems Research
+ *   158, 2018 (preprint arXiv:1704.01881).
  *
- * - The CYCLE formulation ... TODO: DESCRIBE
+ * All three admit the same flows and node injections (when
+ * \f$ \tau^T = 0 \f$ and the coefficients are not rounded), and therefore
+ * give the same optimal value. In all of them the flows are explicit
+ * variables, on which the bounds and the cost of the flows are written; the
+ * classical PTDF form, in which the flows of the lines in
+ * \f$ \mathcal{L}^{S} \f$ are eliminated and the bounds read \f$ P^{mn}_l \le
+ * ( \Psi I_R^\top a )_l \le P^{mx}_l \f$ for a pure DC network, is obtained
+ * by substitution.
  *
- * - The KIRCHHOFF formulation, which directly encodes Kirchhoff's laws
- *   using both power flow variables F_l and voltage angle variables
- *   theta_n. For each DC line l (non-zero susceptance):
- *     F_l = B_l * ( theta_{from(l)} - theta_{to(l)} )   (KVL)
- *   For each node n:
- *     sum_{l:out(n)} F_l - sum_{l:in(n)} eta_l F_l = S_n - D_n  (KCL)
- *   with a reference node angle fixed to zero. For HVDC lines (zero
- *   susceptance), no angle relationship is imposed: the flow is only
- *   constrained by capacity limits and node balance.
- */
+ * \par The net transfer capacity model
+ * When \f$ \mathcal{L}^{S} = \emptyset \f$ the lines represent the commercial
+ * exchanges between zones rather than physical flows. Then the network
+ * reduces to the bounds on \f$ F^{H} \f$ and to the balance
+ * \f$ a = ( A^{H} )^\top F^{H} \f$ at each node, i.e., to (B). Summing the
+ * balances of all the nodes gives \f$ \sum_{ n \in \mathcal{N} } a_n = \sum_{
+ * l \in \mathcal{L}^{H} } ( 1 - \sum_j \eta_{l,j} ) F_l \f$, which therefore
+ * needs no row in the PTDF and KIRCHHOFF formulations. Also, the network need
+ * not be connected, and the demand of a node with no line is then met by the
+ * units at the node.
+ *
+ * \par Reduced networks
+ * The network may be the reduction of a larger transmission grid, in which
+ * sets of buses have been aggregated into zones and the lines joining two
+ * zones replaced by one or more equivalent lines. The Block makes no
+ * distinction between the two cases. Each node is then a zone, whose
+ * injection \f$ S_n \f$ and demand \f$ D^{ac}_n \f$ are the sums of those of
+ * the units and of the demands of the buses it contains; the data have to be
+ * built in this way, since the Block has no information on the buses. Each
+ * line carries the bounds "MinPowerFlow" and "MaxPowerFlow" and, if it obeys
+ * the voltage law, the susceptance "LineSusceptance" given in the data, and
+ * \f$ \Psi \f$ is always computed from these susceptances by (P). We do not
+ * model a PTDF matrix estimated otherwise (e.g., fitted on the flows of the
+ * original grid), a constant offset added to the flow of a line to account
+ * for the flows that the aggregation hides, and the rules by which the buses
+ * are clustered and the capacities of the equivalent lines are calibrated
+ * (e.g., as the largest or as a percentile of the exchanges observed on the
+ * original grid). Hence, a reduced network is represented exactly only when
+ * each equivalent line has an equivalent susceptance; the capacities of the
+ * equivalent lines are those given in the data. A line with zero susceptance
+ * is a transport link between two zones, whose flow is bounded by its
+ * capacities and appears only in the node balances.
+ *
+ * \par What is not modeled
+ * Besides the reduction of a network above, we do not represent (i)
+ * susceptances that change with the instant within one NetworkData (the flow
+ * bounds and the efficiencies may change, through the dimension
+ * "NumberInstants" of DCNetworkData::deserialize(), and a NetworkBlock with a
+ * separate NetworkData may have different susceptances); (ii) the losses on
+ * the lines in \f$ \mathcal{L}^{S} \f$, the reactive power and the voltage
+ * magnitudes (see ACNetworkBlock); (iii) a line with nonzero susceptance in a
+ * network with hyperarcs, which deserialize() rejects. */
 
 class DCNetworkBlock : public NetworkBlock
 {
@@ -121,13 +277,16 @@ class DCNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
 /** @name Public types
  *
- * NetworkBlock defines two main public types:
+ * DCNetworkBlock defines two public types:
+ *
+ * - formulation_type, the formulations of the network;
  *
  * - DCNetworkData, a small auxiliary class to bunch the basic electrical data
  *   of the transmission network.
  * @{ */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the formulations of the network [see generate_abstract_constraints()]
 
  enum formulation_type
  {
@@ -188,11 +347,10 @@ class DCNetworkData : public NetworkData
   * NumberNodes > 1, then all the subsequent information is considered:
   *
   * - The dimension "NumberLines" containing the number of lines in the
-  *   transmission network. Each line can be either a "regular" line / link
-  *   / arc (one head node / bus, one tail node / bus) or a hyperarc (still
-  *   one head node / bus, but possible multiple tail nodes / buses); see
-  *   the (optional) dimension NumberBranches right next. The dimension is
-  *   mandatory.
+  *   transmission network. Each line can be either a "regular" line (one
+  *   start node and one end node) or a hyperarc (one start node and
+  *   several end nodes); see the (optional) dimension "NumberBranches"
+  *   right next. The dimension is mandatory.
   *
   * - The dimension "NumberBranches" that is used to describe hyperarcs.
   *   The dimension is optional, if it is not defined then it is assumed that
@@ -202,9 +360,12 @@ class DCNetworkData : public NetworkData
   *   detailed in "HyperArcID".
   *
   * - The dimension "NumberInstants" that specifies how many different time
-  *   instants the possibly time-varying variables cover. The dimension is
-  *   optional, if it is not present it is taken to be 1, i.e., all the
-  *   possibly time-varying variables are in fact time-static.
+  *   instants the possibly time-varying variables ("MaxPowerFlow",
+  *   "MinPowerFlow" and "Efficiency") cover; the DCNetworkData may then be
+  *   shared by the NetworkBlock of different instants, each reading the
+  *   entry of its own instant. The dimension is optional, if it is not
+  *   present it is taken to be 1, i.e., all the possibly time-varying
+  *   variables are in fact time-static.
   *
   * - The variable "StartLine", of type netCDF::NcUint and indexed over the
   *   dimension "NumberBranches" (if it is defined, otherwise "NumberLines");
@@ -236,90 +397,87 @@ class DCNetworkData : public NetworkData
   *   that, FOR EACH l = 0, ..., NumberLines - 1, THERE MUST BE AT LEAST ONE
   *   INDEX i such that HyperArcID[ i ] == l. If HyperArcID[ i ] == l happens
   *   for more than one index i, then l is a hyperarc (line). It is required
-  *   that StartLine[ i ] == StartLine[ j ] and EndLine[ i ] == EndLine[ j ]
-  *   for all pairs ( i , j ) such that HyperArcID[ i ] == HyperArcID[ j ],
-  *   i.e., ALL "branches" MUST HAVE THE SAME "tail" and different heads.
+  *   that StartLine[ i ] == StartLine[ j ] and EndLine[ i ] != EndLine[ j ]
+  *   for all pairs ( i , j ), i != j, such that HyperArcID[ i ] ==
+  *   HyperArcID[ j ], i.e., all the branches of a hyperarc have the same
+  *   start node and different end nodes, otherwise exception is thrown.
   *
   * - The variable "MaxPowerFlow", of type netCDF::NcDouble and indexed in
-  *   principle over both dimensions "NumberLines" and "NumberInstants".
-  *   This is meant to represent the matrix MxP[ l ][ t ] that, for each
-  *   line l and time instant t, contains the maximum power flow of line l
-  *   at time t (a non-negative number). However, the variable can also be
-  *   indexed over "NumberLines" only (and it must necessarily be so if
-  *   "NumberInstants" is not defined), in which case it is rather a vector
-  *   MxP[ l ] containing the identical max capacity of the line at all time
-  *   instants. Note that if line l is a hyperarc (see "HyperArcID") the
-  *   capacity is still one number representing the maximum amount of flow
-  *   leaving the tail bus, although then some flow (not necessarily the
-  *   same amount, see "Efficiency") can reach more than one head bus. The
-  *   variable is optional, if not provided it is assumed that MxP[ l ] == 0
-  *   for all line l (and all time instants t).
+  *   principle over both dimensions "NumberLines" and "NumberInstants",
+  *   whose entry [ l ][ t ] is the maximum flow \f$ P^{mx}_l \f$ of line
+  *   \f$ l \f$ at the instant \f$ t \f$ of the NetworkBlock that uses it
+  *   (see NetworkBlock::set_time_instant()). The variable can also be
+  *   indexed over "NumberLines" only (and it must be so if
+  *   "NumberInstants" is not defined), in which case the maximum flow of
+  *   each line is the same at every instant. If line \f$ l \f$ is a
+  *   hyperarc, \f$ P^{mx}_l \f$ is still one number, the maximum amount of
+  *   flow leaving the start node, although then some flow (not necessarily
+  *   the same amount, see "Efficiency") reaches more than one end node. The
+  *   variable is optional; if it is not provided, \f$ P^{mx}_l = 0 \f$ for
+  *   every line. The bound actually imposed on \f$ F_l \f$ is
+  *   \f$ \kappa_l C^v P^{mx}_l \f$ (see DCNetworkBlock::deserialize() and
+  *   DCNetworkBlock::generate_abstract_constraints()); when the network is
+  *   the reduction of a larger one, it is the capacity of the equivalent
+  *   line, which the data have to give.
   *
-  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed in
-  *   principle over both dimensions "NumberLines" and "NumberInstants".
-  *   This is meant to represent the matrix MnP[ l ][ t ] that, for each
-  *   line l and time instant t, contains the minimum power flow of line l
-  *   at time t (note that this is typically, but not necessarily, a
-  *   negative number as electrical lines are bi-directional, see above).
-  *   However, the variable can also be indexed over "NumberLines" only (and
-  *   it must necessarily be so if "NumberInstants" is not defined), in
-  *   which case it is rather a vector MnP[ l ] containing the identical min
-  *   capacity of the line at all time instants. Note that if line l is a
-  *   hyperarc (see "HyperArcID") the capacity is still one number
-  *   representing the minimum amount of flow leaving the tail bus, although
-  *   then some flow (not necessarily the same amount, see "Efficiency") can
-  *   reach more than one head bus. The variable is optional, if not
-  *   provided it is assumed that MnP[ l ] == 0 for all line l (and all
-  *   time instants t).
+  * - The variable "MinPowerFlow", of type netCDF::NcDouble and indexed as
+  *   "MaxPowerFlow", whose entry [ l ][ t ] is the minimum flow
+  *   \f$ P^{mn}_l \f$ of line \f$ l \f$ at instant \f$ t \f$ (typically,
+  *   but not necessarily, a negative number, since a line can be used in
+  *   both directions). The variable is optional; if it is not provided,
+  *   \f$ P^{mn}_l = 0 \f$ for every line, i.e., the flows only go from the
+  *   start node to the end node(s).
   *
   * - The variable "LineSusceptance", of type netCDF::NcDouble and indexed
-  *   over the dimension "NumberLines". This is meant to represent the
-  *   vector S[ l ] that, for each line l contains the susceptance of the
-  *   network for the corresponding line l. Note that this variable is
-  *   optional, for each line l if it is provided then it is assumed that
-  *   S[ l ] != 0, otherwise it is assumed that S[ l ] == 0. In fact, when
-  *   S[ l ] != 0 this corresponds to a model with AC lines, and when for
-  *   each line l, it's not defined or S[ l ] == 0, then it corresponds to
-  *   a single connected grid composed of HVDC lines only which is also
-  *   known as the Net Transfer Capacity (NTC) model. Also, note that
-  *   ALL HYPERARCS MUST HAVE 0 SUSCEPTANCE.
+  *   over the dimension "NumberLines", whose entry \f$ l \f$ is the
+  *   susceptance \f$ \mathfrak{S}_l \f$ of line \f$ l \f$, the same at
+  *   every instant: \f$ l \in \mathcal{L}^{S} \f$ if
+  *   \f$ \mathfrak{S}_l \neq 0 \f$ and \f$ l \in \mathcal{L}^{H} \f$
+  *   otherwise. The variable is optional; if it is not provided, or if all
+  *   its entries are 0, every line is in \f$ \mathcal{L}^{H} \f$ and the
+  *   network is the net transfer capacity model of the class notes, which
+  *   need not be connected. A network with hyperarcs (see "HyperArcID")
+  *   must have no line with nonzero susceptance, otherwise exception is
+  *   thrown.
   *
-  * - The dimension "ReferenceNode", that specifies which bus gets 0
-  *   potential in Kirchhoff's equations. This changes the form of the PTDF
-  *   matrix computed for the lines that have a nonzero LineSusceptance;
-  *   although the problem should be mathematically equivalent whatever this
-  *   choice is, numerically it may make a difference. The choice is
-  *   obviously irrelevant for a pure HVDC network (when all LineSusceptance
-  *   are 0), and in fact the dimension is optional: if not specified, the
-  *   reference bus (if at all significant) is chosen as 0.
+  * - The dimension "ReferenceNode", the node whose voltage angle is fixed
+  *   to 0, with the role described in the class notes: it is the reference
+  *   of the PTDF matrix when the lines with nonzero susceptance connect all
+  *   the nodes, and it fixes the angle of its component in the KIRCHHOFF
+  *   formulation, while in the PTDF and CYCLE formulations each component
+  *   of a network with several of them takes as reference its node of
+  *   lowest index. The choice does not change the model, but it may change
+  *   its numerical behavior, and it is irrelevant for a pure HVDC network.
+  *   The dimension is optional, 0 by default; a value not smaller than
+  *   "NumberNodes" makes deserialize() throw.
   *
   * - The variable "NetworkCost", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberLines". This is meant to represent the vector
-  *   NC[ l ] that, for each line l, contains the monetary cost to send one
-  *   unit of flow from StartLine[ l ] to EndLine[ l ]. Note that, if l
-  *   is a hyperarc (see "HyperArcID"), the cost is still one number
-  *   representing the unitary cost of one unit of flow leaving the tail bus,
-  *   although then some flow (not necessarily the same amount, see
-  *   "Efficiency") can reach more than one head bus.
+  *   the dimension "NumberLines", whose entry \f$ l \f$ is the cost
+  *   \f$ c^{net}_l \f$ of one unit of flow on line \f$ l \f$ in either
+  *   direction, i.e., the objective has the term \f$ c^{net}_l | F_l | \f$
+  *   (see DCNetworkBlock::generate_objective()). If line \f$ l \f$ is a
+  *   hyperarc, the cost is still one number, the cost of a unit of flow
+  *   leaving the start node. The variable is optional, all costs being 0
+  *   by default; a negative cost would make the problem unbounded (the
+  *   variable \f$ V_l \ge | F_l | \f$ that carries it being bounded only
+  *   from below), and deserialize() throws std::logic_error.
   *
   * - The variable "Efficiency", of type netCDF::NcDouble and indexed in
   *   principle over both dimensions "NumberBranches" (if it is defined,
-  *   otherwise "NumberLines") and "NumberInstants". This means that if X
-  *   is the amount of flow leaving StartLine[ l ] at time t, then
-  *   X * Efficiency[ l ][ t ] is the amount of flow reaching EndLine[ l ]
-  *   at time t. However, the variable can also be indexed over
-  *   "NumberBranches" ("NumberLines") only (and it must necessarily be so
-  *   if "NumberInstants" is not defined), in which case it is rather a
-  *   vector Efficiency[ l ] containing the identical efficiency of the
-  *   line at all time instants. Note that, if l is a hyperarc (see
-  *   "HyperArcID"), each branch can have a different Efficiency (at each
-  *   time instant): say, an hyperarc with branches 1 --> 2 with Efficiency
-  *   0.5 and 1 --> 3 with Efficiency 0.5 means that one unit of flow leaves
-  *   1 and half of it reaches 2 while the other half reaches 3. There is no
-  *   requirement that the efficiencies of the different branches of the
-  *   same hyperarc sum to 1: in fact, this variable is optional, if it is
-  *   not specified then Efficiency[ l ] == 1 for all branches / lines (and
-  *   all time instants t).
+  *   otherwise "NumberLines") and "NumberInstants", whose entry [ l ][ t ]
+  *   is the efficiency \f$ \eta_l \f$ of line \f$ l \f$ at instant
+  *   \f$ t \f$: if \f$ F_l \f$ leaves the start node, \f$ \eta_l F_l \f$
+  *   reaches the end node. The variable can also be indexed over
+  *   "NumberBranches" ("NumberLines") only, in which case the efficiency is
+  *   the same at every instant. The efficiency applies to the lines in
+  *   \f$ \mathcal{L}^{H} \f$ only, that of a line with nonzero susceptance
+  *   being 1 whatever the data say. If \f$ l \f$ is a hyperarc, each branch
+  *   has its own efficiency \f$ \eta_{l,j} \f$: say, a hyperarc with the
+  *   branches 1 \f$ \to \f$ 2 and 1 \f$ \to \f$ 3 of efficiency 0.5 each
+  *   delivers half of the flow leaving node 1 to node 2 and the other half
+  *   to node 3. The efficiencies of the branches of a hyperarc need not sum
+  *   to 1, nor is an efficiency required to be at most 1. The variable is
+  *   optional, every efficiency being 1 by default.
   *
   * - The variable "LineName", of type netCDF::NcString() and indexed over
   *   the dimension "NumberLines". Its i-th entry, namely LineName[ i ],
@@ -514,8 +672,9 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// returns the efficiency of the given \p line at the given \p time
  /** Returns the efficiency of the given \p line at the given \p time. If no
-  * efficiencies are specified of \p line is not a HVDC line, 1 is returned.
-  */
+  * efficiencies are specified or \p line has a nonzero susceptance, 1 is
+  * returned. It cannot be called if the network has hyperarcs (see
+  * get_line_efficiencies()). */
 
   double get_line_efficiency( Index line , Index time ) const {
   assert( line < f_number_lines );
@@ -545,8 +704,9 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// returns the DC lines
  /** This function returns the DC lines in the transmission network, i.e.,
-  * those with nonzero susceptance.
-  * @return the AC lines in the network. */
+  * the lines in \f$ \mathcal{L}^{S} \f$ of the class notes, those with
+  * nonzero susceptance, in increasing order.
+  * @return the lines with nonzero susceptance. */
 
  const Subset & get_DC_lines( void ) {
   if( v_DC_lines.empty() && ( f_number_lines > f_number_HVDC_lines ) ) {
@@ -562,8 +722,9 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// returns the HVDC lines
  /** This function returns the HVDC lines in the transmission network, i.e.,
-  * those with zero susceptance.
-  * @return the HVDC lines in the network. */
+  * the lines in \f$ \mathcal{L}^{H} \f$ of the class notes, those with
+  * zero susceptance, in increasing order.
+  * @return the lines with zero susceptance. */
 
  const Subset & get_HVDC_lines( void ) {
   if( v_HVDC_lines.empty() && ( f_number_HVDC_lines > 0 ) ) {
@@ -583,78 +744,122 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the susceptances
- /** Method for returning the vector of susceptances for each line. This
-  * vector may have empty size (bus network) or the size of number of nodes,
-  * then there are two possible cases:
-  *
-  * - if f_number_lines == 0, this vector has empty size which means there is
-  *   no line at network (bus network).
-  *
-  * - if f_number_lines >= 1, this vector has size of f_number_lines and each
-  *   element of the vectors gives the Susceptance value for each line in the
-  *   network. */
+ /** Method for returning the vector of the susceptances
+  * \f$ \mathfrak{S}_l \f$ of the lines. The vector is empty if the network
+  * has no line with nonzero susceptance (a bus, or a pure HVDC network,
+  * even if "LineSusceptance" is given with all its entries 0); otherwise it
+  * has get_number_lines() entries, and entry l is the susceptance of line
+  * l. */
 
  const std::vector< double > & get_line_susceptance( void ) const {
   return( v_line_susceptance );
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the column of node \p idx in the PTDF matrix, -1 for a reference node
+ /** Returns the index of the column of node \p idx in the PTDF matrix
+  * \f$ \Psi \f$ of (P) in the class notes, i.e., the position of the node
+  * among those not in \f$ R \f$, or -1 if \p idx is a reference node. It
+  * can be called only after get_PTDF(). */
 
  int get_reducedIdx( int idx ) const;
 
 /*--------------------------------------------------------------------------*/
- // the inverse of get_reducedIdx
+ /// the node of column \p idx of the PTDF matrix
+ /** The inverse of get_reducedIdx(): returns the node whose column in the
+  * PTDF matrix is \p idx. It can be called only after get_PTDF(). */
 
  int get_originalIdx( int idx ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// compute the distribution factors of the HVDC lines at instant \p time
+ /** Computes the \f$ |\mathcal{L}| \times |\mathcal{L}| \f$ matrix
+  * \f$ \mathrm{DCDF} = - \Psi I_R^\top ( A^{H} )^\top \f$ of the class
+  * notes, whose only nonzero columns are those of the lines in
+  * \p HVDC_lines, from the PTDF matrix \p PTDF_matrix given by get_PTDF()
+  * and from the efficiencies of the instant \p time; entry
+  * \f$ ( l , h ) \f$ is the change of the flow of line \f$ l \f$ due to
+  * a unit of flow on the HVDC line \f$ h \f$. The result is read with
+  * get_DCDF(). */
 
  void compute_DCDF( c_Subset & HVDC_lines , const SpMat & PTDF_matrix ,
 		    Index time );
 
 /*--------------------------------------------------------------------------*/
+ /// the matrix computed by the last call to compute_DCDF()
 
  const SpMat & get_DCDF( void ) const { return( DCDF ); }
 
 /*--------------------------------------------------------------------------*/
+ /// true if get_DCDF() holds the matrix of instant \p t
 
  bool was_DCDF_computed( Index t ) const {
   return( DCDF_was_computed == t );
   }
 
 /*--------------------------------------------------------------------------*/
- /** Due to deletion of HVDC lines are just because it is possible to have a
-  * network with isolated components this should be fairly easy to deal with,
-  * but we must identify the isolated subgraphs this is the purpose of the
-  * next routine */
+ /// compute the components of the lines with nonzero susceptance
+ /** Computes the components \f$ \mathcal{N}_1 , \ldots ,
+  * \mathcal{N}_{n_c} \f$ of the class notes, i.e., the connected
+  * components of the graph whose nodes are those of the network and whose
+  * edges are the lines with nonzero susceptance; a node with no such line
+  * is a component of its own. The components are numbered in the order of
+  * their node of lowest index, and the nodes of each are listed in
+  * increasing order (see get_subgraphs()). */
 
  void identify_connected_components( void );
+
+/*--------------------------------------------------------------------------*/
+ /// the nodes of each component, in increasing order
+ /** Returns the vector whose entry k holds the nodes of the component
+  * \f$ \mathcal{N}_{k+1} \f$, in increasing order, so that its first entry
+  * is the node of lowest index of the component; it is empty until
+  * identify_connected_components() is called. */
 
  std::vector< std::vector< Index > > & get_subgraphs( void ) {
   return v_nodes_in_component;
   }
 
+/*--------------------------------------------------------------------------*/
+ /// the number of components, 0 until they are computed
+
  size_t get_nb_connected_components( void ) const {
   return nb_components;
   }
 
- SpMat get_PTDF( c_Subset & DC_lines , double tikhonov_coeff = 1e-4 );
+/*--------------------------------------------------------------------------*/
+ /// returns the PTDF matrix
+ /** Returns the PTDF matrix \f$ \Psi \f$ of (P) in the class notes, of
+  * size \f$ |\mathcal{L}| \times ( N - n_c ) \f$, built on the lines in
+  * \p DC_lines (which should be get_DC_lines(), since the components and
+  * the references are always those of all the lines with nonzero
+  * susceptance), with the Tikhonov coefficient \p tikhonov_coeff
+  * (\f$ \tau^T \f$, 0 by default) added to the diagonal of the reduced
+  * nodal susceptance matrix before it is factorized. The column of node
+  * \f$ n \f$ is get_reducedIdx( n ), and the rows of the lines not in
+  * \p DC_lines are 0. The reduced matrix and its inverse are kept, and
+  * the inverse is reused as long as the matrix does not change. If the
+  * network has no line with nonzero susceptance the matrix has no column;
+  * if the reduced matrix cannot be factorized (it is singular, which may
+  * happen with susceptances of opposite sign) std::logic_error is
+  * thrown. */
+
+ SpMat get_PTDF( c_Subset & DC_lines , double tikhonov_coeff = 0 );
 
 /*--------------------------------------------------------------------------*/
+ /// returns the PTDF matrix of all the lines with nonzero susceptance
 
- SpMat get_PTDF( void ) {
-  Subset all_lines( f_number_lines );
-  std::iota( all_lines.begin() , all_lines.end() , 0 );
-  return( get_PTDF( all_lines ) );
-  }
+ SpMat get_PTDF( void ) { return( get_PTDF( get_DC_lines() ) ); }
 
 /*--------------------------------------------------------------------------*/
+ /// the reduced nodal susceptance matrix and its inverse, as last computed
 
  std::pair< SpMat , SpMat > get_stored_B2( void ) {
   return( std::make_pair( stored_B2 , stored_B2_inv ) );
   }
 
 /*--------------------------------------------------------------------------*/
+ /// store the reduced nodal susceptance matrix and its inverse
 
  void set_stored_B2( const SpMat & B2 , const SpMat & B2_inv ) {
   // in case sizes mismatch
@@ -666,32 +871,42 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// true if compute_cycle_basis() has been called
 
  bool was_cycle_basis_computed( void ) const {
   return( cycle_basis_was_computed );
   }
 
 /*--------------------------------------------------------------------------*/
+ /// mark the cycle basis as computed
 
  void set_cycle_basis_computed( void ) { cycle_basis_was_computed = true; }
 
 /*--------------------------------------------------------------------------*/
- /// compute the decomposition of the DC graph into cycles and spanning tree
- /** Computes a spanning forest of the subgraph of the DC lines, recording
-  * for each node its parent and the DC line joining it to the parent, and
-  * the fundamental cycle of each DC line that is not in the forest: the line
-  * itself, followed by the path in the forest from its end node back to its
-  * start node. Since the forest is made of lines rather than of pairs of
-  * nodes, parallel DC lines are handled: all of them but one are out of the
-  * forest, each closing a cycle of two lines; a DC line from a node to
-  * itself is a cycle of its own. The functions get_cycle_basis() and
-  * get_spanning_parent() return results in terms of node ids, not line ids.
-  * To access the line ids in the spanning tree (resp. in the cycles), use
-  * get_lines_in_spanning_tree() (resp. get_lines_in_cycles()). */
+ /// compute a spanning forest and the fundamental cycles of the DC lines
+ /** Computes a spanning forest of the graph of the lines with nonzero
+  * susceptance (the set \f$ \mathcal{L}^{S} \f$ of the class notes), with
+  * one tree for each component that has such a line, rooted at the node of
+  * lowest index of the component, recording for each node its parent and
+  * the line joining it to the parent; then the fundamental cycle of each
+  * line of \f$ \mathcal{L}^{S} \f$ that is not in the forest, i.e., the
+  * line itself followed by the path in the forest from its end node back
+  * to its start node. Since the forest is made of lines rather than of
+  * pairs of nodes, parallel lines are handled: all of them but one are out
+  * of the forest, each closing a cycle of two lines (a line from a node to
+  * itself would be a cycle of its own, but deserialize() rejects it).
+  * get_cycle_basis() and get_spanning_parent() return the results in terms
+  * of nodes, get_lines_in_spanning_tree() and get_lines_in_cycles() in
+  * terms of lines; these are the data of the CYCLE formulation of
+  * DCNetworkBlock::generate_abstract_constraints(). */
 
  void compute_cycle_basis( void );
 
 /*--------------------------------------------------------------------------*/
+ /// the fundamental cycles as sequences of nodes
+ /** Entry c is the sequence of the nodes of the fundamental cycle c: the
+  * start node of the line out of the forest that closes it, its end node,
+  * and then the nodes of the path in the forest back to the start node. */
 
  const std::vector< std::vector< Index > > & get_cycle_basis( void ) {
   if( ! cycle_basis_was_computed )
@@ -700,6 +915,9 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the parent of each node in the spanning forest
+ /** Entry n is the parent of node n in the spanning forest, n itself for a
+  * root and -1 for a node with no line of nonzero susceptance. */
 
  const std::vector<int> & get_spanning_parent( void ) {
   if( ! cycle_basis_was_computed )
@@ -709,16 +927,13 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 /// returns the DC lines of the spanning forest, with their orientation
-/** Returns a map from each DC line of the spanning forest computed by
- * compute_cycle_basis() to +1 if its reference direction (start_line ->
- * end_line) goes from the parent to the child in the forest, and -1
- * otherwise. These are the tree terms T_{li} of the decomposition of the
- * line flows of the cycle formulation,
- *
- *     f_l = sum_i T_{li} p_i + sum_c C_{lc} h_c
- *
- * A DC line parallel to one of the forest is not in the map, since it is
- * in a cycle [see get_lines_in_cycles()]. */
+/** Returns a map from each line of the spanning forest computed by
+ * compute_cycle_basis() to +1 if its direction (from its start node to its
+ * end node) goes from the parent to the child in the forest, and -1
+ * otherwise, i.e., to \f$ - \epsilon_l \f$ in the flow rows of the CYCLE
+ * formulation (see DCNetworkBlock::generate_abstract_constraints()). A
+ * line parallel to one of the forest is not in the map, since it closes a
+ * cycle (see get_lines_in_cycles()). */
 
  std::map< Index , int > get_lines_in_spanning_tree( void ) {
  if( ! cycle_basis_was_computed )
@@ -741,11 +956,13 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 /// returns the fundamental cycles as DC lines, with their orientation
-/** Returns, for each fundamental cycle computed by compute_cycle_basis(), a
- * map from each of its DC lines to +1 if the cycle traverses the line in its
- * reference direction (start_line -> end_line), and -1 otherwise. These are
- * the coefficients C_{lc} of the cycle flows h_c in the decomposition of the
- * line flows [see get_lines_in_spanning_tree()]. */
+/** Returns, for each fundamental cycle \f$ c \f$ computed by
+ * compute_cycle_basis(), a map from each of its lines \f$ l \f$ to
+ * \f$ C_{lc} = +1 \f$ if the cycle traverses the line in its direction
+ * (from its start node to its end node) and \f$ C_{lc} = -1 \f$ otherwise:
+ * these are the coefficients of the cycle flows \f$ h_c \f$ in the flow
+ * rows of the CYCLE formulation and of the flows in its voltage law (see
+ * DCNetworkBlock::generate_abstract_constraints()). */
 
  std::vector< std::map< Index , int > > get_lines_in_cycles( void ) {
  if( ! cycle_basis_was_computed )
@@ -756,16 +973,9 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// returns vector of the network cost
- /** Method for returning the vector of network cost for each line. This
-  * vector may have empty size (bus network) or the size of number of lines,
-  * then there are two possible cases:
-  *
-  * - if f_number_lines == 0, this vector has empty size which means there is
-  *   no line at network (bus network).
-  *
-  * - if f_number_lines >= 1, this vector has size of f_number_lines and each
-  *   element of the vectors gives the network cost value for each line in the
-  *   network. */
+ /** Returns the vector of the costs \f$ c^{net}_l \f$ of a unit of flow
+  * on each line ("NetworkCost"), which is empty if the costs are not given
+  * (all 0) and has get_number_lines() entries otherwise. */
 
  std::vector< double > & get_network_cost( void ) {
   return( v_network_cost );
@@ -786,7 +996,7 @@ class DCNetworkData : public NetworkData
  /// serialize a DCNetworkData out of a netCDF::NcGroup
  /** Serialize a DCNetworkData out of a netCDF::NcGroup to the specific
   * format of a DCNetworkData. See
-  * DCNetworkBlock::deserialize( netCDF::NcGroup ) for details of the format
+  * DCNetworkData::deserialize( netCDF::NcGroup ) for details of the format
   * of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
@@ -802,10 +1012,10 @@ class DCNetworkData : public NetworkData
  Index f_number_lines;           ///< number of lines of the network
  Index f_number_HVDC_lines;      ///< number of HVDC lines of the network
 
- /// reference node (used in the PTDF matrix)
+ /// the node "ReferenceNode" [see deserialize()]
  Index f_reference_node;
 
- /// A boolean to avoid forming A^dc multiple times
+ /// the instant of the DCDF matrix computed last, to avoid recomputing it
  Index DCDF_was_computed;
 
  /// A boolean to avoid recomputing the cycle basis algorithm
@@ -863,11 +1073,11 @@ class DCNetworkData : public NetworkData
  /// the fundamental cycles as DC lines, each with its direction
  std::vector< std::map< Index , int > > v_line_cycles;
 
+ /// the component of each node [see identify_connected_components()]
  std::vector< int > v_component;
- // A simple number for each node of the component (of the subgraph) it belongs to when HVDC lines are not there
- size_t nb_components; // The total number of connected subgraphs.
+ size_t nb_components;  ///< the number of components, 0 until computed
+ /// the nodes of each component, in increasing order
  std::vector< std::vector< Index > > v_nodes_in_component;
- // For each component we can now readily identify which nodes are where.
  std::vector< int > v_reduced_idx; // For each node the reduced index
  std::vector< int > v_original_idx; // For each reduced index the original node
 
@@ -875,8 +1085,10 @@ class DCNetworkData : public NetworkData
  SpMat stored_B2;
  SpMat stored_B2_inv;
 
- /** A SparseMatrix resulting from the product of the PTDF and (A^dc)^T,
-  * where the latter is the incidence matrix of the pure DC lines */
+ /// the distribution factors of the HVDC lines [see compute_DCDF()]
+ /** The product of minus the PTDF matrix and the transpose of the
+  * incidence matrix of the HVDC lines with their efficiencies, restricted
+  * to the nodes that are not references. */
  SpMat DCDF;
 
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -903,7 +1115,7 @@ class DCNetworkData : public NetworkData
 
  explicit DCNetworkBlock( Block * f_block = nullptr )
   : NetworkBlock( f_block ) , f_NetworkData( nullptr ) , ftype( PTDF ) ,
-    v_design( nullptr ) , f_C_v_scal( 1 ) , f_tikhonov_coeff( 1e-4 ) ,
+    v_design( nullptr ) , f_C_v_scal( 1 ) , f_tikhonov_coeff( 0 ) ,
     f_ptdf_round( 1e-16 ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -920,33 +1132,30 @@ class DCNetworkData : public NetworkData
  /// deserialize a DCNetworkBlock out of a netCDF::NcGroup
  /** Deserialize a DCNetworkBlock out of a netCDF::NcGroup, which should
   * contain all the data necessary to describe a NetworkBlock (see
-  * NetworkBlock::deserialize()) and possibly the following variables:
+  * NetworkBlock::deserialize(), which reads the constant "ConstantTerm" of
+  * the objective) and possibly the following:
+  *
+  * - The dimensions and variables of a DCNetworkData (see
+  *   DCNetworkData::deserialize()), which are read if the dimension
+  *   "NumberNodes" is there; otherwise the DCNetworkData must have been
+  *   passed by set_NetworkData() (typically by UCBlock, which shares one
+  *   among all its NetworkBlock), and the number of nodes is read there.
   *
   * - The variable "ActiveDemand", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberNodes". If the NetworkData object description is
-  *   present in the NcGroup this is the dimension "NumberNodes", but the
-  *   NetworkData object is optional and it may not be there. Thus, if
-  *   "NumberNodes" is not there and "ActiveDemand" is, then the NetworkData
-  *   object must have been passed by set_NetworkData(), and the number of
-  *   nodes can be read via NetworkData::get_number_nodes(). However,
-  *   "ActiveDemand" itself is optional. If it is not found in the NcGroup,
-  *   then it *must* be passed (either before or after the call to
-  *   deserialize()) by calling set_active_demand(). Since both groups of data
-  *   are optional, the NcGroup  can actually be empty which implies that all
-  *   the data will be (or have been) passed by the in-memory interface. In
-  *   this case, it would clearly be preferable to *entirely avoid the
-  *   NcGroup to be there*, and in fact UCBlock has provisions for the
-  *   NcGroup describing the NetworkBlock to be optional [see the comments to
-  *   UCBlock::deserialize()].
+  *   the dimension "NumberNodes" (or, if the DCNetworkData is not in the
+  *   NcGroup, over any dimension of size equal to the number of nodes),
+  *   whose entry n is the active demand \f$ D^{ac}_n \f$ of node n. The
+  *   variable is optional; if it is not found in the NcGroup, then it must
+  *   be passed (either before or after the call to deserialize()) by
+  *   set_ActiveDemand() or set_active_demand(). Since both groups of data
+  *   are optional, the NcGroup can actually be empty, all the data being
+  *   passed by the in-memory interface; UCBlock has provisions for the
+  *   NcGroup describing the NetworkBlock to be absent altogether (see
+  *   UCBlock::deserialize()).
   *
-  * - The variable "Kappa", of type netCDF::NcDouble and either being a
-  *   scalar or indexed over the number of lines. If this variable is a
-  *   scalar, let's say k, then it is assumed that Kappa[ l ] = k for each line
-  *   l in {0, ..., get_number_lines() - 1}. For each line l in {0, ...,
-  *   get_number_lines() - 1}, Kappa[ l ] is the constant that multiplies the
-  *   minimum and maximum flow in the flow limit constraints. This variable is
-  *   optional. If it is not provided, it is assumed that Kappa[ l ] == 1 for
-  *   each line l in {0, ..., get_number_lines() - 1}. */
+  * The constants \f$ \kappa_l \f$ that multiply the flow bounds of the lines
+  * (see generate_abstract_constraints()) are all 1 after deserialize(),
+  * which does not read them: they are changed only by set_kappa(). */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -978,330 +1187,381 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the DCNetworkBlock
- /** The size of node injection variable is the number of intervals spanned
-  * this DCNetworkBlock, i.e., 1, by the number of nodes, which can be read
-  * via NetworkData::get_number_nodes().
+ /** Generates the variables of the formulation chosen by the Configuration
+  * (see below). If the network has more than one node, they are:
   *
-  * Depending on the susceptance for each line of the network, the
-  * DCNetworkBlock class may have a power flow variable or not. In other
-  * words, if the susceptance is equal to zero (or not defined), the
-  * corresponding line is a HVDC line, and it must have the power flow
-  * variable. It means, each HVDC line corresponds to a power flow variable,
-  * then for the Net Transfer Capacity (NTC) model all lines must have a
-  * power flow variable. If the susceptance value is a non-zero value, the
-  * corresponding line is called DC and there is no need to define the
-  * power flow variable for that line. Therefore, in the case of pure DC lines
-  * there is no need to define power flow variables. Consequently, for the
-  * mixed case DC-HVDC, the power flow variable must be defined only for HVDC
-  * lines. Similarly, depending on the NetworkCost for each line of the
-  * network, the DCNetworkBlock class may have an auxiliary variable or not.
-  * In other words, if the NetworkCost is equal to zero (or not defined), the
-  * auxiliary variable and corresponding constraints will not be defined.
+  * - the node injections \f$ S_n \f$ of the class notes, one for each node
+  *   (the group "s_network" of NetworkBlock::generate_abstract_variables()),
+  *   free variables through which UCBlock links the network to the units;
   *
-  * TODO: IF THE ABOVE DESCRIPTION ONLY APPLIES TO SOME OF THE FORMULATIONS,
-  *       MOVE / REFACTOR AS APPROPRIATE 
+  * - the flows \f$ F_l \f$, one for each line, in all the formulations
+  *   (the group "p_flow_network", see get_power_flow());
   *
-  * DCNetworkBlock supports three possible different formulations:
+  * - the auxiliary variables \f$ V_l \ge | F_l | \f$, one for each line, if
+  *   some line has a nonzero cost "NetworkCost" (the group "aux_network",
+  *   see get_auxiliary_variable() and generate_network_cost_constraints());
   *
-  * - The PTDF formulation, which uses the Power Transfer Distribution
-  *   Factor matrix to express DC line flows as a linear combination of
-  *   nodal injections. Only power flow variables \f$ F_l \f$ are needed
-  *   (no angle variables). For HVDC lines, standard flow conservation
-  *   constraints are used.
+  * - in the CYCLE formulation, the cycle flows \f$ h_c \f$, one for each
+  *   fundamental cycle of DCNetworkData::compute_cycle_basis() (the group
+  *   "cycle_flow_network", see get_cycle_flow());
   *
-  * - The CYCLE formulation, which uses a spanning tree and a fundamental
-  *   cycle basis to express power flows in terms of tree-transfer
-  *   coefficients and cycle flow variables \f$ h_c \f$. Requires both
-  *   \f$ F_l \f$ and \f$ h_c \f$ variables (no angle variables).
+  * - in the KIRCHHOFF formulation, if some line has a nonzero susceptance,
+  *   the voltage angles \f$ \theta_n \f$, one for each node (the group
+  *   "voltage_angle").
   *
-  * - The KIRCHHOFF formulation, which introduces voltage angle variables
-  *   \f$ \theta_n \f$ for each node and encodes:
-  *   \f[
-  *     F_l \;=\; \mathfrak{S}_l \bigl(\theta_{\mathrm{from}(l)}
-  *                                   - \theta_{\mathrm{to}(l)}\bigr)
-  *     \qquad \forall l \in \mathcal{L}^{DC}
-  *     \qquad (10)
-  *   \f]
-  *   \f[
-  *     - S_n
-  *     \;+\;
-  *     \sum_{l=(n,\cdot)} F_l
-  *     \;-\;
-  *     \sum_{l=(\cdot,n)} \eta_l\, F_l
-  *     \;=\;
-  *     - D^{ac}_n
-  *     \qquad \forall n \in \mathcal{N}
-  *     \qquad (11)
-  *   \f]
-  *   \f[
-  *     \theta_{\mathrm{ref}} = 0
-  *     \qquad (12)
-  *   \f]
-  *   Capacity limits (1) or (1a)\--(1b) apply as in the other formulations
-  *
-  * The different possible formulations are represented by a the int value
-  * "wf" that is obtained as follows:
-  *
-  * - if either \p stvv is not nullptr and it is a SimpleConfiguration< int >,
-  *   or f_BlockConfig is not nullptr,
-  *   f_BlockConfig->f_static_variables_Configuration is not nullptr,
-  *   and it is a SimpleConfiguration< int >, then wf is the f_value of the
-  *   SimpleConfiguration< int >
-  *
-  * - otherwise, wf is 2
-  *
-  * The chosen formulation is CYCLE if wf == 1, KIRCHHOFF if wf == 2, which
-  * is the one taken when no Configuration says otherwise, and PTDF in all
-  * other cases, wf == 0 among them. */
+  * All of them are continuous and free, their bounds being rows or bounds
+  * of generate_abstract_constraints(). The formulation is given by an int
+  * \f$ w \f$, the f_value of a SimpleConfiguration< int > that is either
+  * \p stvv or, if \p stvv is nullptr and f_BlockConfig is not nullptr,
+  * f_BlockConfig->f_static_variables_Configuration; if neither is a
+  * SimpleConfiguration< int >, \f$ w = 2 \f$. The formulation is CYCLE if
+  * \f$ w = 1 \f$, KIRCHHOFF if \f$ w = 2 \f$ and PTDF otherwise
+  * (\f$ w = 0 \f$ among the others). */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// generate the flows and, if some line has a cost, the variables V
+ /** Generates the flows \f$ F_l \f$ of all the lines and, if some line has
+  * a nonzero "NetworkCost", the auxiliary variables \f$ V_l \f$ (see
+  * generate_abstract_variables()): the variables of every formulation. */
 
  void generate_PTDF_variables( void );
 
 /*--------------------------------------------------------------------------*/
+ /// generate the cycle flows of the CYCLE formulation
 
  void generate_CYCLE_variables( void );
 
 /*--------------------------------------------------------------------------*/
+ /// generate the voltage angles of the KIRCHHOFF formulation
 
  void generate_KIRCHHOFF_variables( void );
 
 /*--------------------------------------------------------------------------*/
  /// generate abstract constraints of DCNetworkBlock
- /** This method generates the linear constraints of the DC network according
-  * to the internal formulation type #ftype, which can be **PTDF**, **CYCLE**,
-  * or **KIRCHHOFF**. The topology of the transmission network is defined by
-  * a set of
-  * nodes \f$ \mathcal{N} \f$ and a set of lines \f$ \mathcal{L} \f$. For each
-  * line \f$ l \in \mathcal{L} \f$, let \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$
-  * denote the minimum and maximum admissible power flows, and
-  * \f$ \kappa_l \f$ a line-specific scaling factor. For each node
-  * \f$ n \in \mathcal{N} \f$, \f$ D^{ac}_n \f$ is the active power demand.
-  *
-  * The Block defines:
-  *
-  * - Node injection variables \f$ S_n \f$ for \f$ n \in \mathcal{N} \f$;
-  * - Line flow variables \f$ F_l \f$ for \f$ l \in \mathcal{L} \f$;
-  * - (optional) Auxiliary variables \f$ V_l \f$ (if a per-line NetworkCost is
-  *   defined, used for linearizing \f$ |F_l| \f$);
-  *
-  * - optionally, design variables \f$ x_l \f$ for a subset of lines can be
-  *   externally set (see set_design_variables()).
-  *
-  * \b Capacity \b limits.
-  * Each line \f$ l \f$ is constrained either by a static box or by a
-  * design-modulated form, depending on the existence of a design variable:
-  *
-  * - Without design variable:
-  *   \f[
-  *     \kappa_l P^{mn}_l \;\le\; F_l \;\le\; \kappa_l P^{mx}_l
-  *     \qquad (1)
-  *   \f]
-  *
-  * - With design variable \f$ x_l \f$:
-  *   \f[
-  *     F_l - \kappa_l P^{mn}_l\, x_l \;\ge\; 0
-  *     \qquad (1a)
-  *   \f]
-  *   \f[
-  *     F_l - \kappa_l P^{mx}_l\, x_l \;\le\; 0
-  *     \qquad (1b)
-  *   \f]
-  *
-  * \b NetworkCost \b term.
-  * When NetworkCost is defined for one or more lines, the absolute value of
-  * the power flow \f$ |F_l| \f$ is linearized using an auxiliary variable
-  * \f$ V_l \f$ as:
+ /** Generates the rows of the formulation chosen in
+  * generate_abstract_variables(), in the notation of the class notes; none
+  * if the network has a single node. With \f$ C^v \f$ the scaling factor of
+  * the Configuration (see below) and \f$ \kappa_l \f$ the constant of line
+  * \f$ l \f$ (1 unless set_kappa() changes it), every formulation has the
+  * flow bounds
   * \f[
-  *   0 \;\le\; V_l - F_l \qquad (2)
-  *   \qquad
-  *   0 \;\le\; V_l + F_l \qquad (3)
+  *   \kappa_l C^v P^{mn}_l \le F_l \le \kappa_l C^v P^{mx}_l
+  *   \qquad l \in \mathcal{L}
+  *   \tag{1}
   * \f]
-  * and the objective contributes
-  * \f$ \sum_{l \in \mathcal{L}} \mathrm{NetworkCost}_l\, V_l \f$.
-  *
-  * \b HVDC-only \b (NTC) \b formulation.
-  * For networks composed exclusively of HVDC lines, all susceptances are zero,
-  * and the flows are fully controllable. The nodal power balance reads:
+  * (the group "Power_flow_limit", see get_power_flow_limit_constraints()),
+  * the same for the lines in \f$ \mathcal{L}^{S} \f$ and in
+  * \f$ \mathcal{L}^{H} \f$. Here \f$ P^{mn}_l \f$ and \f$ P^{mx}_l \f$
+  * are those of the instant of the Block (see
+  * NetworkBlock::set_time_instant() and DCNetworkData::deserialize()). A
+  * line with a design variable
+  * \f$ x_l \f$ (see set_design_variables() and DesignNetworkBlock) has
+  * instead the rows
   * \f[
-  *   \sum_{l=(n,\cdot)} F_l
-  *   \;-\;
-  *   \sum_{l=(\cdot,n)} \eta_l\, F_l
-  *   \;=\;
-  *   S_n - D^{ac}_n
-  *   \qquad \forall n \in \mathcal{N} \qquad (4)
+  *   F_l - \kappa_l C^v P^{mx}_l x_l \le 0 \tag{2}
   * \f]
-  * where \f$ \eta_l \f$ denotes the efficiency of line \f$ l \f$ (possibly
-  * different for each branch in hypergraph topologies). Capacity limits
-  * follow (1) or (1a)–(1b).
-  *
-  * \b Hybrid \b DC/HVDC \b (PTDF) \b formulation.
-  * DC flows are expressed as a linear combination of nodal injections via the
-  * PTDF matrix \f$ B \f$, with coupling to DC flows through a DCDF matrix:
+  * ("Power_flow_limit_design") and, only if \f$ P^{mn}_l \neq 0 \f$,
   * \f[
-  *   F_l
-  *   \;=\;
-  *   \sum_{n \in \mathcal{N}} B_{l n}\, \bigl(S_n - D^{ac}_n\bigr)
-  *   \;+\;
-  *   \sum_{k \in \mathcal{L}^{dc}} \mathrm{DCDF}_{l k}\, F_k
-  *   \quad \text{(up to a small numerical slack)}
-  *   \qquad (5)
+  *   F_l - \kappa_l C^v P^{mn}_l x_l \ge 0 \tag{3}
   * \f]
-  * Nodal balances are imposed only for nodes impacted by HVDC lines,
-  * allowing a small tolerance \f$ \varepsilon \f$:
+  * ("Power_flow_limit_design_min"), the lower half of (1), i.e.,
+  * \f$ F_l \ge 0 \f$, being a bound when \f$ P^{mn}_l = 0 \f$. If some line
+  * has a nonzero cost \f$ c^{net}_l \f$ ("NetworkCost"), each line has the
+  * rows
   * \f[
-  *   -S_n
-  *   \;+\;
-  *   \sum_{l=(n,\cdot)} F_l
-  *   \;-\;
-  *   \sum_{l=(\cdot,n)} \eta_l\, F_l
-  *   \;\in\;
-  *   [-D^{ac}_n - \varepsilon,\; -D^{ac}_n + \varepsilon]
-  *   \qquad (6)
+  *   V_l - F_l \ge 0 \; , \qquad V_l + F_l \ge 0
+  *   \tag{4}
   * \f]
-  * HVDC capacities are treated as in (1) or (1a)–(1b).
+  * ("power_flow_relax_abs", see generate_network_cost_constraints()).
+  * Thus \f$ V_l \ge | F_l | \f$, and the term \f$ c^{net}_l V_l \f$ of the
+  * objective (see generate_objective()) is \f$ c^{net}_l | F_l | \f$ at an
+  * optimum, since \f$ c^{net}_l \ge 0 \f$ (a negative cost is refused).
   *
-  * \b Cycle-flow \b (CYCLE) \b formulation.
-  * A cycle basis and a spanning tree are computed. Let \f$ h_c \f$ be cycle
-  * flows and \f$ C_{l c} \f$ the cycle incidence coefficients. For each line
-  * \f$ l \f$:
+  * \par PTDF formulation
+  * If \f$ \mathcal{L}^{S} = \emptyset \f$, the node balance (B) of the class
+  * notes is written at every node,
   * \f[
-  *   F_l
-  *   \;=\;
-  *   \sum_i T_{l i}\, p_i
-  *   \;+\;
-  *   \sum_c C_{l c}\, h_c
-  *   \qquad (7)
+  *   - S_n + \sum_{ l : s(l) = n } F_l
+  *         - \sum_{ l , j : e_j(l) = n } \eta_{l,j} F_l = - D^{ac}_n
+  *   \qquad n \in \mathcal{N}
+  *   \tag{5}
   * \f]
-  * where \f$ T_{l i} \f$ is the tree-transfer matrix derived from the
-  * spanning tree rooted at the reference node. Kirchhoff’s cycle laws are:
+  * ("HVDC_power_flow_injection"), and nothing else. Otherwise, with
+  * \f$ \Psi \f$ and \f$ \mathrm{DCDF} \f$ of the class notes, the flow of
+  * each line in \f$ \mathcal{L}^{S} \f$ is defined by
   * \f[
-  *   \sum_l \frac{C_{l c}}{\mathfrak{S}_l}\, F_l
-  *   \;=\; 0
-  *   \qquad \forall c
-  *   \qquad (8)
+  *   F_l = \sum_{ n \in \mathcal{N} \setminus R } \Psi_{ln} \bigl( S_n -
+  *         D^{ac}_n \bigr) + \sum_{ h \in \mathcal{L}^{H} }
+  *         \mathrm{DCDF}_{lh} F_h
+  *   \qquad l \in \mathcal{L}^{S}
+  *   \tag{6}
   * \f]
-  * and the global power balance is enforced as:
+  * (one row for each line in \f$ \mathcal{L}^{S} \f$, in the order of
+  * DCNetworkData::get_DC_lines(), the group "AC/HVDC_powerflow_def"; the
+  * column of \f$ \Psi \f$ of node \f$ n \f$ is
+  * DCNetworkData::get_reducedIdx(), and the coefficients are rounded to
+  * the nearest multiple of the precision \f$ \delta^{\Psi} \f$ of the
+  * Configuration), the overall balance
   * \f[
-  *   \sum_i p_i
-  *   \;=\;
-  *   \sum_{n \in \mathcal{N}} (S_n - D^{ac}_n)
-  *   \;=\;
-  *   0
-  *   \qquad (9)
+  *   \sum_{ n \in \mathcal{N} } S_n
+  *   + \sum_{ h \in \mathcal{L}^{H} } \Bigl( \sum_j \eta_{h,j} - 1 \Bigr)
+  *     F_h = \sum_{ n \in \mathcal{N} } D^{ac}_n
+  *   \tag{7}
   * \f]
-  * Capacity limits (1) or (1a)–(1b) apply to each line depending on whether a
-  * design variable \f$ x_l \f$ exists.
-  *
-  * \b Kirchhoff \b (KIRCHHOFF) \b formulation.
-  * Voltage angle variables \f$ \theta_n \f$ are introduced for each node.
-  * For each DC line \f$ l \f$ (non-zero susceptance \f$ \mathfrak{S}_l \f$),
-  * the flow-angle relationship (Kirchhoff's Voltage Law) is imposed:
+  * ("overall_balanced_const", see overall_balance_function()), which is
+  * the sum of (B) over all the nodes (the second sum is the loss of the
+  * HVDC lines), and the node balance (B) at each node of a set
+  * \f$ \mathcal{N}^{b} \f$,
   * \f[
-  *   F_l
-  *   \;=\;
-  *   \mathfrak{S}_l \bigl(\theta_{\mathrm{from}(l)}
-  *                       - \theta_{\mathrm{to}(l)}\bigr)
-  *   \qquad \forall l \in \mathcal{L}^{DC}
-  *   \qquad (10)
+  *   - S_n + \sum_{ l : s(l) = n } F_l
+  *         - \sum_{ l , j : e_j(l) = n } \eta_{l,j} F_l = - D^{ac}_n
+  *   \qquad n \in \mathcal{N}^{b}
+  *   \tag{8}
   * \f]
-  * For each node \f$ n \f$, a power balance constraint (Kirchhoff's Current
-  * Law) is enforced over \e all lines (both DC and HVDC):
+  * ("DCHVDC_power_flow_injection", see generate_HVDC_nodal_constraints()),
+  * the sums running over all the lines incident to \f$ n \f$. The set
+  * \f$ \mathcal{N}^{b} \f$ holds the start and end nodes of the lines in
+  * \f$ \mathcal{L}^{H} \f$ and, when there are several components, the
+  * references \f$ r_k \f$ that are not among them, except the one of
+  * lowest index. By the property of \f$ \Psi \f$ recalled in the class
+  * notes, with \f$ \tau^T = 0 \f$ the rows (6) imply (B) at every node
+  * not in \f$ R \f$, whatever the flows of the HVDC lines are. Then (8)
+  * gives (B) at every reference but at most one, whose balance is the
+  * difference between (7) and the sum of the others. Thus (6)-(8) amount
+  * to (B) at every node, i.e., to the balance of each component
+  * \f$ \mathcal{N}_k \f$ net of the flows of the HVDC lines that leave or
+  * reach it, together with the flows of the lines in \f$ \mathcal{L}^{S}
+  * \f$ that the injections determine. With one component and no line in
+  * \f$ \mathcal{L}^{H} \f$, (8) is empty and (7) is \f$ \sum_n S_n =
+  * \sum_n D^{ac}_n \f$; substituting (6) in (1) then gives the classical
+  * form \f$ \kappa_l C^v P^{mn}_l \le ( \Psi I_R^\top ( S - D^{ac} ) )_l
+  * \le \kappa_l C^v P^{mx}_l \f$.
+  *
+  * \par CYCLE formulation
+  * The spanning forest of the lines in \f$ \mathcal{L}^{S} \f$ of
+  * DCNetworkData::compute_cycle_basis() has one tree in each component that
+  * has such a line, rooted at its node of lowest index, and a fundamental
+  * cycle \f$ c \f$ for each line out of the forest (a line parallel to one
+  * of the forest closes a cycle of two lines), with \f$ C_{lc} = \pm 1 \f$
+  * when the cycle traverses \f$ l \f$ along or against its direction and 0
+  * when it does not traverse it (DCNetworkData::get_lines_in_cycles()). For
+  * a line \f$ l \f$ of the forest let \f$ \mathcal{N}^{T}_l \f$ be the
+  * nodes of the subtree below it, and \f$ \epsilon_l = -1 \f$ if \f$ l \f$
+  * goes from the parent to the child, \f$ \epsilon_l = +1 \f$ otherwise;
+  * for a line out of the forest let \f$ \mathcal{N}^{T}_l = \emptyset \f$.
+  * The flow of each line in \f$ \mathcal{L}^{S} \f$ is
   * \f[
-  *   -S_n
-  *   \;+\;
-  *   \sum_{l=(n,\cdot)} F_l
-  *   \;-\;
-  *   \sum_{l=(\cdot,n)} \eta_l\, F_l
-  *   \;=\;
-  *   -D^{ac}_n
-  *   \qquad \forall n \in \mathcal{N}
-  *   \qquad (11)
+  *   F_l = \epsilon_l \Bigl( \sum_{ n \in \mathcal{N}^{T}_l }
+  *         \bigl( S_n - D^{ac}_n \bigr)
+  *       + \sum_{ h \in \mathcal{L}^{H} } \bigl( \sum_j \eta_{h,j}
+  *         [ e_j(h) \in \mathcal{N}^{T}_l ] - [ s(h) \in \mathcal{N}^{T}_l ]
+  *         \bigr) F_h \Bigr) + \sum_c C_{lc} h_c
+  *   \qquad l \in \mathcal{L}^{S}
+  *   \tag{9}
   * \f]
-  * A reference node angle is fixed to zero:
+  * ("v_CYCLE_def_flow_const", in the order of
+  * DCNetworkData::get_DC_lines()), where \f$ [ \cdot ] \f$ is 1 if the
+  * condition holds and 0 otherwise. In words, the flow of a line of the
+  * forest carries the net injection of the subtree below it, including
+  * what the HVDC lines bring in and take out of the subtree, plus the cycle
+  * flows. The voltage law on each cycle is
   * \f[
-  *   \theta_{\mathrm{ref}} = 0
-  *   \qquad (12)
+  *   \sum_{ l \in \mathcal{L}^{S} } \frac{ C_{lc} }{ \mathfrak{S}_l } F_l = 0
+  *   \qquad \text{for each cycle } c
+  *   \tag{10}
   * \f]
-  * HVDC lines (zero susceptance) have no angle relationship and are only
-  * constrained by flow limits and node balance. Hypergraph HVDC lines are
-  * supported in the node balance. Capacity limits (1) or (1a)--(1b)
-  * apply as in the other formulations.
+  * ("v_CYCLE_def_cycle_const"), and the network is completed by (7) and
+  * (8), both written also when \f$ \mathcal{L}^{S} = \emptyset \f$, in
+  * which case every node is a component of its own. The rows (9) imply
+  * (B) at every node that is not the node of lowest index of its component
+  * (these nodes play here the role of \f$ R \f$ in the definition of
+  * \f$ \mathcal{N}^{b} \f$): for a node \f$ n \f$ that is not the root, let
+  * \f$ l \f$ be the line of the forest that joins \f$ n \f$ to its parent;
+  * \f$ \epsilon_l F_l \f$ is the flow from \f$ n \f$ to its parent, and
+  * the row (9) of \f$ l \f$ times \f$ \epsilon_l \f$, minus the rows of
+  * the lines of the forest that join \f$ n \f$ to its children, each times
+  * its own \f$ \epsilon \f$, leaves on the right the net injection of
+  * \f$ n \f$ itself (and the flows of the HVDC lines at \f$ n \f$), since
+  * the subtrees of the children make up that of \f$ n \f$ without
+  * \f$ n \f$; on the left, with the lines out of the forest incident to
+  * \f$ n \f$ (whose rows (9) are their cycle flows), it leaves the net flow
+  * out of \f$ n \f$, each cycle flow \f$ h_c \f$ entering and leaving
+  * \f$ n \f$ along the cycle, so that it cancels. This difference is (B)
+  * at \f$ n \f$. Also, (10) is the voltage
+  * law \f$ F_l =
+  * \mathfrak{S}_l ( \theta_{s(l)} - \theta_{e(l)} ) \f$ written without
+  * the angles; hence (9), (10), (7) and (8) admit the same flows and
+  * injections as the other formulations.
   *
-  * Flow balance constraints may have to be scaled for numerical stability
-  * reasons.
+  * \par KIRCHHOFF formulation
+  * The angles of the nodes define the flows of the lines in
+  * \f$ \mathcal{L}^{S} \f$,
+  * \f[
+  *   F_l - \mathfrak{S}_l \theta_{s(l)} + \mathfrak{S}_l \theta_{e(l)} = 0
+  *   \qquad l \in \mathcal{L}^{S}
+  *   \tag{11}
+  * \f]
+  * ("KIRCHHOFF_power_flow_def"), the node balance (B) is written at every
+  * node,
+  * \f[
+  *   - S_n + \sum_{ l : s(l) = n } F_l
+  *         - \sum_{ l , j : e_j(l) = n } \eta_{l,j} F_l = - D^{ac}_n
+  *   \qquad n \in \mathcal{N}
+  *   \tag{12}
+  * \f]
+  * ("KIRCHHOFF_node_balance", see generate_node_balance_constraints()),
+  * and one angle per component is fixed,
+  * \f[
+  *   \theta_{r_k} = 0 \qquad k = 1 , \ldots , n_c
+  *   \tag{13}
+  * \f]
+  * ("reference_angle", see generate_reference_angle_constraint()), where
+  * \f$ r_k \f$ is "ReferenceNode" in its component and the node of lowest
+  * index in each of the others. The angles are therefore unique (that of a
+  * node with no line of nonzero susceptance is 0). A pure HVDC network has
+  * no angle and no row (11) nor (13), and (12) is (5).
   *
-  *   TODO: PUT THE SCALING FACTOR IN THE RIGTH EQUATIONS OR AT LEAST TELL
-  *   WHICH ONES THEY ARE
+  * \par Dual values
+  * By the convention of RowConstraint, for a minimization the dual value of
+  * a row is the coefficient of its left-hand side in the Lagrangian, i.e.,
+  * minus the derivative of the optimal value with respect to its active
+  * bound. The nodal (or locational marginal) price of node \f$ n \f$ at
+  * the instant of the Block is the derivative of the optimal value with
+  * respect to \f$ D^{ac}_n \f$, which is minus the dual value
+  * \f$ y^{ac}_{t,n} \f$ of the row of UCBlock that links \f$ S_n \f$ to the
+  * units (see \ref ucbm_dual_net), as the stationarity with respect to
+  * \f$ S_n \f$ requires. In the KIRCHHOFF formulation, and in the PTDF
+  * formulation of a pure HVDC network, the demand of node \f$ n \f$
+  * appears only in the right-hand side \f$ - D^{ac}_n \f$ of its node
+  * balance (12), resp. (5), whose dual value is therefore
+  * \f$ - y^{ac}_{t,n} \f$. In the PTDF and CYCLE formulations of the other
+  * networks the demand of a node appears in several rows ((6) or (9), (7)
+  * and possibly (8)), and the price is a combination of their dual values.
+  * In the PTDF formulation, let \f$ y^{ov} \f$ be the dual value of (7),
+  * \f$ y^{b}_n \f$ that of (8) at \f$ n \in \mathcal{N}^{b} \f$,
+  * \f$ \mu_l \f$ that of the bounds (1) of line \f$ l \f$ (see
+  * get_dual_prices(); \f$ \mu_l \ge 0 \f$ if the upper bound is active,
+  * \f$ \mu_l \le 0 \f$ if the lower one is), \f$ \zeta_l \f$ the sum of
+  * the dual values of the two rows (4) of the line times the coefficient
+  * of \f$ F_l \f$ in them (0 if the line has no cost) and \f$ \pi_l \f$ the
+  * dual value of (6). The stationarity with respect to the flow \f$ F_l \f$
+  * of a line in \f$ \mathcal{L}^{S} \f$, which appears in (6) with
+  * coefficient \f$ -1 \f$, in (1), in (4) and in the rows (8) at its ends,
+  * gives
+  * \f[
+  *   \pi_l = \mu_l + \zeta_l + \sum_{ m \in \mathcal{N}^{b} } \hat A_{lm}
+  *     y^{b}_m \; ,
+  * \f]
+  * and that with respect to \f$ S_n \f$ gives the price
+  * \f[
+  *   - y^{ac}_{t,n} = - y^{ov} + [ n \in \mathcal{N}^{b} ] \, y^{b}_n
+  *     - [ n \notin R ] \sum_{ l \in \mathcal{L}^{S} } \Psi_{ln} \pi_l
+  *   \qquad n \in \mathcal{N} \; ,
+  * \f]
+  * where \f$ [ \cdot ] \f$ is 1 if the condition holds and 0 otherwise.
+  * The price of a node is thus the price \f$ - y^{ov} \f$ common to all the
+  * nodes, plus the dual value of its node balance if it has one, minus the
+  * congestion component, which sums over the lines the effect of an
+  * injection at the node on the flow of the line times the marginal value
+  * \f$ \pi_l \f$ of the line. For a network with one component, no line in
+  * \f$ \mathcal{L}^{H} \f$ and no cost of the flows there is no node
+  * balance, \f$ \pi_l = \mu_l \f$, and the price is
+  * \f$ - y^{ov} - \sum_l \Psi_{ln} \mu_l \f$, the price \f$ - y^{ov} \f$ at
+  * the reference node. The same relations hold for the multipliers
+  * \f$ - y^{ac}_{t,n} \f$ when the NetworkBlock is a subproblem of the
+  * Lagrangian dual of UCBlock, whose objective then has the term
+  * \f$ - \sum_n y^{ac}_{t,n} S_n \f$; this is why relaxing also the rows
+  * (7), (8) and the flow bounds gives the same dual bound (see
+  * \ref ucbm_dual_net). The dual values are values per instant, as all the
+  * costs (see \ref ucblock_model).
   *
-  * This is why the following scaling constants are defined:
+  * \par Configuration
+  * The parameters of the rows are given by \p stcc or, if \p stcc is
+  * nullptr and f_BlockConfig is not nullptr, by
+  * f_BlockConfig->f_static_constraints_Configuration, which can be:
   *
-  * - C_v_scal, with default value of 1 (no scaling);
+  * - a SimpleConfiguration< double > giving \f$ C^v \f$;
   *
-  * - tikhonov_coeff, with default value of 1e-4, which is used to regularise
-  *   (obviously, in the Tikhonov sense) the computation of the inverse in
-  *  the PTDF matrix.
+  * - a SimpleConfiguration< std::pair< double , double > > giving
+  *   \f$ C^v \f$ and the Tikhonov coefficient \f$ \tau^T \f$ of (P) in the
+  *   class notes;
   *
-  * Setting these to non-default values is possible with the Configuration
-  * parameter, that is either \p stcc or, if f_BlockConfig is not nullptr,
-  * f_BlockConfig->f_static_constraints_Configuration. If the result is not
-  * nullptr, then is is a SimpleConfiguration< ... > which can contain up
-  * to two numbers, i.e.,
+  * - a SimpleConfiguration< std::vector< double > > giving, in this order
+  *   and as far as the vector goes, \f$ C^v \f$, \f$ \tau^T \f$ and the
+  *   precision \f$ \delta^{\Psi} \f$ to which the coefficients of
+  *   \f$ \Psi \f$ and
+  *   of DCDF in (6) are rounded.
   *
-  * - a SimpleConfiguration< double > for setting C_v_scal alone;
-  *
-  * - a SimpleConfiguration< std::pair< double , double > > for setting
-  *   C_v_scal and tikhonov_coeff. */
+  * The defaults, used for what the Configuration does not give, are
+  * \f$ C^v = 1 \f$, \f$ \tau^T = 0 \f$ and \f$ \delta^{\Psi} = 10^{-16} \f$.
+  * A
+  * positive \f$ \tau^T \f$ perturbs \f$ \Psi \f$, and then (6)-(8) no longer
+  * imply (B) at every node; \f$ C^v \f$ scales the bounds (1)-(3) only. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
 
 /*--------------------------------------------------------------------------*/
+ /// generate the rows (5)-(8) of the PTDF formulation
+ /** Generates the rows of the PTDF formulation of
+  * generate_abstract_constraints(), but the bounds and the rows of the cost
+  * of the flows; \p stcc is not used. */
 
  void generate_PTDF_constraints( Configuration * stcc = nullptr );
 
 /*--------------------------------------------------------------------------*/
+ /// generate the rows (7)-(10) of the CYCLE formulation
+ /** Generates the rows of the CYCLE formulation of
+  * generate_abstract_constraints(), but the bounds and the rows of the cost
+  * of the flows; \p stcc is not used. */
 
  void generate_CYCLE_constraints( Configuration * stcc = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// the overall balance of the PTDF and CYCLE formulations
- /** Returns the LinearFunction of the overall balance of the network, the
-  * sum of the node injections less the losses of the HVDC lines, whose
-  * right hand side, the total active demand, is written in
-  * \p constant_term. */
+ /** Returns the LinearFunction of the left-hand side of (7) of
+  * generate_abstract_constraints(), the sum of the node injections less the
+  * losses of the HVDC lines, and writes in \p constant_term its right-hand
+  * side, the total active demand. */
 
  LinearFunction * overall_balance_function( double & constant_term );
 
 /*--------------------------------------------------------------------------*/
+ /// generate the rows (11)-(13) of the KIRCHHOFF formulation
+ /** Generates the rows of the KIRCHHOFF formulation of
+  * generate_abstract_constraints(), but the bounds and the rows of the cost
+  * of the flows; \p stcc is not used. */
 
  void generate_KIRCHHOFF_constraints( Configuration * stcc = nullptr );
 
 /*--------------------------------------------------------------------------*/
-// Generate the nodal balance equations needed to have HVDC lines.
-// the additional boolean can be used to simply overload the model with unnecessary constraints
-// 
+ /// generate the node balances (8) of the PTDF and CYCLE formulations
+ /** Generates the node balance (8) of generate_abstract_constraints() at
+  * each node of the set \f$ \mathcal{N}^{b} \f$ defined there (the ends
+  * of the HVDC lines and the references of the components that the overall
+  * balance (7) does not close), or at every node if \p full_formulation is
+  * true; nothing is generated if the set is empty. */
+
  void generate_HVDC_nodal_constraints( bool full_formulation = false );
 
 /*--------------------------------------------------------------------------*/
- /// generate the NetworkCost auxiliary constraints
- /** Generates the auxiliary constraints for the linearisation of |F_l|
-  * (absolute-value relaxation) when the "NetworkCost" vector is provided:
-  *   \f[
-  *     V_l \ge  F_l, \quad V_l \ge -F_l \qquad \forall\, l \in \mathcal{L}
-  *   \f]
-  * Does nothing if no line is priced. This method is intended to be
-  * called by generate_KIRCHHOFF_constraints() and overriding classes. */
+ /// generate the rows (4) that bound the auxiliary variables V
+ /** Generates, for each line \f$ l \f$, the rows \f$ V_l - F_l \ge 0 \f$
+  * and \f$ V_l + F_l \ge 0 \f$, i.e., (4) of
+  * generate_abstract_constraints(), if some line has a nonzero
+  * "NetworkCost", and nothing otherwise. It is called by
+  * generate_abstract_constraints() in every formulation, and by the
+  * derived classes that build their own rows. */
 
  void generate_network_cost_constraints( void );
 
 /*--------------------------------------------------------------------------*/
  /// returns true if some line carries a non-zero network cost
- /** The auxiliary Variable linearising |F_l| and the two rows fencing it are
-  * only worth their place if the flow on some line is actually priced: an
-  * all-zero "NetworkCost" vector states the same thing as a missing one. */
+ /** The auxiliary variables \f$ V_l \f$ and the rows (4) of
+  * generate_abstract_constraints() exist only if this is true: an all-zero
+  * "NetworkCost" vector states the same thing as a missing one. */
 
  bool has_network_cost( void ) const {
   if( ! f_NetworkData )
@@ -1312,37 +1572,37 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// generate the reference-node angle constraint
- /** Fixes the voltage angle of the reference node to zero:
-  *   \f[
-  *     \theta_{\mathrm{ref}} = 0
-  *   \f]
-  * Skipped for pure HVDC networks (no angle variables).
-  * This method is intended to be called by generate_KIRCHHOFF_constraints()
-  * and overriding classes. */
+ /// generate the reference angles (13)
+ /** Fixes to 0 one voltage angle in each component of the lines with
+  * nonzero susceptance, i.e., (13) of generate_abstract_constraints():
+  * that of "ReferenceNode" in its component and that of the node of lowest
+  * index in each of the others. Nothing is generated for a pure HVDC
+  * network, which has no angle. It is called by
+  * generate_KIRCHHOFF_constraints() and by the derived classes that use
+  * the angles. */
 
  void generate_reference_angle_constraint( void );
 
 /*--------------------------------------------------------------------------*/
- /// generate the KCL node-balance constraints
- /** Generates Kirchhoff's Current Law at every node:
-  *   \f[
-  *     -S_n + \sum_{l:\,\mathrm{start}(l)=n} F_l
-  *          - \sum_{l:\,\mathrm{end}(l)=n} \eta_l\, F_l = -D_n
-  *     \qquad \forall\, n
-  *   \f]
-  * handling DC lines, HVDC lines and hypergraph topologies.
-  * This method is intended to be called by generate_KIRCHHOFF_constraints()
-  * and overriding classes. */
+ /// generate the node balances (12) at every node
+ /** Generates the node balance (B) of the class notes at every node, i.e.,
+  * (12) of generate_abstract_constraints(), with all the lines incident to
+  * the node, the efficiencies of the HVDC lines and the branches of the
+  * hyperarcs. It is called by generate_KIRCHHOFF_constraints() and by the
+  * derived classes that build their own rows. */
 
  void generate_node_balance_constraints( void );
 
 /*--------------------------------------------------------------------------*/
+ /// generate the flow bounds (1) and the design rows (2) and (3)
+ /** Generates (1)-(3) of generate_abstract_constraints(). It is called by
+  * generate_abstract_constraints() in every formulation, and by the
+  * derived classes that build their own rows. */
 
  void generate_bound_constraints( void );
 
 /*--------------------------------------------------------------------------*/
- /// a bogus function to round nasty coefficients in the DCOPF equations
+ /// rounds \p value to the nearest multiple of \p precision
 
  static double round_to( double value , double precision = 1.0 ) {
   return( std::round( value / precision ) * precision );
@@ -1350,15 +1610,17 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the DCNetworkBlock
- /** Method that generates the objective of the DCNetworkBlock. The objective
-  * can include a linear term on the auxiliary variables associated with
-  * network costs, if the vector "NetworkCost" is provided:
+ /** Generates the objective of the DCNetworkBlock, to be minimized,
   * \f[
-  *   \min \ \sum_{l \in \mathcal{L}} NC_l \cdot V_l
+  *   c^{0} + \sum_{ l \in \mathcal{L} } c^{net}_l V_l \; ,
   * \f]
-  * where \f$ NC_l \f$ is the unit network cost of line \f$l\f$ and
-  * \f$ V_l \f$ is the corresponding auxiliary variable
-  * (coefficients are also scaled by the Block scale factor, if any). */
+  * where \f$ c^{0} \f$ is the constant "ConstantTerm" of
+  * NetworkBlock::deserialize() and the sum is there only if some line has
+  * a nonzero cost \f$ c^{net}_l \f$ ("NetworkCost"), in which case
+  * \f$ c^{net}_l V_l = c^{net}_l | F_l | \f$ at an optimum by (4) of
+  * generate_abstract_constraints() (the costs are nonnegative). The costs
+  * are those of the data, in every formulation: no scale factor applies to
+  * a NetworkBlock. \p objc is not used. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -1385,7 +1647,7 @@ class DCNetworkData : public NetworkData
   * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * or f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
   * - If \p fsbc is not a nullptr and it is a pointer to a
@@ -1398,7 +1660,7 @@ class DCNetworkData : public NetworkData
   *   fsbc->f_value.second (any nonzero number for relative violation and
   *   zero for absolute violation);
   *
-  * - Otherwise, if both #f_BlockConfig and
+  * - Otherwise, if both f_BlockConfig and
   *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *   latter is a pointer to either a SimpleConfiguration< double > or to a
   *   SimpleConfiguration< std::pair< double , int > >, then the values of the
@@ -1407,16 +1669,16 @@ class DCNetworkData : public NetworkData
   * - Otherwise, by default, the tolerance is 0 and the relative violation
   *   is considered.
   *
-  * This function currently considers only the abstract representation to
+  * This function considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, then this
+  * ignored. If no abstract Variable has been generated, then this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
   * set of Variable only. Notice also that, before checking if the solution
   * satisfies a Constraint, the Constraint is computed
   * (Constraint::compute()).
   *
-  * @param useabstract This parameter is currently ignored.
+  * @param useabstract This parameter is ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
   *             and the type of violation that must be considered. */
@@ -1433,9 +1695,9 @@ class DCNetworkData : public NetworkData
 
  /// returns the number of nodes
  /** Returns the number of nodes in the transmission network. If
-  * get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_nodes(). Otherwise, it assumes the network
-  * is a bus and returns 1.
+  * get_NetworkData() does not return nullptr, this is
+  * get_NetworkData()->get_number_nodes(). Otherwise, the network is a bus
+  * and the method returns 1.
   *
   * @return the number of nodes in the network. */
 
@@ -1448,8 +1710,9 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// returns the number of lines of the network
  /** This function returns the number of lines in the transmission network.
-  * If get_NetworkData() returns nullptr, this is equivalent to
-  * get_NetworkData()->get_number_lines(). Otherwise, it returns zero.
+  * If get_NetworkData() does not return nullptr, this is
+  * get_NetworkData()->get_number_lines(). Otherwise, the network is a bus
+  * and the method returns zero.
   *
   * @return the number of lines in the network. */
 
@@ -1470,9 +1733,9 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// returns the kappa constant associated with the given \p line
- /** This function returns the kappa constant associated with the given \p
-  * line. This is the constant that multiplies the minimum and maximum flow in
-  * the flow limit constraint associated with the given \p line.
+ /** This function returns the constant \f$ \kappa_l \f$ of the given
+  * \p line, which multiplies its minimum and maximum flow in (1)-(3) of
+  * generate_abstract_constraints() (1 unless set_kappa() changes it).
   *
   * @param line The index of a line (between 0 and get_number_lines() - 1).
   *
@@ -1526,7 +1789,8 @@ class DCNetworkData : public NetworkData
   * \f$ C^{v} \f$ this factor, 1 unless the Configuration of the static
   * Constraint says otherwise [see generate_abstract_constraints()]. Whoever
   * reads the duals of those bounds needs it: the derivative of a bound with
-  * respect to the design is \f$ C^{v} P \f$ and not \f$ P \f$. */
+  * respect to the design is \f$ \kappa C^{v} P \f$ and not
+  * \f$ \kappa P \f$. */
 
  double get_C_v_scal( void ) const { return( f_C_v_scal ); }
 
@@ -1638,7 +1902,7 @@ class DCNetworkData : public NetworkData
   *         or nullptr if that line has no design variable.
   *
   * \note The returned pointer refers to a variable owned externally by the
-  *       corresponding DesignNetworkBlock; it must **not** be deleted or
+  *       corresponding DesignNetworkBlock; it must not be deleted or
   *       modified outside the intended modeling interface. */
 
  ColVariable * get_design( Index line ) const {
@@ -1672,8 +1936,10 @@ class DCNetworkData : public NetworkData
 
  /// returns the vector of power flow limit constraints
  /** This function returns a const reference to the vector of power flow limit
-  * constraints. The i-th element of this vector is a BoxConstraint for the
-  * i-th line of the network. */
+  * constraints. The vector is empty if no line has the bound (1) of
+  * generate_abstract_constraints(); otherwise element \f$ l \f$ is the
+  * bound of line \f$ l \f$, empty (with no Variable) for a line with the
+  * rows (2) and (3). */
 
  const std::vector< BoxConstraint > &
   get_power_flow_limit_constraints( void ) const {
@@ -1681,7 +1947,7 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of power flow limit HVDC bounds
+ /// returns the flow bounds, as get_power_flow_limit_constraints()
 
  const std::vector< BoxConstraint > &
   get_power_flow_limit_HVDC_bounds( void ) const {
@@ -1689,7 +1955,7 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// return the vector of power losses on lines
+ /// return the vector of power losses on lines, all 0 in the DC approximation
 
  virtual std::vector< double > get_line_losses( void ) const {
   return( std::vector( get_number_lines() , 0. ) );
@@ -1697,6 +1963,17 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// returns the dual prices of power flow limits
+ /** Writes in \p dp, for each line \f$ l \f$, the dual value \f$ \mu_l \f$
+  * of its flow limits (1)-(3) of generate_abstract_constraints(), with the
+  * sign convention of RowConstraint: \f$ \mu_l \ge 0 \f$ when the upper
+  * limit is active, \f$ \mu_l \le 0 \f$ when the lower one is, and
+  * \f$ - \mu_l \f$ is the derivative of the optimal value with respect to
+  * the active limit. For a line with no design variable \f$ \mu_l \f$ is
+  * the dual value of its bound (1); for a line with a design variable it
+  * is the sum of the dual values of its rows (2) and (3), or of (2) and of
+  * the lower half of (1) when the line has no row (3), the dual value of a
+  * lower row being nonpositive as that of the lower side of a bound. The
+  * vector is empty if the network has no line. */
 
  void get_dual_prices( std::vector< double > & dp ) const {
   auto nl = get_number_lines();
@@ -1711,12 +1988,12 @@ class DCNetworkData : public NetworkData
        ( v_design_row[ l ] < Inf< Index >() ) ) {  // design on this line
     // the upper side is always a row; the lower one is a row when the line
     // has a nonzero minimum flow, and the lower half of the bound otherwise.
-    // A BoxConstraint carries the two sides in a single dual, with the sign
-    // the lower row has here once negated, so the two add up
+    // The dual of the upper row is >= 0 and that of the lower one <= 0, as
+    // the two sides of a BoxConstraint carry them in a single dual: they add
     dp[ l ] = v_power_flow_limit_design_const[ v_design_row[ l ] ].get_dual();
 
     if( v_design_min_row[ l ] < Inf< Index >() )
-     dp[ l ] -= v_power_flow_limit_design_min_const[ v_design_min_row[ l ]
+     dp[ l ] += v_power_flow_limit_design_min_const[ v_design_min_row[ l ]
                                                      ].get_dual();
     else
      if( ! v_power_flow_limit_const.empty() )
@@ -1809,6 +2086,11 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// sets the dual prices of power flow limits
+ /** Writes \p dp[ l ] as the dual value of the bound (1) of line \f$ l \f$
+  * of generate_abstract_constraints(); nothing is written if no line has
+  * such a bound (every line having the rows (2) and (3)), while the entry
+  * of a line with the rows (2) and (3) is an empty BoxConstraint, whose
+  * dual value is written as well but means nothing. */
 
  void set_dual_prices( const std::vector< double > & dp ) {
   auto nl = get_number_lines();
@@ -1945,6 +2227,34 @@ class DCNetworkData : public NetworkData
   * pointed by \p values, i.e., it is given by the value pointed by (values +
   * i). The parameter \p ordered indicates whether the \p subset is ordered.
   *
+  * The constant \f$ \kappa_l \f$ multiplies both flow limits of line
+  * \f$ l \f$, \f$ \kappa_l C^v P^{mn}_l \le F_l \le \kappa_l C^v
+  * P^{mx}_l \f$ in (1) of generate_abstract_constraints() (and the
+  * coefficients of the design variable in (2) and (3)), and represents an
+  * investment in the capacity of the line: with \f$ P^{mn}_l \f$ and
+  * \f$ P^{mx}_l \f$ the limits of the largest line that can be built,
+  * \f$ \kappa_l \in [ 0 , 1 ] \f$ is the fraction installed. For a line
+  * with no design variable \f$ \kappa_l \f$ appears only in the
+  * right-hand sides of (1), hence the optimal value of a convex problem
+  * that contains the network (e.g., the continuous relaxation of a
+  * UCBlock, or its Lagrangian dual) is a convex function of
+  * \f$ \kappa_l \f$, and with \f$ \mu_l \f$ the dual value of the
+  * limits of the line given by get_dual_prices() a subgradient of it is
+  * \f[
+  *   - C^v \mu_l P^{mx}_l \;\; \text{if } \mu_l \ge 0 \; , \qquad
+  *   - C^v \mu_l P^{mn}_l \;\; \text{if } \mu_l \le 0 \; ;
+  * \f]
+  * summing it over the DCNetworkBlock of all the instants gives the
+  * subgradient with respect to a capacity that is the same over the horizon
+  * (see get_C_v_scal() and \ref ucbm_cap_sens). For a line with a design
+  * variable \f$ x_l \f$, instead, \f$ \kappa_l \f$ multiplies \f$ x_l \f$ in
+  * (2) and (3), a bilinear term, and the optimal value need not be convex in
+  * \f$ \kappa_l \f$; its derivative where it exists is the one above times the
+  * value of \f$ x_l \f$, but it is not a subgradient in general, and
+  * InvestmentFunction refuses such a line. The set_kappa() of
+  * ACNetworkBlock and of OTSNetworkBlock throws, since their lines have
+  * limits in other rows as well.
+  *
   * @param values An iterator to a vector containing the kappa constants.
   *
   * @param subset The indices of the lines whose kappa constants are being
@@ -1998,8 +2308,10 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// change the abstract representation of the injection constraints
- /** This function changes the abstract representation of the power flow
-  * injection constraints for indices in \p modified_nodes.
+ /** This function changes the right-hand side of the node balance (5) of
+  * generate_abstract_constraints() (PTDF formulation of a pure HVDC
+  * network) of the nodes in \p modified_nodes; it does nothing if the
+  * network has a line with nonzero susceptance.
   *
   * @param modified_nodes A vector of the indices of nodes that
   *                         have to be modified.
@@ -2015,7 +2327,10 @@ class DCNetworkData : public NetworkData
   * subset. The active demand at the node whose index is specified by the i-th
   * element in \p subset is given by the i-th element of the vector pointed by
   * \p values, i.e., it is given by the value pointed by (values + i). The
-  * parameter \p ordered indicates whether the \p subset is ordered.
+  * parameter \p ordered indicates whether the \p subset is ordered. If the
+  * abstract representation has been generated, the rows that hold the
+  * demand are changed by change_active_demand_constraints(), which a
+  * derived class with rows of its own redefines.
   *
   * @param values An iterator to a vector containing the active demand.
   *
@@ -2057,30 +2372,24 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// change the abstract representation of the demand-dependent constraints
- /** This function updates the abstract representation of all the constraints
-  * of this DCNetworkBlock whose right-hand side depends on the active demand,
-  * according to the formulation currently selected in #ftype.
-  *
-  * In particular:
-  *
-  * - in the PTDF formulation, it updates the power-flow definition
-  *   constraints and the overall balance constraint;
-  *
-  * - in the CYCLE formulation, it updates the tree-flow definition
-  *   constraints and the overall balance constraint;
-  *
-  * - in the KIRCHHOFF formulation, it updates the nodal balance constraints.
-  *
-  * For mixed DC-HVDC networks, this method also updates the additional
-  * nodal constraints associated with the HVDC part whenever needed.
+ /** This function updates the right-hand sides of all the rows of
+  * generate_abstract_constraints() that depend on the active demand of the
+  * nodes in \p modified_nodes, according to the formulation in #ftype: the
+  * node balances (5) in the PTDF formulation of a pure HVDC network, the
+  * rows (6), (7) and (8) in the PTDF formulation of the other networks, the
+  * rows (9), (7) and (8) in the CYCLE formulation, and the node balances
+  * (12) in the KIRCHHOFF formulation. Nothing is done if the network has a
+  * single node, which has no such row. It is called by
+  * set_active_demand(), and a derived class that builds rows of its own
+  * that hold the demand (see ACNetworkBlock) redefines it.
   *
   * @param modified_nodes A vector containing the indices of the nodes whose
   *        active demand has been modified.
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void change_active_demand_constraints( c_Subset & modified_nodes ,
-                                        c_ModParam issueAMod );
+ virtual void change_active_demand_constraints( c_Subset & modified_nodes ,
+                                                c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// change the abstract representation of the PTDF constraints
@@ -2093,10 +2402,10 @@ class DCNetworkData : public NetworkData
   * - the constant terms of the power-flow definition constraints for all
   *   DC lines;
   *
-  * - the constant term of the overall balance constraint.
+  * - the constant term of the overall balance constraint;
   *
-  * For mixed DC-HVDC networks, it also updates the additional nodal
-  * constraints associated with the HVDC part.
+  * - the right-hand sides of the node balances (8) of
+  *   generate_abstract_constraints(), if any.
   *
   * @param modified_nodes A vector containing the indices of the nodes whose
   *        active demand has been modified.
@@ -2117,10 +2426,10 @@ class DCNetworkData : public NetworkData
   * - the constant terms of the flow-definition constraints associated with
   *   the spanning-tree part of the model;
   *
-  * - the constant term of the overall balance constraint.
+  * - the constant term of the overall balance constraint;
   *
-  * For mixed DC-HVDC networks, it also updates the additional nodal
-  * constraints associated with the HVDC part.
+  * - the right-hand sides of the node balances (8) of
+  *   generate_abstract_constraints(), if any.
   *
   * @param modified_nodes A vector containing the indices of the nodes whose
   *        active demand has been modified.
@@ -2136,11 +2445,9 @@ class DCNetworkData : public NetworkData
   * whose right-hand side depends on the active demand in the KIRCHHOFF
   * formulation.
   *
-  * In particular, it updates the nodal balance constraints corresponding to
-  * the nodes listed in \p modified_nodes.
-  *
-  * For mixed DC-HVDC networks, it also updates the additional nodal
-  * constraints associated with the HVDC part.
+  * In particular, it updates the node balances (12) of
+  * generate_abstract_constraints() of the nodes listed in
+  * \p modified_nodes, which are the only rows that hold the demand.
   *
   * @param modified_nodes A vector containing the indices of the nodes whose
   *        active demand has been modified.
@@ -2151,13 +2458,12 @@ class DCNetworkData : public NetworkData
 						  c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
- /// change the abstract representation of the mixed DC-HVDC nodal constraints
- /** This function updates the abstract representation of the nodal
-  * power-flow injection constraints associated with the HVDC part of a
-  * mixed DC-HVDC network, for the nodes listed in \p modified_nodes.
-  *
-  * These are the constraints generated by generate_HVDC_nodal_constraints()
-  * and stored in #v_DC_HVDC_power_flow_const.
+ /// change the right-hand sides of the node balances (8)
+ /** This function updates the right-hand sides of the node balances (8) of
+  * generate_abstract_constraints() of the nodes in \p modified_nodes that
+  * have one, i.e., the rows generated by generate_HVDC_nodal_constraints()
+  * and stored in #v_DC_HVDC_power_flow_const; it does nothing if there is
+  * none (as in the KIRCHHOFF formulation).
   *
   * @param modified_nodes A vector containing the indices of the nodes whose
   *        active demand has been modified.
@@ -2198,11 +2504,12 @@ class DCNetworkData : public NetworkData
 
  formulation_type ftype;          ///< choice of model
 
- double f_C_v_scal;               ///< scaling factor for flow bounds
+ double f_C_v_scal;               ///< scaling factor C^v of the flow bounds
 
- double f_tikhonov_coeff;         ///< regularization for PTDF computation
+ double f_tikhonov_coeff;         ///< Tikhonov coefficient of the PTDF
 
- double f_ptdf_round;            ///< a coefficient to round some of the possibly nasty numerical values in the PTDF matrices
+ /// the precision to which the coefficients of the PTDF rows are rounded
+ double f_ptdf_round;
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -2226,16 +2533,20 @@ class DCNetworkData : public NetworkData
 
 /*------------------------------- constraints ------------------------------*/
 
- /// HVDC power flow and node injection constraints
+ /// the node balances (5), PTDF formulation of a pure HVDC network
+ /** One for each node; an ACNetworkBlock keeps here its own balances (see
+  * ACNetworkBlock::generate_abstract_constraints()). */
  std::vector< FRowConstraint > v_power_flow_injection_const;
 
- /// Mixed DC - HVDC node injection constraints
+ /// the node balances (8) of the PTDF and CYCLE formulations
+ /** One for each node of the set of generate_abstract_constraints(), in
+  * increasing order of the node. */
  std::vector< FRowConstraint > v_DC_HVDC_power_flow_const;
 
- /// HVDC power flow auxiliary variable constraints
+ /// the rows (4), V_l - F_l >= 0 in [ 0 ] and V_l + F_l >= 0 in [ 1 ]
  boost::multi_array< FRowConstraint , 2 > v_power_flow_relax_abs;
 
- /// Definition of power flow
+ /// the rows (6) of the PTDF formulation
  /** One row for each DC line, in the order of DCNetworkData::get_DC_lines():
   * the HVDC lines have none. */
  std::vector< FRowConstraint > v_power_flow_def;
@@ -2274,28 +2585,29 @@ class DCNetworkData : public NetworkData
   * minimum power flow is zero. */
  std::vector< Index > v_design_min_row;
 
- /// injection equals to demand
+ /// the overall balance (7) of the PTDF and CYCLE formulations
  FRowConstraint overall_balanced_const;
 
- /// definition of the flow
+ /// the rows (9) of the CYCLE formulation, in the order of the DC lines
  std::vector< FRowConstraint > v_CYCLE_def_flow_const;
 
- /// definition of the flow on cycles
+ /// the rows (10) of the CYCLE formulation, one for each cycle
  std::vector< FRowConstraint > v_CYCLE_def_cycle_const;
 
- /// HVDC constraints for cycle formulation
+ /// not used
  std::vector< FRowConstraint > v_CYCLE_def_HVDC_const;
 
- /// flow-angle definition constraints (Kirchhoff formulation)
- /// F_l - B_l * ( theta_from - theta_to ) = 0 for each DC line
+ /// the rows (11) of the KIRCHHOFF formulation, in the order of the DC lines
  std::vector< FRowConstraint > v_KIRCHHOFF_power_flow_def;
 
- /// node power balance constraints (Kirchhoff formulation)
- /// for each node n: -S_n + sum_outgoing F_l - sum_incoming eta_l F_l = -D_n
+ /// the node balances (12) of the KIRCHHOFF formulation, one for each node
  std::vector< FRowConstraint > v_KIRCHHOFF_node_balance_const;
 
- /// reference node angle constraint (Kirchhoff formulation)
- BoxConstraint v_reference_angle_const;
+ /// the reference angles (13) of the KIRCHHOFF formulation
+ /** One for each component of the lines with nonzero susceptance, fixing
+  * to 0 the angle of "ReferenceNode" in its component and that of the node
+  * of lowest index in each of the others. */
+ std::vector< BoxConstraint > v_reference_angle_const;
 
  /// the objective function
  FRealObjective objective;
@@ -2470,11 +2782,10 @@ class DCNetworkBlockSbstMod : public DCNetworkBlockMod
  *
  * - the flow variables on each link
  *
- * - [if available] the dual prices of the link capacity constraints; since
- *   these are typically interpreted as costs and the sign depends on
- *   whether the "upper" or "lower" capacity is active, but the orientation
- *   of links is arbitrary, the absolute value of the reduced cost of the
- *   corresponding constraints is returned
+ * - [if available] the dual prices \f$ \mu_l \f$ of the flow limits of the
+ *   lines given by DCNetworkBlock::get_dual_prices(), with their sign
+ *   (nonnegative when the upper limit is active, nonpositive when the lower
+ *   one is)
  *
  * Note that one DCNetworkBlock covers one time instant, so these variables
  * do not need to be indexed over time instants (unlike those of the base
@@ -2542,9 +2853,9 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   the power flow on line l. The variable is optional.
   *
   * - The variable "DualCost", of type netCDF::NcDouble and indexed over
-  *   the dimension "NumberLines"; DualCost[ l ] is the absolute value of
-  *   the dual variable of the constraint representing the capacity of
-  *   line l. The variable is optional. */
+  *   the dimension "NumberLines"; DualCost[ l ] is the dual price of the
+  *   flow limits of line l given by DCNetworkBlock::get_dual_prices(). The
+  *   variable is optional. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -2585,9 +2896,9 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   * - The variable "DualCost", of type netCDF::NcDouble and indexed both
   *   over the dimension "NumberNetworks" (which is the same as
   *   "TotalNumberInstants", that does not exist) and the dimension
-  *   "NumberLines"; DualCost[ idx ][ l ] is the absolute value of the
-  *   dual variable of the constraint representing the capacity of line l
-  *   for this DCNetworkBlock. The variable is optional.
+  *   "NumberLines"; DualCost[ idx ][ l ] is the dual price of the flow
+  *   limits of line l of this DCNetworkBlock given by
+  *   DCNetworkBlock::get_dual_prices(). The variable is optional.
   *
   * Note that the variables are constructed when \p idx == 0 according to
   * the fact that the corresponding DCNetworkBlockSolution has or not been
@@ -2627,9 +2938,9 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 
  std::vector< double > v_flow;  ///< v_flow[ l ] = flow variable on line l
 
- std::vector< double > v_cost;  /**< v_cost[ l ] = absolute value of the
-                                 *   reduced cost of the capacity constraint
-                                 *   of line l */
+ std::vector< double > v_cost;  /**< v_cost[ l ] = dual price of the flow
+                                 *   limits of line l [see
+                                 *   DCNetworkBlock::get_dual_prices()] */
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 

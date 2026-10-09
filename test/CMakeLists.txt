@@ -27,8 +27,22 @@ if (NOT BUILD_SHARED_LIBS)
 endif ()
 
 # ----- UCBlock_unit_test --------------------------------------------------- #
-add_executable(${modName}_unit_test test.cpp)
+add_executable(${modName}_unit_test test.cpp test_power_limits.cpp)
+
+# test_power_limits.cpp reads its configuration files (the BlockConfig of
+# the formulations, TUBCfg-*.txt and NUBCfg-*.txt, and the BlockSolverConfig
+# LPCmp*.txt) from the source directory
+target_compile_definitions(${modName}_unit_test PRIVATE
+                           UCBLOCK_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${modName}_unit_test PRIVATE SMS++::UCBlock)
+
+# The signs of the dual values are checked with a :MILPSolver when the build
+# has one; MILPSolver comes after this module in the umbrella, hence the
+# option is looked at as well as the target. The module alone has none, and
+# the tester then skips that check.
+if (TARGET SMS++::MILPSolver OR BUILD_MILPSolver)
+    target_link_libraries(${modName}_unit_test PRIVATE SMS++::MILPSolver)
+endif ()
 
 if (WIN32 AND BUILD_SHARED_LIBS AND NOT DEFINED ENV{CONDA_BUILD})
     # On Windows with shared libraries enabled copies all runtime DLL

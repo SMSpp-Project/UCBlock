@@ -1,0 +1,58 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - LPCmpMILPCfg.txt - - - - - - - - - - - - - - -
+#
+# ComputeConfig of the :MILPSolver of LPCmpBSCfg.txt and LPCmpBSCfg-nuc.txt,
+# the reference of the test of the power limits (test_power_limits.cpp):
+# the Solver writes the model it solves in strOutputFile at each compute(),
+# which the test reads and compares; no cut is separated, so that the model
+# is the one the unit generates and no row is added while solving, and the
+# optimum is proven to an accuracy well below the 1e-6 of the comparison
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ComputeConfig         # exact type of the ComputeConfig object
+
+1  # f_diff == 0 ==> all non-provided parameters are set to the default value
+   # f_diff == 1 ==> all non-provided parameters are not changed
+
+4  # number of integer parameters
+
+# now all the integer parameters
+intLogVerb       0    # log verbosity of the MILPSolver
+intRelaxIntVars  0    # nonzero if the continuous relaxation is solved
+intCutSepPar     0    # no cut separated
+Threads          1    # one thread (GRBMILPSolver)
+#CPXPARAM_Threads 1    # one thread (CPXMILPSolver)
+
+1  # number of double parameters
+
+# now all the double parameters
+dblRelAcc        1e-9 # relative accuracy required to the solution
+
+1  # number of string parameters
+
+# now all the string parameters
+strOutputFile    lp_compare.lp # the model written at each compute()
+
+0  # number of vector-of-int parameters
+
+# now all the vector-of-int parameters
+# [none]
+
+0  # number of vector-of-double parameters
+
+# now all the vector-of-double parameters
+# [none]
+
+0  # number of vector-of-string parameters
+
+# now all the vector-of-string parameters
+# [none]
+
+# pointer to the "extra" Configuration
+*  # [none]
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - END LPCmpMILPCfg.txt - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -410,7 +410,15 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
  v_power_flow.resize( 2 * number_lines );
  for( Index line_id = 0 ; line_id < 2 * number_lines ; ++line_id )
   v_power_flow[ line_id ].set_type( ColVariable::kContinuous );
- add_static_variable( v_power_flow , "v_power_flow_real" );
+ // DCNetworkBlock::generate_abstract_variables() has made v_power_flow a
+ // group of static Variable ("p_flow_network", unless there is no line):
+ // that group is replaced, so that the Variable, added by the resize, are
+ // in it and each of them is given to the Solvers once
+ if( const auto i = get_s_var_index( "p_flow_network" ) ;
+     i < get_number_static_variables() )
+  set_static_variable( i , v_power_flow , "v_power_flow_real" );
+ else
+  add_static_variable( v_power_flow , "v_power_flow_real" );
 
  v_reactive_power_flow.resize( 2 * number_lines );
  for( Index line_id = 0 ; line_id < 2 * number_lines ; ++line_id )
@@ -1064,13 +1072,41 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  /* Moreover the SOCP relaxation can be made much stronger following the
   * work by Coffrin et al. This can be done by adding multiple McCormick
   * inequalities; it is optional and can be triggered from the
-  * BlockConfig file. */
+  * BlockConfig file. References: C. Coffrin, H. L. Hijazi and P. Van
+  * Hentenryck, "The QC Relaxation: A Theoretical and Computational Study
+  * on Optimal Power Flow", IEEE Transactions on Power Systems 31(4),
+  * 3008-3018, 2016, doi:10.1109/TPWRS.2015.2463111; H. L. Hijazi,
+  * C. Coffrin and P. Van Hentenryck, "Convex quadratic relaxations for
+  * mixed-integer nonlinear programs in power systems", Mathematical
+  * Programming Computation 9, 321-367, 2017,
+  * doi:10.1007/s12532-016-0112-z. */
  if( b_strongSOCP )
   strengthen_SOCP_relaxation();
 
  set_constraints_generated();  // signal all done
 
  }  // end( ACNetworkBlock::generate_abstract_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlock::change_active_demand_constraints(
+                           c_Subset & modified_nodes , c_ModParam issueAMod )
+{
+ // the active balance of node n is the row n, the reactive one the row
+ // get_number_nodes() + n; none exists with a single node
+ if( v_power_flow_injection_const.empty() )
+  return;
+
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
+ for( auto n : modified_nodes )
+  v_power_flow_injection_const[ n ].set_both(
+                              -v_ActiveDemand[ n ] * f_C_v_scal , nAM );
+
+ close_channel( par2chnl( nAM ) );
+
+ }  // end( ACNetworkBlock::change_active_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1471,36 +1507,10 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
 std::vector< std::pair< double , double > >
  ACNetworkBlock::recover_feasible_solution( void )
 {
- /* Since the solution provided from the AC OPF relaxation problem is not
-  * necessarily feasible, we implement a feasibility-recovery algorithm. */
+ // no voltage profile is recovered from a solution of the relaxation: the
+ // returned vector is empty
 
- std::vector< std::pair< double , double > > v_feasible_sol;
- // each pair is the real and imaginary part
-
- // 1) first, get the solution of the relaxation problem
- std::vector< double > relaxed_power_flow;
- std::vector< double > relaxed_reactive_power_flow;
-
- std::transform( v_power_flow.begin() , v_power_flow.end() ,
-                 relaxed_power_flow.begin() ,
-                 []( const ColVariable & v ) { return( v.get_value() ); }
-                 );
- std::transform( v_reactive_power_flow.begin() ,
-                 v_reactive_power_flow.end() ,
-                 relaxed_reactive_power_flow.begin() ,
-                 []( const ColVariable & v ) { return( v.get_value() ); }
-                 );
-
- // 1b) multiply back the obtained solutions by the earlier scale factor
- //     since indeed we have computed v_power_flow_tilde, and we care for
- //     v_power_flow -> the relation is v_power_flow_tilde = C * v_power_flow
-
- // 2) then compute spanning tree
- auto result = f_NetworkData->get_cycle_basis();
-
- // 3) do some magic (TODO)
-
- return( v_feasible_sol );
+ return( std::vector< std::pair< double , double > >() );
  }  // end( ACNetworkBlock::recover_feasible_solution )
 
 /*--------------------------------------------------------------------------*/

@@ -132,9 +132,10 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
  // load all NetworkBlock, if any
  deserialize_network_blocks( group );
 
- // if they don't exist, create them now as NetworkBlock
- if( v_Block.empty() )
-  v_Block.resize( f_number_subnetworks );
+ // those that do not exist (all of them, or those after the last group
+ // found) are created below as DCNetworkBlock
+ if( v_Block.size() < f_number_subnetworks )
+  v_Block.resize( f_number_subnetworks , nullptr );
 
  for( Index n = 0 ; n < f_number_subnetworks ; ++n ) {
   auto nbi = static_cast< NetworkBlock * >( v_Block[ n ] ) ;
@@ -289,9 +290,9 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  Block::generate_abstract_constraints( stcc );
 
  if( f_num_design_lines ) {
-  // a bound for each design variable that is not fixed to 1, which is
-  // stated on the variable itself: the vector is reserved to its largest
-  // size, so that no bound moves
+  // a bound for each design variable, also when both bounds are 1 (the
+  // line is then built): the vector is reserved to its size, so that no
+  // bound moves
   v_design_bound_Const.reserve( f_num_design_lines );
 
   for( Index p = 0 ; p < f_num_design_lines ; ++p ) {
@@ -301,14 +302,10 @@ void DesignNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    bool is_binary = ( maxd < 0.0 );
    double ub = is_binary ? 1.0 : std::abs( maxd );
 
-   if( ( lb == 1.0 ) && ( ub == 1.0 ) )
-    v_design[ p ].is_unitary( true , eNoMod );
-   else {
-    v_design_bound_Const.emplace_back();
-    v_design_bound_Const.back().set_lhs( lb , eNoMod );
-    v_design_bound_Const.back().set_rhs( ub , eNoMod );
-    v_design_bound_Const.back().set_variable( &v_design[ p ] , eNoMod );
-    }
+   v_design_bound_Const.emplace_back();
+   v_design_bound_Const.back().set_lhs( lb , eNoMod );
+   v_design_bound_Const.back().set_rhs( ub , eNoMod );
+   v_design_bound_Const.back().set_variable( &v_design[ p ] , eNoMod );
 
    if( is_binary )
     v_design[ p ].is_integer( true , eNoMod );

@@ -43,7 +43,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UnitBlock
- #define __UnitBlock  /* self-identification: #endif at the end of the file */
+ #define __UnitBlock  ///< self-identification: endif at the end of the file
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -79,12 +79,12 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// implementation of the Block concept for "a generic unit" in UC
-/** The class UnitBlock, which derives from the Block, defines a base class
- * for any possible "unit" that can be attached to a UCBlock. A unit is in
- * general a set of electrical generators tied together by some technical
- * constraints, although many units actually correspond to only one generator.
- * The base UnitBlock class only has very basic information that can
- * characterize almost any different kind of unit:
+/** UnitBlock, which derives from the Block, defines a base class for any
+ * possible "unit" that can be attached to a UCBlock. A unit is in general a
+ * set of electrical generators tied together by some technical constraints,
+ * although many units actually correspond to only one generator. This base
+ * class only has very basic information, which can characterize almost any
+ * different kind of unit:
  *
  * - The time horizon of the problem;
  *
@@ -94,28 +94,27 @@ namespace SMSpp_di_unipi_it
  * - Whether or not the unit produces also reactive power in addition to
  *   active power.
  *
- * - The default implementation of four variables which are assumed that the
- *   Variable (of each type) for each generator are organised in arrays of
- *   size get_time_horizon() which are:
+ * - A default implementation of five kinds of Variable, organized for each
+ *   kind and generator in arrays of size get_time_horizon(): (i) the
+ *   commitment \f$ u_{t,g} \f$ of the generators of the unit, (ii) their
+ *   primary spinning reserve \f$ p^{pr}_{t,g} \f$, (iii) their secondary
+ *   spinning reserve \f$ p^{sc}_{t,g} \f$, (iv) the active power
+ *   \f$ p^{ac}_{t,g} \f$ they produce, positive when injected into the
+ *   network and negative when absorbed, and (v) the reactive power
+ *   \f$ p^{rc}_{t,g} \f$ they produce. Not all units have all kinds of
+ *   Variable, except for the active power. The reserves are nonnegative and
+ *   symmetric, i.e., the unit must be able to move its power by that amount
+ *   both upward and downward, and each derived class enforces this through
+ *   its constraints.
  *
- *     (i)   the commitment of the generators in the unit;
- *
- *     (ii)  the primary spinning reserve of the generators in the unit;
- *
- *     (iii) the secondary spinning reserve of the generators in the unit;
- *
- *     (iv)  the active power produced by the generators in the unit;
- *
- *     (v)   the reactive power produced by the generators in the unit.
- *
- * Note that not all units produce all types of variables, except for the
- * active power ones.
- *
- * The class also outputs some general information regarding how the active
- * power and / or commitment status of each generator of the unit at a given
- * time instant impact the unit's capability of satisfying inertia
- * constraints, and the fixed consumption (if any) of each generator in the
- * unit when it is off. */
+ * Furthermore, the class outputs some general information regarding how the
+ * active power and / or commitment status of each generator of the unit at a
+ * given time instant impact the unit's capability of satisfying inertia
+ * constraints, the fixed consumption (if any) of each generator in the unit
+ * when it is off, and the levels of its storages. These are the terms with
+ * which the unit enters the linking constraints of the enclosing UCBlock (see
+ * UCBlock::generate_abstract_constraints()), while the complete model is
+ * described in \ref ucblock_model. */
 
 class UnitBlock : public Block
 {
@@ -218,7 +217,7 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
 
 #ifndef NDEBUG
- // extends Block::expected_dims()
+ /// extends Block::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
 
@@ -230,6 +229,9 @@ class UnitBlock : public Block
 #endif
 
 /*--------------------------------------------------------------------------*/
+ /// generates the Variable of the base UnitBlock, i.e., none
+ /** The base UnitBlock has no Variable of its own: each derived class
+  * generates those of its units. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -274,14 +276,20 @@ class UnitBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the fixed consumption of the given generator
  /** This method returns a pointer to the array containing the fixed
-  * consumption (basically, the constants to be multiplied by the commitment
-  * variables returned by get_commitment()) of the given \p generator at all
-  * time instants. Being C the value returned by this method, C[t] is the
-  * inertia commitment of the given \p generator at the time instant t for
-  * each t in {0, ..., time_horizon - 1}.
+  * consumption \f$ P^{au}_{t,g} \geq 0 \f$ of the given \p generator at
+  * all time instants, i.e., the power it absorbs when it is off: being C
+  * the value returned by this method, C[ t ] is the fixed consumption of
+  * the given \p generator at the time instant t, for each t in
+  * { 0 , ..., time_horizon - 1 }. The enclosing UCBlock puts the term
+  * \f$ - P^{au}_{t,g} ( 1 - u_{t,g} ) \f$ in the node injection constraint
+  * (1) of UCBlock::generate_abstract_constraints(), and only if the
+  * generator has commitment variables (see get_commitment()), a generator
+  * without them being always on; the fixed consumption is an active power,
+  * and does not enter the reactive rows.
   *
-  * The default implementation of the method returns nullptr; and derived
-  * classes will have to handle their own data (if any).
+  * The default implementation of the method returns nullptr (no fixed
+  * consumption); derived classes will have to handle their own data (if
+  * any).
   *
   * @param generator The index of the generator whose fixed consumption is
   *                  desired. */
@@ -292,15 +300,20 @@ class UnitBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia commitment of the given generator
- /** This method returns a pointer to the array containing the contribution to
-  * inertia (basically, the constants to be multiplied by the commitment
-  * variables returned by get_commitment()) of the given \p generator at all
-  * time instants. Being C the value returned by this method, C[t] is the
-  * inertia commitment of the given \p generator at the time instant t for
-  * each t in {0, ..., time_horizon - 1}.
+ /** This method returns a pointer to the array containing the contribution
+  * \f$ h^u_{t,g} \f$ to inertia of the given \p generator per unit of
+  * commitment (the constants to be multiplied by the commitment variables
+  * returned by get_commitment()) at all time instants: being C the value
+  * returned by this method, C[ t ] is the inertia the generator gives at the
+  * time instant t, for each t in { 0 , ..., time_horizon - 1 }, whenever it
+  * is on (typically \f$ 1.2 H_t \hat P^{mx}_t \f$ for a synchronous machine
+  * of inertia constant \f$ H_t \f$ and rated power \f$ \hat P^{mx}_t \f$,
+  * see the inertia constraints (4) of
+  * UCBlock::generate_abstract_constraints()).
   *
-  * The default implementation of the method returns nullptr; and derived
-  * classes will have to handle their own data (if any).
+  * The default implementation of the method returns nullptr, meaning no
+  * contribution of this kind; derived classes will have to handle their
+  * own data (if any).
   *
   * @param generator The index of the generator whose inertia commitment is
   *                  desired. */
@@ -311,15 +324,19 @@ class UnitBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the inertia power of the given generator
- /** This method returns a pointer to the array of inertia power (basically,
-  * the constants to be multiplied by the active power variables returned by
-  * get_active_power()) of the given \p generator at all time instants. Being
-  * P the value returned by this method, P[t] is the inertia power of the
-  * given \p generator at the time instant t for each t in {0, ...,
-  * time_horizon - 1}.
+ /** This method returns a pointer to the array containing the contribution
+  * \f$ h^p_{t,g} \f$ to inertia of the given \p generator per unit of
+  * active power (the constants to be multiplied by the active power
+  * variables returned by get_active_power()) at all time instants: being P
+  * the value returned by this method, P[ t ] is that of the time instant t,
+  * for each t in { 0 , ..., time_horizon - 1 } (typically \f$ 1.2 H_t \f$
+  * for a turbine or an intermittent unit of inertia constant \f$ H_t \f$,
+  * see the inertia constraints (4) of
+  * UCBlock::generate_abstract_constraints()).
   *
-  * The default implementation of the method returns nullptr; and derived
-  * classes will have to handle their own data (if any).
+  * The default implementation of the method returns nullptr, meaning no
+  * contribution of this kind (as for a BatteryUnitBlock, which gives no
+  * inertia); derived classes will have to handle their own data (if any).
   *
   * @param generator The index of the generator whose inertia power is
   *                  desired. */
@@ -585,8 +602,12 @@ class UnitBlock : public Block
  /// returns the array of level variables of the given storage
  /** This method returns a pointer to the array containing the level
   * variables of the given \p storage at all time instants. Being V the value
-  * returned by this method, V[ t ] is the level of the storage at the end of
-  * time instant t, for each t in { 0 , ... , time_horizon - 1 }.
+  * returned by this method, V[ t ] is the level \f$ v^{sl}_{t,k} \f$ of the
+  * storage k at the end of time instant t, for each t in { 0 , ... ,
+  * time_horizon - 1 }, an energy, or a volume of water for the reservoir
+  * of a HydroUnitBlock (see \ref ucbm_conv_time); the level
+  * before the horizon is given by the data of
+  * the unit (possibly as equal to the final one).
   *
   * The default implementation returns nullptr, and so does any derived class
   * whose Variable have not been generated yet.
@@ -615,9 +636,11 @@ class UnitBlock : public Block
  /** This method returns the upper bound of the design variable of this
   * UnitBlock when the unit is in design mode. The intended use is for
   * pre-computing fleet-level bounds on node injection in the embedding
-  * UCBlock: the per-time-step contribution of one unit to the node
-  * injection is bounded by `get_scale() * get_design_ub() *
-  * get_max_power( t , g )`.
+  * UCBlock: the contribution of a generator of the unit to the node
+  * injection at instant t is at most `get_scale() * get_design_ub() *
+  * get_kappa() * max( 0 , get_max_power( t , g ) )` (and at least the same
+  * product with the minimum of the minimum power and minus the fixed
+  * consumption), see \ref ucbm_link_bounds.
   *
   * UnitBlock provides a default implementation returning 1 (which is
   * correct for blocks whose design variable is binary, like
@@ -629,6 +652,12 @@ class UnitBlock : public Block
   *         in use or the design is binary). */
 
  virtual double get_design_ub( void ) const { return( 1 ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the constant kappa that multiplies the bounds of the unit
+ /** The default is 1, for the UnitBlock that have no kappa. */
+
+ virtual double get_kappa( void ) const { return( 1 ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -807,37 +836,66 @@ class UnitBlock : public Block
   * the same tasks simultaneously. This case is implemented by stating that a
   * UnitBlock can be scaled.
   *
-  * A scaled UnitBlock must be interpreted as follows. The four sets of
-  * Variable considered by the UnitBlock (namely, active power, commitment,
-  * and primary and secondary spinning reserves) represent what happens to the
-  * UnitBlock independently of the scale factor. For instance, consider the
-  * active power variables. These variables represent the active power
-  * produced by the generators of the UnitBlock. If we denote by \f$ P(g,t)
-  * \f$ the value of the Variable representing the active power produced by
-  * generator g at time t (see get_active_power()) and by \f$ S \f$ the scale
-  * factor of this UnitBlock, then the g-th generator of this UnitBlock
-  * <b>must be interpreted</b> as if it would produce \f$ S P(g,t) \f$ at time
-  * t. That is, the scale factor does not affect the values of the Variable of
-  * the UnitBlock. Any other object that uses the values of these active power
-  * variables must explicitly multiply them by the scale factor in order to
-  * obtain the actual amount of active power produced by the unit. The
-  * treatment of the primary and secondary spinning reserves variables is
-  * similar. Notice, however, that the values of the commitment variables
-  * should not be multiplied by the scale factor, as they simply indicate
-  * whether each generator of the unit is committed or not.
+  * A scaled UnitBlock must be interpreted as follows. The Variable of the
+  * UnitBlock (active and reactive power, commitment, primary and secondary
+  * spinning reserves, storage levels) represent what happens to one copy of
+  * the unit, independently of the scale factor \f$ \sigma \f$. For
+  * instance, if \f$ p^{ac}_{t,g} \f$ is the value of the Variable
+  * representing the active power produced by generator g at time t (see
+  * get_active_power()), then the g-th generator of this UnitBlock is to be
+  * interpreted as producing \f$ \sigma p^{ac}_{t,g} \f$ at time t: the
+  * scale factor does not affect the values of the Variable, and any other
+  * object that uses them must explicitly multiply them by \f$ \sigma \f$
+  * to obtain the amount produced by the whole set of copies, as the
+  * UCBlock does in all its linking constraints (see
+  * UCBlock::generate_abstract_constraints()). The same holds for the
+  * reserves and the storage levels. The commitment variables keep their
+  * values in \f$ \{ 0 , 1 \} \f$, since they indicate whether each
+  * generator of the unit (that is, all its copies) is committed, while
+  * their terms in the linking constraints (the fixed consumption and the
+  * inertia) are multiplied by \f$ \sigma \f$ as the others.
   *
-  * The Objective of the UnitBlock, on the other hand, has a different
-  * relation with the scale factor than that of Variable. If the UnitBlock has
-  * an Objective, then this Objective must take into account the scale factor.
-  * That is, differently from what happens to the Variable of the UnitBlock,
-  * no action is required on the part of an object that uses the Objective of
-  * this UnitBlock: the value of the Objective already considers the scale
-  * factor. For instance, suppose that the Objective of a UnitBlock represents
-  * the cost of that unit, say, \f$ \sum_{g,t} C(g,t) P(g,t) \f$, where \f$
-  * C(g,t) \f$ is the cost of generating one unit of power by the g-th
-  * generator at time t. Then, being \f$ S \f$ the scale factor of the
-  * UnitBlock, its Objective must actually be \f$ S \sum_{g,t} C(g,t) P(g,t)
-  * \f$.
+  * The Objective of the UnitBlock, on the other hand, already takes into
+  * account the scale factor, so that no action is required on the part of
+  * an object that uses it: if the cost of one copy of the unit is, say,
+  * \f$ \sum_{ t , g } b_{t,g} p^{ac}_{t,g} \f$, with \f$ b_{t,g} \f$ the
+  * cost of one unit of power of generator g at time t, then the Objective
+  * of the UnitBlock is \f$ \sigma \sum_{ t , g } b_{t,g} p^{ac}_{t,g} \f$.
+  *
+  * The scale is how an investment in a number of identical copies of a
+  * unit is represented (see \ref ucbm_cap). Let \f$ Z \f$ be the feasible
+  * set of one copy, \f$ f^1( z ) \f$ its cost and \f$ g^1( z ) \f$ the
+  * vector of its contributions to the linking constraints of the enclosing
+  * UCBlock (node injection, reserve, inertia and pollutant rows). Since the
+  * copies share the same Variable, the UnitBlock contributes
+  * \f$ \sigma f^1( z ) \f$ to the objective and \f$ \sigma g^1( z ) \f$ to
+  * the linking rows. When these rows are relaxed with multipliers
+  * \f$ y \f$ (see \ref ucbm_dual), the contribution of the unit to the
+  * dual function is
+  * \f[
+  *   \sigma \min_{ z \in Z } \bigl\{ f^1( z ) + y^\top g^1( z ) \bigr\}
+  *   \; ,
+  * \f]
+  * which is the sum of the contributions of \f$ \sigma \f$ separate
+  * copies whenever \f$ \sigma \f$ is integer; the optimal value of the
+  * dual is therefore a supremum of functions affine in \f$ \sigma \f$, hence
+  * convex in \f$ \sigma \f$, and \f$ f^1( \bar z ) + \bar y^\top
+  * g^1( \bar z ) \f$, computed at an optimal multiplier \f$ \bar y \f$
+  * and at a minimizer \f$ \bar z \f$ of the problem above for
+  * \f$ y = \bar y \f$, is a subgradient of the optimal value with respect
+  * to \f$ \sigma \f$ (the minimum attained at \f$ \bar y \f$ being the
+  * derivative of the affine function that is active at \f$ \sigma \f$).
+  * Such a \f$ \bar z \f$ is what a Solver of the convex problem gives:
+  * for a continuous relaxation (a linear program), the primal solution of
+  * the unit at an optimal pair minimizes the Lagrangian of the unit at
+  * \f$ \bar y \f$ over the relaxed feasible set, by complementary
+  * slackness; for a LagrangianDualSolver, the primal solution is a convex
+  * combination of minimizers found at the optimal multipliers, which is
+  * itself a minimizer over the convex hull of \f$ Z \f$ when \f$ f^1 \f$
+  * is convex and \f$ g^1 \f$ affine. For fractional \f$ \sigma \f$ the
+  * model is the continuous relaxation of the number of copies; for the
+  * problem with integer commitments it is a restriction, since all the
+  * copies take the same decisions at every instant.
   *
   * Since not every UnitBlock may support the notion of scaling, this method
   * has a default empty implementation. Derived classes that support scaling
@@ -905,15 +963,29 @@ class UnitBlock : public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the linearization coefficient of the kappa-parametrized objective
- /** When the investment in this UnitBlock is represented by its kappa constant
-  * (rather than by its scale factor), the kappa multiplies the right-hand side
-  * of a set of the UnitBlock's own Constraints. By the envelope theorem, the
-  * derivative of the optimal objective value of this UnitBlock with respect to
-  * kappa is the sum, over those Constraints, of the dual value times the base
-  * coefficient that kappa multiplies. This method computes that derivative
-  * from the current (dual) solution of this UnitBlock, so that it can be used
-  * as the linearization coefficient of the value function with respect to the
-  * Variable associated with the kappa of this UnitBlock.
+ /** When the investment in this UnitBlock is represented by its capacity
+  * multiplier \f$ \kappa \f$ (rather than by its scale factor), and the
+  * unit is not in design mode, \f$ \kappa \f$ multiplies the data
+  * \f$ b^1_r \f$ in the finite side \f$ \kappa b^1_r \f$ of a set
+  * \f$ \mathcal{R}_\kappa \f$ of the UnitBlock's own Constraints (in a
+  * BatteryUnitBlock with binary variables it also multiplies them in two
+  * rows, see BatteryUnitBlock::get_kappa_linearization()). If the
+  * problem is solved as a convex one, the dual value \f$ \bar y_r \f$ of
+  * each row (with the convention of RowConstraint, minus the derivative of
+  * the optimal value with respect to its active side) gives the
+  * subgradient
+  * \f[
+  *   - \sum_{ r \in \mathcal{R}_\kappa } \bar y_r \, b^1_r
+  * \f]
+  * of the optimal value with respect to \f$ \kappa \f$ (see
+  * \ref ucbm_cap_sens), the side of a two-sided row being the one that
+  * its dual value says is active. This method computes it from the current
+  * (dual) solution of this UnitBlock, so that it can be used as the
+  * linearization coefficient of the value function with respect to the
+  * Variable associated with the kappa of this UnitBlock. In design mode
+  * \f$ \kappa \f$ is instead a coefficient of the design variable, which
+  * this formula does not cover, and the derived classes throw; they also
+  * say which rows they sum over.
   *
   * Since not every UnitBlock supports the notion of kappa, this method has no
   * meaningful default: UnitBlocks whose investment is represented by kappa
@@ -933,6 +1005,8 @@ class UnitBlock : public Block
 /** @name Handling the data of the UnitBlock
  * @{ */
 
+ /// loading a UnitBlock from a stream is not implemented: it throws
+
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "UnitBlock::load() not implemented yet" ) );
  }
@@ -947,17 +1021,17 @@ class UnitBlock : public Block
 /*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- using MAdouble = boost::multi_array< double , 2 >;
- using MAdouble_ext = MAdouble::extent_gen;
- 
- using MACV = boost::multi_array< ColVariable , 2 >;
- using MACV_ext = MAdouble::extent_gen;
+ using MAdouble = boost::multi_array< double , 2 >;  ///< matrix of data
+ using MAdouble_ext = MAdouble::extent_gen;  ///< extents of a MAdouble
 
- using MABC = boost::multi_array< BoxConstraint , 2 >;
- using MABC_ext = MAdouble::extent_gen;
+ using MACV = boost::multi_array< ColVariable , 2 >;  ///< matrix of Variable
+ using MACV_ext = MAdouble::extent_gen;  ///< extents of a MACV
 
- using MAFRC = boost::multi_array< FRowConstraint , 2 >;
- using MAFRC_ext = MAdouble::extent_gen;
+ using MABC = boost::multi_array< BoxConstraint , 2 >;  ///< matrix of bounds
+ using MABC_ext = MAdouble::extent_gen;  ///< extents of a MABC
+
+ using MAFRC = boost::multi_array< FRowConstraint , 2 >;  ///< matrix of rows
+ using MAFRC_ext = MAdouble::extent_gen;  ///< extents of a MAFRC
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
@@ -1007,7 +1081,7 @@ class UnitBlock : public Block
  bool f_reactive_power;
 
  ///< bit-wise coded: what abstract is there
- unsigned char AR;
+ unsigned char AR;  ///< bit-wise coded: what abstract is there
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1028,7 +1102,7 @@ class UnitBlock : public Block
  static constexpr unsigned char HasObj = 64;
  ///< 7th bit of AR == 1 if the Objective has been constructed
 
- SMSpp_insert_in_factory_h;
+ SMSpp_insert_in_factory_h;  ///< registration in the factory
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
@@ -1121,7 +1195,7 @@ class UnitBlockSolution : public Solution {
 
 /*------------------------------- FRIENDS ----------------------------------*/
 
- using Index = Block::Index;  // "import" Index
+ using Index = Block::Index;  ///< "import" Index
 
 /*------------------------------- FRIENDS ----------------------------------*/
 
@@ -1143,8 +1217,10 @@ class UnitBlockSolution : public Solution {
 
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A UnitBlockSolution --------*/
 
+ /// reads the solution of the UnitBlock \p block into this Solution
  void read( const Block * block ) override;
 
+ /// writes this Solution into the UnitBlock \p block
  void write( Block * block ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1204,8 +1280,10 @@ class UnitBlockSolution : public Solution {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
+ /// returns a copy of this Solution with all values times \p factor
  UnitBlockSolution * scale( double factor ) const override;
 
+ /// adds \p multiplier times \p solution to this Solution
  void sum( const Solution * solution , double multiplier ) override;
 
 /*----------- METHODS FOR READING AND WRITING THE SOLUTION -----------------*/
@@ -1301,6 +1379,7 @@ class UnitBlockSolution : public Solution {
 
 /** @} ---------------------------------------------------------------------*/
 
+ /// returns a copy (an empty one if \p empty) of this Solution
  UnitBlockSolution * clone( bool empty = false ) const override;
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1309,6 +1388,7 @@ class UnitBlockSolution : public Solution {
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
+ /// prints the UnitBlockSolution
  void print( std::ostream &output ) const override {
   output << "UnitBlockSolution [" << this << "]: " << std::endl;
   }
@@ -1353,11 +1433,12 @@ class UnitBlockSolution : public Solution {
  ///< v_primary_reserve[ i ][ t ] = primary reserve of generator i at time t
 
  boost::multi_array< double , 2 > v_secondary_reserve;
- ///< v_secondary_reserve[ i ][ t ] = secondary reserve of generator i at time t
+ ///< v_secondary_reserve[ i ][ t ] = secondary reserve of generator i at
+ ///< time t
 
 /*--------------------------------------------------------------------------*/
 
- SMSpp_insert_in_factory_h;
+ SMSpp_insert_in_factory_h;  ///< registration in the factory
 
 /*--------------------------------------------------------------------------*/
 

@@ -92,8 +92,8 @@ SMSpp_insert_in_factory_cpp_0( ThermalUnitExtDPSolver );
 // Attach this Solver to a ThermalUnitBlock. The concrete type of the Block
 // is checked with typeid() (as opposed to dynamic_cast<>) to intentionally
 // *exclude* classes derived from ThermalUnitBlock: such derivatives might
-// add constraints or variables (e.g., primary/secondary reserves) whose
-// semantics are not understood by this DP. When a matching Block is
+// add constraints or variables (e.g., the modulation of a NuclearUnitBlock)
+// whose semantics are not understood by this DP. When a matching Block is
 // attached, all input parameters are loaded eagerly so that run_DP() can
 // use them directly at the next compute().
 
@@ -229,10 +229,10 @@ void ThermalUnitExtDPSolver::recover_schedule( std::vector< double > & p ,
  // on-to-end, intersected, at an interior (both i-1 and i on)
  // transition, with the ramp room left over after the scheduled move,
  // min( DRU_{i-1} - (P[i]-P[i-1]) , DRD_{i-1} + (P[i]-P[i-1]) ).
- // There is no ramp term at a start-up (no in-interval predecessor) nor
- // at i == 0 (matching the DP, which prices the reserve of the first
- // on-instant by capacity alone). A start-up is the first on-instant of
- // an on-interval.
+ // There is no ramp term at a start-up (no in-interval predecessor),
+ // while at i == 0 with the unit on before the horizon the ramp room is
+ // that of the move from InitialPower, as in the DP. A start-up is the
+ // first on-instant of an on-interval.
  auto res_band = [ & ]( Index i ) -> double {
   if( ! ( built && U[ i ] ) )
    return( 0 );                                      // off: no reserve
@@ -245,8 +245,9 @@ void ThermalUnitExtDPSolver::recover_schedule( std::vector< double > & p ,
    cap = bound_down[ i + 1 ];                        // shut-down (off at i+1),
                                                      // also after a start-up
   double H = std::min( P[ i ] - min_power[ i ] , cap - P[ i ] );
-  if( ( i >= 1 ) && U[ i - 1 ] ) {                    // interior transition
-   const double d = P[ i ] - P[ i - 1 ];
+  if( i ? bool( U[ i - 1 ] ) : ( init_up_down_time > 0 ) ) {
+   // interior transition, or the move from InitialPower at 0
+   const double d = P[ i ] - ( i ? P[ i - 1 ] : initial_power );
    H = std::min( H , std::min( delta_ramp_up[ i ] - d ,
                                delta_ramp_down[ i ] + d ) );
    }
@@ -371,9 +372,9 @@ Solution * ThermalUnitExtDPSolver::get_Solution( Configuration * solc )
 // the Block exposes as "possibly empty" (meaning the default value should
 // be used) or "possibly of size 1" (meaning the scalar should be
 // broadcast across the whole horizon) go through retrieve_term() for the
-// broadcast. Fields that ThermalUnitDPSolver does not understand
-// (primary/secondary reserves) abort loading rather than silently drop
-// constraints.
+// broadcast. A unit with a ReferenceSchedule, whose Objective has a term
+// the DP does not represent, aborts loading rather than being solved
+// without it [see ThermalUnitDPSolverBase::load_common_parameters()].
 
 void ThermalUnitExtDPSolver::load_parameters( void )
 {
@@ -474,9 +475,22 @@ void ThermalUnitExtDPSolver::load_fixings( void )
 	 [ & ]( Index k , double val ) {
 	  return( ( ! init_on ) && ( k < min_up_time ) && ( val == 0 ) ); } );
 
+ // nor can a fixing of a Variable of an extended formulation be honoured,
+ // and ThermalUnitBlock makes none
+ const auto ext = fixed_extended_variable();
+ if( ! ext.empty() ) {
+  if( ! owned )
+   f_Block->read_unlock();
+  throw( std::logic_error( std::string(
+   "ThermalUnitExtDPSolver::load_fixings: fixed Variable of the group " ) +
+			   ext + " not supported" ) );
+  }
+
  // unlock the Block
  if( ! owned )
   f_Block->read_unlock();
+
+ force_on_fixed_to_maximum();
 
  }  // end( ThermalUnitExtDPSolver::load_fixings )
 
@@ -555,9 +569,7 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
   auto b = static_cast< ThermalUnitBlock * >( f_Block );
   switch( tubm->type() ) {
    case( ThermalUnitBlockMod::eSetMaxP ):
-    max_power = b->get_max_power();
-    stage = start;
-    return( false );
+    return( true );  // the bounds and the default ramps are derived
 
    case( ThermalUnitBlockMod::eSetInitP ):
     initial_power = b->get_initial_power();
@@ -613,15 +625,11 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
 
    case( ThermalUnitBlockMod::eSetPrSpResCost ):
     primary_reserve_cost = b->get_primary_spinning_reserve_cost();
-    if( primary_reserve_cost.empty() )
-     primary_reserve_cost = primary_rho;
     stage = start;
     return( false );
 
    case( ThermalUnitBlockMod::eSetSecSpResCost ):
     secondary_reserve_cost = b->get_secondary_spinning_reserve_cost();
-    if( secondary_reserve_cost.empty() )
-     secondary_reserve_cost = secondary_rho;
     stage = start;
     return( false );
 
@@ -932,7 +940,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
  const bool startup_in_progress =
   has_ramp_up && ( initial_power < min_power[ 0 ] - 1e-9 );
  const bool shutdown_in_progress =
-  has_ramp_down && ( initial_power > bound_down[ 0 ] + 1e-9 );
+  ( n > 0 ) && ( initial_power > bound_down[ 0 ] + 1e-9 );
 
  // precompute the per-period reserve discount g_t(p): the effective cost
  // the DP minimises is f_t + g_t, so g_t is added wherever f_t is. Empty
@@ -948,6 +956,14 @@ void ThermalUnitExtDPSolver::run_DP( void )
   eff_disc   [ t ] = build_reserve_discount( t , max_power[ t ] );
   eff_disc_su[ t ] = build_reserve_discount( t , bound_on  [ t ] );
   }
+
+ // at instant 0 of a unit on before the horizon the reserve is also bounded
+ // by the ramps of the move from InitialPower, as the deliverability rows
+ // of ThermalUnitBlock at 0 say: its discount replaces eff_disc[ 0 ] for
+ // the on-run that continues from before the horizon
+ const PQFun disc0 = ( ( n > 0 ) && ( init_up_down_time > 0 ) &&
+                       ( ! eff_disc[ 0 ].empty() ) ) ?
+                     initial_reserve_discount( max_power[ 0 ] ) : PQFun();
 
  // reactive on-increment: when the reactive box is commitment-gated
  // ([Qmin_off,Qmax_off] widened by [Qmin_on,Qmax_on] while on), being on
@@ -1170,13 +1186,17 @@ void ThermalUnitExtDPSolver::run_DP( void )
 #endif
   const bool correct = cap_bites && ( t >= 1 );
   if( ! correct ) {                      // plain readout (+ g0 delta at t==0)
-   // at t==0 there is NO on->on transition, hence no corr: the reserve
-   // cap bites only the per-period g0, which the scalar
-   // delta = g_sd - g_int fixes exactly.
+   // at t==0 there is no transition within the horizon, hence no corr: the
+   // reserve cap bites only the per-period term, which the function
+   // delta = g_sd - g_int fixes exactly, both terms being those of the move
+   // from InitialPower [see initial_reserve_discount()] for the on-run that
+   // continues from before the horizon (the only one, a start-up at 0
+   // being a run with tau == 1, read by read_tau1())
    PQFun delta; const bool use_delta = cap_bites && ( t == 0 );
    if( use_delta ) {
-    delta = build_reserve_discount( t , sd_hi );
-    PQFun neg = eff_disc[ t ];
+    delta = ( init_up_down_time > 0 ) ? initial_reserve_discount( sd_hi )
+                                      : build_reserve_discount( t , sd_hi );
+    PQFun neg = ( init_up_down_time > 0 ) ? disc0 : eff_disc[ t ];
     for( auto & pc : neg ) { pc.beta = -pc.beta; pc.gamma = -pc.gamma; }
     add_pwq( delta , neg );               // delta = g_sd - g_int
     }
@@ -1252,7 +1272,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
      F.push_back( { quad_term[ 0 ] , linear_term[ 0 ] ,
                     const_term[ 0 ] + reactive_delta[ 0 ] + mv.cost ,
                     lo , hi } );
-     add_pwq( F , eff_disc[ 0 ] );
+     add_pwq( F , disc0 );
      auto [ v , p ] = min_over( F , lo , hi );
      f_F   [ 0 ].push_back( std::move( F ) );
      f_tau [ 0 ].push_back( tau0 );
@@ -1280,8 +1300,9 @@ void ThermalUnitExtDPSolver::run_DP( void )
   //    initial_power + delta_ramp_up[0] >= min_power[0] (RampUpConstraints)
   //    and the MILP keeps the unit on until it reaches min power.
   //  - SHUT-DOWN: initial_power > shut_down_limit[0] (the last on-power was
-  //    above the shut-down cap), so the unit must stay on and ramp down to
-  //    the cap before it can be switched off.
+  //    above the shut-down cap, whether or not a ramp-down limit is in
+  //    force), so the unit must stay on and reach the cap before it can be
+  //    switched off (at once at t = 0 without a ramp-down limit).
   // In both cases the MILP keeps the unit on for at least t = 0; the off-at-0
   // seeding is then infeasible and must be skipped (the in-horizon shut-down
   // path through v_shutdown handles the trajectory, possibly multi-period).

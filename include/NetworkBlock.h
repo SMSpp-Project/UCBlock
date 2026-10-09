@@ -70,22 +70,49 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// block that describes the network in the UC problem
-/** The class NetworkBlock, which derives from the Block, defines the basic
- * interface for the constraints/optimization problems which describe the
- * behaviour of the network in a specific time instant in the Unit Commitment
- * (UC) problem, as represented in UCBlock.
+/** NetworkBlock, which derives from the Block, defines the basic interface
+ * for the constraints/optimization problems which describe the behavior of
+ * the network in a specific time instant (or in the get_number_intervals()
+ * consecutive instants it covers, see set_time_instant()). This is the
+ * network of the Unit Commitment (UC) problem, as represented in UCBlock,
+ * whose complete model is described in \ref ucblock_model.
  *
- * The base class handles only basic information: it allows to read/set the
- * topology (and capacity/susceptances) of the network, and the active power
- * demand at the different nodes in the given time instant. This information
- * is actually bunched together in a small "passive" NetworkData object (no
- * methods, just a data repository) that can be either de-serialized or
- * passed ready-made (typically, by the UCBlock). Details of the kind of
- * network that is implemented (DC equations, AC equations, OPF, ...)
- * are entirely demanded to derived objects. The interface between a
- * NetworkBlock and the rest of the UC is just the vector of node injection
- * variables, which will have to satisfy the technical constraints of the
- * network. */
+ * This base class handles only basic information, i.e., it allows one to
+ * read/set the topology (and capacity/susceptances) of the network, and the
+ * active power demand at the different nodes in the given time instant. This
+ * information is actually bunched together in a small "passive" NetworkData
+ * object (no methods, just a data repository) that can be either
+ * de-serialized or passed ready-made (typically, by the UCBlock). Details of
+ * the kind of network that is implemented (DC equations, AC equations, energy
+ * communities, ...) are entirely left to the derived classes, e.g.,
+ * DCNetworkBlock, ACNetworkBlock and ECNetworkBlock.
+ *
+ * The interface between a NetworkBlock and the rest of the UC is just the
+ * vector of the node injection variables \f$ S_{t,n} \f$, one for each
+ * instant \f$ t \f$ covered by the Block and each node \f$ n \f$ (see
+ * get_node_injection()), which have to satisfy the technical constraints of
+ * the network. Here \f$ S_{t,n} \f$ is the active power that the units at
+ * node \f$ n \f$ inject into the network at instant \f$ t \f$ (negative when
+ * they absorb power), which UCBlock equates to the sum over the units at the
+ * node of their active power, net of the fixed consumption of the units that
+ * are off (see UCBlock::generate_abstract_constraints()). The demand of the
+ * node, instead, is a datum of the NetworkBlock. Moreover, the base class has
+ * the bounds
+ * \f[
+ *   S^{mn}_{t,n} \le S_{t,n} \le S^{mx}_{t,n}
+ * \f]
+ * given by set_min_node_injection() and set_max_node_injection(), which
+ * UCBlock computes from the power bounds, the fixed consumption, the scale,
+ * the kappa and the design of the units at the node, and again whenever one
+ * of these changes [see UCBlock::set_node_injection_bounds()]; when the rows
+ * of the bounds exist, they follow the new values. These bounds are only
+ * meant to bound variables that would otherwise be free, and they are written
+ * only by the derived classes that call
+ * NetworkBlock::generate_abstract_constraints() (DCNetworkBlock and
+ * ACNetworkBlock do not). Also, the base class has the constant \f$ c^{0} \f$
+ * ("ConstantTerm") of the objective. When the network has a single node there
+ * are no node injection variables, and the balance between production and
+ * demand is written by UCBlock. */
 
 class NetworkBlock : public Block
 {
@@ -428,8 +455,8 @@ class NetworkBlock : public Block
   *   NetworkData object is read from the NcGroup and used instead.
   *
   * - The scalar variable "ConstantTerm", of type netCDF::NcDouble,
-  *   representing the constant term in the objective value of this
-  *   NetowrkBlock. */
+  *   representing the constant term \f$ c^{0} \f$ in the objective of this
+  *   NetworkBlock. The variable is optional, 0 by default. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -473,16 +500,20 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
- /** The base NetworkBlock class has just the node injection variables, which
-  * are mandatory since they are how the NetworkBlock is linked to the rest
-  * of the UC model. */
+ /** The base NetworkBlock class has just the node injection variables
+  * \f$ S_{t,n} \f$ (the group "s_network"), continuous and free, which are
+  * mandatory since they are how the NetworkBlock is linked to the rest of
+  * the UC model; there are none if the network has a single node. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the static constraints of NetworkBlock
- /** The base NetworkBlock class has just the node injection bound
-  * constraints. */
+ /** The base NetworkBlock class has just the node injection bounds
+  * \f$ S^{mn}_{t,n} \le S_{t,n} \le S^{mx}_{t,n} \f$ of the class notes
+  * (the group "Node_Injection_Bound_Const_Network"), which require that
+  * set_min_node_injection() and set_max_node_injection() have been called
+  * for every node and interval. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
@@ -613,9 +644,11 @@ class NetworkBlock : public Block
   *  to the minimum value that the power injection at node \p node can
   *  possibly have on interval \p interval.
   *  This data depends on the generation and therefore cannot possibly be
-  *  autonomously found by the :NewtorkData, but it can stll be of use when
+  *  autonomously found by the :NetworkData, but it can still be of use when
   *  writing down the constraints as it bounds variables that otherwise may
-  *  be ubounded (which is especially bad in the design case). */
+  *  be unbounded (which is especially bad in the design case). If the
+  *  rows of the bounds are generated, the one of \p node and \p interval
+  *  takes the new value. */
 
  virtual void set_min_node_injection( double min_inj , Index node ,
 				      Index interval = 0 ) {
@@ -624,6 +657,8 @@ class NetworkBlock : public Block
                               [ get_number_intervals() ][ get_number_nodes() ]
 			      );
   v_MinNodeInjection[ interval ][ node ] = min_inj;
+  if( node_injection_bounds_const.num_elements() )  // the rows are there
+   node_injection_bounds_const[ node ][ interval ].set_lhs( min_inj );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -632,9 +667,11 @@ class NetworkBlock : public Block
   *  to the maximum value that the power injection at node \p node can
   *  possibly have on interval \p interval.
   *  This data depends on the generation and therefore cannot possibly be
-  *  autonomously found by the :NewtorkData, but it can stll be of use when
+  *  autonomously found by the :NetworkData, but it can still be of use when
   *  writing down the constraints as it bounds variables that otherwise may
-  *  be ubounded (which is especially bad in the design case). */
+  *  be unbounded (which is especially bad in the design case). If the
+  *  rows of the bounds are generated, the one of \p node and \p interval
+  *  takes the new value. */
 
  virtual void set_max_node_injection( double max_inj , Index node ,
 				      Index interval = 0 ) {
@@ -643,6 +680,8 @@ class NetworkBlock : public Block
                               [ get_number_intervals() ][ get_number_nodes() ]
 			      );
   v_MaxNodeInjection[ interval ][ node ] = max_inj;
+  if( node_injection_bounds_const.num_elements() )  // the rows are there
+   node_injection_bounds_const[ node ][ interval ].set_rhs( max_inj );
   }
 
 /*--------------------------------------------------------------------------*/
