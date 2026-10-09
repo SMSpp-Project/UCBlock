@@ -468,6 +468,51 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Intermittent" );
 
+  // the reserve fences (1)-(2), with the installed capacity x in front of
+  // the minimum and maximum power: kappa MinP x and kappa MaxP x are
+  // coefficients of the design Variable rather than right-hand sides
+
+  if( ( f_gamma != 0 ) && ( reserve_vars & 3u ) ) {
+   min_power_Const.resize( f_time_horizon );
+   max_power_Const.resize( f_time_horizon );
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // p - pr - sr - kappa MinP x >= 0
+    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+    if( reserve_vars & 1u )
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+    if( reserve_vars & 2u )
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+    vars.push_back( std::make_pair( &design , -f_kappa * v_MinPower[ t ] ) );
+
+    min_power_Const[ t ].set_lhs( 0.0 );
+    min_power_Const[ t ].set_rhs( Inf< double >() );
+    min_power_Const[ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+
+    // gamma p + pr + sr - gamma kappa MaxP x <= 0
+    vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
+    if( reserve_vars & 1u )
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+    if( reserve_vars & 2u )
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+    vars.push_back( std::make_pair( &design ,
+                                    -f_gamma * f_kappa * v_MaxPower[ t ] ) );
+
+    max_power_Const[ t ].set_lhs( -Inf< double >() );
+    max_power_Const[ t ].set_rhs( 0.0 );
+    max_power_Const[ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+    }
+
+   add_static_constraint( min_power_Const , "MinPower_Intermittent" );
+   add_static_constraint( max_power_Const , "MaxPower_Intermittent" );
+   }
+
   // the lower fence of a unit with no minimum power, as a bound
 
   if( ! has_min_power ) {
@@ -490,18 +535,15 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   const double lb = std::max( 0.0 , f_MinCapacityDesign );
   const double ub = std::abs( f_MaxCapacityDesign );
 
-  if( ( lb == 1.0 ) && ( ub == 1.0 ) )
-   design.is_unitary( true , eNoMod );
-  else {
-   design_bound_Const.set_lhs( lb );
-   design_bound_Const.set_rhs( ub );
-   design_bound_Const.set_variable( &design );
+  // always a row, also when both bounds are 1 (the asset is then built)
+  design_bound_Const.set_lhs( lb );
+  design_bound_Const.set_rhs( ub );
+  design_bound_Const.set_variable( &design );
 
-   add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
+  add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
 
-   if( is_integer_design )
-    design.is_integer( true , eNoMod );
-  }
+  if( is_integer_design )
+   design.is_integer( true , eNoMod );
  }
 
  // reactive power bounds constraints (if any) - - - - - - - - - - - - - - -
@@ -755,6 +797,35 @@ UnitBlockSolution * IntermittentUnitBlock::new_Solution( void ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+void IntermittentUnitBlock::update_reserve_row( Index t , bool max_side ,
+                                                c_ModParam issueAMod )
+{
+ auto & row = max_side ? max_power_Const[ t ] : min_power_Const[ t ];
+ const double value = max_side ? f_gamma * f_kappa * v_MaxPower[ t ]
+                               : f_kappa * v_MinPower[ t ];
+
+ if( f_InvestmentCost == 0 ) {  // the value is a side of the row
+  if( max_side )
+   row.set_rhs( value , issueAMod );
+  else
+   row.set_lhs( value , issueAMod );
+  return;
+  }
+
+ // with a design the value multiplies the design Variable in the row
+ auto f = static_cast< LinearFunction * >( row.get_function() );
+ const auto design_idx = f->is_active( &design );
+ if( design_idx == Inf< Index >() )
+  throw( std::logic_error( "IntermittentUnitBlock::update_reserve_row: "
+                           "expected Variable not found in the reserve "
+                           "Constraints." ) );
+
+ f->modify_coefficient( design_idx , -value , issueAMod );
+
+ }  // end( IntermittentUnitBlock::update_reserve_row )
+
+/*--------------------------------------------------------------------------*/
+
 void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
                                                         c_ModParam issueAMod )
 {
@@ -767,7 +838,7 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
 
  if( ! max_power_Const.empty() )
   for( auto t : time )
-   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] , nAM );
+   update_reserve_row( t , true , nAM );
 
  // with a design the bound is only the lower fence, its right-hand side
  // stays infinite and the maximum power is a coefficient of the row below
@@ -811,7 +882,7 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
 
  if( ! max_power_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t )
-   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] , nAM );
+   update_reserve_row( t , true , nAM );
  // with a design the bound is only the lower fence, its right-hand side
  // stays infinite and the maximum power is a coefficient of the row below
  if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
@@ -1260,12 +1331,11 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
 
     if( ! min_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
-      min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] , nAM );
+      update_reserve_row( t , false , nAM );
 
     if( ! max_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
-      max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] ,
-                                    nAM );
+      update_reserve_row( t , true , nAM );
     close_channel( par2chnl( nAM ) );
 
    }  // end( constraints_generated )
@@ -1321,7 +1391,16 @@ double IntermittentUnitBlock::get_kappa_linearization( void ) const {
   *
   *   P^{mn} ' (lambda_min + alpha_min) -
   *   P^{mx} ' (lambda_max + gamma * alpha_max).
+  *
+  * With a design Variable the bounds are coefficients of it instead, which
+  * this formula does not cover: the two investment mechanisms are not meant
+  * to be combined, and the method throws.
   */
+
+ if( f_InvestmentCost != 0 )
+  throw( std::logic_error( "IntermittentUnitBlock::get_kappa_linearization: "
+                           "kappa of a unit with a design Variable is not "
+                           "supported" ) );
 
  double linearization = 0;
 

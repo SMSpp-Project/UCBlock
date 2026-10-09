@@ -66,7 +66,7 @@ HydroSystemUnitBlock::~HydroSystemUnitBlock()
 HydroUnitBlock * HydroSystemUnitBlock::get_hydro_unit_block( Index i ) const
 {
  #ifndef NDEBUG
- if( i > f_number_hydro_units )
+ if( i >= f_number_hydro_units )
   throw( std::invalid_argument( "HydroSystemUnitBlock::get_hydro_unit_block:"
 				" invalid index " + std::to_string( i ) ) );
  #endif
@@ -187,6 +187,14 @@ void HydroSystemUnitBlock::deserialize_polyhedral_function_block(
  // deserialize the PolyhedralFunctionBlock
  polyhedral_function_block->deserialize( sub_group );
 
+ // the future cost of the water is minimised: it has to be convex
+ if( ! polyhedral_function_block->get_PolyhedralFunction().is_convex() ) {
+  delete( polyhedral_function_block );
+  throw( std::invalid_argument( "HydroSystemUnitBlock::deserialize: the "
+                                "PolyhedralFunction of group " +
+                                sub_group_name + " must be convex" ) );
+  }
+
  v_Block.push_back( polyhedral_function_block );
  }
 
@@ -234,9 +242,9 @@ void HydroSystemUnitBlock::generate_abstract_variables( Configuration * stvv )
    x.push_back( hydro_unit_block->get_volume( r , f_time_horizon - 1 ) );
   }
 
- // set the active Variable of the PolyhedralFunction
- get_polyhedral_function_block()->get_PolyhedralFunction().set_variables(
-							    std::move( x ) );
+ // set the active Variable of the PolyhedralFunction, if there is one
+ if( auto pfb = get_polyhedral_function_block() )
+  pfb->get_PolyhedralFunction().set_variables( std::move( x ) );
  set_variables_generated();
 
  }  // end( HydroSystemUnitBlock::generate_abstract_variables )

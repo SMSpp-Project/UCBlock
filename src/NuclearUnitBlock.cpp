@@ -30,6 +30,8 @@
 
 #include <cmath>
 
+#include <numeric>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -88,6 +90,55 @@ static void assign( std::vector< T > & vec , const Block::Subset sbst ,
  // the values found in vector starting at it
  for( auto t : sbst )
   vec[ t ] = *( it++ );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Sorts the indices of a Subset that the caller gives unordered, together
+ * with the values that go with them: the values are copied, in the new
+ * order, in sorted, and values is set to its beginning. The sort is
+ * stable, so that an index given more than once takes its last value as it
+ * would unsorted. */
+
+static void sort_by_index( Block::Subset & subset ,
+                           std::vector< double >::const_iterator & values ,
+                           std::vector< double > & sorted )
+{
+ std::vector< std::pair< Block::Index , double > > iv( subset.size() );
+ for( Block::Index i = 0 ; i < subset.size() ; ++i )
+  iv[ i ] = std::make_pair( subset[ i ] , *( values + i ) );
+ std::stable_sort( iv.begin() , iv.end() ,
+                   []( const auto & a , const auto & b ) {
+                    return( a.first < b.first ); } );
+ sorted.resize( iv.size() );
+ for( Block::Index i = 0 ; i < iv.size() ; ++i ) {
+  subset[ i ] = iv[ i ].first;
+  sorted[ i ] = iv[ i ].second;
+  }
+ values = sorted.cbegin();
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Throws std::logic_error, the message beginning with fn, if a new
+ * modulation ramp (up or down, as in dir) at the instants of ts, the values
+ * starting at values, is negative or larger than the ramp delta of its
+ * instant. */
+
+static void check_modulation_ramps( const std::string & fn ,
+                                    const char * dir ,
+                                    const Block::Subset & ts ,
+                                    std::vector< double >::const_iterator
+                                                                     values ,
+                                    const std::vector< double > & delta )
+{
+ for( auto t : ts ) {
+  const auto mr = *( values++ );
+  if( ( mr < 0 ) || ( mr > delta[ t ] ) )
+   throw( std::logic_error( fn + ": new modulation ramp " + dir +
+                            " at time " + std::to_string( t ) + " is " +
+                            std::to_string( mr ) + ", not between 0 and "
+                            "the ramp " + dir + " " +
+                            std::to_string( delta[ t ] ) ) );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -287,7 +338,7 @@ void NuclearUnitBlock::check_data_consistency( void ) const
 
  // ModulationDeltaRampUp/Down - - - - - - - - - - - - - - - - - - - - - - -
  // for each t: 0 \leq v_modulation_ramp_up[t]   \leq v_DeltaRampUp[t]
- //             0 \leq v_modulation_ramp_down[t] \leq v_DeltaRampUp[t]
+ //             0 \leq v_modulation_ramp_down[t] \leq v_DeltaRampDown[t]
  assert( v_modulation_ramp_up.size() == f_time_horizon );
  assert( v_modulation_ramp_down.size() == f_time_horizon );
 
@@ -462,21 +513,18 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
+void NuclearUnitBlock::build_rows( bool generate_ZOConstraints )
 {
- if( constraints_generated() )
-  return; // constraints have already been generated
-
- // call the method of the base class - - - - - - - - - - - - - - - - - - - -
+ // the rows of the base class - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // note that set_constraints_generated() is called there inside, so that it
- // does not need to be done again
- ThermalUnitBlock::generate_abstract_constraints( stcc );
+ // [see ThermalUnitBlock::build_rows()]: those below are written with the
+ // same methods, so that they are generated and compared alike
+ ThermalUnitBlock::build_rows( generate_ZOConstraints );
 
  // important information from the base class:
  // - if f_InitUpDownTime > 0 then the unit was on before the initial time
  //   instant 0, i.e.,  u_{0 - 1} = 1, otherwise it was off, i.e.,
- //   u_{0 - 1} = 1
+ //   u_{0 - 1} = 0
  // - if u_{0 - 1} = 1, then f_InitialPower = p_{0 - 1}
  // - v_StartUpLimit, the maximum power on startup
  // - v_ShutDownLimit, the maximum power on shutdown
@@ -492,7 +540,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // nor a downward one increase it, i.e., the row gets + \Delta_{t+} d_t
  const bool dir = has_modulation_direction();
 
- Modulation_RampUp_Constraints.resize( f_time_horizon );
+ size_rows( Modulation_RampUp_Constraints , f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   Index np = t ? 5 : 3;
@@ -517,10 +565,10 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
    *( cfit++ ) = coeff_pair( & v_active_power[ t - 1 ] , -1.0 );
    }
   else {
-   // if t == 0, the "- p_{t-1}" term is fixed and equal to - f_InitialPower,
+   // if t == 0, the "- p_{t-1}" term is fixed and equal to - power_before(),
    // so there is no explicit term in the constraint (since the variable does
-   // not exist) and the RHS becomes f_InitialPower
-   RHS = f_InitialPower;
+   // not exist) and the RHS becomes power_before()
+   RHS = power_before();
    // similarly, the "- \Delta^M_{t+} u_{t-1}" term is fixed, and it is
    // equal to - v_modulation_ramp_up[ t ] if u_{t-1} = 1 (i.e.,
    // f_InitUpDownTime > 0) and 0 otherwise, so this has to be added to RHS
@@ -539,13 +587,11 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   if( dir )
    *cfit = coeff_pair( & v_modulation_down[ t ] , v_DeltaRampUp[ t ] );
 
-  Modulation_RampUp_Constraints[ t ].set_lhs( - Inf< double >() );
-  Modulation_RampUp_Constraints[ t ].set_rhs( RHS );
-  Modulation_RampUp_Constraints[ t ].set_function(
-            new LinearFunction( std::move( cf ) ) );
+  put_row( Modulation_RampUp_Constraints , t , std::move( cf ) ,
+           - Inf< double >() , RHS );
   }
 
- add_static_constraint( Modulation_RampUp_Constraints ,
+ add_rows( Modulation_RampUp_Constraints ,
       "Modulation_RampUp_Constraints_Nuclear" );
 
  // construct the modulation ramp-down constraint - - - - - - - - - - - - - -
@@ -556,7 +602,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // when the direction matters the row is
  // p_{t-1} - p_t - \Delta^M_{t-} u_t + \Delta^M_{t-} m_t - \Delta_{t-} d_t
  // - \bar{u}_t w_t \leq 0
- Modulation_RampDown_Constraints.resize( f_time_horizon );
+ size_rows( Modulation_RampDown_Constraints , f_time_horizon );
 
  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
   Index np = t ? 5 : 4;
@@ -582,22 +628,20 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   if( t )
    *( cfit++ ) = coeff_pair( & v_active_power[ t - 1 ] , 1.0 );
 
-  // the term - \bar{l}_t v_t only exist if t >= init_t, as for t < init_t
+  // the term - \bar{u}_t w_t only exist if t >= init_t, as for t < init_t
   // the commitment status if fixed and shut-downs are not allowed, hence
   // the corresponding shut-down variables are not even defined
   if( t >= init_t )
    *cfit = coeff_pair( & v_shut_down[ t - init_t ] , - v_ShutDownLimit[ t ] );
 
-  Modulation_RampDown_Constraints[ t ].set_lhs( - Inf< double >() );
-  // if t == 0, the "p_{t-1}" term is fixed and equal to f_InitialPower, so
+  // if t == 0, the "p_{t-1}" term is fixed and equal to power_before(), so
   // there is no explicit term in the constraint (since the variable does
-  // not exist) and the RHS becomes - f_InitialPower
-  Modulation_RampDown_Constraints[ t ].set_rhs( t ? 0 : - f_InitialPower );
-  Modulation_RampDown_Constraints[ t ].set_function(
-            new LinearFunction( std::move( cf ) ) );
+  // not exist) and the RHS becomes - power_before()
+  put_row( Modulation_RampDown_Constraints , t , std::move( cf ) ,
+           - Inf< double >() , t ? 0 : - power_before() );
   }
 
- add_static_constraint( Modulation_RampDown_Constraints ,
+ add_rows( Modulation_RampDown_Constraints ,
       "Modulation_RampDown_Constraints_Nuclear" );
 
  // construct the logical constraints - - - - - - - - - - - - - - - - - - - -
@@ -607,7 +651,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // t < init_t either u_t is fixed to 1, and the constraint is redundant, or
  // u_t is fixed to 0 and m_t has been fixed in generate_abstract_variables()
 
- NoDownModulation.resize( f_time_horizon - init_t );
+ size_rows( NoDownModulation , f_time_horizon - init_t );
 
  for( Index t = init_t ; t < f_time_horizon ; ++t ) {
   LinearFunction::v_coeff_pair cf( 2 );
@@ -615,13 +659,11 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
   cf[ 1 ] = coeff_pair( & v_commitment[ t ] , -1.0 );
 
-  NoDownModulation[ t - init_t ].set_lhs( - Inf< double >() );
-  NoDownModulation[ t - init_t ].set_rhs( 0 );
-  NoDownModulation[ t - init_t ].set_function(
-            new LinearFunction( std::move( cf ) ) );
+  put_row( NoDownModulation , t - init_t , std::move( cf ) ,
+           - Inf< double >() , 0 );
   }
 
- add_static_constraint( NoDownModulation , "NoDownModulation_Nuclear" );
+ add_rows( NoDownModulation , "NoDownModulation_Nuclear" );
 
  // construct the logical constraints m_t + v_t \leq 1  - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -635,7 +677,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // forbidden by the initial state (f_initial_modulation), but the latter
  // case is already taken care of in generate_abstract_variables()
 
- NoStartUpModulation.resize( f_time_horizon - init_t );
+ size_rows( NoStartUpModulation , f_time_horizon - init_t );
 
  for( Index t = init_t ; t < f_time_horizon ; ++t ) {
   LinearFunction::v_coeff_pair cf( 2 );
@@ -643,13 +685,11 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
   cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , -1.0 );
 
-  NoStartUpModulation[ t - init_t ].set_lhs( - Inf< double >() );
-  NoStartUpModulation[ t - init_t ].set_rhs( 1.0 );
-  NoStartUpModulation[ t - init_t ].set_function(
-            new LinearFunction( std::move( cf ) ) );
+  put_row( NoStartUpModulation , t - init_t , std::move( cf ) ,
+           - Inf< double >() , 1.0 );
   }
 
- add_static_constraint( NoStartUpModulation ,
+ add_rows( NoStartUpModulation ,
       "NoStartUpModulation_Nuclear" );
 
  // construct the modulation constraint proper- - - - - - - - - - - - - - - -
@@ -675,7 +715,7 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
  if( ( f_max_modulation_length > 1 ) || ( first_c > f_time_horizon ) )
   first_c = f_time_horizon;
 
- ModulationConst.resize( f_time_horizon - first_c );
+ size_rows( ModulationConst , f_time_horizon - first_c );
 
  for( Index t = first_c ; t < f_time_horizon ; ++t ) {
   Index h = std::max( int( 0 ) , int( t ) - f_modulation_interval + 1 );
@@ -684,17 +724,15 @@ void NuclearUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( auto cfit = cf.begin() ; h <= t ; )
    *( cfit++ ) = coeff_pair( & v_modulation[ h++ ] , 1.0 );
 
-  ModulationConst[ t - first_c ].set_lhs( - Inf< double >() );
-  ModulationConst[ t - first_c ].set_rhs( 1.0 );
-  ModulationConst[ t - first_c ].set_function(
-            new LinearFunction( std::move( cf ) ) );
+  put_row( ModulationConst , t - first_c , std::move( cf ) ,
+           - Inf< double >() , 1.0 );
   }
 
- add_static_constraint( ModulationConst , "ModulationConst_Nuclear" );
+ add_rows( ModulationConst , "ModulationConst_Nuclear" );
 
  generate_operating_rules();
 
- } // end( NuclearUnitBlock::generate_abstract_constraints )
+ } // end( NuclearUnitBlock::build_rows )
 /*--------------------------------------------------------------------------*/
 
 void NuclearUnitBlock::generate_operating_rules( void )
@@ -704,14 +742,11 @@ void NuclearUnitBlock::generate_operating_rules( void )
  const Index L = f_max_modulation_length;
  const double INF = Inf< double >();
 
- // append the row lhs <= sum coeff * var <= rhs
+ // append the row lhs <= sum coeff * var <= rhs [see push_row()]
  auto row = [ & ]( std::vector< FRowConstraint > & rows ,
                    LinearFunction::v_coeff_pair && cf , double lhs ,
                    double rhs ) {
-  rows.emplace_back();
-  rows.back().set_lhs( lhs );
-  rows.back().set_rhs( rhs );
-  rows.back().set_function( new LinearFunction( std::move( cf ) ) );
+  push_row( rows , std::move( cf ) , lhs , rhs );
   };
 
  // the days, as [ first , past-the-end ) intervals of instants
@@ -729,7 +764,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
    row( DownModulationLink , { coeff_pair( & v_modulation_down[ t ] , 1.0 ) ,
                                coeff_pair( & v_modulation[ t ] , -1.0 ) } ,
         -INF , 0 );
-  add_static_constraint( DownModulationLink , "DownModulationLink_Nuclear" );
+  add_rows( DownModulationLink , "DownModulationLink_Nuclear" );
   }
 
  if( L > 1 ) {
@@ -746,7 +781,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
           coeff_pair( & v_modulation_down[ t + 1 ] , -1.0 ) ,
           coeff_pair( & v_modulation[ t + 1 ] , 1.0 ) } , -INF , 1 );
    }
-  add_static_constraint( ModulationSameDirection ,
+  add_rows( ModulationSameDirection ,
                          "ModulationSameDirection_Nuclear" );
 
   // full ramp but at the last step- - - - - - - - - - - - - - - - - - - - -
@@ -809,9 +844,9 @@ void NuclearUnitBlock::generate_operating_rules( void )
                                v_StartUpLimit[ t ] ) );
      }
     row( Modulation_FullRampUp , std::move( cu ) ,
-         - A + ( t ? 0 : f_InitialPower ) , INF );
+         - A + ( t ? 0 : power_before() ) , INF );
     row( Modulation_FullRampDown , std::move( cd ) ,
-         - Ad - ( t ? 0 : f_InitialPower ) , INF );
+         - Ad - ( t ? 0 : power_before() ) , INF );
     }
    else {
     cu.push_back( coeff_pair( & v_modulation[ t ] , - M - Du ) );
@@ -820,14 +855,14 @@ void NuclearUnitBlock::generate_operating_rules( void )
     if( cut )
      cd.push_back( coeff_pair( & v_modulation[ t ] , - Dd ) );
     row( Modulation_FullRampUp , std::move( cu ) ,
-         - M + ( t ? 0 : f_InitialPower ) , INF );
+         - M + ( t ? 0 : power_before() ) , INF );
     row( Modulation_FullRampDown , std::move( cd ) ,
-         - Md - ( t ? 0 : f_InitialPower ) , INF );
+         - Md - ( t ? 0 : power_before() ) , INF );
     }
    }
-  add_static_constraint( Modulation_FullRampUp ,
+  add_rows( Modulation_FullRampUp ,
                          "Modulation_FullRampUp_Nuclear" );
-  add_static_constraint( Modulation_FullRampDown ,
+  add_rows( Modulation_FullRampDown ,
                          "Modulation_FullRampDown_Nuclear" );
 
   // s_t >= m_t - m_{t-1}, the start of a modulation, whenever it is there
@@ -841,7 +876,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
      cf.push_back( coeff_pair( & v_modulation[ t - 1 ] , 1.0 ) );
     row( ModulationStartLink , std::move( cf ) , 0 , INF );
     }
-   add_static_constraint( ModulationStartLink ,
+   add_rows( ModulationStartLink ,
                           "ModulationStartLink_Nuclear" );
    }
 
@@ -892,11 +927,11 @@ void NuclearUnitBlock::generate_operating_rules( void )
      row( ModulationEndStarts , std::move( cf ) , -INF , 1.0 );
      }
     }
-  add_static_constraint( ModulationStability , "ModulationStability_Nuclear" );
+  add_rows( ModulationStability , "ModulationStability_Nuclear" );
   if( f_tight_rules && ( ! f_tight_cuts ) ) {
-   add_static_constraint( ModulationStartsApart ,
+   add_rows( ModulationStartsApart ,
                           "ModulationStartsApart_Nuclear" );
-   add_static_constraint( ModulationEndStarts , "ModulationEndStarts_Nuclear" );
+   add_rows( ModulationEndStarts , "ModulationEndStarts_Nuclear" );
    }
 
   // maximum length: sum_{h=t}^{t+L} m_h <= L, and, with the tight rows, each
@@ -909,7 +944,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
     cf.push_back( coeff_pair( & v_modulation[ h ] , 1.0 ) );
    row( ModulationMaxLength , std::move( cf ) , -INF , double( L ) );
    }
-  add_static_constraint( ModulationMaxLength , "ModulationMaxLength_Nuclear" );
+  add_rows( ModulationMaxLength , "ModulationMaxLength_Nuclear" );
   if( f_tight_rules && ( ! f_tight_cuts ) ) {
    ModulationStepStarted.reserve( T );
    for( Index t = 0 ; t < T ; ++t ) {
@@ -919,19 +954,19 @@ void NuclearUnitBlock::generate_operating_rules( void )
      cf.push_back( coeff_pair( & v_modulation_start[ h ] , -1.0 ) );
     row( ModulationStepStarted , std::move( cf ) , -INF , 0.0 );
     }
-   add_static_constraint( ModulationStepStarted ,
+   add_rows( ModulationStepStarted ,
                           "ModulationStepStarted_Nuclear" );
    }
   }
 
  // the bands of the output - - - - - - - - - - - - - - - - - - - - - - - -
  // b^1_t + b^2_t + b^3_t = u_t : one band per on instant, none when off;
- // the output is in its band, save at the instants in which a modulation is
- // in progress and does not end, where it travels between two of them:
- //   p_t >= Pmin b^1 + B_1 b^2 + B_2 b^3 - ( Pmax - Pmin )( m_t - e_t )
- //   p_t <= B_1 b^1 + B_2 b^2 + Pmax b^3 + ( Pmax - Pmin )( m_t - e_t )
+ // the output is always in its band:
+ //   p_t >= Pmin b^1 + B_1 b^2 + B_2 b^3 , p_t <= B_1 b^1 + B_2 b^2 + Pmax b^3
  // with e_t = m_t ( 1 - m_{t+1} ) the last step of a modulation; the band
- // only changes there, and when it does it moves to an adjacent one:
+ // only changes there, hence the steps of a modulation that precede the
+ // last one keep the output in the band of origin, and the last one lands
+ // in an adjacent band:
  //   b^k_t - b^k_{t-1} <= e_t + ( 1 - u_{t-1} ) , and the other way round
  //   b^k_t + b^k_{t-1} <= 2 - e_t , b^1_t + b^3_{t-1} <= 1 , and vice versa
  // and it moves in the direction of the modulation, a step that does not
@@ -954,12 +989,13 @@ void NuclearUnitBlock::generate_operating_rules( void )
   for( Index t = 0 ; t < T ; ++t ) {
    ModulationEndLink[ t ].reserve( 3 );
    BandKeep[ t ].reserve( 6 );
-   BandMove[ t ].reserve( 9 );
+   BandMove[ t ].reserve( 11 );
    }
 
   for( Index t = 0 ; t < T ; ++t ) {
-   const double pmin = get_min_power( t ) , pmax = get_max_power( t );
-   const double M = pmax - pmin;
+   // the operational bounds, as in the rows of ThermalUnitBlock
+   const double pmin = get_operational_min_power( t );
+   const double pmax = get_operational_max_power( t );
 
    row( BandChoice , { coeff_pair( band( 0 , t ) , 1.0 ) ,
                        coeff_pair( band( 1 , t ) , 1.0 ) ,
@@ -969,16 +1005,11 @@ void NuclearUnitBlock::generate_operating_rules( void )
    row( BandPower , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
                       coeff_pair( band( 0 , t ) , - pmin ) ,
                       coeff_pair( band( 1 , t ) , - B1 ) ,
-                      coeff_pair( band( 2 , t ) , - B2 ) ,
-                      coeff_pair( & v_modulation[ t ] , M ) ,
-                      coeff_pair( & v_modulation_end[ t ] , - M ) } , 0 ,
-        INF );
+                      coeff_pair( band( 2 , t ) , - B2 ) } , 0 , INF );
    row( BandPower , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
                       coeff_pair( band( 0 , t ) , - B1 ) ,
                       coeff_pair( band( 1 , t ) , - B2 ) ,
-                      coeff_pair( band( 2 , t ) , - pmax ) ,
-                      coeff_pair( & v_modulation[ t ] , - M ) ,
-                      coeff_pair( & v_modulation_end[ t ] , M ) } , -INF , 0 );
+                      coeff_pair( band( 2 , t ) , - pmax ) } , -INF , 0 );
 
    // e_t = m_t ( 1 - m_{t+1} ), the last step of a modulation
    row( ModulationEndLink[ t ] , { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
@@ -1046,6 +1077,15 @@ void NuclearUnitBlock::generate_operating_rules( void )
      row( BandMove[ t ] , { coeff_pair( band( b0 + 1 , 0 ) , 1.0 ) ,
                        coeff_pair( & v_modulation_down[ 0 ] , 1.0 ) } ,
           -INF , 1 );
+    // no step up from the top band, no step down from the bottom one [see
+    // the rows of t >= 1 below]
+    if( b0 == 2 )
+     row( BandMove[ t ] , { coeff_pair( & v_modulation[ 0 ] , 1.0 ) ,
+                       coeff_pair( & v_modulation_down[ 0 ] , -1.0 ) } ,
+          -INF , 0 );
+    if( b0 == 0 )
+     row( BandMove[ t ] , { coeff_pair( & v_modulation_down[ 0 ] , 1.0 ) } ,
+          -INF , 0 );
     continue;
     }
 
@@ -1085,13 +1125,23 @@ void NuclearUnitBlock::generate_operating_rules( void )
                       coeff_pair( & v_modulation_down[ t ] , 1.0 ) } ,
          -INF , 2 );
     }
+   // a step leaves the band the unit is in towards an adjacent one, hence
+   // none goes up from the top band or down from the bottom one: within the
+   // horizon this follows from the rows above, but a modulation that the
+   // horizon cuts does not land, and it would escape them
+   //   m_t - d_t + b^3_{t-1} <= 1 , d_t + b^1_{t-1} <= 1
+   row( BandMove[ t ] , { coeff_pair( & v_modulation[ t ] , 1.0 ) ,
+                     coeff_pair( & v_modulation_down[ t ] , -1.0 ) ,
+                     coeff_pair( band( 2 , t - 1 ) , 1.0 ) } , -INF , 1 );
+   row( BandMove[ t ] , { coeff_pair( & v_modulation_down[ t ] , 1.0 ) ,
+                     coeff_pair( band( 0 , t - 1 ) , 1.0 ) } , -INF , 1 );
    }
 
-  add_static_constraint( BandChoice , "BandChoice_Nuclear" );
-  add_static_constraint( BandPower , "BandPower_Nuclear" );
-  add_static_constraint( ModulationEndLink , "ModulationEnd_Nuclear" );
-  add_static_constraint( BandKeep , "BandKeep_Nuclear" );
-  add_static_constraint( BandMove , "BandMove_Nuclear" );
+  add_rows( BandChoice , "BandChoice_Nuclear" );
+  add_rows( BandPower , "BandPower_Nuclear" );
+  add_rows( ModulationEndLink , "ModulationEnd_Nuclear" );
+  add_rows( BandKeep , "BandKeep_Nuclear" );
+  add_rows( BandMove , "BandMove_Nuclear" );
   }
 
  // stability after a start-up - - - - - - - - - - - - - - - - - - - - - - -
@@ -1122,7 +1172,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
     row( StartUpStability[ t ] , std::move( cf ) , -INF , double( h1 - t ) );
     }
    }
-  add_static_constraint( StartUpStability , "StartUpStability_Nuclear" );
+  add_rows( StartUpStability , "StartUpStability_Nuclear" );
   }
 
  // modulations per day- - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1136,7 +1186,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
    row( ModulationsPerDayConst , std::move( cf ) , -INF ,
         double( f_modulations_per_day ) );
    }
-  add_static_constraint( ModulationsPerDayConst ,
+  add_rows( ModulationsPerDayConst ,
                          "ModulationsPerDay_Nuclear" );
   }
 
@@ -1151,7 +1201,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
     row( StartUpsPerDayConst , std::move( cf ) , -INF ,
          double( f_start_ups_per_day ) );
    }
-  add_static_constraint( StartUpsPerDayConst , "StartUpsPerDay_Nuclear" );
+  add_rows( StartUpsPerDayConst , "StartUpsPerDay_Nuclear" );
   }
 
  // deep decreases - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1178,7 +1228,8 @@ void NuclearUnitBlock::generate_operating_rules( void )
     row( DeepLowConst ,
          { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
            coeff_pair( & v_deep_low[ t ] ,
-                       std::max( pd - get_min_power( t ) , 0.0 ) ) ,
+                       std::max( pd - get_operational_min_power( t ) ,
+                                 0.0 ) ) ,
            coeff_pair( & v_commitment[ t ] , - pd ) } , 0 , INF );
    else
     row( DeepLowConst , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
@@ -1197,9 +1248,9 @@ void NuclearUnitBlock::generate_operating_rules( void )
                           coeff_pair( & v_commitment[ t ] , -1.0 ) } ,
         -2 , INF );
    }
-  add_static_constraint( DeepLowConst , "DeepLow_Nuclear" );
-  add_static_constraint( DeepDropConst , "DeepDrop_Nuclear" );
-  add_static_constraint( DeepLinkConst , "DeepLink_Nuclear" );
+  add_rows( DeepLowConst , "DeepLow_Nuclear" );
+  add_rows( DeepDropConst , "DeepDrop_Nuclear" );
+  add_rows( DeepLinkConst , "DeepLink_Nuclear" );
 
   // a decrease by at least the deep gradient is larger than what a stable
   // instant allows, hence a deep decrease is a downward modulation step:
@@ -1213,7 +1264,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
             coeff_pair( dir ? & v_modulation_down[ t ] : & v_modulation[ t ] ,
                         -1.0 ) } , -INF , 0 );
    if( ! DeepDownLink.empty() )
-    add_static_constraint( DeepDownLink , "DeepDownLink_Nuclear" );
+    add_rows( DeepDownLink , "DeepDownLink_Nuclear" );
    }
 
   if( f_deep_decreases_per_day >= 0 ) {
@@ -1225,18 +1276,20 @@ void NuclearUnitBlock::generate_operating_rules( void )
     row( DeepDecreasesPerDayConst , std::move( cf ) , -INF ,
          double( f_deep_decreases_per_day ) );
     }
-   add_static_constraint( DeepDecreasesPerDayConst ,
+   add_rows( DeepDecreasesPerDayConst ,
                           "DeepDecreasesPerDay_Nuclear" );
    }
   }
  // the rows that are separated are those written on the start Variable,
  // which only exists if a modulation may last more than one instant
- if( f_tight_cuts && ( ! v_modulation_start.empty() ) ) {
-  v_cut_done.assign( 3 * T , 0 );
-  add_dynamic_constraint( Nuclear_cuts , "Nuclear_cuts" );
+ if( generating_rows() ) {
+  if( f_tight_cuts && ( ! v_modulation_start.empty() ) ) {
+   v_cut_done.assign( 3 * T , 0 );
+   add_dynamic_constraint( Nuclear_cuts , "Nuclear_cuts" );
+   }
+  else
+   f_tight_cuts = false;
   }
- else
-  f_tight_cuts = false;
 
  }  // end( NuclearUnitBlock::generate_operating_rules )
 
@@ -1379,7 +1432,8 @@ void NuclearUnitBlock::set_solution( void )
  // horizon, where a modulation that the horizon cuts may be still in
  // progress; it has ended there if the whole window is modulating, or if
  // its step is not a full ramp in its direction, which only a last step is
- // allowed to be
+ // allowed to be, or if its output is out of the band of origin, which
+ // only a last step may leave
  if( has_power_bands() && ( ! v_modulation.empty() ) ) {
   const Index T = f_time_horizon;
   const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
@@ -1389,23 +1443,30 @@ void NuclearUnitBlock::set_solution( void )
     ( ( v_modulation[ t ].get_value() > 0.5 ) &&
       ( v_modulation[ t + 1 ].get_value() < 0.5 ) ) ? 1 : 0 );
 
+  // whether e_{T-1} is only guessed from the size of the step: a last step
+  // may also be a full ramp, and the band sweep below decides then
+  bool guessed = false;
   if( T ) {
    const Index t = T - 1;
    bool ended = v_modulation[ t ].get_value() > 0.5;
    if( ended ) {
-    bool forced = true;
+    // the window of the last L^M instants has to be all inside the horizon,
+    // since the unit is never in the middle of a modulation at its start: a
+    // modulation that covers a horizon shorter than L^M may be cut by it
+    bool forced = ( T >= f_max_modulation_length );
     for( Index h = ( T >= f_max_modulation_length ?
                      T - f_max_modulation_length : 0 ) ;
          forced && ( h < T ) ; ++h )
      if( v_modulation[ h ].get_value() < 0.5 )
       forced = false;
-    const double pp = t ? Pi[ t - 1 ].get_value() : f_InitialPower;
+    const double pp = t ? Pi[ t - 1 ].get_value() : power_before();
     const bool down = ( ! v_modulation_down.empty() ) &&
                       ( v_modulation_down[ t ].get_value() > 0.5 );
     const double mv = down ? pp - Pi[ t ].get_value()
                            : Pi[ t ].get_value() - pp;
     const double D = down ? v_DeltaRampDown[ t ] : v_DeltaRampUp[ t ];
     ended = forced || ( mv < D - 1e-6 * std::max( 1.0 , D ) );
+    guessed = ! ended;
     }
    v_modulation_end[ t ].set_value( ended ? 1 : 0 );
    }
@@ -1419,11 +1480,10 @@ void NuclearUnitBlock::set_solution( void )
   // consistent is left with the one that fits each instant, so that the
   // rows it breaks are the ones that say why
   auto fits = [ & ]( Index k , Index t ) -> bool {
-   if( ( v_modulation[ t ].get_value() > 0.5 ) &&
-       ( v_modulation_end[ t ].get_value() < 0.5 ) )
-    return( true );          // travelling between two bands: any of them
-   const double lo = k ? ( ( k > 1 ) ? B2 : B1 ) : get_min_power( t );
-   const double hi = ( k > 1 ) ? get_max_power( t ) : ( k ? B2 : B1 );
+   const double lo = k ? ( ( k > 1 ) ? B2 : B1 ) :
+                         get_operational_min_power( t );
+   const double hi = ( k > 1 ) ? get_operational_max_power( t ) :
+                                 ( k ? B2 : B1 );
    const double p = Pi[ t ].get_value();
    const double tol = 1e-6 * std::max( 1.0 , std::max( std::abs( lo ) ,
                                                        std::abs( hi ) ) );
@@ -1447,32 +1507,51 @@ void NuclearUnitBlock::set_solution( void )
     return( false );
    if( j == none )                    // a start-up picks its band freely
     return( true );
-   if( v_modulation_end[ t ].get_value() > 0.5 )
-    return( ( k != j ) && ( ( k > j ? k - j : j - k ) == 1 ) );
+   // the direction of the step, which the bands always have (25), (26)
+   const bool mod = v_modulation[ t ].get_value() > 0.5;
+   const bool down = v_modulation_down[ t ].get_value() > 0.5;
+   if( mod && ( down ? ( j == 0 ) : ( j == 2 ) ) )
+    return( false );                  // outwards from an extreme band (26)
+   if( v_modulation_end[ t ].get_value() > 0.5 )  // the adjacent band in
+    return( down ? ( j > 0 ) && ( k == j - 1 )    // the direction of the
+                 : ( k == j + 1 ) );              // modulation (24), (25)
    return( k == j );
    };
 
-  for( Index k = 0 ; k < 4 ; ++k )
-   if( step( 0 , b_init , k ) ) {
-    seen[ 0 ][ k ] = true;
-    back[ 0 ][ k ] = b_init;
-    }
-  for( Index t = 1 ; t < T ; ++t )
-   for( Index j = 0 ; j < 4 ; ++j ) {
-    if( ! seen[ t - 1 ][ j ] )
-     continue;
-    for( Index k = 0 ; k < 4 ; ++k )
-     if( ( ! seen[ t ][ k ] ) && step( t , j , k ) ) {
-      seen[ t ][ k ] = true;
-      back[ t ][ k ] = j;
-      }
-    }
+  auto sweep = [ & ]( void ) -> Index {
+   for( Index t = 0 ; t < T ; ++t )
+    seen[ t ] = { false , false , false , false };
+   for( Index k = 0 ; k < 4 ; ++k )
+    if( step( 0 , b_init , k ) ) {
+     seen[ 0 ][ k ] = true;
+     back[ 0 ][ k ] = b_init;
+     }
+   for( Index t = 1 ; t < T ; ++t )
+    for( Index j = 0 ; j < 4 ; ++j ) {
+     if( ! seen[ t - 1 ][ j ] )
+      continue;
+     for( Index k = 0 ; k < 4 ; ++k )
+      if( ( ! seen[ t ][ k ] ) && step( t , j , k ) ) {
+       seen[ t ][ k ] = true;
+       back[ t ][ k ] = j;
+       }
+     }
+   Index lst = 4;
+   for( Index k = 0 ; ( k < 4 ) && ( lst > 3 ) ; ++k )
+    if( T && seen[ T - 1 ][ k ] )
+     lst = k;
+   return( lst );
+   };
 
   std::vector< Index > b( T , none );
-  Index last = 4;
-  for( Index k = 0 ; ( k < 4 ) && ( last > 3 ) ; ++k )
-   if( T && seen[ T - 1 ][ k ] )
-    last = k;
+  Index last = sweep();
+  // a full-ramp step at T - 1 that leaves the band of origin can only be
+  // the last step of a modulation, landing in the adjacent band
+  if( ( last > 3 ) && guessed ) {
+   v_modulation_end[ T - 1 ].set_value( 1 );
+   if( ( last = sweep() ) > 3 )
+    v_modulation_end[ T - 1 ].set_value( 0 );
+   }
   if( last < 4 )
    for( Index t = T ; t-- ; ) {
     b[ t ] = last;
@@ -1662,8 +1741,9 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
  if( subset.empty() || cost.empty() )
   return;
 
+ std::vector< double > sorted;  // the values in the order of the subset
  if( ! ordered )
-  std::sort( subset.begin() , subset.end() );
+  sort_by_index( subset , values , sorted );
 
  if( subset.back() >= cost.size() )
   throw( std::invalid_argument( "NuclearUnitBlock::set_rule_costs: invalid "
@@ -2033,8 +2113,9 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ std::vector< double > sorted;  // the values in the order of the subset
  if( ! ordered )
-  std::sort( subset.begin() , subset.end() );
+  sort_by_index( subset , values , sorted );
 
  if( subset.back() >= f_time_horizon )
   throw( std::invalid_argument( fn + ": invalid index in subset" ) );
@@ -2042,68 +2123,25 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
  if( identical( v_modulation_ramp_up , subset , values ) )  // no changes
   return;                                                   // return
 
- // check correctness of new values w.r.t. v_DeltaRampUp
- auto vit = values;
- for( auto t : subset ) {
-  auto mrut = *( vit++ );
-  if( mrut < 0 )
-   throw( std::logic_error( fn + ": new modulation ramp up at time " +
-                            std::to_string( t ) + " is " +
-                            std::to_string( mrut ) + " < 0" ) );
+ // the new data are checked before anything changes
+ check_modulation_ramps( fn , "up" , subset , values , v_DeltaRampUp );
 
-  if( mrut > v_DeltaRampUp[ t ] )
-   throw( std::logic_error( fn + ": new modulation ramp up at time " +
-          std::to_string( t ) + " is " +
-          std::to_string( mrut ) + "> ramp up = " +
-          std::to_string( v_DeltaRampUp[ t ] ) ) );
-  }
+ if( ! not_dry_run( issuePMod ) )
+  return;
 
- if( not_dry_run( issuePMod ) )  // change the physical representation
-  assign( v_modulation_ramp_up , subset , values );
-
- if( not_dry_run( issueAMod ) && constraints_generated() ) {
-  // change the abstract representation
-  // now change the corresponding Modulation_RampUp_Constraint[ t ]. note
-  // that the \Delta^M_{t+} appears as the coefficient of u_{t-1} (if t > 0),
-  // with opposite sign, and in the coefficient
-  // ( \Delta_{t+} - \Delta^M_{t+} ) of m_t, again with opposite sign
-  // these are respectively the coefficient 1 and 3 (the latter, only if
-  // t > 0) of the LinearFunction in the FRowConstraint
-  // if t == 0 then there is no term in u_{t-1} in the LinearFunction, but
-  // \Delta^M_{t+} rather appears in the RHS, summed to f_InitialPower, if
-  // u_{0 - 1} = 1, i.e., f_InitUpDownTime > 0
-
-  // since several "abstract Modification" will be issued, pack them all into
-  // a single GroupModification
-  auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-            open_channel( par2chnl( issueAMod ) ) ) );
-
-  // the instant 0, if it is there, is the only one whose \Delta^M_{t+} is in
-  // the RHS rather than in a coefficient: it is dealt with here, out of the
-  // loop, which then has no test of its own to do
-  auto vt = values;
-  if( subset.front() == 0 ) {
-   const auto mru0 = *( vt++ );
-   LF( Modulation_RampUp_Constraints[ 0 ].get_function()
-       )->modify_coefficient( 1 , - ( v_DeltaRampUp[ 0 ] - mru0 ) , nAM );
-   Modulation_RampUp_Constraints[ 0 ].set_rhs(
-        f_InitialPower + ( f_InitUpDownTime > 0 ? mru0 : 0 ) , nAM );
+ // change the physical representation, and then the abstract one: every
+ // row is written anew and those that differ change [see update_rows()];
+ // if it cannot be, the data are restored, so that the two do not disagree
+ const auto old = v_modulation_ramp_up;
+ assign( v_modulation_ramp_up , subset , values );
+ if( not_dry_run( issueAMod ) && constraints_generated() )
+  try {
+   update_rows( un_ModBlock( issueAMod ) );
    }
-
-  // the two coefficients of each of the other instants, the modulation
-  // variable being in position 1 of the LinearFunction and the commitment
-  // one in position 2, go in a single Modification
-  for( auto sit = subset.begin() + ( subset.front() == 0 ? 1 : 0 ) ;
-       sit != subset.end() ; ++sit ) {
-   const auto t = *sit;
-   const auto mrut = *( vt++ );
-   LF( Modulation_RampUp_Constraints[ t ].get_function()
-       )->modify_coefficients( { - ( v_DeltaRampUp[ t ] - mrut ) , - mrut } ,
-                               Range( 1 , 3 ) , nAM );
+  catch( ... ) {
+   v_modulation_ramp_up = old;
+   throw;
    }
-
-  close_channel( par2chnl( nAM ) );  // at the end close the channel
-  }
 
  if( issue_pmod( issuePMod ) )  // issue a physical Modification
   Block::add_Modification( std::make_shared< NuclearUnitBlockSbstMod >( this ,
@@ -2111,7 +2149,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
                                               std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
- }  // end( NuclearUnitBlock::set_modulation_ramp_up )
+ }  // end( NuclearUnitBlock::set_modulation_ramp_up( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2125,81 +2163,37 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
  if( rng.second <= rng.first )
   return;
 
- // if nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
-                 v_modulation_ramp_up.begin() + rng.first ) )
+ Subset ts( rng.second - rng.first );
+ std::iota( ts.begin() , ts.end() , rng.first );
+
+ if( identical( v_modulation_ramp_up , ts , values ) )  // no changes
+  return;                                               // return
+
+ // the new data are checked before anything changes
+ check_modulation_ramps( fn , "up" , ts , values , v_DeltaRampUp );
+
+ if( ! not_dry_run( issuePMod ) )
   return;
 
- // check correctness of new values w.r.t. v_DeltaRampUp
- auto vit = values;
- for( auto t = rng.first ; t < rng.second ; ++t ) {
-  auto mrut = *( vit++ );
-  if( mrut < 0 )
-   throw( std::logic_error( fn + ": new modulation ramp up at time " +
-                            std::to_string( t ) + " is " +
-                            std::to_string( mrut ) + " < 0" ) );
-
-  if( mrut > v_DeltaRampUp[ t ] )
-   throw( std::logic_error( fn + ": new modulation ramp up at time " +
-          std::to_string( t ) + " is " +
-          std::to_string( mrut ) + "> ramp up = " +
-          std::to_string( v_DeltaRampUp[ t ] ) ) );
-  }
-
-
- if( not_dry_run( issuePMod ) )  // change the physical representation
-  std::copy( values , values + ( rng.second - rng.first ) ,
-             v_modulation_ramp_up.begin() + rng.first );
-
- if( not_dry_run( issueAMod ) && constraints_generated() ) {
-  // change the abstract representation
-  // now change the corresponding Modulation_RampUp_Constraint[ t ]. note
-  // that the \Delta^M_{t+} appears as the coefficient of u_{t-1} (if t > 0),
-  // with opposite sign, and in the coefficient
-  // ( \Delta_{t+} - \Delta^M_{t+} ) of m_t, again with opposite sign
-  // these are respectively the coefficient 1 and 3 (the latter, only if
-  // t > 0) of the LinearFunction in the FRowConstraint
-  // if t == 0 then there is no term in u_{t-1} in the LinearFunction, but
-  // \Delta^M_{t+} rather appears in the RHS, summed to f_InitialPower, if
-  // u_{0 - 1} = 1, i.e., f_InitUpDownTime > 0
-
-  // since several "abstract Modification" will be issued, pack them all into
-  // a single GroupModification
-  auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-            open_channel( par2chnl( issueAMod ) ) ) );
-
-  // the instant 0, if it is in the range, is the only one whose
-  // \Delta^M_{t+} is in the RHS rather than in a coefficient: it is dealt
-  // with here, out of the loop, which then has no test of its own to do
-  auto t = rng.first;
-  if( t == 0 ) {
-   const auto mru0 = *( values++ );
-   LF( Modulation_RampUp_Constraints[ 0 ].get_function()
-       )->modify_coefficient( 1 , - ( v_DeltaRampUp[ 0 ] - mru0 ) , nAM );
-   Modulation_RampUp_Constraints[ 0 ].set_rhs(
-        f_InitialPower + ( f_InitUpDownTime > 0 ? mru0 : 0 ) , nAM );
-   ++t;
+ // change the physical representation, and then the abstract one, as in
+ // the method above
+ const auto old = v_modulation_ramp_up;
+ assign( v_modulation_ramp_up , ts , values );
+ if( not_dry_run( issueAMod ) && constraints_generated() )
+  try {
+   update_rows( un_ModBlock( issueAMod ) );
    }
-
-  // the two coefficients of each of the other instants, the modulation
-  // variable being in position 1 of the LinearFunction and the commitment
-  // one in position 2, go in a single Modification
-  for( ; t < rng.second ; ++t ) {
-   const auto mrut = *( values++ );
-   LF( Modulation_RampUp_Constraints[ t ].get_function()
-       )->modify_coefficients( { - ( v_DeltaRampUp[ t ] - mrut ) , - mrut } ,
-                               Range( 1 , 3 ) , nAM );
+  catch( ... ) {
+   v_modulation_ramp_up = old;
+   throw;
    }
-
-  close_channel( par2chnl( nAM ) );  // at the end close the channel
-  }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockRngdMod >( this ,
                                       NuclearUnitBlockMod::eSetModDP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
- }  // end( NuclearUnitBlock::set_modulation_ramp_up )
+ }  // end( NuclearUnitBlock::set_modulation_ramp_up( range ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2214,8 +2208,9 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ std::vector< double > sorted;  // the values in the order of the subset
  if( ! ordered )
-  std::sort( subset.begin() , subset.end() );
+  sort_by_index( subset , values , sorted );
 
  if( subset.back() >= f_time_horizon )
   throw( std::invalid_argument( fn + ": invalid index in subset" ) );
@@ -2223,48 +2218,25 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  if( identical( v_modulation_ramp_down , subset , values ) )  // no changes
   return;                                                     // return
 
- // check correctness of new values w.r.t. v_DeltaRampDown
- auto vit = values;
- for( auto t : subset ) {
-  auto mrdt = *( vit++ );
-  if( mrdt < 0 )
-   throw( std::logic_error( fn + ": new modulation ramp down at time " +
-                            std::to_string( t ) + " is " +
-                            std::to_string( mrdt ) + " < 0" ) );
+ // the new data are checked before anything changes
+ check_modulation_ramps( fn , "down" , subset , values , v_DeltaRampDown );
 
-  if( mrdt > v_DeltaRampDown[ t ] )
-   throw( std::logic_error( fn + ": new modulation ramp down at time " +
-          std::to_string( t ) + " is " +
-          std::to_string( mrdt ) + "> ramp down = " +
-          std::to_string( v_DeltaRampDown[ t ] ) ) );
-  }
+ if( ! not_dry_run( issuePMod ) )
+  return;
 
- if( not_dry_run( issuePMod ) )  // change the physical representation
-  assign( v_modulation_ramp_down , subset , values );
-
- if( not_dry_run( issueAMod ) && constraints_generated() ) {
-  // change the abstract representation
-  // now change the corresponding Modulation_RampDown_Constraint[ t ]. note
-  // that the \Delta^M_{t-} appears as the coefficient of u_t, with opposite
-  // sign, and in the coefficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
-  // again with opposite sign. these are respectively the coefficient 1 and 2
-  // of the LinearFunction in the FRowConstraint
-
-  // since several "abstract Modification" will be issued, pack them all into
-  // a single GroupModification
-  auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-            open_channel( par2chnl( issueAMod ) ) ) );
-  // the commitment variable is in position 1 of the LinearFunction and the
-  // modulation one in position 2, so the two go in a single Modification
-  for( auto t : subset ) {
-   const auto mrdt = *( values++ );
-   LF( Modulation_RampDown_Constraints[ t ].get_function()
-       )->modify_coefficients( { - mrdt , - ( v_DeltaRampDown[ t ] - mrdt ) } ,
-                               Range( 1 , 3 ) , nAM );
+ // change the physical representation, and then the abstract one, as in
+ // set_modulation_ramp_up(): the ramp also decides which rows DeepDownLink
+ // has, and a change of their number is refused by update_rows()
+ const auto old = v_modulation_ramp_down;
+ assign( v_modulation_ramp_down , subset , values );
+ if( not_dry_run( issueAMod ) && constraints_generated() )
+  try {
+   update_rows( un_ModBlock( issueAMod ) );
    }
-
-  close_channel( par2chnl( nAM ) );  // at the end close the channel
-  }
+  catch( ... ) {
+   v_modulation_ramp_down = old;
+   throw;
+   }
 
  if( issue_pmod( issuePMod ) )  // issue a physical Modification
   Block::add_Modification( std::make_shared< NuclearUnitBlockSbstMod >( this ,
@@ -2272,7 +2244,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
                                               std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
 
- }  // end( NuclearUnitBlock::set_modulation_ramp_down )
+ }  // end( NuclearUnitBlock::set_modulation_ramp_down( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2287,98 +2259,62 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
- // if nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
-                 v_modulation_ramp_down.begin() + rng.first ) )
+ Subset ts( rng.second - rng.first );
+ std::iota( ts.begin() , ts.end() , rng.first );
+
+ if( identical( v_modulation_ramp_down , ts , values ) )  // no changes
+  return;                                                 // return
+
+ // the new data are checked before anything changes
+ check_modulation_ramps( fn , "down" , ts , values , v_DeltaRampDown );
+
+ if( ! not_dry_run( issuePMod ) )
   return;
 
- // check correctness of new values w.r.t. v_DeltaRampDown
- auto vit = values;
- for( auto t = rng.first ; t < rng.second ; ++t ) {
-  auto mrdt = *( vit++ );
-  if( mrdt < 0 )
-   throw( std::logic_error( fn + ": new modulation ramp down at time " +
-                            std::to_string( t ) + " is " +
-                            std::to_string( mrdt ) + " < 0" ) );
-
-  if( mrdt > v_DeltaRampDown[ t ] )
-   throw( std::logic_error( fn + ": new modulation ramp down at time " +
-          std::to_string( t ) + " is " +
-          std::to_string( mrdt ) + "> ramp up = " +
-          std::to_string( v_DeltaRampDown[ t ] ) ) );
-  }
-
-
- if( not_dry_run( issuePMod ) )  // change the physical representation
-  std::copy( values , values + ( rng.second - rng.first ) ,
-             v_modulation_ramp_down.begin() + rng.first );
-
- if( not_dry_run( issueAMod ) && constraints_generated() ) {
-  // change the abstract representation
-  // now change the corresponding Modulation_RampDown_Constraint[ t ]. note
-  // that the \Delta^M_{t-} appears as the coefficient of u_t, with opposite
-  // sign, and in the coefficient ( \Delta_{t-} - \Delta^M_{t-} ) of m_t,
-  // again with opposite sign. these are respectively the coefficient 1 and 2
-  // of the LinearFunction in the FRowConstraint
-
-  // since several "abstract Modification" will be issued, pack them all into
-  // a single GroupModification
-  auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-            open_channel( par2chnl( issueAMod ) ) ) );
-
-  // the commitment variable is in position 1 of the LinearFunction and the
-  // modulation one in position 2, so the two go in a single Modification
-  for( auto t = rng.first ; t < rng.second ; ++t ) {
-   const auto mrdt = *( values++ );
-   LF( Modulation_RampDown_Constraints[ t ].get_function()
-       )->modify_coefficients( { - mrdt , - ( v_DeltaRampDown[ t ] - mrdt ) } ,
-                               Range( 1 , 3 ) , nAM );
+ // change the physical representation, and then the abstract one, as in
+ // the method above
+ const auto old = v_modulation_ramp_down;
+ assign( v_modulation_ramp_down , ts , values );
+ if( not_dry_run( issueAMod ) && constraints_generated() )
+  try {
+   update_rows( un_ModBlock( issueAMod ) );
    }
-
-  close_channel( par2chnl( nAM ) );  // at the end close the channel
-  }
+  catch( ... ) {
+   v_modulation_ramp_down = old;
+   throw;
+   }
 
  if( issue_pmod( issuePMod ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockRngdMod >( this ,
-                                      NuclearUnitBlockMod::eSetModDP , rng ) ,
+                                      NuclearUnitBlockMod::eSetModDM , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
- }  // end( NuclearUnitBlock::set_modulation_ramp_up )
+ }  // end( NuclearUnitBlock::set_modulation_ramp_down( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void NuclearUnitBlock::update_initial_power_in_cnstrs( ModParam issueAMod )
 {
- // call the method of the base class to work on the original constraints
- ThermalUnitBlock::update_initial_power_in_cnstrs( issueAMod );
-
- // f_InitialPower influences the following new constraints of
- // NuclearUnitBlock, that have to be updated herein:
- // - the RHS of Modulation_RampUp_Constraints[ 0 ] is f_InitialPower +
- //   ( f_InitUpDownTime > 0 ? v_modulation_ramp_up[ 0 ] : 0 );
- // - the RHS of Modulation_RampDown_Constraints[ 0 ] is - f_InitialPower
-
- // several "abstract Modification" are issued, hence they are all packed
- // into a single GroupModification
- auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                   open_channel( par2chnl( issueAMod ) ) ) );
-
- Modulation_RampUp_Constraints[ 0 ].set_rhs( f_InitialPower +
-      ( f_InitUpDownTime > 0 ? v_modulation_ramp_up[ 0 ] : 0 ) , nAM );
-
- Modulation_RampDown_Constraints[ 0 ].set_rhs( - f_InitialPower , nAM );
-
- // the rows of the operating rules that contain p_{-1}
- if( ! Modulation_FullRampUp.empty() ) {
-  Modulation_FullRampUp[ 0 ].set_lhs( - full_ramp_up_const( 0 ) +
-                                      f_InitialPower , nAM );
-  Modulation_FullRampDown[ 0 ].set_lhs( - full_ramp_down_const( 0 ) -
-                                        f_InitialPower , nAM );
+ // the rows of the band at 0 are built for the band of the initial power,
+ // the row of BandKeep[ 0 ] of that band having RHS 1: a move to another
+ // band changes which rows exist, hence it cannot be done here (this is
+ // checked first, so that nothing is changed if it throws)
+ if( has_power_bands() && ( ! BandKeep.empty() ) &&
+     ( ! BandKeep[ 0 ].empty() ) ) {
+  const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
+  const Index b0 = ( f_InitialPower <= B1 ) ? 0 :
+                   ( ( f_InitialPower <= B2 ) ? 1 : 2 );
+  if( BandKeep[ 0 ][ 2 * b0 ].get_rhs() != 1 )
+   throw( std::logic_error( "NuclearUnitBlock::update_initial_power_in_cnstrs:"
+                            " the initial power cannot move to another band "
+                            "after the Constraint are generated" ) );
   }
- if( ( ! DeepDropConst.empty() ) && ( f_InitUpDownTime > 0 ) )
-  DeepDropConst[ 0 ].set_rhs( v_deep_gradient[ 0 ] - f_InitialPower , nAM );
 
- close_channel( par2chnl( nAM ) );  // at the end close the channel
+ // the method of the base class writes all the rows anew, those of the
+ // NuclearUnitBlock included [see build_rows()]: the rows that contain
+ // p_{-1} (the modulation ramps, the full ramps and the deep drop at 0)
+ // follow the new value
+ ThermalUnitBlock::update_initial_power_in_cnstrs( issueAMod );
 
  }  // end( NuclearUnitBlock::update_initial_power_in_constraints )
 

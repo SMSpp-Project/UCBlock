@@ -63,16 +63,57 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// implementation of the UnitBlock concept for a "slack" unit
-/** The SlackUnitBlock class derives from UnitBlock and implements the concept
- * of "slack" unit; a (typically, fictitious) unit capable of producing
- * (typically, a large amount of) active power and/or primary/secondary
- * reserve and/or inertia at any time period completely independently from
- * each other and from all other time periods, albeit at a (typically, huge)
- * cost. Such a unit is typically added to a Unit Commitment problem to ensure
- * that it has a (fictitious) feasible solution, which may help solution
- * methods. At the very least such a modified UC would produce a "least
- * unfeasible" solution which can be used to identify the parts of the system
- * that lack capacity/resources. */
+/** SlackUnitBlock derives from UnitBlock and implements the concept of
+ * "slack" unit, i.e., a (typically fictitious) unit that can give active
+ * power, primary and secondary reserve and inertia at each instant,
+ * independently of each other and of the other instants, at a (typically very
+ * high) cost. Such a unit is added to a unit commitment problem to ensure
+ * that it always has a feasible solution, which may help the solution
+ * methods. At the optimum, the slack unit is used only where the real units
+ * cannot meet the demands, and its use indicates the parts of the system that
+ * lack capacity. A slack unit with a negative bound on the active power is a
+ * "dump" unit, which absorbs the power that cannot be used otherwise. It has
+ * exactly one generator, and its place in the complete model is described in
+ * \ref ucblock_model.
+ *
+ * \par Rows and Objective
+ * With \f$ t \in \mathcal{T} = \{ 0 , \ldots , T - 1 \} \f$ and the symbols
+ * of deserialize(), the rows are, for the variables that exist,
+ * \f{align*}{
+ *   & \min\{ P^{mx}_t , 0 \} \leq p^{ac}_t \leq \max\{ P^{mx}_t , 0 \}
+ *     \tag{1} \\
+ *   & 0 \leq p^{pr}_t \leq P^{pr}_t , \qquad 0 \leq p^{sc}_t \leq P^{sc}_t
+ *     \tag{2} \\
+ *   & Q^{mn}_t \leq q_t \leq Q^{mx}_t \tag{3} \\
+ *   & q_t \leq a^q_t , \qquad - q_t \leq a^q_t \tag{4}
+ * \f}
+ * i.e., (1) is \f$ 0 \leq p^{ac}_t \leq P^{mx}_t \f$ if
+ * \f$ P^{mx}_t \geq 0 \f$ and \f$ P^{mx}_t \leq p^{ac}_t \leq 0 \f$ if
+ * \f$ P^{mx}_t < 0 \f$. In (3), \f$ Q^{mn}_t = - Q^{mx}_t \f$ if
+ * "MinReactivePower" is absent, and (3)-(4) exist whenever the reactive power
+ * does, while an absent bound is 0 (as get_min_reactive_power() and
+ * get_max_reactive_power() return it); hence, with no bound the reactive
+ * power is 0. Moreover, the commitment \f$ u_t \in [ 0 , 1 ] \f$ is a
+ * continuous variable: the unit gives the inertia \f$ h^u_t u_t \f$, any
+ * fraction of its largest one \f$ h^u_t \f$. The Objective is
+ * \f[
+ *   \sum_{ t \in \mathcal{T} } \bigl( b_t p^{ac}_t + c^{pr}_t p^{pr}_t +
+ *   c^{sc}_t p^{sc}_t + c^u_t h^u_t u_t + C^q b_t a^q_t \bigr) , \tag{5}
+ * \f]
+ * where the reactive power costs the constant fraction \f$ C^q = 0.7 \f$
+ * (REACTIVE_COST_FACTOR) of the price of the active power, and it is not
+ * multiplied by a scale factor (the unit has none, i.e., its scale is 1).
+ * Note that the term \f$ b_t p^{ac}_t \f$ is a cost of the power injected if
+ * \f$ b_t > 0 \f$ and \f$ P^{mx}_t \geq 0 \f$. For a dump unit
+ * (\f$ P^{mx}_t < 0 \f$, hence \f$ p^{ac}_t \leq 0 \f$), instead, the power
+ * absorbed costs \f$ - b_t \f$ per unit; hence, a penalty on dumping is given
+ * by \f$ b_t < 0 \f$, while \f$ b_t > 0 \f$ would pay the unit for absorbing.
+ *
+ * \par Features not modeled
+ * The slack unit is bounded: "MaxPower" has to be given and large enough to
+ * cover any imbalance, since its default 0 means no slack at all, and there
+ * is no unbounded slack. Also, its cost is linear, and therefore a cost
+ * increasing more than linearly with the imbalance is not represented. */
 
 class SlackUnitBlock : public UnitBlock
 {
@@ -82,6 +123,16 @@ class SlackUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 
  public:
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC CONSTANTS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// the cost of the reactive power relative to that of the active power
+ /** The factor \f$ C^{q} \f$ that multiplies "ActivePowerCost" in the cost
+  * of the absolute value of the reactive power [see generate_objective()]. */
+
+ static constexpr double REACTIVE_COST_FACTOR = 0.7;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -113,135 +164,46 @@ class SlackUnitBlock : public UnitBlock
  * the group must contain all the data required by the base UnitBlock, as
  * described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
  * In particular, we refer to that description for the crucial dimensions
- * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
- * must then also contain:
+ * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The symbols are
+ * those of the class description. All the data below are optional and
+ * time-indexed: such a variable, of type netCDF::NcDouble, is either a
+ * scalar, or indexed over the dimension "NumberIntervals" (one value per
+ * interval, see "ChangeIntervals"), or indexed over "TimeHorizon", and it
+ * is expanded into one value per instant as described in
+ * UnitBlock::deserialize(). The netCDF::NcGroup may contain:
  *
- * - The variable "MaxPower", of type netCDF::NcDouble and either of size 1
- *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
- *   not provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector MxP[ t ] that, for
- *   each time instant t, contains the maximum active power output value of
- *   the unit for the corresponding time step. If "MaxPower" has length 1
- *   then MxP[ t ] contains the same value for all t. Otherwise, MaxPower[ i ]
- *   is the fixed value of MxP[ t ] for all t in the interval [
- *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. This variable is optional, if is not
- *   provided then MxP[ t ] == 0 for all t. The value MxP[ t ] >= 0
- *   can be positive or negative; when negative, it means that the slack unit
- *   is actually a "dump" unit that can absorb power rather than produce it.
- *   If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ * - the variable "MaxPower", the datum \f$ P^{mx}_t \f$ of (1), whose sign
+ *   gives the direction of the unit: if \f$ P^{mx}_t \geq 0 \f$ the unit
+ *   injects at most \f$ P^{mx}_t \f$, if \f$ P^{mx}_t < 0 \f$ it absorbs at
+ *   most \f$ - P^{mx}_t \f$ (a "dump" unit); if it is absent,
+ *   \f$ P^{mx}_t = 0 \f$ and the unit has no active power at all;
  *
- * - The variable "MaxPrimaryPower", of type netCDF::NcDouble and either of
- *   size 1 or indexed over the dimension "NumberIntervals" (if
- *   "NumberIntervals" is not provided, then this variable can also be
- *   indexed over "TimeHorizon"). This is meant to represent the vector
- *   MaxPP[ t ] that, for each time instant t, contains the maximum amount of
- *   primary reserve that the unit can produce in the corresponding time step.
- *   If "MaxPrimaryPower" has length 1 then MaxPP[ t ] contains the same value
- *   for all t. Otherwise, MaxPrimaryPower[ i ] is the fixed value of MaxPP[ t
- *   ] for all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[
- *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0. This variable
- *   is optional, if is not provided then MaxPP[ t ] == 0 for all t. If
- *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
- *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ * - the variables "MaxPrimaryPower" and "MaxSecondaryPower", the
+ *   nonnegative bounds \f$ P^{pr}_t \f$ and \f$ P^{sc}_t \f$ of (2); the
+ *   reserve variables exist only if the datum is given;
  *
- * - The variable "MaxSecondaryPower", of type netCDF::NcDouble and either of
- *   size 1 or indexed over the dimension "NumberIntervals" (if
- *   "NumberIntervals" is not provided, then this variable can also be
- *   indexed over "TimeHorizon"). This is meant to represent the vector
- *   MaxSP[ t ] that, for each time instant t, contains the maximum amount of
- *   secondary reserve that the unit can produce in the corresponding time
- *   step. If "MaxSecondaryPower" has length 1 then MaxSP[ t ] contains the
- *   same value for all t. Otherwise, MaxSecondaryPower[ i ] is the fixed
- *   value of MaxSP[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
- *   0. This variable is optional, if is not provided then MaxSP[ t ] == 0 for
- *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
- *   the mapping clearly does not require "ChangeIntervals", which in fact is
- *   not loaded.
+ * - the variable "MaxInertia", the coefficient \f$ h^u_t \geq 0 \f$ of the
+ *   commitment \f$ u_t \in [ 0 , 1 ] \f$ in the inertia rows of UCBlock,
+ *   i.e., the largest inertia the unit gives; the commitment exists only if
+ *   the datum is given;
  *
- * - The variable "MaxInertia", of type netCDF::NcDouble and either of size 1
- *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
- *   not provided, then this variable can also be indexed over "TimeHorizon").
- *   This is meant to represent the vector MaxI[ t ] which, for each time
- *   instant t, contains the maximum "amount of inertia" (contribution that
- *   the SlackUnit can give to the inertia constraint) at time t. The
- *   variable is optional; if it is not defined, MaxI[ t ] == 0
- *   for all time instants. If it has size 1, then MaxI[ t ] == MaxInertia[ 0
- *   ] for all t, regardless to what "NumberIntervals" says. Otherwise,
- *   MaxInertia[ i ] is the fixed value of MaxI[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ * - the variable "ActivePowerCost", the price \f$ b_t \f$ of (5), 0 if
+ *   absent (a setting that makes the slack unit as cheap as any other,
+ *   while it is normally meant to be used only when nothing else is
+ *   possible);
  *
- * - The variable "ActivePowerCost", of type netCDF::NcDouble and either of
- *   size 1 or indexed over the dimension "NumberIntervals" (if
- *   "NumberIntervals" is not provided, then this variable can also be
- *   indexed over "TimeHorizon"). This is meant to represent the vector
- *   APC[ t ] that, for each time instant t, contains the cost of producing
- *   one unit of active power at the corresponding time step. This variable
- *   is optional, if it is not provided then it's taken to be zero (although
- *   this is a very strange setting, as it would typically imply that all the
- *   demand, or at least as much as possible of it, is satisfied by the
- *   fictitious SlackUnit rather than from "real" ones). If "ActivePowerCost"
- *   has length 1 then APC[ t ] contains the same value for t. Otherwise,
- *   ActivePowerCost[ i ] is the fixed value of APC[ t ] for all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ] with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
+ * - the variables "PrimaryCost" and "SecondaryCost", the costs
+ *   \f$ c^{pr}_t \f$ and \f$ c^{sc}_t \f$ of a unit of primary and secondary
+ *   reserve in (5), 0 if absent;
  *
- * - The variable "PrimaryCost", of type netCDF::NcDouble and either of size
- *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
- *   is not provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector PC[ t ] that, for
- *   each time instant t, contains the cost of producing one unit of primary
- *   reserve at the corresponding time step. This variable is optional; if it
- *   is not provided then it's taken to be zero (but this is a very strange
- *   setting, cf. the discussion in ActivePowerCost). If "PrimaryCost" has
- *   length 1 then PC[ t ] contains the same value for t. Otherwise,
- *   PrimaryCost[ i ] is the fixed value of PC[ t ] for all t in the interval
- *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ * - the variable "InertiaCost", the cost \f$ c^u_t \f$ in (5) of a unit of
+ *   inertia, i.e., the cost of \f$ u_t \f$ is \f$ c^u_t h^u_t \f$; 0 if
+ *   absent;
  *
- * - The variable "SecondaryCost", of type netCDF::NcDouble and either of
- *   size 1 or indexed over the dimension "NumberIntervals" (if
- *   "NumberIntervals" is not provided, then this variable can also be
- *   indexed over "TimeHorizon"). This is meant to represent the vector
- *   SC[ t ] that, for each time instant t, contains the cost of producing
- *   one unit of secondary reserve at the corresponding time step. This
- *   variable is optional; if it is not provided then it's taken to be zero
- *   (but this is a very strange setting, cf. the discussion in
- *   ActivePowerCost). If "SecondaryCost" has length 1 then SC[ t ] contains
- *   the same value for t. Otherwise, SecondaryCost[ i ] is the fixed value
- *   of SC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
- *   = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
- *
- * - The variable "InertiaCost", of type netCDF::NcDouble and either of size
- *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
- *   is not provided, then this variable can also be indexed over
- *   "TimeHorizon"). This is meant to represent the vector IC[ t ] that, for
- *   each time instant t, contains the "the cost of producing "one unit" of
- *   inertia. Since the inertia-producing variable is u[ t ] which is in the
- *   interval [ 0 , 1 ], the cost of u[ t ] is MaxI[ t ] * IC[ t ]; in other
- *   words, u[ t ] represents the fraction the maximum possible amount of
- *   inertia (MaxI[ t ]) that can be produced at time step t This variable is
- *   optional; if it is not provided then it's taken to be zero (but this is a
- *   very strange setting, cf. the discussion in ActivePowerCost). If
- *   "InertiaCost" has length 1 then IC[ t ] contains the same value for
- *   t. Otherwise, InertiaCost[ i ] is the fixed value of IC[ t ] for all t in
- *   the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with
- *   the assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1
- *   or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded. */
+ * - the variables "MinReactivePower" and "MaxReactivePower", the bounds
+ *   \f$ Q^{mn}_t \f$ and \f$ Q^{mx}_t \f$ of (3), used only if the
+ *   enclosing UCBlock asks for the reactive power; a vector of zeros is
+ *   treated as absent. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -263,89 +225,66 @@ class SlackUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the SlackUnitBlock
- /** The SlackUnitBlock class has several different variables which are:
+ /** Generates the static Variable of the SlackUnitBlock, with the symbols
+  * of the class description; each group is a std::vector< ColVariable > of
+  * size get_time_horizon(), or empty if it is not generated:
   *
-  * - the commitment variables which takes the continues values between
-  *   1 and zero.
+  * - the active power \f$ p^{ac}_t \f$ ("p_slack"), continuous, its sign
+  *   being given by (1);
   *
-  * - the primary spinning reserve variables;
+  * - the commitment \f$ u_t \in [ 0 , 1 ] \f$ ("u_slack"), continuous,
+  *   only if the enclosing UCBlock asks for the inertia [see
+  *   set_reserve_vars()] and "MaxInertia" is given [see has_commitment()];
   *
-  * - the secondary spinning reserve variables;
+  * - the primary and secondary reserves \f$ p^{pr}_t \f$ ("pr_slack") and
+  *   \f$ p^{sc}_t \f$ ("sr_slack"), nonnegative, each only if the enclosing
+  *   UCBlock asks for that reserve and "MaxPrimaryPower", respectively
+  *   "MaxSecondaryPower", is given;
   *
-  * - the active power variables.
+  * - the reactive power \f$ q_t \f$ ("q_slack"), continuous, and its
+  *   absolute value \f$ a^q_t \f$ ("q_a_slack"), nonnegative, only if the
+  *   enclosing UCBlock asks for the reactive power [see
+  *   set_reactive_power()].
   *
-  * Note that of these variables are optional, and it is also possible to
-  * restrict which of the subsets are generated without using the parameter
-  * stvv. In other word, each group of above variables as binary commitment, or
-  * primary or secondary spinning reserve, or active power variables must be
-  * defined if and only if the MaxInertia or MaxPrimaryPower or
-  * MaxSecondaryPower or MaxPower is defined in the
-  * deserialize( netCDF::NcGroup ) respectively. Otherwise, the corresponding
-  * variable is not to be needed to generate. */
+  * The parameter \p stvv is only passed to
+  * UnitBlock::generate_abstract_variables(). */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
-/// Generate the static constraint of the SlackUnitBlock
-/** This method generates the abstract constraints of the SlackUnitBlock.
- *
- * The operations of the slack generating unit are described on a discrete
- * time horizon as dictated by the UnitBlock interface. In this description
- * we indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
- * This unit just contains the bounds constraint on the ActivePower for
- * positive (1) and negative (2) value of P^{mx}_t, Primary and Secondary 
- * spinning reserve variables as below:
- * \f[
- *   0 \leq p^{ac}_t \leq P^{mx}_t \quad t \in \mathcal{T}, P^{mx}_t >= 0
- *   \quad (1)
- * \f]
- * \f[
- *   P^{mx}_t \leq p^{ac}_t \leq 0 \quad t \in \mathcal{T}, P^{mx}_t >= 0
- *   \quad (2)
- * \f]
- * \f[
- *   0 \leq p^{pr}_t \leq P^{mxP}_t \quad t \in \mathcal{T}      \quad (3)
- * \f]
- * \f[
- *   0 \leq p^{sc}_t \leq P^{mxS}_t \quad t \in \mathcal{T}      \quad (4)
- * \f]
- *
- * Note that the inertia is "produced" by the commitment variable u_t, which
- * is consider as a kPosUnitary and therefore has "implicit" lower and upper
- * bounds 0 and 1, and thus it does not need BoxConstraint. However, other
- * variables are restricted by a BoxConstraint as defined above. The first
- * group is about active power bounds the second one is about the primary
- * spinning reserve, and the last one for the secondary spinning reserve
- * variables. */
+ /// generate the static constraints of the SlackUnitBlock
+ /** Generates the static Constraint of the SlackUnitBlock, i.e., the rows
+  * (1)-(4) of the class description:
+  *
+  * - (1) is "ActivePowerBound_Slack", a vector of BoxConstraint;
+  *
+  * - (2) is "PrimarySpinningReserveBound_Slack" and
+  *   "SecondarySpinningReserveBound_Slack", two vectors of BoxConstraint,
+  *   each only if the corresponding reserve exists;
+  *
+  * - (3) is "ReactivePowerBound_thermal", a vector of BoxConstraint, if the
+  *   reactive power exists;
+  *
+  * - (4) is "Lin_of_Abs_Reactive", a vector of 2 T FRowConstraint (the rows
+  *   \f$ q_t - a^q_t \leq 0 \f$ first), if the reactive power exists;
+  *
+  * - "Inertia_bound_Slack", a vector of ZOConstraint on \f$ u_t \f$, only
+  *   if the commitment exists and \p stcc (or, if it is nullptr, the
+  *   f_static_constraints_Configuration of the BlockConfig) is a
+  *   SimpleConfiguration< int > with a nonzero value: these rows repeat the
+  *   bounds of the variables, which some approaches need in order to have a
+  *   dual value for them. */
 
- void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
+ void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the SlackUnitBlock
- /** Method that generates the objective of the SlackUnitBlock.
-  *
-  * - Objective function: the objective function of the SlackUnitBlock
-  *   representing the total power production cost to be minimized has the
-  *   form:
-  *
-  *   \f[
-  *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}] } C^{ac}_t p^{ac}_t +
-  *     C^{pr}_t p^{pr}_t +C^{sc}_t p^{sc}_t +
-  *     (P^{MaxI}_t * C^{i}_t) u_t )
-  *   \f]
-  *
-  *   where \f$ C^{ac}_t \f$, \f$ C^{pr}_t \f$, \f$ C^{sc}_t \f$,
-  *   \f$ C^{i}_t \f$, and \f$ P^{MaxI}_t \f$ for each time step t are
-  *   defined as the ActivePowerCost, PrimaryCost, and SecondaryCost,
-  *   InertiaCost, and the MaxInertia respectively.
-  *
-  *  The objective of the SlackUnitBlock would seem to be an exceedingly simple
-  *  object, there is still a nontrivial decision to be made about it, and it
-  *  is also possible to restrict. If objc is not nullptr and it is a
-  *  SimpleConfiguration< double > or if
-  *  f_BlockConfig->f_objective_Configuration is not nullptr and it is a
-  *  SimpleConfiguration< double >, then the f_value of the
-  *  SimpleConfiguration< int > is taken the objective function. */
+ /** Generates the Objective (5) of the class description, to be minimized:
+  * a LinearFunction with coefficient \f$ b_t \f$ on \f$ p^{ac}_t \f$,
+  * \f$ c^{pr}_t \f$ and \f$ c^{sc}_t \f$ on the reserves,
+  * \f$ c^{u}_t h^u_t \f$ on \f$ u_t \f$ and \f$ C^q b_t \f$ on
+  * \f$ a^q_t \f$, for the variables that exist, an absent cost being 0. The
+  * parameter \p objc is not used. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -373,7 +312,7 @@ class SlackUnitBlock : public UnitBlock
   * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * or f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
   * - If \p fsbc is not a nullptr and it is a pointer to a
@@ -386,7 +325,7 @@ class SlackUnitBlock : public UnitBlock
   *   fsbc->f_value.second (any nonzero number for relative violation and
   *   zero for absolute violation);
   *
-  * - Otherwise, if both #f_BlockConfig and
+  * - Otherwise, if both f_BlockConfig and
   *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *   latter is a pointer to either a SimpleConfiguration< double > or to a
   *   SimpleConfiguration< std::pair< double , int > >, then the values of the
@@ -395,15 +334,15 @@ class SlackUnitBlock : public UnitBlock
   * - Otherwise, by default, the tolerance is 0 and the relative violation
   *   is considered.
   *
-  * This function currently considers only the abstract representation to
+  * This function considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, then this
+  * ignored. If no abstract Variable has been generated, then this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
   * set of Variable only. Notice also that, before checking if the solution
   * satisfies a Constraint, the Constraint is computed (Constraint::compute()).
   *
-  * @param useabstract This parameter is currently ignored.
+  * @param useabstract This parameter is ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
   *             and the type of violation that must be considered. */
@@ -418,17 +357,12 @@ class SlackUnitBlock : public UnitBlock
 /** @name Reading the data of the SlackUnitBlock
  * @{ */
 
-/// returns the vector of maximum power
-/** The returned vector contains to maximum power at time t. There are three
- * possible cases:
- *
- * - if the vector is empty, then the maximum power of the unit is 0;
- *
- * - if the vector has only one element, then the maximum power of the unit
- *   for all time horizon;
- *
- * - otherwise, the vector must have size get_time_horizon() and each element
- *   of vector represents the maximum power value at time t. */
+ /// returns the upper bound of the active power at instant t
+ /** Returns \f$ \max\{ P^{mx}_t , 0 \} \f$, i.e., "MaxPower" if it is
+  * nonnegative and 0 otherwise (also if it is absent). The methods below
+  * that return the vector of a time-indexed datum return it either empty
+  * (the datum is absent) or with one value per instant [see
+  * deserialize()]. */
 
  double get_max_power( Index t , Index generator = 0 ) const override {
   return( ( v_MaxPower.size() > t ) ?
@@ -436,25 +370,17 @@ class SlackUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of minimum power
- /** The returned vector contains to maximum power at time t. There are three
-  * possible cases:
-  *
-  * - if the vector is empty, then the maximum power of the unit is 0;
-  *
-  * - if the vector has only one element, then the maximum power of the unit
-  *   for all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the maximum power value at time t. */
- 
+ /// returns the lower bound of the active power at instant t
+ /** Returns \f$ \min\{ P^{mx}_t , 0 \} \f$, i.e., "MaxPower" if it is
+  * negative and 0 otherwise (also if it is absent). */
+
  double get_min_power( Index t , Index generator = 0 ) const override {
   return( ( v_MaxPower.size() > t ) ?
 	  ( ( v_MaxPower[ t ] >= 0 ) ? 0 : v_MaxPower[ t ] ) : 0 );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum reactive power of \p generator at time \t
+ /// returns the minimum reactive power of \p generator at time \p t
 
  double get_min_reactive_power( Index t , Index generator = 0 )
   const override {
@@ -462,7 +388,7 @@ class SlackUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum reactive power of \p generator at time \t
+ /// returns the maximum reactive power of \p generator at time \p t
 
  double get_max_reactive_power( Index t , Index generator = 0 )
   const override {
@@ -470,106 +396,45 @@ class SlackUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of maximum primary power
- /** The returned vector contains to maximum primary power at time t.
-  * There are three possible cases:
-  *
-  * - if the vector is empty, then the maximum primary power of the unit is 0;
-  *
-  * - if the vector has only one element, then the maximum primary power of
-  *   the unit for all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the maximum primary power value at time t. */
+ /// returns the bounds of the primary reserve ("MaxPrimaryPower")
 
  const std::vector< double > & get_max_primary_power( void ) const {
   return( v_MaxPrimaryPower );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of active power cost
- /** The returned vector contains to active power cost at time t. There are
-  * three possible cases:
-  *
-  * - if the vector is empty, then the active power cost of the unit is 0;
-  *
-  * - if the vector has only one element, then the active power cost of the
-  *   unit for all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the active power cost value at time t. */
+ /// returns the prices of the active power ("ActivePowerCost")
 
  const std::vector< double > & get_active_power_cost( void ) const {
   return( v_ActivePowerCost );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of maximum secondary power
- /** The returned vector contains to maximum secondary power at time t. There
-  * are three possible cases:
-  *
-  * - if the vector is empty, then the maximum secondary power of the unit is
-  *   0;
-  *
-  * - if the vector has only one element, then the maximum secondary power of
-  *   the unit for all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the maximum secondary power value at time t. */
+ /// returns the bounds of the secondary reserve ("MaxSecondaryPower")
 
  const std::vector< double > & get_max_secondary_power( void ) const {
   return( v_MaxSecondaryPower );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of primary cost
- /** The returned vector contains to primary cost at time t. There are three
-  * possible cases:
-  *
-  * - if the vector is empty, then the primary cost of the unit is 0;
-  *
-  * - if the vector has only one element, then the primary cost of the unit for
-  *   all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the primary cost value at time t. */
+ /// returns the costs of the primary reserve ("PrimaryCost")
 
  const std::vector< double > & get_primary_cost( void ) const {
   return( v_PrimaryCost );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of secondary cost
- /** The returned vector contains to secondary cost at time t. There are three
-  * possible cases:
-  *
-  * - if the vector is empty, then the secondary cost of the unit is 0;
-  *
-  * - if the vector has only one element, then the secondary cost of the unit
-  *   for all time horizon;
-  *
-  * - otherwise the vector must have size get_time_horizon() and each element
-  *   of vector represents the secondary cost value at time t. */
+ /// returns the costs of the secondary reserve ("SecondaryCost")
 
  const std::vector< double > & get_secondary_cost( void ) const {
   return( v_SecondaryCost );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of inertia commitment
- /** The returned value U = get_inertia_commitment() contains the contribution
-  * to inertia (basically, the constants to be multiplied by the commitment
-  * variables returned by get_commitment()) of all the generators at all time
-  * instants. There are three possible cases:
-  *
-  * - if the vector is empty, then the inertia commitment is always 0 and this
-  *   function returns nullptr;
-  *
-  * - if the vector only has one element, then the inertia commitment for the
-  *   fixed consumption of the unit for all t;
-  *
-  * - otherwise the vector must have size get_time_horizon() and each element
-  *   of vector represents the inertia commitment at time t. */
+ /// returns the coefficients of the commitment in the inertia rows
+ /** Returns a pointer to the get_time_horizon() coefficients \f$ h^u_t \f$
+  * ("MaxInertia") of the commitment \f$ u_t \f$ in the inertia rows of
+  * UCBlock, nullptr if "MaxInertia" is absent. */
 
  const double * get_inertia_commitment( Index generator ) const override {
   if( v_MaxInertia.empty() )
@@ -578,17 +443,7 @@ class SlackUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of inertia cost
- /** The returned vector contains to inertia cost at time t. There are three
-  * possible cases:
-  *
-  * - if the vector is empty, then the inertia cost of the unit is 0;
-  *
-  * - if the vector has only one element, then the inertia cost of the unit
-  *   for all time horizon;
-  *
-  * - otherwise the vector must have size get_time_horizon() and each element
-  *   of vector represents the inertia cost value at time t. */
+ /// returns the costs of the inertia ("InertiaCost")
 
  const std::vector< double > & get_inertia_cost( void ) const {
   return( v_InertiaCost );
@@ -733,12 +588,12 @@ class SlackUnitBlock : public UnitBlock
                              c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
-/// set the active power cost to a single (uniform-over-time) value
+/// set the active power cost to \p value at every instant
 
  void set_active_power_cost( double value ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck ) {
-  std::vector< double > vector = { value };
+  std::vector< double > vector( get_time_horizon() , value );
   set_active_power_cost( vector.cbegin() ,
                          Range( 0 , Inf< Index >() ) ,
                          issuePMod , issueAMod );
@@ -888,7 +743,7 @@ class SlackUnitBlockMod : public UnitBlockMod
  enum SUB_mod_type
  {
   eSetActPCost = eUBModLastParam , ///< set active power cost values
-  eSUBModLastParam                 ///< first allowed parameter for derived classes
+  eSUBModLastParam  ///< first allowed parameter for derived classes
   };
 
  /// constructor, takes the SlackUnitBlock and the type

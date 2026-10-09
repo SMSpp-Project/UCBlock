@@ -105,22 +105,41 @@ void ThermalUnitDPSolverBase::load_common_parameters( void )
  // startup and shutdown costs, power bounds and shutdown/startup ramp bounds
  startup_costs = b->get_start_up_cost();
  shutdown_costs = b->get_shut_down_cost();
- min_power = b->get_min_power();
- max_power = b->get_max_power();
+ // the operational bounds, i.e., those of the rows of ThermalUnitBlock:
+ // MinPower (0 if the unit is unavailable) and Availability * MaxPower
+ min_power.resize( time_horizon );
+ max_power.resize( time_horizon );
+ double no_ramp = 0;
+ for( Index t = 0 ; t < time_horizon ; ++t ) {
+  min_power[ t ] = b->get_operational_min_power( t );
+  max_power[ t ] = b->get_operational_max_power( t );
+  no_ramp = std::max( no_ramp , b->get_max_power()[ t ] );
+  }
+ // the move from InitialPower, which may be above every MaxPower (e.g., a
+ // unit unavailable over the whole horizon), is not limited either
+ no_ramp = std::max( no_ramp , b->get_initial_power() );
  bound_on = b->get_start_up_limit();
  bound_down = b->get_shut_down_limit();
 
- // ramp-up/down limits default to max_power (no effective ramping) when
- // the Block does not set them explicitly
+ // "FixToMaximum": the rows p_t >= P^mx_t make the output of an on unit
+ // exactly its maximum power, and the unit on wherever that is positive
+ // [see force_on_fixed_to_maximum()]; the reserve, whose head-room is then
+ // 0, is not changed by taking the minimum power equal to the maximum one
+ fixed_to_max = b->is_fixed_to_maximum();
+ if( fixed_to_max )
+  min_power = max_power;
+
+ // without DeltaRampUp/Down ThermalUnitBlock has no ramp rows: the ramp is
+ // then the largest power the unit ever has, which no move can exceed
  has_ramp_up = ! b->get_delta_ramp_up().empty();
  if( ! has_ramp_up )
-  delta_ramp_up = max_power;
+  delta_ramp_up.assign( time_horizon , no_ramp );
  else
   delta_ramp_up = b->get_delta_ramp_up();
 
  has_ramp_down = ! b->get_delta_ramp_down().empty();
  if( ! has_ramp_down )
-  delta_ramp_down = max_power;
+  delta_ramp_down.assign( time_horizon , no_ramp );
  else
   delta_ramp_down = b->get_delta_ramp_down();
 
@@ -131,18 +150,26 @@ void ThermalUnitDPSolverBase::load_common_parameters( void )
  retrieve_term( const_term  , b->get_const_term() );
 
  // spinning reserve: participation factors (caps in pr <= rho_p p and
- // sr <= rho_s p) and objective cost coefficients. The cost defaults to the
- // participation factor but may carry a (possibly negative) Lagrangian
- // price, so it is read from the separate cost getter. All empty when the
- // reserve is absent.
+ // sr <= rho_s p) and objective cost coefficients, the latter possibly
+ // negative (a Lagrangian price); empty when the reserve is absent, and the
+ // cost empty when it is zero, as ThermalUnitBlock takes it
  primary_rho = b->get_primary_rho();
  secondary_rho = b->get_secondary_rho();
  primary_reserve_cost = b->get_primary_spinning_reserve_cost();
  secondary_reserve_cost = b->get_secondary_spinning_reserve_cost();
- if( primary_reserve_cost.empty() )
-  primary_reserve_cost = primary_rho;
- if( secondary_reserve_cost.empty() )
-  secondary_reserve_cost = secondary_rho;
+
+ // the reserve exists in the rows of ThermalUnitBlock only if the unit has
+ // its Variable, i.e., if the enclosing UCBlock asked for it [see
+ // ThermalUnitBlock::has_primary_reserve()]: otherwise neither its rows nor
+ // its cost are there, whatever the data say
+ if( ! b->has_primary_reserve() ) {
+  primary_rho.clear();
+  primary_reserve_cost.clear();
+  }
+ if( ! b->has_secondary_reserve() ) {
+  secondary_rho.clear();
+  secondary_reserve_cost.clear();
+  }
 
  // reactive power (AC instances): read the box [Qmin,Qmax] and the
  // (dualized) linear cost coefficient on q[t]. q[t] is separable from the
@@ -194,17 +221,80 @@ void ThermalUnitDPSolverBase::load_common_parameters( void )
 
 /*--------------------------------------------------------------------------*/
 
+void ThermalUnitDPSolverBase::force_on_fixed_to_maximum( void )
+{
+ if( ! fixed_to_max )
+  return;
+
+ // the tables of the fixings may not be there (or be those of a previous
+ // call), if no commitment is fixed
+ if( ( ! f_has_fixings ) || ( nxt_on.size() != time_horizon + 1 ) ) {
+  nxt_on.assign( time_horizon + 1 , time_horizon );
+  nxt_off.assign( time_horizon + 1 , time_horizon );
+  }
+
+ bool forced = false;
+ for( Index t = time_horizon ; t-- > 0 ; )
+  if( max_power[ t ] > 0 ) {
+   nxt_on[ t ] = t;
+   forced = true;
+   }
+  else
+   if( nxt_on[ t ] != t )
+    nxt_on[ t ] = nxt_on[ t + 1 ];
+
+ if( forced )
+  f_has_fixings = f_must_build = true;
+
+ }  // end( ThermalUnitDPSolverBase::force_on_fixed_to_maximum )
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitDPSolverBase::reads_group( const std::string & name ) const
+{
+ static const std::vector< std::string > read = {
+  "x_thermal" , "u_thermal" , "p_thermal" , "q_thermal" , "v_thermal" ,
+  "w_thermal" , "pr_thermal" , "sc_thermal" };
+
+ return( std::find( read.begin() , read.end() , name ) != read.end() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::string ThermalUnitDPSolverBase::fixed_extended_variable( void ) const
+{
+ for( const auto & g : f_Block->get_static_variable_groups() ) {
+  if( ( ! g ) || reads_group( g->get_name() ) )
+   continue;
+  bool fixed = false;
+  g->for_each( [ & fixed ]( Variable & v ) {
+   if( v.is_fixed() )
+    fixed = true;
+   } );
+  if( fixed )
+   return( g->get_name() );
+  }
+
+ return( "" );
+
+ }  // end( ThermalUnitDPSolverBase::fixed_extended_variable )
+
+/*--------------------------------------------------------------------------*/
+
 double ThermalUnitDPSolverBase::reserve_alloc( Index t , double p ,
                                               double & pr , double & sr ,
-                                              double cap ) const
+                                              double cap ,
+                                              double floor ) const
 {
- // symmetric reserve band beta_t(p) = min( p - min_power , cap - p ): the
+ // symmetric reserve band beta_t(p) = min( p - floor , cap - p ): the
  // reserve must fit both above (the cap constraint, p + pr + sr <= cap) and
- // below (min_power constraint, p - pr - sr >= min_power) the production p.
- // cap is max_power at an interior period and the tighter start-up/shut-down
- // cap at a boundary period.
- return( reserve_alloc_band( t , p ,
-                             std::min( p - min_power[ t ] , cap - p ) ,
+ // below (p - pr - sr >= floor) the production p. cap is max_power at an
+ // interior period and the tighter start-up/shut-down cap at a boundary
+ // period, floor is min_power (NaN) but at instant 0 of a unit on before
+ // the horizon, where both also bound the move from InitialPower
+ if( std::isnan( floor ) )
+  floor = min_power[ t ];
+ return( reserve_alloc_band( t , p , std::min( p - floor , cap - p ) ,
                              pr , sr ) );
 
  }  // end( ThermalUnitDPSolverBase::reserve_alloc )
@@ -322,7 +412,8 @@ double ThermalUnitDPSolverBase::reserve_alloc_band( Index t , double p ,
 /*--------------------------------------------------------------------------*/
 
 ThermalUnitDPSolverBase::PQFun
-ThermalUnitDPSolverBase::build_reserve_discount( Index t , double cap ) const
+ThermalUnitDPSolverBase::build_reserve_discount( Index t , double cap ,
+                                                 double floor ) const
 {
  PQFun G;
  const double cp = primary_reserve_cost.empty()   ? 0
@@ -332,9 +423,11 @@ ThermalUnitDPSolverBase::build_reserve_discount( Index t , double cap ) const
  if( ( cp >= 0 ) && ( cs >= 0 ) )
   return( G );  // no negative price: g_t == 0
 
- const double lo = min_power[ t ];
- const double hi = cap;  // upper power cap U_t (interior up, or
-                         // start-up/shut-down cap at a boundary period)
+ // the band is min( p - lo , hi - p ), lo the lower floor (min_power
+ // unless given), hi the upper power cap U_t (interior up, or
+ // start-up/shut-down cap at a boundary period)
+ const double lo = std::isnan( floor ) ? double( min_power[ t ] ) : floor;
+ const double hi = cap;
  if( hi <= lo + 1e-12 )
   return( G );
 
@@ -374,14 +467,31 @@ ThermalUnitDPSolverBase::build_reserve_discount( Index t , double cap ) const
   if( b - a <= 1e-12 )
    continue;
   double pr , sr;
-  const double ga = reserve_alloc( t , a , pr , sr , cap );
-  const double gb = reserve_alloc( t , b , pr , sr , cap );
+  const double ga = reserve_alloc( t , a , pr , sr , cap , lo );
+  const double gb = reserve_alloc( t , b , pr , sr , cap , lo );
   const double slope = ( gb - ga ) / ( b - a );
   G.push_back( { 0.0 , slope , ga - slope * a , a , b } );
   }
  return( G );
 
  }  // end( ThermalUnitDPSolverBase::build_reserve_discount )
+
+/*--------------------------------------------------------------------------*/
+
+ThermalUnitDPSolverBase::PQFun
+ThermalUnitDPSolverBase::initial_reserve_discount( double cap ) const
+{
+ // with q = InitialPower the two ramp terms of the band (3) are a floor
+ // and a cap: min( p - P^mn , K - p , D^+ - ( p - q ) , D^- + ( p - q ) )
+ // = min( p - max( P^mn , q - D^- ) , min( K , q + D^+ ) - p )
+ return( build_reserve_discount( 0 ,
+                                 std::min( cap , initial_power +
+                                                 delta_ramp_up[ 0 ] ) ,
+                                 std::max( double( min_power[ 0 ] ) ,
+                                           initial_power -
+                                           delta_ramp_down[ 0 ] ) ) );
+
+ }  // end( ThermalUnitDPSolverBase::initial_reserve_discount )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1367,8 +1477,8 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
  // LINEAR in p (B,A linear; reward linear in its argument with the active
  // segment fixed), so G(p)=aF*(sl*p+ic)^2+bF*(sl*p+ic)+cF
  // + (m_corr*p + k_corr) is exactly quadratic.
- // reward decomposition: in active segment m (kappa_{m-1}<=H<kappa_m,
- // kappa_j=segcum[j]*p) reward(p,H)=Rbase[m]*p+segc[m]*H; beyond the last
+ // reward decomposition: in active segment m (rhobar_{m-1}<=H<rhobar_m,
+ // rhobar_j=segcum[j]*p) reward(p,H)=Rbase[m]*p+segc[m]*H; beyond the last
  // cap it is Rfull*p.
  double Rbase[ 3 ] = { 0 , 0 , 0 } , Rfull = 0;
  { double prev = 0 , acc = 0;
@@ -1651,7 +1761,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
   Lall.push_back( { 0.0 , ramp_down + pmin } );
   Lall.push_back( { 0.0 , pmax - ramp_up } );                    // B=A fall-A
   Lall.push_back( { 2.0 , ramp_down - pmax } );
-  for( int m = 0 ; m < K ; ++m ) {                               // B=kappa_m
+  for( int m = 0 ; m < K ; ++m ) {                               // B=rhobar_m
    Lall.push_back( { 1.0 + segcum[ m ] , -ramp_up } );
    Lall.push_back( { 1.0 - segcum[ m ] , ramp_down } ); }
   // NOTE: the z-piece stationaries are NOT global loci, only the CURRENT
@@ -1780,16 +1890,33 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
     // slope noise would give a ~1e-4 intercept error that ACCUMULATES over
     // the horizon. PIN (|s|~0): the pin sits at the exact argmin q1.
     // MOVING: pick the Lall (slope,intercept) whose line best fits both
-    // exact argmin probes (pe,q1),(p+e2,q2).
+    // exact argmin probes (pe,q1),(p+e2,q2). A small measured slope is not
+    // always a pin: the lower-tent line of a cumulative participation
+    // rhobar_m > 1/2 (e.g., both reserves rewarded) has the slope
+    // 1 - rhobar_m in ( 0 , 1/2 ), and it is taken when it fits the probes
+    // better than the pin does.
     if( doSnap ) {
-     if( std::abs( s ) < 0.5 ) { s = 0.0; t = q1; }
+     const double tolS = 1e-6 * std::max( 1.0 , std::abs( q1 ) );
+     auto fit = [ & ]( const std::pair< double , double > & L ) {
+      return( std::abs( L.first * pe + L.second - q1 )
+              + std::abs( L.first * ( p + e2 ) + L.second - q2 ) ); };
+     if( std::abs( s ) < 0.5 ) {
+      double bd = 1e300 , bs = 0.0 , bt = q1;
+      for( const auto & L : Lall )
+       if( ( L.first > 1e-12 ) && ( L.first < 0.5 ) ) {
+        const double dd = fit( L );
+        if( dd < bd ) { bd = dd; bs = L.first; bt = L.second; } }
+      if( ( bd <= tolS ) && ( bd < std::abs( q2 - q1 ) ) )
+       { s = bs; t = bt; }
+      else
+       { s = 0.0; t = q1; }
+      }
      else {
       double bd = 1e300 , bs = s , bt = t;
       for( const auto & L : Lall ) {
-       const double dd = std::abs( L.first * pe + L.second - q1 )
-                       + std::abs( L.first * ( p + e2 ) + L.second - q2 );
+       const double dd = fit( L );
        if( dd < bd ) { bd = dd; bs = L.first; bt = L.second; } }
-      if( bd <= 1e-6 * std::max( 1.0 , std::abs( q1 ) ) ) { s = bs; t = bt; }
+      if( bd <= tolS ) { s = bs; t = bt; }
       }
      }
     }
@@ -1883,6 +2010,11 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
    haveForm = ! bisected;    // carry the locus; a bisected boundary IS a
    p = pnext;                // form change
    }
+  // the step budget is spent before the domain is covered: as at a break,
+  // the rest of [plo,phi] is filled, never dropped, which would lose the
+  // reachable states above p
+  if( guard > 200000 )
+   fillTail( p );
   // coalesce ONLY truly-identical adjacent pieces (same quadratic).
   // NB: a VALUE-based merge is UNSOUND here, two pieces that agree in
   // value+slope at their shared kink diverge only QUADRATICALLY over a
@@ -2411,7 +2543,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
    }
   static thread_local std::vector< double > swtrace;
   swtrace.clear();                                          // (debug slot)
-  // grid probe of the (q*, B, A, kappa) config, to derive the exact events
+  // grid probe of the (q*, B, A, rhobar) config, to derive the exact events
   static bool gridded = false;
   if( ! gridded && ( F.size() == 1 ) && TUEDPS_ENV( "TUEDPS_PARAMGRID" ) ) {
    gridded = true;
@@ -2523,7 +2655,7 @@ void ThermalUnitDPSolverBase::sliding_min_corr(
    for( const auto & pc : outP )
     std::cerr << "\n   [" << pc.left << "," << pc.right << "] a=" << pc.alfa
               << " b=" << pc.beta << " c=" << pc.gamma;
-   std::cerr << "\n sweep steps (p form qbar/kappa pnext):";
+   std::cerr << "\n sweep steps (p form qbar/rhobar pnext):";
    for( std::size_t i = 0 ; i + 3 < swtrace.size() ; i += 4 )
     std::cerr << "\n   p=" << swtrace[ i ]
               << " form=" << ( int )swtrace[ i + 1 ]

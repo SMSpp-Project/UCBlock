@@ -6,9 +6,10 @@
  * Header file for the class UCBlock, which implements the Block concept [see
  * Block.h] for the Unit Commitment (UC) problem in electrical power
  * production. This is typically a short-term (across, for instance, one
- * week or one-day time horizon) *deterministic* problem regarding finding
+ * week or one-day time horizon) deterministic problem regarding finding
  * an optimal production schedule of electrical generators satisfying a
- * (large) set of technical constraints.
+ * (large) set of technical constraints. The model as a whole is described
+ * in \ref ucblock_model.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -39,7 +40,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __UCBlock
- #define __UCBlock    /* self-identification: #endif at the end of the file */
+ #define __UCBlock  ///< self-identification: endif at the end of the file
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -69,24 +70,22 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// implementation of the Block concept for the Unit Commitment problem
-/** The class UCBlock, implements the Block concept [see Block.h] for the
- * Unit Commitment (UC) problem in electrical power production. This is
- * typically a short-term (across, for instance, one week or one-day time
- * horizon) *deterministic* problem regarding finding an optimal schedule
- * of the production of electrical generators satisfying a (large) set of
- * technical constraints.
+/** UCBlock implements the Block concept [see Block.h] for the Unit Commitment
+ * (UC) problem in electrical power production. This is typically a short-term
+ * (across, for instance, one week or one-day time horizon) deterministic
+ * problem regarding finding an optimal schedule of the production of
+ * electrical generators satisfying a (large) set of technical constraints.
  *
- * The model is quite flexible due to the fact that different types of units
- * and network constraints can be used by means of the fact that the class
- * manages son Block of type UnitBlock and NetworkBlock. Also, UCBlock handles
- * a reasonably large variety of constraints, regarding not only active power
- * but also primary and secondary reserve and inertia.
+ * The model is quite flexible, since the class manages son Block of type
+ * UnitBlock and NetworkBlock, and therefore one can use different types of
+ * units and network constraints. Also, UCBlock handles a quite large variety
+ * of constraints, regarding not only active power but also primary and
+ * secondary reserve and inertia.
  *
- * The main elements that UCBlock handles are:
+ * In particular, UCBlock handles the following main elements:
  *
- * - The time horizon of the problem, i.e., a discrete set of (typically,
- *   equally-spaced) time instants at which decisions are made (like, the
- *   24 hours in a day).
+ * - A time horizon, i.e., a discrete set of (typically, equally-spaced) time
+ *   instants at which decisions are made (like, the 24 hours in a day).
  *
  * - A set of electricity generating units, represented by derived classes
  *   of the base class UnitBlock.
@@ -111,9 +110,28 @@ namespace SMSpp_di_unipi_it
  *     defined subset of the nodes of the transmission network) and for
  *     each time instant;
  *
- *   - possibly, constraints on the maximum emission of different kinds of
- *     pollutant, for each "zone" (appropriately defined subset of the nodes
- *     of the transmission network) and across the whole time horizon. */
+ *   - possibly, constraints on the maximum (and minimum) emission of
+ *     different kinds of pollutant, for each "zone" (appropriately defined
+ *     subset of the nodes of the transmission network) and across the
+ *     whole time horizon.
+ *
+ * Note that UCBlock has no Variable, and its Objective is a constant (see
+ * generate_objective()); hence, the cost is that of its sub-Blocks, and its
+ * only constraints are the linking ones (see
+ * generate_abstract_constraints()), which is the structure that a
+ * LagrangianDualSolver exploits. The capacity of the assets enters the model
+ * through the scale of the UnitBlock (see UnitBlock::scale()), which
+ * represents a number of identical copies of a unit, and through the capacity
+ * multipliers of IntermittentUnitBlock, BatteryUnitBlock and DCNetworkBlock.
+ * Since either can be changed after the Block is built, one can evaluate the
+ * optimal cost, together with a subgradient, as a function of the capacities;
+ * alternatively, the same capacities can be made variables of the model
+ * through the design variables of the units and of DesignNetworkBlock. In the
+ * page \ref ucblock_model we describe the complete model, the conventions it
+ * follows (instants, units of measure, signs), its Lagrangian dual and the
+ * meaning of the dual values of the linking constraints, the representation
+ * of the capacities and what is not modeled.
+ */
 
 class UCBlock : public Block
 {
@@ -169,8 +187,8 @@ class UCBlock : public Block
   *
   * - The dimension "NumberNodes" containing the number of nodes in the
   *   problem. This dimension is optional. If it is not provided, it is taken
-  *   to be 1, so the NetworkBlock will be a transmission network, i.e., a
-  *   DCNetworkBlock, with just one node (bus).
+  *   to be 1, i.e., the network is a single node (a bus), in which case the
+  *   UCBlock has no NetworkBlock (see "NetworkBlock_i" below).
   *
   * - The dimension "NumberElectricalGenerators" containing the overall number
   *   of electrical generators for each UnitBlock of the problem. This
@@ -178,7 +196,8 @@ class UCBlock : public Block
   *   of the electrical generators of each UnitBlock, so, if each of these
   *   will have just one electrical generator, i.e., no HydroUnitBlock or
   *   HydroSystemUnitBlock will be provided, it is taken to be the same as
-  *   "NumberUnits".
+  *   "NumberUnits". If it is provided, it must be that sum, otherwise
+  *   std::invalid_argument is thrown.
   *
   * - The groups "UnitBlock_0", "UnitBlock_1", ..., "UnitBlock_n" with
   *   n == NumberUnits - 1, containing each one UnitBlock corresponding to
@@ -207,17 +226,22 @@ class UCBlock : public Block
   *   "UnitBlock_1", ... above), and the electrical generators into each
   *   UnitBlock also have some natural ordering (corresponding to the columns
   *   of the matrices of variables, cf. e.g., UnitBlock::get_commitment()).
-  *   Thus, in general, the mapping is:
-  *   electrical generator 0 = first generator of UnitBlock_0
-  *   electrical generator 1 = second generator of UnitBlock_0
-  *   ...
-  *   electrical generator k - 1 = k-th generator of UnitBlock_0
-  *                        k     = UnitBlock_0->get_number_generators()
-  *   electrical generator k     = first generator of UnitBlock_1
-  *   electrical generator k + 1 = second generator of UnitBlock_1
-  *   ...
-  *   which of course boils down to "g = i" when each UnitBlock has exactly one
-  *   electrical generator.
+  *   Thus, in general, with k = UnitBlock_0->get_number_generators(), the
+  *   mapping is:
+  *
+  *   - electrical generator 0 is the first generator of UnitBlock_0;
+  *
+  *   - electrical generator 1 is the second generator of UnitBlock_0;
+  *
+  *   - electrical generator k - 1 is the k-th (last) generator of
+  *     UnitBlock_0;
+  *
+  *   - electrical generator k is the first generator of UnitBlock_1;
+  *
+  *   - electrical generator k + 1 is the second generator of UnitBlock_1;
+  *
+  *   and so on, which of course boils down to "g = i" when each UnitBlock
+  *   has exactly one electrical generator.
   *
   * - Optionally, the dimensions and variables necessary to deserialize a
   *   NetworkData object that describes the transmission network; see
@@ -234,28 +258,41 @@ class UCBlock : public Block
   *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
   *   is optional if:
   *
-  *   = a NetworkBlock is defined for all necessary intervals so that they
+  *   - a NetworkBlock is defined for all necessary intervals so that they
   *     collectively cover the entire "TimeHorizon" (see "NetworkBlock_i"
   *     below), and
   *
-  *   = each defined NetworkBlock has the "ActiveDemand" variable specified
+  *   - each defined NetworkBlock has the "ActiveDemand" variable specified
   *     in the corresponding group.
   *
   *   Otherwise, it is mandatory. When it is defined, the entry
   *   ActivePowerDemand[ n , t ] is assumed to contain the active power demand
-  *   of node n of the transmission network at the given time instant t, where
-  *   the first dimension "NumberNodes" can be read via get_number_nodes().
+  *   \f$ D^{ac}_{t,n} \f$ of node n of the transmission network at the
+  *   given time instant t (a power, see \ref ucbm_conv), where the first
+  *   dimension "NumberNodes" can be read via get_number_nodes(). The demand
+  *   of a node is meant to include the reference consumption profile of any
+  *   load-shifting flexibility connected to it, whose deviation from that
+  *   profile is the active power of the BatteryUnitBlock that represents it.
   *   When "ActivePowerDemand" is defined, and also the "ActiveDemand"
   *   variable is defined in the group of some NetworkBlock, then
   *   "ActiveDemand" overrules the value in the corresponding row of
   *   "ActivePowerDemand", which is ignored.
+  *
+  * - The variable "ReactivePowerDemand", of type netCDF::NcDouble and
+  *   indexed as "ActivePowerDemand", the reactive power demand
+  *   \f$ D^{rc}_{t,n} \f$, with the same rules as "ActivePowerDemand" and
+  *   "ReactiveDemand" of the NetworkBlock; it is only used if the network
+  *   handles reactive power (see NetworkBlock::handles_reactive()), or, in
+  *   the bus case, if it is given, in which case the units are asked for
+  *   their reactive power and the reactive balance (1') of
+  *   generate_abstract_constraints() is written.
   *
   * - The groups "NetworkBlock_0", "NetworkBlock_1", ..., "NetworkBlock_T"
   *   with T = NumberNetworks - 1 (or a subset of these, see below), each
   *   containing the network constraints for some subset of time intervals in
   *   the horizon. These can be handled in two different ways:
   *
-  *   = If "NumberNodes" is == 1 (e.g., it is not provided), then the network
+  *   - If "NumberNodes" is == 1 (e.g., it is not provided), then the network
   *     is a "bus", i.e., there are no constraints on how the data flows ("no
   *     network") and all the units can contribute to satisfy the energy
   *     demand, which is then a unique value for each time instant t. In this
@@ -266,15 +303,18 @@ class UCBlock : public Block
   *     are read. This is done in order to get the corresponding matrix of
   *     active demands (see NetworkBlock::get_active_demand()): if it is
   *     present (which it may not), then the corresponding values are used as
-  *     active power demand for these intervals, superseeding the values found
+  *     active power demand for these intervals, superseding the values found
   *     in "ActivePowerDemand". It is therefore possible that then
   *     "ActivePowerDemand" is not there at all, but this requires that
   *     "NetworkBlock_i" are given that cover the whole time horizon (this
   *     is otherwise not necessary, see below) so that active power demand
   *     data is specified for each time instant; if this fails to happen,
-  *     exception is thrown.
+  *     exception is thrown. The NetworkBlock read are then deleted, and the
+  *     UCBlock has none (see get_network_blocks()); their constant terms, if
+  *     any, are kept in the Objective of the UCBlock (see
+  *     "NetworkConstantTerms" and generate_objective()).
   *
-  *   = If, instead, "NumberNodes" > 1, then there are constraints (and,
+  *   - If, instead, "NumberNodes" > 1, then there are constraints (and,
   *     possibly, variables) limiting how energy flows between producing
   *     units and demand. Then, the sub-group "NetworkBlock_0",
   *     "NetworkBlock_1", ..., "NetworkBlock_T" with T = NumberNetworks - 1
@@ -320,7 +360,7 @@ class UCBlock : public Block
   *   == NumberUnits (all UnitBlock have exactly one electrical generator),
   *   then this variable is indexed over NumberUnits. If NumberNodes == 1
   *   (say, it is not provided at all), then this variable need not be
-  *   defined, since it is not loaded.
+  *   defined, since it is not used.
   *
   * - The dimension "NumberPrimaryZones" tells how many "primary spinning
   *   reserve zones" are there in the problem. The dimension is optional, if it
@@ -328,20 +368,23 @@ class UCBlock : public Block
   *   reserve constraints are present in the problem.
   *
   * - The variable "PrimaryZones", of type netCDF::NcUint and indexed over
-  *   the dimension "NumberNodes". The entry PrimaryZones[ i ] tells to which
-  *   primary zone the node i belongs: if PrimaryZones[ i ] >=
-  *   NumberPrimaryZones, this means that node i does not belong to any primary
-  *   zone, and hence the corresponding electrical generators are not involved
-  *   in the primary reserve constraints. If NumberPrimaryZones == 0 (say, it
-  *   is not provided at all) then this variable need not be defined, since it
-  *   is not loaded. If NumberPrimaryZones == 1, and this variable is not
-  *   defined, then there is only one primary zone and all the nodes belong to
-  *   it.
+  *   the dimension "NumberNodes" (a scalar meaning the same value for all
+  *   the nodes). The entry PrimaryZones[ n ] tells to which primary zone the
+  *   node n belongs: if PrimaryZones[ n ] >= NumberPrimaryZones, this means
+  *   that node n does not belong to any primary zone, and hence the
+  *   corresponding electrical generators are not involved in the primary
+  *   reserve constraints; this holds whatever the number of zones, one
+  *   included. If NumberPrimaryZones == 0 (say, it is not provided at all)
+  *   then this variable need not be defined, since it is not used. If
+  *   NumberPrimaryZones == 1 and this variable is not defined, then all the
+  *   nodes belong to the only primary zone; if NumberPrimaryZones > 1 the
+  *   variable is mandatory, and an exception is thrown if it is not there.
   *
   * - The variable "PrimaryDemand", of type netCDF::NcDouble and indexed both
   *   over the dimensions "NumberPrimaryZones" and "TimeHorizon": entry
-  *   PrimaryDemand[ i , t ] is assumed to contain the primary reserve
-  *   requirement specified on the primary reserve zone i in the time t. If
+  *   PrimaryDemand[ z , t ] is assumed to contain the primary reserve
+  *   requirement \f$ D^{pr}_{t,z} \f$ of the primary reserve zone z at the
+  *   time instant t. If
   *   NumberPrimaryZones == 0 (say, it is not provided at all), then this
   *   variable need not be defined, since it is not loaded.
   *
@@ -351,20 +394,17 @@ class UCBlock : public Block
   *   reserve constraints are present in the problem.
   *
   * - The variable "SecondaryZones", of type netCDF::NcUint and indexed over
-  *   the dimension "NumberNodes"; the entry SecondaryZones[ i ] tells to which
-  *   secondary zone the node i belongs. If SecondaryZones[ i ] >=
-  *   NumberSecondaryZones, this means that node i does not belong to any
-  *   secondary zone, and hence the corresponding units are not involved in the
-  *   secondary reserve constraints. If NumberSecondaryZones == 0 (say, it is
-  *   not provided at all) then this variable need not be defined, since it is
-  *   not loaded. If NumberSecondaryZones == 1 and this variable is not
-  *   defined, then there is only one secondary zone and all the nodes belong
-  *   to it.
+  *   the dimension "NumberNodes", with the same meaning and rules as
+  *   "PrimaryZones" for the secondary zones: SecondaryZones[ n ] >=
+  *   NumberSecondaryZones means that node n belongs to no secondary zone,
+  *   the variable is not needed with at most one zone (all the nodes being
+  *   then in it), and it is mandatory with more than one.
   *
   * - The variable "SecondaryDemand", of type netCDF::NcDouble and indexed
   *   both over the dimensions "NumberSecondaryZones" and "TimeHorizon": entry
-  *   SecondaryDemand[ i , t ] is assumed to contain the secondary reserve
-  *   requirement specified on the secondary reserve zone i in the time t.
+  *   SecondaryDemand[ z , t ] is assumed to contain the secondary reserve
+  *   requirement \f$ D^{sc}_{t,z} \f$ of the secondary reserve zone z at
+  *   the time instant t.
   *   If NumberSecondaryZones == 0 (say, it is not provided at all), then
   *   this variable need not be defined, since it is not loaded.
   *
@@ -374,19 +414,16 @@ class UCBlock : public Block
   *   constraints are present in the problem.
   *
   * - The variable "InertiaZones", of type netCDF::NcUint and indexed over
-  *   the dimension "NumberNodes"; the entry InertiaZones[ n ] tells to which
-  *   inertia zone the node n belongs. If InertiaZones[ n ] >=
-  *   NumberInertiaZones, this means that node n does not belong to any
-  *   inertia zone, and hence the corresponding units are not involved in the
-  *   inertia reserve constraints. If NumberInertiaZones == 0 (say, it is not
-  *   provided at all) then this variable need not be defined, since it is not
-  *   loaded. If NumberInertiaZones == 1 and this variable is not defined,
-  *   then there is only one inertia zone and all the nodes belong to it.
+  *   the dimension "NumberNodes", with the same meaning and rules as
+  *   "PrimaryZones" for the inertia zones: InertiaZones[ n ] >=
+  *   NumberInertiaZones means that node n belongs to no inertia zone, the
+  *   variable is not needed with at most one zone (all the nodes being then
+  *   in it), and it is mandatory with more than one.
   *
   * - The variable "InertiaDemand", of type netCDF::NcDouble and indexed both
   *   over the dimensions "NumberInertiaZones" and "TimeHorizon": entry
-  *   InertiaDemand[ i , t ] is assumed to contain the inertia reserve
-  *   requirement specified on the inertia constraints zone i in the time t.
+  *   InertiaDemand[ z , t ] is assumed to contain the inertia requirement
+  *   \f$ D^{in}_{t,z} \f$ of the inertia zone z at the time instant t.
   *   If NumberInertiaZones == 0 (say, it is not provided at all), then this
   *   variable need not be defined, since it is not loaded.
   *
@@ -430,23 +467,28 @@ class UCBlock : public Block
   *   words, since the number of pollutant zones of each pollutant may differ,
   *   it is useful (to avoid having to store PollutantBudget as an irregular
   *   matrix) to be able to assign a unique index
-  *   n = 0, 1, ..., TotalNumberPollutantZones - 1
-  *   to each pollutant budget of each pollutant zone. A mapping must be
-  *   defined between each entry n and the pair (pollutant zone, pollutant).
-  *   The mapping is the obvious one: UCBlock has a set of pollutants
-  *   p = 0, 1, ..., NumberPollutants - 1, and each pollutant p may have
-  *   several pollutant zones (see comments of variable "NumberPollutantZones"
-  *   above). Thus, in general the mapping is:
-  *   n = 0 corresponds to zone 0 of pollutant 0
-  *   n = 1 corresponds to zone 1 of pollutant 0
-  *   ...
-  *   n = NumberPollutantZones[ 0 ] - 1 corresponds to zone
-  *       NumberPollutantZones[ 0 ] - 1 of pollutant 0
-  *   n = NumberPollutantZones[ 0 ] corresponds to zone 0 of pollutant 1
-  *   n = NumberPollutantZones[ 0 ] + 1 corresponds to zone 1 of pollutant 1
-  *   ...
-  *   . If NumberPollutants == 0 (say, it is not provided) then this variable
-  *   need not be defined, since it is not loaded; otherwise it is mandatory.
+  *   n = 0, 1, ..., TotalNumberPollutantZones - 1 to each pollutant budget
+  *   of each pollutant zone. A mapping must be defined between each entry n
+  *   and the pair (pollutant zone, pollutant). The mapping is the obvious
+  *   one: UCBlock has a set of pollutants p = 0, 1, ..., NumberPollutants -
+  *   1, and each pollutant p may have several pollutant zones (see comments
+  *   of variable "NumberPollutantZones" above). Thus, in general, with
+  *   k = NumberPollutantZones[ 0 ], the mapping is:
+  *
+  *   - n = 0 corresponds to zone 0 of pollutant 0;
+  *
+  *   - n = 1 corresponds to zone 1 of pollutant 0;
+  *
+  *   - n = k - 1 corresponds to zone k - 1 (the last) of pollutant 0;
+  *
+  *   - n = k corresponds to zone 0 of pollutant 1;
+  *
+  *   - n = k + 1 corresponds to zone 1 of pollutant 1;
+  *
+  *   and so on. The budget of zone z of pollutant p is denoted
+  *   \f$ O_{z,p} \f$. If NumberPollutants == 0 (say, it is not provided)
+  *   then this variable need not be defined, since it is not loaded;
+  *   otherwise it is mandatory.
   *
   * - The variable "PollutantRho", of type netCDF::NcDouble and indexed over
   *   three dimensions which are "TimeHorizon" and "NumberPollutants" and
@@ -457,15 +499,17 @@ class UCBlock : public Block
   *   which is equal for all time instants t. Otherwise, the first dimension
   *   has full size "TimeHorizon" and the entry PollutantRho[ t , p , g ]
   *   gives the conversion factor of pollutant p due to the electrical
-  *   generator g for time t. The conversion factor multiplies the active
-  *   power of the generator, hence it also accounts for the duration of the
-  *   time instant (it is, say, in tonnes per MW over one time instant). If
+  *   generator g for time t. The conversion factor \f$ \rho_{t,p,g} \f$
+  *   multiplies the active power of the generator, hence it also accounts
+  *   for the duration of the time instant (it is, say, in tonnes per MW over
+  *   one time instant, see \ref ucbm_conv). If
   *   NumberPollutants == 0 (it is not provided) then this variable need not
   *   be defined, since it's not loaded; otherwise it is mandatory.
   *
   * - The variable "PollutantMinBudget", of type netCDF::NcDouble and indexed
   *   over the set { 0 , ... , TotalNumberPollutantZones - 1 } as
-  *   PollutantBudget: the entry PollutantMinBudget[ n ] is the lower bound on
+  *   PollutantBudget: the entry PollutantMinBudget[ n ] is the lower bound
+  *   \f$ O^{mn}_{z,p} \f$ on
   *   the same emission that PollutantBudget[ n ] bounds from above (hence a
   *   limit that the emission must reach, or with PollutantMinBudget[ n ] ==
   *   PollutantBudget[ n ] that it must match). The variable is optional, if
@@ -482,7 +526,8 @@ class UCBlock : public Block
   *   over three dimensions which are "TimeHorizon", "NumberPollutants" and
   *   "NumberStorages", with the first that can have size either 1 or
   *   "TimeHorizon" as in PollutantRho. The entry PollutantStorageRho[ t , p ,
-  *   s ] is the factor of the level of storage s at the end of time t in the
+  *   k ] is the factor \f$ \rho^{v}_{t,p,k} \f$ of the level of storage k
+  *   at the end of time t in the
   *   pollutant budget constraints of pollutant p (with t == 0 for all t if
   *   the first dimension has size 1), which is how the change of the level
   *   of a storage that holds a pollutant (or a fuel that emits one) is
@@ -493,20 +538,25 @@ class UCBlock : public Block
   *
   * - The variable "NetworkConstantTerms", of type netCDF::NcDouble and
   *   indexed over the dimension "NumberNetworks"; the entry
-  *   NetworkConstantTerms[ n ] tells the constant term, i.e., typically the
-  *   fixed costs, of the NetworkBlock n.
+  *   NetworkConstantTerms[ k ] tells the constant term \f$ c^0_k \f$,
+  *   i.e., typically the fixed costs, of the NetworkBlock k. The variable is
+  *   optional, and the "ConstantTerm" of a "NetworkBlock_k" group, if any,
+  *   prevails over NetworkConstantTerms[ k ], which applies to the
+  *   NetworkBlock whose group does not give one (and to those that the
+  *   UCBlock builds); without either, the constant term is 0. In the bus case
+  *   the constant terms, read in the same way, are kept in the Objective of
+  *   the UCBlock (see generate_objective()), since the NetworkBlock are not
+  *   built, and serialize() writes them as "NetworkConstantTerms"; with more
+  *   than one node they are in the NetworkBlock, whose groups serialize()
+  *   writes with them.
   *
   * - The variable "NetworkBlockClassname", of type netCDF::NcString specifies
   *   the classname of the specific NetworkBlock to be instantiated, if no one
-  *   is explicitly given in input. For backward compatibility reasons w.r.t.
-  *   the netCDF input data files already given, the default value is
-  *   "DCNetworkBlock".
+  *   is explicitly given in input; the default value is "DCNetworkBlock".
   *
   * - The variable "NetworkDataClassname", of type netCDF::NcString specifies
   *   the classname of the specific NetworkData to be instantiated, if no one
-  *   is explicitly given in input. For backward compatibility reasons w.r.t.
-  *   the netCDF input data files already given, the default value is
-  *   "DCNetworkData". */
+  *   is explicitly given in input; the default value is "DCNetworkData". */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -525,227 +575,241 @@ class UCBlock : public Block
 #endif
 
 /*--------------------------------------------------------------------------*/
- /// generates the static constraint of the UCBlock
- /** This method generates the abstract constraints of the UCBlock.
+ /// generates the static constraints of the UCBlock
+ /** This method generates the abstract constraints of the sub-Blocks and
+  * then those of the UCBlock, i.e., the constraints that link the
+  * sub-Blocks with each other; the model they belong to, with the notation
+  * used here, is described in \ref ucblock_model.
   *
-  * Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a set
-  * of arcs connecting the nodes \f$ \mathcal{L} \f$. There are, moreover,
-  * given three partitions of the set of nodes which may or may not be
-  * identical:
+  * Consider a network defined by a set of nodes \f$ \mathcal{N} \f$ and a
+  * set of lines \f$ \mathcal{L} \f$ connecting the nodes. Three families of
+  * zones are given, each zone being a set of nodes and the zones of a family
+  * being pairwise disjoint: \f$ \mathcal{Z}^{pr} \f$ for the primary
+  * spinning reserve, \f$ \mathcal{Z}^{sc} \f$ for the secondary spinning
+  * reserve and \f$ \mathcal{Z}^{in} \f$ for inertia, each zone \f$ z \f$
+  * carrying one requirement per instant. The families may coincide, and
+  * they need not cover \f$ \mathcal{N} \f$: a node may belong to no zone of
+  * a family (see "PrimaryZones" in deserialize()), in which case its
+  * generators do not enter the corresponding constraints, and when every
+  * node belongs to some zone the family is a partition of
+  * \f$ \mathcal{N} \f$. In the same way, for each pollutant
+  * \f$ p \in \mathcal{P} \f$ a family \f$ \mathcal{Z}^{p} \f$ of disjoint
+  * zones carries the emission budgets. Active power needs no zones, its
+  * demand being given node by node.
   *
-  * (i) \f$ \mathcal{B}^{pr}(\mathcal{N}) \f$ partitions \f$ \mathcal{N} \f$
-  *     in several zones (sets of nodes) each one being associated with one
-  *     specific primary spinning reserve requirement;
+  * The electrical system contains a set of "units" (e.g., power plants,
+  * load flexibilities or storage devices), the UnitBlock
+  * \f$ i \in \mathcal{I} \f$. Each unit contains one (or more) electrical
+  * generators, the set of all electrical generators being
+  * \f$ \mathcal{G} \f$, and \f$ \mathcal{G}_n \f$ the set of those
+  * connected to node \f$ n \in \mathcal{N} \f$. Let \f$ \sigma_g \f$ be the
+  * scale of the UnitBlock of generator \f$ g \f$ (see UnitBlock::scale()),
+  * which multiplies every term of the generator below, since the Variable
+  * of a scaled unit are those of one copy of it.
   *
-  * (ii) \f$ \mathcal{B}^{sc}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
-  *      \f$ in several zones, each one being associated with one specific
-  *      secondary spinning reserve requirement;
+  * The UCBlock does not have any Variable of its own, but it defines
+  * Constraint on the Variable of the UnitBlock and of the NetworkBlock, as
+  * follows:
   *
-  * (iii) \f$ \mathcal{B}^{in}(\mathcal{N}) \f$ partitions \f$ \mathcal{N}
-  *       \f$ in several zones, each one being associated with one specific
-  *       inertia requirement;
+  * - \f$ p^{ac}_{t,g} \f$: the active power of generator
+  *   \f$ g \in \mathcal{G} \f$ at instant \f$ t \in \mathcal{T} \f$,
+  *   obtained from UnitBlock::get_active_power();
   *
-  * Optionally, we are given a partition of the nodes \f$ B^{p}(\mathcal{N})
-  * \f$ corresponding to zones which are associated with an emissions
-  * constraint on the specific pollutant \f$ p \f$ in the set of pollutants
-  * \f$ \mathcal{P} \f$.
+  * - \f$ p^{rc}_{t,g} \f$: the reactive power of generator \f$ g \f$ at
+  *   instant \f$ t \f$, obtained from UnitBlock::get_reactive_power() (may
+  *   not be defined);
   *
-  * The electrical system contains a set of “units” (e.g., power plants, load
-  * flexibilities or storage devices) indexed by \f$ i \in \mathcal{I} \f$.
-  * The set \f$ \mathcal{I}_n \f$ will indicate units connected to node \f$ n
-  * \in \mathcal{N} \f$. Each unit contains one (or more) electrical generator
-  * where the set of all electrical generators is defined by
-  * \f$ g \in \mathcal{G} \f$ and the set \f$ \mathcal{G}_n \f$ will indicate
-  * electrical generators connected to node \f$ n \in \mathcal{N} \f$.
-  *
-  * UCBlock does not have any Variable of its own, but it defines Constraint
-  * on theVariable from UnitBlock and NetworkBlock as follows:
-  *
-  * - \f$ p^{ac}_{t,g} \f$ : the active power variable for each time period
-  *   \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$, obtained from
-  *   UnitBlock::get_active_power();
-  *
-  * - \f$ p^{rc}_{t,g} \f$ : the reactive power variable for each time period
-  *   \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ obtained from UnitBlock by
-  *   get_reactive_power() method (may not be defined);
-  *
-  * - \f$ S_{t,n} \f$ : the active power node injection variable for each
-  *   time period \f$ t \in \mathcal{T} \f$ and each node
-  *   \f$ n \in \mathcal{N} \f$ obtained from
+  * - \f$ S_{t,n} \f$: the active power node injection of node
+  *   \f$ n \in \mathcal{N} \f$ at instant \f$ t \f$, obtained from
   *   NetworkBlock::get_node_injection();
   *
-  * - \f$ R_{t,n} \f$ : the reactive power node injection variable for each
-  *   time period \f$ t \in \mathcal{T} \f$ and each node
-  *   \f$ n \in \mathcal{N} \f$ obtained from
+  * - \f$ R_{t,n} \f$: the reactive power node injection of node \f$ n \f$
+  *   at instant \f$ t \f$, obtained from
   *   NetworkBlock::get_reactive_node_injection() (may not be defined);
   *
-  * - \f$ p^{pr}_{t,g} \f$ : the primary spinning reserves variable for each
-  *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ obtained from
+  * - \f$ p^{pr}_{t,g} \f$: the primary spinning reserve of generator
+  *   \f$ g \f$ at instant \f$ t \f$, obtained from
   *   UnitBlock::get_primary_spinning_reserve() (may not be defined);
   *
-  * - \f$ p^{sc}_{t,g} \f$ : the secondary spinning reserves variable for each
-  *   time period \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ obtained from
-  *   UnitBlock by::get_secondary_spinning_reserve() (may not be defined);
+  * - \f$ p^{sc}_{t,g} \f$: the secondary spinning reserve of generator
+  *   \f$ g \f$ at instant \f$ t \f$, obtained from
+  *   UnitBlock::get_secondary_spinning_reserve() (may not be defined);
   *
-  * - \f$ u_{t,g}  \in \{ 0 , 1 \} \f$ : the commitment state at time period
-  *   \f$ t \in \mathcal{T} \f$ and each electrical generator
-  *   \f$ g \in \mathcal{G} \f$ is called from UnitBlock::get_commitment()
-  *   (may not be defined).
+  * - \f$ u_{t,g} \in \{ 0 , 1 \} \f$: the commitment of generator \f$ g \f$
+  *   at instant \f$ t \f$, obtained from UnitBlock::get_commitment() (may
+  *   not be defined, in which case the generator is always on);
   *
-  * The global constraints of unit commitment problem, on the time horizon
-  * \f$ \mathcal{T} \f$ write as follow:
+  * - \f$ v^{sl}_{t,k} \f$: the level of storage \f$ k \f$ at the end of
+  *   instant \f$ t \f$, obtained from UnitBlock::get_storage_level() (may
+  *   not be defined).
   *
-  * - Active power node injection Constraints:
-  *   In the unit commitment problem, \f$ P^{au}_{t , g} \f$ denotes the fixed
-  *   consumption of the power plant when it is off, and \f$ S_{t,n} \f$ is
-  *   the node injection variable for each time period \f$ t \in \mathcal{T}
-  *   \f$ and each node \f$ n \in \mathcal{N} \f$. Therefore, if the
-  *   NetworkBlock::get_number_nodes() > 0, a
-  *   boost::multi_array< FRowConstraint , 2 > is defined with the two
-  *   dimensions being get_time_horizon() and
-  *   NetworkBlock::get_number_nodes(). The entry [ t , n ] with t = 0, ...,
-  *   f_time_horizon - 1 and n = 1, ...,  get_number_nodes() contains the
-  *   active power node injection constraint at time t and node n
+  * The linking constraints of the unit commitment problem are the following;
+  * each is written with all the Variable on the left-hand side, which fixes
+  * the sign of its dual value (see get_Solution()).
+  *
+  * - Active power node injection constraints. Let \f$ P^{au}_{t,g} \geq 0
+  *   \f$ be the power that generator \f$ g \f$ draws when it is off (see
+  *   UnitBlock::get_fixed_consumption()), counted only if the generator has
+  *   commitment variables. If get_number_nodes() > 1, for each
+  *   \f$ t \in \mathcal{T} \f$ and \f$ n = 0 , \ldots , N - 1 \f$
   *   \f[
-  *    \sum_{ g \in \mathcal{G}_n } ( p^{ac}_{t,g} -
-  *                                   P^{au}_{t , g}(1 - u_{t,g}) ) = S_{t,n}
-  *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
+  *     \sum_{ g \in \mathcal{G}_n } \sigma_g \bigl( p^{ac}_{t,g}
+  *       - P^{au}_{t,g} ( 1 - u_{t,g} ) \bigr) - S_{t,n} = 0 \; , \tag{1}
   *   \f]
-  *
-  * - Reactive power node injection Constraints:
-  *   These are only defined if NetworkBlock::get_number_nodes() > 0 and
-  *   NetworkBlock::handles_reactive() == true: thus, \f$ S_{t,n} \f$ is
-  *   the reactive power node injection variable for each time period
-  *   \f$ t \in \mathcal{T} \f$ and each node \f$ n \in \mathcal{N} \f$.
-  *   A boost::multi_array< FRowConstraint , 2 > is defined with the two
-  *   dimensions being get_time_horizon() and
-  *   NetworkBlock::get_number_nodes(). The entry [ t , n ] with t = 0, ...,
-  *   f_time_horizon - 1 and n = 1, ...,  get_number_nodes() contains the
-  *   re active power node injection constraint at time t and node n
+  *   written as \f$ \sum_g \sigma_g ( p^{ac}_{t,g} + P^{au}_{t,g} u_{t,g} )
+  *   - S_{t,n} = \sum_g \sigma_g P^{au}_{t,g} \f$; \f$ S_{t,n} \f$ is the
+  *   node injection of the NetworkBlock that covers instant \f$ t \f$, whose
+  *   node balances, with the demand \f$ D^{ac}_{t,n} \f$, complete the
+  *   balance of active power (see \ref ucbm_link_ac). If the network has a
+  *   single node there is no NetworkBlock, and the row is
   *   \f[
-  *    \sum_{ g \in \mathcal{G}_n } p^{rc}_{t,g} = R_{t,n}
-  *    \quad t \in \mathcal{T} \quad n \in \mathcal{N} \quad (1)
+  *     \sum_{ g \in \mathcal{G} } \sigma_g \bigl( p^{ac}_{t,g}
+  *       - P^{au}_{t,g} ( 1 - u_{t,g} ) \bigr) = D^{ac}_{t} \; , \tag{1b}
   *   \f]
-  *   The fixed consumption \f$ P^{au}_{t,g} \f$ is an ACTIVE power and only
-  *   appears in the active rows: whether a unit that is off also absorbs
-  *   reactive power is not settled, and were it to, it would need a datum of
-  *   its own rather than the active one, which these rows used to carry.
-  *   TODO: ask again when someone writes an instance with both a fixed
-  *   consumption and a reactive demand.
-  *   Note that
+  *   \f$ D^{ac}_{t} \f$ being "ActivePowerDemand". The power of a pump or of
+  *   a charging battery, being negative, enters as a consumption. The rows
+  *   are stored in a boost::multi_array< FRowConstraint , 2 > indexed by
+  *   [ t ][ n ] (see get_node_injection_constraints()).
   *
-  *       IT IS ASSUMED THAT EITHER ALL :NetworkBlock HANDLE REACTIVE
-  *       POWER OR NONE DOES, HENCE NetworkBlock::handles_reactive() IS
-  *       ONLY CALLED TO THE FIRST ONE OF THEM
-  *
-  * - Primary Demand Constraints:
-  *   In the unit commitment problem, the primary demand
-  *   \f$ D^{pr}_{\mathcal{B} , t} \f$ which are specified on the primary
-  *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N}) \f$ will
-  *   be satisfied. Therefore, if the f_number_primary_zones > 0,
-  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
-  *   are f_time_horizon, and f_number_primary_zones entries, where the entry
-  *   t = 0, ..., f_time_horizon - 1 and the entry
-  *   \f$ \mathcal{B} \f$ = 0, ..., f_number_primary_zones - 1 being the
-  *   primary demand constraints at time t and primary zone
-  *   \f$ \mathcal{B} \f$ as follows:
+  * - Reactive power node injection constraints. If the network has more
+  *   than one node and its NetworkBlock handle reactive power (see
+  *   NetworkBlock::handles_reactive(); either all of them do or none does,
+  *   and only the first one is asked), then for each
+  *   \f$ t \in \mathcal{T} \f$ and \f$ n = 0 , \ldots , N - 1 \f$
   *   \f[
-  *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{pr}_{t,g} \geq
-  *     D^{pr}_{\mathcal{B} , t} \quad t \in \mathcal{T}
-  *      \quad \mathcal{B} \in \mathcal{B}^{pr}(\mathcal{N})        \quad (2)
+  *     \sum_{ g \in \mathcal{G}_n } \sigma_g \, p^{rc}_{t,g} - R_{t,n} = 0
+  *     \; , \tag{1'}
   *   \f]
+  *   while in the bus case, if "ReactivePowerDemand" is given, the single
+  *   row of each instant is \f$ \sum_{ g \in \mathcal{G} } \sigma_g \,
+  *   p^{rc}_{t,g} = D^{rc}_t \f$. The fixed consumption is an active power,
+  *   and it does not appear in these rows. They are stored as those of (1)
+  *   (see get_reactive_node_injection_constraints()).
   *
-  * - Secondary Demand Constraints:
-  *   In the unit commitment problem, the secondary demand
-  *   \f$ D^{sc}_{\mathcal{B} , t} \f$ which are specified on the secondary
-  *   reserve zones \f$ \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{B}) \f$ will
-  *   be satisfied. So, if the f_number_secondary_zones > 0,
-  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
-  *   are f_time_horizon, and f_number_secondary_zones entries, which the
-  *   entry t = 0, ..., f_time_horizon - 1 and the entry
-  *   \f$ \mathcal{B}\f$ = 0, ..., f_number_secondary_zones - 1 being the
-  *   secondary demand constraints at time t and secondary zone
-  *   \f$ \mathcal{B}\f$ as follows:
+  * - Primary spinning reserve constraints: if get_number_primary_zones()
+  *   > 0, for \f$ t \in \mathcal{T} \f$ and \f$ z \in \mathcal{Z}^{pr} \f$
+  *   (the zones being numbered \f$ z = 0 , \ldots , \f$
+  *   get_number_primary_zones() \f$ - 1 \f$)
   *   \f[
-  *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } p^{sc}_{t,g} \geq
-  *       D^{sc}_{\mathcal{B} , t} \quad t \in \mathcal{T}
-  *       \quad \mathcal{B} \in \mathcal{B}^{sc}(\mathcal{N})      \quad (3)
+  *     \sum_{ n \in z } \sum_{ g \in \mathcal{G}_n } \sigma_g \,
+  *       p^{pr}_{t,g} \geq D^{pr}_{t,z} \; , \tag{2}
   *   \f]
+  *   where a generator whose UnitBlock has no primary reserve variables
+  *   does not appear; the rows are stored in a
+  *   boost::multi_array< FRowConstraint , 2 > indexed by [ t ][ z ] (see
+  *   get_primary_demand_constraints()).
   *
-  * - Inertia Demand Constraints:
-  *   In the unit commitment problem, the inertia demand
-  *   \f$ D^{in}_{\mathcal{B} , t}\f$ which are specified on the inertia zones
-  *   \f$ \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N}) \f$ with defined
-  *   parameters \f$ \alpha_{t , g} \f$ and \f$ \beta_{t , g} \f$ will be
-  *   satisfied. Therefore, if the f_number_inertia_zones > 0,
-  *   a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
-  *   are f_time_horizon, and f_number_inertia_zones entries, where the entry
-  *   t = 0, ..., f_time_horizon - 1 and the entry \f$ \mathcal{B}\f$ = 0,
-  *   ..., f_number_inertia_zones - 1 being the inertia demand constraints
-  *   at time t and inertia zone \f$ \mathcal{B}\f$ as follows:
+  * - Secondary spinning reserve constraints: if
+  *   get_number_secondary_zones() > 0, for \f$ t \in \mathcal{T} \f$ and
+  *   \f$ z \in \mathcal{Z}^{sc} \f$
   *   \f[
-  *    \sum_{n \in \mathcal{B}}\sum_{ g \in \mathcal{G}_n } (\alpha_{t , g}
-  *     u_{t,g} + \beta_{t , g} p^{ac}_{t,g}) \geq D^{in}_{\mathcal{B} , t}
-  *        \quad t \in \mathcal{T}
-  *        \quad \mathcal{B} \in \mathcal{B}^{in}(\mathcal{N})     \quad (4)
+  *     \sum_{ n \in z } \sum_{ g \in \mathcal{G}_n } \sigma_g \,
+  *       p^{sc}_{t,g} \geq D^{sc}_{t,z} \; , \tag{3}
   *   \f]
+  *   stored as (2) (see get_secondary_demand_constraints()).
   *
-  * - Pollutant Budget Constraints:
-  *   For each pollutant \f$ p \in \mathcal{P} \f$ the nodes are partitioned
-  *   in zones \f$ \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N}) \f$ (a node
-  *   may also belong to no zone), and the emission of pollutant \f$ p \f$ in
-  *   the zone \f$ \mathcal{B} \f$, summed over the whole time horizon, is
-  *   bounded from above by the budget \f$ O_{\mathcal{B},p} \f$ and from
-  *   below by \f$ O^{mn}_{\mathcal{B},p} \f$ (-INF if there is no lower
-  *   bound, and equal to \f$ O_{\mathcal{B},p} \f$ for a limit the emission
-  *   has to match). Therefore, if get_number_pollutants() > 0, a
-  *   std::vector< std::vector< FRowConstraint > > C is defined, where C[ p ]
-  *   has get_number_pollutant_zones()[ p ] entries (the pollutants may have
-  *   a different number of zones, and no row is wasted on the zones one of
-  *   them does not have): C[ p ][ \f$ \mathcal{B} \f$ ] is the constraint
+  * - Inertia constraints. The inertia that generator \f$ g \f$ provides at
+  *   instant \f$ t \f$ is the affine function \f$ h^u_{t,g} u_{t,g} +
+  *   h^p_{t,g} p^{ac}_{t,g} \f$, with \f$ h^u_{t,g} \f$ given by
+  *   UnitBlock::get_inertia_commitment() and \f$ h^p_{t,g} \f$ by
+  *   UnitBlock::get_inertia_power(), each term being absent if the
+  *   corresponding datum or Variable is. For a synchronous machine of
+  *   inertia constant \f$ H_t \f$ and rated power \f$ \hat P^{mx}_t \f$
+  *   the contribution is usually \f$ 1.2 H_t \hat P^{mx}_t \f$ whenever it
+  *   is on, i.e., \f$ h^u_{t,g} = 1.2 H_t \hat P^{mx}_t \f$ and
+  *   \f$ h^p_{t,g} = 0 \f$,
+  *   while for a turbine or an intermittent unit it is taken proportional
+  *   to the power produced, i.e., \f$ h^u_{t,g} = 0 \f$ and
+  *   \f$ h^p_{t,g} = 1.2 H_t \f$; the factor 1.2 converts active into
+  *   apparent power under a constant phase angle and belongs to the data,
+  *   which the UCBlock uses as they are. A BatteryUnitBlock provides no
+  *   inertia. If get_number_inertia_zones() > 0, for
+  *   \f$ t \in \mathcal{T} \f$ and \f$ z \in \mathcal{Z}^{in} \f$
   *   \f[
-  *    O^{mn}_{\mathcal{B},p} \leq \sum_{t \in \mathcal{T}}
-  *     \sum_{n \in \mathcal{B}} \Big( \sum_{ g \in \mathcal{G}_n }
-  *     \rho_{t,p,g} p^{ac}_{t,g} + \sum_{ s \in \mathcal{S}_n }
-  *     \sigma_{t,p,s} v_{t,s} \Big) \leq O_{\mathcal{B},p}
-  *     \quad \mathcal{B} \in \mathcal{B}^{p}(\mathcal{N})
-  *     \quad p \in \mathcal{P}                                    \quad (5)
+  *     \sum_{ n \in z } \sum_{ g \in \mathcal{G}_n } \sigma_g \bigl(
+  *       h^u_{t,g} u_{t,g} + h^p_{t,g} p^{ac}_{t,g} \bigr)
+  *       \geq D^{in}_{t,z} \; , \tag{4}
   *   \f]
-  *   The conversion factor \f$ \rho_{t,p,g} \f$ (see get_pollutant_rho()) is
-  *   the emission of pollutant \f$ p \f$ per unit of active power of the
-  *   electrical generator \f$ g \f$ over the time instant \f$ t \f$, i.e.,
-  *   the emission per unit of energy times the duration \f$ \Delta t \f$ of
-  *   the time instant (and divided by the efficiency of the generator, if
-  *   the emission is that of the fuel it burns); the heat produced by the
-  *   units, if any, is not accounted for. The second sum is on the storages
-  *   \f$ \mathcal{S}_n \f$ of the units at node \f$ n \f$ (see
-  *   UnitBlock::get_number_storages(); the storages of a unit are at the node
-  *   of its first electrical generator), \f$ v_{t,s} \f$ being the level of
-  *   storage \f$ s \f$ at the end of time \f$ t \f$ (see
-  *   UnitBlock::get_storage_level()) and \f$ \sigma_{t,p,s} \f$ its factor
-  *   (see get_pollutant_storage_rho()). This is how a limit accounts for the
-  *   change of the level of a storage over the horizon, as that of a store of
-  *   CO2 or of a fuel that emits it: the storage then has a nonzero factor at
-  *   the last time instant only, and the contribution of its initial level,
-  *   which is a constant, is already subtracted from both bounds. All the
-  *   terms of a unit are multiplied by its scale.
-  */
+  *   stored as (2) (see get_inertia_demand_constraints()).
+  *
+  * - Pollutant budget constraints. For each pollutant
+  *   \f$ p \in \mathcal{P} \f$ and each zone \f$ z \in \mathcal{Z}^{p} \f$
+  *   of it, the emission of pollutant \f$ p \f$ in \f$ z \f$, summed over
+  *   the whole time horizon, is bounded from above by the budget
+  *   \f$ O_{z,p} \f$ and from below by \f$ O^{mn}_{z,p} \f$ (\f$ - \infty
+  *   \f$ if there is no lower bound, and equal to \f$ O_{z,p} \f$ for a
+  *   limit the emission has to match):
+  *   \f[
+  *     O^{mn}_{z,p} \leq \sum_{ t \in \mathcal{T} } \sum_{ n \in z }
+  *       \Bigl( \sum_{ g \in \mathcal{G}_n } \sigma_g \, \rho_{t,p,g}
+  *       \, p^{ac}_{t,g} + \sum_{ k \in \mathcal{K}_n } \sigma_k \,
+  *       \rho^{v}_{t,p,k} \, v^{sl}_{t,k} \Bigr) \leq O_{z,p} \; . \tag{5}
+  *   \f]
+  *   The conversion factor \f$ \rho_{t,p,g} \f$ (see get_pollutant_rho())
+  *   is the emission of pollutant \f$ p \f$ per unit of active power of
+  *   generator \f$ g \f$ over instant \f$ t \f$, i.e., the emission per unit
+  *   of energy times the duration \f$ \Delta t \f$ of the instant (and
+  *   divided by the efficiency of the generator, if the emission is that of
+  *   the fuel it burns). The second sum is on the storages
+  *   \f$ \mathcal{K}_n \f$ of the units at node \f$ n \f$ (see
+  *   UnitBlock::get_number_storages(); the storages of a unit are at the
+  *   node of its first electrical generator), \f$ \sigma_k \f$ being the
+  *   scale of the unit of storage \f$ k \f$ and \f$ \rho^{v}_{t,p,k} \f$ its
+  *   factor (see get_pollutant_storage_rho()). This is how a limit accounts
+  *   for the change of the level of a storage over the horizon, as that of
+  *   a store of CO2 or of a fuel that emits it, typically with a nonzero
+  *   factor at the last time instant only; the contribution of its initial
+  *   level, which is a constant, is then to be subtracted from both bounds
+  *   by whoever writes the data. Units producing heat do not exist in the
+  *   module, hence the emissions due to heat are not accounted for. The
+  *   rows are stored in a std::vector< std::vector< FRowConstraint > > C,
+  *   where C[ p ] has get_number_pollutant_zones()[ p ] entries (the
+  *   pollutants may have a
+  *   different number of zones, and no row is wasted on the zones one of
+  *   them does not have), C[ p ][ z ] being (5) (see
+  *   get_pollutant_constraints()). A row with
+  *   \f$ - \infty < O^{mn}_{z,p} < O_{z,p} < \infty \f$ cannot be relaxed
+  *   by a LagrangianDualSolver.
+  *
+  * When the scale of a unit changes after the constraints are generated,
+  * the coefficients of its terms, and the right-hand sides of (1) and (1b),
+  * are changed accordingly, those of (1') included (see
+  * add_Modification()). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
 
 /*--------------------------------------------------------------------------*/
- /// generate the objective of the UCBlock
+ /// generates the objective of the UCBlock
+ /** This method generates the Objective of all the sub-Blocks, and then
+  * that of the UCBlock itself, which is a LinearFunction with no Variable
+  * whose constant term \f$ c^{U} \f$ is the sum of the constant terms of the
+  * NetworkBlock that are not built because the network is a bus (see
+  * "NetworkConstantTerms" in deserialize()), and zero otherwise. As for any
+  * Block, the objective of the problem is the sum of the Objective of the
+  * UCBlock and of those of all its sub-Blocks, hence the problem minimizes
+  * \f[
+  *   \sum_{ i \in \mathcal{I} } f_i + \sum_{ k } \Bigl( c^0_k
+  *     + \sum_{ l \in \mathcal{L} } c^{net}_l V_{k,l} \Bigr) + c^{U} \; ,
+  * \f]
+  * where \f$ f_i \f$ is the cost of UnitBlock \f$ i \f$, already
+  * multiplied by its scale (see UnitBlock::scale()) and, for a
+  * HydroSystemUnitBlock, including the future cost of the water left in its
+  * reservoirs (see HydroSystemUnitBlock), and the second sum runs over the
+  * NetworkBlock \f$ k \f$, \f$ c^0_k \f$ being its constant term and
+  * \f$ c^{net}_l V_{k,l} \f$ the optional cost of the flow on line
+  * \f$ l \f$ (see DCNetworkBlock). All the costs are per instant, no length
+  * of the time step appearing in the model (see \ref ucbm_conv). The
+  * Configuration \p objc is not used. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Checking the UCBlock and handling its Solution
+ *  @{ */
+
  /// checks whether the current solution is feasible for the UCBlock
  /** The solution is feasible if every sub-Block is, and the violation of
   * each Constraint of the UCBlock is not greater than the tolerance. The
@@ -805,35 +869,47 @@ class UCBlock : public Block
   *
   * The encoding of ws is bit-wise:
   *
-  *   = bit 0 (& 1): means "save the solution of all UnitBlock"
+  * - bit 0 (& 1): save the Solution of all the UnitBlock;
   *
-  *   = bit 1 (& 2): means "save the solution of all NetworkBlock"; note
-  *                  that this bit (and, therefore, the next one) is
-  *                  ignored of the network only has one node, since then
-  *                  there is no real NetworkBlock to be saved
+  * - bit 1 (& 2): save the Solution of all the NetworkBlock; this bit (and,
+  *   therefore, the next one) is ignored if the network only has one node,
+  *   since then there is no NetworkBlock to be saved;
   *
-  *   = bit 2 (& 4): means "save the NetworkBlock in compressed format"
+  * - bit 2 (& 4): save the NetworkBlock in compressed format;
   *
-  *   = bit 3 (& 8): means "save the dual variables of the node injection
-  *                  constraints"
+  * - bit 3 (& 8): save the dual values of the node injection constraints
+  *   (1);
   *
-  *   = bit 4 (& 16): means "save the dual variables of the primary demand
-  *                   constraints"
+  * - bit 4 (& 16): save the dual values of the primary reserve constraints
+  *   (2);
   *
-  *   = bit 5 (& 32): means "save the dual variables of the secondary demand
-  *                   constraints"
+  * - bit 5 (& 32): save the dual values of the secondary reserve
+  *   constraints (3);
   *
-  *   = bit 6 (& 64): means "save the dual variables of the inertia demand
-  *                   constraints"
+  * - bit 6 (& 64): save the dual values of the inertia constraints (4);
   *
-  *   = bit 7 (& 128): means "save the dual variables of the pollutant budget
-  *                    constraints"
+  * - bit 7 (& 128): save the dual values of the pollutant budget
+  *   constraints (5).
+  *
+  * The dual values are those of the RowConstraint (see RowConstraint), as
+  * the Solver attached to the UCBlock has written them: with the rows
+  * written as in generate_abstract_constraints(), the dual value of a row
+  * is the coefficient of its left-hand side in the Lagrangian, i.e., minus
+  * the derivative of the optimal value with respect to the finite side that
+  * is active. Hence the dual value \f$ y^{ac}_{t,n} \f$ of (1) is free,
+  * \f$ - y^{ac}_{t,n} \f$ being the marginal cost of the demand of node n at
+  * instant t (the locational marginal price), those of (2)-(4) are
+  * nonpositive, their opposites being the marginal costs of the
+  * requirements, and that of (5) is nonnegative when the budget is active
+  * and nonpositive when the lower bound is; all of them are values per
+  * instant, but that of (5), which is per unit of emission over the
+  * horizon (see \ref ucbm_dual_sign).
   *
   * Note that UCBlock may not contain some or all of the required solution,
   * if the corresponding Variable/Constraint have not been constructed yet:
   * this throws an exception, unless emptys = true, in which case the
   * UCBlockSolution object is only prepped for getting a solution, but it is
-  * not really getting one now.
+  * not really getting one yet.
   *
   * Note that, although the method clearly returns a UCBlockSolution,
   * formally the return type is Solution *. This is because it is not
@@ -855,7 +931,7 @@ class UCBlock : public Block
 
  /// returns the sense of the Objective of this UCBlock
  /** This function returns the sense of the Objective of this UCBlock, which
-  * is currently defined to be minimization (Objective::eMin). */
+  * is minimization (Objective::eMin). */
 
  int get_objective_sense( void ) const override;
 
@@ -919,10 +995,10 @@ class UCBlock : public Block
   *         zone. */
 
  bool node_belongs_to_primary_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_primary_zones > 1 ) &&
-      ( zone_id != v_primary_zones[ node_id ] ) )
-   return( false );
-  return( true );
+  // without the vector there is at most one zone, with all the nodes
+  // [deserialize() refuses the vector absent with more than one zone]
+  return( v_primary_zones.empty() ||
+          ( v_primary_zones[ node_id ] == zone_id ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -938,10 +1014,10 @@ class UCBlock : public Block
   *         zone. */
 
  bool node_belongs_to_secondary_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_secondary_zones > 1 ) &&
-      ( zone_id != v_secondary_zones[ node_id ] ) )
-   return( false );
-  return( true );
+  // without the vector there is at most one zone, with all the nodes
+  // [deserialize() refuses the vector absent with more than one zone]
+  return( v_secondary_zones.empty() ||
+          ( v_secondary_zones[ node_id ] == zone_id ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -956,10 +1032,10 @@ class UCBlock : public Block
   *         zone. */
 
  bool node_belongs_to_inertia_zone( Index node_id , Index zone_id ) const {
-  if( ( f_number_inertia_zones > 1 ) &&
-      ( zone_id != v_inertia_zones[ node_id ] ) )
-   return( false );
-  return( true );
+  // without the vector there is at most one zone, with all the nodes
+  // [deserialize() refuses the vector absent with more than one zone]
+  return( v_inertia_zones.empty() ||
+          ( v_inertia_zones[ node_id ] == zone_id ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1010,20 +1086,17 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary zones
- /** The method returned a std::vector< Index > V and each element of V tells
-  * to which primary zone node n belongs. There are three possible cases:
+ /** Returns the vector V of the primary zones of the nodes, as read from
+  * "PrimaryZones" (see deserialize()):
   *
-  * - if V is empty, then no primary zones are defined, and there are no
-  *   primary reserve constraints;
+  * - if V is empty, then either there are no primary zones, or there is
+  *   only one and all the nodes belong to it;
   *
-  * - if V has only one element, then the transmission network is a bus and
-  *   that unique node belongs to the primary zone;
-  *
-  * - otherwise, V must have size NetworkBlock::get_number_nodes() and V[ n ]
-  *   tells to which primary zone the node n belongs; if
-  *   V[ n ] >= get_number_primary_zones(), then node n does not belong to
-  *   any primary zone, and hence the corresponding electrical generators are
-  *   not involved into the primary reserve constraints. */
+  * - otherwise, V has size get_number_nodes(), and V[ n ] tells to which
+  *   primary zone node n belongs; if V[ n ] >= get_number_primary_zones(),
+  *   then node n does not belong to any primary zone, and hence the
+  *   corresponding electrical generators are not involved in the primary
+  *   constraints, whatever the number of zones (one included). */
 
  const std::vector< Index > & get_primary_zone( void ) const {
   return( v_primary_zones );
@@ -1031,20 +1104,17 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary zones
- /** The method returned a std::vector< Index > V and each element of V tells
-  * to which secondary zone node n belongs. There are three possible cases:
+ /** Returns the vector V of the secondary zones of the nodes, as read from
+  * "SecondaryZones" (see deserialize()):
   *
-  * - if V is empty, then no secondary zones are defined, and there are no
-  *   primary reserve constraints;
+  * - if V is empty, then either there are no secondary zones, or there is
+  *   only one and all the nodes belong to it;
   *
-  * - if V has only one element, then the transmission network is a bus and
-  *   that unique node belongs to the secondary zone;
-  *
-  * - otherwise, V must have size NetworkBlock::get_number_nodes() and V[ n ]
-  *   tells to which secondary zone the node n belongs; if
-  *   V[ n ] >= get_number_secondary_zones(), then node n does not belong to
-  *   any secondary zone, and hence the corresponding electrical generators
-  *   are not involved into the secondary reserve constraints. */
+  * - otherwise, V has size get_number_nodes(), and V[ n ] tells to which
+  *   secondary zone node n belongs; if V[ n ] >= get_number_secondary_zones(),
+  *   then node n does not belong to any secondary zone, and hence the
+  *   corresponding electrical generators are not involved in the secondary
+  *   constraints, whatever the number of zones (one included). */
 
  const std::vector< Index > & get_secondary_zone( void ) const {
   return( v_secondary_zones );
@@ -1052,20 +1122,17 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inertia zones
- /** The method returned a std::vector< Index > V and each element of V tells
-  * to which inertia zone node n belongs. There are three possible cases:
+ /** Returns the vector V of the inertia zones of the nodes, as read from
+  * "InertiaZones" (see deserialize()):
   *
-  * - if V is empty, then no inertia zones are defined, and there are no
-  *   inertia reserve constraints;
+  * - if V is empty, then either there are no inertia zones, or there is
+  *   only one and all the nodes belong to it;
   *
-  * - if V has only one element, then the transmission network is a bus and
-  *   that unique node belongs to the inertia zone;
-  *
-  * - otherwise, V must have size NetworkBlock::get_number_nodes() and V[ n ]
-  *   tells to which inertia zone the node n belongs; if
-  *   V[ n ] >= get_number_inertia_zones(), then node n does not belong to
-  *   any inertia zone, and hence the corresponding electrical generators
-  *   are not involved into the inertia reserve constraints. */
+  * - otherwise, V has size get_number_nodes(), and V[ n ] tells to which
+  *   inertia zone node n belongs; if V[ n ] >= get_number_inertia_zones(),
+  *   then node n does not belong to any inertia zone, and hence the
+  *   corresponding electrical generators are not involved in the inertia
+  *   constraints, whatever the number of zones (one included). */
 
  const std::vector< Index > & get_inertia_zone( void ) const {
   return( v_inertia_zones );
@@ -1073,24 +1140,11 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of primary demand
- /** The method returned a two-dimensional boost::multi_array<> M such that
-  * M[ n , t ] gives the primary demand of the primary zone n at the time
-  * instant t. This two-dimensional boost::multi_array<> M considers three
-  * possible cases:
-  *
-  * - if the boost::multi_array<> M is empty() then no primary zones are
-  *   defined, and there are no primary reserve constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size get_time_horizon() and it
-  *   means there exist just one primary zone in the problem where the
-  *   node(s) belongs to that primary zone. Each element of this vector gives
-  *   the primary demand of the unique primary zone at time instant t;
-  *
-  * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_number_primary_zones() row where each row must have the size of
-  *   get_time_horizon() and each element of M[ n , t ] gives the primary
-  *   demand of primary zone n at time instant t. */
+ /** Returns the two-dimensional boost::multi_array<> M such that M[ z ][ t ]
+  * is the primary reserve requirement of zone z at instant t (see
+  * "PrimaryDemand" in deserialize()); M is empty() if there are no
+  * primary zones, and has get_number_primary_zones() rows of
+  * get_time_horizon() entries otherwise. */
 
  const boost::multi_array< double , 2 > & get_primary_demand( void ) const {
   return( v_primary_demand );
@@ -1098,25 +1152,11 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of secondary demand
- /** The method returned a two-dimensional boost::multi_array<> M such that
-  * M[ n , t ] gives the secondary demand of the secondary zone n at the time
-  * instant t. This two-dimensional boost::multi_array<> M considers three
-  * possible cases:
-  *
-  * - if the boost::multi_array<> M is empty() then no secondary zones are
-  *   defined, and there are no secondary reserve constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size get_time_horizon() and it
-  *   means there exist just one secondary zone in the problem where the
-  *   node(s) belongs to that secondary zone. Each element of this vector
-  *   gives the secondary demand of the unique secondary zone at time instant
-  *   t;
-  *
-  * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_number_secondary_zones() row where each row must have the size of
-  *   get_time_horizon() and each element of M[ n , t ] gives the secondary
-  *   demand of secondary zone n at time instant t. */
+ /** Returns the two-dimensional boost::multi_array<> M such that M[ z ][ t ]
+  * is the secondary reserve requirement of zone z at instant t (see
+  * "SecondaryDemand" in deserialize()); M is empty() if there are no
+  * secondary zones, and has get_number_secondary_zones() rows of
+  * get_time_horizon() entries otherwise. */
 
  const boost::multi_array< double , 2 > & get_secondary_demand( void ) const {
   return( v_secondary_demand );
@@ -1124,24 +1164,11 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the matrix of inertia demand
- /** The method returned a two-dimensional boost::multi_array<> M such that
-  * M[ n , t ] gives the inertia demand of the inertia zone n at the time
-  * instant t. This two-dimensional boost::multi_array<> M considers three
-  * possible cases:
-  *
-  * - if the boost::multi_array<> M is empty() then no inertia zones are
-  *   defined, and there are no inertia reserve constraints;
-  *
-  * - if the boost::multi_array<> M has only one row which in this case the
-  *   boost::multi_array<> M is a vector with size of f_time_horizon, and it
-  *   means there exist just one inertia zone in the problem where the
-  *   node(s) belongs to that inertia zone. Each element of this vector gives
-  *   the inertia demand of the unique inertia zone at time instant t;
-  *
-  * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_number_inertia_zones() row where each row must have the size of
-  *   get_time_horizon() and each element of M[ n , t ] gives the inertia
-  *   demand of inertia zone n at time instant t. */
+ /** Returns the two-dimensional boost::multi_array<> M such that M[ z ][ t ]
+  * is the inertia requirement of zone z at instant t (see
+  * "InertiaDemand" in deserialize()); M is empty() if there are no
+  * inertia zones, and has get_number_inertia_zones() rows of
+  * get_time_horizon() entries otherwise. */
 
  const boost::multi_array< double , 2 > & get_inertia_demand( void ) const {
   return( v_inertia_demand );
@@ -1260,7 +1287,7 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the factors of the storage levels in the pollutant budget
  /** The method returns the three-dimensional boost::multi_array<> M such that
-  * M[ t , p , s ] is the factor of the level of storage s at the end of time
+  * M[ t , p , k ] is the factor of the level of storage k at the end of time
   * t in the pollutant budget constraints of pollutant p, with the first
   * dimension of size 1 if the factors do not depend on time; M is empty() if
   * no storage level is in those constraints. */
@@ -1271,12 +1298,12 @@ class UCBlock : public Block
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the factor of the level of storage s for pollutant p at time t
+ /// returns the factor of the level of storage k for pollutant p at time t
  /** It must not be called if get_pollutant_storage_rho() is empty(). */
 
- double get_pollutant_storage_rho( Index t , Index p , Index s ) const {
+ double get_pollutant_storage_rho( Index t , Index p , Index k ) const {
   return( v_pollutant_storage_rho[ v_pollutant_storage_rho.shape()[ 0 ] > 1 ?
-                                   t : 0 ][ p ][ s ] );
+                                   t : 0 ][ p ][ k ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1302,15 +1329,11 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of generator node
- /** This method returns a vector V that indicates to which node of the
-  * transmission network each electrical generator belongs. There are two
-  * possible cases:
-  *
-  * - if V has only one element, then the transmission network is a bus and
-  *   all the units (electrical generators) belong to that unique node;
-  *
-  * - otherwise, the size of the vector V must be the number of units and
-  *   V[ g ] indicates to which node the electrical generator g belongs. */
+ /** This method returns the vector V that indicates to which node of the
+  * transmission network each electrical generator belongs, as read from
+  * "GeneratorNode" (see deserialize()): V[ g ] is the node of electrical
+  * generator g, for g = 0, ..., NumberElectricalGenerators - 1. V may be
+  * empty in the bus case, where all the generators are at the only node. */
 
  const std::vector< Index > & get_generator_node( void ) const {
   return( v_generator_node );
@@ -1416,14 +1439,25 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the node injection constraints
  /** This method returns the boost multi_array C containing the node
-  * injection constraints. C[ t ][ n ] is the node injection constraint
-  * associated with time t and node n. */
+  * injection constraints (1) (see generate_abstract_constraints()).
+  * C[ t ][ n ] is the node injection constraint associated with time t and
+  * node n, with n = 0 only in the bus case, where it is (1b). The dual value
+  * of each row (RowConstraint::get_dual()) follows the convention described
+  * in get_Solution(): minus the locational marginal price, per instant. */
 
  boost::multi_array< FRowConstraint , 2 > &
   get_node_injection_constraints( void ) {
   return( v_node_injection_Const );
   }
- 
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the reactive power node injection constraints
+ /** This method returns the boost multi_array C containing the reactive
+  * power node injection constraints (1') (see
+  * generate_abstract_constraints()), indexed as those of
+  * get_node_injection_constraints(); C is empty if there is no reactive
+  * power in the model. */
+
  boost::multi_array< FRowConstraint , 2 > &
   get_reactive_node_injection_constraints( void ) {
   return( v_reactive_node_injection_Const );
@@ -1443,8 +1477,10 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the primary demand constraints
  /** This method returns the boost multi_array C containing the primary
-  * demand constraints. C[ t ][ z ] is the primary demand constraint
-  * associated with time t and primary zone z. */
+  * reserve constraints (2) (see generate_abstract_constraints()).
+  * C[ t ][ z ] is the primary reserve constraint associated with time t and
+  * primary zone z; its dual value is nonpositive, its opposite being the
+  * marginal cost of the requirement (see get_Solution()). */
 
  boost::multi_array< FRowConstraint , 2 > &
  get_primary_demand_constraints( void ) {
@@ -1465,8 +1501,10 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the secondary demand constraints
  /** This method returns the boost multi_array C containing the secondary
-  * demand constraints. C[ t ][ z ] is the secondary demand constraint
-  * associated with time t and secondary zone z. */
+  * reserve constraints (3) (see generate_abstract_constraints()).
+  * C[ t ][ z ] is the secondary reserve constraint associated with time t
+  * and secondary zone z; its dual value is nonpositive, its opposite being
+  * the marginal cost of the requirement (see get_Solution()). */
 
  boost::multi_array< FRowConstraint , 2 > &
  get_secondary_demand_constraints( void ) {
@@ -1487,8 +1525,10 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// returns the inertia demand constraints
  /** This method returns the boost multi_array C containing the inertia
-  * demand constraints. C[ t ][ z ] is the inertia demand constraint
-  * associated with time t and inertia zone z. */
+  * constraints (4) (see generate_abstract_constraints()). C[ t ][ z ] is
+  * the inertia constraint associated with time t and inertia zone z; its
+  * dual value is nonpositive, its opposite being the marginal cost of the
+  * requirement (see get_Solution()). */
 
  boost::multi_array< FRowConstraint , 2 > &
  get_inertia_demand_constraints( void ) {
@@ -1508,11 +1548,14 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
  /// returns the pollutant budget constraints
- /** This method returns the vector C of the pollutant budget constraints:
-  * C[ p ] has get_number_pollutant_zones()[ p ] entries, C[ p ][ z ] being
-  * the constraint of zone z of pollutant p, whose budget is
+ /** This method returns the vector C of the pollutant budget constraints
+  * (5) (see generate_abstract_constraints()): C[ p ] has
+  * get_number_pollutant_zones()[ p ] entries, C[ p ][ z ] being the
+  * constraint of zone z of pollutant p, whose budget is
   * get_pollutant_budget()[ get_number_pollutant_zones()[ 0 ] + ... +
-  * get_number_pollutant_zones()[ p - 1 ] + z ]. */
+  * get_number_pollutant_zones()[ p - 1 ] + z ]. Its dual value is
+  * nonnegative when the budget is active and nonpositive when the lower
+  * bound is (see get_Solution()). */
 
  std::vector< std::vector< FRowConstraint > > &
   get_pollutant_constraints( void ) {
@@ -1546,12 +1589,9 @@ class UCBlock : public Block
 /*------------------ METHODS FOR INITIALIZING THE UCBlock ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the data of the UCBlock
- *  @{
- *
- * @brief It loads a UCBlock from a input standard stream.
- * @warning This method is not implemented yet.
- * @param input an input stream
- */
+ *  @{ */
+
+ /// loading a UCBlock from a stream is not implemented: it throws
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "UCBlock::load() not implemented yet" ) );
@@ -1560,18 +1600,28 @@ class UCBlock : public Block
 /** @} ---------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for changing the data of the ThermalUnitBlock
+/** @name Methods for changing the data of the UCBlock
  *  @{ */
 
- /** Method for handling Modification.
-  *
-  * This method has to intercept any "abstract Modification" that modifies the
-  * "abstract representation" of the UCBlock, and "translate" them into both
-  * changes of the actual data structures and corresponding "physical
+ /// method for handling Modification
+ /** This method has to intercept any "abstract Modification" that modifies
+  * the "abstract representation" of the UCBlock, and "translate" them into
+  * both changes of the actual data structures and corresponding "physical
   * Modification". These Modification(s) are those for which
-  * Modification::concerns_Block() is true. Currently, this method only
-  * handles UnitBlockMod whose modification is associated with the changing of
-  * the scale factor of a UnitBlock. */
+  * Modification::concerns_Block() is true. This method handles the
+  * UnitBlockMod of type UnitBlockMod::eScale, also inside a
+  * GroupModification: the coefficients of the terms of the scaled units in
+  * the constraints (1)-(5) and (1') of generate_abstract_constraints(), and
+  * the right-hand sides of (1), are changed to the new scale. It also handles
+  * the change of the inertia power of a HydroUnitBlock (also inside a
+  * HydroSystemUnitBlock), whose coefficients in (4) follow it, a term that
+  * the rows do not have being refused with std::logic_error; and the
+  * changes of the scale, of the kappa and of the maximum power of the units
+  * make it give the NetworkBlock the bounds on the node injections again
+  * (see \ref ucbm_link_bounds and set_node_injection_bounds()). The rows
+  * are rewritten by walking them as they are generated, node by node and
+  * unit by unit, so that a unit with generators at several nodes of a zone
+  * is handled. */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
@@ -1650,7 +1700,8 @@ class UCBlock : public Block
   * 0 come first, then all the zones of pollutant 1, and so on, i.e., index k
   * corresponds to zone z of pollutant p with
   *
-  *    k = NumberPollutantZones[ 0 ] + ... + NumberPollutantZones[ p - 1 ] + z .
+  *    k = NumberPollutantZones[ 0 ] + ... + NumberPollutantZones[ p - 1 ]
+  *        + z .
   *
   * The iterator \p values must provide one value for each element of
   * \p subset, in the same order. If \p ordered is true, \p subset is assumed
@@ -1778,11 +1829,11 @@ class UCBlock : public Block
 /*--------------------- PROTECTED TYPES OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- using MAdouble = boost::multi_array< double , 2 >;
- using MAdouble_ext = MAdouble::extent_gen;
+ using MAdouble = boost::multi_array< double , 2 >;  ///< matrix of data
+ using MAdouble_ext = MAdouble::extent_gen;  ///< extents of a MAdouble
 
- using MAFRC = boost::multi_array< FRowConstraint , 2 >;
- using MAFRC_ext = MAdouble::extent_gen;
+ using MAFRC = boost::multi_array< FRowConstraint , 2 >;  ///< matrix of rows
+ using MAFRC_ext = MAdouble::extent_gen;  ///< extents of a MAFRC
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
@@ -1815,9 +1866,12 @@ class UCBlock : public Block
  /// the NetworkData object
  NetworkBlock::NetworkData * f_NetworkData;
 
- /// the specific classname of the networks that need to be instantiated,
- /// e.g., `DCNetworkBlock`, `ECNetworkBlock`, etc.
+ /// the classname of the NetworkBlock that the UCBlock builds
+ /** E.g., "DCNetworkBlock" or "ECNetworkBlock" (see
+  * "NetworkBlockClassname" in deserialize()). */
  std::string network_block_classname;
+
+ /// the classname of the NetworkData that the UCBlock builds
  std::string network_data_classname;
 
  /// the time horizon of the problem
@@ -1838,19 +1892,23 @@ class UCBlock : public Block
  /// the total number of pollutant zones of the problem
  Index f_total_number_pollutant_zones;
 
- /// the number of nodes in primary zones of the network
+ /// the number of primary zones
  Index f_number_primary_zones;
 
- /// the number of nodes in secondary zones of the network
+ /// the number of secondary zones
  Index f_number_secondary_zones;
 
- /// the number of nodes in inertia zones of the network
+ /// the number of inertia zones
  Index f_number_inertia_zones;
 
  /// the number of pollutants
  Index f_number_pollutants;
 
- /// the constant terms of each NetworkBlock
+ /// the constant terms of the NetworkBlock in the bus case
+ /** In the bus case, the constant terms of the NetworkBlock, which are not
+  * built, indexed over "NumberNetworks"; their sum is the constant of the
+  * Objective of the UCBlock. Empty with more than one node, where the
+  * constant terms are in the NetworkBlock, or if there is none. */
  std::vector< double > v_network_constant_terms;
 
  /// the number of pollutant zones of each pollutant
@@ -1864,9 +1922,12 @@ class UCBlock : public Block
  /** This vector has size get_number_networks(). */
  std::vector< NetworkBlock * > v_network_blocks;
 
- /// the matrix of ActivePowerDemand and the matrix of ReactivePowerDemand
- /** Indexed over the dimensions "NumberNodes" and "TimeHorizon". */
+ /// the matrix of ActivePowerDemand
+ /** Indexed over the dimensions "NumberNodes" and "TimeHorizon"; empty with
+  * more than one node, where the demand is in the NetworkBlock. */
  boost::multi_array< double , 2 > v_active_power_demand;
+
+ /// the matrix of ReactivePowerDemand, indexed as v_active_power_demand
  boost::multi_array< double , 2 > v_reactive_power_demand;
 
  /// the vector of PrimaryZones
@@ -1920,7 +1981,7 @@ class UCBlock : public Block
  /// node injection constraints for each time and node
  boost::multi_array< FRowConstraint , 2 > v_node_injection_Const;
 
- /// node injection constraints for each time and node
+ /// reactive node injection constraints for each time and node
  boost::multi_array< FRowConstraint , 2 > v_reactive_node_injection_Const;
 
  /// primary demand constraints for each time and primary zone
@@ -1964,65 +2025,15 @@ class UCBlock : public Block
  ///< whether the rows of a scaled unit wait for the end of replicate()
  /**< While true, add_Modification() puts the index of a unit whose scale
   * factor changed in v_scaled_units instead of rewriting the rows that
-  * carry it: replicate() sets it, so that those rows are rewritten once for
-  * all the units it scales. */
+  * carry it and the bounds of the node injections: replicate() sets it, so
+  * that both are rewritten once for all the units it scales. */
 
  std::vector< Index > v_scaled_units;
  ///< the units scaled while f_defer_scaled_rows is true
 
- boost::multi_array< Range , 2 > primary_var_index;
- ///< indices of active Variable in the primary demand constraints
- /**< The active Variables of each LinearFunction defining a primary demand
-  * constraint are grouped by UnitBlocks. That is, all active Variables of a
-  * given UnitBlock have consecutive indices in the LinearFunction that
-  * defines each constraint. The element at position (i, z) in the multi-array
-  * will store the index's range of active Variable (that belongs to the
-  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
-  * of the i-th UnitBlock is active in the constraint associated with zone
-  * "z", then the element at position (i, z) is
-  * ( Inf< Index >() , Inf< Index >() ).
-  *
-  * Notice that these indices do not depend on the time instant. This is
-  * because we assume that if a generator has primary spinning reserve for
-  * some time instant, then it has primary spinning reserve for all time
-  * instants. */
-
- boost::multi_array< Range , 2 > secondary_var_index;
- ///< indices of active Variable in the secondary demand constraints
- /**< The active Variables of each LinearFunction defining a secondary demand
-  * constraint are grouped by UnitBlocks. That is, all active Variables of a
-  * given UnitBlock have consecutive indices in the LinearFunction that
-  * defines each constraint. The element at position (i, z) in the multi-array
-  * will store the index's range of active Variable (that belongs to the
-  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
-  * of the i-th UnitBlock is active in the constraint associated with zone
-  * "z", then the element at position (i, z) is
-  * ( Inf< Index >() , Inf< Index >() ).
-  *
-  * Notice that these indices do not depend on the time instant. This is
-  * because we assume that if a generator has secondary spinning reserve for
-  * some time instant, then it has secondary spinning reserve for all time
-  * instants. */
-
- boost::multi_array< Index , 2 > inertia_var_index;
- ///< indices of active Variable in the inertia demand constraints
- /**< The active Variables of each LinearFunction defining an inertia demand
-  * constraint are grouped by UnitBlocks. That is, all active Variables of a
-  * given UnitBlock have consecutive indices in the LinearFunction that
-  * defines each constraint. The element at position (i, z) in the multi-array
-  * will store the smallest index of an active Variable (that belongs to the
-  * i-th UnitBlock) in the constraint associated with zone "z". If no Variable
-  * of the i-th UnitBlock is active in the constraint associated with zone
-  * "z", then the element at position (i, z) is Inf< Index >().
-  *
-  * Notice that these indices do not depend on the time instant. This is
-  * because we assume that, if a generator has commitment variable, inertia
-  * commitment, inertia power, or active power variable, for some time
-  * instant, then it has the same thing for all time instants. */
-
 /*--------------------------------------------------------------------------*/
 
- SMSpp_insert_in_factory_h;
+ SMSpp_insert_in_factory_h;  ///< registration in the factory
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE METHODS OF THE CLASS ----------------------*/
@@ -2040,9 +2051,12 @@ class UCBlock : public Block
  void deserialize_network_blocks( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
- /// generate the node injection constraints
+ /// generate the node injection constraints (1)
 
  void generate_node_injection_constraints( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// generate the reactive node injection constraints (1')
 
  void generate_reactive_node_injection_constraints( void );
 
@@ -2076,6 +2090,18 @@ class UCBlock : public Block
  void update_scaled_rows( std::vector< Index > & scaled_units );
 
 /*--------------------------------------------------------------------------*/
+ /// gives each NetworkBlock the bounds of its node injections
+ /** The bounds of the injection at a node are the sums, over the generators
+  * at the node, of get_scale() * get_kappa() * get_design_ub() times the
+  * minimum (or the opposite of the fixed consumption, if smaller) and the
+  * maximum power; the same for the reactive power, if any. Called by
+  * deserialize() and by add_Modification() whenever one of these data of a
+  * unit changes; the NetworkBlock rewrite the rows of the bounds, if they
+  * have them. */
+
+ void set_node_injection_bounds( void );
+
+/*--------------------------------------------------------------------------*/
  /// updates the node injection constraints
  /** This function updates the node injection constraints considering that the
   * scale factors of the given units may have been modified. The vector \p
@@ -2083,6 +2109,8 @@ class UCBlock : public Block
   *
   * @param modified_units The indices of the UnitBlocks that may have been
   *        modified. This vector is assumed to be ordered.
+  *
+  * @param issueMod How the Modification of the rows are issued.
   *
   * @param reactive If true, the reactive node injection constraints are
   *        updated instead of the active ones. */
@@ -2099,7 +2127,9 @@ class UCBlock : public Block
   * modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered. */
+  *        modified. This vector is assumed to be ordered.
+  *
+  * @param issueMod How the Modification of the rows are issued. */
 
  void update_primary_demand_constraints(
 			       const std::vector< Index > & modified_units ,
@@ -2112,7 +2142,9 @@ class UCBlock : public Block
   * \p modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered. */
+  *        modified. This vector is assumed to be ordered.
+  *
+  * @param issueMod How the Modification of the rows are issued. */
 
  void update_secondary_demand_constraints(
 			       const std::vector< Index > & modified_units ,
@@ -2125,7 +2157,9 @@ class UCBlock : public Block
   * \p modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered. */
+  *        modified. This vector is assumed to be ordered.
+  *
+  * @param issueMod How the Modification of the rows are issued. */
 
  void update_inertia_demand_constraints(
 			       const std::vector< Index > & modified_units ,
@@ -2138,7 +2172,9 @@ class UCBlock : public Block
   * \p modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered. */
+  *        modified. This vector is assumed to be ordered.
+  *
+  * @param issueMod How the Modification of the rows are issued. */
 
  void update_pollutant_budget_constraints(
 			       const std::vector< Index > & modified_units ,
@@ -2201,9 +2237,10 @@ class UCBlock : public Block
  /// returns the primary zone to which the given generator belongs
 
  Index get_primary_zone( Index elc_generator ) const {
-  // with at most one zone the vector of the zones may well be empty [see
-  // node_belongs_to_primary_zone()]
-  if( f_number_primary_zones <= 1 )
+  // without the vector all the nodes are in zone 0 [see
+  // node_belongs_to_primary_zone()]; the zone returned is
+  // >= get_number_primary_zones() if the node is in no zone
+  if( v_primary_zones.empty() )
    return( 0 );
 
   // Node to which the given electrical generator belongs
@@ -2218,9 +2255,10 @@ class UCBlock : public Block
  /// returns the secondary zone to which the given generator belongs
 
  Index get_secondary_zone( Index elc_generator ) const {
-  // with at most one zone the vector of the zones may well be empty [see
-  // node_belongs_to_secondary_zone()]
-  if( f_number_secondary_zones <= 1 )
+  // without the vector all the nodes are in zone 0 [see
+  // node_belongs_to_secondary_zone()]; the zone returned is
+  // >= get_number_secondary_zones() if the node is in no zone
+  if( v_secondary_zones.empty() )
    return( 0 );
 
   // Node to which the given electrical generator belongs
@@ -2235,9 +2273,10 @@ class UCBlock : public Block
  /// returns the inertia zone to which the given generator belongs
 
  Index get_inertia_zone( Index elc_generator ) const {
-  // with at most one zone the vector of the zones may well be empty [see
-  // node_belongs_to_inertia_zone()]
-  if( f_number_inertia_zones <= 1 )
+  // without the vector all the nodes are in zone 0 [see
+  // node_belongs_to_inertia_zone()]; the zone returned is
+  // >= get_number_inertia_zones() if the node is in no zone
+  if( v_inertia_zones.empty() )
    return( 0 );
 
   // Node to which the given electrical generator belongs
@@ -2270,6 +2309,8 @@ class UCBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
+
+ /// registers the methods of the UCBlock in the method factory
 
  static void static_initialization( void )
  {
@@ -2530,19 +2571,23 @@ class UCBlockSbstMod : public UCBlockMod
 /** The UCBlockSolution class, derived from Solution, represents a solution
  * of a UCBlock, i.e.:
  *
- * - [optionally] the [:UnitBlockjSolution for all units
+ * - [optionally] the [:UnitBlock]Solution of all the units;
  *
- * - [optionally] the [:NetworkBlockjSolution for all networks
+ * - [optionally] the [:NetworkBlock]Solution of all the networks;
  *
- * - [optionally] the dual variables of active energy demand constraints
+ * - [optionally] the dual values of the node injection constraints (1);
  *
- * - [optionally] the dual variables of primary reserve constraints
+ * - [optionally] the dual values of the primary reserve constraints (2);
  *
- * - [optionally] the dual variables of secondary reserve constraints
+ * - [optionally] the dual values of the secondary reserve constraints (3);
  *
- * - [optionally] the dual variables of inertia constraints
+ * - [optionally] the dual values of the inertia constraints (4);
  *
- * - [optionally] the dual variables of pollutant budget constraints */
+ * - [optionally] the dual values of the pollutant budget constraints (5),
+ *
+ * the constraints being numbered as in
+ * UCBlock::generate_abstract_constraints(), and the dual values following
+ * the convention described in UCBlock::get_Solution(). */
 
 class UCBlockSolution : public Solution {
 
@@ -2554,7 +2599,7 @@ class UCBlockSolution : public Solution {
 
 /*------------------------------- FRIENDS ----------------------------------*/
 
- using Index = Block::Index;  // "import" Index
+ using Index = Block::Index;  ///< "import" Index
 
 /*------------------------------- FRIENDS ----------------------------------*/
 
@@ -2583,8 +2628,10 @@ class UCBlockSolution : public Solution {
 
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A UCBlockSolution ---------*/
 
+ /// reads the solution of the UCBlock \p block into this UCBlockSolution
  void read( const Block * block ) override final;
 
+ /// writes this UCBlockSolution into the UCBlock \p block
  void write( Block * block ) override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2611,7 +2658,7 @@ class UCBlockSolution : public Solution {
   *
   * - There are two possible versions of network information:
   *
-  *   = The "standard" one, i.e., groups "NetworkBlock_0", "NetworkBlock_1",
+  *   - The "standard" one, i.e., groups "NetworkBlock_0", "NetworkBlock_1",
   *     ..., "NetworkBlock_T" with T = NumberNetworks - 1, with
   *     "NetworkBlock_t" containing each the NetworkBlockSolution
   *     corresponding to that network constraints for some specific subset
@@ -2620,7 +2667,7 @@ class UCBlockSolution : public Solution {
   *     may be large, this may create performance problems since netCDF does
   *     not like to have many groups.
   *
-  *   = The single group "NetworkBlock" that contains all the data of all the
+  *   - The single group "NetworkBlock" that contains all the data of all the
   *     NetworkBlockSolution corresponding to all the time instants t in
   *     0, ..., TimeHorizon - 1; see NetworkBlock::serialize( group & , int )
   *     for a description of the format. This has much better performances,
@@ -2637,24 +2684,25 @@ class UCBlockSolution : public Solution {
   *   present.
   *
   * - The variable "ActivePowerDuals", of type netCDF::NcDouble and indexed
-  *   both over the dimensions "NumberNodes" and "TimeHorizon". This variable
-  *   is only required to be present if  "NumberNodes" is present, otherwise
-  *   it is optional (since it is ignored). ActivePowerDuals[ n , t ] is
-  *   assumed to contain the dual of the active power demand constraint
-  *   corresponding to node n of the transmission network at the time t
+  *   over the dimensions "TimeHorizon" and "NumberNodes", in this order.
+  *   This variable is only required to be present if "NumberNodes" is
+  *   present, otherwise it is optional (since it is ignored).
+  *   ActivePowerDuals[ t , n ] is the dual value \f$ y^{ac}_{t,n} \f$ of
+  *   the node injection constraint (1) of node n at the time instant t (of
+  *   (1b) if there is one node), i.e., minus the locational marginal price
+  *   per instant (see UCBlock::get_Solution()).
   *
   * - The dimension "NumberPrimaryZones" tells how many "primary spinning
   *   reserve zones" are there in the problem. The dimension is optional, if
   *   it is not provided then it is taken to be 0, which means that no dual
   *   solution for the primary reserve constraints is present.
   *
-  * - The variable "PrimaryDuals", of type netCDF::NcDouble and indexed both
-  *   over the dimensions "NumberPrimaryZones" and "TimeHorizon". This
-  *   variable is only required to be present if "NumberPrimaryZones" is
-  *   present, otherwise it is optional (since it is ignored). Entry
-  *   PrimaryDuals[ i , t ] is assumed to contain the dual of the active
-  *   power demand constraint corresponding to primary reserve zone i at the
-  *   time t.
+  * - The variable "PrimaryDuals", of type netCDF::NcDouble and indexed over
+  *   the dimensions "TimeHorizon" and "NumberPrimaryZones", in this order.
+  *   This variable is only required to be present if "NumberPrimaryZones"
+  *   is present, otherwise it is optional (since it is ignored). Entry
+  *   PrimaryDuals[ t , z ] is the dual value \f$ y^{pr}_{t,z} \leq 0 \f$
+  *   of the primary reserve constraint (2) of zone z at the time instant t.
   *
   * - The dimension "NumberSecondaryZones" tells how many "secondary spinning
   *   reserve zones" are there in the problem. The dimension is optional, if
@@ -2662,24 +2710,24 @@ class UCBlockSolution : public Solution {
   *   solution for the secondary reserve constraints is present.
   *
   * - The variable "SecondaryDuals", of type netCDF::NcDouble and indexed
-  *   both over the dimensions "NumberSecondaryZones" and "TimeHorizon". This
-  *   variable is only required to be present if "NumberSecondaryZones" is
-  *   present, otherwise it is optional (since it is ignored). Entry
-  *   SecondaryDuals[ i , t ] is assumed to contain the dual of the
-  *   secondary reserve constraint on the secondary reserve zone i in the
-  *   time t.
+  *   over the dimensions "TimeHorizon" and "NumberSecondaryZones", in this
+  *   order. This variable is only required to be present if
+  *   "NumberSecondaryZones" is present, otherwise it is optional (since it
+  *   is ignored). Entry SecondaryDuals[ t , z ] is the dual value
+  *   \f$ y^{sc}_{t,z} \leq 0 \f$ of the secondary reserve constraint (3)
+  *   of zone z at the time instant t.
   *
   * - The dimension "NumberInertiaZones" tells how many "inertia constraints
   *   zones" are there in the problem. The dimension is optional, if it is not
   *   provided then it is taken to be 0, which means that no dual solution for
   *   the inertia constraints is present.
   *
-  * - The variable "InertiaDuals", of type netCDF::NcDouble and indexed both
-  *   over the dimensions "NumberInertiaZones" and "TimeHorizon". This
-  *   variable is only required to be present if "NumberInertiaZones" is
-  *   present, otherwise it is optional (since it is ignored). Entry
-  *   InertiaDuals[ i , t ] is assumed to contain the dual of the inertia
-  *   reserve constraints for zone i in the time t.
+  * - The variable "InertiaDuals", of type netCDF::NcDouble and indexed over
+  *   the dimensions "TimeHorizon" and "NumberInertiaZones", in this order.
+  *   This variable is only required to be present if "NumberInertiaZones"
+  *   is present, otherwise it is optional (since it is ignored). Entry
+  *   InertiaDuals[ t , z ] is the dual value \f$ y^{in}_{t,z} \leq 0 \f$
+  *   of the inertia constraint (4) of zone z at the time instant t.
   *
   * - The dimension "TotalNumberPollutantZones" tells how many pollutant
   *   budget constraints are there in the problem (cf.
@@ -2690,18 +2738,22 @@ class UCBlockSolution : public Solution {
   * - The variable "PollutantDuals", of type netCDF::NcDouble and indexed
   *   over the dimension "TotalNumberPollutantZones". This variable is only
   *   required to be present if "TotalNumberPollutantZones" is present,
-  *   otherwise it is optional (since it is ignored). The entries are ordered
-  *   as in the PollutantBudget of the UCBlock: all the zones of pollutant 0,
-  *   then all the zones of pollutant 1, and so on. */
+  *   otherwise it is optional (since it is ignored). The entries are the
+  *   dual values \f$ y^{p}_{z} \f$ of the pollutant budget constraints (5),
+  *   ordered as in the PollutantBudget of the UCBlock: all the zones of
+  *   pollutant 0, then all the zones of pollutant 1, and so on. */
 
  void serialize( netCDF::NcGroup & group ) const override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
+ /// returns a copy of this UCBlockSolution with all values times \p factor
  UCBlockSolution * scale( double factor ) const override final;
 
+ /// adds \p multiplier times \p solution to this UCBlockSolution
  void sum( const Solution * solution , double multiplier ) override final;
 
+ /// returns a copy (an empty one if \p empty) of this UCBlockSolution
  UCBlockSolution * clone( bool empty = false ) const override final;
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -2710,6 +2762,7 @@ class UCBlockSolution : public Solution {
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
+ /// prints the UCBlockSolution
  void print( std::ostream &output ) const override final {
   output << "UCBlockSolution [" << this << "]: " << std::endl;
   }
@@ -2744,18 +2797,18 @@ class UCBlockSolution : public Solution {
 
  boost::multi_array< double , 2 > v_primary_duals;
  ///< the dual variables for the primary demand constraints
- /**< v_primary_duals[ t ][ n ] is the dual variable of the primary demand
-  * constraint for zone at time t. */
+ /**< v_primary_duals[ t ][ z ] is the dual value of the primary reserve
+  * constraint of zone z at time t. */
 
  boost::multi_array< double , 2 > v_secondary_duals;
  ///< the dual variables for the secondary demand constraints
- /**< v_secondary_duals[ t ][ n ] is the dual variable of the secondary
-  * demand constraint for zone at time t. */
+ /**< v_secondary_duals[ t ][ z ] is the dual value of the secondary reserve
+  * constraint of zone z at time t. */
 
  boost::multi_array< double , 2 > v_inertia_duals;
  ///< the dual variables for the inertia demand constraints
- /**< v_inertia_duals[ t ][ n ] is the dual variable of the inertia demand
-  * constraint for zone at time t. */
+ /**< v_inertia_duals[ t ][ z ] is the dual value of the inertia constraint
+  * of zone z at time t. */
 
  std::vector< double > v_pollutant_duals;
  ///< the dual variables for the pollutant budget constraints
@@ -2764,7 +2817,7 @@ class UCBlockSolution : public Solution {
 
 /*--------------------------------------------------------------------------*/
 
- SMSpp_insert_in_factory_h;
+ SMSpp_insert_in_factory_h;  ///< registration in the factory
 
 /*--------------------------------------------------------------------------*/
 

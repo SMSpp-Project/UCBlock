@@ -6,33 +6,31 @@
  * Header file for class OTSNetworkBlock, which derives from DCNetworkBlock
  * and adds Optimal Transmission Switching (OTS) constraints. The OTS model
  * allows the solver to open or close individual transmission lines in each
- * time period, leading to stronger relaxations and, potentially, cheaper
- * dispatches.
+ * time period, which may give cheaper dispatches.
  *
- * Four OTS formulations are provided, matching the formulations studied in
- * the companion Julia UC-OTS project:
+ * Four OTS formulations are provided:
  *
- * - **Standard BigM**: a single binary switching variable \f$ z_l \f$ per
+ * - Standard BigM: a single binary switching variable \f$ \zeta_l \f$ per
  *   line, with classical BigM relaxation of Kirchhoff's Voltage Law.
  *
- * - **Directional BigM** (Habeck-Pfetsch): two binary variables
- *   \f$ z_l^+, z_l^- \f$ per line encoding the flow direction, giving
+ * - Directional BigM: two binary variables
+ *   \f$ \zeta_l^+, \zeta_l^- \f$ per line encoding the flow direction, giving
  *   tighter flow bounds.
  *
- * - **Elastic BigM**: a binary \f$ z_l \f$ plus a continuous
- *   \f$ z_{1,l} \in [0,1] \f$ (elastic variable), yielding a two-stage
+ * - Elastic BigM: a binary \f$ \zeta_l \f$ plus a continuous
+ *   \f$ \zeta_{1,l} \f$ (elastic variable), yielding a two-stage
  *   BigM relaxation with coefficients \f$ \alpha, \beta \f$ that tighten
  *   the LP relaxation.
  *
- * - **Elastic Directional BigM**: combines directional and elastic ideas
- *   (\f$ z_l^+, z_l^-, z_{1,l} \f$) for the tightest LP relaxation among
- *   the four.
+ * - Elastic Directional BigM: combines directional and elastic ideas
+ *   (\f$ \zeta_l^+, \zeta_l^-, \zeta_{1,l} \f$) for the tightest LP
+ *   relaxation among the four.
  *
- * The BigM coefficients are computed with the Fattahi-Lavaei-Atamturk
- * (2019) formula:
+ * The BigM coefficients are computed, for each line with nonzero
+ * susceptance, as
  * \f[
- *   M_l = |B_l| \sum_{k \in \mathcal{L}}
- *         \frac{f^{\max}_k}{|B_k|}
+ *   M_l = | \mathfrak{S}_l | \sum_{ k \in \mathcal{L}^{S} }
+ *         \frac{ P^{mx}_k }{ | \mathfrak{S}_k | }
  * \f]
  *
  * The class also defines OTSNetworkData (extending DCNetworkData) which
@@ -74,113 +72,137 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /// a DCNetworkBlock with Optimal Transmission Switching
 /** OTSNetworkBlock derives from DCNetworkBlock and extends the Kirchhoff
- * formulation with switching (on/off) variables for each transmission line.
- * This allows the solver to decide, in each time period, which lines are
+ * formulation with switching (on/off) variables for each transmission line,
+ * which allow the solver to decide, in each time period, which lines are
  * active and which are open.
  *
- * The class always uses the KIRCHHOFF formulation as the base DC model
- * (voltage angles + flows), because OTS requires the BigM relaxation of
+ * This class always uses the KIRCHHOFF formulation as the base DC model
+ * (voltage angles + flows), since OTS requires the BigM relaxation of
  * Kirchhoff's Voltage Law, which needs explicit angle variables.
  *
  * ## Formulations
  *
- * The OTS formulation is selected via a SimpleConfiguration< int > passed
- * to generate_abstract_variables(). The integer value is interpreted
- * bitwise:
+ * One selects the OTS formulation via a SimpleConfiguration< int > passed to
+ * generate_abstract_variables(), whose integer value is interpreted bitwise
+ * as follows.
  *
- * - **Bits 0-1** (mask 0x3): select the formulation method:
+ * - Bits 0-1 (mask 0x3): select the formulation method:
  *   - 0 = Standard BigM (kOTS_Standard)
  *   - 1 = Directional BigM (kOTS_Directional)
  *   - 2 = Elastic BigM (kOTS_Elastic)
  *   - 3 = Elastic Directional BigM (kOTS_ElasticDirectional)
  *
- * - **Bit 2** (mask 0x4): reserved for future extensions (e.g. Muller
- *   conic lifting).
+ * - Bit 2 (mask 0x4): not used.
  *
  * ## Design-variable coupling
  *
  * If a DesignNetworkBlock has set design variables on this Block (via
- * set_design_variables()), the switching variables are coupled:
+ * set_design_variables()), the switching variables are coupled with them by
  * \f[
- *   z_l \le x_l \qquad \forall\, l \text{ with design variable}
+ *   \zeta_l \le x_l \qquad \forall\, l \text{ with design variable}
  * \f]
- * meaning that a line that has not been built (\f$ x_l = 0 \f$) is
+ * and therefore a line that has not been built (\f$ x_l = 0 \f$) is
  * necessarily open.
+ *
+ * ## Sizing a line
+ *
+ * The kappa constant \f$ \kappa_l \f$ of a switchable line [see set_kappa()]
+ * limits its switching as a design variable does: \f$ \zeta_l \le \min( 1 ,
+ * \kappa_l ) \f$ in the Standard and Elastic formulations, and
+ * \f$ \min( 1 , \kappa_l ) \f$ in place of 1 in the exclusivity row
+ * \f$ \zeta_l^+ + \zeta_l^- \le 1 \f$ of the directional ones. With
+ * \f$ \kappa_l = 1 \f$, the default, the rows are those written below.
  *
  * ## Standard BigM formulation (kOTS_Standard)
  *
- * Variables: \f$ z_l \in \{0,1\} \f$ (1 = line closed / on).
- *
- * Constraints:
+ * This formulation has the variables \f$ \zeta_l \in \{0,1\} \f$ (1 = line
+ * closed / on) and the constraints
  * \f{align}{
- *   F_l - B_l \Delta\theta_l &\le  M_l (1 - z_l) \\
- *   F_l - B_l \Delta\theta_l &\ge -M_l (1 - z_l) \\
- *   -f^{\max}_l z_l \le F_l &\le  f^{\max}_l z_l
+ *   F_l - \mathfrak{S}_l \Delta\theta_l &\le  M_l (1 - \zeta_l) \\
+ *   F_l - \mathfrak{S}_l \Delta\theta_l &\ge -M_l (1 - \zeta_l) \\
+ *   -P^{mx}_l \zeta_l \le F_l &\le  P^{mx}_l \zeta_l
  * \f}
  *
  * ## Directional BigM formulation (kOTS_Directional)
  *
- * Variables: \f$ z_l^+ , z_l^- \in \{0,1\} \f$ (positive/negative flow
- * direction).
- *
- * Constraints:
+ * Here the variables are \f$ \zeta_l^+ , \zeta_l^- \in \{0,1\} \f$
+ * (positive/negative flow direction), and the constraints are
  * \f{align}{
- *   z_l^+ + z_l^- &\le 1 \\
- *   F_l &\le  f^{\max}_l z_l^+ \\
- *   F_l &\ge -f^{\max}_l z_l^- \\
- *   F_l - B_l \Delta\theta_l &\le  M_l (1 - z_l^+ - z_l^-) \\
- *   F_l - B_l \Delta\theta_l &\ge -M_l (1 - z_l^+ - z_l^-)
+ *   \zeta_l^+ + \zeta_l^- &\le 1 \\
+ *   F_l &\le  P^{mx}_l \zeta_l^+ \\
+ *   F_l &\ge -P^{mx}_l \zeta_l^- \\
+ *   F_l - \mathfrak{S}_l \Delta\theta_l &\le
+ *     M_l (1 - \zeta_l^+ - \zeta_l^-) \\
+ *   F_l - \mathfrak{S}_l \Delta\theta_l &\ge
+ *     -M_l (1 - \zeta_l^+ - \zeta_l^-)
  * \f}
  *
  * ## Elastic BigM formulation (kOTS_Elastic)
  *
- * Variables: \f$ z_l \in \{0,1\} \f$, \f$ z_{1,l} \in [0,1] \f$.
- *
- * Elastic coefficients per line:
- * \f$ \alpha_l = f^{\max}_l / M_l \f$, \f$ \beta_l = 1 - \alpha_l \f$.
- *
- * Constraints:
+ * In this case the variables are \f$ \zeta_l \in \{0,1\} \f$ and the
+ * continuous \f$ \zeta_{1,l} \f$, which has no bounds of its own: it is
+ * bounded below by the first row, and a value above 1 only tightens the
+ * other rows (since \f$ \beta_l \geq 0 \f$), so that it never helps. The
+ * elastic coefficients of each line are \f$ \alpha_l = P^{mx}_l / M_l \f$
+ * and \f$ \beta_l = 1 - \alpha_l \f$ (\f$ \alpha_l = 1 \f$ and
+ * \f$ \beta_l = 0 \f$ when \f$ M_l = 0 \f$), and the constraints are
  * \f{align}{
- *   z_l &\le z_{1,l} \\
- *   F_l - B_l \Delta\theta_l &\le  \alpha_l M_l (1-z_l)
- *                                  + \beta_l M_l (1-z_{1,l}) \\
- *   F_l - B_l \Delta\theta_l &\ge -\alpha_l M_l (1-z_l)
- *                                  - \beta_l M_l (1-z_{1,l}) \\
- *   -f^{\max}_l z_l \le F_l &\le  f^{\max}_l z_l
+ *   \zeta_l &\le \zeta_{1,l} \\
+ *   F_l - \mathfrak{S}_l \Delta\theta_l &\le  \alpha_l M_l (1-\zeta_l)
+ *                                  + \beta_l M_l (1-\zeta_{1,l}) \\
+ *   F_l - \mathfrak{S}_l \Delta\theta_l &\ge -\alpha_l M_l (1-\zeta_l)
+ *                                  - \beta_l M_l (1-\zeta_{1,l}) \\
+ *   -P^{mx}_l \zeta_l \le F_l &\le  P^{mx}_l \zeta_l
  * \f}
  *
  * ## Elastic Directional BigM formulation (kOTS_ElasticDirectional)
  *
- * Variables: \f$ z_l^+, z_l^- \in \{0,1\} \f$,
- * \f$ z_{1,l} \in [0,1] \f$.
- *
- * Constraints:
+ * This last formulation has the variables
+ * \f$ \zeta_l^+, \zeta_l^- \in \{0,1\} \f$ and the continuous
+ * \f$ \zeta_{1,l} \f$ (with no bounds of its own, as above), and the
+ * constraints
  * \f{align}{
- *   z_l^+ + z_l^- &\le 1 \\
- *   z_l^+ &\le z_{1,l},\quad z_l^- \le z_{1,l} \\
- *   F_l &\le  f^{\max}_l z_l^+ \\
- *   F_l &\ge -f^{\max}_l z_l^- \\
- *   F_l - B_l \Delta\theta_l &\le  \alpha_l M_l (1 - z_l^+ - z_l^-)
- *                                  + \beta_l M_l (1-z_{1,l}) \\
- *   F_l - B_l \Delta\theta_l &\ge -\alpha_l M_l (1 - z_l^+ - z_l^-)
- *                                  - \beta_l M_l (1-z_{1,l})
+ *   \zeta_l^+ + \zeta_l^- &\le 1 \\
+ *   \zeta_l^+ &\le \zeta_{1,l},\quad \zeta_l^- \le \zeta_{1,l} \\
+ *   F_l &\le  P^{mx}_l \zeta_l^+ \\
+ *   F_l &\ge -P^{mx}_l \zeta_l^- \\
+ *   F_l - \mathfrak{S}_l \Delta\theta_l &\le
+ *     \alpha_l M_l (1 - \zeta_l^+ - \zeta_l^-)
+ *     + \beta_l M_l (1-\zeta_{1,l}) \\
+ *   F_l - \mathfrak{S}_l \Delta\theta_l &\ge
+ *     -\alpha_l M_l (1 - \zeta_l^+ - \zeta_l^-)
+ *     - \beta_l M_l (1-\zeta_{1,l})
  * \f}
  *
  * ## BigM computation
  *
- * The BigM values are computed with the Fattahi-Lavaei-Atamturk formula:
+ * We compute the BigM values as
  * \f[
- *   M_l = |B_l| \sum_{k \in \mathcal{L}} \frac{f^{\max}_k}{|B_k|}
+ *   M_l = | \mathfrak{S}_l | \sum_{ k \in \mathcal{L}^{S} }
+ *         \frac{ P^{mx}_k }{ | \mathfrak{S}_k | }
  * \f]
- * where the sum runs over all DC lines (lines with nonzero susceptance).
+ * where the sum runs over all the lines with nonzero susceptance (the set
+ * \f$ \mathcal{L}^{S} \f$ of DCNetworkBlock) and \f$ P^{mx}_k \f$ is
+ * "MaxPowerFlow" of line \f$ k \f$ at the instant of the Block. In all the
+ * formulations, \f$ \Delta\theta_l = \theta_{s(l)} - \theta_{e(l)} \f$ is the
+ * difference of the angles at the ends of line \f$ l \f$, and the flow bounds
+ * \f$ \pm P^{mx}_l \zeta_l \f$ are symmetric, built on "MaxPowerFlow" alone,
+ * without the constant \f$ \kappa_l \f$ and the scaling factor \f$ C^v \f$ of
+ * DCNetworkBlock. In addition, each line has the bounds (1) of
+ * DCNetworkBlock::generate_abstract_constraints(). Note that the switching
+ * variables and the rows of this class concern only the lines with nonzero
+ * susceptance.
  *
  * ## Objective
  *
- * The objective adds switching costs (if any) to the parent objective:
+ * This class adds to the objective of the parent one the switching costs (if
+ * any),
  * \f[
- *   \sum_{l \in \mathcal{L}} c^{\mathrm{sw}}_l (1 - z_l)
+ *   \sum_{l \in \mathcal{L}^{S}} c^{\mathrm{sw}}_l (1 - \zeta_l)
  * \f]
- * For the directional formulations, \f$ z_l = z_l^+ + z_l^- \f$ is used. */
+ * where the sum runs over the lines with nonzero susceptance, which are the
+ * only ones that have switching variables. For the directional formulations,
+ * we use \f$ \zeta_l = \zeta_l^+ + \zeta_l^- \f$. */
 
 class OTSNetworkBlock : public DCNetworkBlock
 {
@@ -215,7 +237,7 @@ class OTSNetworkBlock : public DCNetworkBlock
  *
  * - omitted entirely, in which case the default is 0 for all lines.
  *
- * The netCDF variable is named **"SwitchingCost"** and is of type
+ * The netCDF variable is named "SwitchingCost" and is of type
  * netCDF::NcDouble. */
 
 class OTSNetworkData : public DCNetworkData
@@ -240,7 +262,7 @@ class OTSNetworkData : public DCNetworkData
 
  /// deserialize an OTSNetworkData out of a netCDF::NcGroup
  /** Deserializes the parent DCNetworkData first, then reads the optional
-  * netCDF variable **"SwitchingCost"**:
+  * netCDF variable "SwitchingCost":
   *
   * - If the variable has dimension 1 (a single scalar), that value is
   *   replicated for every line.
@@ -317,7 +339,7 @@ class OTSNetworkData : public DCNetworkData
 
  enum ots_formulation_type {
   kOTS_Standard           = 0 , ///< Standard BigM
-  kOTS_Directional        = 1 , ///< Directional BigM (Habeck-Pfetsch)
+  kOTS_Directional        = 1 , ///< Directional BigM
   kOTS_Elastic            = 2 , ///< Elastic BigM (two-stage)
   kOTS_ElasticDirectional = 3   ///< Elastic + Directional BigM
   };
@@ -371,13 +393,13 @@ class OTSNetworkData : public DCNetworkData
   *    - bit 2 (mask 0x4): reserved.
   *
   * 3. Depending on the selected formulation, creates:
-  *    - kOTS_Standard: \f$ z_l \in \{0,1\} \f$ for each DC line.
-  *    - kOTS_Directional: \f$ z_l^+, z_l^- \in \{0,1\} \f$ for each
+  *    - kOTS_Standard: \f$ \zeta_l \in \{0,1\} \f$ for each DC line.
+  *    - kOTS_Directional: \f$ \zeta_l^+, \zeta_l^- \in \{0,1\} \f$ for each
   *      DC line.
-  *    - kOTS_Elastic: \f$ z_l \in \{0,1\} \f$ and
-  *      \f$ z_{1,l} \in [0,1] \f$ for each DC line.
-  *    - kOTS_ElasticDirectional: \f$ z_l^+, z_l^- \in \{0,1\} \f$ and
-  *      \f$ z_{1,l} \in [0,1] \f$ for each DC line.
+  *    - kOTS_Elastic: \f$ \zeta_l \in \{0,1\} \f$ and the continuous
+  *      \f$ \zeta_{1,l} \f$ for each DC line.
+  *    - kOTS_ElasticDirectional: \f$ \zeta_l^+, \zeta_l^- \in \{0,1\} \f$ and
+  *      the continuous \f$ \zeta_{1,l} \f$ for each DC line.
   *
   * The Configuration is found as for the parent class:
   * - if \p stvv != nullptr and is a SimpleConfiguration< int >, use it;
@@ -389,49 +411,51 @@ class OTSNetworkData : public DCNetworkData
 /*--------------------------------------------------------------------------*/
  /// generate the abstract constraints of the OTSNetworkBlock
  /** Generates all constraints for the OTS model. This method completely
-  * overrides (does **not** call) DCNetworkBlock::generate_abstract_constraints,
+  * overrides (does not call) DCNetworkBlock::generate_abstract_constraints,
   * because the Kirchhoff KVL constraints are replaced by their BigM
   * relaxation.
   *
   * The constraints generated are, in order:
   *
-  * 1. **NetworkCost auxiliary constraints** (inherited helper
+  * 1. NetworkCost auxiliary constraints (inherited helper
   *    generate_network_cost_constraints()):
   *    \f$ V_l \ge F_l,\; V_l \ge -F_l \f$ if NetworkCost is present.
   *
-  * 2. **BigM KVL relaxation** for each DC line, formulation-dependent
+  * 2. BigM KVL relaxation for each DC line, formulation-dependent
   *    (see the class-level documentation for the exact constraints per
   *    formulation).
   *
-  * 3. **OTS flow bounds** for each DC line, formulation-dependent:
+  * 3. OTS flow bounds for each DC line, formulation-dependent:
   *    - Standard/Elastic:
-  *      \f$ -f^{\max}_l z_l \le F_l \le f^{\max}_l z_l \f$
+  *      \f$ -P^{mx}_l \zeta_l \le F_l \le P^{mx}_l \zeta_l \f$
   *    - Directional/ElasticDirectional:
-  *      \f$ -f^{\max}_l z_l^- \le F_l \le f^{\max}_l z_l^+ \f$
+  *      \f$ -P^{mx}_l \zeta_l^- \le F_l \le P^{mx}_l \zeta_l^+ \f$
   *
-  * 4. **Switching exclusivity** (Directional/ElasticDirectional only):
-  *    \f$ z_l^+ + z_l^- \le \min( 1 , \kappa_l ) \f$, and **switching
-  *    bound** (Standard/Elastic only): \f$ z_l \le \min( 1 , \kappa_l ) \f$
+  * 4. Switching exclusivity (Directional/ElasticDirectional only):
+  *    \f$ \zeta_l^+ + \zeta_l^- \le \min( 1 , \kappa_l ) \f$, and switching
+  *    bound (Standard/Elastic only): \f$ \zeta_l \le \min( 1 , \kappa_l ) \f$
   *    [see set_kappa()].
   *
-  * 5. **Elastic precedence** (Elastic/ElasticDirectional only):
-  *    - Elastic: \f$ z_l \le z_{1,l} \f$
+  * 5. Elastic precedence (Elastic/ElasticDirectional only):
+  *    - Elastic: \f$ \zeta_l \le \zeta_{1,l} \f$
   *    - ElasticDirectional:
-  *      \f$ z_l^+ \le z_{1,l},\; z_l^- \le z_{1,l} \f$
+  *      \f$ \zeta_l^+ \le \zeta_{1,l},\; \zeta_l^- \le \zeta_{1,l} \f$
   *
-  * 6. **Design coupling** (if design variables exist):
-  *    \f$ z_l \le x_l \f$ (or \f$ z_l^+ + z_l^- \le x_l \f$ for
+  * 6. Design coupling (if design variables exist):
+  *    \f$ \zeta_l \le x_l \f$ (or \f$ \zeta_l^+ + \zeta_l^- \le x_l \f$ for
   *    directional formulations).
   *
-  * 7. **Reference-node angle** (inherited helper
-  *    generate_reference_angle_constraint()):
-  *    \f$ \theta_{\mathrm{ref}} = 0 \f$.
+  * 7. Reference angles (inherited helper
+  *    generate_reference_angle_constraint()): one angle fixed to 0 in each
+  *    component of the lines with nonzero susceptance, as (13) of
+  *    DCNetworkBlock::generate_abstract_constraints().
   *
-  * 8. **KCL node balance** (inherited helper
+  * 8. KCL node balance (inherited helper
   *    generate_node_balance_constraints()).
   *
-  * 9. **HVDC flow bounds** via generate_bound_constraints() for non-DC
-  *    lines (HVDC lines keep their standard box bounds). */
+  * 9. The flow bounds (1) of DCNetworkBlock::generate_abstract_constraints()
+  *    via generate_bound_constraints(), for all the lines (the HVDC lines
+  *    have no switching variable and no other bound). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
@@ -441,14 +465,14 @@ class OTSNetworkData : public DCNetworkData
  /** As DCNetworkBlock::set_kappa(), which writes the kappa of a line into
   * the power flow limit rows built by generate_bound_constraints(), and in
   * addition into the limit of the switching of the line when it is
-  * switchable: \f$ z_l \le \min( 1 , \kappa_l ) \f$, or \f$ z_l^+ + z_l^-
-  * \le \min( 1 , \kappa_l ) \f$ in the directional formulations. These are
-  * the rows, and the only ones, that the design variable of a
-  * DesignNetworkBlock enters, as \f$ \kappa \f$ in the former and as \f$ z_l
-  * \le x_l \f$ [see generate_design_coupling_constraints()], so that a line
-  * of kappa k behaves as a designed line whose design is k. The flow bounds
-  * coupled with the switching, the big-M of the Kirchhoff rows and the
-  * susceptance do not change, as they do not with the design. */
+  * switchable: \f$ \zeta_l \le \min( 1 , \kappa_l ) \f$, or \f$ \zeta_l^+ +
+  * \zeta_l^- \le \min( 1 , \kappa_l ) \f$ in the directional formulations.
+  * These are the rows, and the only ones, that the design variable of a
+  * DesignNetworkBlock enters, as \f$ \kappa \f$ in the former and as
+  * \f$ \zeta_l \le x_l \f$ [see generate_design_coupling_constraints()], so
+  * that a line of kappa k behaves as a designed line whose design is k. The
+  * flow bounds coupled with the switching, the big-M of the Kirchhoff rows
+  * and the susceptance do not change, as they do not with the design. */
 
  void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -467,11 +491,12 @@ class OTSNetworkData : public DCNetworkData
  /** Generates the objective function. Extends the parent objective with
   * switching costs:
   * \f[
-  *   \sum_{l \in \mathcal{L}} c^{\mathrm{sw}}_l (1 - z_l)
+  *   \sum_{l \in \mathcal{L}^{S}} c^{\mathrm{sw}}_l (1 - \zeta_l)
   * \f]
-  * For directional formulations the effective switching variable is
-  * \f$ z_l = z_l^+ + z_l^- \f$, so the cost becomes
-  * \f$ c^{\mathrm{sw}}_l (1 - z_l^+ - z_l^-) \f$.
+  * over the lines with nonzero susceptance. For directional formulations
+  * the effective switching variable is
+  * \f$ \zeta_l = \zeta_l^+ + \zeta_l^- \f$, so the cost becomes
+  * \f$ c^{\mathrm{sw}}_l (1 - \zeta_l^+ - \zeta_l^-) \f$.
   *
   * If all switching costs are zero, no additional terms are added. */
 
@@ -535,7 +560,7 @@ class OTSNetworkData : public DCNetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the switching variable z_l (Standard/Elastic)
+ /// returns the switching variable \f$ \zeta_l \f$ (Standard/Elastic)
  /** Returns a const reference to the vector of binary switching variables.
   * Only meaningful for Standard and Elastic formulations. */
 
@@ -598,10 +623,10 @@ class OTSNetworkData : public DCNetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// compute BigM values using Fattahi-Lavaei-Atamturk formula
- /** Computes \f$ M_l = |B_l| \sum_k f^{\max}_k / |B_k| \f$ for every
-  * DC line. The sum runs over all lines with nonzero susceptance. The
-  * result is stored in v_big_M. */
+ /// compute the BigM values of the class notes
+ /** Computes \f$ M_l = | \mathfrak{S}_l | \sum_k P^{mx}_k /
+  * | \mathfrak{S}_k | \f$ for every DC line, the sum running over all the
+  * lines with nonzero susceptance, and stores the result in v_big_M. */
 
  void compute_big_M( void );
 
@@ -634,17 +659,17 @@ class OTSNetworkData : public DCNetworkData
 /*--------------------------------------------------------------------------*/
  /// generate flow bounds with switching variables
  /** Generates the flow bounds coupled with the switching variables. For
-  * Standard/Elastic: \f$ -f^{\max}_l z_l \le F_l \le f^{\max}_l z_l \f$.
+  * Standard/Elastic: \f$ -P^{mx}_l \zeta_l \le F_l \le P^{mx}_l \zeta_l \f$.
   * For Directional/ElasticDirectional:
-  * \f$ -f^{\max}_l z_l^- \le F_l \le f^{\max}_l z_l^+ \f$.
+  * \f$ -P^{mx}_l \zeta_l^- \le F_l \le P^{mx}_l \zeta_l^+ \f$.
   * Only applies to DC lines; HVDC lines get standard box bounds. */
 
  void generate_OTS_flow_bounds( void );
 
 /*--------------------------------------------------------------------------*/
  /// generate design-coupling constraints
- /** If design variables exist, generates \f$ z_l \le x_l \f$ (Standard/
-  * Elastic) or \f$ z_l^+ + z_l^- \le x_l \f$ (Directional). */
+ /** If design variables exist, generates \f$ \zeta_l \le x_l \f$ (Standard/
+  * Elastic) or \f$ \zeta_l^+ + \zeta_l^- \le x_l \f$ (Directional). */
 
  void generate_design_coupling_constraints( void );
 
@@ -692,7 +717,7 @@ class OTSNetworkData : public DCNetworkData
 
 /*-------------------------------- variables ------------------------------*/
 
- /// binary switching variables z_l (Standard, Elastic)
+ /// binary switching variables \f$ \zeta_l \f$ (Standard, Elastic)
  std::vector< ColVariable > v_switching;
 
  /// positive direction switching variables z+_l (Directional, ElasDir)
@@ -701,15 +726,15 @@ class OTSNetworkData : public DCNetworkData
  /// negative direction switching variables z-_l (Directional, ElasDir)
  std::vector< ColVariable > v_switching_neg;
 
- /// continuous elastic variables z1_l in [0,1] (Elastic, ElasDir)
+ /// continuous elastic variables z1_l, without bounds (Elastic, ElasDir)
  std::vector< ColVariable > v_elastic;
 
 /*------------------------------- constraints -----------------------------*/
 
- /// upper BigM KVL: F_l - B_l*Dtheta <= M_l*(1 - z_l)
+ /// the upper BigM rows of the voltage law, one for each DC line
  std::vector< FRowConstraint > v_OTS_KVL_upper;
 
- /// lower BigM KVL: F_l - B_l*Dtheta >= -M_l*(1 - z_l)
+ /// the lower BigM rows of the voltage law, one for each DC line
  std::vector< FRowConstraint > v_OTS_KVL_lower;
 
  /// OTS flow bounds (coupled with switching variables)

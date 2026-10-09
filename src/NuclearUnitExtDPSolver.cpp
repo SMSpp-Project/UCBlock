@@ -132,6 +132,12 @@ void NuclearUnitExtDPSolver::load_fixings( void )
   throw( std::runtime_error(
    "NuclearUnitExtDPSolver::load_fixings: unable to lock the Block." ) );
 
+ // the read lock is released however the method ends, a throw included
+ struct ReadUnlock {
+  Block * b;
+  ~ReadUnlock() { if( b ) b->read_unlock(); }
+  } read_unlock{ owned ? nullptr : f_Block };
+
  auto b = static_cast< NuclearUnitBlock * >( f_Block );
 
  // the fixed Variable of the rules: -1 where free, the fixed value where
@@ -166,12 +172,9 @@ void NuclearUnitExtDPSolver::load_fixings( void )
   for( Index t = 0 ; v && ( t < n ) ; ++t )
    if( v[ t ].is_fixed() &&
        ( ! ( ( t == 0 ) && ( init_up_down_time <= 0 ) &&
-	     ( v[ t ].get_value() == 0 ) ) ) ) {
-    if( ! owned )
-     f_Block->read_unlock();
+	     ( v[ t ].get_value() == 0 ) ) ) )
     throw( std::logic_error( std::string( "NuclearUnitExtDPSolver::"
      "load_fixings: fixed " ) + name + " Variable not supported (yet)" ) );
-    }
   };
  refuse( b->get_const_deep_drop() , time_horizon , "deep drop" );
  refuse( b->get_const_deep_low() , time_horizon , "deep low" );
@@ -179,6 +182,16 @@ void NuclearUnitExtDPSolver::load_fixings( void )
 	 "modulation start" );
  refuse( b->get_const_modulation_end() , time_horizon , "modulation end" );
  refuse( b->get_const_band() , 3 * time_horizon , "band" );
+
+ // a deep decrease fixed to 1 is, in the rows of NuclearUnitBlock, the cost
+ // and the count of one at that instant, whatever the unit does there (no
+ // row bounds it from above, save (32) of the tight rules): it is not a
+ // move of the DP, which only has the decreases that are deep, hence it is
+ // refused rather than solved as a stricter problem
+ if( std::any_of( f_fix_deep.begin() , f_fix_deep.end() ,
+                  []( signed char f ) { return( f > 0 ); } ) )
+  throw( std::logic_error( "NuclearUnitExtDPSolver::load_fixings: a deep "
+                           "decrease Variable fixed to 1 is not supported" ) );
 
  // a modulation (or a deep decrease) fixed to 1 needs the unit on at that
  // instant, since m_t <= u_t (and d_t <= m_t): it is a fixing ON of the
@@ -201,10 +214,20 @@ void NuclearUnitExtDPSolver::load_fixings( void )
   f_has_fixings = f_must_build = true;
   }
 
- if( ! owned )
-  f_Block->read_unlock();
-
  }  // end( NuclearUnitExtDPSolver::load_fixings )
+
+/*--------------------------------------------------------------------------*/
+
+bool NuclearUnitExtDPSolver::reads_group( const std::string & name ) const
+{
+ static const std::vector< std::string > read = {
+  "m_thermal" , "m_down_nuclear" , "m_start_nuclear" , "band_nuclear" ,
+  "m_end_nuclear" , "deep_nuclear" , "deep_drop_nuclear" ,
+  "deep_low_nuclear" };
+
+ return( ThermalUnitExtDPSolver::reads_group( name ) ||
+         ( std::find( read.begin() , read.end() , name ) != read.end() ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- THE LABELS OF THE STATES -----------------------*/
@@ -368,19 +391,19 @@ bool NuclearUnitExtDPSolver::label_dominates( Index a , Index b ) const
 // The moves out of an on-state with label lab at t - 1 [see the table in the
 // header]. The ramps of the ThermalUnitBlock and those of the modulation for
 // the step t-1 -> t are indexed by t (the step from the initial state into
-// t = 0 by 0), and each window is the intersection of the two; a full-ramp
-// step is only possible if the ramp of the ThermalUnitBlock allows it. The tag of a move
-// has bit 0 for a modulation step, bit 1 for a downward one and bit 2 for a
-// deep decrease.
+// t = 0 by 0); the window of a stable instant is the intersection of the
+// two, and a step of a modulation moves by the ramp of the ThermalUnitBlock.
+// The tag of a move has bit 0 for a modulation step, bit 1 for a downward
+// one and bit 2 for a deep decrease.
 
 void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
                                       std::vector< OnMove > & mv ) const
 {
- const double ru = delta_ramp_up[ t ];     // the full ramps of the step
- const double rd = delta_ramp_down[ t ];
- const double fu = ru;
- const double fd = rd;
- const double wu = ru;
+ const double ru = delta_ramp_up[ t ];     // the full ramps of the step,
+ const double rd = delta_ramp_down[ t ];   // which are the window of a
+ const double fu = ru;                     // modulation step (wu, wd) and
+ const double fd = rd;                     // the move of a step that is not
+ const double wu = ru;                     // the last one (fu, fd)
  const double wd = rd;
  const double cdn = f_down_cost.empty() ? 0.0 : f_down_cost[ t ];
  const bool deep = ! f_deep_thr.empty();
@@ -486,23 +509,26 @@ void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
      emit( ed , 0.0 , wd , cdn , 3 , band_lo( ed.b ) , band_hi( ed.b ) );
     }
    if( f_max_mod_length > 1 ) {                  // up / down, continues
+    // a step that is not the last one keeps the output in the band the
+    // modulation starts from, which the label carries until it lands
     Label go = counted;
     go.lk = 1;
-    if( can_up && ( fu <= ru + 1e-9 ) ) {
+    if( can_up ) {
      go.mode = 1;
-     emit( go , fu , - fu , 0.0 , 1 );
+     emit( go , fu , - fu , 0.0 , 1 , band_lo( from.b ) , band_hi( from.b ) );
      }
-    if( can_dn && ( fd <= rd + 1e-9 ) ) {
+    if( can_dn ) {
      go.mode = 2;
-     emit( go , - fd , fd , cdn , 3 );
+     emit( go , - fd , fd , cdn , 3 , band_lo( from.b ) , band_hi( from.b ) );
      }
     }
    }
   return;
   }
 
- // in the middle of a modulation: continue it or end it, the end landing
- // in the band next to the one the modulation left
+ // in the middle of a modulation: continue it, the output staying in the
+ // band the modulation left (which the label carries), or end it, landing
+ // in the band next to that one
  Label end = from;
  end.mode = 0;
  end.lk = B;
@@ -511,13 +537,13 @@ void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
  Label go = from;
  ++go.lk;
  if( from.mode == 1 ) {                          // upward
-  if( ( go.lk < f_max_mod_length ) && ( fu <= ru + 1e-9 ) )
-   emit( go , fu , - fu , 0.0 , 1 );
+  if( go.lk < f_max_mod_length )
+   emit( go , fu , - fu , 0.0 , 1 , band_lo( from.b ) , band_hi( from.b ) );
   emit( end , wu , 0.0 , 0.0 , 1 , band_lo( end.b ) , band_hi( end.b ) );
   }
  else {                                          // downward
-  if( ( go.lk < f_max_mod_length ) && ( fd <= rd + 1e-9 ) )
-   emit( go , - fd , fd , cdn , 3 );
+  if( go.lk < f_max_mod_length )
+   emit( go , - fd , fd , cdn , 3 , band_lo( from.b ) , band_hi( from.b ) );
   emit( end , 0.0 , wd , cdn , 3 , band_lo( end.b ) , band_hi( end.b ) );
   }
  }

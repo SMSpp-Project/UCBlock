@@ -50,9 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UCBlock::get_resize_line_linearization`, which sums what the NetworkBlocks
   answer, and `UCBlock::get_replicate_linearization`. A unit or a
   NetworkBlock whose class does not register the name makes the call throw,
-  naming it. `replicate` rewrites the rows carrying the factor once for all
-  the units it scales, where scaling them one by one rewrites them once per
-  unit. All come in the range and the subset form.
+  naming it. `replicate` rewrites the rows carrying the factor, and the
+  bounds of the node injections, once for all the units it scales, where
+  scaling them one by one rewrites them once per unit. All come in the range
+  and the subset form.
 
 - A line of an `ACNetworkBlock` or of an `OTSNetworkBlock` can be sized, as
   a line of a `DesignNetworkBlock` is designed. Both classes build the power
@@ -67,12 +68,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directional ones. The sensitivity of an OTS line adds the dual of that
   limit while kappa is below 1.
 
+- `BatteryUnitBlock` has a kappa of its own for the converter
+  (`ConverterKappa`, `set_converter_kappa()`, `get_converter_kappa()`,
+  `get_converter_kappa_linearization()`), so that storage and converter can
+  be sized apart; without it the converter follows `Kappa` as before
+
+- the unit test checks the continuous relaxation of the SUSD formulation
+  against that of the DP one (`LPRelaxBSCfg.txt`, `LPRelaxMILPCfg.txt`)
+  and the two kappas of `BatteryUnitBlock`
+
+- the unit test checks `update_rows()` on the rows of a class derived from
+  `ThermalUnitBlock` and `set_init_updown_time()` after the generation in the
+  seven formulations, and the harness of the power limits changes
+  `InitUpDownTime` keeping and changing the initial state
+
 - `ThermalUnitBlock` has the box of the active power, `0 <= p[ t ] <=` the
   operational maximum power, as the static group of `BoxConstraint`
-  `ActivePowerBound_thermal`, kept up to date by `set_maximum_power()` and by
-  the availability: the rows of the commitment already imply it, but a Solver
+  `ActivePowerBound_thermal`, kept up to date by `set_maximum_power()` and
+  `set_availability()`: the rows of the commitment already imply it, but a Solver
   that only reads the boxes (say, a `BoxSolver` bounding the Objective, as
   `LagrangianDualSolver` does) needs it to see the power bounded
+
+- the unit test checks the cyclic reservoirs of `HydroUnitBlock` after a
+  change of the inflows and of the initial volume, the design variables of
+  `BatteryUnitBlock` and `IntermittentUnitBlock` whose two bounds are 1, a
+  battery of several modules with binary variables and reserves, and the
+  refusal of a negative `NetworkCost`
+
+- the unit test checks the costs and the rows at instant 0 of the reserves
+  of `ThermalUnitBlock` against the DP Solvers and a :MILPSolver on random
+  instances, the availability in the DP Solvers, the changes of the maximum
+  power and of the availability, the reactive power of absorbing
+  units, the bounds on the node injections after a scaling, the inertia rows
+  of a unit at two nodes of a zone and the infinite storage bounds of the
+  batteries
+
+- the unit test compares, after a change of `MaxPower`, `Availability`,
+  `InitialPower` or `InitUpDownTime`, the model of every formulation of a
+  `ThermalUnitBlock` and of a `NuclearUnitBlock` with the one of the unit
+  read afresh from the changed data, row group by row group, and the dynamic
+  programming Solver with a :MILPSolver (`test_power_limits.cpp`, the
+  formulations as `BlockConfig` files `TUBCfg-*.txt` and `NUBCfg-*.txt`; a
+  reduced matrix by default, the whole one with `--power-limits --full`);
+  it also checks the shut-down at instant 0 in every formulation and the
+  setters of `ThermalUnitBlock` with an unordered `Subset`
+
+- the page "The unit commitment model of UCBlock" (`UCBlockModel.h`) gives
+  the notation, the conventions on instants, signs and scale factors, the
+  composed model, the capacities and the investment, the Lagrangian dual
+  with the meaning and sign of the dual values, the multistage use and one
+  list of what is not modeled; the headers of every Block and DP Solver of
+  the module state their rows as built, with one equation numbering each,
+  and refer to it
+
+- the unit test covers the network formulations on components, references
+  and pure HVDC networks, the hydro delays, spillways, data checks and
+  inertia, the storage balance, converter and design rows of the batteries,
+  the design reserve rows of the intermittent units, the slack unit, the 3bin
+  and DP maximum power rows and the initial power of `ThermalUnitBlock`, the
+  end-of-horizon and band rules of `NuclearUnitBlock`, the zones and network
+  constants of `UCBlock` and, when a :MILPSolver is built, the sign of the
+  dual values of the linking rows
 
 - data/gen_network_cases.py writes the instances of the edge cases of the
   network, small PyPSA dispatch networks whose DC lines have a susceptance
@@ -168,6 +224,130 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `BatteryUnitBlock::get_kappa_linearization()` leaves out the converter
+  rows when the converter has a kappa of its own
+
+- `ThermalUnitBlock::set_init_updown_time()` after the generation of the
+  Variable takes a value that keeps whether the unit is on before the horizon
+  and the first instant at which it may switch (any two values not smaller
+  than `MinUpTime`, or any two not larger than `-MinDownTime`), the rows being
+  written anew by `update_rows()`, and refuses any other one with the data
+  kept, since it would make Variable appear or disappear
+
+- the data check of a cyclic reservoir of `HydroUnitBlock` asks the total
+  inflow over the horizon to lie between the smallest and the largest total
+  net outflow that the flow bounds allow, a necessary condition, instead of
+  the inflow of each instant to fit the arcs leaving the reservoir, which
+  refused feasible instances; it is made also for a single reservoir
+  without `StartArc` and `EndArc`
+
+- `BatteryUnitBlock` with a battery design variable writes its binary rows
+  with the largest design in place of one module, and bounds each reserve
+  by the reserve of the modules built, a row with the design variable
+  (`Primary_Design_Battery`, `Secondary_Design_Battery`), besides the bound
+  of the largest design; an integer design may have a minimum above 1
+
+- `DCNetworkBlock` refuses a negative `NetworkCost`, when read and in
+  `set_network_cost()`, since it makes the problem unbounded
+
+- the documentation states the dual function of the version that relaxes
+  the network rows, the nodal prices in the general PTDF formulation, the
+  reactive multipliers of the Lagrangian dual, the derivations of the PTDF
+  and CYCLE rows, of the battery binary rows and of the multistage cuts, and
+  uses one notation in all the headers
+
+- the costs of the reserves of `ThermalUnitBlock` are 0 when the data do not
+  give them, `PrimaryRho` and `SecondaryRho` being no price, in the
+  Objective and in the DP Solvers; a reserve with cost 0 is in the Objective
+  only if the objective `Configuration` (bit 0 primary, bit 1 secondary)
+  asks for it, and its cost cannot then become nonzero after the generation
+
+- the reserve deliverability rows of `ThermalUnitBlock` are also written at
+  instant 0 for a unit on before the horizon, from `InitialPower`, in every
+  formulation and in the DP Solvers, and they follow `set_initial_power()`
+
+- the DP Solvers of `ThermalUnitBlock` use the operational power bounds,
+  `Availability` included, and without ramp data a ramp no move reaches
+
+- `ThermalUnitBlock::set_maximum_power()` and `set_availability()` update
+  every formulation once the constraints are generated: the rows are written
+  in one place, `build_rows()`, which `update_rows()` runs again on the
+  changed data and compares with the rows there are, changing coefficients
+  and sides in one GroupModification, `NuclearUnitBlock` included; the new
+  data are checked first (availability in [0, 1], `MaxPower` not below
+  `MinPower`, a given `StartUpLimit` or `ShutDownLimit` within the
+  operational bounds) and restored if the update fails; `MaxRampUpSteps`
+  and `MaxRampDownSteps` in the data are refused
+
+- the rows of `ThermalUnitBlock` whose number depends on the power limits
+  are dynamic groups that the setters add to and remove from: the bound rows
+  5 and 6 of the maximum power of the T formulation
+  (`MaxPower5_Const_Thermal`, `MaxPower6_Const_Thermal`) and the ramp rows
+  of several steps of the SUSD formulation (`RampUp_SUSD_Const_Thermal`,
+  `RampDown_SUSD_Const_Thermal`); the rows of the T formulation whose
+  Variable depended on the data have them all, with coefficient 0 where the
+  term vanishes
+
+- a `ThermalUnitBlock` on before the horizon shuts down at instant 0 only if
+  `InitialPower` is at most `ShutDownLimit[ 0 ]`, whatever the ramps, in
+  every formulation and in both DP Solvers (without `DeltaRampDown` the 3bin
+  and T formulations and `ThermalUnitExtDPSolver` allowed it for any
+  `InitialPower`): the interval ( 0 , 0 ) of the path formulations always
+  exists and the row `ShutDownZero_Const_Thermal` fixes it (or `w_0` in
+  3bin and T without `DeltaRampDown`) to 0 when it is not allowed
+
+- `ThermalUnitBlock::set_initial_power()` updates every formulation once the
+  constraints are generated, and no longer throws when `InitialPower` crosses
+  `ShutDownLimit[ 0 ]` or the formulation is a path one with ramps
+
+- a `StartUpLimit` or `ShutDownLimit` that the data do not give is the
+  operational minimum power also after a change of the availability, so
+  that an unavailable unit cannot produce
+
+- the reactive power of `ThermalUnitBlock` is free in sign, and its bound
+  rows, like those of `SlackUnitBlock`, always exist with the reactive power,
+  an absent bound being 0
+
+- the bounds on the node injections are given to the `NetworkBlock` again
+  when the scale, the kappa or the maximum power of a unit changes, and they
+  include kappa; the rows of the bounds follow them
+
+- the KIRCHHOFF formulation of `DCNetworkBlock` fixes one voltage angle in
+  each component of the lines with nonzero susceptance
+
+- the Tikhonov coefficient of `DCNetworkBlock` is 0 also in the constructor
+  and in `DCNetworkData::get_PTDF()`, and
+  `DCNetworkBlock::change_active_demand_constraints()` is virtual
+
+- `DCNetworkData::deserialize()` rejects a `ReferenceNode` that is not a node,
+  and a network with hyperarcs and lines with nonzero susceptance
+
+- a modulation of a `NuclearUnitBlock` with `PowerBands` crosses exactly one
+  band boundary, the steps before the last keeping the output in the band of
+  origin, in the rows and in `NuclearUnitExtDPSolver`
+
+- `NuclearUnitBlock::set_initial_power()` throws when the new initial power
+  is in another band than the one the rows at instant 0 were built for
+
+- `ThermalUnitBlock` rejects a negative `FixedConsumption`, and its checks of
+  `InitialPower` against the ramps at instant 0 throw once, with the name of
+  the method
+
+- `HydroUnitBlock` requires `LinearTerm` when some arc is a turbine, requires
+  `StartArc` and `EndArc` together (and with more than one reservoir), checks
+  their range and self-loops, and rejects an arc with `MinFlow` < 0 <
+  `MaxFlow` or that is a turbine at some instant and a pump at another
+
+- `HydroSystemUnitBlock::deserialize()` rejects a concave future cost of the
+  water
+
+- `BatteryUnitBlock` refuses a positive `MinPower` when intake and outtake are
+  split, and `serialize()` writes `ConverterMaxPower` only if it was given
+
+- `UCBlock::deserialize()` refuses `PrimaryZones`, `SecondaryZones` or
+  `InertiaZones` absent with more than one zone of that kind, instead of
+  reading out of bounds
+
 - the `is_feasible()` of `ThermalUnitBlock`, `NuclearUnitBlock`,
   `HydroUnitBlock`, `HydroSystemUnitBlock`, `BatteryUnitBlock`,
   `IntermittentUnitBlock`, `SlackUnitBlock`, `DCNetworkBlock`,
@@ -245,6 +425,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the dynamic programming Solvers of `ThermalUnitBlock` no longer limit
+  the move from `InitialPower`, when there is no `DeltaRampUp`/`DeltaRampDown`,
+  by the largest `MaxPower`: a unit on before the horizon with `InitialPower`
+  above `MaxPower` (e.g., one unavailable over the whole horizon) was declared
+  infeasible, or given a power above its minimum at 0, while the formulations
+  have no ramp row there
+
+- the SUSD formulation of `ThermalUnitBlock` writes also the single-step
+  ramp rows downwards on the runs by start-up and upwards on those by
+  shut-down (`RampDown_Const_Thermal`, `RampUp_Const_Thermal`), as the SU
+  and SD formulations do; without them its continuous relaxation could be
+  weaker than that of the DP formulation
+
+- `ThermalUnitBlock::update_rows()` refuses a change after which no row would
+  be written to a static group that has rows (one written by `size_rows()` or
+  `push_row()`, as the rows of a derived class are), or a row would be written
+  to a dynamic group that is not generated, which it let through, leaving the
+  old rows in place or adding rows to a group that no Solver knows
+
+- the setters of the modulation ramps of `NuclearUnitBlock` change the rows
+  through `update_rows()`, so that the coefficient of the modulation in the
+  ramp rows with the direction of a modulation, the rows of TightRamp and the
+  rows (32) of TightRules follow the new data; a change that adds or removes
+  rows (32) is refused with the data kept, an unordered `Subset` keeps its
+  values, and the `Range` form of `set_modulation_ramp_down()` issues
+  `eSetModDM`
+
+- `NuclearUnitExtDPSolver::load_fixings()` releases the read lock of the Block
+  also when it throws
+
+- `DCNetworkBlock` does not list "Kappa" among the expected netCDF names,
+  since it does not read it
+
 - `NuclearUnitBlock::is_sol_feasible()` checks a schedule through the
   Variable, and hence against the modulation and the constraints of the
   nuclear unit, instead of against the data of a thermal unit alone;
@@ -252,6 +465,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   formulation that the schedule only implies (the commitment differences,
   the pieces of the power, the cuts, the deviation from the reference
   schedule) is fixed
+
+- the setters of `ThermalUnitBlock` with an unordered `Subset` sorted the
+  indices but not the values, which went to the wrong instants (e.g.,
+  `set_maximum_power()` with the values 60, 140 at the instants 4, 1 set 60
+  at 1): the pairs are sorted together
 
 - `NuclearUnitExtDPSolver` refuses a fixed band of the output, deep drop,
   deep low, modulation start or modulation end, whose fixings its labels
@@ -265,6 +483,139 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leave out: a Solution of the global pool of a `LagBFunction` that a
   branching on one of them had made infeasible was kept, and writing it in
   the unit threw
+
+- `HydroUnitBlock::set_inflow()` and `set_initial_volume()` add the
+  initial volume to the water balance of instant 0 only when it is
+  nonnegative, as the generation does: a cyclic reservoir no longer gets
+  the negative marker in its balance after a change of its inflows
+
+- a design variable of `BatteryUnitBlock`, `IntermittentUnitBlock` or
+  `DesignNetworkBlock` whose two bounds are 1 is fixed to 1 by its bound
+  row; it was only bounded in [ 0 , 1 ], so the asset could be left out
+
+- the binary rows and the reserve bounds of a `BatteryUnitBlock` whose
+  battery design may exceed one module capped its power and reserves at
+  those of one module
+
+- the cost of the secondary reserve of `ThermalUnitBlock` set after the
+  generation landed on the wrong variable when the unit pays to shut down
+
+- the inertia and reserve rows of `UCBlock` were updated with wrong
+  positions for a unit with generators at several nodes of a zone
+
+- `BatteryUnitBlock` with one instant and the cyclic level put the level
+  twice in the row, and an infinite storage bound gave an infinite or NaN
+  coefficient to the design variable (NaN bound with kappa 0)
+
+- `ACNetworkBlock` gave the flows to the Solvers twice
+
+- `ThermalUnitBlock` sized the rows fixing the commitment over the horizon
+  instead of the instants it is fixed
+
+- the PTDF and CYCLE formulations of `DCNetworkBlock` impose the balance of
+  each component of the lines with nonzero susceptance, so that power does
+  not move between components with no line carrying it, and `is_feasible()`
+  checks these rows
+
+- the PTDF formulation of `DCNetworkBlock` keeps the column of a
+  `ReferenceNode` that is not the lowest node of its component
+
+- `DCNetworkData::get_PTDF()` throws when the reduced susceptance matrix
+  cannot be factorized, and without arguments it does not read the
+  susceptances of a pure HVDC network out of bounds
+
+- a change of the demand after generation updates the node balances of the
+  CYCLE formulation of a pure HVDC network, does not write out of bounds in
+  the KIRCHHOFF formulation of a mixed network, and updates the active
+  balances of an `ACNetworkBlock` instead of crashing
+
+- `OTSNetworkBlock` puts the cost of each flow in its Objective once
+
+- `DCNetworkBlock::get_dual_prices()` gives a line with a design variable the
+  sign of the dual of a bound
+
+- a negative `UphillFlow` of `HydroUnitBlock` does not remove the withdrawal
+  of the arc from the water balance of its start reservoir
+
+- the flow-to-power row of a single-piece turbine of `HydroUnitBlock` is an
+  equality only if a spillway with the same start and end reservoirs and the
+  same delays can take its water at every instant, and the turbine has no
+  positive `MinFlow` and no ramp rows
+
+- `HydroUnitBlock::set_initial_volume()` throws if it would switch the cyclic
+  closure of a reservoir on or off after the constraints are generated
+
+- a `HydroSystemUnitBlock` without a PolyhedralFunctionBlock does not crash
+  when its Variable are generated, and `get_polyhedral_function_block()`
+  returns nullptr; `get_hydro_unit_block()` rejects the index
+  `get_number_hydro_units()` in debug builds
+
+- a change of the `InertiaPower` of a `HydroUnitBlock`, also inside a
+  `HydroSystemUnitBlock`, changes the coefficients of the inertia rows of the
+  `UCBlock`; adding an inertia term to a unit that had none when the rows
+  were generated throws
+
+- with only `ExtractingBatteryRho` given, the intake of a `BatteryUnitBlock`
+  enters the storage balance with the sign of a charge
+
+- `BatteryUnitBlock::set_initial_storage()` refuses, after the constraints are
+  generated, a change of sign of `InitialStorage`, and `set_cost()` with an
+  unsorted Subset gives each value to the index it comes with
+
+- `ConverterMaxPower` bounds the converter of a `BatteryUnitBlock` also when
+  the battery has no design variable, if the datum is given, and a converter
+  design variable with no battery design variable is in its rows
+
+- an `IntermittentUnitBlock` with a design variable has the reserve rows,
+  with the capacity of the design variable in them
+
+- `get_kappa_linearization()` of `BatteryUnitBlock` and
+  `IntermittentUnitBlock` throws with a design variable instead of returning
+  a wrong value
+
+- `SlackUnitBlock` does not read `ActivePowerCost` out of range for the cost
+  of the reactive power when the datum is absent, and does not throw in a
+  `UCBlock` with inertia zones when the unit has no `MaxInertia`
+
+- the 3bin maximum power rows of `ThermalUnitBlock` are counted and built
+  right with a horizon of one instant or with the commitment fixed over the
+  whole horizon, and with `MinUpTime` 1 a start-up at instant 0 is capped by
+  `StartUpLimit` and the last power before a shut-down by the shut-down limit
+  not above the maximum power, as in the other formulations and in the DP
+  Solvers
+
+- in the DP formulation of `ThermalUnitBlock` a run of one instant is capped
+  by both the start-up and the shut-down limit
+
+- the `InitialPower` of a `ThermalUnitBlock` on before the horizon is raised
+  to `MinPower[0]`, also when the unit is unavailable at 0, before the
+  numbers of ramp steps are derived from it; a value above `MaxPower[0]`
+  gives a warning
+
+- `ThermalUnitBlock::set_initial_power()` and `set_init_updown_time()`
+  recompute the numbers of ramp steps from the initial power of the SUSD
+  formulation
+
+- a modulation of a `NuclearUnitBlock` cut by the end of the horizon cannot
+  start upwards from the highest band or downwards from the lowest one, so
+  that the MILP agrees with `NuclearUnitExtDPSolver`
+
+- the operating-rule rows of a `NuclearUnitBlock` off before the horizon
+  ignore `InitialPower`, and `set_solution()` does not end a modulation that
+  covers a horizon shorter than `MaxModulationLength`, and takes a full-ramp
+  step at the last instant that leaves the band of origin as the last step
+  of a modulation
+
+- with a single primary, secondary or inertia zone, a node whose zone index
+  is not smaller than the number of zones is in no zone, as with several
+  zones
+
+- scaling a unit at a node in no reserve or inertia zone does not read and
+  write past the rows of the zones
+
+- the `ConstantTerm` of a `NetworkBlock` group of a `UCBlock` is not
+  overwritten when `NetworkConstantTerms` is absent, and in the bus case the
+  constant terms of the network are kept in the Objective of the `UCBlock`
 
 - the overall balance of the PTDF formulation of DCNetworkBlock counts the
   losses of the HVDC lines, as the CYCLE one does: before, an HVDC line with

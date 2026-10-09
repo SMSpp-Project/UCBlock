@@ -218,20 +218,16 @@ void OTSNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
 void OTSNetworkBlock::generate_objective( Configuration * objc )
 {
+ if( objective_generated() )  // Objective has already been generated
+  return;                     // nothing to do
+
  // call the parent to build the base objective (network cost terms,
- // constant term, sense, registration)
+ // whatever the formulation, constant term, sense, registration)
  DCNetworkBlock::generate_objective( objc );
 
- // the parent only adds NetworkCost terms for the PTDF formulation;
- // since OTS always uses KIRCHHOFF, add them here if present
  auto * lf = dynamic_cast< LinearFunction * >( objective.get_function() );
  if( ! lf )
   return;
-
- if( has_network_cost() )
-  for( Index l = 0 ; l < get_number_lines() ; ++l )
-   lf->add_variable( & v_auxiliary_variable[ l ] ,
-                     f_NetworkData->get_network_cost()[ l ] , eNoMod );
 
  // if no switching costs, nothing more to add
  if( ( ! f_NetworkData ) ||
