@@ -26,9 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ThermalUnitBlock` has the box of the active power, `0 <= p[ t ] <=` the
   operational maximum power, as the static group of `BoxConstraint`
   `ActivePowerBound_thermal`, kept up to date by `set_maximum_power()` and
-  `set_availability()`: the rows of the commitment already imply it, but a Solver
-  that only reads the boxes (say, a `BoxSolver` bounding the Objective, as
-  `LagrangianDualSolver` does) needs it to see the power bounded
+  `set_availability()`: the rows of the commitment already imply it, but a
+  Solver that only reads the boxes (say, a `BoxSolver` bounding the Objective,
+  as `LagrangianDualSolver` does) needs it to see the power bounded
 
 - the unit test checks the cyclic reservoirs of `HydroUnitBlock` after a
   change of the inflows and of the initial volume, the design variables of
@@ -99,18 +99,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `ThermalUnitBlock::is_sol_feasible()` reads the schedule out of the
   `:UnitBlockSolution` it is given and checks it against the data of the unit,
-  i.e. the operational bounds of the power, the reserves it takes room for,
-  the ramps with the limits of the start-up and of the shut-down and the
-  minimum up and down times with the state the unit comes from, so that the
-  Variable of the unit are neither needed nor touched, which
-  `is_sol_feasible_physical()` says. Those are the constraints of the unit for
-  an integral commitment, which is what every formulation of it encodes,
-  hence a commitment that is not integral is not declared feasible; a unit
-  that carries something the schedule does not answer for, i.e. a
-  dimensioning variable, the reactive power, a reference schedule, a scale of
-  its own or a Variable that is fixed, is left to the check of the base class,
-  which goes through the Variable and pays an allocation and two passes over
-  them for each entry of a global pool that is revalidated
+  i.e. the operational bounds of the power, the reserves it takes room for, the
+  ramps with the limits of the start-up and of the shut-down and the minimum up
+  and down times with the state the unit comes from, so that the Variable of
+  the unit are not needed, which `is_sol_feasible_physical()` says; a Variable
+  of the schedule that is fixed (start-up, shut-down and reserves included)
+  holds it to its value. Those are the constraints of the unit for an integral
+  commitment, which is what every formulation of it encodes, hence a commitment
+  that is not integral is not declared feasible; a unit that carries something
+  the schedule does not answer for, i.e. a dimensioning variable, the reactive
+  power, a reference schedule, a scale of its own or a fixed Variable of a
+  formulation that the schedule only implies (the commitment differences, the
+  pieces of the power, the cuts, the deviation from the reference schedule), is
+  left to the check of the base class, which goes through the Variable and pays
+  an allocation and two passes over them for each entry of a global pool that
+  is revalidated; so is a `NuclearUnitBlock`, whose modulation the schedule
+  does not show
 
 - `tools/replicate_units`, which writes an instance with K times the thermal
   units of a given one, each copy carrying the data of the original, and
@@ -175,19 +179,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   written anew by `update_rows()`, and refuses any other one with the data
   kept, since it would make Variable appear or disappear
 
-- the data check of a cyclic reservoir of `HydroUnitBlock` asks the total
-  inflow over the horizon to lie between the smallest and the largest total
-  net outflow that the flow bounds allow, a necessary condition, instead of
-  the inflow of each instant to fit the arcs leaving the reservoir, which
-  refused feasible instances; it is made also for a single reservoir
-  without `StartArc` and `EndArc`
-
-- `BatteryUnitBlock` with a battery design variable writes its binary rows
-  with the largest design in place of one module, and bounds each reserve
-  by the reserve of the modules built, a row with the design variable
-  (`Primary_Design_Battery`, `Secondary_Design_Battery`), besides the bound
-  of the largest design; an integer design may have a minimum above 1
-
 - `DCNetworkBlock` refuses a negative `NetworkCost`, when read and in
   `set_network_cost()`, since it makes the problem unbounded
 
@@ -210,15 +201,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - the DP Solvers of `ThermalUnitBlock` use the operational power bounds,
   `Availability` included, and without ramp data a ramp no move reaches
 
-- `ThermalUnitBlock::set_maximum_power()` and `set_availability()` update
-  every formulation once the constraints are generated: the rows are written
-  in one place, `build_rows()`, which `update_rows()` runs again on the
-  changed data and compares with the rows there are, changing coefficients
-  and sides in one GroupModification, `NuclearUnitBlock` included; the new
-  data are checked first (availability in [0, 1], `MaxPower` not below
-  `MinPower`, a given `StartUpLimit` or `ShutDownLimit` within the
-  operational bounds) and restored if the update fails; `MaxRampUpSteps`
-  and `MaxRampDownSteps` in the data are refused
+- `ThermalUnitBlock::set_maximum_power()` and `set_availability()` update every
+  formulation once the constraints are generated: the rows are written in one
+  place, `build_rows()`, which `update_rows()` runs again on the changed data
+  and compares with the rows there are, changing coefficients and sides in one
+  GroupModification, `NuclearUnitBlock` included; the new data are checked
+  first (availability in [0, 1], `MaxPower` not below `MinPower`, a given
+  `StartUpLimit` or `ShutDownLimit` within the operational bounds) and restored
+  if the update fails; `MaxRampUpSteps` and `MaxRampDownSteps` in the data are
+  refused; `update_rows()` refuses a change after which no row would be written
+  to a static group that has rows (one written by `size_rows()` or
+  `push_row()`, as the rows of a derived class are), or a row would be written
+  to a dynamic group that is not generated
 
 - the rows of `ThermalUnitBlock` whose number depends on the power limits
   are dynamic groups that the setters add to and remove from: the bound rows
@@ -366,6 +360,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the data check of a cyclic reservoir of `HydroUnitBlock` asks the total
+  inflow over the horizon to lie between the smallest and the largest total net
+  outflow that the flow bounds allow, a necessary condition, instead of the
+  inflow of each instant to fit the arcs leaving the reservoir, which refused
+  feasible instances; it is made also for a single reservoir without `StartArc`
+  and `EndArc`
+
 - the dynamic programming Solvers of `ThermalUnitBlock` no longer limit
   the move from `InitialPower`, when there is no `DeltaRampUp`/`DeltaRampDown`,
   by the largest `MaxPower`: a unit on before the horizon with `InitialPower`
@@ -378,12 +379,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shut-down (`RampDown_Const_Thermal`, `RampUp_Const_Thermal`), as the SU
   and SD formulations do; without them its continuous relaxation could be
   weaker than that of the DP formulation
-
-- `ThermalUnitBlock::update_rows()` refuses a change after which no row would
-  be written to a static group that has rows (one written by `size_rows()` or
-  `push_row()`, as the rows of a derived class are), or a row would be written
-  to a dynamic group that is not generated, which it let through, leaving the
-  old rows in place or adding rows to a group that no Solver knows
 
 - the setters of the modulation ramps of `NuclearUnitBlock` change the rows
   through `update_rows()`, so that the coefficient of the modulation in the
@@ -399,14 +394,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DCNetworkBlock` does not list "Kappa" among the expected netCDF names,
   since it does not read it
 
-- `NuclearUnitBlock::is_sol_feasible()` checks a schedule through the
-  Variable, and hence against the modulation and the constraints of the
-  nuclear unit, instead of against the data of a thermal unit alone;
-  `ThermalUnitBlock::is_sol_feasible()` does the same when a Variable of a
-  formulation that the schedule only implies (the commitment differences,
-  the pieces of the power, the cuts, the deviation from the reference
-  schedule) is fixed
-
 - the setters of `ThermalUnitBlock` with an unordered `Subset` sorted the
   indices but not the values, which went to the wrong instants (e.g.,
   `set_maximum_power()` with the values 60, 140 at the instants 4, 1 set 60
@@ -419,12 +406,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NuclearUnitBlock` has the accessors of the band, modulation start and
   modulation end Variable
 
-- `ThermalUnitBlock::is_sol_feasible()` also holds a schedule to the
-  start-up, shut-down and reserve Variable that are fixed, which it used to
-  leave out: a Solution of the global pool of a `LagBFunction` that a
-  branching on one of them had made infeasible was kept, and writing it in
-  the unit threw
-
 - `HydroUnitBlock::set_inflow()` and `set_initial_volume()` add the
   initial volume to the water balance of instant 0 only when it is
   nonnegative, as the generation does: a cyclic reservoir no longer gets
@@ -434,9 +415,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DesignNetworkBlock` whose two bounds are 1 is fixed to 1 by its bound
   row; it was only bounded in [ 0 , 1 ], so the asset could be left out
 
-- the binary rows and the reserve bounds of a `BatteryUnitBlock` whose
-  battery design may exceed one module capped its power and reserves at
-  those of one module
+- the binary rows and the reserve bounds of a `BatteryUnitBlock` whose battery
+  design may exceed one module capped its power and reserves at those of one
+  module: the binary rows are written with the largest design, and each reserve
+  is bounded by the reserve of the modules built, a row with the design
+  variable (`Primary_Design_Battery`, `Secondary_Design_Battery`), besides the
+  bound of the largest design; an integer design may have a minimum above 1
 
 - the cost of the secondary reserve of `ThermalUnitBlock` set after the
   generation landed on the wrong variable when the unit pays to shut down
@@ -559,14 +543,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   constant terms of the network are kept in the Objective of the `UCBlock`
 
 - the overall balance of the PTDF formulation of DCNetworkBlock counts the
-  losses of the HVDC lines, as the CYCLE one does: before, an HVDC line with
+  losses of the HVDC lines, as the CYCLE one does: an HVDC line with
   an efficiency below 1 was forced to carry nothing, and a node reached
   only by such lines shed its whole demand
 
 - the CYCLE formulation of DCNetworkBlock handles parallel DC lines: the
   spanning forest and the fundamental cycles are built on the lines rather
   than on the pairs of nodes, so that of two parallel lines one is in the
-  forest and the other closes a cycle with it, while before both were taken
+  forest and the other closes a cycle with it, while both used to be taken
   as tree edges and forced to carry the whole flow between their nodes (on
   a PyPSA network with two parallel lines the optimum was 5.6e-3 too high);
   also, an HVDC line with an efficiency other than 1 enters the flow of a
