@@ -554,6 +554,17 @@ class NuclearUnitBlock : public ThermalUnitBlock
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// false: the schedule does not answer for the modulation
+ /** Returns false, so that ThermalUnitBlock::is_sol_feasible() leaves the
+  * check to the base class, which goes through the Variable and hence through
+  * is_feasible(): the schedule of a thermal unit says nothing of the
+  * modulation of a nuclear one, nor of the constraints it is in. */
+
+ [[nodiscard]] bool is_sol_feasible_physical( void ) const override {
+  return( false );
+  }
+
 
 /** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE DATA OF THE NuclearUnitBlock -----------*/
@@ -754,6 +765,32 @@ class NuclearUnitBlock : public ThermalUnitBlock
  ColVariable * get_modulation_start( void ) {
   return( v_modulation_start.empty() ? nullptr
                                      : &( v_modulation_start.front() ) );
+  }
+
+ /// like get_modulation_start(), but const
+ const ColVariable * get_const_modulation_start( void ) const {
+  return( const_cast< NuclearUnitBlock * >( this )->get_modulation_start() );
+  }
+
+ /// returns the vector of the modulation end Variable, if any
+ ColVariable * get_modulation_end( void ) {
+  return( v_modulation_end.empty() ? nullptr
+                                   : &( v_modulation_end.front() ) );
+  }
+
+ /// like get_modulation_end(), but const
+ const ColVariable * get_const_modulation_end( void ) const {
+  return( const_cast< NuclearUnitBlock * >( this )->get_modulation_end() );
+  }
+
+ /// returns the band Variable, three per instant (t * 3 + band), if any
+ ColVariable * get_band( void ) {
+  return( v_band.empty() ? nullptr : &( v_band.front() ) );
+  }
+
+ /// like get_band(), but const
+ const ColVariable * get_const_band( void ) const {
+  return( const_cast< NuclearUnitBlock * >( this )->get_band() );
   }
 
 /** @} ---------------------------------------------------------------------*/

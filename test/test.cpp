@@ -45,6 +45,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include <algorithm>
+#include <memory>
 #include <cmath>
 #include <cstdio>
 #include <iostream>
@@ -230,6 +231,7 @@ struct TUData {
  unsigned int initMod = 2;    // InitModulation
  double mru = 0;              // ModulationDeltaRampUp
  double mrd = 0;              // ModulationDeltaRampDown
+ std::vector< double > bands; // PowerBands, the two breakpoints, if any
  };
 
 /*--------------------------------------------------------------------------*/
@@ -277,6 +279,8 @@ static void write_TU( netCDF::NcGroup g , const TUData & d )
   put_uint( g , "InitModulation" , d.initMod );
   put( g , "ModulationDeltaRampUp" , NI , cst( d.mru ) );
   put( g , "ModulationDeltaRampDown" , NI , cst( d.mrd ) );
+  if( ! d.bands.empty() )
+   put( g , "PowerBands" , g.addDim( "NumberPowerBands" , 2 ) , d.bands );
   }
  }
 
@@ -942,6 +946,120 @@ static void test_DP_nuclear( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*------------------- THE CHECK OF A SCHEDULE IN A Solution ----------------*/
+/*--------------------------------------------------------------------------*/
+/// a schedule against the fixed Variable of the unit, and a nuclear one
+
+static void test_sol_feasible( void )
+{
+ SimpleConfiguration< double > tol( 1e-7 );
+
+ // off since long, then on at 1 and 2: the start-up is at 1
+ TUData d;
+ d.T = 3;
+ d.maxP = d.su = d.sd = d.ru = d.rd = 5;
+ d.initUD = -10;
+ d.lin = { -10 , -10 , -10 };
+ auto tub = new_TU( d );
+ generate_all( tub );
+ auto u = tub->get_commitment( 0 );
+ auto p = tub->get_active_power( 0 );
+ auto su = tub->get_start_up();
+ const std::vector< double > U = { 0 , 1 , 1 };
+ const std::vector< double > P = { 0 , 5 , 5 };
+ for( Index t = 0 ; t < d.T ; ++t ) {
+  u[ t ].set_value( U[ t ] );
+  p[ t ].set_value( P[ t ] );
+  }
+ check( tub->get_number_start_up() == d.T ,
+	"schedule: one start-up Variable per instant" );
+ for( Index t = 0 ; t < tub->get_number_start_up() ; ++t )
+  su[ t ].set_value( t == 1 ? 1 : 0 );
+
+ auto sol = tub->get_Solution( nullptr , false );
+ check( tub->is_sol_feasible_physical() ,
+	"schedule: a thermal unit reads the Solution" );
+ check( tub->is_sol_feasible( sol , & tol ) , "schedule: nothing fixed" );
+
+ su[ 2 ].set_value( 1 );
+ su[ 2 ].is_fixed( true );
+ check( ! tub->is_sol_feasible( sol , & tol ) ,
+	"schedule: a start-up fixed where the schedule has none" );
+ su[ 2 ].is_fixed( false );
+ su[ 2 ].set_value( 0 );
+ su[ 1 ].is_fixed( true );
+ check( tub->is_sol_feasible( sol , & tol ) ,
+	"schedule: a start-up fixed where the schedule has it" );
+ su[ 1 ].is_fixed( false );
+ delete sol;
+ delete tub;
+
+ // on at 2, then 5 and 2: the ramps of a thermal unit allow it, while a
+ // nuclear one modulates twice within its ModulationTime
+ TUData n;
+ n.nuclear = true;
+ n.T = 2;
+ n.minP = 2;
+ n.maxP = n.su = n.sd = 5;
+ n.ru = n.rd = 3;
+ n.mru = n.mrd = 1;
+ n.initUD = 10;
+ n.initP = 2;
+ n.modT = 3;
+ n.initMod = 3;
+ n.lin = { -10 , 10 };
+
+ for( bool nuclear : { false , true } ) {
+  n.nuclear = nuclear;
+  const std::string who = nuclear ? "nuclear" : "the thermal twin";
+  tub = new_TU( n );
+  generate_all( tub );
+  u = tub->get_commitment( 0 );
+  p = tub->get_active_power( 0 );
+  u[ 0 ].set_value( 1 );
+  u[ 1 ].set_value( 1 );
+  p[ 0 ].set_value( 5 );
+  p[ 1 ].set_value( 2 );
+  sol = tub->get_Solution( nullptr , false );
+  check( tub->is_sol_feasible_physical() != nuclear ,
+	 who + ": the schedule answers for a thermal unit only" );
+  check( tub->is_sol_feasible( sol , & tol ) != nuclear ,
+	 who + ": up by 3 and down by 3" );
+  delete sol;
+  delete tub;
+  }
+
+ // the nuclear DP does not read the bands of the output: a band that is
+ // fixed is refused, rather than left out of the schedule it gives
+ n.nuclear = true;
+ n.bands = { 3 , 4 };
+ for( bool fix : { false , true } ) {
+  tub = new_TU( n );
+  generate_all( tub );
+  auto nub = static_cast< NuclearUnitBlock * >( tub );
+  check( nub->get_band() , "bands: the band Variable are there" );
+  if( fix && nub->get_band() ) {
+   nub->get_band()[ 1 ].set_value( 1 );
+   nub->get_band()[ 1 ].is_fixed( true );
+   }
+  auto slv = Solver::new_Solver( "NuclearUnitExtDPSolver" );
+  tub->register_Solver( slv );
+  bool refused = false;
+  int status = Solver::kError;
+  try { status = slv->compute(); }
+  catch( std::logic_error & ) { refused = true; }
+  if( fix )
+   check( refused , "bands: a fixed band is refused by the nuclear DP" );
+  else
+   check( ( ! refused ) && ( status == Solver::kOK ) ,
+	  "bands: with no band fixed the nuclear DP solves, status " +
+	  std::to_string( status ) );
+  tub->unregister_Solver( slv , true );
+  delete tub;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- ROUND TRIPS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* Compares two netCDF groups: the same attributes, dimensions, variables
@@ -1115,6 +1233,156 @@ static Block * round_trip( const netCDF::NcGroup & g ,
   }
  delete b1;
  return( b2 );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the spanning forest and the cycles of the CYCLE formulation
+/** The DC graph has three parallel lines between nodes 0 and 1, one of them
+ * reversed, a triangle 0, 1, 2, a second component 3, 4 with two opposite
+ * lines, a node with no DC line and HVDC lines (zero susceptance) between
+ * the components and towards a node reached only by them. The forest must
+ * have one DC line per non-root node, oriented as its parent, of the three
+ * parallel lines exactly one, and no HVDC line; every cycle must be a
+ * circulation and every DC line out of the forest in some cycle. Then, on
+ * two parallel DC lines 0 -> 1 and an HVDC line 2 -> 1 with efficiency 0.5,
+ * a point that satisfies the nodal balance with the losses must satisfy the
+ * constraints of the CYCLE formulation, which a flow of a tree line written
+ * without the efficiency would violate, while one off the balance must
+ * not. */
+
+static void test_cycle_basis( void )
+{
+ auto g = new_group( "CY" , true );
+ g.putAtt( "type" , "DCNetworkBlock" );
+ auto N = g.addDim( "NumberNodes" , 7 );
+ auto L = g.addDim( "NumberLines" , 9 );
+ //                  0  1  2  3  4  5  6  7  8
+ put_int( g , "StartLine" , L , { 0 , 0 , 1 , 1 , 2 , 3 , 4 , 2 , 5 } );
+ put_int( g , "EndLine" ,   L , { 1 , 1 , 0 , 2 , 0 , 4 , 3 , 3 , 6 } );
+ put( g , "MinPowerFlow" , L , std::vector< double >( 9 , -100 ) );
+ put( g , "MaxPowerFlow" , L , std::vector< double >( 9 , 100 ) );
+ put( g , "LineSusceptance" , L , { 1 , 2 , 3 , 1 , 1 , 1 , 1 , 0 , 0 } );
+ put( g , "ActiveDemand" , N , std::vector< double >( 7 , 0 ) );
+
+ std::unique_ptr< Block > b;
+ try {
+  b.reset( Block::new_Block( g ) );
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "cycle basis: reading throws " ) + e.what() );
+  return;
+  }
+ auto nb = dynamic_cast< DCNetworkBlock * >( b.get() );
+ auto nd = nb ? dynamic_cast< DCNetworkBlock::DCNetworkData * >(
+                                         nb->get_NetworkData() ) : nullptr;
+ if( ! nd ) {
+  check( false , "cycle basis: the DCNetworkBlock is not read" );
+  return;
+  }
+
+ const auto & st = nd->get_start_line();
+ const auto & en = nd->get_end_line();
+ const auto tree = nd->get_lines_in_spanning_tree();
+ const auto cycles = nd->get_lines_in_cycles();
+ const auto & parent = nd->get_spanning_parent();
+
+ check( tree.size() == 3 , "cycle basis: 3 DC lines in the forest, " +
+	std::to_string( tree.size() ) );
+ check( cycles.size() == 4 , "cycle basis: 4 cycles, " +
+	std::to_string( cycles.size() ) );
+
+ int parallel = 0;
+ for( const auto & [ l , sign ] : tree ) {
+  const Index child = ( sign > 0 ) ? en[ l ] : st[ l ];
+  const Index father = ( sign > 0 ) ? st[ l ] : en[ l ];
+  check( parent[ child ] == int( father ) ,
+	 "cycle basis: tree line " + std::to_string( l ) + " oriented as "
+	 "the parent of its child" );
+  check( l < 7 , "cycle basis: HVDC line " + std::to_string( l ) +
+	 " in the forest" );
+  if( l < 3 )
+   ++parallel;
+  }
+ check( parallel == 1 , "cycle basis: " + std::to_string( parallel ) +
+	" of the 3 parallel lines in the forest" );
+
+ std::vector< bool > covered( 9 , false );
+ for( const auto & [ l , sign ] : tree )
+  covered[ l ] = true;
+ for( std::size_t c = 0 ; c < cycles.size() ; ++c ) {
+  std::vector< int > balance( 7 , 0 );
+  for( const auto & [ l , sign ] : cycles[ c ] ) {
+   check( l < 7 , "cycle basis: HVDC line in a cycle" );
+   check( ( sign == 1 ) || ( sign == -1 ) ,
+	  "cycle basis: a line twice in a cycle" );
+   covered[ l ] = true;
+   if( st[ l ] != en[ l ] ) {
+    balance[ st[ l ] ] -= sign;
+    balance[ en[ l ] ] += sign;
+    }
+   }
+  check( std::all_of( balance.begin() , balance.end() ,
+		      []( int x ) { return( x == 0 ); } ) ,
+	 "cycle basis: cycle " + std::to_string( c ) +
+	 " is not a circulation" );
+  }
+ for( Index l = 0 ; l < 7 ; ++l )
+  check( covered[ l ] , "cycle basis: DC line " + std::to_string( l ) +
+	 " neither in the forest nor in a cycle" );
+ check( parent[ 5 ] == -1 && parent[ 6 ] == -1 ,
+	"cycle basis: nodes with no DC line have no parent" );
+
+ // the HVDC line with losses in the flows of the CYCLE formulation
+ g = new_group( "CY" , true );
+ g.putAtt( "type" , "DCNetworkBlock" );
+ N = g.addDim( "NumberNodes" , 3 );
+ L = g.addDim( "NumberLines" , 3 );
+ put_int( g , "StartLine" , L , { 0 , 0 , 2 } );
+ put_int( g , "EndLine" ,   L , { 1 , 1 , 1 } );
+ put( g , "MinPowerFlow" , L , { -100 , -100 , 0 } );
+ put( g , "MaxPowerFlow" , L , { 100 , 100 , 100 } );
+ put( g , "LineSusceptance" , L , { 1 , 1 , 0 } );
+ put( g , "Efficiency" , L , { 1 , 1 , 0.5 } );
+ put( g , "ActiveDemand" , N , { 4 , 1 , 0 } );
+
+ b.reset( Block::new_Block( g ) );
+ nb = dynamic_cast< DCNetworkBlock * >( b.get() );
+ if( ! nb ) {
+  check( false , "cycle flows: the DCNetworkBlock is not read" );
+  return;
+  }
+ SimpleConfiguration< int > cycle( 1 );
+ nb->generate_abstract_variables( & cycle );
+ nb->generate_abstract_constraints();
+
+ // node 2 injects 10 on the HVDC line, which brings 5 to node 1, whose
+ // demand is 1: the 4 left go to node 0 over the two parallel lines, 2 each
+ // as their susceptances are the same, with the cycle flow that makes it so
+ auto set_point = [ & ]( double hvdc ) {
+  auto inj = nb->get_node_injection( 0 );
+  inj[ 0 ].set_value( 0 );
+  inj[ 1 ].set_value( 0 );
+  inj[ 2 ].set_value( hvdc );
+  auto & f = nb->get_power_flow();
+  const_cast< ColVariable & >( f[ 0 ] ).set_value( -2 );
+  const_cast< ColVariable & >( f[ 1 ] ).set_value( -2 );
+  const_cast< ColVariable & >( f[ 2 ] ).set_value( hvdc );
+  auto & h = nb->get_cycle_flow();
+  auto nd2 = static_cast< DCNetworkBlock::DCNetworkData * >(
+                                                  nb->get_NetworkData() );
+  const auto tree2 = nd2->get_lines_in_spanning_tree();
+  const auto cycles2 = nd2->get_lines_in_cycles();
+  for( std::size_t c = 0 ; c < h.size() ; ++c )
+   for( const auto & [ l , sign ] : cycles2[ c ] )
+    if( ! tree2.contains( l ) )
+     const_cast< ColVariable & >( h[ c ] ).set_value( -2.0 * sign );
+  };
+
+ set_point( 10 );
+ check( nb->is_feasible() ,
+	"cycle flows: the balance with the losses of the HVDC line" );
+ set_point( 5 );  // node 1 gets 2.5 from the HVDC line instead of 5
+ check( ! nb->is_feasible() , "cycle flows: a point off the balance" );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1773,11 +2041,13 @@ int main( void )
   test_DP_set_min_up_down();
   test_DP_clamped_min_up_down();
   test_DP_nuclear();
+  test_sol_feasible();
 
   test_RT_thermal();
   test_RT_hydro();
   test_RT_other_units();
   test_RT_networks();
+  test_cycle_basis();
   test_RT_UCBlock();
 
   test_setters_thermal( 1 );

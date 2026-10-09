@@ -1775,9 +1775,11 @@ class ThermalUnitBlock : public UnitBlock
  /** Returns true if is_sol_feasible() checks the schedule against the data of
   * the unit, which it does unless the unit carries something that the
   * schedule does not answer for: a dimensioning variable, the reactive
-  * power, a reference schedule, a scale of its own or a Variable that is
-  * fixed. In those cases the check goes through the abstract representation,
-  * and therefore through the Variable, as the base class does it. */
+  * power, a reference schedule, a scale of its own or a fixed Variable of a
+  * formulation that the schedule only implies. In those cases the check goes
+  * through the abstract representation, and therefore through the Variable,
+  * as the base class does it. A :ThermalUnitBlock with constraints of its
+  * own that the schedule does not answer for says so here. */
 
  [[nodiscard]] bool is_sol_feasible_physical( void ) const override;
 
@@ -3528,6 +3530,11 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the reactive power bound constraints (plain box; no commitment gating)
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
+
+ /// the active power bound constraints, 0 <= p[ t ] <= the operational
+ /// maximum power: redundant with the rows of the commitment, but readable
+ /// by a Solver that only reads the boxes (say, a BoxSolver)
+ std::vector< BoxConstraint > ActivePower_Bound_Const;
 
  /// the reactive power upper bound constraints (commitment-gated variant):
  /// q[t] - Qmax_on[t] u[t] <= Qmax_off[t]

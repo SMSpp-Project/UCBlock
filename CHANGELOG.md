@@ -67,6 +67,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directional ones. The sensitivity of an OTS line adds the dual of that
   limit while kappa is below 1.
 
+- `ThermalUnitBlock` has the box of the active power, `0 <= p[ t ] <=` the
+  operational maximum power, as the static group of `BoxConstraint`
+  `ActivePowerBound_thermal`, kept up to date by `set_maximum_power()` and by
+  the availability: the rows of the commitment already imply it, but a Solver
+  that only reads the boxes (say, a `BoxSolver` bounding the Objective, as
+  `LagrangianDualSolver` does) needs it to see the power bounded
+
+- data/gen_network_cases.py writes the instances of the edge cases of the
+  network, small PyPSA dispatch networks whose DC lines have a susceptance
+  (parallel lines in the same and in opposite directions, a triangle with a
+  parallel side, DC components joined by a link, nodes reached only by
+  links with losses), together with the optimum of PyPSA as their
+  reference; they are in pypsa-data/ucblock of the data from 2026-10-03
+
 - the module has a unit test of its own in `test/`, which needs nothing but
   the core SMS++ and builds all of its instances in memory: the three DP
   Solvers are compared with each other and with a brute force on small units
@@ -230,6 +244,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only from methods that are not const, and the const is gone
 
 ### Fixed
+
+- `NuclearUnitBlock::is_sol_feasible()` checks a schedule through the
+  Variable, and hence against the modulation and the constraints of the
+  nuclear unit, instead of against the data of a thermal unit alone;
+  `ThermalUnitBlock::is_sol_feasible()` does the same when a Variable of a
+  formulation that the schedule only implies (the commitment differences,
+  the pieces of the power, the cuts, the deviation from the reference
+  schedule) is fixed
+
+- `NuclearUnitExtDPSolver` refuses a fixed band of the output, deep drop,
+  deep low, modulation start or modulation end, whose fixings its labels
+  cannot honor, instead of giving a schedule that may violate them, save the
+  fixings at 0 of the first instant of a unit initially off;
+  `NuclearUnitBlock` has the accessors of the band, modulation start and
+  modulation end Variable
+
+- `ThermalUnitBlock::is_sol_feasible()` also holds a schedule to the
+  start-up, shut-down and reserve Variable that are fixed, which it used to
+  leave out: a Solution of the global pool of a `LagBFunction` that a
+  branching on one of them had made infeasible was kept, and writing it in
+  the unit threw
+
+- the overall balance of the PTDF formulation of DCNetworkBlock counts the
+  losses of the HVDC lines, as the CYCLE one does: before, an HVDC line with
+  an efficiency below 1 was forced to carry nothing, and a node reached
+  only by such lines shed its whole demand
+
+- the CYCLE formulation of DCNetworkBlock handles parallel DC lines: the
+  spanning forest and the fundamental cycles are built on the lines rather
+  than on the pairs of nodes, so that of two parallel lines one is in the
+  forest and the other closes a cycle with it, while before both were taken
+  as tree edges and forced to carry the whole flow between their nodes (on
+  a PyPSA network with two parallel lines the optimum was 5.6e-3 too high);
+  also, an HVDC line with an efficiency other than 1 enters the flow of a
+  tree edge with the efficiency at its end node, as in the nodal balance
 
 - `NuclearUnitExtDPSolver` ignored a modulation (or a downward modulation,
   or a deep decrease) fixed to 1 at an instant in which the unit is off,
