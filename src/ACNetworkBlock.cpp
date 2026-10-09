@@ -141,6 +141,13 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , "LineMaxAngle" , f_number_lines , v_line_max_angle ,
                  true , true );
 
+  // the bounds on the angle differences are optional, but go together: if
+  // neither is there the angle differences are not bounded
+  if( v_line_min_angle.empty() != v_line_max_angle.empty() )
+   throw( std::invalid_argument( "ACNetworkData::deserialize: "
+                                 "LineMinAngle and LineMaxAngle must be "
+                                 "given together" ) );
+
   ::deserialize( group , "LineChargingSusceptance" , f_number_lines ,
                  v_line_chargingsusceptance , true , true );
 
@@ -378,21 +385,39 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
  if( variables_generated() )  // variables have already been generated
   return;                     // nothing to do
 
- DCNetworkBlock::generate_abstract_variables( stvv );
-
  // read the Configuration (if any)- - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( ( ! stvv ) && f_BlockConfig )
   stvv = f_BlockConfig->f_static_variables_Configuration;
 
- if( auto SCdd = dynamic_cast< SimpleConfiguration< int > * >( stvv ) )
+ bool asked = false;  // whether a Configuration decides b_strongSOCP
+ if( auto SCdd = dynamic_cast< SimpleConfiguration< int > * >( stvv ) ) {
   b_strongSOCP = ( SCdd->f_value > 0 );
+  asked = true;
+  }
  else if( auto SCvd = dynamic_cast<
                   SimpleConfiguration< std::vector< int > > * >( stvv ) ) {
-  if( SCvd->f_value.size() > 0 )
+  if( SCvd->f_value.size() > 0 ) {
    b_strongSOCP = ( SCvd->f_value[ 0 ] > 0 );
+   asked = true;
+   }
   }
+
+ // the envelopes of the strengthened relaxation need a finite range of the
+ // angle difference of each AC line: without the bounds on the angle
+ // differences it is not generated, and it is an error to ask for it
+ if( b_strongSOCP && ( get_number_nodes() > 1 ) &&
+     ( ! f_NetworkData->get_DC_lines().empty() ) &&
+     ( ! ND()->has_angle_bounds() ) ) {
+  if( asked )
+   throw( std::invalid_argument( "ACNetworkBlock::generate_abstract_"
+                                 "variables: the strengthened relaxation "
+                                 "needs LineMinAngle and LineMaxAngle" ) );
+  b_strongSOCP = false;
+  }
+
+ DCNetworkBlock::generate_abstract_variables( stvv );
 
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
@@ -615,15 +640,18 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   *
   * Furthermore we induce basic bounds on v_diff_product_voltages and
   * v_sum_product_voltages by leveraging the minimum voltages, maximum
-  * voltages and angle bounds. */
+  * voltages and angle bounds. If the data do not bound the angle
+  * differences, there is none of these rows. */
  int i_line = 0;
- v_angle_bounds_const.resize( MAFRC_ext()[ 2 ][ nb_dc_lines ] );
- v_basic_bounds_const.resize( MAFRC_ext()[ 2 ][ nb_dc_lines ] );
+ const bool angles = ND()->has_angle_bounds();
+ v_angle_bounds_const.resize( MAFRC_ext()[ 2 ][ angles ? nb_dc_lines : 0 ] );
+ v_basic_bounds_const.resize( MAFRC_ext()[ 2 ][ angles ? nb_dc_lines : 0 ] );
 
  const auto & min_angle = ND()->get_line_min_angle();
  const auto & max_angle = ND()->get_line_max_angle();
 
- for( auto & line_id : DC_lines ) {
+ const Subset no_lines;  // no row without the bounds
+ for( auto & line_id : angles ? DC_lines : no_lines ) {
   // all angles are typically input as degrees, but we need radians
 
   double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
@@ -884,13 +912,19 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    // values for the basic bound check
    double v_flow_lower = 0.0;
    double v_flow_upper = 0.0;
-   double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
-   double phi_max = std::numbers::pi * max_angle[ line_id ] / 180.;
-   double delta_phi = phi_max - phi_min;
-   // assuming phi_min <= phi_max evidently
-   double c_cos = std::min( cos( std::abs( phi_min ) ) ,
-                            cos( std::abs( phi_max ) ) );
-   double c_sin = sin( delta_phi );
+   // the lower bound of c_l and the bound c_sin V^mx_s V^mx_e of | s_l |
+   // that the angles give, the voltages alone without them
+   double c_low = - max_voltage[ p ] * max_voltage[ end_line[ line_id ] ];
+   double c_sin = 1;
+   if( angles ) {
+    double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
+    double phi_max = std::numbers::pi * max_angle[ line_id ] / 180.;
+    // assuming phi_min <= phi_max evidently
+    c_low = std::min( cos( std::abs( phi_min ) ) ,
+                      cos( std::abs( phi_max ) ) ) *
+            min_voltage[ p ] * min_voltage[ end_line[ line_id ] ];
+    c_sin = sin( phi_max - phi_min );
+    }
 
    // 1.1) real part
    auto lfunc_1 = new LinearFunction();
@@ -912,14 +946,12 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
                           round_sig( Yft( line_id ).real() * f_scale ,
                                      f_digits ) );
 
-   v_flow_lower += std::max( Yft( line_id ).real() , 0.0 ) * c_cos *
-    min_voltage[ p ] * min_voltage[ end_line[ line_id ] ] +
+   v_flow_lower += std::max( Yft( line_id ).real() , 0.0 ) * c_low +
     std::min( Yft( line_id ).real() , 0.0 ) * max_voltage[ p ] *
     max_voltage[ end_line[ line_id ] ];
    v_flow_upper += std::max( Yft( line_id ).real() , 0.0 ) *
     max_voltage[ p ] * max_voltage[ end_line[ line_id ] ] +
-    std::min( Yft( line_id ).real() , 0.0 ) * c_cos *
-    min_voltage[ p ] * min_voltage[ end_line[ line_id ] ];
+    std::min( Yft( line_id ).real() , 0.0 ) * c_low;
 
    lfunc_1->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( Yft( line_id ).imag() * f_scale ,

@@ -90,7 +90,9 @@ namespace SMSpp_di_unipi_it
  * \f$ ( F^{to}_l )^2 + ( Q^{to}_l )^2 \le ( r^A_l )^2 \f$ of each AC line,
  * the bounds on \f$ w_n \f$ given by the voltage limits, the bounds on the
  * angle difference, \f$ \tan( \phi^{mn}_l ) c_l \le s_l \le \tan( \phi^{mx}_l
- * ) c_l \f$, and the cone \f$ c_l^2 + s_l^2 \le w_{s(l)} w_{e(l)} \f$, i.e.,
+ * ) c_l \f$, if the data give them (the angle differences are not bounded
+ * otherwise, see ACNetworkData::deserialize()), and the cone
+ * \f$ c_l^2 + s_l^2 \le w_{s(l)} w_{e(l)} \f$, i.e.,
  * the convex relaxation of \f$ c_l^2 + s_l^2 = w_{s(l)} w_{e(l)} \f$.
  * Finally, there are the bounds (1) of DCNetworkBlock on \f$ F^{fr}_l \f$
  * and, for an HVDC line, \f$ F^{fr}_l + F^{to}_l = 0 \f$ (no loss, since the
@@ -193,7 +195,14 @@ class ACNetworkData : public DCNetworkData
   * - the variables "LineMinAngle" and "LineMaxAngle", indexed over
   *   "NumberLines", the bounds \f$ \phi^{mn}_l \le \phi^{mx}_l \f$ on the
   *   difference of the angles of the voltages at the ends of each AC line,
-  *   in degrees;
+  *   in degrees, optional but given together (one without the other is
+  *   refused with a std::invalid_argument); if they are not there, the
+  *   angle differences are not bounded: no row (8) and no bound derived
+  *   from the angles is written [see
+  *   ACNetworkBlock::generate_abstract_constraints()], and the strengthened
+  *   relaxation, whose envelopes need a finite range of each angle
+  *   difference, is not available [see
+  *   ACNetworkBlock::generate_abstract_variables()];
   *
   * - the variables "NodeConductance" and "NodeSusceptance", indexed over
   *   "NumberNodes", the shunt conductance \f$ G^s_n \f$ and susceptance
@@ -209,8 +218,8 @@ class ACNetworkData : public DCNetworkData
   *   HVDC lines (those of the AC lines being ignored), optional.
   *
   * All the variables but "LineReactance" and "LineResistance" are read as
-  * optional; those without a default ("LineRATEA", the angles and the data
-  * of the nodes) are however used by
+  * optional; those without a default and without a meaning when absent
+  * ("LineRATEA" and the data of the nodes) are however used by
   * ACNetworkBlock::generate_abstract_constraints(), and therefore have to
   * be there if the abstract representation is generated. */
 
@@ -312,6 +321,9 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of line minimum angle differences
+ /** Returns the vector of the minimum angle differences of the lines, in
+  * degrees, which is empty if the data do not bound the angle differences
+  * (see has_angle_bounds()). */
 
  const std::vector< double > & get_line_min_angle( void ) const {
   return( v_line_min_angle );
@@ -319,9 +331,23 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of line maximum angle differences
+ /** Returns the vector of the maximum angle differences of the lines, in
+  * degrees, which is empty if the data do not bound the angle differences
+  * (see has_angle_bounds()). */
 
  const std::vector< double > & get_line_max_angle( void ) const {
   return( v_line_max_angle );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the data bound the angle differences of the lines
+ /** Returns true if "LineMinAngle" and "LineMaxAngle" have been read, in
+  * which case get_line_min_angle() and get_line_max_angle() have one entry
+  * per line; false if they were not there, in which case both vectors are
+  * empty and the angle differences are not bounded. */
+
+ bool has_angle_bounds( void ) const {
+  return( ! v_line_min_angle.empty() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -581,7 +607,13 @@ class ACNetworkData : public DCNetworkData
   * in either case the first value decides whether the variables needed for
   * the stronger SOCP relaxation are added (see
   * generate_strengthened_variables()), which is the case if it is positive
-  * and also when neither Configuration is given. A SimpleConfiguration< int >
+  * and also when neither Configuration is given. The strengthened
+  * relaxation needs the bounds on the angle differences (see
+  * ACNetworkData::has_angle_bounds()): if the data do not give them and the
+  * network has an AC line, it is not generated when no Configuration asks
+  * for it, while a Configuration that asks for it makes the method throw a
+  * std::invalid_argument before any Variable is added. A
+  * SimpleConfiguration< int >
   * is also read by DCNetworkBlock::generate_abstract_variables(), which adds
   * the variables of the formulation it selects (of KIRCHHOFF with any other
   * Configuration); they play no role in the rows of an ACNetworkBlock. */
@@ -670,7 +702,9 @@ class ACNetworkData : public DCNetworkData
   * \f$ \min\{ \cos | \phi^{mn}_l | , \cos | \phi^{mx}_l | \} ( C^v )^2
   * V^{mn}_s V^{mn}_e \le c_l \le ( C^v )^2 V^{mx}_s V^{mx}_e \f$ and
   * \f$ | s_l | \le \sin( \phi^{mx}_l - \phi^{mn}_l ) ( C^v )^2 V^{mx}_s
-  * V^{mx}_e \f$ ("AC_elem_bounds"), the cone
+  * V^{mx}_e \f$ ("AC_elem_bounds"), both groups being absent if the data
+  * do not bound the angle differences (see
+  * ACNetworkData::has_angle_bounds()), the cone
   * \f[
   *   c_l^2 + s_l^2 - w_s w_e \le 0
   *   \tag{9}

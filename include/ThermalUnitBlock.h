@@ -350,8 +350,10 @@ class ThermalUnitBlock : public UnitBlock
   *   the active power from \f$ t - 1 \f$ to \f$ t \f$ (from InitialPower
   *   if \f$ t = 0 \f$); a ramp 0 keeps the power of an on unit constant.
   *   Each is optional: if it is not given there are no ramp rows of that
-  *   kind (get_delta_ramp_up() and get_delta_ramp_down() then return
-  *   \f$ \hat P^{mx}_t \f$).
+  *   kind (get_delta_ramp_up() and get_delta_ramp_down() then return an
+  *   empty vector, and their versions for one instant \f$ t \f$ return
+  *   \f$ \hat P^{mx}_t \f$; the dynamic programming Solvers take a
+  *   ramp no move exceeds, see ThermalUnitDPSolverBase).
   *
   * - The variable "StartUpLimit", the start-up limit \f$ P^{su}_t \f$,
   *   i.e., the largest active power at the instant \f$ t \f$ when the unit

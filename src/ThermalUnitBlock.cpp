@@ -1097,12 +1097,12 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
    }
   }
 
- // the positions in v_P_h_k (hence in v_psi) of the instant t of each run
- // ( h , k ), in increasing order, so that the rows below find them without
- // a scan of v_P_h_k
+ // the positions in v_P_h_k (hence in v_psi, if there is one) of the instant
+ // t of each run ( h , k ), in increasing order, so that the rows below find
+ // them without a scan of v_P_h_k
  std::map< std::tuple< Index , Index , Index > , std::vector< Index > >
   psi_pos;
- for( Index j = 0 ; j < v_psi.size() ; ++j )
+ for( Index j = 0 ; j < v_P_h_k.size() ; ++j )
   psi_pos[ std::make_tuple( v_P_h_k[ j ].first ,
                             v_P_h_k[ j ].second.first ,
                             v_P_h_k[ j ].second.second ) ].push_back( j );
@@ -1110,6 +1110,25 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
  auto psi_index = [ & ]( Index t , Index i ) -> const std::vector< Index > & {
   const auto it = psi_pos.find( std::make_tuple( t , v_Y_plus[ i ].first ,
                                                  v_Y_plus[ i ].second ) );
+  return( it == psi_pos.end() ? no_pos : it->second );
+  };
+
+ // for the DP formulation, the positions in v_Y_plus of each run ( h , k ),
+ // in increasing order, and the positions in v_P_h_k of the instant t - 1
+ // of the run of v_P_h_k[ j ], so that its ramp rows find them without a
+ // scan of v_Y_plus and of v_P_h_k
+ std::map< std::pair< Index , Index > , std::vector< Index > > arc_pos;
+ if( ( AR & FormMsk ) == DPForm )
+  for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+   arc_pos[ v_Y_plus[ i ] ].push_back( i );
+ auto arc_index = [ & ]( Index j ) -> const std::vector< Index > & {
+  const auto it = arc_pos.find( v_P_h_k[ j ].second );
+  return( it == arc_pos.end() ? no_pos : it->second );
+  };
+ auto prev_index = [ & ]( Index j ) -> const std::vector< Index > & {
+  const auto & hk = v_P_h_k[ j ].second;
+  const auto it = psi_pos.find( std::make_tuple( v_P_h_k[ j ].first - 1 ,
+                                                 hk.first , hk.second ) );
   return( it == psi_pos.end() ? no_pos : it->second );
   };
 
@@ -1626,22 +1645,17 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
       vars.push_back( std::make_pair( &v_active_power_h_k[ j ] , 1.0 ) );
 
       if( t > 0 )
-       for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
-        if( ( v_P_h_k[ j ].second.first == v_P_h_k[ s ].second.first ) &&
-            ( v_P_h_k[ j ].second.second == v_P_h_k[ s ].second.second ) )
-         if( v_P_h_k[ s ].first == t - 1 )
-          vars.push_back( std::make_pair( &v_active_power_h_k[ s ] , -1.0 ) );
+       for( Index s : prev_index( j ) )
+        vars.push_back( std::make_pair( &v_active_power_h_k[ s ] , -1.0 ) );
 
-      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-       if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
-           ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
-        if( t == 0 )
-         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                         -v_DeltaRampUp[ t ] - f_InitialPower ) );
-        else if( t > 0 )
-         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                         -v_DeltaRampUp[ t ] ) );
-       }
+      for( Index i : arc_index( j ) )
+       if( t == 0 )
+        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                        - v_DeltaRampUp[ t ]
+                                        - f_InitialPower ) );
+       else
+        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                        -v_DeltaRampUp[ t ] ) );
 
       put_row( RampUp_Const , cnstr_idx , std::move( vars ) ,
                -Inf< double >() , 0.0 );
@@ -1963,22 +1977,17 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
       vars.push_back( std::make_pair( &v_active_power_h_k[ j ] , -1.0 ) );
 
       if( t > 0 )
-       for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
-        if( ( v_P_h_k[ j ].second.first == v_P_h_k[ s ].second.first ) &&
-            ( v_P_h_k[ j ].second.second == v_P_h_k[ s ].second.second ) )
-         if( v_P_h_k[ s ].first == t - 1 )
-          vars.push_back( std::make_pair( &v_active_power_h_k[ s ] , 1.0 ) );
+       for( Index s : prev_index( j ) )
+        vars.push_back( std::make_pair( &v_active_power_h_k[ s ] , 1.0 ) );
 
-      for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-       if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
-           ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
-        if( t == 0 )
-         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                         -v_DeltaRampDown[ t ] + f_InitialPower ) );
-        else if( t > 0 )
-         vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                         -v_DeltaRampDown[ t ] ) );
-       }
+      for( Index i : arc_index( j ) )
+       if( t == 0 )
+        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                        - v_DeltaRampDown[ t ]
+                                        + f_InitialPower ) );
+       else
+        vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                        -v_DeltaRampDown[ t ] ) );
 
       put_row( RampDown_Const , cnstr_idx , std::move( vars ) ,
                -Inf< double >() , 0.0 );

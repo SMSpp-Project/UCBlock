@@ -28,6 +28,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cap below the minimum power is no longer raised to it, so that a run that
   the limits and the ramps make impossible at an instant is excluded there
 
+- `ACNetworkBlock` without `LineMinAngle` and `LineMaxAngle` no longer reads
+  out of empty vectors when its rows are generated: the angle differences
+  are then not bounded, there are no rows `AC_angle_bounds_limit` and
+  `AC_elem_bounds`, and the strengthened relaxation, which needs the
+  bounds, is not generated unless a Configuration asks for it, in which
+  case it is refused; one of the two variables without the other is refused
+  when read (`ACNetworkData::has_angle_bounds()` tells whether they are
+  there)
+
+- `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver` compute again the
+  ramps they take for a unit without `DeltaRampUp` or `DeltaRampDown` when
+  `InitialPower` changes, so that the move from a new `InitialPower` above
+  every `MaxPower` is free, as in the rows
+
+### Changed
+
+- the ramp rows of the DP formulation of `ThermalUnitBlock` find the power
+  of the previous instant of the run and the commitment of the run without
+  scanning all the powers and all the runs for each row (the same rows)
+
 ## [0.10.0] - 2026-10-09
 
 ### Added

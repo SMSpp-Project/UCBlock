@@ -572,6 +572,8 @@ bool ThermalUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
     return( true );  // the bounds and the default ramps are derived
 
    case( ThermalUnitBlockMod::eSetInitP ):
+    if( ( ! has_ramp_up ) || ( ! has_ramp_down ) )
+     return( true );  // the default ramps depend on InitialPower
     initial_power = b->get_initial_power();
     stage = start;
     return( false );
