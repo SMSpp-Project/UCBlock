@@ -39,6 +39,8 @@
 
 #include <map>
 
+#include <numbers>
+
 #include <sstream>
 
 #include "ACNetworkBlock.h"
@@ -52,10 +54,6 @@
 #include "QuadFunction.h"
 
 #include <Eigen/Sparse>
-
-#ifndef PI
- #define PI 3.14159265358979323846
-#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -412,7 +410,15 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
  v_power_flow.resize( 2 * number_lines );
  for( Index line_id = 0 ; line_id < 2 * number_lines ; ++line_id )
   v_power_flow[ line_id ].set_type( ColVariable::kContinuous );
- add_static_variable( v_power_flow , "v_power_flow_real" );
+ // DCNetworkBlock::generate_abstract_variables() has made v_power_flow a
+ // group of static Variable ("p_flow_network", unless there is no line):
+ // that group is replaced, so that the Variable, added by the resize, are
+ // in it and each of them is given to the Solvers once
+ if( const auto i = get_s_var_index( "p_flow_network" ) ;
+     i < get_number_static_variables() )
+  set_static_variable( i , v_power_flow , "v_power_flow_real" );
+ else
+  add_static_variable( v_power_flow , "v_power_flow_real" );
 
  v_reactive_power_flow.resize( 2 * number_lines );
  for( Index line_id = 0 ; line_id < 2 * number_lines ; ++line_id )
@@ -420,15 +426,21 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
  add_static_variable( v_reactive_power_flow , "v_reactive_power_flow" );
 
  // we do not define the reverse value because the sum is symmetric and the
- // diff is anti-symmetric
- v_sum_product_voltages.resize( number_lines );
- for( Index line_id = 0 ; line_id < number_lines ; ++line_id )
-  v_sum_product_voltages[ line_id ].set_type( ColVariable::kContinuous );
+ // diff is anti-symmetric; only the DC lines have them, in the order of
+ // get_DC_lines(), and v_dc_line_position maps a line to its position there
+ const auto & dc_lines = f_NetworkData->get_DC_lines();
+ v_dc_line_position.assign( number_lines , Inf< Index >() );
+ for( Index i = 0 ; i < dc_lines.size() ; ++i )
+  v_dc_line_position[ dc_lines[ i ] ] = i;
+
+ v_sum_product_voltages.resize( dc_lines.size() );
+ for( auto & variable : v_sum_product_voltages )
+  variable.set_type( ColVariable::kContinuous );
  add_static_variable( v_sum_product_voltages , "v_sum_product_voltages" );
 
- v_diff_product_voltages.resize( number_lines );
- for( Index line_id = 0 ; line_id < number_lines ; ++line_id )
-  v_diff_product_voltages[ line_id ].set_type( ColVariable::kContinuous );
+ v_diff_product_voltages.resize( dc_lines.size() );
+ for( auto & variable : v_diff_product_voltages )
+  variable.set_type( ColVariable::kContinuous );
  add_static_variable( v_diff_product_voltages , "v_diff_product_voltages" );
 
  v_sqrd_voltages.resize( number_nodes );
@@ -614,16 +626,16 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  for( auto & line_id : DC_lines ) {
   // all angles are typically input as degrees, but we need radians
 
-  double phi_min = PI * min_angle[ line_id ] / 180.;
-  double phi_max = PI * max_angle[ line_id ] / 180.;
+  double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
+  double phi_max = std::numbers::pi * max_angle[ line_id ] / 180.;
   double delta_phi = phi_max - phi_min;
   // assuming phi_min <= phi_max evidently
 
   // classic angle-based bounds on c_{n,n'} and s_{n,n'}
   // tan( phi_min ) c_{n,n'} <= s_{n,n'}
   auto lfunc_1 = new LinearFunction();
-  lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
-  lfunc_1->add_variable( & v_sum_product_voltages[ line_id ] ,
+  lfunc_1->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 );
+  lfunc_1->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] ,
                          -tan( phi_min ) );
   v_angle_bounds_const[ 0 ][ i_line ].set_lhs( 0.0 );
   v_angle_bounds_const[ 0 ][ i_line ].set_rhs( Inf< double >() );
@@ -632,8 +644,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   // second half
   // s_{n,n'} <= tan( phi_max ) c_{n,n'}
   auto lfunc_2 = new LinearFunction();
-  lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] , 1.0 );
-  lfunc_2->add_variable( & v_sum_product_voltages[ line_id ] ,
+  lfunc_2->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 );
+  lfunc_2->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] ,
                          -tan( phi_max ) );
   v_angle_bounds_const[ 1 ][ i_line ].set_lhs( -Inf< double >() );
   v_angle_bounds_const[ 1 ][ i_line ].set_rhs( 0.0 );
@@ -653,7 +665,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    max_voltage[ end_line[ line_id ] ] *
    pow( f_C_v_scal , 2 ) );
   v_basic_bounds_const[ 0 ][ i_line ].set_variable(
-   & v_sum_product_voltages[ line_id ] );
+   & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] );
 
   // bounds on v_diff_product_voltages - - - - - - - - - - - - - - - - - -
   // v_diff_product_voltages = s_{n,n'} = v_n v_n' sin( theta_n - theta_n' );
@@ -667,7 +679,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    s_sin * max_voltage[ start_line[ line_id ] ] *
    max_voltage[ end_line[ line_id ] ] * pow( f_C_v_scal , 2 ) );
   v_basic_bounds_const[ 1 ][ i_line ].set_variable(
-   & v_diff_product_voltages[ line_id ] );
+   & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] );
 
   ++i_line;
   }
@@ -838,7 +850,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
   return( f_net->get_line_ratio().at( line_id ) );
   };
  auto theta = [ f_net ]( int line_id ) {
-  return( PI * f_net->get_line_angle().at( line_id ) / 180 );
+  return( std::numbers::pi * f_net->get_line_angle().at( line_id ) / 180 );
   };
 
  auto Y = [ r , x ]( int l ) { return( 1.0 / ( r( l ) + 1i * x( l ) ) ); };
@@ -872,8 +884,8 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    // values for the basic bound check
    double v_flow_lower = 0.0;
    double v_flow_upper = 0.0;
-   double phi_min = PI * min_angle[ line_id ] / 180.;
-   double phi_max = PI * max_angle[ line_id ] / 180.;
+   double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
+   double phi_max = std::numbers::pi * max_angle[ line_id ] / 180.;
    double delta_phi = phi_max - phi_min;
    // assuming phi_min <= phi_max evidently
    double c_cos = std::min( cos( std::abs( phi_min ) ) ,
@@ -896,7 +908,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     std::min( Yff( line_id ).real() , 0.0 ) *
     std::pow( min_voltage[ p ] , 2.0 );
 
-   lfunc_1->add_variable( & v_sum_product_voltages[ line_id ] ,
+   lfunc_1->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( Yft( line_id ).real() * f_scale ,
                                      f_digits ) );
 
@@ -909,7 +921,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     std::min( Yft( line_id ).real() , 0.0 ) * c_cos *
     min_voltage[ p ] * min_voltage[ end_line[ line_id ] ];
 
-   lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] ,
+   lfunc_1->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( Yft( line_id ).imag() * f_scale ,
                                      f_digits ) );
 
@@ -955,10 +967,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    lfunc_2->add_variable( & v_sqrd_voltages[ p ] ,
                           round_sig( -Yff( line_id ).imag() * f_scale ,
                                      f_digits ) );
-   lfunc_2->add_variable( & v_sum_product_voltages[ line_id ] ,
+   lfunc_2->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( -Yft( line_id ).imag() * f_scale ,
                                      f_digits ) );
-   lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] ,
+   lfunc_2->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( Yft( line_id ).real() * f_scale ,
                                      f_digits ) );
    lfunc_2->add_variable( & v_reactive_power_flow[ line_id ] ,
@@ -977,10 +989,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    lfunc_1->add_variable( & v_sqrd_voltages[ p ] ,
                           round_sig( Ytt( line_id ).real() * f_scale ,
                                      f_digits ) );
-   lfunc_1->add_variable( & v_sum_product_voltages[ line_id ] ,
+   lfunc_1->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( Ytf( line_id ).real() * f_scale ,
                                      f_digits ) );
-   lfunc_1->add_variable( & v_diff_product_voltages[ line_id ] ,
+   lfunc_1->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( -Ytf( line_id ).imag() * f_scale ,
                                      f_digits ) );
    // be careful: diff is antisymmetric
@@ -995,10 +1007,10 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    lfunc_2->add_variable( & v_sqrd_voltages[ p ] ,
                           round_sig( -Ytt( line_id ).imag() * f_scale ,
                                      f_digits ) );
-   lfunc_2->add_variable( & v_sum_product_voltages[ line_id ] ,
+   lfunc_2->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( -Ytf( line_id ).imag() * f_scale ,
                                      f_digits ) );
-   lfunc_2->add_variable( & v_diff_product_voltages[ line_id ] ,
+   lfunc_2->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( -Ytf( line_id ).real() * f_scale ,
                                      f_digits ) );
    // be careful: diff is antisymmetric
@@ -1060,13 +1072,41 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  /* Moreover the SOCP relaxation can be made much stronger following the
   * work by Coffrin et al. This can be done by adding multiple McCormick
   * inequalities; it is optional and can be triggered from the
-  * BlockConfig file. */
+  * BlockConfig file. References: C. Coffrin, H. L. Hijazi and P. Van
+  * Hentenryck, "The QC Relaxation: A Theoretical and Computational Study
+  * on Optimal Power Flow", IEEE Transactions on Power Systems 31(4),
+  * 3008-3018, 2016, doi:10.1109/TPWRS.2015.2463111; H. L. Hijazi,
+  * C. Coffrin and P. Van Hentenryck, "Convex quadratic relaxations for
+  * mixed-integer nonlinear programs in power systems", Mathematical
+  * Programming Computation 9, 321-367, 2017,
+  * doi:10.1007/s12532-016-0112-z. */
  if( b_strongSOCP )
   strengthen_SOCP_relaxation();
 
  set_constraints_generated();  // signal all done
 
  }  // end( ACNetworkBlock::generate_abstract_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void ACNetworkBlock::change_active_demand_constraints(
+                           c_Subset & modified_nodes , c_ModParam issueAMod )
+{
+ // the active balance of node n is the row n, the reactive one the row
+ // get_number_nodes() + n; none exists with a single node
+ if( v_power_flow_injection_const.empty() )
+  return;
+
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
+ for( auto n : modified_nodes )
+  v_power_flow_injection_const[ n ].set_both(
+                              -v_ActiveDemand[ n ] * f_C_v_scal , nAM );
+
+ close_channel( par2chnl( nAM ) );
+
+ }  // end( ACNetworkBlock::change_active_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1113,8 +1153,8 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
   qfunc->add_variable( & v_sqrd_voltages[ n ] , 0.0 , 0.0 );
   qfunc->add_nd_term( & v_sqrd_voltages[ p ] , & v_sqrd_voltages[ n ] ,
                       -1.0 );
-  qfunc->add_variable( & v_sum_product_voltages[ line_id ] , 0.0 , 1.0 );
-  qfunc->add_variable( & v_diff_product_voltages[ line_id ] , 0.0 , 1.0 );
+  qfunc->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] , 0.0 , 1.0 );
+  qfunc->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 0.0 , 1.0 );
   v_socp_const[ i_line ].set_lhs( -Inf< double >() );
   v_socp_const[ i_line ].set_rhs( 0.0 );
   v_socp_const[ i_line ].set_function( qfunc );
@@ -1127,11 +1167,11 @@ void ACNetworkBlock::generate_SOCP_relaxation( void )
   v_sum_product_voltages_bounds[ i_line ].set_lhs( - cs_bound );
   v_sum_product_voltages_bounds[ i_line ].set_rhs(   cs_bound );
   v_sum_product_voltages_bounds[ i_line ].set_variable(
-   & v_sum_product_voltages[ line_id ] );
+   & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] );
   v_diff_product_voltages_bounds[ i_line ].set_lhs( - cs_bound );
   v_diff_product_voltages_bounds[ i_line ].set_rhs(   cs_bound );
   v_diff_product_voltages_bounds[ i_line ].set_variable(
-   & v_diff_product_voltages[ line_id ] );
+   & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] );
 
   ++i_line;
   }
@@ -1185,10 +1225,10 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   auto lfunc = new LinearFunction();
   lfunc->add_variable( & v_theta[ p ] , 1.0 );
   lfunc->add_variable( & v_theta[ n ] , -1.0 );
-  v_theta_bounds[ i_line ].set_lhs( PI * v_line_min_angle[ line_id ] /
-                                    180.0 );
-  v_theta_bounds[ i_line ].set_rhs( PI * v_line_max_angle[ line_id ] /
-                                    180.0 );
+  v_theta_bounds[ i_line ].set_lhs( std::numbers::pi *
+                                    v_line_min_angle[ line_id ] / 180.0 );
+  v_theta_bounds[ i_line ].set_rhs( std::numbers::pi *
+                                    v_line_max_angle[ line_id ] / 180.0 );
   v_theta_bounds[ i_line ].set_function( lfunc );
   ++i_line;
   }
@@ -1205,8 +1245,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   * | theta_n | <= ( number_nodes - 1 ) max_phi. */
  double max_phi = 0.0;
  for( auto & line_id : DC_lines )
-  max_phi = std::max( max_phi , PI * std::max( v_line_max_angle[ line_id ] ,
-                      - v_line_min_angle[ line_id ] ) / 180.0 );
+  max_phi = std::max( max_phi , std::numbers::pi *
+                      std::max( v_line_max_angle[ line_id ] ,
+                                - v_line_min_angle[ line_id ] ) / 180.0 );
  const double theta_bound = ( number_nodes - 1 ) * max_phi;
 
  v_theta_box_bounds.resize( number_nodes );
@@ -1288,8 +1329,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  for( auto & line_id : DC_lines ) {
   const Index p = start_line[ line_id ];
   const Index n = end_line[ line_id ];
-  const double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                      - v_line_min_angle[ line_id ] ) ) / 180.0;
+  const double delta_theta = std::numbers::pi *
+   ( ( std::max )( v_line_max_angle[ line_id ] ,
+                   - v_line_min_angle[ line_id ] ) ) / 180.0;
   const double alpha_coeff = ( 1 - cos( delta_theta ) ) / pow( delta_theta , 2 );
 
   auto qfunc = new QuadFunction();
@@ -1382,8 +1424,9 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
  for( auto & line_id : DC_lines ) {
   const Index p = start_line[ line_id ];
   const Index n = end_line[ line_id ];
-  const double delta_theta = PI * ( ( std::max )( v_line_max_angle[ line_id ] ,
-                                      - v_line_min_angle[ line_id ] ) ) / 180.0;
+  const double delta_theta = std::numbers::pi *
+   ( ( std::max )( v_line_max_angle[ line_id ] ,
+                   - v_line_min_angle[ line_id ] ) ) / 180.0;
   const double cos_d = cos( delta_theta );          // cos( theta^Delta )
   const double sin_d = sin( delta_theta );          // sin( theta^Delta )
   const double cos_h = cos( delta_theta / 2.0 );    // cos( theta^Delta / 2 )
@@ -1408,19 +1451,19 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
             - Inf< double >() , - min_voltage[ n ] * max_voltage[ p ] * C2 );
 
   // c : McCormick relaxation of c_{p,n} = Re( W_{p,n} )
-  separate( & v_sum_product_voltages[ line_id ] , 1.0 ,
+  separate( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 ,
             & v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * C2 ,
             & v_z[ i_line ] , - cos_d ,
             - cos_d * min_voltage[ n ] * min_voltage[ p ] * C2 , Inf< double >() );
-  separate( & v_sum_product_voltages[ line_id ] , 1.0 ,
+  separate( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 ,
             & v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * C2 ,
             & v_z[ i_line ] , - 1.0 ,
             - max_voltage[ n ] * max_voltage[ p ] * C2 , Inf< double >() );
-  separate( & v_sum_product_voltages[ line_id ] , 1.0 ,
+  separate( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 ,
             & v_alpha[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * C2 ,
             & v_z[ i_line ] , - cos_d ,
             - Inf< double >() , - cos_d * max_voltage[ n ] * max_voltage[ p ] * C2 );
-  separate( & v_sum_product_voltages[ line_id ] , 1.0 ,
+  separate( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 ,
             & v_alpha[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * C2 ,
             & v_z[ i_line ] , - 1.0 ,
             - Inf< double >() , - min_voltage[ n ] * min_voltage[ p ] * C2 );
@@ -1434,19 +1477,19 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
             - sin_h + cos_h * delta_theta / 2.0 , Inf< double >() );
 
   // s : McCormick relaxation of s_{p,n} = Im( W_{p,n} )
-  separate( & v_diff_product_voltages[ line_id ] , 1.0 ,
+  separate( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 ,
             & v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * C2 ,
             & v_z[ i_line ] , sin_d ,
             sin_d * min_voltage[ n ] * min_voltage[ p ] * C2 , Inf< double >() );
-  separate( & v_diff_product_voltages[ line_id ] , 1.0 ,
+  separate( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 ,
             & v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * C2 ,
             & v_z[ i_line ] , - sin_d ,
             - sin_d * max_voltage[ n ] * max_voltage[ p ] * C2 , Inf< double >() );
-  separate( & v_diff_product_voltages[ line_id ] , 1.0 ,
+  separate( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 ,
             & v_beta[ i_line ] , - min_voltage[ n ] * min_voltage[ p ] * C2 ,
             & v_z[ i_line ] , - sin_d ,
             - Inf< double >() , - sin_d * min_voltage[ n ] * min_voltage[ p ] * C2 );
-  separate( & v_diff_product_voltages[ line_id ] , 1.0 ,
+  separate( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 ,
             & v_beta[ i_line ] , - max_voltage[ n ] * max_voltage[ p ] * C2 ,
             & v_z[ i_line ] , sin_d ,
             - Inf< double >() , sin_d * max_voltage[ n ] * max_voltage[ p ] * C2 );
@@ -1464,36 +1507,10 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
 std::vector< std::pair< double , double > >
  ACNetworkBlock::recover_feasible_solution( void )
 {
- /* Since the solution provided from the AC OPF relaxation problem is not
-  * necessarily feasible, we implement a feasibility-recovery algorithm. */
+ // no voltage profile is recovered from a solution of the relaxation: the
+ // returned vector is empty
 
- std::vector< std::pair< double , double > > v_feasible_sol;
- // each pair is the real and imaginary part
-
- // 1) first, get the solution of the relaxation problem
- std::vector< double > relaxed_power_flow;
- std::vector< double > relaxed_reactive_power_flow;
-
- std::transform( v_power_flow.begin() , v_power_flow.end() ,
-                 relaxed_power_flow.begin() ,
-                 []( const ColVariable & v ) { return( v.get_value() ); }
-                 );
- std::transform( v_reactive_power_flow.begin() ,
-                 v_reactive_power_flow.end() ,
-                 relaxed_reactive_power_flow.begin() ,
-                 []( const ColVariable & v ) { return( v.get_value() ); }
-                 );
-
- // 1b) multiply back the obtained solutions by the earlier scale factor
- //     since indeed we have computed v_power_flow_tilde, and we care for
- //     v_power_flow -> the relation is v_power_flow_tilde = C * v_power_flow
-
- // 2) then compute spanning tree
- auto result = f_NetworkData->get_cycle_basis();
-
- // 3) do some magic (TODO)
-
- return( v_feasible_sol );
+ return( std::vector< std::pair< double , double > >() );
  }  // end( ACNetworkBlock::recover_feasible_solution )
 
 /*--------------------------------------------------------------------------*/

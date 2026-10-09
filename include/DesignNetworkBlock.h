@@ -3,9 +3,9 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
- * Header file for class DesignNetworkBlock, which derives from NetworkBlock and
- * defines the standard representation of **per-line design data** and
- * **per-line design variables** for transmission network models in the Unit
+ * Header file for class DesignNetworkBlock, which derives from NetworkBlock
+ * and defines the standard representation of per-line design data and
+ * per-line design variables for transmission network models in the Unit
  * Commitment problem. The rationale is to centralize once-and-for-all the
  * vectors:
  *
@@ -64,20 +64,28 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a "design" Block holding investment data and variables shared by children
-/** The DesignNetworkBlock class derives from NetworkBlock, and defines the
- * standard representation of **per-line design** for transmission networks.
- * It reads the design data (InvestmentCost, MinCapacityDesign,
- * MaxCapacityDesign) and creates one design variable \f$ x_l \f$ per line
- * \f$ l \in \mathcal{L} \f$. Bounds of \f$ x_l \f$ are set according to
- * Min/Max; if \f$ \mathrm{MaxCapacityDesign}[l] < 0 \f$ the variable is
- * binary, otherwise it is continuous with
- * \f$ \mathrm{MinCapacityDesign}[l] \le x_l \le \mathrm{MaxCapacityDesign}[l]
- * \f$. The Block also contributes the term
- * \f$ \sum_{l \in \mathcal{L}} I_l x_l \f$ to the objective.
+/** DesignNetworkBlock derives from NetworkBlock and defines the standard
+ * representation of per-line design for transmission networks. It reads the
+ * design data ("InvestmentCost", "MinCapacityDesign", "MaxCapacityDesign")
+ * and creates one design variable \f$ x_l \f$ for each line \f$ l \f$ under
+ * design (see deserialize()), which is binary if
+ * \f$ \mathrm{MaxCapacityDesign}[l] < 0 \f$ and otherwise continuous with
+ * \f$ \max\{ 0 , \mathrm{MinCapacityDesign}[l] \} \le x_l \le
+ * \mathrm{MaxCapacityDesign}[l] \f$. Also, the Block contributes the term
+ * \f$ \sum_l c^{inv}_l x_l \f$ to the objective, where \f$ c^{inv}_l \f$ is
+ * "InvestmentCost".
  *
- * Child NetworkBlock objects (e.g., DCNetworkBlock instances) can be made to
- * **share** these variables so that the design appears exactly once in the
- * model while multiple network formulations can reference it. */
+ * The sub-Block of a DesignNetworkBlock are the NetworkBlock of the instants,
+ * which share these variables; hence, the design appears once in the model
+ * while each instant references it. Indeed, each DCNetworkBlock among them is
+ * given the variables by DCNetworkBlock::set_design_variables(), and it
+ * replaces the flow bounds of a designed line by the rows
+ * \f$ F_l \le \kappa_l C^v P^{mx}_l x_l \f$ and
+ * \f$ F_l \ge \kappa_l C^v P^{mn}_l x_l \f$ (see (2) and (3) of
+ * DCNetworkBlock::generate_abstract_constraints()). Thus, "MaxPowerFlow" and
+ * "MinPowerFlow" are the limits of one unit of \f$ x_l \f$, i.e., those of
+ * the line that can be built if \f$ x_l \f$ is binary, and those of one copy
+ * of it if \f$ x_l \f$ counts copies. */
 
 class DesignNetworkBlock : public NetworkBlock
 {
@@ -120,32 +128,40 @@ class DesignNetworkBlock : public NetworkBlock
   *   provides the vectors.
   *
   * - The (optional) integer variable "DesignLines" (`NcInt`), indexed over
-  *   "NumberDesignLines", listing the **indices of lines** (with respect to
+  *   "NumberDesignLines", listing the indices of lines (with respect to
   *   the underlying NetworkData) that are under design. If "DesignLines" is
-  *   **absent**, it is assumed that the designed lines are exactly
+  *   absent, it is assumed that the designed lines are exactly
   *   \f$ \{ 0 , 1 , \ldots , \mathrm{NumberDesignLines}-1 \} \f$ (in this
-  *   order).
+  *   order). The indices must be increasing [see get_design_index()].
   *
   * - The variable "InvestmentCost" (`NcDouble`, either scalar or indexed over
-  *   "NumberDesignLines"): per-line investment costs \f$ I_l \f$. If provided
-  *   as a scalar, the value is replicated over all designed lines. Missing
-  *   entries default to 0.
+  *   "NumberDesignLines"): per-line investment costs \f$ c^{inv}_l \f$. If
+  *   provided as a scalar, the value is replicated over all designed lines.
+  *   Missing entries default to 0.
   *
   * - The variables "MinCapacityDesign" and "MaxCapacityDesign" (`NcDouble`)
-  *   provided **indexed over "NumberDesignLines"** (one value per designed
+  *   provided indexed over "NumberDesignLines" (one value per designed
   *   line, in the same order as "DesignLines" or the implicit order above),
   *   or as scalars (replicated). Defaults: MinCapacityDesign = 0,
   *   MaxCapacityDesign = 1. The sign of the (per-line) MaxCapacityDesign
   *   determines the nature of \f$ x_l \f$:
   *
-  *     = if \f$ \mathrm{MaxCapacityDesign}[ l ] < 0 \f$ then
-  *       \f$ x_l \in \{ 0 , 1 \} \f$ (binary);
+  *   - if \f$ \mathrm{MaxCapacityDesign}[ l ] < 0 \f$ then
+  *     \f$ x_l \in \{ 0 , 1 \} \f$ (binary);
   *
-  *     = otherwise \f$ x_l \f$ is continuous with
-  *       \f$ \mathrm{MinCapacityDesign}[ l ] \le x_l \le
-  *           \mathrm{MaxCapacityDesign}[ l ] \f$.
+  *   - otherwise \f$ x_l \f$ is continuous with
+  *     \f$ \mathrm{MinCapacityDesign}[ l ] \le x_l \le
+  *     \mathrm{MaxCapacityDesign}[ l ] \f$.
   *
-  * No network-topological information is handled here; only design data. */
+  * - The dimension "NumberSubNetwork", the number \f$ n \f$ of sub-Block,
+  *   and the groups "NetworkBlock_0", "NetworkBlock_1", ... (up to the index
+  *   \f$ n - 1 \f$), each describing a :NetworkBlock, one for each instant
+  *   [see NetworkBlock::set_time_instant()]. The groups are read in this
+  *   order up to the first that is not there, and every sub-Block from that
+  *   index on is a DCNetworkBlock; a sub-Block that has no NetworkData of
+  *   its own is given that of the DesignNetworkBlock, and
+  *   std::invalid_argument is thrown if there is none. No topological
+  *   information is read here. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -198,10 +214,12 @@ class DesignNetworkBlock : public NetworkBlock
  /// generate the objective of the DesignNetworkBlock
  /** The objective contains the investment term
   * \f[
-  *   \sum_{ l \in \mathcal{L} } I_l \cdot x_l \; .
+  *   \sum_{ l } c^{inv}_l x_l \; ,
   * \f]
-  * where \f$ I_l \f$ is the investment cost of line \f$l\f$ and
-  * \f$ x_l \f$ is the (per-line) design variable. */
+  * the sum running over the lines under design, where \f$ c^{inv}_l \f$ is
+  * the investment cost of line \f$ l \f$ and \f$ x_l \f$ its design
+  * variable; the objectives of the sub-Block are generated as well, the
+  * objective of the model being the sum of all of them. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -417,11 +435,13 @@ class DesignNetworkBlock : public NetworkBlock
 			      "UCBlock and subnetworks" ) );
    #endif
 
-   boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ] );
+   boost::multi_array< double , 2 > sub( boost::extents[ ni ][ number_nodes ]
+					 );
 
    for( Index i = 0 ; i < ni ; ++i , ++offset ) {
     auto src_row = apd[ boost::indices[ offset ]
-                      [ boost::multi_array_types::index_range( 0 , number_nodes ) ] ];
+                      [ boost::multi_array_types::index_range(
+						    0 , number_nodes ) ] ];
     std::copy( src_row.begin() , src_row.end() , sub[ i ].begin() );
    }
 
@@ -462,7 +482,8 @@ class DesignNetworkBlock : public NetworkBlock
 
    for( Index i = 0 ; i < ni ; ++i , ++offset ) {
     auto src_row = apd[ boost::indices[ offset ]
-                      [ boost::multi_array_types::index_range( 0 , number_nodes ) ] ];
+                      [ boost::multi_array_types::index_range(
+						    0 , number_nodes ) ] ];
     std::copy( src_row.begin() , src_row.end() , sub[ i ].begin() );
    }
 
@@ -600,13 +621,16 @@ class DesignNetworkBlock : public NetworkBlock
   * -# the violation of each Constraint of this DesignNetworkBlock is not
   *    greater than the tolerance.
   *
+  * Each sub-Block is checked with the same tolerance and type of violation,
+  * unless its BlockConfig has its own f_is_feasible_Configuration.
+  *
   * Every Constraint of this DesignNetworkBlock is a RowConstraint and its
   * violation is given by either the relative (see RowConstraint::rel_viol())
   * or the absolute violation (see RowConstraint::abs_viol()), depending on
   * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration, and they are determined as
+  * or f_BlockConfig->f_is_feasible_Configuration, and they are determined as
   * follows:
   *
   * - If \p fsbc is not a nullptr, and it is a pointer to a
@@ -619,7 +643,7 @@ class DesignNetworkBlock : public NetworkBlock
   *   fsbc->f_value.second (any nonzero number for relative violation and
   *   zero for absolute violation);
   *
-  * - Otherwise, if both #f_BlockConfig and
+  * - Otherwise, if both f_BlockConfig and
   *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *   latter is a pointer to either a SimpleConfiguration< double > or to a
   *   SimpleConfiguration< std::pair< double , int > >, then the values of the
@@ -628,16 +652,16 @@ class DesignNetworkBlock : public NetworkBlock
   * - Otherwise, by default, the tolerance is 0 and the relative violation
   *   is considered.
   *
-  * This function currently considers only the abstract representation to
+  * This function considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, then this
+  * ignored. If no abstract Variable has been generated, then this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
   * set of Variable only. Notice also that, before checking if the solution
   * satisfies a Constraint, the Constraint is computed
   * (Constraint::compute()).
   *
-  * @param useabstract This parameter is currently ignored.
+  * @param useabstract This parameter is ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
   *             and the type of violation that must be considered. */
@@ -664,7 +688,7 @@ class DesignNetworkBlock : public NetworkBlock
 
  /// verify whether the design data in this Block is consistent
  /** This function checks whether the design data in this DesignNetworkBlock
-  * is consistent. The data is consistent if, **for each line** \f$ l \f$,
+  * is consistent. The data is consistent if, for each line \f$ l \f$,
   * all the following conditions are met:
   *
   * - \f$ \mathrm{MinCapacityDesign}[l] \ge 0 \f$;
@@ -866,8 +890,8 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
   * That is, in the DesignNetworkBlockSolution case the "nonstandard" format
   * is group-based basically as the "standard" one. Note, however, that
   * inside the group the sub-NetworkBlockSolution can be stored in the
-  * "truly nonstandard" (compressed) form -- but this is true even for the
-  * "standard" case. */
+  * "truly nonstandard" (compressed) form, which is however the case also
+  * for the "standard" one. */
 
  void serialize( netCDF::NcGroup & group , size_t idx ) const override;
 

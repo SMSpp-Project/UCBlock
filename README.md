@@ -27,14 +27,22 @@ specialised solution methods for certain units (e.g., `ThermalUnitDPSolver` and
 
 These instructions will let you build UCBlock on your system.
 
-The module also comes ready-made: `sudo apt install libsmspp-ucblock-dev` from
-the [PPA of the project](https://launchpad.net/~smspp/+archive/ubuntu/ppa),
-which has `smspp-ucblock` for its command-line tool as well, and `vcpkg install
-"smspp[core,ucblock]"` from the [SMS++ vcpkg
-registry](https://gitlab.com/smspp/vcpkg-registry); `conda install -c
-conda-forge smspp-project` and `brew install smspp`, from the [tap of the
-project](https://github.com/SMSpp-Project/homebrew-smspp), carry the whole
-framework. What follows is about building it yourself.
+The module also comes ready-made, in any of
+
+```sh
+sudo add-apt-repository ppa:smspp-project/smspp   # Ubuntu
+sudo apt install libsmspp-ucblock-dev             # and smspp-ucblock for the tool
+
+conda install -c conda-forge smspp-project        # Linux, macOS, Windows
+
+brew tap SMSpp-Project/smspp                      # macOS, Linux
+brew install smspp
+
+vcpkg install "smspp[core,ucblock]"               # from the sources
+```
+
+where apt and the port give the module alone, while conda and the tap carry
+the whole framework. What follows is about building it yourself.
 
 ### Requirements
 
@@ -127,7 +135,13 @@ This builds the following folders:
 
 - [data/nc4/EC_Data](data/nc4/EC_Data), which contains instances of UC
   related to the optimal design of Energy Communities (and hence in
-  particular containing `ECNetworkBlock`)
+  particular containing `ECNetworkBlock`), in one sub-folder per kind of
+  problem: `ucblock`, `tssb` (`TwoStageStochasticBlock`) and `mssb`
+  (`MultiStageStochasticBlock`)
+
+- [data/nc4/pypsa-data](data/nc4/pypsa-data), which contains the networks
+  translated from PyPSA by pypsa2smspp, in the sub-folders `ucblock`,
+  `pollutants` (those with pollutant budget constraints), `tssb` and `mssb`
 
 - [data/nc4/UC_Data](data/nc4/UC_Data), which contains pure thermal and
   hydro-thermal instances produced by
@@ -152,6 +166,10 @@ We provide some tool to generate input data for UCBlock:
   format to the netCDF one of SMS++
 
 - [a Matlab-based data generator](tools/UC2SMSpp/README.md)
+
+- [a replicator of the thermal units of an instance](tools/replicate_units/README.md),
+  which writes an instance with many times the units of a given one, the
+  demand scaled accordingly
 
 - [a converter from .yml and .csv data files](tools/csv2netCDF/README.md)
   used to describe UC instances corresponding to Energy Community design

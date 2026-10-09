@@ -43,11 +43,15 @@ using NCDatasets
 
 Read a single-bus thermal UC JSON instance and write the SMS++ netCDF file.
 With `nuclear` every unit is a NuclearUnitBlock, and the remaining keywords
-(`rules`) are its operating rules, see `def_nuclear_rules`.
+(`rules`) are its operating rules, see `def_nuclear_rules`. `su_frac` scales
+the start-up cost of every unit, whose real value is worth thousands of
+periods of production and therefore keeps the whole fleet on: with it the
+commitment of the marginal units becomes a decision, and they cycle.
 """
 function convert_json_to_nc4(json_path::String, nc_path::String;
                              nuclear::Bool = false, mod_time::Int = 8,
-                             mod_frac::Float64 = 0.25, rules...)
+                             mod_frac::Float64 = 0.25,
+                             su_frac::Float64 = 1.0, rules...)
 
     data = JSON.parsefile(json_path)
 
@@ -180,7 +184,8 @@ function convert_json_to_nc4(json_path::String, nc_path::String;
             defVar(ug, "LinearTerm",    Float64, ())[:] = c_lin[g]
             defVar(ug, "QuadTerm",      Float64, ())[:] = c_quad[g]
             defVar(ug, "ConstTerm",     Float64, ())[:] = c_fixed[g]
-            defVar(ug, "StartUpCost",   Float64, ())[:] = startup_cost[g]
+            defVar(ug, "StartUpCost",   Float64, ())[:] =
+                su_frac * startup_cost[g]
             defVar(ug, "DeltaRampUp",   Float64, ())[:] = ramp_up[g]
             defVar(ug, "DeltaRampDown", Float64, ())[:] = ramp_down[g]
             defVar(ug, "StartUpLimit",  Float64, ())[:] = min(ramp_up_str[g],   p_max[g])
@@ -374,8 +379,7 @@ the original model:
 function def_nuclear_rules(grp, p_min::Float64, p_max::Float64,
                            ramp_down::Float64;
                            mod_length::Int = 1, stab_start::Int = 0,
-                           bands::Float64 = 0.0, p_min_b::Float64 = 0.0,
-                           p_max_b::Float64 = 0.0, day_length::Int = 0,
+                           bands::Float64 = 0.0, day_length::Int = 0,
                            mods_per_day::Int = -1, starts_per_day::Int = -1,
                            deep::Bool = false, deeps_per_day::Int = -1,
                            deep_frac::Float64 = 0.4, deep_grad::Float64 = 0.8,
@@ -388,8 +392,8 @@ function def_nuclear_rules(grp, p_min::Float64, p_max::Float64,
         # the two breakpoints at `bands` and `1 - bands` of the range
         defDim(grp, "NumberPowerBands", 2)
         defVar(grp, "PowerBands", Float64, ("NumberPowerBands",))[:] =
-            [p_min_b + bands * (p_max_b - p_min_b),
-             p_max_b - bands * (p_max_b - p_min_b)]
+            [p_min + bands * (p_max - p_min),
+             p_max - bands * (p_max - p_min)]
     end
     day_length > 0 &&
         (defVar(grp, "DayLength", UInt32, ())[:] = UInt32(day_length))
@@ -583,7 +587,6 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
 
             def_nuclear_rules(blk, p_min[g], p_max[g], ramp_down[g];
                               mod_length, stab_start, bands,
-                              p_min_b = p_min[g], p_max_b = p_max[g],
                               day_length, mods_per_day, starts_per_day, deep,
                               deeps_per_day, deep_frac, deep_grad,
                               down_cost, deep_cost)
@@ -761,15 +764,16 @@ function main()
 
     single_only = intersect(keys(rules),
                             (:periods, :reserve, :reactive, :suffix,
-                             :init_off, :swing, :su_frac))
+                             :init_off, :swing))
     if !isempty(single_only) || (!nuclear && !isempty(rules))
         println(stderr, "Error: option(s) $(collect(isempty(single_only) ? keys(rules) : single_only)) " *
                 "not allowed in this mode")
         print(stderr, USAGE); exit(1)
     end
+    su_frac = pop!(rules, :su_frac, 1.0)
     convert_json_to_nc4(json_path, nc_path;
                         nuclear = nuclear, mod_time = mod_time,
-                        mod_frac = mod_frac, rules...)
+                        mod_frac = mod_frac, su_frac = su_frac, rules...)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

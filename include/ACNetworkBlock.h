@@ -52,15 +52,56 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an "AC" transmission NetworkBlock (SOCP relaxation)
-/** The ACNetworkBlock class derives from DCNetworkBlock and adds the
- * numerous Variable and Constraint necessary to represent the AC version
- * of Kirchhoff's laws by means of a Second-Order Cone Programming (SOCP)
- * relaxation, possibly strengthened with McCormick-like inequalities (see
- * Coffrin, Hijazi, Van Hentenryck, "The QC Relaxation: A Theoretical and
- * Computational Study on Optimal Power Flow", IEEE TPWRS 31(4), 2016).
+/** ACNetworkBlock derives from DCNetworkBlock and adds the numerous Variable
+ * and Constraint necessary to represent the AC version of Kirchhoff's laws by
+ * means of a Second-Order Cone Programming (SOCP) relaxation, possibly
+ * strengthened with McCormick-like inequalities, i.e., the QC relaxation of
+ * the Optimal Power Flow of
  *
- * TO BE COMPLETED
- */
+ *   C. Coffrin, H. L. Hijazi and P. Van Hentenryck, "The QC Relaxation: A
+ *   Theoretical and Computational Study on Optimal Power Flow", IEEE
+ *   Transactions on Power Systems 31(4), 3008-3018, 2016,
+ *   doi:10.1109/TPWRS.2015.2463111
+ *
+ * with the convex envelopes of the trigonometric terms of
+ *
+ *   H. L. Hijazi, C. Coffrin and P. Van Hentenryck, "Convex quadratic
+ *   relaxations for mixed-integer nonlinear programs in power systems",
+ *   Mathematical Programming Computation 9, 321-367, 2017,
+ *   doi:10.1007/s12532-016-0112-z.
+ *
+ * In the notation of DCNetworkBlock, a line of an ACNetworkBlock is an HVDC
+ * line if its susceptance, reactance and resistance are all 0, and an AC line
+ * otherwise (see ACNetworkData::deserialize()); the AC lines are those that
+ * DCNetworkData::get_DC_lines() returns. Each line \f$ l \f$ has an active
+ * and a reactive flow at its start node, \f$ F^{fr}_l \f$ and
+ * \f$ Q^{fr}_l \f$, and at its end node, \f$ F^{to}_l \f$ and
+ * \f$ Q^{to}_l \f$, all leaving the node. Each node \f$ n \f$ has the active
+ * and reactive injections \f$ S_n \f$ and \f$ R_n \f$ and the variable
+ * \f$ w_n \f$ that stands for \f$ | V_n |^2 \f$. Each AC line has the
+ * variables \f$ c_l \f$ and \f$ s_l \f$ that stand for the real and imaginary
+ * parts of \f$ V_{s(l)} V_{e(l)}^* \f$, where \f$ V_n \f$ is the complex
+ * voltage of node \f$ n \f$ (all in per unit and multiplied by the scaling
+ * factors of generate_abstract_constraints()). The rows are the active and
+ * reactive balances of each node, which hold the demands, and the definition
+ * of the four flows of each AC line as linear functions of \f$ w \f$,
+ * \f$ c \f$ and \f$ s \f$ through the admittances of the line. Then come the
+ * thermal limits \f$ ( F^{fr}_l )^2 + ( Q^{fr}_l )^2 \le ( r^A_l )^2 \f$ and
+ * \f$ ( F^{to}_l )^2 + ( Q^{to}_l )^2 \le ( r^A_l )^2 \f$ of each AC line,
+ * the bounds on \f$ w_n \f$ given by the voltage limits, the bounds on the
+ * angle difference, \f$ \tan( \phi^{mn}_l ) c_l \le s_l \le \tan( \phi^{mx}_l
+ * ) c_l \f$, and the cone \f$ c_l^2 + s_l^2 \le w_{s(l)} w_{e(l)} \f$, i.e.,
+ * the convex relaxation of \f$ c_l^2 + s_l^2 = w_{s(l)} w_{e(l)} \f$.
+ * Finally, there are the bounds (1) of DCNetworkBlock on \f$ F^{fr}_l \f$
+ * and, for an HVDC line, \f$ F^{fr}_l + F^{to}_l = 0 \f$ (no loss, since the
+ * efficiency is ignored) and the bounds on its reactive flows, if given.
+ * Therefore, the model is a convex relaxation of the AC optimal power flow,
+ * whose solutions may have \f$ c_l^2 + s_l^2 < w_{s(l)} w_{e(l)} \f$, which
+ * no voltage profile gives; no voltage profile is recovered from them [see
+ * recover_feasible_solution()]. Note that the
+ * formulations and the angles of DCNetworkBlock play no role, since the only
+ * rows of DCNetworkBlock that an ACNetworkBlock writes are the bounds (1) of
+ * DCNetworkBlock::generate_abstract_constraints(). */
 
 class ACNetworkBlock : public DCNetworkBlock
 {
@@ -91,10 +132,10 @@ class ACNetworkBlock : public DCNetworkBlock
   * a quick way to load all the basic data (topology and electrical
   * characteristics) that describe the transmission network. It extends
   * DCNetworkBlock::DCNetworkData with the (numerous) data necessary to
-  * represent the AC version of Kirchhoff's laws ...
-  *
-  * TO BE COMPLETED
-  */
+  * represent the AC version of Kirchhoff's laws: the impedances of the
+  * lines, their thermal limits and the bounds on the angles, the shunt
+  * admittances of the nodes and the bounds on their voltages (see
+  * deserialize()). */
 
 class ACNetworkData : public DCNetworkData
 {
@@ -121,15 +162,57 @@ class ACNetworkData : public DCNetworkData
 
  /// deserialize an ACNetworkData out of a netCDF::NcGroup
  /** Deserialize an ACNetworkData out of a netCDF::NcGroup, which should
-  * contain the following:
+  * contain all the data of a DCNetworkData (see
+  * DCNetworkData::deserialize()) and, if "NumberNodes" > 1, the following:
   *
-  * TO BE COMPLETED
+  * - the attribute "baseMVA", a string holding the base power of the per
+  *   unit system (in MVA), which divides the thermal limits and the shunt
+  *   admittances of the nodes; if it is not there, or it does not hold a
+  *   number, it is 1;
   *
-  * - the "baseMVA" scalar variable, of type netCDF::NcDouble,
-  *                                          ^^^^^^^^^^^^^^^^
-  *   THAT'S WHAT ONE WOULD EXPECT, BUT IT SEEMS IT'S RATHER A STRING???
-  *   specifying the system MVA base used for converting power into per unit
-  *   quantities (see Matpower) */
+  * - the variables "LineReactance" and "LineResistance", of type
+  *   netCDF::NcDouble and indexed over "NumberLines", the reactance
+  *   \f$ x_l \f$ and the resistance \f$ r_l \f$ of each line in per unit,
+  *   which are mandatory, since they decide which lines are AC lines (those
+  *   with a nonzero susceptance, reactance or resistance) and which are
+  *   HVDC lines (the others);
+  *
+  * - the variables "LineChargingSusceptance", "LineRatio" and
+  *   "LineShiftAngle", indexed over "NumberLines", the charging susceptance
+  *   \f$ b_l \f$, the ratio \f$ \tau_l \f$ of a transformer and its phase
+  *   shift \f$ \nu_l \f$ (in degrees) of each line, optional with defaults
+  *   0, 1 and 0, which give the admittances of the line \f$ Y^{tt}_l =
+  *   Y_l + i b_l / 2 \f$, \f$ Y^{ff}_l = Y^{tt}_l / \tau_l^2 \f$,
+  *   \f$ Y^{ft}_l = - Y_l / ( \tau_l e^{- i \nu_l} ) \f$ and
+  *   \f$ Y^{tf}_l = - Y_l / ( \tau_l e^{i \nu_l} ) \f$, with
+  *   \f$ Y_l = 1 / ( r_l + i x_l ) \f$;
+  *
+  * - the variable "LineRATEA", indexed over "NumberLines", the thermal
+  *   limit \f$ r^A_l \f$ of each AC line (in MVA, divided by "baseMVA");
+  *
+  * - the variables "LineMinAngle" and "LineMaxAngle", indexed over
+  *   "NumberLines", the bounds \f$ \phi^{mn}_l \le \phi^{mx}_l \f$ on the
+  *   difference of the angles of the voltages at the ends of each AC line,
+  *   in degrees;
+  *
+  * - the variables "NodeConductance" and "NodeSusceptance", indexed over
+  *   "NumberNodes", the shunt conductance \f$ G^s_n \f$ and susceptance
+  *   \f$ B^s_n \f$ of each node (in MW and MVAr at voltage 1, divided by
+  *   "baseMVA");
+  *
+  * - the variables "NodeMinVoltage" and "NodeMaxVoltage", indexed over
+  *   "NumberNodes", the bounds \f$ V^{mn}_n \f$ and \f$ V^{mx}_n \f$ on the
+  *   voltage magnitude of each node;
+  *
+  * - the variables "MinReactivePowerFlow" and "MaxReactivePowerFlow",
+  *   indexed over "NumberLines", the bounds on the reactive flows of the
+  *   HVDC lines (those of the AC lines being ignored), optional.
+  *
+  * All the variables but "LineReactance" and "LineResistance" are read as
+  * optional; those without a default ("LineRATEA", the angles and the data
+  * of the nodes) are however used by
+  * ACNetworkBlock::generate_abstract_constraints(), and therefore have to
+  * be there if the abstract representation is generated. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -323,7 +406,7 @@ class ACNetworkData : public DCNetworkData
 
  /* AC networks come with a number of additional data:
   *
-  * - each power line now has a Resistance (r), Reactance (x) and
+  * - each power line has a Resistance (r), Reactance (x) and
   *   Susceptance (B). Note that when these are given in per unit, they can
   *   be converted to physical values by computing f = V^2 / mbase and
   *   multiplying r, x by f, while dividing B by f.
@@ -334,8 +417,7 @@ class ACNetworkData : public DCNetworkData
   *   charging susceptance plays a role in the "Reactive AC power flow
   *   equations".
   *
-  * - the Susceptance was typically already specified when DCNetworks were
-  *   used.
+  * - the Susceptance is the datum that a DCNetworkBlock reads as well.
   *
   *   /!\ : we make the assumption that when all three (r, x, B) are zero,
   *         then the line is in fact HVDC.
@@ -345,12 +427,12 @@ class ACNetworkData : public DCNetworkData
   *   default value is therefore 1.0.
   *
   * - each line also has a thermal limit (rate_A), which is the bound on
-  *   total flow - the equivalent of the classic MaxPowerFlow.
+  *   total flow, the equivalent of the classic MaxPowerFlow.
   *
   * - each line comes with a phase angle difference (nominally zero) and
   *   bounds on this difference. Typical default values for these bounds
-  *   would be +/- 20°, 30 being a sort of maximal value, indicating close
-  *   to instability.
+  *   would be +/- 20 degrees, 30 being a sort of maximal value, indicating
+  *   closeness to instability.
   *
   * - nodes that have shunts (typically not the case) have an extra
   *   conductance term Gs and susceptance term Bs. The default values are 0
@@ -472,80 +554,160 @@ class ACNetworkData : public DCNetworkData
   *  - v_diff_product_voltages
   *  - v_sqrd_voltages
   *
-  * Observe that contrary to before, both v_power_flow (the real part of
-  * flow through a line) and v_reactive_power_flow (the imaginary part of
-  * flow through a line) now have as dimension twice the total number of
+  * Observe that, unlike in a DCNetworkBlock, both v_power_flow (the real
+  * part of flow through a line) and v_reactive_power_flow (the imaginary
+  * part of flow through a line) have as dimension twice the total number of
   * lines. This is because we need to distinguish between flow to and from
-  * buses.
+  * buses. The flows are one group of static Variable, "v_power_flow_real",
+  * which takes the place of the group "p_flow_network" of DCNetworkBlock,
+  * so that each of them is given to the Solvers once.
   *
-  * The further variables "correspond to" voltages in each node:
+  * The further variables stand for products of the complex voltages
+  * \f$ V_n \f$, with \f$ s = s(l) \f$ and \f$ e = e(l) \f$ for an AC line
+  * \f$ l \f$:
   *
-  *  - v_sum_product_voltages  = c_{n,n'} = Re(V_n)Re(V_n') + Im(V_n)Im(V_n')
-  *  - v_diff_product_voltages = s_{n,n'} = Im(V_n)Re(V_n') - Re(V_n)Im(V_n')
-  *  - v_sqrd_voltages         = W_{n,n}  = c_{n,n} = |V_n|^2
+  *  - v_sum_product_voltages, \f$ c_l = \mathrm{Re}( V_s ) \mathrm{Re}( V_e )
+  *    + \mathrm{Im}( V_s ) \mathrm{Im}( V_e ) \f$;
+  *  - v_diff_product_voltages, \f$ s_l = \mathrm{Im}( V_s )
+  *    \mathrm{Re}( V_e ) - \mathrm{Re}( V_s ) \mathrm{Im}( V_e ) \f$;
+  *  - v_sqrd_voltages, \f$ w_n = | V_n |^2 \f$ for each node \f$ n \f$.
   *
   * These appear in the standard rotated second-order cones.
   *
   * The Configuration parameter \p stvv (or, if \p stvv is nullptr and
-  * f_BlockConfig is not nullptr, f_BlockConfig->f_static_variables_Configuration)
-  * may be either a SimpleConfiguration< int > or a
-  * SimpleConfiguration< std::vector< int > >: in either case a non-zero
-  * first value toggles on the addition of the variables needed for the
-  * stronger SOCP relaxation (see generate_strengthened_variables()). */
+  * f_BlockConfig is not nullptr,
+  * f_BlockConfig->f_static_variables_Configuration) may be either a
+  * SimpleConfiguration< int > or a SimpleConfiguration< std::vector< int > >:
+  * in either case the first value decides whether the variables needed for
+  * the stronger SOCP relaxation are added (see
+  * generate_strengthened_variables()), which is the case if it is positive
+  * and also when neither Configuration is given. A SimpleConfiguration< int >
+  * is also read by DCNetworkBlock::generate_abstract_variables(), which adds
+  * the variables of the formulation it selects (of KIRCHHOFF with any other
+  * Configuration); they play no role in the rows of an ACNetworkBlock. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the additional variables for the stronger SOCP relaxation
  /** Adds the auxiliary variables (v_voltage, v_theta, v_alpha, v_beta,
-  * v_z) needed by the strengthened SOCP relaxation. We follow
-  *
-  *   C. Coffrin, H. L. Hijazi and P. Van Hentenryck, "The QC Relaxation:
-  *   A Theoretical and Computational Study on Optimal Power Flow", IEEE
-  *   Transactions on Power Systems, vol. 31, no. 4, pp. 3008-3018, 2016,
-  *   doi: 10.1109/TPWRS.2015.2463111.
-  *
-  * This paper considers and adds multiple McCormick inequalities to
-  * strengthen the basic SOCP relaxation. The internal boolean
-  * #b_strongSOCP (settable through a BlockConfig of static_variables kind)
-  * toggles this on or off. */
+  * v_z) needed by the strengthened SOCP relaxation, i.e., the QC
+  * relaxation of the Optimal Power Flow of Coffrin, Hijazi and Van
+  * Hentenryck (IEEE Transactions on Power Systems 31(4), 2016, see the
+  * class description), which adds multiple McCormick inequalities to
+  * strengthen the basic SOCP relaxation. The internal
+  * boolean #b_strongSOCP (settable through a BlockConfig of
+  * static_variables kind) toggles this on or off. */
 
  void generate_strengthened_variables( void );
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract constraints of the ACNetworkBlock
- /** Generates the SOCP relaxation of the AC OPF constraints, plus the
-  * thermal limits, the (optional) reactive flow bounds for HVDC lines, the
-  * voltage bounds, the angle bounds, the power flow conservation and the
-  * SOCP cone constraints. If #b_strongSOCP is true, also calls
-  * strengthen_SOCP_relaxation() to add the McCormick-like inequalities.
+ /** Generates the SOCP relaxation of the AC optimal power flow described in
+  * the detailed description of the class; none if the network has a single
+  * node. With \f$ C^v \f$, \f$ \epsilon^{AC} \f$, \f$ C^{sc} \f$ and
+  * \f$ d \f$ the four parameters of the Configuration (see below),
+  * \f$ P^{base} \f$ the base power "baseMVA",
+  * \f$ Y^s_n = ( G^s_n + i B^s_n ) / P^{base} \f$ the shunt admittance of
+  * node \f$ n \f$, and the other data of ACNetworkData::deserialize(), the
+  * rows are the following.
   *
-  * The above nonlinear constraints in the formulation are way more
-  * numerically unstable than standard linear constraints, and therefore
-  * careful scaling is needed. This is accomplished by defining four
-  * numerical quantities:
+  * The active and reactive balances of each node \f$ n \f$
+  * ("AC_power_flow_injection", the active ones first, see
+  * change_active_demand_constraints()):
+  * \f{align*}{
+  *   - C^v S_n - \mathrm{Re}( Y^s_n ) w_n / C^v
+  *     + \sum_{ l : s(l) = n } F^{fr}_l + \sum_{ l : e(l) = n } F^{to}_l
+  *   &= - C^v D^{ac}_n \; , \tag{1} \\
+  *   - C^v R_n - \mathrm{Im}( Y^s_n ) w_n / C^v
+  *     + \sum_{ l : s(l) = n } Q^{fr}_l + \sum_{ l : e(l) = n } Q^{to}_l
+  *   &= - C^v D^{re}_n \; , \tag{2}
+  * \f}
+  * the sums running over all the lines, \f$ D^{re}_n \f$ being the reactive
+  * demand ("ReactiveDemand").
   *
-  * TODO: COMMENT BETTER WHAT EACH OF THESE DOES
+  * The flows of each AC line \f$ l \f$, with \f$ s = s(l) \f$ and
+  * \f$ e = e(l) \f$ ("AC_voltage_definition_const"), within
+  * \f$ \pm \epsilon^{AC} \f$:
+  * \f{align*}{
+  *   C^{sc} \bigl( \mathrm{Re}( Y^{ff}_l ) w_s + \mathrm{Re}( Y^{ft}_l ) c_l
+  *     + \mathrm{Im}( Y^{ft}_l ) s_l - C^v F^{fr}_l \bigr) &\approx 0 \; ,
+  *     \tag{3} \\
+  *   C^{sc} \bigl( - \mathrm{Im}( Y^{ff}_l ) w_s
+  *     - \mathrm{Im}( Y^{ft}_l ) c_l + \mathrm{Re}( Y^{ft}_l ) s_l
+  *     - C^v Q^{fr}_l \bigr) &\approx 0 \; , \tag{4} \\
+  *   C^{sc} \bigl( \mathrm{Re}( Y^{tt}_l ) w_e + \mathrm{Re}( Y^{tf}_l ) c_l
+  *     - \mathrm{Im}( Y^{tf}_l ) s_l - C^v F^{to}_l \bigr) &\approx 0 \; ,
+  *     \tag{5} \\
+  *   C^{sc} \bigl( - \mathrm{Im}( Y^{tt}_l ) w_e
+  *     - \mathrm{Im}( Y^{tf}_l ) c_l - \mathrm{Re}( Y^{tf}_l ) s_l
+  *     - C^v Q^{to}_l \bigr) &\approx 0 \; , \tag{6}
+  * \f}
+  * i.e., the real and imaginary parts of the complex powers
+  * \f$ ( Y^{ff}_l )^* | V_s |^2 + ( Y^{ft}_l )^* V_s V_e^* \f$ and
+  * \f$ ( Y^{tt}_l )^* | V_e |^2 + ( Y^{tf}_l )^* V_e V_s^* \f$, each
+  * coefficient of the admittances (times \f$ C^{sc} \f$) being rounded to
+  * \f$ d \f$ significant digits; here \f$ \approx 0 \f$ means that the
+  * left-hand side lies in \f$ [ - \epsilon^{AC} , \epsilon^{AC} ] \f$, an
+  * equality with the default \f$ \epsilon^{AC} = 0 \f$.
   *
-  * - C_v_scal => default 1.0; this is the main variable, working in a
-  *   similar fashion as the "usual" per unit transform. Essentially all
-  *   voltages become tilde_Voltage = C_v_scal * Voltage and power flows
-  *   become C_v_scal * v_power_flow;
+  * The thermal limits of each AC line ("AC_thermal_limit_const"),
+  * \f[
+  *   ( F^{fr}_l )^2 + ( Q^{fr}_l )^2 \le ( C^v r^A_l / P^{base} )^2 \; ,
+  *   \qquad
+  *   ( F^{to}_l )^2 + ( Q^{to}_l )^2 \le ( C^v r^A_l / P^{base} )^2 \; ;
+  *   \tag{7}
+  * \f]
+  * the bounds \f$ ( C^v V^{mn}_n )^2 \le w_n \le ( C^v V^{mx}_n )^2 \f$ of
+  * each node ("AC_voltage_bounds_limit"); for each AC line, with
+  * \f$ \phi^{mn}_l \f$ and \f$ \phi^{mx}_l \f$ in radians, the bounds on the
+  * angle difference
+  * \f[
+  *   \tan( \phi^{mn}_l ) c_l \le s_l \le \tan( \phi^{mx}_l ) c_l
+  *   \tag{8}
+  * \f]
+  * ("AC_angle_bounds_limit"), the bounds
+  * \f$ \min\{ \cos | \phi^{mn}_l | , \cos | \phi^{mx}_l | \} ( C^v )^2
+  * V^{mn}_s V^{mn}_e \le c_l \le ( C^v )^2 V^{mx}_s V^{mx}_e \f$ and
+  * \f$ | s_l | \le \sin( \phi^{mx}_l - \phi^{mn}_l ) ( C^v )^2 V^{mx}_s
+  * V^{mx}_e \f$ ("AC_elem_bounds"), the cone
+  * \f[
+  *   c_l^2 + s_l^2 - w_s w_e \le 0
+  *   \tag{9}
+  * \f]
+  * ("AC_socp_const", see generate_SOCP_relaxation()) and the bounds
+  * \f$ | c_l | , | s_l | \le ( C^v )^2 V^{mx}_s V^{mx}_e \f$ that (9) and
+  * the voltage bounds imply. For each HVDC line, \f$ F^{fr}_l + F^{to}_l =
+  * 0 \f$ ("HVDC_flow_links") and, if the data give them, the bounds of the
+  * reactive flows \f$ Q^{fr}_l \f$ and \f$ Q^{to}_l \f$ times \f$ C^v \f$
+  * ("Reactive_Flow_Bounds"). Finally the bounds (1) of
+  * DCNetworkBlock::generate_abstract_constraints() on \f$ F^{fr}_l \f$
+  * (see DCNetworkBlock::generate_bound_constraints()), and the bounds on
+  * \f$ R_n \f$ given by set_min_reactive_node_injection() and
+  * set_max_reactive_node_injection(). If #b_strongSOCP is true, also
+  * strengthen_SOCP_relaxation() is called, which adds the bounds of the
+  * strengthened relaxation; its McCormick inequalities are separated by
+  * generate_dynamic_constraints().
   *
-  * - f_ACvS => default 0.0 (slack for AC_voltage_definition_const);
+  * The parameters, which mainly serve the numerical stability of the
+  * nonlinear rows, are given by the Configuration \p stcc or, if \p stcc is
+  * nullptr and f_BlockConfig is not nullptr, by
+  * f_BlockConfig->f_static_constraints_Configuration:
   *
-  * - f_scale => default 1.0 (scaling constant for the
-  *   AC_voltage_definition_const equations);
+  * - \f$ C^v \f$ (C_v_scal), 1 by default, which scales the voltages and
+  *   the flows as a change of the per unit base would: \f$ w \f$, \f$ c \f$
+  *   and \f$ s \f$ stand for \f$ ( C^v )^2 \f$ times the corresponding
+  *   products of voltages, and the flows of the rows are \f$ C^v \f$ times
+  *   the power flows;
   *
-  * - f_digits => default 16, the number of digits in round_sig(). This
-  *   helps round some of the admittance matrix data that appears in the
-  *   constraint up to f_digits digits.
+  * - \f$ \epsilon^{AC} \f$ (f_ACvS), 0 by default, the slack of (3)-(6);
   *
-  * Setting these to non-default values is possible with the Configuration
-  * parameter, that is either \p stcc or, if f_BlockConfig is not nullptr,
-  * f_BlockConfig->f_static_constraints_Configuration. If the result is
-  * not nullptr, then it is a SimpleConfiguration< ... > which can contain
-  * up to four numbers, i.e.,
+  * - \f$ C^{sc} \f$ (f_scale), 1 by default, a factor multiplying (3)-(6);
+  *
+  * - \f$ d \f$ (f_digits), 16 by default, the number of significant digits
+  *   to which the coefficients of (3)-(6) are rounded (see round_sig()).
+  *
+  * The Configuration is:
   *
   * - a SimpleConfiguration< double > for setting C_v_scal alone;
   *
@@ -560,6 +722,49 @@ class ACNetworkData : public DCNetworkData
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
+
+/*--------------------------------------------------------------------------*/
+ /// the size of a line of an ACNetworkBlock is not changed by a kappa
+ /** Besides the bounds (1) of DCNetworkBlock, the limit of a line of an
+  * ACNetworkBlock is in rows that a kappa does not reach (the thermal limit
+  * and the bounds of the reactive flow), hence sizing a line this way is not
+  * supported and these throw.
+  *
+  * Supporting it means saying what the size of such a line is and writing
+  * the kappa into the rows that carry it, i.e., the thermal limit and the
+  * bounds of the reactive flow, and answering whether the susceptance
+  * follows the size, which it does not do linearly: a modelling choice
+  * rather than a translation, left to whoever needs it. */
+
+ void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "ACNetworkBlock::set_kappa: sizing a line of an "
+   "ACNetworkBlock is not supported" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "ACNetworkBlock::set_kappa: sizing a line of an "
+   "ACNetworkBlock is not supported" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// change the active balance rows after a change of the active demand
+ /** The active demand of node \f$ n \f$ is the right-hand side
+  * \f$ - C^v D^{ac}_n \f$ of the active part of the power balance of
+  * \f$ n \f$ (the row "AC_power_flow_injection" of index \f$ n \f$, see
+  * generate_abstract_constraints()), which is the only row an
+  * ACNetworkBlock writes the demand in: this method changes it for the
+  * nodes in \p modified_nodes, as DCNetworkBlock::set_active_demand()
+  * asks, and the rows of the formulations of DCNetworkBlock, which an
+  * ACNetworkBlock does not have, are left alone. */
+
+ void change_active_demand_constraints( c_Subset & modified_nodes ,
+                                        c_ModParam issueAMod ) override;
 
 /*--------------------------------------------------------------------------*/
  /// separate the McCormick strengthening inequalities as dynamic cuts
@@ -585,8 +790,9 @@ class ACNetworkData : public DCNetworkData
  /// strengthen the SOCP relaxation with McCormick-like inequalities
  /** Adds the auxiliary McCormick constraints relating v_voltage, v_theta,
   * v_alpha, v_beta and v_z to v_sqrd_voltages, v_sum_product_voltages and
-  * v_diff_product_voltages, following the QC relaxation of Coffrin et al.
-  * (2016) and Hijazi et al. (2017). */
+  * v_diff_product_voltages, following the QC relaxation of Coffrin, Hijazi
+  * and Van Hentenryck (2016) and the envelopes of Hijazi, Coffrin and Van
+  * Hentenryck (2017) [see the class description for the references]. */
 
  void strengthen_SOCP_relaxation( void );
 
@@ -597,10 +803,11 @@ class ACNetworkData : public DCNetworkData
  * @{ */
 
  /// return the vector of power losses on lines
- /** Returns the per-line active losses, computed as the sum of the "from"
-  * and "to" active flow variables. */
+ /** Returns, for each line, the sum of the values of its "from" and "to"
+  * active flow variables, i.e., \f$ C^v \f$ times its active loss [see
+  * generate_abstract_constraints()]. */
 
- std::vector< double > get_line_losses( void ) {
+ std::vector< double > get_line_losses( void ) const override {
   std::vector< double > losses;
   Index number_lines = get_number_lines();
   for( int line_id = 0 ; line_id < number_lines ; ++line_id ) {
@@ -664,8 +871,9 @@ class ACNetworkData : public DCNetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// recover a (relaxed) feasible solution
- /** Warning: only a relaxed feasible solution is recovered. */
+ /// recover a feasible solution: not implemented
+ /** Not implemented: it returns an empty vector, whatever the values of the
+  * Variable. */
 
  std::vector< std::pair< double , double > > recover_feasible_solution( void );
 
@@ -766,6 +974,8 @@ class ACNetworkData : public DCNetworkData
   if( v_MinReactiveNodeInjection.empty() )
    v_MinReactiveNodeInjection.resize( get_number_nodes() );
   v_MinReactiveNodeInjection[ node ] = min_inj;
+  if( ! reactive_node_injection_bounds_const.empty() )  // the rows are there
+   reactive_node_injection_bounds_const[ node ].set_lhs( min_inj );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -779,6 +989,8 @@ class ACNetworkData : public DCNetworkData
   if( v_MaxReactiveNodeInjection.empty() )
    v_MaxReactiveNodeInjection.resize( get_number_nodes() );
   v_MaxReactiveNodeInjection[ node ] = max_inj;
+  if( ! reactive_node_injection_bounds_const.empty() )  // the rows are there
+   reactive_node_injection_bounds_const[ node ].set_rhs( max_inj );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -828,7 +1040,7 @@ class ACNetworkData : public DCNetworkData
 
  /* Generic variables for AC-OPF.
   *
-  * The voltages in each node are now complex numbers having a module
+  * The voltages in each node are complex numbers having a module
   * |V_n| which is the usual voltage on which bounds are imposed, and an
   * angle which will intervene in the equations as differences between
   * nodes connected by a power line. To this end the terms
@@ -843,14 +1055,23 @@ class ACNetworkData : public DCNetworkData
   *   sin(a) cos(b) = 0.5 ( sin(a+b) + sin(a-b) )
   *
   * Alternative representations can be derived making appear the angle
-  * difference on the line (on which bounds are known, typically +/- 30°). */
+  * difference on the line (on which bounds are known, typically +/- 30
+  * degrees). */
  std::vector< ColVariable > v_sum_product_voltages;
- ///< c_{n,n'} = v_n v_n' cos( theta_n - theta_n' )
+ ///< \f$ c_l = | V_{s(l)} | | V_{e(l)} | \cos( \theta_{s(l)} -
+ ///< \theta_{e(l)} ) \f$, for the DC lines only [see v_dc_line_position]
 
  std::vector< ColVariable > v_diff_product_voltages;
- ///< s_{n,n'} = v_n v_n' sin( theta_n - theta_n' )
+ ///< \f$ s_l = | V_{s(l)} | | V_{e(l)} | \sin( \theta_{s(l)} -
+ ///< \theta_{e(l)} ) \f$, for the DC lines only [see v_dc_line_position]
 
- std::vector< ColVariable > v_sqrd_voltages;  ///< c_{n,n} = |V_n|^2
+ std::vector< Index > v_dc_line_position;
+ ///< the position of each line among the DC lines, Inf< Index >() for an
+ ///< HVDC line, which has no v_sum_product_voltages and
+ ///< v_diff_product_voltages
+
+ std::vector< ColVariable > v_sqrd_voltages;
+ ///< \f$ w_n = | V_n |^2 \f$ for each node \f$ n \f$
 
  /* Variables for strengthening the SOCP relaxation by adding McCormick-like
   * inequalities:
@@ -918,23 +1139,27 @@ class ACNetworkData : public DCNetworkData
  /* Convex envelope of the cosine of the phase-angle difference x:
   *   alpha <= 1 - ( 1 - cos( xbar ) ) / xbar^2 * x^2
   *   alpha >= cos( xbar )
-  * (Hijazi, Coffrin & Van Hentenryck, "Convex quadratic relaxations for
-  * mixed-integer nonlinear programs in power systems", Math. Prog. Comp. 9,
-  * 321-367, 2017, https://doi.org/10.1007/s12532-016-0112-z). */
+  * (H. L. Hijazi, C. Coffrin and P. Van Hentenryck, "Convex quadratic
+  * relaxations for mixed-integer nonlinear programs in power systems",
+  * Mathematical Programming Computation 9, 321-367, 2017,
+  * doi:10.1007/s12532-016-0112-z). */
  std::vector< FRowConstraint > v_def_alpha_1;
  std::vector< FRowConstraint > v_def_alpha_2;
 
  /* The McCormick inequalities that strengthen the SOCP relaxation are valid
-  * inequalities (cuts), not part of the core model: they are therefore handled
-  * as dynamic constraints, separated on demand by generate_dynamic_constraints()
-  * instead of being all materialised up front (which on large multi-period
-  * instances would create hundreds of thousands of rows). The families are:
+  * inequalities (cuts), not part of the core model: they are therefore
+  * handled as dynamic constraints, separated on demand by
+  * generate_dynamic_constraints() instead of being all materialised up
+  * front (which on large multi-period instances would create hundreds of
+  * thousands of rows). The families are:
   *   z_{n,n'}    : classic McCormick envelope of the product v_n v_n'
   *   c_{n,n'}    : McCormick relaxation of Re( W_{n,n'} ) from z and alpha
   *   beta_{n,n'} : convex envelope of sin( theta_n - theta_n' )
   *   s_{n,n'}    : McCormick relaxation of Im( W_{n,n'} ) from z and beta
-  * (eqs. (23b)-(23c) in Coffrin 2016); all are linear in v_z, v_alpha, v_beta,
-  * v_voltage, v_theta, v_sum_product_voltages and v_diff_product_voltages. */
+  * (eqs. (23b)-(23c) of Coffrin, Hijazi and Van Hentenryck, 2016, see the
+  * class description); all are linear in v_z,
+  * v_alpha, v_beta, v_voltage, v_theta, v_sum_product_voltages and
+  * v_diff_product_voltages. */
  std::list< FRowConstraint > v_SOCP_cuts;
 
 /*--------------------------------------------------------------------------*/
@@ -961,16 +1186,19 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization( void )
- {
-  register_method< ACNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "DCNetworkBlock::set_active_demand" ,
-   & ACNetworkBlock::set_active_demand );
+ /// nothing of its own to register in the methods factory
+ /** The methods an ACNetworkBlock can be asked for by name are those of
+  * DCNetworkBlock, registered by DCNetworkBlock::static_initialization():
+  * they reach an ACNetworkBlock as well, being called on it as on the
+  * DCNetworkBlock it is, and set_active_demand() is virtual. Registering
+  * them again here, under the same names, would replace the adapter of
+  * DCNetworkBlock with one casting to ACNetworkBlock, which is wrong on a
+  * DCNetworkBlock that is not one, and which of the two survives would
+  * depend on the order of the static initialization. This one is defined
+  * all the same so that the factory does not call the inherited one, which
+  * would register the same methods twice. */
 
-  register_method< ACNetworkBlock , MF_dbl_it , Range >(
-   "DCNetworkBlock::set_active_demand" ,
-   & ACNetworkBlock::set_active_demand );
-  }
+ static void static_initialization( void ) {}
 
 /*--------------------------------------------------------------------------*/
 

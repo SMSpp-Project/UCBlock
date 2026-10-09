@@ -59,35 +59,85 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// implementation of the Block concept for the hydro unit problem
-/** The HydroUnitBlock class implements the Block concept [see Block.h] for a
- * "reasonably standard" hydro unit of a Unit Commitment Problem. That is, the
- * class is designed to give mathematical formulation to describe the operation
- * of a large set of hydro storage. To model complex reservoir systems,
- * several technical parameters have to be considered. These are divided into
- * reservoir-specific parameters, the hydro links connecting the reservoirs
- * and finally the turbine/pump parameters. The values are collected within a
- * reservoir database, a hydro-link database and a turbine/pump-database. The
- * technical and physical constraints are mainly divided in several different
- * categories as:
+/// implementation of the Block concept for a hydro valley
+/** HydroUnitBlock implements the Block concept [see Block.h] for a hydro
+ * valley, i.e., a set of reservoirs joined by plants (turbines, pumps and
+ * spillways), as a UnitBlock of a UCBlock. Its place in the complete model
+ * (the linking constraints that its powers and reserves enter, the
+ * conventions on instants, units and signs) is described in
+ * \ref ucblock_model. A HydroSystemUnitBlock, in turn, groups several
+ * HydroUnitBlock together with the future cost of the water left in their
+ * reservoirs. We see the valley as a directed graph whose nodes are the
+ * reservoirs \f$ n \in \mathcal{N}^{hy} = \{ 0 , \ldots , R - 1 \} \f$
+ * ("NumberReservoirs") and whose arcs \f$ l \in \mathcal{L}^{hy} \f$
+ * ("NumberArcs") are the plants, and each arc is one generator of the
+ * UnitBlock. Arc \f$ l \f$ goes from its start reservoir \f$ s( l ) \f$
+ * ("StartArc") to its end reservoir \f$ e( l ) \f$ ("EndArc"), and
+ * \f$ e( l ) = R \f$ means that the water leaves the valley. Several plants
+ * between the same two reservoirs are parallel arcs. For each instant \f$ t
+ * \in \mathcal{T} = \{ 0 , \ldots , T - 1 \} \f$ the variables are the
+ * volumes \f$ v^{hy}_{n,t} \f$ of the reservoirs at the end of the instant,
+ * the flows \f$ f_{t,l} \f$ and the active powers \f$ p^{ac}_{t,l} \f$ of the
+ * arcs and, when the UCBlock requires them and the data allow them, the
+ * primary and secondary reserves \f$ p^{pr}_{t,l} \f$ and
+ * \f$ p^{sc}_{t,l} \f$ of the arcs. Their constraints (see
+ * generate_abstract_constraints()) are the water balance of each reservoir,
+ * with the delays of the arcs, the bounds on the volumes and on the flows,
+ * and the ramps of the flows. Then come the relation between the flow and the
+ * power of turbines and pumps, and the bounds on the power together with the
+ * reserves. The model is linear and continuous, and its cost (see
+ * generate_objective()) is linear in the powers.
  *
- * - maximum and minimum power output constraints according to primary and
- *   secondary spinning reserves;
+ * All the data are given per instant, since no length of the time step
+ * appears anywhere (see \ref ucbm_conv_time). The volumes, the inflows and
+ * the flows share one unit of volume: the flow of an arc is the volume of
+ * water that goes through it during one instant, i.e., with instants of
+ * \f$ \Delta t \f$ hours, \f$ 3600 \, \Delta t \f$ times a flow rate in
+ * m\f$ ^3 \f$/s. Hence, a coefficient of the power curve given in MW per
+ * m\f$ ^3 \f$/s has to be divided by \f$ 3600 \, \Delta t \f$. A ramp is the
+ * largest change of the flow between two consecutive instants, in the same
+ * unit, and a delay is an integer number of instants (a travel time of
+ * \f$ d \f$ hours is given as \f$ \lceil d / \Delta t \rceil \f$ instants).
+ * HydroUnitBlock does not implement the scale factor of UnitBlock, i.e.,
+ * get_scale() is 1.
  *
- * - primary and secondary spinning reserves relation with active power for
- *   turbines;
+ * Some features of a valley are represented through the data alone. A
+ * reservoir without storage (a channel) has
+ * \f$ V^{mn}_{n,t} = V^{mx}_{n,t} = 0 \f$, and therefore its water balance
+ * imposes that the water entering it leaves it at the same instant. A target
+ * on a volume at some instant (e.g., a level to be reached in the middle or
+ * at the end of the horizon) is a time-dependent bound on that volume. A
+ * reversible plant is a turbine and a pump between the same two reservoirs. A
+ * spillway is an arc with a single piece whose linear term \f$ \rho^{hy} \f$
+ * is zero and whose constant term is zero as well (otherwise the arc would
+ * produce that power whatever its flow); hence, it releases water without
+ * producing power, and its capacity is its maximum flow. Finally, the value
+ * of the water left at the end of the horizon is the polyhedral function of a
+ * HydroSystemUnitBlock.
  *
- * - primary and secondary spinning reserves value for pumps ( == 0 );
- *
- * - flow-to-active-power function;
- *
- * - ramp-up and ramp-down constraints;
- *
- * - flow rate variable bounds;
- *
- * - final volumes of each reservoir constraints;
- *
- * - final volumes variable bounds. */
+ * We do not model the following features. The power of a turbine is a concave
+ * function of its flow alone, the same at each instant. Hence, operating
+ * points that are discrete (with the staircase or incremental formulations
+ * that describe them through integer variables) and a power curve that is not
+ * concave, or that changes over time, are not represented. Also, the concave
+ * curve is an outer approximation of the true one, and it is exact at an
+ * optimum where producing less than the curve allows is never profitable.
+ * Neither are the dependence of the power on the head (i.e., on the volumes
+ * of the reservoirs), a coefficient of a pump that changes over time, and a
+ * reserve that is a datum of the operating point (rather than a variable
+ * bounded by (1)-(6) of generate_abstract_constraints()). Since the model has
+ * no integer variable, three rules are not imposed either, i.e., (i) that a
+ * plant spills only when it turbines at its maximum, (ii) that the turbine
+ * and the pump of a reversible plant do not work at the same instant, nor at
+ * two consecutive instants when the mode changes, and (iii) that the
+ * operating point of a plant does not change twice in three consecutive
+ * instants. Pumping and turbining at the same time wastes energy, since a
+ * pump usually consumes more than the turbine produces with the same water,
+ * and it is therefore unlikely (but not excluded) at an optimum. Finally, the
+ * ramps (10) and (11) of generate_abstract_constraints() bound the flow of
+ * each arc, while the sum of the flows of a turbine and of its spillway is
+ * not bounded, and the water in transit at the borders of the horizon is not
+ * accounted for (see (12) there). */
 
 class HydroUnitBlock : public UnitBlock
 {
@@ -127,419 +177,252 @@ class HydroUnitBlock : public UnitBlock
  * the group must contain all the data required by the base UnitBlock, as
  * described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
  * In particular, we refer to that description for the crucial dimensions
- * "TimeHorizon", "NumberIntervals" and "ChangeIntervals". The netCDF::NcGroup
- * must then also contain:
+ * "TimeHorizon", "NumberIntervals" and "ChangeIntervals": a variable below
+ * that has a dimension "NumberIntervals" may have, in that dimension, size
+ * 1 (the value holds at every instant), size "NumberIntervals" (each value
+ * holds in one of the intervals of "ChangeIntervals") or, if
+ * "NumberIntervals" is not provided, size "TimeHorizon", and it is turned
+ * into a matrix with one entry per instant. A variable indexed over
+ * "NumberArcs" or "NumberReservoirs" alone, "StartArc" and "EndArc"
+ * excepted, may also be a scalar, which is then the value of every arc or
+ * reservoir. With the notation of the class
+ * (see generate_abstract_constraints() for the constraints), the
+ * netCDF::NcGroup must then also contain:
  *
- * - The dimension "NumberReservoirs" containing the number of all reservoirs
- *   (or nodes) in the HydroUnitBlock. The dimension is optional, if it is not
- *   provided then it is taken to be == 1, which means that the (in principle)
- *   cascading hydro system is actually single hydro reservoir. Note, however,
- *   that a single reservoir can still have multiple hydro generating units
- *   (see NumberArcs below).
+ * - The dimension "NumberReservoirs", the number \f$ R \f$ of the
+ *   reservoirs of the valley. The dimension is optional, if it is not
+ *   provided then it is taken to be 1: a single reservoir can still have
+ *   several plants (see "NumberArcs").
  *
- * - The dimension "NumberArcs" containing the set of arcs (or units)
- *   connecting the reservoirs in cascading system. Each arc represents either
- *   a turbine generating electricity by converting potential energy of water
- *   going downhill, or a pump consuming electricity for moving water uphill.
+ * - The dimension "NumberArcs", the number of arcs (plants) of the valley,
+ *   i.e., the number of generators of the UnitBlock. The dimension is
+ *   optional, if it is not provided then it is taken to be 1.
  *
  * - The variable "StartArc", of type netCDF::NcUint and indexed over the
- *   dimension "NumberArcs"; the r-th entry of the variable is the starting
- *   point of the arc (a number in 0, ..., NumberReservoirs - 1). Note that
- *   arcs are oriented; that is, a positive flow along arc r (turbine) means
- *   that water is being taken away from StartArc[ r ] and delivered to
- *   EndArc[ r ] (see next), a negative flow (pump) means vice-versa. Note
- *   that reservoir names here go from 0 to NumberReservoirs - 1.
+ *   dimension "NumberArcs": StartArc[ l ] is the reservoir \f$ s( l ) \in
+ *   \{ 0 , \ldots , R - 1 \} \f$ from which arc \f$ l \f$ starts. A positive
+ *   flow along arc \f$ l \f$ (a turbine) takes water from \f$ s( l ) \f$ and
+ *   delivers it to \f$ e( l ) \f$, a negative flow (a pump) does the
+ *   opposite.
  *
  * - The variable "EndArc", of type netCDF::NcUint and indexed over the
- *   dimension "NumberArcs"; the r-th entry of the variable is the ending
- *   point of the arc; this is a number in 0, ..., NumberReservoirs. Note:
- *   this is NumberReservoirs and *not* NumberReservoirs - 1, because arcs can
- *   end in the "fake" reservoir NumberReservoirs. This indicates that water
- *   that flows along that arc "goes away from the system" and it is no longer
- *   counted, because it can no longer be used to produce electricity further
- *   down the river, or pumped back into one of its reservoirs. Indeed, there
- *   will be something like "the most downstream turbines": after water has
- *   been used there, it just goes away down some river and does not go to any
- *   other reservoir. Arcs are oriented (see above); StartArc[ r ] == EndArc[
- *   r ] (a self-loop) is not allowed, but multiple arcs between the same pair
- *   of reservoirs are. Indeed, often the same physical equipment can be used
- *   both as a turbine and as a pump; in our model these are represented as
- *   two parallel arcs (but with different upper and lower flow capacity, see
- *   "MinFlow" and "MaxFlow" below).
+ *   dimension "NumberArcs": EndArc[ l ] is the reservoir \f$ e( l ) \in
+ *   \{ 0 , \ldots , R \} \f$ at which arc \f$ l \f$ ends, the value \f$ R \f$
+ *   (not a reservoir) meaning that the water flowing along the arc leaves
+ *   the valley, as it happens after the most downstream plants, and is no
+ *   longer counted. An arc with \f$ s( l ) = e( l ) \f$ (a self-loop) is not
+ *   allowed, while several arcs between the same two reservoirs are; often
+ *   the same equipment can work both as a turbine and as a pump, and it is
+ *   then represented by two parallel arcs with different flow bounds (see
+ *   "MinFlow" and "MaxFlow").
  *
- * - The variable "MinFlow", of type netCDF::NcDouble and indexed over both
- *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then the size can also be "TimeHorizon") whereas the second one
- *   always has size NumberArcs (if the variable is provided at all). This is
- *   meant to represent the matrix MinF[ t , l ] which, for each time instant
- *   t and each arc l, contains the minimum flow value of the unit. This
- *   variable is optional; if it is not provided then it is assumed that MinF[
- *   t , l ] == 0, i.e., the minimum flow of the unit is zero. If the first
- *   dimension has size 1 then the entry MinF[ 0 , l ] gives the fixed minimum
- *   flow value of the unit for all time steps and each arc l. Otherwise,
- *   MinFlow[ i , l ] is the fixed value of MinF[ t , l ] for all time t and
- *   arc l in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ]
- *   ], with the assumption that ChangeIntervals[ - 1 ] = 0. If
- *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
- *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ *   "StartArc" and "EndArc" are optional, but they are given together, and
+ *   they are required if \f$ R > 1 \f$: without them every arc leaves the
+ *   only reservoir and the valley, and the delays (see "UphillFlow" and
+ *   "DownhillFlow") play no role.
  *
- * - The variable "MaxFlow", of type netCDF::NcDouble and indexed over both
- *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then the size can also be "TimeHorizon") whereas the second one
- *   always has size NumberArcs (if the variable is provided at all). This is
- *   meant to represent the matrix MaxF[ t , l ] which, for each time instant
- *   t and each arc l, contains the maximum flow value of the unit. This
- *   variable is optional; if it is not provided then it is assumed that MaxF[
- *   t , l ] == 0, i.e., the maximum flow of the unit is zero. If the first
- *   dimension has size 1 then the entry MaxF[ 0 , l ] gives the fixed maximum
- *   flow value of the unit for all time steps and each arc l. Otherwise,
- *   MaxFlow[ i , l ] is the fixed value of MaxF[ t , l ] for all time t and
- *   arc l in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ]
- *   ], with the assumption that ChangeIntervals[ - 1 ] = 0. If
- *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the mapping
- *   clearly does not require "ChangeIntervals", which in fact is not loaded.
+ * - The variables "MinFlow" and "MaxFlow", of type netCDF::NcDouble and
+ *   indexed over the dimensions "NumberIntervals" and "NumberArcs": the
+ *   matrices \f$ F^{mn}_{t,l} \f$ and \f$ F^{mx}_{t,l} \f$ of the bounds on
+ *   the flow of arc \f$ l \f$ at instant \f$ t \f$, which must satisfy
+ *   \f$ F^{mn}_{t,l} \leq F^{mx}_{t,l} \f$. Both are optional, and 0 if not
+ *   provided. Their signs give the kind of the arc at instant \f$ t \f$: it
+ *   is a turbine if \f$ 0 \leq F^{mn}_{t,l} \f$ and \f$ F^{mx}_{t,l} > 0
+ *   \f$, a pump if \f$ F^{mn}_{t,l} < 0 \f$ and \f$ F^{mx}_{t,l} \leq 0 \f$,
+ *   and it is idle (\f$ f_{t,l} = 0 \f$) if \f$ F^{mn}_{t,l} =
+ *   F^{mx}_{t,l} = 0 \f$. An arc with \f$ F^{mn}_{t,l} < 0 < F^{mx}_{t,l}
+ *   \f$ at some instant is rejected, and so is an arc that is a turbine at
+ *   some instant and a pump at another (it may be idle at some instants):
+ *   the flow-to-power function of a turbine is a concave piecewise-linear
+ *   function with possibly many pieces, while that of a pump is linear (see
+ *   "NumberPieces", "LinearTerm" and "ConstantTerm"). A plant that can work
+ *   in both modes is split, when the data are prepared, into a turbine and a
+ *   pump, and nothing then prevents the two from working at the same
+ *   instant (see the description of the class).
  *
- * Note: MinFlow and MaxFlow values can be either positive or negative (or
- * zero); whenever MinF[ t , l ] <= MaxF[ t , l ] <= 0 for each t and l,
- * the unit is considered a pump and whenever 0 <= MinF[ t , l ] <=
- * MaxF[ t , l ], the unit is considered a turbine. Note that an arc must
- * *always* be the same kind for *all* instants, i.e., it is not allowed
- * that a unit suddenly changes between a turbine and a pump, or vice-versa.
- * This is because the flow-to-active-power function of turbines is a convex
- * piecewise function with possibly many pieces (see "NumberPieces",
- * "LinearTerm", "ConstantTerm" below) , whereas the flow-to-active-power
- * function of a pump is a simple linear function. In other words, the
- * "number of pieces" of a turbine is >= 1, whereas the "number of pieces"
- * of a pump is necessarily equal to 1. In reality, the same equipment can
- * sometimes be used both as a pump and as a turbine. In our model this is
- * accounted for by artificially splitting the unit into “two units”, a pump
- * one and a turbine one, which must be done at the data processing stage.
- * This causes the possible problem that at some time instant both the pump
- * and the turbine be active, which is not possible in practice. This is
- * unlikely to happen (because pumps consume more than turbines produce for
- * the same amount of water, so this would be uneconomical), but should it
- * ever happen, this occurrence is not handled in our model (which lets it
- * happen).
+ * - The variables "MinVolumetric" and "MaxVolumetric", of type
+ *   netCDF::NcDouble and indexed over the dimensions "NumberReservoirs" and
+ *   "NumberIntervals": the matrices \f$ V^{mn}_{n,t} \f$ and
+ *   \f$ V^{mx}_{n,t} \f$ of the bounds on the volume of reservoir \f$ n \f$
+ *   at the end of instant \f$ t \f$, which must satisfy \f$ 0 \leq
+ *   V^{mn}_{n,t} \leq V^{mx}_{n,t} \f$. Both are optional, and 0 if not
+ *   provided, which for "MaxVolumetric" means a reservoir without storage.
+ *   The two bounds may coincide at some instants, e.g., to fix the volume at
+ *   the end of the horizon or at a given instant, and at all instants, for a
+ *   channel in which the water does not stop.
  *
- * Note: when reservoir n is operated under cyclic closure, i.e., when
- * "InitialVolumetric"[ n ] < 0 so that v[ n , T - 1 ] = v[ n , 0 ], the
- * water-balance equalities telescope over t and impose
- * \f$ \sum_t \mathit{Inflows}[n][t] = \sum_t \left(
- *   \sum_{l: \mathit{StartArc}[l]=n} f_l(t) -
- *   \sum_{l: \mathit{EndArc}[l]=n}   f_l(t) \right) \f$,
- * which is achievable only if at every t the outgoing-arc capacities are
- * sufficient to absorb the inflow when the storage is saturated. A safe
- * and easy-to-verify pre-condition on the data is therefore
- * \f$ \sum_{l: \mathit{StartArc}[l]=n} \mathit{MaxFlow}[t][l]
- *     \geq \mathit{Inflows}[n][t] \f$ for every t; in practice, oversizing
- * MaxFlow on the spillage arc (the one having LinearTerm == 0, which does
- * not convert flow into power) by \f$ \max_t \mathit{Inflows}[n][t] \f$
- * is the simplest way to guarantee this. If this pre-condition is
- * violated, check_data_consistency() raises an exception.
+ * - The variable "Inflows", of type netCDF::NcDouble and indexed over the
+ *   dimensions "NumberReservoirs" and "TimeHorizon": the matrix
+ *   \f$ A_{n,t} \f$ of the volume of water that enters reservoir \f$ n \f$
+ *   during instant \f$ t \f$ by natural causes (rain, melting ice, rivers
+ *   that are not controlled), net of what leaves it in the same way
+ *   (evaporation, withdrawals for other uses), and is therefore available at
+ *   the end of instant \f$ t \f$; it is a volume per instant, in the unit of
+ *   the volumes, and it may be negative. The variable is optional, and 0 if
+ *   not provided.
  *
- * - The variable "MinVolumetric", of type netCDF::NcDouble and indexed over
- *   both dimensions "NumberReservoirs" and "NumberIntervals". The first
- *   dimension always has size "NumberReservoirs" (if it is provided at all),
- *   whereas the second one may have size one or size "NumberIntervals" (if
- *   "NumberIntervals" is not provided, then the size can also be
- *   "TimeHorizon"). This is meant to represent the matrix MinV[ r , t ]
- *   which, for each reservoir r at each time instant t contains the minimum
- *   volumetric value of the unit for each reservoir and corresponding time
- *   step. It must be that 0 <= MinV[ r , t ] <= MaxV[ r , t ] for all r and
- *   t. This variable is optional; if it's not provided then it is assumed
- *   that MinV[ r , t ] == 0, i.e., the minimum volumetric of the unit is
- *   zero. If the second dimension has size 1 then the entry MinV[ r , 0 ]
- *   gives the fixed minimum volumetric value of the unit for each reservoir r
- *   along all the time horizon. Otherwise, MinVolumetric[ r , i ] is the
- *   fixed value of MinV[ r , t ] for reservoir r and all t in the interval [
- *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ * - The variables "MinPower" and "MaxPower", of type netCDF::NcDouble and
+ *   indexed over the dimensions "NumberIntervals" and "NumberArcs": the
+ *   matrices \f$ P^{mn}_{t,l} \f$ and \f$ P^{mx}_{t,l} \f$ of the bounds on
+ *   the active power of arc \f$ l \f$ at instant \f$ t \f$, which must
+ *   satisfy \f$ P^{mn}_{t,l} \leq P^{mx}_{t,l} \f$ (the power of a pump
+ *   being nonpositive). Both are optional, and 0 if not provided.
  *
- * - The variable "MaxVolumetric", of type netCDF::NcDouble and indexed over
- *   both dimensions "NumberReservoirs" and "NumberIntervals". The first
- *   dimension always has size "NumberReservoirs" (if it is provided at
- *   all), whereas the second one may have size one or size "NumberIntervals"
- *   (if "NumberIntervals" is not provided, then the size can also be
- *   "TimeHorizon"). This is meant to represent the matrix MaxV[ r , t ]
- *   which, for each reservoir r at each time instant t contains the maximum
- *   volumetric value of the unit for each reservoir and corresponding time
- *   step. It must be that 0 <= MinV[ r , t ] <= MaxV[ r , t ] for all r and
- *   t. This variable is not optional (a reservoir must have some available
- *   volume). If the second dimension has size 1 then the entry MaxV[ r , 0 ]
- *   gives the fixed maximum volumetric value of the unit for each reservoir r
- *   during the whole time horizon. Otherwise, the MaxVolumetric[ r , i ] is
- *   the fixed value of MaxV[ r , t ] for reservoir r and all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ * - The variables "DeltaRampUp" and "DeltaRampDown", of type
+ *   netCDF::NcDouble and indexed over the dimensions "NumberIntervals" and
+ *   "NumberArcs": the matrices \f$ \Delta^+_{t,l} \f$ and
+ *   \f$ \Delta^-_{t,l} \f$ of the largest increase and decrease of the flow
+ *   of arc \f$ l \f$ between instants \f$ t - 1 \f$ and \f$ t \f$, in the
+ *   unit of the flows (a gradient of \f$ G \f$ m\f$ ^3 \f$/s per hour is
+ *   \f$ 3600 \, G \, \Delta t^2 \f$ with instants of \f$ \Delta t \f$
+ *   hours). Both are optional: if "DeltaRampUp" (respectively,
+ *   "DeltaRampDown") is not provided, there is no ramp-up (respectively,
+ *   ramp-down) constraint.
  *
- * Note: it may happen that MinV[ r , t ] == MaxV[ r , t ], but only *in a
- * subset of the time instants*. For instance, the user may want to fix the
- * final value of the reservoir, for whatever reason. So, if MinV and MaxV are
- * independent of t, then MinV[ r ] < MaxV[ r ] must surely happen. If,
- * instead, they depend on t, then equality can be accepted at some instants
- * (but not all of them).
+ * - The variables "PrimaryRho" and "SecondaryRho", of type
+ *   netCDF::NcDouble and indexed over the dimensions "NumberIntervals" and
+ *   "NumberArcs": the matrices \f$ \rho^{pr}_{t,l} \f$ and
+ *   \f$ \rho^{sc}_{t,l} \f$ of the largest fraction of the active power of
+ *   arc \f$ l \f$ at instant \f$ t \f$ that can be primary and secondary
+ *   reserve. Both are optional: if "PrimaryRho" (respectively,
+ *   "SecondaryRho") is not provided, the unit gives no primary
+ *   (respectively, secondary) reserve and has no such Variable. Only
+ *   turbines give reserves: \f$ \rho^{pr}_{t,l} = \rho^{sc}_{t,l} = 0 \f$
+ *   whenever arc \f$ l \f$ is a pump at instant \f$ t \f$.
  *
- * - The variable "Inflows", of type netCDF::NcDouble and indexed over both
- *   dimensions "NumberReservoirs" and "TimeHorizon". This is meant to
- *   represent the matrix InF[ r , t ] which, for each reservoir r, contains
- *   the amount of water that "naturally" enters into reservoir r (because of
- *   rain, ice melting, non-controlled rivers flowing, and of course net of
- *   water leaving by evaporation, human consumption etc.) during time all the
- *   time interval t, and therefore that is available in the reservoir at the
- *   end of time step t (hence, the beginning of time step t + 1, if
- *   any). This variable is optional; if it isn't defined, it is taken to be
- *   zero. Inflows can be either positive or negative.
+ * - The dimension "TotalNumberPieces" and the variable "NumberPieces", of
+ *   type netCDF::NcUint and indexed over the dimension "NumberArcs":
+ *   NumberPieces[ l ] is the number \f$ | \mathcal{J}_l | \geq 1 \f$ of the
+ *   pieces of the flow-to-power function of arc \f$ l \f$, which is 1 for
+ *   a pump, and "TotalNumberPieces" is \f$ \sum_l | \mathcal{J}_l | \f$.
+ *   Both are optional: without "NumberPieces" every arc has one piece, and
+ *   without "TotalNumberPieces" the sum is computed.
  *
- * - The variable "MinPower", of type netCDF::NcDouble and indexed over both
- *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then the size can also be "TimeHorizon"), whereas the second
- *   one always has size NumberArcs (if it is provided at all). This is meant
- *   to represent the matrix MinP[ t , l ] which, for each time instant t at
- *   each arc l contains the minimum power value of the unit; it must be that
- *   MinP[ t , l ] <= MaxP[ t , l ] for each time instant t and each arc l.
- *   This variable is optional; if it is not provided then it is assumed that
- *   MinP[ t , l ] == 0, i.e., the minimum power of all units is zero (which
- *   means, each unit is a turbine). If the first dimension has size 1 then
- *   the entry MinP[ 0 , l ] is assumed to contain the minimum power of arc l
- *   for all time instants. Otherwise, MinPower[ i , l ] is the fixed value of
- *   MinP[ t , l ] for arc l and all time t in the interval [ ChangeIntervals[
- *   i - 1 ] , ChangeIntervals[ i ] ], with the assumption that
- *   ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or NumberIntervals >=
- *   TimeHorizon, then the mapping clearly does not require "ChangeIntervals",
- *   which in fact is not loaded.
+ * - The variables "LinearTerm" and "ConstantTerm", of type netCDF::NcDouble
+ *   and indexed over the set \f$ \{ 0 , \ldots ,
+ *   \mathrm{TotalNumberPieces} - 1 \} \f$: the coefficients
+ *   \f$ \rho^{hy}_j \f$ and \f$ P^{hy}_j \f$ of the pieces
+ *   \f$ \rho^{hy}_j f + P^{hy}_j \f$ of the flow-to-power functions, whose
+ *   minimum over \f$ j \in \mathcal{J}_l \f$ bounds the power of turbine
+ *   \f$ l \f$ (see (7) of generate_abstract_constraints()), while a pump
+ *   uses only \f$ \rho^{hy}_j \f$ of its piece. The pieces are numbered arc
+ *   after arc, in the order of the arcs:
+ *   - index 0 is the first piece of arc 0, index 1 its second piece, and
+ *     so on up to index NumberPieces[ 0 ] - 1, its last piece;
+ *   - index NumberPieces[ 0 ] is the first piece of arc 1, and so on,
  *
- * - The variable "MaxPower", of type netCDF::NcDouble and indexed over both
- *   dimensions "NumberIntervals" and "NumberArcs". The first dimension may
- *   have either size 1 or size "NumberIntervals" (if "NumberIntervals" is not
- *   provided, then the size can also be "TimeHorizon") whereas the second one
- *   always has size NumberArcs (if it is provided at all). This is meant to
- *   represent the matrix MaxP[ t , l ] which, for each time instant t at each
- *   arc l contains the maximum power value of the unit; it must be that MinP[
- *   t , l ] <= MaxP[ t , l ] for each time instant t and each arc l. This
- *   variable is optional; if it is not provided then it is assumed that MaxP[
- *   t , l ] == 0, i.e., the maximum power of all units is zero (i.e., all
- *   units are pumps). If the first dimension has size 1 then the entry MaxP[
- *   0 , l ] is assumed to contain the maximum power of arc l for all time
- *   instants. Otherwise, MaxPower[ i , l ] is the fixed value of MaxP[ t , l
- *   ] for arc l and all time t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
- *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ *   so that the index of a piece is that of its arc when every arc has one
+ *   piece. "LinearTerm" is required if some arc is a turbine at some
+ *   instant; if it is not provided, a pump has \f$ p^{ac}_{t,l} = f_{t,l}
+ *   \f$. "ConstantTerm" is optional, and 0 if not provided. A piece known
+ *   as the tangent \f$ P_j + \rho_j ( f - \bar f_j ) \f$ to the curve at the
+ *   flow \f$ \bar f_j \f$ is given by \f$ \rho^{hy}_j = \rho_j \f$ and
+ *   \f$ P^{hy}_j = P_j - \rho_j \bar f_j \f$, with \f$ \rho_j \f$ and
+ *   \f$ \bar f_j \f$ converted to the unit of the flows.
  *
- * - The variable "DeltaRampUp", of type netCDF::NcDouble and indexed over
- *   both dimensions "NumberIntervals" and "NumberArcs". The first dimension
- *   may have either size 1 or size "NumberIntervals" (if "NumberIntervals" is
- *   not provided, then the size can also be "TimeHorizon"), whereas the
- *   second one always has size NumberArcs (if it is provided at all). This is
- *   meant to represent the matrix DP[ t , l ] which contains the maximum
- *   possible increase of the flow rate at time instant t for arc l. This
- *   variable is optional; if it is not provided then it is assumed that DP[ t
- *   , l ] == MaxP[ t , l ] - MinP[ t , l ], i.e., all units can ramp up by an
- *   arbitrary amount, i.e., there are no ramp-up constraints. If the first
- *   dimension has size 1 then the entry DP[ 0 , l ] is assumed to contain the
- *   maximum possible increase of the flow rate of arc l for all time
- *   instants. Otherwise, DeltaRampUp[ i , l ] is the fixed value of DP[ t , l
- *   ] for arc l and all time t in the interval [ ChangeIntervals[ i - 1 ] ,
- *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ] =
- *   0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
- *   mapping clearly does not require "ChangeIntervals", which in fact is not
- *   loaded.
+ * - The variable "ActivePowerCost", of type netCDF::NcDouble and indexed
+ *   over the dimension "NumberArcs": the cost \f$ b_l \f$ of one unit of
+ *   active power of arc \f$ l \f$ during one instant. The variable is
+ *   optional, and 0 if not provided.
  *
- * - The variable "DeltaRampDown", of type netCDF::NcDouble and indexed over
- *   both dimensions "NumberIntervals" and "NumberArcs". The first dimension
- *   may have either size 1 or size "NumberIntervals" (if "NumberIntervals" is
- *   not provided, then the size can also be "TimeHorizon"), whereas the
- *   second one always has size NumberArcs (if it is provided at all). This is
- *   meant to represent the matrix DM[ t , l ] which contains the maximum
- *   possible decrease of the flow rate at each time instant t of each arc
- *   l. This variable is optional; if it is not provided then it is assumed
- *   that DM[ t , l ] == MaxP[ t , l ] - MinP[ t , l ], i.e., the unit can
- *   ramp down by an arbitrary amount, i.e., there are no ramp-down
- *   constraints. If first dimension has size 1 then the entry DM[ 0 , l ] is
- *   assumed to contain the maximum possible decrease of the flow rate of arc
- *   l for all time instants. Otherwise, DeltaRampDown[ i , l ] is the fixed
- *   value of DM[ t , l ] for arc l and all time t in the interval [
- *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
- *   that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
- *   NumberIntervals >= TimeHorizon, then the mapping clearly does not require
- *   "ChangeIntervals", which in fact is not loaded.
+ * - The variable "InertiaPower", of type netCDF::NcDouble and indexed over the
+ *   dimensions "NumberArcs" and "NumberIntervals": the matrix
+ *   \f$ h^p_{t,l} \f$ of the coefficients of the active power of arc \f$ l \f$
+ *   at instant \f$ t \f$ in the inertia constraints of the UCBlock, i.e.,
+ *   \f$ h^p_{t,l} = 1.2 H_{t,l} \f$ for a plant whose inertia constant is
+ *   \f$ H_{t,l} \f$ (see \ref ucbm_link_in). The variable is optional, and if
+ *   it is not provided the unit gives no inertia.
  *
- * - The variable "PrimaryRho", of type netCDF::NcDouble and indexed both over
- *   the dimensions "NumberIntervals" and "NumberArcs". The first dimension
- *   may have either size 1 or size "NumberIntervals" (if "NumberIntervals" is
- *   not provided, then the size can also be "TimeHorizon"), whereas the
- *   second one always has size NumberArcs (if it is provided at all). This is
- *   meant to represent the matrix PR[ t , l ] which, for each time instant t
- *   and arc l, contains the maximum possible fraction of active power that
- *   can be used as primary reserve. This variable is optional, when it's not
- *   present then PR[ t , l ] == 0 for all t and l, i.e., the unit is not
- *   capable of producing any primary reserve. Note that only turbines can
- *   produce primary reserve, i.e., PR[ t , l ] > 0 ==> MaxP[ t , l ] > 0. If
- *   the first dimension has size 1 then the entry PR[ 0 , l ] is assumed to
- *   contain the maximum possible fraction of active power that can be used as
- *   primary reserve by arc l for all time instants. Otherwise, PrimaryRho[ i
- *   , l ] is the fixed value of PR[ t , l ] for arc l and all t in the
- *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
- *   assumption that ChangeIntervals[ - 1 ] = 0 and all l. If NumberIntervals
- *   <= 1 or NumberIntervals >= TimeHorizon, then the mapping clearly does not
- *   require "ChangeIntervals", which in fact is not loaded.
- *
- * - The variable "SecondaryRho", of type netCDF::NcDouble and indexed both
- *   over the dimensions "NumberIntervals" and "NumberArcs". The first
- *   dimension may have either size 1 or size "NumberIntervals" (if
- *   "NumberIntervals" is not provided, then the size can also be
- *   "TimeHorizon"), whereas the second one always has size NumberArcs (if it
- *   is provided at all). This is meant to represent the matrix SR[ t , l ]
- *   which, for each time instant t and arc l contains the maximum possible
- *   fraction of active power that can be used as secondary reserve. This
- *   variable is optional, when it's not present then SR[ t , l ] == 0 for all
- *   t and l, i.e., the unit is not capable of producing any secondary
- *   reserve. Note that only turbines can produce secondary reserve, i.e., SR[
- *   t , l ] > 0 ==> MaxP[ t , l ] > 0. If the first dimension has size 1
- *   then the entry SR[ 0 , l ] is assumed to contain the maximum possible
- *   fraction of active power that can be used as secondary reserve by arc l for
- *   all time instant. Otherwise, SecondaryRho[ i , l ] is the fixed value of
- *   SR[ t , l ] for arc l and all t in the interval [ ChangeIntervals[ i - 1
- *   ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1
- *   ] = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
- *   the mapping clearly does not require "ChangeIntervals" which in fact is
- *   not loaded.
- *
- * - The variable "NumberPieces", of type netCDF::NcUint and indexed over the
- *   dimension "NumberArcs". NumberPieces[ l ] tells how many pieces the
- *   concave flow-to-active-power function has for unit (arc) l. Note that
- *   pumps must necessarily have exactly one piece. The sum over all i of
- *   NumberPieces[ i ] is the total number of pieces (say,
- *   "TotalNumberPieces"). Clearly, TotalNumberPieces >= NumberArcs; if the
- *   flow-to-active-power function for all turbines only have one piece (those
- *   of pumps necessarily are so), then TotalNumberPieces == NumberArcs and
- *   there is no need to define this variable. If, instead, if it is defined,
- *   then should always be such that TotalNumberPieces >= NumberArcs.
- *
- * - The variable "LinearTerm", of type netCDF::NcDouble and indexed over the
- *   set { 0 , ..., TotalNumberPieces - 1 } (see "NumberPieces"). LinearTerm[
- *   h ] gives the linear term a_h of the linear function a_h * f + b_h that
- *   defines the concave flow-to-active-power function for some unit; the
- *   total function if F2AP( t ) = min { a_h * f + b_h , h \in H } for some
- *   finite set H that depends on the individual unit. It is then necessary to
- *   be able to assign a unique index h = 0, 1, ..., TotalNumberPieces - 1 to
- *   each pair ( unit , linear function a_h * f + b_h ). When
- *   TotalNumberPieces == NumberArcs, the index is the same as i = 0, 1, ...,
- *   NumberArcs - 1 (there is a one-to-one correspondence between each (unit)
- *   arc and each piece). When, instead, TotalNumberPieces > NumberArcs, a
- *   mapping must be defined. The mapping is the obvious one: each index of i
- *   = 0, 1, ..., NumberArcs - 1, corresponds with a unit (arc), and the
- *   linear functions for each unit (arc) also have some natural ordering.
- *   Thus, in general the mapping is: piece 0 = first piece of unit (arc) 0
- *   piece 1 = second piece of unit (arc) 0 ... piece NumberPieces[ 0 ] - 1 =
- *   last piece of unit (arc) 0 piece NumberPieces[ 0 ] = first piece of unit
- *   (arc) 1 piece NumberPieces[ 0 ] + 1 = second piece of unit (arc) 1 ...
- *   which of course boils down to "h = i" when each arc has exactly one
- *   piece.
- *
- * - The variable "ConstantTerm", of type netCDF::NcDouble and indexed over
- *   the set { 0 , ..., TotalNumberPieces" - 1 }. ConstantTerm[ h ] gives the
- *   constant term b_h of the linear function a_h * f + b_h that defines the
- *   concave flow-to-active-power function for some unit; see the comments to
- *   "LinearTerm" for details.
- *
- * - The variable "ActivePowerCost", of type netCDF::NcDouble and either of
- *   size 1 or indexed over the dimension "NumberArcs". This is meant to
- *   represent the vector APC[ i ] that describes the cost of producing one
- *   unit of active power for each arc i. This variable is optional, if it is
- *   not provided then it's taken to be zero.
- *
- * - The variable "InertiaPower", of type netCDF::NcDouble and indexed both
- *   over the dimensions "NumberArcs" and "NumberIntervals". The first
- *   dimension always has size NumberArcs (if it is provided at all),
- *   whereas the second one may have either size 1 or size "NumberIntervals"
- *   (if "NumberIntervals" is not provided, then the size can also be
- *   "TimeHorizon"). This is meant to represent the matrix IP[ l , t ]
- *   which, for each arc l and time instant t, contains the contribution that
- *   the unit can give to the inertia constraint which depends on the active
- *   power that it is currently generating (basically, the constant to be
- *   multiplied to the active power variable) at time t for arc l. The
- *   variable is optional; if it is not defined, IP[ l , t ] == 0 for each
- *   arc l and time instant t. If the second dimension has size 1 then the
- *   entry IP[ l , 0 ] is assumed to contain the inertia power value for
- *   arc l and all time instants t. Otherwise, InertiaPower[ l , i ] is the
- *   fixed value of IP[ l , t ] for all t in the interval [ ChangeIntervals[ i
- *   - 1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[
- *   - 1 ] = 0 and all l. If NumberIntervals <= 1 or NumberIntervals >=
- *   TimeHorizon then the mapping clearly does not require "ChangeIntervals",
- *   which in fact is not loaded.
- *
- * - The variable "InitialFlowRate", of type netCDF::NcDouble and indexed over
- *   the dimension "NumberArcs". Each entry InFR[ i ] indicates the amount of
- *   the flow that was going along arc i at time instant -1. This is necessary
- *   to compute ramp-up and ramp-down limits (cf. "DeltaRampUp" and
- *   "DeltaRampDown"), and therefore it is useless if there are no ramp
- *   constraints on *any* unit (arc), in which case it is not loaded.
+ * - The variable "InitialFlowRate", of type netCDF::NcDouble and indexed
+ *   over the dimension "NumberArcs": the flow \f$ F^0_l \f$ of arc \f$ l \f$
+ *   at instant \f$ -1 \f$, which only the ramp constraints of instant 0
+ *   use. The variable is optional, and 0 if not provided.
  *
  * - The variable "InitialVolumetric", of type netCDF::NcDouble and indexed
- *   over the dimension "NumberReservoirs". Each entry InV[ r ] indicates the
- *   volumes of water in reservoir r at time instant -1. When the value is
- *   negative, cyclical notation is considered such that the initial volume
- *   is the same as the last volume of the last "NumberIntervals" (if
- *   "NumberIntervals" is not provided, then "TimeHorizon")
+ *   over the dimension "NumberReservoirs": the volume \f$ V^0_n \f$ of
+ *   reservoir \f$ n \f$ at instant \f$ -1 \f$, i.e., at the beginning of the
+ *   horizon. A negative value means the cyclic closure, i.e., the volume at
+ *   instant \f$ -1 \f$ is the variable \f$ v^{hy}_{n,T-1} \f$. The variable
+ *   is optional, and 0 if not provided.
  *
- * - The negative or positive scalar variable "UphillFlow", of type
- *   netCDF::NcInt and indexed over the dimension "NumberArcs". Each entry
- *   UpF[ l ] indicates the uphill flow delay for each unit (arc) l; the
- *   nontrivial concept is detailed below. This variable is optional, if it is
- *   not provided it is taken to be UpF[ l ] == 0.
+ *   Under the cyclic closure the water balances (12) of the reservoir, summed
+ *   over the instants, give \f$ \sum_t ( v^{hy}_{n,t} - v^{hy}_{n,t-1} ) =
+ *   0 \f$ on the left (with \f$ v^{hy}_{n,-1} = v^{hy}_{n,T-1} \f$), hence
+ *   the equality between the total inflow \f$ \sum_t A_{n,t} \f$ and the
+ *   total net outflow, i.e., the flows of the arcs that leave the reservoir
+ *   minus those of the arcs that reach it, each counted at the instants at
+ *   which (12) of generate_abstract_constraints() counts it. Only this
+ *   aggregate condition follows: within the horizon the reservoir stores
+ *   the inflow of an instant that its arcs cannot carry away, and the arcs
+ *   that reach it add water. With the flow bounds it implies
+ *   \f[
+ *     \sum_{ ( t , l ) \in O_n } F^{mn}_{t,l}
+ *       - \sum_{ ( t , l ) \in I_n } F^{mx}_{t,l} \; \leq \;
+ *     \sum_{ t \in \mathcal{T} } A_{n,t} \; \leq \;
+ *     \sum_{ ( t , l ) \in O_n } F^{mx}_{t,l}
+ *       - \sum_{ ( t , l ) \in I_n } F^{mn}_{t,l} \; ,
+ *   \f]
+ *   where \f$ O_n \f$ (resp. \f$ I_n \f$) are the pairs of an arc that
+ *   leaves (resp. reaches) \f$ n \f$ and of an instant at which its flow
+ *   is in a balance of \f$ n \f$ (all the arcs and instants for a single
+ *   reservoir without "StartArc" and "EndArc"); this necessary condition
+ *   is checked when the data are read (see check_data_consistency()), and
+ *   a reservoir whose total inflow exceeds what its arcs can carry, e.g.,
+ *   because its spillway is too small, makes deserialize() throw.
  *
- * - The positive scalar variable "DownhillFlow", of type netCDF::NcUint and
- *   indexed over the dimension "NumberArcs". Each entry DnF[ l ] indicates
- *   the downhill flow delay for each arc (unit) l. This variable is optional,
- *   if it is not provided it is taken to be DnF[ l ] == 0.
+ * - The variables "UphillFlow" and "DownhillFlow", of type netCDF::NcInt
+ *   and netCDF::NcUint and indexed over the dimension "NumberArcs": the
+ *   delays \f$ \tau^{up}_l \f$ and \f$ \tau^{dn}_l \geq 0 \f$, in instants,
+ *   of arc \f$ l \f$. The flow of arc \f$ l \f$ at instant \f$ s \f$ is
+ *   withdrawn from \f$ s( l ) \f$ at instant \f$ s + \tau^{up}_l \f$ and it
+ *   reaches \f$ e( l ) \f$ at instant \f$ s + \tau^{dn}_l \f$ (see (12) of
+ *   generate_abstract_constraints()). Both are optional, and 0 if not
+ *   provided.
  *
- * The last two quantities require some comment. Let us assume that we have
- * any arc l, with ( StartArc[ l ] = n , EndArc[ l ] = n' ), which
- * corresponds to (say) a turbine. This means that a positive flow along l
- * implies that water is being taken away from n and delivered to n',
- * passing through the turbine to produce flow, as graphically depicted
- * below:
+ *   The plant can be far enough from its reservoirs for the water to take
+ *   one or more instants (especially if these are short, say 5 or 15
+ *   minutes) to go from the start reservoir to the plant, and from the plant
+ *   to the end reservoir, as depicted below for a turbine:
+ *   \verbatim
+      s(l) >==================> [ PLANT ] >==================> e(l)
+            water leaves s(l)   works at s   water reaches e(l)
+            at s + UphillFlow                at s + DownhillFlow
+     \endverbatim
+ *   The delay \f$ \tau^{dn}_l \f$ is the travel time from the plant to
+ *   \f$ e( l ) \f$. When the pipe from \f$ s( l ) \f$ to the plant has to be
+ *   filled before the plant can work, the water leaves \f$ s( l ) \f$ before
+ *   it reaches the plant, and \f$ \tau^{up}_l \f$ is the opposite of the
+ *   travel time, i.e., negative. When, instead, the pipe is full, it works
+ *   as a small reservoir of its own: starting the plant creates a
+ *   depression that travels up the pipe, and the water starts leaving
+ *   \f$ s( l ) \f$ only when the depression reaches it, i.e.,
+ *   \f$ \tau^{up}_l \f$ is positive. These are rather crude approximations
+ *   of the physical behavior, which are however accurate enough for this
+ *   setting.
  *
- *   \ n / >==============> [ TURBINE ] >================> \ n' /
- *              UpF[ l ]                     DnF[ l ]
+ * - The variable "ReferenceSchedule", of type netCDF::NcDouble and indexed
+ *   over the dimension "NumberIntervals": a total active power
+ *   \f$ \hat p_t \f$ of the valley at each instant, from which the objective
+ *   penalizes the absolute deviation (see generate_objective()). The
+ *   variable is optional, and without it there is no such penalty.
  *
- * The issue here is that the turbine can be geographically far enough from
- * both n and n' that the water can take a long time (one or more time
- * instant, especially if these are "short" such as 15 or 5 minutes) to
- * reach the turbine from n, and n' from the turbine.
+ * - The variables "MinReactivePower" and "MaxReactivePower", of type
+ *   netCDF::NcDouble and indexed over the dimensions "NumberIntervals" and
+ *   "NumberArcs": the bounds on the reactive power of each arc, which is a
+ *   Variable only if the UCBlock asks for it (see
+ *   UnitBlock::set_reactive_power()). Both are optional; if one of them is
+ *   provided with only zero entries, it is taken as not provided.
  *
- * A particular note of caution has to be mentioned regarding the fact that
- * UpF[ l ] can be *negative*: this means that the water is used in the
- * turbine *before* it goes out of reservoir n. This is counter-intuitive,
- * but can be explained by the fact that the pipe between n and the turbine
- * can be full, and therefore works as a "mini reservoir" in itself. When
- * the turbine is started, a "bubble" (depression) is created uphill the
- * turbine; this "bubbles up" the n ==> TURBINE pipe until it reaches n, and
- * it is only at that point that the water in n starts flowing away. Hence,
- * there is a negative temporal delay between the water starting flowing in
- * the turbine and it starting flowing away from n. Note that if the
- * n ==> TURBINE pipe is rather empty, the delay is positive in that one
- * have to start sending the water, which may take some time before filling
- * the pipe and therefore starting the turbine. Of course these are all
- * somewhat crude approximations of the true physical behavior, but they
- * are accurate enough for this setting. Yet, the case UpF[ l ] < 0 cannot
- * be disregarded. */
+ * The consistency of the data is checked as described in
+ * check_data_consistency(), which throws an exception if it does not
+ * hold. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
 #ifndef NDEBUG
- // extends UnitBlock::expected_dims()
+ /// extends UnitBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
 
@@ -552,221 +435,295 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the HydroUnitBlock
- /** The HydroUnitBlock class has several groups of variables.
+ /** The HydroUnitBlock has the following groups of Variable, all of them
+  * boost::multi_array< ColVariable , 2 > but the last one:
   *
-  * The following are boost::multi_array< ColVariable , 2 > indexed by
-  * generator/arc and time:
+  * - the volumes \f$ v^{hy}_{n,t} \geq 0 \f$, indexed [ n ][ t ], group
+  *   "v_hydro";
   *
-  * - the flow rate variables;
+  * - the flows \f$ f_{t,l} \f$, indexed [ l ][ t ], group "f_hydro",
+  *   nonnegative if \f$ F^{mn}_{t,l} \geq 0 \f$ and nonpositive if
+  *   \f$ F^{mx}_{t,l} \leq 0 \f$ (both, i.e., zero, for an idle arc);
   *
-  * - the active power variables;
+  * - the active powers \f$ p^{ac}_{t,l} \f$, indexed [ l ][ t ], group
+  *   "p_hydro", nonnegative if \f$ P^{mn}_{t,l} \geq 0 \f$ and nonpositive
+  *   if \f$ P^{mx}_{t,l} \leq 0 \f$;
   *
-  * - the reactive power variables (if defined);
+  * - the reactive powers, indexed [ l ][ t ], group "q_hydro", only if the
+  *   UCBlock asks for them (see UnitBlock::set_reactive_power());
   *
-  * - the primary spinning reserve variables (if defined);
+  * - the primary reserves \f$ p^{pr}_{t,l} \geq 0 \f$, indexed [ l ][ t ],
+  *   group "pr_hydro", only if the UCBlock asks for the primary reserve
+  *   (see UnitBlock::set_reserve_vars()) and "PrimaryRho" is provided;
   *
-  * - the secondary spinning reserve variables (if defined).
+  * - the secondary reserves \f$ p^{sc}_{t,l} \geq 0 \f$, indexed
+  *   [ l ][ t ], group "sr_hydro", only if the UCBlock asks for the
+  *   secondary reserve and "SecondaryRho" is provided;
   *
-  * The volumetric variables are instead a
-  * boost::multi_array< ColVariable , 2 > indexed by reservoir and time.
-  *
-  * If the reference schedule is defined, an additional vector of
-  * ColVariable is generated to represent the absolute deviation from the
-  * reference schedule. */
+  * - the deviations \f$ \delta^{rs}_t \geq 0 \f$ from the reference schedule,
+  *   a std::vector< ColVariable > indexed by \f$ t \f$, group
+  *   "v_absh_refschd", only if "ReferenceSchedule" is provided. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// generate the static constraint of the HydroUnit
- /** This method generates the static constraint of the HydroUnitBlock.
-  * In order to describe a hydro generating unit system, it will be convenient
-  * to see a cascading system as a graph. Let \f$ \mathcal{N}^{hy}\f$ be the
-  * set of reservoirs (nodes) and \f$ \mathcal{L}^{hy}\f$ be the set of arcs
-  * connecting these reservoirs respectively. Attached to each
-  * \f$ l \in \mathcal{L}^{hy}\f$ are one or several plants (turbines or
-  * pumps). This system is described on a discrete time horizon as dictated
-  * by the UnitBlock interface. In this description we indicate it with
-  * \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$. Each reservoir
-  * \f$ n \in \mathcal{N}^{hy}\f$ has a continuous volumetric variables
-  * \f$ v^{hy}_{n,t}\f$ in \f$ m^3 \f$ for \f$ t \in \mathcal{T}\f$ with
-  * associated lower and upper bounds \f$ V^{hy,mn}_{n,t}\f$,
-  * \f$ V^{hy,mx}_{n,t}\f$ and inflows \f$ A_{n,t}\f$ in \f$ m^3 /s \f$. The
-  * uphill and downhill flow rate are defined as \f$ \tau^{up} \f$ and
-  * \f$ \tau^{dn}\f$ respectively. For each time \f$ t \in \mathcal{T}\f$ and
-  * each arc \f$ l \in \mathcal{L}^{hy}\f$ the continuous flow rate variable
-  * \f$ f_{t,l} \f$ in \f$ m^3 /s \f$ and ramping conditions
-  * \f$ \Delta^{up}_{t,l} \f$ and \f$ \Delta^{dn}_{t,l} \f$ in
-  * \f$ (m^3 /s)/h \f$ are disposed. The flow rate variable will be subject to
-  * bounds \f$ F^{mn}_{t,l} \f$ and \f$ F^{mx}_{t,l} \f$ and it's assumed
-  * moreover given a cutting plane model describing power as a function of
-  * flow rate as below:
-  * \f[
-  *  p^{ac}_{t,l}(f) := min \{ P_l + \rho^{hy}_{l}f_{t,l}\}
-  * \f]
+ /// generate the static constraints of the HydroUnitBlock
+ /** This method generates the static constraints of the HydroUnitBlock,
+  * with the notation of the description of the class and of deserialize().
+  * Each group of constraints is a boost::multi_array, registered as a static
+  * constraint under the name given below; the indices of the arrays start
+  * at 0, and an array indexed by instant and arc has
+  * get_time_horizon() \f$ \times \f$ get_number_generators() entries. At
+  * every instant \f$ t \f$ an arc \f$ l \f$ is a turbine, a pump or idle,
+  * according to the signs of \f$ F^{mn}_{t,l} \f$ and \f$ F^{mx}_{t,l} \f$
+  * (see deserialize()); the reserve Variable exist only if the UCBlock asks
+  * for the reserve and "PrimaryRho" (respectively, "SecondaryRho") is
+  * provided, and a term with a reserve that does not exist is absent from
+  * the rows below.
   *
-  * where \f$ P_l \f$ and \f$ \rho^{hy}_{l} \f$ are considered as the constant
-  * and linear multipliers of the linear function (flow-to-active-power)
-  * respectively. Power generated by the hydro unit in each time and for each
-  * arc \f$ p^{ac}_{t,l}, p^{pr}_{t,l}, p^{sc}_{t,l} \f$ in MW will be subject
-  * to bounds \f$ P^{mn}_{t,l} \f$ and \f$ P^{mx}_{t,l} \f$ respectively.
-  * Besides, we emphasize that reserve requirements are specified in order to
-  * be symmetrically available to increase or decrease power injected into the
-  * grid. For some of the constraints we will need to distinguish between
-  * pumps and turbines. The distinction is made by considering the set of
-  * feasible flow rates. Whenever
-  * \f[
-  *   [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-
-  * \f]
-  * for each arc and each time, the unit is considered a pump, and whenever
-  * \f[
-  *  [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+
-  * \f] the unit is considered a turbine. Any possible mixed situation can be
-  * accounted for by artificially splitting the unit into “two units”, which
-  * should be done at the data processing stage (see deserialize() comments).
-  * With above description the mathematical constraint of hydro unit may
-  * present as below:
+  * - Power and reserves (MaxPowerPrimarySecondary_Const and
+  *   MinPowerPrimarySecondary_Const, both boost::multi_array<
+  *   FRowConstraint , 2 > indexed [ t ][ l ], groups
+  *   "MaxPowerPrimarySecondary_HydroUnit" and
+  *   "MinPowerPrimarySecondary_HydroUnit"): if the unit has some reserve
+  *   Variable, for \f$ t \in \mathcal{T} \f$ and \f$ l \in \mathcal{L}^{hy}
+  *   \f$
+  *   \f[
+  *     p^{ac}_{t,l} + p^{pr}_{t,l} + p^{sc}_{t,l} \leq P^{mx}_{t,l} \; ,
+  *     \tag{1}
+  *   \f]
+  *   \f[
+  *     p^{ac}_{t,l} - p^{pr}_{t,l} - p^{sc}_{t,l} \geq P^{mn}_{t,l} \; ,
+  *     \tag{2}
+  *   \f]
+  *   i.e., the reserves are symmetric: the plant must be able to move its
+  *   power by their amount both upward and downward. If the unit has no
+  *   reserve Variable, (1) and (2) are replaced by the bounds
+  *   \f[
+  *     P^{mn}_{t,l} \leq p^{ac}_{t,l} \leq P^{mx}_{t,l}
+  *     \qquad t \in \mathcal{T} , \; l \in \mathcal{L}^{hy}
+  *     \tag{14}
+  *   \f]
+  *   (ActivePower_Bound_Const, boost::multi_array< BoxConstraint , 2 >
+  *   indexed [ t ][ l ], group "ActivePower_HydroUnit"). Besides, the sign
+  *   of \f$ p^{ac}_{t,l} \f$ is fixed by the Variable itself, nonnegative if
+  *   \f$ P^{mn}_{t,l} \geq 0 \f$ and nonpositive if \f$ P^{mx}_{t,l} \leq 0
+  *   \f$, and so is that of \f$ f_{t,l} \f$, nonnegative if
+  *   \f$ F^{mn}_{t,l} \geq 0 \f$ and nonpositive if
+  *   \f$ F^{mx}_{t,l} \leq 0 \f$, while \f$ p^{pr}_{t,l} \f$ and
+  *   \f$ p^{sc}_{t,l} \f$ are nonnegative.
   *
-  * - maximum and minimum power output constraints according to primary and
-  *   secondary spinning reserves are presented in (1)-(2). Each of them
-  *   is a boost::multi_array< FRowConstraint , 2 >; with two dimensions which
-  *   are f_time_horizon, and f_NumberArcs entries, where the entry
-  *   t = 0, ...,f_time_horizon - 1 and the entry l = 0, ...,f_NumberArcs - 1
-  *   being the maximum and minimum power output value according to the
-  *   primary and the secondary spinning reserves at time t and arc l. these
-  *   ensure the maximum (or minimum) amount of energy that unit can produce
-  *   (or use) when it is on (or off).
+  * - Reserves and power (ActivePowerPrimary_Const and
+  *   ActivePowerSecondary_Const, both boost::multi_array< FRowConstraint , 2
+  *   > indexed [ t ][ l ], groups "ActivePowerPrimary_HydroUnit" and
+  *   "ActivePowerSecondary_HydroUnit", each generated only if the
+  *   corresponding reserve Variable exist): if arc \f$ l \f$ is a turbine at
+  *   instant \f$ t \f$
   *   \f[
-  *     p^{ac}_{t,l} + p^{pr}_{t,l} + p^{sc}_{t,l} \leq P^{mx}_{t,l}
-  *                 \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad (1)
+  *     p^{pr}_{t,l} \leq \rho^{pr}_{t,l} \, p^{ac}_{t,l} \; , \tag{3}
   *   \f]
   *   \f[
-  *     P^{mn}_{t,l} \leq p^{ac}_{t,l} - p^{pr}_{t,l} - p^{sc}_{t,l}
-  *                 \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad (2)
+  *     p^{sc}_{t,l} \leq \rho^{sc}_{t,l} \, p^{ac}_{t,l} \; , \tag{4}
   *   \f]
+  *   if it is a pump
+  *   \f[
+  *     p^{pr}_{t,l} = 0 \; , \tag{5}
+  *   \f]
+  *   \f[
+  *     p^{sc}_{t,l} = 0 \; , \tag{6}
+  *   \f]
+  *   and if it is idle \f$ p^{pr}_{t,l} = f_{t,l} \f$ and
+  *   \f$ p^{sc}_{t,l} = f_{t,l} \f$, the flow being zero.
   *
-  * - primary and secondary spinning reserves relation with active power at
-  *   each time and for each turbine: the same as inequalities (1)-(2), the
-  *   inequalities (3)-(4) ensure that maximum amount of primary and secondary
-  *   spinning reserve in the problem. Each of them is a
-  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
-  *   f_time_horizon, and f_NumberArcs entries, where
-  *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
+  * - Flow to power (FlowActivePower_Const, a boost::multi_array<
+  *   std::vector< FRowConstraint > , 2 > indexed [ t ][ l ], group
+  *   "FlowActivePower_HydroUnit", whose entry holds one row for each piece
+  *   of arc \f$ l \f$ if it is a turbine at instant \f$ t \f$, and a single
+  *   row otherwise): if arc \f$ l \f$ is a turbine at instant \f$ t \f$
   *   \f[
-  *     p^{pr}_{t,l} \leq \rho^{pr}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
-  *       l \in \mathcal{L}^{hy} \quad with
-  *      \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+         \quad (3)
+  *     p^{ac}_{t,l} \leq \rho^{hy}_j f_{t,l} + P^{hy}_j
+  *     \qquad j \in \mathcal{J}_l \; , \tag{7}
   *   \f]
+  *   i.e., \f$ p^{ac}_{t,l} \leq \min_{ j \in \mathcal{J}_l } \{
+  *   \rho^{hy}_j f_{t,l} + P^{hy}_j \} \f$, the minimum of affine functions
+  *   being a concave piecewise-linear function of the flow. If the pieces
+  *   are the tangents \f$ P_j + \rho_j ( f - \bar f_j ) \f$ to a concave
+  *   curve at the flows \f$ \bar f_j \f$ (see deserialize()), the function is
+  *   the cutting-plane model of the curve, which it bounds from above; at an
+  *   optimum the power of a turbine is usually on the curve, since water
+  *   turbined without producing power is wasted, and (7) only allows it to
+  *   produce less. A single-piece turbine with \f$ \rho^{hy}_j \neq 0 \f$
+  *   and \f$ P^{hy}_j = 0 \f$ has the equality \f$ p^{ac}_{t,l} =
+  *   \rho^{hy}_j f_{t,l} \f$ in place of (7) (which lets a Solver substitute
+  *   the flow away) if a spillway can take the water that the turbine would
+  *   pass without producing, with the same effect on the reservoirs, i.e.,
+  *   if (i) some other arc \f$ k \f$ is a spillway (a single piece with
+  *   \f$ \rho^{hy} = 0 \f$) with \f$ s( k ) = s( l ) \f$,
+  *   \f$ e( k ) = e( l ) \f$, \f$ \tau^{up}_k = \tau^{up}_l \f$ and
+  *   \f$ \tau^{dn}_k = \tau^{dn}_l \f$ (any spillway if there are no
+  *   "StartArc" and "EndArc"), the first such arc being the spillway of
+  *   \f$ l \f$, (ii) \f$ F^{mn}_{t,l} \leq 0 \f$ at every instant (i.e.,
+  *   0 where it is a turbine) and neither
+  *   "DeltaRampUp" nor "DeltaRampDown" is provided, so that nothing else
+  *   than its power bounds the flow of the turbine, and (iii) at every
+  *   instant \f$ F^{mx}_{t,k} \f$ is at least the sum of the
+  *   \f$ F^{mx}_{t,l} \f$ of the turbines whose spillway is \f$ k \f$
+  *   (otherwise none of them has the equality). Even then the equality
+  *   restricts the feasible set, since the spillway carries its own flow as
+  *   well: a solution of (7) is excluded if at some instant the water that
+  *   the turbines and their spillway release exceeds the maximum flow of the
+  *   spillway plus the water that the turbines need for their power. If arc
+  *   \f$ l \f$ is a pump at instant \f$ t \f$
   *   \f[
-  *     p^{sc}_{t,l} \leq \rho^{sc}_{t,l}p^{ac}_{t,l} \quad t \in \mathcal{T},
-  *        l \in \mathcal{L}^{hy} \quad with
-  *        \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (4)
+  *     p^{ac}_{t,l} = \rho^{hy}_j f_{t,l} \; , \tag{8}
   *   \f]
-  *   where \f$ \rho^{pr}_{t,l} \f$ and \f$ \rho^{sc}_{t,l}\f$ are the maximum
-  *   possible fraction of active power at each time and each arc that can be
-  *   used as primary and secondary reserve respectively.
+  *   with \f$ j \f$ the only piece of the arc and \f$ P^{hy}_j \f$ ignored
+  *   (\f$ \rho^{hy}_j = 1 \f$ if "LinearTerm" is not provided), so that a
+  *   pump with \f$ \rho^{hy}_j > 0 \f$ consumes power,
+  *   \f$ p^{ac}_{t,l} \leq 0 \f$, in proportion to the water it lifts,
+  *   \f$ - f_{t,l} \geq 0 \f$; if the arc is idle,
+  *   \f$ p^{ac}_{t,l} = f_{t,l} \f$, both being zero.
   *
-  * - primary and secondary spinning reserves at each time and for each pump:
-  *   these equalities (5)-(6) ensure that the primary and secondary spinning
-  *   reserve value for each pump is equal to zero. Each of them is a
-  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
-  *   f_time_horizon, and f_NumberArcs entries, where
-  *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
+  * - Flow bounds (FlowRateBounds_Const, a boost::multi_array<
+  *   BoxConstraint , 2 > indexed [ t ][ l ], group
+  *   "FlowRateBounds_HydroUnit"):
   *   \f[
-  *     p^{pr}_{t,l} = 0 \quad t \in \mathcal{T},
-  *       l \in \mathcal{L}^{hy} \quad with
-  *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (5)
-  *   \f]
-  *   \f[
-  *     p^{sc}_{t,l} = 0 \quad t \in \mathcal{T},
-  *       l \in \mathcal{L}^{hy} \quad with
-  *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (6)
-  *   \f]
-  *
-  * - flow to active power function at each time and for each pump: this
-  *   equality (7) gives the active power relation with flow rate for each
-  *   pump at time t. This is a boost::multi_array< FRowConstraint , 2 >; with
-  *   two dimensions which are f_time_horizon, and f_NumberArcs entries, where
-  *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
-  *   \f[
-  *     p^{ac}_{t,l} = \rho^{hy}_{l}f_{t,l} \quad t \in \mathcal{T},
-  *       l \in \mathcal{L}^{hy} \quad with
-  *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_-       \quad (7)
-  *   \f]
-  *
-  * - flow-to-active-power function at each time and for each turbine ;
-  *   \f[
-  *     p^{ac}_{t,l} \leq P_j + \rho^{hy}_{j}f_{t,l} \quad j \in \mathcal{J}_l
-  *       \quad t \in \mathcal{T}, l \in \mathcal{L}^{hy} \quad with
-  *       \quad [ F^{mn}_{t,l} , F^{mx}_{t,l}] \subseteq R_+       \quad (8)
-  *   \f]
-  *
-  * - flow rate variable bounds: This inequality (9) indicates upper and lower
-  *   bound of flow rate at time t and for each arc l, thus that is a
-  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
-  *   f_time_horizon, and f_NumberArcs entries, where
-  *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
-  *   \f[
-  *     f_{t,l} \in [ F^{mn}_{t,l} , F^{mx}_{t,l}]  \quad t \in \mathcal{T},
-  *           l \in \mathcal{L}^{hy}                               \quad (9)
+  *     F^{mn}_{t,l} \leq f_{t,l} \leq F^{mx}_{t,l}
+  *     \qquad t \in \mathcal{T} , \; l \in \mathcal{L}^{hy} \; . \tag{9}
   *   \f]
   *
-  * - ramp-up and ramp-down constraints: These inequality (10)-(11) indicate
-  *   ramp-up and ramp-down constraints at time t and for each arc l, so each
-  *   of them is a boost::multi_array< FRowConstraint , 2 >; with two
-  *   dimensions which are f_time_horizon, and f_NumberArcs entries, where
-  *   t = 0, ...,f_time_horizon - 1 and l = 0, ...,f_NumberArcs - 1
+  * - Ramps (RampUp_Const and RampDown_Const, both boost::multi_array<
+  *   FRowConstraint , 2 > indexed [ t ][ l ], groups "RampUp_HydroUnit" and
+  *   "RampDown_HydroUnit", each generated only if "DeltaRampUp"
+  *   (respectively, "DeltaRampDown") is provided): for
+  *   \f$ t \in \mathcal{T} \f$ and \f$ l \in \mathcal{L}^{hy} \f$
   *   \f[
-  *     f_{t,l} - f_{t-1,l} \leq \Delta^{up}_{t,l} \quad t \in \mathcal{T},
-  *          l \in \mathcal{L}^{hy}                               \quad (10)
+  *     f_{t,l} - f_{t-1,l} \leq \Delta^+_{t,l} \; , \tag{10}
   *   \f]
   *   \f[
-  *      f_{t-1,l} - f_{t,l} \leq \Delta^{dn}_{t,l} \quad t \in \mathcal{T},
-  *          l \in \mathcal{L}^{hy}                               \quad (11)
+  *     f_{t-1,l} - f_{t,l} \leq \Delta^-_{t,l} \; , \tag{11}
   *   \f]
+  *   where \f$ f_{-1,l} = F^0_l \f$, i.e., the rows of instant 0 are the
+  *   bounds \f$ F^0_l - \Delta^-_{0,l} \leq f_{0,l} \leq F^0_l +
+  *   \Delta^+_{0,l} \f$, which a change of the initial flows moves (see
+  *   set_initial_flow_rate()). The ramps bound the flow of each arc, pumps
+  *   included.
   *
-  * - final volumes of each reservoir constraints: this equality (12) gives
-  *   the final volumes of each reservoir r at time t. This is a
-  *   boost::multi_array< FRowConstraint , 2 >; with two dimensions which are
-  *   f_NumberReservoirs, and f_time_horizon entries, where
-  *   n = 0, ...,f_NumberReservoirs - 1 and t = 0, ...,f_time_horizon - 1
+  * - Water balance (FinalVolumeReservoir_Const, a boost::multi_array<
+  *   FRowConstraint , 2 > indexed [ t ][ n ], group
+  *   "FinalVolumeReservoir_HydroUnit"): for \f$ t \in \mathcal{T} \f$ and
+  *   \f$ n \in \mathcal{N}^{hy} \f$
   *   \f[
-  *      v^{hy}_{n,t} = v^{hy}_{n,t-1} + A_{n,t} + (\sum_{l=(n',n) \in
-  *      \mathcal{L}^{hy} } f_{t - \tau^{dn}_l , l } - \sum_{l=(n,n') \in
-  *      \mathcal{L}^{hy} } f_{t - \tau^{up}_l , l }) \quad t \in \mathcal{T},
-  *      \quad n \in \mathcal{N}^{hy}                              \quad (12)
+  *     v^{hy}_{n,t} = v^{hy}_{n,t-1} + A_{n,t}
+  *       + \sum_{ l \in \mathcal{L}^{hy} \, : \, e( l ) = n , \;
+  *                t - \tau^{dn}_l \in \mathcal{T} } f_{t - \tau^{dn}_l , l}
+  *       - \sum_{ l \in \mathcal{L}^{hy} \, : \, s( l ) = n , \;
+  *                t - \tau^{up}_l \in \mathcal{T} } f_{t - \tau^{up}_l , l}
+  *     \; , \tag{12}
   *   \f]
-  *   where in each arc \f$ l=(n,n') \in \mathcal{L}^{hy} \f$, \f$ n \f$ and
-  *   \f$ n' \f$ are supposed to be the start and the end point of that
-  *   respectively.
+  *   where \f$ v^{hy}_{n,-1} = V^0_n \f$ if \f$ V^0_n \geq 0 \f$ and
+  *   \f$ v^{hy}_{n,-1} = v^{hy}_{n,T-1} \f$ (the cyclic closure) if
+  *   \f$ V^0_n < 0 \f$; the row is written with the Variable on the left
+  *   and \f$ A_{n,t} \f$, plus \f$ V^0_n \f$ if \f$ t = 0 \f$ and
+  *   \f$ V^0_n \geq 0 \f$, on the right. That is, the flow of arc \f$ l \f$
+  *   at instant \f$ s \f$ leaves \f$ s( l ) \f$ at instant
+  *   \f$ s + \tau^{up}_l \f$ and reaches \f$ e( l ) \f$ at instant
+  *   \f$ s + \tau^{dn}_l \f$, and every term counts the water of one instant;
+  *   a pump, whose flow is negative, thus takes water from \f$ e( l ) \f$
+  *   and gives it to \f$ s( l ) \f$. Without "StartArc" and "EndArc" there
+  *   is a single reservoir, which every arc leaves with no delay:
+  *   \f$ v^{hy}_{0,t} = v^{hy}_{0,t-1} + A_{0,t} - \sum_{ l } f_{t,l} \f$.
   *
-  * - final volumes variable bounds: This inequality (13) indicates upper and
-  *   lower bound of volumetric variables of each reservoir for each time t,
-  *   thus that is a boost::multi_array< FRowConstraint , 2 >; with two
-  *   dimensions which are f_NumberReservoirs, and f_time_horizon entries,
-  *   where n = 0, ...,f_NumberReservoirs - 1 and t = 0, ...,
-  *   f_time_horizon - 1
+  *   The flows before instant 0 and after instant \f$ T - 1 \f$ are not
+  *   part of the model, and a term of (12) is present only if both the
+  *   instant of the flow and the instant at which the water leaves or
+  *   reaches the reservoir are in \f$ \mathcal{T} \f$. Hence, the water in
+  *   transit at the borders of the horizon is not accounted for: with
+  *   \f$ \tau^{dn}_l > 0 \f$ the water released before the horizon is not
+  *   delivered in its first \f$ \tau^{dn}_l \f$ instants, and the water
+  *   released in its last \f$ \tau^{dn}_l \f$ instants never reaches
+  *   \f$ e( l ) \f$, so that the final volume of \f$ e( l ) \f$ (hence the
+  *   future value of the water, see HydroSystemUnitBlock) does not count
+  *   it; with \f$ \tau^{up}_l > 0 \f$ the flows of the last
+  *   \f$ \tau^{up}_l \f$ instants are never withdrawn from \f$ s( l ) \f$,
+  *   and with \f$ \tau^{up}_l < 0 \f$ neither are those of the first
+  *   \f$ - \tau^{up}_l \f$ instants, the water having left the reservoir
+  *   before the horizon. The water of a valley is therefore conserved over
+  *   the horizon, whatever the flows, only if all its delays are zero.
+  *
+  *   Summing (12) over the instants gives the final volume
   *   \f[
-  *     v^{hy}_{n,t} \in [ V^{hy,mn}_{n,t} , V^{hy,mx}_{n,t}]  \quad
-  *        n \in \mathcal{N}^{hy}, t \in \mathcal{T}               \quad (13)
+  *     v^{hy}_{n,T-1} = V^0_n + \sum_{ t \in \mathcal{T} } \Bigl( A_{n,t}
+  *       + \sum_{ l : e( l ) = n , \, t - \tau^{dn}_l \in \mathcal{T} }
+  *         f_{t - \tau^{dn}_l , l}
+  *       - \sum_{ l : s( l ) = n , \, t - \tau^{up}_l \in \mathcal{T} }
+  *         f_{t - \tau^{up}_l , l} \Bigr)
   *   \f]
-  */
+  *   if \f$ V^0_n \geq 0 \f$, an affine function of the initial volumes, of
+  *   the flows and of the inflows, in which \f$ V^0_n \f$ appears only
+  *   through the right-hand side of the row of instant 0. This is what
+  *   allows a multistage model to use the volumes as its state: the initial
+  *   volumes of a stage are written in the right-hand sides of
+  *   FinalVolumeReservoir_Const[ 0 ] (see set_initial_volume()), and the
+  *   dual values of these rows give the cuts of the future cost of the
+  *   previous stage (see HydroSystemUnitBlock).
+  *
+  * - Volume bounds (VolumetricBounds_Const, a boost::multi_array<
+  *   BoxConstraint , 2 > indexed [ n ][ t ], group
+  *   "VolumetricBounds_HydroUnit"):
+  *   \f[
+  *     V^{mn}_{n,t} \leq v^{hy}_{n,t} \leq V^{mx}_{n,t}
+  *     \qquad n \in \mathcal{N}^{hy} , \; t \in \mathcal{T} \; , \tag{13}
+  *   \f]
+  *   besides \f$ v^{hy}_{n,t} \geq 0 \f$, which the Variable states.
+  *
+  * - Reference schedule (Reference_Schedule_Const, a std::vector<
+  *   FRowConstraint > of size \f$ 2 T \f$, group
+  *   "Norm1_H_Reference_Schedule", generated only if "ReferenceSchedule" is
+  *   provided): for \f$ t \in \mathcal{T} \f$, rows \f$ t \f$ and
+  *   \f$ T + t \f$ are
+  *   \f[
+  *     \sum_{ l \in \mathcal{L}^{hy} } p^{ac}_{t,l} - \delta^{rs}_t \leq
+  *     \hat p_t \; , \qquad
+  *     - \sum_{ l \in \mathcal{L}^{hy} } p^{ac}_{t,l} - \delta^{rs}_t \leq
+  *     - \hat p_t \; , \tag{15}
+  *   \f]
+  *   so that \f$ \delta^{rs}_t \geq | \sum_l p^{ac}_{t,l} - \hat p_t | \f$,
+  *   with \f$ \delta^{rs}_t \geq 0 \f$ the deviation Variable of instant
+  *   \f$ t \f$ (see generate_objective()).
+  *
+  * - Reactive power (ReactivePower_Bound_Const, a boost::multi_array<
+  *   BoxConstraint , 2 > indexed [ l ][ t ], group "ReactivePowerBound",
+  *   generated only if the reactive power Variable exist and some bound on
+  *   them is provided): the bounds "MinReactivePower" and
+  *   "MaxReactivePower" on the reactive power of each arc.
+  *
+  * The inertia that the arcs give, \f$ h^p_{t,l} p^{ac}_{t,l} \f$, is a term
+  * of the inertia constraints of the UCBlock, not a constraint of this
+  * Block. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the HydroUnitBlock
- /** Method that generates the objective of the HydroUnitBlock.
-  *
-  * - Objective function: the objective function of the HydroUnitBlock
-  *   representing the total power production cost to be minimized has the
-  *   form:
-  *   \f[
-  *     \min ( \sum_{ t \in  [t_0 , \mathcal{T}], l \in \mathcal{L}^{hy} }
-  *     C^{ac}_l p^{ac}_{t,l}
-  *   \f]
-  *   where \f$ C^{ac}_l \f$ is the active power cost for arc l defined as
-  *   ActivePowerCost. */
+ /** Method that generates the objective of the HydroUnitBlock, a
+  * FRealObjective with a LinearFunction to be minimized:
+  * \f[
+  *   \min \; \sum_{ t \in \mathcal{T} } \Bigl( \sum_{ l \in
+  *     \mathcal{L}^{hy} } b_l \, p^{ac}_{t,l} + \delta^{rs}_t \Bigr) \; ,
+  * \f]
+  * where \f$ b_l \f$ is "ActivePowerCost" (the term is absent if it is not
+  * provided) and the deviation \f$ \delta^{rs}_t \geq 0 \f$ from the reference
+  * schedule \f$ \hat p_t \f$, bounded by (15) of
+  * generate_abstract_constraints(), is present only if "ReferenceSchedule"
+  * is provided. The value of the energy, of the reserves and of the inertia
+  * that the valley gives is not part of this objective: it comes from the
+  * linking constraints of the UCBlock, whose dual values are the prices that
+  * a Lagrangian relaxation of those constraints puts on \f$ p^{ac} \f$,
+  * \f$ p^{pr} \f$ and \f$ p^{sc} \f$ (see \ref ucbm_dual), and the value of
+  * the water left at the end of the horizon is the polyhedral function of
+  * the enclosing HydroSystemUnitBlock. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -793,7 +750,7 @@ class HydroUnitBlock : public UnitBlock
   * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * or f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
   * - If \p fsbc is not a nullptr and it is a pointer to a
@@ -806,7 +763,7 @@ class HydroUnitBlock : public UnitBlock
   *   fsbc->f_value.second (any nonzero number for relative violation and
   *   zero for absolute violation);
   *
-  * - Otherwise, if both #f_BlockConfig and
+  * - Otherwise, if both f_BlockConfig and
   *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *   latter is a pointer to either a SimpleConfiguration< double > or to a
   *   SimpleConfiguration< std::pair< double , int > >, then the values of the
@@ -815,16 +772,16 @@ class HydroUnitBlock : public UnitBlock
   * - Otherwise, by default, the tolerance is 0 and the relative violation
   *   is considered.
   *
-  * This function currently considers only the abstract representation to
+  * This function considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, then this
+  * ignored. If no abstract Variable has been generated, then this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
   * set of Variable only. Notice also that, before checking if the solution
   * satisfies a Constraint, the Constraint is computed (with
   * Constraint::compute()).
   *
-  * @param useabstract This parameter is currently ignored.
+  * @param useabstract This parameter is ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
   *             and the type of violation that must be considered. */
@@ -856,16 +813,10 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of start arcs
- /** Method for returning the vector of starting point of each arc. This
-  * vector may have size of 1 (single hydro unit with just one arc between
-  * two reservoirs) or the size of number of reservoirs, then there are two
-  * possible cases:
-  *
-  * - if f_NumberReservoirs == 2, this vector has size of 1 which means there
-  *   is one arc at the system (single hydro case).
-  *
-  *  - otherwise, this vector has size f_NumberArcs and each element gives
-  *    the starting point of one arc in the network. */
+ /** Returns the vector of the start reservoirs \f$ s( l ) \f$ of the arcs
+  * ("StartArc"), which has size get_number_generators(), or is empty if
+  * "StartArc" is not provided, in which case there is a single reservoir,
+  * which every arc leaves. */
 
  const std::vector< Index > & get_start_arc( void ) const {
   return( v_StartArc );
@@ -873,16 +824,10 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of end arcs
- /** Method for returning the vector of ending point of each arc. This
-  * vector may have size of 1 (single hydro unit with just one arc between two
-  * reservoirs) or the size of number of reservoirs, then there are two
-  * possible cases:
-  *
-  * - if f_NumberReservoirs == 2, this vector has size of 1 which means there
-  *   is one arc at the system (single hydro case).
-  *
-  *  - otherwise, this vector has size f_NumberArcs and each element gives
-  *    the ending point of one arc in the network. */
+ /** Returns the vector of the end reservoirs \f$ e( l ) \f$ of the arcs
+  * ("EndArc"), get_number_reservoirs() meaning that the arc leaves the
+  * valley, which has size get_number_generators(), or is empty if "EndArc"
+  * is not provided, in which case every arc leaves the valley. */
 
  const std::vector< Index > & get_end_arc( void ) const {
   return( v_EndArc );
@@ -891,19 +836,11 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the inertia power values of the given generator
  /** The returned value U = get_inertia_power( generator ) contains the
-  * contribution to inertia (basically, the constants to be multiplied by the
-  * active power variables returned by get_active_power()) of the given arc
-  * (generator) at each time instant. There are three possible cases:
-  *
-  * - if the matrix is empty, then the inertia power is 0 and this function
-  *   returns a nullptr;
-  *
-  * - if the second dimension has size 1, then U[ 0 ] gives the inertia power
-  *   value of the given generator for all time instants;
-  *
-  * - otherwise, U[ t ] contains the contribution to inertia power of the
-  *   given generator at time instant t, for t = 0 , ... ,
-  *   get_time_horizon() - 1. */
+  * coefficients \f$ h^p_{t,l} \f$ of the active power of the given arc
+  * (generator) \f$ l \f$ in the inertia constraints of the UCBlock: U[ t ]
+  * is that of instant t, for t = 0 , ... , get_time_horizon() - 1. If
+  * "InertiaPower" is not provided, the unit gives no inertia and nullptr is
+  * returned. */
 
  const double * get_inertia_power( Index generator ) const override {
   if( v_InertiaPower.empty() )
@@ -918,8 +855,8 @@ class HydroUnitBlock : public UnitBlock
   * instant t. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
-  * - if the boost::multi_array<> M is empty() then no minimum volumetric are
-  *   defined, and there are no minimum volumetric constraints;
+  * - if the boost::multi_array<> M is empty() then the minimum volumes are
+  *   0;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_number_reservoirs() row where each row must have size of
@@ -937,8 +874,8 @@ class HydroUnitBlock : public UnitBlock
   * instant t. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
-  * - if the boost::multi_array<> M is empty() then no maximum volumetric are
-  *   defined, and there are no minimum volumetric constraints;
+  * - if the boost::multi_array<> M is empty() then the maximum volumes are
+  *   0, i.e., the reservoirs have no storage;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_number_reservoirs() row where each row must have size of
@@ -956,7 +893,7 @@ class HydroUnitBlock : public UnitBlock
   * instant t. This two-dimensional boost::multi_array<> M considers two
   * possible cases:
   *
-  * - if the boost::multi_array<> M is empty() then no inflows are defined;
+  * - if the boost::multi_array<> M is empty() then the inflows are 0;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
   *   get_number_reservoirs() row where each row must have size of
@@ -968,7 +905,7 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the minimum power of \p generator at time \t
+ /// returns the minimum power of \p generator at time \p t
 
  double get_min_power( Index t , Index generator = 0 ) const override {
   return( v_MinPower.empty() ? 0  :
@@ -976,7 +913,7 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the maximum power of \p generator at time \t
+ /// returns the maximum power of \p generator at time \p t
 
  double get_max_power( Index t , Index generator = 0 ) const override {
   return( v_MaxPower.empty() ? 0 :
@@ -1027,8 +964,8 @@ class HydroUnitBlock : public UnitBlock
   * - if the boost::multi_array<> M is empty() then no ramping constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_generators() columns and each element
-  *   of M[ t , i ] gives the delta ramp up value at time t and unit i. */
+  *   get_time_horizon() rows and get_number_generators() columns, and
+  *   M[ t , i ] gives the delta ramp up value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
@@ -1044,8 +981,8 @@ class HydroUnitBlock : public UnitBlock
   * - if the boost::multi_array<> M is empty() then no ramping constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_generators() columns and each element
-  *   of M[ t , i ] gives the delta ramp down value at time t and unit i. */
+  *   get_time_horizon() rows and get_number_generators() columns, and
+  *   M[ t , i ] gives the delta ramp down value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
@@ -1062,8 +999,8 @@ class HydroUnitBlock : public UnitBlock
   *   constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_generators() columns and each element
-  *   of M[ t , i ] gives the primary rho value at time t and unit i. */
+  *   get_time_horizon() rows and get_number_generators() columns, and
+  *   M[ t , i ] gives the primary rho value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_primary_rho( void ) const {
   return( v_PrimaryRho );
@@ -1080,8 +1017,8 @@ class HydroUnitBlock : public UnitBlock
   *   constraints;
   *
   * - otherwise the two-dimensional boost::multi_array<> M must have
-  *   get_time_horizon() rows and get_number_generators() columns and each element
-  *   of M[ t , i ] gives the secondary rho value at time t and unit i. */
+  *   get_time_horizon() rows and get_number_generators() columns, and
+  *   M[ t , i ] gives the secondary rho value at time t and unit i. */
 
  const boost::multi_array< double , 2 > & get_secondary_rho( void ) const {
   return( v_SecondaryRho );
@@ -1089,16 +1026,10 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of number pieces
- /** The returned vector contains the number of pieces for each unit (arc) i.
-  * There are three possible cases:
-  *
-  * - if the vector is empty, then the number of pieces of each unit is 0;
-  *
-  * - if the vector has only one element, then V[ 0 ] presents the number
-  *   of pieces for all units;
-  *
-  * - otherwise, the vector must have size get_number_generators() and each element
-  *   of V[ i ] represents the number of pieces of each unit i. */
+ /** The returned vector V contains the number of pieces of the
+  * flow-to-power function of each arc: either V is empty, and every arc has
+  * one piece, or V has size get_number_generators() and V[ l ] is the
+  * number of pieces of arc l. */
 
  const std::vector< Index > & get_number_pieces( void ) const {
   return( v_NumberPieces );
@@ -1106,18 +1037,9 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of constant term
- /** The returned vector contains the constant term value of each available
-  * pieces h in the set of {0, ..., TotalNumberPieces}(see NumberPieces
-  * deserialize() comments). There are three possible cases:
-  *
-  * - if the vector is empty, then the constant term value is 0;
-  *
-  * - if the vector has only one element, then V[ 0 ] presents the const term
-  *   value for all the pieces;
-  *
-  * - otherwise, the returned V is a std::vector < double > with V.size() ==
-  *   TotalNumberPieces and each element of V[ h ] represents the const term
-  *   value of each piece h. */
+ /** The returned vector V contains the constant terms \f$ P^{hy}_j \f$ of
+  * the pieces, numbered as described in deserialize(): either V is empty,
+  * and every constant term is 0, or V has one entry per piece. */
 
  const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
@@ -1125,18 +1047,10 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of linear term
- /** The returned vector contains the linear term value of each available
-  * pieces h in the set of {0, ..., TotalNumberPieces}(see NumberPieces
-  * deserialize() comments). There are three possible cases:
-  *
-  * - if the vector is empty, then the linear term value is 0;
-  *
-  * - if the vector has only one element, then V[ 0 ] presents the linear term
-  *   value for all the pieces;
-  *
-  * - otherwise, the returned V is a std::vector < double > and
-  *   V.size() == TotalNumberPieces and each element of V[ h ] represents the
-  *   linear term value of each piece h. */
+ /** The returned vector V contains the linear terms \f$ \rho^{hy}_j \f$ of
+  * the pieces, numbered as described in deserialize(): either V has one
+  * entry per piece, or V is empty, which is allowed only if no arc is ever
+  * a turbine, the power of a pump then being equal to its flow. */
 
  const std::vector< double > & get_linear_term( void ) const {
   return( v_LinearTerm );
@@ -1144,16 +1058,10 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of uphill delay
- /** The returned vector contains the uphill delay for each unit (arc) i.
-  * There are three possible cases:
-  *
-  * - if the vector is empty, then the uphill delay for each unit is 0;
-  *
-  * - if the vector has only one element, then V[ 0 ] presents the uphill
-  *   delay for all units;
-  *
-  * - otherwise, the vector must have size get_number_generators() and each element
-  *   of V[ i ] represents the uphill delay for each unit i. */
+ /** The returned vector V contains the uphill delays \f$ \tau^{up}_l \f$
+  * of the arcs (see deserialize()): either V is empty, and every delay is
+  * 0, or V has size get_number_generators() and V[ l ] is the delay of arc
+  * l. */
 
  const std::vector< int > & get_uphill_delay( void ) const {
   return( v_UphillDelay );
@@ -1171,16 +1079,10 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of downhill delay
- /** The returned vector contains the downhill delay for each unit (arc) i.
-  * There are three possible cases:
-  *
-  * - if the vector is empty, then the downhill delay for each unit is 0;
-  *
-  * - if the vector has only one element, then V[ 0 ] presents the downhill
-  *   delay for all units;
-  *
-  * - otherwise, the vector must have size get_number_generators() and each element
-  *   of V[ i ] represents the downhill delay for each unit i. */
+ /** The returned vector V contains the downhill delays \f$ \tau^{dn}_l \f$
+  * of the arcs (see deserialize()): either V is empty, and every delay is
+  * 0, or V has size get_number_generators() and V[ l ] is the delay of arc
+  * l. */
 
  const std::vector< Index > & get_downhill_delay( void ) const {
   return( v_DownhillDelay );
@@ -1203,8 +1105,9 @@ class HydroUnitBlock : public UnitBlock
   * @param reservoir The index of the reservoir whose initial volumetric is
   *                  desired.
   *
-  * @return The initial volumetric at the given \p reservoir. If no initial
-  *         volumetric is defined, then 0.0 is returned. */
+  * @return The initial volume \f$ V^0_n \f$ of the given \p reservoir,
+  *         negative under the cyclic closure (see deserialize()). If
+  *         "InitialVolumetric" is not provided, then 0.0 is returned. */
 
  double get_initial_volumetric( Index reservoir ) const {
   assert( reservoir < get_number_reservoirs() );
@@ -1220,7 +1123,8 @@ class HydroUnitBlock : public UnitBlock
   *
   * @param arc The index of the arc whose initial flow rate is desired.
   *
-  * @return The initial flow rate at the given \p arc. */
+  * @return The initial flow rate \f$ F^0_l \f$ of the given \p arc, 0.0
+  *         if "InitialFlowRate" is not provided. */
 
  double get_initial_flow_rate( Index arc ) const {
   assert( arc < get_number_generators() );
@@ -1307,6 +1211,20 @@ class HydroUnitBlock : public UnitBlock
     return( v_volumetric.data() + offset );
    }
   return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the storages of a hydro unit are its reservoirs
+
+ Index get_number_storages( void ) const override {
+  return( get_number_reservoirs() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the volumes of the given reservoir [see get_storage_level()]
+
+ ColVariable * get_storage_level( Index storage ) override {
+  return( get_volumetric( storage ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1454,17 +1372,6 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the array of primary spinning reserve of the given \p generator
- /** This method returns the array of ColVariable representing the primary
-  * spinning reserve of the given \p generator at all time instants t in {0,
-  * ..., time_horizon - 1}.
-  *
-  * @param generator The index of a generator (a number between 0 and
-  *                  get_number_generators() - 1).
-  *
-  * @return The array of ColVariable representing the primary spinning
-  *         reserve of the given \p generator. */
-
  /// the unit provides the reserve only if it has any to give
  /** The enclosing UCBlock asking for the reserve is not enough, the unit has
   * to have some to give: this is the very condition with which the Variable
@@ -1475,12 +1382,23 @@ class HydroUnitBlock : public UnitBlock
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the unit provides the secondary reserve only if it has any to give
 
  bool has_secondary_reserve( void ) const override {
   return( ( reserve_vars & 2u ) && ( ! v_SecondaryRho.empty() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the array of primary spinning reserve of the given \p generator
+ /** This method returns the array of ColVariable representing the primary
+  * spinning reserve of the given \p generator at all time instants t in {0,
+  * ..., time_horizon - 1}.
+  *
+  * @param generator The index of a generator (a number between 0 and
+  *                  get_number_generators() - 1).
+  *
+  * @return The array of ColVariable representing the primary spinning
+  *         reserve of the given \p generator. */
 
  ColVariable * get_primary_spinning_reserve( Index generator ) override {
   if( generator < get_number_generators() ) {
@@ -1622,6 +1540,8 @@ class HydroUnitBlock : public UnitBlock
 /** @name Handling the data of the HydroUnitBlock
  * @{ */
 
+ /// loading from a stream is not implemented: it throws
+
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error( "HydroUnitBlock::load() not implemented yet" ) );
   }
@@ -1633,7 +1553,12 @@ class HydroUnitBlock : public UnitBlock
  *  @{ */
 
  /// set the inflow values
- /** This function sets the inflow values of this HydroUnitBlock.
+ /** This function sets the inflow values \f$ A_{n,t} \f$ of this
+  * HydroUnitBlock, i.e., the right-hand sides of the water balances (12)
+  * [see generate_abstract_constraints()], \p values being in the order of
+  * the entries [ n ][ t ] (reservoir after reservoir). The right-hand side
+  * of instant 0 is \f$ V^0_n + A_{n,0} \f$, and \f$ A_{n,0} \f$ alone for a
+  * reservoir under the cyclic closure (\f$ V^0_n < 0 \f$).
   *
   * @param values  Iterator to a vector containing the inflow values.
   * @param subset  If non-empty, the inflow values corresponding to the
@@ -1651,7 +1576,12 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the inflow values
- /** This function sets the inflow values of this HydroUnitBlock.
+ /** This function sets the inflow values \f$ A_{n,t} \f$ of this
+  * HydroUnitBlock, i.e., the right-hand sides of the water balances (12)
+  * [see generate_abstract_constraints()], \p values being in the order of
+  * the entries [ n ][ t ] (reservoir after reservoir). The right-hand side
+  * of instant 0 is \f$ V^0_n + A_{n,0} \f$, and \f$ A_{n,0} \f$ alone for a
+  * reservoir under the cyclic closure (\f$ V^0_n < 0 \f$).
   *
   * @param values Iterator to a vector containing the inflow values.
   * @param rng    If non-empty, the inflow values corresponding to the
@@ -1668,7 +1598,14 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the inertia power values
- /** This function sets the inertia power values of this HydroUnitBlock.
+ /** This function sets the inertia power values \f$ h^p_{t,l} \f$ of this
+  * HydroUnitBlock, \p values being in the order of the entries [ l ][ t ]
+  * of "InertiaPower" (arc after arc). No Constraint of this Block uses
+  * them: the enclosing UCBlock, when it sees the HydroUnitBlockMod of type
+  * eSetInerP, changes the coefficients of the inertia constraints, which
+  * however cannot gain a term that they did not have when they were
+  * generated, i.e., setting an inertia power for a unit that had none then
+  * makes the UCBlock throw std::logic_error.
   *
   * @param values  Iterator to a vector containing the inertia power values.
   * @param subset  If non-empty, the inertia power values corresponding to the
@@ -1686,7 +1623,14 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the inertia power values
- /** This function sets the inertia power values of this HydroUnitBlock.
+ /** This function sets the inertia power values \f$ h^p_{t,l} \f$ of this
+  * HydroUnitBlock, \p values being in the order of the entries [ l ][ t ]
+  * of "InertiaPower" (arc after arc). No Constraint of this Block uses
+  * them: the enclosing UCBlock, when it sees the HydroUnitBlockMod of type
+  * eSetInerP, changes the coefficients of the inertia constraints, which
+  * however cannot gain a term that they did not have when they were
+  * generated, i.e., setting an inertia power for a unit that had none then
+  * makes the UCBlock throw std::logic_error.
   *
   * @param values Iterator to a vector containing the inertia power values.
   * @param rng    If non-empty, the inertia power values corresponding to the
@@ -1703,7 +1647,12 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the initial volume
- /** This function sets the initial volume of this HydroUnitBlock.
+ /** This function sets the initial volumes \f$ V^0_n \f$ of this
+  * HydroUnitBlock, i.e., the right-hand sides of the water balances (12) of
+  * instant 0 [see generate_abstract_constraints()]. A negative value means
+  * the cyclic closure, which shapes those rows when they are generated:
+  * once they are, a value whose sign differs from that of the current one
+  * makes the method throw std::invalid_argument.
   *
   * @param values  Iterator to a vector containing the initial volume values.
   * @param subset  If non-empty, the initial volume corresponding to the
@@ -1721,7 +1670,12 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the initial volume
- /** This function sets the initial volume of this HydroUnitBlock.
+ /** This function sets the initial volumes \f$ V^0_n \f$ of this
+  * HydroUnitBlock, i.e., the right-hand sides of the water balances (12) of
+  * instant 0 [see generate_abstract_constraints()]. A negative value means
+  * the cyclic closure, which shapes those rows when they are generated:
+  * once they are, a value whose sign differs from that of the current one
+  * makes the method throw std::invalid_argument.
   *
   * @param values Iterator to a vector containing the initial volume values.
   * @param rng    If non-empty, the initial volume corresponding to the
@@ -1738,7 +1692,11 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the initial flow rate
- /** This function sets the initial flow rate of this HydroUnitBlock.
+ /** This function sets the initial flows \f$ F^0_l \f$ of this
+  * HydroUnitBlock, i.e., the sides of the ramp rows (10) and (11) of
+  * instant 0 [see generate_abstract_constraints()], which change if they
+  * exist. If "InitialFlowRate" is absent, it is first given one entry per
+  * arc, all 0.
   *
   * @param values  Iterator to a vector containing the initial flow rate
   *                values.
@@ -1757,7 +1715,11 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the initial flow rate
- /** This function sets the initial flow rate of this HydroUnitBlock.
+ /** This function sets the initial flows \f$ F^0_l \f$ of this
+  * HydroUnitBlock, i.e., the sides of the ramp rows (10) and (11) of
+  * instant 0 [see generate_abstract_constraints()], which change if they
+  * exist. If "InitialFlowRate" is absent, it is first given one entry per
+  * arc, all 0.
   *
   * @param values Iterator to a vector containing the initial flow rate values.
   * @param rng    If non-empty, the initial flow rate corresponding to the
@@ -1775,6 +1737,9 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// set the active power cost values
  /** This function sets the active power cost values of this HydroUnitBlock.
+  * If the Objective is generated without "ActivePowerCost", and hence
+  * without terms in the active power, the terms of the arcs whose cost is
+  * set are added to it.
   *
   * @param values  Iterator to a vector containing the active power cost
   *                values.
@@ -1794,6 +1759,9 @@ class HydroUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// set the active power cost values
  /** This function sets the active power cost values of this HydroUnitBlock.
+  * If the Objective is generated without "ActivePowerCost", and hence
+  * without terms in the active power, the terms of the arcs whose cost is
+  * set are added to it.
   *
   * @param values Iterator to a vector containing the active power cost
   *               values.
@@ -1809,8 +1777,9 @@ class HydroUnitBlock : public UnitBlock
                              c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
- /// set the active power cost values
- /** This function sets the active power cost values of this HydroUnitBlock.
+ /// set the same active power cost for every arc
+ /** This function sets the active power cost \f$ b_l \f$ of every arc
+  * \f$ l \f$ of this HydroUnitBlock to \p value.
   *
   * @param value     The value of the active power cost.
   * @param issuePMod Controls how physical Modifications are issued.
@@ -1819,7 +1788,7 @@ class HydroUnitBlock : public UnitBlock
  void set_active_power_cost( double value ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck ) {
-  std::vector< double > vector = { value };
+  std::vector< double > vector( get_number_generators() , value );
   set_active_power_cost( vector.cbegin() ,
                          Range( 0 , Inf< Index >() ) ,
                          issuePMod , issueAMod );
@@ -1837,38 +1806,37 @@ class HydroUnitBlock : public UnitBlock
 
  /// verify whether the data in this HydroUnitBlock is consistent
  /** This function checks whether the data in this HydroUnitBlock is
-  * consistent. The data is consistent if all the following conditions are
-  * met.
+  * consistent, with the notation of deserialize(), and throws an exception
+  * if it is not. The data are consistent if all the following conditions
+  * are met.
   *
-  * - For each arc l and each time step t, the minimum active power is not
-  *   greater than the maximum active power:
-  *   \f$ v\_MinPower[t][l] \leq v\_MaxPower[t][l] \f$.
+  * - "StartArc" and "EndArc" are both provided or both not provided, and
+  *   they are provided if there is more than one reservoir; if they are,
+  *   \f$ s( l ) < R \f$, \f$ e( l ) \leq R \f$ and \f$ s( l ) \neq e( l ) \f$
+  *   for every arc \f$ l \f$.
   *
-  * - For each arc l and each time step t, the minimum flow is not greater
-  *   than the maximum flow:
-  *   \f$ v\_MinFlow[t][l] \leq v\_MaxFlow[t][l] \f$.
+  * - \f$ P^{mn}_{t,l} \leq P^{mx}_{t,l} \f$ and
+  *   \f$ F^{mn}_{t,l} \leq F^{mx}_{t,l} \f$ for every arc \f$ l \f$ and
+  *   instant \f$ t \f$, if both bounds are provided.
   *
-  * - For each pumping arc l (an arc with \f$ v\_MaxFlow[t][l] \leq 0 \f$
-  *   and \f$ v\_MinFlow[t][l] < 0 \f$ at some time step t), the number of
-  *   pieces is one and both reserve rates vanish, i.e.,
-  *   \f$ v\_NumberPieces[l] = 1 \f$,
-  *   \f$ v\_PrimaryRho[t][l] = 0 \f$ and
-  *   \f$ v\_SecondaryRho[t][l] = 0 \f$.
+  * - An arc \f$ l \f$ that is a pump at instant \f$ t \f$ (i.e.,
+  *   \f$ F^{mn}_{t,l} < 0 \f$ and \f$ F^{mx}_{t,l} \leq 0 \f$) has one
+  *   piece and \f$ \rho^{pr}_{t,l} = \rho^{sc}_{t,l} = 0 \f$.
   *
-  * - For each reservoir n and each time step t, the volumetric bounds are
-  *   nonnegative and ordered:
-  *   \f$ 0 \leq v\_MinVolumetric[n][t] \leq v\_MaxVolumetric[n][t] \f$.
+  * - No arc has \f$ F^{mn}_{t,l} < 0 < F^{mx}_{t,l} \f$ at some instant,
+  *   or is a turbine at some instant and a pump at another, and "LinearTerm"
+  *   is provided if some arc is a turbine at some instant.
   *
-  * - For each reservoir n operated under cyclic closure
-  *   ( \f$ \mathit{get\_initial\_volumetric}( n ) < 0 \f$ ) and for each
-  *   time step t, the outgoing-arc capacity is sufficient to absorb the
-  *   inflow:
-  *   \f$ \sum_{l: \mathit{StartArc}[l]=n} v\_MaxFlow[t][l]
-  *       \geq v\_inflows[n][t] \f$.
-  *   Oversizing MaxFlow on the spillage arc (LinearTerm == 0) by
-  *   \f$ \max_t v\_inflows[n][t] \f$ is the simplest way to satisfy this.
+  * - \f$ 0 \leq V^{mn}_{n,t} \leq V^{mx}_{n,t} \f$ for every reservoir
+  *   \f$ n \f$ and instant \f$ t \f$, if both bounds are provided.
   *
-  * If any of the above conditions are not met, an exception is thrown. */
+  * - For every reservoir \f$ n \f$ under the cyclic closure
+  *   (\f$ V^0_n < 0 \f$), the total inflow \f$ \sum_t A_{n,t} \f$ (0 without
+  *   "Inflows") lies between the smallest and the largest total net outflow
+  *   that the flow bounds allow, up to a tolerance of
+  *   \f$ 10^{-9} \max \{ 1 , | \sum_t A_{n,t} | \} \f$, as explained in
+  *   deserialize(); this is necessary for the balances of the reservoir to
+  *   have a solution. */
 
  void check_data_consistency( void ) const;
 
@@ -2017,9 +1985,11 @@ class HydroUnitBlock : public UnitBlock
  boost::multi_array< FRowConstraint , 2 > ActivePowerSecondary_Const;
 
  /// flow to active power function constraints
- boost::multi_array< FRowConstraint , 2 > FlowActivePower_Const;
+ /** FlowActivePower_Const[ t ][ l ] has a row for each piece of arc l if it
+  * is a turbine at time t, and a single row otherwise. */
+ boost::multi_array< std::vector< FRowConstraint > , 2 > FlowActivePower_Const;
 
- /// active power bounds
+ /// not generated, the bounds on the power being ActivePower_Bound_Const
  boost::multi_array< FRowConstraint , 2 > ActivePowerBounds_Const;
 
  /// active power bounds when the unit produces no reserve
@@ -2034,7 +2004,7 @@ class HydroUnitBlock : public UnitBlock
  /// ramp-down constraints
  boost::multi_array< FRowConstraint , 2 > RampDown_Const;
 
- /// final volumes of each reservoir constraints
+ /// the water balance constraints (12), indexed [ t ][ n ]
  boost::multi_array< FRowConstraint , 2 > FinalVolumeReservoir_Const;
 
  /// flow rate bounds constraints
@@ -2071,7 +2041,9 @@ class HydroUnitBlock : public UnitBlock
   * \p arcs at time 0 (which are the ramp constraints that depend on the
   * initial flow rate).
   *
-  * @param arcs The indices of the arcs whose constraints must be updated */
+  * @param arcs The indices of the arcs whose constraints must be updated
+  *
+  * @param issueAMod Controls how abstract Modifications are issued. */
 
  void update_initial_flow_rate_in_cnstrs( Range arcs ,
                                           c_ModParam issueAMod = eNoBlck );
@@ -2084,7 +2056,9 @@ class HydroUnitBlock : public UnitBlock
   * initial flow rate).
   *
   * @param arcs The indices of the arcs whose associated constraints must
-  *             be updated */
+  *             be updated
+  *
+  * @param issueAMod Controls how abstract Modifications are issued. */
 
  void update_initial_flow_rate_in_cnstrs( const Block::Subset & arcs ,
                                           c_ModParam issueAMod = eNoBlck );

@@ -1,0 +1,52 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - NUBCfg-3bin-TR-TM.txt - - - - - - - - - - - - - -
+#
+# The BlockConfig of a NuclearUnitBlock that selects the 3bin formulation
+# with the tight operating rules and the tight modulation ramps (TightRules,
+# TightRamp) (static_variables = 96).
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+BlockConfig # exact type of the Configuration object
+
+1  # the BlockConfig is a "differential" one
+
+2  # version of the BlockConfig format
+
+# the Configuration for the structure, i.e., the tree of sub-Block
+*  # [none]
+
+# static_constraints
+*  # [none]
+
+# dynamic_constraints
+*  # [none]
+
+# static_variables: the formulation, 0 = 3bin, 1 = T, 2 = pt, 3 = DP,
+# 4 = SU, 5 = SD, 6 = SUSD, +8 with Perspective Cuts,
+# +32 TightRules, +64 TightRamp, +128 TightCuts
+SimpleConfiguration<int>
+96
+
+# dynamic_variables
+*  # [none]
+
+# objective
+*  # [none]
+
+# is_feasible
+*  # [none]
+
+# is_optimal
+*  # [none]
+
+# solution
+*  # [none]
+
+# extra
+*  # [none]
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - END NUBCfg-3bin-TR-TM.txt - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

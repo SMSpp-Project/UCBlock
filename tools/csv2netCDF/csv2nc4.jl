@@ -165,7 +165,7 @@ function csvEC2nc4(
     # produce a TSSB nc4 with the inner UCBlock as a child Block of the
     # StochasticBlock group.
     if deterministic
-        ds = NCDataset(string("../../data/nc4/EC_Data/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        ds = NCDataset(string("../../data/nc4/EC_Data/ucblock/EC", middle, "Test", last, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         block = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "UCBlock"))
         tssb = nothing
         sb = nothing
@@ -204,7 +204,7 @@ function csvEC2nc4(
         # distinct suffix so a shared-tree instance never overwrites the baked
         # one and the two can be compared side by side
         last_out = shared_tree ? string(last_out, "_tree") : last_out
-        ds = NCDataset(string("../../data/nc4/EC_Data/", prefix, middle, "Test", last_out, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
+        ds = NCDataset(string("../../data/nc4/EC_Data/", multistage ? "mssb/" : "tssb/", prefix, middle, "Test", last_out, ".nc4"), "c", attrib=OrderedDict("SMS++_file_type" => 1))
         if multistage
             mssb = defGroup(ds, "Block_0", attrib=OrderedDict("id" => "0", "type" => "MultiStageStochasticBlock"))
             defDim(mssb, "NumberSubBlocks", length(scenario_groups))

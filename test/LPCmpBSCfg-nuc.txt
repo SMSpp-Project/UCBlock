@@ -1,0 +1,35 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - LPCmpBSCfg-nuc.txt - - - - - - - - - - - - - - -
+#
+# BlockSolverConfig of a NuclearUnitBlock in the test of the power limits
+# (test_power_limits.cpp): the :MILPSolver first, which writes the model it
+# solves [see LPCmpMILPCfg.txt], then the dynamic programming Solver of the
+# nuclear unit, whose value is compared with that of the :MILPSolver
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+BlockSolverConfig     # exact type of the Configuration object
+
+1  # the BlockSolverConfig is a "differential" one
+
+2  # number of (the names of) Solver in this BlockSolverConfig
+
+# now all the names of the Solver - - - - - - - - - - - - - - - - - - - - - -
+#CPXMILPSolver         # name of 1st Solver
+GRBMILPSolver          # name of 1st Solver
+NuclearUnitExtDPSolver # name of 2nd Solver
+
+1  # number of ComputeConfig in this BlockSolverConfig
+
+# now all the ComputeConfig
+# 1st ComputeConfig - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# ComputeConfig of the :MILPSolver (the other has none)
+
+*LPCmpMILPCfg.txt
+
+# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - END LPCmpBSCfg-nuc.txt - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

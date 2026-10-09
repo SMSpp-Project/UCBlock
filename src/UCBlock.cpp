@@ -40,7 +40,18 @@
 
 #include "Objective.h"
 
+#include <functional>
+#include <numeric>
+
 #include "UCBlock.h"
+
+#include "BatteryUnitBlock.h"
+
+#include "HydroUnitBlock.h"
+
+#include "IntermittentUnitBlock.h"
+
+#include "ThermalUnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -192,9 +203,16 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  if( ! deserialize_dim( group , "NumberNetworks" , f_number_networks ) )
   f_number_networks = f_time_horizon;
 
- if( ! ::deserialize( group , "NetworkConstantTerms" , f_number_networks ,
-                      v_network_constant_terms ) )
-  v_network_constant_terms.resize( f_number_networks );
+ // optional: the "ConstantTerm" of a "NetworkBlock_n" group, if any,
+ // prevails over NetworkConstantTerms[ n ]
+ ::deserialize( group , "NetworkConstantTerms" , f_number_networks ,
+                v_network_constant_terms );
+
+ // true if "NetworkBlock_n" is given with its own "ConstantTerm"
+ auto own_constant = [ & group ]( Index n ) {
+  const auto sg = group.getGroup( "NetworkBlock_" + std::to_string( n ) );
+  return( ( ! sg.isNull() ) && ( ! sg.getVar( "ConstantTerm" ).isNull() ) );
+  };
 
  if( ! ::deserialize( group , network_block_classname ,
                       "NetworkBlockClassname" ) )
@@ -241,55 +259,67 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "PrimaryZones" , number_nodes ,
                 v_primary_zones , true , true );
 
- if( ::deserialize( group , "PrimaryDemand" ,
-                    { f_number_primary_zones , f_time_horizon } ,
-                    v_primary_demand , true , false ) )
-  ::deserialize( group , "SecondaryZones" , number_nodes ,
-                 v_secondary_zones , true , true );
+ ::deserialize( group , "PrimaryDemand" ,
+                { f_number_primary_zones , f_time_horizon } ,
+                v_primary_demand , true , false );
 
- if( ::deserialize( group , "SecondaryDemand" ,
-                    { f_number_secondary_zones , f_time_horizon } ,
-                    v_secondary_demand , true , false ) )
-  ::deserialize( group , "InertiaZones" , number_nodes ,
-                 v_inertia_zones , true , true );
+ ::deserialize( group , "SecondaryZones" , number_nodes ,
+                v_secondary_zones , true , true );
 
- if( ::deserialize( group , "InertiaDemand" ,
-                    { f_number_inertia_zones , f_time_horizon } ,
-                    v_inertia_demand , true , false ) )
-  ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
-                 v_number_pollutant_zones , true , true );
+ ::deserialize( group , "SecondaryDemand" ,
+                { f_number_secondary_zones , f_time_horizon } ,
+                v_secondary_demand , true , false );
 
- if( ! deserialize_dim( group , "TotalNumberPollutantZones" ,
-                        f_total_number_pollutant_zones ) ) {
-  f_total_number_pollutant_zones = 0;
-  for( const auto & n : v_number_pollutant_zones )
-   f_total_number_pollutant_zones += n;
+ ::deserialize( group , "InertiaZones" , number_nodes ,
+                v_inertia_zones , true , true );
+
+ ::deserialize( group , "InertiaDemand" ,
+                { f_number_inertia_zones , f_time_horizon } ,
+                v_inertia_demand , true , false );
+
+ // without the vector all the nodes are in the only zone, which cannot be
+ // if there are more
+ if( ( ( f_number_primary_zones > 1 ) && v_primary_zones.empty() ) ||
+     ( ( f_number_secondary_zones > 1 ) && v_secondary_zones.empty() ) ||
+     ( ( f_number_inertia_zones > 1 ) && v_inertia_zones.empty() ) )
+  throw( std::invalid_argument( "UCBlock::deserialize: PrimaryZones, "
+                                "SecondaryZones and InertiaZones are "
+                                "mandatory if there is more than one zone "
+                                "of that kind" ) );
+
+ // the pollutant zones; PollutantRho depends on the number of electrical
+ // generators, which is only known after the UnitBlock are loaded, hence it
+ // is read further down together with PollutantBudget
+ v_number_pollutant_zones.clear();
+ f_total_number_pollutant_zones = 0;
+ if( f_number_pollutants ) {
+  if( ! ::deserialize( group , "NumberPollutantZones" , f_number_pollutants ,
+                       v_number_pollutant_zones , true , false ) )
+   v_number_pollutant_zones.assign( f_number_pollutants , 1 );
+
+  f_total_number_pollutant_zones = std::accumulate(
+		             v_number_pollutant_zones.begin() ,
+		             v_number_pollutant_zones.end() , Index( 0 ) );
+
+  Index tnpz = 0;
+  if( deserialize_dim( group , "TotalNumberPollutantZones" , tnpz ) &&
+      ( tnpz != f_total_number_pollutant_zones ) )
+   throw( std::invalid_argument( "UCBlock::deserialize: "
+				 "TotalNumberPollutantZones is not the sum "
+				 "of NumberPollutantZones" ) );
+
+  if( ! ::deserialize( group , "PollutantZones" ,
+                       { f_number_pollutants , number_nodes } ,
+                       v_pollutant_zones , true , true ) )
+   if( std::any_of( v_number_pollutant_zones.begin() ,
+                    v_number_pollutant_zones.end() ,
+                    []( Index nz ) { return( nz > 1 ); } ) )
+    throw( std::invalid_argument( "UCBlock::deserialize: PollutantZones "
+				  "mandatory if some pollutant has more "
+				  "than one zone" ) );
   }
-
- if( ! f_total_number_pollutant_zones )
-  f_total_number_pollutant_zones = f_number_pollutants;
-
- if( f_total_number_pollutant_zones ) {
-  ::deserialize( group , "PollutantZones" ,
-                 { f_number_pollutants , get_number_nodes() } ,
-                 v_pollutant_zones , true , true );
-
-  /* TODO commented away until this is properly managed
-  ::deserialize( group , "PollutantBudget" , v_pollutant_budget , true ,
-                 false );
-  */
-
-  ::deserialize( group , "PollutantRho" ,
-                 { f_number_pollutants , f_number_elc_generators } ,
-                 v_pollutant_rho , true , true );
-  }
- else {
+ else
   v_pollutant_zones.resize( boost::extents[ 0 ][ 0 ] );
-	     //!! boost::multi_array< Index , 2 >::extent_gen()[ 0 ][ 0 ] );
-  v_pollutant_budget.resize( boost::extents[ 0 ][ 0 ] );
-  v_pollutant_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
-    //!!    boost::multi_array< double , 3 >::extent_gen()[ 0 ][ 0 ][ 0 ] );
-  }
 
  // reset all existing sub-Block, if any- - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -358,6 +388,15 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
       if( auto ad = v_network_blocks[ n ]->get_active_demand( i ) )
        v_active_power_demand[ 0 ][ t ] = ad[ 0 ];
       }
+
+     // its constant term, if any, goes in the Objective of the UCBlock
+     // [see generate_objective()]
+     if( own_constant( n ) ) {
+      v_network_constant_terms.resize( f_number_networks , 0 );
+      v_network_constant_terms[ n ] =
+                                   v_network_blocks[ n ]->get_const_term();
+      }
+
      delete v_network_blocks[ n ];
      }
 
@@ -414,9 +453,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    if( ! n )  // for the first one only, check if reactive power is there
     f_has_reactive = nbi->handles_reactive();
 
-   // set the constant term
-   nbi->set_constant_term( v_network_constant_terms[ n ] );
+   // the constant term: that of the group of the NetworkBlock, if any,
+   // otherwise NetworkConstantTerms[ n ], if given
+   if( ( ! v_network_constant_terms.empty() ) && ( ! own_constant( n ) ) )
+    nbi->set_constant_term( v_network_constant_terms[ n ] );
    }
+
+  // the constant terms are in the NetworkBlock, which serialize() writes
+  v_network_constant_terms.clear();
 
   // it must be that sum_intervals == f_time_horizon, i.e., the NetworkBlock
   // we receive in input / create span by the whole time horizon of the
@@ -499,19 +543,104 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  // recover the generator --> node mapping- - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ Index total_generators = 0;
+ for( Index i = 0 ; i < f_number_units ; ++i )
+  total_generators += UB( v_Block[ i ] )->get_number_generators();
+
  if( ! deserialize_dim( group , "NumberElectricalGenerators" ,
-                        f_number_elc_generators ) ) {
-  f_number_elc_generators = 0;
-  for( Index i = 0 ; i < f_number_units ; ++i )
-   f_number_elc_generators += UB( v_Block[ i ] )->get_number_generators();
-  }
+                        f_number_elc_generators ) )
+  f_number_elc_generators = total_generators;
+ else
+  // a number that the units do not have is refused: everything indexed over
+  // the generators, from GeneratorNode to the emission rates, would then be
+  // read over the wrong length, and the rows this Block builds over them are
+  // sized with it
+  if( f_number_elc_generators != total_generators )
+   throw( std::invalid_argument( "UCBlock::deserialize: "
+	  "NumberElectricalGenerators is " +
+	  std::to_string( f_number_elc_generators ) + " while the " +
+	  std::to_string( f_number_units ) + " units have " +
+	  std::to_string( total_generators ) + " generators" ) );
 
  ::deserialize( group , "GeneratorNode" , f_number_elc_generators ,
                 v_generator_node , true , true );
 
+ // read the pollutant budget and emission rates- - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ v_pollutant_budget.clear();
+ v_pollutant_min_budget.clear();
+ f_number_storages = 0;
+ if( f_number_pollutants ) {
+  ::deserialize( group , "PollutantBudget" , f_total_number_pollutant_zones ,
+                 v_pollutant_budget , false , false );
+
+  if( ! ::deserialize( group , "PollutantMinBudget" ,
+                       f_total_number_pollutant_zones ,
+                       v_pollutant_min_budget , true , false ) )
+   v_pollutant_min_budget.assign( f_total_number_pollutant_zones ,
+                                  -Inf< double >() );
+
+  // the size is checked here, since the first dimension may be a singleton
+  ::deserialize( group , "PollutantRho" , {} , v_pollutant_rho , false ,
+                 false );
+
+  auto shp = v_pollutant_rho.shape();
+  if( ( ( shp[ 0 ] != 1 ) && ( shp[ 0 ] != f_time_horizon ) ) ||
+      ( shp[ 1 ] != f_number_pollutants ) ||
+      ( shp[ 2 ] != f_number_elc_generators ) )
+   throw( std::invalid_argument( "UCBlock::deserialize: PollutantRho must "
+				 "have size [ 1 or TimeHorizon , "
+				 "NumberPollutants , "
+				 "NumberElectricalGenerators ]" ) );
+
+  // the storages of all the units, one after the other
+  for( Index i = 0 ; i < f_number_units ; ++i )
+   f_number_storages += UB( v_Block[ i ] )->get_number_storages();
+
+  Index nst = 0;
+  if( deserialize_dim( group , "NumberStorages" , nst ) &&
+      ( nst != f_number_storages ) )
+   throw( std::invalid_argument( "UCBlock::deserialize: NumberStorages is "
+				 "not the number of storages of the units"
+				 ) );
+
+  if( ::deserialize( group , "PollutantStorageRho" , {} ,
+                     v_pollutant_storage_rho , true , false ) ) {
+   auto shs = v_pollutant_storage_rho.shape();
+   if( ( ( shs[ 0 ] != 1 ) && ( shs[ 0 ] != f_time_horizon ) ) ||
+       ( shs[ 1 ] != f_number_pollutants ) ||
+       ( shs[ 2 ] != f_number_storages ) )
+    throw( std::invalid_argument( "UCBlock::deserialize: PollutantStorageRho "
+				  "must have size [ 1 or TimeHorizon , "
+				  "NumberPollutants , NumberStorages ]" ) );
+   }
+  else
+   v_pollutant_storage_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
+  }
+ else {
+  v_pollutant_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
+  v_pollutant_storage_rho.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
+  }
+
  // compute and store the min and max node injection into each NetworkBlock -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ set_node_injection_bounds();
+
+ // finally call the method of the base class - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // note that by calling this last we ensure that the NetworkData (if any) is
+ // properly initialised so that its expected stuff can be counted when it
+ // is checked there inside
+ Block::deserialize( group );
+
+ }  // end( UCBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_node_injection_bounds( void )
+{
  if( ! v_network_blocks.empty() ) {  // ... if any
   Index t = 0;
   for( Index n = 0 ; n < f_number_networks ; ++n ) {  // for all networks
@@ -519,16 +648,18 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
    for( Index i = 0 ; i < nbi->get_number_intervals() ; ++i , ++t ) {
     // for each interval covered by the network, compute min and max
     // active power output by all generators
-    std::vector< double > min_node_injection( number_nodes , 0 );
-    std::vector< double > max_node_injection( number_nodes , 0 );
+    std::vector< double > min_node_injection( nbi->get_number_nodes() ,
+                                             0 );
+    std::vector< double > max_node_injection( nbi->get_number_nodes() ,
+                                             0 );
 
     Index gen = 0;
     for( Index u = 0 ; u < f_number_units ; ++u ) {
      const auto ub = get_unit_block( u );
-     // multiplier for fleet-level node injection bound: scale × design_ub
-     // (binary design → 1; integer design ∈ {0,…,N} → N; continuous design
-     // ∈ [0,N] → N).
-     const auto mult = ub->get_scale() * ub->get_design_ub();
+     // multiplier for fleet-level node injection bound: scale times kappa
+     // times the upper bound of the design variable (1 if binary)
+     const auto mult = ub->get_scale() * ub->get_design_ub() *
+                       ub->get_kappa();
      for( Index g = 0 ; g < ub->get_number_generators() ; ++g ) {
       auto node = v_generator_node[ gen++ ];
       auto fixed_consumption = ub->get_fixed_consumption( g );
@@ -557,17 +688,30 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     for( Index i = 0 ; i < nbi->get_number_intervals() ; ++i , ++t ) {
      // for each interval covered by the network, compute min and max
      // reactive power output by all generators
-     std::vector< double > min_node_injection( number_nodes , 0 );
-     std::vector< double > max_node_injection( number_nodes , 0 );
+     std::vector< double > min_node_injection( nbi->get_number_nodes() ,
+                                             0 );
+     std::vector< double > max_node_injection( nbi->get_number_nodes() ,
+                                             0 );
 
      Index gen = 0;
      for( Index u = 0 ; u < f_number_units ; ++u ) {
       const auto ub = get_unit_block( u );
-      const auto mult = ub->get_scale() * ub->get_design_ub();
+      const auto mult = ub->get_scale() * ub->get_design_ub() *
+                       ub->get_kappa();
+      // the reactive power of a thermal unit lies in [ Q^mn , Q^mx ] when
+      // it is off, and the bounds move by Q^{mn,on}, Q^{mx,on} when it is
+      // on: the injection bounds cover both cases
+      const auto tub = dynamic_cast< const ThermalUnitBlock * >( ub );
       for( Index g = 0 ; g < ub->get_number_generators() ; ++g ) {
        auto node = v_generator_node[ gen++ ];
-       min_node_injection[ node ] += mult * ub->get_min_reactive_power( t , g );
-       max_node_injection[ node ] += mult * ub->get_max_reactive_power( t , g );
+       double q_mn = ub->get_min_reactive_power( t , g );
+       double q_mx = ub->get_max_reactive_power( t , g );
+       if( tub ) {
+        q_mn += std::min( 0.0 , tub->get_min_reactive_power_on( t , g ) );
+        q_mx += std::max( 0.0 , tub->get_max_reactive_power_on( t , g ) );
+        }
+       min_node_injection[ node ] += mult * q_mn;
+       max_node_injection[ node ] += mult * q_mx;
        }
       }
 
@@ -582,15 +726,7 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
     }  // end( for( n ) )
    }  // end( if( f_has_reactive ) )
   }  // end( if( ! v_network_blocks.empty() ) )
-
- // finally call the method of the base class - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // note that by calling this last we ensure that the NetworkData (if any) is
- // properly initialised so that its expected stuff can be counted when it
- // is checked there inside
- Block::deserialize( group );
-
- }  // end( UCBlock::deserialize )
+ }  // end( UCBlock::set_node_injection_bounds )
 
 /*--------------------------------------------------------------------------*/
 
@@ -602,6 +738,7 @@ std::vector< std::string > UCBlock::expected_dims( void ) const {
    "NumberSecondaryZones" , "NumberInertiaZones" , "NumberPollutants" ,
    "NumberNodes" , "NumberLines" , "NumberBranches" ,
    "NumberElectricalGenerators" , "TotalNumberPollutantZones" ,
+   "NumberStorages" ,
    "NumberIntervals" };
 
  auto ret = Block::expected_dims();
@@ -622,7 +759,8 @@ std::vector< std::string > UCBlock::expected_vars( void ) const {
    "PrimaryZones" , "PrimaryDemand" ,
    "SecondaryZones" , "SecondaryDemand" , "InertiaZones" , "InertiaDemand" ,
    "NumberPollutantZones" , "PollutantZones" , "PollutantBudget" ,
-   "PollutantRho" , "NetworkConstantTerms" , "NetworkBlockClassname" ,
+   "PollutantRho" , "PollutantMinBudget" , "PollutantStorageRho" ,
+   "NetworkConstantTerms" , "NetworkBlockClassname" ,
    "NetworkDataClassname"
    };
 
@@ -712,7 +850,7 @@ void UCBlock::generate_node_injection_constraints( void )
          const auto fixed_consumption = fc[ t ] * scale;
          // add the contribution of the corresponding commitment variables
          *( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
-         rhs -= fixed_consumption;    // update the RHS
+         rhs += fixed_consumption;    // update the RHS
         }
      }  // end( for( g ) )
     }  // end( for( i ) )
@@ -805,10 +943,11 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
    // initialise demand as active power
    auto rhs = v_reactive_power_demand[ 0 ][ t ];
 
-   // each generator surely contributes with active power, but it may also
-   // contribute with fixed consumption linked to commitment status, so
-   // the number of nonzeros can be at most twice the number of generators
-   LinearFunction::v_coeff_pair vc( 2 * f_number_elc_generators );
+   // the reactive power of each generator, and nothing else: the fixed
+   // consumption of a unit that is off is an ACTIVE power, and whether such
+   // a unit also absorbs reactive power is not settled [see the comment on
+   // these constraints in UCBlock.h]
+   LinearFunction::v_coeff_pair vc( f_number_elc_generators );
    auto vcit = vc.begin();
 
    for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
@@ -816,26 +955,9 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
     const auto scale = unit_block->get_scale();
 
     // for each electrical generator within the unit
-    for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
-     // surely add the contribution of the corresponding active power
+    for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g )
      *( vcit++ ) = std::pair( &unit_block->get_reactive_power( g )[ t ] ,
 			      scale );
-
-     // if the generator also has nonzero fixed consumption at t
-     // fixed consumption happens when the generator is off, and it
-     // therefore has the form fc[ t ] * ( 1 - u[ t ] ); thus, the
-     // RHS of the constraint also has to be increased by fc[ t ]. note
-     // that a unit with no commitment is always on, and therefore the
-     // fixed consumption is always 0
-     if( auto fc = unit_block->get_fixed_consumption( g ) )
-      if( fc[ t ] )
-       if( auto u = unit_block->get_commitment( g ) ) {
-	const auto fixed_consumption = fc[ t ] * scale;
-	// add the contribution of the corresponding commitment variables
-	*( vcit++ ) = std::pair( &u[ t ] , fixed_consumption );
-	rhs -= fixed_consumption;    // update the RHS
-        }
-     }  // end( for( g ) )
     }  // end( for( i ) )
 
    // set the final RHS of the constraint (equality constraint)
@@ -874,18 +996,11 @@ void UCBlock::generate_reactive_node_injection_constraints( void )
         if( node_id != v_generator_node[ elc_generator ] )
          continue;
 
+        // the reactive power alone [see the single-node case above]
         if( auto ap = unit_block->get_reactive_power( generator ) ) {
          auto reactive_power = &ap[ t ];
          lf->add_variable( reactive_power , scale , eNoMod );
          }
-
-        if( auto fc = unit_block->get_fixed_consumption( generator ) )
-         if( auto c = unit_block->get_commitment( generator ) ) {
-          auto fixed_consumption = fc[ t ] * scale;
-          auto commitment = &c[ t ];
-          lf->add_variable( commitment , fixed_consumption , eNoMod );
-          rhs += fixed_consumption;
-          }
         }
        }
 
@@ -911,16 +1026,6 @@ void UCBlock::generate_primary_demand_constraints( void )
 
  v_PrimaryDemand_Const.resize(
 		   MAFRC_ext()[ f_time_horizon ][ f_number_primary_zones ] );
-
- // We assume that, if a generator has primary spinning reserve for a time
- // instant, then it has primary spinning reserve for all time instants.
- primary_var_index.resize
-  ( boost::multi_array< Range , 2 >::
-    extent_gen()[ f_number_units ][ f_number_primary_zones ] );
-
- std::fill( primary_var_index.data() , primary_var_index.data() +
-                                       primary_var_index.num_elements() ,
-            std::pair{ Inf< Index >() , Inf< Index >() } );
 
  const auto number_nodes = get_number_nodes();
 
@@ -949,26 +1054,6 @@ void UCBlock::generate_primary_demand_constraints( void )
 
       if( auto primary_s_r =
        unit_block->get_primary_spinning_reserve( generator ) ) {
-
-       if( primary_var_index[ unit_id ][ zone_id ].first == Inf< Index >() ) {
-        // This is the first Variable of this unit to be added to the
-        // LinearFunction, so we store its index, which is given by the
-        // current number of active Variables of the LinearFunction (right
-        // before this Variable is added).
-
-        // Since all time steps have the same structure, this must be the
-        // first time step.
-        assert( t == 0 );
-
-        const auto num_active_var = lf->get_num_active_var();
-        primary_var_index[ unit_id ][ zone_id ].first = num_active_var;
-        primary_var_index[ unit_id ][ zone_id ].second = num_active_var;
-       }
-
-       if( t == 0 )
-        // Increment the upper bound of the range.
-        ++primary_var_index[ unit_id ][ zone_id ].second;
-
        // Now we add the primary reserve variable to the LinearFunction.
        auto primary_spinning_reserve = &primary_s_r[ t ];
        lf->add_variable( primary_spinning_reserve , scale );
@@ -1001,15 +1086,6 @@ void UCBlock::generate_secondary_demand_constraints( void )
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ f_time_horizon ][ f_number_secondary_zones ] );
 
- // We assume that, if a generator has secondary spinning reserve for a time
- // instant, then it has secondary spinning reserve for all time instants.
- secondary_var_index.resize
-  ( boost::multi_array< Range , 2 >::
-    extent_gen()[ f_number_units ][ f_number_secondary_zones ] );
-
- std::fill( secondary_var_index.data() , secondary_var_index.data() +
-                                         secondary_var_index.num_elements() ,
-            std::pair{ Inf< Index >() , Inf< Index >() } );
 
  const auto number_nodes = get_number_nodes();
 
@@ -1038,26 +1114,6 @@ void UCBlock::generate_secondary_demand_constraints( void )
 
       if( auto secondary_s_r =
        unit_block->get_secondary_spinning_reserve( generator ) ) {
-
-       if( secondary_var_index[ unit_id ][ zone_id ].first == Inf< Index >() ) {
-        // This is the first Variable of this unit to be added to the
-        // LinearFunction, so we store its index, which is given by the
-        // current number of active Variables of the LinearFunction (right
-        // before this Variable is added)
-
-        // Since all time steps have the same structure, this must be the
-        // first time step.
-        assert( t == 0 );
-
-        const auto num_active_var = lf->get_num_active_var();
-        secondary_var_index[ unit_id ][ zone_id ].first = num_active_var;
-        secondary_var_index[ unit_id ][ zone_id ].second = num_active_var;
-       }
-
-       if( t == 0 )
-        // Increment the upper bound of the range.
-        ++secondary_var_index[ unit_id ][ zone_id ].second;
-
        // Now we add the secondary reserve variable to the LinearFunction.
        auto secondary_spinning_reserve = &secondary_s_r[ t ];
        lf->add_variable( secondary_spinning_reserve , scale );
@@ -1090,16 +1146,6 @@ void UCBlock::generate_inertia_demand_constraints( void )
   boost::multi_array< FRowConstraint , 2 >::extent_gen()
   [ f_time_horizon ][ f_number_inertia_zones ] );
 
- // We assume that, if a generator has commitment variable, inertia
- // commitment, inertia power, or active power variable for some time instant,
- // then it has the same thing for all time instants.
- inertia_var_index.resize
-  ( boost::multi_array< Index , 2 >::
-    extent_gen()[ f_number_units ][ f_number_inertia_zones ] );
-
- std::fill( inertia_var_index.data() ,
-            inertia_var_index.data() + inertia_var_index.num_elements() ,
-            Inf< Index >() );
 
  const auto number_nodes = get_number_nodes();
 
@@ -1131,21 +1177,6 @@ void UCBlock::generate_inertia_demand_constraints( void )
 
       if( commitment && inertia_commitment ) {
 
-       // The term with the commitment variable will be added to the function.
-
-       if( inertia_var_index[ unit_id ][ zone_id ] == Inf< Index >() ) {
-        // This is the first Variable of this unit to be added to the
-        // LinearFunction, so we store its index, which is given by the
-        // current number of active Variables of the LinearFunction (right
-        // before this Variable is added).
-
-        // Since all time steps have the same structure, this must be the
-        // first time step.
-        assert( t == 0 );
-
-        const auto num_active_var = lf->get_num_active_var();
-        inertia_var_index[ unit_id ][ zone_id ] = num_active_var;
-       }
 
        auto commitment_t = &commitment[ t ];
        auto coefficient = scale * inertia_commitment[ t ];
@@ -1156,21 +1187,6 @@ void UCBlock::generate_inertia_demand_constraints( void )
       auto inertia_power = unit_block->get_inertia_power( generator );
 
       if( active_power && inertia_power ) {
-       // The term with the active power will be added to the function.
-
-       if( inertia_var_index[ unit_id ][ zone_id ] == Inf< Index >() ) {
-        // This is the first Variable of this unit to be added to the
-        // LinearFunction, so we store its index, which is given by the
-        // current number of active Variables of the LinearFunction (right
-        // before this Variable is added).
-
-        // Since all time steps have the same structure, this must be the
-        // first time step.
-        assert( t == 0 );
-
-        const auto num_active_var = lf->get_num_active_var();
-        inertia_var_index[ unit_id ][ zone_id ] = num_active_var;
-       }
 
        auto active_power_t = &active_power[ t ];
        auto coefficient = scale * inertia_power[ t ];
@@ -1195,122 +1211,97 @@ void UCBlock::generate_inertia_demand_constraints( void )
 
 /*--------------------------------------------------------------------------*/
 
+template< class F >
+void UCBlock::for_each_pollutant_term( Index p , F && visit )
+{
+ const auto number_zones = v_number_pollutant_zones[ p ];
+
+ Index elc_generator = 0;
+ Index storage = 0;
+ for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
+
+  const auto unit_block = get_unit_block( unit_id );
+
+  // the storages of a unit are at the node of its first generator
+  const auto storage_zone = unit_block->get_number_generators() ?
+                            get_pollutant_zone( p , elc_generator ) :
+                            get_pollutant_zone_of_node( p , 0 );
+
+  for( Index generator = 0 ;
+       generator < unit_block->get_number_generators() ;
+       ++generator , ++elc_generator ) {
+
+   const auto zone_id = get_pollutant_zone( p , elc_generator );
+   if( zone_id >= number_zones )
+    continue;  // the generator belongs to no zone of pollutant p
+
+   auto active_power = unit_block->get_active_power( generator );
+   if( ! active_power )
+    continue;
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( const auto rho = get_pollutant_rho( t , p , elc_generator ) )
+     visit( unit_id , unit_block , zone_id , &active_power[ t ] , rho );
+   }
+
+  const auto number_storages = unit_block->get_number_storages();
+  if( ( ! v_pollutant_storage_rho.empty() ) &&
+      ( storage_zone < number_zones ) )
+   for( Index s = 0 ; s < number_storages ; ++s )
+    if( auto level = unit_block->get_storage_level( s ) )
+     for( Index t = 0 ; t < f_time_horizon ; ++t )
+      if( const auto sigma = get_pollutant_storage_rho( t , p ,
+							storage + s ) )
+       visit( unit_id , unit_block , storage_zone , &level[ t ] , sigma );
+
+  storage += number_storages;
+  }  // end( for( unit_id ) )
+
+ }  // end( UCBlock::for_each_pollutant_term )
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::generate_pollutant_budget_constraints( void )
 {
- // TODO These constraints must be fixed
+ if( f_number_pollutants == 0 )
+  return;
 
- const auto number_nodes = get_number_nodes();
+ // one constraint per zone of each pollutant: the pollutants may have a
+ // different number of zones, so a two-dimensional array would have
+ // useless rows
+ v_PollutantBudget_Const.resize( f_number_pollutants );
 
- if( f_number_pollutants > 0 ) {
+ Index first_zone = 0;  // index in the budgets of zone 0 of pollutant p
+ for( Index p = 0 ; p < f_number_pollutants ; ++p ) {
+  const auto number_zones = v_number_pollutant_zones[ p ];
+  v_PollutantBudget_Const[ p ].resize( number_zones );
 
-  v_PollutantBudget_Const.resize(
-   v_number_pollutant_zones[ f_total_number_pollutant_zones ] );
+  // the terms of the constraint of each zone of pollutant p: those of a
+  // unit are consecutive, which is what update_pollutant_budget_constraints()
+  // relies upon
+  std::vector< LinearFunction::v_coeff_pair > vcp( number_zones );
 
-  LinearFunction::v_coeff_pair vars;
+  for_each_pollutant_term( p , [ & ]( Index , UnitBlock * unit_block ,
+                                      Index zone_id , ColVariable * var ,
+                                      double factor ) {
+   vcp[ zone_id ].push_back( std::make_pair( var ,
+                                             unit_block->get_scale() *
+                                             factor ) );
+   } );
 
-  if( number_nodes == 1 ) {
-
-   for( Index pollutant = 0 ; pollutant < f_number_pollutants ; ++pollutant ) {
-
-    for( Index zone = 0 ; zone < v_number_pollutant_zones[ pollutant ] ;
-         ++zone ) {
-
-     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-      for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-       const auto unit_block = get_unit_block( unit_id );
-       const auto scale = unit_block->get_scale();
-
-       for( Index generator = 0 ;
-            generator < unit_block->get_number_generators() ; ++generator ) {
-
-        auto node_id = get_generator_node()[ generator ];
-        auto zone_id = get_pollutant_zone()[ pollutant ][ node_id ];
-
-        if( zone_id >= v_number_pollutant_zones[ pollutant ] )
-         continue;  // this unit does not belong to any zone
-
-        if( auto ap = unit_block->get_active_power( generator ) ) {
-         auto active_power = &ap[ t ];
-         auto rho = get_pollutant_rho()[ t ][ pollutant ][ generator ];
-         auto coefficient = scale * rho;
-         vars.push_back( std::make_pair( active_power , coefficient ) );
-        }
-       }
-      }
-
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs(
-       v_pollutant_budget[ v_number_pollutant_zones[ pollutant ] ][ pollutant ] );
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_function(
-       new LinearFunction( std::move( vars ) ) );
-     }
-    }
+  for( Index zone_id = 0 ; zone_id < number_zones ; ++zone_id ) {
+   const auto k = first_zone + zone_id;
+   auto & constraint = v_PollutantBudget_Const[ p ][ zone_id ];
+   constraint.set_lhs( v_pollutant_min_budget[ k ] );
+   constraint.set_rhs( v_pollutant_budget[ k ] );
+   constraint.set_function(
+                     new LinearFunction( std::move( vcp[ zone_id ] ) ) );
    }
-  } else {
 
-   for( Index pollutant = 0 ; pollutant < f_number_pollutants ; ++pollutant ) {
+  first_zone += number_zones;
+  }  // end( for( p ) )
 
-    for( Index zone = 0 ; zone < v_number_pollutant_zones[ pollutant ] ;
-         ++zone ) {
-
-     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-
-      Index pollutant_zone = 0;
-      for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-       if( zone == v_pollutant_zones[ pollutant ][ node_id ] ) {
-
-        Index generator_id = 0;
-        for( Index elc_generator = 0 ; elc_generator < f_number_elc_generators ;
-             ++elc_generator ) {
-
-         if( node_id == v_generator_node[ elc_generator ] ) {
-
-          auto block = get_nested_Blocks()[ generator_id ];
-          auto unit_block = dynamic_cast< UnitBlock * >(block);
-          if( ! unit_block )
-           continue;
-
-          const auto scale = unit_block->get_scale();
-
-          for( Index generator = 0 ;
-               generator < unit_block->get_number_generators() ; ++generator ) {
-
-           auto node_id = get_generator_node()[ generator ];
-           auto zone_id = get_pollutant_zone()[ pollutant ][ node_id ];
-
-           if( zone_id >= v_number_pollutant_zones[ pollutant ] )
-            continue;  // this unit does not belong to any zone
-
-           if( auto ap = unit_block->get_active_power( generator ) ) {
-            auto active_power = &ap[ t ];
-            auto rho = get_pollutant_rho()[ t ][ pollutant ][ generator ];
-            auto coefficient = scale * rho;
-            vars.push_back( std::make_pair( active_power , coefficient ) );
-           }
-          }
-         }
-         generator_id++;
-        }
-       }
-       pollutant_zone++;
-      }
-
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_rhs(
-       v_pollutant_budget[ v_number_pollutant_zones[ pollutant ] ][ pollutant ] );
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_lhs( -Inf< double >() );
-      v_PollutantBudget_Const[ pollutant ][ zone ].set_function(
-       new LinearFunction( std::move( vars ) ) );
-     }
-    }
-   }
-  }
-
-  add_static_constraint(
-   v_PollutantBudget_Const[ f_total_number_pollutant_zones ] );
- }
+ add_static_constraint( v_PollutantBudget_Const , "pollutant_budget_c" );
 
  }  // end( UCBlock::generate_pollutant_budget_constraints )
 
@@ -1324,7 +1315,12 @@ void UCBlock::generate_objective( Configuration * objc )
  for( auto block : v_Block )
   block->generate_objective();
 
- objective.set_function( new LinearFunction() );
+ // the Objective of the UCBlock is the sum of the constant terms of the
+ // NetworkBlock deleted in the bus case [see deserialize()], zero otherwise
+ objective.set_function( new LinearFunction( LinearFunction::v_coeff_pair() ,
+                         std::accumulate( v_network_constant_terms.begin() ,
+                                          v_network_constant_terms.end() ,
+                                          0.0 ) ) );
 
  // Set Block objective
  this->set_objective( &objective , eNoMod );
@@ -1364,9 +1360,16 @@ bool UCBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // if the given Configuration is not valid, try the one from the BlockConfig
   extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
+ // the sub-Block are checked with the same tolerance and type of violation,
+ // unless they have their own in their BlockConfig
+ SimpleConfiguration< std::pair< double , int > > subc(
+                                  std::pair< double , int >( tol , rel_viol ) );
  for( const auto & sbi : this->get_nested_Blocks() )
-  if( ! sbi->is_feasible() )
-    return( false );
+  if( ! sbi->is_feasible( useabstract ,
+                          ( sbi->get_BlockConfig() &&
+                            sbi->get_BlockConfig()->f_is_feasible_Configuration )
+                          ? nullptr : & subc ) )
+   return( false );
 
  return(
   // Constraints: notice that the ZOConstraints are not checked, since the
@@ -1375,7 +1378,7 @@ bool UCBlock::is_feasible( bool useabstract , Configuration * fsbc )
   && RowConstraint::is_feasible( v_PrimaryDemand_Const , tol , rel_viol )
   && RowConstraint::is_feasible( v_SecondaryDemand_Const , tol , rel_viol )
   && RowConstraint::is_feasible( v_InertiaDemand_Const , tol , rel_viol )
-  //&& RowConstraint::is_feasible( v_PollutantBudget_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( v_PollutantBudget_Const , tol , rel_viol )
 );
 
 }  // end( UClUnitBlock::is_feasible )
@@ -1420,6 +1423,9 @@ Solution * UCBlock::get_Solution( Configuration *solc , bool emptys )
  if( wsol & 64 )
   sol->v_inertia_duals.resize(
     mad2::extent_gen()[ get_time_horizon() ][ get_number_inertia_zones() ] );
+
+ if( wsol & 128 )
+  sol->v_pollutant_duals.resize( f_total_number_pollutant_zones );
 
  if( ! emptys )
   sol->read( this );
@@ -1490,21 +1496,35 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
  ::serialize( group , "InertiaDemand" , netCDF::NcDouble() ,
               { NumberInertiaZones , TimeHorizon } , v_inertia_demand );
 
- ::serialize( group , "NumberPollutantZones" , netCDF::NcUint() ,
-              NumberPollutants , v_number_pollutant_zones );
+ if( f_number_pollutants ) {
+  ::serialize( group , "NumberPollutantZones" , netCDF::NcUint() ,
+               NumberPollutants , v_number_pollutant_zones );
 
- ::serialize( group , "PollutantZones" , netCDF::NcUint() ,
-              { NumberPollutants , NumberNodes } , v_pollutant_zones );
+  ::serialize( group , "PollutantZones" , netCDF::NcUint() ,
+               { NumberPollutants , NumberNodes } , v_pollutant_zones );
 
- /* TODO commented away until this is properly managed
- ::serialize( group , "PollutantBudget" , netCDF::NcDouble() ,
-              { NumberPollutantZones , NumberPollutants } ,
-              v_pollutant_budget );
- */
+  ::serialize( group , "PollutantBudget" , netCDF::NcDouble() ,
+               TotalNumberPollutantZones , v_pollutant_budget );
 
- ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
-              { TimeHorizon , NumberPollutants ,
-		NumberElectricalGenerators } , v_pollutant_rho );
+  if( std::any_of( v_pollutant_min_budget.begin() ,
+                   v_pollutant_min_budget.end() ,
+                   []( double b ) { return( b > -Inf< double >() ); } ) )
+   ::serialize( group , "PollutantMinBudget" , netCDF::NcDouble() ,
+                TotalNumberPollutantZones , v_pollutant_min_budget );
+
+  // the first dimension is a singleton if the rates do not depend on time
+  ::serialize( group , "PollutantRho" , netCDF::NcDouble() ,
+               { TimeHorizon , NumberPollutants ,
+                 NumberElectricalGenerators } , v_pollutant_rho ,
+               false , true );
+
+  if( ! v_pollutant_storage_rho.empty() ) {
+   auto NumberStorages = group.addDim( "NumberStorages" , f_number_storages );
+   ::serialize( group , "PollutantStorageRho" , netCDF::NcDouble() ,
+                { TimeHorizon , NumberPollutants , NumberStorages } ,
+                v_pollutant_storage_rho , false , true );
+   }
+  }
 
  if( std::any_of( v_network_constant_terms.begin() ,
                   v_network_constant_terms.end() ,
@@ -1555,31 +1575,102 @@ int UCBlock::get_objective_sense( void ) const { return( Objective::eMin ); }
 void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 {
  std::vector< Index > modified_units;
+ std::vector< Index > inertia_units;
+ bool injection = false;
 
- // TODO Handle GroupModification in order to deal with multiple UnitBlockMod
- // at the same time.
+ /* A scaled UnitBlock has its Variable multiplied by the scale wherever this
+  * Block uses them [see UnitBlock::scale()], hence the rows that use them
+  * have to be rewritten. The scaling of several units can arrive inside one
+  * GroupModification, which is why the walk goes into the groups: looking
+  * only at the top level would leave the rows of those units untouched. */
 
- if( const auto tmod = dynamic_cast< UnitBlockMod * >( mod.get() ) ) {
-  if( tmod->type() == UnitBlockMod::eScale ) {
-   auto unit_id = inspection::get_block_index( tmod->get_Block() );
-   modified_units.push_back( unit_id );
-  }
- }
+ std::function< void( const Modification * ) > collect =
+  [ & ]( const Modification * m ) {
+   if( const auto grp = dynamic_cast< const GroupModification * >( m ) ) {
+    for( const auto & submod : grp->sub_Modifications() )
+     collect( submod.get() );
+    return;
+    }
+
+   if( const auto tmod = dynamic_cast< const UnitBlockMod * >( m ) ) {
+    /* A change of the inertia power of a HydroUnitBlock changes the
+     * coefficients of its active power in the inertia rows; the
+     * HydroUnitBlock may be a unit of this UCBlock or one of the
+     * HydroUnitBlock of a HydroSystemUnitBlock unit. */
+    const bool inertia =
+     ( tmod->type() == HydroUnitBlockMod::eSetInerP ) &&
+     dynamic_cast< const HydroUnitBlockMod * >( m );
+    // the bounds of the node injections depend on kappa and MaxPower too
+    if( ( dynamic_cast< const IntermittentUnitBlockMod * >( m ) &&
+          ( ( tmod->type() == IntermittentUnitBlockMod::eSetKappa ) ||
+            ( tmod->type() == IntermittentUnitBlockMod::eSetMaxP ) ) ) ||
+        ( dynamic_cast< const BatteryUnitBlockMod * >( m ) &&
+          ( tmod->type() == BatteryUnitBlockMod::eSetKappa ) ) ||
+        ( dynamic_cast< const ThermalUnitBlockMod * >( m ) &&
+          ( tmod->type() == ThermalUnitBlockMod::eSetMaxP ) ) )
+     injection = true;
+    if( ( tmod->type() == UnitBlockMod::eScale ) || inertia ) {
+     /* The index is looked up among the units of this UCBlock rather than
+      * among the sub-Block of the father of the unit: while a
+      * LagrangianDualSolver is attached, that father is the LagBFunction
+      * holding the unit alone, where the unit is always the 0-th. */
+     const auto units_end = v_Block.begin() + f_number_units;
+     auto it = std::find( v_Block.begin() , units_end , tmod->get_Block() );
+     if( inertia && ( it == units_end ) && tmod->get_Block() )
+      it = std::find( v_Block.begin() , units_end ,
+                      tmod->get_Block()->get_f_Block() );
+     if( it != units_end )
+      ( inertia ? inertia_units : modified_units ).push_back(
+                                      std::distance( v_Block.begin() , it ) );
+     }
+    }
+   };
+
+ collect( mod.get() );
+
+ // the bounds of the node injections given to the NetworkBlocks follow the
+ // scale, kappa and maximum power of the units [see
+ // set_node_injection_bounds()]
+ if( injection || ( ! modified_units.empty() ) )
+  set_node_injection_bounds();
 
  if( ! modified_units.empty() ) {
-  // Sort the IDs of the modified units
+  // Sort the IDs of the modified units, and name each of them once: a group
+  // can carry more than one scaling of the same unit
   std::sort( modified_units.begin() , modified_units.end() );
+  modified_units.erase( std::unique( modified_units.begin() ,
+                                     modified_units.end() ) ,
+                        modified_units.end() );
 
-  update_node_injection_constraints( modified_units );
-  update_primary_demand_constraints( modified_units );
-  update_secondary_demand_constraints( modified_units );
-  update_inertia_demand_constraints( modified_units );
+  /* Each of these rewrites one row per time instant, and per node where
+   * there are nodes: the whole reaction to the scaling travels in one
+   * channel, so that a Solver able to write a set of coefficients, or of
+   * sides, in one operation does that once instead of once per instant [see
+   * MILPSolver::process_group_modification()]. */
+  auto chnl = open_channel();
+  const auto upar = make_par( eNoBlck , chnl );
 
-  // TODO Implement the following methods when their constraints have been
-  // properly implemented.
+  update_node_injection_constraints( modified_units , upar );
+  update_node_injection_constraints( modified_units , upar , true );
+  update_primary_demand_constraints( modified_units , upar );
+  update_secondary_demand_constraints( modified_units , upar );
+  update_inertia_demand_constraints( modified_units , upar );
+  update_pollutant_budget_constraints( modified_units , upar );
 
-  // update_pollutant_budget_constraints( modified_units );
+  close_channel( chnl );
  }
+
+ if( ! inertia_units.empty() ) {
+  std::sort( inertia_units.begin() , inertia_units.end() );
+  inertia_units.erase( std::unique( inertia_units.begin() ,
+                                    inertia_units.end() ) ,
+                       inertia_units.end() );
+
+  auto ichnl = open_channel();
+  update_inertia_demand_constraints( inertia_units ,
+                                     make_par( eNoBlck , ichnl ) );
+  close_channel( ichnl );
+  }
 
  Block::add_Modification( mod , chnl );
 }
@@ -1587,10 +1678,22 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_node_injection_constraints(
- const std::vector< Index > & modified_units )
+ const std::vector< Index > & modified_units , ModParam issueMod ,
+ bool reactive )
 {
+ // the active and the reactive rows have the same structure, the power
+ // Variable of the units and the demand being the only difference
+ auto & node_injection_Const = reactive ? v_reactive_node_injection_Const
+                                        : v_node_injection_Const;
+ const auto & power_demand = reactive ? v_reactive_power_demand
+                                      : v_active_power_demand;
+ auto power = [ reactive ]( auto unit_block , Index g ) {
+  return( reactive ? unit_block->get_reactive_power( g )
+                   : unit_block->get_active_power( g ) );
+  };
+
  if( ( ! constraints_generated() ) ||
-     ( v_node_injection_Const.empty() ) || modified_units.empty() )
+     ( node_injection_Const.empty() ) || modified_units.empty() )
   return;
 
  // Lambda for determining if some unit has been modified
@@ -1618,7 +1721,7 @@ void UCBlock::update_node_injection_constraints(
   if( number_nodes == 1 ) {
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {  // for each time instant
 
-    auto & constraint = v_node_injection_Const[ t ][ 0 ];
+    auto & constraint = node_injection_Const[ t ][ 0 ];
 
     // This will store the coefficients that must be updated, i.e., those of
     // the active Variables that belong to the units that have been modified.
@@ -1634,7 +1737,7 @@ void UCBlock::update_node_injection_constraints(
     Index active_var_index = 0;
 
     // Initialise demand as active power
-    auto rhs = v_active_power_demand[ 0 ][ t ];
+    auto rhs = power_demand[ 0 ][ t ];
 
     for( Index i = 0 ; i < f_number_units ; ++i ) {  // for each unit
 
@@ -1658,7 +1761,9 @@ void UCBlock::update_node_injection_constraints(
       // increment due to the active power variable
       ++active_var_index;
 
-      if( auto fc = unit_block->get_fixed_consumption( g ) )
+      // the fixed consumption is an active power and is in the active rows
+      // alone [see generate_reactive_node_injection_constraints()]
+      if( auto fc = reactive ? nullptr : unit_block->get_fixed_consumption( g ) )
        if( fc[ t ] )
         if( unit_block->get_commitment( g ) ) {
          const auto fixed_consumption = fc[ t ] * scale;
@@ -1666,7 +1771,7 @@ void UCBlock::update_node_injection_constraints(
 
          if( modified ) {
           // update the coefficient of the commitment variable
-          coefficients.push_back( scale );
+          coefficients.push_back( fixed_consumption );
           subset.push_back( active_var_index );
 
           assert( active_var_index < constraint.get_num_active_var() );
@@ -1686,11 +1791,11 @@ void UCBlock::update_node_injection_constraints(
     // do not concern this UCBlock.
 
     // update the RHS of the constraint (equality constraint)
-    constraint.set_both( rhs , eNoBlck );
+    constraint.set_both( rhs , issueMod );
 
     // update the coefficients
     LF( constraint.get_function() )->modify_coefficients(
-	 std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
+	 std::move( coefficients ) , std::move( subset ) , true , issueMod );
 
     }  // end( for( t ) )
    }
@@ -1715,7 +1820,7 @@ void UCBlock::update_node_injection_constraints(
      // Index of the current active Variable
      Index active_var_index = 0;
 
-     auto & constraint = v_node_injection_Const[ t ][ node_id ];
+     auto & constraint = node_injection_Const[ t ][ node_id ];
 
      // increment due to the node injection variable
      ++active_var_index;
@@ -1736,7 +1841,7 @@ void UCBlock::update_node_injection_constraints(
        if( node_id != v_generator_node[ elc_generator ] )
         continue;
 
-       if( unit_block->get_active_power( generator ) ) {
+       if( power( unit_block , generator ) ) {
 
         if( modified ) {
          // update the coefficient of the active power variable
@@ -1752,7 +1857,8 @@ void UCBlock::update_node_injection_constraints(
         ++active_var_index;
        }
 
-       if( auto fc = unit_block->get_fixed_consumption( generator ) ) {
+       if( auto fc = reactive ? nullptr
+                              : unit_block->get_fixed_consumption( generator ) ) {
         if( unit_block->get_commitment( generator ) ) {
          auto fixed_consumption = fc[ t ] * scale;
 
@@ -1781,11 +1887,11 @@ void UCBlock::update_node_injection_constraints(
      // update do not concern this UCBlock.
 
      // update the RHS of the constraint (equality constraint)
-     constraint.set_both( rhs , eNoBlck );
+     constraint.set_both( rhs , issueMod );
 
      // update the coefficients
      LF( constraint.get_function() )->modify_coefficients(
-	  std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
+	  std::move( coefficients ) , std::move( subset ) , true , issueMod );
 
     }  // end( for( node_id ) )
    }  // end( for( t ) )
@@ -1797,256 +1903,181 @@ void UCBlock::update_node_injection_constraints(
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_primary_demand_constraints(
-                               const std::vector< Index > & modified_units )
+                               const std::vector< Index > & modified_units ,
+                               ModParam issueMod )
 {
  if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
      modified_units.empty() )
   return;  // there is nothing to be updated
 
- // Indices of the zones that are affected by the modified units.
- std::set< Index > affected_zones;
+ const auto number_nodes = get_number_nodes();
 
- // Number of modified generators in each zone.
- std::vector< Index > num_generators_per_zone( f_number_primary_zones , 0 );
+ /* The walk is the one of generate_primary_demand_constraints(), so that
+  * the active Variable of each row are met in the order they have been
+  * added: node by node, and within a node unit by unit. The Variable of a
+  * unit with generators at several nodes of a zone are therefore not
+  * consecutive, and the position of each one is counted along the walk. */
 
- // Collect the affected zones and count the number of affected generators in
- // each zone.
-
- Index elc_generator = 0;
- Index overall_unit_id = 0;
- for( const auto unit_id : modified_units ) {
-
-  // Skip the units that have not been modified.
-  while( overall_unit_id < unit_id ) {
-   elc_generator += get_unit_block( overall_unit_id )->get_number_generators();
-   ++overall_unit_id;
-  }
-
-  const auto unit_block = get_unit_block( unit_id );
-  const auto num_generators = unit_block->get_number_generators();
-
-  for( Index g = 0 ; g < num_generators ; ++g , ++elc_generator ) {
-   const auto zone = get_primary_zone( elc_generator );
-   affected_zones.insert( zone );
-   ++num_generators_per_zone[ zone ];
-  }
-
-  ++overall_unit_id;
- }
-
- // Now loop over all affected constraints
-
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  for( const auto zone_id : affected_zones ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  for( Index zone_id = 0 ; zone_id < f_number_primary_zones ; ++zone_id ) {
 
    auto & constraint = v_PrimaryDemand_Const[ t ][ zone_id ];
-
-   // This will store the coefficients that must be updated, i.e., those of
-   // the active Variables that belong to the units that have been modified.
    LinearFunction::Vec_FunctionValue coefficients;
-   coefficients.reserve( num_generators_per_zone[ zone_id ] );
-
-   // Subset that will store the indices of the active Variables whose
-   // coefficients have changed.
    Subset subset;
-   subset.reserve( num_generators_per_zone[ zone_id ] );
+   Index pos = 0;  // position of the next active Variable of the row
 
-   for( const auto unit_id : modified_units ) {
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-    if( primary_var_index[ unit_id ][ zone_id ].first == Inf< Index >() ) {
-     // This unit has no active Variable in the primary demand constraints
-     // associated with zone "zone_id".
+    if( ! node_belongs_to_primary_zone( node_id , zone_id ) )
      continue;
-    }
 
-    const auto unit_block = get_unit_block( unit_id );
-    const auto scale = unit_block->get_scale();
+    Index elc_generator = 0;
+    for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
-    // Indices of the active Variables of the current UnitBlock: the indices
-    // are consecutive and are given by the open-closed interval
-    // [ primary_var_index[ unit_id ][ zone_id ].first ,
-    //   primary_var_index[ unit_id ][ zone_id ].second ).
-    const auto num_variables = primary_var_index[ unit_id ][ zone_id ].second -
-                               primary_var_index[ unit_id ][ zone_id ].first;
-    std::vector< Index > var_indices( num_variables );
-    std::iota( var_indices.begin() , var_indices.end() ,
-               primary_var_index[ unit_id ][ zone_id ].first );
+     const auto unit_block = get_unit_block( unit_id );
+     const bool modified = std::binary_search( modified_units.begin() ,
+                                               modified_units.end() ,
+                                               unit_id );
 
-    for( const auto var_index : var_indices ) {
-     assert( var_index < constraint.get_num_active_var() );
-     assert( constraint.get_active_var( var_index )->get_Block()
-             == unit_block );
-    }
+     for( Index generator = 0 ;
+          generator < unit_block->get_number_generators() ;
+          ++generator , ++elc_generator ) {
 
-    subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
-    coefficients.insert( coefficients.end() , num_variables , scale );
+      if( ! generator_belongs_to_node( elc_generator , node_id ) )
+       continue;
 
-   }  // end( for( modified_units ) )
+      if( auto primary_s_r =
+           unit_block->get_primary_spinning_reserve( generator ) ) {
+       assert( ( pos < constraint.get_num_active_var() ) &&
+               ( constraint.get_active_var( pos ) == &primary_s_r[ t ] ) );
+       if( modified ) {
+        coefficients.push_back( unit_block->get_scale() );
+        subset.push_back( pos );
+        }
+       ++pos;
+       }
+      }  // end( for( generator ) )
+     }  // end( for( unit_id ) )
+    }  // end( for( node_id ) )
 
-   // Update the coefficients of the active variables
-   LF( constraint.get_function() )->modify_coefficients(
-	 std::move( coefficients ) , std::move( subset ) , false , eNoBlck );
+   if( ! subset.empty() )
+    LF( constraint.get_function() )->modify_coefficients(
+                std::move( coefficients ) , std::move( subset ) , true ,
+                issueMod );
 
    }  // end( for( zone_id ) )
-  }  // end( for( t ) )
  }  // end( UCBlock::update_primary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_secondary_demand_constraints(
-			        const std::vector< Index > & modified_units )
+                               const std::vector< Index > & modified_units ,
+                               ModParam issueMod )
 {
  if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
      modified_units.empty() )
   return;  // there is nothing to be updated
 
- // Indices of the zones that are affected by the modified units.
- std::set< Index > affected_zones;
+ const auto number_nodes = get_number_nodes();
 
- // Number of modified generators in each zone.
- std::vector< Index > num_generators_per_zone( f_number_secondary_zones , 0 );
+ /* The walk is the one of generate_secondary_demand_constraints(), so that
+  * the active Variable of each row are met in the order they have been
+  * added: node by node, and within a node unit by unit. The Variable of a
+  * unit with generators at several nodes of a zone are therefore not
+  * consecutive, and the position of each one is counted along the walk. */
 
- // Collect the affected zones and count the number of affected generators in
- // each zone.
-
- Index elc_generator = 0;
- Index overall_unit_id = 0;
- for( const auto unit_id : modified_units ) {
-
-  // Skip the units that have not been modified.
-  while( overall_unit_id < unit_id ) {
-   elc_generator += get_unit_block( overall_unit_id )->get_number_generators();
-   ++overall_unit_id;
-  }
-
-  const auto unit_block = get_unit_block( unit_id );
-  const auto num_generators = unit_block->get_number_generators();
-
-  for( Index g = 0 ; g < num_generators ; ++g , ++elc_generator ) {
-   const auto zone = get_secondary_zone( elc_generator );
-   affected_zones.insert( zone );
-   ++num_generators_per_zone[ zone ];
-  }
-
-  ++overall_unit_id;
- }
-
- // Now loop over all affected constraints
-
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  for( const auto zone_id : affected_zones ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  for( Index zone_id = 0 ; zone_id < f_number_secondary_zones ; ++zone_id ) {
 
    auto & constraint = v_SecondaryDemand_Const[ t ][ zone_id ];
-
-   // This will store the coefficients that must be updated, i.e., those of
-   // the active Variables that belong to the units that have been modified.
    LinearFunction::Vec_FunctionValue coefficients;
-   coefficients.reserve( num_generators_per_zone[ zone_id ] );
-
-   // Subset that will store the indices of the active Variables whose
-   // coefficients have changed.
    Subset subset;
-   subset.reserve( num_generators_per_zone[ zone_id ] );
+   Index pos = 0;  // position of the next active Variable of the row
 
-   for( const auto unit_id : modified_units ) {
+   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
-    if( secondary_var_index[ unit_id ][ zone_id ].first == Inf< Index >() ) {
-     // This unit has no active Variable in the secondary demand constraints
-     // associated with zone "zone_id".
+    if( ! node_belongs_to_secondary_zone( node_id , zone_id ) )
      continue;
-    }
 
-    const auto unit_block = get_unit_block( unit_id );
-    const auto scale = unit_block->get_scale();
+    Index elc_generator = 0;
+    for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
-    // Indices of the active Variables of the current UnitBlock: the indices
-    // are consecutive and are given by the open-closed interval
-    // [ secondary_var_index[ unit_id ][ zone_id ].first ,
-    //   secondary_var_index[ unit_id ][ zone_id ].second ).
-    const auto num_variables =
-     secondary_var_index[ unit_id ][ zone_id ].second -
-     secondary_var_index[ unit_id ][ zone_id ].first;
-    std::vector< Index > var_indices( num_variables );
-    std::iota( var_indices.begin() , var_indices.end() ,
-               secondary_var_index[ unit_id ][ zone_id ].first );
+     const auto unit_block = get_unit_block( unit_id );
+     const bool modified = std::binary_search( modified_units.begin() ,
+                                               modified_units.end() ,
+                                               unit_id );
 
-    for( const auto var_index : var_indices ) {
-     assert( var_index < constraint.get_num_active_var() );
-     assert( constraint.get_active_var( var_index )->get_Block()
-             == unit_block );
-    }
+     for( Index generator = 0 ;
+          generator < unit_block->get_number_generators() ;
+          ++generator , ++elc_generator ) {
 
-    subset.insert( subset.end() , var_indices.begin() , var_indices.end() );
-    coefficients.insert( coefficients.end() , num_variables , scale );
+      if( ! generator_belongs_to_node( elc_generator , node_id ) )
+       continue;
 
-   }  // end( for( modified_units ) )
+      if( auto secondary_s_r =
+           unit_block->get_secondary_spinning_reserve( generator ) ) {
+       assert( ( pos < constraint.get_num_active_var() ) &&
+               ( constraint.get_active_var( pos ) == &secondary_s_r[ t ] ) );
+       if( modified ) {
+        coefficients.push_back( unit_block->get_scale() );
+        subset.push_back( pos );
+        }
+       ++pos;
+       }
+      }  // end( for( generator ) )
+     }  // end( for( unit_id ) )
+    }  // end( for( node_id ) )
 
-   // Update the coefficients of the active variables
-   LF( constraint.get_function() )->modify_coefficients(
-	 std::move( coefficients ) , std::move( subset ) , false , eNoBlck );
+   if( ! subset.empty() )
+    LF( constraint.get_function() )->modify_coefficients(
+                std::move( coefficients ) , std::move( subset ) , true ,
+                issueMod );
 
    }  // end( for( zone_id ) )
-  }  // end( for( t ) )
  }  // end( UCBlock::update_secondary_demand_constraints )
 
 /*--------------------------------------------------------------------------*/
 
 void UCBlock::update_inertia_demand_constraints(
-			        const std::vector< Index > & modified_units )
+			        const std::vector< Index > & modified_units ,
+			        ModParam issueMod )
 {
  if( ( ! constraints_generated() ) || ( v_InertiaDemand_Const.empty() ) ||
      modified_units.empty() )
   return;  // there is nothing to be updated
 
- // Indices of the zones that are affected by the modified units.
- std::set< Index > affected_zones;
-
- // Number of modified generators in each zone.
- std::vector< Index > num_generators_per_zone( f_number_inertia_zones , 0 );
-
- // Collect the affected zones and count the number of affected generators in
- // each zone.
-
- Index elc_generator = 0;
- Index overall_unit_id = 0;
- for( const auto unit_id : modified_units ) {
-
-  // Skip the units that have not been modified.
-  while( overall_unit_id < unit_id ) {
-   elc_generator += get_unit_block( overall_unit_id )->get_number_generators();
-   ++overall_unit_id;
-  }
-
-  const auto unit_block = get_unit_block( unit_id );
-  const auto num_generators = unit_block->get_number_generators();
-
-  for( Index g = 0 ; g < num_generators ; ++g , ++elc_generator ) {
-   const auto zone = get_inertia_zone( elc_generator );
-   affected_zones.insert( zone );
-   ++num_generators_per_zone[ zone ];
-  }
-
-  ++overall_unit_id;
- }
-
  const auto number_nodes = get_number_nodes();
 
- // Now loop over all affected constraints
+ /* The walk is the one of generate_inertia_demand_constraints(), so that
+  * the active Variable of each row are met in the order they have been
+  * added: node by node, and within a node unit by unit. The Variable of a
+  * unit with generators at several nodes of a zone are therefore not
+  * consecutive, and the position of each one is counted along the walk.
+  * A term that the row does not have at its position (a term added to a
+  * unit after the generation) is refused. */
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  for( const auto zone_id : affected_zones ) {
+ for( Index t = 0 ; t < f_time_horizon ; ++t )
+  for( Index zone_id = 0 ; zone_id < f_number_inertia_zones ; ++zone_id ) {
 
    auto & constraint = v_InertiaDemand_Const[ t ][ zone_id ];
-
-   // This will store the coefficients that must be updated, i.e., those of
-   // the active Variables that belong to the units that have been modified.
    LinearFunction::Vec_FunctionValue coefficients;
-   coefficients.reserve( num_generators_per_zone[ zone_id ] );
-
-   // Subset that will store the indices of the active Variables whose
-   // coefficients have changed.
    Subset subset;
-   subset.reserve( num_generators_per_zone[ zone_id ] );
+   Index pos = 0;  // position of the next active Variable of the row
+
+   auto term = [ & ]( const ColVariable * var , Index unit_id ,
+                      bool modified , double coefficient ) {
+    if( ( pos >= constraint.get_num_active_var() ) ||
+        ( constraint.get_active_var( pos ) != var ) )
+     throw( std::logic_error( "UCBlock::update_inertia_demand_constraints:"
+                              " unit " + std::to_string( unit_id ) +
+                              " has an inertia term that the inertia rows, "
+                              "generated without it, do not have" ) );
+    if( modified ) {
+     coefficients.push_back( coefficient );
+     subset.push_back( pos );
+     }
+    ++pos;
+    };
 
    for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
 
@@ -2054,77 +2085,94 @@ void UCBlock::update_inertia_demand_constraints(
      continue;
 
     Index elc_generator = 0;
-    Index overall_unit_id = 0;
-    for( const auto unit_id : modified_units ) {
-
-     // Skip the units that have not been modified.
-     while( overall_unit_id < unit_id ) {
-      elc_generator += get_unit_block(
-       overall_unit_id )->get_number_generators();
-      ++overall_unit_id;
-     }
+    for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
      const auto unit_block = get_unit_block( unit_id );
-
-     if( inertia_var_index[ unit_id ][ zone_id ] == Inf< Index >() ) {
-      // This unit has no active Variable in the inertia demand constraints
-      // associated with zone "zone_id".
-      elc_generator += unit_block->get_number_generators();
-      ++overall_unit_id;
-      continue;
-     }
-
+     const bool modified = std::binary_search( modified_units.begin() ,
+                                               modified_units.end() ,
+                                               unit_id );
      const auto scale = unit_block->get_scale();
-     const auto num_generators = unit_block->get_number_generators();
-     auto next_var_index = inertia_var_index[ unit_id ][ zone_id ];
 
      for( Index generator = 0 ;
-          generator < num_generators ; ++generator , ++elc_generator ) {
+          generator < unit_block->get_number_generators() ;
+          ++generator , ++elc_generator ) {
 
       if( ! generator_belongs_to_node( elc_generator , node_id ) )
        continue;
 
       const auto commitment = unit_block->get_commitment( generator );
-      auto inertia_commitment = unit_block->get_inertia_commitment( generator );
-
-      if( commitment && inertia_commitment ) {
-
-       assert( next_var_index < constraint.get_num_active_var() );
-       assert( constraint.get_active_var( next_var_index )->get_Block()
-               == unit_block );
-
-       const auto coefficient = scale * inertia_commitment[ t ];
-       coefficients.push_back( coefficient );
-       subset.push_back( next_var_index++ );
-      }
+      const auto inertia_commitment =
+                              unit_block->get_inertia_commitment( generator );
+      if( commitment && inertia_commitment )
+       term( &commitment[ t ] , unit_id , modified ,
+             scale * inertia_commitment[ t ] );
 
       const auto active_power = unit_block->get_active_power( generator );
       const auto inertia_power = unit_block->get_inertia_power( generator );
+      if( active_power && inertia_power )
+       term( &active_power[ t ] , unit_id , modified ,
+             scale * inertia_power[ t ] );
 
-      if( active_power && inertia_power ) {
-       assert( next_var_index < constraint.get_num_active_var() );
-       assert( constraint.get_active_var( next_var_index )->get_Block()
-               == unit_block );
-
-       const auto coefficient = scale * inertia_power[ t ];
-       coefficients.push_back( coefficient );
-       subset.push_back( next_var_index++ );
-      }
-
-     }  // end( for( generator ) )
-
-     ++overall_unit_id;
-
-    }  // end( for( unit_id ) )
-
-    // Update the coefficients of the active variables
-    LF( constraint.get_function() )->modify_coefficients(
-	  std::move( coefficients ) , std::move( subset ) , true , eNoBlck );
-
+      }  // end( for( generator ) )
+     }  // end( for( unit_id ) )
     }  // end( for( node_id ) )
+
+   if( ! subset.empty() )
+    LF( constraint.get_function() )->modify_coefficients(
+                std::move( coefficients ) , std::move( subset ) , true ,
+                issueMod );
+
    }  // end( for( zone_id ) )
-  }  // end( for( t ) )
  }  // end( UCBlock::update_inertia_demand_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_pollutant_budget_constraints(
+			        const std::vector< Index > & modified_units ,
+			        ModParam issueMod )
+{
+ if( ( ! constraints_generated() ) || v_PollutantBudget_Const.empty() ||
+     modified_units.empty() )
+  return;  // there is nothing to be updated
+
+ for( Index p = 0 ; p < f_number_pollutants ; ++p ) {
+  const auto number_zones = v_number_pollutant_zones[ p ];
+  auto & constraints = v_PollutantBudget_Const[ p ];
+
+  // for the constraint of each zone of pollutant p, the index of its next
+  // active Variable and the coefficients that change, with their indices
+  std::vector< Index > next_var_index( number_zones , 0 );
+  std::vector< LinearFunction::Vec_FunctionValue > coefficients(
+							     number_zones );
+  std::vector< Subset > subset( number_zones );
+
+  // the walk is the one of generate_pollutant_budget_constraints(), so that
+  // the active Variables are met in the order they have been added
+  for_each_pollutant_term( p , [ & ]( Index unit_id , UnitBlock * unit_block ,
+                                      Index zone_id , ColVariable * ,
+                                      double factor ) {
+   if( std::binary_search( modified_units.begin() , modified_units.end() ,
+                           unit_id ) ) {
+    assert( next_var_index[ zone_id ] <
+            constraints[ zone_id ].get_num_active_var() );
+    assert( constraints[ zone_id ].get_active_var(
+                       next_var_index[ zone_id ] )->get_Block() == unit_block );
+
+    coefficients[ zone_id ].push_back( unit_block->get_scale() * factor );
+    subset[ zone_id ].push_back( next_var_index[ zone_id ] );
+    }
+
+   ++next_var_index[ zone_id ];
+   } );
+
+  for( Index zone_id = 0 ; zone_id < number_zones ; ++zone_id )
+   if( ! subset[ zone_id ].empty() )
+    LF( constraints[ zone_id ].get_function() )->
+     modify_coefficients( std::move( coefficients[ zone_id ] ) ,
+                          std::move( subset[ zone_id ] ) , true , issueMod );
+  }  // end( for( p ) )
+
+ }  // end( UCBlock::update_pollutant_budget_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2342,6 +2390,154 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
 }  // end( UCBlock::set_active_power_demand( range ) )
 
 /*--------------------------------------------------------------------------*/
+
+bool UCBlock::set_pollutant_budget_k( Index k , double budget , bool lower ,
+                                      ModParam issuePMod , ModParam issueAMod )
+{
+ if( k >= f_total_number_pollutant_zones )
+  throw( std::out_of_range( lower ?
+                "UCBlock::set_pollutant_min_budget: index out of range" :
+                "UCBlock::set_pollutant_budget: index out of range" ) );
+
+ auto & current = lower ? v_pollutant_min_budget[ k ] : v_pollutant_budget[ k ];
+ if( current == budget )
+  return( false );
+
+ if( not_dry_run( issuePMod ) ) {
+  current = budget;
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // the pollutant p and the zone z of the index k
+   Index p = 0;
+   Index z = k;
+   while( z >= v_number_pollutant_zones[ p ] )
+    z -= v_number_pollutant_zones[ p++ ];
+
+   if( lower )
+    v_PollutantBudget_Const[ p ][ z ].set_lhs( budget , issueAMod );
+   else
+    v_PollutantBudget_Const[ p ][ z ].set_rhs( budget , issueAMod );
+   }
+  }
+
+ return( true );
+
+ }  // end( UCBlock::set_pollutant_budget_k )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Subset && subset ,
+                                    bool ordered , bool lower ,
+                                    c_ModParam issuePMod ,
+                                    c_ModParam issueAMod )
+{
+ if( subset.empty() )
+  return;
+
+ // the abstract representation is changed right here, and all the changes
+ // of the sides travel together in one channel
+ auto amod = un_ModBlock( issueAMod );
+ const bool grouped = not_dry_run( issuePMod ) && not_dry_run( amod ) &&
+                      constraints_generated();
+ if( grouped )
+  amod = make_par( par2mod( amod ) , open_channel( par2chnl( amod ) ) );
+
+ bool changed = false;
+ for( auto k : subset )
+  if( set_pollutant_budget_k( k , *( values++ ) , lower , issuePMod , amod ) )
+   changed = true;
+
+ if( grouped )
+  close_channel( par2chnl( amod ) );
+
+ if( changed && issue_pmod( issuePMod ) ) {
+  if( ! ordered )
+   std::sort( subset.begin() , subset.end() );
+
+  Block::add_Modification( std::make_shared< UCBlockSbstMod >( this ,
+                            lower ? UCBlockMod::eSetPolMinB :
+                                    UCBlockMod::eSetPolB ,
+                            std::move( subset ) ) ,
+                           Observer::par2chnl( issuePMod ) );
+  }
+ }  // end( UCBlock::set_pollutant_bounds( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Range rng ,
+                                    bool lower , c_ModParam issuePMod ,
+                                    c_ModParam issueAMod )
+{
+ rng.second = std::min( rng.second , f_total_number_pollutant_zones );
+ if( rng.first >= rng.second )
+  return;
+
+ // the abstract representation is changed right here, and all the changes
+ // of the sides travel together in one channel
+ auto amod = un_ModBlock( issueAMod );
+ const bool grouped = not_dry_run( issuePMod ) && not_dry_run( amod ) &&
+                      constraints_generated();
+ if( grouped )
+  amod = make_par( par2mod( amod ) , open_channel( par2chnl( amod ) ) );
+
+ bool changed = false;
+ for( Index k = rng.first ; k < rng.second ; ++k )
+  if( set_pollutant_budget_k( k , *( values++ ) , lower , issuePMod , amod ) )
+   changed = true;
+
+ if( grouped )
+  close_channel( par2chnl( amod ) );
+
+ if( changed && issue_pmod( issuePMod ) )
+  Block::add_Modification( std::make_shared< UCBlockRngdMod >( this ,
+                            lower ? UCBlockMod::eSetPolMinB :
+                                    UCBlockMod::eSetPolB , rng ) ,
+                           Observer::par2chnl( issuePMod ) );
+
+ }  // end( UCBlock::set_pollutant_bounds( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_budget( MF_dbl_it values ,
+                                    Block::Subset && subset , bool ordered ,
+                                    c_ModParam issuePMod ,
+                                    c_ModParam issueAMod )
+{
+ set_pollutant_bounds( values , std::move( subset ) , ordered , false ,
+                       issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
+                                    c_ModParam issuePMod ,
+                                    c_ModParam issueAMod )
+{
+ set_pollutant_bounds( values , rng , false , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_min_budget( MF_dbl_it values ,
+                                        Block::Subset && subset ,
+                                        bool ordered ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
+ set_pollutant_bounds( values , std::move( subset ) , ordered , true ,
+                       issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
+                                        c_ModParam issuePMod ,
+                                        c_ModParam issueAMod )
+{
+ set_pollutant_bounds( values , rng , true , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- METHODS OF UCBlockSolution -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2419,6 +2615,13 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
                                { f_time_horizon , f_number_inertia_zones } ,
                                v_inertia_duals , false , true );
 
+ // deserialize the PollutantDuals- - - - - - - - - - - - - - - - - - - - - -
+ f_total_number_pollutant_zones = 0;
+ if( deserialize_dim( group , "TotalNumberPollutantZones" ,
+			f_total_number_pollutant_zones ) )
+  ::deserialize( group , "PollutantDuals" , f_total_number_pollutant_zones ,
+                 v_pollutant_duals , false , false );
+
  }  // end( UCBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -2435,6 +2638,7 @@ void UCBlockSolution::read( const Block * block )
  f_number_primary_zones = UCB->get_number_primary_zones();
  f_number_secondary_zones = UCB->get_number_secondary_zones();
  f_number_inertia_zones = UCB->get_number_inertia_zones();
+ f_total_number_pollutant_zones = UCB->get_total_number_pollutant_zones();
 
  if( ! v_unit_Solution.empty() ) {
   // read the UnitBlockSolution - - - - - - - - - - - - - - - - - - - - - - -
@@ -2501,6 +2705,19 @@ void UCBlockSolution::read( const Block * block )
   for( Index t = 0 ; t < f_time_horizon  ; ++t )
    for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
     v_inertia_duals[ t ][ i ] = IDC[ t ][ i ].get_dual();
+  }
+
+ if( ! v_pollutant_duals.empty() ) {
+  // read the dual variables of the pollutant budget constraints- - - - - - -
+  auto & PBC = UCB->get_const_pollutant_constraints();
+  if( PBC.empty() )
+   throw( std::invalid_argument(
+       "UCBlockSolution::read-ing duals of non-existent pollutant budget" ) );
+
+  v_pollutant_duals.clear();
+  for( const auto & zones : PBC )
+   for( const auto & constraint : zones )
+    v_pollutant_duals.push_back( constraint.get_dual() );
   }
  }  // end( UCBlockSolution::read )
 
@@ -2586,6 +2803,23 @@ void UCBlockSolution::write( Block * block )
    for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
     IDC[ t ][ i ].set_dual( v_inertia_duals[ t ][ i ] );
   }
+
+ if( ! v_pollutant_duals.empty() ) {
+  // write the dual variables of the pollutant budget constraints - - - - - -
+  if( f_total_number_pollutant_zones !=
+      UCB->get_total_number_pollutant_zones() )
+   throw( std::invalid_argument(
+		   "UCBlockSolution::write: inconsistent pollutant zones" ) );
+  auto & PBC = UCB->get_pollutant_constraints();
+  if( PBC.empty() )
+   throw( std::invalid_argument(
+     "UCBlockSolution::write-ing duals of non-existent pollutant budget" ) );
+
+  auto dual = v_pollutant_duals.begin();
+  for( auto & zones : PBC )
+   for( auto & constraint : zones )
+    constraint.set_dual( *(dual++) );
+  }
  }  // end( UCBlockSolution::write )
 
 /*--------------------------------------------------------------------------*/
@@ -2657,6 +2891,15 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
   ::serialize< double , 2 >( group , "InertiaDuals" , netCDF::NcDouble() ,
 			     { th , niz } , v_inertia_duals );
   }
+
+ // serialize the PollutantDuals- - - - - - - - - - - - - - - - - - - - - - -
+ if( ! v_pollutant_duals.empty() ) {
+  auto tnpz = group.addDim( "TotalNumberPollutantZones" ,
+			    f_total_number_pollutant_zones );
+
+  ::serialize( group , "PollutantDuals" , netCDF::NcDouble() , tnpz ,
+	       v_pollutant_duals );
+  }
  }  // end( UCBlockSolution::serialize )
 
 /*--------------------------------------------------------------------------*/
@@ -2703,6 +2946,9 @@ UCBlockSolution * UCBlockSolution::scale( double factor ) const
    for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
     sol->v_inertia_duals[ t ][ i ] *= factor;
 
+ for( auto & di : sol->v_pollutant_duals )
+  di *= factor;
+
  return( sol );
 
  }  // end( UCBlockSolution::scale )
@@ -2737,6 +2983,9 @@ void UCBlockSolution::sum( const Solution * solution , double multiplier )
  if( f_number_inertia_zones != UCBS->f_number_inertia_zones )
   throw( std::invalid_argument(
 		     "UCBlockSolution::read: inconsistent inertia zones" ) );
+ if( v_pollutant_duals.size() != UCBS->v_pollutant_duals.size() )
+  throw( std::invalid_argument(
+		   "UCBlockSolution::sum: inconsistent pollutant zones" ) );
 
  for( Index i = 0 ; i < v_unit_Solution.size() ; ++i )
   v_unit_Solution[ i ]->sum( UCBS->v_unit_Solution[ i ] , multiplier );
@@ -2765,6 +3014,9 @@ void UCBlockSolution::sum( const Solution * solution , double multiplier )
    for( Index i = 0 ; i < f_number_inertia_zones ; ++i )
     v_inertia_duals[ t ][ i ] += UCBS->v_inertia_duals[ t ][ i ] * multiplier;
 
+ for( Index i = 0 ; i < v_pollutant_duals.size() ; ++i )
+  v_pollutant_duals[ i ] += UCBS->v_pollutant_duals[ i ] * multiplier;
+
  }  // end( UCBlockSolution::sum )
 
 /*--------------------------------------------------------------------------*/
@@ -2779,6 +3031,7 @@ UCBlockSolution * UCBlockSolution::clone( bool empty ) const
   sol->f_number_primary_zones = f_number_primary_zones;
   sol->f_number_secondary_zones = f_number_secondary_zones;
   sol->f_number_inertia_zones = f_number_inertia_zones;
+  sol->f_total_number_pollutant_zones = f_total_number_pollutant_zones;
 
   if( ! v_unit_Solution.empty() ) {
    sol->v_unit_Solution.resize( v_unit_Solution.size() );
@@ -2799,6 +3052,7 @@ UCBlockSolution * UCBlockSolution::clone( bool empty ) const
   copy_multi_array( sol->v_primary_duals , v_primary_duals );
   copy_multi_array( sol->v_secondary_duals , v_secondary_duals );
   copy_multi_array( sol->v_inertia_duals , v_inertia_duals );
+  sol->v_pollutant_duals = v_pollutant_duals;
   }
 
  return( sol );

@@ -198,10 +198,12 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                            "MinCapacityDesign must be <= 1 when |MaxCapacityDesign| == 1." ) );
 
- // Binary case (max < 0): MinCapacityDesign <= 1
- if( ( f_MaxCapacityDesign < 0 ) && ( f_MinCapacityDesign > 1.0 ) )
+ // Integer case (max < 0): MinCapacityDesign <= |MaxCapacityDesign|
+ if( ( f_MaxCapacityDesign < 0 ) &&
+     ( f_MinCapacityDesign > -f_MaxCapacityDesign ) )
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
-                           "MinCapacityDesign must be <= 1 for binary design." ) );
+                           "MinCapacityDesign > |MaxCapacityDesign| for "
+                           "integer design." ) );
 
  // Scale and design granularity are two equivalent ways to model multiple
  // identical modules; combining them with both > 1 over-counts the fleet.
@@ -466,6 +468,51 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   add_static_constraint( active_power_bounds_design_Const ,
                          "ActivePower_Design_Intermittent" );
 
+  // the reserve fences (1)-(2), with the installed capacity x in front of
+  // the minimum and maximum power: kappa MinP x and kappa MaxP x are
+  // coefficients of the design Variable rather than right-hand sides
+
+  if( ( f_gamma != 0 ) && ( reserve_vars & 3u ) ) {
+   min_power_Const.resize( f_time_horizon );
+   max_power_Const.resize( f_time_horizon );
+
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    // p - pr - sr - kappa MinP x >= 0
+    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
+    if( reserve_vars & 1u )
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+    if( reserve_vars & 2u )
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     -1.0 ) );
+    vars.push_back( std::make_pair( &design , -f_kappa * v_MinPower[ t ] ) );
+
+    min_power_Const[ t ].set_lhs( 0.0 );
+    min_power_Const[ t ].set_rhs( Inf< double >() );
+    min_power_Const[ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+
+    // gamma p + pr + sr - gamma kappa MaxP x <= 0
+    vars.push_back( std::make_pair( &v_active_power[ t ] , f_gamma ) );
+    if( reserve_vars & 1u )
+     vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+    if( reserve_vars & 2u )
+     vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                     1.0 ) );
+    vars.push_back( std::make_pair( &design ,
+                                    -f_gamma * f_kappa * v_MaxPower[ t ] ) );
+
+    max_power_Const[ t ].set_lhs( -Inf< double >() );
+    max_power_Const[ t ].set_rhs( 0.0 );
+    max_power_Const[ t ].set_function(
+     new LinearFunction( std::move( vars ) ) );
+    }
+
+   add_static_constraint( min_power_Const , "MinPower_Intermittent" );
+   add_static_constraint( max_power_Const , "MaxPower_Intermittent" );
+   }
+
   // the lower fence of a unit with no minimum power, as a bound
 
   if( ! has_min_power ) {
@@ -488,18 +535,15 @@ void IntermittentUnitBlock::generate_abstract_constraints( Configuration * stcc 
   const double lb = std::max( 0.0 , f_MinCapacityDesign );
   const double ub = std::abs( f_MaxCapacityDesign );
 
-  if( ( lb == 1.0 ) && ( ub == 1.0 ) )
-   design.is_unitary( true , eNoMod );
-  else {
-   design_bound_Const.set_lhs( lb );
-   design_bound_Const.set_rhs( ub );
-   design_bound_Const.set_variable( &design );
+  // always a row, also when both bounds are 1 (the asset is then built)
+  design_bound_Const.set_lhs( lb );
+  design_bound_Const.set_rhs( ub );
+  design_bound_Const.set_variable( &design );
 
-   add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
+  add_static_constraint( design_bound_Const , "DesignBound_Intermittent" );
 
-   if( is_integer_design )
-    design.is_integer( true , eNoMod );
-  }
+  if( is_integer_design )
+   design.is_integer( true , eNoMod );
  }
 
  // reactive power bounds constraints (if any) - - - - - - - - - - - - - - -
@@ -608,7 +652,7 @@ bool IntermittentUnitBlock::is_feasible( bool useabstract ,
                                          Configuration * fsbc )
 {
  // Retrieve the tolerance and the type of violation.
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
 
  // Try to extract, from "c", the parameters that determine feasibility.
@@ -753,20 +797,55 @@ UnitBlockSolution * IntermittentUnitBlock::new_Solution( void ) const {
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
+void IntermittentUnitBlock::update_reserve_row( Index t , bool max_side ,
+                                                c_ModParam issueAMod )
+{
+ auto & row = max_side ? max_power_Const[ t ] : min_power_Const[ t ];
+ const double value = max_side ? f_gamma * f_kappa * v_MaxPower[ t ]
+                               : f_kappa * v_MinPower[ t ];
+
+ if( f_InvestmentCost == 0 ) {  // the value is a side of the row
+  if( max_side )
+   row.set_rhs( value , issueAMod );
+  else
+   row.set_lhs( value , issueAMod );
+  return;
+  }
+
+ // with a design the value multiplies the design Variable in the row
+ auto f = static_cast< LinearFunction * >( row.get_function() );
+ const auto design_idx = f->is_active( &design );
+ if( design_idx == Inf< Index >() )
+  throw( std::logic_error( "IntermittentUnitBlock::update_reserve_row: "
+                           "expected Variable not found in the reserve "
+                           "Constraints." ) );
+
+ f->modify_coefficient( design_idx , -value , issueAMod );
+
+ }  // end( IntermittentUnitBlock::update_reserve_row )
+
+/*--------------------------------------------------------------------------*/
+
 void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
                                                         c_ModParam issueAMod )
 {
+ // the whole cascade is one group, so that a Solver can change every side
+ // with one call and every coefficient with another, instead of paying a
+ // call per period; if the caller has a channel of its own the group goes
+ // inside it, since what it groups is logically one thing with this
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  if( ! max_power_Const.empty() )
   for( auto t : time )
-   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
-                                 issueAMod );
+   update_reserve_row( t , true , nAM );
 
  // with a design the bound is only the lower fence, its right-hand side
  // stays infinite and the maximum power is a coefficient of the row below
  if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
   for( auto t : time )
    active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
-                                           issueAMod );
+                                           nAM );
 
  // when InvestmentCost != 0 the upper bound on the active power is
  // v_active_power - f_kappa * v_MaxPower * design <= 0, so v_MaxPower is a
@@ -782,10 +861,11 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
      "IntermittentUnitBlock::update_max_power_in_cnstrs: expected Variable "
      "not found in active_power_bounds_design_Const." ) );
 
-   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] ,
-                          issueAMod );
+   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] , nAM );
   }
- // FIXME: use a GroupModification
+
+ close_channel( par2chnl( nAM ) );
+
  }  // end( IntermittentUnitBlock::update_max_power_in_cnstrs ( subset ) )
 
 /*--------------------------------------------------------------------------*/
@@ -793,17 +873,22 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Subset & time ,
 void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
                                                         c_ModParam issueAMod )
 {
+ // the whole cascade is one group, so that a Solver can change every side
+ // with one call and every coefficient with another, instead of paying a
+ // call per period; if the caller has a channel of its own the group goes
+ // inside it, since what it groups is logically one thing with this
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  if( ! max_power_Const.empty() )
   for( auto t = time.first ; t < time.second ; ++t )
-   max_power_Const[ t ].set_rhs( f_kappa * f_gamma * v_MaxPower[ t ] ,
-                                 issueAMod );
- // FIXME: use a GroupModification
+   update_reserve_row( t , true , nAM );
  // with a design the bound is only the lower fence, its right-hand side
  // stays infinite and the maximum power is a coefficient of the row below
  if( ( ! active_power_bounds_Const.empty() ) && ( f_InvestmentCost == 0 ) )
   for( auto t = time.first ; t < time.second ; ++t )
    active_power_bounds_Const[ t ].set_rhs( f_kappa * v_MaxPower[ t ] ,
-                                           issueAMod );
+                                           nAM );
 
  // when InvestmentCost != 0 the upper bound on the active power is
  // v_active_power - f_kappa * v_MaxPower * design <= 0, so v_MaxPower is a
@@ -819,9 +904,10 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
      "IntermittentUnitBlock::update_max_power_in_cnstrs: expected Variable "
      "not found in active_power_bounds_design_Const." ) );
 
-   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] ,
-                          issueAMod );
+   f->modify_coefficient( design_idx , -f_kappa * v_MaxPower[ t ] , nAM );
   }
+
+ close_channel( par2chnl( nAM ) );
 
  }  // end( IntermittentUnitBlock::update_max_power_in_cnstrs ( range ) )
 
@@ -1002,6 +1088,13 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
    for( auto t : subset ) {
     const auto idx = lf->is_active( &v_active_power[ t ] );
 
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx == Inf< Index >() )
      throw( std::logic_error(
       "IntermittentUnitBlock::set_active_power_cost: expected Variable not "
@@ -1009,7 +1102,9 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
     lf->modify_coefficient( idx ,
                             f_scale * v_ActivePowerCost[ t ] ,
-                            issueAMod );
+                            nAM );
+
+    close_channel( par2chnl( nAM ) );
    }
   }
  }
@@ -1063,6 +1158,13 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
    for( Index t = rng.first ; t < rng.second ; ++t ) {
     const auto idx = lf->is_active( &v_active_power[ t ] );
 
+    // one abstract Modification per element: they all go into a single
+    // GroupModification, so that a Solver able to write a whole set of
+    // them in one operation does that instead of one call per element
+    // [see MILPSolver::process_group_modification()]
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     if( idx == Inf< Index >() )
      throw( std::logic_error(
       "IntermittentUnitBlock::set_active_power_cost: expected Variable not "
@@ -1070,7 +1172,9 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
     lf->modify_coefficient( idx ,
                             f_scale * v_ActivePowerCost[ t ] ,
-                            issueAMod );
+                            nAM );
+
+    close_channel( par2chnl( nAM ) );
    }
   }
  }
@@ -1108,17 +1212,30 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                                            this , UnitBlockMod::eScale ) ,
                                            Observer::par2chnl( issuePMod ) );
+ else if( auto f_Block = get_f_Block() )
+  // the father rewrites the rows that carry the scale factor even if no
+  // Solver is listening
+  f_Block->add_Modification( std::make_shared< UnitBlockMod >(
+                              this , UnitBlockMod::eScale ) ,
+                             Observer::par2chnl( issuePMod ) );
 
  }  // end( IntermittentUnitBlock::scale )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::update_objective( c_ModParam issueAMod ) const
+void IntermittentUnitBlock::update_objective( c_ModParam issueAMod )
 {
  if( ! objective_generated() )
   return;  // the Objective has not been generated: nothing to be done
 
  auto function = static_cast< LinearFunction * >( objective.get_function() );
+
+ // one coefficient of the Objective per instant, plus the one of the design:
+ // they all go into a single GroupModification, so that a Solver able to
+ // write a whole set of them in one operation does that instead of one call
+ // per instant [see MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
 
  // refresh the active-power operating costs (when present)
  if( ! v_ActivePowerCost.empty() )
@@ -1126,18 +1243,17 @@ void IntermittentUnitBlock::update_objective( c_ModParam issueAMod ) const
    const auto idx = function->is_active( & v_active_power[ t ] );
    assert( idx < function->get_num_active_var() );
    function->modify_coefficient( idx ,
-                                 f_scale * v_ActivePowerCost[ t ] ,
-                                 issueAMod );
+                                 f_scale * v_ActivePowerCost[ t ] , nAM );
   }
 
  // refresh the scale-aware investment cost on the design variable
  if( f_InvestmentCost != 0 ) {
   const auto idx = function->is_active( & design );
   assert( idx < function->get_num_active_var() );
-  function->modify_coefficient( idx ,
-                                f_scale * f_InvestmentCost ,
-                                issueAMod );
+  function->modify_coefficient( idx , f_scale * f_InvestmentCost , nAM );
  }
+
+ close_channel( par2chnl( nAM ) );
 
 }  // end( IntermittentUnitBlock::update_objective )
 
@@ -1162,16 +1278,22 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
    if( constraints_generated() ) {
     // Update the constraints
 
+    // the whole cascade is one group, so that a Solver can change every side
+    // with one call and every coefficient with another, instead of paying a
+    // call per period
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+
     // with a design the bound is only the lower fence, its right-hand side
     // stays infinite and the maximum power is a coefficient of the rows below
     if( ! active_power_bounds_Const.empty() )
 
      for( Index t = 0 ; t < f_time_horizon ; ++t ) {
       active_power_bounds_Const[ t ].set_lhs(
-       f_kappa * v_MinPower[ t ] , issueAMod );
+       f_kappa * v_MinPower[ t ] , nAM );
       if( f_InvestmentCost == 0 )
        active_power_bounds_Const[ t ].set_rhs(
-        f_kappa * v_MaxPower[ t ] , issueAMod );
+        f_kappa * v_MaxPower[ t ] , nAM );
      }
 
     if( ! active_power_bounds_design_Const.empty() )
@@ -1189,8 +1311,7 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
                                  "active_power_bounds_design_Const." ) );
 
        f0->modify_coefficient( design_idx0 ,
-                               -f_kappa * v_MinPower[ t ] ,
-                               issueAMod );
+                               -f_kappa * v_MinPower[ t ] , nAM );
        }
 
       auto f1 = static_cast< LinearFunction * >(
@@ -1205,19 +1326,18 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
                                 "active_power_bounds_design_Const." ) );
 
       f1->modify_coefficient( design_idx1 ,
-                              -f_kappa * v_MaxPower[ t ] ,
-                              issueAMod );
+                              -f_kappa * v_MaxPower[ t ] , nAM );
      }
 
     if( ! min_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
-      min_power_Const[ t ].set_lhs( f_kappa * v_MinPower[ t ] ,
-                                    issueAMod );
+      update_reserve_row( t , false , nAM );
 
     if( ! max_power_Const.empty() )
      for( Index t = 0 ; t < f_time_horizon ; ++t )
-      max_power_Const[ t ].set_rhs( f_gamma * f_kappa * v_MaxPower[ t ] ,
-                                    issueAMod );
+      update_reserve_row( t , true , nAM );
+    close_channel( par2chnl( nAM ) );
+
    }  // end( constraints_generated )
   }  // end( if( not_dry_run( issueAMod ) )
  }  // end( if( not_dry_run( issuePMod ) )
@@ -1271,7 +1391,16 @@ double IntermittentUnitBlock::get_kappa_linearization( void ) const {
   *
   *   P^{mn} ' (lambda_min + alpha_min) -
   *   P^{mx} ' (lambda_max + gamma * alpha_max).
+  *
+  * With a design Variable the bounds are coefficients of it instead, which
+  * this formula does not cover: the two investment mechanisms are not meant
+  * to be combined, and the method throws.
   */
+
+ if( f_InvestmentCost != 0 )
+  throw( std::logic_error( "IntermittentUnitBlock::get_kappa_linearization: "
+                           "kappa of a unit with a design Variable is not "
+                           "supported" ) );
 
  double linearization = 0;
 

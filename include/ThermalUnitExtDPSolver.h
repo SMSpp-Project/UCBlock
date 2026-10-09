@@ -2,139 +2,170 @@
 /*---------------------- File ThermalUnitExtDPSolver.h ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the ThermalUnitExtDPSolver class, a Solver for the
- * ThermalUnitBlock that solves the single-Unit Commitment (1UC) problem by
- * a "hybrid" Dynamic Programming scheme, broadly inspired by Wuijts, van
- * den Akker and van den Broek (Electric Power Systems Research, 2021) but
- * with the off-state of the commitment state-space collapsed to a single
- * layer.
+ * Header file for the ThermalUnitExtDPSolver class, a Solver of the
+ * single-unit commitment problem of a ThermalUnitBlock by a dynamic program
+ * whose on-states are indexed by the length of the current on-run, while the
+ * off-states are collapsed into one value per instant (and per label).
  *
- * The problem is, over the horizon \f$ \mathcal{T} = \{ 0 , \ldots , n - 1
- * \} \f$,
+ * We solve the problem of ThermalUnitDPSolverBase, i.e., that of the rows of
+ * ThermalUnitBlock::generate_abstract_constraints(). In the file comment of
+ * ThermalUnitDPSolverBase one finds the model, the notation, the cost
+ * \f$ f_t( p ) = a_t p^2 + b_t p + c_t \f$ of an on instant and the reserve
+ * term \f$ g_t( p , \mathcal{H}_t( p , q ) ) \f$ of (2)-(3) there.
+ *
+ * <b>States.</b> For each instant \f$ t \f$, run-length \f$ \tau \geq 1 \f$
+ * (the number of consecutive instants the unit has been on, \f$ t \f$
+ * included) and label \f$ \ell \f$, the convex piecewise quadratic function
+ * \f$ F^{\tau,\ell}_t( p ) \f$ is the least cost of a schedule of the
+ * instants \f$ 0 , \ldots , t \f$ that is on at \f$ t \f$ with
+ * \f$ p^{ac}_t = p \f$, whose current on-run has length \f$ \tau \f$ and
+ * whose state after the decision at \f$ t \f$ has label \f$ \ell \f$. The
+ * label is a small integer that records the history which a unit derived from
+ * ThermalUnitBlock needs for its rules. For instance, a thermal unit has the
+ * single label 0, while a nuclear unit labels its states by its modulation
+ * lockout, its mode, the band of its output and the counters of the day [see
+ * NuclearUnitExtDPSolver]. On the off side there are two values per instant.
+ * The first is \f$ c^{rdy}_t( o ) \f$, the least cost of a schedule that is
+ * off at \f$ t \f$ since at least \f$ \tau^- \f$ instants (hence free to
+ * start up at \f$ t + 1 \f$) and has off-label \f$ o \f$; the second is
+ * \f$ c^{any}_t \f$, the least cost of a schedule that is off at \f$ t \f$,
+ * which is used only at the end of the horizon. Finally, the values
+ * \f$ \phi^{sd}_h( o ) \f$ are the least costs of the schedules that are on
+ * at \f$ h \f$ and off at \f$ h + 1 \f$ with off-label \f$ o \f$.
+ *
+ * <b>Moves.</b> An on-state with label \f$ \ell \f$ at \f$ t - 1 \f$
+ * continues at \f$ t \f$ by the moves \f$ j \in J_t( \ell ) \f$ of
+ * on_moves(): each has a landing label \f$ \ell_j \f$, a window
+ * \f$ -\omega^-_j \leq p^{ac}_t - p^{ac}_{t-1} \leq \omega^+_j \f$ of the
+ * scheduled move, a constant cost \f$ c_j \f$ and a range
+ * \f$ [ p^{lo}_j , p^{hi}_j ] \f$ of the power at \f$ t \f$. A thermal unit
+ * has the single move with \f$ \omega^+_j = \Delta^+_t \f$,
+ * \f$ \omega^-_j = \Delta^-_t \f$ (the ramps of the step from \f$ t - 1 \f$
+ * to \f$ t \f$), \f$ c_j = 0 \f$ and no range. In turn, the off-labels evolve
+ * by shut_label() \f$ \varsigma_h( \ell ) \f$ at a shut-down after \f$ h \f$
+ * and by idle_label() \f$ \iota_t( o , k ) \f$ along \f$ k \f$ idle instants
+ * from \f$ t \f$. A start-up at \f$ t \f$ from the off-label \f$ o \f$ may
+ * land in the on-labels of the set \f$ S_t( o ) \f$ given by start_labels(),
+ * each with its range of the power. Also, a label NO_LABEL forbids the
+ * shut-down or the start-up.
+ *
+ * <b>Recursion.</b> For \f$ t \geq 1 \f$,
+ * \f{align*}{
+ *   F^{\tau,\ell_j}_t( p ) &= f_t( p ) + c_j + \min \bigl\{ \,
+ *     F^{\tau-1,\ell}_{t-1}( q ) + g_t( p , \mathcal{H}_t( p , q ) ) \, : \,
+ *     p - \omega^+_j \leq q \leq p + \omega^-_j \, \bigr\} \, , \quad
+ *     \tau \geq 2 \, , \; j \in J_t( \ell ) \, , \tag{1} \\
+ *   F^{1,\ell'}_t( p ) &= f_t( p ) + c^{su}_t + g_t( p , \min\{ p -
+ *     P^{mn}_t , P^{su}_t - p \} ) + \min \{ \, c^{rdy}_{t-1}( o ) \, : \,
+ *     \ell' \in S_t( o ) \, \} \, , \tag{2} \\
+ *   \phi^{sd}_h( o ) &= c^{sd}_{h+1} + \min \{ \, \widetilde F^{\tau,\ell}_h(
+ *     p ) \, : \, \tau \geq \tau^+ \, , \; \varsigma_h( \ell ) = o \, , \;
+ *     P^{mn}_h \leq p \leq P^{sd}_{h+1} \, \} \, , \tag{3} \\
+ *   c^{rdy}_t( o ) &= \min \Bigl( \bigl\{ \, c^{rdy}_{t-1}( o' ) \, : \,
+ *     \iota_t( o' , 1 ) = o \, \bigr\} \cup \bigl\{ \,
+ *     \phi^{sd}_{t-\tau^-}( o' ) \, : \, \iota_{t-\tau^-+1}( o' , \tau^- ) = o
+ *     \, \bigr\} \Bigr) \, , \tag{4} \\
+ *   c^{any}_t &= \min \bigl\{ \, c^{any}_{t-1} \, , \; \min_o
+ *     \phi^{sd}_{t-1}( o ) \, \bigr\} \, , \tag{5}
+ * \f}
+ * where (1) is defined for \f$ p \in [ \max\{ P^{mn}_t , p^{lo}_j \} , \min\{
+ * P^{mx}_t , p^{hi}_j \} ] \f$, (2) for \f$ p \in [ P^{mn}_t , \min\{
+ * P^{mx}_t , P^{su}_t \} ] \f$ intersected with the range of \f$ \ell' \f$
+ * (the start-up cost \f$ c^{su}_t \f$ depends only on the instant of the
+ * start-up, since the state does not carry how long the unit has been off).
+ * In (3), \f$ \widetilde F^{\tau,\ell}_h \f$ is \f$ F^{\tau,\ell}_h \f$ with
+ * the cap of the reserve band of instant \f$ h \f$ lowered to
+ * \f$ P^{sd}_{h+1} \f$; this requires recomputing (1) at \f$ h \f$ (or
+ * adjusting (2), for \f$ \tau = 1 \f$) when a reserve cost is negative and
+ * the cap is below \f$ P^{mx}_h \f$. The minimum in (1) is the transition (4)
+ * of ThermalUnitDPSolverBase, computed by
+ * ThermalUnitDPSolverBase::sliding_min_corr() (exactly, save for the parts
+ * that it interpolates; see there). Note that the ramp terms of the reserve
+ * band are always those of the ramp of the step, also when the window of the
+ * move is narrower. The second set in (4) is the shut-down at
+ * \f$ h = t - \tau^- \f$ followed by \f$ \tau^- \f$ idle instants, which
+ * enforces the minimum down time in one jump. In (3), the cost
+ * \f$ c^{sd}_{h+1} \f$ is 0 for \f$ h = T - 1 \f$, and
+ * \f$ \phi^{sd}_{T-1} \f$ is not used. A state at \f$ t \f$ does not exist if
+ * the commitment Variable is fixed to the opposite value at \f$ t \f$, and
+ * the second set in (4) needs no instant fixed on in
+ * \f$ h + 1 , \ldots , t \f$ [see load_fixings()].
+ *
+ * <b>Initial state.</b> If the unit is on before the horizon
+ * (\f$ \tau_0 > 0 \f$), the on-states at \f$ t = 0 \f$ are
+ * \f$ F^{\tau_0+1,\ell_j}_0( p ) = f_0( p ) + c_j + g_0( p , \mathcal{H}_0( p
+ * , p_{-1} ) ) \f$ for the moves \f$ j \f$ out of the initial label
+ * init_label(), on \f$ [ \max\{ P^{mn}_0 , p_{-1} - \omega^-_j , p^{lo}_j \}
+ * , \min\{ P^{mx}_0 , p_{-1} + \omega^+_j , p^{hi}_j \} ] \f$. Hence, the
+ * reserve of instant 0 is bounded by the ramp left after the move from
+ * InitialPower, as in the deliverability rows of ThermalUnitBlock at 0 [see
+ * ThermalUnitDPSolverBase::initial_reserve_discount()]. Moreover, if
+ * \f$ \tau_0 \geq \tau^+ \f$, the unit may also be off at 0, at the cost
+ * \f$ c^{sd}_0 \f$ of the shut-down at 0, unless either
+ * \f$ p_{-1} > P^{sd}_0 \f$, which all the formulations of ThermalUnitBlock
+ * forbid whether or not DeltaRampDown is given (see
+ * ThermalUnitBlock::generate_abstract_constraints()), or DeltaRampUp is given
+ * and \f$ p_{-1} < P^{mn}_0 \f$, which ThermalUnitBlock excludes. When it is
+ * off there, the unit is then ready to start up at \f$ t + 1 \f$ as soon as
+ * \f$ t + 1 \geq \tau^- \f$, which adds the value \f$ c^{sd}_0 \f$ (the
+ * initial off-trail) to the sets of (4). If, instead, the unit is off before
+ * the horizon (\f$ \tau_0 \leq 0 \f$), it may start up at 0 if
+ * \f$ - \tau_0 \geq \tau^- \f$, by (2) with \f$ c^{rdy}_{-1} = 0 \f$. It may
+ * also be off at 0 at no cost, and it is then ready to start up at
+ * \f$ t + 1 \f$ as soon as \f$ - \tau_0 + t + 1 \geq \tau^- \f$, which adds
+ * the value 0 to the sets of (4). In both cases the initial off-trail needs
+ * no instant fixed on in \f$ 0 , \ldots , t \f$.
+ *
+ * <b>End of the horizon.</b> The optimal value is
  * \f[
- *  \min \Big\{ \, c( u ) + \sum_{t \in \mathcal{T}} f_t( p_t ) \, : \,
- *  P^{min}_t u_t \leq p_t \leq P^{max}_t u_t \, , \,
- *  p_t \leq p_{t-1} + u_{t-1} \Delta^+_{t-1} + ( 1 - u_{t-1} ) SU_t \, , \,
- *  p_{t-1} \leq p_t + u_t \Delta^-_{t-1} + ( 1 - u_t ) SD_t \, , \,
- *  u \in U \, \Big\}
+ *   \min \Bigl\{ \, c^{any}_{T-1} \, , \; \min_{ \tau , \ell } \min_p
+ *     F^{\tau,\ell}_{T-1}( p ) \, \Bigr\} \tag{6}
  * \f]
- * where \f$ f_t( p ) = \alpha_t p^2 + \beta_t p + \gamma_t \f$ is the
- * convex production cost (\f$ \alpha_t \geq 0 \f$, while \f$ \beta_t \f$
- * may carry a Lagrangian price and be of any sign), \f$ c( u ) \f$ collects
- * the start-up costs, \f$ SU_t \f$ and \f$ SD_t \f$ are the start-up and
- * shut-down limits (bound_on and bound_down) and \f$ U \f$ is the set of
- * commitments that satisfy the minimum up- and down-time \f$ \tau^+ \f$ and
- * \f$ \tau^- \f$ from the initial state.
+ * (no shut-down limit applies at \f$ T - 1 \f$, since the unit is not shut
+ * down within the horizon), plus the constant of the reactive power when the
+ * unit has it. If the unit has an InvestmentCost, it is built if this value
+ * plus the current coefficient of the design variable is not positive (or if
+ * a fixing forces it), and the value is 0 otherwise. Also, the reported value
+ * is multiplied by the scale factor \f$ \sigma \f$. Finally, the schedule is
+ * recovered by walking the recursion backwards, taking as power at
+ * \f$ t - 1 \f$ a minimizer in (1) at the power at \f$ t \f$ [see
+ * ThermalUnitDPSolverBase::reserve_corr_argmin()], and the reserves are those
+ * of (2) of ThermalUnitDPSolverBase at the recovered schedule.
  *
- * <b>States.</b> For each \f$ t \f$, each run-length \f$ \tau \f$ (number of
- * consecutive time instants for which the unit has been on, ending with
- * \f$ t \f$) and each label \f$ \ell \f$, a *convex piecewise quadratic
- * function*
- * \f[ F^{\tau,\ell}_t : [ P^{min}_t , P^{max}_t ] \rightarrow \mathbb{R} \f]
- * stores the optimal cost of a schedule that is on at \f$ t \f$ with power
- * \f$ p \f$, whose current on-run has length exactly \f$ \tau \f$ and whose
- * state has label \f$ \ell \f$. The label is a small integer recording the
- * extra history a unit derived from ThermalUnitBlock needs for its own
- * temporal constraints: a thermal unit needs none and all its states have
- * label 0, a nuclear unit labels them by how long it is still locked out
- * from modulating [see NuclearUnitExtDPSolver]. The off-side collapses the
- * run-length of Wuijts et al. into two values per instant: \f$
- * c^{rdy}_t( e ) \f$, the optimal cost of a schedule off at \f$ t \f$ for at
- * least \f$ \tau^- \f$ instants (hence free to restart at \f$ t + 1 \f$)
- * whose off-state has label \f$ e \f$, and \f$ c^{any}_t \f$, the optimal
- * cost of a schedule off at \f$ t \f$ regardless of for how long, used only
- * at the end of the horizon.
+ * <b>Pruning.</b> A state \f$ ( \tau , \ell , F ) \f$ at \f$ t \f$ is
+ * discarded if another state \f$ ( \tau' , \ell' , F' ) \f$ at \f$ t \f$ has
+ * \f$ F' \leq F \f$ everywhere on the domain of \f$ F \f$, a label
+ * \f$ \ell' \f$ at least as good as \f$ \ell \f$ [see label_dominates()], and
+ * either \f$ \tau , \tau' \geq \tau^+ \f$ or \f$ \tau' = \tau \f$ (or, if
+ * trim_domination(), \f$ \tau' \geq \tau \f$). This rule is exact. In fact,
+ * the moves, the start-ups and the shut-downs out of a state depend only on
+ * \f$ t \f$, on its label and on the power, and on the run-length only
+ * through the condition \f$ \tau \geq \tau^+ \f$ of (3), which \f$ \tau' \f$
+ * satisfies whenever \f$ \tau \f$ does. Furthermore, a label at least as good
+ * allows any sequence of moves of the other one, landing in labels that are
+ * again at least as good, and (1) is monotone in
+ * \f$ F^{\tau-1,\ell}_{t-1} \f$. Hence, any completion of a schedule through
+ * \f$ ( \tau , \ell , p ) \f$ is also a completion through
+ * \f$ ( \tau' , \ell' , p ) \f$, at no greater cost, and the optimal value
+ * (6) does not change. With trim_domination() the argument (which is
+ * pointwise in \f$ p \f$) is also applied to the part of the domain of
+ * \f$ F \f$ where \f$ F' \f$ is not larger, which is a union of intervals
+ * since the difference of two quadratic pieces changes sign at most twice.
+ * That part is removed, and what remains becomes one state per interval, each
+ * with the restriction of \f$ F \f$; this keeps the states few when the
+ * domains are narrow and shifted with respect to each other. Note that states
+ * with different labels are never merged into their pointwise minimum, which
+ * would not be convex. The surviving states are typically few, and therefore
+ * the method often runs in a time close to linear in \f$ T \f$; however, in
+ * the worst case their number grows linearly with \f$ t \f$ (times the number
+ * of labels).
  *
- * <b>Moves.</b> The on-states with label \f$ \ell \f$ at \f$ t - 1 \f$
- * continue at \f$ t \f$ by the moves \f$ m \in M_t( \ell ) \f$ of
- * on_moves(): each move has a landing label \f$ \ell_m \f$, a window
- * \f$ -w^-_m \leq p_t - p_{t-1} \leq w^+_m \f$ of the scheduled move, a
- * constant cost \f$ c_m \f$ and a range \f$ [ l_m , h_m ] \f$ of the landing
- * power. A thermal unit has the single move of window \f$ [ -\Delta^-_{t-1}
- * , \Delta^+_{t-1} ] \f$; the labels of the off-states evolve by
- * shut_label() \f$ \eta_t \f$ at a shut-down, idle_label() \f$ \iota_t \f$
- * along the idle instants and start_label() \f$ \sigma_t \f$ at a restart.
- *
- * <b>Recurrences.</b> With \f$ \widehat{f}_t = f_t + g^0_t \f$ the production
- * cost plus the capacity reward of the spinning reserve of a start-up
- * instant, whose band is capped by \f$ SU_t \f$ [see
- * ThermalUnitDPSolverBase::build_reserve_discount()],
- * \f[
- * \begin{array}{lll}
- *  \mbox{(on} \rightarrow \mbox{on)} &
- *  F^{\tau,\ell_m}_t( p ) = f_t( p ) + c_m + \min \{ F^{\tau-1,\ell}_{t-1}( q
- *  ) + corr_t( q , p ) \, : \, p - w^+_m \leq q \leq p + w^-_m \} &
- *  \tau > 1 \, , \, m \in M_t( \ell ) \, , \, p \in [ \max\{ P^{min}_t ,
- *  l_m \} , \min\{ P^{max}_t , h_m \} ] \\
- *  \mbox{(off} \rightarrow \mbox{on)} &
- *  F^{1,\sigma_t( e )}_t( p ) = \widehat{f}_t( p ) + SUC_t +
- *  c^{rdy}_{t-1}( e ) & p \in [ P^{min}_t , \min\{ P^{max}_t , SU_t \} ] \\
- *  \mbox{(on} \rightarrow \mbox{off)} &
- *  v^{sd}_h( e ) = \min \{ F^{\tau,\ell}_h( p ) \, : \, \tau \geq \tau^+ \, ,
- *  \, \eta_h( \ell ) = e \, , \, p \in [ P^{min}_h , SD_{h+1} ] \} &
- *  \mbox{shut-down at the end of } h \\
- *  \mbox{(off} \rightarrow \mbox{off)} &
- *  c^{rdy}_t( e ) = \min \{ c^{rdy}_{t-1}( e' ) \, : \, \iota_t( e' , 1 ) =
- *  e \} \cup \{ v^{sd}_{t-\tau^-}( e' ) \, : \, \iota_{t-\tau^-+1}( e' ,
- *  \tau^- ) = e \} &
- *  c^{any}_t = \min \{ c^{any}_{t-1} \, , \, \min_e v^{sd}_{t-1}( e ) \}
- * \end{array}
- * \f]
- * where the on->on step is the "ramp-constrained sliding minimum" of
- * Frangioni and Gentile (2006), taken over the window of the move, with the
- * penalty \f$ corr_t \f$ of the residual-ramp reserve folded in:
- * \f[
- *  corr_t( q , p ) = g_t\big( p , \min\{ A_t( p ) , B_t( p - q ) \} \big)
- *  \, , \quad A_t( p ) = \min\{ p - P^{min}_t , P^{max}_t - p \}
- *  \, , \quad B_t( d ) = \min\{ \Delta^+_{t-1} - d , \Delta^-_{t-1} + d \}
- * \f]
- * with \f$ g_t( p , H ) \leq 0 \f$ the greedy reward of the reserves held
- * in a band of width \f$ H \f$ [see ThermalUnitDPSolverBase::
- * sliding_min_corr()]. Note that the tent \f$ B_t \f$ of the reserve
- * deliverability is always the physical ramp of the step, even when the
- * window of the move is narrower. The long arc of the off->off step
- * enforces the minimum down-time in one jump, the initial off-trail of the
- * unit contributing a 0 at the instants in which it is already ready.
- * At a shut-down the reserve band of the closing instant is capped by
- * \f$ SD_{h+1} \f$ rather than \f$ P^{max}_h \f$, which requires re-running
- * its on->on step under that cap when a reserve is rewarded. The optimal
- * value is
- * \f[
- *  \min \big\{ \, c^{any}_{n-1} \, , \, \min_{\tau,\ell} \min_p
- *  F^{\tau,\ell}_{n-1}( p ) \, \big\}
- * \f]
- * plus the separable reactive term, and the schedule is recovered by
- * walking the recurrences backwards, each predecessor power being the
- * minimiser over the window of the move taken.
- *
- * <b>Pruning.</b> An \f$ F^{\tau,\ell}_t \f$ is dropped when some
- * \f$ F^{\tau',\ell'}_t \f$ with either \f$ \tau , \tau' \geq \tau^+ \f$ or
- * \f$ \tau = \tau' \f$, and with \f$ \ell' \f$ at least as good as \f$ \ell
- * \f$ (label_dominates()), is pointwise not larger: any schedule continuing
- * from the former is then matched, at no greater cost, by one continuing
- * from the latter, since the sliding minimum is monotone (Wuijts et al.,
- * Prop. 6.1). States with different labels are never merged into their
- * pointwise minimum, which would not be convex: each keeps its own
- * function. When trim_domination() the argument is used in full: the
- * domination is pointwise in \f$ p \f$, and a longer run-length reaches the
- * minimum up-time no later, so \f$ F^{\tau,\ell}_t \f$ loses the points of
- * its domain where some \f$ F^{\tau',\ell'}_t \f$ with \f$ \tau' \geq \tau
- * \f$ and \f$ \ell' \f$ at least as good is not larger (a union of
- * intervals, the difference of two quadratics changing sign at most twice),
- * what remains being one state per interval, each with the restriction of
- * the convex function. This is what keeps the states few when the domains
- * are narrow and shifted with respect to each other, as with a stable
- * output that does not change and moves at the full ramp. The surviving
- * states are few in practice, which makes the method run in close to
- * linear time, although its worst case is \f$ O( n^3 ) \f$ times the number
- * of labels.
- *
- * The shared machinery (data loading, the convex piecewise-quadratic value
- * function type and operations, and the whole spinning-reserve model
- * including the residual-ramp on->on transition sliding_min_corr) lives in
- * the base class ThermalUnitDPSolverBase, from which this class derives;
- * only the run-length DP structure, its state and its Solver interface are
- * here.
+ * The minimum up and down times are taken to be at least 1, as in
+ * ThermalUnitBlock, and therefore the value (6) is the optimal value of the
+ * rows of ThermalUnitBlock, with the exceptions stated in
+ * ThermalUnitDPSolverBase.h (a ReferenceSchedule and the fixed Variable other
+ * than the commitment and the design, which are refused, and the parts of the
+ * transitions computed by interpolation).
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -172,7 +203,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS ThermalUnitExtDPSolver ----------------------*/
 /*--------------------------------------------------------------------------*/
-/// DP solver for 1UC with multi-layer ON / single-layer OFF graph
+/// dynamic programming Solver of a ThermalUnitBlock over the run-lengths
 
 class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
 {
@@ -187,19 +218,16 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
 /*------------------------------ PUBLIC TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// DIAGNOSTIC: DP-model cost of a given all-on power trajectory P (energy +
- /// folded reserve reward via corr = reserve_reward(min(A,B))). Lets a caller
- /// evaluate the MILP's trajectory under the DP's own reward model.
+ /// diagnostic: the cost, in the model of the DP, of the schedule on at all
+ /// the instants with active power P, the reserve term included
  double eval_allon_cost( const std::vector< double > & P ) const;
 
- /// DIAGNOSTIC: for each t, the DP's best cost-so-far to reach an on-state at
- /// power P[t] (min over surviving states of f_F[t](P[t]); +INF if no state
- /// covers P[t]). Compare against the cumulative cost of a trajectory to find
- /// the first t where the DP fails to propagate that trajectory.
+ /// diagnostic: for each t, the least value at P[ t ] of the on-states that
+ /// survive at t, +INF if none covers P[ t ]
  std::vector< double > ff_at_traj( const std::vector< double > & P ) const;
 
- /// DIAGNOSTIC: dump every surviving on-state at time t (tau, domain,
- /// value at p)
+ /// diagnostic: print the on-states that survive at t, with their
+ /// run-length, domain and value at p
  void dump_states_at( Index t , double p ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -263,13 +291,15 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
                                 bool & built ) const;
 
  /// returns a valid lower bound on the optimal objective function value
- OFValue get_lb( void ) override { return( f_best_cost ); }
+ OFValue get_lb( void ) override { return( scaled_value( f_best_cost ) ); }
 
  /// returns a valid upper bound on the optimal objective function value
- OFValue get_ub( void ) override { return( f_best_cost ); }
+ OFValue get_ub( void ) override { return( scaled_value( f_best_cost ) ); }
 
  /// returns the value of the current solution, if any
- OFValue get_var_value( void ) override { return( f_best_cost ); }
+ OFValue get_var_value( void ) override {
+  return( scaled_value( f_best_cost ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -296,18 +326,15 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  };
 
 /*--------------------------------------------------------------------------*/
- /// summary of a single \f$ F^\tau_t \f$, kept alongside the PQFun itself
- /** Produced by run_DP() right after each \f$ F^\tau_t \f$ has been built.
-  * It is used both to finalise the best cost at the end of the horizon and
-  * to support backtracking without re-scanning the piecewise
-  * representation:
+ /// the minimum of an on-state, kept next to its value function
+ /** For an on-state \f$ F^{\tau,\ell}_t \f$, as built by run_DP():
   *
-  * - min_val : the minimum value of \f$ F^\tau_t( p ) \f$ over the whole
-  *             domain; TUEDPINF if the slot is infeasible (empty F)
+  * - min_val: the minimum of \f$ F^{\tau,\ell}_t \f$ over its domain,
+  *   TUEDPINF if the state is infeasible (empty function);
   *
-  * - argmin_p : a minimiser \f$ p^* \f$ of \f$ F^\tau_t \f$ on the same
-  *              domain, the \f$ p^*_t \f$ of eq. (16) of Wuijts et al.
-  *              (2021) */
+  * - argmin_p: a minimizer of \f$ F^{\tau,\ell}_t \f$, the power at
+  *   \f$ t \f$ the backward pass starts from if the state ends the optimal
+  *   schedule. */
 
  struct OnSlot {
   double min_val;
@@ -320,26 +347,26 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   *
   * - lab : the label of the on-state the move lands in;
   *
-  * - win_up, win_down : the window of the scheduled move,
-  *   \f$ -win\_down \leq p_t - p_{t-1} \leq win\_up \f$; the tent of the
-  *   reserve deliverability is always the physical ramp of the step, so a
-  *   window narrower than the ramp (the modulation of a nuclear unit)
-  *   limits the move without limiting the reserve;
+  * - win_up, win_down : the window \f$ \omega^+_j \f$, \f$ \omega^-_j \f$ of
+  *   the scheduled move, \f$ -\omega^-_j \leq p^{ac}_t - p^{ac}_{t-1} \leq
+  *   \omega^+_j \f$; the ramp terms of the reserve band are always those of
+  *   the ramp of the step, so that a window narrower than the ramp limits the
+  *   move without limiting the reserve;
   *
   * - cost : a constant cost of the move;
   *
-  * - lo, hi : a range the landing power \f$ p_t \f$ is restricted to, on
-  *   top of \f$ [ P^{min}_t , P^{max}_t ] \f$;
+  * - lo, hi : the range \f$ [ p^{lo}_j , p^{hi}_j ] \f$ the power \f$ p^{ac}_t
+  *   \f$ is restricted to, on top of \f$ [ P^{mn}_t , P^{mx}_t ] \f$;
   *
   * - tag : an integer that the DP records, for each on instant of the
   *   optimal schedule, as the move taken to reach it [see U_move], and
   *   that a derived solver uses to recover the Variable it has on top of
   *   those of the ThermalUnitBlock.
   *
-  * A window may exclude 0 (the move must then be strictly upwards or
-  * downwards), and it may be degenerate, \f$ -win\_down = win\_up \f$: the
-  * move is then exactly \f$ win\_up \f$, i.e., the value function is
-  * shifted. */
+  * A window may exclude 0 (the move must then go upwards, or downwards),
+  * and it may be a single point, \f$ -\omega^-_j = \omega^+_j \f$: the move is
+  * then
+  * exactly \f$ \omega^+_j \f$, i.e., the value function is translated. */
 
  struct OnMove {
   Index lab;
@@ -353,17 +380,18 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
 
 /*--------------------------------------------------------------------------*/
  /// how an on-state has been reached, for the backward pass
- /** Kept alongside each \f$ F^\tau_t \f$:
+ /** Kept next to each \f$ F^{\tau,\ell}_t \f$:
   *
   * - lab : the label of the on-state;
   *
-  * - back : the index of the predecessor on-state in the (final) list at
-  *   \f$ t - 1 \f$, BAD for a restart and for the states seeded at t = 0;
+  * - back : the index of the predecessor on-state in the list at
+  *   \f$ t - 1 \f$, BAD for a start-up and for the states at
+  *   \f$ t = 0 \f$;
   *
-  * - off : the label of the off-state the unit restarted from, for a
-  *   restart (tau == 1);
+  * - off : the label of the off-state the unit started up from, for a
+  *   start-up (\f$ \tau = 1 \f$);
   *
-  * - move : the tag of the move that has been taken, -1 for a restart;
+  * - move : the tag of the move that has been taken, -1 for a start-up;
   *
   * - win_up, win_down : the window of that move. */
 
@@ -384,8 +412,8 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
 
  /// read all the parameters from the ThermalUnitBlock
  /** Loads the shared data via load_common_parameters() and then resets the
-  * run-length solver's own output/pipeline state. virtual so a derived solver
-  * (e.g. NuclearUnitExtDPSolver) can load its extra data on top. */
+  * state of this solver; virtual, so that a derived solver (e.g.,
+  * NuclearUnitExtDPSolver) can load its own data on top. */
  virtual void load_parameters( void );
 
  /// process the queue of Modifications
@@ -400,17 +428,19 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  /// read the fixed status of the Variable of the ThermalUnitBlock
  /** Reads which commitment (and design) Variable are fixed, translating the
   * commitment fixings into the nxt_off / nxt_on tables that run_DP() uses
-  * to kill the incompatible DP states; throws if any Variable that the DP
-  * cannot honor (active power, reserves, start-up, shut-down, reactive) is
-  * fixed. virtual so that a derived solver can check its own Variable. */
+  * to kill the incompatible DP states; throws std::logic_error if any
+  * Variable that the DP cannot honor (active power, reserves, start-up,
+  * shut-down, reactive, or a Variable of an extended formulation [see
+  * fixed_extended_variable()]) is fixed. virtual so that a derived solver
+  * can check its own Variable [see reads_group()]. */
  virtual void load_fixings( void );
 
 /*--------------------------------------------------------------------------*/
 
- /// run the full forward DP (ON and OFF layers together)
+ /// run the forward recursion (1)-(5) of the file comment
  void run_DP( void );
 
- /// reconstruct the commitment/power schedule by backtracking the DP
+ /// recover the optimal schedule by walking the recursion backwards
  void build_solution( void );
 
 /*--------------------------------------------------------------------------*/
@@ -419,11 +449,12 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
 /** @name The labels of the states
  *
  * Each state of the DP carries, on top of the run-length \f$ \tau \f$ of
- * an on-state, a *label*: a small integer recording the extra history a
+ * an on-state, a label: a small integer recording the extra history a
  * derived unit needs to enforce its own temporal constraints. A thermal
  * unit needs none, and all its states have label 0; a nuclear unit labels
- * its states by how long it is still locked out from modulating [see
- * NuclearUnitExtDPSolver]. The DP itself is the same for every unit: it
+ * its states by its mode, by how long it is still locked out from
+ * modulating, by the band of its output and by the counters of the day
+ * [see NuclearUnitExtDPSolver]. The DP itself is the same for every unit: it
  * only asks the methods below which labels exist, which moves leave an
  * on-state, how a label evolves across the off-states and which label is
  * at least as good as another one. Every move is a sliding minimum over its
@@ -431,7 +462,7 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  * the states with different labels are never merged: each keeps its own
  * function, and the domination pruning discards the redundant ones.
  *
- * The label of an on-state at \f$ t \f$ is the one *after* the decision
+ * The label of an on-state at \f$ t \f$ is the one after the decision
  * taken at \f$ t \f$, i.e., the one entering \f$ t + 1 \f$; the same holds
  * for the label of an off-state.
  *  @{ */
@@ -459,7 +490,7 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   * label \p lab at \p t - 1 to an on-state at \p t (for \p t == 0 the
   * predecessor is the initial state, whose label is init_label()). The
   * default is the single move of a thermal unit, whose window is the ramp
-  * of the step. */
+  * \f$ [ -\Delta^-_t , \Delta^+_t ] \f$ of the step. */
  virtual void on_moves( Index t , Index lab ,
                         std::vector< OnMove > & mv ) const;
 
@@ -503,10 +534,11 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   }
 
  /// true if label \p a is at least as good as label \p b for the future
- /** An on-state with label \p a can then take at least all the moves an
-  * on-state with label \p b can, now and later, which is what allows the
-  * former to prune the latter when its value function is pointwise not
-  * larger. */
+ /** An on-state with label \p a can then take at least all the moves, the
+  * start-ups after a shut-down and the shut-downs an on-state with label
+  * \p b can, now and later, landing in labels that are again at least as
+  * good, which is what allows the former to prune the latter when its value
+  * function is pointwise not larger [see the file comment]. */
  virtual bool label_dominates( Index a , Index b ) const { return( true ); }
 
  /// true if the domination may also trim the domain of a state
@@ -544,19 +576,18 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
 
  // -- ON-side value functions ------------------------------------------ //
 
- /// surviving F^tau_t functions, in sparse parallel-vector layout
+ /// the on-states that survive at each instant
  /** f_F[ t ], f_tau[ t ], f_on[ t ] and f_link[ t ] have the same length:
-  * f_F[ t ][ i ] is the piecewise convex quadratic value function of the
-  * on-state at t with run-length f_tau[ t ][ i ] and label
-  * f_link[ t ][ i ].lab. Only *reachable* and *relevant* (not dominated)
-  * states are stored. */
+  * f_F[ t ][ i ] is the value function of the on-state at t with run-length
+  * f_tau[ t ][ i ] and label f_link[ t ][ i ].lab. Only the states that are
+  * reachable and that the pruning keeps are stored. */
  std::vector< std::vector< PQFun > > f_F;
  std::vector< std::vector< Index > > f_tau;
 
- /// per-slot summary (min_val, argmin_p) parallel to f_F[t] / f_tau[t]
+ /// the minimum of each on-state, parallel to f_F[ t ]
  std::vector< std::vector< OnSlot > > f_on;
 
- /// per-slot label and predecessor, parallel to f_F[t] / f_tau[t]
+ /// the label and the predecessor of each on-state, parallel to f_F[ t ]
  std::vector< std::vector< OnLink > > f_link;
 
  // -- allocation pooling for run_DP() ---------------------------------- //
@@ -581,35 +612,32 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  // E = off_labels(), so that a unit with a single label keeps one value per
  // time instant
 
- /// c_off_ready[ t * E + e ] : min cost of a schedule off at t AND off for at
- /// least min_down_time consecutive instants (legal to restart at t+1), with
- /// label e entering t+1.
+ /// c_off_ready[ t * E + e ] is \f$ c^{rdy}_t( o ) \f$, o = e, of the file
+ /// comment
  std::vector< double > c_off_ready;
 
- /// c_off_any[ t ] : min cost of a schedule off at t, regardless of how long
- /// and of the label. Used only at the end of the horizon.
+ /// c_off_any[ t ] is \f$ c^{any}_t \f$ of the file comment
  std::vector< double > c_off_any;
 
- /// v_shutdown[ h * E + e ] : cost of reaching the "long shutdown arc" at the
- /// end of time h, with label e entering h+1. Only well defined for
- /// h < time_horizon - 1.
+ /// v_shutdown[ h * E + e ] is \f$ \phi^{sd}_h( o ) \f$, o = e, of the file
+ /// comment, defined for h < time_horizon - 1
  std::vector< double > v_shutdown;
 
- /// optimal (tau, p, link) that achieves v_shutdown[ h * E + e ]: needed to
- /// backtrack through the long shutdown arc. The link is that of the
- /// closing on-state at h, which may not be in f_F[ h ] when the closing
- /// transition has been re-run under the shut-down cap.
+ /// the run-length, the power and the link of the on-state at h that
+ /// attains v_shutdown[ h * E + e ], for the backward pass; the link is that
+ /// of the closing on-state at h, which is not in f_F[ h ] when (1) has been
+ /// recomputed at h under the shut-down cap
  std::vector< Index  > v_shutdown_tau;
  std::vector< double > v_shutdown_p;
  std::vector< OnLink > v_shutdown_link;
 
- /// "origin time" of c_off_ready[ t * E + e ]: the time h whose shutdown
- /// produced it via the long shutdown arc (-1 if +INF or inherited from the
- /// initial off trail), and the label entering h+1 of that shutdown.
+ /// the instant h of the shut-down that c_off_ready[ t * E + e ] comes from
+ /// through the second set of (4), -1 if it is +INF or it comes from the
+ /// initial off-trail, and the off-label of that shut-down
  std::vector< int > f_ready_pred;
  std::vector< Index > f_ready_lab;
 
- /// analogous to f_ready_pred / f_ready_lab but for c_off_any[ t ].
+ /// the same as f_ready_pred and f_ready_lab, for c_off_any[ t ]
  std::vector< int > f_any_pred;
  std::vector< Index > f_any_lab;
 

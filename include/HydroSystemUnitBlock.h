@@ -56,25 +56,144 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// implementation of the Block concept for "a collection of hydro unit" in UC
-/** The class HydroSystemUnitBlock, which derives from the Block, defines a
- * base class for any possible "hydro unit" and the linking
- * PolyhedralFunctionBlock that can be attached to a UCBlock to describe the
- * future value of water function. The base HydroSystemUnitBlock class only
- * has very basic information that can characterize almost any different kind
- * of hydro unit:
+/// a UnitBlock made of HydroUnitBlock and of the future cost of their water
+/** HydroSystemUnitBlock, which derives from UnitBlock, groups a set of
+ * HydroUnitBlock (typically the valleys whose water is valued jointly)
+ * together with the future cost of the water left in their reservoirs at the
+ * end of the horizon, as a single UnitBlock of a UCBlock (see
+ * \ref ucblock_model). Its sub-Block are
  *
- * - The number of HydroUnitBlock in the problem;
+ * - the HydroUnitBlock, in the order of the groups "HydroUnitBlock_0",
+ *   "HydroUnitBlock_1", ..., whose generators are, in this order, the
+ *   generators of the HydroSystemUnitBlock;
  *
- * - A set of hydro units, represented by derived classes of the base class
- *   HydroUnitBlock;
+ * - possibly a PolyhedralFunctionBlock, the last sub-Block, whose
+ *   PolyhedralFunction is the future cost of the water.
  *
- * - Possibly a PolyhedralFunctionBlock as sub-Block.
+ * Note that the HydroSystemUnitBlock has no Variable and no Constraint
+ * outside its sub-Block, its Objective is identically zero, and therefore its
+ * cost is the sum of the Objective of its sub-Block, while the scale factor
+ * of UnitBlock is not implemented, i.e., get_scale() is 1.
  *
- * The first sub-Block of this HydroSystemUnitBlock are the HydroUnitBlock. If
- * this HydroSystemUnitBlock also has a PolyhedralFunctionBlock, then the
- * PolyhedralFunctionBlock is the last sub-Block of this HydroSystemUnitBlock.
- */
+ * Future cost of the water. If \f$ v^{f} \f$ is the vector of the final
+ * volumes \f$ v^{hy}_{n,T-1} \f$ of all the reservoirs of all the
+ * HydroUnitBlock, in the order described in deserialize(), the
+ * PolyhedralFunction is
+ * \f[
+ *   \check\nu( v^{f} ) = \max_{ j \in \mathcal{J} } \bigl\{ \alpha_j +
+ *     \beta_j^\top v^{f} \bigr\} \; ,
+ * \f]
+ * where \f$ \mathcal{J} \f$ indexes its rows (cuts). A PolyhedralFunction can
+ * also have a constant lower bound and vertical rows, i.e., constraints
+ * \f$ \alpha_j + \beta_j^\top v^{f} \leq 0 \f$ on its domain (see
+ * PolyhedralFunction). Since \f$ \check\nu \f$ is added to the cost of the
+ * UCBlock, which is minimized, it must be convex (a maximum, not a minimum,
+ * of affine functions), and a concave one is rejected by deserialize(). It is
+ * a cost, which is nonincreasing in the volumes when the water left in the
+ * reservoirs has a value. In particular, a single row with
+ * \f$ \beta_j = - \omega \f$, the vector of the values \f$ \omega \geq 0 \f$
+ * of a unit of water in each reservoir, values the water left at the end of
+ * the horizon linearly, i.e., \f$ \check\nu( v^{f} ) = \alpha_j - \omega^\top
+ * v^{f} \f$, where the constant is irrelevant (e.g., minus the value of the
+ * initial water). When the PolyhedralFunctionBlock is linearized,
+ * \f$ \check\nu \f$ is represented by an epigraph variable \f$ \phi \f$ and
+ * the rows \f$ \alpha_j + \beta_j^\top v^{f} \leq \phi \f$ (see
+ * PolyhedralFunctionBlock).
+ *
+ * Volume-dependent values of the water. A common case is a value of the water
+ * that decreases as the reservoir fills: the final volume
+ * \f$ v_n = v^{hy}_{n,T-1} \f$ of reservoir \f$ n \f$ is split by the levels
+ * \f$ Y_{n,0} < Y_{n,1} < \cdots
+ * < Y_{n,M_n} \f$ into the compartments \f$ [ Y_{n,k-1} , Y_{n,k} ) \f$,
+ * each with a value \f$ \omega_{n,k} \f$ per unit of volume and
+ * \f$ \omega_{n,1} > \omega_{n,2} > \cdots > \omega_{n,M_n} \geq 0 \f$.
+ * The value of the water is the maximum of \f$ \sum_k \omega_{n,k}
+ * g_{n,k} \f$ over the volumes \f$ g_{n,k} \f$ in the compartments, subject
+ * to \f$ \sum_{ k = 1 }^{ M_n } g_{n,k} = v_n - Y_{n,0} \f$ and
+ * \f$ 0 \leq g_{n,k} \leq Y_{n,k} - Y_{n,k-1} \f$. Since the values
+ * decrease, the compartments fill from the bottom, and the value is
+ * \f[
+ *   W_n( v_n ) = \sum_{ k = 1 }^{ M_n } \omega_{n,k} \min \bigl\{
+ *     \max \{ v_n - Y_{n,k-1} , 0 \} , Y_{n,k} - Y_{n,k-1} \bigr\} \; ,
+ * \f]
+ * a concave piecewise-linear function on \f$ [ Y_{n,0} , Y_{n,M_n} ] \f$. On
+ * compartment \f$ k \f$ it is \f$ \omega_{n,k} ( v_n - Y_{n,k-1} ) + \sum_{ i
+ * < k } \omega_{n,i} ( Y_{n,i} - Y_{n,i-1} ) \f$, and each of these affine
+ * functions is above \f$ W_n \f$ elsewhere, since the slopes decrease. Hence,
+ * the future cost \f$ - W_n \f$ is the convex function
+ * \f[
+ *   - W_n( v_n ) = \max_{ k = 1 , \ldots , M_n } \bigl\{ \alpha_{n,k} -
+ *     \omega_{n,k} v_n \bigr\} \; , \qquad \alpha_{n,k} = \omega_{n,k}
+ *     Y_{n,k-1} - \sum_{ i = 1 }^{ k - 1 } \omega_{n,i} ( Y_{n,i} -
+ *     Y_{n,i-1} ) \; ,
+ * \f]
+ * whose \f$ M_n \f$ pieces are rows of the PolyhedralFunction with
+ * \f$ \alpha_j = \alpha_{n,k} \f$ and the single nonzero coefficient
+ * \f$ - \omega_{n,k} \f$ in \f$ \beta_j \f$, that of the final volume of
+ * \f$ n \f$. The range \f$ Y_{n,0} \leq v_n \leq Y_{n,M_n} \f$ is given by
+ * the volume bounds of the HydroUnitBlock at the last instant, and the value
+ * of the water at the beginning of the horizon is a constant. Since a
+ * HydroSystemUnitBlock has a single PolyhedralFunction, the sum of such
+ * functions over several reservoirs needs a row for each combination of their
+ * pieces, i.e., \f$ \prod_n M_n \f$ rows (since the maximum of a sum of
+ * independent maxima is the maximum over all the combinations).
+ *
+ * Multistage models. In a multistage model (see SDDPBlock) the UCBlock is the
+ * problem of one stage, and \f$ \check\nu \f$ is the cutting-plane model of
+ * the expected cost of the following stages as a function of the final
+ * volumes. The initial volumes \f$ V^0 \f$ of the next stage are those final
+ * volumes, which enter only the right-hand sides of its water balances (12)
+ * of instant 0 (see HydroUnitBlock::generate_abstract_constraints() and
+ * HydroUnitBlock::set_initial_volume()). Instead, the other initial
+ * conditions of the valleys, i.e., the initial flows of the arcs, are data of
+ * the stage and not part of the state. Hence, the cuts come from the dual
+ * values of those rows. Let \f$ \mathcal{V}( V^0 ) \f$ be the optimal value
+ * of the (convex) problem of the next stage for one realization of its random
+ * data, as a function of its initial volumes, and \f$ y_n \f$ the dual value
+ * of the water balance of instant 0 of reservoir \f$ n \f$ at the initial
+ * volumes \f$ \hat V^0 \f$. Since the dual value is minus the derivative of
+ * the optimal value with respect to the right-hand side (see
+ * \ref ucbm_dual_sign), \f$ - y \f$ is a subgradient of \f$ \mathcal{V} \f$
+ * at \f$ \hat V^0 \f$, i.e.,
+ * \f[
+ *   \mathcal{V}( v ) \geq \mathcal{V}( \hat V^0 ) - y^\top ( v - \hat V^0 )
+ *     \qquad \text{for every } v \; .
+ * \f]
+ * The expectation of these affine minorants over the realizations, i.e.,
+ * \f$ \alpha_j + \beta_j^\top v^{f} \f$ with
+ * \f$ \beta_j = - \mathbb{E}[ y ] \f$ and \f$ \alpha_j = \mathbb{E}[
+ * \mathcal{V}( \hat V^0 ) ] - \beta_j^\top \hat V^0 \f$, is then a new row of
+ * \f$ \check\nu \f$. By linear programming duality, \f$ \alpha_j \f$ can
+ * equivalently be computed from the dual values of the other rows of the next
+ * stage and their right-hand sides, where the rows of the future cost of that
+ * stage contribute the convex combination \f$ \sum_i y^{\phi}_i \alpha_i \f$
+ * of their constants and \f$ y^{\phi} \f$ are the dual values of its epigraph
+ * rows. Note that the cut is valid only if the problem of the stage is
+ * convex, i.e., if it is solved as a continuous relaxation or through its
+ * Lagrangian dual. In the latter case, the dual values of the water balances
+ * are those of the last solution of the subproblem of this
+ * HydroSystemUnitBlock, and they give a subgradient only if that solution is
+ * at optimal multipliers and its Solver is a CDASolver (see \ref ucbm_multi
+ * for the argument). We do not model the aggregation of the volumes of
+ * several reservoirs into fewer state variables; one can still give a cut
+ * computed on aggregated volumes \f$ \mathfrak{A} v^{f} \f$ (where
+ * \f$ \mathfrak{A} \f$ is a matrix with fewer rows than columns) as the cut
+ * \f$ \alpha_j + ( \mathfrak{A}^\top \beta_j )^\top v^{f} \f$ on the
+ * individual volumes.
+ *
+ * Features not modeled. The future cost is part of the cost of this
+ * UnitBlock: when the UCBlock is decomposed by a Lagrangian relaxation of its
+ * linking constraints, it stays inside the subproblem of the
+ * HydroSystemUnitBlock, which comprises all its HydroUnitBlock, and no
+ * multiplier is associated with its rows. Hence, the future cost is separable
+ * across the HydroSystemUnitBlock of a UCBlock, and the reservoirs whose
+ * final volumes are valued jointly must belong to the same
+ * HydroSystemUnitBlock. Neither the relaxation of the epigraph of
+ * \f$ \check\nu \f$ (with a multiplier per cut) nor that of an equality
+ * between the (aggregated) final volumes and copies of them that only
+ * \f$ \check\nu \f$ uses, which would let the reservoirs be in different
+ * subproblems, is available. A future value of the energy left in other
+ * storages (batteries, load curtailment contracts) is not modeled either. */
 
 class HydroSystemUnitBlock : public UnitBlock
 {
@@ -122,6 +241,8 @@ class HydroSystemUnitBlock : public UnitBlock
  * the HydroSystemUnitBlock. Besides the mandatory "type" attribute of any
  * :Block, the group should contain the following:
  *
+ * - The dimension "TimeHorizon", as for any UnitBlock.
+ *
  * - The dimension "NumberHydroUnits" containing the number of hydro units
  *   (HydroUnitBlock) in the problem.
  *
@@ -129,70 +250,44 @@ class HydroSystemUnitBlock : public UnitBlock
  *   "HydroUnitBlock_(n-1)", with n == NumberHydroUnits, containing each one
  *   HydroUnitBlock.
  *
- * - The group "PolyhedralFunctionBlock" which contains a
- *   PolyhedralFunctionBlock, whose PolyhedralFunction represents the
- *   future value of the water (a.k.a. "Bellman values") left at the end of
- *   the time horizon in all the reservoirs of all the HydroUnitBlock of the
- *   HydroSystemUnitBlock.
+ * - The group "PolyhedralFunctionBlock", which contains a
+ *   PolyhedralFunctionBlock (or a Block of a class derived from it, as given
+ *   by its "type" attribute) whose PolyhedralFunction is the future cost
+ *   \f$ \check\nu \f$ of the water left at the end of the horizon in all the
+ *   reservoirs of all the HydroUnitBlock (see the description of the
+ *   class). The group is optional: without it there is no future cost, and
+ *   get_polyhedral_function_block() returns nullptr. The PolyhedralFunction
+ *   must be convex (no dimension "PolyFunction_sign" of size 0), otherwise
+ *   std::invalid_argument is thrown.
  *
- * The future value of water function is represented by the single
- * PolyhedralFunction which lives inside the PolyhedralFunctionBlock. The
- * vector of "active" variable of PolyhedralFunction is therefore in a
- * one-to-one correspondence with the set of ColVariable in the HydroUnitBlock
- * that represent the amount of water left in each reservoir at the end of
- * the time horizon. Thus, it is necessary to specify the order of the
- * active ColVariable of the PolyhedralFunction. Let us denote by X[ 0 ],
- * X[ 1 ], ..., X[ R - 1 ] the vector of active ColVariable (i.e.,
- * X[ i ] is the one returned by get_active_var( i ) and R =
- * get_num_active_var()). Since each HydroUnitBlock can have more than one
- * reservoir (cf. HydroUnitBlock::get_number_reservoirs()), R is just the
- * total number of reservoir, which is computed by just calling
- * get_number_reservoirs() on each of the HydroUnitBlock and summing all the
- * results. Clearly, R >= NumberHydroUnits. Some of the HydroUnitBlock may
- * have just one reservoir; if this happens for all the hydro unit blocks
- * (but this is not likely), then R == NumberHydroUnits. In this case the
- * mapping is obvious: X[ i ] is the ColVariable that represent the amount of
- * water left in the only reservoir of HydroUnitBlock_i at the end of the
- * time horizon. When, instead, R > NumberHydroUnits, a mapping must be
- * defined. The mapping is the obvious one: HydroUnitBlock have an ordering
- * n = 0, 1, ..., NumberHydroUnits - 1  (cf. the groups "HydroUnitBlock_0",
- * "HydroUnitBlock_1", ... above), and the reservoirs into each
- * HydroUnitBlock also have a natural ordering, Thus, in general the mapping
- * is:
+ * The active Variable of the PolyhedralFunction are the volumes of all the
+ * reservoirs at the last instant \f$ T - 1 \f$, and the columns of its
+ * rows ("PolyFunction_A") refer to them in this order: the HydroUnitBlock
+ * in the order of their groups and, within each HydroUnitBlock, its
+ * reservoirs in their order. That is, with \f$ R_i \f$ the number of
+ * reservoirs of HydroUnitBlock_i (see HydroUnitBlock::get_number_reservoirs())
+ * and X[ 0 ], X[ 1 ], ... the active Variable of the PolyhedralFunction
+ * (X[ k ] being the one returned by its get_active_var( k )):
  *
- *   X[ 0 ] = ColVariable representing the amount of water left in the first
- *            reservoir of HydroUnitBlock_0 at the end of the time horizon
+ * - X[ 0 ], ..., X[ \f$ R_0 - 1 \f$ ] are the final volumes of the
+ *   reservoirs 0, ..., \f$ R_0 - 1 \f$ of HydroUnitBlock_0;
  *
- *   X[ 1 ] = ColVariable representing the amount of water left in the second
- *            reservoir of HydroUnitBlock_0 at the end of the time horizon
+ * - X[ \f$ R_0 \f$ ], ..., X[ \f$ R_0 + R_1 - 1 \f$ ] are the final volumes
+ *   of the reservoirs 0, ..., \f$ R_1 - 1 \f$ of HydroUnitBlock_1;
  *
- *     ...
+ * - and so on, the number of active Variable being \f$ \sum_i R_i \f$
+ *   ("PolyFunction_NumVar"), which is NumberHydroUnits when every
+ *   HydroUnitBlock has a single reservoir.
  *
- *   X[ k ] = ColVariable representing the amount of water left in the k-th
- *            reservoir of HydroUnitBlock_0 at the end of the time horizon,
- *            with k = HydroUnitBlock_0->get_number_reservoirs()
- *
- *   X[ k + 1 ] = ColVariable representing the amount of water left in the
- *                first reservoir of HydroUnitBlock_1 at the end of the time
- *                horizon
- *
- *   X[ k + 2 ] = ColVariable representing the amount of water left in the
- *                second reservoir of HydroUnitBlock_1 at the end of the time
- *                horizon
- *     ...
- *
- * This must be the format of the data (linear inequalities) that define the
- * PolyhedralFunction: the i-th entry of each vector is related to the
- * future value of the water stored in the reservoir identified by the
- * above mapping. See PolyhedralFunction::deserialize() for details about
- * how the data must be stored in the PolyhedralFunctionBlock group. */
+ * See PolyhedralFunction::deserialize() for the format of the data in the
+ * group "PolyhedralFunctionBlock". */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
 #ifndef NDEBUG
- // extends UnitBlock::expected_dims()
+ /// extends UnitBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
 
@@ -205,6 +300,11 @@ class HydroSystemUnitBlock : public UnitBlock
 #endif
 
 /*--------------------------------------------------------------------------*/
+ /// generate the abstract variables of the HydroSystemUnitBlock
+ /** Generates the Variable of all the sub-Block, and makes the final volumes
+  * of the reservoirs, in the order described in deserialize(), the active
+  * Variable of the PolyhedralFunction, if any. The HydroSystemUnitBlock has
+  * no Variable of its own. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
@@ -214,7 +314,11 @@ class HydroSystemUnitBlock : public UnitBlock
   *
   * - Objective function: the objective function of the HydroSystemUnitBlock
   *   is "empty" (a FRealObjective with a LinearFunction inside with no
-  *   active variables). */
+  *   active variables), the cost of the HydroSystemUnitBlock being the sum
+  *   of the Objective of its sub-Block, i.e., of the costs of the
+  *   HydroUnitBlock and of the future cost \f$ \check\nu \f$ of the water
+  *   (see the description of the class); the objectives of the sub-Block
+  *   are generated as well. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -230,17 +334,31 @@ class HydroSystemUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the i-th HydroUnitBlock
+ /// returns the i-th HydroUnitBlock, 0 <= i < get_number_hydro_units()
+ /** Returns the i-th HydroUnitBlock; the index is checked only if NDEBUG is
+  * not defined, in which case std::invalid_argument is thrown when
+  * i >= get_number_hydro_units(). */
 
  HydroUnitBlock * get_hydro_unit_block( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
- /// returns the PolyhedralFunctionBlock
+ /// returns the PolyhedralFunctionBlock, nullptr if there is none
 
  PolyhedralFunctionBlock * get_polyhedral_function_block( void ) const {
-  assert( ! v_Block.empty() );
+  if( v_Block.size() <= f_number_hydro_units )
+   return( nullptr );
   return( static_cast< PolyhedralFunctionBlock * >( v_Block.back() ) );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// the storages are the reservoirs of all the HydroUnitBlock, in order
+
+ Index get_number_storages( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the volumes of the given reservoir [see get_number_storages()]
+
+ ColVariable * get_storage_level( Index storage ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of active power variables of each HydroUnitBlock
@@ -277,20 +395,24 @@ class HydroSystemUnitBlock : public UnitBlock
  bool has_secondary_reserve( void ) const override;
 
 /*--------------------------------------------------------------------------*/
+ /// the generators are those of the HydroUnitBlock, unit after unit
 
  Index get_number_generators( void ) const override {
   return( v_gen_map.size() );
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the inertia power of the generator in its HydroUnitBlock
 
  const double * get_inertia_power( Index generator ) const override;
 
 /*--------------------------------------------------------------------------*/
+ /// returns the minimum power of the generator in its HydroUnitBlock
 
  double get_min_power( Index t , Index generator = 0 ) const override;
 
 /*--------------------------------------------------------------------------*/
+ /// returns the maximum power of the generator in its HydroUnitBlock
 
  double get_max_power( Index t , Index generator = 0 ) const override;
 
@@ -331,6 +453,20 @@ class HydroSystemUnitBlock : public UnitBlock
 
  Solution * get_Solution( Configuration * solc = nullptr ,
 			  bool emptys = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// checks whether the current solution is feasible for the hydro system
+ /** The solution is feasible if every sub-Block is. The tolerance and the
+  * type of violation are taken from \p fsbc if it is a
+  * SimpleConfiguration< double > (tolerance, relative violation) or a
+  * SimpleConfiguration< std::pair< double , int > > (tolerance, relative
+  * violation if the second is nonzero), otherwise from
+  * f_BlockConfig->f_is_feasible_Configuration in the same way, otherwise
+  * they are 0 and the relative violation; each sub-Block is checked with
+  * them, unless its BlockConfig has its own f_is_feasible_Configuration. */
+
+ bool is_feasible( bool useabstract = false ,
+                   Configuration * fsbc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// return the "appropriate" [HydroSystem]UnitBlockSolution
@@ -382,6 +518,8 @@ class HydroSystemUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /** @name Handling the data of the HydroSystemUnitBlock
  * @{ */
+
+ /// loading from a stream is not implemented: it throws
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error(

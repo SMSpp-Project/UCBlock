@@ -16,8 +16,13 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
  * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu,
- *                      Rafael Durbano Lobato
+ *                      Rafael Durbano Lobato,
+ *                      Donato Meoli
  */
 
 /*--------------------------------------------------------------------------*/
@@ -249,6 +254,38 @@ std::vector< std::string > HydroUnitBlock::expected_vars( void ) const {
 
 void HydroUnitBlock::check_data_consistency( void ) const
 {
+ // StartArc and EndArc - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // either both or none; without them every arc leaves the only reservoir and
+ // the system, hence they are required with more than one reservoir; an arc
+ // starts at a reservoir, ends at a reservoir or at the fictitious one
+ // NumberReservoirs (out of the system), and is not a self-loop
+ if( v_StartArc.empty() != v_EndArc.empty() )
+  throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                           "StartArc and EndArc must be given together" ) );
+
+ if( v_StartArc.empty() && ( f_NumberReservoirs > 1 ) )
+  throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                           "StartArc and EndArc are required with " +
+                           std::to_string( f_NumberReservoirs ) +
+                           " reservoirs" ) );
+
+ for( Index arc = 0 ; arc < v_StartArc.size() ; ++arc ) {
+  if( v_StartArc[ arc ] >= f_NumberReservoirs )
+   throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                            "StartArc of arc " + std::to_string( arc ) +
+                            " is " + std::to_string( v_StartArc[ arc ] ) +
+                            ", but it must be smaller than NumberReservoirs" ) );
+  if( v_EndArc[ arc ] > f_NumberReservoirs )
+   throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                            "EndArc of arc " + std::to_string( arc ) +
+                            " is " + std::to_string( v_EndArc[ arc ] ) +
+                            ", but it must not exceed NumberReservoirs" ) );
+  if( v_StartArc[ arc ] == v_EndArc[ arc ] )
+   throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                            "arc " + std::to_string( arc ) +
+                            " starts and ends at the same reservoir" ) );
+  }
+
  // MinPower and MaxPower - - - - - - - - - - - - - - - - - - - - - - - - - -
  // for each arc l and each time t, v_MinPower[t][l] \leq v_MaxPower[t][l]
  if( ( ! v_MinPower.empty() ) && ( ! v_MaxPower.empty() ) )
@@ -316,69 +353,130 @@ void HydroUnitBlock::check_data_consistency( void ) const
                                ", which must be 0" ) );
      }
 
+ // Kind of the arcs and LinearTerm - - - - - - - - - - - - - - - - - - - - -
+ // at each instant an arc is a turbine (MinFlow >= 0 < MaxFlow), a pump
+ // (MinFlow < 0 >= MaxFlow) or idle (MinFlow == MaxFlow == 0); an arc with
+ // MinFlow < 0 < MaxFlow has to be split into a turbine and a pump, an arc
+ // is never a turbine at an instant and a pump at another, and the
+ // flow-to-power function of a turbine has no default
+ bool any_turbine = false;
+ for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
+  bool turbine = false;
+  bool pump = false;
+  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   const auto MinF = get_min_flow( t , arc );
+   const auto MaxF = get_max_flow( t , arc );
+   if( ( MinF < 0 ) && ( MaxF > 0 ) )
+    throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                             "arc " + std::to_string( arc ) + " has MinFlow "
+                             "< 0 < MaxFlow at time " + std::to_string( t ) +
+                             ": it must be split into a turbine and a "
+                             "pump" ) );
+   turbine |= ( MinF >= 0 ) && ( MaxF > 0 );
+   pump |= ( MaxF <= 0 ) && ( MinF < 0 );
+   }
+  if( turbine && pump )
+   throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                            "arc " + std::to_string( arc ) + " is a turbine "
+                            "at some time and a pump at another" ) );
+  any_turbine |= turbine;
+  }
+
+ if( any_turbine && v_LinearTerm.empty() )
+  throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                           "LinearTerm is required when some arc is a "
+                           "turbine" ) );
+
  // Volumetric bounds - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // for each reservoir n and each time t,
- // 0 \leq v_MinVolumetric[n][t] \leq v_MaxVolumetric[n][t]
- if( ( ! v_MinVolumetric.empty() ) && ( ! v_MaxVolumetric.empty() ) )
+ // 0 \leq v_MinVolumetric[n][t] \leq v_MaxVolumetric[n][t], an absent
+ // bound being 0
+ if( ( ! v_MinVolumetric.empty() ) || ( ! v_MaxVolumetric.empty() ) )
   for( Index node = 0 ; node < f_NumberReservoirs ; ++node )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( v_MinVolumetric[ node ][ t ] < 0 )
+    const double vmn = v_MinVolumetric.empty() ? 0 :
+                       v_MinVolumetric[ node ][ t ];
+    const double vmx = v_MaxVolumetric.empty() ? 0 :
+                       v_MaxVolumetric[ node ][ t ];
+    if( vmn < 0 )
      throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
                               "minimum volumetric of reservoir " +
                               std::to_string( node ) + " at time " +
                               std::to_string( t ) + " is " +
-                              std::to_string( v_MinVolumetric[ node ][ t ] ) +
+                              std::to_string( vmn ) +
                               ", but it must be nonnegative" ) );
-    if( v_MaxVolumetric[ node ][ t ] < 0 )
+    if( vmx < 0 )
      throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
                               "maximum volumetric of reservoir " +
                               std::to_string( node ) + " at time " +
                               std::to_string( t ) + " is " +
-                              std::to_string( v_MaxVolumetric[ node ][ t ] ) +
+                              std::to_string( vmx ) +
                               ", but it must be nonnegative" ) );
-    if( v_MinVolumetric[ node ][ t ] > v_MaxVolumetric[ node ][ t ] )
+    if( vmn > vmx )
      throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
                               "minimum volumetric of reservoir " +
                               std::to_string( node ) + " at time " +
                               std::to_string( t ) + " is " +
-                              std::to_string( v_MinVolumetric[ node ][ t ] ) +
+                              std::to_string( vmn ) +
                               ", which is greater than the maximum "
                               "volumetric, which is " +
-                              std::to_string( v_MaxVolumetric[ node ][ t ] ) ) );
+                              std::to_string( vmx ) ) );
     }
 
- // Cyclic-closure outgoing-arc capacity vs inflow - - - - - - - - - - - - -
- // for each reservoir n under cyclic closure (initial_volumetric < 0) and
- // for each time t,
- //   sum_{l: StartArc[l] == n} v_MaxFlow[t][l] \geq v_inflows[n][t]
- // if this pre-condition is violated, the spillage arc (LinearTerm == 0)
- // cannot dump the excess inflow at t, the storage cannot help indefinitely
- // because v[n, T - 1] = v[n, 0] is forced, and the LP is infeasible
- if( ( ! v_inflows.empty() ) && ( ! v_MaxFlow.empty() ) &&
-     ( ! v_StartArc.empty() ) )
-  for( Index n = 0 ; n < f_NumberReservoirs ; ++n ) {
-   if( get_initial_volumetric( n ) >= 0. )
-    continue;  // not cyclic for this reservoir
+ // Cyclic closure: total inflow vs total flows - - - - - - - - - - - - - - -
+ // for a reservoir n under cyclic closure (initial_volumetric < 0) the water
+ // balances of all the instants sum up to
+ //   sum_t A[n][t] = sum of the outgoing flows - sum of the incoming flows
+ // where each flow is counted at the instants at which the balances count
+ // it (same guards as in generate_abstract_constraints()); with the flow
+ // bounds this gives the necessary condition
+ //   sum_out MinFlow - sum_in MaxFlow <= sum_t A[n][t]
+ //                                    <= sum_out MaxFlow - sum_in MinFlow
+ // whose violation makes the problem infeasible whatever the other data
+ const bool arcs_given = ( ! v_StartArc.empty() ) && ( ! v_EndArc.empty() );
+ for( Index n = 0 ; n < f_NumberReservoirs ; ++n ) {
+  if( get_initial_volumetric( n ) >= 0. )
+   continue;  // not cyclic for this reservoir
+
+  double tot_in = 0.;
+  if( ! v_inflows.empty() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    tot_in += v_inflows[ n ][ t ];
+
+  double lo = 0.;  // smallest net outflow over the horizon
+  double hi = 0.;  // largest net outflow over the horizon
+  for( Index l = 0 ; l < f_NumberArcs ; ++l )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    double s_out = 0.;
-    for( Index l = 0 ; l < f_NumberArcs ; ++l )
-     if( v_StartArc[ l ] == n )
-      s_out += v_MaxFlow[ t ][ l ];
-    if( s_out + 1e-9 * std::max( 1. , std::abs( v_inflows[ n ][ t ] ) )
-        < v_inflows[ n ][ t ] )
-     throw( std::logic_error(
-      "HydroUnitBlock::check_data_consistency: reservoir " +
-      std::to_string( n ) + " is operated under cyclic closure but at "
-      "time " + std::to_string( t ) + " the inflow is " +
-      std::to_string( v_inflows[ n ][ t ] ) + ", which exceeds the "
-      "outgoing-arc capacity sum_{l: StartArc[l]==" + std::to_string( n ) +
-      "} v_MaxFlow[" + std::to_string( t ) + "][l] = " +
-      std::to_string( s_out ) + "; oversize v_MaxFlow on the spillage arc "
-      "(the one with LinearTerm == 0) by at least max_t v_inflows[" +
-      std::to_string( n ) + "][t], or break cyclic closure by setting "
-      "InitialVolumetric[" + std::to_string( n ) + "] >= 0" ) );
+    if( ! arcs_given ) {  // a single reservoir, which every arc leaves
+     lo += get_min_flow( t , l );
+     hi += get_max_flow( t , l );
+     continue;
+     }
+    const int t_up = int( t ) - get_uphill_delay( l );
+    if( ( t_up >= 0 ) && ( t_up < int( f_time_horizon ) ) &&
+        ( v_StartArc[ l ] == n ) ) {
+     lo += get_min_flow( Index( t_up ) , l );
+     hi += get_max_flow( Index( t_up ) , l );
+     }
+    const auto t_dn = get_downhill_delay( l );
+    if( ( t >= t_dn ) && ( v_EndArc[ l ] == n ) ) {
+     lo -= get_max_flow( t - t_dn , l );
+     hi -= get_min_flow( t - t_dn , l );
+     }
     }
-   }
+
+  const double tol = 1e-9 * std::max( 1. , std::abs( tot_in ) );
+  if( ( tot_in > hi + tol ) || ( tot_in < lo - tol ) )
+   throw( std::logic_error(
+    "HydroUnitBlock::check_data_consistency: reservoir " +
+    std::to_string( n ) + " is operated under cyclic closure, so its total "
+    "inflow over the horizon, " + std::to_string( tot_in ) + ", must lie "
+    "between the smallest and the largest total net outflow allowed by the "
+    "flow bounds, " + std::to_string( lo ) + " and " + std::to_string( hi ) +
+    "; enlarge the maximum flow of the spillway, or break the cyclic "
+    "closure by setting InitialVolumetric[" + std::to_string( n ) +
+    "] >= 0" ) );
+  }
 
  }  // end( HydroUnitBlock::check_data_consistency )
 
@@ -520,10 +618,11 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index l = 0 ; l < f_NumberArcs ; ++l ) {
     if( ( ! v_StartArc.empty() ) && ( ! v_EndArc.empty() ) ) {
 
-     const auto uphill_delay = get_uphill_delay( l );
-     if( ( t >= uphill_delay ) && ( t - uphill_delay < f_time_horizon ) &&
+     // the uphill delay may be negative: compare as signed integers
+     const int t_up = int( t ) - get_uphill_delay( l );
+     if( ( t_up >= 0 ) && ( t_up < int( f_time_horizon ) ) &&
          ( v_StartArc[ l ] == n ) )
-      vars.push_back( std::make_pair( get_flow_rate( l , t - uphill_delay ) ,
+      vars.push_back( std::make_pair( get_flow_rate( l , Index( t_up ) ) ,
                                       1.0 ) );
 
      const auto downhill_delay = get_downhill_delay( l );
@@ -531,7 +630,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       vars.push_back( std::make_pair( get_flow_rate( l , t - downhill_delay ) ,
                                       -1.0 ) );
      }
-    else
+    else  // a single reservoir, which every arc leaves [see
+          // check_data_consistency()]
      vars.push_back( std::make_pair( get_flow_rate( l , t ) , 1.0 ) );
     }
 
@@ -773,18 +873,21 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  assert( FlowActivePower_Const.empty() );
  FlowActivePower_Const.resize(
-            maFRC2::extent_gen()[ f_time_horizon ][ f_TotalNumberPieces ] );
+                   boost::extents[ f_time_horizon ][ f_NumberArcs ] );
 
- // an arc whose (only) piece has LinearTerm == 0 releases water without
- // producing any power: it is the spillage outlet of the reservoir it
- // leaves, see check_data_consistency(). A single-piece turbine arc with no
- // constant term states the flow-to-power relation exactly, so its row is
- // an equality rather than the concave outer approximation that a piecewise
- // arc needs; the equality then lets the flow variable be substituted away.
- // Both conditions are required: with more than one piece the inequality is
- // the relaxation itself, and without a spillage outlet the inequality is
- // the only way to release water without generating, so forcing the
- // equality could turn a feasible instance infeasible
+ // an arc whose only piece has LinearTerm == 0 releases water without
+ // producing any power: it is a spillage arc. The row of a single-piece
+ // turbine arc with ConstantTerm == 0 is the equality p == LinearTerm * f,
+ // rather than the inequality, when the water that the inequality lets the
+ // turbine release without producing can leave through a spillage arc with
+ // the same effect on the reservoirs; the equality then lets the flow
+ // variable be substituted away. This asks for a spillage arc with the same
+ // StartArc, EndArc and delays as the turbine, for a turbine whose flow is
+ // not bound by anything else than its power (MinFlow == 0 at all instants
+ // and no ramp constraints), and for a spillage arc whose MaxFlow is at
+ // least the sum of the MaxFlow of the turbines relying on it at every
+ // instant; otherwise forcing the equality could change the optimum, or turn
+ // a feasible instance infeasible
 
  std::vector< Index > first_piece( f_NumberArcs , 0 );
  for( Index arc = 1 ; arc < f_NumberArcs ; ++arc )
@@ -796,73 +899,113 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
    single_piece[ arc ] = ( v_NumberPieces[ arc ] == 1 );
 
- std::vector< bool > has_spillage( f_NumberArcs , false );
- if( ! v_LinearTerm.empty() )
-  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
-   for( Index out = 0 ; out < f_NumberArcs ; ++out )
-    if( single_piece[ out ] &&
-        ( v_LinearTerm[ first_piece[ out ] ] == 0. ) &&
-        ( v_StartArc.empty() ||
-          ( v_StartArc[ out ] == v_StartArc[ arc ] ) ) ) {
-     has_spillage[ arc ] = true;
+ // spill_of[ arc ] is the spillage arc of arc, or Inf< Index >() if the row
+ // of arc is not an equality
+ std::vector< Index > spill_of( f_NumberArcs , Inf< Index >() );
+ if( ( ! v_LinearTerm.empty() ) && v_DeltaRampUp.empty() &&
+     v_DeltaRampDown.empty() ) {
+  auto is_spillage = [ & ]( Index arc ) {
+   return( single_piece[ arc ] &&
+           ( v_LinearTerm[ first_piece[ arc ] ] == 0. ) );
+   };
+
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
+   if( ( ! single_piece[ arc ] ) || is_spillage( arc ) ||
+       ( ( ! v_ConstTerm.empty() ) &&
+         ( v_ConstTerm[ first_piece[ arc ] ] != 0. ) ) )
+    continue;
+
+   bool free_flow = true;
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( get_min_flow( t , arc ) > 0 ) {
+     free_flow = false;
      break;
      }
+   if( ! free_flow )
+    continue;
+
+   for( Index out = 0 ; out < f_NumberArcs ; ++out ) {
+    if( ( out == arc ) || ( ! is_spillage( out ) ) )
+     continue;
+    // without StartArc and EndArc every arc leaves the only reservoir and
+    // the system, and no delay applies
+    if( ( ! v_StartArc.empty() ) &&
+        ( ( v_StartArc[ out ] != v_StartArc[ arc ] ) ||
+          ( v_EndArc[ out ] != v_EndArc[ arc ] ) ||
+          ( get_uphill_delay( out ) != get_uphill_delay( arc ) ) ||
+          ( get_downhill_delay( out ) != get_downhill_delay( arc ) ) ) )
+     continue;
+    spill_of[ arc ] = out;
+    break;
+    }
+   }
+
+  // the capacity of each spillage arc, which is dropped as soon as it is
+  // too small at some instant
+  for( Index out = 0 ; out < f_NumberArcs ; ++out ) {
+   bool enough = true;
+   for( Index t = 0 ; enough && ( t < f_time_horizon ) ; ++t ) {
+    double need = 0;
+    for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+     if( spill_of[ arc ] == out )
+      need += std::max( get_max_flow( t , arc ) , 0.0 );
+    enough = ( get_max_flow( t , out ) >= need );
+    }
+   if( ! enough )
+    for( auto & s : spill_of )
+     if( s == out )
+      s = Inf< Index >();
+   }
+  }
 
  if( f_NumberArcs > 0 ) {
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   Index piece = 0;
-   Index cnstr_idx = 0;
-   Index end = 0;
-
+  // FlowActivePower_Const[ t ][ arc ] has a row for each piece of the arc if
+  // it is a turbine at time t, and a single row otherwise: the number of
+  // rows depends on both indices
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
    for( Index arc = 0 ; arc < f_NumberArcs ; ++arc ) {
-    if( v_NumberPieces.empty() )
-     ++end;
-    else
-     end += v_NumberPieces[ arc ];
-
-    auto MinF = get_min_flow( t , arc );
-    auto MaxF = get_max_flow( t , arc );
+    auto & rows = FlowActivePower_Const[ t ][ arc ];
+    const auto first = first_piece[ arc ];
+    const auto MinF = get_min_flow( t , arc );
+    const auto MaxF = get_max_flow( t , arc );
 
     if( ( MinF >= 0 ) && ( MaxF > 0 ) ) {  // Turbines
-     for( ; piece < end ; ++piece , ++cnstr_idx ) {
+     rows.resize( v_NumberPieces.empty() ? 1 : v_NumberPieces[ arc ] );
+     for( Index j = 0 ; j < rows.size() ; ++j ) {
+      const auto piece = first + j;
       vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
-      if( ! v_LinearTerm.empty() )
-       vars.push_back( std::make_pair( get_flow_rate( arc , t ) ,
-                                       -v_LinearTerm[ piece ] ) );
-      else
-       vars.push_back( std::make_pair( get_flow_rate( arc , t ) , 1.0 ) );
+      // a turbine has LinearTerm [see check_data_consistency()]
+      vars.push_back( std::make_pair( get_flow_rate( arc , t ) ,
+                                      -v_LinearTerm[ piece ] ) );
 
       const double const_term = v_ConstTerm.empty() ? 0.0
                                                     : v_ConstTerm[ piece ];
 
-      if( single_piece[ arc ] && ( const_term == 0. ) &&
-          has_spillage[ arc ] )
-       FlowActivePower_Const[ t ][ piece ].set_both( 0.0 );
+      if( spill_of[ arc ] < f_NumberArcs )
+       rows[ j ].set_both( 0.0 );
       else {
-       FlowActivePower_Const[ t ][ piece ].set_rhs( const_term );
-       FlowActivePower_Const[ t ][ piece ].set_lhs( -Inf< double >() );
+       rows[ j ].set_rhs( const_term );
+       rows[ j ].set_lhs( -Inf< double >() );
        }
 
-      FlowActivePower_Const[ t ][ piece ].set_function(
-				 new LinearFunction( std::move( vars ) ) );
+      rows[ j ].set_function( new LinearFunction( std::move( vars ) ) );
       }
      continue;
      }
 
+    rows.resize( 1 );
     vars.push_back( std::make_pair( get_active_power( arc , t ) , 1.0 ) );
 
-    if( ( MaxF <= 0 ) && ( MinF < 0 ) )  // Pumps
+    if( ( MaxF <= 0 ) && ( MinF < 0 ) )  // Pumps, which have one piece
      vars.push_back( std::make_pair( get_flow_rate( arc , t ) ,
-                                     -v_LinearTerm[ cnstr_idx ] ) );
+                                     v_LinearTerm.empty() ? -1.0 :
+                                     -v_LinearTerm[ first ] ) );
     else  // MinF == MaxF == 0:  f_hydro == p_hydro [== 0]
      vars.push_back( std::make_pair( get_flow_rate( arc , t ) , -1.0 ) );
 
-    FlowActivePower_Const[ t ][ cnstr_idx ].set_both( 0.0 );
-    FlowActivePower_Const[ t ][ cnstr_idx++ ].set_function(
-				 new LinearFunction( std::move( vars ) ) );
-    piece = cnstr_idx;
+    rows[ 0 ].set_both( 0.0 );
+    rows[ 0 ].set_function( new LinearFunction( std::move( vars ) ) );
     }
-   }
 
   add_static_constraint( FlowActivePower_Const , "FlowActivePower_HydroUnit" );
 
@@ -1090,7 +1233,7 @@ void HydroUnitBlock::generate_objective( Configuration * objc )
 bool HydroUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // Retrieve the tolerance and the type of violation.
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
 
  // Try to extract, from "c", the parameters that determine feasibility.
@@ -1301,7 +1444,7 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
  bool identical = true;
  auto values_it = values;
  for( auto i : subset ) {
-  if( i >= v_inflows.size() )
+  if( i >= v_inflows.num_elements() )
    throw( std::invalid_argument( "HydroUnitBlock::set_inflow: "
                                  "invalid value in subset." ) );
 
@@ -1321,20 +1464,32 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
    v_inflows[ r ][ t ] = *( values_it++ );
   }
 
-  if( constraints_generated() )
+  if( constraints_generated() ) {
    // Change the abstract representation
+   // one side per instant and per reservoir, hence one abstract Modification
+   // each: they all go into a single GroupModification, so that a Solver able
+   // to write a whole set of sides in one operation does that instead of one
+   // call per instant [see MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    for( auto i : subset ) {
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
     if( t == 0 ) {
-     const auto volume = get_initial_volumetric( r );
+     // a negative initial volume is the cyclic closure, whose row of
+     // instant 0 holds v_{T-1} instead of a constant
+     const auto volume = std::max( get_initial_volumetric( r ) , 0.0 );
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      volume + v_inflows[ r ][ t ] , issueAMod );
+      volume + v_inflows[ r ][ t ] , nAM );
     }
     else
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      v_inflows[ r ][ t ] , issueAMod );
+      v_inflows[ r ][ t ] , nAM );
+   }
+
+   close_channel( par2chnl( nAM ) );  // at the end close the channel
    }
  }
 
@@ -1385,20 +1540,30 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
 
   if( constraints_generated() ) {
    // Change the abstract representation
+   // one side per instant and per reservoir, hence one abstract Modification
+   // each: they all go into a single GroupModification, so that a Solver able
+   // to write a whole set of sides in one operation does that instead of one
+   // call per instant [see MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
 
    for( Index i = rng.first ; i < rng.second ; ++i ) {
     Index t = i % f_time_horizon;
     Index r = i / f_time_horizon;
 
     if( t == 0 ) {
-     const auto volume = get_initial_volumetric( r );
+     // a negative initial volume is the cyclic closure, whose row of
+     // instant 0 holds v_{T-1} instead of a constant
+     const auto volume = std::max( get_initial_volumetric( r ) , 0.0 );
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      volume + v_inflows[ r ][ t ] , issueAMod );
+      volume + v_inflows[ r ][ t ] , nAM );
     }
     else
      FinalVolumeReservoir_Const[ t ][ r ].set_both(
-      v_inflows[ r ][ t ] , issueAMod );
+      v_inflows[ r ][ t ] , nAM );
    }
+
+   close_channel( par2chnl( nAM ) );  // at the end close the channel
   }
  }
 
@@ -1456,10 +1621,9 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
    v_InertiaPower[ a ][ t ] = *( values_it++ );
   }
 
-  if( constraints_generated() ) {
-   // Change the abstract representation
-   // FIXME: v_InertiaPower is not used
-  }
+  // no Constraint of this Block uses the inertia power: the inertia rows
+  // are those of the enclosing UCBlock, which rewrites them when it sees
+  // the eSetInerP Modification [see UCBlock::add_Modification()]
  }
 
  if( issue_pmod( issuePMod ) ) {
@@ -1519,10 +1683,9 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
    v_InertiaPower[ a ][ t ] = *( values_it++ );
   }
 
-  if( constraints_generated() ) {
-   // Change the abstract representation
-   // FIXME: v_InertiaPower is not used
-  }
+  // no Constraint of this Block uses the inertia power: the inertia rows
+  // are those of the enclosing UCBlock, which rewrites them when it sees
+  // the eSetInerP Modification [see UCBlock::add_Modification()]
  }
 
  if( issue_pmod( issuePMod ) )
@@ -1554,6 +1717,9 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
 
   v_InitialVolumetric.resize( get_number_reservoirs() );
  }
+ else if( v_InitialVolumetric.size() == 1 )  // one value for every reservoir
+  v_InitialVolumetric.assign( get_number_reservoirs() ,
+                              v_InitialVolumetric.front() );
 
  bool identical = true;
  auto values_it = values;
@@ -1571,6 +1737,18 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
   // Nothing has changed.
   return;
 
+ // a negative value means the cyclic closure, which shapes the rows of
+ // instant 0 when they are generated: it cannot come or go afterwards
+ if( constraints_generated() ) {
+  values_it = values;
+  for( auto r : subset )
+   if( ( v_InitialVolumetric[ r ] < 0 ) != ( *( values_it++ ) < 0 ) )
+    throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: the "
+                                  "cyclic closure of reservoir " +
+                                  std::to_string( r ) + " cannot change "
+                                  "once the constraints are generated" ) );
+  }
+
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
   values_it = values;
@@ -1580,7 +1758,9 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( auto r : subset ) {
-    const auto volume = get_initial_volumetric( r );
+    // a negative initial volume is the cyclic closure, whose row of
+    // instant 0 holds v_{T-1} instead of a constant
+    const auto volume = std::max( get_initial_volumetric( r ) , 0.0 );
     const auto inflow = v_inflows.empty() ? 0.0 : v_inflows[ r ][ 0 ];
     FinalVolumeReservoir_Const[ 0 ][ r ].set_both
      ( volume + inflow , issueAMod );
@@ -1621,11 +1801,24 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
 
   v_InitialVolumetric.resize( get_number_reservoirs() );
  }
+ else if( v_InitialVolumetric.size() == 1 )  // one value for every reservoir
+  v_InitialVolumetric.assign( get_number_reservoirs() ,
+                              v_InitialVolumetric.front() );
 
  // If nothing changes, return
  if( std::equal( values , values + ( rng.second - rng.first ) ,
                  v_InitialVolumetric.begin() + rng.first ) )
   return;
+
+ // a negative value means the cyclic closure, which shapes the rows of
+ // instant 0 when they are generated: it cannot come or go afterwards
+ if( constraints_generated() )
+  for( Index r = rng.first ; r < rng.second ; ++r )
+   if( ( v_InitialVolumetric[ r ] < 0 ) != ( values[ r - rng.first ] < 0 ) )
+    throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: the "
+                                  "cyclic closure of reservoir " +
+                                  std::to_string( r ) + " cannot change "
+                                  "once the constraints are generated" ) );
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
@@ -1636,7 +1829,9 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    // Change the abstract representation
    for( Index r = rng.first ; r < rng.second ; ++r ) {
-    const auto volume = get_initial_volumetric( r );
+    // a negative initial volume is the cyclic closure, whose row of
+    // instant 0 holds v_{T-1} instead of a constant
+    const auto volume = std::max( get_initial_volumetric( r ) , 0.0 );
     const auto inflow = v_inflows.empty() ? 0.0 : v_inflows[ r ][ 0 ];
     FinalVolumeReservoir_Const[ 0 ][ r ].set_both
      ( volume + inflow , issueAMod );
@@ -1660,11 +1855,19 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( const Block::Subset & a
  if( ! constraints_generated() )
   return;
 
+ // the initial flow rate is one datum, but it is the right-hand side of a
+ // ramp row for each arc, hence one abstract Modification each: they all go
+ // into a single GroupModification, so that a Solver able to write a whole
+ // set of sides in one operation does that instead of one call per arc [see
+ // MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  // ramp-up constraints
  if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
   for( auto arc : arcs )
    RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
-                                     v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
+                                     v_DeltaRampUp[ 0 ][ arc ] , nAM );
  }
 
  // ramp-down constraints
@@ -1672,8 +1875,10 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( const Block::Subset & a
   for( auto arc : arcs )
    RampDown_Const[ 0 ][ arc ].set_lhs( get_initial_flow_rate( arc ) -
                                        v_DeltaRampDown[ 0 ][ arc ] ,
-                                       issueAMod );
+                                       nAM );
  }
+ close_channel( par2chnl( nAM ) );  // at the end close the channel
+
 }  // end( HydroUnitBlock::update_initial_flow_rate_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
@@ -1684,11 +1889,19 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( Block::Range arcs ,
  if( ! constraints_generated() )
   return;
 
+ // the initial flow rate is one datum, but it is the right-hand side of a
+ // ramp row for each arc, hence one abstract Modification each: they all go
+ // into a single GroupModification, so that a Solver able to write a whole
+ // set of sides in one operation does that instead of one call per arc [see
+ // MILPSolver::process_group_modification()]
+ auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                   open_channel( par2chnl( issueAMod ) ) ) );
+
  // ramp-up constraints
  if( ! ( RampUp_Const.empty() || v_DeltaRampUp.empty() ) ) {
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
    RampUp_Const[ 0 ][ arc ].set_rhs( get_initial_flow_rate( arc ) +
-                                     v_DeltaRampUp[ 0 ][ arc ] , issueAMod );
+                                     v_DeltaRampUp[ 0 ][ arc ] , nAM );
  }
 
  // ramp-down constraints
@@ -1696,8 +1909,10 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( Block::Range arcs ,
   for( Index arc = arcs.first ; arc < arcs.second ; ++arc )
    RampDown_Const[ 0 ][ arc ].set_lhs
     ( get_initial_flow_rate( arc ) - v_DeltaRampDown[ 0 ][ arc ] ,
-      issueAMod );
+      nAM );
  }
+ close_channel( par2chnl( nAM ) );  // at the end close the channel
+
 }  // end( HydroUnitBlock::update_initial_flow_rate_in_cnstrs )
 
 /*--------------------------------------------------------------------------*/
@@ -1717,10 +1932,13 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
-  auto max_index = *std::max_element( std::begin( subset ) ,
-                                      std::end( subset ) );
-  v_InitialFlowRate.resize( max_index + 1 );
+  // one entry per arc: a shorter vector would be read as the value of
+  // every arc [see get_initial_flow_rate()]
+  v_InitialFlowRate.assign( get_number_generators() , 0.0 );
  }
+ else if( v_InitialFlowRate.size() == 1 )  // one value for every arc
+  v_InitialFlowRate.assign( get_number_generators() ,
+                            v_InitialFlowRate.front() );
 
  bool identical = true;
  auto values_it = values;
@@ -1772,14 +1990,20 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
-  Index max_index = rng.second;
-  v_InitialFlowRate.resize( max_index );
+  // one entry per arc: a shorter vector would be read as the value of
+  // every arc [see get_initial_flow_rate()]
+  v_InitialFlowRate.assign( get_number_generators() , 0.0 );
  }
+ else {
+  if( v_InitialFlowRate.size() == 1 )  // one value for every arc
+   v_InitialFlowRate.assign( get_number_generators() ,
+                             v_InitialFlowRate.front() );
 
   // If nothing changes, return
- else if( std::equal( values , values + ( rng.second - rng.first ) ,
-                      v_InitialFlowRate.begin() + rng.first ) )
-  return;
+  if( std::equal( values , values + ( rng.second - rng.first ) ,
+                  v_InitialFlowRate.begin() + rng.first ) )
+   return;
+  }
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
@@ -1846,20 +2070,37 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
 
+   // an Objective generated without "ActivePowerCost" has no term in the
+   // active power: the terms that are not there are added at the end
+   LinearFunction::v_coeff_pair missing;
+
    for( auto arc : subset ) {
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      const auto idx = lf->is_active( &v_active_power[ arc ][ t ] );
 
-     if( idx == Inf< Index >() )
-      throw( std::logic_error(
-       "HydroUnitBlock::set_active_power_cost: expected Variable not "
-       "found in objective." ) );
+     if( idx == Inf< Index >() ) {
+      missing.push_back( std::make_pair( &v_active_power[ arc ][ t ] ,
+                                         v_ActivePowerCost[ arc ] ) );
+      continue;
+      }
+
+     // one abstract Modification per element: they all go into a single
+     // GroupModification, so that a Solver able to write a whole set of
+     // them in one operation does that instead of one call per element
+     // [see MILPSolver::process_group_modification()]
+     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                       open_channel( par2chnl( issueAMod ) ) ) );
 
      lf->modify_coefficient( idx ,
                              v_ActivePowerCost[ arc ] ,
-                             issueAMod );
+                             nAM );
+
+     close_channel( par2chnl( nAM ) );
     }
    }
+
+   if( ! missing.empty() )
+    lf->add_variables( std::move( missing ) , un_ModBlock( issueAMod ) );
   }
  }
 
@@ -1909,20 +2150,37 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
 
+   // an Objective generated without "ActivePowerCost" has no term in the
+   // active power: the terms that are not there are added at the end
+   LinearFunction::v_coeff_pair missing;
+
    for( Index arc = rng.first ; arc < rng.second ; ++arc ) {
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      const auto idx = lf->is_active( &v_active_power[ arc ][ t ] );
 
-     if( idx == Inf< Index >() )
-      throw( std::logic_error(
-       "HydroUnitBlock::set_active_power_cost: expected Variable not "
-       "found in objective." ) );
+     if( idx == Inf< Index >() ) {
+      missing.push_back( std::make_pair( &v_active_power[ arc ][ t ] ,
+                                         v_ActivePowerCost[ arc ] ) );
+      continue;
+      }
+
+     // one abstract Modification per element: they all go into a single
+     // GroupModification, so that a Solver able to write a whole set of
+     // them in one operation does that instead of one call per element
+     // [see MILPSolver::process_group_modification()]
+     auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                       open_channel( par2chnl( issueAMod ) ) ) );
 
      lf->modify_coefficient( idx ,
                              v_ActivePowerCost[ arc ] ,
-                             issueAMod );
+                             nAM );
+
+     close_channel( par2chnl( nAM ) );
     }
    }
+
+   if( ! missing.empty() )
+    lf->add_variables( std::move( missing ) , un_ModBlock( issueAMod ) );
   }
  }
 

@@ -21,7 +21,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Ali Ghezelsoflu, Rafael Durbano Lobato,
+ *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -294,7 +299,7 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // "physically" there, e.g., to compute dual variables
 
  if( generate_ZOConstraints )  // the commitment bound constraints
-  if( reserve_vars & 4u ) {
+  if( has_commitment() ) {
    Inertia_Bound_Const.resize( f_time_horizon );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t )
@@ -306,9 +311,10 @@ void SlackUnitBlock::generate_abstract_constraints( Configuration * stcc )
  // reactive power bounds constraints (if any) - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( f_reactive_power && 
-     ( ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) )
-     ) {
+ // with the reactive power the rows (3) and (4) are always there: an absent
+ // bound is 0, as get_min_reactive_power() and get_max_reactive_power() say
+ // and as UCBlock takes it for the bounds of the reactive node injections
+ if( f_reactive_power ) {
   if( ReactivePower_Bound_Const.empty() )
    ReactivePower_Bound_Const.resize( f_time_horizon );
 
@@ -382,7 +388,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
  if( objective_generated() )  // Objective has already been generated
   return;                     // nothing to do
 
- if( reserve_vars & 4u )
+ if( has_commitment() )
   if( v_commitment.size() != f_time_horizon )
    throw( std::logic_error(
     "SlackUnitBlock::generate_objective: v_commitment must have "
@@ -435,7 +441,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
     }
    }
 
-  if( reserve_vars & 4u ) {
+  if( has_commitment() ) {  // the inertia, if the unit gives any
    if( ( ! v_InertiaCost.empty() ) && ( ! v_MaxInertia.empty() ) )
     lf->add_variable( &v_commitment[ t ] ,
                       v_InertiaCost[ t ] * v_MaxInertia[ t ] , eNoMod );
@@ -443,10 +449,12 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
     lf->add_variable( &v_commitment[ t ] , 0.0 , eNoMod );
    }
 
-  // Add reactive power variables if needed
+  // the absolute value of the reactive power costs 0.7 times the active
+  // one, nothing if the latter is not given
   if( f_reactive_power )
    lf->add_variable( &v_abs_reactive_power[ t ] ,
-		     0.7 * v_ActivePowerCost[ t ] , eNoMod );
+                     v_ActivePowerCost.empty() ? 0.0 :
+                     REACTIVE_COST_FACTOR * v_ActivePowerCost[ t ] , eNoMod );
   }
 
  objective.set_function( lf );
@@ -466,7 +474,7 @@ void SlackUnitBlock::generate_objective( Configuration * objc )
 bool SlackUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // Retrieve the tolerance and the type of violation.
- double tol = 0;
+ double tol = DefaultFeasTol;
  bool rel_viol = true;
 
  // Try to extract, from "c", the parameters that determine feasibility.
@@ -602,6 +610,14 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
 
+   // one coefficient of the Objective per instant, hence one abstract
+   // Modification each: they all go into a single GroupModification, so that
+   // a Solver able to write a whole set of coefficients in one operation
+   // does that instead of one call per instant [see
+   // MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    for( auto t : subset ) {
     auto idx = lf->is_active( &v_active_power[ t ] );
     if( idx == Inf< Index >() )
@@ -609,7 +625,7 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
       "SlackUnitBlock::set_active_power_cost: expected active_power Variable "
       "not found in objective." ) );
 
-    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , issueAMod );
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , nAM );
 
     if( f_reactive_power ) {
      idx = lf->is_active( &v_abs_reactive_power[ t ] );
@@ -619,9 +635,12 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
        "Variable not found in objective." ) );
 
      lf->modify_coefficient( idx ,
-                             0.7 * v_ActivePowerCost[ t ] , issueAMod );
+                             REACTIVE_COST_FACTOR * v_ActivePowerCost[ t ] ,
+                             nAM );
      }
     }
+
+   close_channel( par2chnl( nAM ) );  // at the end close the channel
    }
   }
 
@@ -670,6 +689,14 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
 
+   // one coefficient of the Objective per instant, hence one abstract
+   // Modification each: they all go into a single GroupModification, so that
+   // a Solver able to write a whole set of coefficients in one operation
+   // does that instead of one call per instant [see
+   // MILPSolver::process_group_modification()]
+   auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                     open_channel( par2chnl( issueAMod ) ) ) );
+
    for( Index t = rng.first ; t < rng.second ; ++t ) {
     auto idx = lf->is_active( &v_active_power[ t ] );
     if( idx == Inf< Index >() )
@@ -677,7 +704,7 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
       "SlackUnitBlock::set_active_power_cost: expected active_power Variable "
       "not found in objective." ) );
 
-    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , issueAMod );
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , nAM );
 
     if( f_reactive_power ) {
      idx = lf->is_active( &v_abs_reactive_power[ t ] );
@@ -687,9 +714,12 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
        "Variable not found in objective." ) );
 
      lf->modify_coefficient( idx ,
-                             0.7 * v_ActivePowerCost[ t ] , issueAMod );
+                             REACTIVE_COST_FACTOR * v_ActivePowerCost[ t ] ,
+                             nAM );
      }
     }
+
+   close_channel( par2chnl( nAM ) );  // at the end close the channel
    }
   }
 

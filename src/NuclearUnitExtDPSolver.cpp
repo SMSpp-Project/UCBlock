@@ -108,10 +108,13 @@ void NuclearUnitExtDPSolver::load_parameters( void )
 
 bool NuclearUnitExtDPSolver::guts_of_process_modifications( const p_Mod mod )
 {
- // a change in the modulation ramps is rare: reload everything
+ // a change in the modulation ramps or in the costs of the operating rules
+ // is rare: reload everything
  if( auto tmod = dynamic_cast< NuclearUnitBlockMod * >( mod ) )
   if( ( tmod->type() == NuclearUnitBlockMod::eSetModDP ) ||
-      ( tmod->type() == NuclearUnitBlockMod::eSetModDM ) )
+      ( tmod->type() == NuclearUnitBlockMod::eSetModDM ) ||
+      ( tmod->type() == NuclearUnitBlockMod::eSetModCost ) ||
+      ( tmod->type() == NuclearUnitBlockMod::eSetDeepCost ) )
    return( true );
 
  return( ThermalUnitExtDPSolver::guts_of_process_modifications( mod ) );
@@ -128,6 +131,12 @@ void NuclearUnitExtDPSolver::load_fixings( void )
  if( ( ! owned ) && ( ! f_Block->read_lock() ) )
   throw( std::runtime_error(
    "NuclearUnitExtDPSolver::load_fixings: unable to lock the Block." ) );
+
+ // the read lock is released however the method ends, a throw included
+ struct ReadUnlock {
+  Block * b;
+  ~ReadUnlock() { if( b ) b->read_unlock(); }
+  } read_unlock{ owned ? nullptr : f_Block };
 
  auto b = static_cast< NuclearUnitBlock * >( f_Block );
 
@@ -156,10 +165,69 @@ void NuclearUnitExtDPSolver::load_fixings( void )
  scan( b->get_const_modulation_down() , f_fix_down );
  scan( b->get_const_deep_decrease() , f_fix_deep );
 
- if( ! owned )
-  f_Block->read_unlock();
+ // the other Variable of the rules the labels do not read, hence their
+ // fixings cannot be honored, save the structural ones at 0 of the first
+ // instant of a unit initially off [see generate_abstract_variables()]
+ auto refuse = [ & ]( const ColVariable * v , Index n , const char * name ) {
+  for( Index t = 0 ; v && ( t < n ) ; ++t )
+   if( v[ t ].is_fixed() &&
+       ( ! ( ( t == 0 ) && ( init_up_down_time <= 0 ) &&
+	     ( v[ t ].get_value() == 0 ) ) ) )
+    throw( std::logic_error( std::string( "NuclearUnitExtDPSolver::"
+     "load_fixings: fixed " ) + name + " Variable not supported (yet)" ) );
+  };
+ refuse( b->get_const_deep_drop() , time_horizon , "deep drop" );
+ refuse( b->get_const_deep_low() , time_horizon , "deep low" );
+ refuse( b->get_const_modulation_start() , time_horizon ,
+	 "modulation start" );
+ refuse( b->get_const_modulation_end() , time_horizon , "modulation end" );
+ refuse( b->get_const_band() , 3 * time_horizon , "band" );
+
+ // a deep decrease fixed to 1 is, in the rows of NuclearUnitBlock, the cost
+ // and the count of one at that instant, whatever the unit does there (no
+ // row bounds it from above, save (32) of the tight rules): it is not a
+ // move of the DP, which only has the decreases that are deep, hence it is
+ // refused rather than solved as a stricter problem
+ if( std::any_of( f_fix_deep.begin() , f_fix_deep.end() ,
+                  []( signed char f ) { return( f > 0 ); } ) )
+  throw( std::logic_error( "NuclearUnitExtDPSolver::load_fixings: a deep "
+                           "decrease Variable fixed to 1 is not supported" ) );
+
+ // a modulation (or a deep decrease) fixed to 1 needs the unit on at that
+ // instant, since m_t <= u_t (and d_t <= m_t): it is a fixing ON of the
+ // commitment for the tables of the base DP [see start_label() for the
+ // start-up, which cannot happen at that instant either]
+ bool forced = false;
+ for( Index t = 0 ; t < time_horizon ; ++t )
+  forced |= on_forced( t );
+ if( forced ) {
+  if( nxt_on.size() != time_horizon + 1 ) {
+   nxt_on.assign( time_horizon + 1 , time_horizon );
+   nxt_off.assign( time_horizon + 1 , time_horizon );
+   }
+  for( Index t = time_horizon ; t-- > 0 ; )
+   if( on_forced( t ) )
+    nxt_on[ t ] = t;
+   else
+    if( nxt_on[ t ] != t )
+     nxt_on[ t ] = nxt_on[ t + 1 ];
+  f_has_fixings = f_must_build = true;
+  }
 
  }  // end( NuclearUnitExtDPSolver::load_fixings )
+
+/*--------------------------------------------------------------------------*/
+
+bool NuclearUnitExtDPSolver::reads_group( const std::string & name ) const
+{
+ static const std::vector< std::string > read = {
+  "m_thermal" , "m_down_nuclear" , "m_start_nuclear" , "band_nuclear" ,
+  "m_end_nuclear" , "deep_nuclear" , "deep_drop_nuclear" ,
+  "deep_low_nuclear" };
+
+ return( ThermalUnitExtDPSolver::reads_group( name ) ||
+         ( std::find( read.begin() , read.end() , name ) != read.end() ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- THE LABELS OF THE STATES -----------------------*/
@@ -171,8 +239,11 @@ void NuclearUnitExtDPSolver::load_fixings( void )
 
 NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::init_label( void ) const
 {
- // the stable state with the initial lockout and no count yet: its on- and
- // off-code coincide. The lockout the unit enters the horizon with comes
+ // the stable state with the initial lockout, no count yet and the band of
+ // the initial output, as an on-code; where it is needed as an off-state
+ // it is read through shut_label(), which drops the band and encodes it as
+ // an off-code [see ThermalUnitExtDPSolver::run_DP()]. The lockout the unit
+ // enters the horizon with comes
  // from the last modulation, hence from tau^M, and not from the largest
  // lockout a label may carry, which the stability after a start-up may
  // have made larger
@@ -287,6 +358,8 @@ void NuclearUnitExtDPSolver::start_labels( Index t , Index e ,
 NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::start_label(
                                                    Index t , Index e ) const
 {
+ if( on_forced( t ) )                 // a modulation fixed at t: m_t <= 1 - v_t
+  return( NO_LABEL );
  Label l = off_label( e );
  if( ( f_starts_per_day >= 0 ) && ( l.s >= Index( f_starts_per_day ) ) )
   return( NO_LABEL );                 // the start-ups of the day are over
@@ -316,23 +389,22 @@ bool NuclearUnitExtDPSolver::label_dominates( Index a , Index b ) const
 /*--------------------------------------------------------------------------*/
 
 // The moves out of an on-state with label lab at t - 1 [see the table in the
-// header]. The ramp of the ThermalUnitBlock for the step t-1 -> t is indexed
-// by t-1 (by 0 for the step into t = 0), those of the modulation by t, and
-// each window is the intersection of the two; a full-ramp step is only
-// possible if the ramp of the ThermalUnitBlock allows it. The tag of a move
-// has bit 0 for a modulation step, bit 1 for a downward one and bit 2 for a
-// deep decrease.
+// header]. The ramps of the ThermalUnitBlock and those of the modulation for
+// the step t-1 -> t are indexed by t (the step from the initial state into
+// t = 0 by 0); the window of a stable instant is the intersection of the
+// two, and a step of a modulation moves by the ramp of the ThermalUnitBlock.
+// The tag of a move has bit 0 for a modulation step, bit 1 for a downward
+// one and bit 2 for a deep decrease.
 
 void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
                                       std::vector< OnMove > & mv ) const
 {
- const Index k = t ? t - 1 : 0;
- const double ru = delta_ramp_up[ k ];
- const double rd = delta_ramp_down[ k ];
- const double fu = delta_ramp_up[ t ];     // the full ramps of the step
- const double fd = delta_ramp_down[ t ];
- const double wu = std::min( ru , fu );
- const double wd = std::min( rd , fd );
+ const double ru = delta_ramp_up[ t ];     // the full ramps of the step,
+ const double rd = delta_ramp_down[ t ];   // which are the window of a
+ const double fu = ru;                     // modulation step (wu, wd) and
+ const double fd = rd;                     // the move of a step that is not
+ const double wu = ru;                     // the last one (fu, fd)
+ const double wd = rd;
  const double cdn = f_down_cost.empty() ? 0.0 : f_down_cost[ t ];
  const bool deep = ! f_deep_thr.empty();
  const Index B = mod_lockout();      // what a modulation leaves behind
@@ -437,23 +509,26 @@ void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
      emit( ed , 0.0 , wd , cdn , 3 , band_lo( ed.b ) , band_hi( ed.b ) );
     }
    if( f_max_mod_length > 1 ) {                  // up / down, continues
+    // a step that is not the last one keeps the output in the band the
+    // modulation starts from, which the label carries until it lands
     Label go = counted;
     go.lk = 1;
-    if( can_up && ( fu <= ru + 1e-9 ) ) {
+    if( can_up ) {
      go.mode = 1;
-     emit( go , fu , - fu , 0.0 , 1 );
+     emit( go , fu , - fu , 0.0 , 1 , band_lo( from.b ) , band_hi( from.b ) );
      }
-    if( can_dn && ( fd <= rd + 1e-9 ) ) {
+    if( can_dn ) {
      go.mode = 2;
-     emit( go , - fd , fd , cdn , 3 );
+     emit( go , - fd , fd , cdn , 3 , band_lo( from.b ) , band_hi( from.b ) );
      }
     }
    }
   return;
   }
 
- // in the middle of a modulation: continue it or end it, the end landing
- // in the band next to the one the modulation left
+ // in the middle of a modulation: continue it, the output staying in the
+ // band the modulation left (which the label carries), or end it, landing
+ // in the band next to that one
  Label end = from;
  end.mode = 0;
  end.lk = B;
@@ -462,13 +537,13 @@ void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
  Label go = from;
  ++go.lk;
  if( from.mode == 1 ) {                          // upward
-  if( ( go.lk < f_max_mod_length ) && ( fu <= ru + 1e-9 ) )
-   emit( go , fu , - fu , 0.0 , 1 );
+  if( go.lk < f_max_mod_length )
+   emit( go , fu , - fu , 0.0 , 1 , band_lo( from.b ) , band_hi( from.b ) );
   emit( end , wu , 0.0 , 0.0 , 1 , band_lo( end.b ) , band_hi( end.b ) );
   }
  else {                                          // downward
-  if( ( go.lk < f_max_mod_length ) && ( fd <= rd + 1e-9 ) )
-   emit( go , - fd , fd , cdn , 3 );
+  if( go.lk < f_max_mod_length )
+   emit( go , - fd , fd , cdn , 3 , band_lo( from.b ) , band_hi( from.b ) );
   emit( end , 0.0 , wd , cdn , 3 , band_lo( end.b ) , band_hi( end.b ) );
   }
  }

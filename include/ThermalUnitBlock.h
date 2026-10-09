@@ -44,6 +44,8 @@
 
 #include "FRowConstraint.h"
 
+#include "LinearFunction.h"
+
 #include "OneVarConstraint.h"
 
 #include "FRealObjective.h"
@@ -68,20 +70,170 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /// implementation of the Block concept for a thermal unit
 /** The ThermalUnitBlock class derives from UnitBlock and implements a
- * "reasonably standard" thermal unit of a Unit Commitment Problem. That is,
- * the class is designed in order to give mathematical formulation to describe
- * the operation of large set of conventional power plants (such as nuclear,
- * hard coal, gas turbine, gas, combined cycle, oil, ...) which are directly
- * connected to the transmission grid. The technical and physical constraints
- * are mainly divided in four different categories:
+ * "reasonably standard" thermal unit of a Unit Commitment problem, i.e., one
+ * electrical generator (a nuclear, coal, lignite, gas, combined cycle or oil
+ * plant, as well as a plant burning biomass, whose pollutant factors in the
+ * UCBlock are then zero). Its operation over the instants \f$ \mathcal{T} =
+ * \{ 0 , \ldots , T - 1 \} \f$ is described by a binary commitment
+ * \f$ u_t \f$, binary start-up and shut-down indicators \f$ v_t \f$ and
+ * \f$ w_t \f$, the active power \f$ p^{ac}_t \geq 0 \f$ and, if the UCBlock
+ * requires them, the primary and secondary spinning reserves
+ * \f$ p^{pr}_t \geq 0 \f$ and \f$ p^{sc}_t \geq 0 \f$. Its rows are (i) the
+ * minimum up and down times, with the initial state, (ii) the minimum and
+ * maximum power, which depend on the availability and on the limits at the
+ * start-up and at the shut-down, (iii) the ramp-up and ramp-down limits, (iv)
+ * the bounds on the reserves, and (v) a separable convex quadratic cost. They
+ * are given in generate_abstract_constraints() and generate_objective(), in
+ * each of the seven formulations that generate_abstract_variables() selects.
+ * These are also the rows that the dynamic programming Solvers
+ * ThermalUnitDPSolver and ThermalUnitExtDPSolver solve exactly, with the
+ * exceptions listed in ThermalUnitDPSolverBase.h (a ReferenceSchedule and
+ * the fixings of Variable other than the commitment and the design, which
+ * they refuse, and the parts of their recursion that they compute by
+ * interpolation). How the unit is composed with the other
+ * Blocks of a UCBlock (balance of the injections, reserve, inertia and
+ * pollutant requirements, scale and design of the unit) is described in
+ * \ref ucblock_model.
  *
- * - minimum up and down time constraints;
+ * The rows come from the literature, one family of formulations at a time.
+ * The variables of the 3bin formulation and the logical row (1) are those of
  *
- * - ramp-up/down rate constraints;
+ *  L.L. Garver "Power Generation Scheduling by Integer Programming -
+ *  Development of Theory" Transactions of the AIEE, Part III 81(3), 730 -
+ *  734, 1962
  *
- * - maximum and minimum power output constraints;
+ * the minimum up and down time rows (2), (3) are those of
  *
- * - active power relation with primary and secondary spinning reserves. */
+ *  D. Rajan, S. Takriti "Minimum Up/Down Polytopes of the Unit Commitment
+ *  Problem with Start-Up Costs" IBM Research Report RC23628, 2005
+ *
+ * the ramp rows (11) of the 3bin formulation are those of
+ *
+ *  J.M. Arroyo, A.J. Conejo "Optimal Response of a Thermal Unit to an
+ *  Electricity Spot Market" IEEE Transactions on Power Systems 15(3), 1098 -
+ *  1104, 2000
+ *
+ *  M. Carrion, J.M. Arroyo "A Computationally Efficient Mixed-Integer
+ *  Linear Formulation for the Thermal Unit Commitment Problem" IEEE
+ *  Transactions on Power Systems 21(3), 1371 - 1378, 2006
+ *
+ * the maximum power rows (20)-(23) are those of
+ *
+ *  G. Morales-Espana, J.M. Latorre, A. Ramos "Tight and Compact MILP
+ *  Formulation for the Thermal Unit Commitment Problem" IEEE Transactions
+ *  on Power Systems 28(4), 4897 - 4908, 2013
+ *
+ *  C. Gentile, G. Morales-Espana, A. Ramos "A Tight MIP Formulation of the
+ *  Unit Commitment Problem with Start-Up and Shut-Down Constraints" EURO
+ *  Journal on Computational Optimization 5(1-2), 177 - 201, 2017
+ *
+ * the ramp rows (12), (13) of the T formulation are those of
+ *
+ *  P. Damci-Kurt, S. Kucukyavuz, D. Rajan, A. Atamturk "A Polyhedral Study
+ *  of Production Ramping" Mathematical Programming 158(1-2), 175 - 205, 2016
+ *
+ * its maximum power rows (24)-(26) are those of
+ *
+ *  J. Ostrowski, M.F. Anjos, A. Vannelli "Tight Mixed Integer Linear
+ *  Programming Formulations for the Unit Commitment Problem" IEEE
+ *  Transactions on Power Systems 27(1), 39 - 46, 2012
+ *
+ *  K. Pan, Y. Guan "A Polyhedral Study of the Integrated Minimum-Up/-Down
+ *  Time and Ramping Polytope" arXiv:1604.02184, 2016
+ *
+ * and the T formulation as a whole is the one of
+ *
+ *  B. Knueven, J. Ostrowski, J.-P. Watson "On Mixed-Integer Programming
+ *  Formulations for the Unit Commitment Problem" INFORMS Journal on
+ *  Computing 32(4), 857 - 876, 2020, doi:10.1287/ijoc.2019.0944
+ *
+ * whose rows (38), (40), (41) are (24), (25), (26) with data constant in
+ * time. The state-space graph of the runs on and off of the unit, on which
+ * the dynamic programming Solvers work, is that of
+ *
+ *  A. Frangioni, C. Gentile "Solving Nonlinear Single-Unit Commitment
+ *  Problems with Ramping Constraints" Operations Research 54(4), 767 - 775,
+ *  2006
+ *
+ * and the pt, DP and SU formulations, which describe a schedule as a path
+ * in it (with the rows (4)-(10), (14)-(16) and (27)), are those of
+ *
+ *  T. Bacci, A. Frangioni, C. Gentile, K. Tavlaridis-Gyparakis "New
+ *  Mixed-Integer Nonlinear Programming Formulations for the Unit Commitment
+ *  Problems with Ramping Constraints" Operations Research 72(5), 2153 -
+ *  2167, 2024, doi:10.1287/opre.2023.2435
+ *
+ * while the SD and SUSD formulations, the symmetric counterpart of the SU
+ * one and the combination of the two, are those of
+ *
+ *  T. Bacci, A. Frangioni, C. Gentile "Start-Up/Shut-Down MINLP
+ *  Formulations for the Unit Commitment with Ramp Constraints" Technical
+ *  Report R. 20-01, IASI-CNR, Rome, 2020
+ *
+ * the SUSD one with, in addition, the ramp rows over several steps, which
+ * extend the single-step ones of the report [see
+ * generate_abstract_constraints()]. Finally, the perspective cuts (33) are
+ * those of
+ *
+ *  A. Frangioni, C. Gentile "Perspective Cuts for a Class of Convex 0-1
+ *  Mixed Integer Programs" Mathematical Programming 106(2), 225 - 236, 2006
+ *
+ *  A. Frangioni, C. Gentile, F. Lacalandra "Tighter Approximated MILP
+ *  Formulations for Unit Commitment Problems" IEEE Transactions on Power
+ *  Systems 24(1), 105 - 113, 2009
+ *
+ * All the data of the unit are given per instant, and no length of the time
+ * step appears in any row. Thus, a ramp is the largest change of the active
+ * power between two consecutive instants (a gradient in MW/h times the length
+ * of the step, in hours) and a minimum up or down time is a number of
+ * instants (a duration in hours is rounded up to an integer number of
+ * instants). In particular, a unit started at \f$ s \f$ satisfies a minimum
+ * up time \f$ \tau^+ \f$ if it is on at \f$ s , \ldots , s + \tau^+ - 1 \f$.
+ * Similarly, every cost is the cost of one instant: a cost per MWh, per hour
+ * or per MW\f$ {}^2 \f$h is multiplied by the length of the step beforehand,
+ * and the quadratic cost is \f$ a_t ( p^{ac}_t )^2 \f$, with no factor
+ * \f$ 1/2 \f$. With a step of \f$ \Delta t \f$ hours, a linear cost
+ * \f$ C_t \f$ per MWh, a fixed cost \f$ C^{fx}_t \f$ per hour on, a quadratic
+ * cost \f$ \frac{1}{2} Q_t ( p^{ac}_t )^2 \f$ per hour and a start-up cost
+ * \f$ C^{st}_t \f$ per start-up are therefore given as
+ * \f[
+ *   b_t = C_t \Delta t \; , \qquad c_t = C^{fx}_t \Delta t \; , \qquad
+ *   a_t = \tfrac{1}{2} Q_t \Delta t \; , \qquad c^{su}_t = C^{st}_t \; ,
+ * \f]
+ * i.e., LinearTerm, ConstTerm, QuadTerm and StartUpCost (see deserialize()).
+ * The fixed consumption \f$ P^{au}_t \f$ of an off unit enters only the
+ * balance of the UCBlock, where the unit injects
+ * \f$ p^{ac}_t - P^{au}_t ( 1 - u_t ) \f$, and no cost of the unit is charged
+ * on it. In the same way, the inertia \f$ h^u_t u_t \f$ of the unit enters
+ * only the inertia requirement of the UCBlock (see "InertiaCommitment" in
+ * deserialize()).
+ *
+ * Several features of a thermal unit are not represented, and we list them
+ * here once. (i) Only the separable convex quadratic function of
+ * generate_objective() is available as the cost of the power: a cost given as
+ * the maximum of affine functions, and a quadratic form coupling different
+ * instants, are not supported. (ii) The start-up cost depends on the instant
+ * of the start-up but not on how long the unit has been off before it (e.g.,
+ * logarithmically). (iii) The spinning reserves are continuous quantities
+ * bounded by a fraction of the active power and by the ramps (cf.
+ * generate_abstract_constraints()). Hence, reserves offered in fixed amounts
+ * in discrete reserve states, a secondary reserve that requires the primary
+ * one, a minimum duration of a reserve once it is offered, a change of the
+ * output forced by the start of a reserve, and different reserve amounts in
+ * different power bands are not represented. (iv) A limit on the number of
+ * start-ups, the modulation and stability rules and the deep decreases are
+ * not rows of a ThermalUnitBlock; a thermal unit subject to them (nuclear or
+ * not) is a NuclearUnitBlock (with "DayLength" equal to the horizon for a
+ * limit over the whole horizon). (v) A unit whose power is nonpositive, such
+ * as a synchronous condenser that only consumes its rotating losses (and the
+ * energy of a start-up), cannot be described, since MinPower, MaxPower,
+ * InitialPower and \f$ p^{ac}_t \f$ are nonnegative. Yet, its inertia (but
+ * not its consumption) can be described by a unit with MinPower = MaxPower =
+ * 0, InertiaCommitment set to its contribution, ConstTerm set to its rotating
+ * cost and StartUpCost to the cost of a start-up. Of course, this omits the
+ * energy that the unit draws from the grid, both at the instants in which it
+ * is on and at a start-up. (vi) A fictitious unit covering any imbalance at a
+ * high cost is a SlackUnitBlock rather than a ThermalUnitBlock. */
 
 class ThermalUnitBlock : public UnitBlock
 {
@@ -99,7 +251,7 @@ class ThermalUnitBlock : public UnitBlock
  /// mask for the 4th bit of AR, == 1 if the perspective cuts are used
  static constexpr unsigned char PCuts = 8;
 
- /// mask for the 5th bit of AR, == 1 if z_t and w_t are continuous
+ /// mask for the 5th bit of AR, == 1 if v_t and w_t are continuous
  static constexpr unsigned char ZWCont = 16;
 
  /// the "three binaries" (3bin) formulation is used
@@ -149,330 +301,204 @@ class ThermalUnitBlock : public UnitBlock
 
  /// extends Block::deserialize( netCDF::NcGroup )
  /** Extends Block::deserialize( netCDF::NcGroup ) to the specific format of
-  * the ThermalUnitBlock. Besides the mandatory "type" attribute of any :Block,
-  * the group must contain all the data required by the base UnitBlock, as
-  * described in the comments to UnitBlock::deserialize( netCDF::NcGroup ).
-  * In particular, we refer to that description for the crucial dimensions
-  * "TimeHorizon", "NumberIntervals" and "ChangeIntervals".
-  * The netCDF::NcGroup must then also contain:
+  * the ThermalUnitBlock. Besides the mandatory "type" attribute of any
+  * :Block, the group must contain all the data required by the base
+  * UnitBlock, as described in the comments to UnitBlock::deserialize(
+  * netCDF::NcGroup ), to which we refer for the dimensions "TimeHorizon"
+  * (\f$ T \f$), "NumberIntervals" and "ChangeIntervals".
   *
-  * - The variable "MinPower", of type netCDF::NcDouble and either of size 1
-  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector MnP[ t ] that, for
-  *   each time instant t, contains the nominal minimum active power output
-  *   value of the unit for the corresponding time step. If "MinPower" has
-  *   length 1 then MnP[ t ] contains the same value for all t. Otherwise,
-  *   MinPower[ i ] is the fixed value of MnP[ t ] for all t in the interval [
-  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
-  *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MnP[ t ] >= 0 for
-  *   all t. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then
-  *   the mapping clearly does not require "ChangeIntervals", which in fact is
-  *   not loaded.
+  * Every time-dependent datum below is a netCDF::NcDouble variable that is
+  * either of size 1, and then it has the same value at every instant, or
+  * indexed over "NumberIntervals" (or over "TimeHorizon" if
+  * "NumberIntervals" is not given), and then its entry \f$ i \f$ is the
+  * value at every instant \f$ t \f$ with ChangeIntervals[ \f$ i - 1 \f$ ]
+  * \f$ < t \leq \f$ ChangeIntervals[ \f$ i \f$ ], with ChangeIntervals[
+  * -1 ] = -1 and the last entry taken as \f$ T - 1 \f$ ("ChangeIntervals"
+  * is not read if NumberIntervals \f$ \leq 1 \f$
+  * or NumberIntervals \f$ \geq T \f$). Each such datum is expanded to one
+  * value per instant when it is read, and we denote by the index \f$ t \f$
+  * the value at the instant \f$ t \in \mathcal{T} \f$. All the data are
+  * per instant (see the class documentation). The group contains:
   *
-  * - The variable "MaxPower", of type netCDF::NcDouble and either of size 1
-  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector MxP[ t ] that, for
-  *   each time instant t, contains the nominal maximum active power output
-  *   value of the unit for the corresponding time step. If "MaxPower" has
-  *   length 1 then MxP[ t ] contains the same value for all t. Otherwise,
-  *   MaxPower[ i ] is the fixed value of MxP[ t ] for all t in the interval [
-  *   ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
-  *   that ChangeIntervals[ - 1 ] = 0. Note that it must be MxP[ t ] >= MnP[ t
-  *   ] >= 0 for all t. If NumberIntervals <= 1 or NumberIntervals >=
-  *   TimeHorizon, then the mapping clearly does not require
-  *   "ChangeIntervals", which in fact is not loaded.
+  * - The variable "MaxPower", the nominal maximum active power
+  *   \f$ \hat P^{mx}_t \f$ of the unit. It is mandatory.
   *
-  * - The variable "Availability", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector Av[ t ] that, for
-  *   each time instant t, contains the availability of the unit for the
-  *   corresponding time step. If "Availability" has length 1 then Av[ t ] is
-  *   equal to the single given value in "Availability" for all t. Otherwise,
-  *   Availability[ i ] is the fixed value of Av[ t ] for all t in the
-  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
-  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
-  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded.
+  * - The variable "MinPower", the nominal minimum active power
+  *   \f$ \hat P^{mn}_t \f$ of the unit when it is on, with
+  *   \f$ 0 \leq \hat P^{mn}_t \leq \hat P^{mx}_t \f$. It is optional with
+  *   default 0.
   *
-  *   The availability of the unit is given by a number between 0 and 1. Let t
-  *   be a time instant in {0, ..., TimeHorizon - 1}. The operational
-  *   (effective) maximum active power output of the unit at time t is given
-  *   by Av[ t ] * MxP[ t ] (see the variable "MaxPower" for the definition of
-  *   MxP). The operational minimum active power output of the unit at time t
-  *   is zero if Av[ t ] == 0 and it is MnP[ t ] if Av[ t ] > 0 (see the
-  *   variable "MinPower" for the definition of MnP).
+  * - The variable "Availability", the availability \f$ \chi_t \in [ 0 , 1 ]
+  *   \f$ of the unit (0 meaning, e.g., an outage or a maintenance). It is
+  *   optional with default 1. The operational bounds of the active
+  *   power, which are the ones all the rows use, are
+  *   \f[
+  *     P^{mx}_t = \chi_t \hat P^{mx}_t \; , \qquad
+  *     P^{mn}_t = \hat P^{mn}_t \;\text{ if } \chi_t > 0 \; , \quad
+  *     P^{mn}_t = 0 \;\text{ if } \chi_t = 0 \; ;
+  *   \f]
+  *   in particular, at an instant with \f$ \chi_t = 0 \f$ the unit may be
+  *   on (if it cannot shut down, e.g.) with \f$ p^{ac}_t = 0 \f$, and it
+  *   then pays \f$ c_t \f$ and gives its inertia \f$ h^u_t \f$.
   *
-  *   This variable is optional. If it is not provided, then the unit is fully
-  *   operational at all time instants, i.e., we assume that Av[ t ] = 1 for
-  *   all t in {0, ..., TimeHorizon - 1}.
+  * - The variables "DeltaRampUp" and "DeltaRampDown", the ramp-up limit
+  *   \f$ \Delta^+_t \geq 0 \f$ and the ramp-down limit
+  *   \f$ \Delta^-_t \geq 0 \f$, i.e., the largest increase and decrease of
+  *   the active power from \f$ t - 1 \f$ to \f$ t \f$ (from InitialPower
+  *   if \f$ t = 0 \f$); a ramp 0 keeps the power of an on unit constant.
+  *   Each is optional: if it is not given there are no ramp rows of that
+  *   kind (get_delta_ramp_up() and get_delta_ramp_down() then return
+  *   \f$ \hat P^{mx}_t \f$).
   *
-  * - The variable "DeltaRampUp", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector DP[ t ] that, for
-  *   each time instant t, contains the ramp-up value of the unit for the
-  *   corresponding time step, i.e., the maximum possible increase of active
-  *   power production w.r.t. the power that had been produced in time instant
-  *   t - 1, if any. This variable is optional; if it is not provided then it
-  *   is assumed that DP[ t ] == MxP[ t ], i.e., the unit can ramp up by an
-  *   arbitrary amount, i.e., there are no ramp-up constraints. If
-  *   "DeltaRampUp" has length 1 then DP[ t ] contains the same value for all
-  *   t. Otherwise, DeltaRampUp[ i ] is the fixed value of DP[ t ] for all t
-  *   in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ],
-  *   with the assumption that ChangeIntervals[ - 1 ] = 0. If
-  *   NumberIntervals <= 1 or NumberIntervals >= TimeHorizon, then the
-  *   mapping clearly does not require "ChangeIntervals", which in fact is
-  *   not loaded.
+  * - The variable "StartUpLimit", the start-up limit \f$ P^{su}_t \f$,
+  *   i.e., the largest active power at the instant \f$ t \f$ when the unit
+  *   starts up at \f$ t \f$, and the variable "ShutDownLimit", the
+  *   shut-down limit \f$ P^{sd}_t \f$, i.e., the largest active power at
+  *   the instant \f$ t - 1 \f$ when the unit shuts down at \f$ t \f$ (is on
+  *   at \f$ t - 1 \f$ and off at \f$ t \f$). Both are optional with default
+  *   \f$ P^{mn}_t \f$ (the unit starts up and shuts down at its
+  *   minimum power), which follows the availability when it changes [see
+  *   set_availability()], and both must lie in
+  *   \f$ [ P^{mn}_t , P^{mx}_t ] \f$.
   *
-  * - The variable "DeltaRampDown", of type netCDF::NcDouble and either of
-  *   size 1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable can also be
-  *   indexed over "TimeHorizon"). This is meant to represent the vector
-  *   DM[ t ] that, for each time instant t, contains the ramp-down value of
-  *   the unit for the corresponding time step, i.e., the maximum possible
-  *   decrease of active power production w.r.t. the power that had been
-  *   produced in time instant t - 1, if any. This variable is optional; if
-  *   it is not provided then it is assumed that DM[ t ] == MxP[ t ], i.e.,
-  *   the unit can ramp down an arbitrary amount, i.e., there are no
-  *   ramp-down constraints. If "DeltaRampDown" has length 1 then DM[ t ]
-  *   contains the same value for all t. Otherwise, DeltaRampDown[ i ] is the
-  *   fixed value of DM[ t ] for all t in the interval [ ChangeIntervals[ i -
-  *   1 ] , ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[
-  *   - 1 ] = 0. If NumberIntervals <= 1 or NumberIntervals >= TimeHorizon,
-  *   then the mapping clearly does not require "ChangeIntervals", which in
-  *   fact is not loaded.
+  * - The variables "PrimaryRho" and "SecondaryRho", the largest fractions
+  *   \f$ \rho^{pr}_t \f$ and \f$ \rho^{sc}_t \f$ of the active power that
+  *   the unit can offer as primary and secondary spinning reserve. Each is
+  *   optional; if it is not given, or it is zero at every instant, the unit
+  *   offers no reserve of that kind and has no variable for it. Both are
+  *   ignored if ignore_reserve() has been called.
   *
-  * - The variable "PrimaryRho", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector PR[ t ] that, for
-  *   each time instant t, contains the maximum possible fraction of active
-  *   power that can be used as primary reserve value of the unit for the
-  *   corresponding time step. This variable is optional; if it is not
-  *   provided then it is assumed that this unit may not be capable of
-  *   producing any primary reserve, which correspond to PR[ t ] == 0 for all
-  *   t. If "PrimaryRho" has length 1 then PR[ t ] contains the same value
-  *   for all t. Otherwise, PrimaryRho[ i ] is the fixed value of PR[ t ] for
-  *   all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ]
-  *   ] with the assumption that ChangeIntervals[ - 1 ] = 0. If
-  *   "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon" then the
-  *   mapping clearly does not require "ChangeIntervals", which in fact is
-  *   not loaded.
+  * - The variables "PrimarySpinningReserveCost" and
+  *   "SecondarySpinningReserveCost", the costs \f$ c^{pr}_t \f$ and
+  *   \f$ c^{sc}_t \f$ of one unit of reserve (typically the opposite of a
+  *   multiplier of the reserve requirement of the UCBlock, hence possibly
+  *   negative; no sign is checked). Each is optional with default 0, the
+  *   fractions \f$ \rho^{pr}_t \f$ and \f$ \rho^{sc}_t \f$ being no
+  *   price; whether a reserve whose cost is 0 is in the Objective is
+  *   decided by the Configuration of generate_objective().
   *
-  * - The variable "SecondaryRho", of type netCDF::NcDouble and either of
-  *   size 1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable can also be
-  *   indexed over "TimeHorizon"). This is meant to represent the vector
-  *   SR[ t ] that, for each time instant t, contains the maximum possible
-  *   fraction of active power that can be used as secondary reserve value of
-  *   the unit for the corresponding time step. This variable is optional; if
-  *   it is not provided then it is assumed that this unit may not be capable
-  *   of producing any secondary reserve, which correspond to SR[ t ] == 0
-  *   for all t. If "SecondaryRho" has length 1 then SR[ t ] contains the
-  *   same value for all t. Otherwise, SecondaryRho[ i ] is the fixed value
-  *   of SR[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
-  *   ChangeIntervals[ i ] ] with the assumption that ChangeIntervals[ - 1 ]
-  *   = 0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
-  *   then the mapping clearly does not require "ChangeIntervals", which in
-  *   fact is not loaded.
+  * - The variables "QuadTerm", "LinearTerm" and "ConstTerm", the
+  *   coefficients \f$ a_t \geq 0 \f$, \f$ b_t \f$ and \f$ c_t \f$ of the
+  *   cost \f$ a_t ( p^{ac}_t )^2 + b_t p^{ac}_t + c_t u_t \f$ of the unit at
+  *   the instant \f$ t \f$; each is optional with default 0.
   *
-  * - The variable "QuadTerm", of type netCDF::NcDouble and either of size 1
-  *   or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector A[ t ] that, for
-  *   each time instant t, contains the quadratic term of power cost function
-  *   of the unit for the corresponding time step. This variable is optional;
-  *   if it is not provided then it is assumed that A[ t ] == 0, i.e., the
-  *   cost of the unit is linear in the produced power. If "QuadTerm" has
-  *   length 1 then A[ t ] contains the same value for all t. Otherwise,
-  *   QuadTerm[ i ] is the fixed value of A[ t ] for all t in the interval
-  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
-  *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1
-  *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded.
+  * - The variable "StartUpCost", the cost \f$ c^{su}_t \f$ of a start-up
+  *   at the instant \f$ t \f$, and the variable "ShutDownCost", the cost
+  *   \f$ c^{sd}_t \f$ of a shut-down at \f$ t \f$; both are optional with
+  *   default 0, and if "ShutDownCost" is absent or zero at every
+  *   instant the Objective has no shut-down term.
   *
-  * - The variable "StartUpCost", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector SC[ t ] that, for
-  *   each time instant t, contains the start-up cost value of the unit for
-  *   the corresponding time step. This variable is optional; if it is not
-  *   provided then it is assumed that SC[ t ] == 0, i.e., this unit may not
-  *   have any start-up cost. If "StartUpCost" has length 1 then SC[ t ]
-  *   contains the same value for all t. Otherwise, StartUpCost[ i ] is the
-  *   fixed value of SC[ t ] for all t in the interval
-  *   [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the assumption
-  *   that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1 or
-  *   "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded.
+  * - The variable "ReactiveLinearTerm", the coefficient \f$ b^q_t \f$ of
+  *   the reactive power in the Objective (see set_reactive_linear_term());
+  *   optional with default 0.
   *
-  * - The variable "LinearTerm", of type netCDF::NcDouble and either of size
-  *   1 or indexed over the dimension "NumberIntervals" (if "NumberIntervals"
-  *   is not provided, then this variable can also be indexed over
-  *   "TimeHorizon"). This is meant to represent the vector B[ t ] that, for
-  *   each time instant t, contains the linear term of power cost function of
-  *   the unit for the corresponding time step. This variable is optional; if
-  *   it is not provided then it is assumed that B[ t ] == 0, i.e., the cost
-  *   of the unit has no linear dependence on the produced power (say, only
-  *   the quadratic one). If "LinearTerm" has length 1 then A[ t ] contains
-  *   the same value for all t. Otherwise, LinearTerm[ i ] is the fixed value
-  *   of B[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ] ,
-  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
-  *   = 0. If "NumberIntervals" <= 1 or "NumberIntervals" >= "TimeHorizon"
-  *   then the mapping clearly does not require "ChangeIntervals", which in
-  *   fact is not loaded.
+  * - The scalar variable "InitialPower", the active power \f$ p_{-1} \f$
+  *   of the unit at the instant \f$ -1 \f$, before the horizon; optional with
+  *   default 0, and nonnegative. It is used only if the unit is
+  *   on before the horizon (InitUpDownTime \f$ > 0 \f$), and then it is
+  *   meant to lie in \f$ [ \hat P^{mn}_0 , \hat P^{mx}_0 ] \f$: a smaller
+  *   value is raised to \f$ \hat P^{mn}_0 \f$ with a warning (also when
+  *   \f$ \chi_0 = 0 \f$), and a larger one is kept, with a warning. With the
+  *   ramps, generate_abstract_constraints() also requires
+  *   \f$ p_{-1} + \Delta^+_0 \geq P^{mn}_0 \f$ and
+  *   \f$ p_{-1} - \Delta^-_0 \leq P^{mx}_0 \f$.
   *
-  * - The variable "ConstTerm", of type netCDF::NcDouble and to be either of
-  *   size 1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable can also be
-  *   indexed over "TimeHorizon"). This is meant to represent the vector
-  *   C[ t ] that, for each time instant t, contains the constant term of
-  *   power cost function of the unit for the corresponding time step. This
-  *   variable is optional; if it is not provided then it is assumed that C[
-  *   t ] == 0, i.e., the cost of the unit has no fixed term, only those
-  *   depending (linearly or quadratically) on the produced power. If
-  *   "ConstTerm" has length 1 then C[ t ] contains the same value for all t.
-  *   Otherwise, ConstTerm[ i ] is the fixed value of C[ t ] for all t in the
-  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
-  *   assumption that ChangeIntervals[ - 1 ] = 0. If "NumberIntervals" <= 1
-  *   or "NumberIntervals" >= "TimeHorizon" then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded.
+  * - The scalar variable "InitUpDownTime", of type netCDF::NcInt, the
+  *   number \f$ \tau_0 \f$ of instants the unit has been on
+  *   (\f$ \tau_0 > 0 \f$) or off (\f$ \tau_0 \leq 0 \f$, for
+  *   \f$ - \tau_0 \f$ instants) before the instant 0; \f$ \tau_0 = 0 \f$
+  *   means that the unit has shut down at the beginning of the instant 0.
+  *   It is optional with default \f$ - \tau^- \f$ if InitialPower is
+  *   0 and \f$ \tau^+ \f$ otherwise. A unit with a nonzero InvestmentCost
+  *   must have \f$ \tau_0 < 0 \f$.
   *
-  * - The scalar variable "InitialPower", of type netCDF::NcDouble and not
-  *   indexed over any dimension. This variable indicates the amount of the
-  *   power that the unit was producing at time instant -1, i.e., before the
-  *   start of the time horizon; this is necessary to compute the ramp-up and
-  *   ramp-down constraints. This variable is optional. If it is not
-  *   provided, then it is taken to be 0. Clearly, it must be that
-  *   MaxPower >= InitialPower >= MinPower if the unit was "on" at time
-  *   instant - 1, and it would be ignored if the unit was "off" at time
-  *   instant - 1. The on/off status of the unit is also encoded by the scalar
-  *   variable InitUpDownTime: in particular, InitUpDownTime > 0 then the
-  *   unit was on at time instant -1, and therefore InitialPower >= MinPower
-  *   must hold, while if InitUpDownTime <= 0 then the unit was off at time
-  *   instant - 1, and therefore InitialPower is ignored. In fact, if
-  *   InitUpDownTime <= 0 then this variable need not be defined since it is
-  *   not loaded.
+  * - The scalar variables "MinUpTime" and "MinDownTime", of type
+  *   netCDF::NcUint, the minimum up time \f$ \tau^+ \f$ and the minimum
+  *   down time \f$ \tau^- \f$, i.e., the least number of consecutive
+  *   instants the unit stays on after a start-up and off after a shut-down.
+  *   Both are optional with default 1, and a value 0 is taken as 1
+  *   (starting up and shutting down at the same instant never pays). The
+  *   minimum up time is taken at most \f$ T + \max\{ 1 , \tau_0 \} \f$ if
+  *   the unit is on before the horizon and at most \f$ T + 1 \f$ otherwise,
+  *   the minimum down time at most \f$ T + \max\{ 1 , - \tau_0 \} \f$ if
+  *   the unit is off before the horizon and at most \f$ T + 1 \f$
+  *   otherwise: the bound already means that the unit never switches within
+  *   the horizon, and a larger value means the same.
   *
-  * - The scalar variable "InitUpDownTime", of type netCDF::NcInt and not
-  *   indexed over any dimension and indicates the initial time to generating
-  *   the unit. If InitUpDownTime > 0, this means that the unit has been on
-  *   for InitUpDownTime timestamps prior to timestamp 0 (the beginning of
-  *   the horizon). If, instead, InitUpDownTime <= 0, this means that the unit
-  *   has been off for - InitUpDownTime timestamps prior to timestamp 0; note
-  *   that InitUpDownTime == 0 means that the unit has been just shut-down at
-  *   the end of time instant -1, i.e., the beginning of time instant 0. This
-  *   variable is optional. If it is not provided, then it is taken to be
-  *   -MinDownTime if InitialPower == 0, and MinUpTime if InitialPower > 0.
+  * - The variable "FixedConsumption", the power \f$ P^{au}_t \geq 0 \f$
+  *   that the unit draws when it is off at the instant \f$ t \f$: the
+  *   UCBlock counts the injection \f$ p^{ac}_t - P^{au}_t ( 1 - u_t ) \f$
+  *   of the unit, and no cost of the unit is charged on it. Optional with
+  *   default 0; a negative value is rejected.
   *
-  * - The positive scalar variable "MinUpTime", of type netCDF::NcUint and not
-  *   indexed over any dimension, which indicates the minimum allowed up time
-  *   in this unit. This variable is optional, if it is not provided it is
-  *   taken to be MinUpTime == 1. Since MinUpTime == 0 is actually possible,
-  *   which means that the unit can shut-down in the very same timestamp in
-  *   which it starts up, we also know that starting up a unit only to
-  *   power it down again immediately is never a good idea, so we force
-  *   up-time periods to be at least of length 1, even if it is given equals
-  *   to 0.
+  * - The variable "InertiaCommitment", the inertia \f$ h^u_t \f$ that the
+  *   unit gives when it is on at the instant \f$ t \f$, i.e., the
+  *   coefficient of \f$ u_t \f$ in the inertia requirement of the UCBlock;
+  *   optional with default 0. For a synchronous machine with inertia
+  *   constant \f$ H \f$ (in s) and rated power \f$ \hat P^{mx}_t \f$ a
+  *   usual value is \f$ h^u_t = 1.2 \, H \hat P^{mx}_t \f$, the factor
+  *   1.2 converting the active into the apparent power under a constant
+  *   phase angle (see \ref ucblock_model); the contribution does not
+  *   depend on the availability of the unit nor on its active power.
   *
-  * - The positive scalar variable "MinDownTime", of type netCDF::NcUint and
-  *   not indexed over any dimension, which indicates the minimum allowed down
-  *   time in this unit. This variable is optional, if it is not provided it
-  *   is taken to be MinDownTime == 1. Since MinDownTime == 0 is actually
-  *   possible, which means that the unit can start-up in the very same
-  *   timestamp in which it shuts down, we also know that shutting down a
-  *   unit only to power it up again immediately is never a good idea, so
-  *   we force down-time periods to be at least of length 1, even if it is
-  *   given equals to 0.
+  * - The variables "MaxReactivePower", "MinReactivePower",
+  *   "MaxReactivePowerOn" and "MinReactivePowerOn", used only when the
+  *   UCBlock has the reactive power (an AC network): the reactive power
+  *   \f$ q_t \f$ of the unit, negative when it is absorbed, satisfies
+  *   \f$ Q^{mn}_t + Q^{mn,on}_t u_t \leq q_t \leq Q^{mx}_t +
+  *   Q^{mx,on}_t u_t \f$ (see generate_abstract_constraints()). All are
+  *   optional with default 0 (a vector that is zero at every instant
+  *   is the same as an absent one). The variable "InitialReactivePower" is
+  *   accepted and not read.
   *
-  * - The variable "FixedConsumption", of type netCDF::NcDouble and either
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
-  *   not provided, then this variable can also be indexed over
-  *   "TimeHorizon"), or having size 1. This is meant to represent the vector
-  *   FC[ t ] which, for each time instant t, contains the fixed consumption
-  *   of the power plant if it is OFF at time t. The variable is optional; if
-  *   it is not defined, FC[ t ] == 0 for all time instants. If it has size
-  *   1, then FC[ t ] == FixedConsumption[ 0 ] for all t, regardless to what
-  *   "NumberIntervals" says. Otherwise, FixedConsumption[ i ] is the fixed
-  *   value of FC[ t ] for all t in the interval [ ChangeIntervals[ i - 1 ],
-  *   ChangeIntervals[ i ] ], with the assumption that ChangeIntervals[ - 1 ]
-  *   = 0.
+  * - The variable "ReferenceSchedule", an active power \f$ \hat{p}_t \f$
+  *   the unit is asked to follow; if it is given, the Objective has the
+  *   term \f$ \sigma \sum_{ t \in \mathcal{T} } | p^{ac}_t - \hat{p}_t | \f$
+  *   (see generate_objective()). Optional.
   *
-  * - The variable "InertiaCommitment", of type netCDF::NcDouble and either
-  *   indexed over the dimension "NumberIntervals" (if "NumberIntervals" is
-  *   not provided, then this variable can also be indexed over
-  *   "TimeHorizon") or has size 1. This is meant to represent the vector
-  *   IC[ t ] which, for each time instant t, contains the contribution that
-  *   the unit can give to the inertia constraint for the sole fact that is is
-  *   on (basically, the constant to be multiplied to the commitment
-  *   variable) at time t. The variable is optional; if it is not defined,
-  *   IC[ t ] == 0 for all time instants. If it has size 1, then IC[ t ] ==
-  *   InertiaCommitment[ 0 ] for all t, regardless to what "NumberIntervals"
-  *   says. Otherwise, InertiaCommitment[ i ] is the fixed value of IC[ t ]
-  *   for all t in the interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[
-  *   i ] ], with the assumption that ChangeIntervals[ - 1 ] = 0.
+  * - The scalar variable "FixToMaximum", of type netCDF::NcInt: if it is
+  *   positive, the unit produces its operational maximum power at every
+  *   instant, \f$ p^{ac}_t \geq P^{mx}_t \f$ (a negative value is taken as
+  *   0). Optional with default 0.
   *
-  * - The variable "StartUpLimit", of type netCDF::NcDouble and either of
-  *   size 1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable can also be
-  *   indexed over "TimeHorizon"). This is meant to represent the vector
-  *   SC[ t ] that, for each time instant t, contains the start-up limit of
-  *   the unit for the corresponding time step, i.e., the maximum possible
-  *   power production when the unit starts up at time period t. This variable
-  *   is optional; if it is not provided then it is assumed that
-  *   SC[ t ] == MnP[ t ], i.e., the power produced at time t by the unit is
-  *   equal to the minimum power allowed at time t. If "StartUpLimit"
-  *   has length 1 then SC[ t ] contains the same value for all t. Otherwise,
-  *   StartUpLimit[ i ] is the fixed value of SC[ t ] for all t in the
-  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
-  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
-  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
-  *   require "ChangeIntervals",  which in fact is not loaded.
+  * - The variables "MaxRampUpSteps" and "MaxRampDownSteps", the numbers
+  *   \f$ J^\pm_t \f$ of ramp steps that the SUSD formulation bounds from
+  *   each instant (see generate_abstract_constraints()), are computed by
+  *   the ThermalUnitBlock (see compute_ramp_steps()) and cannot be given:
+  *   the formulation reads \f$ T + 1 \f$ entries of them, one more than a
+  *   datum indexed over the instants holds, hence a file that contains
+  *   either of them is refused with an exception.
   *
-  * - The variable "ShutDownLimit", of type netCDF::NcDouble and either of
-  *   size 1 or indexed over the dimension "NumberIntervals" (if
-  *   "NumberIntervals" is not provided, then this variable can also be
-  *   indexed over "TimeHorizon"). This is meant to represent the vector
-  *   SD[ t ] that, for each time instant t, contains the shut-down limit of
-  *   the unit for the corresponding time step, i.e., the maximum possible
-  *   power production when the unit shuts down at time period t. This
-  *   variable is optional; if it is not provided then it is assumed that
-  *   SD[ t ] == MnP[ t ], i.e., the power produced at time t by the unit is
-  *   equal to the minimum power allowed at time t. If "ShutDownLimit"
-  *   has length 1 then SD[ t ] contains the same value for all t. Otherwise,
-  *   ShutDownLimit[ i ] is the fixed value of SD[ t ] for all t in the
-  *   interval [ ChangeIntervals[ i - 1 ] , ChangeIntervals[ i ] ], with the
-  *   assumption that ChangeIntervals[ - 1 ] = 0. If NumberIntervals <= 1 or
-  *   NumberIntervals >= TimeHorizon, then the mapping clearly does not
-  *   require "ChangeIntervals", which in fact is not loaded.
+  * - The scalar variable "InvestmentCost", the cost \f$ c^{inv} \f$ of
+  *   building the unit: if it is nonzero, the unit has a binary design
+  *   variable \f$ x \f$, it can be on only if it is built
+  *   (\f$ u_t \leq x \f$), and the Objective has the term
+  *   \f$ \sigma c^{inv} x \f$. Optional with default 0. A continuous
+  *   design, "MaxCapacityDesign" or "MinCapacityDesign", is rejected with an
+  *   exception, since it would multiply the binary commitment in the
+  *   maximum power rows: a unit that may be built is described by
+  *   "InvestmentCost", a fleet of identical modules committed together by
+  *   "Scale", an integer number of modules committed independently by as
+  *   many ThermalUnitBlock, each with "InvestmentCost".
   *
-  * - The scalar variable "Scale", of type netCDF::NcDouble and not indexed
-  *   over any dimension. Sets the scale factor \f$ S \f$ of this UnitBlock
-  *   (see UnitBlock::scale() for the general semantics); optional, default
-  *   1. "Scale" = N models a fleet of N identical ThermalUnitBlock modules
-  *   sized per-module (i.e., "MinPower" / "MaxPower" / "DeltaRampUp" /
-  *   "DeltaRampDown" / "StartUpLimit" / "ShutDownLimit" / "InvestmentCost"
-  *   / cost coefficients describe a single module): every per-generator
-  *   power and every objective coefficient is multiplied by \f$ S \f$ in
-  *   the Objective, and the enclosing UCBlock further multiplies the
-  *   per-module output by \f$ S \f$ when the unit contributes to network
-  *   coupling constraints (demand balance, reserves, ...) via
-  *   get_scale(). The commitment / start-up / shut-down variables stay
-  *   binary and are *shared* among the N modules, so the fleet is
-  *   committed all together at every time step: install is either 0 or N
-  *   units, with no sub-fleet granularity. This is a strictly less
-  *   expressive feasible set than the integer install
-  *   \f$ \in \{ 0 , \ldots , N \} \f$ that IntermittentUnitBlock and
-  *   BatteryUnitBlock can express via "MaxCapacityDesign" \f$ = -N \f$
-  *   (those allow each module to commit independently because their
-  *   design is a continuous / integer scalar, not a per-time-step binary
-  *   commitment), but it is significantly cheaper than the alternative
-  *   of N replicated ThermalUnitBlocks. To obtain the granular integer
-  *   count of independently-committable thermal units use N separate
-  *   ThermalUnitBlocks with binary design instead. */
+  * - The scalar variable "Capacity", the capacity the user may install,
+  *   which is stored and returned by get_capacity() and is not used in any
+  *   row. Optional with default 0.
+  *
+  * - The scalar variable "Scale", the scale factor \f$ \sigma \f$ of the
+  *   unit (see UnitBlock::scale()); optional with default 1. A unit
+  *   with \f$ \sigma = N \f$ is a fleet of \f$ N \f$ identical modules,
+  *   whose data (powers, ramps, limits, costs, InvestmentCost) are those of
+  *   one module: every coefficient of the Objective is multiplied by
+  *   \f$ \sigma \f$, and the UCBlock multiplies by \f$ \sigma \f$ the terms
+  *   of the unit in its linking rows (see \ref ucblock_model). The
+  *   commitment, start-up and shut-down variables are those of one module
+  *   and are shared by the \f$ N \f$ modules, which are therefore all on or
+  *   all off at every instant.
+  *
+  * A ThermalUnitBlock has no capacity multiplier \f$ \kappa \f$:
+  * get_kappa() returns 1, and a variable "Kappa" in the group is not read.
+  */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -494,1170 +520,788 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the ThermalUnitBlock
- /** Method that generates the abstract Variable of the ThermalUnitBlock,
-  * meanwhile deciding which of the different formulations of the problem is
-  * produced as the "abstract representation" of the Block. The different
-  * possible formulations are represented by a single int value "wf" that is
-  * obtained as follows:
+ /** Generates the abstract Variable of the ThermalUnitBlock and decides
+  * which formulation is its abstract representation. The formulation is
+  * given by an int \f$ wf \f$, read from \p stvv or, if \p stvv is
+  * nullptr, from f_BlockConfig->f_static_variables_Configuration (if
+  * f_BlockConfig exists): \f$ wf \f$ is the f_value of that Configuration
+  * if it is a SimpleConfiguration< int >, and \f$ wf = 1 \f$ (the T
+  * formulation with binary start-up and shut-down variables and no
+  * perspective cuts) otherwise, also when a non-null \p stvv is of another
+  * type.
+  * The int is coded bit-wise: \f$ wf \,\&\, 7 \f$ (FormMsk) chooses the
+  * formulation, among
   *
-  * - if either \p stvv is not nullptr and it is a SimpleConfiguration< int >,
-  *   or f_BlockConfig is not nullptr,
-  *   f_BlockConfig->f_static_variables_Configuration is not nullptr,
-  *   and it is a SimpleConfiguration< int >, then wf is the f_value of the
-  *   SimpleConfiguration< int >
+  * - 0 (tbinForm), the "three binaries" (3bin) formulation,
   *
-  * - otherwise, wf is 1 (T formulation with no Perspective Cuts and
-  *   binary startup / shutdown variables, see below for details).
+  * - 1 (TForm), the T formulation,
   *
-  * The integer is coded bit-wise, as follows:
+  * - 2 (ptForm), the pt formulation,
   *
-  * - the first three bits (wf & 7) choose which formulation is used;
+  * - 3 (DPForm), the "dynamic programming" (DP) formulation,
   *
-  * - the fourth bit (wf & 8) decides if Perspective Cuts are used;
+  * - 4 (SUForm), the "start-up" (SU) formulation,
   *
-  * - the fifth bit (wf & 16) decides whether start-up and shut-down variables
-  *   are declared as binary or continuous.
+  * - 5 (SDForm), the "shut-down" (SD) formulation,
   *
-  * The list of supported formulations is:
+  * - 6 (SUSDForm), the "start-up shut-down" (SUSD) formulation,
   *
-  * - wf & 7 == 0 is the "three binaries" (3bin) formulation, which has six
-  *   different variables:
+  * a value 7 being rejected with an exception; the bit 8 (PCuts) adds the
+  * perspective reformulation of the quadratic cost, with its variables;
+  * the bit 16 (ZWCont) declares the start-up and shut-down variables
+  * continuous in \f$ [ 0 , 1 ] \f$ instead of binary, which does not change
+  * the optimum (the rows force them to be integer when the commitment is)
+  * but may change the behavior of a Solver. The rows of each formulation
+  * are given in generate_abstract_constraints().
   *
-  *   = the binary commitment variables \f$ u_t \f$ which takes the value of
-  *     1 if unit is ON at time instant t and 0 otherwise;
+  * Let \f$ \tau_0 \f$, \f$ \tau^+ \f$ and \f$ \tau^- \f$ be InitUpDownTime,
+  * MinUpTime and MinDownTime (see deserialize()). The first instant
+  * \f$ t_0 \f$ (init_t) at which the commitment is free is
+  * \f[
+  *   t_0 = \min\{ T , \max\{ 0 , \tau^+ - \tau_0 \} \}
+  *   \;\text{ if } \tau_0 > 0 \; , \qquad
+  *   t_0 = \min\{ T , \max\{ 0 , \tau^- + \tau_0 \} \}
+  *   \;\text{ if } \tau_0 \leq 0 \; ,
+  * \f]
+  * i.e., the number of instants that the minimum up (down) time still
+  * imposes to a unit that is on (off) before the horizon; in particular
+  * \f$ \tau_0 = 0 \f$, a unit that has shut down at the beginning of the
+  * instant 0, gives \f$ t_0 = \min\{ T , \tau^- \} \f$. We write
+  * \f$ u_{-1} = 1 \f$ if \f$ \tau_0 > 0 \f$ and \f$ u_{-1} = 0 \f$
+  * otherwise. The Variable of every formulation are
   *
-  *   = the primary spinning reserve variables;
+  * - the binary commitment \f$ u_t \f$, \f$ t \in \mathcal{T} \f$
+  *   ("u_thermal"), 1 if the unit is on at \f$ t \f$;
   *
-  *   = the secondary spinning reserve variables;
+  * - the active power \f$ p^{ac}_t \geq 0 \f$, \f$ t \in \mathcal{T} \f$
+  *   ("p_thermal");
   *
-  *   = the active power variables \f$ p_t \f$ denoting the power production
-  *     of the unit at time instant t.
+  * - the start-up and shut-down indicators \f$ v_t \f$ ("v_thermal") and
+  *   \f$ w_t \f$ ("w_thermal"), for \f$ t = t_0 , \ldots , T - 1 \f$ only
+  *   (none if \f$ t_0 = T \f$), \f$ v_t = 1 \f$ if the unit is off at
+  *   \f$ t - 1 \f$ and on at \f$ t \f$, \f$ w_t = 1 \f$ if it is on at
+  *   \f$ t - 1 \f$ and off at \f$ t \f$; we take \f$ v_t = w_t = 0 \f$
+  *   for \f$ t < t_0 \f$ wherever they appear in a row;
   *
-  *   All of those variables are optional except the active power variables,
-  *   in the sense that the model may just not have them and whenever a
-  *   group of above variables is created, its size will be the time horizon.
-  *   Moreover, ThermalUnitBlock defines more groups of variables as follow:
+  * - the primary reserve \f$ p^{pr}_t \geq 0 \f$ ("pr_thermal") if the
+  *   UCBlock has a primary reserve requirement (bit 0 of the reserve_vars
+  *   set by the UCBlock) and \f$ \rho^{pr} \neq 0 \f$, and the secondary
+  *   reserve \f$ p^{sc}_t \geq 0 \f$ ("sc_thermal") under the same
+  *   conditions with bit 1 and \f$ \rho^{sc} \f$; a reserve with no
+  *   variable is zero;
   *
-  *   = the binary variable start-up status \f$ v_t \f$ of the unit which
-  *     takes the value of 1 if the unit starts up at time instant t and 0
-  *     otherwise;
+  * - the reactive power \f$ q_t \f$ ("q_thermal"), free in sign, its
+  *   bounds being rows, if the UCBlock has the reactive power;
   *
-  *   = the binary variable shut-down status \f$ w_t \f$ of the unit which
-  *     takes the value of 1 if the unit shuts down at time instant t and 0
-  *     otherwise.
+  * - the binary design variable \f$ x \f$ ("x_thermal") if InvestmentCost
+  *   is nonzero;
   *
-  *   These two groups of variables have size f_time_horizon - init_t, and
-  *   provide the unit commitment problem with a tight 3-binary MIP
-  *   formulation. Since these two variables may have shorter size (when
-  *   init_t > 0), the commitment variable needs to be fixed to 0 or 1 for
-  *   the first init_t time steps 0, ..., init_t - 1 (see initial time step
-  *   concept in the generate_abstract_constraints()). Note that the
-  *   flow-like constraints that link the startup / shutdown variable with
-  *   the commitment ones (see generate_abstract_constraints()) are such that
-  *   \f$ v_t \f$ and  \f$ w_t \f$ will naturally be integer if the
-  *   \f$ u_t \f$ are; there is a way to con
+  * - the variables \f$ a^{ref}_t \geq 0 \f$ ("v_abs_refschd") of the deviation
+  *   \f$ | p^{ac}_t - \hat{p}_t | \f$ if a ReferenceSchedule is given;
   *
-  * - wf & 7 == 1 is the "model T" (T) formulation, which has exactly the
-  *   same variables of the 3bin formulation (wf & 7 == 0).
+  * - with PCuts, the variables \f$ z_t \geq 0 \f$ ("z_thermal") that
+  *   replace \f$ ( p^{ac}_t )^2 \f$ in the Objective.
   *
-  * - wf & 7 == 2: the p_t formulation, which has:
+  * The state before the horizon fixes some of them: if \f$ \tau_0 > 0 \f$,
+  * \f$ u_t = 1 \f$ for \f$ t < t_0 \f$ and \f$ v_t = 0 \f$ for
+  * \f$ t_0 \leq t < \min\{ t_0 + \tau^- , T \} \f$, since a unit that
+  * cannot shut down before \f$ t_0 \f$ cannot start up again before
+  * \f$ t_0 + \tau^- \f$; if \f$ \tau_0 \leq 0 \f$,
+  * \f$ u_t = p^{ac}_t = p^{pr}_t = p^{sc}_t = 0 \f$ for \f$ t < t_0 \f$ and
+  * \f$ w_t = 0 \f$ for \f$ t_0 \leq t < \min\{ t_0 + \tau^+ , T \} \f$.
   *
-  *   = the same variables of the 3bin formulation (wf & 7 == 0);
+  * The 3bin and T formulations have no other Variable. The pt, DP, SU, SD
+  * and SUSD formulations describe a schedule as a path in a state-space
+  * graph, whose arcs are the runs of the unit on and off. With the indices
+  * of the code, which count the instants from 1, an on-arc \f$ (h,k) \f$
+  * is a run of the unit at the instants \f$ t \f$ with
+  * \f$ h \leq t + 1 \leq k \f$, i.e., started at the instant \f$ h - 1 \f$
+  * (or before the horizon if \f$ h = 0 \f$) and shut down at the instant
+  * \f$ k \f$ (beyond the horizon if \f$ k \geq T \f$, where the arc
+  * \f$ ( h , T + 1 ) \f$ is a run that the end of the horizon cuts).
+  * Symmetrically, an off-arc \f$ (k,h) \f$ is a period off at the instants
+  * \f$ k , \ldots , h - 2 \f$ (to the end of the horizon if
+  * \f$ h = T + 1 \f$, since the instant 0 if \f$ k = 0 \f$). The arcs are
+  * those that respect the minimum up and down times and the state before
+  * the horizon:
   *
-  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ of the DP formulation
-  *     (wf & 7 == 3).
+  * - if \f$ \tau_0 > 0 \f$, the on-arcs \f$ ( 0 , k ) \f$ for
+  *   \f$ k = t_0 , \ldots , T + 1 \f$ (the run in progress, with
+  *   \f$ ( 0 , 0 ) \f$, a shut-down at 0, whenever \f$ t_0 = 0 \f$,
+  *   whatever \f$ p_{-1} \f$, which a row fixes to 0 if
+  *   \f$ p_{-1} > P^{sd}_0 \f$; see generate_abstract_constraints()), the
+  *   off-arcs \f$ ( k , h ) \f$ for \f$ k = t_0 , \ldots , T \f$ and
+  *   \f$ h = k + \tau^- + 1 , \ldots , T \f$, plus \f$ ( k , T + 1 ) \f$,
+  *   and the on-arcs \f$ ( h , k ) \f$ for
+  *   \f$ h = t_0 + \tau^- + 1 , \ldots , T \f$ and
+  *   \f$ k = h + \tau^+ - 1 , \ldots , T \f$, plus \f$ ( h , T + 1 ) \f$;
   *
-  * - wf & 7 == 3 is the "dynamic programming" inspired formulation (DP).
-  *   This formulation of the ThermalUnitBlock class has exactly the same
-  *   variables of the 3bin formulation (wf & 7 == 0), plus three different
-  *   variables:
+  * - if \f$ \tau_0 \leq 0 \f$, the off-arcs \f$ ( 0 , h ) \f$ for
+  *   \f$ h = t_0 + 1 , \ldots , T + 1 \f$, the on-arcs \f$ ( h , k ) \f$
+  *   for \f$ h = t_0 + 1 , \ldots , T \f$ and
+  *   \f$ k = h + \tau^+ - 1 , \ldots , T \f$, plus \f$ ( h , T + 1 ) \f$,
+  *   and the off-arcs \f$ ( k , h ) \f$ for
+  *   \f$ k = t_0 + \tau^+ , \ldots , T \f$ and
+  *   \f$ h = k + \tau^- + 1 , \ldots , T \f$, plus \f$ ( k , T + 1 ) \f$.
   *
-  *   = binary commitment variables \f$ y_+^{hk} \f$ which takes the value of
-  *     1 if the unit starts-up at time instant h, shuts-down at time instant
-  *     k, and is continuously ON from time instant h up to time instant k,
-  *     and 0 otherwise;
+  * A run that reaches the end of the horizon and lasts at least
+  * \f$ \tau^+ \f$ instants is therefore represented both by the arc
+  * \f$ ( h , T + 1 ) \f$ and by the arc \f$ ( h , T ) \f$ followed by the
+  * off-arc \f$ ( T , T + 1 ) \f$, which describe the same schedule. The
+  * Variable of these formulations are, besides those listed above,
   *
-  *   = binary commitment variable \f$ y_-^{hk} \f$ which takes the value of
-  *     1 if unit shuts-down at time instant k, starts-up at time instant h,
-  *     and is continuously OFF from time instant k + 1 up to time instant
-  *     h - 1, and 0 otherwise;
+  * - the binary arc variables \f$ y^{hk}_+ \f$ ("y_plus_thermal") of the
+  *   on-arcs and \f$ y^{kh}_- \f$ ("y_minus_thermal") of the off-arcs, in
+  *   all five;
   *
-  *   = the active power variables \f$ p_t^{hk} \f$ denoting the power
-  *     production of the unit at time instant t when it starts-up at time
-  *     instant h and shuts-down at time instant k.
+  * - in the DP formulation, the power \f$ p^{hk}_t \geq 0 \f$
+  *   ("p_h_k_thermal") of the run \f$ (h,k) \f$ at each of its instants,
+  *   and with PCuts the variables \f$ z^{hk}_t \geq 0 \f$
+  *   ("z_h_k_thermal");
   *
-  * - wf & 7 == 4: the "start-up" formulation (SU), which has:
+  * - in the SU and SUSD formulations, the power \f$ p^h_t \geq 0 \f$
+  *   ("p_h_thermal") of the runs started at \f$ h - 1 \f$, for every
+  *   start \f$ h \f$ of an on-arc and \f$ t \geq h - 1 \f$, and with PCuts
+  *   the variables \f$ z^h_t \geq 0 \f$ ("z_h_thermal");
   *
-  *   = the same variables of the 3bin formulation (wf & 7 == 0);
+  * - in the SD and SUSD formulations, the power
+  *   \f$ \tilde{p}^k_t \geq 0 \f$ ("p_k_thermal") of the runs shut down at
+  *   \f$ k \f$, for every end \f$ k \f$ of an on-arc and \f$ t \leq k - 1
+  *   \f$, and with PCuts the variables \f$ \tilde{z}^k_t \geq 0
+  *   \f$ ("z_k_thermal");
   *
-  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
-  *     formulation (wf & 7 == 3);
-  *
-  *   = active power variables \f$ p_t^h \f$ denoting the power production
-  *     of the unit at time instant t if it starts-up at time instant h.
-  *
-  * - wf & 7 == 5: the "shut-down" formulation (SD), which has:
-  *
-  *   = the same variables of the 3bin formulation (wf & 7 == 0);
-  *
-  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
-  *     formulation (wf & 7 == 3);
-  *
-  *   = active power variables \f$ \tilde p_t^k \f$ denoting the power
-  *     production of the unit at time instant t if it shuts-down at time
-  *     instant k.
-  *
-  * - wf & 7 == 6: the "start-up/shut-down" formulation (SUSD), which has:
-  *
-  *   = the same variables of the 3bin formulation (wf & 7 == 0);
-  *
-  *   = the \f$ y_+^{hk} \f$ and \f$ y_-^{hk} \f$ variables of the DP
-  *     formulation (wf & 7 == 4);
-  *
-  *   = the \f$ p_t^h \f$ variables of the SU formulation (wf & 7 == 2);
-  *
-  *   = the \f$ \tilde p_t^k \f$ variables of the SD formulation
-  *     (wf & 7 == 5).
-  *
-  * The value wf also regulates the use of the perspective cuts and the
-  * relative perspective function in the objective function. Precisely, the
-  * above listed values of wf set formulations without the use of the
-  * perspective cuts. By adding 8 to the above listed values the
-  * corresponding formulation uses the perspective cuts and new variables
-  * are added.
-  *
-  * - wf & 7 == 8 is the "three binaries" formulation with perspective cuts
-  *   cuts (3binPC), which has the same variables of the 3bin formulation 
-  *   (wf & 7 == 0), plus the perspective cuts variables \f$ z_t \f$ that
-  *   regulates the quadratic part in the objective function of the power
-  *   variable \f$ p_t \f$.
-  *
-  * - wf & 7 == 9 is the "model T"formulation with perspective cuts (TPC),
-  *   which has exactly the same variables of the (3binPC) formulation;
-  *
-  * - wf & 7 == 10 is the "dynamic programming" inspired formulation with
-  *   perspective cuts (DPPC), which has the same variables of the DP
-  *   formulation (wf & 7 == 2), plus the perspective cuts variables
-  *   \f$ z_t^{hk} \f$ that regulates the quadratic part in the
-  *   objective function of the power variable \f$ p_t^{hk} \f$;
-  *
-  * - wf & 7 == 11 is the p_t formulation with perspective cuts (p_tPC),
-  *   which has the same variables of the pt formulation (wf & 7 == 3) plus
-  *   the perspective cuts variables \f$ z_t \f$ that regulates the
-  *   quadratic part in the objective function of the power variable
-  *   \f$ p_t \f$;
-  *
-  * - wf & 7 == 12 is the "start-up" formulation with perspective cuts
-  *   (SUPC), which has exactly the same variables of the SU formulation
-  *   (wf & 7 == 4), plus the perspective cuts variables \f$ z_t^h \f$ that
-  *   regulates the quadratic part in the objective function of the power
-  *   variable \f$ p_t^h \f$;
-  *
-  * - wf & 7 == 13 is the "shut-down" formulation with perspective cuts
-  *   (SDPC), which has exactly the same variables of the SD formulation
-  *   (wf & 7 == 5), plus the perspective cuts variables 
-  *   \f$ \tilde z_t^k \f$ that regulates the quadratic part in the
-  *   objective function of the power variable \f$ \tilde p_t^k \f$;
-  *
-  * - wf & 7 == 14 is the "start-up/shut-down" formulation with perspective
-  *   cuts (SUSDPC), which has exactly the same variables of the SUSD
-  *   formulation (wf & 7 == 6), plus
-  *
-  *   = the perspective cuts variables \f$ z_t^h \f$ that regulates the
-  *     quadratic part in the objective function of the power variable
-  *     \f$ p_t^h \f$ (as in SUPC, wf & 7 == 12);
-  *
-  *   = the perspective cuts variables \f$ \tilde z_t^k \f$ that regulates
-  *     the quadratic part in the objective function of the power variable
-  *     \f$ \tilde p_t^k \f$ (as in SDPC, wf & 7 == 13);
-  *
-  *   = the variables \f$\theta_t\f$ for each time period \f$t\f$, that
-  *     substitute \f$z_t^h\f$ and \f$\tilde z_t^k\f$ for regulating the
-  *     quadratic part of variables 
-  *     \f$p_t = \sum_{h : h \leq t} p_t^h =
-  *              \sum_{k : t \leq k} \tilde p_t^k\f$. In fact, variables
-  *     \f$\theta_t\f$ measure the maximum between
-  *     \f$\sum_{h : h \leq t} p_t^h\f$ and
-  *     \f$\sum_{k : t \leq k} \tilde p_t^k\f$ (see method
-  *     'generate_abstract_constraints').
-  *
-  * Finally, the value wf also regulates whether the start-up variables
-  * \f$ v_t \f$ and shut-down variable \f$ w_t \f$ are declared as binary or
-  * continuous (which should not change the results, but it may have some
-  * impacts on the solution process). The variables are defined as binary
-  * if (wf & 16 == 0), and as continuous otherwise. */
+  * - in the SUSD formulation with PCuts, the variables
+  *   \f$ \vartheta_t \geq 0 \f$ ("teta_thermal"), \f$ t \in \mathcal{T} \f$,
+  *   that replace \f$ ( p^{ac}_t )^2 \f$ in the Objective. */
 
  void generate_abstract_variables( Configuration * stvv = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the static constraint of the ThermalUnitBlock
- /** This method generates the abstract constraints of the ThermalUnitBlock.
-  *
-  * The operations of the thermal generating unit are described on a discrete
-  * time horizon as dictated by the UnitBlock interface. In this description we
-  * indicate it with \f$ \mathcal{T}=\{ 0, \dots , \mathcal{|T|} - 1\} \f$.
-  * Considering three parameters: InitUpDownTime \f$ \tau_0 \f$ which can be a
-  * positive or negative (or 0) integer number and tells for how many time
-  * steps before time step 0 the unit was ON (when \f$ \tau_0 > 0 \f$) or OFF
-  * (when \f$ \tau_0 < 0 \f$), MaxUpTime \f$ \tau_+ \f$ which is a positive
-  * integer number and indicates for how many time steps after time step 0 the
-  * unit can remain ON, and MinDownTime \f$ \tau_- \f$ that is also a positive
-  * integer number and indicates for how many time steps after time step 0 the
-  * unit can remain off. Therefore, the starting-up (shutting-down) of
-  * generating of each unit depends on these three parameters. Then, the first
-  * time instant may not be always equal to zero. For this matter the concept
-  * of first time instant which is called "init_t" is defined as below:
-  *
-  * - If \f$ \tau_0 > 0 \f$, this means that the unit has been on for
-  *   \f$ \tau_0 \f$ timestamps prior to timestamp 0 (the beginning of the
-  *   time horizon):
-  *
-  *   - if \f$ \tau_0 \geq \tau_+ \f$ then init_t = 0 ;
-  *
-  *   - otherwise init_t = \f$ \tau_+ \f$ - \f$ \tau_0 \f$ ;
-  *
-  * - If, instead, \f$ \tau_0 < 0 \f$, this means that the unit has
-  *   been off for \f$ - \tau_0 \f$ timestamps prior to timestamp 0:
-  *
-  *   - if \f$ - \tau_0  \geq \tau_- \f$  then init_t = 0;
-  *
-  *   - otherwise init_t = \f$ \tau_- \f$ + \f$ \tau_0 \f$;
-  *
-  * - If the \f$ \tau_0 == 0 \f$ means that the unit has been just shut-down at
-  *   the end of time instant -1, i.e., the beginning of time instant 0 and
-  *   init_t == 0.
-  *
-  * - Note: for the entry a = 0, ..., init_t - 1 when commitment variables fix
-  *   to 0 then active power variables fix to 0, but when commitment variables
-  *   fix to 1 the bound constraints, a std::vector< LB0Constraint > with
-  *   exactly init_t entries, the entry a = 0, ..., init_t - 1 being the bound
-  *   constraints of the ColVariable corresponding to the active power
-  *   production of the unit (put init_t := \f$ t_0 \f$).
-  *
-  * The following describes the constraints defined for a unit, and for each
-  * group, it specifies in which formulations they are defined.
-  *
-  * - Min Up/Down-time Constraints (3bin and T formulations): a thermal unit may
-  * have minimum up and down time constraints and one possible representation of
-  * the constraints could be as below:
-  *   \f[
-  *     u_t - u_{t-1} = v_t - w_t
-  *          \quad t \in \{ t_0 , ...,\mathcal{T}- 1 \}               \quad (1)
-  *   \f]
-  *   \f[
-  *    \sum_{ s \in [ t - \tau_+  , t ] } v_s \leq
-  *           u_t \quad t \in \{ \tau_+ + t_0, ..., \mathcal{T} - 1\}
-  *                                                                   \quad (2)
-  *   \f]
-  *   \f[
-  *    \sum_{ s \in [ t - \tau_- , t ] } w_s \leq
-  *         1 - u_t \quad t \in \{ \tau_- + t_0, ...,\mathcal{T} - 1\}
-  *                                                                   \quad (3)
-  *   \f]
-  *
-  * - since the variables commitment \f$ u_t \f$ have full size of time horizon
-  *   and other two remain variables which are start-up \f$ v_t \f$ and shut-down
-  *   \f$ w_t \f$ have size (f_time_horizon - init_t), the equalities (1) show
-  *   a std::vector< FRowConstraint > with exactly (f_time_horizon - init_t)
-  *   entries, the entry a = init_t, ...,(f_time_horizon - 1) being the startup
-  *   and shut-down connecting constraints at time t. According to the concept
-  *   of init_t when \f$ \tau_0 < 0 \f$  and \f$ -\tau_0 < \tau_- \f$ the
-  *   commitment variables \f$ u_t \f$  are fixed to zero for init_t time
-  *   steps (starting from zero till init_t - 1). When \f$ \tau_0 > 0 \f$  and
-  *   \f$ \tau_0 < \tau_+ \f$ the commitment variables \f$ u_t \f$  are fixed
-  *   to one for init_t time steps (starting from zero till init_t - 1). Since
-  *   \f$ u_t \f$, \f$ v_t \f$, and \f$ w_t \f$ are binary variables, we
-  *   can ensure (for all periods \f$ t \in \{ t_0, ..., \mathcal{T} -1 \} \f$)
-  *   that \f$ v_t = 1 \f$ if and only if \f$ u_t = 1 \f$ and
-  *   \f$ u_{t-1} = 0 \f$.
-  *   It also obvious that \f$ w_t = 1 \f$ if and only if \f$ u_t = 0 \f$ and
-  *   \f$ u_{t-1} = 1 \f$. These conditions are satisfied by equality (1).
-  *
-  *   Considering the above description about the size of each existing binary
-  *   variable, the inequalities (2) show a std::vector< FRowConstraint > with
-  *   exactly (f_time_horizon - init_t - f_MinUpTime) entries, the entry
-  *   a = init_t + f_MinUpTime, ...,(f_time_horizon - 1) being the startup
-  *   constraints at time t. when unit in time t is OFF (\f$ u_t = 0 \f$), it
-  *   could not have been turned on in the last \f$ \tau_+ \f$ periods
-  *   (including period t) because of the minimum up constraints. But this is
-  *   exactly what the turn on inequalities (2) for time period t say. On the
-  *   other hand, when unit in time t is ON (\f$ u_t = 1 \f$), it could have
-  *   been turned on at most once in the last \f$ \tau_+ + \tau_- \f$ periods
-  *   (including t).
-  *
-  *   Similarly for turn off inequalities (3), where it is a
-  *   std::vector< FRowConstraint > with exactly
-  *   (f_time_horizon - init_t - f_MinDownTime) entries, the entry
-  *   a = init_t + f_MinDownTime, ...,(f_time_horizon - 1) being the shut-down
-  *   constraints at time t. when unit in the time t is OFF (\f$ u_t = 0
-  *   \f$), it could have been turned off at most once in the last
-  *   \f$ \tau_+ + \tau_-\f$ periods (including t). On the other hand, when
-  *   unit in time t is ON (\f$ u_t = 1 \f$), it could not have been turned
-  *   off in the last \f$ \tau_- \f$ periods (including period t).
-  *
-  * - Equality power, commitment, start-up, shut-down constraints (pt, SU, SD
-  *   SUSD formulations): these constraints connects power and commitment
-  *   variables of the 3bin and T formulations with those of the pt, SU, SD,
-  *   SUSD formulations
-  *
-  * - Connection power 3bin with power DP variables
-  *   \f[
-  *    p_t = \sum_{ (h,k) : h \le t \le k } p_t^{hk}
-  *    \quad t \in \{ 1, ..., \mathcal{T} \}                          \quad (1)
-  *   \f]
-  *
-  * - Connection power 3bin with power SU, SUSD variables
-  *   \f[
-  *    p_t = \sum_{ h : h \le t } p_t^{h}
-  *    \quad t \in \{ 1, ..., \mathcal{T} \}                          \quad (2)
-  *   \f]
-  *
-  * - Connection power 3bin with power SD, SUSD variables
-  *   \f[
-  *    p_t = \sum_{ k : t \le k } \tilde p_t^{k}
-  *    \quad t \in \{ 1, ..., \mathcal{T} \}                          \quad (3)
-  *   \f]
-  *
-  * - Connection commitment 3bin with commitment pt, SU, SD, SUSD variables
-  *   \f[
-  *    u_t = \sum_{ (h,k) : h \le t \le k } y_+^{hk}
-  *    \quad t \in \{ 1, ..., \mathcal{T} \}                          \quad (4)
-  *   \f]
-  *
-  * - Connection start-up 3bin with commitment pt, SU, SD, SUSD variables
-  *   \f[
-  *    v_t = \sum_{ (h,k) : t \le k } y_+^{tk}
-  *    \quad t \in \{ \mbox{init_t}, ..., \mathcal{T} \}              \quad (5)
-  *   \f]
-  *
-  * - Connection shut-down 3bin with commitment pt, SU, SD, SUSD variables
-  *   \f[
-  *    w_{t+1} = \sum_{ (h,k) : h \le t } y_+^{ht}
-  *    \quad t \in \{ \mbox{init_t}, ..., \mathcal{T}-1 \}            \quad (6)
-  *   \f]
-  *
-  * - Network constrains:
-  *
-  *   The DP, pt, SU, SD and SUSD formulations are dynamic programming based
-  *   formulations, in the sense that they include constrains for a shortest
-  *   path in a state-space graph. A path in the state-space graph represents
-  *   a feasible schedule of ON and OFF states of a unit with the relative
-  *   cost. We then define a state-space graph G = ( N , A ).
-  *   The nodes in N are of two types: \f$ON_t\f$ and \f$OFF_t\f$ for each
-  *   \f$t \in \mathcal{T}\f$ , plus two special nodes, the source s and the
-  *   sink d. The arcs in A are of two types: ON-arcs \f$( OFF_h , ON_k )\f$,
-  *   denoting that the unit is turned on at the beginning of period \f$h\f$
-  *   and unit remains on until the end of period \f$k\f$, and OFF-arcs
-  *   \f$( ON_k , OFF_r )\f$, denoting that the unit is off from period
-  *   \f$k+1\f$ to period \f$r-1\f$. Both on- and off-arcs are only
-  *   constructed, obviously, if they satisfy the minimum (respectively) up-
-  *   and down-time constraints. Moreover, there are the connections between
-  *   the source node s and the ON and OFF nodes defined according to the
-  *   initial state of the unit. That is, if the unit is on since \f$\tau_0\f$
-  *   periods, then there is an on-arc from s to each node \f$ON_k\f$ such
-  *   that \f$k + \tau_0 \geq \tau_+\f$. If, instead, the unit is off since
-  *   \f$-\tau_0\f$ periods, then there is an off-arc from s to each node
-  *   \f$OFF_h\f$ such that \f$h - \tau_0 - 1 \geq \tau_-\f$. ON-arcs
-  *   \f$( OFF_h , ON_k )\f$ are labeled with costs \f$\gamma_{ON}\f$
-  *   computed as the fixed cost \f$c\f$ multiplied by \f$k - h + 1\f$ plus
-  *   variable costs. OFF-arcs are labeled with \f$\gamma_{OFF}\f$
-  *   corresponding to the start-up cost. All nodes are then connected to the
-  *   sink node d: OFF-arcs \f$( ON_t , d )\f$ and ON-arcs \f$( OFF_t , d )\f$.
-  *   Finally, the single arc \f$( s , d )\f$ means that the unit remains with
-  *   the same status for all the time horizon, and it is an ON- or OFF-arc
-  *   according to the fact that the unit is, respectively, on or off at time
-  *   0. Then, the dynamic programming inspired formulations include network
-  *   constrains that define the shortest path formulation on the state space
-  *   graph as follows:
-  *   \f[
-  *     Ey = \delta, \quad y \geq 0
-  *   \f]
-  *   where E is the node-arcs incidence matrix of \f$G = ( N , A )\f$,
-  *   \f$y\f$ is the vector of arc flow variables, and \f$\delta\f$ is the
-  *   vector with all zero entries except \f$\delta_s\f$ = −1 and
-  *   \f$\delta_d = 1\f$. Within the vector y, we denote with \f$y_+^{hk}\f$
-  *   the variable associated with an ON-arc \f$( OFF_h\ , ON_k ) \in A\f$.
-  *
-  * - Ramp Up/Down-time Constraints:
-  *
-  *   Another set of constraints where each thermal unit may have are ramping
-  *   constraints. The ramp-up constraints is a std::vector< FRowConstraint >
-  *   with exactly f_time_horizon entries. Constraints are defined in the
-  *   following for each formulation, where \f$ \Delta^+_t \f$ and
-  *   \f$ \Delta^-_t \f$ are the constants defining ramp-up threshold,
-  *   \f$ \underline{p}_t  \f$ and \f$ \bar{p}_t \f$  are the defining minimum
-  *   and maximum output respectively, \f$ \bar l_t \f$ and \f$ \bar u_t \f$ are the
-  *   StartUpLimit and the ShutDownLimit. The ramp-up constraints set that the maximum
-  *   increasing in power output between two time instants \f$ t+j \f$ and \f$ t \f$,
-  *   with \f$ j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^+_t, |\mathcal{T}| - t\} \f$
-  *   must be at most equal to \f$ j \Delta^+_t \f$.
-  *
-  * - Ramp-up constraints (3bin formulation):
-  *   \f[
-  *     p_{t+1} - p_t \leq \Delta^+_t u_{t}
-  *        + \bar l_t v_{t+1}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (1)
-  *   \f]
-  *
-  * - Ramp-up constraints (T formulation):
-  *   \f[
-  *     p_{t+1} - p_t \leq (\Delta^+_t + \underline{p}) u_{t+1}
-  *        + (\bar l_{t+1} - \underline{p}_{t} - \Delta^+_{t}) v_{t+1}
-  *        - \underline{p}_t u_t
-  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (2)
-  *   \f]
-  *
-  * - Ramp-up constraints (pt formulation):
-  *   \f[
-  *     p_{t+1} - p_t \leq \Delta^+_t \sum_{(h,k): h \le t < k} y_+^{hk}
-  *        - \underline{p}_t \sum_{(h,k): h \le t} y_+^{ht}
-  *        + \bar l_t \sum_{(h,k):  t+1 \leq k} y_+^{t+1k}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \} \quad (3)
-  *   \f]
-  *
-  * - Ramp-up constraints (DP formulation):
-  *   \f[
-  *     p_{t+1}^{hk} - p_t^{hk} \leq \Delta^+_t y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \},
-  *                       \quad (h,k) : h \le t < k \quad (4)
-  *   \f]
-  *
-  * - Ramp-up constraints (SU formulation):
-  *   \f[
-  *     p_{t+1}^{h} - p_t^{h} \leq \Delta^+_t \sum_{ k: t+1 \le k} y_+^{hk}
-  *             - \underline{p}_t y_+^{ht}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \},
-  *                       \quad h : h \le t \quad (5)
-  *   \f]
-  *
-  * - Ramp-up constraints (SD formulation):
-  *   \f[
-  *     \tilde p_{t+1}^{k} - \tilde p_t^{k} \leq
-  *     \Delta^+_t \sum_{ h: h \le t} y_+^{hk} + \bar l_{t+1} y_+^{t+1k}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \},
-  *                       \quad k : t+1 \le k \quad (6)
-  *   \f]
-  *
-  * - Ramp-up constraints (SUSD formulation):
-  *   \f[
-  *     p_{t+j}^{h} - p_t^{h} \leq j \Delta^+_t \sum_{ k: t+j \le k} y_+^{hk}
-  *             - \underline{p}_t \sum_{ k: t \le k < t+j} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} - 1 \}
-  *    \quad j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^+_t, |\mathcal{T}| - t\}\},
-  *                       \quad h : h \le t \quad (7)
-  *   \f]
-  *
-  *
-  *
-  *   Using the symmetry between ramp up and ramp down constraints, we can
-  *   derive the ramp-down analogues of the ramp-up inequality. The ramp-down
-  *   constraints impose that the maximum decreasing in power output between
-  *   two time instant \f$ t \f$ and \f$ t+j \f$ must be at most equal to \f$ j \Delta^-_t \f$,
-  *   with \f$ j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^-_t, |\mathcal{T}| - t\} \f$
-  *
-  * - Ramp-down constraints (3bin formulation):
-  *   \f[
-  *     p_t - p_{t+1} \leq \Delta^-_t u_{t+1}
-  *       + \bar u_{t} w_{t+1}
-  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (1)
-  *   \f]
-  *
-  * - Ramp-down constraints (T formulation):
-  *   \f[
-  *     p_t - p_{t+1} \leq (\Delta^-_t + \underline{p}_{t+1})  u_{t}
-  *       + (\bar u_{t} - \Delta^-_t - \underline{p}_{t+1}) w_{t+1}
-  *       -  \underline{p}_{t+1} u_{t+1}
-  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (2)
-  *   \f]
-  *
-  * - Ramp-down constraints (pt formulation):
-  *   \f[
-  *     p_t - p_{t+1} \leq \Delta^-_t \sum_{(h,k): h \le t < k}  y_+^{hk}
-  *       + \bar u_{t} \sum_{h: h \le t}  y_+^{ht}
-  *       -  \underline{p}_{t+1} \sum_{k: t+1 \le k}  y_+^{t+1k}
-  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \} \quad (3)
-  *   \f]
-  *
-  * - Ramp-down constraints (DP formulation):
-  *   \f[
-  *     p_t^{hk} - p_{t+1}^{hk} \leq \Delta^-_t y_+^{hk}
-  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \},
-  *                       \quad (h,k) : h \le t < k \quad (4)
-  *   \f]
-  *
-  * - Ramp-down constraints (SU formulation):
-  *   \f[
-  *     p_t^h - p_{t+1}^h \leq \Delta^-_t \sum_{k: t+1 \le k}  y_+^{hk}
-  *       + \bar u_{t} y_+^{ht}
-  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \},
-  *                       \quad h : h \le t \quad (5)
-  *   \f]
-  *
-  * - Ramp-down constraints (SD formulation):
-  *   \f[
-  *     \tilde p_t^k - \tilde p_{t+1}^k \leq \Delta^-_t \sum_{h: h \le t}  y_+^{hk}
-  *       + \underline{p}_{t+1} y_+^{t+1k}
-  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \},
-  *                       \quad k : t+1 \le k \quad (6)
-  *   \f]
-  *
-  * - Ramp-down constraints (SUSD formulation):
-  *   \f[
-  *     \tilde p_t^k - \tilde p_{t+j}^k \leq j \Delta^-_t \sum_{h: h \le t}  y_+^{hk}
-  *       - \underline{p}_{t+j} \sum_{h: t < h \le t+j}  y_+^{hk}
-  *                        \quad t \in \{1, ..., \mathcal{T} - 1 \},
-  *                        \quad j \in \{1, ..., \min\{(\bar{p}_t - \underline{p}_t)/\Delta^-_t, |\mathcal{T}| - t\},
-  *                       \quad k : t+1 \le k \quad (5)
-  *   \f]
-  *
-  * - Power output Constraints:
-  *   Maximum and minimum power output constraints according
-  *   are presented in the following for each formulation. They ensures that
-  *   the maximum (or minimum) amount of energy that unit can produce
-  *   when it is on.
-  *
-  * - Minimum power output constraints (3bin and T formulations):
-  *   \f[
-  *      \underline{p_t} \leq p_t
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
-  *   \f]
-  *
-  * - Minimum power output constraints (pt formulation):
-  *   \f[
-  *      \underline{p_t} \sum_{(h,k): h \leq t \leq k} y_+^{hk} \leq p_t
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2)
-  *   \f]
-  *
-  * - Minimum power output constraints (DP formulation):
-  *   \f[
-  *      \underline{p_t} y_+^{hk} \leq p_t^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                        h,k : h \leq t \leq k \quad (3)
-  *   \f]
-  *
-  *
-  * - Minimum power output constraints (SU and SUSD formulations):
-  *   \f[
-  *      \underline{p_t} \sum_{k: t \leq k} y_+^{hk} \leq p_t^h
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                           h : h \leq t                  \quad (4)
-  *   \f]
-  *
-  * - Minimum power output constraints (SD and SUSD formulations):
-  *   \f[
-  *      \underline{p_t} \sum_{h: h \leq t} y_+^{hk} \leq \tilde p_t^k
-  *                                \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                       \quad k: t \leq k \quad (5)
-  *   \f]
-  *
-  * Index convention for the shut-down cap. In the rows below the shut-down
-  * cap multiplies the shut-down variable \f$ w_{t+1} \f$ (on at \f$ t \f$,
-  * off at \f$ t+1 \f$, so the shut-down event is at \f$ t+1 \f$).
-  * Since \f$ w \f$ is defined by \f$ u_t - u_{t-1} = v_t - w_t \f$, the
-  * ShutDownLimit is indexed at the shut-down instant, i.e. the cap on the
-  * last on-power \f$ p_t \f$ is \f$ \bar u_{t+1} \f$ (not \f$ \bar u_t \f$):
-  * the formulas below are written with \f$ \bar u_t \f$ for brevity but the
-  * code, and the DP solvers, use \f$ \bar u_{t+1} \f$ with \f$ w_{t+1} \f$.
-  * This coincides with \f$ \bar u_t \f$ only when the ShutDownLimit is
-  * constant in time. The start-up cap \f$ \bar l_t \f$ multiplies \f$ v_t \f$
-  * (start-up at \f$ t \f$) and is indexed at \f$ t \f$.
-  *
-  * - Maximum power output constraints (3bin formulation):
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t
-  *                       \quad t \in \{ 1, ..., \mathcal{T}\}    \quad (1)
-  *   \f]
-  *   \f[
-  *     p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1}
-  *        \quad t = 1 \mbox{ and } t \geq \mbox{ InitUpDownTime } \quad (2)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar l_t - \bar{p_t}) v_t
-  *          \quad t = |\mathcal{T}| - 1 \mbox{ and } 
-  *          t \geq \mbox{ InitUpDownTime }                        \quad (3)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1} + \max\{0,\bar u_t - \bar l_t\} v_t
-  *                       \quad t \in \{ 2, ..., \mathcal{T} - 1 \} \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } = 1 \quad (4)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1} + (\bar l_t - \bar{p_t}) v_t
-  *                       \quad t \in \{ 2, ..., \mathcal{T} - 1 \} \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } \neq 1 \quad (5)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + \max\{0,\bar l_t - \bar u_t\} w_{t+1} + (\bar l_t - \bar{p_t}) v_t
-  *                       \quad t \in \{ 2, ..., \mathcal{T} - 1 \} \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } = 1 \quad (6)
-  *   \f]
-  *
-  * - Maximum power output constraints (T formulation):
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t
-  *                      \quad t  \in \{ 1, ..., \mathcal{T}\} \quad (1)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar l_t - \bar{p_t}) v_{t}
-  *                       \quad t = |\mathcal{T}| \mbox{ and } t \geq \mbox{ InitUpDownTime }, \quad \mbox{ MinUpTime } > 1 \quad (2)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1} + (\bar l_t - \bar{p_t}) v_{t}
-  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} - 1 \}, \quad \mbox{ MinUpTime } > 1 \quad (3)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar l_t - \bar{p_t}) v_{t}
-  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} \} : \bar l_t = \bar u_t, \quad \mbox{ MinUpTime } = 1 \quad (4)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + \max\{0,\bar u_{t} - \bar l_{t}) w_{t+1} + (\bar l_t - \bar{p_t}) v_{t}
-  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} - 1 \} : \bar u_t \neq \bar l_t, \quad \mbox{ MinUpTime } = 1 \quad (5)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1}
-  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} - 1 \} : \bar l_t = \bar u_t, \quad \mbox{ MinUpTime } = 1 \quad (6)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar u_t - \bar{p_t}) w_{t+1} + \max\{0,\bar l_{t} - \bar u_{t}) v_{t}
-  *                       \quad t \in \{ \mbox{ InitUpDownTime }, ..., \mathcal{T} - 1 \} : \bar l_t \neq \bar u_t, \quad \mbox{ MinUpTime } = 1 \quad (7)
-  *   \f]
-  *
-  * The following sets of constraints are defined int the T formulation only
-  * when it includes ramp-up and/or ramp-down constraints.
-  *
-  * For \f$ t \in \{1,...,\mathcal{T}\}\f$, let
-  *
-  * - if ramp-up constraints are included (the start-up ramping trajectory
-  *   climbs from the start-up limit \f$ \bar l_t \f$),
-  *   \f[
-  *     TRU_t = \lfloor \frac{\bar{p_t} - \bar l_t}{\Delta^+_t} \rfloor
-  *   \f]
-  *
-  * - if ramp-down constraints are included (the shut-down ramping trajectory
-  *   descends to the shut-down limit \f$ \bar u_t \f$),
-  *   \f[
-  *    TRD_t = \lfloor \frac{\bar{p_t} - \bar u_t}{\Delta^-_t} \rfloor
-  *   \f]
-  *
-  * - if ramp-down constraints are included,
-  *   \f[
-  *     KSD_t = \min\{\mbox{ MinUpTime }-1,|\mathcal{T}|-t-1,TRD_t\}
-  *   \f]
-  *
-  * - if ramp-up and ramp-down constraints are included,
-  *   \f[
-  *    KSU_t = \min\{\mbox{ MinUpTime }-2-\max\{0,KSD_t\},TRU_t,t-1\}
-  *   \f]
-  *
-  * - if ramp-up and not ramp-down constraints are included,
-  *   \f[
-  *     KSU_t = \min\{t-1,TRU_t\}
-  *   \f]
-  *
-  * The following constraints are defined only if ramp-up constraints are
-  * included in the T formulation
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + \sum_{s=1}^{\min\{\mbox{ MinUpTime }-2,TRU_t\}} (s\Delta^+_{t-s} - \bar l_{t-s} - \bar p_{t-s}) v_{t-s}
-  *                       \quad t = |\mathcal{T}| \mbox{ and } t \geq \mbox{ InitUpDownTime } \quad (8)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar u_{t} - \bar{p_t}) w_{t+1} + \sum_{s=1}^{\min\{\mbox{ MinUpTime }-2,TRU_t\}} (s\Delta^+_{t-s} - \bar l_{t-s} - \bar p_{t-s}) v_{t-s}
-  *                       \quad t \in \{\mbox{ InitUpDownTime },...,\mathcal{T}-1\} \quad (9)
-  *   \f]
-  *   \f[
-  *      p_t \leq \bar{p_t} u_t + (\bar u_{t} - \bar{p_t}) w_{t+1} + \sum_{s=1}^{\min\{\mbox{ MinUpTime }-1,TRU_t\}} (s\Delta^+_{t-s} - \bar l_{t-s} - \bar p_{t-s}) v_{t-s}
-  *                       \quad t \in \{\mbox{ InitUpDownTime },...,\mathcal{T}\} : \mbox{ MinUpTime } - 2 < TRU_t \quad (10)
-  *   \f]
-  *
-  * The following constraints are defined only if ramp-up and ramp-down
-  * constraints are included in the T formulation
+ /** Generates the abstract Constraint of the ThermalUnitBlock in the
+  * formulation chosen by generate_abstract_variables(), whose notation we
+  * use: \f$ t_0 \f$ is init_t, \f$ u_{-1} \f$ the state before the horizon,
+  * \f$ p_{-1} \f$ InitialPower if \f$ \tau_0 > 0 \f$ and 0 otherwise,
+  * \f$ P^{mn}_t \f$ and \f$ P^{mx}_t \f$ the operational bounds of the
+  * active power, \f$ \Delta^\pm_t \f$ the ramps of the step from
+  * \f$ t - 1 \f$ to \f$ t \f$, \f$ P^{su}_t \f$ the largest power at a
+  * start-up at \f$ t \f$ and \f$ P^{sd}_t \f$ the largest power at
+  * \f$ t - 1 \f$ before a shut-down at \f$ t \f$ (see deserialize()); the
+  * variables \f$ v_t \f$ and \f$ w_t \f$ are 0 for \f$ t < t_0 \f$, and a
+  * term in \f$ w_{t+1} \f$ is absent for \f$ t = T - 1 \f$. We also write
   * \f[
-  *      p_t \leq \bar{p_t} u_t + \sum_{s=1}^{KSD_t} (s\Delta^-_{t+1+s} - \bar u_{t+1+s} - \bar p_{t+1+s}) w_{t+1+s} + \sum_{s=1}^{KSU_t} (s\Delta^+_{t-s} - \bar l_{t-s} - \bar p_{t-s}) v_{t-s}
-  *                       \quad t \in \{\mbox{ InitUpDownTime },...,\mathcal{T}\} : KSD_t > 0 \quad (11)
+  *   \bar{P}^{sd}_t = \min\{ P^{sd}_{t+1} , P^{mx}_t \} \;\text{ for }
+  *   t < T - 1 \; , \qquad \bar{P}^{sd}_{T-1} = P^{mx}_{T-1} \; ,
   * \f]
+  * the largest power at \f$ t \f$ of a unit that is off at \f$ t + 1 \f$,
+  * there being no shut-down limit beyond the horizon. Each group of rows is
+  * given with the name under which it is added to the Block; a group whose
+  * data are absent (e.g., the ramps) is not generated. If \p stcc (or,
+  * if \p stcc is nullptr, f_BlockConfig->f_static_constraints_Configuration)
+  * is a SimpleConfiguration< int > with a nonzero value, the bounds
+  * \f$ 0 \leq u_t \leq 1 \f$ ("Commitment_bound_Thermal"),
+  * \f$ 0 \leq v_t \leq 1 \f$ ("StartUp_binary_bound_Thermal") and
+  * \f$ 0 \leq w_t \leq 1 \f$ ("ShoutDown_binary_bound_Thermal") are added
+  * as explicit ZOConstraint as well.
   *
-  * - Maximum power output constraints (DP formulation):
+  * <b>Commitment, 3bin and T formulations.</b> The rows
+  * \f{align*}{
+  *   & u_t - u_{t-1} = v_t - w_t
+  *     && t = t_0 , \ldots , T - 1 \tag{1} \\
+  *   & \sum_{ s = \max\{ t_0 , t - \tau^+ + 1 \} }^{ t } v_s \leq u_t
+  *     && t = t^+ , \ldots , T - 1 \tag{2} \\
+  *   & \sum_{ s = \max\{ t_0 , t - \tau^- + 1 \} }^{ t } w_s \leq 1 - u_t
+  *     && t = t^- , \ldots , T - 1 \tag{3}
+  * \f}
+  * ("StartUp_ShutDown_Variables_Const_Thermal",
+  * "StartUp_Commitment_Const_Thermal",
+  * "ShutDown_Commitment_Const_Thermal") hold, with \f$ u_{t_0 - 1} =
+  * u_{-1} \f$ in (1) at \f$ t = t_0 \f$, where \f$ t^\pm = \min\{ t_0 +
+  * \tau^\pm - 1 , T - 1 \} \f$ (there are no rows (1)-(3) if
+  * \f$ t_0 = T \f$). Row (2) requires that a unit started in the last
+  * \f$ \tau^+ \f$ instants is on: for binary variables it is equivalent to
+  * the conditions \f$ u_t \geq v_s \f$ for each \f$ s \f$ of its window,
+  * since it implies each of them and, conversely, two start-ups in a window
+  * of \f$ \tau^+ \f$ instants require a shut-down between them, and at the
+  * instant \f$ r \f$ of that shut-down the condition \f$ u_r \geq v_s \f$
+  * of the first start-up \f$ s \f$ fails; row (3) is the same for the
+  * shut-downs. Hence a full window (\f$ t \geq t_0 + \tau^+ - 1 \f$) is
+  * written wherever it fits in the horizon, and the windows cut by
+  * \f$ t_0 \f$ are not written then, since they are implied by the row at
+  * \f$ t_0 + \tau^+ - 1 \f$, whose window contains theirs, and by the
+  * fixings of generate_abstract_variables(), also in the continuous
+  * relaxation: by (1), \f$ u_{t'} = u_t + \sum_{ t < s \leq t' } ( v_s -
+  * w_s ) \f$ for \f$ t' = t_0 + \tau^+ - 1 \f$, and hence the full row at
+  * \f$ t' \f$ and \f$ w \geq 0 \f$ give \f$ \sum_{ s \leq t } v_s \leq
+  * u_t \f$. When the horizon is too short for a
+  * full window, \f$ T < t_0 + \tau^+ \f$, the only row (2) is the one at
+  * \f$ T - 1 \f$ with the window cut to \f$ [ t_0 , T - 1 ] \f$: a unit
+  * that starts up in the horizon then stays on to its end, and it may not
+  * shut down after fewer than \f$ \tau^+ \f$ instants as it could with no
+  * row at all; the same for (3) when \f$ T < t_0 + \tau^- \f$. Row (1)
+  * replaces the usual \f$ u_t - u_{t-1} \leq v_t \f$: the two describe the
+  * same commitments, \f$ v_t = w_t = 1 \f$ being excluded by (2) and (3). If
+  * \f$ \tau_0 > 0 \f$ and \f$ \tau_0 < \tau^+ \f$, the fixings \f$ u_t = 1
+  * \f$, \f$ t < t_0 \f$, are also added as BoxConstraint
+  * ("Commitment_fixed_to_one_Thermal").
+  *
+  * <b>Commitment, pt, DP, SU, SD and SUSD formulations.</b> The schedule is
+  * a path from a source to a sink in the state-space graph described in
+  * generate_abstract_variables(), whose nodes are the source, the starts
+  * \f$ h \f$ of the on-arcs (OFF nodes), the ends \f$ k \f$ of the on-arcs
+  * (ON nodes) and the sink \f$ T + 1 \f$; with the sums over the arcs of
+  * the graph only, the rows ("Network_Const_Thermal") are
+  * \f{align*}{
+  *   & \sum_{ k } y^{0k}_+ = 1 \;\text{ if } \tau_0 > 0 \; , \qquad
+  *     \sum_{ h } y^{0h}_- = 1 \;\text{ if } \tau_0 \leq 0 \; ,
+  *     \tag{4} \\
+  *   & \sum_{ k } y^{kh}_- = \sum_{ k } y^{hk}_+
+  *     \qquad \text{for every OFF node } h \; , \tag{5} \\
+  *   & \sum_{ h } y^{hk}_+ = \sum_{ h } y^{kh}_-
+  *     \qquad \text{for every ON node } k \; , \tag{6} \\
+  *   & \sum_{ h } y^{h,T+1}_+ + \sum_{ k } y^{k,T+1}_- = 1 \; , \tag{7}
+  * \f}
+  * and the variables of the 3bin formulation are linked to the arcs by
+  * \f{align*}{
+  *   & u_t = \sum_{ (h,k) \,:\, h \leq t + 1 \leq k } y^{hk}_+
+  *     && t \in \mathcal{T} \; , \tag{8} \\
+  *   & v_t = \sum_{ k \geq t + 1 } y^{t+1,k}_+ \; , \qquad
+  *     w_t = \sum_{ h \leq t } y^{ht}_+
+  *     && t = t_0 , \ldots , T - 1 \tag{9}
+  * \f}
+  * ("Eq_Commitment_Const_Thermal", "Eq_StartUp_Const_Thermal",
+  * "Eq_ShutDown_Const_Thermal"); the arcs enforce the minimum up and down
+  * times, and (1)-(3) are not written. The active power is linked to the
+  * powers of the runs ("Eq_ActivePower_Const_Thermal") by
+  * \f[
+  *   p^{ac}_t = \sum_{ (h,k) \,:\, h \leq t + 1 \leq k } p^{hk}_t \;\;
+  *   \text{(DP)} \; , \quad
+  *   p^{ac}_t = \sum_{ h \leq t + 1 } p^h_t \;\; \text{(SU, SUSD)}
+  *   \; , \quad
+  *   p^{ac}_t = \sum_{ k \geq t + 1 } \tilde{p}^k_t \;\;
+  *   \text{(SD, SUSD)} \tag{10}
+  * \f]
+  * for \f$ t \in \mathcal{T} \f$, the pt formulation writing its rows on
+  * \f$ p^{ac}_t \f$ itself. Below, \f$ Y_t = \sum_{ (h,k) : h \leq t + 1
+  * \leq k } y^{hk}_+ \f$ is the commitment at \f$ t \f$ in terms of the
+  * arcs, \f$ Y^h_t = \sum_{ k \geq t + 1 } y^{hk}_+ \f$ that of the runs
+  * started at \f$ h - 1 \f$ and \f$ \tilde{Y}^k_t = \sum_{ h \leq t + 1 }
+  * y^{hk}_+ \f$ that of the runs shut down at \f$ k \f$.
+  *
+  * <b>Ramps</b> ("RampUp_Const_Thermal", "RampDown_Const_Thermal",
+  * generated if DeltaRampUp, respectively DeltaRampDown, is given).
+  *
+  * - 3bin formulation, for \f$ t \in \mathcal{T} \f$:
   *   \f[
-  *       p_t^{tk} \leq \bar l_t y_+^{tk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                        k : t < k \quad (1)
+  *     p^{ac}_t - p^{ac}_{t-1} \leq \Delta^+_t u_{t-1} + P^{su}_t v_t
+  *     \; , \qquad
+  *     p^{ac}_{t-1} - p^{ac}_t \leq \Delta^-_t u_t + P^{sd}_t w_t \; ,
+  *     \tag{11}
   *   \f]
+  *   where at \f$ t = 0 \f$ the power and the commitment at \f$ t - 1 \f$
+  *   are \f$ p_{-1} \f$ and \f$ u_{-1} \f$. For binary commitments and
+  *   the default limits \f$ P^{su}_t = P^{sd}_t = P^{mn}_t \f$ these are
+  *   \f$ p^{ac}_t \leq p^{ac}_{t-1} + \Delta^+_t u_{t-1} + P^{mn}_t
+  *   ( 1 - u_{t-1} ) \f$ and \f$ p^{ac}_{t-1} \leq p^{ac}_t + \Delta^-_t
+  *   u_t + P^{mn}_t ( 1 - u_t ) \f$, i.e., a unit starts up and shuts down
+  *   at its minimum power.
+  *
+  * - T formulation, for \f$ t \in \mathcal{T} \f$:
+  *   \f{align*}{
+  *     p^{ac}_t - p^{ac}_{t-1} & \leq ( \Delta^+_t + P^{mn}_t ) u_t
+  *       - P^{mn}_t u_{t-1} + ( P^{su}_t - P^{mn}_t - \Delta^+_t ) v_t
+  *       - ( P^{mn}_{t-1} - P^{mn}_t ) w_t \; , \tag{12} \\
+  *     p^{ac}_{t-1} - p^{ac}_t & \leq ( \Delta^-_t + P^{mn}_t ) u_{t-1}
+  *       - P^{mn}_t u_t + ( P^{sd}_t - P^{mn}_t - \Delta^-_t ) w_t \; ,
+  *       \tag{13}
+  *   \f}
+  *   with \f$ p_{-1} \f$ and \f$ u_{-1} \f$ at \f$ t = 0 \f$; the last term
+  *   of (12), at \f$ t \geq \max\{ 1 , t_0 \} \f$, makes the row read
+  *   \f$ p^{ac}_{t-1} \geq P^{mn}_{t-1} \f$ at a shut-down, and it is in
+  *   the row also when the minimum power does not change from \f$ t - 1
+  *   \f$ to \f$ t \f$, with coefficient 0, so that the Variable of the
+  *   row do not depend on the data. For binary
+  *   commitments (12) is \f$ p^{ac}_t - p^{ac}_{t-1} \leq \Delta^+_t \f$ on
+  *   at \f$ t - 1 \f$ and \f$ t \f$, \f$ p^{ac}_t \leq P^{su}_t \f$ at a
+  *   start-up, and the same holds for (13).
+  *
+  * - pt formulation, for \f$ t \geq 1 \f$:
+  *   \f{align*}{
+  *     p^{ac}_t - p^{ac}_{t-1} & \leq \Delta^+_t \sum_{ h \leq t < k }
+  *       y^{hk}_+ - P^{mn}_{t-1} \sum_{ h \leq t } y^{ht}_+
+  *       + P^{su}_t \sum_{ k \geq t + 1 } y^{t+1,k}_+ \; , \\
+  *     p^{ac}_{t-1} - p^{ac}_t & \leq \Delta^-_t \sum_{ h \leq t < k }
+  *       y^{hk}_+ + P^{sd}_t \sum_{ h \leq t } y^{ht}_+
+  *       - P^{mn}_t \sum_{ k \geq t + 1 } y^{t+1,k}_+ \; , \tag{14}
+  *   \f}
+  *   and, if \f$ \tau_0 > 0 \f$, at \f$ t = 0 \f$
+  *   \f$ ( p_{-1} - \Delta^-_0 ) \sum_{ k \geq 1 } y^{0k}_+ \leq
+  *   p^{ac}_0 \leq ( p_{-1} + \Delta^+_0 ) \sum_{ k \geq 1 } y^{0k}_+ \f$.
+  *
+  * - DP formulation, for every run \f$ (h,k) \f$ on at \f$ t - 1 \f$ and
+  *   \f$ t \geq 1 \f$ (\f$ h \leq t \f$, \f$ k \geq t + 1 \f$):
   *   \f[
-  *       p_t^{hk} \leq \bar{p_t} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                        h,k : h < t < k \quad (2)
+  *     - \Delta^-_t y^{hk}_+ \leq p^{hk}_t - p^{hk}_{t-1} \leq
+  *     \Delta^+_t y^{hk}_+ \; , \tag{15}
   *   \f]
+  *   and, if \f$ \tau_0 > 0 \f$, at \f$ t = 0 \f$ for the runs \f$ (0,k) \f$
+  *   \f$ ( p_{-1} - \Delta^-_0 ) y^{0k}_+ \leq p^{0k}_0 \leq
+  *   ( p_{-1} + \Delta^+_0 ) y^{0k}_+ \f$.
+  *
+  * - SU formulation, for every start \f$ h \leq t \f$ and \f$ t \geq 1 \f$:
+  *   \f{align*}{
+  *     p^h_t - p^h_{t-1} & \leq \Delta^+_t Y^h_t - P^{mn}_{t-1} y^{ht}_+
+  *       \; , \\
+  *     p^h_{t-1} - p^h_t & \leq \Delta^-_t Y^h_t + P^{sd}_t y^{ht}_+
+  *       \; , \tag{16}
+  *   \f}
+  *   and, if \f$ \tau_0 > 0 \f$, at \f$ t = 0 \f$
+  *   \f$ ( p_{-1} - \Delta^-_0 ) Y^0_0 \leq p^0_0 \leq
+  *   ( p_{-1} + \Delta^+_0 ) Y^0_0 \f$.
+  *
+  * - SD formulation, for every end \f$ k \geq t + 1 \f$ and \f$ t \geq 1
+  *   \f$:
+  *   \f{align*}{
+  *     \tilde{p}^k_t - \tilde{p}^k_{t-1} & \leq \Delta^+_t \tilde{Y}^k_{t-1}
+  *       + P^{su}_t y^{t+1,k}_+ \; , \\
+  *     \tilde{p}^k_{t-1} - \tilde{p}^k_t & \leq \Delta^-_t
+  *       \tilde{Y}^k_{t-1} - P^{mn}_t y^{t+1,k}_+ \; , \tag{17}
+  *   \f}
+  *   and, if \f$ \tau_0 > 0 \f$, at \f$ t = 0 \f$
+  *   \f$ ( p_{-1} - \Delta^-_0 ) y^{0k}_+ \leq \tilde{p}^k_0 \leq
+  *   ( p_{-1} + \Delta^+_0 ) y^{0k}_+ \f$.
+  *
+  * - SUSD formulation: the rows (16) downwards on \f$ p^h_t \f$ and the
+  *   rows (17) upwards on \f$ \tilde{p}^k_t \f$, with their rows at
+  *   \f$ t = 0 \f$ if \f$ \tau_0 > 0 \f$, and, in place of the rows (16)
+  *   upwards and (17) downwards, the ramps over several steps: for every
+  *   start \f$ h \f$, every \f$ t \geq h - 1 \f$ and
+  *   \f$ j = 1 , \ldots , J^+_{t+1} \f$, and for every end \f$ k \f$, every
+  *   \f$ t \leq k - 1 - j \f$ and \f$ j = 1 , \ldots , J^-_{t+1} \f$,
+  *   \f{align*}{
+  *     p^h_{t+j} - p^h_t & \leq \Bigl( \sum_{ r = t + 1 }^{ t + j }
+  *       \Delta^+_r \Bigr) \sum_{ k \geq t + j + 1 } y^{hk}_+
+  *       - P^{mn}_t \sum_{ k = t + 1 }^{ t + j } y^{hk}_+ \; , \\
+  *     \tilde{p}^k_t - \tilde{p}^k_{t+j} & \leq \Bigl( \sum_{ r = t + 1
+  *       }^{ t + j } \Delta^-_r \Bigr) \sum_{ h \leq t + 1 } y^{hk}_+
+  *       - P^{mn}_{t+j} \sum_{ h = t + 2 }^{ t + j + 1 } y^{hk}_+ \; ,
+  *       \tag{18}
+  *   \f}
+  *   ("RampUp_SUSD_Const_Thermal", "RampDown_SUSD_Const_Thermal", the
+  *   groups "RampUp_Const_Thermal" and "RampDown_Const_Thermal" holding
+  *   the rows (17) upwards and (16) downwards), where \f$ J^+_{t+1} \f$
+  *   (MaxRampUpSteps) is the largest \f$ j \leq T - t - 1 \f$ with
+  *   \f$ \sum_{ s = t + 1 }^{ t + j } \Delta^+_s \leq \max_{ s \geq t }
+  *   P^{mx}_s - P^{mn}_t \f$, and
+  *   \f$ J^-_{t+1} \f$ (MaxRampDownSteps) the largest one with
+  *   \f$ \sum_{ s = t + 1 }^{ t + j } \Delta^-_s \leq P^{mx}_t -
+  *   \min_{ s \geq t } P^{mn}_s \f$: beyond them the rows are implied by
+  *   the bounds, since a run on at \f$ t \f$ and \f$ t + j \f$ has
+  *   \f$ p^h_{t+j} - p^h_t \leq P^{mx}_{t+j} - P^{mn}_t \f$ (and a run that
+  *   ends in between leaves the row \f$ - p^h_t \leq - P^{mn}_t \f$), also
+  *   when the bounds change in time, e.g., at an instant with
+  *   \f$ \chi_t = 0 \f$. If \f$ \tau_0 > 0 \f$ there are also the rows
+  *   \f$ p^0_j \leq ( p_{-1} + \sum_{ s = 0 }^{ j } \Delta^+_s )
+  *   \sum_{ k \geq j + 1 } y^{0k}_+ \f$ for \f$ j = 0 , \ldots , J^+_0 - 1
+  *   \f$, where \f$ J^+_0 \f$ is one more than the last \f$ j \f$ at which
+  *   the bound is at most \f$ P^{mx}_j \f$ (0 if there is none), and
+  *   \f$ ( p_{-1} - \sum_{ s = 0 }^{ j } \Delta^-_s ) y^{0k}_+ \leq
+  *   \tilde{p}^k_j \f$ for \f$ j = 0 , \ldots , J^-_0 - 1 \f$, with
+  *   \f$ J^-_0 \f$ one more than the last \f$ j \f$ at which the bound is
+  *   at least \f$ P^{mn}_j \f$; at the other instants the bound is not
+  *   tighter than \f$ P^{mx}_j \f$, respectively \f$ P^{mn}_j \f$. With
+  *   \f$ j = 1 \f$ the rows (18) are the rows (16) upwards and (17)
+  *   downwards, and with \f$ j = 0 \f$ those at \f$ 0 \f$ are their rows
+  *   at \f$ t = 0 \f$: thus, the SUSD formulation contains all the ramp
+  *   rows of the SU and SD formulations, as in the technical report cited
+  *   in the class description, together with those over more than one
+  *   step. Both families matter for the continuous relaxation: the powers
+  *   \f$ p^h_t \f$ and \f$ \tilde{p}^k_t \f$ of a fractional point are
+  *   linked by the active power alone [see (10)], so that the upward rows
+  *   on \f$ p^h_t \f$ do not imply those on \f$ \tilde{p}^k_t \f$, nor
+  *   the downward rows on \f$ \tilde{p}^k_t \f$ those on \f$ p^h_t \f$.
+  *
+  * <b>Shut-down at the instant 0.</b> A unit on before the horizon with
+  * \f$ t_0 = 0 \f$ shuts down at 0 with the power \f$ p_{-1} \f$ at
+  * \f$ -1 \f$, which, as the power before any shut-down, has to be at most
+  * the shut-down limit: the shut-down at 0 is allowed only if
+  * \f$ p_{-1} \leq P^{sd}_0 \f$, whatever the ramps, in every formulation
+  * and in the dynamic programming Solver. In the 3bin and T formulations
+  * the ramp-down row (11), respectively (13), at \f$ t = 0 \f$ says so if
+  * DeltaRampDown is given, and otherwise the row
+  * ("ShutDownZero_Const_Thermal")
+  * \f[
+  *   w_0 \leq [ \, p_{-1} \leq P^{sd}_0 \, ]
+  * \f]
+  * is there, where \f$ [ \cdot ] \f$ is 1 if the condition holds and 0
+  * otherwise; in the pt, DP, SU, SD and SUSD formulations the same row is
+  * written on \f$ y^{00}_+ \f$, the interval of the shut-down at 0,
+  * whether or not the ramps are given. A unit that cannot shut down at 0
+  * can at 1 if the ramp-down lets it reach \f$ P^{sd}_1 \f$ at 0, which
+  * is always the case without DeltaRampDown.
+  *
+  * <b>Minimum power</b> ("MinPower_Const_Thermal"): for
+  * \f$ t \in \mathcal{T} \f$,
+  * \f[
+  *   P^{mn}_t u_t \leq p^{ac}_t \;\text{ (3bin, T)} \; , \quad
+  *   P^{mn}_t Y_t \leq p^{ac}_t \;\text{ (pt)} \; , \quad
+  *   P^{mn}_t y^{hk}_+ \leq p^{hk}_t \;\text{ (DP)} \; , \quad
+  *   P^{mn}_t Y^h_t \leq p^h_t \; , \quad
+  *   P^{mn}_t \tilde{Y}^k_t \leq \tilde{p}^k_t \; , \tag{19}
+  * \f]
+  * the last two in the SU and SD formulations respectively, both in SUSD.
+  *
+  * <b>Maximum power</b> ("MaxPower_Const_Thermal").
+  *
+  * - 3bin formulation: \f$ p^{ac}_t \leq P^{mx}_t u_t \f$ for
+  *   \f$ t < t_0 - 1 \f$, \f$ p^{ac}_{t_0-1} \leq P^{mx}_{t_0-1}
+  *   u_{t_0-1} - ( P^{mx}_{t_0-1} - \bar{P}^{sd}_{t_0-1} ) w_{t_0} \f$ if
+  *   \f$ 0 < t_0 < T \f$ (the shut-down at \f$ t_0 \f$ ends the run that the
+  *   state before the horizon imposes), \f$ p^{ac}_{T-1} \leq P^{mx}_{T-1}
+  *   u_{T-1} - ( P^{mx}_{T-1} - P^{su}_{T-1} ) v_{T-1} \f$ if
+  *   \f$ T - 1 \geq t_0 \f$, and for \f$ t_0 \leq t < T - 1 \f$
   *   \f[
-  *       p_t^{ht} \leq \bar u_t y_+^{ht}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                        h : h < t \quad (3)
+  *     p^{ac}_t \leq P^{mx}_t u_t - ( P^{mx}_t - \bar{P}^{sd}_t ) w_{t+1}
+  *     - ( P^{mx}_t - P^{su}_t ) v_t \tag{20}
   *   \f]
+  *   if \f$ \tau^+ \geq 2 \f$, while if \f$ \tau^+ = 1 \f$, when a run of
+  *   one instant is possible, the two rows
+  *   \f{align*}{
+  *     p^{ac}_t & \leq P^{mx}_t u_t - ( P^{mx}_t - \bar{P}^{sd}_t ) w_{t+1}
+  *       - ( \bar{P}^{sd}_t - \min\{ P^{su}_t , P^{mx}_t \} )^+ v_t
+  *       \; , \\
+  *     p^{ac}_t & \leq P^{mx}_t u_t - ( \min\{ P^{su}_t , P^{mx}_t \}
+  *       - \bar{P}^{sd}_t )^+ w_{t+1} - ( P^{mx}_t - P^{su}_t ) v_t \tag{21}
+  *   \f}
+  *   (the same as (23) below) give the cap
+  *   \f$ \min\{ P^{su}_t , \bar{P}^{sd}_t \} \f$ to such a run,
+  *   \f$ P^{su}_t \f$ to a start-up, \f$ \bar{P}^{sd}_t \f$ to the last
+  *   instant before a shut-down and \f$ P^{mx}_t \f$ otherwise.
   *
-  * - Maximum power output constraints (pt formulation):
-  *
-  * Let
-  *
-  * - \f$ \psi_t^{hk} = \min\{\bar{p_t}, \bar l_t + \Delta^+(t-h), \bar u_t + \Delta^-(k-t)\}\f$, if ramp-up and ramp-down are defined in the pt formulation
-  *
-  * - \f$ \psi_t^{hk} = \min\{\bar{p_t}, \bar l_t + \Delta^+(t-h)\}\f$, if ramp-up and not ramp-down are defined in the pt formulation
-  *
-  * - \f$ \psi_t^{hk} = \min\{\bar{p_t}, \bar u_t + \Delta^-(k-t)\}\f$, if ramp-down and not ramp-up are defined in the pt formulation
-  *
-  * - \f$ \psi_t^{hk} = \bar{p_t}\f$, if ramp-up and ramp-down are not defined in the pt formulation
-  *
-  * Then, the maximum power constraints for the pt formulation are
+  * - T formulation: \f$ p^{ac}_t \leq P^{mx}_t u_t \f$ for
+  *   \f$ t \in \mathcal{T} \f$, with the term
+  *   \f$ - ( P^{mx}_{t_0-1} - \bar{P}^{sd}_{t_0-1} ) w_{t_0} \f$ at
+  *   \f$ t = t_0 - 1 \f$ if \f$ 0 < t_0 < T \f$, as in the 3bin formulation,
+  *   and for \f$ t = t_0 , \ldots , T - 1 \f$
   *   \f[
-  *       p_t \leq \sum_{k: t \leq k} \bar l_t y_+^{tk} + \sum_{(h,k): h < t < k} \psi_t^{hk} y_+^{hk} + \sum_{h: h \leq t} \bar u_t y_+^{ht}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                        \mbox{ MinUpTime } \geq 2 \quad (1)
+  *     p^{ac}_t \leq P^{mx}_t u_t - ( P^{mx}_t - P^{su}_t ) v_t
+  *     - ( P^{mx}_t - \bar{P}^{sd}_t ) w_{t+1} \tag{22}
   *   \f]
+  *   if \f$ \tau^+ \geq 2 \f$, while if \f$ \tau^+ = 1 \f$ the two rows
+  *   \f{align*}{
+  *     p^{ac}_t & \leq P^{mx}_t u_t - ( P^{mx}_t - P^{su}_t ) v_t
+  *       - ( \min\{ P^{su}_t , P^{mx}_t \} - \bar{P}^{sd}_t )^+ w_{t+1}
+  *       \; , \\
+  *     p^{ac}_t & \leq P^{mx}_t u_t - ( P^{mx}_t - \bar{P}^{sd}_t ) w_{t+1}
+  *       - ( \bar{P}^{sd}_t - \min\{ P^{su}_t , P^{mx}_t \} )^+ v_t
+  *       \; , \tag{23}
+  *   \f}
+  *   the second with no term at all at \f$ t = T - 1 \f$, the terms
+  *   \f$ ( \cdot )^+ \f$ being in the rows, with coefficient 0, also when
+  *   they vanish. With the ramps,
+  *   let \f$ \nu^+_t = \lfloor ( P^{mx}_t - P^{su}_t ) / \Delta^+_t \rfloor
+  *   \f$ and \f$ \nu^-_t = \lfloor ( P^{mx}_t - P^{sd}_t ) / \Delta^-_t
+  *   \rfloor \f$, the numbers of whole ramps between the limits and the
+  *   maximum power (taken as \f$ T + \tau^+ \f$, larger than every bound
+  *   they are compared with, if the ramp is 0 or the quotient is larger
+  *   than that), \f$ K^d_t = \min\{ \tau^+ - 1 , T - t - 2 , \nu^-_t \} \f$
+  *   and \f$ K^u_t = \min\{ \tau^+ - 2 - \max\{ 0 , K^d_t \} , \nu^+_t ,
+  *   t - t_0 \} \f$, and let
   *   \f[
-  *       p_t \leq \sum_{k: t < k} \bar l_t y_+^{tk} + \sum_{(h,k): h < t < k} \psi_t^{hk} y_+^{hk} + \sum_{h: h < t} \bar u_t y_+^{ht} + \min\{\bar l_t, \bar u_t\} y_+^{tt}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                        \mbox{ MinUpTime } = 1 \quad (2)
+  *     \lambda^+_{t,s} = \Bigl( P^{mx}_t - P^{su}_{t-s} - \sum_{ r = t - s
+  *       + 1 }^{ t } \Delta^+_r \Bigr)^+ , \qquad
+  *     \lambda^-_{t,s} = \Bigl( P^{mx}_t - P^{sd}_{t+1+s} - \sum_{ r = t + 1
+  *       }^{ t + s } \Delta^-_r \Bigr)^+ ;
   *   \f]
+  *   then, for \f$ t = t_0 , \ldots , T - 1 \f$ and with the terms in
+  *   \f$ v_{t-s} \f$ only for \f$ t - s \geq t_0 \f$ and those in
+  *   \f$ w_{t+1+s} \f$ only for \f$ t + 1 + s \leq T - 1 \f$,
+  *   \f{align*}{
+  *     p^{ac}_t & \leq P^{mx}_t u_t - ( P^{mx}_t - \bar{P}^{sd}_t ) w_{t+1}
+  *       - \sum_{ s = 0 }^{ \tau^+ - 2 } \lambda^+_{t,s} v_{t-s}
+  *       \; , \tag{24} \\
+  *     p^{ac}_t & \leq P^{mx}_t u_t - \sum_{ s = 0 }^{ \min\{ \tau^+ - 1 ,
+  *       \nu^+_t \} } \lambda^+_{t,s} v_{t-s}
+  *       \qquad \text{if } 2 \leq \tau^+ < \nu^+_t + 2 \; , \tag{25} \\
+  *     p^{ac}_t & \leq P^{mx}_t u_t - \sum_{ s = 0 }^{ K^d_t }
+  *       \lambda^-_{t,s} w_{t+1+s} - \sum_{ s = 0 }^{ K^u_t }
+  *       \lambda^+_{t,s} v_{t-s}
+  *       \qquad \text{if } K^d_t > 0 \; , \tag{26}
+  *   \f}
+  *   (24) and (25) if DeltaRampUp is given, (26) if both ramps are. The
+  *   rows (24) have the terms in \f$ v_{t-s} \f$ for every
+  *   \f$ s \leq \tau^+ - 2 \f$, those that cannot bind with coefficient 0
+  *   (where \f$ \lambda^+_{t,s} \f$ vanishes), so that their Variable do
+  *   not depend on the data; the
+  *   rows (25) and (26), which exist only at the instants where the
+  *   condition on \f$ \nu^+_t \f$, respectively \f$ K^d_t \f$, holds, are
+  *   dynamic ("MaxPower5_Const_Thermal", "MaxPower6_Const_Thermal"),
+  *   since a change of the data adds or removes some of them. A unit
+  *   started at \f$ t - s \f$ reaches at most \f$ P^{su}_{t-s} + \sum_{
+  *   r = t - s + 1 }^{ t } \Delta^+_r \f$ at \f$ t \f$, and one that
+  *   shuts down at \f$ t + 1 + s \f$ at most \f$ P^{sd}_{t+1+s} + \sum_{
+  *   r = t + 1 }^{ t + s } \Delta^-_r \f$, which are the bounds that
+  *   \f$ \lambda^+_{t,s} \f$ and \f$ \lambda^-_{t,s} \f$ express; with
+  *   data constant in time, (24), (25) and (26) are the rows (38), (40) and
+  *   (41) of the T formulation of Knueven, Ostrowski and Watson (see the
+  *   class description), whose (38) also contains (22). A
+  *   row is valid because at most one of its terms in \f$ v \f$ and
+  *   \f$ w \f$ can be 1 for an integer commitment: two start-ups (or two
+  *   shut-downs) of a row are fewer than \f$ \tau^+ \f$ instants apart, and
+  *   a start-up and a shut-down of a row would make a run of fewer than
+  *   \f$ \tau^+ \f$ instants (\f$ K^u_t + K^d_t \leq \tau^+ - 2 \f$), both
+  *   of which the rows (2) and (3) forbid.
   *
-  * - Maximum power output constraints (SU and SUSD formulation):
-  *   \f[
-  *       p_t^t \leq \sum_{k: t < k} \bar l_t y_+^{tk}  +  \min\{\bar l_t, \bar u_t\} y_+^{tt}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                        \quad (1)
-  *   \f]
-  *   \f[
-  *       p_t^h \leq \bar u_t y_+^{ht} + \sum_{k: t < k} \psi_t^{hk} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \},
-  *                        h: h < t \quad (2)
-  *   \f]
+  * - DP formulation: \f$ p^{hk}_t \leq P y^{hk}_+ \f$ for every run
+  *   \f$ (h,k) \f$ and instant \f$ t \f$ of it, where
+  *   \f$ P = \min\{ P^{su}_t , \bar{P}^{sd}_t \} \f$ for a run of one
+  *   instant (\f$ h = k = t + 1 \f$), \f$ P = P^{su}_t \f$ at its first
+  *   instant (\f$ h = t + 1 < k \f$), \f$ P = \bar{P}^{sd}_t \f$ at its
+  *   last one (\f$ h < t + 1 = k \f$), and \f$ P = P^{mx}_t \f$ otherwise.
   *
-  * - Maximum power output constraints (SD and SUSD formulation):
+  * - pt, SU, SD and SUSD formulations: for the instant \f$ t \f$ of a run
+  *   \f$ (h,k) \f$ which is neither its first nor its last one, let
   *   \f[
-  *     \tilde p_t^t \leq \sum_{h: h < t} \bar u_t y_+^{ht}  +
-                          \min\{\bar l_t, \bar u_t\} y_+^{tt}
-  *     \quad t \in \{ 1, ..., \mathcal{T} \},                   \quad (1)
+  *     \psi^{hk}_t = \max\Bigl\{ P^{mn}_t , \min\Bigl\{ P^{mx}_t ,
+  *       \Xi^h_t , P^{sd}_k + \sum_{ r = t + 1 }^{ k - 1 } \Delta^-_r
+  *       \Bigr\} \Bigr\} \; , \qquad
+  *     \Xi^h_t = P^{su}_{h-1} + \sum_{ r = h }^{ t } \Delta^+_r \; ,
+  *     \quad \Xi^0_t = p_{-1} + \sum_{ r = 0 }^{ t } \Delta^+_r \; ,
   *   \f]
+  *   the largest power the ramps allow at \f$ t \f$ in that run, where
+  *   \f$ \Xi^h_t \f$ is dropped if DeltaRampUp is not given (\f$ \Xi^0_t \f$
+  *   also if \f$ \tau_0 \leq 0 \f$), and the shut-down term is dropped if
+  *   DeltaRampDown is not given or if \f$ k \geq T \f$ (no shut-down
+  *   within the horizon); the run from before the horizon (\f$ h = 0 \f$)
+  *   keeps it, as every other run. Then the pt formulation has, for
+  *   \f$ t \in \mathcal{T} \f$,
   *   \f[
-  *     \tilde p_t^k \leq \bar l_t y_+^{tk} +
-                          \sum_{h: h < t} \psi_t^{hk} y_+^{hk}
-  *       \quad t \in \{ 1, ..., \mathcal{T} \}, k: t < k         \quad (2)
+  *     p^{ac}_t \leq \sum_{ h < t + 1 < k } \psi^{hk}_t y^{hk}_+
+  *     + P^{su}_t \sum_{ k > t + 1 } y^{t+1,k}_+
+  *     + \bar{P}^{sd}_t \sum_{ h < t + 1 } y^{h,t+1}_+
+  *     + \min\{ P^{su}_t , \bar{P}^{sd}_t \} \, y^{t+1,t+1}_+ \; ,
+  *     \tag{27}
   *   \f]
+  *   the runs of one instant \f$ y^{t+1,t+1}_+ \f$ existing only if
+  *   \f$ \tau^+ = 1 \f$; the SU (and SUSD) formulation has
+  *   \f$ p^h_t \leq \sum_{ k \geq t + 1 } P^{hk}_t y^{hk}_+ \f$ for every
+  *   start \f$ h \leq t + 1 \f$, and the SD (and SUSD) formulation
+  *   \f$ \tilde{p}^k_t \leq \sum_{ h \leq t + 1 } P^{hk}_t y^{hk}_+ \f$ for
+  *   every end \f$ k \geq t + 1 \f$, where \f$ P^{hk}_t \f$ is the
+  *   coefficient of \f$ y^{hk}_+ \f$ in (27).
   *
-  * - Spinning reserve constraints: besides the active power \f$ p_t \f$, the
-  *   unit can be required to set aside part of its available capacity as
-  *   primary and/or secondary spinning reserve. The corresponding
-  *   non-negative
-  *   variables \f$ pr_t \f$ (primary, abstract group "pr_thermal") and
-  *   \f$ sc_t \f$ (secondary, abstract group "sc_thermal") are created only
-  *   if the enclosing UCBlock declares a reserve demand (the reserve_vars
-  *   mask, bit 0 for primary and bit 1 for secondary) *and* the unit is able
-  *   to provide that reserve, i.e., the corresponding fraction vector
-  *   "PrimaryRho" (\f$ \rho^p_t \f$) / "SecondaryRho" (\f$ \rho^s_t \f$) is
-  *   non-empty. Each reserve is independently optional: the unit may have
-  *   none, one or both. The reserve is a quantity that the unit holds "ready
-  *   to move" around its current active power production, valued in the
-  *   objective function at the (possibly time-dependent) prices
-  *   \f$ c^{pr}_t \f$ / \f$ c^{sc}_t \f$ (see generate_objective() and
-  *   set_primary/secondary_spinning_reserve_cost()); in a Lagrangian setting
-  *   these prices are (minus) the multipliers of the system-wide
-  *   reserve-demand constraints, hence are typically \f$ \leq 0 \f$ (a
-  *   revenue), but no sign is assumed here.
+  * <b>Spinning reserves.</b> If the reserve variables exist, then
+  * ("PrimaryRho_Const_Thermal", "SecondaryRho_Const_Thermal")
+  * \f[
+  *   p^{pr}_t \leq \rho^{pr}_t p^{ac}_t \; , \qquad
+  *   p^{sc}_t \leq \rho^{sc}_t p^{ac}_t \qquad t \in \mathcal{T} \; ,
+  *   \tag{28}
+  * \f]
+  * and, with \f$ r_t = p^{pr}_t + p^{sc}_t \f$ (the reserve that has no
+  * variable being 0), for every formulation ("Reserve_Const_Thermal")
+  * \f{align*}{
+  *   & P^{mn}_t u_t \leq p^{ac}_t - r_t
+  *     && t \in \mathcal{T} \; , \tag{29} \\
+  *   & p^{ac}_t + r_t \leq P^{mx}_t u_t + ( P^{su}_t - P^{mx}_t ) v_t \; ,
+  *     \quad p^{ac}_t + r_t \leq P^{mx}_t u_t + ( P^{sd}_{t+1} - P^{mx}_t )
+  *     w_{t+1}
+  *     && t \in \mathcal{T} \; , \tag{30} \\
+  *   & p^{ac}_t + r_t - p^{ac}_{t-1} \leq \Delta^+_t u_{t-1}
+  *     + P^{mx}_t ( 1 - u_{t-1} )
+  *     && t = 1 , \ldots , T - 1 \; , \tag{31} \\
+  *   & p^{ac}_{t-1} - p^{ac}_t + r_t \leq \Delta^-_t u_t
+  *     + P^{mx}_{t-1} ( 1 - u_t )
+  *     && t = 1 , \ldots , T - 1 \; , \tag{32}
+  * \f}
+  * (31) if DeltaRampUp is given and (32) if DeltaRampDown is; if the unit
+  * is on before the horizon (\f$ \tau_0 > 0 \f$) they are also written at
+  * \f$ t = 0 \f$, with \f$ u_{-1} = 1 \f$ and the initial power
+  * \f$ p_{-1} \f$ in place of \f$ p^{ac}_{-1} \f$ and of
+  * \f$ P^{mx}_{-1} \f$, i.e.,
+  * \f[
+  *   p^{ac}_0 + r_0 \leq p_{-1} + \Delta^+_0 \; , \qquad
+  *   p_{-1} - p^{ac}_0 + r_0 \leq \Delta^-_0 u_0 + p_{-1} ( 1 - u_0 )
+  *   \; , \tag{31'}
+  * \f]
+  * the second of which a shut-down at 0 leaves slack. The rows (29)
+  * and (30) keep the reserve within the band of the unit, the cap of (30)
+  * being \f$ P^{su}_t \f$ at a start-up and \f$ \min\{ P^{sd}_{t+1} ,
+  * P^{mx}_t \} = \bar{P}^{sd}_t \f$ at the last instant before a shut-down
+  * (the first row capping at \f$ P^{mx}_t \f$ when \f$ v_t = 0 \f$); the rows
+  * (31) and (32) make the reserve deliverable within the ramp left after the
+  * move of the output, and bind only when the unit is on at \f$ t - 1 \f$ and
+  * \f$ t \f$, so that no reserve is held at an instant where the output moves
+  * by the full ramp, the instant 0 included when the output moves from the
+  * initial power.
+  * With the default start-up and shut-down limits and a constant minimum
+  * power, (29) and (30) describe the same set as the plain band
+  * \f$ P^{mn}_t u_t \leq p^{ac}_t - r_t \f$, \f$ p^{ac}_t + r_t \leq
+  * P^{mx}_t u_t \f$ together with the maximum power rows (20)-(27), which
+  * exist also without ramp data and already cap \f$ p^{ac}_t \f$ at
+  * \f$ P^{su}_t = P^{mn}_t \f$ at a start-up and at \f$ \bar{P}^{sd}_t =
+  * P^{mn}_t \f$ at the last instant on, hence force \f$ p^{ac}_t =
+  * P^{mn}_t \f$ and \f$ r_t = 0 \f$ there; (31) and (32) are a restriction
+  * that the plain band does not have. These rows use only \f$ u \f$, \f$ v
+  * \f$, \f$ w \f$ and \f$ p^{ac} \f$, hence the reserve model is the same in
+  * all the formulations, and it is the one the DP Solvers implement.
   *
-  *   Two families of constraints govern the reserve:
+  * <b>Perspective reformulation</b> ("Init_PC_Const_Thermal",
+  * "Max_SUSD_PC_Const_Thermal", "Eq_PC_Const_Thermal"), with PCuts. For
+  * \f$ P \in \{ P^{mn}_t , P^{mx}_t \} \f$ the two tangent cuts of the
+  * perspective of \f$ ( p^{ac}_t )^2 \f$ at the bounds,
+  * \f[
+  *   z_t \geq 2 P p^{ac}_t - P^2 u_t \;\text{ (3bin, T)} \; , \quad
+  *   z_t \geq 2 P p^{ac}_t - P^2 Y_t \;\text{ (pt)} \; , \quad
+  *   z^{hk}_t \geq 2 P p^{hk}_t - P^2 y^{hk}_+ \;\text{ (DP)} \; ,
+  *   \tag{33}
+  * \f]
+  * \f$ z^h_t \geq 2 P p^h_t - P^2 Y^h_t \f$ (SU, SUSD) and
+  * \f$ \tilde{z}^k_t \geq 2 P \tilde{p}^k_t - P^2 \tilde{Y}^k_t \f$ (SD,
+  * SUSD), hold for every \f$ t \f$ and run; the variables of the runs are
+  * linked to \f$ z_t \f$ by \f$ z_t = \sum_{ (h,k) } z^{hk}_t \f$ (DP),
+  * \f$ z_t = \sum_{ h } z^h_t \f$ (SU, SUSD) and
+  * \f$ z_t = \sum_{ k } \tilde{z}^k_t \f$ (SD, SUSD), and in the SUSD
+  * formulation \f$ \vartheta_t \geq \sum_{ h } z^h_t \f$ and
+  * \f$ \vartheta_t \geq \sum_{ k } \tilde{z}^k_t \f$. The further cuts are
+  * separated by generate_dynamic_constraints().
   *
-  *   = Fraction constraints (all formulations): each reserve is capped at a
-  *     fixed fraction of the active power actually produced,
-  *     \f[
-  *        pr_t \leq \rho^p_t\, p_t , \qquad
-  *        sc_t \leq \rho^s_t\, p_t
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
-  *     \f]
-  *     These are the "PrimaryRho_Const" / "SecondaryRho_Const" and are added
-  *     whenever the respective reserve variables exist, regardless of the
-  *     chosen formulation, since they only involve the aggregate power
-  *     \f$ p_t \f$.
+  * <b>Other rows.</b> If InvestmentCost is nonzero,
+  * \f$ u_t \leq x \f$ for \f$ t \in \mathcal{T} \f$
+  * ("CommitmentDesign_Const_Thermal"). If FixToMaximum is positive,
+  * \f$ p^{ac}_t \geq P^{mx}_t \f$ ("FixedGeneration"). If a
+  * ReferenceSchedule \f$ \hat{p} \f$ is given,
+  * \f$ p^{ac}_t - a^{ref}_t \leq \hat{p}_t \f$ and
+  * \f$ - p^{ac}_t - a^{ref}_t \leq - \hat{p}_t \f$
+  * ("Norm1_Reference_Schedule"). If the UCBlock has the reactive power,
+  * an absent bound being 0 as for the getters and the DP Solvers,
+  * \f$ Q^{mn}_t \leq q_t \leq Q^{mx}_t \f$ is added as
+  * a BoxConstraint ("ReactivePowerBound_thermal") if neither
+  * MaxReactivePowerOn nor MinReactivePowerOn is given and there is no
+  * design variable, and otherwise the rows ("ReactivePowerMax_thermal",
+  * "ReactivePowerMin_thermal")
+  * \f[
+  *   q_t \leq Q^{mx,on}_t u_t + Q^{mx}_t \xi \; , \qquad
+  *   q_t \geq Q^{mn,on}_t u_t + Q^{mn}_t \xi \; ,
+  * \f]
+  * where \f$ \xi = x \f$ if the unit has a design variable (and the bound is
+  * finite) and \f$ \xi = 1 \f$ otherwise. In every formulation,
+  * \f$ 0 \leq p^{ac}_t \leq P^{mx}_t \f$ is added as a BoxConstraint
+  * ("ActivePowerBound_thermal"): the rows that tie the power to the
+  * commitment imply it, but a Solver that only reads the bounds of the
+  * Variable (e.g., a BoxSolver bounding the Objective) needs it to see the
+  * power bounded; is_feasible() checks it with the other rows.
   *
-  *   = Capacity and deliverability (band) constraints ("Reserve_Const",
-  *     all formulations): the reserve must both fit within the operating
-  *     band around \f$ p_t \f$ *and*, if activated, be reachable within one
-  *     ramp step from the previously realised output. Writing
-  *     \f$ r_t = pr_t + sc_t \f$, these are five rows per period, generated
-  *     uniformly for every formulation in terms of the commitment
-  *     \f$ u_t \f$, the start-up \f$ v_t \f$ and the shut-down
-  *     \f$ w_t \f$ variables (present in all formulations), so the reserve
-  *     model does *not* depend on the chosen formulation. Foot-room
-  *     (capacity, below):
-  *     \f[
-  *        p_t - r_t \;\geq\; \underline{p}_t\, u_t
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2a)
-  *     \f]
-  *     head-room (capacity, above), boundary-aware through the start-up and
-  *     shut-down caps:
-  *     \f[
-  *        p_t + r_t \;\leq\; \bar{p}_t u_t + ( \bar l_t - \bar{p}_t ) v_t
-  *     \f]
-  *     \f[
-  *        p_t + r_t \;\leq\; \bar{p}_t u_t + ( \bar u_t - \bar{p}_t ) w_{t+1}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2b)
-  *     \f]
-  *     (so the head-room cap is \f$ \bar{p}_t \f$ at an interior on-period,
-  *     \f$ \bar l_t \f$ at a start-up, \f$ \bar u_t \f$ at a shut-down and
-  *     \f$ \min\{\bar l_t, \bar u_t\} \f$ at a single-period on-interval);
-  *     and ramp deliverability, the reserve fitting in the ramp left over
-  *     after the scheduled move,
-  *     \f[
-  *        p_t + r_t - p_{t-1} \;\leq\; \Delta^+_{t-1}
-  *     \f]
-  *     \f[
-  *        p_{t-1} - p_t + r_t \;\leq\; \Delta^-_{t-1}
-  *                       \quad t : u_{t-1} = u_t = 1 \quad (2c)
-  *     \f]
-  *     which bind only on an interior transition (both \f$ t-1 \f$ and
-  *     \f$ t \f$ on) and are relaxed by the commitment at a start-up or a
-  *     shut-down, where (2b) supplies the cap instead. The energy ramp-up /
-  *     ramp-down constraints on \f$ p_t \f$ are unchanged: the reserve adds
-  *     the *parallel* deliverability relations (2c), it does not enter the
-  *     ramping of the energy itself.
+  * <b>Changes after the generation.</b> The rows are written by
+  * build_rows(), from the data as they are, both here and when a setter
+  * changes MaxPower, Availability, InitialPower or (within the values that
+  * set_init_updown_time() accepts) InitUpDownTime after the generation
+  * [see update_rows()]: the Variable do not depend on these data (the
+  * interval \f$ ( 0 , 0 ) \f$ is there whatever \f$ p_{-1} \f$ and the
+  * limits, see generate_abstract_variables()), nor do the Variable of a
+  * static row, hence a change enters the coefficients and the sides of the
+  * static rows, which get the new values, and the number of the dynamic
+  * rows (18), (25) and (26), which are added and removed; the abstract
+  * representation is then the one a fresh load of the changed data would
+  * generate, apart from the order of the dynamic rows.
   *
-  *     This model is therefore identical across all seven formulations and
-  *     coincides, by construction, with the band the two DP solvers
-  *     (ThermalUnitDPSolver, ThermalUnitExtDPSolver) implement, so a
-  *     reserve-rewarded instance yields the same optimum under any
-  *     formulation and under the DP. It is the "residual-ramp" reserve model
-  *     (the flexible-ramping / ramp-capability product of electricity
-  *     markets); see the TUDPS paper for the rationale, in particular for
-  *     why the pure capacity band, blind to the ramp, over-credits the
-  *     reserve of slow units. The energy-only problem is unaffected (no
-  *     reserve variable is created and no "Reserve_Const" is generated).
-  *
-  * - Perspective function constraints: when the formulations make use of the
-  *   perspective function for measuring the total production cost (i.e. when
-  *   parameter PCuts = 1), a set of static constraints are defined for
-  *   setting the values of the relative perspective variables (\f$z_t\f$ for
-  *   the 3bin, T and \f$p_t\f$ formulations, \f$z_t^{hk}\f$ for the DP
-  *   formulation, \f$z_t^h\f$ for the SU and SUSD formulations, 
-  *   \f$\tilde z_t^k\f$  for the SU and SUSD formulations) and the
-  *   \f$theta_t\f$ variables for the SUSD formulation. In particular, the
-  *   constraints are those that connects the perspective variables with the
-  *   power output variable, set the values for \f$\theta_t\f$ and for set the
-  *   initial conditions of the perspective cuts.
-  *
-  * - Initial conditions perspective cuts: those constraints set the
-  *   perspective variable for each formulation when the variable for the
-  *   power output is equal to the maximum or the minimum
-  *
-  * - Initial conditions perspective cuts constraints (3bin and T formulations)
-  *   \f[
-  *      z_t \geq 2 \bar{p_t} p_t - \bar{p_t}^2 u_{t}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
-  *   \f]
-  *   \f[
-  *      z_t \geq 2 \underline{p_t} p_t - \underline{p_t}^2 u_{t}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2)
-  *   \f]
-  *
-  * - Initial conditions perspective cuts constraints (pt formulation)
-  *   \f[
-  *      z_t \geq 2 \bar{p_t} p_t - \bar{p_t}^2 \sum_{(hk): h \leq t \leq k} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
-  *   \f]
-  *   \f[
-  *      z_t \geq 2 \underline{p_t} p_t - \underline{p_t}^2 \sum_{(hk): h \leq t \leq k} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2)
-  *   \f]
-  *
-  * - Initial conditions perspective cuts constraints (DP formulation)
-  *   \f[
-  *      z_t^{hk} \geq 2 \bar{p_t} p_t^{hk} - \bar{p_t}^2 y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad (h,k): h \leq t \leq k \quad (1)
-  *   \f]
-  *   \f[
-  *      z_t^{hk} \geq 2 \underline{p_t} p_t^{hk} - \underline{p_t}^2 y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad (h,k): h \leq t \leq k \quad (2)
-  *   \f]
-  *
-  * - Initial conditions perspective cuts constraints (SU and SUSD formulations)
-  *   \f[
-  *      z_t^{h} \geq 2 \bar{p_t} p_t^{h} - \bar{p_t}^2 \sum_{k:t \leq k} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad h: h \leq t \quad (1)
-  *   \f]
-  *   \f[
-  *      z_t^{h} \geq 2 \underline{p_t} p_t^{h} - \underline{p_t}^2 \sum_{k: t\leq k} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad h: h \leq t \quad (2)
-  *   \f]
-  *
-  * - Initial conditions perspective cuts constraints (SD and SUSD formulations)
-  *   \f[
-  *      \tilde z_t^{k} \geq 2 \bar{p_t} \tilde p_t^{k} - \bar{p_t}^2 \sum_{h:h \leq t} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad k: t \leq k \quad (1)
-  *   \f]
-  *   \f[
-  *      \tilde z_t^{k} \geq 2 \underline{p_t} \tilde p_t^{k} - \underline{p_t}^2 \sum_{h: h \leq t} y_+^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \}, \quad k: t \leq k \quad (2)
-  *   \f]
-  *
-  * - Constraints for regulating values of the variables \f$\theta_t\f$ (SUSD formulation)
-  *   \f[
-  *      \theta_t \geq \sum_{h : h \leq t} p_t^h
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
-  *   \f]
-  *   \f[
-  *      \theta_t \geq \sum_{k : t \leq k} \tilde p_t^k
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (2)
-  *   \f]
-  *
-  * - Connection perspective 3bin with perspective DP variables
-  *   \f[
-  *      z_t = \sum_{(hk) : h \leq t \leq k} z_t^{hk}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
-  *   \f]
-  *
-  * - Connection perspective 3bin with perspective SU and SUSD variables
-  *   \f[
-  *      z_t = \sum_{h : h \leq t} z_t^{h}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
-  *   \f]
-  *
-  * - Connection perspective 3bin with perspective SD and SUSD variables
-  *   \f[
-  *      z_t = \sum_{k : t \leq k} \tilde z_t^{k}
-  *                       \quad t \in \{ 1, ..., \mathcal{T} \} \quad (1)
-  *   \f]
-  */
+  * Before the ramp rows are built, the method throws std::logic_error if the
+  * unit is on before the horizon and DeltaRampUp is given with
+  * \f$ p_{-1} + \Delta^+_0 < P^{mn}_0 \f$, or DeltaRampDown is given with
+  * \f$ p_{-1} - \Delta^-_0 > P^{mx}_0 \f$ (also if a shut-down at 0 would
+  * make the schedule feasible). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the dynamic constraint of the ThermalUnitBlock
- /** This method generates the dynamic constraints of the ThermalUnitBlock.
-  * These constraints are dynamically added to a specific formulations during
-  * the resolution.
+ /** With PCuts (see generate_abstract_variables()), separates the
+  * perspective cuts of the quadratic cost at the current values of the
+  * Variable and adds the violated ones to the dynamic group "PC_cuts_Thermal";
+  * otherwise it does nothing. Two parameters drive the separation: a
+  * tolerance \f$ \varepsilon \f$ (1e-6 by default) below which the
+  * commitment of a run is taken as 0, and a relative threshold
+  * \f$ \delta \f$ (1e-7 by default) on the violation. They are read from
+  * \p dycc if it is a SimpleConfiguration< double > (\f$ \delta \f$) or a
+  * SimpleConfiguration< std::pair< double , double > > (\f$ \delta \f$,
+  * \f$ \varepsilon \f$), and otherwise in the same way from
+  * f_BlockConfig->f_dynamic_constraints_Configuration.
   *
-  * - Dynamic perspective cuts constraints: the perspective cuts constraints
-  *   are defined for each formulation when the perspective function in the
-  *   objective is defined (i.e. when parameter PCuts = 1). In the current
-  *   solution obtained during the resolution a tolerance value ('eps', that is
-  *   typically set to 1e-6) for a binary variable is considered variable. Then,
-  *   the relative perspective cut is added according to a threshold value
-  *   ('tol', typically set to 1e-4) for the separation. In the following, we
-  *   denote by x.get_value() the value retrieved by the current solution
-  *   analyzed. While separating perspective cuts it is possible that the
-  *   procedure incurs in a loop, i.e. it tries to add continuously the same
-  *   cut. Thus, two different procedures are defined for separating the cuts.
-  *   Neither procedure seems to be effective in general and the better choice
-  *   depends on the specific instance. These two procedures are regulated by
-  *   binary parameter 'check_loop'. When check_loop = 1 a 
-  *   std::vector< double > prevpbar with dimension \f$\mathcal{T}\f$ is
-  *   used for saving, for each time period, the last tolerance tracking the last
-  *   perspective cuts added. In case, the new cut that is adding is close to the
-  *   last one added then the addition of the new one is avoided. These procedure
-  *   is used in order to avoid possible loops.
-  *
-  * - Perspective cuts (3bin and T formulations)
-  *
-  * - For each time period \f$t\f$, the procedure checks if a relative
-  *   perspective cut could be added according to several checks
-  *
-  * - According to a fist check, a perspective cut is possibly added only if
-  *   \f$u_t\mbox{.get_value()} > \mbox{eps}\f$.
-  *
-  * - Checks if check_loop = 1:
-  *
-  *   1) \f$z_t\mbox{.get_value()} < ( (p_t\mbox{.get_value()} * p_t\mbox{.get_value()} )/ u_t\mbox{.get_value()} - \mbox{tol} )\f$
-  *
-  *   2) \f$\mbox{prevpbar}_t = 0\f$ or \f$\mbox{prevpbar}_t != 0  \wedge (\mbox{prevpbar}_t - (p_t\mbox{.get_value()} / u_t\mbox{.get_value()}))/\mbox{prevpbar}_t > eps\f$
-  *
-  * - Check if check_loop = 0:
-  *
-  *   1) \f$ 2 \cdot (p_t\mbox{.get_value()} / u_t\mbox{.get_value()}) \cdot p_t\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t\mbox{.get_value()} + (p_t\mbox{.get_value()} / u_t\mbox{.get_value()})^2 \cdot u_t\mbox{.get_value()}\} \f$
-  *
-  * - If all previous checks are satisfied, the following perspective cut is added and if check_loop = 1 then \f$\mbox{prevpbar}_t\f$ is set to \f$p_t\mbox{.get_value()} / u_t\mbox{.get_value()}\f$
-  *   \f[
-  *      z_t \geq 2 \cdot (p_t\mbox{.get_value()} / u_t\mbox{.get_value()}) \cdot p_t - (p_t\mbox{.get_value()} / u_t\mbox{.get_value()})^2 \cdot u_t
-  *                       \quad (1)
-  *   \f]
-  *
-  * - Perspective cuts (pt formulation)
-  *
-  * - For each time period \f$t\f$, the procedure checks if a relative
-  *   perspective cut could be added according to several checks
-  *
-  * - According to a fist check, a perspective cut is possibly added only if
-  *   \f$\sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
-  *
-  * - According to a second check, a perspective cut is possibly added only if
-  *
-  *   \f$ 2 \cdot (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t\mbox{.get_value()} + (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()}\} \f$
-  *
-  * - If all previous checks are satisfied, the following perspective cut is
-  *   added
-  *   \f[
-  *      z_t \geq 2 \cdot (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t - (p_t\mbox{.get_value()} / \sum_{(hk) : h \leq t \leq k} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{(hk) : h \leq t \leq k} y_+^{hk}
-  *                       \quad (1)
-  *   \f]
-  *
-  * - Perspective cuts (DP formulation)
-  *
-  * - For each variable \f$p_t^{hk}\f$, the procedure checks if a relative
-  *   perspective cut could be added according to several checks
-  *
-  * - According to a fist check, a perspective cut is possibly added only if
-  *   \f$y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
-  *
-  * - According to a second check, a perspective cut is possibly added only if
-  *
-  *   \f$ 2 \cdot (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()}) \cdot p_t^{hk}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t^{hk}\mbox{.get_value()} + (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()})^2 \cdot y_+^{hk}\mbox{.get_value()}\} \f$
-  *
-  * - If all previous checks are satisfied, the following perspective cut is
-  *   added
-  *   \f[
-  *      z_t^{hk} \geq 2 \cdot (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()}) \cdot p_t^{hk} - (p_t^{hk}\mbox{.get_value()} / y_+^{hk}\mbox{.get_value()})^2 \cdot y_+^{hk}
-  *                       \quad (1)
-  *   \f]
-  *
-  * - Perspective cuts (SU and SUSD formulation)
-  *
-  * - For each variable \f$p_t^{h}\f$, the procedure checks if a relative
-  *   perspective cut could be added according to several checks
-  *
-  * - According to a fist check, a perspective cut is possibly added only if
-  *   \f$\sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
-  *
-  * - According to a second check, a perspective cut is possibly added only if
-  *   \f$ 2 \cdot (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t^{h}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,z_t^{h}\mbox{.get_value()} + (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()}\} \f$
-  *
-  * - If all previous checks are satisfied, the following perspective cut is
-  *   added
-  *   \f[
-  *      z_t^{h} \geq 2 \cdot (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{hk}\mbox{.get_value()}) \cdot p_t^{h} - (p_t^{h}\mbox{.get_value()} / \sum_{k : t \leq k} y_+^{h}\mbox{.get_value()})^2 \cdot \sum_{k : t \leq k} y_+^{hk}
-  *                       \quad (1)
-  *   \f]
-  *
-  * - Perspective cuts (SD and SUSD formulation)
-  *
-  * - For each variable \f$\tilde p_t^{k}\f$, the procedure checks if a relative perspective cut
-  *   could be added according to several checks
-  *
-  * - According to a fist check, a perspective cut is possibly added only if
-  *
-  *   \f$\sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()} > \mbox{eps}\f$.
-  *
-  * - According to a second check, a perspective cut is possibly added only if
-  *
-  *   \f$ 2 \cdot (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()}) \cdot \tilde p_t^{k}\mbox{.get_value()} \geq (1 + \mbox{tol}) \cdot  \min\{1,\tilde z_t^{k}\mbox{.get_value()} + (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()})^2 \cdot \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()}\} \f$
-  *
-  * - If all previous checks are satisfied, the following perspective cut is added
-  *
-  *   \f[
-  *      \tilde z_t^{k} \geq 2 \cdot (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{hk}\mbox{.get_value()}) \cdot \tilde p_t^{k} - (\tilde p_t^{k}\mbox{.get_value()} / \sum_{h : h \leq t} y_+^{h}\mbox{.get_value()})^2 \cdot \sum_{h : h \leq t} y_+^{hk}
-  *                       \quad (1)
-  *   \f]
-  */
+  * Let \f$ ( \hat{p} , \hat{z} , \hat{y} ) \f$ be the current values of a
+  * power, of its perspective variable and of its commitment, i.e.,
+  * \f$ ( p^{ac}_t , z_t , u_t ) \f$ in the 3bin and T formulations,
+  * \f$ ( p^{ac}_t , z_t , Y_t ) \f$ in the pt one,
+  * \f$ ( p^{hk}_t , z^{hk}_t , y^{hk}_+ ) \f$ in the DP one,
+  * \f$ ( p^h_t , z^h_t , Y^h_t ) \f$ in the SU and SUSD ones and
+  * \f$ ( \tilde{p}^k_t , \tilde{z}^k_t , \tilde{Y}^k_t ) \f$ in the SD and
+  * SUSD ones, in the notation of generate_abstract_constraints(). If
+  * \f$ \hat{y} > \varepsilon \f$, \f$ \check{p} = \hat{p} / \hat{y} \f$ and
+  * \f$ m = \max\{ 1 , \hat{z} + \check{p}^2 \hat{y} \} \f$ satisfy
+  * \f$ \hat{p}^2 / \hat{y} - \hat{z} \geq \delta m \f$ (the violation of
+  * the perspective constraint \f$ z \, y \geq p^2 \f$ at the point,
+  * relative to its size, and absolute when the size is below 1), the
+  * cut
+  * \f[
+  *   z \geq 2 \check{p} \, p - \check{p}^2 \, y \; ,
+  * \f]
+  * tangent to the perspective of \f$ p^2 \f$ at \f$ \check{p} \f$, is added
+  * with the corresponding variables, the commitment \f$ y \f$ being the
+  * sum of arc variables that defines \f$ Y_t \f$, \f$ Y^h_t \f$ or
+  * \f$ \tilde{Y}^k_t \f$ in the formulations where it is one. */
 
  void generate_dynamic_constraints( Configuration * dycc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the ThermalUnitBlock
- /** Method that generates the objective of the ThermalUnitBlock. The objective
-  * function of the ThermalUnitBlock representing the total power production
-  * cost to be minimized has the form:
-  * \f[
-  *   \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
-  *   \sum_{ t \in \mathcal{T}  } (a_t p_t^2 + b_t p_t + c_t u_t) )
-  *   \quad (1)
-  * \f]
-  * where \f$ v_t \f$ indicates that the unit is starting up at time
-  * \f$ t \f$, \f$ u_t \f$ indicates that the unit is committed at time
-  * \f$ t \f$, \f$ p_t \f$ is the active power produced at time \f$ t \f$,
-  * \f$ \sum_{ t \in [t_0, \mathcal{|T|} - 1] } s_t v_t \f$ is the start-up
-  * cost of the unit, which we assume to be time-independent
+ /** Generates the Objective of the ThermalUnitBlock, a DQuadFunction to be
+  * minimized, which in the notation of generate_abstract_variables() is
+  * \f{align*}{
+  *   \sigma \Bigl( & \sum_{ t = t_0 }^{ T - 1 } ( c^{su}_t v_t
+  *     + c^{sd}_t w_t ) + \sum_{ t \in \mathcal{T} } \bigl( a_t
+  *     ( p^{ac}_t )^2 + b_t p^{ac}_t + c_t u_t \bigr) \\
+  *   & + \sum_{ t \in \mathcal{T} } \bigl( c^{pr}_t p^{pr}_t
+  *     + c^{sc}_t p^{sc}_t + a^{ref}_t + b^q_t q_t \bigr)
+  *     + c^{inv} x \Bigr) \; , \tag{34}
+  * \f}
+  * where \f$ \sigma \f$ is the scale factor, \f$ a_t \f$, \f$ b_t \f$,
+  * \f$ c_t \f$, \f$ c^{su}_t \f$, \f$ c^{sd}_t \f$, \f$ c^{pr}_t \f$,
+  * \f$ c^{sc}_t \f$, \f$ b^q_t \f$ and \f$ c^{inv} \f$ are the data of
+  * deserialize(), and every term whose variables do not exist is absent:
+  * the shut-down term if ShutDownCost is absent or zero, the reserve terms
+  * if the reserve variables do not exist, the term
+  * \f$ a^{ref}_t \geq | p^{ac}_t - \hat{p}_t | \f$ (the variable
+  * "v_abs_refschd", with coefficient \f$ \sigma \f$) if there is no
+  * ReferenceSchedule, the reactive term if the UCBlock has no reactive
+  * power, and the investment term if InvestmentCost is zero. The costs
+  * \f$ c^{pr}_t \f$ and \f$ c^{sc}_t \f$ are 0 when they are not given,
+  * and the term of a reserve whose Variable exist is in the Objective if
+  * its cost is nonzero at some instant or if the Configuration of the
+  * Objective asks for it: \p objc, or, if it is not a
+  * SimpleConfiguration< int >, the f_objective_Configuration of the
+  * BlockConfig, whose value has bit 0 set for the primary reserve and bit
+  * 1 for the secondary one (default 0). A term with cost 0 is there for a
+  * Solver that changes the coefficients of the Objective, say a
+  * LagrangianDualSolver pricing the reserve requirements of the UCBlock;
+  * without it, set_primary_spinning_reserve_cost() and
+  * set_secondary_spinning_reserve_cost() refuse a nonzero cost once the
+  * Objective is generated, as set_shutdown_costs() does for a unit whose
+  * Objective has no shut-down term.
   *
-  * Note: time-independent means here start-up cost is "independent from how
-  *       long the unit has been off", and it is not meaning "always should
-  *       be equal at each time instant"
-  *
-  * and \f$ a_t \f$, \f$ b_t \f$, and \f$ c_t \f$ are, respectively, the
-  * quadratic, linear, and constant terms of the power cost function of the
-  * unit at time period \f$ t \in \mathcal{T} \f$.
-  *
-  * If the primary and/or the secondary spinning reserve variables have been
-  * generated, it is also possible to consider them in linear form in the
-  * objective function. This can be instructed by using either the parameter
-  * \p objc or f_BlockConfig->f_objective_Configuration. If \p objc is not
-  * nullptr and it is a SimpleConfiguration< int >, or if
-  * f_BlockConfig->f_objective_Configuration is not nullptr and it is a
-  * SimpleConfiguration< int >, then the f_value of this SimpleConfiguration
-  * (an int) indicates whether the primary and/or the secondary reserve
-  * variables should be included in the objective function. If the
-  * Configuration is not available, the default value is taken to be 0. If
-  * the first bit of this int value is 1, then the primary spinning reserve
-  * variables are added to the objective function, i.e., the following term
-  * is added to the objective function described above:
-  * \f[
-  *    \sum_{ t \in \mathcal{T} } c_t^{pr} p_t^{pr}
-  * \f]
-  *
-  * If the second bit of this int value is 1, then the secondary spinning
-  * reserve variables are added to the objective function, i.e., the following
-  * term is added to the objective function described above:
-  * \f[
-  *    \sum_{ t \in \mathcal{T} } c_t^{sc} p_t^{sc}
-  * \f]
-  *
-  * If the primary and/or secondary spinning reserve variables are included in
-  * the objective function, their coefficients can be set by the
-  * set_primary_spinning_reserve_cost() and
-  * set_secondary_spinning_reserve_cost() methods, respectively.
-  * In the design scenario of the UC problem, an additional cost is
-  * added to the objective, i.e., \f$ I x \f$ where \f$ I \f$ is the
-  * investment cost and \f$ x \f$ is the design binary variable.
-  *
-  * The objective function (1) is modified according to which formulations
-  * is used and the use of the perspective function (i.e. if PCuts = 1 or 0)
-  *
-  * - Objective function 3bin, T and pt formulations: in this case the objective
-  *   function coincides with (1) if the perspective function is not used
-  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$z_t\f$ substitute
-  *   the quadratic part \f$p_t^2\f$ as follows:
-  *   \f[
-  *     \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
-  *     \sum_{ t \in \mathcal{T}  } (a_t z_t + b_t p_t + c_t u_t) )
-  *   \f]
-  *
-  * - Objective function DP formulation: in this case the objective
-  *   function coincides with (1) if the perspective function is not used
-  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$z_t^{hk}\f$ substitute
-  *   the quadratic part \f$p_t^2\f$ as follows:
-  *   \f[
-  *     \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
-  *     \sum_{ t \in \mathcal{T}  } (a_t \sum_{(hk) : h \leq t \leq k} z_t^{hk}
-  *     + b_t p_t + c_t u_t) )
-  *   \f]
-  *
-  * - Objective function SU formulation: in this case the objective
-  *   function coincides with (1) if the perspective function is not used
-  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$z_t^{h}\f$ substitute
-  *   the quadratic part \f$p_t^2\f$ as follows:
-  *   \f[
-  *    \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
-  *    \sum_{ t \in \mathcal{T}  } (a_t \sum_{h : h \leq t} z_t^{h}
-  *     + b_t p_t + c_t u_t) )
-  *   \f]
-  *
-  * - Objective function SD formulation: in this case the objective
-  *   function coincides with (1) if the perspective function is not used
-  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$\tilde z_t^{k}\f$
-  *   substitute the quadratic part \f$p_t^2\f$ as follows:
-  *   \f[
-  *    \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
-  *    \sum_{ t \in \mathcal{T}  } (a_t \sum_{k : t \leq k} \tilde z_t^{k}
-  *     + b_t p_t + c_t u_t) )
-  *  \f]
-  *
-  * - Objective function SUSD formulation: in this case the objective
-  *   function coincides with (1) if the perspective function is not used
-  *   (PCuts = 0), otherwise (PCuts = 1) variables \f$\theta_t\f$ substitute
-  *   the quadratic part \f$p_t^2\f$ as follows:
-  *   \f[
-  *    \min ( \sum_{ t \in  [t_0 , \mathcal{|T|} - 1] } s_t v_t +
-  *    \sum_{ t \in \mathcal{T}  } (a_t \theta_t + b_t p_t + c_t u_t) )
-  *   \f]
-  */
+  * Each term is the cost of one instant (see the class documentation),
+  * and the start-up cost \f$ c^{su}_t \f$ depends on the instant of the
+  * start-up only, not on how long the unit has been off before it. All the
+  * formulations have the same Objective, with one exception: with PCuts the
+  * quadratic term \f$ a_t ( p^{ac}_t )^2 \f$ is replaced by \f$ a_t z_t \f$
+  * in the 3bin, T and pt formulations, by
+  * \f$ a_t \sum_{ (h,k) } z^{hk}_t \f$ in the DP one,
+  * \f$ a_t \sum_{ h } z^h_t \f$ in the SU one,
+  * \f$ a_t \sum_{ k } \tilde{z}^k_t \f$ in the SD one and
+  * \f$ a_t \vartheta_t \f$ in the SUSD one (see
+  * generate_abstract_constraints()), the variables \f$ p^{ac}_t \f$ then
+  * having no quadratic coefficient. The order of the Variable in the
+  * DQuadFunction is that of (34): \f$ v \f$, \f$ w \f$ (if any),
+  * \f$ p^{ac} \f$, \f$ u \f$, \f$ a^{ref} \f$ (if any), \f$ p^{pr} \f$,
+  * \f$ p^{sc} \f$ (if any), the perspective variables (if any), \f$ q \f$
+  * (if any), and \f$ x \f$ (if any) last. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -1694,7 +1338,7 @@ class ThermalUnitBlock : public UnitBlock
   * the Configuration that is provided.
   *
   * The tolerance and the type of violation can be provided by either \p fsbc
-  * or #f_BlockConfig->f_is_feasible_Configuration and they are determined as
+  * or f_BlockConfig->f_is_feasible_Configuration and they are determined as
   * follows:
   *
   * - If \p fsbc is not a nullptr and it is a pointer to a
@@ -1707,30 +1351,63 @@ class ThermalUnitBlock : public UnitBlock
   *   fsbc->f_value.second (any nonzero number for relative violation and
   *   zero for absolute violation);
   *
-  * - Otherwise, if both #f_BlockConfig and
+  * - Otherwise, if both f_BlockConfig and
   *   f_BlockConfig->f_is_feasible_Configuration are not nullptr and the
   *   latter is a pointer to either a SimpleConfiguration< double > or to a
   *   SimpleConfiguration< std::pair< double , int > >, then the values of the
   *   parameters are obtained analogously as above;
   *
-  * - Otherwise, by default, the tolerance is 0 and the relative violation
-  *   is considered.
+  * - Otherwise, by default, the tolerance is Block::DefaultFeasTol and the
+  *   relative violation is considered.
   *
-  * This function currently considers only the abstract representation to
+  * This function considers only the abstract representation to
   * determine if the solution is feasible. So, the parameter \p useabstract is
-  * currently ignored. If no abstract Variable has been generated, then this
+  * ignored. If no abstract Variable has been generated, then this
   * function returns true. Moreover, if no abstract Constraint has been
   * generated, the solution is considered to be feasible with respect to the
   * set of Variable only. Notice also that, before checking if the solution
   * satisfies a Constraint, the Constraint is computed (Constraint::compute()).
   *
-  * @param useabstract This parameter is currently ignored.
+  * @param useabstract This parameter is ignored.
   *
   * @param fsbc The pointer to a Configuration that specifies the tolerance
   *             and the type of violation that must be considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the schedule in the Solution is feasible
+ /** Returns true if the schedule that the given :UnitBlockSolution holds,
+  * i.e. the commitment, the active power and the spinning reserves of the
+  * unit, is feasible: the values are read out of it and checked against the
+  * data of the unit, i.e. the operational bounds of the power, the ramps
+  * with the limits of the start-up and of the shut-down, the minimum up and
+  * down times and the state the unit comes from, so that the Variable of the
+  * ThermalUnitBlock are neither needed nor touched
+  * [see Block::is_sol_feasible()]. Those are the constraints of the unit for
+  * an integral commitment, which is what the formulations of it encode; a
+  * commitment that is not integral is therefore not declared feasible, as a
+  * Solution that says it holds a direction is not, the feasible region of a
+  * unit being bounded. A unit that carries something the schedule does not
+  * answer for is left to the check of the base class
+  * [see is_sol_feasible_physical()]. */
+
+ bool is_sol_feasible( Solution * sol ,
+		       Configuration * fsbc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// true if is_sol_feasible() reads the Solution and leaves the Variable be
+ /** Returns true if is_sol_feasible() checks the schedule against the data of
+  * the unit, which it does unless the unit carries something that the
+  * schedule does not answer for: a dimensioning variable, the reactive
+  * power, a reference schedule, a scale of its own or a fixed Variable of a
+  * formulation that the schedule only implies. In those cases the check goes
+  * through the abstract representation, and therefore through the Variable,
+  * as the base class does it. A :ThermalUnitBlock with constraints of its
+  * own that the schedule does not answer for says so here. */
+
+ [[nodiscard]] bool is_sol_feasible_physical( void ) const override;
 
 
 /** @} ---------------------------------------------------------------------*/
@@ -1769,8 +1446,8 @@ class ThermalUnitBlock : public UnitBlock
   * Solver has changed the coefficient (e.g. the non-anticipativity multiplier
   * in a nested Lagrangian); Solvers that consume the structural data (the DP
   * Solvers) must use this, rather than get_investment_cost(), as the actual
-  * cost of building the unit. Returns 0 if the unit has no design variable, and
-  * f_InvestmentCost if the Objective has not been generated yet. */
+  * cost of building the unit. Returns 0 if the unit has no design variable,
+  * and f_InvestmentCost if the Objective has not been generated yet. */
  double get_design_cost( void ) const;
 
  /// returns the installable capacity by the user
@@ -1795,7 +1472,7 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of nominal minimum active power output
+ /// returns the vector of nominal maximum active power output
  /** This method returns (a const reference to) the vector containing the
   * nominal maximum active power output of the unit for all time steps. When
   * the unit is available, get_max_power()[ t ] gives the maximum active power
@@ -1830,15 +1507,15 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the commitment-gated minimum reactive power coefficient
- /** The reactive power bound is state-dependent on the commitment \f$ u_t \f$:
-  * \f[ \underline{q}^{\mathrm{off}}_t + \underline{q}^{\mathrm{on}}_t\,u_t
-  *     \;\le\; q_t \;\le\;
-  *     \overline{q}^{\mathrm{off}}_t + \overline{q}^{\mathrm{on}}_t\,u_t , \f]
-  * where get_min_reactive_power() and get_max_reactive_power() return the
-  * \f$ ^{\mathrm{off}} \f$ terms (the bound when the unit is off) and this
-  * method the \f$ \underline{q}^{\mathrm{on}}_t \f$ coefficient of \f$ u_t \f$.
-  * Zero (the default, empty vector) recovers the plain box \f$ [\underline{q}
-  * ^{\mathrm{off}}_t , \overline{q}^{\mathrm{off}}_t] \f$. */
+ /** The reactive power bound depends on the commitment \f$ u_t \f$:
+  * \f[
+  *   Q^{mn}_t + Q^{mn,on}_t u_t \leq q_t \leq Q^{mx}_t + Q^{mx,on}_t u_t \; ,
+  * \f]
+  * where get_min_reactive_power() and get_max_reactive_power() return
+  * \f$ Q^{mn}_t \f$ and \f$ Q^{mx}_t \f$ (the bounds when the unit is
+  * off) and this method returns \f$ Q^{mn,on}_t \f$. Zero (the default)
+  * gives the plain box \f$ [ Q^{mn}_t , Q^{mx}_t ] \f$ (see
+  * generate_abstract_constraints()). */
 
  double get_min_reactive_power_on( Index t , Index generator = 0 ) const {
   return( ( v_MinReactivePowerOn.size() > t ) ?
@@ -1847,8 +1524,8 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the commitment-gated maximum reactive power coefficient
- /** The \f$ \overline{q}^{\mathrm{on}}_t \f$ coefficient of \f$ u_t \f$ in the
-  * state-dependent reactive bound; see get_min_reactive_power_on(). */
+ /** The coefficient \f$ Q^{mx,on}_t \f$ of \f$ u_t \f$ in the reactive
+  * bound; see get_min_reactive_power_on(). */
 
  double get_max_reactive_power_on( Index t , Index generator = 0 ) const {
   return( ( v_MaxReactivePowerOn.size() > t ) ?
@@ -1906,21 +1583,12 @@ class ThermalUnitBlock : public UnitBlock
   * The availability of the unit determines its operational minimum and
   * maximum active power output, i.e., the effective bounds on the active
   * power output under which the unit operates. For each t in {0, ...,
-  * get_time_horizon() - 1}, let MinPower[ t ] and MaxPower[ t ] be the
-  * nominal minimum and maximum active power output of the unit (given by
-  * get_min_power() and get_max_power(), respectively) and let AvMinPower[ t ]
-  * and AvMaxPower[ t ] be the operational minimum and maximum active power
-  * output of the unit, which depends on its availability. Then,
-  *
-  *   AvMaxPower[ t ] = Availability[ t ] * MaxPower[ t ]
-  *
-  * and
-  *
-  *   AvMinPower[ t ] = MinPower[ t ] if Availability[ t ] > 0, and
-  *
-  *   AvMinPower[ t ] = 0 if Availability[ t ] = 0,
-  *
-  * where Availability[ t ] denotes the availability of the unit at time t. */
+  * get_time_horizon() - 1}, the operational maximum and minimum power are
+  * \f$ P^{mx}_t = \chi_t \, \mathrm{MaxPower}[ t ] \f$ and
+  * \f$ P^{mn}_t = \mathrm{MinPower}[ t ] \f$ if \f$ \chi_t > 0 \f$,
+  * \f$ P^{mn}_t = 0 \f$ if \f$ \chi_t = 0 \f$, where \f$ \chi_t \f$ is the
+  * availability and MinPower[ t ], MaxPower[ t ] are the nominal bounds
+  * returned by get_min_power() and get_max_power() (see deserialize()). */
 
  const std::vector< double > & get_availability( void ) const {
   return( v_Availability );
@@ -1940,8 +1608,9 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary rho
- /** The returned vector contains the primary rho at each time.
-  * The size of the vector is always get_time_horizon(). */
+ /** The returned vector contains the primary rho at each time; it is
+  * empty if the datum is not given (or, for a rho, if it is zero at every
+  * instant), and otherwise its size is get_time_horizon(). */
 
  const std::vector< double > & get_primary_rho( void ) const {
   return( v_PrimaryRho );
@@ -1949,8 +1618,9 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of secondary rho
- /** The returned vector contains the secondary rho at each time.
-  * The size of the vector is always get_time_horizon(). */
+ /** The returned vector contains the secondary rho at each time; it is
+  * empty if the datum is not given (or, for a rho, if it is zero at every
+  * instant), and otherwise its size is get_time_horizon(). */
 
  const std::vector< double > & get_secondary_rho( void ) const {
   return( v_SecondaryRho );
@@ -1958,12 +1628,13 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of primary spinning-reserve cost
- /** The objective coefficient on the primary spinning-reserve variables. It
-  * defaults to the participation factor (get_primary_rho()) but, unlike the
-  * latter, may be modified (e.g. by a Lagrangian price). Empty if there is no
-  * primary reserve. */
+ /** The cost \f$ c^{pr}_t \f$ of the primary reserve, which, unlike the
+  * participation factor (get_primary_rho()), may be modified (e.g., by a
+  * Lagrangian price). Empty if it is zero at every instant, which is its
+  * default. */
 
- const std::vector< double > & get_primary_spinning_reserve_cost( void ) const {
+ const std::vector< double > & get_primary_spinning_reserve_cost( void )
+  const {
   return( v_PrimarySpinningReserveCost );
   }
 
@@ -1972,14 +1643,16 @@ class ThermalUnitBlock : public UnitBlock
  /** The objective coefficient on the secondary spinning-reserve variables;
   * see get_primary_spinning_reserve_cost(). */
 
- const std::vector< double > & get_secondary_spinning_reserve_cost( void ) const {
+ const std::vector< double > & get_secondary_spinning_reserve_cost( void )
+  const {
   return( v_SecondarySpinningReserveCost );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-up
- /** The returned vector contains the delta ramp-up at each time.
-  * The size of the vector is always get_time_horizon(). */
+ /** The returned vector contains the delta ramp-up at each time; it is
+  * empty if the datum is not given (or, for a rho, if it is zero at every
+  * instant), and otherwise its size is get_time_horizon(). */
 
  const std::vector< double > & get_delta_ramp_up( void ) const {
   return( v_DeltaRampUp );
@@ -1988,7 +1661,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the delta ramp-up at the time \p t
  /** This function return the delta ramp-up at time \p t, which is assumed
-  * to be between 0 and get_time_horizon() - 1. */
+  * to be between 0 and get_time_horizon() - 1, i.e., the maximum increase
+  * of the active power from t - 1 to t (from InitialPower if t == 0). */
 
  double get_delta_ramp_up( Index t ) const {
   if( t >= f_time_horizon )
@@ -2001,8 +1675,9 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of delta ramp-down
- /** The returned vector contains the delta ramp-up at each time.
-  * The size of the vector is always get_time_horizon(). */
+ /** The returned vector contains the delta ramp-down at each time; it is
+  * empty if the datum is not given (or, for a rho, if it is zero at every
+  * instant), and otherwise its size is get_time_horizon(). */
 
  const std::vector< double > & get_delta_ramp_down( void ) const {
   return( v_DeltaRampDown );
@@ -2011,7 +1686,9 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the delta ramp-down at the time \p t
  /** This function return the delta ramp-down at the time \p t, which is
-  * assumed to be between 0 and get_time_horizon() - 1. */
+  * assumed to be between 0 and get_time_horizon() - 1, i.e., the maximum
+  * decrease of the active power from t - 1 to t (from InitialPower if
+  * t == 0). */
 
  double get_delta_ramp_down( Index t ) const {
   if( t >= f_time_horizon )
@@ -2023,17 +1700,36 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the increase the ramp-up limits allow from \p from - 1 to \p to
+ /** Returns \f$ \sum_{r = from}^{to} \Delta^+_r \f$, i.e., the
+  * maximum increase of the active power over the steps from \p from - 1
+  * (InitialPower if \p from == 0) to \p to, 0 if \p from > \p to. */
+
+ double ramp_up_sum( Index from , Index to ) const {
+  double sum = 0;
+  for( Index t = from ; t <= to ; ++t )
+   sum += get_delta_ramp_up( t );
+  return( sum );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the decrease the ramp-down limits allow from \p from - 1 to \p to
+ /** Returns \f$ \sum_{r = from}^{to} \Delta^-_r \f$, i.e., the
+  * maximum decrease of the active power over the steps from \p from - 1
+  * (InitialPower if \p from == 0) to \p to, 0 if \p from > \p to. */
+
+ double ramp_down_sum( Index from , Index to ) const {
+  double sum = 0;
+  for( Index t = from ; t <= to ; ++t )
+   sum += get_delta_ramp_down( t );
+  return( sum );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of quadratic term
- /** The returned vector contains to quadratic term at time t. There are
-  * three possible cases:
-  *
-  * - if the vector is empty, then the quadratic term of the unit is 0;
-  *
-  * - if the vector has only one element, then the quadratic term of the unit
-  *   for all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each
-  *   element of vector represents the amount of quadratic term at time t. */
+ /** Returns the coefficients \f$ a_t \f$ of the quadratic term of the cost,
+  * of size get_time_horizon(), one value per instant (deserialize() expands
+  * a datum given by intervals, and fills an absent one with zeros). */
 
  const std::vector< double > & get_quad_term( void ) const {
   return( v_QuadTerm );
@@ -2064,16 +1760,9 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of linear term
- /** The returned vector contains to linear term at time t. There are three
-  * possible cases:
-  *
-  * - if the vector is empty, then the linear term of the unit is 0;
-  *
-  * - if the vector has only one element, then the linear term of the unit for
-  *   all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the amount of linear term at time t. */
+ /** Returns the coefficients \f$ b_t \f$ of the linear term of the cost,
+  * of size get_time_horizon(), one value per instant (deserialize() expands
+  * a datum given by intervals, and fills an absent one with zeros). */
 
  const std::vector< double > & get_linear_term( void ) const {
   return( v_LinearTerm );
@@ -2118,16 +1807,9 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of constant term
- /** The returned vector contains to constant term at time t. There are three
-  * possible cases:
-  *
-  * - if the vector is empty, then the constant term of the unit is 0;
-  *
-  * - if the vector has only one element, then the constant term of the unit
-  *   for all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the amount of constant term at time t. */
+ /** Returns the coefficients \f$ c_t \f$ of the commitment in the cost,
+  * of size get_time_horizon(), one value per instant (deserialize() expands
+  * a datum given by intervals, and fills an absent one with zeros). */
 
  const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
@@ -2158,36 +1840,48 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of start-up costs
- /** The returned vector contains to start-up cost at all time instants.
-  * There are three possible cases:
-  *
-  * - if the vector is empty, then the start-up cost of the unit is 0;
-  *
-  * - if the vector has only one element, then the start-up cost of the unit
-  *   for all time horizon;
-  *
-  * - otherwise, the vector must have size get_time_horizon() and each element
-  *   of vector represents the start-up cost value at time t. */
+ /** Returns the start-up costs \f$ c^{su}_t \f$,
+  * of size get_time_horizon(), one value per instant (deserialize() expands
+  * a datum given by intervals, and fills an absent one with zeros). */
 
  const std::vector< double > & get_start_up_cost( void ) const {
   return( v_StartUpCost );
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the reference schedule of the unit, if it has one
+ /** Returns the vector of the power the unit is asked to follow, empty if it
+  * has none; the deviation from it is a term of the Objective, weighed with
+  * the scale factor [see generate_objective()]. */
+
+ const std::vector< double > & get_reference_schedule( void ) const {
+  return( v_RefSchedule );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells whether the unit produces its maximum power at every instant
+ /** Returns true if "FixToMaximum" is positive [see deserialize()], i.e., if
+  * the rows \f$ p^{ac}_t \geq P^{mx}_t \f$ ("FixedGeneration") are there
+  * [see generate_abstract_constraints()]. */
+
+ bool is_fixed_to_maximum( void ) const { return( f_fixToMax > 0 ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of shut-down costs
+ /** The returned vector contains the shut-down cost \f$ c^{sd}_t \f$, empty
+  * if the unit pays nothing to shut down and of get_time_horizon() elements
+  * otherwise. The cost is paid at
+  * the instant the unit goes off. */
+
+ const std::vector< double > & get_shut_down_cost( void ) const {
+  return( v_ShutDownCost );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the vector of fixed consumption
- /** The returned value U = get_fixed_consumption() contains the contribution
-  * to fixed consumption (basically, the constants to be multiplied by the
-  * commitment variables returned by get_commitment()) of all the generators
-  * at all time instants. There are three possible cases:
-  *
-  * - if the vector is empty, then the fixed consumption is always 0 and this
-  *   function returns nullptr;
-  *
-  * - if the vector only has one element, then the fixed consumption for the
-  *   fixed consumption of the unit for all t;
-  *
-  * - otherwise, the vector must have size get_time_horizon(), and each
-  *   element of vector represents the fixed consumption at time t. */
+ /** Returns a pointer to the fixed consumption \f$ P^{au}_t \f$ of the
+  * unit when it is off (see deserialize()), one value per instant, or
+  * nullptr if the unit has none. */
 
  const double * get_fixed_consumption( Index generator ) const override {
   if( v_FixedConsumption.empty() )
@@ -2197,19 +1891,9 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of inertia commitment
- /** The returned value U = get_inertia_commitment() contains the contribution
-  * to inertia (basically, the constants to be multiplied by the commitment
-  * variables returned by get_commitment()) of all the generators at all time
-  * instants. There are three possible cases:
-  *
-  * - if the vector is empty, then the inertia commitment is always 0 and this
-  *   functions returns nullptr;
-  *
-  * - if the vector only has one element, then the inertia commitment for the
-  *   fixed consumption of the unit for all t;
-  *
-  * - otherwise, the vector must have size get_time_horizon(), and each
-  *   element of vector represents the inertia commitment at time t. */
+ /** Returns a pointer to the inertia \f$ h^u_t \f$ the unit gives when it
+  * is on (see deserialize()), one value per instant, or nullptr if the
+  * unit gives none. */
 
  const double * get_inertia_commitment( Index generator ) const override {
   if( v_InertiaCommitment.empty() )
@@ -2393,8 +2077,8 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the vector of perspective-cut auxiliary variables for the 3bin,
- /// T and pt formulations, or nullptr if not defined
+ /// returns the vector of the variables \f$ z_t \f$ of the perspective
+ /// cuts, which every formulation with PCuts has, or nullptr
 
  ColVariable * get_cut( void ) {
   if( v_cut.empty() )
@@ -2422,40 +2106,49 @@ class ThermalUnitBlock : public UnitBlock
  bool has_perspective_cuts( void ) const { return( AR & PCuts ); }
 
 /*--------------------------------------------------------------------------*/
- /// fill in the formulation-specific ColVariables from the canonical
- /// (active power, commitment) representation of a thermal-unit schedule
- /** This method assumes that the canonical part of the schedule is
-  * already in place: the caller has set v_active_power[ t ] = p[ t ] and
-  * v_commitment[ t ] = u[ t ] (1 if on at t, 0 otherwise). It then sets
-  * *every other* ColVariable of the Block in a way that is consistent
-  * with that schedule and the current formulation:
+ /// completes a schedule given by the commitment and the active power
+ /** Given the commitment \f$ u_t \f$ and the active power \f$ p^{ac}_t \f$
+  * already written in their Variable (and the reserves, if any), sets every
+  * other Variable of the formulation consistently with them, so that the
+  * point is feasible whenever the schedule is and costs what the schedule
+  * costs:
   *
-  * - v_start_up / v_shut_down: derived from u transitions, with the
-  *   pre-horizon initial state given by init_up_down_time (see the
-  *   boundary-handling comments in the implementation)
-  * - if perspective cuts are active and the formulation is one of
-  *   tbinForm / TForm / ptForm, v_cut[ t ] = u[ t ] ? p[ t ]^2 : 0;
-  *   this is the value the linearised perspective constraints make
-  *   tight at the integer optimum, and the value LagBFunction needs
-  *   to recompute the original quadratic cost at x* via
-  *   sum_t alpha_t v_cut_t (since with PCuts on the DQuadFunction
-  *   stores a *linear* coefficient alpha_t = v_QuadTerm[t] on
-  *   v_cut[t] and a zero quadratic coefficient on v_active_power[t])
+  * - the start-up and shut-down indicators \f$ v_t \f$ and \f$ w_t \f$,
+  *   from the changes of \f$ u \f$ and the state \f$ u_{-1} \f$ before the
+  *   horizon;
   *
-  * This can be used by specialised Solvers of a ThermalUnitBlock that
-  * only know the canonical representation (p, u), of a thermal-unit
-  * schedule, to have a complete formulation-ready version of their
-  * solution written in the TermalUnitBlock at the end of compute(),
-  * delegating to the Block all the formulation-specific bookkeeping that
-  * follows. ThermalUnitBlockSolution::write() also calls it to restore
-  * the full representation from the (p, u) it had saved.
+  * - the deviation \f$ a^{ref}_t = | p^{ac}_t - \hat{p}_t | \f$ from the
+  *   reference schedule, if any;
   *
-  * NOTE: for the disaggregated formulations DPForm / SUForm / SDForm /
-  * SUSDForm the associated v_*_h_k / v_*_h / v_*_k / v_*_teta variables
-  * are NOT yet handled here, since their values do not depend on (p, u)
-  * alone (they encode the actual on/off run path through the
-  * state-space graph). Calling this method on such a formulation
-  * leaves those auxiliaries untouched. */
+  * - with PCuts, \f$ z_t = ( p^{ac}_t )^2 / u_t \f$ (0 if \f$ u_t = 0 \f$),
+  *   the perspective of the square, which satisfies every cut (33) and
+  *   gives \f$ a_t z_t = a_t ( p^{ac}_t )^2 \f$ for an integer commitment
+  *   and, for a fractional one (a convex combination of schedules), at most
+  *   the combination of their quadratic costs;
+  *
+  * - in the pt, DP, SU, SD and SUSD formulations, if the commitment is
+  *   integer, the arc variables of the path of the schedule (1 on its runs
+  *   on and off, the run that the end of the horizon cuts being the arc
+  *   to \f$ T + 1 \f$, and 0 on the other arcs), the power of each run on
+  *   its own Variable (\f$ p^{hk}_t \f$, \f$ p^h_t \f$, \f$ \tilde{p}^k_t
+  *   \f$ equal to \f$ p^{ac}_t \f$ at the instants of the run and 0
+  *   elsewhere) and, with PCuts, its square on the variables of the cuts of
+  *   the run and on \f$ \vartheta_t \f$ [see set_path_solution()]; a
+  *   fractional commitment does not identify a path, and these Variable
+  *   are then left as they are.
+  *
+  * It is used by the Solvers of a ThermalUnitBlock that compute only
+  * \f$ ( p^{ac} , u ) \f$, such as the dynamic programming ones, to write
+  * a complete solution at the end of compute(), and by
+  * ThermalUnitBlockSolution::write(), which then writes back the saved
+  * start-up and shut-down indicators; hence a Solution saved and written
+  * back gives a feasible point of the same value in every formulation,
+  * except that with PCuts the value is that of the quadratic cost, which
+  * is at least the one of the cuts that a :MILPSolver minimizes. A
+  * schedule that has no path (e.g., a run shorter than the minimum up
+  * time) leaves its arc variables all 0, and one that has a path the rows
+  * forbid (e.g., a shut-down at 0 with \f$ p_{-1} > P^{sd}_0 \f$, see
+  * generate_abstract_constraints()) is written as it is. */
 
  virtual void set_solution( void );
 
@@ -2465,7 +2158,7 @@ class ThermalUnitBlock : public UnitBlock
 /** @name Methods for handling Solution
  * @{ */
 
- /// returns a Solution storing for this IntermittentUnitBlock
+ /// returns a Solution storing the state of this ThermalUnitBlock
  /** This method must construct and return a (pointer to a) Solution object
   * representing the current "solution state" of this ThermalUnitBlock. This
   * is a ThermalUnitBlockSolution extending UnitBlockSolution with the
@@ -2544,18 +2237,36 @@ class ThermalUnitBlock : public UnitBlock
   * contains a list of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
   * subset[ i ] is given by std::next( values , i ) for each i in {0, ...,
-  * subset.size() - 1}.
+  * subset.size() - 1}, also if \p subset is not ordered (\p ordered being
+  * false), and an instant given more than once takes the last of its
+  * values.
   *
-  * Let AvMinPower[ t ] and AvMaxPower[ t ] denote the operational minimum and
-  * maximum active power of the unit at time t. Then, the following condition
-  * must be satisfied:
+  * The new values are checked before anything changes, as deserialize()
+  * checks the data [see check_power_limits()]: each has to be between 0
+  * and 1, the operational bounds it gives have to satisfy \f$ P^{mn}_t
+  * \leq P^{mx}_t \f$, and a StartUpLimit or ShutDownLimit given in the
+  * data has to lie between them; std::logic_error is thrown otherwise. A
+  * StartUpLimit or ShutDownLimit not given in the data is the operational
+  * minimum power, which it follows [see set_default_limits()], so that an
+  * unavailable unit has 0 for both and cannot produce; the numbers of ramp
+  * steps of the SUSD formulation are computed again [see
+  * compute_ramp_steps()].
   *
-  *   AvMinPower[ t ] <= AvMaxPower[ t ]
-  *
-  * for each t in {0, ..., get_time_horizon() - 1} (see get_availability() for
-  * the definition of operational maximum and minimum active power). If the
-  * given availability in \p values is such that this condition does not hold,
-  * an exception is thrown. */
+  * Once the Constraint are generated, and unless \p issueAMod is eDryRun,
+  * the abstract representation of every formulation follows [see
+  * update_rows()]: the coefficients and the sides of the rows in which the
+  * operational bounds and the limits are (the ramps, the minimum and the
+  * maximum power, the reserves, the Perspective Cuts at the bounds, the
+  * box of the active power, FixToMaximum, the shut-down at 0 and, for a
+  * NuclearUnitBlock, the rows of its operating rules that contain them)
+  * change, and the rows (18), (25) and (26) of
+  * generate_abstract_constraints() whose existence depends on the bounds
+  * are added or removed, all the Modification in a single GroupModification
+  * (nested in the channel of \p issueAMod, if any). If this cannot be done
+  * (e.g., the new availability makes \f$ p_{-1} - \Delta^-_0 > P^{mx}_0
+  * \f$, which generate_abstract_constraints() refuses), std::logic_error
+  * is thrown and the data are restored as they were. The physical
+  * Modification is issued last, according to \p issuePMod. */
 
  void set_availability( MF_dbl_it values ,
                         Subset && subset ,
@@ -2569,24 +2280,27 @@ class ThermalUnitBlock : public UnitBlock
   * contains a range of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
   * rng.first + i is given by std::next( values , i ) for each i in {0, ...,
-  * ( std::min( rng.second, get_time_horizon() ) - rng.first - 1 )}.
-  *
-  * Let AvMinPower[ t ] and AvMaxPower[ t ] denote the operational minimum and
-  * maximum active power of the unit at time t. Then, the following condition
-  * must be satisfied:
-  *
-  *   AvMinPower[ t ] <= AvMaxPower[ t ]
-  *
-  * for each t in {0, ..., get_time_horizon() - 1} (see get_availability() for
-  * the definition of operational maximum and minimum active power). If the
-  * given availability in \p values is such that this condition does not hold,
-  * an exception is thrown. */
+  * ( std::min( rng.second, get_time_horizon() ) - rng.first - 1 )}. The
+  * checks, the default limits and the changes of the abstract
+  * representation are those of the Subset version. */
 
  void set_availability( MF_dbl_it values , Range rng = INFRange ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// update the maximum power of the unit
+ /** Sets MaxPower[ t ] for the instants t in \p subset to the values
+  * pointed by \p values, in the order of \p subset also if it is not
+  * ordered (\p ordered being false). The new values are checked before
+  * anything changes [see check_power_limits()]: each has to be at least
+  * MinPower[ t ], and a StartUpLimit or ShutDownLimit given in the data has
+  * to lie between the operational bounds it gives; std::logic_error is
+  * thrown otherwise. The numbers of ramp steps of the SUSD formulation are
+  * computed again [see compute_ramp_steps()], and once the Constraint are
+  * generated the abstract representation of every formulation follows, as
+  * for the availability [see set_availability()], the data being restored
+  * if it cannot. */
 
  void set_maximum_power( MF_dbl_it values ,
                          Subset && subset ,
@@ -2595,6 +2309,8 @@ class ThermalUnitBlock : public UnitBlock
                          ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// update the maximum power of the unit
+ /** As the Subset version, for the instants in \p rng. */
 
  void set_maximum_power( MF_dbl_it values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
@@ -2613,6 +2329,29 @@ class ThermalUnitBlock : public UnitBlock
  void set_startup_costs( MF_dbl_it values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the shut-down cost at the instants of \p subset
+ /** Sets \f$ c^{sd}_t \f$ for \f$ t \in \f$ \p subset to the values from
+  * \p values on; the instants before \f$ t_0 \f$, which have no shut-down
+  * variable, cannot be in \p subset. Once the Objective is generated
+  * without the shut-down term (ShutDownCost absent or zero, see
+  * generate_objective()) only zero costs are accepted, and a nonzero one is
+  * refused with std::logic_error before anything changes; otherwise the
+  * coefficients of the Objective, \f$ \sigma c^{sd}_t \f$, follow. The same
+  * rules hold for the Range version. */
+
+ void set_shutdown_costs( MF_dbl_it values ,
+                          Subset && subset ,
+                          const bool ordered = false ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void set_shutdown_costs( MF_dbl_it values , Range rng = INFRange ,
+                          ModParam issuePMod = eNoBlck ,
+                          ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2679,6 +2418,17 @@ class ThermalUnitBlock : public UnitBlock
                                 ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// sets the cost of the primary reserve at the instants of \p subset
+ /** Sets \f$ c^{pr}_t \f$ for \f$ t \in \f$ \p subset to the values from
+  * \p values on. Before the Variable are generated the cost is stored
+  * whatever the reserve Variable will be (the enclosing UCBlock may ask for
+  * them later, see UnitBlock::set_reserve_vars()); once they are generated,
+  * a unit without primary reserve Variable ignores the call. Once the
+  * Objective is generated without the primary reserve term [see
+  * generate_objective()] only zero costs are accepted, and a nonzero one is
+  * refused with std::logic_error before anything changes; otherwise the
+  * coefficients of the Objective, \f$ \sigma c^{pr}_t \f$, follow. The same
+  * rules hold for the Range version and for the secondary reserve. */
 
  void set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                          Subset && subset ,
@@ -2715,7 +2465,29 @@ class ThermalUnitBlock : public UnitBlock
   * function does nothing. Since \p subset can have multiple zeros, only the
   * last one is considered, which means that the value for the initial power
   * will be that in the vector pointed by \p it associated with this last
-  * zero. */
+  * zero.
+  *
+  * The initial power enters the abstract representation only if the unit
+  * is on before the horizon, and then the rows that contain it follow
+  * [see update_initial_power_in_cnstrs()]: the ramp rows at 0 and the
+  * deliverability rows of the reserves at 0 (31'), the row of the
+  * shut-down at 0, which is allowed iff \f$ p_{-1} \leq P^{sd}_0 \f$,
+  * and, in the pt, DP, SU, SD and SUSD formulations, the coefficients of
+  * \f$ \psi \f$ and the ramp rows of several steps from the initial
+  * power of the SUSD formulation, which are added or removed. If this
+  * cannot be done (e.g., the new value makes \f$ p_{-1} + \Delta^+_0 <
+  * P^{mn}_0 \f$, which generate_abstract_constraints() refuses, or it
+  * moves the initial power of a NuclearUnitBlock to another band), the
+  * method throws std::logic_error and leaves the initial power as it was.
+  * The numbers of ramp steps from the initial power that the SUSD
+  * formulation uses (MaxRampUpSteps[ 0 ], MaxRampDownSteps[ 0 ]) are
+  * computed again. Before any change, the method throws std::logic_error
+  * if the value is negative or if the unit is on before the horizon and
+  * the value is below \f$ \hat P^{mn}_0 \f$, the two cases that
+  * check_data_consistency() refuses (where deserialize() raises such a
+  * value to \f$ \hat P^{mn}_0 \f$, the method does not), since with
+  * \f$ p_{-1} < \hat P^{mn}_0 \f$ the formulations and the dynamic
+  * programming Solvers would not agree on the shut-down at 0. */
 
  void set_initial_power( MF_dbl_it values ,
                          Subset && subset ,
@@ -2730,13 +2502,67 @@ class ThermalUnitBlock : public UnitBlock
   * power will be set to the value pointed by the given iterator. In general,
   * the initial power will be the one found at position -rng.first in the
   * vector pointed by \p it if this Range contains the 0 index. If the given
-  * Range \p rng does not contain the 0 index, this function does nothing. */
+  * Range \p rng does not contain the 0 index, this function does nothing.
+  *
+  * The initial power enters the abstract representation only if the unit
+  * is on before the horizon, and then the rows that contain it follow
+  * [see update_initial_power_in_cnstrs()]: the ramp rows at 0 and the
+  * deliverability rows of the reserves at 0 (31'), the row of the
+  * shut-down at 0, which is allowed iff \f$ p_{-1} \leq P^{sd}_0 \f$,
+  * and, in the pt, DP, SU, SD and SUSD formulations, the coefficients of
+  * \f$ \psi \f$ and the ramp rows of several steps from the initial
+  * power of the SUSD formulation, which are added or removed. If this
+  * cannot be done (e.g., the new value makes \f$ p_{-1} + \Delta^+_0 <
+  * P^{mn}_0 \f$, which generate_abstract_constraints() refuses, or it
+  * moves the initial power of a NuclearUnitBlock to another band), the
+  * method throws std::logic_error and leaves the initial power as it was.
+  * The numbers of ramp steps from the initial power that the SUSD
+  * formulation uses (MaxRampUpSteps[ 0 ], MaxRampDownSteps[ 0 ]) are
+  * computed again. Before any change, the method throws std::logic_error
+  * if the value is negative or if the unit is on before the horizon and
+  * the value is below \f$ \hat P^{mn}_0 \f$, the two cases that
+  * check_data_consistency() refuses (where deserialize() raises such a
+  * value to \f$ \hat P^{mn}_0 \f$, the method does not), since with
+  * \f$ p_{-1} < \hat P^{mn}_0 \f$ the formulations and the dynamic
+  * programming Solvers would not agree on the shut-down at 0. */
 
  void set_initial_power( MF_dbl_it values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// sets the initial up/down time
+ /** Sets InitUpDownTime \f$ \tau_0 \f$ to the value associated with the
+  * index 0 of \p subset (the last one, if 0 appears more than once), and
+  * does nothing if 0 is not in \p subset. The initial state enters the
+  * abstract representation only through whether the unit is on before the
+  * horizon, \f$ \tau_0 > 0 \f$, and through the first instant
+  * \f$ t_0 \f$ at which it may switch [see first_free_instant()]: these
+  * two decide which Variable exist (the start-up and shut-down Variable
+  * of the instants \f$ t \geq t_0 \f$, the intervals of the pt, DP, SU, SD
+  * and SUSD formulations) and which are fixed, and the rows are written
+  * from them. Once the Variable are generated (and the abstract
+  * representation is to be changed), the value can therefore change only
+  * within the values that give the same state and the same \f$ t_0 \f$,
+  * i.e., any two values not smaller than MinUpTime, or any two not larger
+  * than -MinDownTime, and only if the bound that deserialize() puts on
+  * MinUpTime and MinDownTime does not change. A unit kept on or off for
+  * the whole horizon by a minimum time cut to that bound is therefore
+  * refused, since the minimum time of the data is unknown. The rows,
+  * written anew [see update_rows()], are then those of a unit read with
+  * the new value, and only the dynamic programming Solvers see the
+  * change. Any other value
+  * would make Variable appear or disappear: the method then throws
+  * std::logic_error and changes nothing. Generating those Variable always
+  * and fixing them, as is done for the interval \f$ ( 0 , 0 ) \f$ of the
+  * shut-down at 0, would change the model of every unit with
+  * \f$ t_0 > 0 \f$ (by \f$ 2 t_0 \f$ start-up and shut-down Variable
+  * fixed to 0, and by the intervals of the other initial state), which is
+  * not done. The numbers of ramp steps from the initial power of the SUSD
+  * formulation are computed again. Before the Variable are generated any
+  * value is taken; the bounds on MinUpTime and MinDownTime computed by
+  * deserialize() are not computed again. A dry run of \p issuePMod changes
+  * nothing, one of \p issueAMod the data only. */
 
  void set_init_updown_time( MF_int_it values ,
                             Subset && subset ,
@@ -2745,10 +2571,31 @@ class ThermalUnitBlock : public UnitBlock
                             ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// sets the initial up/down time
+ /** As the Subset version, the value being the one at the position
+  * -rng.first of \p values if \p rng contains 0. */
 
  void set_init_updown_time( MF_int_it values , Range rng = INFRange ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the minimum up and down times, before the Variable are generated
+ /** Sets the minimum up time and the minimum down time of the unit. Unlike
+  * the other data, these two decide the structure of the model (how many
+  * instants of the commitment the initial state fixes, and therefore how many
+  * start-up and shut-down Variable there are), hence they can only be set
+  * before the Variable are generated, and the method throws otherwise. Each
+  * of them is taken between 1 and the time horizon plus the number of
+  * instants the unit has been on (off) before it, or plus one if that is
+  * smaller or the unit has been off (on), the bound saying that the unit,
+  * being on (off) before the horizon, never switches within it [see
+  * deserialize()]. The bound is that of the initial up/down time the unit
+  * has when the method is called, which set_init_updown_time() does not
+  * change afterwards. */
+
+ void set_min_up_down_time( Index min_up_time , Index min_down_time ,
+                            ModParam issuePMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the scale factor
@@ -2785,24 +2632,227 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// a dynamic group of rows whose number depends on the data
+ /** The rows that build_rows() writes with put_dyn_row(), each with the key
+  * that identifies it among the rows of the group (the indices of the loops
+  * that build it), in the same order as the rows. */
+ struct DynRows {
+  std::list< FRowConstraint > rows;          ///< the rows
+  std::list< std::vector< int > > keys;      ///< the key of each row
+  };
 
- /// updates the abstract representation dependent on the availability
- /** This method updates any part of the abstract representation that may
-  * depend on the availability of the unit at the given time \p t.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
+ /// computes the numbers of ramp steps of the SUSD formulation
+ /** Fills v_MaxRampSteps and v_MaxRampDownSteps, i.e., \f$ J^+_t \f$ and
+  * \f$ J^-_t \f$ of (18) in generate_abstract_constraints(), from the
+  * operational bounds and the ramps, and then calls
+  * compute_initial_ramp_steps() for the entries of the initial power; it is
+  * called by deserialize() and whenever the availability or the maximum
+  * power changes, before the rows are updated [see update_rows()]. */
 
- virtual void update_availability_dependents( Index t , c_ModParam issueAMod );
+ void compute_ramp_steps( void );
+
+/*--------------------------------------------------------------------------*/
+ /// checks the maximum power and the availability of an instant
+ /** Throws std::logic_error, the message beginning with \p who, if the
+  * availability \p availability is not between 0 and 1, if the maximum
+  * power \p max_power is below MinPower[ \p t ], if the operational
+  * minimum power that they give is above the operational maximum one, or
+  * if a StartUpLimit or ShutDownLimit given in the data is not between the
+  * two (a default one follows them, see set_default_limits()). */
+
+ void check_power_limits( const std::string & who , Index t ,
+                          double max_power , double availability ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// the default StartUpLimit and ShutDownLimit
+ /** Sets StartUpLimit[ t ] (ShutDownLimit[ t ]) to the operational minimum
+  * power at t, at every instant, if it is not given in the data; called by
+  * deserialize() and whenever the availability changes. */
+
+ void set_default_limits( void );
+
+/*--------------------------------------------------------------------------*/
+ /// what set_maximum_power() and set_availability() have in common
+ /** Sets MaxPower (Availability if \p availability) at the instants \p ts
+  * to the values from \p values on, after having checked them with
+  * check_power_limits(); then sets the default limits and the numbers of
+  * ramp steps, and changes the abstract representation with update_rows()
+  * if the Constraint are generated, restoring the data if it throws. The
+  * changes are made according to \p issuePMod and \p issueAMod as in the
+  * setters, which issue the physical Modification. Returns false if
+  * nothing changes, true otherwise. */
+
+ bool guts_of_set_power_limits( const std::string & who , bool availability ,
+                                const Subset & ts , MF_dbl_it values ,
+                                ModParam issuePMod , ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// the first instant at which the unit may switch, if InitUpDownTime were
+ /// \p init
+ /** The instant \f$ t_0 \f$ of generate_abstract_variables() for
+  * InitUpDownTime \p init and the minimum times of the unit:
+  * MinUpTime - \p init if the unit is on before the horizon for less than
+  * MinUpTime instants, MinDownTime + \p init if it is off for less than
+  * MinDownTime instants, 0 otherwise, and at most the time horizon. */
+
+ Index first_free_instant( int init ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// what the two set_init_updown_time() have in common
+ /** Sets InitUpDownTime to \p value, with \p issuePMod and \p issueAMod as
+  * in set_init_updown_time() [see there]. */
+
+ void guts_of_set_init_updown_time( int value , ModParam issuePMod ,
+                                    ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// writes the rows of the abstract representation from the current data
+ /** Writes every row of the formulation, from the data as they are, through
+  * size_rows(), put_row(), push_row(), put_dyn_row() and put_box(), and
+  * registers the groups through add_rows() and add_dyn_rows(); the
+  * ZOConstraints only if \p generate_ZOConstraints. Called with the rows
+  * being generated by generate_abstract_constraints(), and with the rows
+  * being compared by update_rows(), which then finds what differs from the
+  * rows there are: the rows are written in one place only, and the update
+  * equals a generation from the changed data. A derived class that has
+  * rows of its own calls the method of the base class first and then
+  * writes them with the same methods. */
+
+ virtual void build_rows( bool generate_ZOConstraints );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the rows of the abstract representation to the current data
+ /** Writes the rows anew with build_rows() and compares them with those
+  * that the abstract representation has: a static row whose coefficients
+  * or sides differ gets the new ones, a dynamic row [see put_dyn_row()]
+  * that is no longer there is removed and one that is new is added, all
+  * the Modification being issued according to \p issueAMod in a single
+  * GroupModification. A static row with other Variable than those it has, a
+  * static group with another number of rows (also a group written by
+  * size_rows() or push_row() to which no row would be written at all), or
+  * a row of a dynamic group that the abstract representation does not
+  * have, cannot be changed in place: the method then throws
+  * std::logic_error before anything is changed, and so it does if
+  * build_rows() throws, e.g., because the data violate a condition of the
+  * generation. Nothing is done if the Constraint are not generated. */
+
+ void update_rows( c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// true if build_rows() is generating the rows, false if comparing them
+
+ bool generating_rows( void ) const { return( f_row_cmp == nullptr ); }
+
+/*--------------------------------------------------------------------------*/
+ /// the number of rows of a static group: \p n
+ /** Resizes \p rows to \p n when generating; when comparing, throws
+  * std::logic_error if \p rows does not have \p n rows. */
+
+ void size_rows( std::vector< FRowConstraint > & rows , Index n );
+
+/*--------------------------------------------------------------------------*/
+ /// records \p rows among the groups that update_rows() checks
+
+ void register_row_group( std::vector< FRowConstraint > & rows );
+
+/*--------------------------------------------------------------------------*/
+ /// the row \p i of a static group: \p lhs <= \p vars <= \p rhs
+ /** Sets the row when generating; when comparing, records the coefficients
+  * and the sides that differ from those of the row, after having checked
+  * that the row has the Variable of \p vars in the same order (and thrown
+  * std::logic_error if not). */
+
+ void put_row( std::vector< FRowConstraint > & rows , Index i ,
+               LinearFunction::v_coeff_pair && vars , double lhs ,
+               double rhs );
+
+/*--------------------------------------------------------------------------*/
+ /// the next row of a static group: as put_row(), at the end of \p rows
+ /** Appends the row when generating; when comparing, it is put_row() of
+  * the next row of \p rows, and the number of rows written for each group
+  * has then to be the one the group has, also when it is none. */
+
+ void push_row( std::vector< FRowConstraint > & rows ,
+                LinearFunction::v_coeff_pair && vars , double lhs ,
+                double rhs );
+
+/*--------------------------------------------------------------------------*/
+ /// the row with the given \p key of a dynamic group
+ /** Appends the row to \p rows when generating; when comparing, the rows
+  * written are matched with those there are by the key: the row of a key
+  * that is in both is compared as by put_row() (and removed and added
+  * anew if it has other Variable), the row of a key that is only there is
+  * removed, and the row of a key that is new is added. */
+
+ void put_dyn_row( DynRows & rows , std::vector< int > && key ,
+                   LinearFunction::v_coeff_pair && vars , double lhs ,
+                   double rhs );
+
+/*--------------------------------------------------------------------------*/
+ /// the box \p lhs <= \p var <= \p rhs
+ /** Sets the box when generating, records the sides that differ when
+  * comparing. */
+
+ void put_box( BoxConstraint & box , ColVariable * var , double lhs ,
+               double rhs );
+
+/*--------------------------------------------------------------------------*/
+ /// registers a static group when generating, does nothing when comparing
+
+ template< class C >
+ void add_rows( C & rows , std::string && name ) {
+  if( generating_rows() )
+   add_static_constraint( rows , std::move( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// registers a dynamic group when generating, does nothing when comparing
+
+ void add_dyn_rows( DynRows & rows , std::string && name ) {
+  if( generating_rows() ) {
+   add_dynamic_constraint( rows.rows , std::move( name ) );
+   f_dyn_groups.push_back( & rows );
+   }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// writes the path of the schedule in the path formulations
+ /** Called by set_solution() in the pt, DP, SU, SD and SUSD formulations:
+  * from the commitment \f$ u \f$ and the active power \f$ p^{ac} \f$, if
+  * \f$ u \f$ is integer, sets to 1 the arc variables of the runs of the
+  * schedule and to 0 the others, the power of each run to \f$ p^{ac}_t \f$
+  * on its Variable and to 0 on those of the other runs, and the variables
+  * of the perspective cuts of a run to \f$ ( p^{ac}_t )^2 \f$ (see
+  * set_solution()). */
+
+ void set_path_solution( void );
 
 /*--------------------------------------------------------------------------*/
  /// updates the constraints for the current initial power
- /** This function updates the right-hand side of the ramp-up constraints and
-  * the left-hand side of the ramp-down constraints at time 0 (which are the
-  * constraints that depend on the initial power). */
+ /** This function updates the abstract representation for the current
+  * initial power, which it contains only if the unit is on before the
+  * horizon: no Variable depends on it (the interval \f$ ( 0 , 0 ) \f$ of
+  * the shut-down at 0 being there whatever its value), and the rows that
+  * contain it, those of a derived class included, are written anew by
+  * update_rows(), which throws std::logic_error, changing nothing, if
+  * they cannot be updated in place. A derived class that has rows that
+  * update_rows() cannot change (e.g., the bands at 0 of a
+  * NuclearUnitBlock) checks them before calling it. */
 
  virtual void update_initial_power_in_cnstrs( c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// computes v_MaxRampSteps[ 0 ] and v_MaxRampDownSteps[ 0 ]
+ /** The number of ramp steps from the initial power depends on it and on
+  * the initial up/down time, hence it is computed again whenever either of
+  * them changes. */
+
+ void compute_initial_ramp_steps( void );
+
+/*--------------------------------------------------------------------------*/
+ /// throws if set_initial_power() may not give \p value [see there]
+
+ void check_initial_power( double value ) const;
 
 /*--------------------------------------------------------------------------*/
  /// number of Variable a derived class appends to the Objective
@@ -2842,35 +2892,13 @@ class ThermalUnitBlock : public UnitBlock
           ( ( f_InvestmentCost != 0 ) ? 1 : 0 ) - f_time_horizon );
   }
 
-/*--------------------------------------------------------------------------*/
- /// returns true if and only if the given availability is consistent
- /** This method checks whether the given \p availability is consistent at
-  * time \p t. An availability is consistent at a given time instant if the
-  * resulting operational minimum active power output is less than or equal to
-  * the resulting operational maximum active power at that time.
-  *
-  * @param t A time instant between 0 and get_time_horizon() - 1.
-  *
-  * @param availability A number between 0 and 1.
-  *
-  * @return True if and only if the given \p availability is consistent at
-  *         time \p t. */
-
- bool availability_is_consistent( Index t , double availability ) const {
-  assert( t < get_time_horizon() );
-  const auto min_power = compute_operational_min_power( v_MinPower[ t ] ,
-                                                        availability );
-  const auto max_power = compute_operational_max_power( v_MaxPower[ t ] ,
-                                                        availability );
-  return( min_power <= max_power );
- }
 
 /*--------------------------------------------------------------------------*/
  /// returns the operational minimum power
  /** This method computes the operational minimum power for the given nominal
   * minimum power and availability.
   *
-  * @param min_power The nominal minimum power.
+  * @param nominal_min_power The nominal minimum power.
   *
   * @param availability A number between 0 and 1.
   *
@@ -2886,7 +2914,7 @@ class ThermalUnitBlock : public UnitBlock
  /** This method computes the operational maximum power for the given nominal
   * maximum power and availability.
   *
-  * @param min_power The nominal maximum power.
+  * @param nominal_max_power The nominal maximum power.
   *
   * @param availability A number between 0 and 1.
   *
@@ -2907,7 +2935,8 @@ class ThermalUnitBlock : public UnitBlock
   *
   * @param issueAMod controls how abstract Modification are issued. */
 
- void update_objective_start_up( const Subset & subset , c_ModParam issueAMod ) const;
+ void update_objective_start_up( const Subset & subset ,
+                                 c_ModParam issueAMod ) const;
 
 /*--------------------------------------------------------------------------*/
  /// updates the terms of the Objective associated with the active power cost
@@ -2920,7 +2949,7 @@ class ThermalUnitBlock : public UnitBlock
   * @param issueAMod controls how abstract Modification are issued. */
 
  void update_objective_active_power( const Subset & subset ,
-                                     c_ModParam issueAMod ) const;
+                                     c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// updates the terms of the Objective associated with the fixed cost
@@ -2936,11 +2965,36 @@ class ThermalUnitBlock : public UnitBlock
                                    c_ModParam issueAMod ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// updates the remaining terms of the Objective that carry the scale
+ /** This method updates the terms of the Objective associated with the
+  * shut-down, the primary and secondary spinning reserves, the perspective
+  * cuts and the reactive power, each being \f$ \sigma \f$ times the cost of
+  * one copy of the unit (see UnitBlock::scale()).
+  *
+  * @param subset A set of time instants at which the terms must be updated.
+  *
+  * @param issueAMod controls how abstract Modification are issued. */
+
+ void update_objective_other_terms( const Subset & subset ,
+                                    c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// updates the coefficients of the Variable appended by a derived class
+ /** Called by update_objective() after the scale factor has changed, so
+  * that the coefficients of the Variable appended to the Objective by a
+  * derived class [see objective_tail()] follow it at the time instants in
+  * \p subset. The default does nothing, as the ThermalUnitBlock has no such
+  * Variable. */
+
+ virtual void update_objective_tail( const Subset & subset ,
+                                     c_ModParam issueAMod ) { }
+
+/*--------------------------------------------------------------------------*/
  /// updates the term of the Objective associated with the investment cost
  /** This method updates the coefficient of the design variable in the
-  * Objective, i.e., the term \f$ S \cdot I \cdot x \f$ where \f$ S \f$ is
-  * the current scale factor (see UnitBlock::scale()), \f$ I \f$ is the
-  * per-module investment cost, and \f$ x \f$ is the design variable. It
+  * Objective, i.e., the term \f$ \sigma c^{inv} x \f$, where \f$ \sigma \f$
+  * is the current scale factor (see UnitBlock::scale()), \f$ c^{inv} \f$ the
+  * investment cost of one module and \f$ x \f$ the design variable. It
   * is meant to be called after f_scale has been modified, so that the
   * Objective coefficient stays in sync with the scaled cost convention
   * used by the other update_objective_* helpers.
@@ -2974,14 +3028,15 @@ class ThermalUnitBlock : public UnitBlock
  /// updates the coefficients of the Objective
  /** This method updates the coefficients of the Objective.
   *
-  * @param subset A set of time instants at which the coefficients must be
+  * @param rng The Range of time instants at which the coefficients must be
   *        updated.
   *
   * @param issuePMod controls how physical Modification are issued.
   *
   * @param issueAMod controls how abstract Modification are issued. */
 
- void update_objective( Range rng , ModParam issuePMod , c_ModParam issueAMod );
+ void update_objective( Range rng , ModParam issuePMod ,
+                        c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// verify whether the data in this ThermalUnitBlock is consistent
@@ -2996,7 +3051,18 @@ class ThermalUnitBlock : public UnitBlock
   *
   * - The quadratic term of the objective function is nonnegative.
   *
-  * If any of the above conditions are not met, an exception is thrown. */
+  * - The minimum power, FixedConsumption and InitialPower are nonnegative.
+  *
+  * - InvestmentCost is 0 unless InitUpDownTime is negative.
+  *
+  * - If the unit is on before the horizon, InitialPower is not below
+  *   MinPower[ 0 ].
+  *
+  * - StartUpLimit and ShutDownLimit lie between the operational minimum and
+  *   maximum power at each instant.
+  *
+  * If any of the above conditions is not met, std::logic_error is
+  * thrown. */
 
  void check_data_consistency( void ) const;
 
@@ -3010,6 +3076,28 @@ class ThermalUnitBlock : public UnitBlock
  /// first perspective-cut variable (see the layout in generate_objective())
 
  Index cut_section_start( void ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// the shift that the shut-down section adds to the later Objective sections
+ /** The shut-down variables sit right after the start-up ones when the unit
+  * pays anything to shut down [see generate_objective()], so every section
+  * after them starts this much further on. */
+
+ Index shut_down_offset( void ) const {
+  return( f_shut_down_in_obj ? f_time_horizon - init_t : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the position in the Objective of the first primary (secondary) reserve
+ /** The reserve sections follow the start-up, shut-down, active power,
+  * commitment and schedule-deviation ones, the primary before the
+  * secondary, each only if generate_objective() has put it there. */
+
+ Index reserve_section_start( bool secondary ) const {
+  return( 3 * f_time_horizon - init_t + shut_down_offset() +
+          ( v_RefSchedule.empty() ? 0 : f_time_horizon ) +
+          ( ( secondary && f_primary_in_obj ) ? f_time_horizon : 0 ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -3038,11 +3126,11 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > v_SecondaryRho;
 
  /// primary spinning-reserve cost (objective coefficient on the primary
- /// reserve variables); defaults to v_PrimaryRho but is modifiable
+ /// reserve variables), empty if it is zero at every instant
  std::vector< double > v_PrimarySpinningReserveCost;
 
  /// secondary spinning-reserve cost (objective coefficient on the secondary
- /// reserve variables); defaults to v_SecondaryRho but is modifiable
+ /// reserve variables), empty if it is zero at every instant
  std::vector< double > v_SecondarySpinningReserveCost;
 
  /// the vector of RampUp
@@ -3068,6 +3156,26 @@ class ThermalUnitBlock : public UnitBlock
  /// the vector of StartUpCost
  std::vector< double > v_StartUpCost;
 
+ /// the vector of ShutDownCost, empty if the unit pays nothing to shut down
+ std::vector< double > v_ShutDownCost;
+
+ /// true if the Objective has the shut-down variables
+ /** The shut-down variables enter the Objective only if the unit pays
+  * anything to shut down when generate_objective() runs; without them, a
+  * nonzero shut-down cost set afterwards is refused [see
+  * set_shutdown_costs()]. */
+ bool f_shut_down_in_obj = false;
+
+ /// true if the Objective has the primary reserve variables
+ /** They enter it if, when generate_objective() runs, the Variable exist and
+  * either the cost is nonzero at some instant or the Configuration of the
+  * Objective asks for them [see generate_objective()]. */
+ bool f_primary_in_obj = false;
+
+ /// true if the Objective has the secondary reserve variables
+ /** See f_primary_in_obj. */
+ bool f_secondary_in_obj = false;
+
  /// the vector of fixed consumption of generator
  std::vector< double > v_FixedConsumption;
 
@@ -3081,14 +3189,49 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > v_ShutDownLimit;
 
  /// the vector of max ramps steps (SUSD formulation)
- /// v_MaxRampSteps\f$_t = \min\{(\bar{p}-\underline{p})/\Delta_t^+, |\mathcal{T}|-t\}\f$
- /// denotes the maximum number of ramp up steps from time period \f$t\f$
+ /// entry t > 0 is the largest j <= T - t with the sum of DeltaRampUp over
+ /// t, ..., t + j - 1 at most the largest operational maximum power at
+ /// t - 1 or later minus the operational minimum power at t - 1; entry 0
+ /// is one more than the last j at which InitialPower plus the ramps up to
+ /// j is at most the operational maximum power at j (0 if there is none,
+ /// -1 if the unit is off before the horizon)
  std::vector< int > v_MaxRampSteps;
 
  /// the vector of max ramps steps (SUSD formulation)
- /// v_MaxRampDownSteps\f$_t = \min\{(\bar{p}-\underline{p})/\Delta_t^-, |\mathcal{T}|-t\}\f$
- /// denotes the maximum number of ramp down steps from time period \f$t\f$
+ /// as v_MaxRampSteps with DeltaRampDown, the smallest operational minimum
+ /// power at t - 1 or later and the operational maximum power at t - 1;
+ /// entry 0 is one more than the last j at which InitialPower minus the
+ /// ramps down to j is at least the operational minimum power at j
  std::vector< int > v_MaxRampDownSteps;
+
+ /// true once compute_ramp_steps() has filled v_MaxRampSteps (always, the
+ /// data do not give it)
+ bool f_derived_ramp_up_steps = false;
+
+ /// true once compute_ramp_steps() has filled v_MaxRampDownSteps (always,
+ /// the data do not give it)
+ bool f_derived_ramp_down_steps = false;
+
+ /// true if StartUpLimit is not in the data, and then it is the
+ /// operational minimum power [see set_default_limits()]
+ bool f_default_start_up_limit = false;
+
+ /// true if ShutDownLimit is not in the data, and then it is the
+ /// operational minimum power [see set_default_limits()]
+ bool f_default_shut_down_limit = false;
+
+ struct RowCmp;
+
+ /// what update_rows() collects while build_rows() compares the rows,
+ /// nullptr while it generates them [see generating_rows()]
+ RowCmp * f_row_cmp = nullptr;
+
+ /// the static groups whose rows build_rows() writes with size_rows() or
+ /// push_row() when the Constraint are generated [see update_rows()]
+ std::vector< std::vector< FRowConstraint > * > f_row_groups;
+
+ /// the dynamic groups [see put_dyn_row()] that add_dyn_rows() registers
+ std::vector< DynRows * > f_dyn_groups;
 
  /// the vector of MinReactivePower
  std::vector< double > v_MinReactivePower;
@@ -3109,29 +3252,29 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< double > prevpbar;
 
  /// the vector of index of the variables \f$p_t^{hk}\f$ of the DP formulation.
- /// In particular, v_P_h_k.fist = t, v_P_h_k.second.fist = h,
+ /// In particular, v_P_h_k.first = t, v_P_h_k.second.first = h,
  /// v_P_h_k.second.second = k
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_P_h_k;
 
  /// the vector of index of the variables \f$z_t^{hk}\f$ of the DP formulation.
- /// In particular, v_Z_h_k.fist = t, v_Z_h_k.second.fist = h,
- /// v_P_Z_k.second.second = k
+ /// In particular, v_Z_h_k.first = t, v_Z_h_k.second.first = h,
+ /// v_Z_h_k.second.second = k
  std::vector< std::pair< Index , std::pair< Index , Index > > > v_Z_h_k;
 
  /// the vector of index of the variables \f$p_t^{h}\f$ of the SU formulation.
- /// In particular, v_P_h.fist = t, v_P_h.second = h
+ /// In particular, v_P_h.first = t, v_P_h.second = h
  std::vector< std::pair< Index , Index > > v_P_h;
 
  /// the vector of index of the variables \f$z_t^{h}\f$ of the SU formulation.
- /// In particular, v_Z_h.fist = t, v_Z_h.second = h
+ /// In particular, v_Z_h.first = t, v_Z_h.second = h
  std::vector< std::pair< Index , Index > > v_Z_h;
 
  /// the vector of index of the variables \f$\tilde p_t^{k}\f$ of the SD
- /// formulation. In particular, v_P_k.fist = t, v_P_k.second = k
+ /// formulation. In particular, v_P_k.first = t, v_P_k.second = k
  std::vector< std::pair< Index , Index > > v_P_k;
 
  /// the vector of index of the variables \f$\tilde z_t^{k}\f$ of the SD
- /// formulation. In particular, v_Z_k.fist = t, v_Z_k.second = k
+ /// formulation. In particular, v_Z_k.first = t, v_Z_k.second = k
  std::vector< std::pair< Index , Index > > v_Z_k;
 
  /// the vector of index of the ON nodes in the state-space graph
@@ -3141,12 +3284,12 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< Index > v_nodes_minus;
 
  /// the vector of index of the variables \f$y_+^{hk}\f$ of the DP, pt, SU,
- /// SD and SUSD formulations. In particular, v_Y_plus.fist = h,
+ /// SD and SUSD formulations. In particular, v_Y_plus.first = h,
  /// v_Y_plus.second = k
  std::vector< std::pair< Index , Index > > v_Y_plus;
 
  /// the vector of index of the variables \f$y_-^{hk}\f$ of the DP, pt, SU,
- /// SD and SUSD formulations. In particular, v_Y_minus.fist = h,
+ /// SD and SUSD formulations. In particular, v_Y_minus.first = h,
  /// v_Y_minus.second = k
  std::vector< std::pair< Index , Index > > v_Y_minus;
 
@@ -3156,13 +3299,15 @@ class ThermalUnitBlock : public UnitBlock
 
  /// last design cost for which a eSetInvCost Modification was issued
  /** Cache of the design-variable Objective coefficient for which the last
-  * eSetInvCost ThermalUnitBlockMod was issued by update_objective_investment().
+  * eSetInvCost ThermalUnitBlockMod was issued by
+  * update_objective_investment().
   * A dualizing Solver rewrites the whole coefficient vector (design included)
   * at each of its iterations; issuing a eSetInvCost every time would reset the
   * cached state of the (DP) Solvers and, more importantly, force the dualizing
-  * Bundle to invalidate the linearizations of this component at every iteration
-  * (which prevents convergence). Hence eSetInvCost is issued only when the
-  * design cost actually changed. Initialised in generate_objective(). */
+  * Bundle to invalidate the linearizations of this component at every
+  * iteration (which prevents convergence). Hence eSetInvCost is issued only
+  * when the design cost actually changed. Initialised in
+  * generate_objective(). */
  double f_last_design_cost = std::numeric_limits< double >::quiet_NaN();
 
  /// the installable capacity by the user
@@ -3189,11 +3334,7 @@ class ThermalUnitBlock : public UnitBlock
  /// the scale factor
  double f_scale = 1;
 
- /** the flag indicating if we wish to fix production to maximum power output
-  * currently 0 = default = do nothing special
-  *           > 0 : fix to MaxPower 
-  * although a boolean would suffice, an integer is foreseen for possible
-  * future modes of working */
+ /// "FixToMaximum": if positive, p_t >= the operational maximum power
  int f_fixToMax = 0;
 
  // this variable indicates which netCDF variables must be ignored
@@ -3216,16 +3357,16 @@ class ThermalUnitBlock : public UnitBlock
  /// the secondary spinning reserve variables
  std::vector< ColVariable > v_secondary_spinning_reserve;
 
- /// the commitment binary variables for 3bin, T and pt formulations
+ /// the commitment binary variables, in all formulations
  std::vector< ColVariable > v_commitment;
 
- /// the y^+ commitment binary variables for DP, SU and SD formulations
+ /// the y^+ arc variables of the pt, DP, SU, SD and SUSD formulations
  std::vector< ColVariable > v_commitment_plus;
 
- /// the y^- commitment binary variables for DP, SU and SD formulations
+ /// the y^- arc variables of the pt, DP, SU, SD and SUSD formulations
  std::vector< ColVariable > v_commitment_minus;
 
- /// the active power variables for 3bin, T and pt formulations
+ /// the active power variables, in all formulations
  std::vector< ColVariable > v_active_power;
 
  /// the reactive power variables
@@ -3240,7 +3381,7 @@ class ThermalUnitBlock : public UnitBlock
  /// the active power variables for SD model
  std::vector< ColVariable > v_active_power_k;
 
- /// the perspective cuts variables for 3bin, T and pt formulations
+ /// the perspective cuts variables, in all formulations with PCuts
  std::vector< ColVariable > v_cut;
 
  /// the perspective cuts variables for DP model
@@ -3263,7 +3404,7 @@ class ThermalUnitBlock : public UnitBlock
  /// the reference schedule constraints
  std::vector< FRowConstraint > Reference_Schedule_Const;
 
- /// the reference schedule constraints
+ /// the rows p_t >= the operational maximum power (FixToMaximum)
  std::vector< FRowConstraint > fixed_to_max_Power_Const;
 
  /// the commitment design constraints
@@ -3284,10 +3425,10 @@ class ThermalUnitBlock : public UnitBlock
  /// the RampDown time constraints
  std::vector< FRowConstraint > RampDown_Const;
 
- /// the active power upper bound constraints
+ /// the minimum power rows (19)
  std::vector< FRowConstraint > MinPower_Const;
 
- /// the active power lower bound constraints
+ /// the maximum power rows (20)-(27), the dynamic (25), (26) apart
  std::vector< FRowConstraint > MaxPower_Const;
 
  /// the PrimaryRho fraction constraints
@@ -3297,11 +3438,9 @@ class ThermalUnitBlock : public UnitBlock
  std::vector< FRowConstraint > SecondaryRho_Const;
 
  /// the spinning-reserve band (capacity + ramp-deliverability) constraints
- /** Uniform across all formulations: bound the reserve r_t = pr_t + sr_t by
-  * the boundary capacity band around p_t and by the ramp left over after the
-  * scheduled move (deliverability). Built only when the unit offers reserve;
-  * see the "Spinning reserve constraints" part of the
-  * generate_abstract_constraints() documentation. */
+ /** The same in all formulations: rows (29)-(32) of
+  * generate_abstract_constraints(), built only when the unit offers a
+  * reserve. */
  std::vector< FRowConstraint > Reserve_Const;
 
  /* Constraints connecting power variables of 3bin, T and pt
@@ -3337,6 +3476,22 @@ class ThermalUnitBlock : public UnitBlock
  /// the perspective dynamic cuts constraints
  std::list< FRowConstraint > PC_cuts;
 
+ /// the row w_0 (or y^{00}) <= [ InitialPower <= ShutDownLimit[ 0 ] ] of
+ /// the shut-down at 0 [see build_rows()]
+ std::vector< FRowConstraint > ShutDownZero_Const;
+
+ /// the bound constraints 5 of the maximum power of the T formulation
+ DynRows MaxPower5_Const;
+
+ /// the bound constraints 6 of the maximum power of the T formulation
+ DynRows MaxPower6_Const;
+
+ /// the ramp-up rows of k steps of the SUSD formulation
+ DynRows RampUpSUSD_Const;
+
+ /// the ramp-down rows of k steps of the SUSD formulation
+ DynRows RampDownSUSD_Const;
+
  /// the commitment bound constraints
  std::vector< ZOConstraint > Commitment_bound_Const;
 
@@ -3351,6 +3506,11 @@ class ThermalUnitBlock : public UnitBlock
 
  /// the reactive power bound constraints (plain box; no commitment gating)
  std::vector< BoxConstraint > ReactivePower_Bound_Const;
+
+ /// the active power bound constraints, 0 <= p[ t ] <= the operational
+ /// maximum power: redundant with the rows of the commitment, but readable
+ /// by a Solver that only reads the boxes (say, a BoxSolver)
+ std::vector< BoxConstraint > ActivePower_Bound_Const;
 
  /// the reactive power upper bound constraints (commitment-gated variant):
  /// q[t] - Qmax_on[t] u[t] <= Qmax_off[t]
@@ -3407,6 +3567,14 @@ class ThermalUnitBlock : public UnitBlock
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
    "ThermalUnitBlock::set_startup_costs" ,
    & ThermalUnitBlock::set_startup_costs );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ThermalUnitBlock::set_shutdown_costs" ,
+   & ThermalUnitBlock::set_shutdown_costs );
+
+  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+   "ThermalUnitBlock::set_shutdown_costs" ,
+   & ThermalUnitBlock::set_shutdown_costs );
 
   register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
    "ThermalUnitBlock::set_const_term" ,
@@ -3492,6 +3660,7 @@ class ThermalUnitBlockMod : public UnitBlockMod
   eSetInitUD ,                 ///< set initial up/down times
   eSetAv ,                     ///< set availability
   eSetSUC ,                    ///< set start-up costs
+  eSetSDC ,                    ///< set shut-down costs
   eSetLinT ,                   ///< set linear term
   eSetQuadT ,                  ///< set quad term
   eSetConstT ,                 ///< set constant term
@@ -3535,6 +3704,9 @@ class ThermalUnitBlockMod : public UnitBlockMod
     break;
    case( eSetSUC ):
     output << "Set start-up costs";
+    break;
+   case( eSetSDC ):
+    output << "Set shut-down costs";
     break;
    case( eSetLinT ):
     output << "Set linear term";
@@ -3689,9 +3861,9 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
   * [cf. UnitBlockSolution::serialize()], plus:
   *
   * - The scalar variable "ThermalDesign", of type netCDF::NcDouble,
-  *   that represent the value of the dimensioning variable; the variable
-  *   is optional in that the intermittent unit may not have any
-  *   dimensioning variable. */
+  *   that represent the value of the design variable; the variable is
+  *   optional in that the thermal unit may not have any design
+  *   variable. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
