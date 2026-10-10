@@ -121,6 +121,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the instances of `data/` are downloaded and extracted by the targets
+  `download_uc_<fmt>` and `extract_uc_<fmt>`, written as in every module
+  that keeps its instances in the Package Registry, and the marker of the
+  extraction carries the format in its name, so that a tree extracted
+  before extracts once more
+
 - the ramp rows of the DP formulation of `ThermalUnitBlock` find the power
   of the previous instant of the run and the commitment of the run without
   scanning all the powers and all the runs for each row (the same rows)
