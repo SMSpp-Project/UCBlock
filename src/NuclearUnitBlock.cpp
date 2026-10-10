@@ -147,8 +147,7 @@ static void check_modulation_ramps( const std::string & fn ,
 
 NuclearUnitBlock::~NuclearUnitBlock()
 {
- for( auto & g : v_form_rows )
-  Constraint::clear( g );
+ Constraint::clear( v_form_rows );
  Constraint::clear( Nuclear_cuts );
  Constraint::clear( DeepDownLink );
  Constraint::clear( DeepLinkConst );
@@ -2055,10 +2054,7 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    && RowConstraint::is_feasible( DeepLinkConst , tol , rel_viol )
    && RowConstraint::is_feasible( DeepDownLink , tol , rel_viol )
    && RowConstraint::is_feasible( Nuclear_cuts , tol , rel_viol )
-   && std::all_of( v_form_rows.begin() , v_form_rows.end() ,
-                   [ & ]( std::vector< FRowConstraint > & g ) {
-                    return( RowConstraint::is_feasible( g , tol ,
-                                                        rel_viol ) ); } )
+   && RowConstraint::is_feasible( v_form_rows , tol , rel_viol )
    && ColVariable::is_feasible( v_mod_start_up , tol )
    && ColVariable::is_feasible( v_mod_start_dn , tol )
    && ColVariable::is_feasible( v_mod_end_up , tol )
