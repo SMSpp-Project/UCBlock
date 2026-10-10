@@ -47,11 +47,19 @@ With `nuclear` every unit is a NuclearUnitBlock, and the remaining keywords
 the start-up cost of every unit, whose real value is worth thousands of
 periods of production and therefore keeps the whole fleet on: with it the
 commitment of the marginal units becomes a decision, and they cycle.
+
+With `nuclear_share` < 1 only part of the fleet is nuclear: the units are
+taken by decreasing MaxPower (the first one in the file first on a tie), and
+the shortest such prefix whose capacity is at least `nuclear_share` times
+that of the fleet is made of NuclearUnitBlocks, the other units staying
+ThermalUnitBlocks, which balance the load around the nuclear output. See
+`nuclear_units`.
 """
 function convert_json_to_nc4(json_path::String, nc_path::String;
                              nuclear::Bool = false, mod_time::Int = 8,
                              mod_frac::Float64 = 0.25,
-                             su_frac::Float64 = 1.0, rules...)
+                             su_frac::Float64 = 1.0,
+                             nuclear_share::Float64 = 1.0, rules...)
 
     data = JSON.parsefile(json_path)
 
@@ -85,6 +93,9 @@ function convert_json_to_nc4(json_path::String, nc_path::String;
     # reserve participation factors (optional)
     primary_rho   = haskey(th, "primary_rho")   ? Float64.(th["primary_rho"])   : zeros(n_gen)
     secondary_rho = haskey(th, "secondary_rho") ? Float64.(th["secondary_rho"]) : zeros(n_gen)
+
+    # the units that are NuclearUnitBlocks
+    is_nuclear = nuclear ? nuclear_units(p_max, nuclear_share) : falses(n_gen)
 
     # --- demand: single load = total system demand -----------------------
     # loads.profile is a 1-element list whose entry is the length-n_periods
@@ -177,7 +188,8 @@ function convert_json_to_nc4(json_path::String, nc_path::String;
         # =================================================================
         for g in 1:n_gen
             ug = defGroup(blk, "UnitBlock_$(g-1)")
-            ug.attrib["type"] = nuclear ? "NuclearUnitBlock" : "ThermalUnitBlock"
+            ug.attrib["type"] = is_nuclear[g] ? "NuclearUnitBlock" :
+                                                "ThermalUnitBlock"
 
             defVar(ug, "MinPower",      Float64, ())[:] = p_min[g]
             defVar(ug, "MaxPower",      Float64, ())[:] = p_max[g]
@@ -219,7 +231,7 @@ function convert_json_to_nc4(json_path::String, nc_path::String;
             # Constant modulation ramps = mod_frac * the thermal ramps; the unit
             # is free to modulate from the start (InitModulation = ModulationTime).
             # The time-varying incentive to ramp comes from the UCBlock demand.
-            if nuclear
+            if is_nuclear[g]
                 defVar(ug, "ModulationTime",  UInt32, ())[:] = UInt32(mod_time)
                 defVar(ug, "InitModulation",  UInt32, ())[:] = UInt32(mod_time)
                 defVar(ug, "ModulationDeltaRampUp",   Float64, ())[:] =
@@ -227,7 +239,8 @@ function convert_json_to_nc4(json_path::String, nc_path::String;
                 defVar(ug, "ModulationDeltaRampDown", Float64, ())[:] =
                     mod_frac * ramp_down[g]
                 def_nuclear_rules(ug, p_min[g], p_max[g], ramp_up[g], ramp_down[g];
-                                  rules...)
+                                  reserve_mw = (primary_rho[g] + secondary_rho[g]) *
+                                               p_max[g], rules...)
             end
         end
 
@@ -238,6 +251,8 @@ function convert_json_to_nc4(json_path::String, nc_path::String;
         blk.attrib["dt_hours"]    = Float64(get(meta, "dt_hours", 1.0))
         haskey(meta, "horizon") && (blk.attrib["horizon"] = meta["horizon"])
         haskey(meta, "seed")    && (blk.attrib["seed"]    = meta["seed"])
+        nuclear && nuclear_share < 1 &&
+            (blk.attrib["n_nuclear"] = count(is_nuclear))
     end  # NCDataset
 
     println("Written: $nc_path")
@@ -356,6 +371,28 @@ end
 # =========================================================================
 
 """
+    nuclear_units(p_max, share)
+
+The units of the fleet that are nuclear: taken by decreasing `p_max` (the
+first one in the file first on a tie), the shortest such prefix whose total
+`p_max` is at least `share` times that of the fleet. `share` = 1 makes every
+unit nuclear. Deterministic, no random draw.
+"""
+function nuclear_units(p_max::Vector{Float64}, share::Float64)
+    0.0 < share <= 1.0 || error("nuclear_units: share $share not in (0, 1]")
+    is_nuc = falses(length(p_max))
+    share >= 1.0 && return .!is_nuc
+    goal = share * sum(p_max)
+    cap = 0.0
+    for g in sortperm(p_max; rev = true, alg = MergeSort)
+        cap >= goal && break
+        is_nuc[g] = true
+        cap += p_max[g]
+    end
+    return is_nuc
+end
+
+"""
     off_ramp(b, p_min, p_max, ramp_up, ramp_down) -> Float64
 
 The threshold `b` moved, if needed, so that neither its distance from
@@ -386,11 +423,18 @@ default, so that with the default keywords nothing is written and the unit is
 the original model:
 
 - `mod_length`: `MaxModulationLength`, the longest modulation (1 = single
-  instant, the original model);
+  instant, the original model; 0 = `floor((p_max - p_min) / min(ramp_up,
+  ramp_down)) + 1`, the smallest value that never binds, so that the length
+  of a modulation is only set by the ramps and by the bands);
 - `stab_start`: `StabilityAfterStartUp`, the instants of stability that follow
   a start-up (0 = none);
 - `bands`: the fraction of the range of the output at which the two
-  breakpoints of `PowerBands` are put (0 = the output is not banded);
+  breakpoints of `PowerBands` are put (0 = the output is not banded); a
+  negative value puts them at `p_min + reserve_mw` and `p_max - reserve_mw`,
+  i.e., the low and the high band are those in which the unit cannot hold
+  its whole reserve, `reserve_mw` being the primary plus the secondary
+  reserve it offers at full output (no bands if `reserve_mw` is 0 or the two
+  breakpoints would not be increasing);
 - `init_off`: the unit enters the horizon off, and its start-up cost is
   zeroed, so that it does start up inside the horizon;
 - `day_length`, `mods_per_day`, `starts_per_day`: `DayLength` and the daily
@@ -407,23 +451,28 @@ numbers of ramps from `MinPower` and `MaxPower` by `off_ramp`.
 function def_nuclear_rules(grp, p_min::Float64, p_max::Float64,
                            ramp_up::Float64, ramp_down::Float64;
                            mod_length::Int = 1, stab_start::Int = 0,
-                           bands::Float64 = 0.0, day_length::Int = 0,
+                           bands::Float64 = 0.0, reserve_mw::Float64 = 0.0,
+                           day_length::Int = 0,
                            mods_per_day::Int = -1, starts_per_day::Int = -1,
                            deep::Bool = false, deeps_per_day::Int = -1,
                            deep_frac::Float64 = 0.4, deep_grad::Float64 = 0.8,
                            down_cost::Float64 = 0.0, deep_cost::Float64 = 0.0)
+    mod_length == 0 &&
+        (mod_length = floor(Int, (p_max - p_min) / min(ramp_up, ramp_down)) + 1)
     mod_length != 1 &&
         (defVar(grp, "MaxModulationLength", UInt32, ())[:] = UInt32(mod_length))
     stab_start > 0 &&
         (defVar(grp, "StabilityAfterStartUp", UInt32, ())[:] = UInt32(stab_start))
-    if bands > 0
-        # the two breakpoints at `bands` and `1 - bands` of the range
-        defDim(grp, "NumberPowerBands", 2)
-        defVar(grp, "PowerBands", Float64, ("NumberPowerBands",))[:] =
-            [off_ramp(p_min + bands * (p_max - p_min), p_min, p_max,
-                      ramp_up, ramp_down),
-             off_ramp(p_max - bands * (p_max - p_min), p_min, p_max,
-                      ramp_up, ramp_down)]
+    # the width of the low and of the high band
+    width = bands > 0 ? bands * (p_max - p_min) : bands < 0 ? reserve_mw : 0.0
+    if width > 0 && p_min + width < p_max - width
+        # the two breakpoints, `width` above p_min and below p_max
+        b = [off_ramp(p_min + width, p_min, p_max, ramp_up, ramp_down),
+             off_ramp(p_max - width, p_min, p_max, ramp_up, ramp_down)]
+        if b[1] < b[2]
+            defDim(grp, "NumberPowerBands", 2)
+            defVar(grp, "PowerBands", Float64, ("NumberPowerBands",))[:] = b
+        end
     end
     day_length > 0 &&
         (defVar(grp, "DayLength", UInt32, ())[:] = UInt32(day_length))
@@ -666,10 +715,16 @@ Options (nuclear modes):
   --mod-frac F    modulation ramp = F * thermal ramp (0..1), default 0.25
   --n-units K     (single modes only) number of units to emit, default 5
 Options (nuclear modes; the operating rules of NuclearUnitBlock):
-  --mod-length L      longest modulation (MaxModulationLength), default 1
+  --mod-length L      longest modulation (MaxModulationLength), default 1;
+                      0 = the smallest value that never binds
   --stab-start A      instants of stability after a start-up, default 0
   --bands F           split the output into three bands at the fractions F
                       and 1 - F of its range, default none
+  --bands-reserve     (--nuclear only) the low and the high band are as wide
+                      as the primary plus secondary reserve of the unit at
+                      full output (PrimaryRho + SecondaryRho times MaxPower)
+  --nuclear-share F   (--nuclear only) only the largest units, whose capacity
+                      is at least F of the fleet's, are nuclear, default 1
   --init-off          the unit enters the horizon off
   --swing F           the trough of the load-following target goes F of the
                       range below MinPower, default 0
@@ -730,6 +785,10 @@ function main()
             rules[:stab_start] = parse(Int, ARGS[i += 1])
         elseif a == "--bands"
             rules[:bands] = parse(Float64, ARGS[i += 1])
+        elseif a == "--bands-reserve"
+            rules[:bands] = -1.0
+        elseif a == "--nuclear-share"
+            rules[:nuclear_share] = parse(Float64, ARGS[i += 1])
         elseif a == "--init-off"
             rules[:init_off] = true
         elseif a == "--swing"
@@ -777,6 +836,13 @@ function main()
         exit(1)
     end
 
+    if (!isempty(single_dir) || !isempty(thermal_single_dir)) &&
+       (haskey(rules, :nuclear_share) || get(rules, :bands, 0.0) < 0)
+        println(stderr, "Error: --nuclear-share and --bands-reserve are " *
+                "only allowed with --nuclear")
+        print(stderr, USAGE); exit(1)
+    end
+
     # mode 1a: standalone single-unit ThermalUnitBlock files
     if !isempty(thermal_single_dir)
         emit_thermal_single_tubs(json_path, thermal_single_dir;
@@ -800,15 +866,19 @@ function main()
     single_only = intersect(keys(rules),
                             (:periods, :reserve, :reactive, :suffix,
                              :init_off, :swing))
+    get(rules, :bands, 0.0) < 0 && !nuclear &&
+        (single_only = union(single_only, (:bands,)))
     if !isempty(single_only) || (!nuclear && !isempty(rules))
         println(stderr, "Error: option(s) $(collect(isempty(single_only) ? keys(rules) : single_only)) " *
                 "not allowed in this mode")
         print(stderr, USAGE); exit(1)
     end
     su_frac = pop!(rules, :su_frac, 1.0)
+    nuclear_share = pop!(rules, :nuclear_share, 1.0)
     convert_json_to_nc4(json_path, nc_path;
                         nuclear = nuclear, mod_time = mod_time,
-                        mod_frac = mod_frac, su_frac = su_frac, rules...)
+                        mod_frac = mod_frac, su_frac = su_frac,
+                        nuclear_share = nuclear_share, rules...)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

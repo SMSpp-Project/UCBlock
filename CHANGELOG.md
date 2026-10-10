@@ -121,6 +121,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the fleet; every thermal instance with the reserve is feasible over its
   horizon
 
+- the nuclear single-bus fleets (`UC_singlebus-nuclear`, built by
+  `gen-nuclear-uc`) are made of nuclear and thermal units: the largest units,
+  whose capacity is at least 45% of the fleet's, are `NuclearUnitBlock` and
+  the others `ThermalUnitBlock`, which balance the load around the nuclear
+  output; the low and the high band of a nuclear unit are as wide as the
+  primary plus secondary reserve it offers at full output, rather than 30% of
+  its range, and its longest modulation no longer binds (it was 8 instants),
+  the length of a modulation being set by the ramps and the bands; every
+  instance of a day is feasible. `json2nc4.jl` has the options
+  `--nuclear-share`, `--bands-reserve` and `--mod-length 0` for this
+
 - `json2nc4.jl` keeps the band breakpoints and the deep-decrease threshold of
   a `NuclearUnitBlock` at least a tenth of a ramp away from a whole number of
   ramps from the minimum and the maximum power, and the standalone units it
