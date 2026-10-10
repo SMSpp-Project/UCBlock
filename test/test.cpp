@@ -10248,6 +10248,7 @@ struct NURules {
  double thr = -1;                // DeepDecreaseThreshold
  double grad = 5;                // DeepDecreaseGradient
  double dcost = 0;               // DeepDecreaseCost
+ std::vector< double > quad;     // QuadTerm
  std::vector< double > lin;      // LinearTerm
  std::vector< double > cnst;     // ConstTerm
  std::vector< double > suc;      // StartUpCost
@@ -10271,6 +10272,7 @@ static NuclearUnitBlock * new_rules_NU( const NURules & d )
   if( ! v.empty() )
    vecs.push_back( { n , v } );
   };
+ opt( "QuadTerm" , d.quad );
  opt( "LinearTerm" , d.lin );
  opt( "ConstTerm" , d.cnst );
  opt( "StartUpCost" , d.suc );
@@ -10605,6 +10607,91 @@ static void test_nuclear_is_feasible_tolerance( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* NuclearUnitExtDPSolver on a unit whose output does not change at a stable
+ * instant, whose ramps and bounds are not multiples of each other and whose
+ * price makes the maximum power optimal for part of the day: the steps of
+ * exactly the ramp that reach the maximum power land there as states whose
+ * domain is a sliver of a few units in the last place, of equal value up to
+ * the rounding. The pruning has to keep one of them per label, or their
+ * number grows at each step; with that, the DP keeps at most 1830 states at
+ * an instant of this horizon (4085 if the slivers are kept), which the test
+ * bounds by 2500, and the schedule has to satisfy the rows. */
+
+/// the NuclearUnitExtDPSolver that tells the largest number of on-states
+/// it keeps at an instant
+class PeakStatesNUDP : public NuclearUnitExtDPSolver
+{
+ public:
+ std::size_t peak_states( void ) const {
+  std::size_t m = 0;
+  for( const auto & ft : f_F )
+   m = std::max( m , ft.size() );
+  return( m );
+  }
+ };
+
+static void test_nuclear_DP_sliver_states( void )
+{
+ NURules d;
+ d.T = 228;
+ d.minP = 112.05895998887428;
+ d.maxP = 280.14739997218567;
+ d.ru = 5.602947999443713;
+ d.rd = 5.5159607239042874;
+ d.su = 140.07369998609283;
+ d.sd = 137.89671191385045;
+ d.initP = d.minP;
+ d.initUD = 140;
+ d.minUp = 44;
+ d.minDown = 36;
+ d.modT = 4;
+ d.initMod = 4;
+ d.L = 8;
+ d.Bv = 3;
+ d.day = 96;
+ d.C = 2;
+ d.V = 1;
+ d.A = 1;
+ d.mru = d.mrd = 0;
+ d.downc = 2;
+ d.thr = 238.12528997635781;
+ d.grad = 2.7579803619521437;
+ d.dcost = 20;
+ const double a = 0.001138267847206035;
+ d.quad.assign( d.T , a );
+ d.suc.assign( d.T , 1516.4476778544661 );
+ // the price at which the optimal output of an instant is the maximum one
+ // is - 2 a maxP: the price runs from half of it to 1.05 times it
+ d.lin.resize( d.T );
+ for( Index t = 0 ; t < d.T ; ++t )
+  d.lin[ t ] = - 2 * a * d.maxP *
+   ( 0.5 + 0.275 * ( 1 - std::cos( 2 * std::numbers::pi * t / 96.0 ) ) );
+
+ auto nub = new_rules_NU( d );
+ generate_from_file( nub , "TUBCfg-T.txt" );
+ auto slv = new PeakStatesNUDP();
+ nub->register_Solver( slv );
+ try {
+  const auto st = slv->compute();
+  check( st == Solver::kOK , "DP slivers: compute() returns " +
+         std::to_string( st ) );
+  if( st == Solver::kOK ) {
+   slv->get_var_solution( nullptr );
+   SimpleConfiguration< double > tol( 1e-7 );
+   check( nub->is_feasible( true , & tol ) , "DP slivers: the schedule is "
+          "not feasible, " + violated_row( nub , 1e-7 ) );
+   }
+  check( slv->peak_states() <= 2500 , "DP slivers: "
+         + std::to_string( slv->peak_states() ) + " states at an instant" );
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "DP slivers: throws " ) + e.what() );
+  }
+ nub->unregister_Solver( slv , true );
+ delete nub;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -10747,6 +10834,7 @@ int main( int argc , char ** argv )
   test_nuclear_DP_initial_power_reload();
   test_nuclear_no_start_up_modulation();
   test_nuclear_is_feasible_tolerance();
+  test_nuclear_DP_sliver_states();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

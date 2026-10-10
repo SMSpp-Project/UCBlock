@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ThermalUnitExtDPSolver` (and so `NuclearUnitExtDPSolver`) prunes a
+  state whose domain is narrower than 1e-9 by comparing the values at that
+  point: the steps of exactly the ramp that end at a bound of the output
+  left there states of equal value up to the rounding, which the test piece
+  by piece kept all, and whose number grew at each instant (more than 12 h
+  on 5 of the 25 week-long e7 units of `1UC_Data/nuclear` with no reserve
+  price); the optimal values are unchanged
+
 - the maximum power rows of the pt, SU, SD and SUSD formulations of
   `ThermalUnitBlock` (and so of `NuclearUnitBlock`) cap every instant of a
   run by the start-up limit plus the ramps up from the start-up and by the

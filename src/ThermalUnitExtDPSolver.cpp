@@ -1023,6 +1023,16 @@ void ThermalUnitExtDPSolver::run_DP( void )
   std::vector< char > keep( v_F.size() , 1 );
   for( std::size_t i = 0 ; i < v_F.size() ; ++i ) {
    if( ! keep[ i ] ) continue;
+   // a domain narrower than the parts that the trimming below drops is a
+   // point, at which the values of the states are totally ordered: the
+   // test of is_dominated_by() piece by piece would see the rounding of
+   // the pieces of two equal functions (which shift by the ramps and are
+   // clamped to the bounds, and hence land as slivers of different bits at
+   // the same bound), find each one smaller somewhere and keep them all
+   const bool point = ( v_F[ i ].back().right - v_F[ i ].front().left
+                        <= 1e-9 );
+   const double xi = 0.5 * ( v_F[ i ].front().left + v_F[ i ].back().right );
+   const double fi = point ? eval( v_F[ i ] , xi ) : 0.0;
    for( std::size_t j = 0 ; j < v_F.size() ; ++j ) {
     if( j == i ) continue;
     if( ! keep[ j ] ) continue;
@@ -1040,10 +1050,13 @@ void ThermalUnitExtDPSolver::run_DP( void )
     if( TUEDPS_ENV( "TUEDPS_DOMEPS" ) )
      domeps = std::atof( TUEDPS_ENV( "TUEDPS_DOMEPS" ) );
 #endif
-    if( is_dominated_by( v_F[ i ] , v_F[ j ] , domeps ) ) {
+    if( is_dominated_by( v_F[ i ] , v_F[ j ] , domeps ) ||
+        ( point && ( eval( v_F[ j ] , xi ) <= fi ) ) ) {
      keep[ i ] = 0;
      break;
      }
+    if( point )
+     continue;
     if( ! trim )
      continue;
     // the part of the domain of i where j is not larger

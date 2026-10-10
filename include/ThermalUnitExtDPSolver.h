@@ -153,7 +153,13 @@
  * since the difference of two quadratic pieces changes sign at most twice.
  * That part is removed, and what remains becomes one state per interval, each
  * with the restriction of \f$ F \f$; this keeps the states few when the
- * domains are narrow and shifted with respect to each other. Note that states
+ * domains are narrow and shifted with respect to each other. A domain
+ * narrower than \f$ 10^{-9} \f$ (the parts of a domain that the trimming
+ * drops) is taken as a point, at which \f$ F' \f$ and \f$ F \f$ are compared
+ * (an error of at most the slope of \f$ F \f$ times that width): the steps of
+ * exactly the ramp that end at a bound of the power land there as states of
+ * equal value up to the rounding, which the comparison piece by piece would
+ * all keep, and whose number would grow at each step. Note that states
  * with different labels are never merged into their pointwise minimum, which
  * would not be convex. The surviving states are typically few, and therefore
  * the method often runs in a time close to linear in \f$ T \f$; however, in
