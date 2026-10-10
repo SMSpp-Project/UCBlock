@@ -31,12 +31,6 @@
 
 #include "ThermalUnitBlock.h"
 
-#include "NuclearRules.h"
-
-#include <deque>
-
-#include <tuple>
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -153,83 +147,6 @@ namespace SMSpp_di_unipi_it
  * that is not nuclear (e.g., with DayLength = 0, a limit on the start-ups
  * over the whole horizon), which is then a NuclearUnitBlock as well.
  *
- * The operating rules have several formulations, which the bits 8-10 of the
- * int Configuration that selects the formulation of ThermalUnitBlock select
- * [see generate_abstract_variables()]: the default one (F1, which the bits
- * TightRules, TightRamp and TightCuts strengthen into F1T), the one by the
- * indicators of the states of the modulations (F0), the
- * modulation-commitment one (F2) and its variant with the ends of the
- * modulations projected out (F3a), the one by the runs of the modulations
- * (F4), and the flows on the label graph of the dynamic program without
- * (F5) and with (F6) the counters of the day, and with the output restricted
- * to a finite set (F7). Each of them is written on top of any formulation of
- * ThermalUnitBlock, of which it only uses \f$ p^{ac}_t \f$, \f$ u_t \f$,
- * \f$ v_t \f$ and \f$ w_t \f$, and all of them describe the same schedules
- * (F7 with a cost that is linear in the output, see there), so that
- * NuclearUnitExtDPSolver, which shares with F5-F7 the labels and the moves of
- * NuclearRules [see NuclearRules.h], is indifferent to the choice; they
- * differ in the strength of their continuous relaxation and in their size
- * [see generate_abstract_constraints()]. The modulation-commitment
- * formulation describes the steps as the status of a second unit, nested
- * inside the instants in which the real one stays on, whose minimum down
- * time is the stability and whose maximum up time is \f$ L^M \f$; hence its
- * rows are those of
- *
- *  L.L. Garver "Power Generation Scheduling by Integer Programming -
- *  Development of Theory" Transactions of the AIEE, Part III 81(3), 730 -
- *  734, 1962
- *
- *  D. Rajan, S. Takriti "Minimum Up/Down Polytopes of the Unit Commitment
- *  Problem with Start-Up Costs" IBM Research Report RC23628, 2005
- *
- *  M. Queyranne, L.A. Wolsey "Tight MIP Formulations for Bounded Up/Down
- *  Times and Interval-Dependent Start-Ups" Mathematical Programming
- *  164(1-2), 129 - 155, 2017
- *
- * written on the instants in which the unit stays on, in the spirit of the
- * state-transition variables of
- *
- *  S. Atakan, G. Lulli, S. Sen "A State Transition MIP Formulation for the
- *  Unit Commitment Problem" IEEE Transactions on Power Systems 33(1), 736 -
- *  748, 2018
- *
- * while its move gives each case its own continuous variable, which is the
- * disjunctive hull of
- *
- *  E. Balas "Disjunctive Programming: Properties of the Convex Hull of
- *  Feasible Points" Discrete Applied Mathematics 89(1-3), 3 - 44, 1998
- *
- * of the windows of the cases. The comparison of the formulations follows
- *
- *  B. Knueven, J. Ostrowski, J.-P. Watson "On Mixed-Integer Programming
- *  Formulations for the Unit Commitment Problem" INFORMS Journal on
- *  Computing 32(4), 857 - 876, 2020, doi:10.1287/ijoc.2019.0944
- *
- * the flows on the label graph are the path formulations of the dynamic
- * program, as those of
- *
- *  T. Bacci, A. Frangioni, C. Gentile, K. Tavlaridis-Gyparakis "New
- *  Mixed-Integer Nonlinear Programming Formulations for the Unit Commitment
- *  Problems with Ramping Constraints" Operations Research 72(5), 2153 -
- *  2167, 2024, doi:10.1287/opre.2023.2435
- *
- * are for a thermal unit, and the restriction of the output to a finite set
- * that contains the outputs of all the vertices is that of
- *
- *  Y. Guan, K. Pan, K. Zhou "Polynomial Time Algorithms and Extended
- *  Formulations for Unit Commitment Problems" IISE Transactions 50(8), 735 -
- *  751, 2018
- *
- * Finally, the reach rows [see NuclearRules::ReachRows] carry to the rules
- * the caps of the output of a run by the ramps from its start-up and to its
- * shut-down of the SU and SD formulations of ThermalUnitBlock, i.e., of
- *
- *  T. Bacci, A. Frangioni, C. Gentile "Start-Up/Shut-Down MINLP
- *  Formulations for the Unit Commitment with Ramp Constraints" Technical
- *  Report R. 20-01, IASI-CNR, Rome, 2020
- *
- * with the reach that the rules allow in place of the full ramps.
- *
  * A unit may shut down during the stability that follows a modulation or a
  * start-up, since the stability forbids only the modulation steps. Also, a
  * modulation ends at the latest at the instant before a shut-down, since
@@ -290,19 +207,7 @@ namespace SMSpp_di_unipi_it
  * - the stability ramps can be changed only from the physical
  *   representation [see set_modulation_ramp_up()], since a change of the
  *   coefficients of the rows via the abstract representation is not
- *   supported (an exception is thrown);
- *
- * - the formulations F2, F3a and F4 need \f$ \Delta^{M-}_t \leq
- *   \tilde\Delta_t \f$ at every instant when the deep decreases exist (a
- *   stable instant is then never a deep decrease), unless the deep decreases
- *   are written by the rows of F1 [see NuclearRules::DeepByF1Rows], and they
- *   throw std::logic_error otherwise; the flows F5 and F6 cannot follow a
- *   change of the data that changes the label graph (a stability ramp down
- *   that crosses the deep gradient, an initial power that moves to another
- *   band, a change of the initial up or down time), and F7, whose outputs
- *   depend on all the data of the output, no change of the data of the
- *   output at all: such a change is refused by std::logic_error, the data
- *   being restored. */
+ *   supported (an exception is thrown). */
 
 
 class NuclearUnitBlock : public ThermalUnitBlock
@@ -312,10 +217,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
 /*--------------------------------------------------------------------------*/
 
  public:
-
-/*------------------------------- FRIENDS ----------------------------------*/
-
- friend class NuclearUnitBlockSolution;  ///< which completes the Variable
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
@@ -333,7 +234,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * Variable and of \f$ O( n \tau^M ) \f$ rows. Both describe the same set of
   * schedules, hence the specialised Solver is indifferent to the choice. */
 
- static constexpr unsigned char TightRules = NuclearRules::TightRules;
+ static constexpr unsigned char TightRules = 32;
 
  /// mask for the 7th bit of the formulation code, == 1 if the tight big-M
  /** With this bit the rows of the full ramp of a modulation use one
@@ -342,7 +243,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * that
   * the two families can be used, and measured, separately. */
 
- static constexpr unsigned char TightRamp = NuclearRules::TightRamp;
+ static constexpr unsigned char TightRamp = 64;
 
  /// mask for the 8th bit of the formulation code, == 1 if the tight rows of
  /// TightRules are separated rather than written
@@ -357,7 +258,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * the rows of the deep decreases, which are \f$ O( n ) \f$, stay where
   * they are. */
 
- static constexpr unsigned char TightCuts = NuclearRules::TightCuts;
+ static constexpr unsigned char TightCuts = 128;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -597,60 +498,9 @@ class NuclearUnitBlock : public ThermalUnitBlock
  *   where the unit has no on predecessor to decrease from.
  *
  * The Configuration parameter is passed to the method of ThermalUnitBlock,
- * which is called first; the bits 0-4 of the same int Configuration select
- * the formulation of the thermal part [see ThermalUnitBlock], and the
- * others that of the operating rules [see NuclearRules and
- * generate_abstract_constraints()]: the bits TightRules (32), TightRamp
- * (64) and TightCuts (128) the tight rows of the default formulation, the
- * bits 8-10 (\f$ 256 k \f$) the formulation, \f$ k = 0 \f$ the default
- * one F1, 1 F0, 2 F2, 3 F3a, 4 F4, 5 F5, 6 F6 and 7 F7, and, for F0, F2, F3a
- * and F4, the bits StartUpStabSingle (2048), DeepByF1Rows (4096) and
- * ReachRows (8192). In the formulations other than the default one the
- * variables \f$ d_t \f$ exist also when the direction does not matter in
- * F0, F2, F3a and F4, whose rows are written by direction (\f$ m^+_t = m_t
- * - d_t \f$ and \f$ m^-_t = d_t \f$ being the upward and downward steps),
- * the variables \f$ s^M_t \f$, \f$ \delta'_t \f$ and \f$ \delta''_t \f$
- * do not exist (save the last two in F0 and with DeepByF1Rows, which write
- * the deep decreases by (29)-(31)), and the following ones are added:
- *
- * - in F0, F2 and F3a, the binary starts \f$ s^+_t \f$, \f$ s^-_t \f$
- *   ("m_start_up_nuclear", "m_start_dn_nuclear") and ends \f$ f^+_{t+1}
- *   \f$, \f$ f^-_{t+1} \f$ ("m_end_up_nuclear", "m_end_dn_nuclear") of the
- *   upward and downward modulations, \f$ f^\pm_{t+1} \f$ being 1 if the
- *   last step of a modulation is at \f$ t \f$ (in F3a only \f$ f^\pm_T
- *   \f$, the others being projected out);
- *
- * - in F2, F3a and F4, the move \f$ \sigma_t \f$ of a stable instant
- *   ("stable_move_nuclear"), the last upward and downward steps \f$
- *   \xi^\pm_t \geq 0 \f$ ("last_step_up_nuclear", "last_step_dn_nuclear")
- *   and, for \f$ t \geq t_0 \f$, the output at a start-up \f$ \pi^{su}_t
- *   \f$ and before a shut-down \f$ \pi^{sd}_t \f$
- *   ("start_up_power_nuclear", "shut_down_power_nuclear"), and, at the
- *   instants \f$ t \in \mathcal{S} \f$ in which a downward step may be a
- *   deep decrease, the binaries \f$ \phi^d_t \f$, \f$ \phi^n_t \f$, \f$
- *   g^d_t \f$, \f$ g^h_t \f$, \f$ g^s_t \f$ and the continuous \f$
- *   \xi^d_t \f$, \f$ \xi^h_t \f$, \f$ \xi^s_t \f$ of the split of the
- *   downward cases (groups "full_deep_nuclear", "full_not_deep_nuclear",
- *   "last_deep_nuclear", "last_high_nuclear", "last_small_nuclear",
- *   "last_deep_step_nuclear", "last_high_step_nuclear" and
- *   "last_small_step_nuclear", one entry per instant of \f$ \mathcal{S}
- *   \f$);
- *
- * - in F4, a binary \f$ z_r \f$ ("run_nuclear") for each modulation \f$ r
- *   \f$ that may happen, i.e., each direction, first step \f$ a_r \f$ not
- *   before the first instant in which a step is not forbidden by the initial
- *   state, and number of steps \f$ k_r \leq L^M \f$ with \f$ e_r = a_r +
- *   k_r - 1 \leq T - 1 \f$, plus, for \f$ e_r = T - 1 \f$ and \f$ k_r
- *   \leq L^M - 1 \f$, the same modulation cut by the horizon;
- *
- * - in F5, F6 and F7, a binary \f$ y_a \f$ ("arc_nuclear") for each arc
- *   \f$ a \f$ of the label graph [see generate_abstract_constraints()] and,
- *   in F5 and F6, the landing output \f$ p^a \geq 0 \f$ of each arc into
- *   an on-node ("arc_power_nuclear") and the departure output \f$ q^a \geq
- *   0 \f$ of each arc out of an on-node but the source
- *   ("arc_departure_nuclear"). These formulations throw std::logic_error if
- *   the unit has the design variable, and F7 if its graph exceeds its limits
- *   (it is meant for small instances). */
+ * which is called first; the bits TightRules, TightRamp and TightCuts of the
+ * same int Configuration select the form of the operating rules [see
+ * generate_abstract_constraints()]. */
 
  void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
@@ -936,182 +786,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * ("DeepDownLink_Nuclear") are added at the instants \f$ t \geq t^\delta \f$
  * with \f$ \tilde\Delta_t > \Delta^{M-}_t \f$, where a deep decrease is
  * larger than what a stable instant allows, hence it is a downward step.
- *
- * The rows above are the default formulation F1 of the operating rules,
- * F1T with the bits TightRules, TightRamp and TightCuts, which concern it
- * only. The other formulations replace all of them but the rows (20), (21),
- * (23)-(26) of the bands and, in F0 and with the bit DeepByF1Rows, the rows
- * (29)-(31) of the deep decreases and their daily limit; the variables are
- * those of generate_abstract_variables(). Let \f$ m^+_t = m_t - d_t \f$ and
- * \f$ m^-_t = d_t \f$ be the upward and downward steps, \f$ \tilde u_t = u_t
- * - v_t \f$ (\f$ u_t \f$ for \f$ t < t_0 \f$) the indicator of an instant in
- * which the unit stays on, \f$ B = \tau^M - 1 \f$ the stability, \f$ \tau^+
- * \f$ the minimum up time and \f$ f^\pm_h \f$, \f$ h = 1 , \ldots , T \f$,
- * the end of a modulation whose last step is at \f$ h - 1 \f$, with \f$
- * m^\pm_{-1} = f^\pm_0 = 0 \f$ (the instants in which the initial state
- * forbids a step having \f$ m_t \f$ fixed to 0). The modulation-commitment
- * formulation F2 has, for \f$ t \in \mathcal{T} \f$ and each direction
- * \f$ \pm \f$, the flow of the starts and of the ends of the steps
- * ("ModulationFlow_Nuclear"), the starts and the ends within the steps
- * ("ModulationStartEnd_Nuclear"), the turn-off row of the stability, for
- * \f$ t \geq 1 \f$ ("ModulationTurnOff_Nuclear"), the longest modulation
- * ("ModulationLength_Nuclear", the second row for a modulation that the
- * horizon cuts) and the steps only within the instants
- * in which the unit stays on ("ModulationOn_Nuclear"):
- * \f{align*}{
- *   & m^\pm_t - m^\pm_{t-1} = s^\pm_t - f^\pm_t , \tag{34} \\
- *   & s^\pm_t \leq m^\pm_t , \quad f^\pm_{t+1} \leq m^\pm_t , \tag{35} \\
- *   & \sum_{ h = \max\{ 1 , t - B + 1 \} }^{ t } ( f^+_h + f^-_h ) + m_t
- *     \leq 1 , \tag{36} \\
- *   & m^\pm_t \leq \sum_{ h = \max\{ 0 , t - L^M + 1 \} }^{ t } s^\pm_h ,
- *     \quad m^\pm_{T-1} - f^\pm_T \leq
- *     \sum_{ h = \max\{ 0 , T - L^M + 1 \} }^{ T - 1 } s^\pm_h , \tag{37} \\
- *   & m_t \leq \tilde u_t , \quad d_t \leq m_t . \tag{38}
- * \f}
- * If \f$ \tau^v \geq 2 \f$, the stability after a start-up is, for
- * \f$ t \geq t_0 \f$ ("StartUpTurnOn_Nuclear"),
- * \f[
- *   \sum_{ h = \max\{ t_0 , t - \tau^v + 1 \} }^{ t } v_h + m_t \leq u_t
- *   \tag{39}
- * \f]
- * if \f$ \tau^v \leq \tau^+ \f$ (the unit is then on throughout the
- * stability), and otherwise, or with the bit StartUpStabSingle, the rows
- * \f$ m_t + v_h \leq 1 \f$ for \f$ \max\{ t_0 , t - \tau^v + 1 \} \leq h < t
- * \f$. The daily limits are those of (28) on the starts
- * \f$ s^+_t + s^-_t \f$ and on the start-ups. The move is exact
- * ("ModulationMove_Nuclear"), each case having its own variable, whose
- * window bounds it ("ModulationCases_Nuclear"):
- * \f{align*}{
- *   & p^{ac}_t - p^{ac}_{t-1} = \sigma_t + \Delta^+_t ( m^+_t - f^+_{t+1} )
- *     + \xi^+_t - \Delta^-_t ( m^-_t - f^-_{t+1} ) - \xi^-_t + \pi^{su}_t -
- *     \pi^{sd}_t , \tag{40} \\
- *   & - \Delta^{M-}_t ( \tilde u_t - m_t ) \leq \sigma_t \leq
- *     \Delta^{M+}_t ( \tilde u_t - m_t ) , \quad
- *     \xi^\pm_t \leq \Delta^\pm_t f^\pm_{t+1} , \tag{41} \\
- *   & P^{mn}_t v_t \leq \pi^{su}_t \leq P^{su}_t v_t , \quad
- *     P^{mn}_{t-1} w_t \leq \pi^{sd}_t \leq P^{sd}_t w_t , \quad
- *     p^{ac}_t \leq P^{su}_t v_t + P^{mx}_t ( u_t - v_t ) , \tag{42}
- * \f}
- * with \f$ P^{mn}_{-1} = p_{-1} \f$, the variables of the start-up and of
- * the shut-down being there for \f$ t \geq t_0 \f$ only. When the deep
- * decreases exist, at the instants \f$ t \in \mathcal{S} \f$ with an on
- * predecessor and \f$ \tilde\Delta_t < \Delta^-_t \f$ a full downward step
- * is deep (\f$ \phi^d_t \f$) or not (\f$ \phi^n_t \f$), and a last one is
- * deep (\f$ g^d_t \f$), large with the output not below the threshold
- * (\f$ g^h_t \f$) or small (\f$ g^s_t \f$) ("DeepSplit_Nuclear",
- * "DeepStep_Nuclear", "DeepLanding_Nuclear"):
- * \f{align*}{
- *   & \phi^d_t + \phi^n_t = m^-_t - f^-_{t+1} , \quad
- *     g^d_t + g^h_t + g^s_t = f^-_{t+1} , \quad
- *     \delta_t = \phi^d_t + g^d_t , \tag{43} \\
- *   & \xi^-_t = \xi^d_t + \xi^h_t + \xi^s_t , \quad
- *     \xi^s_t \leq \tilde\Delta_t g^s_t , \quad
- *     \tilde\Delta_t g^x_t \leq \xi^x_t \leq \Delta^-_t g^x_t
- *     \;\; ( x = d , h ) , \tag{44} \\
- *   & P^{mn}_t ( u_t - \phi^n_t - g^h_t ) + \tilde p_t ( \phi^n_t + g^h_t )
- *     \leq p^{ac}_t \leq \tilde p_t ( \phi^d_t + g^d_t ) + P^{su}_t v_t +
- *     P^{mx}_t ( u_t - v_t - \phi^d_t - g^d_t ) , \tag{45}
- * \f}
- * the last row taking the place of the last one of (42), while
- * \f$ \delta_t = 0 \f$ at the other instants and the daily limit of
- * (28) holds on \f$ \delta_t \f$. This needs \f$ \Delta^{M-}_t \leq
- * \tilde\Delta_t \f$, i.e., a stable instant is never a deep decrease, and
- * std::logic_error is thrown otherwise. With the bands, the end of a
- * modulation is \f$ e_t = f^+_{t+1} + f^-_{t+1} \f$
- * ("ModulationEndDef_Nuclear"), and the rows (20), (21), (23)-(26) follow.
- * F3a is F2 with \f$ f^\pm_h = m^\pm_{h-1} - m^\pm_h + s^\pm_h \f$ for
- * \f$ h < T \f$, which makes (34) an identity and turns (35) into
- * \f$ s^\pm_t \leq m^\pm_t \f$, \f$ m^\pm_{t-1} - m^\pm_t + s^\pm_t \geq 0
- * \f$ and \f$ f^\pm_T \leq m^\pm_{T-1} \f$. F0 has the rows (34)-(39) and
- * the daily limits of F2, the deep decreases by (29)-(31), and the move
- * linear in the indicators of the states ("ModulationMoveSource_Nuclear")
- * \f{align*}{
- *   p^{ac}_t - p^{ac}_{t-1} & \geq \Delta^+_t ( m^+_t - f^+_{t+1} ) -
- *     \Delta^-_t m^-_t - \Delta^{M-}_t ( \tilde u_t - m_t ) -
- *     P^{mx}_{t-1} w_t , \\
- *   p^{ac}_t - p^{ac}_{t-1} & \leq \Delta^+_t m^+_t -
- *     \Delta^-_t ( m^-_t - f^-_{t+1} ) + \Delta^{M+}_t ( \tilde u_t - m_t )
- *     + P^{mx}_t v_t , \tag{46}
- * \f}
- * with \f$ P^{mx}_{-1} = p_{-1} \f$; the source formulation has no
- * stability ramp, and the terms in \f$ \Delta^{M\pm}_t \f$ make it valid
- * with them. F4 writes the steps by the modulations
- * ("RunModulation_Nuclear") and their occupation of the instants
- * ("RunOccupation_Nuclear"):
- * \f[
- *   m_t = \sum_{ r : a_r \leq t \leq e_r } z_r , \quad
- *   d_t = \sum_{ r \text{ down} : a_r \leq t \leq e_r } z_r , \quad
- *   \sum_{ r : a_r \leq t \leq e_r + B } z_r \leq 1 , \tag{47}
- * \f]
- * with \f$ s^\pm_t \f$ the sum of the \f$ z_r \f$ of the modulations in the
- * direction that start at \f$ t \f$ and \f$ f^\pm_{t+1} \f$ that of those
- * that are not cut and end at \f$ t \f$, in the rows (38)-(45) and in the
- * daily limits. With the bit ReachRows, F0, F2, F3a and F4 also have, for
- * \f$ t \in \mathcal{T} \f$ ("ModulationReach_Nuclear"),
- * \f{align*}{
- *   p^{ac}_t & \leq P^{mx}_t u_t - \sum_{ h = \max\{ t_0 , t - \tau^+ + 1 \}
- *     }^{ t } ( P^{mx}_t - \psi^{su}_{h,t} ) v_h , \\
- *   p^{ac}_t & \leq P^{mx}_t u_t - \sum_{ k = \max\{ t_0 , t + 1 \} }^{
- *     \min\{ T - 1 , t + \tau^+ \} } ( P^{mx}_t - \psi^{sd}_{t,k} ) w_k ,
- *     \tag{48}
- * \f}
- * where \f$ \psi^{su}_{h,t} = \min\{ P^{mx}_t , P^{su}_h + R^+_{h,t} \} \f$,
- * \f$ \psi^{sd}_{t,k} = \min\{ P^{mx}_t , P^{sd}_k + R^-_{t,k-1} \} \f$, and
- * \f$ R^+_{h,t} \f$ (\f$ R^-_{t,k-1} \f$) is the largest increase
- * (decrease) of the output from \f$ h \f$ to \f$ t \f$ (from \f$ t \f$ to
- * \f$ k - 1 \f$) that the stability ramps and the modulations of at most
- * \f$ L^M \f$ full ramps, \f$ B \f$ stable instants apart, allow, no step
- * being taken in the \f$ \tau^v \f$ instants that begin with a start-up:
- * a window of \f$ \tau^+ \f$ instants holds at most one start-up (shut-down),
- * and the unit is on from it to \f$ t \f$ (from \f$ t \f$ to it).
- *
- * The flows F5, F6 and F7 are written on the label graph of NuclearRules,
- * whose on-nodes are \f$ ( t , \tau , \ell ) \f$, the run length \f$ \tau
- * \f$ capped at \f$ \tau^+ \f$ and \f$ \ell \f$ the label after \f$ t \f$,
- * and whose off-nodes are \f$ ( t , \kappa , e ) \f$, the off time capped at
- * the minimum down time; the source is the state before the horizon, and
- * the arcs are the moves of NuclearRules::on_moves(), the restarts (past the
- * minimum down time, one per band of the landing output), the shut-downs
- * (past the minimum up time, from a stable label) and the idle instants,
- * those that reach no node at \f$ T - 1 \f$ being pruned. The labels of F5
- * have no counter of the day, whose limits are then the rows (28) on the
- * flows of the arcs that start a modulation, on the start-ups and on the
- * deep decreases. With \f$ y_a \f$ the flow on the arc \f$ a \f$, F5 and F6
- * have one unit of flow out of the source, conserved at every node not at
- * \f$ T - 1 \f$ ("LabelFlow_Nuclear"), the natural variables as flows
- * ("LabelIndicators_Nuclear": \f$ u_t \f$ the flow into the on-nodes at
- * \f$ t \f$, \f$ v_t \f$, \f$ w_t \f$ that on the restarts and shut-downs,
- * \f$ m_t \f$, \f$ d_t \f$, \f$ \delta_t \f$ that on the moves with a step,
- * a downward one, a deep decrease, \f$ b^k_t \f$ that into the on-nodes of
- * band \f$ k \f$ and \f$ e_t \f$ that on the moves that end a modulation),
- * and the output carried by the arcs ("LabelPower_Nuclear",
- * "LabelArcPower_Nuclear", "LabelNodePower_Nuclear"):
- * \f{align*}{
- *   & p^{ac}_t = \sum_{ a \text{ into an on-node at } t } p^a , \quad
- *     \sum_{ a \text{ into } N } p^a = \sum_{ a \text{ out of } N } q^a ,
- *     \tag{49} \\
- *   & - w^-_a y_a \leq p^a - q^a \leq w^+_a y_a , \quad
- *     \alpha_a y_a \leq p^a \leq \beta_a y_a , \quad
- *     P^{mn}_{t-1} y_a \leq q^a \leq P^{mx}_{t-1} y_a , \tag{50}
- * \f}
- * the second row of (49) at each on-node \f$ N \f$ not at \f$ T - 1 \f$,
- * where \f$ [ - w^-_a , w^+_a ] \f$ is the window of the move and
- * \f$ [ \alpha_a , \beta_a ] \f$ its range intersected with
- * \f$ [ P^{mn}_t , P^{mx}_t ] \f$ (with \f$ [ P^{mn}_t , P^{su}_t ] \f$ for
- * a restart, which has no \f$ q^a \f$), \f$ q^a \leq P^{sd}_t y_a \f$ on a
- * shut-down, and \f$ q^a = p_{-1} y_a \f$ on the arcs out of the source.
- * F7 restricts the output at \f$ t \f$ to the finite set \f$ Q_t \f$ of the
- * anchors of the instants (\f$ P^{mn} \f$, \f$ P^{mx} \f$, \f$ P^{su} \f$,
- * \f$ P^{sd} \f$, \f$ \tilde p \f$, the breakpoints of the bands, \f$ p_{-1}
- * \f$) moved by the ends of the windows of the moves forwards and backwards
- * within the bounds, its on-nodes being \f$ ( t , \tau , \ell , q ) \f$ with
- * \f$ q \in Q_t \f$ and its arcs those that the windows and the ranges
- * allow between two outputs; it has no output on the arcs, \f$ p^{ac}_t \f$
- * being \f$ \sum_a q_a y_a \f$ over the arcs into the on-nodes at \f$ t \f$,
- * \f$ q_a \f$ the output of the head. Its continuous relaxation describes
- * the convex hull of the schedules, hence it has the optimum when the cost
- * is linear in the output; with a quadratic cost it may only be an upper
- * bound, an optimal output need not be in \f$ Q_t \f$.
  *
  * The rows are written by build_rows(), after those of ThermalUnitBlock,
  * and the Configuration parameter is that of
@@ -1626,15 +1300,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * (20)-(26). If no such sequence exists, which happens only for a schedule
   * that is not feasible, each on instant gets the lowest band that contains
   * its output, so that the rows the schedule breaks are the ones that say
-  * why. In the formulations of the rules other than the default one, the
-  * direction of a step where it does not matter is set by the sign of its
-  * move, and the variables of the formulation follow: the starts and the
-  * ends of the modulations (the end at \f$ T - 1 \f$ as \f$ e_{T-1} \f$
-  * above), the variable of the case of each instant in the move and the
-  * split of the downward cases (F2, F3a, F4), the modulations of F4, and
-  * the path of the schedule in the label graph, with its output on the
-  * arcs (F5, F6, F7; all the flows are 0 if the schedule is not a path of
-  * the graph, e.g., an output of F7 that is not in \f$ Q_t \f$). */
+  * why. */
 
  void set_solution( void ) override;
 
@@ -1719,114 +1385,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * relaxation only. */
 
  void generate_operating_rules( void );
-
- /// the rows of the bands of the output, (20)-(26)
- /** Writes the rows (20)-(26) of generate_abstract_constraints(), and,
-  * if \p end_link, the rows (22) that define the ends \f$ e_t \f$ of the
-  * modulations from \f$ m_t \f$; the formulations of the rules other than
-  * the default one define \f$ e_t \f$ by the ends of their modulations
-  * instead. */
-
- void build_band_rows( bool end_link );
-
- /// the rows (29)-(32) of the deep decreases and their daily limit
- void build_deep_rows_f1( const std::vector< std::pair< Index , Index > > &
-                          days );
-
- /// the days, as [ first , past-the-end ) intervals of instants
- std::vector< std::pair< Index , Index > > day_ranges( void ) const;
-
- /// the variables of the formulations of the rules but the default one
- void generate_form_variables( void );
-
- /// the rows of the formulations of the rules but the default one
- void build_form_rows( void );
-
- /// the rows of F0, F2, F3a and F4
- void build_compact_rows( void );
-
- /// the rows of F5, F6 and F7
- void build_graph_rows( void );
-
- /// the operating rules of the unit, as NuclearRules [see there], with the
- /// counters of the day only if \p counters
- NuclearRules rules_of( bool counters ) const;
-
- /// the next group of rows of the formulations of the rules but the default
- /// one: a new one while the rows are generated, the same one again while
- /// they are compared [see ThermalUnitBlock::update_rows()]
- std::vector< FRowConstraint > & form_group( void );
-
- /// the rows of a group, each as its terms and its two sides, before they
- /// are written [see add_form_rows()]
- using StagedRows = std::vector< std::tuple< LinearFunction::v_coeff_pair ,
-                                             double , double > >;
-
- /// writes \p rows in the next group of rows [see form_group()] and
- /// registers it with \p name, if it has any row: the group is sized
- /// before the rows are written, so that no row moves
- void add_form_rows( StagedRows && rows , std::string && name );
-
-/*--------------------------------------------------------------------------*/
- /// a node of the label graph of F5, F6 and F7
- /** The node of an on-state ( \p on ) or of an off-state at \p t, with the
-  * run-length (or the off time) \p tau, capped at the minimum up (down)
-  * time, and the label \p lab of NuclearRules; \p q is the index of the
-  * output in \f$ Q_t \f$ in F7, -1 otherwise. The source is the node at
-  * \p t = -1, the state before the horizon. */
- struct LGNode {
-  int t;
-  bool on;
-  Index tau;
-  Index lab;
-  int q;
-  };
-
- /// an arc of the label graph of F5, F6 and F7
- /** From the node \p from at \p t - 1 to the node \p to at \p t:
-  * \p kind is 0 for a move, 1 for a restart, 2 for a shut-down and 3 for an
-  * idle instant; for a move, \p tag is that of NuclearRules::on_moves(),
-  * \p start and \p ends say whether it starts and ends a modulation, and
-  * [ - \p wdn , \p wup ] is its window; [ \p lo , \p hi ] is the range
-  * of the landing power that the rules give (the band of a restart),
-  * \p band the band of the landing label, and \p pland and \p pdep are
-  * the positions of the landing and departure power of the arc in F5 and
-  * F6, -1 if there is none. */
- struct LGArc {
-  Index from;
-  Index to;
-  char kind;
-  Index t;
-  int tag;
-  bool start;
-  bool ends;
-  Index band;
-  double wup;
-  double wdn;
-  double lo;
-  double hi;
-  int pland;
-  int pdep;
-  };
-
- /// builds the label graph of F5, F6 or F7 from the current data
- /** Fills \p nodes and \p arcs with the graph of the formulation of the
-  * rules, pruned of the nodes that reach no node at the last instant, and,
-  * for F7, \p Q with the outputs \f$ Q_t \f$; throws std::logic_error if
-  * the graph is larger than the limit of the formulation. */
- void build_label_graph( std::vector< LGNode > & nodes ,
-                         std::vector< LGArc > & arcs ,
-                         std::vector< std::vector< double > > & Q ) const;
-
- /// the values of the auxiliary Variable of the formulation of the rules
- /** Called by set_solution(): from the active power, the commitment, the
-  * modulation steps and their directions, the deep decreases and the bands,
-  * sets the Variable of the formulation of the rules [see
-  * set_solution()]. */
- void set_form_solution( void );
-
- /// the path of the label graph of a schedule, empty if there is none
- std::vector< Index > label_graph_path( void ) const;
 
  /// separate the tight rows of the operating rules
  /** Adds the tight rows of TightRules that the current values of the
@@ -1976,49 +1534,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// which of the tight rows have been separated already, three per instant
  std::vector< char > v_cut_done;
 
- /// the formulation of the operating rules [see NuclearRules::FormMsk]
- int f_rules_form = NuclearRules::F1Form;
-
- /// true if the stability after a start-up is written by the rows of single
- /// instants [see NuclearRules::StartUpStabSingle]
- bool f_stab_single = false;
-
- /// true if the deep decreases are written by the rows of the default
- /// formulation [see NuclearRules::DeepByF1Rows]
- bool f_deep_f1 = false;
-
- /// true if the reach rows are written [see NuclearRules::ReachRows]
- bool f_reach = false;
-
- /// the instants at which F2, F3a and F4 split the downward cases for the
- /// deep decreases
- std::vector< Index > v_split_t;
-
- /// a modulation of F4: its direction (1 downwards), its first step, its
- /// number of steps and whether the horizon cuts it
- struct ModRun {
-  int dn;
-  Index a;
-  Index k;
-  bool cut;
-  };
-
- /// the modulations of F4, one per Variable of v_run
- std::vector< ModRun > v_runs;
-
- /// the nodes of the label graph of F5, F6 and F7
- std::vector< LGNode > v_lg_nodes;
-
- /// the arcs of the label graph of F5, F6 and F7
- std::vector< LGArc > v_lg_arcs;
-
- /// the outputs \f$ Q_t \f$ of F7
- std::vector< std::vector< double > > v_lg_q;
-
- /// the position of the next group of rows in v_form_rows while the rows
- /// are compared [see form_group()]
- Index f_form_group = 0;
-
 //----------------------------- Variable ------------------------------------
 
  /// the modulation (binary) variables
@@ -2041,49 +1556,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
  std::vector< ColVariable > v_deep;
  std::vector< ColVariable > v_deep_drop;
  std::vector< ColVariable > v_deep_low;
-
- /// the starts \f$ s^+_t \f$, \f$ s^-_t \f$ of the upward and downward
- /// modulations (F0, F2, F3a)
- std::vector< ColVariable > v_mod_start_up;
- std::vector< ColVariable > v_mod_start_dn;
-
- /// the ends \f$ f^+_{t+1} \f$, \f$ f^-_{t+1} \f$ of the upward and
- /// downward modulations whose last step is at \f$ t \f$, in position
- /// \f$ t \f$ (F0, F2), only \f$ f^\pm_T \f$ in F3a
- std::vector< ColVariable > v_mod_end_up;
- std::vector< ColVariable > v_mod_end_dn;
-
- /// the move \f$ \sigma_t \f$ of a stable instant, the last steps
- /// \f$ \xi^\pm_t \f$, the output at a start-up \f$ \pi^{su}_t \f$
- /// and before a shut-down \f$ \pi^{sd}_t \f$ (F2, F3a, F4; the last
- /// two for \f$ t \geq t_0 \f$, in position \f$ t - t_0 \f$)
- std::vector< ColVariable > v_stable_move;
- std::vector< ColVariable > v_last_up;
- std::vector< ColVariable > v_last_dn;
- std::vector< ColVariable > v_start_power;
- std::vector< ColVariable > v_stop_power;
-
- /// the split of the downward cases for the deep decreases at the instants
- /// of v_split_t: \f$ \phi^d \f$, \f$ \phi^n \f$, \f$ g^d \f$,
- /// \f$ g^h \f$, \f$ g^s \f$ and \f$ \xi^d \f$, \f$ \xi^h \f$,
- /// \f$ \xi^s \f$ (F2, F3a, F4)
- std::vector< ColVariable > v_full_deep;
- std::vector< ColVariable > v_full_nodeep;
- std::vector< ColVariable > v_last_deep;
- std::vector< ColVariable > v_last_high;
- std::vector< ColVariable > v_last_small;
- std::vector< ColVariable > v_xi_deep;
- std::vector< ColVariable > v_xi_high;
- std::vector< ColVariable > v_xi_small;
-
- /// the modulations \f$ z_r \f$ of F4 [see v_runs]
- std::vector< ColVariable > v_run;
-
- /// the flows \f$ y_a \f$ on the arcs of the label graph (F5, F6, F7), the
- /// landing and the departure power of the arcs (F5, F6)
- std::vector< ColVariable > v_arc;
- std::vector< ColVariable > v_arc_land;
- std::vector< ColVariable > v_arc_dep;
 
 //---------------------------- Constraint -----------------------------------
 
@@ -2162,10 +1634,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
  /// the tight rows that have been separated [see TightCuts]
  std::list< FRowConstraint > Nuclear_cuts;
-
- /// the groups of rows of the formulations of the rules other than the
- /// default one, in the order in which they are written
- std::deque< std::vector< FRowConstraint > > v_form_rows;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

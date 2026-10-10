@@ -15,33 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a `NuclearUnitBlock`, with and without bands, against
   `NuclearUnitExtDPSolver`
 
-- `NuclearUnitBlock` has seven more formulations of its operating rules,
-  selected by bits 8-10 of the int `Configuration` that selects the
-  formulation of the thermal part (`NuclearRules::FormMsk`): the one by the
-  indicators of the states of the modulations (F0), the
-  modulation-commitment one with the exact move of the output (F2) and its
-  variant with the ends projected out (F3a), the one by the runs of the
-  modulations (F4), and the flows on the label graph of the dynamic program
-  without (F5) and with (F6) the counters of the day and with the output
-  restricted to a finite set (F7); for F0, F2, F3a and F4 the bits
-  `StartUpStabSingle`, `DeepByF1Rows` and `ReachRows` select the stability
-  after a start-up by single instants, the deep decreases by the rows of the
-  default formulation and the rows of the reach of the output from a
-  start-up and towards a shut-down; every formulation is written on top of
-  any formulation of `ThermalUnitBlock` and is kept up to date by its
-  setters, or refuses the change
-
-- `NuclearRules.h`: the codes of the formulations of the operating rules,
-  their data, the labels of the states and the moves out of them, which
-  `NuclearUnitExtDPSolver` and the flows on the label graph share
-
-- the unit test checks every formulation of the operating rules against
-  `NuclearUnitExtDPSolver` (the edge cases of the rules and random data),
-  the chain of their continuous relaxations, the convex hull of the move of
-  F2 and the setters after the generation (`NUBCfg-T-F*.txt`,
-  `NUBCfg-T-TR-TM.txt`), that a `compute()` of `NuclearUnitExtDPSolver`
-  that throws leaves the Solver usable, and its value after a change of
-  `InitialPower` against a fresh unit
+- the unit test checks that a `compute()` of `NuclearUnitExtDPSolver` that
+  throws leaves the Solver usable, its value after a change of
+  `InitialPower` against a fresh unit, the rows that forbid a modulation
+  step at a start-up instant and the tolerance of
+  `NuclearUnitBlock::is_feasible()`
 
 ### Fixed
 
@@ -109,9 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the tolerance it is given, and no longer with the default one of
   `Block`
 
-- `NuclearUnitBlock::get_Solution()` saves the two auxiliary indicators of
-  the deep decreases only if the unit has them
-
 - `compute()` of `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver` (and so
   of `NuclearUnitExtDPSolver`) releases the mutex of the Solver also when it
   throws, e.g., on a fixed Variable whose value the dynamic program refuses,
@@ -153,12 +128,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DP formulation of `ThermalUnitBlock` find the commitment and the cut
   variable of the run without scanning all the runs and all the cuts for
   each row (the same rows)
-
-- `NuclearUnitExtDPSolver` takes the labels of its states and the moves out
-  of them from `NuclearRules` (the same values and schedules as before); the
-  bands and the deep decreases of `NuclearUnitBlock` are written by
-  `build_band_rows()` and `build_deep_rows_f1()`, which the formulations of
-  the rules share
 
 ## [0.10.0] - 2026-10-09
 

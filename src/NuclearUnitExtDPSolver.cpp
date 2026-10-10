@@ -71,34 +71,36 @@ void NuclearUnitExtDPSolver::load_parameters( void )
 
  auto b = static_cast< NuclearUnitBlock * >( f_Block );
 
- // the data of the operating rules [see NuclearRules]
- auto & r = f_rules;
- r.time_horizon = time_horizon;
- r.mod_interval = b->get_modulation_interval();
- r.init_modulation = int( b->get_initial_modulation() );
- r.mod_ramp_up = b->get_modulation_ramp_up();
- r.mod_ramp_down = b->get_modulation_ramp_down();
+ f_mod_interval = b->get_modulation_interval();
+ f_init_modulation = int( b->get_initial_modulation() );
+ mod_ramp_up = b->get_modulation_ramp_up();
+ mod_ramp_down = b->get_modulation_ramp_down();
 
- r.max_mod_length = std::max( b->get_max_modulation_length() , Index( 1 ) );
- r.stab_start = b->get_stability_after_start_up();
- r.bands = b->get_power_bands();
- r.mod_per_day = b->get_modulations_per_day();
- r.deep_per_day = b->get_deep_decreases_per_day();
- r.starts_per_day = b->get_start_ups_per_day();
- r.day_length = b->get_day_length();
- r.direction = b->has_modulation_direction();
- r.down_cost = b->get_down_modulation_cost();
- r.deep_thr = b->get_deep_decrease_threshold();
- r.deep_grad = b->get_deep_decrease_gradient();
- r.deep_cost = b->get_deep_decrease_cost();
- r.inf = TUEDPINF;
+ f_max_mod_length = std::max( b->get_max_modulation_length() , Index( 1 ) );
+ f_stab_start = b->get_stability_after_start_up();
+ f_bands = b->get_power_bands();
+ f_mod_per_day = b->get_modulations_per_day();
+ f_deep_per_day = b->get_deep_decreases_per_day();
+ f_starts_per_day = b->get_start_ups_per_day();
+ f_day_length = b->get_day_length();
+ f_direction = b->has_modulation_direction();
+ f_down_cost = b->get_down_modulation_cost();
+ f_deep_thr = b->get_deep_decrease_threshold();
+ f_deep_grad = b->get_deep_decrease_gradient();
+ f_deep_cost = b->get_deep_decrease_cost();
 
  if( ! owned )
   f_Block->read_unlock();
 
  // the sizes of the parts of the labels: the (mode, lockout or steps)
  // pairs, and the ranges of the counters that are limited
- r.set_sizes();
+ f_ncore = lockout_max() + 1 + 2 * ( f_max_mod_length - 1 );
+ f_nc = ( f_mod_per_day >= 0 ) ? Index( f_mod_per_day ) + 1 : 1;
+ f_na = ( ( ! f_deep_thr.empty() ) && ( f_deep_per_day >= 0 ) )
+        ? Index( f_deep_per_day ) + 1 : 1;
+ f_nv = ( f_starts_per_day >= 0 ) ? Index( f_starts_per_day ) + 1 : 1;
+ f_nband = f_bands.empty() ? 1 : 3;
+ f_ncount = f_nband * f_nc * f_na * f_nv;
 
  }  // end( NuclearUnitExtDPSolver::load_parameters )
 
@@ -159,9 +161,9 @@ void NuclearUnitExtDPSolver::load_fixings( void )
     f[ t ] = ( val > 0.5 ) ? 1 : 0;
     }
   };
- scan( b->get_const_modulation() , f_rules.fix_mod );
- scan( b->get_const_modulation_down() , f_rules.fix_down );
- scan( b->get_const_deep_decrease() , f_rules.fix_deep );
+ scan( b->get_const_modulation() , f_fix_mod );
+ scan( b->get_const_modulation_down() , f_fix_down );
+ scan( b->get_const_deep_decrease() , f_fix_deep );
 
  // the other Variable of the rules the labels do not read, hence their
  // fixings cannot be honored, save the structural ones at 0 of the first
@@ -186,7 +188,7 @@ void NuclearUnitExtDPSolver::load_fixings( void )
  // row bounds it from above, save (32) of the tight rules): it is not a
  // move of the DP, which only has the decreases that are deep, hence it is
  // refused rather than solved as a stricter problem
- if( std::any_of( f_rules.fix_deep.begin() , f_rules.fix_deep.end() ,
+ if( std::any_of( f_fix_deep.begin() , f_fix_deep.end() ,
                   []( signed char f ) { return( f > 0 ); } ) )
   throw( std::logic_error( "NuclearUnitExtDPSolver::load_fixings: a deep "
                            "decrease Variable fixed to 1 is not supported" ) );
@@ -197,14 +199,14 @@ void NuclearUnitExtDPSolver::load_fixings( void )
  // start-up, which cannot happen at that instant either]
  bool forced = false;
  for( Index t = 0 ; t < time_horizon ; ++t )
-  forced |= f_rules.on_forced( t );
+  forced |= on_forced( t );
  if( forced ) {
   if( nxt_on.size() != time_horizon + 1 ) {
    nxt_on.assign( time_horizon + 1 , time_horizon );
    nxt_off.assign( time_horizon + 1 , time_horizon );
    }
   for( Index t = time_horizon ; t-- > 0 ; )
-   if( f_rules.on_forced( t ) )
+   if( on_forced( t ) )
     nxt_on[ t ] = t;
    else
     if( nxt_on[ t ] != t )
@@ -225,6 +227,325 @@ bool NuclearUnitExtDPSolver::reads_group( const std::string & name ) const
 
  return( ThermalUnitExtDPSolver::reads_group( name ) ||
          ( std::find( read.begin() , read.end() , name ) != read.end() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- THE LABELS OF THE STATES -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+// The lockout entering t = 0: the unit last modulated InitModulation
+// instants before 0, hence it is locked out for tau^M - InitModulation more
+// instants (none if that is not positive).
+
+NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::init_label( void ) const
+{
+ // the stable state with the initial lockout, no count yet and the band of
+ // the initial output, as an on-code; where it is needed as an off-state
+ // it is read through shut_label(), which drops the band and encodes it as
+ // an off-code [see ThermalUnitExtDPSolver::run_DP()]. The lockout the unit
+ // enters the horizon with comes
+ // from the last modulation, hence from tau^M, and not from the largest
+ // lockout a label may carry, which the stability after a start-up may
+ // have made larger
+ const Index L = mod_lockout() + 1;
+ const Index im = ( f_init_modulation > 0 ) ? Index( f_init_modulation )
+                                            : Index( 0 );
+ Label l;
+ l.mode = 0;
+ l.lk = ( im < L ) ? L - im : Index( 0 );
+ l.c = l.a = l.s = 0;
+ l.b = band_of( initial_power );
+ return( on_code( l ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Label NuclearUnitExtDPSolver::on_label( Index lab )
+ const
+{
+ Label l;
+ Index core = lab % f_ncore;
+ Index cnt = lab / f_ncore;
+ const Index B = lockout_max();
+ if( core <= B ) {
+  l.mode = 0;
+  l.lk = core;
+  }
+ else {
+  core -= B;                                // 1 .. 2 ( L^M - 1 )
+  l.mode = ( core < f_max_mod_length ) ? 1 : 2;
+  l.lk = ( l.mode == 1 ) ? core : core - ( f_max_mod_length - 1 );
+  }
+ l.b = cnt % f_nband;
+ cnt /= f_nband;
+ l.c = cnt % f_nc;
+ cnt /= f_nc;
+ l.a = cnt % f_na;
+ l.s = cnt / f_na;
+ return( l );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Label NuclearUnitExtDPSolver::off_label( Index e )
+ const
+{
+ Label l;
+ const Index L = lockout_max() + 1;
+ l.mode = 0;
+ l.lk = e % L;
+ Index cnt = e / L;
+ l.b = cnt % f_nband;
+ cnt /= f_nband;
+ l.c = cnt % f_nc;
+ cnt /= f_nc;
+ l.a = cnt % f_na;
+ l.s = cnt / f_na;
+ return( l );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::shut_label(
+                                               Index t , Index lab ) const
+{
+ Label l = on_label( lab );
+ if( l.mode != 0 )                    // no shut-down during a modulation
+  return( NO_LABEL );
+ l.b = 0;              // an off unit has no output, hence no band
+ return( off_code( l ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::idle_label(
+                                        Index t , Index e , Index k ) const
+{
+ Label l = off_label( e );
+ l.lk = ( l.lk > k ) ? l.lk - k : 0;
+ if( day( t + k ) != day( t ) )
+  l.c = l.a = l.s = 0;
+ return( off_code( l ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitExtDPSolver::start_labels( Index t , Index e ,
+    std::vector< std::pair< Index , std::pair< double , double > > > & ls )
+ const
+{
+ ls.clear();
+ const Index lab = start_label( t , e );
+ if( lab == NO_LABEL )
+  return;
+ if( f_bands.empty() ) {          // one label over the whole range
+  ls.push_back( { lab , { - TUEDPINF , TUEDPINF } } );
+  return;
+  }
+ // one label per band, each over the range of its own band: which band a
+ // unit restarts in is decided by the power it restarts at
+ Label l = on_label( lab );
+ for( Index b = 0 ; b < f_nband ; ++b ) {
+  l.b = b;
+  ls.push_back( { on_code( l ) ,
+                  { b ? f_bands[ b - 1 ] : - TUEDPINF ,
+                    ( b + 1 < f_nband ) ? f_bands[ b ] : TUEDPINF } } );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+NuclearUnitExtDPSolver::Index NuclearUnitExtDPSolver::start_label(
+                                                   Index t , Index e ) const
+{
+ if( on_forced( t ) )                 // a modulation fixed at t: m_t <= 1 - v_t
+  return( NO_LABEL );
+ Label l = off_label( e );
+ if( ( f_starts_per_day >= 0 ) && ( l.s >= Index( f_starts_per_day ) ) )
+  return( NO_LABEL );                 // the start-ups of the day are over
+ if( f_nv > 1 )
+  ++l.s;
+ // no modulation at a start-up, and none for the A - 1 instants that
+ // follow it either, which is the lockout the restart is born with
+ l.lk = std::max( l.lk ? l.lk - 1 : Index( 0 ) ,
+                  f_stab_start ? f_stab_start - 1 : Index( 0 ) );
+ if( day( t + 1 ) != day( t ) )
+  l.c = l.a = l.s = 0;
+ return( on_code( l ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool NuclearUnitExtDPSolver::label_dominates( Index a , Index b ) const
+{
+ const Label la = on_label( a );
+ const Label lb = on_label( b );
+ // two labels of different bands are not comparable: the band says where
+ // the output is, not how much history the unit carries
+ return( ( la.mode == lb.mode ) && ( la.b == lb.b ) && ( la.lk <= lb.lk ) &&
+         ( la.c <= lb.c ) && ( la.a <= lb.a ) && ( la.s <= lb.s ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// The moves out of an on-state with label lab at t - 1 [see the table in the
+// header]. The ramps of the ThermalUnitBlock and those of the modulation for
+// the step t-1 -> t are indexed by t (the step from the initial state into
+// t = 0 by 0); the window of a stable instant is the intersection of the
+// two, and a step of a modulation moves by the ramp of the ThermalUnitBlock.
+// The tag of a move has bit 0 for a modulation step, bit 1 for a downward
+// one and bit 2 for a deep decrease.
+
+void NuclearUnitExtDPSolver::on_moves( Index t , Index lab ,
+                                      std::vector< OnMove > & mv ) const
+{
+ const double ru = delta_ramp_up[ t ];     // the full ramps of the step,
+ const double rd = delta_ramp_down[ t ];   // which are the window of a
+ const double fu = ru;                     // modulation step (wu, wd) and
+ const double fd = rd;                     // the move of a step that is not
+ const double wu = ru;                     // the last one (fu, fd)
+ const double wd = rd;
+ const double cdn = f_down_cost.empty() ? 0.0 : f_down_cost[ t ];
+ const bool deep = ! f_deep_thr.empty();
+ const Index B = mod_lockout();      // what a modulation leaves behind
+ const bool newday = ( t + 1 < time_horizon ) && ( day( t + 1 ) != day( t ) );
+
+ const Label from = on_label( lab );
+
+ // a fixed Variable of the operating rules [see load_fixings()] admits only
+ // the moves that agree with it: bit 0 of the tag of a move says that it is
+ // a modulation step, bit 1 that it goes downwards and bit 2 that it is a
+ // deep decrease
+ auto agree = [ & ]( const std::vector< signed char > & f , bool what ) {
+  return( f.empty() || ( f[ t ] < 0 ) || ( ( f[ t ] > 0 ) == what ) );
+  };
+ const bool no_deep = agree( f_fix_deep , false );
+ const bool yes_deep = agree( f_fix_deep , true );
+
+ // the range of the output in each band: the bands only exist if the two
+ // breakpoints are there, otherwise there is the one range of everything
+ auto band_lo = [ & ]( Index b ) {
+  return( f_bands.empty() || ( b == 0 ) ? - TUEDPINF : f_bands[ b - 1 ] );
+  };
+ auto band_hi = [ & ]( Index b ) {
+  return( f_bands.empty() || ( b + 1 >= f_nband ) ? TUEDPINF : f_bands[ b ] );
+  };
+
+ // append the move landing in label to, whose landing power is restricted
+ // to [ lo , hi ], splitting it for the deep decrease if its window reaches
+ // a decrease of the deep-decrease gradient
+ auto emit = [ & ]( Label to , double w_up , double w_dn , double cost ,
+                    int tag , double lo = - TUEDPINF ,
+                    double hi = TUEDPINF ) {
+  if( newday )
+   to.c = to.a = to.s = 0;
+  if( ( ! agree( f_fix_mod , tag & 1 ) ) ||
+      ( ! agree( f_fix_down , tag & 2 ) ) )
+   return;
+  if( ( ! deep ) || ( w_dn < f_deep_grad[ t ] - 1e-9 ) ) {
+   if( no_deep )
+    mv.push_back( { on_code( to ) , w_up , w_dn , cost , lo , hi , tag } );
+   return;
+   }
+  const double dg = f_deep_grad[ t ];
+  const double th = f_deep_thr[ t ];
+  const double wu_deep = std::min( w_up , - dg );
+  // a decrease of at least the gradient to at most the threshold: deep
+  if( yes_deep && ( ( f_deep_per_day < 0 ) ||
+                    ( from.a < Index( f_deep_per_day ) ) ) ) {
+   Label td = to;
+   if( ( f_na > 1 ) && ( ! newday ) )
+    ++td.a;
+   mv.push_back( { on_code( td ) , wu_deep , w_dn ,
+                   cost + ( f_deep_cost.empty() ? 0.0 : f_deep_cost[ t ] ) ,
+                   lo , std::min( hi , th ) , tag | 4 } );
+   }
+  if( ! no_deep )      // the deep decrease is imposed: nothing else is left
+   return;
+  // the same decrease to at least the threshold
+  mv.push_back( { on_code( to ) , wu_deep , w_dn , cost ,
+                  std::max( lo , th ) , hi , tag } );
+  // a decrease of at most the gradient (or an increase)
+  if( w_up >= - dg - 1e-9 )
+   mv.push_back( { on_code( to ) , w_up , std::min( w_dn , dg ) , cost ,
+                   lo , hi , tag } );
+  };
+
+ const bool can_count = ( f_mod_per_day < 0 ) ||
+                        ( from.c < Index( f_mod_per_day ) );
+ Label counted = from;
+ if( f_nc > 1 )
+  ++counted.c;
+
+ // with the bands a modulation moves to an adjacent one, hence the two
+ // directions never share a move, and the landing power of a stable
+ // instant and of the last step of a modulation is that of a band
+ const bool banded = ! f_bands.empty();
+ const bool split = f_direction || banded;
+
+ if( from.mode == 0 ) {                          // stable
+  Label st = from;
+  st.lk = from.lk ? from.lk - 1 : 0;
+  emit( st , std::min( ru , mod_ramp_up[ t ] ) ,
+        std::min( rd , mod_ramp_down[ t ] ) , 0.0 , 0 ,
+        band_lo( from.b ) , band_hi( from.b ) );
+  if( ( from.lk == 0 ) && can_count ) {          // start a modulation
+   Label end = counted;
+   end.mode = 0;
+   end.lk = B;
+   const bool can_up = ( ! banded ) || ( from.b + 1 < f_nband );
+   const bool can_dn = ( ! banded ) || ( from.b > 0 );
+   Label eu = end , ed = end;
+   if( banded ) {
+    eu.b = from.b + 1;
+    ed.b = from.b ? from.b - 1 : 0;
+    }
+   if( ! split )                                 // the two merged
+    emit( end , wu , wd , 0.0 , 1 );
+   else {
+    if( can_up )                                         // up, ends
+     emit( eu , wu , 0.0 , 0.0 , 1 , band_lo( eu.b ) , band_hi( eu.b ) );
+    if( can_dn )                                         // down, ends
+     emit( ed , 0.0 , wd , cdn , 3 , band_lo( ed.b ) , band_hi( ed.b ) );
+    }
+   if( f_max_mod_length > 1 ) {                  // up / down, continues
+    // a step that is not the last one keeps the output in the band the
+    // modulation starts from, which the label carries until it lands
+    Label go = counted;
+    go.lk = 1;
+    if( can_up ) {
+     go.mode = 1;
+     emit( go , fu , - fu , 0.0 , 1 , band_lo( from.b ) , band_hi( from.b ) );
+     }
+    if( can_dn ) {
+     go.mode = 2;
+     emit( go , - fd , fd , cdn , 3 , band_lo( from.b ) , band_hi( from.b ) );
+     }
+    }
+   }
+  return;
+  }
+
+ // in the middle of a modulation: continue it, the output staying in the
+ // band the modulation left (which the label carries), or end it, landing
+ // in the band next to that one
+ Label end = from;
+ end.mode = 0;
+ end.lk = B;
+ if( banded )
+  end.b = ( from.mode == 1 ) ? from.b + 1 : ( from.b ? from.b - 1 : 0 );
+ Label go = from;
+ ++go.lk;
+ if( from.mode == 1 ) {                          // upward
+  if( go.lk < f_max_mod_length )
+   emit( go , fu , - fu , 0.0 , 1 , band_lo( from.b ) , band_hi( from.b ) );
+  emit( end , wu , 0.0 , 0.0 , 1 , band_lo( end.b ) , band_hi( end.b ) );
+  }
+ else {                                          // downward
+  if( go.lk < f_max_mod_length )
+   emit( go , - fd , fd , cdn , 3 , band_lo( from.b ) , band_hi( from.b ) );
+  emit( end , 0.0 , wd , cdn , 3 , band_lo( end.b ) , band_hi( end.b ) );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -249,7 +570,7 @@ Solution * NuclearUnitExtDPSolver::get_Solution( Configuration * solc )
            ? 1 : 0;
  sol->set_modulation( std::move( m ) );
 
- if( f_rules.direction ) {
+ if( f_direction ) {
   std::vector< double > d( time_horizon );
   for( Index i = 0 ; i < time_horizon ; ++i )
    d[ i ] = ( built && U[ i ] && ( U_move[ i ] >= 0 ) && ( U_move[ i ] & 2 ) )
@@ -301,24 +622,20 @@ void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
 
  // the deep decrease and its two auxiliaries (a decrease by more than the
  // gradient, an output below the threshold) out of the recovered schedule,
- // at the instants with an on predecessor; the auxiliaries exist in the
- // default formulation of the rules only
+ // at the instants with an on predecessor
  if( auto dd = b->get_deep_decrease() ) {
   auto ddrop = b->get_deep_drop();
   auto dlow = b->get_deep_low();
   for( Index i = 0 ; i < time_horizon ; ++i ) {
-   dd[ i ].set_value( tag( i , 4 ) );
-   if( ( ! ddrop ) || ( ! dlow ) )
-    continue;
    const bool on_pred = built && U[ i ] &&
                         ( i ? bool( U[ i - 1 ] ) : ( init_up_down_time > 0 ) );
    const double prev = i ? P[ i - 1 ] : initial_power;
    const double tol = 1e-7 * std::max( 1.0 , std::abs( P[ i ] ) );
+   dd[ i ].set_value( tag( i , 4 ) );
    ddrop[ i ].set_value( ( on_pred &&
-                           ( prev - P[ i ] > f_rules.deep_grad[ i ] + tol ) )
+                           ( prev - P[ i ] > f_deep_grad[ i ] + tol ) )
                          ? 1 : 0 );
-   dlow[ i ].set_value( ( on_pred &&
-                          ( P[ i ] < f_rules.deep_thr[ i ] - tol ) )
+   dlow[ i ].set_value( ( on_pred && ( P[ i ] < f_deep_thr[ i ] - tol ) )
                         ? 1 : 0 );
    }
   }
