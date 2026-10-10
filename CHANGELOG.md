@@ -127,6 +127,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   extraction carries the format in its name, so that a tree extracted
   before extracts once more
 
+- the single-bus thermal instances (`tools/json2netCDF/instances_singlebus`
+  and the `UC_singlebus` data) start from an initial state
+  consistent with the demand and the reserve at instant 0: the units are
+  committed in merit order while their minimum powers fit the lowest load net
+  of the reserve of the first day, each holds an output with one ramp of room
+  on both sides, and the others are off long enough to start at once; with the
+  reserve, the secondary requirement is capped so that the reserve plus the
+  change of the load in one instant fit within 0.7 times the one-instant ramp
+  of the fleet; every thermal instance with the reserve is feasible over its
+  horizon
+
+- `json2nc4.jl` keeps the band breakpoints and the deep-decrease threshold of
+  a `NuclearUnitBlock` at least a tenth of a ramp away from a whole number of
+  ramps from the minimum and the maximum power, and the standalone units it
+  writes enter the horizon on at their minimum power whatever the initial
+  state of the fleet they are taken from, so that the standalone units of
+  `1UC_Data/nuclear` differ from the previous ones only in those thresholds
+
 - the ramp rows of the DP formulation of `ThermalUnitBlock` find the power
   of the previous instant of the run and the commitment of the run without
   scanning all the powers and all the runs for each row (the same rows)

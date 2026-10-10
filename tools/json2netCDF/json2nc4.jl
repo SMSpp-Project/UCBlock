@@ -226,7 +226,8 @@ function convert_json_to_nc4(json_path::String, nc_path::String;
                     mod_frac * ramp_up[g]
                 defVar(ug, "ModulationDeltaRampDown", Float64, ())[:] =
                     mod_frac * ramp_down[g]
-                def_nuclear_rules(ug, p_min[g], p_max[g], ramp_down[g]; rules...)
+                def_nuclear_rules(ug, p_min[g], p_max[g], ramp_up[g], ramp_down[g];
+                                  rules...)
             end
         end
 
@@ -289,8 +290,12 @@ function emit_thermal_single_tubs(json_path::String, outdir::String;
     ramp_down     = Float64.(th["ramp_down"])
     ramp_up_str   = Float64.(th["ramp_up_str"])
     ramp_down_str = Float64.(th["ramp_down_str"])
-    pt0           = Float64.(th["pt0"])
-    storia0       = Int.(th["storia0"])
+    # a standalone unit enters the horizon on at its minimum power, with a
+    # day of history beyond its minimum up time, whatever the initial state
+    # of the fleet it is taken from
+    ppd           = round(Int, 24 / Float64(get(meta, "dt_hours", 0.25)))
+    pt0           = copy(p_min)
+    storia0       = min_up_time .+ ppd
 
     demand = Float64.(data["loads"]["profile"][1])
     dmin, dmax = extrema(demand)
@@ -351,7 +356,27 @@ end
 # =========================================================================
 
 """
-    def_nuclear_rules(grp, p_min, p_max, ramp_down; mod_length, day_length,
+    off_ramp(b, p_min, p_max, ramp_up, ramp_down) -> Float64
+
+The threshold `b` moved, if needed, so that neither its distance from
+`p_min` nor the one from `p_max` is within a tenth of a ramp (up or down) of
+a whole number of ramps: a unit moving at full ramp then never lands on it up
+to the last bits. `b` is rounded to 1e-3 and shifted by eighths of the
+smaller ramp, the nearest acceptable first. Deterministic, no random draw.
+"""
+function off_ramp(b, p_min, p_max, ramp_up, ramp_down)
+    d = min(ramp_up, ramp_down)
+    ok(x) = all(let k = abs(x - r) / s; abs(k - round(k)) >= 0.1 end
+                for r in (p_min, p_max), s in (ramp_up, ramp_down))
+    for j in 0:64, sg in (1, -1)
+        x = round(b + sg * j * d / 8; digits = 3)
+        p_min < x < p_max && ok(x) && return x
+    end
+    error("off_ramp: no threshold near $b")
+end
+
+"""
+    def_nuclear_rules(grp, p_min, p_max, ramp_up, ramp_down; mod_length, day_length,
                       mods_per_day, starts_per_day, deep, deeps_per_day,
                       down_cost, deep_cost)
 
@@ -375,9 +400,12 @@ the original model:
   `deeps_per_day` of them at most per day (-1 = unlimited);
 - `down_cost`, `deep_cost`: the cost of a downward modulation step and of a
   deep decrease (0 = none).
+
+The breakpoints and the deep-decrease threshold are kept away from the whole
+numbers of ramps from `MinPower` and `MaxPower` by `off_ramp`.
 """
 function def_nuclear_rules(grp, p_min::Float64, p_max::Float64,
-                           ramp_down::Float64;
+                           ramp_up::Float64, ramp_down::Float64;
                            mod_length::Int = 1, stab_start::Int = 0,
                            bands::Float64 = 0.0, day_length::Int = 0,
                            mods_per_day::Int = -1, starts_per_day::Int = -1,
@@ -392,8 +420,10 @@ function def_nuclear_rules(grp, p_min::Float64, p_max::Float64,
         # the two breakpoints at `bands` and `1 - bands` of the range
         defDim(grp, "NumberPowerBands", 2)
         defVar(grp, "PowerBands", Float64, ("NumberPowerBands",))[:] =
-            [p_min + bands * (p_max - p_min),
-             p_max - bands * (p_max - p_min)]
+            [off_ramp(p_min + bands * (p_max - p_min), p_min, p_max,
+                      ramp_up, ramp_down),
+             off_ramp(p_max - bands * (p_max - p_min), p_min, p_max,
+                      ramp_up, ramp_down)]
     end
     day_length > 0 &&
         (defVar(grp, "DayLength", UInt32, ())[:] = UInt32(day_length))
@@ -403,7 +433,8 @@ function def_nuclear_rules(grp, p_min::Float64, p_max::Float64,
         (defVar(grp, "StartUpsPerDay", UInt32, ())[:] = UInt32(starts_per_day))
     if deep
         defVar(grp, "DeepDecreaseThreshold", Float64, ())[:] =
-            p_min + deep_frac * (p_max - p_min)
+            off_ramp(p_min + deep_frac * (p_max - p_min), p_min, p_max,
+                     ramp_up, ramp_down)
         defVar(grp, "DeepDecreaseGradient", Float64, ())[:] =
             deep_grad * ramp_down
         deeps_per_day >= 0 &&
@@ -512,8 +543,12 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
     ramp_down     = Float64.(th["ramp_down"])
     ramp_up_str   = Float64.(th["ramp_up_str"])
     ramp_down_str = Float64.(th["ramp_down_str"])
-    pt0           = Float64.(th["pt0"])
-    storia0       = Int.(th["storia0"])
+    # a standalone unit enters the horizon on at its minimum power, with a
+    # day of history beyond its minimum up time, whatever the initial state
+    # of the fleet it is taken from
+    ppd           = round(Int, 24 / Float64(get(meta, "dt_hours", 0.25)))
+    pt0           = copy(p_min)
+    storia0       = min_up_time .+ ppd
 
     demand = Float64.(data["loads"]["profile"][1])
     if periods > 0 && periods < n_periods
@@ -585,7 +620,7 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
             defVar(blk, "ModulationDeltaRampUp",   Float64, ())[:] = mod_frac * ramp_up[g]
             defVar(blk, "ModulationDeltaRampDown", Float64, ())[:] = mod_frac * ramp_down[g]
 
-            def_nuclear_rules(blk, p_min[g], p_max[g], ramp_down[g];
+            def_nuclear_rules(blk, p_min[g], p_max[g], ramp_up[g], ramp_down[g];
                               mod_length, stab_start, bands,
                               day_length, mods_per_day, starts_per_day, deep,
                               deeps_per_day, deep_frac, deep_grad,
