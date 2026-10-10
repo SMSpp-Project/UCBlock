@@ -69,12 +69,15 @@
 #include <numbers>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <random>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <netcdf>
@@ -10211,6 +10214,966 @@ static void test_thermal_psi_first_last( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*------------- THE FORMULATIONS OF THE OPERATING RULES --------------------*/
+/*--------------------------------------------------------------------------*/
+/* The data of a NuclearUnitBlock for the tests of the formulations of its
+ * operating rules: the bounds, the ramps, the limits and the data of the
+ * rules are the same at every instant, the costs and the availability may
+ * change with it. A stability ramp, or a deep threshold, that is negative
+ * is not written (the default being no ramp, or no deep decrease), and so
+ * is a daily limit that is negative or a datum that is 0 by default. */
+
+struct NURules {
+ Index T = 6;                    // time horizon
+ double minP = 10;               // minimum power
+ double maxP = 50;               // maximum power
+ double ru = 10;                 // ramp-up
+ double rd = 10;                 // ramp-down
+ double su = 30;                 // start-up limit (< 0: not given)
+ double sd = 30;                 // shut-down limit (< 0: not given)
+ double initP = 30;              // initial power, if on before the horizon
+ int initUD = 5;                 // initial up (> 0) or down (<= 0) time
+ unsigned int minUp = 1;         // minimum up time
+ unsigned int minDown = 1;       // minimum down time
+ unsigned int modT = 2;          // ModulationTime
+ unsigned int initMod = 2;       // InitModulation
+ unsigned int L = 1;             // MaxModulationLength
+ unsigned int Bv = 0;            // StabilityAfterStartUp
+ unsigned int day = 0;           // DayLength
+ int C = -1;                     // ModulationsPerDay
+ int V = -1;                     // StartUpsPerDay
+ int A = -1;                     // DeepDecreasesPerDay
+ double mru = -1;                // ModulationDeltaRampUp
+ double mrd = -1;                // ModulationDeltaRampDown
+ std::vector< double > bands;    // PowerBands
+ double downc = 0;               // DownModulationCost
+ double thr = -1;                // DeepDecreaseThreshold
+ double grad = 5;                // DeepDecreaseGradient
+ double dcost = 0;               // DeepDecreaseCost
+ std::vector< double > lin;      // LinearTerm
+ std::vector< double > cnst;     // ConstTerm
+ std::vector< double > suc;      // StartUpCost
+ std::vector< double > av;       // Availability
+ };
+
+/*--------------------------------------------------------------------------*/
+/// the NuclearUnitBlock with the data d
+
+static NuclearUnitBlock * new_rules_NU( const NURules & d )
+{
+ auto cst = [ & ]( double v ) { return( std::vector< double >( d.T , v ) ); };
+ std::vector< std::pair< std::string , std::vector< double > > > vecs = {
+  { "MinPower" , cst( d.minP ) } , { "MaxPower" , cst( d.maxP ) } ,
+  { "DeltaRampUp" , cst( d.ru ) } , { "DeltaRampDown" , cst( d.rd ) } };
+ if( d.su >= 0 )
+  vecs.push_back( { "StartUpLimit" , cst( d.su ) } );
+ if( d.sd >= 0 )
+  vecs.push_back( { "ShutDownLimit" , cst( d.sd ) } );
+ auto opt = [ & ]( const char * n , const std::vector< double > & v ) {
+  if( ! v.empty() )
+   vecs.push_back( { n , v } );
+  };
+ opt( "LinearTerm" , d.lin );
+ opt( "ConstTerm" , d.cnst );
+ opt( "StartUpCost" , d.suc );
+ opt( "Availability" , d.av );
+ if( d.mru >= 0 )
+  vecs.push_back( { "ModulationDeltaRampUp" , cst( d.mru ) } );
+ if( d.mrd >= 0 )
+  vecs.push_back( { "ModulationDeltaRampDown" , cst( d.mrd ) } );
+ if( d.downc > 0 )
+  vecs.push_back( { "DownModulationCost" , cst( d.downc ) } );
+ if( d.thr >= 0 ) {
+  vecs.push_back( { "DeepDecreaseThreshold" , cst( d.thr ) } );
+  vecs.push_back( { "DeepDecreaseGradient" , cst( d.grad ) } );
+  if( d.dcost > 0 )
+   vecs.push_back( { "DeepDecreaseCost" , cst( d.dcost ) } );
+  }
+ std::vector< std::pair< std::string , double > > dbls;
+ if( d.initUD > 0 )
+  dbls.push_back( { "InitialPower" , d.initP } );
+ std::vector< std::pair< std::string , unsigned int > > uints = {
+  { "MinUpTime" , d.minUp } , { "MinDownTime" , d.minDown } ,
+  { "ModulationTime" , d.modT } , { "InitModulation" , d.initMod } ,
+  { "MaxModulationLength" , d.L } };
+ if( d.Bv )
+  uints.push_back( { "StabilityAfterStartUp" , d.Bv } );
+ if( d.day )
+  uints.push_back( { "DayLength" , d.day } );
+ if( d.C >= 0 )
+  uints.push_back( { "ModulationsPerDay" , unsigned( d.C ) } );
+ if( d.V >= 0 )
+  uints.push_back( { "StartUpsPerDay" , unsigned( d.V ) } );
+ if( d.A >= 0 )
+  uints.push_back( { "DeepDecreasesPerDay" , unsigned( d.A ) } );
+ auto tub = new_unit_gen( true , d.T , vecs , dbls ,
+                          { { "InitUpDownTime" , d.initUD } } , uints ,
+                          d.bands );
+ auto nub = dynamic_cast< NuclearUnitBlock * >( tub );
+ if( ! nub )
+  throw( std::logic_error( "new_rules_NU: no NuclearUnitBlock built" ) );
+ return( nub );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static std::string describe( const NURules & d )
+{
+ std::ostringstream s;
+ s << "T " << d.T << ", ramps " << d.ru << "/" << d.rd << ", limits "
+   << d.su << "/" << d.sd << ", init " << d.initUD << " at " << d.initP
+   << ", min up/down " << d.minUp << "/" << d.minDown << ", tauM "
+   << d.modT << " (init " << d.initMod << "), L " << d.L << ", Bv " << d.Bv
+   << ", day " << d.day << " C/V/A " << d.C << "/" << d.V << "/" << d.A
+   << ", stab. ramps " << d.mru << "/" << d.mrd << ", down cost " << d.downc;
+ if( d.thr >= 0 )
+  s << ", deep " << d.thr << "/" << d.grad << "/" << d.dcost;
+ if( ! d.bands.empty() )
+  s << ", bands " << d.bands[ 0 ] << "/" << d.bands[ 1 ];
+ if( ! d.av.empty() )
+  s << ", availability " << d.av[ 0 ] << "...";
+ return( s.str() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// random data of the rules, integer and with linear costs, with seed i
+/// (the same data whichever tests run before)
+
+static NURules random_rules( int i , bool basic )
+{
+ rg.seed( 20261009 + unsigned( i ) );
+ NURules d;
+ d.T = rnd( 4 , 7 );
+ d.ru = rnd( 5 , 15 );
+ d.rd = rnd( 5 , 15 );
+ d.su = rnd( 10 , 50 );
+ d.sd = rnd( 10 , 50 );
+ d.initUD = rnd( 0 , 3 ) ? rnd( 1 , 6 ) : - rnd( 0 , 4 );
+ d.initP = rnd( 10 , 50 );
+ d.minUp = rnd( 1 , 3 );
+ d.minDown = rnd( 1 , 3 );
+ d.modT = rnd( 2 , 4 );
+ d.initMod = rnd( 1 , int( d.modT ) );
+ if( rnd( 0 , 1 ) ) {
+  d.mru = rnd( 0 , 3 );
+  d.mrd = rnd( 0 , 3 );
+  }
+ d.L = rnd( 1 , 4 );
+ d.Bv = rnd( 0 , 1 ) ? rnd( 2 , 5 ) : 0;
+ if( rnd( 0 , 1 ) ) {
+  d.day = rnd( 2 , 4 );
+  if( rnd( 0 , 1 ) )
+   d.C = rnd( 0 , 2 );
+  if( rnd( 0 , 1 ) )
+   d.V = rnd( 0 , 1 );
+  }
+ if( ! basic ) {
+  if( rnd( 0 , 1 ) )
+   d.downc = rnd( 1 , 3 );
+  if( rnd( 0 , 2 ) == 0 ) {
+   // a gradient not below the stability ramp down, as F2 needs, and at
+   // times not below the ramp down, where no decrease is deep
+   d.thr = rnd( 15 , 40 );
+   d.grad = rnd( std::max( int( d.mrd ) , 1 ) , int( d.rd ) + 2 );
+   d.dcost = rnd( 0 , 5 );
+   if( d.day && rnd( 0 , 1 ) )
+    d.A = rnd( 0 , 1 );
+   }
+  if( rnd( 0 , 3 ) == 0 ) {
+   d.bands = { double( rnd( 18 , 25 ) ) , double( rnd( 32 , 40 ) ) };
+   if( rnd( 0 , 1 ) )
+    d.initP = d.bands[ rnd( 0 , 1 ) ];   // on a breakpoint
+   }
+  if( rnd( 0 , 4 ) == 0 ) {
+   d.av.assign( d.T , 1 );
+   // not at 0 if the unit is on before the horizon, where the power has
+   // to be reachable from the initial one
+   d.av[ rnd( d.initUD > 0 ? 1 : 0 , int( d.T ) - 1 ) ] = rnd( 0 , 1 ) ? 0
+                                                                     : 0.6;
+   d.su = d.sd = -1;    // the default limits, which follow the availability
+   }
+  }
+ d.lin.resize( d.T );
+ d.cnst.resize( d.T );
+ d.suc.resize( d.T );
+ for( Index t = 0 ; t < d.T ; ++t ) {
+  d.lin[ t ] = rnd( -3 , 3 );
+  d.cnst[ t ] = rnd( -60 , 20 );
+  d.suc[ t ] = rnd( 0 , 30 );
+  }
+ return( d );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the first row of b, in any group of Constraint, that the values of the
+/// Variable violate by more than tol (relatively), or the first Variable
+/// out of its bounds, as "group: what", "" if there is none
+
+static std::string violated_row( Block * b , double tol )
+{
+ std::string r;
+ b->for_each_constraint_group( [ & ]( const BaseGroup & g ) {
+  Index i = 0;
+  g.for_each( [ & ]( Constraint & c ) {
+   auto rc = dynamic_cast< RowConstraint * >( & c );
+   if( rc && r.empty() ) {
+    rc->compute();
+    if( rc->rel_viol() > tol )
+     r = g.get_name() + "[ " + std::to_string( i ) + " ]: [ " +
+         str( rc->get_lhs() ) + " , " + str( rc->get_rhs() ) +
+         " ] violated by " + str( rc->abs_viol() );
+    }
+   ++i;
+   } );
+  } );
+ if( ! r.empty() )
+  return( r );
+ b->for_each_variable_group( [ & ]( const BaseGroup & g ) {
+  Index i = 0;
+  g.for_each( [ & ]( Variable & v ) {
+   auto cv = dynamic_cast< ColVariable * >( & v );
+   if( cv && r.empty() && ( ! cv->is_feasible( tol ) ) )
+    r = g.get_name() + "[ " + std::to_string( i ) + " ] = " +
+        str( cv->get_value() );
+   ++i;
+   } );
+  } );
+ return( r );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the schedule in the Variable of a NuclearUnitBlock: ( p , u , m , d , dd )
+/// at each instant
+
+static std::string schedule( NuclearUnitBlock * nub )
+{
+ std::ostringstream s;
+ auto P = nub->get_active_power( 0 );
+ auto U = nub->get_commitment( 0 );
+ auto M = nub->get_modulation();
+ auto D = nub->get_modulation_down();
+ auto DD = nub->get_deep_decrease();
+ for( Index t = 0 ; t < nub->get_time_horizon() ; ++t ) {
+  s << "(" << P[ t ].get_value() << "," << U[ t ].get_value() << ","
+    << M[ t ].get_value();
+  if( D )
+   s << "," << D[ t ].get_value();
+  if( DD )
+   s << "," << DD[ t ].get_value();
+  s << ")";
+  }
+ return( s.str() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// writes the schedule ( p , u , m , d ) of the Variable of from in those of
+/// to, the indicators rounded and the output of an off instant 0 (a Solver
+/// satisfies the rows to its own tolerance), and derives the others [see
+/// NuclearUnitBlock::set_solution()]; the direction is not copied if one of
+/// the two units has no Variable for it
+
+static void copy_schedule( NuclearUnitBlock * from , NuclearUnitBlock * to )
+{
+ auto rnd01 = []( double x ) { return( x > 0.5 ? 1.0 : 0.0 ); };
+ for( Index t = 0 ; t < from->get_time_horizon() ; ++t ) {
+  const double u = rnd01( from->get_commitment( 0 )[ t ].get_value() );
+  to->get_commitment( 0 )[ t ].set_value( u );
+  to->get_active_power( 0 )[ t ].set_value(
+                       u * from->get_active_power( 0 )[ t ].get_value() );
+  to->get_modulation()[ t ].set_value(
+                         rnd01( from->get_modulation()[ t ].get_value() ) );
+  if( from->get_modulation_down() && to->get_modulation_down() )
+   to->get_modulation_down()[ t ].set_value(
+                       rnd01( from->get_modulation_down()[ t ].get_value() ) );
+  }
+ to->set_solution();
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the formulations of the operating rules, each with the BlockConfig file
+/// that selects it (the thermal part in the T formulation); F7 is apart
+
+static const std::vector< std::pair< std::string , std::string > >
+ NU_FORMS = { { "F1" , "TUBCfg-T.txt" } ,
+              { "F1T" , "NUBCfg-T-TR-TM.txt" } ,
+              { "F0" , "NUBCfg-T-F0.txt" } ,
+              { "F2" , "NUBCfg-T-F2.txt" } ,
+              { "F2-SS" , "NUBCfg-T-F2-SS.txt" } ,
+              { "F2-DF1" , "NUBCfg-T-F2-DF1.txt" } ,
+              { "F2-RR" , "NUBCfg-T-F2-RR.txt" } ,
+              { "F3a" , "NUBCfg-T-F3a.txt" } ,
+              { "F4" , "NUBCfg-T-F4.txt" } ,
+              { "F5" , "NUBCfg-T-F5.txt" } ,
+              { "F6" , "NUBCfg-T-F6.txt" } };
+
+/*--------------------------------------------------------------------------*/
+/// the value of NuclearUnitExtDPSolver: INF if infeasible, NaN if it fails
+
+static double rules_DP_value( NuclearUnitBlock * nub )
+{
+ auto slv = Solver::new_Solver( "NuclearUnitExtDPSolver" );
+ nub->register_Solver( slv );
+ double v = std::nan( "" );
+ try {
+  const auto st = slv->compute();
+  if( st == Solver::kOK )
+   v = slv->get_ub();
+  else
+   if( st == Solver::kInfeasible )
+    v = INF;
+  }
+ catch( std::exception & e ) {
+  std::cout << "NuclearUnitExtDPSolver throws " << e.what() << std::endl;
+  }
+ nub->unregister_Solver( slv , true );
+ return( v );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The unit of the data d in the formulation of the BlockConfig file form,
+ * solved by the Solver of LPCmpBSCfg-nuc.txt, i.e., the :MILPSolver and
+ * NuclearUnitExtDPSolver: the :MILPSolver has to find the value dpv of the
+ * dynamic program (INF if infeasible), and its schedule, written in a unit
+ * of the same data in the default formulation, has to satisfy its rows
+ * (i.e., the integer points of the formulation are schedules of the rules),
+ * while the schedule of the dynamic program, written in the Variable of the
+ * formulation, has to satisfy its rows and to cost dpv there. Returns false
+ * if the unit cannot be generated in the formulation (the message is that
+ * of the exception), true otherwise. */
+
+static bool check_rules_form( const NURules & d , const std::string & form ,
+                              double dpv , const std::string & what )
+{
+ auto nub = new_rules_NU( d );
+ try {
+  if( ! generate_from_file( nub , form ) ) {
+   check( false , what + ": " + form + " cannot be read" );
+   delete nub;
+   return( false );
+   }
+  }
+ catch( std::logic_error & e ) {
+  delete nub;
+  return( false );
+  }
+
+ auto bsc = dynamic_cast< BlockSolverConfig * >(
+                                 read_test_cfg( "LPCmpBSCfg-nuc.txt" ) );
+ for( const auto & s : bsc->get_SolverNames() )
+  if( ! Solver::has_Solver( s ) ) {
+   delete bsc;
+   delete nub;
+   return( true );
+   }
+ bsc->apply( nub );
+ bsc->clear();
+ auto slvs = nub->get_registered_solvers();
+ auto milp = slvs.front();
+ auto dp = slvs.back();
+ SimpleConfiguration< double > tol( 1e-7 );
+ // the schedule of the :MILPSolver satisfies its rows to its own
+ // tolerance, an absolute one that the coefficients of the rows (powers of
+ // some tens) multiply
+ SimpleConfiguration< std::pair< double , int > > ltol( { 1e-4 , 0 } );
+
+ const auto st = milp->compute();
+ const double v = ( st == Solver::kOK ) ? milp->get_var_value() :
+                  ( ( st == Solver::kInfeasible ) ? INF : std::nan( "" ) );
+ check( close( v , dpv ) , what + ": the MILP gives " + str( v ) +
+        " (status " + std::to_string( st ) + ") instead of " + str( dpv ) );
+ if( st == Solver::kOK ) {
+  milp->get_var_solution();
+  check( nub->is_feasible( true , & ltol ) , what + ": the schedule of the "
+         "MILP is not feasible for its own rows, " +
+         violated_row( nub , 1e-4 ) + ", " + schedule( nub ) );
+  auto twin = new_rules_NU( d );
+  generate_from_file( twin , "TUBCfg-T.txt" );
+  copy_schedule( nub , twin );
+  check( twin->is_feasible( true , & ltol ) , what + ": the schedule of the "
+         "MILP is not feasible for the default formulation, " +
+         violated_row( twin , 1e-4 ) + ", " + schedule( twin ) );
+  delete twin;
+  }
+
+ const auto sd = dp->compute();
+ if( ( sd == Solver::kOK ) && ( dpv != INF ) ) {
+  dp->get_var_solution();
+  check( nub->is_feasible( true , & tol ) , what + ": the schedule of the "
+         "DP is not feasible for the rows, " + violated_row( nub , 1e-7 ) +
+         ", " + schedule( nub ) );
+  auto obj = static_cast< FRealObjective * >( nub->get_objective() );
+  obj->compute();
+  check( close( obj->value() , dpv ) , what + ": the Objective values the "
+         "schedule of the DP " + str( obj->value() ) + " instead of " +
+         str( dpv ) );
+  }
+
+ bsc->apply( nub );
+ delete bsc;
+ delete nub;
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// every formulation of the rules on the data d, against the DP; F7 too if
+/// f7 (linear costs and small data only)
+
+static void check_rules_forms( const NURules & d , const std::string & what ,
+                               bool f7 )
+{
+ auto ref = new_rules_NU( d );
+ generate_from_file( ref , "TUBCfg-T.txt" );
+ const double dpv = rules_DP_value( ref );
+ delete ref;
+ check( ! std::isnan( dpv ) , what + ": the DP gives no value" );
+ if( std::isnan( dpv ) )
+  return;
+
+ for( const auto & f : NU_FORMS ) {
+  // the formulations by direction need the stability ramp down not to be
+  // a deep decrease, else they refuse the data
+  const bool refuse = ( d.thr >= 0 ) && ( d.mrd > d.grad ) &&
+                      ( ( f.first == "F2" ) || ( f.first == "F2-SS" ) ||
+                        ( f.first == "F2-RR" ) ||
+                        ( f.first == "F3a" ) || ( f.first == "F4" ) );
+  const bool done = check_rules_form( d , f.second , dpv ,
+                                      what + ", " + f.first );
+  check( done != refuse , what + ", " + f.first + ": the data are " +
+         ( refuse ? "accepted" : "refused" ) );
+  }
+ if( f7 )
+  check_rules_form( d , "NUBCfg-T-F7.txt" , dpv , what + ", F7" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Every formulation of the operating rules (F0, F1, F1T, F2 and its two
+ * variants, F3a, F4, F5, F6 and, on the smallest data, F7) against
+ * NuclearUnitExtDPSolver: the :MILPSolver has to find the optimum of the
+ * dynamic program, its schedule has to be one of the rules (it satisfies the
+ * rows of the default formulation) and the schedule of the dynamic program
+ * has to satisfy the rows of the formulation [see check_rules_form()].
+ * First the cases at the edges of the rules: a unit on and one off before
+ * the horizon, the initial power on a breakpoint of the bands, a deep
+ * decrease at instant 0, a modulation that the end of the horizon cuts, an
+ * instant of availability 0, no stability ramp given and the daily limits
+ * all binding; then random data, all of them integer with linear costs, so
+ * that F7 describes the convex hull and has the optimum. */
+
+static void test_nuclear_forms_DP( void )
+{
+ NURules a;
+ a.T = 6;
+ a.L = 3;
+ a.modT = 3;
+ a.initMod = 3;
+ a.mru = a.mrd = 1;
+ a.lin = { 2 , -2 , 3 , -1 , 2 , -3 };
+ a.cnst.assign( a.T , -60 );
+ check_rules_forms( a , "forms, on before" , true );
+
+ NURules b = a;           // off before, a stability after the start-up
+ b.initUD = -2;           // longer than the minimum up time
+ b.minUp = 2;
+ b.Bv = 4;
+ b.suc.assign( b.T , 5 );
+ b.lin = { 3 , -3 , -2 , 2 , -3 , 1 };
+ check_rules_forms( b , "forms, off before, Bv > minUp" , true );
+ b.Bv = 2;
+ check_rules_forms( b , "forms, off before, Bv <= minUp" , true );
+
+ NURules c = a;           // the initial power on a breakpoint
+ c.bands = { 25 , 40 };
+ c.initP = 25;
+ c.L = 2;
+ c.lin = { 2 , 2 , -3 , -3 , 1 , -2 };
+ check_rules_forms( c , "forms, bands, initial power on a breakpoint" ,
+                    true );
+ c.initP = 40;
+ c.lin = { -2 , -2 , 3 , 3 , -1 , 2 };
+ check_rules_forms( c , "forms, bands, initial power on the upper one" ,
+                    true );
+
+ NURules e = a;           // a deep decrease at instant 0
+ e.initP = 40;
+ e.rd = 15;
+ e.thr = 30;
+ e.grad = 8;
+ e.dcost = 1;
+ e.downc = 1;
+ e.lin = { 5 , 4 , -1 , -1 , 1 , -2 };
+ check_rules_forms( e , "forms, deep decrease at 0" , true );
+
+ NURules h = a;           // a modulation cut by the end of the horizon
+ h.T = 4;
+ h.L = 4;
+ h.modT = 2;
+ h.initMod = 2;
+ h.ru = h.rd = 5;
+ h.lin = { 1 , 1 , -3 , -5 };
+ check_rules_forms( h , "forms, modulation cut by the horizon" , true );
+ h.lin = { -1 , -1 , 3 , 5 };
+ check_rules_forms( h , "forms, downward modulation cut by the horizon" ,
+                    true );
+
+ NURules v = a;           // availability 0 at an instant
+ v.av = { 1 , 1 , 0 , 1 , 1 , 1 };
+ v.su = v.sd = -1;
+ check_rules_forms( v , "forms, availability 0 at 2" , true );
+
+ NURules n = a;           // no stability ramp given
+ n.mru = n.mrd = -1;
+ check_rules_forms( n , "forms, no stability ramp" , true );
+
+ NURules y = a;           // the daily limits, all binding
+ y.day = 3;
+ y.C = 1;
+ y.V = 1;
+ y.A = 1;
+ y.thr = 35;
+ y.grad = 4;
+ y.minUp = y.minDown = 1;
+ y.lin = { 3 , -3 , 3 , -3 , 3 , -3 };
+ y.cnst = { -20 , 30 , -20 , 30 , -20 , 30 };
+ check_rules_forms( y , "forms, daily limits" , true );
+
+ // the stability ramp down larger than the deep gradient: the
+ // formulations by direction refuse the data, the others solve them
+ NURules g = e;
+ g.mrd = 9;
+ check_rules_forms( g , "forms, stability ramp beyond the deep gradient" ,
+                    false );
+
+ for( int i = 0 ; i < 40 ; ++i ) {
+  const auto d = random_rules( i , false );
+  check_rules_forms( d , "forms, random " + std::to_string( i ) + " (" +
+                     describe( d ) + ")" , d.T <= 5 );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The chain of the continuous relaxations of the formulations, under the
+ * basic rules (no band, no deep decrease) and for random linear costs: the
+ * relaxation of F2 is at least as tight as those of F1 and F1T, those of
+ * F3a and F4 are the same as that of F2, that of F5 is at least as tight as
+ * that of F4 and that of F6 as that of F5, and F1T is at least as tight as
+ * F1 when the stability ramps are 0; none is above the optimum of the
+ * dynamic program, and that of F7, where it is built, is the optimum. */
+
+static void test_nuclear_forms_LP_chain( void )
+{
+ std::vector< std::string > forms = { "F1" , "F1T" , "F2" , "F2-RR" ,
+                                      "F3a" , "F4" , "F5" , "F6" };
+ // the cases compared, those in which F7 is built, and those in which a
+ // relaxation is strictly tighter than the one it is compared with (printed
+ // if NUMIP_STATS is set in the environment)
+ int compared = 0 , built7 = 0;
+ std::map< std::string , int > strict;
+ for( int i = 0 ; i < 40 ; ++i ) {
+  auto d = random_rules( 1000 + i , true );
+  const auto what = "LP chain, random " + std::to_string( i ) + " (" +
+                    describe( d ) + ")";
+  auto ref = new_rules_NU( d );
+  generate_from_file( ref , "TUBCfg-T.txt" );
+  const double opt = rules_DP_value( ref );
+  delete ref;
+  if( std::isnan( opt ) || ( opt == INF ) )
+   continue;
+
+  std::map< std::string , double > lp;
+  for( const auto & f : NU_FORMS ) {
+   if( std::find( forms.begin() , forms.end() , f.first ) == forms.end() )
+    continue;
+   auto nub = new_rules_NU( d );
+   generate_from_file( nub , f.second );
+   lp[ f.first ] = relaxation_value( nub );
+   delete nub;
+   }
+  if( std::isnan( lp[ "F1" ] ) )
+   return;  // no :MILPSolver of LPRelaxBSCfg.txt in the build
+
+  const double tol = 1e-6 * std::max( 1.0 , std::abs( opt ) );
+  auto le = [ & ]( const std::string & a , const std::string & b ) {
+   check( lp[ a ] <= lp[ b ] + tol , what + ": the relaxation of " + a +
+          " (" + str( lp[ a ] ) + ") is tighter than that of " + b + " (" +
+          str( lp[ b ] ) + ")" );
+   if( lp[ a ] < lp[ b ] - tol )
+    ++strict[ b + " > " + a ];
+   };
+  ++compared;
+  auto eq = [ & ]( const std::string & a , const std::string & b ) {
+   check( std::abs( lp[ a ] - lp[ b ] ) <= tol , what + ": the relaxations "
+          "of " + a + " and " + b + " differ (" + str( lp[ a ] ) + ", " +
+          str( lp[ b ] ) + ")" );
+   };
+  le( "F1" , "F2" );
+  le( "F1T" , "F2" );
+  le( "F2" , "F2-RR" );
+  eq( "F3a" , "F2" );
+  eq( "F4" , "F2" );
+  le( "F4" , "F5" );
+  le( "F5" , "F6" );
+  if( ( d.mru <= 0 ) && ( d.mrd <= 0 ) )
+   le( "F1" , "F1T" );
+  for( const auto & f : forms )
+   check( lp[ f ] <= opt + tol , what + ": the relaxation of " + f + " (" +
+          str( lp[ f ] ) + ") is above the optimum " + str( opt ) );
+
+  if( d.T <= 5 ) {
+   auto nub = new_rules_NU( d );
+   bool built = true;
+   try {
+    generate_from_file( nub , "NUBCfg-T-F7.txt" );
+    }
+   catch( std::logic_error & ) {
+    built = false;
+    }
+   if( built ) {
+    ++built7;
+    const double v = relaxation_value( nub );
+    check( std::abs( v - opt ) <= tol , what + ": the relaxation of F7 is " +
+           str( v ) + " instead of the optimum " + str( opt ) );
+    }
+   delete nub;
+   }
+  }
+ if( ! milp_solver().empty() )
+  check( ( compared > 10 ) && ( built7 > 0 ) , "LP chain: only " +
+         std::to_string( compared ) + " cases compared, F7 built in " +
+         std::to_string( built7 ) );
+ if( std::getenv( "NUMIP_STATS" ) ) {
+  std::cout << "LP chain: " << compared << " cases, F7 built in " << built7
+            << "; strictly tighter:";
+  for( const auto & kv : strict )
+   std::cout << " " << kv.first << " " << kv.second;
+  std::cout << std::endl;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The move of F2 is locally ideal: over a single instant, with the case
+ * indicators fixed to the fractional point kappa (stable 1/4, last upward
+ * step 1/2, last downward step 1/4), the continuous relaxation lets the
+ * move be any point of the interval sum_k kappa_k I_k, i.e., [ -5.75 ,
+ * 10.5 ] with the stability ramps 2 (up) and 3 (down) and the full ramps
+ * 20, so that the output from 30 is between 24.25 and 40.5; this holds in
+ * F3a and F4 as well, which have the same relaxation. */
+
+static void test_nuclear_forms_local_hull( void )
+{
+ for( const std::string form : { "NUBCfg-T-F2.txt" , "NUBCfg-T-F3a.txt" ,
+                                 "NUBCfg-T-F4.txt" } )
+  for( double sign : { 1.0 , -1.0 } ) {
+   NURules d;
+   d.T = 1;
+   d.ru = d.rd = 20;
+   d.su = d.sd = 50;
+   d.L = 2;
+   d.mru = 2;
+   d.mrd = 3;
+   d.lin = { sign };
+   auto nub = new_rules_NU( d );
+   generate_from_file( nub , form );
+   auto fix = [ & ]( ColVariable * x , double val ) {
+    if( ! x ) {
+     check( false , "local hull, " + form + ": a Variable is missing" );
+     return;
+     }
+    x->set_value( val );
+    x->is_fixed( true , eNoMod );
+    };
+   fix( nub->get_commitment( 0 ) , 1 );
+   fix( nub->get_modulation() , 0.75 );
+   fix( nub->get_modulation_down() , 0.25 );
+   if( form == "NUBCfg-T-F4.txt" ) {
+    // the runs of one step: up, down, each ending, and the cut ones
+    auto z = nub->get_static_variable_v< ColVariable >( "run_nuclear" );
+    if( z && ( z->size() == 4 ) ) {   // ( up , k 1 ) , ( up , cut ) ,
+     fix( & ( *z )[ 0 ] , 0.5 );      // ( down , k 1 ) , ( down , cut )
+     fix( & ( *z )[ 1 ] , 0 );
+     fix( & ( *z )[ 2 ] , 0.25 );
+     fix( & ( *z )[ 3 ] , 0 );
+     }
+    else
+     check( false , "local hull, F4: not the four runs of one step" );
+    }
+   else {
+    auto fu = nub->get_static_variable_v< ColVariable >( "m_end_up_nuclear" );
+    auto fd = nub->get_static_variable_v< ColVariable >( "m_end_dn_nuclear" );
+    fix( fu ? & fu->front() : nullptr , 0.5 );
+    fix( fd ? & fd->front() : nullptr , 0.25 );
+    }
+   const double v = relaxation_value( nub );
+   const double expected = ( sign > 0 ) ? 24.25 : - 40.5;
+   if( ! std::isnan( v ) )
+    check( close( v , expected ) , "local hull, " + form + ": the output "
+           "is " + str( sign * v ) + " instead of " + str( sign * expected ) );
+   delete nub;
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The data changed after the generation in each formulation of the rules:
+ * MaxPower and Availability at an instant, InitialPower (in its band), the
+ * stability ramps, the costs of the downward steps and of the deep
+ * decreases and the linear term. The rows have then to be those of a unit
+ * generated from the changed data, coefficient by coefficient, and the
+ * :MILPSolver attached before the changes, as one attached afresh and the
+ * dynamic program, has to find the optimum of the new data. F7, whose
+ * outputs depend on the data, refuses a change of the maximum power,
+ * leaving the data and the rows as they were. */
+
+static void test_nuclear_forms_setters( void )
+{
+ NURules d;
+ d.T = 6;
+ d.L = 2;
+ d.modT = 2;
+ d.initMod = 2;
+ d.mru = d.mrd = 2;
+ d.thr = 25;
+ d.grad = 6;
+ d.dcost = 1;
+ d.downc = 1;
+ d.day = 3;
+ d.C = 1;
+ d.lin = { 3 , -2 , 4 , -3 , 2 , -1 };
+ d.cnst.assign( d.T , -60 );
+
+ std::vector< double > mp = { 40 } , avl = { 0.8 } , ip = { 32 } ,
+                       mru = { 4 } , mrd = { 1 } , dc = { 2 } , ddc = { 3 } ,
+                       lin = { -4 };
+
+ for( const auto & f : NU_FORMS ) {
+  const auto what = "setters, " + f.first;
+  auto nub = new_rules_NU( d );
+  generate_from_file( nub , f.second );
+  auto bsc = dynamic_cast< BlockSolverConfig * >(
+                                      read_test_cfg( "LPCmpBSCfg-nuc.txt" ) );
+  bool have = true;
+  for( const auto & s : bsc->get_SolverNames() )
+   have = have && Solver::has_Solver( s );
+  if( have ) {
+   bsc->apply( nub );
+   bsc->clear();
+   nub->get_registered_solvers().front()->compute();
+   }
+
+  try {
+   nub->set_maximum_power( mp.cbegin() , Range( 2 , 3 ) );
+   nub->set_availability( avl.cbegin() , Range( 4 , 5 ) );
+   nub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+   nub->set_modulation_ramp_up( mru.cbegin() , Range( 1 , 2 ) );
+   nub->set_modulation_ramp_down( mrd.cbegin() , Range( 3 , 4 ) );
+   nub->set_down_modulation_costs( dc.cbegin() , Range( 0 , 1 ) );
+   nub->set_deep_decrease_costs( ddc.cbegin() , Range( 5 , 6 ) );
+   nub->set_linear_term( lin.cbegin() , Range( 2 , 3 ) );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": a change throws " + e.what() );
+   }
+
+  // the unit of the new data, generated afresh
+  auto ref = new_rules_NU( d );
+  {
+   std::vector< double > MP( d.T , d.maxP ) , AV( d.T , 1 ) ,
+                         MRU( d.T , 2 ) , MRD( d.T , 2 ) , DC( d.T , 1 ) ,
+                         DDC( d.T , 1 );
+   MP[ 2 ] = 40;
+   AV[ 4 ] = 0.8;
+   MRU[ 1 ] = 4;
+   MRD[ 3 ] = 1;
+   DC[ 0 ] = 2;
+   DDC[ 5 ] = 3;
+   ref->set_maximum_power( MP.cbegin() , Range( 0 , d.T ) );
+   ref->set_availability( AV.cbegin() , Range( 0 , d.T ) );
+   ref->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+   ref->set_modulation_ramp_up( MRU.cbegin() , Range( 0 , d.T ) );
+   ref->set_modulation_ramp_down( MRD.cbegin() , Range( 0 , d.T ) );
+   ref->set_down_modulation_costs( DC.cbegin() , Range( 0 , d.T ) );
+   ref->set_deep_decrease_costs( DDC.cbegin() , Range( 0 , d.T ) );
+   ref->set_linear_term( lin.cbegin() , Range( 2 , 3 ) );
+   }
+  generate_from_file( ref , f.second );
+  const auto diff = rows_differ( nub , ref );
+  check( diff.empty() , what + ": the rows are not those of the new data, " +
+         diff );
+  const double dpv = rules_DP_value( ref );
+
+  if( have ) {
+   auto milp = nub->get_registered_solvers().front();
+   const auto st = milp->compute();
+   check( ( st == Solver::kOK ) && close( milp->get_var_value() , dpv ) ,
+          what + ": the MILP attached before gives " +
+          str( milp->get_var_value() ) + " instead of " + str( dpv ) );
+   bsc->apply( nub );
+   const auto sname = milp_solver();
+   if( ! sname.empty() ) {
+    const double v = milp_value( ref , sname );
+    check( close( v , dpv ) , what + ": the MILP of the unit generated "
+           "afresh gives " + str( v ) + " instead of " + str( dpv ) );
+    }
+   }
+  check( close( rules_DP_value( nub ) , dpv ) , what + ": the DP of the "
+         "changed unit differs from that of the new one" );
+  delete bsc;
+  delete ref;
+  delete nub;
+  }
+
+ // F7 refuses the change, and keeps the data
+ auto nub = new_rules_NU( d );
+ bool built = true;
+ try {
+  generate_from_file( nub , "NUBCfg-T-F7.txt" );
+  }
+ catch( std::logic_error & ) {
+  built = false;
+  }
+ if( built ) {
+  bool thrown = false;
+  try {
+   nub->set_maximum_power( mp.cbegin() , Range( 2 , 3 ) );
+   }
+  catch( std::logic_error & ) {
+   thrown = true;
+   }
+  check( thrown && ( nub->get_max_power()[ 2 ] == d.maxP ) ,
+         "setters, F7: the change of the maximum power accepted, or the "
+         "datum changed" );
+  }
+ delete nub;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A compute() of NuclearUnitExtDPSolver that throws (a modulation fixed at
+ * 0.5, which the dynamic program refuses) releases the mutex of the Solver:
+ * another thread can take it, and the same Solver, the fixing removed,
+ * solves the unit to the value of a fresh one. */
+
+static void test_nuclear_DP_throw_releases_lock( void )
+{
+ NURules d;
+ d.T = 6;
+ d.L = 2;
+ d.modT = 2;
+ d.mru = d.mrd = 2;
+ d.lin = { 3 , -2 , 4 , -3 , 2 , -1 };
+ d.cnst.assign( d.T , -60 );
+
+ auto ref = new_rules_NU( d );
+ generate_from_file( ref , "TUBCfg-T.txt" );
+ const double v0 = rules_DP_value( ref );
+ delete ref;
+
+ auto nub = new_rules_NU( d );
+ generate_from_file( nub , "TUBCfg-T.txt" );
+ auto slv = Solver::new_Solver( "NuclearUnitExtDPSolver" );
+ nub->register_Solver( slv );
+ slv->compute();
+ auto m = nub->get_modulation();
+ m[ 2 ].set_value( 0.5 );
+ m[ 2 ].is_fixed( true );
+
+ bool thrown = false;
+ try {
+  slv->compute();
+  }
+ catch( std::exception & ) {
+  thrown = true;
+  }
+ check( thrown , "DP throw: a modulation fixed at 0.5 is accepted" );
+
+ bool free = false;
+ std::thread( [ & ]() {
+  free = slv->try_lock();
+  if( free )
+   slv->unlock();
+  } ).join();
+ check( free , "DP throw: the mutex of the Solver is still locked" );
+
+ m[ 2 ].is_fixed( false );
+ double v = std::nan( "" );
+ try {
+  if( slv->compute() == Solver::kOK )
+   v = slv->get_ub();
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "DP throw: the second compute() throws " ) +
+         e.what() );
+  }
+ check( close( v , v0 ) , "DP throw: the second compute() gives " +
+        str( v ) + " instead of " + str( v0 ) );
+
+ nub->unregister_Solver( slv , true );
+ delete nub;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* NuclearUnitExtDPSolver after set_initial_power() (a NuclearUnitBlock has
+ * both ramps, so the DP takes the new InitialPower without reloading its
+ * data), up and down, with slow and with fast ramps: the value is that of
+ * the DP of a fresh unit with the new InitialPower, and the schedule
+ * satisfies its rows. */
+
+static void test_nuclear_DP_initial_power_reload( void )
+{
+ NURules d;
+ d.T = 6;
+ d.L = 2;
+ d.modT = 2;
+ d.mru = d.mrd = 2;
+ d.initP = 40;
+ d.lin = { 3 , -2 , 4 , -3 , 2 , -1 };
+ d.cnst.assign( d.T , -60 );
+
+ struct Case { const char * name; double ru , rd , ip; };
+ const std::vector< Case > cases = { { "up" , 10 , 10 , 47 } ,
+                                     { "down" , 10 , 10 , 15 } ,
+                                     { "slow ramps" , 3 , 3 , 22 } ,
+                                     { "fast ramps" , 40 , 40 , 12 } };
+ for( const auto & c : cases ) {
+  const std::string what = std::string( "DP and InitialPower, " ) + c.name;
+  d.ru = c.ru;
+  d.rd = c.rd;
+  NURules dn = d;
+  dn.initP = c.ip;
+  auto ref = new_rules_NU( dn );
+  generate_from_file( ref , "TUBCfg-T.txt" );
+  const double v0 = rules_DP_value( ref );
+  delete ref;
+
+  auto nub = new_rules_NU( d );
+  generate_from_file( nub , "TUBCfg-T.txt" );
+  auto slv = Solver::new_Solver( "NuclearUnitExtDPSolver" );
+  nub->register_Solver( slv );
+  double v = std::nan( "" );
+  try {
+   slv->compute();
+   std::vector< double > ip = { c.ip };
+   nub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+   const auto st = slv->compute();
+   if( st == Solver::kOK ) {
+    v = slv->get_ub();
+    slv->get_var_solution();
+    SimpleConfiguration< double > tol( 1e-7 );
+    check( nub->is_feasible( true , & tol ) , what + ": the schedule is "
+           "not feasible, " + violated_row( nub , 1e-7 ) );
+    }
+   else
+    if( st == Solver::kInfeasible )
+     v = INF;
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  check( ( v == v0 ) || close( v , v0 ) , what + ": the DP gives " +
+         str( v ) + " instead of " + str( v0 ) );
+  nub->unregister_Solver( slv , true );
+  delete nub;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -10348,6 +11311,13 @@ int main( int argc , char ** argv )
   test_battery_design_ub();
   test_battery_design_zero_max();
   test_battery_kappa_infinite_storage();
+
+  test_nuclear_forms_DP();
+  test_nuclear_forms_LP_chain();
+  test_nuclear_forms_local_hull();
+  test_nuclear_forms_setters();
+  test_nuclear_DP_throw_releases_lock();
+  test_nuclear_DP_initial_power_reload();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

@@ -58,6 +58,8 @@
 
 #include "ThermalUnitBlock.h"
 
+#include <mutex>
+
 #if TUDPS_PROFILE
  #include <chrono>
  #include <iostream>
@@ -134,7 +136,8 @@ void ThermalUnitDPSolver::set_Block( Block * block )
 
 int ThermalUnitDPSolver::compute( bool changedvars )
 {
- lock();  // lock the mutex
+ // the mutex is released however compute() ends, a throw included
+ std::lock_guard< Solver > guard( *this );
 
  process_modifications();
 
@@ -167,8 +170,6 @@ int ThermalUnitDPSolver::compute( bool changedvars )
   case( path_OK ):  compute_solutions();
   }
 #endif
-
- unlock();  // unlock the mutex
 
  assert( stage == sol_OK );
  return( f_end.lab == TUDPINF ? kInfeasible : kOK );

@@ -55,6 +55,8 @@
 
 #include "ThermalUnitBlock.h"
 
+#include <mutex>
+
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -125,7 +127,8 @@ void ThermalUnitExtDPSolver::set_Block( Block * block )
 
 int ThermalUnitExtDPSolver::compute( bool changedvars )
 {
- lock();
+ // the mutex is released however compute() ends, a throw included
+ std::lock_guard< Solver > guard( *this );
 
  process_modifications();
 
@@ -178,8 +181,6 @@ int ThermalUnitExtDPSolver::compute( bool changedvars )
  if( stage < sol_OK )
   build_solution();
 #endif
-
- unlock();
 
  assert( stage == sol_OK );
  return( f_best_cost >= TUEDPINF ? kInfeasible : kOK );

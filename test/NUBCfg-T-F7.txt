@@ -1,8 +1,10 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - NUBCfg-T-TR.txt - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - NUBCfg-T-F7.txt - - - - - - - - - - - - - - - -
 #
-# The BlockConfig of a NuclearUnitBlock that selects the T formulation with
-# the tight operating rules (TightRules) (static_variables = 33).
+# The BlockConfig of a NuclearUnitBlock that selects the T formulation of the
+# thermal part with the formulation F7 of the operating rules, the flow on
+# the label graph with the output discretized, for small instances only
+# (static_variables = 1793).
 #
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -31,7 +33,7 @@ BlockConfig # exact type of the Configuration object
 # +8192 the rows of the reach of the output from a start-up and towards
 # a shut-down
 SimpleConfiguration<int>
-33
+1793
 
 # dynamic_variables
 *  # [none]
@@ -52,5 +54,5 @@ SimpleConfiguration<int>
 *  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - END NUBCfg-T-TR.txt - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - END NUBCfg-T-F7.txt - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

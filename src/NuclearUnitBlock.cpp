@@ -147,6 +147,8 @@ static void check_modulation_ramps( const std::string & fn ,
 
 NuclearUnitBlock::~NuclearUnitBlock()
 {
+ for( auto & g : v_form_rows )
+  Constraint::clear( g );
  Constraint::clear( Nuclear_cuts );
  Constraint::clear( DeepDownLink );
  Constraint::clear( DeepLinkConst );
@@ -414,7 +416,23 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   f_tight_rules = sci->f_value & TightRules;
   f_tight_ramp = sci->f_value & TightRamp;
   f_tight_cuts = f_tight_rules && ( sci->f_value & TightCuts );
+  f_rules_form = sci->f_value & NuclearRules::FormMsk;
+  f_stab_single = sci->f_value & NuclearRules::StartUpStabSingle;
+  f_deep_f1 = sci->f_value & NuclearRules::DeepByF1Rows;
+  f_reach = sci->f_value & NuclearRules::ReachRows;
   }
+
+ // the bits of the tight rows only concern the default formulation of the
+ // rules, the graph ones have no use for the two alternatives of the
+ // compact ones
+ const bool graph = f_rules_form >= NuclearRules::F5Form;
+ const bool compact = ( f_rules_form != NuclearRules::F1Form ) && ( ! graph );
+ if( f_rules_form != NuclearRules::F1Form )
+  f_tight_rules = f_tight_ramp = f_tight_cuts = false;
+ if( ! compact )
+  f_stab_single = f_deep_f1 = f_reach = false;
+ if( f_rules_form == NuclearRules::F0Form )
+  f_deep_f1 = true;
 
  // Modulation Variable- - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -449,9 +467,10 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
    v_modulation[ t++ ].is_fixed( true , eNoMod );
    }
 
- // the downward modulation Variable, if the direction matters: fixed to 0
- // wherever the modulation is
- if( has_modulation_direction() ) {
+ // the downward modulation Variable, if the direction matters (always in
+ // the compact formulations other than the default one, whose rows are
+ // written by direction): fixed to 0 wherever the modulation is
+ if( has_modulation_direction() || compact ) {
   v_modulation_down.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    v_modulation_down[ t ].set_type( ColVariable::kBinary );
@@ -466,7 +485,8 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  // the modulation start Variable, if a modulation may last more than one
  // instant and either the modulations per day are limited or the tight rows
  // are used, which are written on it
- if( ( f_max_modulation_length > 1 ) &&
+ if( ( f_rules_form == NuclearRules::F1Form ) &&
+     ( f_max_modulation_length > 1 ) &&
      ( f_tight_rules || f_tight_cuts || ( f_modulations_per_day >= 0 ) ) ) {
   v_modulation_start.resize( f_time_horizon );
   for( auto & var : v_modulation_start )
@@ -490,25 +510,39 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   }
 
  // the deep-decrease Variable: at t = 0 there is no deep decrease unless
- // the unit is on at the beginning
+ // the unit is on at the beginning; the two auxiliary ones only exist if
+ // the rows (29)-(31) are written
  if( has_deep_decrease() ) {
+  const bool aux = ( f_rules_form == NuclearRules::F1Form ) || f_deep_f1;
   v_deep.resize( f_time_horizon );
-  v_deep_drop.resize( f_time_horizon );
-  v_deep_low.resize( f_time_horizon );
+  if( aux ) {
+   v_deep_drop.resize( f_time_horizon );
+   v_deep_low.resize( f_time_horizon );
+   }
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    v_deep[ t ].set_type( ColVariable::kBinary );
-   v_deep_drop[ t ].set_type( ColVariable::kBinary );
-   v_deep_low[ t ].set_type( ColVariable::kBinary );
+   if( aux ) {
+    v_deep_drop[ t ].set_type( ColVariable::kBinary );
+    v_deep_low[ t ].set_type( ColVariable::kBinary );
+    }
    }
   if( f_InitUpDownTime <= 0 )
-   for( auto v : { & v_deep , & v_deep_drop , & v_deep_low } ) {
-    ( *v )[ 0 ].set_value( 0.0 );
-    ( *v )[ 0 ].is_fixed( true , eNoMod );
-    }
+   for( auto v : { & v_deep , & v_deep_drop , & v_deep_low } )
+    if( ! v->empty() ) {
+     ( *v )[ 0 ].set_value( 0.0 );
+     ( *v )[ 0 ].is_fixed( true , eNoMod );
+     }
   add_static_variable( v_deep , "deep_nuclear" );
-  add_static_variable( v_deep_drop , "deep_drop_nuclear" );
-  add_static_variable( v_deep_low , "deep_low_nuclear" );
+  if( aux ) {
+   add_static_variable( v_deep_drop , "deep_drop_nuclear" );
+   add_static_variable( v_deep_low , "deep_low_nuclear" );
+   }
   }
+
+ // the Variable of the formulations of the rules other than the default one
+ if( f_rules_form != NuclearRules::F1Form )
+  generate_form_variables();
+
  } // end( NuclearUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -520,6 +554,13 @@ void NuclearUnitBlock::build_rows( bool generate_ZOConstraints )
  // [see ThermalUnitBlock::build_rows()]: those below are written with the
  // same methods, so that they are generated and compared alike
  ThermalUnitBlock::build_rows( generate_ZOConstraints );
+
+ // the formulations of the rules other than the default one have rows of
+ // their own, the move of the output included
+ if( f_rules_form != NuclearRules::F1Form ) {
+  build_form_rows();
+  return;
+  }
 
  // important information from the base class:
  // - if f_InitUpDownTime > 0 then the unit was on before the initial time
@@ -683,7 +724,7 @@ void NuclearUnitBlock::build_rows( bool generate_ZOConstraints )
   LinearFunction::v_coeff_pair cf( 2 );
 
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
-  cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , -1.0 );
+  cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , 1.0 );
 
   put_row( NoStartUpModulation , t - init_t , std::move( cf ) ,
            - Inf< double >() , 1.0 );
@@ -959,190 +1000,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
    }
   }
 
- // the bands of the output - - - - - - - - - - - - - - - - - - - - - - - -
- // b^1_t + b^2_t + b^3_t = u_t : one band per on instant, none when off;
- // the output is always in its band:
- //   p_t >= Pmin b^1 + B_1 b^2 + B_2 b^3 , p_t <= B_1 b^1 + B_2 b^2 + Pmax b^3
- // with e_t = m_t ( 1 - m_{t+1} ) the last step of a modulation; the band
- // only changes there, hence the steps of a modulation that precede the
- // last one keep the output in the band of origin, and the last one lands
- // in an adjacent band:
- //   b^k_t - b^k_{t-1} <= e_t + ( 1 - u_{t-1} ) , and the other way round
- //   b^k_t + b^k_{t-1} <= 2 - e_t , b^1_t + b^3_{t-1} <= 1 , and vice versa
- // and it moves in the direction of the modulation, a step that does not
- // decrease the output leaving the unit no lower than it found it:
- //   b^k_t + b^{k+1}_{t-1} <= 1 + d_t , b^{k+1}_t + b^k_{t-1} <= 2 - d_t
- // which matters where the landing power is a breakpoint of the bands and
- // both of them would hold it
- if( has_power_bands() ) {
-  const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
-  auto band = [ & ]( Index k , Index t ) { return( & v_band[ k * T + t ] ); };
-
-  BandChoice.reserve( T );
-  BandPower.reserve( 2 * T );
-
-  // the rows of instant t, whose number depends on t: the inner vectors
-  // are reserved to their largest size, so that no row moves
-  ModulationEndLink.resize( T );
-  BandKeep.resize( T );
-  BandMove.resize( T );
-  for( Index t = 0 ; t < T ; ++t ) {
-   ModulationEndLink[ t ].reserve( 3 );
-   BandKeep[ t ].reserve( 6 );
-   BandMove[ t ].reserve( 11 );
-   }
-
-  for( Index t = 0 ; t < T ; ++t ) {
-   // the operational bounds, as in the rows of ThermalUnitBlock
-   const double pmin = get_operational_min_power( t );
-   const double pmax = get_operational_max_power( t );
-
-   row( BandChoice , { coeff_pair( band( 0 , t ) , 1.0 ) ,
-                       coeff_pair( band( 1 , t ) , 1.0 ) ,
-                       coeff_pair( band( 2 , t ) , 1.0 ) ,
-                       coeff_pair( & v_commitment[ t ] , -1.0 ) } , 0 , 0 );
-
-   row( BandPower , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
-                      coeff_pair( band( 0 , t ) , - pmin ) ,
-                      coeff_pair( band( 1 , t ) , - B1 ) ,
-                      coeff_pair( band( 2 , t ) , - B2 ) } , 0 , INF );
-   row( BandPower , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
-                      coeff_pair( band( 0 , t ) , - B1 ) ,
-                      coeff_pair( band( 1 , t ) , - B2 ) ,
-                      coeff_pair( band( 2 , t ) , - pmax ) } , -INF , 0 );
-
-   // e_t = m_t ( 1 - m_{t+1} ), the last step of a modulation
-   row( ModulationEndLink[ t ] , { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
-                              coeff_pair( & v_modulation[ t ] , -1.0 ) } ,
-        -INF , 0 );
-   if( t + 1 < T ) {
-    row( ModulationEndLink[ t ] ,
-         { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
-           coeff_pair( & v_modulation[ t + 1 ] , 1.0 ) } , -INF , 1 );
-    row( ModulationEndLink[ t ] ,
-         { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
-           coeff_pair( & v_modulation[ t ] , -1.0 ) ,
-           coeff_pair( & v_modulation[ t + 1 ] , 1.0 ) } , 0 , INF );
-    }
-   // at the last instant of the horizon a modulation may be still in
-   // progress, exactly as it may in the DP: e_{T-1} is then free below
-   // m_{T-1}, and the band changes there or does not. A modulation that
-   // the horizon cuts, however, still owes its last step, hence it may
-   // only have L^M - 1 of them:
-   // sum_{h=T-L^M}^{T-1} m_h - e_{T-1} <= L^M - 1
-   // which for L^M = 1 says that a single-step modulation always ends
-   else {
-    LinearFunction::v_coeff_pair cf;
-    for( Index h = ( T >= L ? T - L : 0 ) ; h < T ; ++h )
-     cf.push_back( coeff_pair( & v_modulation[ h ] , 1.0 ) );
-    cf.push_back( coeff_pair( & v_modulation_end[ T - 1 ] , -1.0 ) );
-    row( ModulationEndLink[ t ] , std::move( cf ) , -INF , double( L - 1 ) );
-    }
-
-   if( ! t ) {
-    // the instant 0 has the (constant) band of the initial power, if the
-    // unit is on at the beginning; if it is off, the band it restarts in
-    // is free
-    if( f_InitUpDownTime <= 0 )
-     continue;
-    const Index b0 = ( f_InitialPower <= B1 ) ? 0 :
-                     ( ( f_InitialPower <= B2 ) ? 1 : 2 );
-    // ... and if it shuts down at 0 it has no band at all, which is what
-    // the term in the commitment leaves room for
-    for( Index k = 0 ; k < 3 ; ++k ) {
-     const double d0 = ( k == b0 ) ? 1.0 : 0.0;
-     row( BandKeep[ t ] , { coeff_pair( band( k , 0 ) , 1.0 ) ,
-                       coeff_pair( & v_modulation_end[ 0 ] , -1.0 ) } ,
-          -INF , d0 );
-     // d0 - b^k_0 <= e_0 + ( 1 - u_0 ): the band is the initial one unless
-     // a modulation ends at 0, and the unit that shuts down there has none
-     row( BandKeep[ t ] , { coeff_pair( band( k , 0 ) , -1.0 ) ,
-                       coeff_pair( & v_modulation_end[ 0 ] , -1.0 ) ,
-                       coeff_pair( & v_commitment[ 0 ] , 1.0 ) } ,
-          -INF , 1 - d0 );
-     row( BandMove[ t ] , { coeff_pair( band( k , 0 ) , 1.0 ) ,
-                       coeff_pair( & v_modulation_end[ 0 ] , 1.0 ) } ,
-          -INF , 2 - d0 );
-     }
-    if( b0 == 2 )
-     row( BandMove[ t ] , { coeff_pair( band( 0 , 0 ) , 1.0 ) } , -INF , 0 );
-    if( b0 == 0 )
-     row( BandMove[ t ] , { coeff_pair( band( 2 , 0 ) , 1.0 ) } , -INF , 0 );
-    // the band it may move to is the one the direction points at
-    if( b0 > 0 )
-     row( BandMove[ t ] , { coeff_pair( band( b0 - 1 , 0 ) , 1.0 ) ,
-                       coeff_pair( & v_modulation_down[ 0 ] , -1.0 ) } ,
-          -INF , 0 );
-    if( b0 < 2 )
-     row( BandMove[ t ] , { coeff_pair( band( b0 + 1 , 0 ) , 1.0 ) ,
-                       coeff_pair( & v_modulation_down[ 0 ] , 1.0 ) } ,
-          -INF , 1 );
-    // no step up from the top band, no step down from the bottom one [see
-    // the rows of t >= 1 below]
-    if( b0 == 2 )
-     row( BandMove[ t ] , { coeff_pair( & v_modulation[ 0 ] , 1.0 ) ,
-                       coeff_pair( & v_modulation_down[ 0 ] , -1.0 ) } ,
-          -INF , 0 );
-    if( b0 == 0 )
-     row( BandMove[ t ] , { coeff_pair( & v_modulation_down[ 0 ] , 1.0 ) } ,
-          -INF , 0 );
-    continue;
-    }
-
-   for( Index k = 0 ; k < 3 ; ++k ) {
-    // the band does not change, unless a modulation ends or the unit was
-    // off (in which case the band it restarts in is free)
-    row( BandKeep[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
-                      coeff_pair( band( k , t - 1 ) , -1.0 ) ,
-                      coeff_pair( & v_modulation_end[ t ] , -1.0 ) ,
-                      coeff_pair( & v_commitment[ t - 1 ] , 1.0 ) } ,
-         -INF , 1 );
-    row( BandKeep[ t ] , { coeff_pair( band( k , t - 1 ) , 1.0 ) ,
-                      coeff_pair( band( k , t ) , -1.0 ) ,
-                      coeff_pair( & v_modulation_end[ t ] , -1.0 ) ,
-                      coeff_pair( & v_commitment[ t ] , 1.0 ) } , -INF , 1 );
-    // when a modulation ends the band does change
-    row( BandMove[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
-                      coeff_pair( band( k , t - 1 ) , 1.0 ) ,
-                      coeff_pair( & v_modulation_end[ t ] , 1.0 ) } ,
-         -INF , 2 );
-    }
-   // and it moves to an adjacent band, never across the whole range
-   row( BandMove[ t ] , { coeff_pair( band( 0 , t ) , 1.0 ) ,
-                     coeff_pair( band( 2 , t - 1 ) , 1.0 ) } , -INF , 1 );
-   row( BandMove[ t ] , { coeff_pair( band( 2 , t ) , 1.0 ) ,
-                     coeff_pair( band( 0 , t - 1 ) , 1.0 ) } , -INF , 1 );
-   // ... in the direction the modulation has: the unit ends a step that
-   // does not decrease its output no lower than it began it, and a step
-   // that does not increase it no higher
-   for( Index k = 0 ; k + 1 < 3 ; ++k ) {
-    row( BandMove[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
-                      coeff_pair( band( k + 1 , t - 1 ) , 1.0 ) ,
-                      coeff_pair( & v_modulation_down[ t ] , -1.0 ) } ,
-         -INF , 1 );
-    row( BandMove[ t ] , { coeff_pair( band( k + 1 , t ) , 1.0 ) ,
-                      coeff_pair( band( k , t - 1 ) , 1.0 ) ,
-                      coeff_pair( & v_modulation_down[ t ] , 1.0 ) } ,
-         -INF , 2 );
-    }
-   // a step leaves the band the unit is in towards an adjacent one, hence
-   // none goes up from the top band or down from the bottom one: within the
-   // horizon this follows from the rows above, but a modulation that the
-   // horizon cuts does not land, and it would escape them
-   //   m_t - d_t + b^3_{t-1} <= 1 , d_t + b^1_{t-1} <= 1
-   row( BandMove[ t ] , { coeff_pair( & v_modulation[ t ] , 1.0 ) ,
-                     coeff_pair( & v_modulation_down[ t ] , -1.0 ) ,
-                     coeff_pair( band( 2 , t - 1 ) , 1.0 ) } , -INF , 1 );
-   row( BandMove[ t ] , { coeff_pair( & v_modulation_down[ t ] , 1.0 ) ,
-                     coeff_pair( band( 0 , t - 1 ) , 1.0 ) } , -INF , 1 );
-   }
-
-  add_rows( BandChoice , "BandChoice_Nuclear" );
-  add_rows( BandPower , "BandPower_Nuclear" );
-  add_rows( ModulationEndLink , "ModulationEnd_Nuclear" );
-  add_rows( BandKeep , "BandKeep_Nuclear" );
-  add_rows( BandMove , "BandMove_Nuclear" );
-  }
+ build_band_rows( true );
 
  // stability after a start-up - - - - - - - - - - - - - - - - - - - - - - -
  // a unit that starts up at t cannot begin a modulation before t + A, i.e.,
@@ -1204,82 +1062,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
   add_rows( StartUpsPerDayConst , "StartUpsPerDay_Nuclear" );
   }
 
- // deep decreases - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // p_t + pd_t dd''_t >= pd_t ,
- // p_{t-1} - p_t - G_t dd'_t <= Dd_t with G_t = ( max{ D-_t , SD_t } -
- // Dd_t )^+ ,
- // dd_t - dd'_t - dd''_t - u_t >= -2
- // for the instants with an on predecessor (t = 0 only if on at the start)
- if( has_deep_decrease() ) {
-  const Index t0 = ( f_InitUpDownTime > 0 ) ? 0 : 1;
-  DeepLowConst.reserve( T );
-  DeepDropConst.reserve( T );
-  DeepLinkConst.reserve( T );
-  for( Index t = t0 ; t < T ; ++t ) {
-   const double pd = v_deep_threshold[ t ];
-   const double Dd = v_deep_gradient[ t ];
-   // the decrease is at most max{ D-_t , SD_t } [see above]
-   const double Pm = std::max( v_DeltaRampDown[ t ] , v_ShutDownLimit[ t ] );
-   // the output of an on unit is at least its minimum power, hence the tight
-   // form p_t + ( pd - Pmin )^+ dd''_t - pd u_t >= 0, which the off unit
-   // (p_t = 0) satisfies with any dd''_t; without the commitment the
-   // coefficient of dd''_t has to be the whole pd, which is weaker
-   if( f_tight_rules )
-    row( DeepLowConst ,
-         { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
-           coeff_pair( & v_deep_low[ t ] ,
-                       std::max( pd - get_operational_min_power( t ) ,
-                                 0.0 ) ) ,
-           coeff_pair( & v_commitment[ t ] , - pd ) } , 0 , INF );
-   else
-    row( DeepLowConst , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
-                          coeff_pair( & v_deep_low[ t ] , pd ) } , pd , INF );
-   LinearFunction::v_coeff_pair cf;
-   if( t )
-    cf.push_back( coeff_pair( & v_active_power[ t - 1 ] , 1.0 ) );
-   cf.push_back( coeff_pair( & v_active_power[ t ] , -1.0 ) );
-   cf.push_back( coeff_pair( & v_deep_drop[ t ] ,
-                             - std::max( Pm - Dd , 0.0 ) ) );
-   row( DeepDropConst , std::move( cf ) , -INF ,
-        Dd - ( t ? 0 : f_InitialPower ) );
-   row( DeepLinkConst , { coeff_pair( & v_deep[ t ] , 1.0 ) ,
-                          coeff_pair( & v_deep_drop[ t ] , -1.0 ) ,
-                          coeff_pair( & v_deep_low[ t ] , -1.0 ) ,
-                          coeff_pair( & v_commitment[ t ] , -1.0 ) } ,
-        -2 , INF );
-   }
-  add_rows( DeepLowConst , "DeepLow_Nuclear" );
-  add_rows( DeepDropConst , "DeepDrop_Nuclear" );
-  add_rows( DeepLinkConst , "DeepLink_Nuclear" );
-
-  // a decrease by at least the deep gradient is larger than what a stable
-  // instant allows, hence a deep decrease is a downward modulation step:
-  // dd_t <= d_t (<= m_t when the direction does not matter)
-  if( f_tight_rules ) {
-   DeepDownLink.reserve( T );
-   for( Index t = t0 ; t < T ; ++t )
-    if( v_deep_gradient[ t ] > v_modulation_ramp_down[ t ] )
-     row( DeepDownLink ,
-          { coeff_pair( & v_deep[ t ] , 1.0 ) ,
-            coeff_pair( dir ? & v_modulation_down[ t ] : & v_modulation[ t ] ,
-                        -1.0 ) } , -INF , 0 );
-   if( ! DeepDownLink.empty() )
-    add_rows( DeepDownLink , "DeepDownLink_Nuclear" );
-   }
-
-  if( f_deep_decreases_per_day >= 0 ) {
-   DeepDecreasesPerDayConst.reserve( days.size() );
-   for( auto [ d0 , d1 ] : days ) {
-    LinearFunction::v_coeff_pair cf;
-    for( Index t = d0 ; t < d1 ; ++t )
-     cf.push_back( coeff_pair( & v_deep[ t ] , 1.0 ) );
-    row( DeepDecreasesPerDayConst , std::move( cf ) , -INF ,
-         double( f_deep_decreases_per_day ) );
-    }
-   add_rows( DeepDecreasesPerDayConst ,
-                          "DeepDecreasesPerDay_Nuclear" );
-   }
-  }
+ build_deep_rows_f1( days );
  // the rows that are separated are those written on the start Variable,
  // which only exists if a modulation may last more than one instant
  if( generating_rows() ) {
@@ -1292,6 +1075,313 @@ void NuclearUnitBlock::generate_operating_rules( void )
   }
 
  }  // end( NuclearUnitBlock::generate_operating_rules )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::build_band_rows( bool end_link )
+{
+ if( ! has_power_bands() )
+  return;
+
+ const Index T = f_time_horizon;
+ const Index L = f_max_modulation_length;
+ const double INF = Inf< double >();
+
+ // append the row lhs <= sum coeff * var <= rhs [see push_row()]
+ auto row = [ & ]( std::vector< FRowConstraint > & rows ,
+                   LinearFunction::v_coeff_pair && cf , double lhs ,
+                   double rhs ) {
+  push_row( rows , std::move( cf ) , lhs , rhs );
+  };
+
+ // the bands of the output - - - - - - - - - - - - - - - - - - - - - - - -
+ // b^1_t + b^2_t + b^3_t = u_t : one band per on instant, none when off;
+ // the output is always in its band:
+ //   p_t >= Pmin b^1 + B_1 b^2 + B_2 b^3 , p_t <= B_1 b^1 + B_2 b^2 + Pmax b^3
+ // with e_t = m_t ( 1 - m_{t+1} ) the last step of a modulation; the band
+ // only changes there, hence the steps of a modulation that precede the
+ // last one keep the output in the band of origin, and the last one lands
+ // in an adjacent band:
+ //   b^k_t - b^k_{t-1} <= e_t + ( 1 - u_{t-1} ) , and the other way round
+ //   b^k_t + b^k_{t-1} <= 2 - e_t , b^1_t + b^3_{t-1} <= 1 , and vice versa
+ // and it moves in the direction of the modulation, a step that does not
+ // decrease the output leaving the unit no lower than it found it:
+ //   b^k_t + b^{k+1}_{t-1} <= 1 + d_t , b^{k+1}_t + b^k_{t-1} <= 2 - d_t
+ // which matters where the landing power is a breakpoint of the bands and
+ // both of them would hold it
+ const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
+ auto band = [ & ]( Index k , Index t ) { return( & v_band[ k * T + t ] ); };
+
+ BandChoice.reserve( T );
+ BandPower.reserve( 2 * T );
+
+ // the rows of instant t, whose number depends on t: the inner vectors
+ // are reserved to their largest size, so that no row moves
+ if( end_link )
+  ModulationEndLink.resize( T );
+ BandKeep.resize( T );
+ BandMove.resize( T );
+ for( Index t = 0 ; t < T ; ++t ) {
+  if( end_link )
+   ModulationEndLink[ t ].reserve( 3 );
+  BandKeep[ t ].reserve( 6 );
+  BandMove[ t ].reserve( 11 );
+  }
+
+ for( Index t = 0 ; t < T ; ++t ) {
+  // the operational bounds, as in the rows of ThermalUnitBlock
+  const double pmin = get_operational_min_power( t );
+  const double pmax = get_operational_max_power( t );
+
+  row( BandChoice , { coeff_pair( band( 0 , t ) , 1.0 ) ,
+                      coeff_pair( band( 1 , t ) , 1.0 ) ,
+                      coeff_pair( band( 2 , t ) , 1.0 ) ,
+                      coeff_pair( & v_commitment[ t ] , -1.0 ) } , 0 , 0 );
+
+  row( BandPower , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
+                     coeff_pair( band( 0 , t ) , - pmin ) ,
+                     coeff_pair( band( 1 , t ) , - B1 ) ,
+                     coeff_pair( band( 2 , t ) , - B2 ) } , 0 , INF );
+  row( BandPower , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
+                     coeff_pair( band( 0 , t ) , - B1 ) ,
+                     coeff_pair( band( 1 , t ) , - B2 ) ,
+                     coeff_pair( band( 2 , t ) , - pmax ) } , -INF , 0 );
+
+  // e_t = m_t ( 1 - m_{t+1} ), the last step of a modulation, in the
+  // default formulation (in the other ones e_t is defined by the ends of
+  // the modulations, see build_compact_rows())
+  if( end_link ) {
+   row( ModulationEndLink[ t ] ,
+        { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
+          coeff_pair( & v_modulation[ t ] , -1.0 ) } , -INF , 0 );
+   if( t + 1 < T ) {
+    row( ModulationEndLink[ t ] ,
+         { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
+           coeff_pair( & v_modulation[ t + 1 ] , 1.0 ) } , -INF , 1 );
+    row( ModulationEndLink[ t ] ,
+         { coeff_pair( & v_modulation_end[ t ] , 1.0 ) ,
+           coeff_pair( & v_modulation[ t ] , -1.0 ) ,
+           coeff_pair( & v_modulation[ t + 1 ] , 1.0 ) } , 0 , INF );
+    }
+   // at the last instant of the horizon a modulation may be still in
+   // progress, exactly as it may in the DP: e_{T-1} is then free below
+   // m_{T-1}, and the band changes there or does not. A modulation that
+   // the horizon cuts, however, still owes its last step, hence it may
+   // only have L^M - 1 of them:
+   // sum_{h=T-L^M}^{T-1} m_h - e_{T-1} <= L^M - 1
+   // which for L^M = 1 says that a single-step modulation always ends
+   else {
+    LinearFunction::v_coeff_pair cf;
+    for( Index h = ( T >= L ? T - L : 0 ) ; h < T ; ++h )
+     cf.push_back( coeff_pair( & v_modulation[ h ] , 1.0 ) );
+    cf.push_back( coeff_pair( & v_modulation_end[ T - 1 ] , -1.0 ) );
+    row( ModulationEndLink[ t ] , std::move( cf ) , -INF ,
+         double( L - 1 ) );
+    }
+   }
+
+  if( ! t ) {
+   // the instant 0 has the (constant) band of the initial power, if the
+   // unit is on at the beginning; if it is off, the band it restarts in
+   // is free
+   if( f_InitUpDownTime <= 0 )
+    continue;
+   const Index b0 = ( f_InitialPower <= B1 ) ? 0 :
+                    ( ( f_InitialPower <= B2 ) ? 1 : 2 );
+   // ... and if it shuts down at 0 it has no band at all, which is what
+   // the term in the commitment leaves room for
+   for( Index k = 0 ; k < 3 ; ++k ) {
+    const double d0 = ( k == b0 ) ? 1.0 : 0.0;
+    row( BandKeep[ t ] , { coeff_pair( band( k , 0 ) , 1.0 ) ,
+                      coeff_pair( & v_modulation_end[ 0 ] , -1.0 ) } ,
+         -INF , d0 );
+    // d0 - b^k_0 <= e_0 + ( 1 - u_0 ): the band is the initial one unless
+    // a modulation ends at 0, and the unit that shuts down there has none
+    row( BandKeep[ t ] , { coeff_pair( band( k , 0 ) , -1.0 ) ,
+                      coeff_pair( & v_modulation_end[ 0 ] , -1.0 ) ,
+                      coeff_pair( & v_commitment[ 0 ] , 1.0 ) } ,
+         -INF , 1 - d0 );
+    row( BandMove[ t ] , { coeff_pair( band( k , 0 ) , 1.0 ) ,
+                      coeff_pair( & v_modulation_end[ 0 ] , 1.0 ) } ,
+         -INF , 2 - d0 );
+    }
+   if( b0 == 2 )
+    row( BandMove[ t ] , { coeff_pair( band( 0 , 0 ) , 1.0 ) } , -INF , 0 );
+   if( b0 == 0 )
+    row( BandMove[ t ] , { coeff_pair( band( 2 , 0 ) , 1.0 ) } , -INF , 0 );
+   // the band it may move to is the one the direction points at
+   if( b0 > 0 )
+    row( BandMove[ t ] , { coeff_pair( band( b0 - 1 , 0 ) , 1.0 ) ,
+                      coeff_pair( & v_modulation_down[ 0 ] , -1.0 ) } ,
+         -INF , 0 );
+   if( b0 < 2 )
+    row( BandMove[ t ] , { coeff_pair( band( b0 + 1 , 0 ) , 1.0 ) ,
+                      coeff_pair( & v_modulation_down[ 0 ] , 1.0 ) } ,
+         -INF , 1 );
+   // no step up from the top band, no step down from the bottom one [see
+   // the rows of t >= 1 below]
+   if( b0 == 2 )
+    row( BandMove[ t ] , { coeff_pair( & v_modulation[ 0 ] , 1.0 ) ,
+                      coeff_pair( & v_modulation_down[ 0 ] , -1.0 ) } ,
+         -INF , 0 );
+   if( b0 == 0 )
+    row( BandMove[ t ] , { coeff_pair( & v_modulation_down[ 0 ] , 1.0 ) } ,
+         -INF , 0 );
+   continue;
+   }
+
+  for( Index k = 0 ; k < 3 ; ++k ) {
+   // the band does not change, unless a modulation ends or the unit was
+   // off (in which case the band it restarts in is free)
+   row( BandKeep[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
+                     coeff_pair( band( k , t - 1 ) , -1.0 ) ,
+                     coeff_pair( & v_modulation_end[ t ] , -1.0 ) ,
+                     coeff_pair( & v_commitment[ t - 1 ] , 1.0 ) } ,
+        -INF , 1 );
+   row( BandKeep[ t ] , { coeff_pair( band( k , t - 1 ) , 1.0 ) ,
+                     coeff_pair( band( k , t ) , -1.0 ) ,
+                     coeff_pair( & v_modulation_end[ t ] , -1.0 ) ,
+                     coeff_pair( & v_commitment[ t ] , 1.0 ) } , -INF , 1 );
+   // when a modulation ends the band does change
+   row( BandMove[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
+                     coeff_pair( band( k , t - 1 ) , 1.0 ) ,
+                     coeff_pair( & v_modulation_end[ t ] , 1.0 ) } ,
+        -INF , 2 );
+   }
+  // and it moves to an adjacent band, never across the whole range
+  row( BandMove[ t ] , { coeff_pair( band( 0 , t ) , 1.0 ) ,
+                    coeff_pair( band( 2 , t - 1 ) , 1.0 ) } , -INF , 1 );
+  row( BandMove[ t ] , { coeff_pair( band( 2 , t ) , 1.0 ) ,
+                    coeff_pair( band( 0 , t - 1 ) , 1.0 ) } , -INF , 1 );
+  // ... in the direction the modulation has: the unit ends a step that
+  // does not decrease its output no lower than it began it, and a step
+  // that does not increase it no higher
+  for( Index k = 0 ; k + 1 < 3 ; ++k ) {
+   row( BandMove[ t ] , { coeff_pair( band( k , t ) , 1.0 ) ,
+                     coeff_pair( band( k + 1 , t - 1 ) , 1.0 ) ,
+                     coeff_pair( & v_modulation_down[ t ] , -1.0 ) } ,
+        -INF , 1 );
+   row( BandMove[ t ] , { coeff_pair( band( k + 1 , t ) , 1.0 ) ,
+                     coeff_pair( band( k , t - 1 ) , 1.0 ) ,
+                     coeff_pair( & v_modulation_down[ t ] , 1.0 ) } ,
+        -INF , 2 );
+   }
+  // a step leaves the band the unit is in towards an adjacent one, hence
+  // none goes up from the top band or down from the bottom one: within the
+  // horizon this follows from the rows above, but a modulation that the
+  // horizon cuts does not land, and it would escape them
+  //   m_t - d_t + b^3_{t-1} <= 1 , d_t + b^1_{t-1} <= 1
+  row( BandMove[ t ] , { coeff_pair( & v_modulation[ t ] , 1.0 ) ,
+                    coeff_pair( & v_modulation_down[ t ] , -1.0 ) ,
+                    coeff_pair( band( 2 , t - 1 ) , 1.0 ) } , -INF , 1 );
+  row( BandMove[ t ] , { coeff_pair( & v_modulation_down[ t ] , 1.0 ) ,
+                    coeff_pair( band( 0 , t - 1 ) , 1.0 ) } , -INF , 1 );
+  }
+
+ add_rows( BandChoice , "BandChoice_Nuclear" );
+ add_rows( BandPower , "BandPower_Nuclear" );
+ if( end_link )
+  add_rows( ModulationEndLink , "ModulationEnd_Nuclear" );
+ add_rows( BandKeep , "BandKeep_Nuclear" );
+ add_rows( BandMove , "BandMove_Nuclear" );
+
+ }  // end( NuclearUnitBlock::build_band_rows )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::build_deep_rows_f1(
+                 const std::vector< std::pair< Index , Index > > & days )
+{
+ if( ! has_deep_decrease() )
+  return;
+
+ const Index T = f_time_horizon;
+ const bool dir = ! v_modulation_down.empty();
+ const double INF = Inf< double >();
+
+ // append the row lhs <= sum coeff * var <= rhs [see push_row()]
+ auto row = [ & ]( std::vector< FRowConstraint > & rows ,
+                   LinearFunction::v_coeff_pair && cf , double lhs ,
+                   double rhs ) {
+  push_row( rows , std::move( cf ) , lhs , rhs );
+  };
+
+ // deep decreases - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // p_t + pd_t dd''_t >= pd_t ,
+ // p_{t-1} - p_t - G_t dd'_t <= Dd_t with G_t = ( max{ D-_t , SD_t } -
+ // Dd_t )^+ ,
+ // dd_t - dd'_t - dd''_t - u_t >= -2
+ // for the instants with an on predecessor (t = 0 only if on at the start)
+ const Index t0 = ( f_InitUpDownTime > 0 ) ? 0 : 1;
+ DeepLowConst.reserve( T );
+ DeepDropConst.reserve( T );
+ DeepLinkConst.reserve( T );
+ for( Index t = t0 ; t < T ; ++t ) {
+  const double pd = v_deep_threshold[ t ];
+  const double Dd = v_deep_gradient[ t ];
+  // the decrease is at most max{ D-_t , SD_t } [see above]
+  const double Pm = std::max( v_DeltaRampDown[ t ] , v_ShutDownLimit[ t ] );
+  // the output of an on unit is at least its minimum power, hence the tight
+  // form p_t + ( pd - Pmin )^+ dd''_t - pd u_t >= 0, which the off unit
+  // (p_t = 0) satisfies with any dd''_t; without the commitment the
+  // coefficient of dd''_t has to be the whole pd, which is weaker
+  if( f_tight_rules )
+   row( DeepLowConst ,
+        { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
+          coeff_pair( & v_deep_low[ t ] ,
+                      std::max( pd - get_operational_min_power( t ) ,
+                                0.0 ) ) ,
+          coeff_pair( & v_commitment[ t ] , - pd ) } , 0 , INF );
+  else
+   row( DeepLowConst , { coeff_pair( & v_active_power[ t ] , 1.0 ) ,
+                         coeff_pair( & v_deep_low[ t ] , pd ) } , pd , INF );
+  LinearFunction::v_coeff_pair cf;
+  if( t )
+   cf.push_back( coeff_pair( & v_active_power[ t - 1 ] , 1.0 ) );
+  cf.push_back( coeff_pair( & v_active_power[ t ] , -1.0 ) );
+  cf.push_back( coeff_pair( & v_deep_drop[ t ] ,
+                            - std::max( Pm - Dd , 0.0 ) ) );
+  row( DeepDropConst , std::move( cf ) , -INF ,
+       Dd - ( t ? 0 : f_InitialPower ) );
+  row( DeepLinkConst , { coeff_pair( & v_deep[ t ] , 1.0 ) ,
+                         coeff_pair( & v_deep_drop[ t ] , -1.0 ) ,
+                         coeff_pair( & v_deep_low[ t ] , -1.0 ) ,
+                         coeff_pair( & v_commitment[ t ] , -1.0 ) } ,
+       -2 , INF );
+  }
+ add_rows( DeepLowConst , "DeepLow_Nuclear" );
+ add_rows( DeepDropConst , "DeepDrop_Nuclear" );
+ add_rows( DeepLinkConst , "DeepLink_Nuclear" );
+
+ // a decrease by at least the deep gradient is larger than what a stable
+ // instant allows, hence a deep decrease is a downward modulation step:
+ // dd_t <= d_t (<= m_t when the direction does not matter)
+ if( f_tight_rules ) {
+  DeepDownLink.reserve( T );
+  for( Index t = t0 ; t < T ; ++t )
+   if( v_deep_gradient[ t ] > v_modulation_ramp_down[ t ] )
+    row( DeepDownLink ,
+         { coeff_pair( & v_deep[ t ] , 1.0 ) ,
+           coeff_pair( dir ? & v_modulation_down[ t ] : & v_modulation[ t ] ,
+                       -1.0 ) } , -INF , 0 );
+  if( ! DeepDownLink.empty() )
+   add_rows( DeepDownLink , "DeepDownLink_Nuclear" );
+  }
+
+ if( f_deep_decreases_per_day >= 0 ) {
+  DeepDecreasesPerDayConst.reserve( days.size() );
+  for( auto [ d0 , d1 ] : days ) {
+   LinearFunction::v_coeff_pair cf;
+   for( Index t = d0 ; t < d1 ; ++t )
+    cf.push_back( coeff_pair( & v_deep[ t ] , 1.0 ) );
+   row( DeepDecreasesPerDayConst , std::move( cf ) , -INF ,
+        double( f_deep_decreases_per_day ) );
+   }
+  add_rows( DeepDecreasesPerDayConst ,
+                         "DeepDecreasesPerDay_Nuclear" );
+  }
+
+ }  // end( NuclearUnitBlock::build_deep_rows_f1 )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1403,8 +1493,10 @@ void NuclearUnitBlock::set_solution( void )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    if( t < t0 ) {
     v_deep[ t ].set_value( 0 );
-    v_deep_drop[ t ].set_value( 0 );
-    v_deep_low[ t ].set_value( 0 );
+    if( ! v_deep_drop.empty() ) {
+     v_deep_drop[ t ].set_value( 0 );
+     v_deep_low[ t ].set_value( 0 );
+     }
     continue;
     }
    const double p = Pi[ t ].get_value();
@@ -1421,8 +1513,10 @@ void NuclearUnitBlock::set_solution( void )
    const double dtol = 1e-6 * std::max( 1.0 , v_deep_gradient[ t ] );
    const bool low = p < v_deep_threshold[ t ] - ptol;
    const bool drop = pp - p > v_deep_gradient[ t ] + dtol;
-   v_deep_low[ t ].set_value( low ? 1 : 0 );
-   v_deep_drop[ t ].set_value( drop ? 1 : 0 );
+   if( ! v_deep_drop.empty() ) {
+    v_deep_low[ t ].set_value( low ? 1 : 0 );
+    v_deep_drop[ t ].set_value( drop ? 1 : 0 );
+    }
    v_deep[ t ].set_value( ( on && low && drop ) ? 1 : 0 );
    }
   }
@@ -1569,6 +1663,11 @@ void NuclearUnitBlock::set_solution( void )
    for( Index k = 0 ; k < 3 ; ++k )
     v_band[ k * T + t ].set_value( ( b[ t ] == k ) ? 1 : 0 );
   }
+
+ // the Variable of the formulation of the rules, if it is not the default
+ // one, from all of the above
+ set_form_solution();
+
  }  // end( NuclearUnitBlock::set_solution )
 
 /*--------------------------------------------------------------------------*/
@@ -1913,12 +2012,14 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // if the given Configuration is not valid, try the one from the BlockConfig
   extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
- return( ThermalUnitBlock::is_feasible( useabstract )
+ return( ThermalUnitBlock::is_feasible( useabstract , fsbc )
    // Variable
    && ColVariable::is_feasible( v_modulation , tol )
    // Constraints
-   && RowConstraint::is_feasible( Modulation_RampUp_Constraints , tol , rel_viol )
-   && RowConstraint::is_feasible( Modulation_RampDown_Constraints , tol , rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampUp_Constraints , tol ,
+                                  rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampDown_Constraints , tol ,
+                                  rel_viol )
    && RowConstraint::is_feasible( NoDownModulation , tol , rel_viol )
    && RowConstraint::is_feasible( NoStartUpModulation , tol , rel_viol )
    && RowConstraint::is_feasible( ModulationConst , tol , rel_viol )
@@ -1954,6 +2055,31 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    && RowConstraint::is_feasible( DeepLinkConst , tol , rel_viol )
    && RowConstraint::is_feasible( DeepDownLink , tol , rel_viol )
    && RowConstraint::is_feasible( Nuclear_cuts , tol , rel_viol )
+   && std::all_of( v_form_rows.begin() , v_form_rows.end() ,
+                   [ & ]( std::vector< FRowConstraint > & g ) {
+                    return( RowConstraint::is_feasible( g , tol ,
+                                                        rel_viol ) ); } )
+   && ColVariable::is_feasible( v_mod_start_up , tol )
+   && ColVariable::is_feasible( v_mod_start_dn , tol )
+   && ColVariable::is_feasible( v_mod_end_up , tol )
+   && ColVariable::is_feasible( v_mod_end_dn , tol )
+   && ColVariable::is_feasible( v_stable_move , tol )
+   && ColVariable::is_feasible( v_last_up , tol )
+   && ColVariable::is_feasible( v_last_dn , tol )
+   && ColVariable::is_feasible( v_start_power , tol )
+   && ColVariable::is_feasible( v_stop_power , tol )
+   && ColVariable::is_feasible( v_full_deep , tol )
+   && ColVariable::is_feasible( v_full_nodeep , tol )
+   && ColVariable::is_feasible( v_last_deep , tol )
+   && ColVariable::is_feasible( v_last_high , tol )
+   && ColVariable::is_feasible( v_last_small , tol )
+   && ColVariable::is_feasible( v_xi_deep , tol )
+   && ColVariable::is_feasible( v_xi_high , tol )
+   && ColVariable::is_feasible( v_xi_small , tol )
+   && ColVariable::is_feasible( v_run , tol )
+   && ColVariable::is_feasible( v_arc , tol )
+   && ColVariable::is_feasible( v_arc_land , tol )
+   && ColVariable::is_feasible( v_arc_dep , tol )
    );
 
  }  // end( NuclearUnitBlock::is_feasible )
@@ -1988,8 +2114,10 @@ Solution * NuclearUnitBlock::get_Solution( Configuration * csolc ,
  // where it is not needed, and a Solution has to say which
  if( ( wsol & 2 ) && get_deep_decrease() ) {
   sol->v_deep.resize( get_time_horizon() );
-  sol->v_deep_drop.resize( get_time_horizon() );
-  sol->v_deep_low.resize( get_time_horizon() );
+  if( get_deep_drop() ) {
+   sol->v_deep_drop.resize( get_time_horizon() );
+   sol->v_deep_low.resize( get_time_horizon() );
+   }
   }
 
  if( ! emptys )
@@ -2444,6 +2572,11 @@ void NuclearUnitBlockSolution::write( Block * block )
  wr( v_deep , NUB->get_deep_decrease() );
  wr( v_deep_drop , NUB->get_deep_drop() );
  wr( v_deep_low , NUB->get_deep_low() );
+
+ // the Variable of a formulation of the rules other than the default one
+ // follow the deep decreases just written
+ if( ! v_deep.empty() )
+  NUB->set_form_solution();
 
  }  // end( NuclearUnitBlockSolution::write )
 
