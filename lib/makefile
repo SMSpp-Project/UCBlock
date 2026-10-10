@@ -51,7 +51,6 @@ UCBckOBJ = $(UCBckOdir)/ACNetworkBlock.o \
 	$(UCBckOdir)/IntermittentUnitBlock.o \
 	$(UCBckOdir)/NetworkBlock.o \
 	$(UCBckOdir)/NuclearUnitBlock.o \
-	$(UCBckOdir)/NuclearUnitBlockForms.o \
 	$(UCBckOdir)/OTSNetworkBlock.o \
 	$(UCBckOdir)/SlackUnitBlock.o \
 	$(UCBckOdir)/ThermalUnitBlock.o \
@@ -73,7 +72,6 @@ UCBckH = $(UCBckINCdir)/BatteryUnitBlock.h \
 	$(UCBckINCdir)/IntermittentUnitBlock.h \
 	$(UCBckINCdir)/NetworkBlock.h \
 	$(UCBckINCdir)/NuclearUnitBlock.h \
-	$(UCBckINCdir)/NuclearRules.h \
 	$(UCBckINCdir)/OTSNetworkBlock.h \
 	$(UCBckINCdir)/SlackUnitBlock.h \
 	$(UCBckINCdir)/ThermalUnitBlock.h \
@@ -150,15 +148,8 @@ $(UCBckOdir)/NetworkBlock.o: $(UCBckSRCdir)/NetworkBlock.cpp \
 
 $(UCBckOdir)/NuclearUnitBlock.o: $(UCBckSRCdir)/NuclearUnitBlock.cpp \
         $(UCBckINCdir)/NuclearUnitBlock.h $(UCBckINCdir)/ThermalUnitBlock.h \
-	$(UCBckINCdir)/NuclearRules.h $(UCBckINCdir)/UnitBlock.h $(SMS++OBJ) 
+	$(UCBckINCdir)/UnitBlock.h $(SMS++OBJ) 
 	$(CC) -c $(UCBckSRCdir)/NuclearUnitBlock.cpp -o $@ \
-	$(SMS++INC) $(UCBckINC) $(SW)
-
-$(UCBckOdir)/NuclearUnitBlockForms.o: \
-	$(UCBckSRCdir)/NuclearUnitBlockForms.cpp \
-	$(UCBckINCdir)/NuclearUnitBlock.h $(UCBckINCdir)/ThermalUnitBlock.h \
-	$(UCBckINCdir)/NuclearRules.h $(UCBckINCdir)/UnitBlock.h $(SMS++OBJ)
-	$(CC) -c $(UCBckSRCdir)/NuclearUnitBlockForms.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)
 
 $(UCBckOdir)/OTSNetworkBlock.o: $(UCBckSRCdir)/OTSNetworkBlock.cpp \
@@ -203,7 +194,6 @@ $(UCBckOdir)/NuclearUnitExtDPSolver.o: \
         $(UCBckINCdir)/NuclearUnitExtDPSolver.h \
         $(UCBckINCdir)/ThermalUnitExtDPSolver.h \
         $(UCBckINCdir)/NuclearUnitBlock.h \
-        $(UCBckINCdir)/NuclearRules.h \
         $(UCBckINCdir)/ThermalUnitBlock.h $(SMS++OBJ)
 	$(CC) -c $(UCBckSRCdir)/NuclearUnitExtDPSolver.cpp -o $@ \
 	$(SMS++INC) $(UCBckINC) $(SW)

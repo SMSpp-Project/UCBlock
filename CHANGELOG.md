@@ -15,35 +15,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a `NuclearUnitBlock`, with and without bands, against
   `NuclearUnitExtDPSolver`
 
-- `NuclearUnitBlock` has seven more formulations of its operating rules,
-  selected by bits 8-10 of the int `Configuration` that selects the
-  formulation of the thermal part (`NuclearRules::FormMsk`): the one by the
-  indicators of the states of the modulations (F0), the
-  modulation-commitment one with the exact move of the output (F2) and its
-  variant with the ends projected out (F3a), the one by the runs of the
-  modulations (F4), and the flows on the label graph of the dynamic program
-  without (F5) and with (F6) the counters of the day and with the output
-  restricted to a finite set (F7); for F0, F2, F3a and F4 the bits
-  `StartUpStabSingle`, `DeepByF1Rows` and `ReachRows` select the stability
-  after a start-up by single instants, the deep decreases by the rows of the
-  default formulation and the rows of the reach of the output from a
-  start-up and towards a shut-down; every formulation is written on top of
-  any formulation of `ThermalUnitBlock` and is kept up to date by its
-  setters, or refuses the change
+- the unit test checks that a `compute()` of `NuclearUnitExtDPSolver` that
+  throws leaves the Solver usable, its value after a change of
+  `InitialPower` against a fresh unit, the rows that forbid a modulation
+  step at a start-up instant and the tolerance of
+  `NuclearUnitBlock::is_feasible()`
 
-- `NuclearRules.h`: the codes of the formulations of the operating rules,
-  their data, the labels of the states and the moves out of them, which
-  `NuclearUnitExtDPSolver` and the flows on the label graph share
+### Changed
 
-- the unit test checks every formulation of the operating rules against
-  `NuclearUnitExtDPSolver` (the edge cases of the rules and random data),
-  the chain of their continuous relaxations, the convex hull of the move of
-  F2 and the setters after the generation (`NUBCfg-T-F*.txt`,
-  `NUBCfg-T-TR-TM.txt`), that a `compute()` of `NuclearUnitExtDPSolver`
-  that throws leaves the Solver usable, and its value after a change of
-  `InitialPower` against a fresh unit
+- the instances of `data/` are downloaded and extracted by the targets
+  `download_uc_<fmt>` and `extract_uc_<fmt>`, written as in every module
+  that keeps its instances in the Package Registry, and the marker of the
+  extraction carries the format in its name, so that a tree extracted
+  before extracts once more
+
+- the single-bus thermal instances (`tools/json2netCDF/instances_singlebus`
+  and the `UC_singlebus` data) start from an initial state
+  consistent with the demand and the reserve at instant 0: the units are
+  committed in merit order while their minimum powers fit the lowest load net
+  of the reserve of the first day, each holds an output with one ramp of room
+  on both sides, and the others are off long enough to start at once; with the
+  reserve, the secondary requirement is capped so that the reserve plus the
+  change of the load in one instant fit within 0.7 times the one-instant ramp
+  of the fleet; every thermal instance with the reserve is feasible over its
+  horizon
+
+- the nuclear single-bus fleets (`UC_singlebus-nuclear`, built by
+  `gen-nuclear-uc`) are made of nuclear and thermal units: the largest units,
+  whose capacity is at least 45% of the fleet's, are `NuclearUnitBlock` and
+  the others `ThermalUnitBlock`, which balance the load around the nuclear
+  output; the low and the high band of a nuclear unit are as wide as the
+  primary plus secondary reserve it offers at full output, rather than 30% of
+  its range, and its longest modulation no longer binds (it was 8 instants),
+  the length of a modulation being set by the ramps and the bands; every
+  instance of a day is feasible. `json2nc4.jl` has the options
+  `--nuclear-share`, `--bands-reserve` and `--mod-length 0` for this
+
+- `json2nc4.jl` keeps the band breakpoints and the deep-decrease threshold of
+  a `NuclearUnitBlock` at least a tenth of a ramp away from a whole number of
+  ramps from the minimum and the maximum power, and the standalone units it
+  writes enter the horizon on at their minimum power whatever the initial
+  state of the fleet they are taken from, so that the standalone units of
+  `1UC_Data/nuclear` differ from the previous ones only in those thresholds
+
+- the ramp rows of the DP formulation of `ThermalUnitBlock` find the power
+  of the previous instant of the run and the commitment of the run without
+  scanning all the powers and all the runs for each row (the same rows)
+
+- the minimum power, maximum power and initial perspective cut rows of the
+  DP formulation of `ThermalUnitBlock` find the commitment and the cut
+  variable of the run without scanning all the runs and all the cuts for
+  each row (the same rows)
 
 ### Fixed
+
+- `ThermalUnitExtDPSolver` (and so `NuclearUnitExtDPSolver`) prunes a
+  state whose domain is narrower than 1e-9 by comparing the values at that
+  point: the steps of exactly the ramp that end at a bound of the output
+  left there states of equal value up to the rounding, which the test piece
+  by piece kept all, and whose number grew at each instant (more than 12 h
+  on 5 of the 25 week-long e7 units of `1UC_Data/nuclear` with no reserve
+  price); the optimal values are unchanged
 
 - the maximum power rows of the pt, SU, SD and SUSD formulations of
   `ThermalUnitBlock` (and so of `NuclearUnitBlock`) cap every instant of a
@@ -109,32 +141,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the tolerance it is given, and no longer with the default one of
   `Block`
 
-- `NuclearUnitBlock::get_Solution()` saves the two auxiliary indicators of
-  the deep decreases only if the unit has them
-
 - `compute()` of `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver` (and so
   of `NuclearUnitExtDPSolver`) releases the mutex of the Solver also when it
   throws, e.g., on a fixed Variable whose value the dynamic program refuses,
   and `NuclearUnitExtDPSolver::get_var_solution()` releases the lock of the
   Block likewise: the mutex stayed locked, and any other thread asking for
   the Solver waited forever
-
-### Changed
-
-- the ramp rows of the DP formulation of `ThermalUnitBlock` find the power
-  of the previous instant of the run and the commitment of the run without
-  scanning all the powers and all the runs for each row (the same rows)
-
-- the minimum power, maximum power and initial perspective cut rows of the
-  DP formulation of `ThermalUnitBlock` find the commitment and the cut
-  variable of the run without scanning all the runs and all the cuts for
-  each row (the same rows)
-
-- `NuclearUnitExtDPSolver` takes the labels of its states and the moves out
-  of them from `NuclearRules` (the same values and schedules as before); the
-  bands and the deep decreases of `NuclearUnitBlock` are written by
-  `build_band_rows()` and `build_deep_rows_f1()`, which the formulations of
-  the rules share
 
 ## [0.10.0] - 2026-10-09
 

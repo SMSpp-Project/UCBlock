@@ -232,8 +232,6 @@
 
 #include "NuclearUnitBlock.h"
 
-#include "NuclearRules.h"
-
 #include <algorithm>
 
 /*--------------------------------------------------------------------------*/
@@ -249,10 +247,7 @@ namespace SMSpp_di_unipi_it
 /// dynamic programming Solver of a NuclearUnitBlock
 /** The NuclearUnitExtDPSolver is the ThermalUnitExtDPSolver whose states are
  * labeled by the mode, the lockout, the band and the counters of the day of
- * the unit (cf. the file comment for the model and the algorithm). The
- * labels and the moves out of them are those of NuclearRules [see
- * NuclearRules.h], which the formulations of NuclearUnitBlock on the label
- * graph share. */
+ * the unit (cf. the file comment for the model and the algorithm). */
 
 class NuclearUnitExtDPSolver : public ThermalUnitExtDPSolver
 {
@@ -333,56 +328,152 @@ class NuclearUnitExtDPSolver : public ThermalUnitExtDPSolver
  bool reads_group( const std::string & name ) const override;
 
 /*--------------------------------------------------------------------------*/
- // the labels of the states [see the file comment], those of the rules
- // [see NuclearRules]
+ // the labels of the states [see the file comment]
 
- Index on_labels( void ) const override { return( f_rules.on_labels() ); }
+ Index on_labels( void ) const override {
+  return( f_ncore * f_ncount );
+  }
 
  Index off_labels( void ) const override {
-  return( f_rules.off_labels() );
+  return( ( lockout_max() + 1 ) * f_ncount );
   }
 
- Index init_label( void ) const override {
-  return( f_rules.init_label( initial_power ) );
-  }
+ Index init_label( void ) const override;
 
  void on_moves( Index t , Index lab ,
-                std::vector< OnMove > & mv ) const override {
-  f_rules.on_moves( t , lab , delta_ramp_up[ t ] , delta_ramp_down[ t ] ,
-                    mv );
-  }
+                std::vector< OnMove > & mv ) const override;
 
- Index shut_label( Index t , Index lab ) const override {
-  return( f_rules.shut_label( t , lab ) );
-  }
+ Index shut_label( Index t , Index lab ) const override;
 
- Index idle_label( Index t , Index e , Index k ) const override {
-  return( f_rules.idle_label( t , e , k ) );
-  }
+ Index idle_label( Index t , Index e , Index k ) const override;
 
- Index start_label( Index t , Index e ) const override {
-  return( f_rules.start_label( t , e ) );
-  }
+ Index start_label( Index t , Index e ) const override;
 
  void start_labels( Index t , Index e ,
                     std::vector< std::pair< Index ,
                                  std::pair< double , double > > > & ls )
-  const override { f_rules.start_labels( t , e , ls ); }
+  const override;
 
- bool label_dominates( Index a , Index b ) const override {
-  return( f_rules.label_dominates( a , b ) );
-  }
+ bool label_dominates( Index a , Index b ) const override;
 
  bool trim_domination( void ) const override { return( true ); }
+
+/*--------------------------------------------------------------------------*/
+ /// the lockout a modulation leaves behind, \f$ \tau^M - 1 \f$
+ Index mod_lockout( void ) const {
+  return( std::max( f_mod_interval , Index( 2 ) ) - 1 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the largest lockout a label may carry,
+ /// \f$ \max\{ \tau^M , \tau^v \} - 1 \f$
+ /** The largest value the lockout of a label can take: \f$ \tau^M - 1 \f$
+  * after the end of a modulation [see mod_lockout()] and \f$ \tau^v - 1 \f$
+  * after a start-up, \f$ \tau^v \f$ being the stability that follows one
+  * [see NuclearUnitBlock::get_stability_after_start_up()]. It is the range
+  * of the lockout in the encoding of the labels, and nothing else. */
+
+ Index lockout_max( void ) const {
+  return( std::max( mod_lockout() + 1 , f_stab_start ) - 1 );
+  }
+
+ /// the band the output p belongs to, the lowest one at a breakpoint, 0 if
+ /// the output is not banded (the bands are numbered 0, 1, 2 here and
+ /// 1, 2, 3 in the file comment)
+ Index band_of( double p ) const {
+  if( f_bands.empty() )
+   return( 0 );
+  return( ( p <= f_bands[ 0 ] ) ? 0 : ( ( p <= f_bands[ 1 ] ) ? 1 : 2 ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the day of the time instant t
+ Index day( Index t ) const { return( f_day_length ? t / f_day_length : 0 ); }
+
+ /// a label, decoded: the mode \f$ \varpi \f$ (0 stable, 1 up, 2 down),
+ /// the lockout or the steps \f$ n^{lk} \f$, the counters of the day
+ /// \f$ n^M \f$, \f$ n^{dd} \f$, \f$ n^{su} \f$ and the band \f$ k \f$
+ struct Label {
+  int mode;
+  Index lk;
+  Index c , a , s;
+  Index b{};   ///< the band of the output, or the one a modulation left
+  };
+
+ /// encode an on-label
+ Index on_code( const Label & l ) const {
+  const Index core = ( l.mode == 0 ) ? l.lk :
+   lockout_max() + l.lk + ( l.mode == 2 ? f_max_mod_length - 1 : 0 );
+  return( core + f_ncore * count_code( l ) );
+  }
+
+ /// encode an off-label (always stable)
+ Index off_code( const Label & l ) const {
+  return( l.lk + ( lockout_max() + 1 ) * count_code( l ) );
+  }
+
+ /// decode an on-label
+ Label on_label( Index lab ) const;
+
+ /// decode an off-label
+ Label off_label( Index e ) const;
+
+ /// the counters part of a label
+ Index count_code( const Label & l ) const {
+  return( l.b + f_nband * ( l.c + f_nc * ( l.a + f_na * l.s ) ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// the operating rules of the unit: their data, the labels of the states
- /// and the moves out of them, filled by load_parameters() and, for the
- /// fixed Variable of the rules, by load_fixings()
- NuclearRules f_rules;
+ Index f_mod_interval{ 2 };            ///< \f$ \tau^M \f$ (ModulationTime)
+ int f_init_modulation{ 2 };           ///< \f$ \tau^M_0 \f$ (InitModulation)
+ std::vector< double > mod_ramp_up;    ///< \f$ \Delta^{M+}_t \f$
+ std::vector< double > mod_ramp_down;  ///< \f$ \Delta^{M-}_t \f$
+
+ Index f_max_mod_length{ 1 };          ///< \f$ L^M \f$
+ int f_mod_per_day{ -1 };              ///< \f$ N^M \f$, -1 if unlimited
+ int f_deep_per_day{ -1 };             ///< \f$ N^{dd} \f$, -1 if unlimited
+ int f_starts_per_day{ -1 };           ///< \f$ N^{su} \f$, -1 if unlimited
+ Index f_day_length{ 0 };              ///< \f$ T^{day} \f$, 0 = horizon
+ bool f_direction{ false };            ///< true if the direction matters
+ std::vector< double > f_down_cost;    ///< \f$ c^-_t \f$ (empty = 0)
+ std::vector< double > f_deep_thr;     ///< \f$ \tilde p_t \f$ (empty = none)
+ std::vector< double > f_deep_grad;    ///< \f$ \tilde\Delta_t \f$
+ std::vector< double > f_deep_cost;    ///< \f$ c^{dd}_t \f$ (empty = 0)
+
+ /// \f$ \tau^v \f$, the instants of stability that begin with a start-up
+ Index f_stab_start{};
+
+ /// the two breakpoints that split the output into bands, empty if there
+ /// are no bands [see NuclearUnitBlock::get_power_bands()]
+ std::vector< double > f_bands;
+
+ /// the number of bands: 3 with the breakpoints, 1 without
+ Index f_nband{ 1 };
+
+ /// the fixed Variable \f$ m_t \f$, \f$ d_t \f$ and \f$ \delta_t \f$ of the
+ /// operating rules [see load_fixings()]: -1 where free, 0 or 1 where
+ /// fixed, empty if none of them is fixed
+ std::vector< signed char > f_fix_mod;
+ std::vector< signed char > f_fix_down;  ///< as f_fix_mod, for \f$ d_t \f$
+ std::vector< signed char > f_fix_deep;  ///< the same, for \f$ \delta_t \f$
+
+ /// true if a Variable of the operating rules is fixed to 1 at t, which
+ /// needs the unit on at t and not starting up at t
+ bool on_forced( Index t ) const {
+  auto one = [ t ]( const std::vector< signed char > & f ) {
+   return( ( ! f.empty() ) && ( f[ t ] == 1 ) );
+   };
+  return( one( f_fix_mod ) || one( f_fix_down ) || one( f_fix_deep ) );
+  }
+
+ Index f_ncore{ 2 };   ///< number of (mode, lockout or steps) pairs
+ Index f_nc{ 1 };      ///< range of the counter of the modulations
+ Index f_na{ 1 };      ///< range of the counter of the deep decreases
+ Index f_nv{ 1 };      ///< range of the counter of the start-ups
+ Index f_ncount{ 1 };  ///< f_nband * f_nc * f_na * f_nv
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

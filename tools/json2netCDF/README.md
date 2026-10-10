@@ -21,8 +21,8 @@ json2netCDF/
 │                               #   the tests of the nuclear operating rules
 ├── gen-nuclear-scaling         # bash driver: the same units at the day, week
 │                               #   and month horizons
-├── gen-nuclear-uc              # bash driver: the single-bus UCBlock whose
-│                               #   units are all nuclear
+├── gen-nuclear-uc              # bash driver: the single-bus UCBlock of
+│                               #   nuclear and thermal units
 ├── Project.toml / Manifest.toml # pinned env for the converter (JSON+NCDatasets)
 └── instances_singlebus/        # the JSON source instances (sb_*.json)
 ```
@@ -110,10 +110,18 @@ the family `e4`, which the unit follows while on throughout, and the family
 
 ### Nuclear UCBlock
 
-With `--nuclear` the converter writes one `UCBlock` whose units are all
-`NuclearUnitBlock`, with the same operating-rule options as above;
-`./gen-nuclear-uc` builds the single-bus instances of the 50-unit fleets at
-the three horizons under `data/nc4/UC_singlebus-nuclear/`.
+With `--nuclear` the converter writes one `UCBlock` whose units are
+`NuclearUnitBlock`, with the same operating-rule options as above. With
+`--nuclear-share F` only the largest units, whose capacity is at least `F`
+of the fleet's, are nuclear, while the others stay `ThermalUnitBlock` and
+balance the load around the nuclear output; `--bands-reserve` makes the low
+and the high band of each nuclear unit as wide as the primary plus secondary
+reserve it offers at full output, and `--mod-length 0` gives each nuclear
+unit the longest modulation that never binds, so that the length of a
+modulation is only set by its ramps and its bands. `./gen-nuclear-uc` builds
+with them the single-bus instances of the 50-unit fleets, 45% of whose
+capacity is nuclear, at the three horizons under
+`data/nc4/UC_singlebus-nuclear/`.
 
 ## Authors
 
