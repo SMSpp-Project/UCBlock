@@ -1115,8 +1115,9 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
 
  // for the DP formulation, the positions in v_Y_plus of each run ( h , k ),
  // in increasing order, and the positions in v_P_h_k of the instant t - 1
- // of the run of v_P_h_k[ j ], so that its ramp rows find them without a
- // scan of v_Y_plus and of v_P_h_k
+ // of the run of v_P_h_k[ j ], so that its rows (minimum and maximum
+ // power, ramps, initial perspective cuts) find them without a scan of
+ // v_Y_plus and of v_P_h_k
  std::map< std::pair< Index , Index > , std::vector< Index > > arc_pos;
  if( ( AR & FormMsk ) == DPForm )
   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
@@ -2222,11 +2223,9 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
   for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
 
    auto t = v_P_h_k[ j ].first;
-   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-    if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
-        ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) )
-     vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                     -get_operational_min_power( t ) ) );
+   for( auto i : arc_index( j ) )
+    vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                    -get_operational_min_power( t ) ) );
 
    vars.push_back( std::make_pair( &v_active_power_h_k[ j ] , 1.0 ) );
 
@@ -2657,23 +2656,21 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
   for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
 
    auto t = v_P_h_k[ j ].first;
-   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-    if( ( v_P_h_k[ j ].second.first == v_Y_plus[ i ].first ) &&
-        ( v_P_h_k[ j ].second.second == v_Y_plus[ i ].second ) ) {
-     // the first instant of the run is capped by the start-up limit, the
-     // last by the shut-down one, a run of one instant by both
-     if( v_Y_plus[ i ].first == t + 1 )
-      vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                      v_Y_plus[ i ].second == t + 1 ?
-                                      std::min( double( v_StartUpLimit[ t ] ) ,
-                                                sd_cap( t ) ) :
-                                      double( v_StartUpLimit[ t ] ) ) );
-     else if( v_Y_plus[ i ].second == t + 1 )
-      vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                      sd_cap( t ) ) );
-     else
-      vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                      get_operational_max_power( t ) ) );
+   for( auto i : arc_index( j ) ) {
+    // the first instant of the run is capped by the start-up limit, the
+    // last by the shut-down one, a run of one instant by both
+    if( v_Y_plus[ i ].first == t + 1 )
+     vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                     v_Y_plus[ i ].second == t + 1 ?
+                                     std::min( double( v_StartUpLimit[ t ] ) ,
+                                               sd_cap( t ) ) :
+                                     double( v_StartUpLimit[ t ] ) ) );
+    else if( v_Y_plus[ i ].second == t + 1 )
+     vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                     sd_cap( t ) ) );
+    else
+     vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                     get_operational_max_power( t ) ) );
     }
 
    vars.push_back( std::make_pair( &v_active_power_h_k[ j ] , -1.0 ) );
@@ -3044,6 +3041,17 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
 
    size_rows( Init_PC_Const , 2 * v_P_h_k.size() );
 
+   // the positions in v_Z_h_k (hence in v_cut_h_k) of the instant t of
+   // each run ( h , k ), in increasing order, so that the rows find them
+   // without a scan of v_Z_h_k
+   std::map< std::tuple< Index , Index , Index > , std::vector< Index > >
+    cut_pos;
+   for( Index s = 0 ; s < std::min( v_P_h_k.size() , v_Z_h_k.size() ) ;
+        ++s )
+    cut_pos[ std::make_tuple( v_Z_h_k[ s ].first ,
+                              v_Z_h_k[ s ].second.first ,
+                              v_Z_h_k[ s ].second.second ) ].push_back( s );
+
    for( Index j = 0 ; j < v_P_h_k.size() ; ++j )
     for( Index k = 0 ; k <= 1 ; ++k ) {
 
@@ -3053,17 +3061,16 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
 
      vars.push_back( std::make_pair( &v_active_power_h_k[ j ] , 2 * value ) );
 
-     for( Index s = 0 ; s < v_P_h_k.size() ; ++s )
-      if( ( v_P_h_k[ j ].second.first == v_Z_h_k[ s ].second.first ) &&
-          ( v_P_h_k[ j ].second.second == v_Z_h_k[ s ].second.second ) )
-       if( v_Z_h_k[ s ].first == t )
-        vars.push_back( std::make_pair( &v_cut_h_k[ s ] , -1.0 ) );
+     if( const auto it = cut_pos.find( std::make_tuple( t ,
+                                            v_P_h_k[ j ].second.first ,
+                                            v_P_h_k[ j ].second.second ) ) ;
+         it != cut_pos.end() )
+      for( auto s : it->second )
+       vars.push_back( std::make_pair( &v_cut_h_k[ s ] , -1.0 ) );
 
-     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
-      if( ( v_Y_plus[ i ].first == v_P_h_k[ j ].second.first ) &&
-          ( v_Y_plus[ i ].second == v_P_h_k[ j ].second.second ) )
-       vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
-                                       -std::pow( value , 2 ) ) );
+     for( auto i : arc_index( j ) )
+      vars.push_back( std::make_pair( &v_commitment_plus[ i ] ,
+                                      -std::pow( value , 2 ) ) );
 
      put_row( Init_PC_Const , cnstr_idx , std::move( vars ) ,
               -Inf< double >() , 0.0 );

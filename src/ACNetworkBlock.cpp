@@ -102,6 +102,42 @@ static double round_sig( double value , int digits = 16 )
 }
 
 /*--------------------------------------------------------------------------*/
+// whether [ a , b ] contains x + 2 k pi for some integer k
+
+static bool contains_mod_2pi( double x , double a , double b )
+{
+ const double two_pi = 2 * std::numbers::pi;
+ return( x + two_pi * std::ceil( ( a - x ) / two_pi ) <= b );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The range [ lo , hi ] of z f( theta ), f = sin if sine and cos otherwise,
+ * over theta in [ a , b ] (radians, b - a < 2 pi) and z = v_s v_e times
+ * C2 with v_s in [ ls , us ], v_e in [ le , ue ] and 0 <= ls , le. With
+ * fmn and fmx the minimum and the maximum of f over [ a , b ], which are
+ * -1 and 1 if [ a , b ] holds a minimizer or a maximizer of f and are
+ * taken at an end otherwise, lo = min{ L fmn , U fmn } and
+ * hi = max{ L fmx , U fmx } with L = ls le C2 and U = us ue C2, since z f
+ * is linear in z for a fixed theta; both are attained. The products are
+ * computed as f v_s v_e C2, in this order. */
+
+static std::pair< double , double > trig_range( double a , double b ,
+                                                double ls , double le ,
+                                                double us , double ue ,
+                                                double C2 , bool sine )
+{
+ const double pi = std::numbers::pi;
+ auto f = [ sine ]( double x ) { return( sine ? sin( x ) : cos( x ) ); };
+ const double top = sine ? pi / 2 : 0;  // a maximizer of f
+ const double fmx = contains_mod_2pi( top , a , b ) ? 1
+                    : std::max( f( a ) , f( b ) );
+ const double fmn = contains_mod_2pi( top + pi , a , b ) ? -1
+                    : std::min( f( a ) , f( b ) );
+ return( std::make_pair(
+          std::min( fmn * ls * le * C2 , fmn * us * ue * C2 ) ,
+          std::max( fmx * ls * le * C2 , fmx * us * ue * C2 ) ) );
+ }
+/*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ACNetworkData -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -147,6 +183,16 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
    throw( std::invalid_argument( "ACNetworkData::deserialize: "
                                  "LineMinAngle and LineMaxAngle must be "
                                  "given together" ) );
+
+  // two finite bounds (see get_angle_difference_bounds()) must be ordered
+  if( has_angle_bounds() )
+   for( Index l = 0 ; l < f_number_lines ; ++l ) {
+    const auto [ mn , mx ] = get_angle_difference_bounds( l );
+    if( mn > mx )
+     throw( std::invalid_argument( "ACNetworkData::deserialize: "
+                                   "LineMinAngle > LineMaxAngle for line "
+                                   + std::to_string( l ) ) );
+    }
 
   ::deserialize( group , "LineChargingSusceptance" , f_number_lines ,
                  v_line_chargingsusceptance , true , true );
@@ -214,6 +260,24 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
   v_DC_lines.shrink_to_fit();
   }
  }  // end( ACNetworkData::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+std::pair< double , double > ACNetworkData::get_angle_difference_bounds(
+                                                       Index line_id ) const
+{
+ const double inf = Inf< double >();
+ if( ! has_angle_bounds() )
+  return( std::make_pair( -inf , inf ) );
+
+ const double mn = v_line_min_angle[ line_id ];
+ const double mx = v_line_max_angle[ line_id ];
+ if( ( mn == 0 ) && ( mx == 0 ) )  // MATPOWER: not bounded at all
+  return( std::make_pair( -inf , inf ) );
+
+ // NaN fails both comparisons
+ return( std::make_pair( mn > -360 ? mn : -inf , mx < 360 ? mx : inf ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -404,16 +468,24 @@ void ACNetworkBlock::generate_abstract_variables( Configuration * stvv )
    }
   }
 
- // the envelopes of the strengthened relaxation need a finite range of the
- // angle difference of each AC line: without the bounds on the angle
- // differences it is not generated, and it is an error to ask for it
+ // the envelopes of the strengthened relaxation need the angle difference
+ // of an AC line within [ -90 , 90 ] degrees: it only covers the AC lines
+ // whose bounds are there, it is not generated if there is none, and it is
+ // then an error to ask for it
+ v_qc_lines.clear();
+ if( get_number_nodes() > 1 )
+  for( auto line_id : f_NetworkData->get_DC_lines() ) {
+   const auto [ mn , mx ] = ND()->get_angle_difference_bounds( line_id );
+   if( ( mn >= -90 ) && ( mx <= 90 ) )
+    v_qc_lines.push_back( line_id );
+   }
  if( b_strongSOCP && ( get_number_nodes() > 1 ) &&
-     ( ! f_NetworkData->get_DC_lines().empty() ) &&
-     ( ! ND()->has_angle_bounds() ) ) {
+     ( ! f_NetworkData->get_DC_lines().empty() ) && v_qc_lines.empty() ) {
   if( asked )
    throw( std::invalid_argument( "ACNetworkBlock::generate_abstract_"
                                  "variables: the strengthened relaxation "
-                                 "needs LineMinAngle and LineMaxAngle" ) );
+                                 "needs an AC line with LineMinAngle and "
+                                 "LineMaxAngle within [ -90 , 90 ]" ) );
   b_strongSOCP = false;
   }
 
@@ -484,9 +556,7 @@ void ACNetworkBlock::generate_strengthened_variables( void )
 {
  // uncover some size information
  const auto number_nodes = get_number_nodes();
- auto & DC_lines = f_NetworkData->get_DC_lines();
- int nb_dc_lines = DC_lines.size();
- int i_line;
+ const auto nb_qc_lines = v_qc_lines.size();
 
  // generate auxiliary variables - - - - - - - - - - - - - - - - - - - - - -
 
@@ -500,28 +570,19 @@ void ACNetworkBlock::generate_strengthened_variables( void )
   v_theta[ node_id ].set_type( ColVariable::kContinuous );
  add_static_variable( v_theta , "v_theta" );
 
- v_alpha.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  v_alpha[ i_line ].set_type( ColVariable::kContinuous );
-  ++i_line;
-  }
+ v_alpha.resize( nb_qc_lines );
+ for( auto & variable : v_alpha )
+  variable.set_type( ColVariable::kContinuous );
  add_static_variable( v_alpha , "v_alpha" );
 
- v_beta.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  v_beta[ i_line ].set_type( ColVariable::kContinuous );
-  ++i_line;
-  }
+ v_beta.resize( nb_qc_lines );
+ for( auto & variable : v_beta )
+  variable.set_type( ColVariable::kContinuous );
  add_static_variable( v_beta , "v_beta" );
 
- v_z.resize( nb_dc_lines );
- i_line = 0;
- for( auto & line_id : DC_lines ) {
-  v_z[ i_line ].set_type( ColVariable::kContinuous );
-  ++i_line;
-  }
+ v_z.resize( nb_qc_lines );
+ for( auto & variable : v_z )
+  variable.set_type( ColVariable::kContinuous );
  add_static_variable( v_z , "v_z" );
  }  // end( ACNetworkBlock::generate_strengthened_variables )
 
@@ -631,91 +692,106 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
  add_static_constraint( v_voltage_bounds_const , "AC_voltage_bounds_limit" );
 
  // ----- Angle bounds- - - - - - - - - - - - - - - - - - - - - - - - - - -
- /* Phase Angle Difference (PAD) constraints for each line = (start,end):
-  *   min_angle_{line} <= angle(V_{end}) - angle(V_{start}) <= max_angle_{line}
-  * which can be reformulated using
-  *   tan(min_angle_{line}) Real(W_{start,end}) <= Imag(W_{start,end})
-  *                                             <= max_angle_{line}
-  *                                                Real(W_{start,end}).
+ /* With theta = theta_s - theta_e in [ phi_mn , phi_mx ] (radians, see
+  * ACNetworkData::get_angle_difference_bounds()) and z = | V_s | | V_e |,
+  * c = z cos( theta ) and s = z sin( theta ) only depend on theta modulo
+  * 2 pi; therefore a line with an unbounded side, or with
+  * phi_mx - phi_mn >= 2 pi, gives nothing. Otherwise:
   *
-  * Furthermore we induce basic bounds on v_diff_product_voltages and
-  * v_sum_product_voltages by leveraging the minimum voltages, maximum
-  * voltages and angle bounds. If the data do not bound the angle
-  * differences, there is none of these rows. */
- int i_line = 0;
- const bool angles = ND()->has_angle_bounds();
- v_angle_bounds_const.resize( MAFRC_ext()[ 2 ][ angles ? nb_dc_lines : 0 ] );
- v_basic_bounds_const.resize( MAFRC_ext()[ 2 ][ angles ? nb_dc_lines : 0 ] );
-
+  * - if phi_mx - phi_mn <= pi, z sin( theta - phi_mn ) >= 0 and
+  *   z sin( phi_mx - theta ) >= 0 give the Phase Angle Difference rows
+  *     cos( phi_mn ) s - sin( phi_mn ) c >= 0
+  *     cos( phi_mx ) s - sin( phi_mx ) c <= 0
+  *   written, if cos( phi ) >= 1 / 2, divided by cos( phi ), i.e.,
+  *   tan( phi_mn ) c <= s <= tan( phi_mx ) c; with a wider range no
+  *   inequality through the origin is valid;
+  *
+  * - the bounds on v_sum_product_voltages (c) and v_diff_product_voltages
+  *   (s) are their ranges over the box of theta and of the voltages (see
+  *   trig_range()). */
+ const double pi = std::numbers::pi;
  const auto & min_angle = ND()->get_line_min_angle();
  const auto & max_angle = ND()->get_line_max_angle();
 
- const Subset no_lines;  // no row without the bounds
- for( auto & line_id : angles ? DC_lines : no_lines ) {
+ Subset row_lines;  // the AC lines with the rows
+ Subset box_lines;  // the AC lines with the bounds on c and s
+ std::vector< bool > in_box( number_lines , false );
+ for( auto line_id : DC_lines ) {
+  const auto [ mn , mx ] = ND()->get_angle_difference_bounds( line_id );
+  if( std::isinf( mn ) || std::isinf( mx ) || ( mx - mn >= 360 ) )
+   continue;
+  box_lines.push_back( line_id );
+  in_box[ line_id ] = true;
+  if( mx - mn <= 180 )
+   row_lines.push_back( line_id );
+  }
+
+ v_angle_bounds_const.resize( MAFRC_ext()[ 2 ][ row_lines.size() ] );
+ v_basic_bounds_const.resize( MAFRC_ext()[ 2 ][ box_lines.size() ] );
+
+ int i_line = 0;
+ for( auto line_id : row_lines ) {
   // all angles are typically input as degrees, but we need radians
+  const double phi_min = pi * min_angle[ line_id ] / 180.;
+  const double phi_max = pi * max_angle[ line_id ] / 180.;
+  auto & c = v_sum_product_voltages[ v_dc_line_position[ line_id ] ];
+  auto & s = v_diff_product_voltages[ v_dc_line_position[ line_id ] ];
 
-  double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
-  double phi_max = std::numbers::pi * max_angle[ line_id ] / 180.;
-  double delta_phi = phi_max - phi_min;
-  // assuming phi_min <= phi_max evidently
+  // the row cos( phi ) s - sin( phi ) c, or s - tan( phi ) c
+  auto row = [ & ]( double phi ) {
+   auto lfunc = new LinearFunction();
+   if( cos( phi ) >= 0.5 ) {
+    lfunc->add_variable( & s , 1.0 );
+    lfunc->add_variable( & c , - tan( phi ) );
+    }
+   else {
+    lfunc->add_variable( & s , cos( phi ) );
+    lfunc->add_variable( & c , - sin( phi ) );
+    }
+   return( lfunc );
+   };
 
-  // classic angle-based bounds on c_{n,n'} and s_{n,n'}
-  // tan( phi_min ) c_{n,n'} <= s_{n,n'}
-  auto lfunc_1 = new LinearFunction();
-  lfunc_1->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 );
-  lfunc_1->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] ,
-                         -tan( phi_min ) );
+  // first half: tan( phi_min ) c <= s
   v_angle_bounds_const[ 0 ][ i_line ].set_lhs( 0.0 );
   v_angle_bounds_const[ 0 ][ i_line ].set_rhs( Inf< double >() );
-  v_angle_bounds_const[ 0 ][ i_line ].set_function( lfunc_1 );
+  v_angle_bounds_const[ 0 ][ i_line ].set_function( row( phi_min ) );
 
-  // second half
-  // s_{n,n'} <= tan( phi_max ) c_{n,n'}
-  auto lfunc_2 = new LinearFunction();
-  lfunc_2->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] , 1.0 );
-  lfunc_2->add_variable( & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] ,
-                         -tan( phi_max ) );
+  // second half: s <= tan( phi_max ) c
   v_angle_bounds_const[ 1 ][ i_line ].set_lhs( -Inf< double >() );
   v_angle_bounds_const[ 1 ][ i_line ].set_rhs( 0.0 );
-  v_angle_bounds_const[ 1 ][ i_line ].set_function( lfunc_2 );
-
-  // bounds on v_sum_product_voltages- - - - - - - - - - - - - - - - - - -
-  // v_sum_product_voltages = c_{n,n'} = v_n v_n' cos( theta_n - theta_n' );
-  // from this relation and the allowed angle bounds (directly bounding
-  // theta_n - theta_n') we can deduce proper bounds on these variables.
-  v_basic_bounds_const[ 0 ][ i_line ].set_lhs(
-   std::min( cos( std::abs( phi_min ) ) , cos( std::abs( phi_max ) ) ) *
-   min_voltage[ start_line[ line_id ] ] *
-   min_voltage[ end_line[ line_id ] ] *
-   pow( f_C_v_scal , 2 ) );
-  v_basic_bounds_const[ 0 ][ i_line ].set_rhs(
-   max_voltage[ start_line[ line_id ] ] *
-   max_voltage[ end_line[ line_id ] ] *
-   pow( f_C_v_scal , 2 ) );
-  v_basic_bounds_const[ 0 ][ i_line ].set_variable(
-   & v_sum_product_voltages[ v_dc_line_position[ line_id ] ] );
-
-  // bounds on v_diff_product_voltages - - - - - - - - - - - - - - - - - -
-  // v_diff_product_voltages = s_{n,n'} = v_n v_n' sin( theta_n - theta_n' );
-  // from this relation and the allowed angle bounds we can deduce proper
-  // bounds on these variables.
-  double s_sin = sin( delta_phi );
-  v_basic_bounds_const[ 1 ][ i_line ].set_lhs(
-   -1.0 * s_sin * max_voltage[ start_line[ line_id ] ] *
-   max_voltage[ end_line[ line_id ] ] * pow( f_C_v_scal , 2 ) );
-  v_basic_bounds_const[ 1 ][ i_line ].set_rhs(
-   s_sin * max_voltage[ start_line[ line_id ] ] *
-   max_voltage[ end_line[ line_id ] ] * pow( f_C_v_scal , 2 ) );
-  v_basic_bounds_const[ 1 ][ i_line ].set_variable(
-   & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] );
+  v_angle_bounds_const[ 1 ][ i_line ].set_function( row( phi_max ) );
 
   ++i_line;
   }
 
- if( i_line > 0 ) {
-  add_static_constraint( v_angle_bounds_const , "AC_angle_bounds_limit" );
-  add_static_constraint( v_basic_bounds_const , "AC_elem_bounds" );
+ const double C2 = pow( f_C_v_scal , 2 );
+ i_line = 0;
+ for( auto line_id : box_lines ) {
+  const double phi_min = pi * min_angle[ line_id ] / 180.;
+  const double phi_max = pi * max_angle[ line_id ] / 180.;
+  const Index ns = start_line[ line_id ];
+  const Index ne = end_line[ line_id ];
+
+  for( int k = 0 ; k < 2 ; ++k ) {  // k = 0: c, k = 1: s
+   const auto [ lo , hi ] = trig_range( phi_min , phi_max ,
+                                        min_voltage[ ns ] ,
+                                        min_voltage[ ne ] ,
+                                        max_voltage[ ns ] ,
+                                        max_voltage[ ne ] , C2 , k == 1 );
+   v_basic_bounds_const[ k ][ i_line ].set_lhs( lo );
+   v_basic_bounds_const[ k ][ i_line ].set_rhs( hi );
+   v_basic_bounds_const[ k ][ i_line ].set_variable(
+    k == 0 ? & v_sum_product_voltages[ v_dc_line_position[ line_id ] ]
+           : & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] );
+   }
+
+  ++i_line;
   }
+
+ if( ! row_lines.empty() )
+  add_static_constraint( v_angle_bounds_const , "AC_angle_bounds_limit" );
+ if( ! box_lines.empty() )
+  add_static_constraint( v_basic_bounds_const , "AC_elem_bounds" );
 
  auto * fnet = static_cast< ACNetworkData * >( f_NetworkData );
 
@@ -912,19 +988,32 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
    // values for the basic bound check
    double v_flow_lower = 0.0;
    double v_flow_upper = 0.0;
-   // the lower bound of c_l and the bound c_sin V^mx_s V^mx_e of | s_l |
-   // that the angles give, the voltages alone without them
-   double c_low = - max_voltage[ p ] * max_voltage[ end_line[ line_id ] ];
-   double c_sin = 1;
-   if( angles ) {
-    double phi_min = std::numbers::pi * min_angle[ line_id ] / 180.;
-    double phi_max = std::numbers::pi * max_angle[ line_id ] / 180.;
-    // assuming phi_min <= phi_max evidently
-    c_low = std::min( cos( std::abs( phi_min ) ) ,
-                      cos( std::abs( phi_max ) ) ) *
-            min_voltage[ p ] * min_voltage[ end_line[ line_id ] ];
-    c_sin = sin( phi_max - phi_min );
+   // the ranges of c_l and s_l (unscaled): those of AC_elem_bounds if the
+   // line has them, | c_l | , | s_l | <= V^mx_s V^mx_e otherwise
+   const double vv = max_voltage[ p ] * max_voltage[ end_line[ line_id ] ];
+   std::pair< double , double > c_rng( - vv , vv );
+   std::pair< double , double > s_rng( - vv , vv );
+   if( in_box[ line_id ] ) {
+    const double phi_min = pi * min_angle[ line_id ] / 180.;
+    const double phi_max = pi * max_angle[ line_id ] / 180.;
+    for( int k = 0 ; k < 2 ; ++k )
+     ( k == 0 ? c_rng : s_rng ) = trig_range( phi_min , phi_max ,
+                                     min_voltage[ p ] ,
+                                     min_voltage[ end_line[ line_id ] ] ,
+                                     max_voltage[ p ] ,
+                                     max_voltage[ end_line[ line_id ] ] ,
+                                     1.0 , k == 1 );
     }
+   // the range of k x over x in rng, added to [ v_flow_lower ,
+   // v_flow_upper ]
+   auto add_range = [ & ]( double k , const std::pair< double , double > &
+                           rng ) {
+    v_flow_lower += std::min( k * rng.first , k * rng.second );
+    v_flow_upper += std::max( k * rng.first , k * rng.second );
+    };
+   // the name of the line, if the data give the names
+   const std::string l_name = line_id < v_l_names.size() ?
+                              v_l_names[ line_id ] : std::string();
 
    // 1.1) real part
    auto lfunc_1 = new LinearFunction();
@@ -946,30 +1035,20 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
                           round_sig( Yft( line_id ).real() * f_scale ,
                                      f_digits ) );
 
-   v_flow_lower += std::max( Yft( line_id ).real() , 0.0 ) * c_low +
-    std::min( Yft( line_id ).real() , 0.0 ) * max_voltage[ p ] *
-    max_voltage[ end_line[ line_id ] ];
-   v_flow_upper += std::max( Yft( line_id ).real() , 0.0 ) *
-    max_voltage[ p ] * max_voltage[ end_line[ line_id ] ] +
-    std::min( Yft( line_id ).real() , 0.0 ) * c_low;
+   add_range( Yft( line_id ).real() , c_rng );
 
    lfunc_1->add_variable( & v_diff_product_voltages[ v_dc_line_position[ line_id ] ] ,
                           round_sig( Yft( line_id ).imag() * f_scale ,
                                      f_digits ) );
 
-   // since the bounds are symmetric, it suffices to compute this one
-   // value, moreover the sum greatly simplifies:
-   double w_bound = c_sin * max_voltage[ p ] *
-                    max_voltage[ end_line[ line_id ] ];
-   v_flow_lower += std::abs( Yft( line_id ).imag() ) * -1.0 * w_bound;
-   v_flow_upper += std::abs( Yft( line_id ).imag() ) * w_bound;
+   add_range( Yft( line_id ).imag() , s_rng );
 
    // sanity check vs. min/max power flow and thermal limit
    auto max_p = get_max_power_flow( line_id );
    auto min_p = get_min_power_flow( line_id );
    if( ( v_flow_lower > max_p ) || ( v_flow_upper < min_p ) ) {
     std::cout << " The power line with index = " << line_id << " and name "
-              << v_l_names[ line_id ]
+              << l_name
               << " has induced bounds from the AC equations that are [ "
               << v_flow_lower << ", " << v_flow_upper << "]"
               << " and imposed bounds [ " << min_p << " , " << max_p
@@ -981,7 +1060,7 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
                                  std::pow( v_flow_upper , 2.0 ) );
     if( min_therm > rate_A[ line_id ] )
      std::cout << " The power line with index = " << line_id
-               << " and name " << v_l_names[ line_id ]
+               << " and name " << l_name
                << " has induced bounds from the AC equations that yield a "
                << "minimal thermal limit of " << min_therm
                << " but this exceeds the given limit " << rate_A[ line_id ]
@@ -1233,8 +1312,10 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  const auto & v_line_min_angle = f_net->get_line_min_angle();
  const auto & v_line_max_angle = f_net->get_line_max_angle();
 
- auto & DC_lines = f_net->get_DC_lines();
- int nb_dc_lines = DC_lines.size();
+ // the AC lines covered by the strengthened relaxation, see
+ // generate_abstract_variables(); v_alpha, v_beta and v_z follow them
+ const auto & QC_lines = v_qc_lines;
+ const auto nb_qc_lines = QC_lines.size();
  int i_line;
 
  // simple bounds on v_voltage- - - - - - - - - - - - - - - - - - - - - - -
@@ -1248,9 +1329,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_volt_bounds , "v_volt_bounds" );
 
  // simple bounds on v_theta- - - - - - - - - - - - - - - - - - - - - - - -
- v_theta_bounds.resize( nb_dc_lines );
+ v_theta_bounds.resize( nb_qc_lines );
  i_line = 0;
- for( auto & line_id : DC_lines ) {
+ for( auto & line_id : QC_lines ) {
   Index p = start_line[ line_id ];
   Index n = end_line[ line_id ];
 
@@ -1270,13 +1351,17 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  /* v_theta only ever enters the model as differences ( theta_p - theta_n )
   * (in v_theta_bounds above and in the cos/sin McCormick constraints below),
   * so its absolute value is a free gauge that is here pinned for definiteness:
-  * theta_0 = 0 fixes the reference, and every other angle is given the
-  * tightest box that still cannot cut any feasible profile. Along a spanning
-  * tree of the (connected) network each of the at most number_nodes - 1 line
-  * crossings adds at most max_phi := max_line | PAD limit |, so
-  * | theta_n | <= ( number_nodes - 1 ) max_phi. */
+  * theta_0 = 0 fixes the reference, and every other angle is given a box
+  * that still cannot cut any feasible profile. The angles only appear in
+  * the rows of the lines in QC_lines; along a spanning tree of a connected
+  * component of the graph of these lines each of the at most
+  * number_nodes - 1 line crossings adds at most
+  * max_phi := max_line | PAD limit | over them, so in the component of
+  * node 0 | theta_n | <= ( number_nodes - 1 ) max_phi, and every other
+  * component, whose angles spread over at most ( number_nodes - 1 )
+  * max_phi, can be shifted into the box. */
  double max_phi = 0.0;
- for( auto & line_id : DC_lines )
+ for( auto & line_id : QC_lines )
   max_phi = std::max( max_phi , std::numbers::pi *
                       std::max( v_line_max_angle[ line_id ] ,
                                 - v_line_min_angle[ line_id ] ) / 180.0 );
@@ -1297,9 +1382,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_theta_box_bounds , "v_theta_box_bounds" );
 
  // bounds on v_alpha - - - - - - - - - - - - - - - - - - - - - - - - - - -
- v_alpha_bounds.resize( nb_dc_lines );
+ v_alpha_bounds.resize( nb_qc_lines );
  i_line = 0;
- for( auto & line_id : DC_lines ) {
+ for( auto & line_id : QC_lines ) {
   v_alpha_bounds[ i_line ].set_lhs( -1.0 );
   v_alpha_bounds[ i_line ].set_rhs( 1.0 );
   v_alpha_bounds[ i_line ].set_variable( & v_alpha[ i_line ] );
@@ -1308,9 +1393,9 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
  add_static_constraint( v_alpha_bounds , "v_alpha_bounds" );
 
  // bounds on v_beta- - - - - - - - - - - - - - - - - - - - - - - - - - - -
- v_beta_bounds.resize( nb_dc_lines );
+ v_beta_bounds.resize( nb_qc_lines );
  i_line = 0;
- for( auto & line_id : DC_lines ) {
+ for( auto & line_id : QC_lines ) {
   v_beta_bounds[ i_line ].set_lhs( -1.0 );
   v_beta_bounds[ i_line ].set_rhs( 1.0 );
   v_beta_bounds[ i_line ].set_variable( & v_beta[ i_line ] );
@@ -1355,10 +1440,10 @@ void ACNetworkBlock::strengthen_SOCP_relaxation( void )
   * The linear McCormick families ( z / c / beta / s ), which would otherwise
   * blow up the model, are instead separated on demand: see
   * generate_dynamic_constraints(). */
- v_def_alpha_1.resize( nb_dc_lines );
- v_def_alpha_2.resize( nb_dc_lines );
+ v_def_alpha_1.resize( nb_qc_lines );
+ v_def_alpha_2.resize( nb_qc_lines );
  i_line = 0;
- for( auto & line_id : DC_lines ) {
+ for( auto & line_id : QC_lines ) {
   const Index p = start_line[ line_id ];
   const Index n = end_line[ line_id ];
   const double delta_theta = std::numbers::pi *
@@ -1423,7 +1508,6 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
  const auto & max_voltage = f_net->get_node_max_voltage();
  const auto & v_line_min_angle = f_net->get_line_min_angle();
  const auto & v_line_max_angle = f_net->get_line_max_angle();
- auto & DC_lines = f_net->get_DC_lines();
 
  const double C2 = pow( f_C_v_scal , 2 );
 
@@ -1452,8 +1536,8 @@ void ACNetworkBlock::generate_dynamic_constraints( Configuration * dycc )
    }
   };
 
- int i_line = 0;
- for( auto & line_id : DC_lines ) {
+ int i_line = 0;  // v_alpha, v_beta and v_z follow v_qc_lines
+ for( auto & line_id : v_qc_lines ) {
   const Index p = start_line[ line_id ];
   const Index n = end_line[ line_id ];
   const double delta_theta = std::numbers::pi *

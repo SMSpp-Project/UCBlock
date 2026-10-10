@@ -42,11 +42,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `InitialPower` changes, so that the move from a new `InitialPower` above
   every `MaxPower` is free, as in the rows
 
+- `ACNetworkBlock` reads `LineMinAngle` and `LineMaxAngle` as MATPOWER
+  does: a value at most -360 (respectively at least 360), or NaN, leaves
+  that side of the angle difference unbounded, and 0 for both leaves it
+  unbounded altogether (`ACNetworkData::get_angle_difference_bounds()`);
+  the bounds of +-360 of the MATPOWER instances made the rows
+  `AC_angle_bounds_limit` force the imaginary part of the voltage product
+  to 0 and `AC_elem_bounds` its real part above the product of the minimum
+  voltages, and 0 / 0 made the angle difference 0. A line with an unbounded
+  side, or with a range of a whole turn, now has neither group, and one
+  with a range wider than 180 degrees has no `AC_angle_bounds_limit` (no
+  such row is valid there); two finite bounds in the wrong order are
+  refused when read
+
+- the bounds `AC_elem_bounds` of `ACNetworkBlock` are the exact ranges of
+  the real and imaginary parts of the voltage product over the bounds of
+  the angle difference and of the voltages: the bound
+  `sin( max - min )` of the imaginary part cut feasible points for
+  symmetric bounds wider than +-45 degrees, and the lower bound of the real
+  part was wrong for bounds beyond +-90; the rows `AC_angle_bounds_limit`
+  of a bound beyond +-60 degrees are written as
+  `cos( phi ) s - sin( phi ) c`, valid beyond +-90 too
+
+- the strengthened relaxation of `ACNetworkBlock` covers the AC lines whose
+  bounds on the angle difference are both within +-90 degrees, where its
+  envelopes are valid, and leaves out the others, instead of using the
+  envelopes of any range for every line
+
+- the elementary check of the flows of `ACNetworkBlock` no longer reads the
+  name of a line out of an empty vector when the data have no `LineName`
+
 ### Changed
 
 - the ramp rows of the DP formulation of `ThermalUnitBlock` find the power
   of the previous instant of the run and the commitment of the run without
   scanning all the powers and all the runs for each row (the same rows)
+
+- the minimum power, maximum power and initial perspective cut rows of the
+  DP formulation of `ThermalUnitBlock` find the commitment and the cut
+  variable of the run without scanning all the runs and all the cuts for
+  each row (the same rows)
 
 ## [0.10.0] - 2026-10-09
 

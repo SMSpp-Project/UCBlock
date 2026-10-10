@@ -66,6 +66,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <numbers>
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -8688,6 +8689,514 @@ static bool has_max_row( ThermalUnitBlock * tub , const std::vector<
  }
 
 /*--------------------------------------------------------------------------*/
+/* An ACNetworkBlock that is a chain of AC lines, line l from node l to node
+ * l + 1, with the given bounds on the angle differences (in degrees, NaN
+ * written as such) and voltage bounds that change from node to node; no
+ * "LineName" unless names is true. flows are the "MinPowerFlow" and
+ * "MaxPowerFlow" of every line. */
+
+static netCDF::NcGroup write_ac_chain(
+                const std::vector< std::pair< double , double > > & angles ,
+                bool names = false ,
+                std::pair< double , double > flows = { -100 , 100 } )
+{
+ const Index nl = angles.size();
+ auto g = new_group( "ACC" , true );
+ g.putAtt( "type" , "ACNetworkBlock" );
+ auto N = g.addDim( "NumberNodes" , nl + 1 );
+ auto L = g.addDim( "NumberLines" , nl );
+ std::vector< int > st( nl ) , en( nl );
+ std::vector< double > mn( nl ) , mx( nl ) , fl( nl , flows.first ) ,
+                       fu( nl , flows.second ) , ra( nl , 100 ) ,
+                       x( nl ) , r( nl );
+ for( Index l = 0 ; l < nl ; ++l ) {
+  st[ l ] = l;
+  en[ l ] = l + 1;
+  mn[ l ] = angles[ l ].first;
+  mx[ l ] = angles[ l ].second;
+  x[ l ] = 0.1 + 0.01 * l;
+  r[ l ] = 0.01 + 0.001 * l;
+  }
+ std::vector< double > vmn( nl + 1 ) , vmx( nl + 1 ) , zero( nl + 1 , 0 ) ,
+                       dem( nl + 1 , 0.1 );
+ for( Index n = 0 ; n <= nl ; ++n ) {
+  vmn[ n ] = 0.85 + 0.01 * ( n % 5 );
+  vmx[ n ] = 1.05 + 0.02 * ( n % 3 );
+  }
+ put_int( g , "StartLine" , L , st );
+ put_int( g , "EndLine" , L , en );
+ put( g , "MinPowerFlow" , L , fl );
+ put( g , "MaxPowerFlow" , L , fu );
+ put( g , "LineRATEA" , L , ra );
+ put( g , "LineReactance" , L , x );
+ put( g , "LineResistance" , L , r );
+ put( g , "LineMinAngle" , L , mn );
+ put( g , "LineMaxAngle" , L , mx );
+ if( names ) {
+  auto v = g.addVar( "LineName" , netCDF::NcString() , L );
+  for( Index l = 0 ; l < nl ; ++l ) {
+   const std::string s = "L" + std::to_string( l );
+   const char * p = s.c_str();
+   v.putVar( { l } , & p );
+   }
+  }
+ put( g , "NodeConductance" , N , zero );
+ put( g , "NodeSusceptance" , N , zero );
+ put( g , "NodeMaxVoltage" , N , vmx );
+ put( g , "NodeMinVoltage" , N , vmn );
+ put( g , "ReactiveDemand" , N , dem );
+ put( g , "ActiveDemand" , N , dem );
+ return( g );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The bounds on the angle differences of an ACNetworkBlock, read with the
+ * convention of MATPOWER and turned into rows (8) and bounds (8a) line by
+ * line [see ACNetworkBlock::generate_abstract_constraints()]: +-360 and
+ * beyond, NaN and 0 / 0 leave a side (or both) unbounded, and such a line
+ * has no row and no bound; a line with a range over 180 degrees has the
+ * bounds and no row; all the others have both. Each row and each bound is
+ * checked against a sampling of the box of the angle difference and of
+ * the voltages, independent of the formulas: no sampled point violates
+ * them, and every bound is the extreme of the sample (it is attained). The
+ * strengthened relaxation covers the lines within +-90 degrees only. */
+
+static void test_ac_angle_bounds_matpower( void )
+{
+ const double nan = std::nan( "" );
+ const double pi = std::numbers::pi;
+ // the cases, and whether the line has the bounds (8a) and the rows (8)
+ struct Case { double mn , mx; bool box , rows , qc; };
+ const std::vector< Case > cases = {
+  { -360 , 360 , false , false , false } ,
+  { -400 , 30 , false , false , false } ,
+  { -30 , 360 , false , false , false } ,
+  { 0 , 0 , false , false , false } ,
+  { nan , 20 , false , false , false } ,
+  { -80 , 80 , true , true , true } ,     // the rows divided by cos 80
+  { 10 , 40 , true , true , true } ,      // not containing 0
+  { -60 , -20 , true , true , true } ,    // not containing 0, negative
+  { -120 , 120 , true , false , false } , // range over 180
+  { 100 , 170 , true , true , false } ,   // c < 0 , s > 0
+  { -30 , 30 , true , true , true } ,
+  { -180 , 180 , false , false , false } ,// a whole turn
+  { -170 , -100 , true , true , false } , // c < 0 , s < 0
+  { 0 , 0.5 , true , true , true } ,      // one side 0
+  { -10 , 200 , true , false , false } }; // over a maximizer of sin
+ std::vector< std::pair< double , double > > angles;
+ for( const auto & c : cases )
+  angles.emplace_back( c.mn , c.mx );
+
+ const std::string what = "AC angles, MATPOWER convention";
+ std::unique_ptr< ACNetworkBlock > ab;
+ try {
+  ab.reset( dynamic_cast< ACNetworkBlock * >(
+                              Block::new_Block( write_ac_chain( angles ) ) ) );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  return;
+  }
+ check( ab != nullptr , what + ": not read" );
+ if( ! ab )
+  return;
+ auto nd = static_cast< ACNetworkBlock::ACNetworkData * >(
+                                                      ab->get_NetworkData() );
+ for( Index l = 0 ; l < cases.size() ; ++l ) {
+  const auto [ mn , mx ] = nd->get_angle_difference_bounds( l );
+  const bool lo = std::isfinite( mn ) , up = std::isfinite( mx );
+  const bool exp_lo = ( cases[ l ].mn > -360 ) && ( ! ( ( cases[ l ].mn == 0 )
+                      && ( cases[ l ].mx == 0 ) ) );
+  const bool exp_up = ( cases[ l ].mx < 360 ) && ( ! ( ( cases[ l ].mn == 0 )
+                      && ( cases[ l ].mx == 0 ) ) );
+  check( ( lo == exp_lo ) && ( up == exp_up ) &&
+         ( ( ! lo ) || ( mn == cases[ l ].mn ) ) &&
+         ( ( ! up ) || ( mx == cases[ l ].mx ) ) ,
+         what + ": line " + std::to_string( l ) + " [ " +
+         str( cases[ l ].mn ) + " , " + str( cases[ l ].mx ) + " ] read as [ "
+         + str( mn ) + " , " + str( mx ) + " ]" );
+  }
+
+ for( Index n = 0 ; n <= cases.size() ; ++n ) {
+  ab->set_min_node_injection( -10 , n );
+  ab->set_max_node_injection( 10 , n );
+  ab->set_min_reactive_node_injection( -10 , n , 0 );
+  ab->set_max_reactive_node_injection( 10 , n , 0 );
+  }
+ try {
+  generate_all( ab.get() );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": generating throws " + e.what() );
+  return;
+  }
+
+ auto rows = ab->get_static_constraint< FRowConstraint , 2 >(
+                                                    "AC_angle_bounds_limit" );
+ auto box = ab->get_static_constraint< BoxConstraint , 2 >(
+                                                           "AC_elem_bounds" );
+ auto c = ab->get_static_variable_v< ColVariable >(
+                                                  "v_sum_product_voltages" );
+ auto s = ab->get_static_variable_v< ColVariable >(
+                                                 "v_diff_product_voltages" );
+ Index nrows = 0 , nbox = 0;
+ for( const auto & cs : cases ) {
+  nrows += cs.rows;
+  nbox += cs.box;
+  }
+ check( rows && ( rows->shape()[ 0 ] == 2 ) &&
+        ( rows->shape()[ 1 ] == nrows ) ,
+        what + ": not " + std::to_string( nrows ) + " pairs of rows (8)" );
+ check( box && ( box->shape()[ 0 ] == 2 ) && ( box->shape()[ 1 ] == nbox ) ,
+        what + ": not " + std::to_string( nbox ) + " pairs of bounds (8a)" );
+ check( c && s && ( c->size() == cases.size() ) &&
+        ( s->size() == cases.size() ) , what + ": no c and s" );
+ if( ( ! rows ) || ( ! box ) || ( ! c ) || ( ! s ) ||
+     ( rows->shape()[ 1 ] != nrows ) || ( box->shape()[ 1 ] != nbox ) )
+  return;
+
+ const auto & vmn = nd->get_node_min_voltage();
+ const auto & vmx = nd->get_node_max_voltage();
+ Index ir = 0 , ib = 0;
+ for( Index l = 0 ; l < cases.size() ; ++l ) {
+  const auto & cs = cases[ l ];
+  const std::string wl = what + ": line " + std::to_string( l ) + " [ " +
+                         str( cs.mn ) + " , " + str( cs.mx ) + " ]";
+  // no row and no bound of another line uses c_l and s_l
+  auto uses = [ & ]( Index i ) {
+   return( ( ! std::isnan( row_coef( ( *rows )[ 0 ][ i ] , & ( *s )[ l ] ) ) )
+           || ( ( *box )[ 0 ][ i ].get_active_var( 0 ) == & ( *c )[ l ] ) );
+   };
+  if( cs.rows ) {
+   check( uses( ir ) , wl + ": the row (8) is not that of the line" );
+   if( ! uses( ir ) )
+    return;
+   }
+  if( cs.box &&
+      ( ( *box )[ 0 ][ ib ].get_active_var( 0 ) != & ( *c )[ l ] ) ) {
+   check( false , wl + ": the bound (8a) is not that of the line" );
+   return;
+   }
+  if( ! cs.box )
+   continue;
+
+  // the sample: the angle on a grid of 0.05 degrees, the voltages at
+  // their bounds and in the middle
+  const double a = pi * cs.mn / 180 , b = pi * cs.mx / 180;
+  const Index ns = l , ne = l + 1;
+  std::vector< double > z;
+  for( double vs : { vmn[ ns ] , vmx[ ns ] , ( vmn[ ns ] + vmx[ ns ] ) / 2 } )
+   for( double ve : { vmn[ ne ] , vmx[ ne ] , ( vmn[ ne ] + vmx[ ne ] ) / 2 } )
+    z.push_back( vs * ve );
+  const Index K = std::ceil( ( cs.mx - cs.mn ) / 0.05 );
+  double cmn = INF , cmx = -INF , smn = INF , smx = -INF;
+  bool row_ok = true , box_ok = true;
+  const double tol = 1e-9;
+  for( Index k = 0 ; k <= K ; ++k ) {
+   const double th = a + ( b - a ) * k / K;
+   for( double zz : z ) {
+    const double cv = zz * std::cos( th ) , sv = zz * std::sin( th );
+    cmn = std::min( cmn , cv );
+    cmx = std::max( cmx , cv );
+    smn = std::min( smn , sv );
+    smx = std::max( smx , sv );
+    for( int h = 0 ; h < 2 ; ++h ) {
+     const auto & bc = ( *box )[ h ][ ib ];
+     const double v = h ? sv : cv;
+     if( ( v < bc.get_lhs() - tol ) || ( v > bc.get_rhs() + tol ) )
+      box_ok = false;
+     if( cs.rows ) {
+      const auto & rc = ( *rows )[ h ][ ir ];
+      const double rv = row_coef( rc , & ( *s )[ l ] ) * sv +
+                        row_coef( rc , & ( *c )[ l ] ) * cv;
+      if( ( rv < rc.get_lhs() - tol ) || ( rv > rc.get_rhs() + tol ) )
+       row_ok = false;
+      }
+     }
+    }
+   }
+  check( box_ok , wl + ": a feasible point violates the bounds (8a)" );
+  check( row_ok , wl + ": a feasible point violates the rows (8)" );
+  const double eps = 1e-5;
+  check( ( std::abs( ( *box )[ 0 ][ ib ].get_lhs() - cmn ) <= eps ) &&
+         ( std::abs( ( *box )[ 0 ][ ib ].get_rhs() - cmx ) <= eps ) &&
+         ( std::abs( ( *box )[ 1 ][ ib ].get_lhs() - smn ) <= eps ) &&
+         ( std::abs( ( *box )[ 1 ][ ib ].get_rhs() - smx ) <= eps ) ,
+         wl + ": bounds c in [ " + str( ( *box )[ 0 ][ ib ].get_lhs() ) +
+         " , " + str( ( *box )[ 0 ][ ib ].get_rhs() ) + " ], s in [ " +
+         str( ( *box )[ 1 ][ ib ].get_lhs() ) + " , " +
+         str( ( *box )[ 1 ][ ib ].get_rhs() ) + " ], sampled [ " + str( cmn ) +
+         " , " + str( cmx ) + " ] and [ " + str( smn ) + " , " + str( smx ) +
+         " ]" );
+  if( cs.rows ) {
+   // written s - tan( phi ) c if cos( phi ) >= 1 / 2, rotated otherwise
+   for( int h = 0 ; h < 2 ; ++h ) {
+    const double phi = h ? b : a;
+    const double cs_exp = std::cos( phi ) >= 0.5 ? 1 : std::cos( phi );
+    check( close( row_coef( ( *rows )[ h ][ ir ] , & ( *s )[ l ] ) ,
+                  cs_exp , 1e-12 ) ,
+           wl + ": the row (8) on side " + std::to_string( h ) +
+           " has coefficient " +
+           str( row_coef( ( *rows )[ h ][ ir ] , & ( *s )[ l ] ) ) +
+           " of s, not " + str( cs_exp ) );
+    }
+   ++ir;
+   }
+  ++ib;
+  }
+
+ // the strengthened relaxation (on by default) only covers the lines within
+ // +-90 degrees: v_theta_bounds has their bounds, in order
+ auto tb = ab->get_static_constraint_v< FRowConstraint >( "v_theta_bounds" );
+ auto al = ab->get_static_variable_v< ColVariable >( "v_alpha" );
+ std::vector< Index > qc;
+ for( Index l = 0 ; l < cases.size() ; ++l )
+  if( cases[ l ].qc )
+   qc.push_back( l );
+ check( tb && al && ( tb->size() == qc.size() ) &&
+        ( al->size() == qc.size() ) ,
+        what + ": the strengthened relaxation does not cover " +
+        std::to_string( qc.size() ) + " lines" );
+ if( tb && ( tb->size() == qc.size() ) )
+  for( Index i = 0 ; i < qc.size() ; ++i )
+   check( close( ( *tb )[ i ].get_lhs() , pi * cases[ qc[ i ] ].mn / 180 ,
+                 1e-12 ) &&
+          close( ( *tb )[ i ].get_rhs() , pi * cases[ qc[ i ] ].mx / 180 ,
+                 1e-12 ) ,
+          what + ": v_theta_bounds " + std::to_string( i ) +
+          " is not that of line " + std::to_string( qc[ i ] ) );
+
+ // the dynamic cuts of the strengthened relaxation, at the point 0, use
+ // only the Variable of the lines covered
+ try {
+  ab->generate_dynamic_constraints();
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": separating the cuts throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Bounds on the angle differences that are not read as such: a network
+ * whose lines are all +-360, or 0 / 0, has no row (8), no bound (8a) and
+ * no strengthened relaxation, which is refused if asked for; a finite pair
+ * with LineMinAngle > LineMaxAngle is refused; a UCBlock on such a network
+ * has the value of the same network without "LineMinAngle" and
+ * "LineMaxAngle", and one with +-80 degrees a value between that and the
+ * one with +-30 degrees. */
+
+static void test_ac_angle_bounds_unbounded( void )
+{
+ for( const auto & p : std::vector< std::pair< double , double > >{
+                       { -360 , 360 } , { 0 , 0 } , { -720 , 400 } } ) {
+  const std::string what = "AC angles [ " + str( p.first ) + " , " +
+                           str( p.second ) + " ]";
+  try {
+   std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+                         Block::new_Block( write_ac_chain( { p , p } ) ) ) );
+   check( ab != nullptr , what + ": not read" );
+   if( ! ab )
+    continue;
+   for( Index n = 0 ; n < 3 ; ++n ) {
+    ab->set_min_node_injection( -10 , n );
+    ab->set_max_node_injection( 10 , n );
+    ab->set_min_reactive_node_injection( -10 , n , 0 );
+    ab->set_max_reactive_node_injection( 10 , n , 0 );
+    }
+   generate_all( ab.get() );
+   check( ! ab->get_static_constraint< FRowConstraint , 2 >(
+                                              "AC_angle_bounds_limit" ) ,
+          what + ": the rows (8) are there" );
+   check( ! ab->get_static_constraint< BoxConstraint , 2 >(
+                                                     "AC_elem_bounds" ) ,
+          what + ": the bounds (8a) are there" );
+   check( ! ab->get_static_variable_v< ColVariable >( "v_theta" ) ,
+          what + ": the strengthened relaxation is generated" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  try {
+   std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+                         Block::new_Block( write_ac_chain( { p , p } ) ) ) );
+   SimpleConfiguration< int > strong( 1 );
+   bool thrown = false;
+   try {
+    ab->generate_abstract_variables( & strong );
+    }
+   catch( std::invalid_argument & ) {
+    thrown = true;
+    }
+   check( thrown , what + ": the strengthened relaxation asked is accepted" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ", strengthened asked: throws " + e.what() );
+   }
+  }
+
+ // LineMinAngle > LineMaxAngle, both finite
+ {
+  bool refused = false;
+  try {
+   std::unique_ptr< Block > b( Block::new_Block( write_ac_chain(
+                                     { { -30 , 30 } , { 20 , 10 } } ) ) );
+   refused = ! b;
+   }
+  catch( std::invalid_argument & ) {
+   refused = true;
+   }
+  catch( std::exception & e ) {
+   check( false , std::string( "AC angles [ 20 , 10 ]: throws " ) +
+          e.what() );
+   }
+  check( refused , "AC angles [ 20 , 10 ]: accepted" );
+  }
+
+ const auto sname = milp_solver();
+ if( sname.empty() ) {
+  std::cout << "AC angles, unbounded: no :MILPSolver, solve skipped"
+            << std::endl;
+  return;
+  }
+
+ // the UCBlock of test_ac_no_angle_bounds(), the line given the angles
+ auto uc_value = [ & ]( bool angles , double mn , double mx ) {
+  const std::string what = "AC angles " + ( angles ? "[ " + str( mn ) +
+                           " , " + str( mx ) + " ]" : std::string( "absent" ) )
+                           + ", UCBlock";
+  auto g = new_group( "UCM" , true );
+  g.putAtt( "type" , "UCBlock" );
+  auto TH = g.addDim( "TimeHorizon" , 1 );
+  g.addDim( "NumberUnits" , 2 );
+  auto N = g.addDim( "NumberNodes" , 2 );
+  auto L = g.addDim( "NumberLines" , 1 );
+  auto G = g.addDim( "NumberElectricalGenerators" , 2 );
+  {
+   const char * cls = "ACNetworkBlock";
+   g.addVar( "NetworkBlockClassname" , netCDF::NcString() ).putVar( & cls );
+   }
+  put_int( g , "StartLine" , L , { 0 } );
+  put_int( g , "EndLine" , L , { 1 } );
+  put( g , "MinPowerFlow" , L , { -30 } );
+  put( g , "MaxPowerFlow" , L , { 30 } );
+  put( g , "LineReactance" , L , { 0.1 } );
+  put( g , "LineResistance" , L , { 0.01 } );
+  if( angles ) {
+   put( g , "LineMinAngle" , L , { mn } );
+   put( g , "LineMaxAngle" , L , { mx } );
+   }
+  put( g , "LineRATEA" , L , { 30 } );
+  put( g , "NodeConductance" , N , { 0 , 0 } );
+  put( g , "NodeSusceptance" , N , { 0 , 0 } );
+  put( g , "NodeMaxVoltage" , N , { 1.1 , 1.1 } );
+  put( g , "NodeMinVoltage" , N , { 0.9 , 0.9 } );
+  put( g , "ActivePowerDemand" , { N , TH } , { 1 , 9 } );
+  put( g , "ReactivePowerDemand" , { N , TH } , { 0.5 , 0.5 } );
+  put_int( g , "GeneratorNode" , G , { 0 , 1 } );
+
+  auto u = g.addGroup( "UnitBlock_0" );
+  u.putAtt( "type" , "ThermalUnitBlock" );
+  put( u , "MinPower" , 1.0 );
+  put( u , "MaxPower" , 20.0 );
+  put( u , "LinearTerm" , 1.0 );
+  put( u , "MinReactivePower" , -5.0 );
+  put( u , "MaxReactivePower" , 5.0 );
+  put_int( u , "InitUpDownTime" , -5 );
+  put_uint( u , "MinUpTime" , 1 );
+  put_uint( u , "MinDownTime" , 1 );
+
+  auto sl = g.addGroup( "UnitBlock_1" );
+  sl.putAtt( "type" , "SlackUnitBlock" );
+  put( sl , "MaxPower" , 1000.0 );
+  put( sl , "ActivePowerCost" , 1000.0 );
+
+  double v = std::nan( "" );
+  try {
+   std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+                                                  Block::new_Block( g ) ) );
+   if( ! uc ) {
+    check( false , what + ": the UCBlock is not read" );
+    return( v );
+    }
+   generate_all( uc.get() );
+   v = milp_value( uc.get() , sname );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  check( std::isfinite( v ) , what + ": value " + str( v ) );
+  return( v );
+  };
+
+ auto same = [ & ]( double a , double b ) {
+  return( std::abs( a - b ) <= 1e-6 * std::max( 1.0 , std::abs( b ) ) );
+  };
+ const double absent = uc_value( false , 0 , 0 );
+ const double m360 = uc_value( true , -360 , 360 );
+ const double zero = uc_value( true , 0 , 0 );
+ const double b80 = uc_value( true , -80 , 80 );
+ const double b30 = uc_value( true , -30 , 30 );
+ std::cout << "AC angles, UCBlock values: absent " << absent << ", +-360 "
+           << m360 << ", 0 / 0 " << zero << ", +-80 " << b80 << ", +-30 "
+           << b30 << std::endl;
+ check( same( m360 , absent ) , "AC angles +-360, UCBlock: value " +
+        str( m360 ) + ", without the bounds " + str( absent ) );
+ check( same( zero , absent ) , "AC angles 0 / 0, UCBlock: value " +
+        str( zero ) + ", without the bounds " + str( absent ) );
+ check( ( absent <= b80 + 1e-6 * std::max( 1.0 , std::abs( b80 ) ) ) &&
+        ( b80 <= b30 + 1e-6 * std::max( 1.0 , std::abs( b30 ) ) ) ,
+        "AC angles +-80, UCBlock: value " + str( b80 ) + " not between " +
+        str( absent ) + " (no bound) and " + str( b30 ) + " (+-30)" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The elementary check of the flows of ACNetworkBlock prints the name of a
+ * line whose flow bounds cannot be met: with no "LineName" in the data it
+ * prints an empty name, with the names the name of the line. */
+
+static void test_ac_flow_check_no_names( void )
+{
+ for( bool names : { false , true } ) {
+  const std::string what = std::string( "AC flow check, " ) +
+                           ( names ? "with" : "without" ) + " line names";
+  std::ostringstream out;
+  auto old = std::cout.rdbuf( out.rdbuf() );
+  try {
+   // flows that the AC equations cannot give
+   std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+       Block::new_Block( write_ac_chain( { { -30 , 30 } , { -360 , 360 } } ,
+                                         names , { -2e6 , -1e6 } ) ) ) );
+   if( ab ) {
+    for( Index n = 0 ; n < 3 ; ++n ) {
+     ab->set_min_node_injection( -10 , n );
+     ab->set_max_node_injection( 10 , n );
+     ab->set_min_reactive_node_injection( -10 , n , 0 );
+     ab->set_max_reactive_node_injection( 10 , n , 0 );
+     }
+    generate_all( ab.get() );
+    }
+   std::cout.rdbuf( old );
+   check( ab != nullptr , what + ": not read" );
+   }
+  catch( std::exception & e ) {
+   std::cout.rdbuf( old );
+   check( false , what + ": throws " + e.what() );
+   continue;
+   }
+  const auto s = out.str();
+  for( Index l = 0 ; l < 2 ; ++l ) {
+   const std::string line = " The power line with index = " +
+                            std::to_string( l ) + " and name " +
+                            ( names ? "L" + std::to_string( l ) : "" ) +
+                            " has induced bounds";
+   check( s.find( line ) != std::string::npos ,
+          what + ": the check of line " + std::to_string( l ) +
+          " does not print \"" + line + "\"" );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The maximum power rows (24)-(26) of the T formulation: a unit started at
  * t - s reaches at most StartUpLimit plus s ramps at t, and one shut down
  * at t + 1 + s at most ShutDownLimit plus s ramps. With P = 54.27,
@@ -9822,6 +10331,9 @@ int main( int argc , char ** argv )
   test_nuclear_rule_costs_unordered();
   test_reactive_injection_bounds_on();
   test_ac_no_angle_bounds();
+  test_ac_angle_bounds_matpower();
+  test_ac_angle_bounds_unbounded();
+  test_ac_flow_check_no_names();
   test_thermal_T_ramp_bound_rows();
   test_thermal_shut_down_limit_at_t0();
   test_thermal_psi_initial_run();
