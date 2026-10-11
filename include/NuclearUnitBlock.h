@@ -605,8 +605,14 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * bits 8-10 (\f$ 256 k \f$) the formulation, \f$ k = 0 \f$ the default
  * one F1, 1 F0, 2 F2, 3 F3a, 4 F4, 5 F5, 6 F6 and 7 F7, and, for F0, F2, F3a
  * and F4, the bits StartUpStabSingle (2048), DeepByF1Rows (4096) and
- * ReachRows (8192). In the formulations other than the default one the
- * variables \f$ d_t \f$ exist also when the direction does not matter in
+ * ReachRows (8192); with every formulation of the rules, the bit RunReach
+ * (16384) on the pt, DP, SU, SD and SUSD formulations of the thermal part,
+ * the bit RunRules (32768) with F2 on the DP, SU, SD and SUSD ones, and the
+ * bit BandPersp (65536) with the Perspective Cuts, each of which throws
+ * std::logic_error on any other formulation (BandPersp writes nothing if
+ * the output is not banded) [see generate_abstract_constraints()]. In the
+ * formulations other than the default one the variables \f$ d_t \f$ exist
+ * also when the direction does not matter in
  * F0, F2, F3a and F4, whose rows are written by direction (\f$ m^+_t = m_t
  * - d_t \f$ and \f$ m^-_t = d_t \f$ being the upward and downward steps),
  * the variables \f$ s^M_t \f$, \f$ \delta'_t \f$ and \f$ \delta''_t \f$
@@ -650,7 +656,26 @@ class NuclearUnitBlock : public ThermalUnitBlock
  *   0 \f$ of each arc out of an on-node but the source
  *   ("arc_departure_nuclear"). These formulations throw std::logic_error if
  *   the unit has the design variable, and F7 if its graph exceeds its limits
- *   (it is meant for small instances). */
+ *   (it is meant for small instances);
+ *
+ * - with the bit RunRules, for each copy \f$ c \f$ of the rules [see
+ *   generate_abstract_constraints()] and each instant \f$ t \f$ from the
+ *   first instant on to the last one of its runs, the steps \f$ m^{c\pm}_t
+ *   \f$, the starts \f$ s^{c\pm}_t \f$ and the ends \f$ f^{c\pm}_{t+1}
+ *   \f$ in \f$ [ 0 , 1 ] \f$ ("cp_m_up_nuclear", "cp_m_dn_nuclear",
+ *   "cp_s_up_nuclear", "cp_s_dn_nuclear", "cp_f_up_nuclear",
+ *   "cp_f_dn_nuclear"), the move of a stable instant \f$ \sigma^c_t \f$
+ *   ("cp_stable_move_nuclear"), the last steps \f$ \xi^{c\pm}_t \geq 0
+ *   \f$ ("cp_last_up_nuclear", "cp_last_dn_nuclear") and the output at a
+ *   start-up and before a shut-down of the runs of the copy, \f$
+ *   \pi^{c,su}_t \f$, \f$ \pi^{c,sd}_t \geq 0 \f$
+ *   ("cp_start_up_power_nuclear", "cp_shut_down_power_nuclear"), all in
+ *   the order of the copies and, within a copy, of the instants (the steps
+ *   are 0 where those of the unit are fixed to 0, since they sum to them).
+ *   They need not be integer:
+ *   with the arcs of the thermal part integer, only the copies of the runs
+ *   of the schedule are nonzero, and they equal the variables of the
+ *   unit. */
 
  void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
@@ -1112,6 +1137,116 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * the convex hull of the schedules, hence it has the optimum when the cost
  * is linear in the output; with a quadratic cost it may only be an upper
  * bound, an optimal output need not be in \f$ Q_t \f$.
+ *
+ * The bits RunReach, RunRules and BandPersp add rows to any of the above.
+ * Let \f$ y_r \f$ be the arc of the run \f$ r = ( h , k ) \f$ of the
+ * network formulations of ThermalUnitBlock, which is on at \f$ h - 1 ,
+ * \ldots , k - 1 \f$, starts up at \f$ s_r = h - 1 \f$ (or is in progress
+ * before the horizon, \f$ h = 0 \f$) and shuts down at \f$ k \f$ if
+ * \f$ k \leq T - 1 \f$, and let \f$ q_r \f$ be the first instant at which
+ * it may take a step, i.e., \f$ s_r + \max\{ \tau^v , 1 \} \f$, or the end
+ * of the lockout before the horizon for \f$ h = 0 \f$. With the bit RunReach
+ * every instant \f$ t \f$ of every run is capped
+ * ("RunReach_Nuclear") by
+ * \f[
+ *   \psi^N_{r,t} = \min\{ P^{mx}_t , P^{su}_{s_r} + R^+_{s_r,t} ,
+ *     P^{sd}_k + R^-_{t,k-1}( q_r ) \} , \tag{51}
+ * \f]
+ * where \f$ R^+_{s,t} \f$ is the largest increase of the output from
+ * \f$ s \f$ to \f$ t \f$ that the rules allow from a start-up at \f$ s \f$
+ * (from \f$ p_{-1} \f$ and the lockout before the horizon if \f$ h = 0
+ * \f$, the term being dropped if the unit is off before it), and \f$
+ * R^-_{t,k-1}( q ) \f$ the largest decrease from \f$ t \f$ to \f$ k - 1
+ * \f$ with no step before \f$ q \f$, the term being dropped if \f$ k \geq T
+ * \f$ (the reach of (48), computed by rules_reach_all()). The caps are
+ * written on the private output of each network formulation, i.e.,
+ * \f$ p^{ac}_t \leq \sum_r \psi^N_{r,t} y_r \f$ over the runs on at
+ * \f$ t \f$ (pt), \f$ p^{hk}_t \leq \psi^N_{(h,k),t} y^{hk}_+ \f$ (DP),
+ * \f$ p^h_t \leq \sum_k \psi^N_{(h,k),t} y^{hk}_+ \f$ (SU, SUSD) and
+ * \f$ \tilde p^k_t \leq \sum_h \psi^N_{(h,k),t} y^{hk}_+ \f$ (SD, SUSD),
+ * every term in the rows also where it cannot bind. A run of a schedule
+ * reaches at \f$ t \f$ at most what the rules let it reach from its
+ * start-up and towards its shut-down, hence the rows are valid; they
+ * imply the caps \f$ \psi \f$ (27) of ThermalUnitBlock, with the full
+ * ramps in place of the rules, and, summed over the runs, the rows (48).
+ *
+ * With the bit RunRules (F2 only) the rows of F2 are written once more on
+ * each private output of the network formulation of the thermal part: on
+ * each run \f$ r \f$ with its output \f$ p^{hk}_t \f$ (DP), on the runs of
+ * each start-up with \f$ p^h_t \f$ (SU), on those of each shut-down with
+ * \f$ \tilde p^k_t \f$ (SD), on both sets in SUSD. For a copy \f$ c \f$,
+ * a set \f$ \mathcal{R}_c \f$ of runs with the output \f$ P^c_t \f$, let
+ * \f$ U^c_t \f$, \f$ V^c_t \f$, \f$ W^c_t \f$, \f$ \tilde U^c_t =
+ * U^c_t - V^c_t \f$ and \f$ Y^c \f$ be the sums of the \f$ y_r \f$ of its
+ * runs on at \f$ t \f$, starting up at \f$ t \f$, shutting down at \f$ t
+ * \f$, on at \f$ t - 1 \f$ and \f$ t \f$, and of all of them, and \f$ I^c
+ * \f$ that of its run in progress before the horizon; its instants are
+ * \f$ a_c , \ldots , b_c \f$, from the first instant on to the last one of
+ * its runs. Then, for \f$ d \in \{ + , - \} \f$ and \f$ t = a_c , \ldots
+ * , b_c \f$ ("CopyFlow_Nuclear", "CopyStartEnd_Nuclear",
+ * "CopyTurnOff_Nuclear", "CopyLength_Nuclear", "CopyOn_Nuclear"),
+ * \f{align*}{
+ *   & m^{cd}_t - m^{cd}_{t-1} = s^{cd}_t - f^{cd}_t , \quad
+ *     s^{cd}_t \leq m^{cd}_t , \quad f^{cd}_{t+1} \leq m^{cd}_t , \quad
+ *     m^{c+}_t + m^{c-}_t + \sum_{ h = \max\{ a_c + 1 , t - B + 1 \} }^{ t
+ *     } ( f^{c+}_h + f^{c-}_h ) \leq Y^c , \\
+ *   & m^{cd}_t \leq \sum_{ h = \max\{ a_c , t - L^M + 1 \} }^{ t }
+ *     s^{cd}_h , \quad m^{c+}_t + m^{c-}_t + \sum_{ r \in \mathcal{R}_c :
+ *     s_r < t < s_r + \tau^v , t < k_r } y_r \leq \tilde U^c_t ,
+ *     \tag{52}
+ * \f}
+ * with \f$ m^{cd}_{a_c - 1} = f^{cd}_{a_c} = 0 \f$, together with
+ * \f$ m^{cd}_{T-1} - f^{cd}_T \leq \sum_{ h = \max\{ a_c , T - L^M + 1 \}
+ * }^{ T - 1 } s^{cd}_h \f$ if \f$ b_c = T - 1 \f$, and \f$ f^{cd}_{b_c +
+ * 1} = m^{cd}_{b_c} \f$ otherwise (every run on at \f$ b_c \f$ then shuts
+ * down at \f$ b_c + 1 \f$); the exact move of the output of the copy
+ * ("CopyMove_Nuclear", "CopyCases_Nuclear")
+ * \f{align*}{
+ *   & P^c_t - P^c_{t-1} - p_{-1} [ t = 0 ] I^c = \sigma^c_t + \Delta^+_t (
+ *     m^{c+}_t - f^{c+}_{t+1} ) + \xi^{c+}_t - \Delta^-_t ( m^{c-}_t -
+ *     f^{c-}_{t+1} ) - \xi^{c-}_t + \pi^{c,su}_t - \pi^{c,sd}_t , \\
+ *   & - \Delta^{M-}_t ( \tilde U^c_t - m^{c+}_t - m^{c-}_t ) \leq
+ *     \sigma^c_t \leq \Delta^{M+}_t ( \tilde U^c_t - m^{c+}_t - m^{c-}_t )
+ *     , \quad 0 \leq \xi^{cd}_t \leq \Delta^d_t f^{cd}_{t+1} , \\
+ *   & P^{mn}_t V^c_t \leq \pi^{c,su}_t \leq P^{su}_t V^c_t , \quad
+ *     P^{mn}_{t-1} W^c_t \leq \pi^{c,sd}_t \leq P^{sd}_t W^c_t \tag{53}
+ * \f}
+ * with \f$ P^c_{a_c - 1} = 0 \f$ (and \f$ \pi^{c,sd}_0 = p_{-1} W^c_0 \f$);
+ * and the steps, the starts and the ends of the unit are the sums of those
+ * of the copies of each set ("CopyLink_Nuclear")
+ * \f[
+ *   m_t - d_t = \sum_c m^{c+}_t , \quad d_t = \sum_c m^{c-}_t , \quad
+ *   s^\pm_t = \sum_c s^{c\pm}_t , \quad f^\pm_{t+1} = \sum_c f^{c\pm}_{t+1}
+ *   . \tag{54}
+ * \f]
+ * At an integer point only the copies of the runs of the schedule (of
+ * their start-ups, of their shut-downs) are nonzero, and on them (52)-(54)
+ * are the rows of F2; hence the rows are valid. The daily limits, the deep
+ * decreases and the bands stay on the variables of the unit. With the
+ * copies on the runs (DP) the continuous relaxation is, in the natural
+ * variables, the convex hull of the union over the commitments of the
+ * relaxation of F2 at a fixed commitment, under the basic rules and if a
+ * stability does not outlast an off period (\f$ \tau^- + \max\{ \tau^v ,
+ * 1 \} \geq B \f$): the arcs form a path polytope, and each copy shares its
+ * arc only. The copies on the start-ups (shut-downs) are the sums of those
+ * on their runs, hence weaker; SUSD has both.
+ *
+ * With the bit BandPersp and the bands, for \f$ t \in \mathcal{T} \f$ and
+ * \f$ P \in \{
+ * P^{mn}_t , P^b_1 , P^b_2 , P^{mx}_t \} \f$ ("BandPerspective_Nuclear"),
+ * \f[
+ *   z_t \geq 2 P p^{ac}_t - \sum_{ k = 1 }^3 ( 2 P x^k - ( x^k )^2 ) b^k_t
+ *   , \tag{55}
+ * \f]
+ * where \f$ z_t \f$ is the variable of the Perspective Cuts of
+ * ThermalUnitBlock and \f$ x^k \f$ the point of the band \f$ k \f$ nearest
+ * to \f$ P \f$: since \f$ p^2 \geq 2 P p - ( 2 P x^k - ( x^k )^2 ) \f$ for
+ * every \f$ p \f$ in the band \f$ k \f$, the row holds at every schedule,
+ * and it is the cut (33) of ThermalUnitBlock, \f$ z_t \geq 2 P p^{ac}_t -
+ * P^2 u_t \f$, with a smaller coefficient on the bands that do not contain
+ * \f$ P \f$. The rows (55) for every \f$ P \f$ describe the convex hull of
+ * the disjunction of the epigraphs of the square over the three bands; only
+ * the four values above are written.
  *
  * The rows are written by build_rows(), after those of ThermalUnitBlock,
  * and the Configuration parameter is that of
@@ -1748,6 +1883,28 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// the rows of F5, F6 and F7
  void build_graph_rows( void );
 
+ /// the copies of the rules on the runs of the thermal part [see RunRules],
+ /// and their Variable
+ void generate_copy_variables( void );
+
+ /// the rows of the bits RunReach, RunRules and BandPersp
+ void build_run_rows( void );
+
+ /// the Variable of the copies of the rules from a schedule [see
+ /// set_form_solution()]
+ void set_copy_solution( void );
+
+ /// the largest move of the output that the rules allow from \p s0 to
+ /// \p s1, upwards if \p upw and downwards otherwise, from a stable state
+ /// at \p s0 whose next \p lk0 instants can have no step (the full and the
+ /// stability ramps, the stability and the longest modulation; not the
+ /// daily limits, nor the bands, which can only make it smaller)
+ double rules_reach( int s0 , int s1 , int lk0 , bool upw ) const;
+
+ /// the largest moves of rules_reach() from \p s0 to every instant: the
+ /// entry \p j is the one to \p s0 + \p j , j = 0 , ... , T - 1 - \p s0
+ std::vector< double > rules_reach_all( int s0 , int lk0 , bool upw ) const;
+
  /// the operating rules of the unit, as NuclearRules [see there], with the
  /// counters of the day only if \p counters
  NuclearRules rules_of( bool counters ) const;
@@ -1990,6 +2147,35 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// true if the reach rows are written [see NuclearRules::ReachRows]
  bool f_reach = false;
 
+ /// true if the runs of the network formulations are capped by the reach
+ /// of the rules [see NuclearRules::RunReach]
+ bool f_run_reach = false;
+
+ /// true if the rows of F2 are copied on the private outputs of the network
+ /// formulations [see NuclearRules::RunRules]
+ bool f_run_rules = false;
+
+ /// true if the perspective cuts are written on the bands [see
+ /// NuclearRules::BandPersp]
+ bool f_band_persp = false;
+
+ /// a copy of the rules [see NuclearRules::RunRules]: the positions in
+ /// v_Y_plus of its runs, its first and last instant \p a and \p b (the
+ /// first instant on and the last instant on of its runs), its family
+ /// (0 the runs, or the start-ups, 1 the shut-downs) and the position
+ /// \p v0 of its instant \p a in the Variable of the copies, which have
+ /// one entry per instant a , ... , b of each copy
+ struct RunCopy {
+  std::vector< Index > runs;
+  Index a;
+  Index b;
+  int fam;
+  Index v0;
+  };
+
+ /// the copies of the rules [see NuclearRules::RunRules]
+ std::vector< RunCopy > v_copies;
+
  /// the instants at which F2, F3a and F4 split the downward cases for the
  /// deep decreases
  std::vector< Index > v_split_t;
@@ -2078,6 +2264,24 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
  /// the modulations \f$ z_r \f$ of F4 [see v_runs]
  std::vector< ColVariable > v_run;
+
+ /// the Variable of the copies of the rules [see NuclearRules::RunRules],
+ /// one per instant of each copy [see RunCopy]: the steps, the starts and
+ /// the ends (in position t the end \f$ f_{t+1} \f$) upwards and
+ /// downwards, the move of a stable instant, the last steps, the output at
+ /// a start-up and before a shut-down of the runs of the copy (0 where the
+ /// copy has none)
+ std::vector< ColVariable > v_cp_mod_up;
+ std::vector< ColVariable > v_cp_mod_dn;
+ std::vector< ColVariable > v_cp_start_up;
+ std::vector< ColVariable > v_cp_start_dn;
+ std::vector< ColVariable > v_cp_end_up;
+ std::vector< ColVariable > v_cp_end_dn;
+ std::vector< ColVariable > v_cp_stable;
+ std::vector< ColVariable > v_cp_last_up;
+ std::vector< ColVariable > v_cp_last_dn;
+ std::vector< ColVariable > v_cp_start_power;
+ std::vector< ColVariable > v_cp_stop_power;
 
  /// the flows \f$ y_a \f$ on the arcs of the label graph (F5, F6, F7), the
  /// landing and the departure power of the arcs (F5, F6)

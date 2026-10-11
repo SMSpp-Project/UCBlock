@@ -10493,7 +10493,9 @@ static void copy_schedule( NuclearUnitBlock * from , NuclearUnitBlock * to )
 
 /*--------------------------------------------------------------------------*/
 /// the formulations of the operating rules, each with the BlockConfig file
-/// that selects it (the thermal part in the T formulation); F7 is apart
+/// that selects it (the thermal part in the T formulation, unless the name
+/// says DP, SU, SD, SUSD or pt; RU the bit RunRules, RC RunReach, BP
+/// BandPersp, which writes nothing without the bands); F7 is apart
 
 static const std::vector< std::pair< std::string , std::string > >
  NU_FORMS = { { "F1" , "TUBCfg-T.txt" } ,
@@ -10506,7 +10508,18 @@ static const std::vector< std::pair< std::string , std::string > >
               { "F3a" , "NUBCfg-T-F3a.txt" } ,
               { "F4" , "NUBCfg-T-F4.txt" } ,
               { "F5" , "NUBCfg-T-F5.txt" } ,
-              { "F6" , "NUBCfg-T-F6.txt" } };
+              { "F6" , "NUBCfg-T-F6.txt" } ,
+              { "F2-DP" , "NUBCfg-DP-F2.txt" } ,
+              { "F2-SU" , "NUBCfg-SU-F2.txt" } ,
+              { "F2-SUSD" , "NUBCfg-SUSD-F2.txt" } ,
+              { "F2-DP-RU" , "NUBCfg-DP-F2-RU.txt" } ,
+              { "F2-SU-RU" , "NUBCfg-SU-F2-RU.txt" } ,
+              { "F2-SD-RU" , "NUBCfg-SD-F2-RU.txt" } ,
+              { "F2-SUSD-RU" , "NUBCfg-SUSD-F2-RU.txt" } ,
+              { "F2-DP-RC" , "NUBCfg-DP-F2-RC.txt" } ,
+              { "F2-SUSD-RC" , "NUBCfg-SUSD-F2-RC.txt" } ,
+              { "F1-pt-RC" , "NUBCfg-pt-RC.txt" } ,
+              { "F2-BP" , "NUBCfg-T-PC-F2-BP.txt" } };
 
 /*--------------------------------------------------------------------------*/
 /// the value of NuclearUnitExtDPSolver: INF if infeasible, NaN if it fails
@@ -10633,11 +10646,12 @@ static void check_rules_forms( const NURules & d , const std::string & what ,
 
  for( const auto & f : NU_FORMS ) {
   // the formulations by direction need the stability ramp down not to be
-  // a deep decrease, else they refuse the data
+  // a deep decrease, else they refuse the data (F3a, F4 and all the
+  // variants of F2 but F2-DF1)
+  const bool f2 = ( f.first.compare( 0 , 2 , "F2" ) == 0 ) &&
+                  ( f.first != "F2-DF1" );
   const bool refuse = ( d.thr >= 0 ) && ( d.mrd > d.grad ) &&
-                      ( ( f.first == "F2" ) || ( f.first == "F2-SS" ) ||
-                        ( f.first == "F2-RR" ) ||
-                        ( f.first == "F3a" ) || ( f.first == "F4" ) );
+                      ( f2 || ( f.first == "F3a" ) || ( f.first == "F4" ) );
   const bool done = check_rules_form( d , f.second , dpv ,
                                       what + ", " + f.first );
   check( done != refuse , what + ", " + f.first + ": the data are " +
@@ -10764,7 +10778,11 @@ static void test_nuclear_forms_DP( void )
 static void test_nuclear_forms_LP_chain( void )
 {
  std::vector< std::string > forms = { "F1" , "F1T" , "F2" , "F2-RR" ,
-                                      "F3a" , "F4" , "F5" , "F6" };
+                                      "F3a" , "F4" , "F5" , "F6" ,
+                                      "F2-DP" , "F2-SU" , "F2-SUSD" ,
+                                      "F2-DP-RU" , "F2-SU-RU" , "F2-SD-RU" ,
+                                      "F2-SUSD-RU" , "F2-DP-RC" ,
+                                      "F2-SUSD-RC" };
  // the cases compared, those in which F7 is built, and those in which a
  // relaxation is strictly tighter than the one it is compared with (printed
  // if NUMIP_STATS is set in the environment)
@@ -10816,6 +10834,24 @@ static void test_nuclear_forms_LP_chain( void )
   le( "F5" , "F6" );
   if( ( d.mru <= 0 ) && ( d.mrd <= 0 ) )
    le( "F1" , "F1T" );
+  // the copies of F2 on the runs: each tightens its own base, the per-run
+  // copies (whose relaxation is that of F2 at a fixed commitment,
+  // convexified) every compact base and those of start-ups and shut-downs,
+  // the caps of the runs by the reach of the rules their base
+  for( const std::string x : { "DP" , "SU" , "SUSD" } )
+   le( "F2-" + x , "F2-" + x + "-RU" );
+  le( "F2" , "F2-DP-RU" );
+  le( "F2-SU-RU" , "F2-SUSD-RU" );
+  le( "F2-SD-RU" , "F2-SUSD-RU" );
+  le( "F2-SUSD-RU" , "F2-DP-RU" );
+  le( "F2-DP" , "F2-DP-RC" );
+  le( "F2-SUSD" , "F2-SUSD-RC" );
+  // the label graph and the copies on the runs are not comparable in
+  // general: the two directions are only counted
+  if( lp[ "F6" ] > lp[ "F2-DP-RU" ] + tol )
+   ++strict[ "F6 > F2-DP-RU" ];
+  if( lp[ "F2-DP-RU" ] > lp[ "F6" ] + tol )
+   ++strict[ "F2-DP-RU > F6" ];
   for( const auto & f : forms )
    check( lp[ f ] <= opt + tol , what + ": the relaxation of " + f + " (" +
           str( lp[ f ] ) + ") is above the optimum " + str( opt ) );
@@ -10849,6 +10885,70 @@ static void test_nuclear_forms_LP_chain( void )
    std::cout << " " << kv.first << " " << kv.second;
   std::cout << std::endl;
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The perspective cuts on the bands (BandPersp): on random data with the
+ * bands and a quadratic cost, the schedule of the dynamic program satisfies
+ * the rows of the T formulation with the Perspective Cuts, F2 and the cuts on
+ * the bands (with z_t = p_t^2 / u_t, see ThermalUnitBlock::set_solution()),
+ * and the continuous relaxation with the cuts on the bands is at least as
+ * tight as the one without them and not above the optimum of the dynamic
+ * program, which the cuts of both underestimate. */
+
+static void test_nuclear_band_persp( void )
+{
+ int compared = 0 , tighter = 0;
+ for( int i = 0 ; i < 20 ; ++i ) {
+  auto d = random_rules( 2000 + i , true );
+  d.bands = { double( rnd( 18 , 25 ) ) , double( rnd( 32 , 40 ) ) };
+  d.quad.assign( d.T , 0 );
+  for( Index t = 0 ; t < d.T ; ++t )
+   d.quad[ t ] = 0.01 * rnd( 2 , 20 );
+  const auto what = "band perspective, random " + std::to_string( i ) +
+                    " (" + describe( d ) + ")";
+  auto ref = new_rules_NU( d );
+  generate_from_file( ref , "TUBCfg-T.txt" );
+  const double opt = rules_DP_value( ref );
+  delete ref;
+  if( std::isnan( opt ) || ( opt == INF ) )
+   continue;
+
+  // the schedule of the dynamic program satisfies the cuts on the bands
+  auto nub = new_rules_NU( d );
+  generate_from_file( nub , "NUBCfg-T-PC-F2-BP.txt" );
+  auto dp = Solver::new_Solver( "NuclearUnitExtDPSolver" );
+  nub->register_Solver( dp );
+  if( dp->compute() == Solver::kOK ) {
+   dp->get_var_solution();
+   SimpleConfiguration< double > tol( 1e-7 );
+   check( nub->is_feasible( true , & tol ) , what + ": the schedule of the "
+          "DP is not feasible, " + violated_row( nub , 1e-7 ) );
+   }
+  nub->unregister_Solver( dp , true );
+  const double vb = relaxation_value( nub );
+  delete nub;
+
+  nub = new_rules_NU( d );
+  generate_from_file( nub , "NUBCfg-T-PC-F2.txt" );
+  const double v = relaxation_value( nub );
+  delete nub;
+  if( std::isnan( v ) || std::isnan( vb ) )
+   return;  // no :MILPSolver of LPRelaxBSCfg.txt in the build
+
+  const double tol = 1e-6 * std::max( 1.0 , std::abs( opt ) );
+  ++compared;
+  check( v <= vb + tol , what + ": the relaxation with the cuts on the "
+         "bands (" + str( vb ) + ") is weaker than the one without (" +
+         str( v ) + ")" );
+  check( vb <= opt + tol , what + ": the relaxation with the cuts on the "
+         "bands (" + str( vb ) + ") is above the optimum " + str( opt ) );
+  if( vb > v + tol )
+   ++tighter;
+  }
+ if( std::getenv( "NUMIP_STATS" ) )
+  std::cout << "band perspective: " << compared << " cases, tighter in "
+            << tighter << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -11504,6 +11604,7 @@ int main( int argc , char ** argv )
   test_nuclear_forms_DP();
   test_nuclear_forms_LP_chain();
   test_nuclear_forms_local_hull();
+  test_nuclear_band_persp();
   test_nuclear_forms_setters();
   test_nuclear_DP_throw_releases_lock();
   test_nuclear_DP_initial_power_reload();

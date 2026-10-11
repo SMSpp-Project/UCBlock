@@ -149,6 +149,21 @@ class NuclearRules
  /// from a start-up and towards a shut-down (F0, F2, F3a, F4)
  static constexpr int ReachRows = 8192;
 
+ /// bit 14: the caps of the output of every run of the network formulations
+ /// of the thermal part (pt, DP, SU, SD, SUSD) by what the rules let it
+ /// reach from the start-up of the run and towards its shut-down
+ static constexpr int RunReach = 16384;
+
+ /// bit 15: the rows of F2 written once more on each private output of the
+ /// network formulations of the thermal part: on each run in DP, on the
+ /// runs of each start-up in SU, on those of each shut-down in SD, on both
+ /// in SUSD (F2 only)
+ static constexpr int RunRules = 32768;
+
+ /// bit 16: the perspective cuts of the quadratic cost written on the bands
+ /// of the output (with PCuts and the bands)
+ static constexpr int BandPersp = 65536;
+
  /// the label that forbids a shut-down or a restart
  static constexpr Index NO_LABEL = Index( -1 );
 

@@ -419,6 +419,9 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   f_stab_single = sci->f_value & NuclearRules::StartUpStabSingle;
   f_deep_f1 = sci->f_value & NuclearRules::DeepByF1Rows;
   f_reach = sci->f_value & NuclearRules::ReachRows;
+  f_run_reach = sci->f_value & NuclearRules::RunReach;
+  f_run_rules = sci->f_value & NuclearRules::RunRules;
+  f_band_persp = sci->f_value & NuclearRules::BandPersp;
   }
 
  // the bits of the tight rows only concern the default formulation of the
@@ -432,6 +435,26 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   f_stab_single = f_deep_f1 = f_reach = false;
  if( f_rules_form == NuclearRules::F0Form )
   f_deep_f1 = true;
+
+ // the bits on the runs of the network formulations of the thermal part,
+ // and the perspective cuts on the bands, need what they are written on
+ {
+  static const std::string fn =
+                       "NuclearUnitBlock::generate_abstract_variables: ";
+  const auto base = get_formulation();
+  const bool net = ( base == ptForm ) || ( base == DPForm ) ||
+                   ( base == SUForm ) || ( base == SDForm ) ||
+                   ( base == SUSDForm );
+  if( f_run_reach && ( ! net ) )
+   throw( std::logic_error( fn + "RunReach needs the pt, DP, SU, SD or SUSD "
+                                 "formulation of the thermal part" ) );
+  if( f_run_rules && ( ( f_rules_form != NuclearRules::F2Form ) ||
+                       ( ! net ) || ( base == ptForm ) ) )
+   throw( std::logic_error( fn + "RunRules needs F2 and the DP, SU, SD or "
+                                 "SUSD formulation of the thermal part" ) );
+  if( f_band_persp && ( ! has_perspective_cuts() ) )
+   throw( std::logic_error( fn + "BandPersp needs the Perspective Cuts" ) );
+  }
 
  // Modulation Variable- - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -542,6 +565,10 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  if( f_rules_form != NuclearRules::F1Form )
   generate_form_variables();
 
+ // the copies of the rules on the runs of the thermal part
+ if( f_run_rules )
+  generate_copy_variables();
+
  } // end( NuclearUnitBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
@@ -558,6 +585,7 @@ void NuclearUnitBlock::build_rows( bool generate_ZOConstraints )
  // their own, the move of the output included
  if( f_rules_form != NuclearRules::F1Form ) {
   build_form_rows();
+  build_run_rows();
   return;
   }
 
@@ -771,6 +799,11 @@ void NuclearUnitBlock::build_rows( bool generate_ZOConstraints )
  add_rows( ModulationConst , "ModulationConst_Nuclear" );
 
  generate_operating_rules();
+
+ // the rows on the runs of the thermal part and on the bands, in the groups
+ // of the formulations of the rules [see form_group()]
+ f_form_group = 0;
+ build_run_rows();
 
  } // end( NuclearUnitBlock::build_rows )
 /*--------------------------------------------------------------------------*/
@@ -2076,6 +2109,17 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    && ColVariable::is_feasible( v_arc , tol )
    && ColVariable::is_feasible( v_arc_land , tol )
    && ColVariable::is_feasible( v_arc_dep , tol )
+   && ColVariable::is_feasible( v_cp_mod_up , tol )
+   && ColVariable::is_feasible( v_cp_mod_dn , tol )
+   && ColVariable::is_feasible( v_cp_start_up , tol )
+   && ColVariable::is_feasible( v_cp_start_dn , tol )
+   && ColVariable::is_feasible( v_cp_end_up , tol )
+   && ColVariable::is_feasible( v_cp_end_dn , tol )
+   && ColVariable::is_feasible( v_cp_stable , tol )
+   && ColVariable::is_feasible( v_cp_last_up , tol )
+   && ColVariable::is_feasible( v_cp_last_dn , tol )
+   && ColVariable::is_feasible( v_cp_start_power , tol )
+   && ColVariable::is_feasible( v_cp_stop_power , tol )
    );
 
  }  // end( NuclearUnitBlock::is_feasible )

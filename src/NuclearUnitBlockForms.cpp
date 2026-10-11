@@ -683,44 +683,7 @@ void NuclearUnitBlock::build_compact_rows( void )
   // instant s0 to the instant s1, upwards or downwards, by the stability
   // and full ramps and the modulations of at most L^M steps
   auto reach = [ & ]( int s0 , int s1 , int lk0 , bool upw ) {
-   const int Bm = B;
-   const int nl = std::max( Bm , lk0 ) + 1;
-   const double NEG = - Inf< double >();
-   // st[ l ] stable with lockout l, md[ j ] in a modulation of j steps
-   std::vector< double > st( nl , NEG ) , md( L + 1 , NEG );
-   st[ lk0 ] = 0;
-   for( int s = s0 + 1 ; s <= s1 ; ++s ) {
-    const double D = upw ? v_DeltaRampUp[ s ] : v_DeltaRampDown[ s ];
-    const double DM = upw ? v_modulation_ramp_up[ s ]
-                          : v_modulation_ramp_down[ s ];
-    std::vector< double > ns( nl , NEG ) , nm( L + 1 , NEG );
-    auto up = [ & ]( double & x , double v ) { x = std::max( x , v ); };
-    for( int l = 0 ; l < nl ; ++l ) {
-     if( st[ l ] == NEG )
-      continue;
-     up( ns[ std::max( l - 1 , 0 ) ] , st[ l ] + DM );
-     if( l == 0 ) {
-      up( ns[ Bm ] , st[ l ] + D );
-      if( L > 1 )
-       up( nm[ 1 ] , st[ l ] + D );
-      }
-     }
-    for( Index j = 1 ; j < L ; ++j ) {
-     if( md[ j ] == NEG )
-      continue;
-     if( j + 1 < L )
-      up( nm[ j + 1 ] , md[ j ] + D );
-     up( ns[ Bm ] , md[ j ] + D );
-     }
-    st.swap( ns );
-    md.swap( nm );
-    }
-   double r = NEG;
-   for( auto x : st )
-    r = std::max( r , x );
-   for( auto x : md )
-    r = std::max( r , x );
-   return( r );
+   return( rules_reach( s0 , s1 , lk0 , upw ) );
    };
   StagedRows g;
   for( int t = 0 ; t < iT ; ++t ) {
@@ -1580,7 +1543,570 @@ void NuclearUnitBlock::set_form_solution( void )
   v_xi_small[ k ].set_value( ( last && ( ! dd ) && ( ! high ) ) ? xi : 0 );
   }
 
+ // the copies of the rules on the runs, if any
+ set_copy_solution();
+
  }  // end( NuclearUnitBlock::set_form_solution )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ THE RULES ON THE RUNS ---------------------------*/
+/*--------------------------------------------------------------------------*/
+
+std::vector< double > NuclearUnitBlock::rules_reach_all( int s0 , int lk0 ,
+                                                         bool upw ) const
+{
+ const int iT = int( f_time_horizon );
+ const int B = f_modulation_interval - 1;
+ const Index L = std::max( f_max_modulation_length , Index( 1 ) );
+ const int nl = std::max( B , lk0 ) + 1;
+ const double NEG = - Inf< double >();
+ auto best = []( double & x , double v ) { x = std::max( x , v ); };
+
+ // st[ l ] stable with lockout l, md[ j ] in a modulation of j steps
+ std::vector< double > st( nl , NEG ) , md( L + 1 , NEG );
+ st[ lk0 ] = 0;
+ std::vector< double > r( 1 , 0.0 );
+ r.reserve( iT - s0 );
+ for( int s = s0 + 1 ; s < iT ; ++s ) {
+  const double D = upw ? v_DeltaRampUp[ s ] : v_DeltaRampDown[ s ];
+  const double DM = upw ? v_modulation_ramp_up[ s ]
+                        : v_modulation_ramp_down[ s ];
+  std::vector< double > ns( nl , NEG ) , nm( L + 1 , NEG );
+  for( int l = 0 ; l < nl ; ++l ) {
+   if( st[ l ] == NEG )
+    continue;
+   best( ns[ std::max( l - 1 , 0 ) ] , st[ l ] + DM );
+   if( l == 0 ) {
+    best( ns[ B ] , st[ l ] + D );
+    if( L > 1 )
+     best( nm[ 1 ] , st[ l ] + D );
+    }
+   }
+  for( Index j = 1 ; j < L ; ++j ) {
+   if( md[ j ] == NEG )
+    continue;
+   if( j + 1 < L )
+    best( nm[ j + 1 ] , md[ j ] + D );
+   best( ns[ B ] , md[ j ] + D );
+   }
+  st.swap( ns );
+  md.swap( nm );
+  double m = NEG;
+  for( auto x : st )
+   m = std::max( m , x );
+  for( auto x : md )
+   m = std::max( m , x );
+  r.push_back( m );
+  }
+ return( r );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double NuclearUnitBlock::rules_reach( int s0 , int s1 , int lk0 ,
+                                      bool upw ) const
+{
+ return( rules_reach_all( s0 , lk0 , upw )[ s1 - s0 ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::generate_copy_variables( void )
+{
+ const Index T = f_time_horizon;
+ const auto base = get_formulation();
+
+ // the first and the last instant on of the run i: the run ( h , k ) is on
+ // at h - 1 , ... , k - 1, the one in progress before the horizon (h = 0)
+ // from 0; a run with no instant on (the shut-down at 0) has no copy
+ auto first = [ & ]( Index i ) {
+  return( v_Y_plus[ i ].first ? v_Y_plus[ i ].first - 1 : 0 );
+  };
+ auto empty = [ & ]( Index i ) { return( v_Y_plus[ i ].second == 0 ); };
+ auto last = [ & ]( Index i ) {
+  return( std::min( v_Y_plus[ i ].second , T ) - 1 );
+  };
+
+ v_copies.clear();
+ auto add = [ & ]( std::vector< Index > && runs , int fam ) {
+  if( runs.empty() )
+   return;
+  Index a = T , b = 0;
+  for( auto i : runs ) {
+   a = std::min( a , first( i ) );
+   b = std::max( b , last( i ) );
+   }
+  v_copies.push_back( { std::move( runs ) , a , b , fam , 0 } );
+  };
+
+ if( base == DPForm ) {           // one copy per run
+  for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+   if( ! empty( i ) )
+    add( { i } , 0 );
+  }
+ if( ( base == SUForm ) || ( base == SUSDForm ) ) {  // one per start-up
+  std::map< Index , std::vector< Index > > byh;
+  for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+   if( ! empty( i ) )
+    byh[ v_Y_plus[ i ].first ].push_back( i );
+  for( auto & kv : byh )
+   add( std::move( kv.second ) , 0 );
+  }
+ if( ( base == SDForm ) || ( base == SUSDForm ) ) {  // one per shut-down
+  std::map< Index , std::vector< Index > > byk;
+  for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+   if( ! empty( i ) )
+    byk[ v_Y_plus[ i ].second ].push_back( i );
+  for( auto & kv : byk )
+   add( std::move( kv.second ) , 1 );
+  }
+
+ Index n = 0;
+ for( auto & c : v_copies ) {
+  c.v0 = n;
+  n += c.b - c.a + 1;
+  }
+
+ auto make = [ & ]( std::vector< ColVariable > & v ,
+                    ColVariable::var_type type , const char * name ) {
+  v.resize( n );
+  for( auto & x : v )
+   x.set_type( type );
+  add_static_variable( v , name );
+  };
+ make( v_cp_mod_up , ColVariable::kPosUnitary , "cp_m_up_nuclear" );
+ make( v_cp_mod_dn , ColVariable::kPosUnitary , "cp_m_dn_nuclear" );
+ make( v_cp_start_up , ColVariable::kPosUnitary , "cp_s_up_nuclear" );
+ make( v_cp_start_dn , ColVariable::kPosUnitary , "cp_s_dn_nuclear" );
+ make( v_cp_end_up , ColVariable::kPosUnitary , "cp_f_up_nuclear" );
+ make( v_cp_end_dn , ColVariable::kPosUnitary , "cp_f_dn_nuclear" );
+ make( v_cp_stable , ColVariable::kContinuous , "cp_stable_move_nuclear" );
+ make( v_cp_last_up , ColVariable::kNonNegative , "cp_last_up_nuclear" );
+ make( v_cp_last_dn , ColVariable::kNonNegative , "cp_last_dn_nuclear" );
+ make( v_cp_start_power , ColVariable::kNonNegative ,
+       "cp_start_up_power_nuclear" );
+ make( v_cp_stop_power , ColVariable::kNonNegative ,
+       "cp_shut_down_power_nuclear" );
+
+ // the steps of the copies need no fixing where those of the unit are
+ // fixed to 0: they are nonnegative and they sum to them [see (54) in
+ // generate_abstract_constraints()]
+ }  // end( NuclearUnitBlock::generate_copy_variables )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::build_run_rows( void )
+{
+ if( ! ( f_run_reach || f_run_rules || f_band_persp ) )
+  return;
+
+ const Index T = f_time_horizon;
+ const int iT = int( T );
+ const double INF = Inf< double >();
+ const auto base = get_formulation();
+ const int B = f_modulation_interval - 1;
+ const Index L = std::max( f_max_modulation_length , Index( 1 ) );
+ const int Bv = int( f_stability_after_start );
+ const int lock0 = std::max( 0 , std::min( f_modulation_interval -
+                                           f_initial_modulation , iT ) );
+
+ auto row = [ & ]( StagedRows & g , Ex e , double lhs , double rhs ) {
+  g.emplace_back( merged( std::move( e.t ) ) ,
+                  ( lhs == - INF ) ? lhs : lhs - e.c ,
+                  ( rhs == INF ) ? rhs : rhs - e.c );
+  };
+
+ auto first = [ & ]( Index i ) {
+  return( v_Y_plus[ i ].first ? v_Y_plus[ i ].first - 1 : 0 );
+  };
+ auto last = [ & ]( Index i ) {
+  return( int( std::min( v_Y_plus[ i ].second , T ) ) - 1 );
+  };
+ auto y = [ & ]( Index i ) { return( & v_commitment_plus[ i ] ); };
+
+ // the positions of the private outputs of the network formulations: of
+ // the instant first( i ) of the run i in v_P_h_k (in which the instants of
+ // a run are consecutive), of the instant 0 of the start-up h in v_P_h and
+ // of the instant 0 of the shut-down k in v_P_k (the output of instant t
+ // being in position t - h + 1 , respectively t, from there)
+ std::vector< Index > off_hk( v_Y_plus.size() , 0 );
+ {
+  Index j = 0;
+  for( Index i = 0 ; i < v_Y_plus.size() ; ++i ) {
+   off_hk[ i ] = j;
+   for( Index t = 0 ; t < T ; ++t )
+    if( ( v_Y_plus[ i ].first <= t + 1 ) && ( t + 1 <= v_Y_plus[ i ].second ) )
+     ++j;
+   }
+  }
+ std::map< Index , Index > off_h , off_k;
+ for( Index j = v_P_h.size() ; j-- > 0 ; )
+  off_h[ v_P_h[ j ].second ] = j;
+ for( Index j = v_P_k.size() ; j-- > 0 ; )
+  off_k[ v_P_k[ j ].second ] = j;
+ auto p_hk = [ & ]( Index i , Index t ) {
+  return( & v_active_power_h_k[ off_hk[ i ] + t - first( i ) ] );
+  };
+ auto p_h = [ & ]( Index h , Index t ) {
+  return( & v_active_power_h[ off_h[ h ] + t - ( h ? h - 1 : 0 ) ] );
+  };
+ auto p_k = [ & ]( Index k , Index t ) {
+  return( & v_active_power_k[ off_k[ k ] + t ] );
+  };
+
+ // the caps of the runs by the reach of the rules - - - - - - - - - - - - -
+ // a run started at s = h - 1 with the output at most P^su_s has at t at
+ // most P^su_s plus the largest increase that the rules allow from s to t,
+ // the first step not before s + max{ Bv , 1 } (the run in progress before
+ // the horizon: p_{-1} plus the largest increase from -1, the first step not
+ // before the lockout); one that shuts down at k <= T - 1 has at t at most
+ // P^sd_k plus the largest decrease from t to k - 1, the first step not
+ // before the same instant
+ if( f_run_reach ) {
+  const int q0 = lock0;                       // first step, run from before
+  std::vector< std::vector< double > > Rup( T + 1 );
+  std::map< std::pair< int , int > , std::vector< double > > Rdn;
+  auto rup = [ & ]( int s , int t ) {        // from the start-up s (or -1)
+   auto & r = Rup[ s + 1 ];
+   if( r.empty() )
+    r = rules_reach_all( s , s < 0 ? q0 : std::max( Bv - 1 , 0 ) , true );
+   return( r[ t - s ] );
+   };
+  auto rdn = [ & ]( int t , int t1 , int lk ) {
+   auto & r = Rdn[ { t , lk } ];
+   if( r.empty() )
+    r = rules_reach_all( t , lk , false );
+   return( r[ t1 - t ] );
+   };
+  const bool on0 = ( f_InitUpDownTime > 0 );
+  auto psi = [ & ]( Index i , int t ) {
+   const int h = int( v_Y_plus[ i ].first );
+   const int k = int( v_Y_plus[ i ].second );
+   double c = get_operational_max_power( t );
+   int q;                                    // the first step of the run
+   if( h > 0 ) {
+    const int s = h - 1;
+    q = s + std::max( Bv , 1 );
+    c = std::min( c , v_StartUpLimit[ s ] + ( t > s ? rup( s , t ) : 0.0 ) );
+    }
+   else {
+    q = q0;
+    if( on0 )
+     c = std::min( c , power_before() + rup( -1 , t ) );
+    }
+   if( k < iT )
+    c = std::min( c , v_ShutDownLimit[ k ] +
+                      ( t < k - 1 ? rdn( t , k - 1 ,
+                                         std::max( 0 , q - t - 1 ) ) : 0.0 ) );
+   return( c );
+   };
+
+  StagedRows g;
+  if( base == ptForm )
+   for( int t = 0 ; t < iT ; ++t ) {
+    Ex e( & v_active_power[ t ] );
+    for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+     if( ( int( first( i ) ) <= t ) && ( t <= last( i ) ) )
+      e.add( y( i ) , - psi( i , t ) );
+    row( g , std::move( e ) , -INF , 0 );
+    }
+  if( base == DPForm )
+   for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+    for( int t = int( first( i ) ) ; t <= last( i ) ; ++t )
+     row( g , Ex( p_hk( i , t ) ).add( y( i ) , - psi( i , t ) ) , -INF , 0 );
+  if( ( base == SUForm ) || ( base == SUSDForm ) )
+   for( auto & kv : off_h ) {
+    const Index h = kv.first;
+    for( int t = h ? int( h ) - 1 : 0 ; t < iT ; ++t ) {
+     Ex e( p_h( h , t ) );
+     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+      if( ( v_Y_plus[ i ].first == h ) && ( int( first( i ) ) <= t ) &&
+          ( t <= last( i ) ) )
+       e.add( y( i ) , - psi( i , t ) );
+     row( g , std::move( e ) , -INF , 0 );
+     }
+    }
+  if( ( base == SDForm ) || ( base == SUSDForm ) )
+   for( auto & kv : off_k ) {
+    const Index k = kv.first;
+    for( int t = 0 ; t < int( std::min( k , T ) ) ; ++t ) {
+     Ex e( p_k( k , t ) );
+     for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+      if( ( v_Y_plus[ i ].second == k ) && ( int( first( i ) ) <= t ) &&
+          ( t <= last( i ) ) )
+       e.add( y( i ) , - psi( i , t ) );
+     row( g , std::move( e ) , -INF , 0 );
+     }
+    }
+  add_form_rows( std::move( g ) , "RunReach_Nuclear" );
+  }
+
+ // the rules of F2 on each copy [see RunRules] - - - - - - - - - - - - - - -
+ if( f_run_rules ) {
+  // the expressions of a copy c at t: its runs on at t (U), started at t
+  // (V), on at t - 1 and t (Ut), shut down at t (W), all of them (One),
+  // in progress before the horizon (I); and its private output at t
+  auto sum = [ & ]( const RunCopy & c , auto pred ) {
+   Ex e;
+   for( auto i : c.runs )
+    if( pred( i ) )
+     e.add( y( i ) );
+   return( e );
+   };
+  auto U = [ & ]( const RunCopy & c , int t ) {
+   return( sum( c , [ & ]( Index i ) {
+    return( ( int( first( i ) ) <= t ) && ( t <= last( i ) ) ); } ) );
+   };
+  auto V = [ & ]( const RunCopy & c , int t ) {
+   return( sum( c , [ & ]( Index i ) {
+    return( ( v_Y_plus[ i ].first > 0 ) &&
+            ( int( v_Y_plus[ i ].first ) - 1 == t ) ); } ) );
+   };
+  auto W = [ & ]( const RunCopy & c , int t ) {
+   return( sum( c , [ & ]( Index i ) {
+    return( int( v_Y_plus[ i ].second ) == t ); } ) );
+   };
+  auto Ut = [ & ]( const RunCopy & c , int t ) { return( U( c , t ) -
+                                                         V( c , t ) ); };
+  auto One = [ & ]( const RunCopy & c ) {
+   return( sum( c , [ & ]( Index ) { return( true ); } ) );
+   };
+  auto I0 = [ & ]( const RunCopy & c ) {
+   return( sum( c , [ & ]( Index i ) {
+    return( v_Y_plus[ i ].first == 0 ); } ) );
+   };
+  auto P = [ & ]( const RunCopy & c , int t ) -> Ex {
+   if( t < int( c.a ) )
+    return( Ex() );
+   if( base == DPForm )
+    return( Ex( p_hk( c.runs.front() , t ) ) );
+   if( c.fam == 0 )
+    return( Ex( p_h( v_Y_plus[ c.runs.front() ].first , t ) ) );
+   return( Ex( p_k( v_Y_plus[ c.runs.front() ].second , t ) ) );
+   };
+  // the Variable of the copy at t, empty outside its instants; the ends at
+  // h in position h - 1
+  auto var = [ & ]( std::vector< ColVariable > & v , const RunCopy & c ,
+                    int t ) -> Ex {
+   if( ( t < int( c.a ) ) || ( t > int( c.b ) ) )
+    return( Ex() );
+   return( Ex( & v[ c.v0 + t - c.a ] ) );
+   };
+  auto m = [ & ]( int d , const RunCopy & c , int t ) {
+   return( var( d ? v_cp_mod_dn : v_cp_mod_up , c , t ) );
+   };
+  auto s = [ & ]( int d , const RunCopy & c , int t ) {
+   return( var( d ? v_cp_start_dn : v_cp_start_up , c , t ) );
+   };
+  auto f = [ & ]( int d , const RunCopy & c , int h ) {
+   if( h <= int( c.a ) )
+    return( Ex() );
+   return( var( d ? v_cp_end_dn : v_cp_end_up , c , h - 1 ) );
+   };
+
+  StagedRows gf , gse , gs , gl , go , ge , gm , gb;
+  for( const auto & c : v_copies ) {
+   const int a = int( c.a ) , b = int( c.b );
+   // the flow of the starts and the ends, both within the steps
+   for( int d = 0 ; d < 2 ; ++d )
+    for( int t = a ; t <= b ; ++t ) {
+     row( gf , m( d , c , t ) - m( d , c , t - 1 ) - s( d , c , t ) +
+               f( d , c , t ) , 0 , 0 );
+     row( gse , s( d , c , t ) - m( d , c , t ) , -INF , 0 );
+     row( gse , f( d , c , t + 1 ) - m( d , c , t ) , -INF , 0 );
+     }
+   // the stability, a turn-off row on the ends of the last B instants
+   const Ex one = One( c );
+   for( int t = a ; t <= b ; ++t ) {
+    Ex e = m( 0 , c , t ) + m( 1 , c , t ) - one;
+    for( int h = std::max( a + 1 , t - B + 1 ) ; h <= t ; ++h )
+     e.add( f( 0 , c , h ) ).add( f( 1 , c , h ) );
+    row( gs , std::move( e ) , -INF , 0 );
+    }
+   // the longest modulation, and the one that the horizon cuts
+   for( int d = 0 ; d < 2 ; ++d ) {
+    for( int t = a ; t <= b ; ++t ) {
+     Ex e = m( d , c , t );
+     for( int h = std::max( a , t - int( L ) + 1 ) ; h <= t ; ++h )
+      e.add( s( d , c , h ) , -1 );
+     row( gl , std::move( e ) , -INF , 0 );
+     }
+    if( b == iT - 1 ) {
+     Ex e = m( d , c , b ) - f( d , c , iT );
+     for( int h = std::max( a , iT - int( L ) + 1 ) ; h < iT ; ++h )
+      e.add( s( d , c , h ) , -1 );
+     row( gl , std::move( e ) , -INF , 0 );
+     }
+    else   // every run on at b shuts down at b + 1: the modulation ends
+     row( gl , f( d , c , b + 1 ) - m( d , c , b ) , 0 , 0 );
+    }
+   // the steps only when the runs stay on, not within the stability after
+   // their start-up
+   for( int t = a ; t <= b ; ++t ) {
+    Ex e = m( 0 , c , t ) + m( 1 , c , t ) - Ut( c , t );
+    if( Bv >= 2 )
+     for( auto i : c.runs ) {
+      const int h = int( v_Y_plus[ i ].first );
+      if( ( h > 0 ) && ( h - 1 < t ) && ( t < h - 1 + Bv ) &&
+          ( t <= last( i ) ) )
+       e.add( y( i ) );
+      }
+    row( go , std::move( e ) , -INF , 0 );
+    }
+   // the exact move of the output of the copy, and the bounds of its cases
+   for( int t = a ; t <= b ; ++t ) {
+    const double Du = v_DeltaRampUp[ t ] , Dd = v_DeltaRampDown[ t ];
+    Ex e = P( c , t ) - P( c , t - 1 );
+    if( t == 0 )
+     e.add( I0( c ) , - power_before() );
+    e.add( var( v_cp_stable , c , t ) , -1 );
+    e.add( Du * ( m( 0 , c , t ) - f( 0 , c , t + 1 ) ) , -1 );
+    e.add( var( v_cp_last_up , c , t ) , -1 );
+    e.add( Dd * ( m( 1 , c , t ) - f( 1 , c , t + 1 ) ) );
+    e.add( var( v_cp_last_dn , c , t ) );
+    e.add( var( v_cp_start_power , c , t ) , -1 );
+    e.add( var( v_cp_stop_power , c , t ) );
+    row( ge , std::move( e ) , 0 , 0 );
+
+    const Ex st = Ut( c , t ) - m( 0 , c , t ) - m( 1 , c , t );
+    row( gb , var( v_cp_stable , c , t ) - v_modulation_ramp_up[ t ] * st ,
+         -INF , 0 );
+    row( gb , var( v_cp_stable , c , t ) + v_modulation_ramp_down[ t ] * st ,
+         0 , INF );
+    row( gb , var( v_cp_last_up , c , t ) - Du * f( 0 , c , t + 1 ) ,
+         -INF , 0 );
+    row( gb , var( v_cp_last_dn , c , t ) - Dd * f( 1 , c , t + 1 ) ,
+         -INF , 0 );
+    const Ex vc = V( c , t ) , wc = W( c , t );
+    const double lp = get_operational_min_power( t );
+    row( gb , var( v_cp_start_power , c , t ) - v_StartUpLimit[ t ] * vc ,
+         -INF , 0 );
+    row( gb , var( v_cp_start_power , c , t ) - lp * vc , 0 , INF );
+    if( t == 0 )   // the shut-down at 0, from the initial power
+     row( gb , var( v_cp_stop_power , c , t ) - power_before() * wc , 0 , 0 );
+    else {
+     row( gb , var( v_cp_stop_power , c , t ) - v_ShutDownLimit[ t ] * wc ,
+          -INF , 0 );
+     row( gb , var( v_cp_stop_power , c , t ) -
+               get_operational_min_power( t - 1 ) * wc , 0 , INF );
+     }
+    }
+   }
+  add_form_rows( std::move( gf ) , "CopyFlow_Nuclear" );
+  add_form_rows( std::move( gse ) , "CopyStartEnd_Nuclear" );
+  add_form_rows( std::move( gs ) , "CopyTurnOff_Nuclear" );
+  add_form_rows( std::move( gl ) , "CopyLength_Nuclear" );
+  add_form_rows( std::move( go ) , "CopyOn_Nuclear" );
+  add_form_rows( std::move( ge ) , "CopyMove_Nuclear" );
+  add_form_rows( std::move( gb ) , "CopyCases_Nuclear" );
+
+  // the steps, the starts and the ends of the unit are the sums of those
+  // of the copies of each family
+  for( int fam = 0 ; fam < 2 ; ++fam ) {
+   if( std::none_of( v_copies.begin() , v_copies.end() ,
+                     [ & ]( const RunCopy & c ) { return( c.fam == fam ); } ) )
+    continue;
+   StagedRows g;
+   for( int t = 0 ; t < iT ; ++t ) {
+    Ex eu = Ex( & v_modulation[ t ] ) - Ex( & v_modulation_down[ t ] );
+    Ex ed( & v_modulation_down[ t ] );
+    Ex su( & v_mod_start_up[ t ] ) , sd( & v_mod_start_dn[ t ] );
+    Ex fu( & v_mod_end_up[ t ] ) , fd( & v_mod_end_dn[ t ] );
+    for( const auto & c : v_copies )
+     if( c.fam == fam ) {
+      eu.add( m( 0 , c , t ) , -1 );
+      ed.add( m( 1 , c , t ) , -1 );
+      su.add( s( 0 , c , t ) , -1 );
+      sd.add( s( 1 , c , t ) , -1 );
+      fu.add( f( 0 , c , t + 1 ) , -1 );
+      fd.add( f( 1 , c , t + 1 ) , -1 );
+      }
+    for( auto e : { & eu , & ed , & su , & sd , & fu , & fd } )
+     row( g , std::move( *e ) , 0 , 0 );
+    }
+   add_form_rows( std::move( g ) , "CopyLink_Nuclear" );
+   }
+  }
+
+ // the perspective cuts on the bands [see BandPersp] - - - - - - - - - - - -
+ // for P in { P^mn_t , b_1 , b_2 , P^mx_t }, z_t >= 2 P p_t - sum_k c_k b^k_t
+ // with c_k = 2 P x_k - x_k^2 and x_k the point of the band k nearest to P,
+ // since p^2 >= 2 P p - c_k for every p in the band k
+ if( f_band_persp && has_power_bands() ) {
+  StagedRows g;
+  for( int t = 0 ; t < iT ; ++t ) {
+   const double lo[ 3 ] = { get_operational_min_power( t ) ,
+                            v_power_bands[ 0 ] , v_power_bands[ 1 ] };
+   const double hi[ 3 ] = { v_power_bands[ 0 ] , v_power_bands[ 1 ] ,
+                            get_operational_max_power( t ) };
+   for( double Pc : { lo[ 0 ] , lo[ 1 ] , lo[ 2 ] , hi[ 2 ] } ) {
+    Ex e( & v_cut[ t ] );
+    e.add( & v_active_power[ t ] , - 2 * Pc );
+    for( Index k = 0 ; k < 3 ; ++k ) {
+     const double x = std::clamp( Pc , lo[ k ] , std::max( lo[ k ] ,
+                                                            hi[ k ] ) );
+     e.add( & v_band[ k * T + t ] , 2 * Pc * x - x * x );
+     }
+    row( g , std::move( e ) , 0 , INF );
+    }
+   }
+  add_form_rows( std::move( g ) , "BandPerspective_Nuclear" );
+  }
+
+ }  // end( NuclearUnitBlock::build_run_rows )
+
+/*--------------------------------------------------------------------------*/
+
+void NuclearUnitBlock::set_copy_solution( void )
+{
+ if( v_copies.empty() )
+  return;
+ const Index T = f_time_horizon;
+ const int it0 = int( init_t );
+ auto first = [ & ]( Index i ) {
+  return( v_Y_plus[ i ].first ? v_Y_plus[ i ].first - 1 : 0 );
+  };
+ auto last = [ & ]( Index i ) {
+  return( int( std::min( v_Y_plus[ i ].second , T ) ) - 1 );
+  };
+ for( auto * v : { & v_cp_mod_up , & v_cp_mod_dn , & v_cp_start_up ,
+                   & v_cp_start_dn , & v_cp_end_up , & v_cp_end_dn ,
+                   & v_cp_stable , & v_cp_last_up , & v_cp_last_dn ,
+                   & v_cp_start_power , & v_cp_stop_power } )
+  for( auto & x : *v )
+   x.set_value( 0 );
+
+ // the copy of each run of the path takes the values of the unit at the
+ // instants of the run (the arcs being 0 or 1, see set_path_solution())
+ for( const auto & c : v_copies )
+  for( auto i : c.runs ) {
+   if( v_commitment_plus[ i ].get_value() < 0.5 )
+    continue;
+   const int a = int( first( i ) ) , b = last( i );
+   for( int t = a ; t <= b ; ++t ) {
+    const Index j = c.v0 + t - c.a;
+    const double mt = v_modulation[ t ].get_value();
+    const double dt = v_modulation_down[ t ].get_value();
+    v_cp_mod_up[ j ].set_value( mt - dt );
+    v_cp_mod_dn[ j ].set_value( dt );
+    v_cp_start_up[ j ].set_value( v_mod_start_up[ t ].get_value() );
+    v_cp_start_dn[ j ].set_value( v_mod_start_dn[ t ].get_value() );
+    v_cp_end_up[ j ].set_value( v_mod_end_up[ t ].get_value() );
+    v_cp_end_dn[ j ].set_value( v_mod_end_dn[ t ].get_value() );
+    v_cp_stable[ j ].set_value( v_stable_move[ t ].get_value() );
+    v_cp_last_up[ j ].set_value( v_last_up[ t ].get_value() );
+    v_cp_last_dn[ j ].set_value( v_last_dn[ t ].get_value() );
+    if( ( t == a ) && ( t >= it0 ) && ( v_Y_plus[ i ].first > 0 ) )
+     v_cp_start_power[ j ].set_value( v_start_power[ t - it0 ].get_value() );
+    }
+   // the shut-down of the run, if within the instants of the copy
+   const int k = int( v_Y_plus[ i ].second );
+   if( ( k < int( T ) ) && ( k <= int( c.b ) ) && ( k >= int( c.a ) ) &&
+       ( k >= it0 ) )
+    v_cp_stop_power[ c.v0 + k - c.a ].set_value(
+                                     v_stop_power[ k - it0 ].get_value() );
+   }
+ }  // end( NuclearUnitBlock::set_copy_solution )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File NuclearUnitBlockForms.cpp ---------------------*/

@@ -31,6 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   any formulation of `ThermalUnitBlock` and is kept up to date by its
   setters, or refuses the change
 
+- `NuclearUnitBlock` has three more bits of the formulation of its operating
+  rules: `RunReach`, the caps of the output of every run of the pt, DP, SU,
+  SD and SUSD formulations of the thermal part by what the rules let it
+  reach from the start-up of the run and towards its shut-down, with any
+  formulation of the rules; `RunRules`, the rows of F2 written once more on
+  the private outputs of the DP (each run), SU (the runs of each start-up),
+  SD (the runs of each shut-down) and SUSD (both) formulations; and
+  `BandPersp`, the perspective cuts of the quadratic cost written on the
+  bands of the output, with the Perspective Cuts
+
 - `NuclearRules.h`: the codes of the formulations of the operating rules,
   their data, the labels of the states and the moves out of them, which
   `NuclearUnitExtDPSolver` and the flows on the label graph share
@@ -39,7 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NuclearUnitExtDPSolver` (the edge cases of the rules and random data),
   the chain of their continuous relaxations, the convex hull of the move of
   F2 and the setters after the generation (`NUBCfg-T-F*.txt`,
-  `NUBCfg-T-TR-TM.txt`)
+  `NUBCfg-T-TR-TM.txt`), also with the bits `RunReach`, `RunRules` and
+  `BandPersp` on the network formulations of the thermal part
+  (`NUBCfg-<base>-F2*.txt`, `NUBCfg-pt-RC.txt`, `NUBCfg-T-PC-F2*.txt`)
 
 - the unit test checks that a `compute()` of `NuclearUnitExtDPSolver` that
   throws leaves the Solver usable, its value after a change of
