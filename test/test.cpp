@@ -11185,6 +11185,8 @@ struct CUData {
  std::vector< unsigned int > delay;  // Delay [ G ]
  std::vector< int > cyclic;       // CyclicDelay [ G ]
  std::vector< double > idp;       // InitialDelayedPower [ H ][ G ]
+ unsigned int modules = 0;        // Modules, 0 = not written
+ unsigned int initK = 0;          // InitialCommitment, 0 = not written
  };
 
 /*--------------------------------------------------------------------------*/
@@ -11269,6 +11271,10 @@ static void write_CU( netCDF::NcGroup g , const CUData & d )
   put_uint( g , "CommitmentGenerator" , d.cg );
  if( d.scale != 1 )
   put( g , "Scale" , d.scale );
+ if( d.modules )
+  put_uint( g , "Modules" , d.modules );
+ if( d.initK )
+  put_uint( g , "InitialCommitment" , d.initK );
  if( ! d.delay.empty() )
   g.addVar( "Delay" , netCDF::NcUint() , NG ).putVar( d.delay.data() );
  if( ! d.cyclic.empty() )
@@ -12660,6 +12666,209 @@ static void test_conversion_delays( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* An electric node 0 with the demand ( 40 , 90 , 140 , 60 , 30 , 120 ) and a
+ * peaker at 200, a gas node 1 with a free source and no line, and a plant
+ * of 3 identical modules, each with a fuel input (generator 0, in
+ * [ -125 , -50 ], on node 1) and an output (generator 1, in [ 20 , 50 ], on
+ * node 0) tied by p_1 + 0.4 p_0 = 0, the fuel at 4 per unit, 30
+ * per instant on, 100 per start-up, minimum up time 3 and down time 2. The
+ * plant is either one ConversionUnitBlock with Modules 3 or three
+ * ConversionUnitBlock of one module each, in three cases: all off before the
+ * horizon; two modules on for one instant before it at 30 each (the third
+ * off since long, InitUpDownTime -10 for its copy), which then cannot shut
+ * down before the instant 2; the latter with ramps of 20 on the output.
+ * Without ramps the two models have the same optimum, the commitments of
+ * the modules being exactly the sums of those of single modules; with ramps
+ * the aggregated ramps are a relaxation of those of the single modules, and
+ * the optimum of the plant of modules is at most that of the three units.
+ * The optima of the three units, by an independent MILP, are 7560, 7360
+ * and 7390; the continuous relaxations of the two models are reported.
+ * With Modules 1 written the rows are those of the unit without it; Modules >
+ * 1 with Scale != 1 or with FixedConsumption, and InitialCommitment > Modules
+ * are refused; the unit
+ * is written and read back. */
+
+static CUData module_CU( Index N , int initUD , Index k , bool ramps )
+{
+ const Index T = 6;
+ CUData d;
+ d.T = T;
+ d.G = 2;
+ d.minP = rep( T , { -125 , 20 } );
+ d.maxP = rep( T , { -50 , 50 } );
+ d.M = 1;
+ d.A = { 0.4 , 1 };
+ d.lhs = rep( T , { 0 } );
+ d.rhs = rep( T , { 0 } );
+ d.lin = rep( T , { -4 , 0 } );
+ d.cnst.assign( T , 30 );
+ d.suc.assign( T , 100 );
+ d.minUp = 3;
+ d.minDown = 2;
+ d.initUD = initUD;
+ d.modules = N;
+ d.initK = k;
+ if( initUD > 0 )
+  d.initP = { -75.0 * k , 30.0 * k };
+ if( ramps ) {
+  d.K = 1;
+  d.rampM = { 0 , 1 };
+  d.rup.assign( T , 20 );
+  d.rdn.assign( T , 20 );
+  }
+ return( d );
+ }
+
+// the bus with the plant as one unit of N modules (copies == 1) or as N
+// units of one module (copies == N), the first k of which on before
+static UCBlock * modules_UC( Index N , Index copies , int initUD , Index k ,
+                             bool ramps )
+{
+ const Index T = 6;
+ auto g = new_group( "MO" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , T );
+ auto ND = g.addDim( "NumberNodes" , 2 );
+ g.addDim( "NumberLines" , 0 );
+ g.addDim( "NumberUnits" , copies + 2 );
+ auto NG = g.addDim( "NumberElectricalGenerators" , 2 * copies + 2 );
+ put( g , "ActivePowerDemand" , { ND , TH } ,
+      { 40 , 90 , 140 , 60 , 30 , 120 , 0 , 0 , 0 , 0 , 0 , 0 } );
+ std::vector< int > gn;
+ for( Index i = 0 ; i < copies ; ++i ) {
+  gn.push_back( 1 );
+  gn.push_back( 0 );
+  }
+ gn.push_back( 0 );
+ gn.push_back( 1 );
+ put_int( g , "GeneratorNode" , NG , gn );
+ for( Index i = 0 ; i < copies ; ++i ) {
+  auto d = ( copies == 1 ) ? module_CU( N , initUD , k , ramps )
+   : module_CU( 1 , ( initUD > 0 ) && ( i < k ) ? initUD : -10 ,
+                ( initUD > 0 ) && ( i < k ) ? 1 : 0 , ramps );
+  if( copies > 1 )
+   d.initK = 0;
+  write_CU( g.addGroup( "UnitBlock_" + std::to_string( i ) ) , d );
+  }
+ auto u = g.addGroup( "UnitBlock_" + std::to_string( copies ) );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MaxPower" , 1000.0 );
+ put( u , "LinearTerm" , 200.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ u = g.addGroup( "UnitBlock_" + std::to_string( copies + 1 ) );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MaxPower" , 10000.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+ if( ! uc )
+  throw( std::logic_error( "modules_UC: no UCBlock built" ) );
+ return( uc );
+ }
+
+static void test_conversion_modules( void )
+{
+ struct Case {
+  std::string what;
+  int initUD;
+  Index k;
+  bool ramps;
+  double expected;  // by an independent MILP
+  };
+ const std::vector< Case > cases = {
+  { "off before" , -2 , 0 , false , 7560 } ,
+  { "two on before" , 1 , 2 , false , 7360 } ,
+  { "two on before, ramps" , 1 , 2 , true , 7390 } };
+
+ for( const auto & c : cases ) {
+  const auto what = "modules, " + c.what;
+  try {
+   std::unique_ptr< UCBlock > agg( modules_UC( 3 , 1 , c.initUD , c.k ,
+                                               c.ramps ) );
+   std::unique_ptr< UCBlock > rpl( modules_UC( 3 , 3 , c.initUD , c.k ,
+                                               c.ramps ) );
+   generate_all( agg.get() );
+   generate_all( rpl.get() );
+   const double va = conv_milp( agg.get() );
+   const double vr = conv_milp( rpl.get() );
+   if( std::isnan( va ) ) {
+    std::cout << "modules: no :MILPSolver, skipped" << std::endl;
+    return;
+    }
+   check( agg->is_feasible() , what + ": the solution is not feasible" );
+   if( ! c.ramps ) {
+    check( close( va , vr ) , what + ": optimum " + str( va ) + " instead "
+           "of " + str( vr ) + " of three units" );
+    check( close( va , c.expected ) , what + ": optimum " + str( va ) +
+           " instead of " + str( c.expected ) );
+    const double la = conv_lp( agg.get() );
+    const double lr = conv_lp( rpl.get() );
+    std::cout << what << ": optimum " << va << ", relaxation " << la
+              << " (three units " << lr << ")" << std::endl;
+    }
+   else {
+    check( va <= vr + 1e-6 * std::max( 1.0 , std::abs( vr ) ) , what +
+           ": optimum " + str( va ) + " above " + str( vr ) + " of three "
+           "units" );
+    check( close( vr , c.expected ) , what + ": three units are worth " +
+           str( vr ) + " instead of " + str( c.expected ) );
+    std::cout << what << ": optimum " << va << ", three units " << vr
+              << std::endl;
+    }
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ // Modules 1 written is the same as no Modules
+ {
+  auto a = new_CU( module_CU( 1 , -2 , 0 , true ) );
+  auto e = module_CU( 1 , -2 , 0 , true );
+  e.modules = 0;  // not written
+  auto b = new_CU( e );
+  generate_all( a );
+  generate_all( b );
+  const auto why = rows_differ( a , b );
+  check( why.empty() , "modules: Modules 1 gives other rows, " + why );
+  check( a->get_design_ub() == 1 , "modules: one module, design ub not 1" );
+  delete a;
+  delete b;
+  }
+
+ // written and read back
+ auto g = new_group( "CU" , true );
+ write_CU( g , module_CU( 3 , 1 , 2 , true ) );
+ auto b = round_trip( g , "modules" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && ( cub->get_number_modules() == 3 ) &&
+        ( cub->get_initial_commitment() == 2 ) &&
+        ( cub->get_design_ub() == 3 ) ,
+        "modules: the data read back differ" );
+ delete b;
+
+ // the refused data
+ auto refused = [ & ]( const CUData & d , const std::string & what ) {
+  bool thrown = false;
+  try { delete new_CU( d ); }
+  catch( std::exception & ) { thrown = true; }
+  check( thrown , "modules: " + what + " is not refused" );
+  };
+ auto e = module_CU( 3 , -2 , 0 , false );
+ e.scale = 2;
+ refused( e , "Modules > 1 with Scale != 1" );
+ e = module_CU( 3 , -2 , 0 , false );
+ e.fc.assign( 6 , 1 );
+ refused( e , "Modules > 1 with FixedConsumption" );
+ e = module_CU( 3 , 1 , 2 , false );
+ e.initK = 4;
+ refused( e , "InitialCommitment > Modules" );
+ e = module_CU( 3 , 1 , 2 , false );
+ e.initP = { -75 , 30 };  // the power of one module, two are on
+ e.minP = rep( 6 , { -125 , 20 } );
+ refused( e , "an InitialPower outside the region of the modules on" );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -12817,6 +13026,7 @@ int main( int argc , char ** argv )
   test_conversion_round_trip();
   test_conversion_varying_matrix();
   test_conversion_delays();
+  test_conversion_modules();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

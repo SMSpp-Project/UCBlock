@@ -149,6 +149,7 @@ ConversionUnitBlock::~ConversionUnitBlock()
  Constraint::clear( ReserveRamp_Const );
  Constraint::clear( Commitment_Bound );
  ShutDownZero_Bound.clear();
+ Constraint::clear( ShutDownInitial_Bound );
  Constraint::clear( ActivePower_Bound );
  Constraint::clear( StartUp_Binary_Bound );
  Constraint::clear( ShutDown_Binary_Bound );
@@ -439,6 +440,18 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
  f_scale = 1;
  ::deserialize( group , f_scale , "Scale" );
 
+ // the modules- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ f_Modules = 1;
+ if( ::deserialize( group , f_Modules , "Modules" ) && ( f_Modules == 0 ) )
+  throw( std::invalid_argument( who + ": Modules is 0" ) );
+ f_InitialCommitment = 0;
+ ::deserialize( group , f_InitialCommitment , "InitialCommitment" );
+ if( ( f_scale != 1 ) && ( f_Modules > 1 ) )
+  throw( std::invalid_argument( who + ": Scale != 1 together with Modules > "
+                                "1, which represent the same replication of "
+                                "the unit" ) );
+
  compute_reserve_signs( who );
  for( Index g = 0 ; g < f_G ; ++g )
   if( v_sign[ g ] && get_delay( g ) )
@@ -477,7 +490,8 @@ std::vector< std::string > ConversionUnitBlock::expected_vars( void ) const
     "ConstTerm" , "StartUpCost" , "ShutDownCost" , "FixedConsumption" ,
     "InertiaCommitment" , "InertiaPower" , "InitialPower" ,
     "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Scale" , "Delay" ,
-    "CyclicDelay" , "InitialDelayedPower" };
+    "CyclicDelay" , "InitialDelayedPower" , "Modules" ,
+    "InitialCommitment" };
 
  auto ret = UnitBlock::expected_vars();
  ret.insert( ret.end() , ev.begin() , ev.end() );
@@ -601,17 +615,25 @@ void ConversionUnitBlock::check_data( const std::string & who ) const
   if( fc < 0 )
    fail( "FixedConsumption < 0" );
 
+ const Index N = get_number_modules();
+ if( ( N > 1 ) && ( ! v_FixedConsumption.empty() ) )
+  fail( "FixedConsumption with more than one module" );
+ if( f_InitialCommitment > N )
+  fail( "InitialCommitment > the number of modules" );
+
  if( v_InitialPower.size() != f_G )
   fail( "InitialPower has not NumberGenerators entries" );
 
- // a unit on before the horizon is in the region of the instant 0
+ // a unit on before the horizon is in the region of the instant 0, that
+ // of the modules on before the horizon
  if( f_InitUpDownTime > 0 && T ) {
+  const double k = get_initial_commitment();
   auto eps = []( double v ) { return( 1e-9 * std::max( 1.0 ,
                                                        std::abs( v ) ) ); };
   for( Index g = 0 ; g < f_G ; ++g ) {
    const double p = v_InitialPower[ g ];
-   if( ( p < v_MinPower[ 0 ][ g ] - eps( p ) ) ||
-       ( p > v_MaxPower[ 0 ][ g ] + eps( p ) ) )
+   if( ( p < k * v_MinPower[ 0 ][ g ] - eps( p ) ) ||
+       ( p > k * v_MaxPower[ 0 ][ g ] + eps( p ) ) )
     fail( "InitialPower of generator " + std::to_string( g ) + " is "
           "outside its bounds at the instant 0 of a unit on before the "
           "horizon" );
@@ -620,8 +642,8 @@ void ConversionUnitBlock::check_data( const std::string & who ) const
    double ap = 0;
    for( Index g = 0 ; g < f_G ; ++g )
     ap += get_operating_coefficient( m , g , 0 ) * v_InitialPower[ g ];
-   if( ( ap < get_operating_lhs( 0 , m ) - eps( ap ) ) ||
-       ( ap > get_operating_rhs( 0 , m ) + eps( ap ) ) )
+   if( ( ap < k * get_operating_lhs( 0 , m ) - eps( ap ) ) ||
+       ( ap > k * get_operating_rhs( 0 , m ) + eps( ap ) ) )
     fail( "InitialPower violates the operating row " + std::to_string( m ) +
           " at the instant 0 of a unit on before the horizon" );
    }
@@ -706,6 +728,15 @@ Index ConversionUnitBlock::instant_of( Index g , Index i ) const
 
 /*--------------------------------------------------------------------------*/
 
+Index ConversionUnitBlock::get_initial_commitment( void ) const
+{
+ if( f_InitUpDownTime <= 0 )
+  return( 0 );
+ return( f_InitialCommitment ? f_InitialCommitment : get_number_modules() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 Index ConversionUnitBlock::first_free_instant( void ) const
 {
  const int init = f_InitUpDownTime;
@@ -781,19 +812,23 @@ void ConversionUnitBlock::generate_abstract_variables( Configuration * stvv )
  UnitBlock::generate_abstract_variables( stvv );
  const Index T = f_time_horizon;
 
+ // binary, or the numbers of modules on, started up and shut down
+ const auto ct = ( get_number_modules() > 1 ) ? ColVariable::kNatural
+                                              : ColVariable::kBinary;
+
  v_commitment.resize( T );
  for( auto & var : v_commitment )
-  var.set_type( ColVariable::kBinary );
+  var.set_type( ct );
  add_static_variable( v_commitment , "u_conversion" );
 
  v_start_up.resize( T );
  for( auto & var : v_start_up )
-  var.set_type( ColVariable::kBinary );
+  var.set_type( ct );
  add_static_variable( v_start_up , "v_conversion" );
 
  v_shut_down.resize( T );
  for( auto & var : v_shut_down )
-  var.set_type( ColVariable::kBinary );
+  var.set_type( ct );
  add_static_variable( v_shut_down , "w_conversion" );
 
  // the powers delivered at the instants of the horizon, then those of the
@@ -867,7 +902,7 @@ void ConversionUnitBlock::generate_abstract_constraints( Configuration * stcc )
  f_row_count.clear();  // now the position of the next row of each group
  build_rows();
 
- if( zo ) {
+ if( zo && ( get_number_modules() == 1 ) ) {
   StartUp_Binary_Bound.resize( f_time_horizon );
   ShutDown_Binary_Bound.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
@@ -995,6 +1030,9 @@ void ConversionUnitBlock::build_rows( void )
  const Index t0 = first_free_instant();
  const bool on0 = ( f_InitUpDownTime > 0 );
  auto p_init = [ & ]( Index g ) { return( on0 ? v_InitialPower[ g ] : 0 ); };
+ const Index N = get_number_modules();
+ const double k0 = get_initial_commitment();  // u[ -1 ]
+ const double U = get_design_ub();  // the multiplier of the data
 
  LinearFunction::v_coeff_pair vars;
  auto add = [ & vars ]( ColVariable & v , double c ) {
@@ -1034,7 +1072,7 @@ void ConversionUnitBlock::build_rows( void )
    add( v_commitment[ t - 1 ] , -1 );
   add( v_start_up[ t ] , -1 );
   add( v_shut_down[ t ] , 1 );
-  const double rhs = ( t == 0 ) && on0 ? 1 : 0;
+  const double rhs = ( t == 0 ) ? k0 : 0;
   push_row( Logical_Const , std::move( vars ) , rhs , rhs );
   }
  add_rows( Logical_Const , "Logical_Const_Conversion" );
@@ -1053,7 +1091,7 @@ void ConversionUnitBlock::build_rows( void )
        s <= t ; ++s )
    add( v_shut_down[ s ] , 1 );
   add( v_commitment[ t ] , 1 );
-  push_row( MinDown_Const , std::move( vars ) , - INF , 1 );
+  push_row( MinDown_Const , std::move( vars ) , - INF , double( N ) );
   }
  add_rows( MinDown_Const , "MinDown_Const_Conversion" );
 
@@ -1063,8 +1101,8 @@ void ConversionUnitBlock::build_rows( void )
   Commitment_Bound.resize( T );
  for( Index t = 0 ; t < T ; ++t )
   put_box( Commitment_Bound[ t ] , & v_commitment[ t ] ,
-           ( on0 && ( t < t0 ) ) ? 1 : 0 ,
-           ( ( ! on0 ) && ( t < t0 ) ) ? 0 : 1 );
+           ( on0 && ( t < t0 ) ) ? k0 : 0 ,
+           ( ( ! on0 ) && ( t < t0 ) ) ? 0 : double( N ) );
  if( generating_rows() && ( ! f_counting ) && T )
   add_static_constraint( Commitment_Bound , "Commitment_Bound_Conversion" );
 
@@ -1074,15 +1112,33 @@ void ConversionUnitBlock::build_rows( void )
    for( Index g = 0 ; g < f_G ; ++g ) {
     double lo , hi;
     limit_box( false , 0 , g , lo , hi );
+    lo *= k0;  // the box of the modules on before the horizon
+    hi *= k0;
     const double p = p_init( g );
     if( ( p < lo - 1e-9 * std::max( 1.0 , std::abs( lo ) ) ) ||
         ( p > hi + 1e-9 * std::max( 1.0 , std::abs( hi ) ) ) )
      sd0 = false;
     }
-  put_box( ShutDownZero_Bound , & v_shut_down[ 0 ] , 0 , sd0 ? 1 : 0 );
+  // with several modules, those on before the horizon cannot shut down
+  // before t0, which with one module the bounds of u already say
+  if( ( N > 1 ) && on0 && ( t0 > 0 ) )
+   sd0 = false;
+  put_box( ShutDownZero_Bound , & v_shut_down[ 0 ] , 0 ,
+           sd0 ? double( N ) : 0 );
   if( generating_rows() && ( ! f_counting ) )
    add_static_constraint( ShutDownZero_Bound ,
                           "ShutDownZero_Bound_Conversion" );
+  }
+
+ if( ( N > 1 ) && ( T > 1 ) ) {
+  if( generating_rows() )
+   ShutDownInitial_Bound.resize( T - 1 );
+  for( Index t = 1 ; t < T ; ++t )
+   put_box( ShutDownInitial_Bound[ t - 1 ] , & v_shut_down[ t ] , 0 ,
+            ( on0 && ( t < t0 ) ) ? 0 : double( N ) );
+  if( generating_rows() && ( ! f_counting ) )
+   add_static_constraint( ShutDownInitial_Bound ,
+                          "ShutDown_Initial_Bound_Conversion" );
   }
 
  // (4)-(7), the bounds of the powers - - - - - - - - - - - - - - - - - - - -
@@ -1188,8 +1244,8 @@ void ConversionUnitBlock::build_rows( void )
     }
    const Index t = instant_of( g , i );
    put_box( ActivePower_Bound[ g ][ i ] , & v_active_power[ g ][ i ] ,
-            std::min( 0.0 , double( v_MinPower[ t ][ g ] ) ) ,
-            std::max( 0.0 , double( v_MaxPower[ t ][ g ] ) ) );
+            U * std::min( 0.0 , double( v_MinPower[ t ][ g ] ) ) ,
+            U * std::max( 0.0 , double( v_MaxPower[ t ][ g ] ) ) );
    }
  if( generating_rows() && ( ! f_counting ) && T )
   add_static_constraint( ActivePower_Bound ,
@@ -1629,6 +1685,7 @@ bool ConversionUnitBlock::is_feasible( bool useabstract ,
   && RowConstraint::is_feasible( Commitment_Bound , tol , rel_viol )
   && ( ( ! constraints_generated() ) || ( ! f_time_horizon ) ||
        RowConstraint::is_feasible( ShutDownZero_Bound , tol , rel_viol ) )
+  && RowConstraint::is_feasible( ShutDownInitial_Bound , tol , rel_viol )
   && RowConstraint::is_feasible( ActivePower_Bound , tol , rel_viol ) );
  }
 
@@ -1735,6 +1792,11 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
               f_InitUpDownTime );
  ::serialize( group , "MinUpTime" , netCDF::NcUint() , f_MinUpTime );
  ::serialize( group , "MinDownTime" , netCDF::NcUint() , f_MinDownTime );
+ if( f_Modules != 1 )
+  ::serialize( group , "Modules" , netCDF::NcUint() , f_Modules );
+ if( f_InitialCommitment )
+  ::serialize( group , "InitialCommitment" , netCDF::NcUint() ,
+               f_InitialCommitment );
  if( f_scale != 1 )
   ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 

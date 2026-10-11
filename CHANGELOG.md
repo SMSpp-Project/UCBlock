@@ -59,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   delay wraps around the horizon ("CyclicDelay"); the Solution saves the
   powers delivered after the horizon
 
+- `ConversionUnitBlock`: a unit of N identical modules committed one by
+  one ("Modules"), the commitment, start-ups and shut-downs being the
+  numbers of modules, integer in 0..N, with the data of one module, the
+  minimum down time rows written with N - u and the modules on before the
+  horizon given by "InitialCommitment"; with N = 1 the rows are those of
+  before
+
 - `data/gen_multi_energy.py` writes the multi-energy instances (a combined
   heat and power plant as a `ConversionUnitBlock` and with hyperarcs, a
   meshed network with a heat node) and prints their known optima; they are
