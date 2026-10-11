@@ -108,7 +108,40 @@ namespace SMSpp_di_unipi_it
  * recover_feasible_solution()]. Note that the
  * formulations and the angles of DCNetworkBlock play no role, since the only
  * rows of DCNetworkBlock that an ACNetworkBlock writes are the bounds (1) of
- * DCNetworkBlock::generate_abstract_constraints(). */
+ * DCNetworkBlock::generate_abstract_constraints().
+ *
+ * The relaxation comes in two forms, chosen by the static variables
+ * Configuration (see generate_abstract_variables()). With 0 it is the SOCP
+ * relaxation of the bus injection model (doi:10.1109/TPWRS.2006.879234),
+ * whose only quadratic rows are the thermal limits, i.e., second-order
+ * cones, and the cones \f$ c_l^2 + s_l^2 \le w_{s(l)} w_{e(l)} \f$, i.e.,
+ * rotated second-order cones, since the voltage bounds give
+ * \f$ w_n \ge 0 \f$; thus the continuous relaxation of a UCBlock on it is
+ * a convex QCP, which an interior point method solves with no treatment of
+ * nonconvex rows and which has the dual values of its quadratic rows. With
+ * a positive value, or by default, it is the QC relaxation cited above,
+ * which adds the voltage magnitudes
+ * \f$ v_n \f$, the angles \f$ \theta_n \f$ and the variables
+ * \f$ \alpha_l \f$, \f$ \beta_l \f$ and \f$ z_l \f$ standing for
+ * \f$ \cos \theta_l \f$, \f$ \sin \theta_l \f$ and \f$ v_{s(l)} v_{e(l)}
+ * \f$, with static rows that are convex as well (see
+ * strengthen_SOCP_relaxation()). These static rows alone do not restrict
+ * \f$ ( w , c , s ) \f$: \f$ c \f$ and \f$ s \f$ are in none of them,
+ * \f$ w \f$ is only in those with \f$ v \f$, which every \f$ w \f$
+ * within the voltage bounds satisfies with \f$ v_n = \sqrt{ w_n } \f$,
+ * since \f$ ( \sqrt{ w_n } - C^v V^{mn}_n ) ( C^v V^{mx}_n -
+ * \sqrt{ w_n } ) \ge 0 \f$ (see generate_abstract_constraints() for
+ * \f$ C^v \f$), and the rows of \f$ \theta \f$, \f$ \alpha \f$ and
+ * \f$ \beta \f$ do not have any of the three (they can only make the
+ * whole model infeasible, if the bounds on the angle differences are not
+ * consistent around a cycle). The relaxation is tightened only by the
+ * McCormick inequalities that link \f$ c_l \f$ and \f$ s_l \f$ to
+ * \f$ \alpha_l \f$, \f$ \beta_l \f$ and \f$ z_l \f$, which are dynamic
+ * constraints separated by
+ * generate_dynamic_constraints(); therefore a solve that does not separate
+ * them, e.g., a continuous relaxation solved by a :MILPSolver with
+ * intRelaxIntVars = 1, which installs no callback, has the value of the
+ * SOCP relaxation, with more variables and rows. */
 
 class ACNetworkBlock : public DCNetworkBlock
 {

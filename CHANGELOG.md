@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the documentation of `ACNetworkBlock` says which relaxation each value of
+  the static variables `Configuration` gives: with 0 the SOCP relaxation of
+  the bus injection model, a convex QCP whose quadratic rows are second-order
+  cones; by default its strengthening, whose static rows do not restrict
+  the voltage products, so that a solve that does not separate its McCormick
+  inequalities (a continuous relaxation by a `:MILPSolver` with
+  `intRelaxIntVars` 1) has the value of the SOCP relaxation
+
+- the unit test solves a `UCBlock` on an `ACNetworkBlock` in the two
+  relaxations, read from `test/ACBCfg-SOCP.txt` and `test/ACBCfg-QC.txt`,
+  with a `:MILPSolver` that solves a convex QCP (GUROBI or CPLEX): two
+  nodes and no line (each node an island, the known value), a line and a
+  chain (radial, the cones tight at the optimum and the two values equal)
+  and a triangle (the SOCP value not above the strengthened one)
+
 - `DCNetworkBlock` accepts hyperarcs together with lines of nonzero
   susceptance, in the KIRCHHOFF, PTDF and CYCLE formulations: a hyperarc,
   whose susceptance must be zero, is a controllable flow that enters the

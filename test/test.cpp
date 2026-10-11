@@ -10109,6 +10109,255 @@ static double relaxation_value( ThermalUnitBlock * tub )
  }
 
 /*--------------------------------------------------------------------------*/
+/*---------- THE SOCP AND THE STRENGTHENED RELAXATION OF THE AC MODEL ------*/
+/*--------------------------------------------------------------------------*/
+/// the first :MILPSolver of the build that solves a convex QCP (GUROBI
+/// first, then CPLEX), empty if there is none
+
+static std::string conic_solver( void )
+{
+ for( const auto & name : { "GRBMILPSolver" , "CPXMILPSolver" } )
+  if( Solver::has_Solver( name ) )
+   return( name );
+ return( "" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A UCBlock of one instant on an ACNetworkBlock of nodes nodes and the AC
+ * lines lines (start and end node of each; reactance 0.1 and resistance
+ * 0.01 upwards with the index of the line, angle differences within +-30
+ * degrees, a rating of 30), a ThermalUnitBlock at node 0 (power in
+ * [ 1 , 20 ] at the cost of 1, reactive power in [ -5 , 5 ], on since 5
+ * instants at the power of 5) and a
+ * SlackUnitBlock at the last node (power cost 1000); the active demand of
+ * node n is dem[ n ], the reactive one 0.5 at node 0 and qdem at the
+ * others. */
+
+static netCDF::NcGroup write_ac_uc( Index nodes ,
+                    const std::vector< std::pair< int , int > > & lines ,
+                    const std::vector< double > & dem , double qdem )
+{
+ auto g = new_group( "UCS" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 1 );
+ g.addDim( "NumberUnits" , 2 );
+ auto N = g.addDim( "NumberNodes" , nodes );
+ auto L = g.addDim( "NumberLines" , lines.size() );
+ auto G = g.addDim( "NumberElectricalGenerators" , 2 );
+ {
+  const char * cls = "ACNetworkBlock";
+  g.addVar( "NetworkBlockClassname" , netCDF::NcString() ).putVar( & cls );
+  }
+ if( ! lines.empty() ) {  // with no line there is no data of the lines
+  const Index nl = lines.size();
+  std::vector< int > st( nl ) , en( nl );
+  std::vector< double > x( nl ) , r( nl );
+  for( Index l = 0 ; l < nl ; ++l ) {
+   st[ l ] = lines[ l ].first;
+   en[ l ] = lines[ l ].second;
+   x[ l ] = 0.1 + 0.02 * l;
+   r[ l ] = 0.01 + 0.002 * l;
+   }
+  put_int( g , "StartLine" , L , st );
+  put_int( g , "EndLine" , L , en );
+  put( g , "MinPowerFlow" , L , std::vector< double >( nl , -30 ) );
+  put( g , "MaxPowerFlow" , L , std::vector< double >( nl , 30 ) );
+  put( g , "LineReactance" , L , x );
+  put( g , "LineResistance" , L , r );
+  put( g , "LineMinAngle" , L , std::vector< double >( nl , -30 ) );
+  put( g , "LineMaxAngle" , L , std::vector< double >( nl , 30 ) );
+  put( g , "LineRATEA" , L , std::vector< double >( nl , 30 ) );
+  }
+ put( g , "NodeConductance" , N , std::vector< double >( nodes , 0 ) );
+ put( g , "NodeSusceptance" , N , std::vector< double >( nodes , 0 ) );
+ put( g , "NodeMaxVoltage" , N , std::vector< double >( nodes , 1.1 ) );
+ put( g , "NodeMinVoltage" , N , std::vector< double >( nodes , 0.9 ) );
+ std::vector< double > qd( nodes , qdem );
+ qd[ 0 ] = 0.5;
+ put( g , "ActivePowerDemand" , { N , TH } , dem );
+ put( g , "ReactivePowerDemand" , { N , TH } , qd );
+ put_int( g , "GeneratorNode" , G , { 0 , int( nodes ) - 1 } );
+
+ auto u = g.addGroup( "UnitBlock_0" );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MinPower" , 1.0 );
+ put( u , "MaxPower" , 20.0 );
+ put( u , "LinearTerm" , 1.0 );
+ put( u , "MinReactivePower" , -5.0 );
+ put( u , "MaxReactivePower" , 5.0 );
+ put( u , "InitialPower" , 5.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ put_uint( u , "MinUpTime" , 1 );
+ put_uint( u , "MinDownTime" , 1 );
+
+ auto sl = g.addGroup( "UnitBlock_1" );
+ sl.putAtt( "type" , "SlackUnitBlock" );
+ put( sl , "MaxPower" , 1000.0 );
+ put( sl , "ActivePowerCost" , 1000.0 );
+ return( g );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The value that the :MILPSolver sname finds for the UCBlock of g with the
+ * ACNetworkBlock in the formulation of the BlockConfig in the file form
+ * (NaN if none is found); gap is the largest relative slack
+ * ( w_s w_e - c^2 - s^2 ) / ( w_s w_e ) of the cones (9) of
+ * ACNetworkBlock::generate_abstract_constraints() at the solution, 0 if
+ * there is no line. */
+
+static double ac_uc_value( const netCDF::NcGroup & g ,
+                           const std::string & form ,
+                           const std::string & sname ,
+                           const std::string & what , double & gap )
+{
+ double v = std::nan( "" );
+ gap = std::nan( "" );
+ std::unique_ptr< UCBlock > uc;
+ try {
+  uc.reset( dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  return( v );
+  }
+ check( uc != nullptr , what + ": the UCBlock is not read" );
+ if( ! uc )
+  return( v );
+ auto bc = dynamic_cast< BlockConfig * >( read_test_cfg( form ) );
+ check( bc , what + ": " + form + " is not read" );
+ if( ! bc )
+  return( v );
+ auto ab = dynamic_cast< ACNetworkBlock * >( uc->get_network_block( 0 ) );
+ check( ab , what + ": no ACNetworkBlock" );
+ if( ! ab ) {
+  delete bc;
+  return( v );
+  }
+ bc->apply( ab );
+ delete bc;
+
+ auto slv = Solver::new_Solver( sname );
+ try {
+  generate_all( uc.get() );
+  uc->register_Solver( slv );
+  const auto status = slv->compute();
+  if( status == Solver::kOK ) {
+   v = slv->get_var_value();
+   slv->get_var_solution();
+   gap = 0;
+   auto c = ab->get_static_variable_v< ColVariable >(
+                                                  "v_sum_product_voltages" );
+   auto s = ab->get_static_variable_v< ColVariable >(
+                                                 "v_diff_product_voltages" );
+   auto w = ab->get_static_variable_v< ColVariable >( "v_sqrd_voltages" );
+   const auto nd = static_cast< ACNetworkBlock::ACNetworkData * >(
+                                                      ab->get_NetworkData() );
+   const auto & lines = nd->get_DC_lines();
+   const auto & st = nd->get_start_line();
+   const auto & en = nd->get_end_line();
+   for( Index i = 0 ; c && s && w && ( i < lines.size() ) ; ++i ) {
+    const double ww = ( *w )[ st[ lines[ i ] ] ].get_value() *
+                      ( *w )[ en[ lines[ i ] ] ].get_value();
+    const double cc = ( *c )[ i ].get_value();
+    const double ss = ( *s )[ i ].get_value();
+    gap = std::max( gap , ( ww - cc * cc - ss * ss ) / ww );
+    }
+   }
+  else
+   if( status == Solver::kInfeasible )
+    v = INF;
+  uc->unregister_Solver( slv , true );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ return( v );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The SOCP relaxation of the AC model (ACBCfg-SOCP.txt) and the one
+ * strengthened by the envelopes of the trigonometric terms (ACBCfg-QC.txt),
+ * on a UCBlock solved by a :MILPSolver that solves a convex QCP:
+ *
+ * - on two nodes and no line every node is an island, whose active and
+ *   reactive demand its own units meet: the ThermalUnitBlock gives the 1 of
+ *   node 0 at the cost of 1, the SlackUnitBlock the 2 of node 1 at the cost
+ *   of 2000, and the value is 2001 in both formulations;
+ *
+ * - on a radial network (a line, and a chain of three nodes) the SOCP
+ *   relaxation is exact: the cost increases with the losses, which decrease
+ *   with c_l at fixed w, so that every cone is tight at the optimum and the
+ *   two relaxations, which lie between the SOCP one and the AC model, have
+ *   the same value;
+ *
+ * - on a meshed network (a triangle) the strengthened relaxation is a subset
+ *   of the SOCP one, whose value is therefore not larger. */
+
+static void test_ac_socp_and_strengthened( void )
+{
+ const auto sname = conic_solver();
+ if( sname.empty() ) {
+  std::cout << "AC SOCP and strengthened: no :MILPSolver solving a convex "
+            << "QCP, skipped" << std::endl;
+  return;
+  }
+
+ auto same = [ & ]( double a , double b ) {
+  return( std::abs( a - b ) <= 1e-6 * std::max( 1.0 , std::abs( b ) ) );
+  };
+ double gap;
+
+ // no line
+ for( const std::string form : { "ACBCfg-SOCP.txt" , "ACBCfg-QC.txt" } ) {
+  const std::string what = "AC no line, " + form;
+  const double v = ac_uc_value( write_ac_uc( 2 , { } , { 1 , 2 } , 0 ) ,
+                                form , sname , what , gap );
+  check( same( v , 2001 ) , what + ": value " + str( v ) + ", not 2001" );
+  }
+
+ // radial networks
+ const std::vector< std::pair< std::string ,
+                    std::vector< std::pair< int , int > > > > radial = {
+  { "a line" , { { 0 , 1 } } } ,
+  { "a chain" , { { 0 , 1 } , { 1 , 2 } } } };
+ for( const auto & [ name , lines ] : radial ) {
+  const Index nodes = lines.size() + 1;
+  std::vector< double > dem( nodes , 2 );
+  dem[ 0 ] = 1;
+  const auto g = write_ac_uc( nodes , lines , dem , 0.2 );
+  const std::string what = "AC " + name;
+  const double socp = ac_uc_value( g , "ACBCfg-SOCP.txt" , sname ,
+                                   what + ", SOCP" , gap );
+  check( std::isfinite( socp ) && ( gap <= 1e-4 ) ,
+         what + ", SOCP: value " + str( socp ) + ", cone slack " +
+         str( gap ) );
+  double gap_qc;
+  const double qc = ac_uc_value( g , "ACBCfg-QC.txt" , sname ,
+                                 what + ", strengthened" , gap_qc );
+  std::cout << what << ": SOCP " << socp << " (cone slack " << gap
+            << "), strengthened " << qc << std::endl;
+  check( same( socp , qc ) , what + ": SOCP value " + str( socp ) +
+         ", strengthened " + str( qc ) );
+  }
+
+ // a meshed network
+ {
+  const auto g = write_ac_uc( 3 , { { 0 , 1 } , { 1 , 2 } , { 0 , 2 } } ,
+                              { 1 , 3 , 4 } , 0.2 );
+  const double socp = ac_uc_value( g , "ACBCfg-SOCP.txt" , sname ,
+                                   "AC triangle, SOCP" , gap );
+  const double qc = ac_uc_value( g , "ACBCfg-QC.txt" , sname ,
+                                 "AC triangle, strengthened" , gap );
+  std::cout << "AC triangle: SOCP " << socp << ", strengthened " << qc
+            << std::endl;
+  check( std::isfinite( socp ) && std::isfinite( qc ) &&
+         ( socp <= qc + 1e-6 * std::max( 1.0 , std::abs( qc ) ) ) ,
+         "AC triangle: SOCP value " + str( socp ) + ", strengthened " +
+         str( qc ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The SUSD formulation has the ramp rows of the SU and SD formulations,
  * i.e., also those downwards on the powers p^h of the runs that start at h
  * and upwards on the powers of the runs that end at k, besides those over
@@ -12204,6 +12453,7 @@ int main( int argc , char ** argv )
   test_ac_angle_bounds_matpower();
   test_ac_angle_bounds_unbounded();
   test_ac_flow_check_no_names();
+  test_ac_socp_and_strengthened();
   test_thermal_T_ramp_bound_rows();
   test_thermal_shut_down_limit_at_t0();
   test_thermal_psi_initial_run();
