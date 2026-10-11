@@ -122,6 +122,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DCNetworkBlock` and `ACNetworkBlock` accept a network of several nodes
+  with no line (`NumberLines` 0, with none of the variables of the lines),
+  e.g., nodes of different carriers coupled only by a
+  `ConversionUnitBlock`, where they refused to generate their rows: every
+  node is then an island balanced by its own units, in the PTDF, CYCLE and
+  KIRCHHOFF formulations as in the AC one (the PTDF formulation writes then
+  the node balances of a pure HVDC network, which it wrote only when some
+  line had zero susceptance, while a change of the demand already looked
+  for them); a network with lines gives the same model as before
+
 - `ThermalUnitExtDPSolver` (and so `NuclearUnitExtDPSolver`) prunes a
   state whose domain is narrower than 1e-9 by comparing the values at that
   point: the steps of exactly the ramp that end at a bound of the output

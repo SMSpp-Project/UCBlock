@@ -1486,12 +1486,14 @@ static netCDF::NcGroup write_net( const std::string & type , Index N ,
   mx.push_back( l.mx );
   eta.push_back( l.eta );
   }
- put_int( g , "StartLine" , L , s );
- put_int( g , "EndLine" , L , e );
- put( g , "LineSusceptance" , L , sus );
- put( g , "MinPowerFlow" , L , mn );
- put( g , "MaxPowerFlow" , L , mx );
- put( g , "Efficiency" , L , eta );
+ if( ! lines.empty() ) {  // with no line there is no data of the lines
+  put_int( g , "StartLine" , L , s );
+  put_int( g , "EndLine" , L , e );
+  put( g , "LineSusceptance" , L , sus );
+  put( g , "MinPowerFlow" , L , mn );
+  put( g , "MaxPowerFlow" , L , mx );
+  put( g , "Efficiency" , L , eta );
+  }
  put( g , "ActiveDemand" , ND , demand );
  return( g );
  }
@@ -1969,6 +1971,92 @@ static void test_net_dual_prices( void )
   check( ( dp.size() == 3 ) && ( dp[ 0 ] == -3 ) && ( dp[ 1 ] == 4 ) &&
 	 ( dp[ 2 ] == -2 ) , what + ": " + str( dp[ 0 ] ) + " , " +
 	 str( dp[ 1 ] ) + " , " + str( dp[ 2 ] ) + " instead of -3 , 4 , -2" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Several nodes and no line (NumberLines == 0, no data of the lines): each
+ * node is an island, whose injection has to equal its demand in every
+ * formulation, also with ReferenceNode not 0, a node with neither demand
+ * nor injection, after a change of the demand and for an ACNetworkBlock;
+ * the data are written and read back, and the dual prices are none. */
+
+static void test_net_no_lines( void )
+{
+ for( Index ref : { 0 , 2 } )
+  for( int wf = 0 ; wf < 3 ; ++wf ) {
+   const auto what = "no line, " + FORMULATION[ wf ] + ", ReferenceNode " +
+                     std::to_string( ref );
+   try {
+    std::unique_ptr< DCNetworkBlock > nb( new_net(
+	  write_net( "DCNetworkBlock" , 3 , { } , { 10 , 20 , 0 } , ref ) ,
+	  wf ) );
+    check( nb->get_number_lines() == 0 , what + ": lines read" );
+    set_net_point( nb.get() , { 10 , 20 , 0 } , { } );
+    check( nb->is_feasible() , what + ": the islands are not balanced" );
+    set_net_point( nb.get() , { 30 , 0 , 0 } , { } );
+    check( ! nb->is_feasible() , what + ": power moves with no line" );
+    set_net_point( nb.get() , { 10 , 20 , 5 } , { } );
+    check( ! nb->is_feasible() , what + ": an injection with no demand" );
+
+    std::vector< double > d = { 5 };
+    nb->set_active_demand( d.cbegin() , Subset( { 1 } ) , true );
+    set_net_point( nb.get() , { 10 , 5 , 0 } , { } );
+    check( nb->is_feasible() , what + ": the new demand is not met" );
+    set_net_point( nb.get() , { 10 , 20 , 0 } , { } );
+    check( ! nb->is_feasible() , what + ": the old demand is met" );
+
+    std::vector< double > dp( 1 , 1 );
+    nb->get_dual_prices( dp );
+    check( dp.empty() , what + ": dual prices of no line" );
+    }
+   catch( std::exception & e ) {
+    check( false , what + ": throws " + e.what() );
+    }
+   }
+
+ auto b = round_trip( write_net( "DCNetworkBlock" , 3 , { } ,
+                                 { 10 , 20 , 0 } , 2 ) , "no line" );
+ auto nb = dynamic_cast< DCNetworkBlock * >( b );
+ check( nb && ( nb->get_number_nodes() == 3 ) &&
+        ( nb->get_number_lines() == 0 ) ,
+        "no line: the network read back" );
+ delete b;
+
+ // an ACNetworkBlock of two nodes and no line: the active and the reactive
+ // balance of each node only have its injection and its voltage
+ auto g = write_net( "ACNetworkBlock" , 2 , { } , { 1 , 2 } );
+ auto N = g.getDim( "NumberNodes" );
+ put( g , "NodeConductance" , N , { 0 , 0 } );
+ put( g , "NodeSusceptance" , N , { 0 , 0 } );
+ put( g , "NodeMaxVoltage" , N , { 1.1 , 1.1 } );
+ put( g , "NodeMinVoltage" , N , { 0.9 , 0.9 } );
+ put( g , "ReactiveDemand" , N , { 0.5 , 0.5 } );
+ const std::string what = "no line, ACNetworkBlock";
+ try {
+  std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+						 Block::new_Block( g ) ) );
+  check( ab != nullptr , what + ": not read" );
+  if( ! ab )
+   return;
+  for( Index n = 0 ; n < 2 ; ++n ) {
+   ab->set_min_node_injection( -10 , n );
+   ab->set_max_node_injection( 10 , n );
+   ab->set_min_reactive_node_injection( -10 , n , 0 );
+   ab->set_max_reactive_node_injection( 10 , n , 0 );
+   }
+  ab->generate_abstract_variables();
+  ab->generate_abstract_constraints();
+  auto rows = ab->get_static_constraint_v< FRowConstraint >(
+						   "AC_power_flow_injection" );
+  bool ok = rows && ( rows->size() == 4 );
+  for( Index i = 0 ; ok && ( i < 4 ) ; ++i )
+   ok = ( ( *rows )[ i ].get_function()->get_num_active_var() == 2 ) &&
+        ( ( *rows )[ i ].get_lhs() == ( i < 2 ? - double( i + 1 ) : -0.5 ) );
+  check( ok , what + ": the balances of the nodes" );
   }
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );
@@ -11301,6 +11389,156 @@ static void test_conversion_meshed_heat( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* Four nodes and no line: an electric node 0 with demand 60, a heat node 1
+ * with demand dh, an electric node 2 with demand 50 and a node 3 with
+ * demand d3 and no unit. A back-pressure plant (heat = 1.25 electricity,
+ * electricity in [ 30 , 100 ], 40 per MWh of electricity and 100 per
+ * instant on, on before the horizon) has its electricity on node 0 and its
+ * heat on node 1, the only coupling of the two; a peaker (100 per MWh) is
+ * on node 0, a boiler (60 per MWh) on node 1 and a unit (20 per MWh) on
+ * node 2. One instant. With no line every node is balanced by its own
+ * units: the plant is worth 175 - 40 per MWh of electricity, hence runs as
+ * far as both of its nodes take, i.e., at min( 60 , dh / 1.25 ), and is
+ * off if dh < 37.5, since no line can take the heat away. The optima, by
+ * hand and by an independent MILP:
+ *
+ * - dh = 100: 100 + 40 60 + 60 25 + 20 50 = 5000;
+ * - dh = 50: the heat caps the plant at 40, 100 + 40 40 + 100 20 + 1000 =
+ *   4700;
+ * - dh = 30: the plant is off, 100 60 + 60 30 + 1000 = 8800;
+ * - d3 = 10: infeasible, node 3 has no unit;
+ *
+ * in each formulation of the DCNetworkBlock, with ReferenceNode 0 and 3,
+ * after the demand of node 1 is changed from 100 to 30 once the rows are
+ * generated, and after the UCBlock is written and read back. */
+
+static netCDF::NcGroup write_UC_islands( double dh , double d3 , Index ref )
+{
+ auto g = new_group( "IS" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 1 );
+ auto ND = g.addDim( "NumberNodes" , 4 );
+ g.addDim( "NumberLines" , 0 );  // an unlimited dimension, of size 0
+ if( ref > 0 )
+  g.addDim( "ReferenceNode" , ref );
+ g.addDim( "NumberUnits" , 4 );
+ auto NG = g.addDim( "NumberElectricalGenerators" , 5 );
+ put( g , "ActivePowerDemand" , { ND , TH } , { 60 , dh , 50 , d3 } );
+ put_int( g , "GeneratorNode" , NG , { 0 , 1 , 0 , 1 , 2 } );
+
+ CUData d;
+ d.G = 2;
+ d.minP = { 30 , 37.5 };
+ d.maxP = { 100 , 125 };
+ d.M = 1;
+ d.A = { -1.25 , 1 };
+ d.lhs = { 0 };
+ d.rhs = { 0 };
+ d.lin = { 40 , 0 };
+ d.cnst = { 100 };
+ d.initP = { 30 , 37.5 };
+ d.initUD = 5;
+ write_CU( g.addGroup( "UnitBlock_0" ) , d );
+
+ const std::vector< double > cost = { 100 , 60 , 20 };
+ for( Index i = 1 ; i < 4 ; ++i ) {
+  auto u = g.addGroup( "UnitBlock_" + std::to_string( i ) );
+  u.putAtt( "type" , "ThermalUnitBlock" );
+  put( u , "MaxPower" , 300.0 );
+  put( u , "LinearTerm" , cost[ i - 1 ] );
+  put_int( u , "InitUpDownTime" , 5 );
+  }
+
+ return( g );
+ }
+
+static void test_conversion_no_lines( void )
+{
+ // the optimum of the UCBlock with the networks in the formulation wf,
+ // after the demand dh1 is given to node 1 if dh1 >= 0
+ auto value = [ & ]( UCBlock * uc , int wf , double dh1 ) {
+  for( auto nb : uc->get_network_blocks() ) {
+   SimpleConfiguration< int > f( wf );
+   nb->generate_abstract_variables( & f );
+   }
+  generate_all( uc );
+  if( dh1 >= 0 ) {
+   std::vector< double > dh = { dh1 };
+   for( auto nb : uc->get_network_blocks() )
+    nb->set_active_demand( dh.cbegin() , Range( 1 , 2 ) , eNoBlck ,
+                           eNoBlck );
+   }
+  return( conv_milp( uc ) );
+  };
+
+ struct Case {
+  std::string what;
+  double dh , d3;
+  Index ref;
+  double dh1;  // the demand of node 1 changed to, if >= 0
+  double expected;
+  };
+ const std::vector< Case > cases = {
+  { "heat 100" , 100 , 0 , 0 , -1 , 5000 } ,
+  { "heat 100, ReferenceNode 3" , 100 , 0 , 3 , -1 , 5000 } ,
+  { "heat 50" , 50 , 0 , 0 , -1 , 4700 } ,
+  { "heat 30" , 30 , 0 , 0 , -1 , 8800 } ,
+  { "heat 100 changed to 30" , 100 , 0 , 0 , 30 , 8800 } ,
+  { "demand on the node with no unit" , 100 , 10 , 0 , -1 , INF } };
+
+ for( const auto & c : cases )
+  for( int wf = 0 ; wf < 3 ; ++wf ) {
+   const auto what = "no line, " + c.what + ", " + FORMULATION[ wf ];
+   try {
+    std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+		     Block::new_Block( write_UC_islands( c.dh , c.d3 ,
+							 c.ref ) ) ) );
+    if( ! uc ) {
+     check( false , what + ": the UCBlock is not built" );
+     continue;
+     }
+    const double v = value( uc.get() , wf , c.dh1 );
+    if( std::isnan( v ) ) {
+     std::cout << "no line: no :MILPSolver of ConvMILPBSCfg.txt, skipped"
+	       << std::endl;
+     return;
+     }
+    check( ( v == c.expected ) || close( v , c.expected ) ,
+	   what + ": optimum " + str( v ) + " instead of " +
+	   str( c.expected ) );
+    }
+   catch( std::exception & e ) {
+    check( false , what + ": throws " + e.what() );
+    }
+   }
+
+ // written and read back: the same network, the same optimum, and the
+ // Solution restores a feasible point
+ auto b = round_trip( write_UC_islands( 100 , 0 , 3 ) , "no line, UCBlock" );
+ std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >( b ) );
+ if( ! uc ) {
+  check( false , "no line, UCBlock: not read back" );
+  delete b;
+  return;
+  }
+ const std::string what = "no line, UCBlock read back";
+ try {
+  auto nb = dynamic_cast< DCNetworkBlock * >( uc->get_network_blocks()[ 0 ] );
+  check( nb && ( nb->get_number_nodes() == 4 ) &&
+	 ( nb->get_number_lines() == 0 ) , what + ": the network" );
+  const double v = value( uc.get() , 2 , -1 );
+  check( close( v , 5000 ) , what + ": optimum " + str( v ) +
+	 " instead of 5000" );
+  std::unique_ptr< Solution > sol( uc->get_Solution( nullptr , false ) );
+  sol->write( uc.get() );
+  check( uc->is_feasible() , what + ": the Solution is not feasible" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* A ConversionUnitBlock with one generator, no operating row and no limit
  * is a ThermalUnitBlock in the 3bin formulation whose start-up and
  * shut-down limits are the maximum power: the two have the same continuous
@@ -11916,6 +12154,7 @@ int main( int argc , char ** argv )
   test_net_OTS_cost();
   test_net_negative_cost();
   test_net_dual_prices();
+  test_net_no_lines();
   test_net_hyperarc_susceptance();
   test_RT_UCBlock();
 
@@ -11990,6 +12229,7 @@ int main( int argc , char ** argv )
   test_conversion_hull();
   test_conversion_multi_energy();
   test_conversion_meshed_heat();
+  test_conversion_no_lines();
   test_conversion_setters();
   test_conversion_edge_cases();
   test_conversion_round_trip();

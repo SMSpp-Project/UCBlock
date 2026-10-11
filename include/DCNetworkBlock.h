@@ -121,7 +121,13 @@ namespace SMSpp_di_unipi_it
  * minus the power that reaches it. A network is pure HVDC when
  * \f$ \mathcal{L}^{S} = \emptyset \f$, pure DC when \f$ \mathcal{L}^{H} =
  * \emptyset \f$ and mixed otherwise (see DCNetworkData::is_HVDC(),
- * DCNetworkData::is_DC() and DCNetworkData::is_DC_HVDC()). A hyperarc is
+ * DCNetworkData::is_DC() and DCNetworkData::is_DC_HVDC()). A network of
+ * several nodes may have no line at all, \f$ \mathcal{L} = \emptyset \f$
+ * (e.g., nodes of different carriers coupled only by the units that have
+ * generators on more than one of them): then it is treated as pure HVDC
+ * (DCNetworkData::is_HVDC() holds, and so does DCNetworkData::is_DC()),
+ * (B) reads \f$ S_n = D^{ac}_n \f$ and every node is balanced by its own
+ * units, in every formulation. A hyperarc is
  * always in \f$ \mathcal{L}^{H} \f$, since the voltage law relates the
  * angles of two nodes: its flow is a decision independent of the angles,
  * and it enters every formulation only through its row of \f$ A^{H} \f$,
@@ -359,7 +365,9 @@ class DCNetworkData : public NetworkData
   *   transmission network. Each line can be either a "regular" line (one
   *   start node and one end node) or a hyperarc (one start node and
   *   several end nodes); see the (optional) dimension "NumberBranches"
-  *   right next. The dimension is mandatory.
+  *   right next. The dimension is mandatory, and it may be 0: the nodes
+  *   are then not joined by any line, and none of the variables of the
+  *   lines below need be there.
   *
   * - The dimension "NumberBranches" that is used to describe hyperarcs.
   *   The dimension is optional, if it is not defined then it is assumed that
@@ -518,7 +526,8 @@ class DCNetworkData : public NetworkData
  /** Method for returning the total number of lines of the network. When
   * get_number_nodes() == 1 (the network is a bus), get_number_lines() == 0
   * (no self-loops are allowed, hence there is no line to be made with a
-  * single node). */
+  * single node); it can be 0 with several nodes too, each of them being
+  * then balanced by itself. */
 
  Index get_number_lines( void ) const { return( f_number_lines ); }
 
