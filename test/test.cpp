@@ -11187,6 +11187,9 @@ struct CUData {
  std::vector< double > idp;       // InitialDelayedPower [ H ][ G ]
  unsigned int modules = 0;        // Modules, 0 = not written
  unsigned int initK = 0;          // InitialCommitment, 0 = not written
+ double invCost = 0;              // InvestmentCost, 0 = not written
+ double minX = 0;                 // MinCapacityDesign, 0 = not written
+ double maxX = -1;                // MaxCapacityDesign, -1 = not written
  };
 
 /*--------------------------------------------------------------------------*/
@@ -11273,6 +11276,13 @@ static void write_CU( netCDF::NcGroup g , const CUData & d )
   put( g , "Scale" , d.scale );
  if( d.modules )
   put_uint( g , "Modules" , d.modules );
+ if( d.invCost != 0 ) {
+  put( g , "InvestmentCost" , d.invCost );
+  if( d.minX != 0 )
+   put( g , "MinCapacityDesign" , d.minX );
+  if( d.maxX != -1 )
+   put( g , "MaxCapacityDesign" , d.maxX );
+  }
  if( d.initK )
   put_uint( g , "InitialCommitment" , d.initK );
  if( ! d.delay.empty() )
@@ -12869,6 +12879,224 @@ static void test_conversion_modules( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The design of a ConversionUnitBlock, on the two nodes of
+ * test_conversion_modules() (no ramps, off before the horizon, the module
+ * of 20 to 50 of output, 30 per instant on, 100 per start-up, fuel at 4,
+ * minimum up time 3 and down time 2), in the four modes:
+ *
+ * - (b) MaxCapacityDesign -3, InvestmentCost 150 per module: the number of
+ *   modules built, each committed by itself; the same optimum as three
+ *   units with a binary design each (MaxCapacityDesign -1, 150), with
+ *   fewer Variable;
+ * - (a) Modules 3 and MaxCapacityDesign -1, InvestmentCost 450: the three
+ *   modules built together or not at all;
+ * - (c) MaxCapacityDesign 150, the capacity of the output, with the data
+ *   per unit of it (output in [ 0.4 , 1 ], fuel in [ -2.5 , -1 ]) and
+ *   InvestmentCost 3 per unit: with the design fixed at 100 (both bounds)
+ *   it is the unit of capacity 100 without design plus 300; with the
+ *   design free it is checked against an independent MILP, and its
+ *   continuous relaxation is reported against that of (b), the big-M rows
+ *   being weak; with a zero cost set after the generation and no minimum
+ *   power nor input it is worth the unit of capacity 150;
+ * - (d) Scale 2 with MaxCapacityDesign -3 is refused, as is a continuous
+ *   design with ramps or with several modules, a unit with a design on
+ *   before the horizon and a negative MaxCapacityDesign that is not an
+ *   integer.
+ *
+ * The optima of (a), (b) and (c), by an independent MILP, are 8010, 8010
+ * and 29055. The unit of (c) is written and read back, and its Solution
+ * restores the design. */
+
+// the unit of the design tests: per module (c == false) or per unit of
+// capacity (c == true)
+static CUData design_CU( bool c , double cost , double minX , double maxX )
+{
+ auto d = module_CU( 1 , -2 , 0 , false );
+ if( c ) {
+  d.minP = rep( 6 , { -2.5 , 0.4 } );
+  d.maxP = rep( 6 , { -1 , 1 } );
+  }
+ d.invCost = cost;
+ d.minX = minX;
+ d.maxX = maxX;
+ return( d );
+ }
+
+// the two nodes of modules_UC() with the units d[ 0 ], d[ 1 ], ...
+static UCBlock * design_UC( const std::vector< CUData > & d )
+{
+ const Index T = 6;
+ const Index n = d.size();
+ auto g = new_group( "DE" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , T );
+ auto ND = g.addDim( "NumberNodes" , 2 );
+ g.addDim( "NumberLines" , 0 );
+ g.addDim( "NumberUnits" , n + 2 );
+ auto NG = g.addDim( "NumberElectricalGenerators" , 2 * n + 2 );
+ put( g , "ActivePowerDemand" , { ND , TH } ,
+      { 40 , 90 , 140 , 60 , 30 , 120 , 0 , 0 , 0 , 0 , 0 , 0 } );
+ std::vector< int > gn;
+ for( Index i = 0 ; i < n ; ++i ) {
+  gn.push_back( 1 );
+  gn.push_back( 0 );
+  }
+ gn.push_back( 0 );
+ gn.push_back( 1 );
+ put_int( g , "GeneratorNode" , NG , gn );
+ for( Index i = 0 ; i < n ; ++i )
+  write_CU( g.addGroup( "UnitBlock_" + std::to_string( i ) ) , d[ i ] );
+ auto u = g.addGroup( "UnitBlock_" + std::to_string( n ) );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MaxPower" , 1000.0 );
+ put( u , "LinearTerm" , 200.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ u = g.addGroup( "UnitBlock_" + std::to_string( n + 1 ) );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MaxPower" , 10000.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+ if( ! uc )
+  throw( std::logic_error( "design_UC: no UCBlock built" ) );
+ generate_all( uc );
+ return( uc );
+ }
+
+static void test_conversion_design( void )
+{
+ const std::string w = "design, ";
+ try {
+  // (b) against three units with a binary design each
+  std::unique_ptr< UCBlock > b( design_UC( { design_CU( false , 150 , 0 ,
+                                                        -3 ) } ) );
+  const auto one = design_CU( false , 150 , 0 , -1 );
+  std::unique_ptr< UCBlock > r( design_UC( { one , one , one } ) );
+  const double vb = conv_milp( b.get() );
+  if( std::isnan( vb ) ) {
+   std::cout << "design: no :MILPSolver, skipped" << std::endl;
+   return;
+   }
+  const double vr = conv_milp( r.get() );
+  check( close( vb , 8010.0 ) , w + "(b): optimum " + str( vb ) +
+         " instead of " + str( 8010.0 ) );
+  check( close( vr , vb ) , w + "three binary designs: optimum " +
+         str( vr ) + " instead of " + str( vb ) );
+  auto cb = dynamic_cast< ConversionUnitBlock * >( b->get_unit_block( 0 ) );
+  check( cb->get_number_modules() == 3 , w + "(b): not 3 modules" );
+  check( b->is_feasible() , w + "(b): the solution is not feasible" );
+  const double xb = cb->get_design().get_value();
+  const double lb = conv_lp( b.get() );
+  const double lr = conv_lp( r.get() );
+  std::cout << w << "(b): optimum " << vb << ", " << xb << " modules "
+            << "built, relaxation " << lb << " (three binary designs " << lr
+            << ")" << std::endl;
+
+  // (a) the three modules together
+  auto da = design_CU( false , 450 , 0 , -1 );
+  da.modules = 3;
+  std::unique_ptr< UCBlock > a( design_UC( { da } ) );
+  const double va = conv_milp( a.get() );
+  check( close( va , 8010.0 ) , w + "(a): optimum " + str( va ) +
+         " instead of " + str( 8010.0 ) );
+
+  // (c) fixed at 100 against the unit of capacity 100
+  std::unique_ptr< UCBlock > cf( design_UC( { design_CU( true , 3 , 100 ,
+                                                         100 ) } ) );
+  auto d100 = module_CU( 1 , -2 , 0 , false );
+  d100.minP = rep( 6 , { -250 , 40 } );
+  d100.maxP = rep( 6 , { -100 , 100 } );
+  std::unique_ptr< UCBlock > u100( design_UC( { d100 } ) );
+  const double vcf = conv_milp( cf.get() );
+  const double v100 = conv_milp( u100.get() );
+  check( close( vcf , v100 + 300 ) , w + "(c) at 100: optimum " +
+         str( vcf ) + " instead of " + str( v100 + 300 ) );
+
+  // (c) free
+  std::unique_ptr< UCBlock > c( design_UC( { design_CU( true , 3 , 0 ,
+                                                        150 ) } ) );
+  const double vc = conv_milp( c.get() );
+  check( close( vc , 29055.0 ) , w + "(c): optimum " + str( vc ) +
+         " instead of " + str( 29055.0 ) );
+  check( c->is_feasible() , w + "(c): the solution is not feasible" );
+  const double xc = dynamic_cast< ConversionUnitBlock * >(
+                         c->get_unit_block( 0 ) )->get_design().get_value();
+  const double lc = conv_lp( c.get() );
+  std::cout << w << "(c): optimum " << vc << ", capacity " << xc
+            << ", relaxation " << lc << std::endl;
+
+  // (c) with a zero cost and no minimum power (nor minimum input): the
+  // unit of capacity 150
+  auto dz = design_CU( true , 3 , 0 , 150 );
+  dz.minP = rep( 6 , { -2.5 , 0 } );
+  dz.maxP = rep( 6 , { 0 , 1 } );
+  std::unique_ptr< UCBlock > z( design_UC( { dz } ) );
+  std::vector< double > zero = { 0 };
+  dynamic_cast< ConversionUnitBlock * >( z->get_unit_block( 0 )
+                    )->set_investment_cost( zero.cbegin() , Range( 0 , 1 ) ,
+                                            eModBlck , eModBlck );
+  auto d150 = module_CU( 1 , -2 , 0 , false );
+  d150.minP = rep( 6 , { -375 , 0 } );
+  d150.maxP = rep( 6 , { 0 , 150 } );
+  std::unique_ptr< UCBlock > u150( design_UC( { d150 } ) );
+  const double vz = conv_milp( z.get() );
+  const double v150 = conv_milp( u150.get() );
+  check( close( vz , v150 ) , w + "(c) at zero cost: optimum " + str( vz ) +
+         " instead of " + str( v150 ) + " of the largest unit" );
+  }
+ catch( std::exception & e ) {
+  check( false , w + "throws " + e.what() );
+  }
+
+ // written and read back, the Solution restores the design
+ auto g = new_group( "CU" , true );
+ write_CU( g , design_CU( true , 3 , 10 , 150 ) );
+ auto b = round_trip( g , "design" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && ( cub->design_mode() == 'c' ) &&
+        ( cub->get_max_capacity_design() == 150 ) &&
+        ( cub->get_min_capacity_design() == 10 ) &&
+        ( cub->get_investment_cost() == 3 ) &&
+        ( cub->get_design_ub() == 150 ) ,
+        "design: the data read back differ" );
+ if( cub ) {
+  generate_all( cub );
+  cub->get_design().set_value( 42 );
+  std::unique_ptr< Solution > sol( cub->get_Solution( nullptr , false ) );
+  cub->get_design().set_value( 7 );
+  sol->write( cub );
+  check( cub->get_design().get_value() == 42 , "design: the Solution does "
+         "not restore the design" );
+  }
+ delete b;
+
+ // (d) and the refused data
+ auto refused = [ & ]( const CUData & d , const std::string & what ) {
+  bool thrown = false;
+  try { delete new_CU( d ); }
+  catch( std::exception & ) { thrown = true; }
+  check( thrown , "design: " + what + " is not refused" );
+  };
+ auto e = design_CU( false , 150 , 0 , -3 );
+ e.scale = 2;
+ refused( e , "Scale 2 with MaxCapacityDesign -3" );
+ e = design_CU( true , 3 , 0 , 150 );
+ e.rup.assign( 12 , 10 );
+ refused( e , "a continuous design with ramps" );
+ e = design_CU( true , 3 , 0 , 150 );
+ e.modules = 2;
+ refused( e , "a continuous design with two modules" );
+ e = design_CU( false , 150 , 0 , -3 );
+ e.initUD = 2;
+ e.initP = { -75 , 30 };
+ refused( e , "a unit with a design on before the horizon" );
+ e = design_CU( false , 150 , 0 , -2.5 );
+ refused( e , "MaxCapacityDesign -2.5" );
+ e = design_CU( false , 150 , 0 , -3 );
+ e.modules = 2;
+ refused( e , "Modules 2 with MaxCapacityDesign -3" );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -13027,6 +13255,7 @@ int main( int argc , char ** argv )
   test_conversion_varying_matrix();
   test_conversion_delays();
   test_conversion_modules();
+  test_conversion_design();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

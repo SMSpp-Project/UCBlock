@@ -66,6 +66,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   horizon given by "InitialCommitment"; with N = 1 the rows are those of
   before
 
+- `ConversionUnitBlock`: the design variable of the other units
+  ("InvestmentCost", "MinCapacityDesign", "MaxCapacityDesign", with their
+  sign convention): binary (the unit built or not, u <= N x), integer (the
+  number of modules built, each committed by itself, u <= x and the
+  minimum down time rows with x - u, exact and linear) or continuous (the
+  capacity, the data being per unit of it, with the big-M relaxation of
+  the product with the commitment on the largest capacity, documented as
+  weak); its cost in the Objective, its setter and its value in the
+  Solution
+
 - `data/gen_multi_energy.py` writes the multi-energy instances (a combined
   heat and power plant as a `ConversionUnitBlock` and with hyperarcs, a
   meshed network with a heat node) and prints their known optima; they are
