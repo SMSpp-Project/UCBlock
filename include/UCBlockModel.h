@@ -410,6 +410,30 @@ of consecutive instants, whose only interface with the units is the vector of
 the node injections \f$ S_{t,n} \f$. When the network has a single node (a
 bus) there is no NetworkBlock (see UCBlock::deserialize()).
 
+The UCBlock has no notion of energy carrier: a node is a balance (1) of
+whatever form of energy its generators and its demand are in, so that a
+system with electricity, heat or gas has one node per carrier and location,
+at least as many nodes as carriers. On a heat node a heat-only unit is a
+ThermalUnitBlock (or an IntermittentUnitBlock for solar heat), a heat store a
+BatteryUnitBlock, the heat demand the demand of the node, a pipe a line with
+an efficiency (which loses a fraction of the heat), and a heat dump a line of
+efficiency 0 to any node; a heat pump or an electric boiler with no
+commitment is a line from an electric node with its coefficient of
+performance as efficiency. A plant with one commitment and several coupled
+outputs or inputs on different nodes (a combined heat and power plant, an
+electrolyser with its heat, a heat pump with commitment) is a
+ConversionUnitBlock, whose generators are on the nodes of their carriers and
+whose operating region couples them; the same coupling with fixed ratios can
+also be written with a hyperarc of the DCNetworkBlock out of a private node
+of the plant, the plant being then a unit on that node, also in a network
+whose other lines obey Kirchhoff's voltage law (see DCNetworkBlock). The
+zones (see \ref ucbm_link_zones) decide what counts where: a heat node in
+no reserve or inertia zone contributes nothing to (2)-(4), and one in a
+pollutant zone contributes the emissions of its generators to (5). Nothing
+in the model checks that the data of a node are consistent with its carrier
+(that a heat node is outside the reserve zones, say), which is left to
+whoever writes them.
+
 \subsection ucbm_obj The objective
 
 We minimize the sum of the objectives of the sub-Blocks plus that of the
@@ -567,8 +591,10 @@ With the term of the storage levels we account for the change over the horizon
 of the level of a storage that holds a pollutant, or a fuel that emits it,
 typically with a nonzero factor at the last instant only; the contribution of
 its initial level, a constant, is then to be subtracted from both bounds by
-whoever writes the data. Since the module has no units producing heat, no
-emission due to heat is accounted for.
+whoever writes the data. A zone may hold nodes of any carrier (see
+\ref ucbm_sets), and then a budget counts the emissions of the generators on
+all of them, e.g., those of a boiler on a heat node, whose factor is per unit
+of heat.
 
 \subsubsection ucbm_link_bounds Bounds on the injections
 
@@ -617,6 +643,18 @@ model of each one is in the documentation of its class, to which we refer.
   reserves (0 when the data do not give them), possibly of an investment term,
   of the deviation from a reference schedule and of a price of the reactive
   power, all multiplied by \f$ \sigma \f$.
+- ConversionUnitBlock: one commitment \f$ u_t \f$, with start-up and
+  shut-down, minimum up and down times and the initial state as a
+  ThermalUnitBlock, and several generators, each on its own node, whose
+  powers lie when the unit is on in a polytope given by bounds and by rows
+  \f$ \underline{b}_{t,m} u_t \leq \sum_g a_{m,g} p^{ac}_{t,g} \leq
+  \bar{b}_{t,m} u_t \f$ (the inputs having negative power), with ramps on
+  combinations of the powers and reserves deployed along directions given
+  by the data. Each generator gives to (1)-(5) its power, its reserves, its
+  inertia \f$ h^p_{t,g} p^{ac}_{t,g} \f$ and its emissions, while the fixed
+  consumption and the term \f$ h^u_t u_t \f$ belong to the one generator
+  that exposes the commitment. Without ramps and start-up and shut-down
+  limits its rows describe the convex hull of its feasible set.
 - NuclearUnitBlock: a ThermalUnitBlock whose power changes by modulations
   between bands, with the rules on their length, stability and number per
   day, and the deep decreases of the power.
@@ -1080,7 +1118,13 @@ refuses an initial power below the minimum power of a unit that is on.
 We do not represent the following features, either because the data can
 express them otherwise or because they would break the decomposition of the
 model:
-- units producing heat, heat-only units and their emissions;
+- heat networks with transport delays, temperatures and mass flows (a pipe
+  is a line with an efficiency and no delay), and the effect of the
+  deployment of the reserve of a plant with several outputs on the balance
+  of its other nodes;
+- plants whose operating region is not convex (disjoint operating zones,
+  combined cycles with their configurations), which need one binary variable
+  per mode and the transitions between modes;
 - a synchronous condenser, i.e., a unit whose power is nonpositive while it
   provides inertia, with the energy it absorbs at the start-up (its inertia
   alone can be described by a ThermalUnitBlock with zero power bounds, see

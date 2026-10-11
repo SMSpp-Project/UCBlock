@@ -760,8 +760,10 @@ class UCBlock : public Block
   *   a store of CO2 or of a fuel that emits it, typically with a nonzero
   *   factor at the last time instant only; the contribution of its initial
   *   level, which is a constant, is then to be subtracted from both bounds
-  *   by whoever writes the data. Units producing heat do not exist in the
-  *   module, hence the emissions due to heat are not accounted for. The
+  *   by whoever writes the data. The nodes of a zone need not be electric:
+  *   the generators on a heat node (a boiler, the heat of a
+  *   ConversionUnitBlock) have their own factors, so that a budget over a
+  *   zone that holds the heat nodes counts the emissions due to heat. The
   *   rows are stored in a std::vector< std::vector< FRowConstraint > > C,
   *   where C[ p ] has get_number_pollutant_zones()[ p ] entries (the
   *   pollutants may have a

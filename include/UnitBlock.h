@@ -403,6 +403,16 @@ class UnitBlock : public Block
   * The default implementation of this method returns nullptr; and derived
   * classes will have to handle the commitment variable (if any).
   *
+  * A unit whose generators share one commitment returns it for one of them
+  * only, and nullptr for the others, which the UCBlock then treats as
+  * generators without commitment: a linking row that holds two of them,
+  * say the inertia requirement of a zone that contains their nodes, would
+  * otherwise hold the same Variable twice, which a LinearFunction does not
+  * allow. The terms of the commitment in the linking rows, i.e., the fixed
+  * consumption [see get_fixed_consumption()] and the inertia per unit of
+  * commitment [see get_inertia_commitment()], are then data of that one
+  * generator, and counted at its node (see ConversionUnitBlock).
+  *
   * @param generator The index of the generator whose commitment variables are
   *                  desired. */
 
