@@ -46,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   continuous relaxation against the optimum, its setters against a unit
   read afresh, its refused data and its round trip
 
+- `json2nc4.jl` accepts `--nuclear-share` and `--bands-reserve` with
+  `--nuclear-single`, which then writes the nuclear units of the fleet of
+  `--nuclear --nuclear-share`, with the reserve participation of the data
+  and bands as wide as that reserve, i.e., the units of the fleet as
+  standalone files; the output of the other options does not change
+
 - the unit test checks the continuous relaxations of the pt, SU, SD and SUSD
   formulations against the integer optimum on units on and off before the
   horizon, with both ramps, one or none, and the MILP of every formulation

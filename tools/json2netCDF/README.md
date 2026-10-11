@@ -123,6 +123,14 @@ with them the single-bus instances of the 50-unit fleets, 45% of whose
 capacity is nuclear, at the three horizons under
 `data/nc4/UC_singlebus-nuclear/`.
 
+`--nuclear-share` and `--bands-reserve` also apply to `--nuclear-single`:
+the standalone files are then the nuclear units of the fleet that
+`--nuclear --nuclear-share F` builds from the same source (the file name
+carries the index of the unit in the fleet), with the reserve participation
+of the data instead of the fixed one of `--reserve`, and their bands are as
+wide as that reserve, so that a standalone unit has the rules it has in the
+fleet.
+
 ## Authors
 
 - **Antonio Frangioni**

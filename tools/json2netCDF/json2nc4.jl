@@ -533,7 +533,9 @@ the default output is unchanged:
 - `stab_start`: `StabilityAfterStartUp`, the instants of stability that follow
   a start-up (0 = none);
 - `bands`: the fraction of the range of the output at which the two
-  breakpoints of `PowerBands` are put (0 = the output is not banded);
+  breakpoints of `PowerBands` are put (0 = the output is not banded), or a
+  negative value for a low and a high band as wide as the primary plus the
+  secondary reserve of the unit at full output (see `def_nuclear_rules`);
 - `init_off`: the unit enters the horizon off, and its start-up cost is
   zeroed, so that it does start up inside the horizon;
 - `swing`: how far below `MinPower`, as a fraction of the range, the trough of
@@ -549,9 +551,14 @@ the default output is unchanged:
 - `down_cost`, `deep_cost`: the cost of a downward modulation step and of a
   deep decrease (0 = none);
 - `reserve`: primary and secondary spinning reserve (`PrimaryRho = 0.05`,
-  `SecondaryRho = 0.08`);
+  `SecondaryRho = 0.08`, or those of the data with `nuclear_share`);
 - `reactive`: a commitment-gated reactive box (`[-1, 1]` when off, widened by
   `[-0.3, 0.45] MaxPower` when on);
+- `nuclear_share`: if positive, the units are not the first `n_units` but
+  those that a fleet with this nuclear share makes nuclear (see
+  `nuclear_units`), with the reserve participation of the data, so that
+  each file is a unit of the fleet of `--nuclear --nuclear-share` (the file
+  name carries its index in the fleet);
 - `suffix`: appended to the name of each file.
 
 Returns the list of written file paths.
@@ -573,6 +580,7 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
                                   deep_cost::Float64 = 0.0,
                                   reserve::Bool = false,
                                   reactive::Bool = false,
+                                  nuclear_share::Float64 = 0.0,
                                   suffix::String = "")
     data = JSON.parsefile(json_path)
     meta = data["metadata"]
@@ -607,12 +615,26 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
     dmin, dmax = extrema(demand)
     dn = dmax > dmin ? (demand .- dmin) ./ (dmax - dmin) : fill(0.5, n_periods)
 
+    # the units: the first `n_units`, or, with `nuclear_share`, those that
+    # the fleet makes nuclear (see `nuclear_units`), which then keep the
+    # reserve participation of the data, as in the fleet
+    units = nuclear_share > 0 ? findall(nuclear_units(p_max, nuclear_share)) :
+                                collect(1:min(n_units, n_gen))
+    rho1 = fill(0.05, n_gen)
+    rho2 = fill(0.08, n_gen)
+    if nuclear_share > 0
+        haskey(th, "primary_rho") && haskey(th, "secondary_rho") ||
+            error("json2nc4: --nuclear-share needs primary_rho and " *
+                  "secondary_rho in $json_path")
+        rho1 = Float64.(th["primary_rho"])
+        rho2 = Float64.(th["secondary_rho"])
+    end
+
     mkpath(outdir)
     base = splitext(basename(json_path))[1]
-    K = min(n_units, n_gen)
     written = String[]
 
-    for g in 1:K
+    for g in units
         # ensure a strictly positive quadratic so the vertex p* is well defined
         a = c_quad[g] > 1e-9 ? c_quad[g] : 0.01
         # with `swing` the trough of the load-following target goes below the
@@ -671,12 +693,15 @@ function emit_nuclear_single_tubs(json_path::String, outdir::String;
 
             def_nuclear_rules(blk, p_min[g], p_max[g], ramp_up[g], ramp_down[g];
                               mod_length, stab_start, bands,
+                              reserve_mw = (rho1[g] + rho2[g]) * p_max[g],
                               day_length, mods_per_day, starts_per_day, deep,
                               deeps_per_day, deep_frac, deep_grad,
                               down_cost, deep_cost)
             if reserve
-                defVar(blk, "PrimaryRho",   Float64, ())[:] = 0.05
-                defVar(blk, "SecondaryRho", Float64, ())[:] = 0.08
+                rho1[g] > 0.0 &&
+                    (defVar(blk, "PrimaryRho",   Float64, ())[:] = rho1[g])
+                rho2[g] > 0.0 &&
+                    (defVar(blk, "SecondaryRho", Float64, ())[:] = rho2[g])
             end
             if reactive
                 defVar(blk, "MinReactivePower",   Float64, ())[:] = -1.0
@@ -720,11 +745,13 @@ Options (nuclear modes; the operating rules of NuclearUnitBlock):
   --stab-start A      instants of stability after a start-up, default 0
   --bands F           split the output into three bands at the fractions F
                       and 1 - F of its range, default none
-  --bands-reserve     (--nuclear only) the low and the high band are as wide
-                      as the primary plus secondary reserve of the unit at
-                      full output (PrimaryRho + SecondaryRho times MaxPower)
-  --nuclear-share F   (--nuclear only) only the largest units, whose capacity
-                      is at least F of the fleet's, are nuclear, default 1
+  --bands-reserve     the low and the high band are as wide as the primary
+                      plus secondary reserve of the unit at full output
+                      (PrimaryRho + SecondaryRho times MaxPower)
+  --nuclear-share F   only the largest units, whose capacity is at least F
+                      of the fleet's, are nuclear, default 1; with
+                      --nuclear-single the files are those units, with the
+                      reserve participation of the data
   --init-off          the unit enters the horizon off
   --swing F           the trough of the load-following target goes F of the
                       range below MinPower, default 0
@@ -836,10 +863,10 @@ function main()
         exit(1)
     end
 
-    if (!isempty(single_dir) || !isempty(thermal_single_dir)) &&
+    if !isempty(thermal_single_dir) &&
        (haskey(rules, :nuclear_share) || get(rules, :bands, 0.0) < 0)
         println(stderr, "Error: --nuclear-share and --bands-reserve are " *
-                "only allowed with --nuclear")
+                "not allowed with --thermal-single")
         print(stderr, USAGE); exit(1)
     end
 
