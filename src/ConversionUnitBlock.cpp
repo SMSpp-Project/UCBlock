@@ -159,6 +159,61 @@ ConversionUnitBlock::~ConversionUnitBlock()
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+/* Reads "OperatingMatrix", either [ M ][ G ], the same at every instant, or
+ * [ n ][ M ][ G ] with n = 1, the number of change intervals or the time
+ * horizon, the latter two expanded to one matrix per instant as the other
+ * data indexed over the instants. */
+
+void ConversionUnitBlock::read_operating_matrix(
+                      const netCDF::NcGroup & group , const std::string & who )
+{
+ const Index T = f_time_horizon;
+ auto var = group.getVar( "OperatingMatrix" );
+ if( var.isNull() )
+  throw( std::invalid_argument( who + ": OperatingMatrix is missing with " +
+                                std::to_string( f_M ) + " operating rows" ) );
+
+ const auto nd = var.getDimCount();
+ if( ( nd != 2 ) && ( nd != 3 ) )
+  throw( std::invalid_argument( who + ": OperatingMatrix has " +
+                                std::to_string( nd ) + " dimensions instead "
+                                "of 2 or 3" ) );
+ const Index n0 = ( nd == 3 ) ? var.getDim( 0 ).getSize() : 1;
+ if( ( var.getDim( nd - 2 ).getSize() != f_M ) ||
+     ( var.getDim( nd - 1 ).getSize() != f_G ) )
+  throw( std::invalid_argument( who + ": OperatingMatrix is not indexed over "
+                                "NumberOperatingRows and NumberGenerators" ) );
+
+ const auto & ci = v_change_intervals;
+ if( ( n0 != 1 ) && ( n0 != T ) && ( ci.empty() || ( n0 != ci.size() ) ) )
+  throw( std::invalid_argument( who + ": the first dimension of "
+                                "OperatingMatrix has size " +
+                                std::to_string( n0 ) + ", neither 1 nor "
+                                "NumberIntervals nor TimeHorizon" ) );
+
+ std::vector< double > buf( n0 * f_M * f_G );
+ var.getVar( buf.data() );
+ const Index MG = f_M * f_G;
+
+ if( ( n0 == 1 ) || ( n0 == T ) ) {
+  v_OperatingMatrix.resize( boost::extents[ n0 ][ f_M ][ f_G ] );
+  std::copy( buf.begin() , buf.end() , v_OperatingMatrix.data() );
+  return;
+  }
+
+ // expanded over the change intervals, entry k covering the instants
+ // ChangeIntervals[ k - 1 ] < t <= ChangeIntervals[ k ]
+ v_OperatingMatrix.resize( boost::extents[ T ][ f_M ][ f_G ] );
+ Index t = 0;
+ for( Index k = 0 ; k < ci.size() ; ++k ) {
+  const Index up = ( k + 1 == ci.size() ) ? T - 1 : ci[ k ];
+  for( ; t <= up ; ++t )
+   std::copy( buf.begin() + k * MG , buf.begin() + ( k + 1 ) * MG ,
+              v_OperatingMatrix.data() + t * MG );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
@@ -208,13 +263,12 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
  // the operating rows - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( f_M ) {
-  ::deserialize( group , "OperatingMatrix" , { f_M , f_G } ,
-                 v_OperatingMatrix , false , false );
+  read_operating_matrix( group , who );
   read( "OperatingLHS" , f_M , v_OperatingLHS , true );
   read( "OperatingRHS" , f_M , v_OperatingRHS , true );
   }
  else {
-  v_OperatingMatrix.resize( boost::extents[ 0 ][ 0 ] );
+  v_OperatingMatrix.resize( boost::extents[ 1 ][ 0 ][ 0 ] );
   v_OperatingLHS.resize( boost::extents[ 0 ][ 0 ] );
   v_OperatingRHS.resize( boost::extents[ 0 ][ 0 ] );
   }
@@ -498,7 +552,7 @@ void ConversionUnitBlock::check_data( const std::string & who ) const
   for( Index m = 0 ; m < f_M ; ++m ) {
    double ap = 0;
    for( Index g = 0 ; g < f_G ; ++g )
-    ap += v_OperatingMatrix[ m ][ g ] * v_InitialPower[ g ];
+    ap += get_operating_coefficient( m , g , 0 ) * v_InitialPower[ g ];
    if( ( ap < get_operating_lhs( 0 , m ) - eps( ap ) ) ||
        ( ap > get_operating_rhs( 0 , m ) + eps( ap ) ) )
     fail( "InitialPower violates the operating row " + std::to_string( m ) +
@@ -1017,8 +1071,8 @@ void ConversionUnitBlock::build_rows( void )
 
  auto add_ap = [ & ]( Index t , Index m ) {
   for( Index g = 0 ; g < f_G ; ++g )
-   if( v_OperatingMatrix[ m ][ g ] != 0 )
-    add( v_active_power[ g ][ t ] , v_OperatingMatrix[ m ][ g ] );
+   if( const double a = get_operating_coefficient( m , g , t ) ; a != 0 )
+    add( v_active_power[ g ][ t ] , a );
   };
 
  for( Index t = 0 ; t < T ; ++t )
@@ -1208,7 +1262,7 @@ void ConversionUnitBlock::build_rows( void )
    std::vector< double > ad( f_G , 0 );
    for( auto g : R )
     for( Index h = 0 ; h < f_G ; ++h )
-     ad[ g ] += v_OperatingMatrix[ m ][ h ] * D( h , g );
+     ad[ g ] += get_operating_coefficient( m , h , t ) * D( h , g );
    const double lo = get_operating_lhs( t , m );
    const double hi = get_operating_rhs( t , m );
 
@@ -1508,7 +1562,13 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
  put( "MinPower" , v_MinPower , TH , NG );
  put( "MaxPower" , v_MaxPower , TH , NG );
  if( f_M ) {
-  put( "OperatingMatrix" , v_OperatingMatrix , NM , NG );
+  const Index n0 = v_OperatingMatrix.shape()[ 0 ];
+  if( n0 > 1 )  // one matrix per instant
+   group.addVar( "OperatingMatrix" , netCDF::NcDouble() ,
+                 { TH , NM , NG } ).putVar( v_OperatingMatrix.data() );
+  else
+   group.addVar( "OperatingMatrix" , netCDF::NcDouble() ,
+                 { NM , NG } ).putVar( v_OperatingMatrix.data() );
   put( "OperatingLHS" , v_OperatingLHS , TH , NM );
   put( "OperatingRHS" , v_OperatingRHS , TH , NM );
   }

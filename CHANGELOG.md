@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the powers, spinning reserves deployed along directions given by the
   data, its netCDF format, setters with Modification and its Solution
 
+- `ConversionUnitBlock`: the coefficients of the operating rows may change
+  with the instant ("OperatingMatrix" with a first dimension indexed over the
+  instants, as the other data), e.g., the coefficient of performance of a
+  heat pump; a file with the matrix of old reads and behaves as before
+
 - `data/gen_multi_energy.py` writes the multi-energy instances (a combined
   heat and power plant as a `ConversionUnitBlock` and with hyperarcs, a
   meshed network with a heat node) and prints their known optima; they are

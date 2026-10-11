@@ -11178,6 +11178,10 @@ struct CUData {
  unsigned int minDown = 1;
  unsigned int cg = 0;             // CommitmentGenerator
  double scale = 1;
+ Index ni = 0;                    // NumberIntervals, 0 = not written
+ std::vector< unsigned long long > ci;  // ChangeIntervals [ ni ]
+ Index An = 0;                    // first dimension of a [ An ][ M ][ G ]
+                                  // OperatingMatrix, 0 = [ M ][ G ]
  };
 
 /*--------------------------------------------------------------------------*/
@@ -11200,9 +11204,14 @@ static void write_CU( netCDF::NcGroup g , const CUData & d )
  if( TH.isNull() )
   TH = g.addDim( "TimeHorizon" , d.T );
  auto NG = g.addDim( "NumberGenerators" , d.G );
- netCDF::NcDim NM , NK = NG;
+ netCDF::NcDim NM , NK = NG , NI;
  if( d.M )
   NM = g.addDim( "NumberOperatingRows" , d.M );
+ if( d.ni ) {
+  NI = g.addDim( "NumberIntervals" , d.ni );
+  g.addVar( "ChangeIntervals" , netCDF::NcUint64() , NI ).putVar(
+                                                             d.ci.data() );
+  }
  if( d.K )
   NK = g.addDim( "NumberRampRows" , d.K );
 
@@ -11221,7 +11230,14 @@ static void write_CU( netCDF::NcGroup g , const CUData & d )
  opt( "MinPower" , TH , NG , d.minP );
  opt( "MaxPower" , TH , NG , d.maxP );
  if( d.M ) {
-  opt( "OperatingMatrix" , NM , NG , d.A );
+  if( d.An ) {  // indexed over the instants too
+   netCDF::NcDim N0 = ( d.An == d.T ) ? TH :
+                      ( ( d.An == d.ni ) ? NI : g.addDim( "OneOrOther" ,
+                                                          d.An ) );
+   put( g , "OperatingMatrix" , { N0 , NM , NG } , d.A );
+   }
+  else
+   opt( "OperatingMatrix" , NM , NG , d.A );
   opt( "OperatingLHS" , TH , NM , d.lhs );
   opt( "OperatingRHS" , TH , NM , d.rhs );
   }
@@ -12328,6 +12344,127 @@ static void test_conversion_round_trip( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A heat pump over T = 4 instants: generator 0 is the electricity it draws,
+ * in [ -10 , 0 ], at the price 5 (LinearTerm -5 on the nonpositive power),
+ * generator 1 the heat it gives, in [ 0 , 40 ], sold at 2 (LinearTerm -2),
+ * the operating row p_1 + COP_t p_0 = 0, 5 per instant on, no start-up
+ * cost, minimum up and down times 1, off before the horizon. When on it
+ * draws all it can, and is worth 5 + 50 - 20 COP_t, hence it is on exactly
+ * when COP_t > 2.75. By hand:
+ *
+ * - COP 3 at every instant, written as [ M ][ G ], as [ T ][ M ][ G ] with
+ *   the same values and as [ 1 ][ M ][ G ]: on at every instant, -20, and
+ *   the three units have the same rows, coefficient by coefficient;
+ * - COP ( 3 , 0 , 4 , 2 ) over the instants (the coefficient of p_0 is 0
+ *   at the instant 1, where the row has one Variable less): on at 0 and 2,
+ *   -5 - 25 = -30;
+ * - NumberIntervals 2 with ChangeIntervals ( 1 , 3 ) and the matrix over the
+ *   intervals, COP 3 then 4: -5 -5 -25 -25 = -60.
+ *
+ * Without ramps and limits the continuous relaxation is the optimum. The
+ * unit with the matrix over the instants is written and read back, and a
+ * first dimension of OperatingMatrix that is neither 1 nor NumberIntervals
+ * nor TimeHorizon is refused. */
+
+static CUData heat_pump_CU( const std::vector< double > & cop , Index An )
+{
+ const Index T = 4;
+ CUData d;
+ d.T = T;
+ d.G = 2;
+ d.minP = rep( T , { -10 , 0 } );
+ d.maxP = rep( T , { 0 , 40 } );
+ d.M = 1;
+ d.An = An;
+ for( auto c : cop ) {
+  d.A.push_back( c );
+  d.A.push_back( 1 );
+  }
+ d.lhs = rep( T , { 0 } );
+ d.rhs = rep( T , { 0 } );
+ d.lin = rep( T , { -5 , -2 } );
+ d.cnst.assign( T , 5 );
+ d.initUD = -1;
+ return( d );
+ }
+
+static void test_conversion_varying_matrix( void )
+{
+ struct Case {
+  std::string what;
+  std::vector< double > cop;
+  Index An , ni;
+  std::vector< unsigned long long > ci;
+  double expected;
+  };
+ const std::vector< Case > cases = {
+  { "static" , { 3 } , 0 , 0 , {} , -20 } ,
+  { "over the instants, constant" , { 3 , 3 , 3 , 3 } , 4 , 0 , {} , -20 } ,
+  { "one instant for all" , { 3 } , 1 , 0 , {} , -20 } ,
+  { "over the instants" , { 3 , 0 , 4 , 2 } , 4 , 0 , {} , -30 } ,
+  { "over two intervals" , { 3 , 4 } , 2 , 2 , { 1 , 3 } , -60 } };
+
+ ConversionUnitBlock * first = nullptr;
+ for( const auto & c : cases ) {
+  const auto what = "varying matrix, " + c.what;
+  auto d = heat_pump_CU( c.cop , c.An );
+  d.ni = c.ni;
+  d.ci = c.ci;
+  ConversionUnitBlock * cub = nullptr;
+  try {
+   cub = new_CU( d );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   continue;
+   }
+  generate_all( cub );
+  if( c.expected == -20 ) {
+   if( ! first )
+    first = cub;
+   else {
+    const auto why = rows_differ( cub , first );
+    check( why.empty() , what + ": the rows differ from the static ones, " +
+           why );
+    }
+   }
+  const double v = conv_milp( cub );
+  if( std::isnan( v ) ) {
+   std::cout << "varying matrix: no :MILPSolver, skipped" << std::endl;
+   if( cub != first )
+    delete cub;
+   break;
+   }
+  check( close( v , c.expected ) , what + ": optimum " + str( v ) +
+         " instead of " + str( c.expected ) );
+  const double l = conv_lp( cub );
+  check( close( l , v ) , what + ": relaxation " + str( l ) +
+         " instead of the optimum " + str( v ) );
+  if( cub != first )
+   delete cub;
+  }
+ delete first;
+
+ // written and read back
+ auto g = new_group( "CU" , true );
+ write_CU( g , heat_pump_CU( { 3 , 0 , 4 , 2 } , 4 ) );
+ auto b = round_trip( g , "varying matrix" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && cub->has_varying_operating_matrix() &&
+        ( cub->get_operating_coefficient( 0 , 0 , 2 ) == 4 ) &&
+        ( cub->get_operating_coefficient( 0 , 0 , 1 ) == 0 ) ,
+        "varying matrix: the matrix read back differs" );
+ delete b;
+
+ // a first dimension of the wrong size
+ bool thrown = false;
+ try { delete new_CU( heat_pump_CU( { 3 , 3 , 3 } , 3 ) ); }
+ catch( std::exception & ) { thrown = true; }
+ check( thrown , "varying matrix: a matrix over 3 of 4 instants is not "
+        "refused" );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -12483,6 +12620,7 @@ int main( int argc , char ** argv )
   test_conversion_setters();
   test_conversion_edge_cases();
   test_conversion_round_trip();
+  test_conversion_varying_matrix();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

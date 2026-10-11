@@ -83,19 +83,20 @@ namespace SMSpp_di_unipi_it
  * \f[
  *   \mathcal{P}_t = \bigl\{ \, p \in \mathbb{R}^G \,:\, P^{mn}_{t,g} \leq
  *   p_g \leq P^{mx}_{t,g} \; g \in \mathcal{G} \; , \;\;
- *   \underline{b}_{t,m} \leq \sum_{ g \in \mathcal{G} } a_{m,g} p_g \leq
+ *   \underline{b}_{t,m} \leq \sum_{ g \in \mathcal{G} } a_{t,m,g} p_g \leq
  *   \bar{b}_{t,m} \; m \in \mathcal{M} \, \bigr\} \; ,
  * \f]
  * the operating region of the unit, given by the bounds of each generator
  * and by \f$ M \f$ operating rows \f$ \mathcal{M} = \{ 0 , \ldots , M - 1
- * \} \f$ whose coefficients \f$ a_{m,g} \f$ are the same at every instant;
- * when it is off all its powers are 0. The unit is thus described by the
- * perspective of \f$ \mathcal{P}_t \f$ (the rows (4), (5) and (8) of
- * generate_abstract_constraints()), which for one instant is the tightest
- * possible description of the set \f$ \{ ( 0 , 0 ) \} \cup ( \mathcal{P}_t
- * \times \{ 1 \} ) \f$ of the pairs \f$ ( p , u ) \f$, whatever the shape of
- * the polytope; the perspective formulation of a disjunction of polytopes
- * is that of
+ * \} \f$ whose coefficients \f$ a_{t,m,g} \f$ may change with the instant
+ * (say, the coefficient of performance of a heat pump, which follows the
+ * temperature of its source); when it is off all its powers are 0. The
+ * unit is thus described by the perspective of \f$ \mathcal{P}_t \f$ (the rows
+ * (4), (5) and (8) of generate_abstract_constraints()), which for one instant
+ * is the tightest possible description of the set \f$ \{ ( 0 , 0 ) \} \cup (
+ * \mathcal{P}_t \times \{ 1 \} ) \f$ of the pairs \f$ ( p , u ) \f$, whatever
+ * the shape of the polytope; the perspective formulation of a disjunction of
+ * polytopes is that of
  *
  *  E. Balas "Disjunctive Programming: Properties of the Convex Hull of
  *  Feasible Points" Discrete Applied Mathematics 89(1-3), 3 - 44, 1998
@@ -297,14 +298,20 @@ class ConversionUnitBlock : public UnitBlock
   *   operating rows; optional with default 0, in which case the region is
   *   the box of the bounds.
   *
-  * - The variable "OperatingMatrix", indexed over "NumberOperatingRows" and
-  *   "NumberGenerators", the coefficients \f$ a_{m,g} \f$ of the operating
-  *   rows, the same at every instant; mandatory if \f$ M > 0 \f$.
+  * - The variable "OperatingMatrix", the coefficients \f$ a_{t,m,g} \f$ of
+  *   the operating rows; mandatory if \f$ M > 0 \f$. It is either indexed
+  *   over "NumberOperatingRows" and "NumberGenerators", and then the
+  *   coefficients are the same at every instant, or it has a first
+  *   dimension indexed over the instants as the other data (of size 1,
+  *   "NumberIntervals" or "TimeHorizon", with the meaning given above)
+  *   followed by "NumberOperatingRows" and "NumberGenerators". Whether a
+  *   coefficient is zero may change with the instant, since the rows of
+  *   different instants are distinct.
   *
   * - The variables "OperatingLHS" and "OperatingRHS", indexed over the
   *   instants and over "NumberOperatingRows", the sides
   *   \f$ \underline{b}_{t,m} \leq \bar{b}_{t,m} \f$ of the operating rows,
-  *   \f$ \underline{b}_{t,m} u_t \leq \sum_g a_{m,g} p_{t,g} \leq
+  *   \f$ \underline{b}_{t,m} u_t \leq \sum_g a_{t,m,g} p_{t,g} \leq
   *   \bar{b}_{t,m} u_t \f$; each is optional, with default \f$ - \infty \f$,
   *   respectively \f$ + \infty \f$, but each row must have a finite side at
   *   some instant. Whether a side is finite is a property of the row and
@@ -566,9 +573,9 @@ class ConversionUnitBlock : public UnitBlock
   * <b>Operating region</b> ("Operating_Const_Conversion"). For
   * \f$ t \in \mathcal{T} \f$ and \f$ m \in \mathcal{M} \f$, the row
   * \f[
-  *   \sum_{ g \in \mathcal{G} } a_{m,g} p_{t,g} - \bar{b}_{t,m} u_t \leq 0
+  *   \sum_{ g \in \mathcal{G} } a_{t,m,g} p_{t,g} - \bar{b}_{t,m} u_t \leq 0
   *   \; , \qquad
-  *   \sum_{ g \in \mathcal{G} } a_{m,g} p_{t,g} - \underline{b}_{t,m} u_t
+  *   \sum_{ g \in \mathcal{G} } a_{t,m,g} p_{t,g} - \underline{b}_{t,m} u_t
   *   \geq 0 \tag{8}
   * \f]
   * for each finite side, one equality row if the two sides coincide.
@@ -624,16 +631,16 @@ class ConversionUnitBlock : public UnitBlock
   * \f]
   * and the operating rows ("Reserve_Operating_Const_Conversion")
   * \f[
-  *   \underline{b}_{t,m} u_t \leq \sum_h a_{m,h} q^s_{t,h} \leq
+  *   \underline{b}_{t,m} u_t \leq \sum_h a_{t,m,h} q^s_{t,h} \leq
   *   \bar{b}_{t,m} u_t \; , \tag{12}
   * \f]
   * where only the sides that the deployment can violate are written: the
   * upper side of (11) for \f$ h \f$ if \f$ s D_{h,g} > 0 \f$ for some
   * \f$ g \in \mathcal{R} \f$, the lower one if \f$ s D_{h,g} < 0 \f$ for
-  * some, and the same for (12) with the entries \f$ \sum_h a_{m,h} D_{h,g}
+  * some, and the same for (12) with the entries \f$ \sum_h a_{t,m,h} D_{h,g}
   * \f$ in place of \f$ D_{h,g} \f$, the other sides being implied by (4),
   * (5) and (8) since \f$ r \geq 0 \f$. An equality operating row is written
-  * as \f$ \sum_{ g \in \mathcal{R} } ( \sum_h a_{m,h} D_{h,g} ) r_{t,g} = 0
+  * as \f$ \sum_{ g \in \mathcal{R} } ( \sum_h a_{t,m,h} D_{h,g} ) r_{t,g} = 0
   * \f$, once for both directions, if any of these entries is nonzero. For a
   * generator \f$ h \f$ with start-up or shut-down limits the bounds of (11)
   * are each replaced by two rows, as the rows (30) of ThermalUnitBlock,
@@ -757,9 +764,16 @@ class ConversionUnitBlock : public UnitBlock
   return( v_MaxPower[ t ][ generator ] );
   }
 
- /// returns the coefficient \f$ a_{m,g} \f$ of the operating row m
- double get_operating_coefficient( Index m , Index generator ) const {
-  return( v_OperatingMatrix[ m ][ generator ] );
+ /// returns the coefficient \f$ a_{t,m,g} \f$ of the operating row m
+ double get_operating_coefficient( Index m , Index generator ,
+                                   Index t = 0 ) const {
+  return( v_OperatingMatrix[ v_OperatingMatrix.shape()[ 0 ] > 1 ? t : 0 ][
+                                                          m ][ generator ] );
+  }
+
+ /// true if the coefficients of the operating rows change with the instant
+ bool has_varying_operating_matrix( void ) const {
+  return( v_OperatingMatrix.shape()[ 0 ] > 1 );
   }
 
  /// returns the left-hand side \f$ \underline{b}_{t,m} \f$ (may be -INF)
@@ -1231,6 +1245,10 @@ class ConversionUnitBlock : public UnitBlock
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// reads "OperatingMatrix", static or indexed over the instants
+ void read_operating_matrix( const netCDF::NcGroup & group ,
+                             const std::string & who );
+
  /// the first instant at which the commitment is free
  Index first_free_instant( void ) const;
 
@@ -1309,7 +1327,8 @@ class ConversionUnitBlock : public UnitBlock
 
  MAdbl v_MinPower;                    ///< [ T ][ G ] minimum power
  MAdbl v_MaxPower;                    ///< [ T ][ G ] maximum power
- MAdbl v_OperatingMatrix;             ///< [ M ][ G ] operating rows
+ boost::multi_array< double , 3 > v_OperatingMatrix;
+ ///< [ T or 1 ][ M ][ G ] operating rows, the first index the instant
  MAdbl v_OperatingLHS;                ///< [ T ][ M ], empty = -INF
  MAdbl v_OperatingRHS;                ///< [ T ][ M ], empty = +INF
  MAdbl v_RampMatrix;                  ///< [ K ][ G ], empty = identity
