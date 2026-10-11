@@ -990,7 +990,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - DesignNetworkBlockSolution
 
-- [big] DesignNetworkBlock allowing to do desing of lines across the
+- [big] DesignNetworkBlock allowing to do design of lines across the
   time horizon
 
 - simple stochastic case in csv2netcdf
@@ -1045,7 +1045,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - UCBlock::set\_active_power\_demand methods
 
-- separated battery desing from converter design in BatteryUnitBlock
+- separated battery design from converter design in BatteryUnitBlock
 
 - IntakeOuttake\_Design\_Battery constraint in BatteryUnitBlock
 
