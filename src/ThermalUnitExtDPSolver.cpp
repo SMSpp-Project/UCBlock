@@ -878,6 +878,7 @@ void ThermalUnitExtDPSolver::not_larger( const PQFun & F , const PQFun & G ,
 
 void ThermalUnitExtDPSolver::run_DP( void )
 {
+ f_stats = DPStats();
  if( time_horizon == 0 ) {
   f_best_cost = 0;
   stage = dp_OK;
@@ -1009,6 +1010,13 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // other, as with moves at the full ramp and a stable output that does not
  // change.
  const bool trim = trim_domination();
+ const auto count_kept = [ & ]( const std::vector< PQFun > & v_F ) {
+  f_stats.kept += v_F.size();
+  f_stats.peak = std::max( f_stats.peak ,
+                           static_cast< unsigned long long >( v_F.size() ) );
+  for( const auto & F : v_F )
+   f_stats.pieces += F.size();
+  };
  auto prune = [ & ]( std::vector< PQFun > & v_F ,
                      std::vector< Index > & v_tau ,
                      std::vector< OnSlot > & v_on ,
@@ -1045,6 +1053,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
      continue;
     if( ! label_dominates( v_link[ j ].lab , v_link[ i ].lab ) )
      continue;
+    ++f_stats.pairs;
     double domeps = 0.0;
 #if TUEDPS_PROFILE
     if( TUEDPS_ENV( "TUEDPS_DOMEPS" ) )
@@ -1053,6 +1062,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
     if( is_dominated_by( v_F[ i ] , v_F[ j ] , domeps ) ||
         ( point && ( eval( v_F[ j ] , xi ) <= fi ) ) ) {
      keep[ i ] = 0;
+     ++f_stats.dominated;
      break;
      }
     if( point )
@@ -1081,8 +1091,10 @@ void ThermalUnitExtDPSolver::run_DP( void )
      m_rest.emplace_back( from , ri );
     if( m_rest.empty() ) {       // dominated on the whole domain
      keep[ i ] = 0;
+     ++f_stats.dominated;
      break;
      }
+    ++f_stats.trimmed;
     for( std::size_t k = 1 ; k < m_rest.size() ; ++k ) {
      PQFun Fr = v_F[ i ];
      clamp_domain( Fr , m_rest[ k ].first , m_rest[ k ].second );
@@ -1094,6 +1106,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
      v_on.push_back( { vp.first , vp.second } );
      v_link.push_back( v_link[ i ] );
      keep.push_back( 1 );
+     ++f_stats.split;
      }
     clamp_domain( v_F[ i ] , m_rest[ 0 ].first , m_rest[ 0 ].second );
     if( v_F[ i ].empty() ) {
@@ -1387,7 +1400,9 @@ void ThermalUnitExtDPSolver::run_DP( void )
 
  // prune at t = 0 (with a single seeded entry this is a no-op, but for
  // completeness we apply it to every time step)
+ f_stats.built += f_F[ 0 ].size();
  prune( f_F[ 0 ] , f_tau[ 0 ] , f_on[ 0 ] , f_link[ 0 ] );
+ count_kept( f_F[ 0 ] );
 
  // v_shutdown[0]: only meaningful if there is at least one more instant
  // in the horizon after t = 0 (so that being off at t = 1 is possible)
@@ -1737,7 +1752,9 @@ void ThermalUnitExtDPSolver::run_DP( void )
    }
 
   // domination pruning of the new list
+  f_stats.built += m_new_F.size();
   prune( m_new_F , m_new_tau , m_new_on , m_new_link );
+  count_kept( m_new_F );
 
   // hand the per-step lists over to f_F[t] (emptied at reset); the build
   // buffers are left empty and regrow on the next step

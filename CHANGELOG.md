@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ThermalUnitExtDPSolver::get_dp_stats()` returns what the last run of
+  the dynamic program did: the on-states built, split by the trimming, kept
+  and their pieces, the largest number kept at an instant, the pairs of
+  states compared for the domination and how many of them removed a state
+  or a part of its domain; these counters do not depend on the machine
+
 - the documentation of `ACNetworkBlock` says which relaxation each value of
   the static variables `Configuration` gives: with 0 the SOCP relaxation of
   the bus injection model, a convex QCP whose quadratic rows are second-order

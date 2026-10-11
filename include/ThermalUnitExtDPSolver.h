@@ -236,6 +236,43 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  /// run-length, domain and value at p
  void dump_states_at( Index t , double p ) const;
 
+ /// what the last run of the dynamic program did, counted over the horizon
+ /** The counters do not depend on the machine nor on its load:
+  *
+  * - built: the on-states built by the moves and the restarts;
+  *
+  * - split: the on-states added by the trimming, when it splits a domain;
+  *
+  * - kept: the on-states that survive the pruning, i.e., the sum over the
+  *   instants of the size of the lists of the file comment;
+  *
+  * - pieces: the quadratic pieces of the value functions of the kept states;
+  *
+  * - peak: the largest number of on-states kept at an instant;
+  *
+  * - pairs: the pairs of states whose run-lengths and labels allow the
+  *   domination, i.e., for which the value functions are compared;
+  *
+  * - dominated: the states removed because another one is not larger on
+  *   their whole domain;
+  *
+  * - trimmed: the comparisons that removed a part of the domain of a
+  *   state. */
+
+ struct DPStats {
+  unsigned long long built = 0;
+  unsigned long long split = 0;
+  unsigned long long kept = 0;
+  unsigned long long pieces = 0;
+  unsigned long long peak = 0;
+  unsigned long long pairs = 0;
+  unsigned long long dominated = 0;
+  unsigned long long trimmed = 0;
+  };
+
+ /// the counters of the last run of the dynamic program
+ const DPStats & get_dp_stats( void ) const { return( f_stats ); }
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -579,6 +616,7 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  bool f_solved;               ///< true iff f_best_cost encodes a feasible
                               ///< schedule (finite cost); set by run_DP()
  double f_best_cost;          ///< optimal objective value after run_DP()
+ DPStats f_stats;             ///< the counters of the last run_DP()
 
  // -- ON-side value functions ------------------------------------------ //
 
