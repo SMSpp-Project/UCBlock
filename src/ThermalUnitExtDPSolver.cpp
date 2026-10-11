@@ -379,6 +379,7 @@ Solution * ThermalUnitExtDPSolver::get_Solution( Configuration * solc )
 
 void ThermalUnitExtDPSolver::load_parameters( void )
 {
+ m_ldom_g.clear();     // the labels may change
  load_common_parameters();
 
  // reset output buffers and pipeline state
@@ -1010,6 +1011,14 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // other, as with moves at the full ramp and a stable output that does not
  // change.
  const bool trim = trim_domination();
+ // the run-wide cache of label_dominates(), which only depends on the two
+ // labels, kept from a run to the next one unless the labels change
+ if( NL <= 4096 ) {
+  if( m_ldom_g.size() != std::size_t( NL ) * NL )
+   m_ldom_g.assign( std::size_t( NL ) * NL , -1 );
+  }
+ else
+  m_ldom_g.clear();
  const auto count_kept = [ & ]( const std::vector< PQFun > & v_F ) {
   f_stats.kept += v_F.size();
   f_stats.peak = std::max( f_stats.peak ,
@@ -1029,6 +1038,49 @@ void ThermalUnitExtDPSolver::run_DP( void )
    return;
 #endif
   std::vector< char > keep( v_F.size() , 1 );
+  // the states by label: the distinct labels of the list get the indices
+  // 0 , ... , K - 1, m_members[ k ] has the states with label k in
+  // increasing order, and whether a label dominates another one is asked
+  // once [see m_ldom]. A state i is only compared with
+  // the states j whose label dominates its own and whose domain meets its
+  // own, in increasing order of j: the other ones change nothing, hence the
+  // outcome is that of the comparison with all of them
+  m_labs.clear();
+  for( const auto & lk : v_link )
+   m_labs.push_back( lk.lab );
+  std::sort( m_labs.begin() , m_labs.end() );
+  m_labs.erase( std::unique( m_labs.begin() , m_labs.end() ) , m_labs.end() );
+  const std::size_t K = m_labs.size();
+  const auto lab_id = [ & ]( Index lab ) {
+   return( std::size_t( std::lower_bound( m_labs.begin() , m_labs.end() ,
+                                          lab ) - m_labs.begin() ) );
+   };
+  // the answers are cached for the whole run, by the codes of the labels,
+  // if there are not too many labels, and otherwise for the instant, by
+  // their indices (if there are not too many of them either)
+  const bool glob = ! m_ldom_g.empty();
+  const bool cache = glob || ( K <= 2048 );
+  if( ! glob )
+   m_ldom.assign( cache ? K * K : 0 , -1 );
+  if( m_members.size() < K )
+   m_members.resize( K );
+  for( std::size_t k = 0 ; k < K ; ++k )
+   m_members[ k ].clear();
+  m_lid.resize( v_F.size() );
+  for( std::size_t i = 0 ; i < v_F.size() ; ++i ) {
+   m_lid[ i ] = lab_id( v_link[ i ].lab );
+   m_members[ m_lid[ i ] ].push_back( i );
+   }
+  const auto ldom = [ & ]( std::size_t kj , std::size_t ki ) {
+   if( ! cache )
+    return( label_dominates( m_labs[ kj ] , m_labs[ ki ] ) );
+   signed char & d = glob ? m_ldom_g[ std::size_t( m_labs[ kj ] ) * NL +
+                                      m_labs[ ki ] ]
+                          : m_ldom[ kj * K + ki ];
+   if( d < 0 )
+    d = label_dominates( m_labs[ kj ] , m_labs[ ki ] ) ? 1 : 0;
+   return( d > 0 );
+   };
   for( std::size_t i = 0 ; i < v_F.size() ; ++i ) {
    if( ! keep[ i ] ) continue;
    // a domain narrower than the parts that the trimming below drops is a
@@ -1041,7 +1093,33 @@ void ThermalUnitExtDPSolver::run_DP( void )
                         <= 1e-9 );
    const double xi = 0.5 * ( v_F[ i ].front().left + v_F[ i ].back().right );
    const double fi = point ? eval( v_F[ i ] , xi ) : 0.0;
-   for( std::size_t j = 0 ; j < v_F.size() ; ++j ) {
+   // the candidates: the states there are now whose label dominates that
+   // of i and whose domain meets that of i (which can only shrink in the
+   // loop), then those that the trimming of i adds at the end of the list
+   const double ci = v_F[ i ].front().left , di = v_F[ i ].back().right;
+   m_cand.clear();
+   for( std::size_t k = 0 ; k < K ; ++k ) {
+    if( ! ldom( k , m_lid[ i ] ) )
+     continue;
+    for( const auto j : m_members[ k ] )
+     if( keep[ j ] && ( j != i ) &&
+         ( v_F[ j ].back().right >= ci - 1e-9 ) &&
+         ( v_F[ j ].front().left <= di + 1e-9 ) )
+      m_cand.push_back( j );
+    }
+   std::sort( m_cand.begin() , m_cand.end() );
+   const std::size_t n_old = v_F.size();
+   for( std::size_t c = 0 ; ; ++c ) {
+    std::size_t j;
+    if( c < m_cand.size() )
+     j = m_cand[ c ];
+    else {
+     j = n_old + ( c - m_cand.size() );
+     if( j >= v_F.size() )
+      break;
+     if( ! ldom( m_lid[ j ] , m_lid[ i ] ) )
+      continue;
+     }
     if( j == i ) continue;
     if( ! keep[ j ] ) continue;
     // j can do what i can if it reaches the minimum up time no later; the
@@ -1050,8 +1128,6 @@ void ThermalUnitExtDPSolver::run_DP( void )
     if( ! ( ( ( v_tau[ i ] >= mut ) && ( v_tau[ j ] >= mut ) ) ||
             ( trim ? ( v_tau[ j ] >= v_tau[ i ] )
                    : ( v_tau[ i ] == v_tau[ j ] ) ) ) )
-     continue;
-    if( ! label_dominates( v_link[ j ].lab , v_link[ i ].lab ) )
      continue;
     ++f_stats.pairs;
     double domeps = 0.0;
@@ -1106,6 +1182,8 @@ void ThermalUnitExtDPSolver::run_DP( void )
      v_on.push_back( { vp.first , vp.second } );
      v_link.push_back( v_link[ i ] );
      keep.push_back( 1 );
+     m_lid.push_back( m_lid[ i ] );
+     m_members[ m_lid[ i ] ].push_back( v_F.size() - 1 );
      ++f_stats.split;
      }
     clamp_domain( v_F[ i ] , m_rest[ 0 ].first , m_rest[ 0 ].second );

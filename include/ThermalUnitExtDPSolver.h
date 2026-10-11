@@ -161,10 +161,12 @@
  * equal value up to the rounding, which the comparison piece by piece would
  * all keep, and whose number would grow at each step. Note that states
  * with different labels are never merged into their pointwise minimum, which
- * would not be convex. The surviving states are typically few, and therefore
- * the method often runs in a time close to linear in \f$ T \f$; however, in
- * the worst case their number grows linearly with \f$ t \f$ (times the number
- * of labels).
+ * would not be convex. A state is only compared with the states whose label
+ * dominates its own and whose domain meets its own, which are the only ones
+ * that can remove a part of it. The surviving states are typically few, and
+ * therefore the method often runs in a time close to linear in \f$ T \f$;
+ * however, in the worst case their number grows linearly with \f$ t \f$
+ * (times the number of labels).
  *
  * The minimum up and down times are taken to be at least 1, as in
  * ThermalUnitBlock, and therefore the value (6) is the optimal value of the
@@ -251,7 +253,8 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   * - peak: the largest number of on-states kept at an instant;
   *
   * - pairs: the pairs of states whose run-lengths and labels allow the
-  *   domination, i.e., for which the value functions are compared;
+  *   domination and whose domains meet, i.e., for which the value
+  *   functions are compared;
   *
   * - dominated: the states removed because another one is not larger on
   *   their whole domain;
@@ -650,6 +653,16 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   m_start_labs;   ///< scratch for on_moves()
  /// scratch of the domination with trimming
  std::vector< std::pair< double , double > > m_cover , m_rest;
+ /// scratch of the domination: the distinct labels of a list, the label of
+ /// each state, the states of each label, whether a label dominates another
+ /// one and the states a state is compared with
+ std::vector< Index > m_labs;
+ std::vector< std::size_t > m_lid , m_cand;
+ std::vector< std::vector< std::size_t > > m_members;
+ std::vector< signed char > m_ldom;
+ /// whether a label dominates another one, by their codes, for all the runs
+ /// until the parameters are loaded again (empty with too many labels)
+ std::vector< signed char > m_ldom_g;
 
  // -- OFF-side values -------------------------------------------------- //
  // the arrays indexed by time and off label are flat, entry t * E + e with

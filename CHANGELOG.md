@@ -117,6 +117,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the domination of `ThermalUnitExtDPSolver` compares a state only with the
+  states whose label dominates its own and whose domain meets its own, the
+  answers of `label_dominates()` being asked once per pair of labels, and
+  kept until the parameters are loaded again: the states kept and their value functions are those of before,
+  and the cost of the pruning is no longer that of all the pairs of states
+  (on a unit with long modulations, the domination took 96% of the time and
+  the decoding of the labels alone 43%)
+
 - the documentation of `UCBlock` and of the model describes nodes of any
   carrier (heat, gas) with their units, lines, zones and pollutant budgets,
   instead of saying that units producing heat are not modelled
