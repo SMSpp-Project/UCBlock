@@ -133,6 +133,7 @@ target_sources(${modName} PRIVATE
         src/OTSNetworkBlock.cpp
         src/UnitBlock.cpp
         src/BatteryUnitBlock.cpp
+        src/ConversionUnitBlock.cpp
         src/NuclearUnitBlock.cpp
         src/ThermalUnitBlock.cpp
         src/ThermalUnitDPSolverBase.cpp
@@ -193,7 +194,7 @@ endif ()
 # tree holding the data of an older version (a cache of the CI, or a clone
 # that has been extracted before) downloads and extracts again instead of
 # taking them for the current ones.
-set(DATA_VERSION 2026-10-11)
+set(DATA_VERSION 2026-10-12)
 set(DATA_PROJECT 14857791)
 set(DATA_PREFIX uc)
 set(DATA_FORMATS nc4)

@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `DCNetworkBlock` accepts hyperarcs together with lines of nonzero
+  susceptance, in the KIRCHHOFF, PTDF and CYCLE formulations: a hyperarc,
+  whose susceptance must be zero, is a controllable flow that enters the
+  network as injections at its start and end nodes, so that a meshed grid
+  obeying the voltage law and the hyperarcs of a multi-energy system (say,
+  a back-pressure CHP feeding an electric and a heat node) can be written
+  in one network; the model of a network without hyperarcs, or with
+  hyperarcs and no susceptance, is the same as before
+
+- the unit test checks a meshed electric network with a congested line and
+  a heat node fed by a hyperarc in the three formulations against an
+  independent optimum
+
+- `ConversionUnitBlock`, a unit with one commitment and several generators,
+  each on its own node, coupled by an operating region given by bounds and
+  rows proportional to the commitment: plants that convert energy among
+  several carriers (combined heat and power, electrolysers, heat pumps with
+  commitment), inputs being generators of negative power, with minimum up
+  and down times, start-up and shut-down limits, ramps on combinations of
+  the powers, spinning reserves deployed along directions given by the
+  data, its netCDF format, setters with Modification and its Solution
+
+- `data/gen_multi_energy.py` writes the multi-energy instances (a combined
+  heat and power plant as a `ConversionUnitBlock` and with hyperarcs, a
+  meshed network with a heat node) and prints their known optima; they are
+  in `multi-energy/` of the archive of `data/` from version 2026-10-12
+
+- the commitment of a unit whose generators share it is exposed through one
+  generator only, and the documentation of `UnitBlock::get_commitment()`
+  says so
+
+- the unit test checks `ConversionUnitBlock` against `ThermalUnitBlock` with
+  one generator, against the multi-energy instances written with hyperarcs,
+  on a meshed network with a heat node in the three formulations, its
+  continuous relaxation against the optimum, its setters against a unit
+  read afresh, its refused data and its round trip
+
 - the unit test checks the continuous relaxations of the pt, SU, SD and SUSD
   formulations against the integer optimum on units on and off before the
   horizon, with both ramps, one or none, and the MILP of every formulation
@@ -22,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NuclearUnitBlock::is_feasible()`
 
 ### Changed
+
+- the documentation of `UCBlock` and of the model describes nodes of any
+  carrier (heat, gas) with their units, lines, zones and pollutant budgets,
+  instead of saying that units producing heat are not modelled
+
+- in a network with hyperarcs and lines of nonzero susceptance,
+  `DCNetworkData::get_end_line()` holds the (first) end node of every line,
+  and `DCNetworkData::get_line_efficiency()` returns 1 for a line of nonzero
+  susceptance instead of throwing; a hyperarc with nonzero susceptance is
+  refused by `DCNetworkData::deserialize()`
 
 - the instances of `data/` are downloaded and extracted by the targets
   `download_uc_<fmt>` and `extract_uc_<fmt>`, written as in every module

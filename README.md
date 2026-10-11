@@ -8,19 +8,22 @@ The formulation is very flexible in that `UCBlock` only knows that is has a
 bunch of generating units, each one a concrete class deriving from the abstract
 base class `UnitBlock`; several of these are available, such as
 `ThermalUnitBlock`, `NuclearUnitBlock`, `HydroUnitBlock`,
-`HydroSystemUnitBlock`, `BatteryUnitBlock`, `IntermittentUnitBlock` and
-`SlackUnitBlock`. Also, `UCBlock` knows that energy must flow between generating
-units and consumption points through an energy network, represented by a
-concrete class deriving from the abstract base class `NetworkBlock` (unless
-there is no network, i.e., the "bus" case, which is handled directly by
-`UCBlock`); some of these are available, such as `DCNetworkBlock` for the linear
-DC or HVDC (or hybrid) cases, `ACNetworkBlock` for the AC case and
-`ECNetworkBlock` for Energy Communities having to share the energy between users
-and then with the external grid, with `OTSNetworkBlock` and `DesignNetworkBlock`
-also available. Other kinds of units and networks can easily be added, and
-specialised solution methods for certain units (e.g., `ThermalUnitDPSolver` and
-`ThermalUnitExtDPSolver` for `ThermalUnitBlock`, `NuclearUnitExtDPSolver` for
-`NuclearUnitBlock`) can be developed.
+`HydroSystemUnitBlock`, `BatteryUnitBlock`, `IntermittentUnitBlock`,
+`SlackUnitBlock` and `ConversionUnitBlock` (a plant with one commitment and
+several outputs or inputs on different nodes, such as a combined heat and power
+plant, the nodes of the network being of any energy carrier). Also, `UCBlock`
+knows that energy must flow between generating units and consumption points
+through an energy network, represented by a concrete class deriving from the
+abstract base class `NetworkBlock` (unless there is no network, i.e., the "bus"
+case, which is handled directly by `UCBlock`); some of these are available, such
+as `DCNetworkBlock` for the linear DC or HVDC (or hybrid) cases,
+`ACNetworkBlock` for the AC case and `ECNetworkBlock` for Energy Communities
+having to share the energy between users and then with the external grid, with
+`OTSNetworkBlock` and `DesignNetworkBlock` also available. Other kinds of units
+and networks can easily be added, and specialised solution methods for certain
+units (e.g., `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver` for
+`ThermalUnitBlock`, `NuclearUnitExtDPSolver` for `NuclearUnitBlock`) can be
+developed.
 
 
 ## Getting started

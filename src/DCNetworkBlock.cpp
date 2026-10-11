@@ -272,12 +272,15 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   for( Index t = 0 ; t < time_instants ; ++t )
    v_h_efficiency[ t ].resize( f_number_lines );
 
-  // the formulations index the end node of a line with a nonzero
-  // susceptance in get_end_line(), which is empty in a hypergraph
+  // a line with a nonzero susceptance obeys the voltage law between its
+  // two ends, hence it has a single branch; a hyperarc is a controllable
+  // flow, independent of the angles, whose susceptance must be zero
   if( ! v_line_susceptance.empty() )
-   throw( std::invalid_argument( "DCNetworkData::deserialize: a network "
-				 "with hyperarcs cannot have lines with "
-				 "nonzero susceptance" ) );
+   for( Index i = 0 ; i < f_number_lines ; ++i )
+    if( ( v_line_susceptance[ i ] != 0 ) && ( tmp[ i ].size() > 1 ) )
+     throw( std::invalid_argument( "DCNetworkData::deserialize: hyperarc " +
+				   std::to_string( i ) + " has nonzero "
+				   "susceptance" ) );
 
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    v_end_lines[ i ].resize( tmp[ i ].size() );
@@ -290,6 +293,15 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
      v_h_efficiency[ t ][ i ][ j ] =
                         v_efficiency[ std::get< 2 >( tmp[ i ][ j ] ) ][ t ];
     }
+   }
+
+  // the formulations read the two ends of a line with a nonzero
+  // susceptance in get_end_line(), which then holds the (first) end node
+  // of every line; with no such line it stays empty
+  if( ! v_line_susceptance.empty() ) {
+   v_end_line.resize( f_number_lines );
+   for( Index i = 0 ; i < f_number_lines ; ++i )
+    v_end_line[ i ] = v_end_lines[ i ].front();
    }
 
   // clear v_efficiency
