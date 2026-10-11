@@ -11182,6 +11182,9 @@ struct CUData {
  std::vector< unsigned long long > ci;  // ChangeIntervals [ ni ]
  Index An = 0;                    // first dimension of a [ An ][ M ][ G ]
                                   // OperatingMatrix, 0 = [ M ][ G ]
+ std::vector< unsigned int > delay;  // Delay [ G ]
+ std::vector< int > cyclic;       // CyclicDelay [ G ]
+ std::vector< double > idp;       // InitialDelayedPower [ H ][ G ]
  };
 
 /*--------------------------------------------------------------------------*/
@@ -11266,6 +11269,14 @@ static void write_CU( netCDF::NcGroup g , const CUData & d )
   put_uint( g , "CommitmentGenerator" , d.cg );
  if( d.scale != 1 )
   put( g , "Scale" , d.scale );
+ if( ! d.delay.empty() )
+  g.addVar( "Delay" , netCDF::NcUint() , NG ).putVar( d.delay.data() );
+ if( ! d.cyclic.empty() )
+  put_int( g , "CyclicDelay" , NG , d.cyclic );
+ if( ! d.idp.empty() )
+  put( g , "InitialDelayedPower" ,
+       { g.addDim( "NumberDelayedInstants" , d.idp.size() / d.G ) , NG } ,
+       d.idp );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -12465,6 +12476,190 @@ static void test_conversion_varying_matrix( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A pipe with a delay over T = 5 instants and two nodes with no line: a
+ * ConversionUnitBlock draws the power of node 0 (generator 0, in
+ * [ -50 , 0 ]) and gives 0.9 times it to node 1 (generator 1, in
+ * [ 0 , 50 ]), the operating row p_1 + 0.9 p_0 = 0 being of the instant of
+ * operation, with no cost of its own and off before the horizon. Node 0
+ * has a source at the prices ( 10 , 10 , 10 , 50 , 50 ), node 1 the demand
+ * ( 5 , 5 , 30 , 30 , 5 ) and a boiler at 100. By hand, 1 MWh at node 1
+ * costs the price of its instant of operation over 0.9:
+ *
+ * - no delay (also written as Delay 0, with the same rows as without it):
+ *   ( 5 + 5 + 30 ) 10 / 0.9 + ( 30 + 5 ) 50 / 0.9 = 2388.89;
+ * - delay 2, not cyclic, InitialDelayedPower 5 at the instants 0 and 1: the
+ *   operation of 0, 1, 2 feeds the instants 2, 3, 4, ( 30 + 30 + 5 ) 10 / 0.9
+ *   = 722.22, and the operation of 3 and 4 is delivered after the horizon;
+ * - the same with no InitialDelayedPower: the boiler gives 5 + 5,
+ *   722.22 + 1000 = 1722.22; and 722.22 again after the setter gives the
+ *   powers 5 and 5 to the unit already generated;
+ * - delay 2, cyclic: the operation of 3 and 4 feeds the instants 0 and 1,
+ *   722.22 + ( 5 + 5 ) 50 / 0.9 = 1277.78;
+ * - delay 7 > T, not cyclic, InitialDelayedPower 5 (one value for all the
+ *   instants): node 1 receives 5 at every instant from the past, the boiler
+ *   gives 25 + 25, 5000;
+ * - delay 7, cyclic: as delay 2, 1277.78.
+ *
+ * The unit with the delay is written and read back, its Solution restores
+ * the powers delivered after the horizon, and a reserve of a delayed
+ * generator and an InitialDelayedPower over too few instants are refused. */
+
+static CUData pipe_CU( unsigned int delay , int cyclic ,
+                       const std::vector< double > & idp )
+{
+ const Index T = 5;
+ CUData d;
+ d.T = T;
+ d.G = 2;
+ d.minP = rep( T , { -50 , 0 } );
+ d.maxP = rep( T , { 0 , 50 } );
+ d.M = 1;
+ d.A = { 0.9 , 1 };
+ d.lhs = rep( T , { 0 } );
+ d.rhs = rep( T , { 0 } );
+ d.initUD = -1;
+ d.delay = { 0 , delay };
+ d.cyclic = { 0 , cyclic };
+ d.idp = idp;
+ return( d );
+ }
+
+static netCDF::NcGroup write_UC_pipe( const CUData & d )
+{
+ const Index T = 5;
+ auto g = new_group( "PP" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , T );
+ auto ND = g.addDim( "NumberNodes" , 2 );
+ g.addDim( "NumberLines" , 0 );
+ g.addDim( "NumberUnits" , 3 );
+ auto NG = g.addDim( "NumberElectricalGenerators" , 4 );
+ put( g , "ActivePowerDemand" , { ND , TH } ,
+      { 0 , 0 , 0 , 0 , 0 , 5 , 5 , 30 , 30 , 5 } );
+ put_int( g , "GeneratorNode" , NG , { 0 , 1 , 0 , 1 } );
+ write_CU( g.addGroup( "UnitBlock_0" ) , d );
+ for( Index i = 1 ; i < 3 ; ++i ) {
+  auto u = g.addGroup( "UnitBlock_" + std::to_string( i ) );
+  u.putAtt( "type" , "ThermalUnitBlock" );
+  put( u , "MaxPower" , i == 1 ? 1000.0 : 300.0 );
+  put( u , "LinearTerm" , TH ,
+       i == 1 ? std::vector< double >{ 10 , 10 , 10 , 50 , 50 }
+              : std::vector< double >( T , 100 ) );
+  put_int( u , "InitUpDownTime" , 5 );
+  }
+ return( g );
+ }
+
+static void test_conversion_delays( void )
+{
+ struct Case {
+  std::string what;
+  unsigned int delay;
+  int cyclic;
+  std::vector< double > idp;
+  double expected;
+  };
+ const std::vector< Case > cases = {
+  { "no delay" , 0 , 0 , {} , 2388.888888889 } ,
+  { "delay 2" , 2 , 0 , { 0 , 5 , 0 , 5 } , 722.222222222 } ,
+  { "delay 2, nothing from the past" , 2 , 0 , {} , 1722.222222222 } ,
+  { "delay 2, cyclic" , 2 , 1 , {} , 1277.777777778 } ,
+  { "delay 7" , 7 , 0 , { 0 , 5 } , 5000 } ,
+  { "delay 7, cyclic" , 7 , 1 , {} , 1277.777777778 } };
+
+ for( const auto & c : cases ) {
+  const auto what = "delays, " + c.what;
+  try {
+   std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+                Block::new_Block( write_UC_pipe( pipe_CU( c.delay , c.cyclic ,
+                                                          c.idp ) ) ) ) );
+   generate_all( uc.get() );
+   const double v = conv_milp( uc.get() );
+   if( std::isnan( v ) ) {
+    std::cout << "delays: no :MILPSolver, skipped" << std::endl;
+    return;
+    }
+   check( close( v , c.expected ) , what + ": optimum " + str( v ) +
+          " instead of " + str( c.expected ) );
+
+   if( c.what == "delay 2, nothing from the past" ) {
+    // the powers from the past given after the generation
+    auto cub = dynamic_cast< ConversionUnitBlock * >(
+                                                uc->get_unit_block( 0 ) );
+    std::vector< double > p = { 5 , 5 };
+    cub->set_initial_delayed_power( p.cbegin() , 1 , Range( 0 , 2 ) ,
+                                    eModBlck , eModBlck );
+    const double w = conv_milp( uc.get() );
+    check( close( w , 722.222222222 ) , what + ", powers set after the "
+           "generation: optimum " + str( w ) + " instead of 722.22" );
+    }
+
+   if( c.what == "delay 2" ) {
+    // the Solution restores the powers delivered after the horizon
+    auto cub = dynamic_cast< ConversionUnitBlock * >(
+                                                uc->get_unit_block( 0 ) );
+    check( cub->get_number_tail_powers( 1 ) == 2 , what + ": " +
+           std::to_string( cub->get_number_tail_powers( 1 ) ) + " powers "
+           "after the horizon instead of 2" );
+    std::unique_ptr< Solution > sol( cub->get_Solution( nullptr , false ) );
+    auto tp = cub->get_tail_power( 1 );
+    std::vector< double > old = { tp[ 0 ].get_value() ,
+                                  tp[ 1 ].get_value() };
+    tp[ 0 ].set_value( 77 );
+    tp[ 1 ].set_value( 77 );
+    sol->write( cub );
+    check( ( tp[ 0 ].get_value() == old[ 0 ] ) &&
+           ( tp[ 1 ].get_value() == old[ 1 ] ) , what + ": the Solution "
+           "does not restore the powers after the horizon" );
+    check( uc->is_feasible() , what + ": the solution is not feasible" );
+    }
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ // Delay 0 written is the same as no Delay
+ {
+  auto a = new_CU( pipe_CU( 0 , 0 , {} ) );
+  auto e = pipe_CU( 0 , 0 , {} );
+  e.delay.clear();
+  e.cyclic.clear();
+  auto b = new_CU( e );
+  generate_all( a );
+  generate_all( b );
+  const auto why = rows_differ( a , b );
+  check( why.empty() , "delays: Delay 0 gives other rows, " + why );
+  delete a;
+  delete b;
+  }
+
+ // written and read back
+ auto g = new_group( "CU" , true );
+ write_CU( g , pipe_CU( 2 , 0 , { 1 , 2 , 3 , 4 } ) );
+ auto b = round_trip( g , "delays" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && ( cub->get_delay( 1 ) == 2 ) && ( ! cub->is_cyclic_delay( 1 ) )
+        && ( cub->get_initial_delayed_power( 1 , 1 ) == 4 ) ,
+        "delays: the data read back differ" );
+ delete b;
+
+ // the refused data
+ auto refused = [ & ]( const CUData & d , const std::string & what ) {
+  bool thrown = false;
+  try { delete new_CU( d ); }
+  catch( std::exception & ) { thrown = true; }
+  check( thrown , "delays: " + what + " is not refused" );
+  };
+ auto e = pipe_CU( 2 , 0 , {} );
+ e.minP = rep( 5 , { -50 , 0 } );
+ e.prho = rep( 5 , { 0 , 0.1 } );
+ refused( e , "a reserve of a delayed generator" );
+ e = pipe_CU( 3 , 0 , { 0 , 1 , 0 , 1 } );  // two instants, three needed
+ refused( e , "an InitialDelayedPower over too few instants" );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -12621,6 +12816,7 @@ int main( int argc , char ** argv )
   test_conversion_edge_cases();
   test_conversion_round_trip();
   test_conversion_varying_matrix();
+  test_conversion_delays();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

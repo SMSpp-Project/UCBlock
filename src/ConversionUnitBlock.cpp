@@ -215,6 +215,63 @@ void ConversionUnitBlock::read_operating_matrix(
 
 /*--------------------------------------------------------------------------*/
 
+/* Reads "Delay", "CyclicDelay" and "InitialDelayedPower", the last one
+ * expanded to [ H ][ G ], H the largest number of instants of the horizon
+ * whose power some generator receives from the operation before it. */
+
+void ConversionUnitBlock::read_delays( const netCDF::NcGroup & group ,
+                                       const std::string & who )
+{
+ const Index T = f_time_horizon;
+ auto zero = []( const auto & v ) {
+  return( std::all_of( v.begin() , v.end() ,
+                       []( auto x ) { return( x == 0 ); } ) );
+  };
+
+ v_Delay.clear();
+ if( ::deserialize( group , "Delay" , f_G , v_Delay , true , true ) &&
+     ( v_Delay.size() == 1 ) )
+  v_Delay.resize( f_G , v_Delay.front() );
+ if( zero( v_Delay ) )
+  v_Delay.clear();
+
+ v_CyclicDelay.clear();
+ if( ::deserialize( group , "CyclicDelay" , f_G , v_CyclicDelay , true ,
+                    true ) && ( v_CyclicDelay.size() == 1 ) )
+  v_CyclicDelay.resize( f_G , v_CyclicDelay.front() );
+ if( zero( v_CyclicDelay ) )
+  v_CyclicDelay.clear();
+
+ Index H = 0;
+ for( Index g = 0 ; g < f_G ; ++g )
+  H = std::max( H , head_size( g ) );
+
+ v_InitialDelayedPower.resize( boost::extents[ 0 ][ 0 ] );
+ auto var = group.getVar( "InitialDelayedPower" );
+ if( var.isNull() || ( H == 0 ) || ( T == 0 ) )
+  return;
+
+ const Index d0 = var.getDimCount() ? var.getDim( 0 ).getSize() : 1;
+ MAdbl idp;
+ ::deserialize( group , "InitialDelayedPower" , { d0 , f_G } , idp , false ,
+                true );
+ if( ( d0 != 1 ) && ( d0 < H ) )
+  throw( std::invalid_argument( who + ": InitialDelayedPower has " +
+                                std::to_string( d0 ) + " instants, fewer "
+                                "than the " + std::to_string( H ) +
+                                " the delays need" ) );
+ v_InitialDelayedPower.resize( boost::extents[ H ][ f_G ] );
+ for( Index s = 0 ; s < H ; ++s )
+  for( Index g = 0 ; g < f_G ; ++g )
+   v_InitialDelayedPower[ s ][ g ] = idp[ d0 == 1 ? 0 : s ][ g ];
+ if( zero( std::vector< double >( v_InitialDelayedPower.data() ,
+                                  v_InitialDelayedPower.data() +
+                                  v_InitialDelayedPower.num_elements() ) ) )
+  v_InitialDelayedPower.resize( boost::extents[ 0 ][ 0 ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
 {
  static const std::string who = "ConversionUnitBlock::deserialize";
@@ -358,6 +415,10 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
   if( v_InitialPower.size() == 1 )
    v_InitialPower.resize( f_G , v_InitialPower.front() );
 
+ // the delays- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ read_delays( group , who );
+
  f_MinUpTime = f_MinDownTime = 1;
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = std::max( f_MinUpTime , Index( 1 ) );
@@ -379,6 +440,10 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , f_scale , "Scale" );
 
  compute_reserve_signs( who );
+ for( Index g = 0 ; g < f_G ; ++g )
+  if( v_sign[ g ] && get_delay( g ) )
+   throw( std::invalid_argument( who + ": generator " + std::to_string( g ) +
+                                 " offers a reserve and has a delay" ) );
  check_data( who );
 
  }  // end( ConversionUnitBlock::deserialize )
@@ -390,7 +455,8 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
 std::vector< std::string > ConversionUnitBlock::expected_dims( void ) const
 {
  static const std::vector< std::string > ed =
-  { "NumberGenerators" , "NumberOperatingRows" , "NumberRampRows" };
+  { "NumberGenerators" , "NumberOperatingRows" , "NumberRampRows" ,
+    "NumberDelayedInstants" };
 
  auto ret = UnitBlock::expected_dims();
  ret.insert( ret.end() , ed.begin() , ed.end() );
@@ -410,7 +476,8 @@ std::vector< std::string > ConversionUnitBlock::expected_vars( void ) const
     "SecondarySpinningReserveCost" , "LinearTerm" , "QuadTerm" ,
     "ConstTerm" , "StartUpCost" , "ShutDownCost" , "FixedConsumption" ,
     "InertiaCommitment" , "InertiaPower" , "InitialPower" ,
-    "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Scale" };
+    "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Scale" , "Delay" ,
+    "CyclicDelay" , "InitialDelayedPower" };
 
  auto ret = UnitBlock::expected_vars();
  ret.insert( ret.end() , ev.begin() , ev.end() );
@@ -588,6 +655,57 @@ double ConversionUnitBlock::get_ramp_coefficient( Index k , Index g ) const
 
 /*--------------------------------------------------------------------------*/
 
+double ConversionUnitBlock::get_initial_delayed_power( Index s ,
+                                                       Index g ) const
+{
+ if( absent( v_InitialDelayedPower ) ||
+     ( s >= v_InitialDelayedPower.shape()[ 0 ] ) )
+  return( 0 );
+ return( v_InitialDelayedPower[ s ][ g ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+Index ConversionUnitBlock::head_size( Index g ) const
+{
+ return( is_cyclic_delay( g ) ? 0 : std::min( get_delay( g ) ,
+                                              f_time_horizon ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The position in v_active_power[ g ] of the power of the instant of
+ * operation t: the instant t + d at which it is delivered, if it is in the
+ * horizon, modulo T if the delay is cyclic, and otherwise one of the
+ * positions after T, in the order of t. */
+
+Index ConversionUnitBlock::position_of( Index g , Index t ) const
+{
+ const Index T = f_time_horizon;
+ const Index d = get_delay( g );
+ if( is_cyclic_delay( g ) )
+  return( ( t + d ) % T );
+ if( t + d < T )
+  return( t + d );
+ return( T + t - ( T > d ? T - d : 0 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The instant of operation whose power is in the position i of
+ * v_active_power[ g ], i >= head_size( g ) [see position_of()]. */
+
+Index ConversionUnitBlock::instant_of( Index g , Index i ) const
+{
+ const Index T = f_time_horizon;
+ const Index d = get_delay( g );
+ if( is_cyclic_delay( g ) )
+  return( ( i + T - ( d % T ) ) % T );
+ if( i < T )
+  return( i - d );
+ return( i - T + ( T > d ? T - d : 0 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 Index ConversionUnitBlock::first_free_instant( void ) const
 {
  const int init = f_InitUpDownTime;
@@ -678,10 +796,12 @@ void ConversionUnitBlock::generate_abstract_variables( Configuration * stvv )
   var.set_type( ColVariable::kBinary );
  add_static_variable( v_shut_down , "w_conversion" );
 
+ // the powers delivered at the instants of the horizon, then those of the
+ // instants of operation whose power is delivered after it
  v_active_power.resize( f_G );
- for( auto & pg : v_active_power ) {
-  pg.resize( T );
-  for( auto & var : pg )
+ for( Index g = 0 ; g < f_G ; ++g ) {
+  v_active_power[ g ].resize( T + head_size( g ) );
+  for( auto & var : v_active_power[ g ] )
    var.set_type( ColVariable::kContinuous );
   }
  add_static_variable( v_active_power , "p_conversion" );
@@ -982,7 +1102,7 @@ void ConversionUnitBlock::build_rows( void )
    const double mn = v_MinPower[ t ][ g ];
    const double mx = v_MaxPower[ t ][ g ];
    const bool last = ( t + 1 >= T );
-   auto & p = v_active_power[ g ][ t ];
+   auto & p = op( g , t );
 
    if( ! has_lower_limit( g ) ) {
     add( p , 1 );
@@ -1055,14 +1175,22 @@ void ConversionUnitBlock::build_rows( void )
 
  if( generating_rows() ) {
   ActivePower_Bound.resize( f_G );
-  for( auto & b : ActivePower_Bound )
-   b.resize( T );
+  for( Index g = 0 ; g < f_G ; ++g )
+   ActivePower_Bound[ g ].resize( v_active_power[ g ].size() );
   }
  for( Index g = 0 ; g < f_G ; ++g )
-  for( Index t = 0 ; t < T ; ++t )
-   put_box( ActivePower_Bound[ g ][ t ] , & v_active_power[ g ][ t ] ,
+  for( Index i = 0 ; i < v_active_power[ g ].size() ; ++i ) {
+   if( i < head_size( g ) ) {  // delivered by the operation before 0
+    const double d = get_initial_delayed_power( i , g );
+    put_box( ActivePower_Bound[ g ][ i ] , & v_active_power[ g ][ i ] , d ,
+             d );
+    continue;
+    }
+   const Index t = instant_of( g , i );
+   put_box( ActivePower_Bound[ g ][ i ] , & v_active_power[ g ][ i ] ,
             std::min( 0.0 , double( v_MinPower[ t ][ g ] ) ) ,
             std::max( 0.0 , double( v_MaxPower[ t ][ g ] ) ) );
+   }
  if( generating_rows() && ( ! f_counting ) && T )
   add_static_constraint( ActivePower_Bound ,
                          "ActivePower_Bound_Conversion" );
@@ -1072,7 +1200,7 @@ void ConversionUnitBlock::build_rows( void )
  auto add_ap = [ & ]( Index t , Index m ) {
   for( Index g = 0 ; g < f_G ; ++g )
    if( const double a = get_operating_coefficient( m , g , t ) ; a != 0 )
-    add( v_active_power[ g ][ t ] , a );
+    add( op( g , t ) , a );
   };
 
  for( Index t = 0 ; t < T ; ++t )
@@ -1109,9 +1237,9 @@ void ConversionUnitBlock::build_rows( void )
    const double c = get_ramp_coefficient( k , g );
    if( c == 0 )
     continue;
-   add( v_active_power[ g ][ t ] , sgn * c );
+   add( op( g , t ) , sgn * c );
    if( t )
-    add( v_active_power[ g ][ t - 1 ] , - sgn * c );
+    add( op( g , t - 1 ) , - sgn * c );
    else
     cst += sgn * c * p_init( g );
    }
@@ -1177,7 +1305,7 @@ void ConversionUnitBlock::build_rows( void )
                         Index g , std::vector< FRowConstraint > & rows ) {
   for( Index t = 0 ; t < T ; ++t ) {
    add( ( * r )[ t ] , 1 );
-   add( v_active_power[ g ][ t ] , - rho[ t ][ g ] * v_sign[ g ] );
+   add( op( g , t ) , - rho[ t ][ g ] * v_sign[ g ] );
    push_row( rows , std::move( vars ) , - INF , 0 );
    }
   };
@@ -1197,7 +1325,7 @@ void ConversionUnitBlock::build_rows( void )
 
  // the terms of q^s[ t ][ h ]
  auto add_q = [ & ]( Index t , Index h , double s ) {
-  add( v_active_power[ h ][ t ] , 1 );
+  add( op( h , t ) , 1 );
   for( auto g : R )
    if( D( h , g ) != 0 )
     add_r( t , g , s * D( h , g ) );
@@ -1405,7 +1533,7 @@ void ConversionUnitBlock::generate_objective( Configuration * objc )
                                    f_scale * get_const_term( t ) , 0 ) );
  for( Index g = 0 ; g < f_G ; ++g )
   for( Index t = 0 ; t < T ; ++t )
-   vars.push_back( std::make_tuple( & v_active_power[ g ][ t ] ,
+   vars.push_back( std::make_tuple( & op( g , t ) ,
                                     f_scale * get_linear_term( t , g ) ,
                                     f_scale * get_quad_term( t , g ) ) );
  auto reserve = [ & ]( std::vector< std::vector< ColVariable > > & r ,
@@ -1609,6 +1737,18 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
  ::serialize( group , "MinDownTime" , netCDF::NcUint() , f_MinDownTime );
  if( f_scale != 1 )
   ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
+
+ if( ! v_Delay.empty() ) {
+  std::vector< unsigned int > d( v_Delay.begin() , v_Delay.end() );
+  group.addVar( "Delay" , netCDF::NcUint() , NG ).putVar( d.data() );
+  }
+ if( ! v_CyclicDelay.empty() )
+  group.addVar( "CyclicDelay" , netCDF::NcInt() , NG ).putVar(
+                                                     v_CyclicDelay.data() );
+ if( ! absent( v_InitialDelayedPower ) )
+  put( "InitialDelayedPower" , v_InitialDelayedPower ,
+       group.addDim( "NumberDelayedInstants" ,
+                     v_InitialDelayedPower.shape()[ 0 ] ) , NG );
 
  }  // end( ConversionUnitBlock::serialize )
 
@@ -2027,6 +2167,90 @@ void ConversionUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+                                                     Index g , Range rng ,
+                                                     ModParam issuePMod ,
+                                                     ModParam issueAMod )
+{
+ static const std::string who =
+                         "ConversionUnitBlock::set_initial_delayed_power";
+ if( g >= f_G )
+  throw( std::invalid_argument( who + ": invalid generator " +
+                                std::to_string( g ) ) );
+ rng.second = std::min( rng.second , head_size( g ) );
+ if( rng.second <= rng.first )
+  return;
+
+ bool same = true;
+ auto it = values;
+ for( Index s = rng.first ; s < rng.second ; ++s )
+  same &= ( get_initial_delayed_power( s , g ) == *( it++ ) );
+ if( same )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  MAdbl old;
+  copy_into( old , v_InitialDelayedPower );
+  if( absent( v_InitialDelayedPower ) ) {
+   Index H = 0;
+   for( Index h = 0 ; h < f_G ; ++h )
+    H = std::max( H , head_size( h ) );
+   v_InitialDelayedPower.resize( boost::extents[ H ][ f_G ] );
+   std::fill( v_InitialDelayedPower.data() , v_InitialDelayedPower.data() +
+              v_InitialDelayedPower.num_elements() , 0.0 );
+   }
+  it = values;
+  for( Index s = rng.first ; s < rng.second ; ++s )
+   v_InitialDelayedPower[ s ][ g ] = *( it++ );
+  try {
+   if( not_dry_run( issueAMod ) )
+    update_rows( issueAMod );
+   }
+  catch( ... ) {
+   copy_into( v_InitialDelayedPower , old );
+   throw;
+   }
+  }
+
+ issue_mod( ConversionUnitBlockMod::eSetInitDelP , g ,
+            range_subset( rng , head_size( g ) ) , issuePMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+                                                     Subset && subset ,
+                                                     const bool ordered ,
+                                                     ModParam issuePMod ,
+                                                     ModParam issueAMod )
+{
+ // one change per entry [ g ][ s ], of index g T + s
+ const Index T = f_time_horizon;
+ for( auto i : subset ) {
+  if( ( ! T ) || ( i >= f_G * T ) )
+   throw( std::invalid_argument( "ConversionUnitBlock::"
+                                 "set_initial_delayed_power: invalid index " +
+                                 std::to_string( i ) ) );
+  set_initial_delayed_power( values++ , i / T ,
+                             Range( i % T , i % T + 1 ) , issuePMod ,
+                             issueAMod );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+                                                     Range rng ,
+                                                     ModParam issuePMod ,
+                                                     ModParam issueAMod )
+{
+ set_initial_delayed_power( values ,
+                            range_subset( rng , f_G * f_time_horizon ) ,
+                            true , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void ConversionUnitBlock::set_init_updown_time( MF_int_it values ,
                                                 Range rng ,
                                                 ModParam issuePMod ,
@@ -2326,6 +2550,11 @@ void ConversionUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
                 true , false );
  ::deserialize( group , "ConversionShutDown" , f_time_horizon , v_shut_down ,
                 true , false );
+ v_tail.clear();
+ Index nt = 0;
+ if( deserialize_dim( group , "NumberTailPowers" , nt ) )
+  ::deserialize( group , "ConversionTailPower" , nt , v_tail , false ,
+                 false );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2353,6 +2582,13 @@ void ConversionUnitBlockSolution::read( const Block * block )
   v_start_up.clear();
   v_shut_down.clear();
   }
+
+ v_tail.clear();
+ if( get_active_power().num_elements() )  // with the active powers
+  for( Index g = 0 ; g < CUB->get_number_generators() ; ++g )
+   if( auto tp = cub->get_tail_power( g ) )
+    for( Index i = 0 ; i < cub->get_number_tail_powers( g ) ; ++i )
+     v_tail.push_back( tp[ i ].get_value() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2375,6 +2611,17 @@ void ConversionUnitBlockSolution::write( Block * block )
   if( auto sd = CUB->get_shut_down() )
    for( Index t = 0 ; t < T ; ++t )
     sd[ t ].set_value( v_shut_down[ t ] );
+
+ Index nt = 0;
+ for( Index g = 0 ; g < CUB->get_number_generators() ; ++g )
+  nt += CUB->get_number_tail_powers( g );
+ if( nt && ( v_tail.size() == nt ) ) {
+  auto it = v_tail.begin();
+  for( Index g = 0 ; g < CUB->get_number_generators() ; ++g )
+   if( auto tp = CUB->get_tail_power( g ) )
+    for( Index i = 0 ; i < CUB->get_number_tail_powers( g ) ; ++i )
+     tp[ i ].set_value( *( it++ ) );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2391,6 +2638,10 @@ void ConversionUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  if( ! v_shut_down.empty() )
   group.addVar( "ConversionShutDown" , netCDF::NcDouble() , TH ).putVar(
                                                        v_shut_down.data() );
+ if( ! v_tail.empty() )
+  group.addVar( "ConversionTailPower" , netCDF::NcDouble() ,
+                group.addDim( "NumberTailPowers" , v_tail.size() ) ).putVar(
+                                                            v_tail.data() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2405,6 +2656,8 @@ ConversionUnitBlockSolution * ConversionUnitBlockSolution::scale(
  for( auto & v : sol->v_start_up )
   v *= factor;
  for( auto & v : sol->v_shut_down )
+  v *= factor;
+ for( auto & v : sol->v_tail )
   v *= factor;
  return( sol );
  }
@@ -2422,7 +2675,8 @@ void ConversionUnitBlockSolution::sum( const Solution * solution ,
                                 "solution not a "
                                 "ConversionUnitBlockSolution" ) );
  if( ( v_start_up.size() != CS->v_start_up.size() ) ||
-     ( v_shut_down.size() != CS->v_shut_down.size() ) )
+     ( v_shut_down.size() != CS->v_shut_down.size() ) ||
+     ( v_tail.size() != CS->v_tail.size() ) )
   throw( std::invalid_argument( "ConversionUnitBlockSolution::sum: "
                                 "inconsistent start-up or shut-down "
                                 "indicators" ) );
@@ -2430,6 +2684,8 @@ void ConversionUnitBlockSolution::sum( const Solution * solution ,
   v_start_up[ i ] += CS->v_start_up[ i ] * multiplier;
  for( Index i = 0 ; i < v_shut_down.size() ; ++i )
   v_shut_down[ i ] += CS->v_shut_down[ i ] * multiplier;
+ for( Index i = 0 ; i < v_tail.size() ; ++i )
+  v_tail[ i ] += CS->v_tail[ i ] * multiplier;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2442,6 +2698,7 @@ ConversionUnitBlockSolution * ConversionUnitBlockSolution::clone(
   guts_of_clone( sol );
   sol->v_start_up = v_start_up;
   sol->v_shut_down = v_shut_down;
+  sol->v_tail = v_tail;
   }
  return( sol );
  }

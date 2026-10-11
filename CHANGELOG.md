@@ -51,6 +51,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instants, as the other data), e.g., the coefficient of performance of a
   heat pump; a file with the matrix of old reads and behaves as before
 
+- `ConversionUnitBlock`: a generator may deliver its power with a delay of
+  some instants ("Delay"), the rows being written at the instant of
+  operation; the power delivered at the first instants comes from the
+  operation before the horizon ("InitialDelayedPower", 0 by default) and the
+  power of the last instants of operation is delivered after it, unless the
+  delay wraps around the horizon ("CyclicDelay"); the Solution saves the
+  powers delivered after the horizon
+
 - `data/gen_multi_energy.py` writes the multi-energy instances (a combined
   heat and power plant as a `ConversionUnitBlock` and with hyperarcs, a
   meshed network with a heat node) and prints their known optima; they are

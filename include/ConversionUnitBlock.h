@@ -218,6 +218,35 @@ namespace SMSpp_di_unipi_it
  * factor \f$ \sigma \f$ of the unit (see UnitBlock::scale()) multiplies
  * every term of the unit, as for any UnitBlock.
  *
+ * <b>Delays.</b> A generator \f$ g \f$ may deliver its power with a delay
+ * of \f$ d_g \geq 0 \f$ instants ("Delay"), as the heat of a district
+ * heating pipe or the gas of a long pipeline reaches its node some time
+ * after the plant has produced it: the operation of the unit at the instant
+ * \f$ t \f$ (its commitment and the point of its region) gives the power
+ * \f$ q_{t,g} \f$ of the generator, which the node receives at the instant
+ * \f$ t + d_g \f$, i.e., the power at the node at the instant \f$ s \f$ is
+ * \f$ p_{s,g} = q_{s - d_g , g} \f$. Every row of the unit is written in
+ * the instants of operation, hence a delay is a renaming of the Variable
+ * and changes neither the form of the rows nor what is said below about
+ * their tightness: an output delayed by \f$ d \f$ with respect to its
+ * input is a generator with delay \f$ d \f$ and an input with none, and
+ * outputs with different delays (say, two pipes of different lengths) have
+ * different delays. Two cases differ at the ends of the horizon. If the
+ * delay is not cyclic, the node receives at the instants
+ * \f$ s < \min\{ d_g , T \} \f$ the powers \f$ \hat{p}_{s,g} \f$ of the
+ * operation before the horizon ("InitialDelayedPower", 0 by default), which
+ * are data, and the powers \f$ q_{t,g} \f$ of the instants
+ * \f$ t \geq T - d_g \f$ reach the node after the horizon, so that they are
+ * Variable of the unit that enter no linking row of the UCBlock; if it is
+ * cyclic ("CyclicDelay"), the horizon wraps around, \f$ p_{s,g} =
+ * q_{( s - d_g ) \bmod T , g} \f$, as for a horizon that repeats itself.
+ * A generator with a delay offers no spinning reserve (the reserve would be
+ * deployed at an instant other than the one of the operation). The
+ * commitment, the fixed consumption and the inertia per unit of
+ * commitment are of the instants of operation, and the inertia per unit of
+ * power and the emissions of a generator are of the power its node
+ * receives.
+ *
  * As for ThermalUnitBlock, all the data are given per instant and no length
  * of the time step appears in any row: a ramp is the largest change of a
  * combination of the powers between two consecutive instants, a minimum up
@@ -402,6 +431,26 @@ class ConversionUnitBlock : public UnitBlock
   *   which case it must lie in the region \f$ \mathcal{P}_0 \f$ of the
   *   instant 0 (an exception is thrown otherwise).
   *
+  * - The variable "Delay", of type netCDF::NcUint and indexed over
+  *   "NumberGenerators" (or a scalar, for the same delay for all the
+  *   generators), the delays \f$ d_g \f$ in instants (see the class
+  *   documentation); optional with default 0.
+  *
+  * - The variable "CyclicDelay", of type netCDF::NcInt and indexed over
+  *   "NumberGenerators" (or a scalar), nonzero for the generators whose
+  *   delay wraps around the horizon; optional with default 0.
+  *
+  * - The variable "InitialDelayedPower", indexed over a dimension of size
+  *   1 (the same value at every instant) or at least
+  *   \f$ H = \max_g \min\{ d_g , T \} \f$ over the generators with a delay
+  *   that is not cyclic (say, "NumberDelayedInstants") and over
+  *   "NumberGenerators", whose entry \f$ [ s ][ g ] \f$ is the power
+  *   \f$ \hat{p}_{s,g} \f$ the generator delivers at the instant
+  *   \f$ s < \min\{ d_g , T \} \f$ as the result of the operation before
+  *   the horizon (the other entries are ignored); optional with default 0.
+  *   It is independent of InitialPower, which is the operating point at
+  *   \f$ -1 \f$ for the rows that tie the instant 0 to the past.
+  *
   * - The scalar variable "InitUpDownTime", of type netCDF::NcInt, the
   *   number \f$ \tau_0 \f$ of instants the unit has been on
   *   (\f$ \tau_0 > 0 \f$) or off (\f$ \tau_0 \leq 0 \f$, for \f$ - \tau_0
@@ -480,7 +529,14 @@ class ConversionUnitBlock : public UnitBlock
   *
   * - the active powers \f$ p_{t,g} \f$, \f$ t \in \mathcal{T} \f$,
   *   \f$ g \in \mathcal{G} \f$ ("p_conversion", one vector per generator),
-  *   continuous, their bounds being rows;
+  *   continuous, their bounds being rows; for a generator with a delay
+  *   \f$ d_g > 0 \f$ that is not cyclic, the vector has the
+  *   \f$ T \f$ powers delivered at the instants of the horizon, the first
+  *   \f$ \min\{ d_g , T \} \f$ fixed to InitialDelayedPower by their
+  *   bounds, followed by the \f$ \min\{ d_g , T \} \f$ powers
+  *   \f$ q_{t,g} \f$ of the instants of operation
+  *   \f$ t \geq T - d_g \f$, which are delivered after the horizon (see
+  *   get_tail_power());
   *
   * - the primary reserves \f$ p^{pr}_{t,g} \geq 0 \f$ ("pr_conversion") of
   *   the generators with a nonzero PrimaryRho, if the UCBlock has a primary
@@ -501,7 +557,11 @@ class ConversionUnitBlock : public UnitBlock
   * notation of deserialize() and generate_abstract_variables(); each group
   * of rows is given with the name under which it is added to the Block, and
   * a group whose data are absent is not generated. A term in \f$ w_{t+1}
-  * \f$ is absent for \f$ t = T - 1 \f$.
+  * \f$ is absent for \f$ t = T - 1 \f$. Every row is written in the
+  * instants of operation: for a generator with a delay \f$ d_g \f$,
+  * \f$ p_{t,g} \f$ below is the power \f$ q_{t,g} \f$ of the operation at
+  * \f$ t \f$, delivered at \f$ t + d_g \f$ (see the class documentation),
+  * and the two coincide if \f$ d_g = 0 \f$.
   *
   * <b>Commitment.</b> For \f$ t \in \mathcal{T} \f$,
   * \f{align*}{
@@ -531,8 +591,10 @@ class ConversionUnitBlock : public UnitBlock
   * and \f$ \min\{ 0 , P^{mn}_{t,g} \} \leq p_{t,g} \leq \max\{ 0 ,
   * P^{mx}_{t,g} \} \f$ as a BoxConstraint ("ActivePower_Bound_Conversion"),
   * which the rows imply but a Solver that only reads the bounds of the
-  * Variable needs. For a generator with an upper start-up or shut-down
-  * limit, let
+  * Variable needs; the powers delivered at \f$ s < \min\{ d_g , T \} \f$
+  * by the operation before the horizon are fixed to
+  * \f$ \hat{p}_{s,g} \f$ in the same BoxConstraint. For a generator with an
+  * upper start-up or shut-down limit, let
   * \f[
   *   \hat{U}^{su}_{t,g} = \min\{ \bar{S}^{su}_{t,g} , P^{mx}_{t,g} \} \; ,
   *   \qquad
@@ -707,7 +769,9 @@ class ConversionUnitBlock : public UnitBlock
   * that every cost can be changed after the generation (a reserve with no
   * Variable having no term). The order of the Variable in the DQuadFunction
   * is \f$ v \f$, \f$ w \f$, \f$ u \f$ (each over \f$ \mathcal{T} \f$), then
-  * the powers of each generator in turn, then the primary and the secondary
+  * the powers of each generator in turn (those of the instants of operation,
+  * \f$ p_{t,g} = q_{t,g} \f$ in the order of \f$ t \f$, the powers
+  * delivered from before the horizon having no term), then the primary and the secondary
   * reserves of each generator that has them, in turn. The parameter
   * \p objc is not used. */
 
@@ -789,6 +853,24 @@ class ConversionUnitBlock : public UnitBlock
  double get_initial_power( Index generator ) const {
   return( v_InitialPower[ generator ] );
   }
+
+ /// returns the delay \f$ d_g \f$ of the generator, in instants
+ Index get_delay( Index generator ) const {
+  return( v_Delay.empty() ? 0 : v_Delay[ generator ] );
+  }
+
+ /// true if the delay of the generator wraps around the horizon
+ bool is_cyclic_delay( Index generator ) const {
+  return( ( ! v_CyclicDelay.empty() ) && v_CyclicDelay[ generator ] &&
+          get_delay( generator ) );
+  }
+
+ /// returns the power \f$ \hat{p}_{s,g} \f$ delivered at s < \f$ d_g \f$
+ /** Returns the power that the generator delivers at the instant \p s of the
+  * horizon as the result of the operation before it (InitialDelayedPower),
+  * 0 if it is not given. */
+
+ double get_initial_delayed_power( Index s , Index generator ) const;
 
  /// returns the initial up/down time \f$ \tau_0 \f$
  int get_init_up_down_time( void ) const { return( f_InitUpDownTime ); }
@@ -890,6 +972,33 @@ class ConversionUnitBlock : public UnitBlock
   return( v_commitment.empty() ? nullptr : v_commitment.data() );
   }
 
+ /// returns the power Variable of the generator at the operation instant t
+ /** Returns the Variable \f$ q_{t,g} \f$ of the power of the generator due
+  * to the operation of the unit at the instant \p t, i.e., the one
+  * delivered at \f$ t + d_g \f$ (see generate_abstract_variables()). */
+
+ ColVariable & get_operating_power( Index generator , Index t ) {
+  return( op( generator , t ) );
+  }
+
+ /// the number of powers of the generator delivered after the horizon
+ Index get_number_tail_powers( Index generator ) const {
+  return( ( generator < v_active_power.size() ) &&
+          ( v_active_power[ generator ].size() > f_time_horizon ) ?
+          v_active_power[ generator ].size() - f_time_horizon : 0 );
+  }
+
+ /// the powers of the generator delivered after the horizon, if any
+ /** Returns the array of the get_number_tail_powers() Variable of the powers
+  * of the operation instants \f$ t \geq T - d_g \f$, in the order of
+  * \f$ t \f$, which are delivered after the horizon (nullptr if there are
+  * none). */
+
+ ColVariable * get_tail_power( Index generator ) {
+  return( get_number_tail_powers( generator ) ?
+          v_active_power[ generator ].data() + f_time_horizon : nullptr );
+  }
+
  /// returns the start-up Variable \f$ v_t \f$
  ColVariable * get_start_up( void ) {
   return( v_start_up.empty() ? nullptr : v_start_up.data() );
@@ -901,6 +1010,10 @@ class ConversionUnitBlock : public UnitBlock
   }
 
  /// returns the active power Variable of the given generator
+ /** Returns the array of the powers \f$ p_{s,g} \f$ that the generator
+  * delivers at its node at the instants \f$ s \in \mathcal{T} \f$ of the
+  * horizon (see generate_abstract_variables()). */
+
  ColVariable * get_active_power( Index generator ) override {
   if( ( generator >= v_active_power.size() ) ||
       v_active_power[ generator ].empty() )
@@ -1109,6 +1222,18 @@ class ConversionUnitBlock : public UnitBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
+ /// sets the powers \f$ \hat{p}_{s,g} \f$ delivered from before the horizon
+ /** Sets the powers that the generator \p generator delivers at the
+  * instants \p rng of the horizon as the result of the operation before it
+  * (InitialDelayedPower), the instants at or after \f$ \min\{ d_g , T \}
+  * \f$ being ignored; they are the bounds of the delivered powers of those
+  * instants. */
+
+ void set_initial_delayed_power( MF_dbl_it values , Index generator ,
+                                 Range rng = INFRange ,
+                                 ModParam issuePMod = eNoBlck ,
+                                 ModParam issueAMod = eNoBlck );
+
  /// sets the initial up/down time \f$ \tau_0 \f$
  /** Sets \f$ \tau_0 \f$ to *values, \p rng being ignored unless it is
   * empty. The change moves the bounds of \f$ u \f$ and \f$ w_0 \f$ and the
@@ -1213,6 +1338,15 @@ class ConversionUnitBlock : public UnitBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
+ /// sets the powers delivered from before the horizon, entries [ g ][ s ]
+ void set_initial_delayed_power( MF_dbl_it values , Subset && subset ,
+                                 const bool ordered = false ,
+                                 ModParam issuePMod = eNoBlck ,
+                                 ModParam issueAMod = eNoBlck );
+ void set_initial_delayed_power( MF_dbl_it values , Range rng = INFRange ,
+                                 ModParam issuePMod = eNoBlck ,
+                                 ModParam issueAMod = eNoBlck );
+
  /// sets \f$ \tau_0 \f$ to *values if \p subset is not empty
  void set_init_updown_time( MF_int_it values , Subset && subset ,
                             const bool ordered = false ,
@@ -1248,6 +1382,23 @@ class ConversionUnitBlock : public UnitBlock
  /// reads "OperatingMatrix", static or indexed over the instants
  void read_operating_matrix( const netCDF::NcGroup & group ,
                              const std::string & who );
+
+ /// reads the delays and the powers delivered from before the horizon
+ void read_delays( const netCDF::NcGroup & group , const std::string & who );
+
+ /// the number of instants at which g delivers the operation before 0
+ Index head_size( Index g ) const;
+
+ /// the position in v_active_power[ g ] of the operation instant t
+ Index position_of( Index g , Index t ) const;
+
+ /// the operation instant of the position i >= head_size( g )
+ Index instant_of( Index g , Index i ) const;
+
+ /// the power Variable of g at the operation instant t
+ ColVariable & op( Index g , Index t ) {
+  return( v_active_power[ g ][ position_of( g , t ) ] );
+  }
 
  /// the first instant at which the commitment is free
  Index first_free_instant( void ) const;
@@ -1356,6 +1507,9 @@ class ConversionUnitBlock : public UnitBlock
  ///< [ G ][ T ] inertia per unit of power, an empty row being none
 
  std::vector< double > v_InitialPower;  ///< [ G ] initial powers
+ std::vector< Index > v_Delay;          ///< [ G ] delays, empty = 0
+ std::vector< int > v_CyclicDelay;      ///< [ G ] cyclic, empty = none
+ MAdbl v_InitialDelayedPower;           ///< [ H ][ G ], empty = 0
  int f_InitUpDownTime = 0;              ///< initial up/down time
  Index f_MinUpTime = 1;                 ///< minimum up time
  Index f_MinDownTime = 1;               ///< minimum down time
@@ -1369,7 +1523,8 @@ class ConversionUnitBlock : public UnitBlock
  std::vector< ColVariable > v_commitment;  ///< u[ t ]
  std::vector< ColVariable > v_start_up;    ///< v[ t ]
  std::vector< ColVariable > v_shut_down;   ///< w[ t ]
- std::vector< std::vector< ColVariable > > v_active_power;  ///< p[ g ][ t ]
+ std::vector< std::vector< ColVariable > > v_active_power;
+ ///< p[ g ][ s ], the T delivered powers then the tail [see op()]
  std::vector< std::vector< ColVariable > > v_primary_reserve;
  ///< pr[ g ][ t ], an empty row for a generator with no primary reserve
  std::vector< std::vector< ColVariable > > v_secondary_reserve;
@@ -1540,6 +1695,14 @@ class ConversionUnitBlock : public UnitBlock
    "ConversionUnitBlock::scale" ,
    & ConversionUnitBlock::scale );
 
+  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ConversionUnitBlock::set_initial_delayed_power" ,
+   & ConversionUnitBlock::set_initial_delayed_power );
+
+  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+   "ConversionUnitBlock::set_initial_delayed_power" ,
+   & ConversionUnitBlock::set_initial_delayed_power );
+
   register_method< ConversionUnitBlock , MF_int_it , Subset && , bool >(
    "ConversionUnitBlock::set_init_updown_time" ,
    & ConversionUnitBlock::set_init_updown_time );
@@ -1584,6 +1747,7 @@ class ConversionUnitBlockMod : public UnitBlockMod
   eSetRampDown ,                ///< ramp-down limit of a combination
   eSetInitP ,                   ///< initial powers (nms() = generators)
   eSetInitUD ,                  ///< initial up/down time
+  eSetInitDelP ,                ///< powers delivered from before the horizon
   eCUBModLastParam    ///< first allowed parameter value for derived classes
   };
 
@@ -1624,11 +1788,12 @@ class ConversionUnitBlockMod : public UnitBlockMod
 /** The ConversionUnitBlockSolution class derives from UnitBlockSolution and
  * adds to the information stored there (the active powers, the commitment
  * of the commitment generator and the reserves) the start-up and shut-down
- * indicators of the unit, which are saved with the commitment: deriving
+ * indicators of the unit, which are saved with the commitment (deriving
  * them from the commitment when the Solution is written back is right for
  * one schedule but not for a convex combination of several, whose
  * start-ups are the average of those of the schedules, not those of their
- * averaged commitment. */
+ * averaged commitment), and the powers that the generators with a delay
+ * deliver after the horizon, which are saved with the active powers. */
 
 class ConversionUnitBlockSolution : public UnitBlockSolution
 {
@@ -1662,7 +1827,9 @@ class ConversionUnitBlockSolution : public UnitBlockSolution
   * UnitBlockSolution::serialize()], plus, if they are saved, the variables
   * "ConversionStartUp" and "ConversionShutDown", of type netCDF::NcDouble
   * and indexed over "TimeHorizon", the start-up and shut-down indicators of
-  * the unit. */
+  * the unit, and "ConversionTailPower", of type netCDF::NcDouble and indexed
+  * over "NumberTailPowers", the powers delivered after the horizon by the
+  * generators with a delay, generator after generator. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1707,6 +1874,8 @@ class ConversionUnitBlockSolution : public UnitBlockSolution
  std::vector< double > v_start_up;   ///< the start-up indicators, if saved
 
  std::vector< double > v_shut_down;  ///< the shut-down indicators, if saved
+
+ std::vector< double > v_tail;  ///< the powers delivered after the horizon
 
  SMSpp_insert_in_factory_h;  ///< registration in the factory
 
