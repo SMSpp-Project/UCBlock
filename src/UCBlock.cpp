@@ -1600,14 +1600,9 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
     const bool inertia =
      ( tmod->type() == HydroUnitBlockMod::eSetInerP ) &&
      dynamic_cast< const HydroUnitBlockMod * >( m );
-    // the bounds of the node injections depend on kappa and MaxPower too
-    if( ( dynamic_cast< const IntermittentUnitBlockMod * >( m ) &&
-          ( ( tmod->type() == IntermittentUnitBlockMod::eSetKappa ) ||
-            ( tmod->type() == IntermittentUnitBlockMod::eSetMaxP ) ) ) ||
-        ( dynamic_cast< const BatteryUnitBlockMod * >( m ) &&
-          ( tmod->type() == BatteryUnitBlockMod::eSetKappa ) ) ||
-        ( dynamic_cast< const ThermalUnitBlockMod * >( m ) &&
-          ( tmod->type() == ThermalUnitBlockMod::eSetMaxP ) ) )
+    // the bounds of the node injections depend on the power range of the
+    // units, whatever their class [see UnitBlockMod::changes_power_range()]
+    if( tmod->changes_power_range() )
      injection = true;
     if( ( tmod->type() == UnitBlockMod::eScale ) || inertia ) {
      /* The index is looked up among the units of this UCBlock rather than
@@ -1629,8 +1624,7 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
  collect( mod.get() );
 
  // the bounds of the node injections given to the NetworkBlocks follow the
- // scale, kappa and maximum power of the units [see
- // set_node_injection_bounds()]
+ // power range of the units [see set_node_injection_bounds()]
  if( injection || ( ! modified_units.empty() ) )
   set_node_injection_bounds();
 

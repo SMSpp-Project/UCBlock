@@ -270,6 +270,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `UCBlock` recomputes the bounds of the node injections after a change of
+  `MaxPower` or `MinPower` of a `ConversionUnitBlock`, which left them as
+  they were: each `UnitBlockMod` says by `changes_power_range()` whether
+  its type changes a datum of those bounds, and `UCBlock::add_Modification()`
+  asks that of every unit instead of listing the types of some classes; the
+  unit test compares the bounds after each such change with those of the
+  `UCBlock` read afresh from the changed data
+
 - the Solution of a `DCNetworkBlock` holds the auxiliary Variable
   V_l >= | F_l | of the lines, which carry the cost of the flows
   when some line has a `NetworkCost`: without them, writing the Solution left

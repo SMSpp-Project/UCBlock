@@ -1908,8 +1908,8 @@ class UCBlock : public Block
   * minimum (or the opposite of the fixed consumption, if smaller) and the
   * maximum power; the same for the reactive power, if any. Called by
   * deserialize() and by add_Modification() whenever one of these data of a
-  * unit changes; the NetworkBlock rewrite the rows of the bounds, if they
-  * have them. */
+  * unit changes [see UnitBlockMod::changes_power_range()]; the NetworkBlock
+  * rewrite the rows of the bounds, if they have them. */
 
  void set_node_injection_bounds( void );
 

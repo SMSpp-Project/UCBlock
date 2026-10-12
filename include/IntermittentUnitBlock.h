@@ -1238,6 +1238,15 @@ class IntermittentUnitBlockMod : public UnitBlockMod
   return( changes_of( type() ) );
   }
 
+ /// whether the Modification changes the power range of the unit
+ /** Of the types of this class, those of the MaxPower and kappa [see
+  * UnitBlockMod::changes_power_range()]. */
+
+ [[nodiscard]] bool changes_power_range( void ) const override {
+  return( ( f_type == eSetMaxP ) || ( f_type == eSetKappa ) ||
+          UnitBlockMod::changes_power_range() );
+  }
+
  /// constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
                            const int type )

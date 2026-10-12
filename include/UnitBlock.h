@@ -1162,6 +1162,20 @@ public:
   return( changes_of( type() ) );
   }
 
+ /// whether the Modification changes the power range of the unit
+ /** Whether the Modification changes a datum of the range of the active
+  * power that the unit injects at its nodes, i.e., the minimum and maximum
+  * power, the fixed consumption, the kappa, the scale or the upper bound of
+  * the design [see get_design_ub()], from which the embedding UCBlock
+  * computes the bounds of the node injections [see
+  * UCBlock::set_node_injection_bounds()]. The base class says it of eScale;
+  * each derived class that has a setter of one of these data says it of the
+  * type of that setter. */
+
+ [[nodiscard]] virtual bool changes_power_range( void ) const {
+  return( f_type == eScale );
+  }
+
  /// constructor, takes the UnitBlock and the type
  UnitBlockMod( UnitBlock * const fblock, const int type )
   : f_Block( fblock ), f_type( type ) {}

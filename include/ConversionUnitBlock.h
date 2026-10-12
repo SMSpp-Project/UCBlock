@@ -2036,6 +2036,15 @@ class ConversionUnitBlockMod : public UnitBlockMod
   return( changes_of( type() ) );
   }
 
+ /// whether the Modification changes the power range of the unit
+ /** Of the types of this class, those of the MaxPower and MinPower [see
+  * UnitBlockMod::changes_power_range()]. */
+
+ [[nodiscard]] bool changes_power_range( void ) const override {
+  return( ( f_type == eSetMaxP ) || ( f_type == eSetMinP ) ||
+          UnitBlockMod::changes_power_range() );
+  }
+
  /// constructor: the ConversionUnitBlock, the type, the index, the instants
  ConversionUnitBlockMod( ConversionUnitBlock * const fblock , const int type ,
                          Block::Index index , Block::Subset && nms )

@@ -2359,6 +2359,15 @@ class BatteryUnitBlockMod : public UnitBlockMod
   return( changes_of( type() ) );
   }
 
+ /// whether the Modification changes the power range of the unit
+ /** Of the types of this class, those of the kappa [see
+  * UnitBlockMod::changes_power_range()]. */
+
+ [[nodiscard]] bool changes_power_range( void ) const override {
+  return( ( f_type == eSetKappa ) ||
+          UnitBlockMod::changes_power_range() );
+  }
+
  /// constructor, takes the BatteryUnitBlock and the type
  BatteryUnitBlockMod( BatteryUnitBlock * const fblock , const int type )
   : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}

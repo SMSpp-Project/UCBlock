@@ -13521,6 +13521,166 @@ static void test_conversion_design( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The bounds of the node injections given to the NetworkBlock follow every
+ * change of the power range of a unit, whatever its class [see
+ * UnitBlockMod::changes_power_range()]. In a UCBlock on two nodes and two
+ * instants, with a ConversionUnitBlock (MinPower -20, MaxPower 100) and a
+ * ThermalUnitBlock (MaxPower 200) at node 0, and an IntermittentUnitBlock
+ * (MaxPower 50) and a BatteryUnitBlock (MinPower -4, MaxPower 5) at node 1,
+ * the MaxPower and the MinPower of the ConversionUnitBlock, the MaxPower of
+ * the ThermalUnitBlock, the MaxPower and the kappa of the
+ * IntermittentUnitBlock and the kappa of the BatteryUnitBlock are changed
+ * one at a time after the generation, and the bounds are each time those of
+ * the UCBlock read afresh from the changed data. */
+
+struct PRData {
+ std::vector< double > cuMin = { -20 , -20 };  // [ T ][ 1 ]
+ std::vector< double > cuMax = { 100 , 100 };  // [ T ][ 1 ]
+ double tuMax = 200;
+ std::vector< double > iuMax = { 50 , 50 };
+ double iuKappa = 1;
+ double buKappa = 1;
+ };
+
+/*--------------------------------------------------------------------------*/
+
+static netCDF::NcGroup write_UC_power_range( const PRData & p )
+{
+ auto g = new_group( "PR" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 2 );
+ g.addDim( "NumberUnits" , 4 );
+ auto N = g.addDim( "NumberNodes" , 2 );
+ auto L = g.addDim( "NumberLines" , 1 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 4 );
+ put_int( g , "StartLine" , L , { 0 } );
+ put_int( g , "EndLine" , L , { 1 } );
+ put( g , "MinPowerFlow" , L , { -30 } );
+ put( g , "MaxPowerFlow" , L , { 30 } );
+ put( g , "ActivePowerDemand" , { N , TH } , { 50 , 50 , 20 , 20 } );
+ put_int( g , "GeneratorNode" , G , { 0 , 0 , 1 , 1 } );
+
+ CUData c;
+ c.T = 2;
+ c.minP = p.cuMin;
+ c.maxP = p.cuMax;
+ c.lin = { 40 , 40 };
+ write_CU( g.addGroup( "UnitBlock_0" ) , c );
+
+ TUData d;
+ d.T = 2;
+ d.minP = 20;
+ d.maxP = p.tuMax;
+ d.ru = d.rd = d.su = d.sd = 200;
+ d.lin = { 60 , 60 };
+ write_TU( g.addGroup( "UnitBlock_1" ) , d );
+
+ auto u = g.addGroup( "UnitBlock_2" );
+ u.putAtt( "type" , "IntermittentUnitBlock" );
+ put( u , "MaxPower" , TH , p.iuMax );
+ put( u , "ActivePowerCost" , 10.0 );
+ put( u , "Kappa" , p.iuKappa );
+
+ u = g.addGroup( "UnitBlock_3" );
+ u.putAtt( "type" , "BatteryUnitBlock" );
+ put( u , "MinStorage" , TH , { 0 , 0 } );
+ put( u , "MaxStorage" , TH , { 10 , 10 } );
+ put( u , "MaxPower" , TH , { 5 , 5 } );
+ put( u , "MinPower" , TH , { -4 , -4 } );
+ put( u , "Kappa" , p.buKappa );
+
+ return( g );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_power_range_changes( void )
+{
+ auto run = [ & ]( const std::string & what , const PRData & p ,
+                   const std::function< void( UCBlock * ) > & change ) {
+  auto a = dynamic_cast< UCBlock * >( Block::new_Block(
+                                       write_UC_power_range( PRData() ) ) );
+  auto b = dynamic_cast< UCBlock * >( Block::new_Block(
+                                       write_UC_power_range( p ) ) );
+  check( a && b , "power range, " + what + ": the UCBlock is not read" );
+  if( a && b ) {
+   generate_all( a );
+   generate_all( b );
+   auto fs = new FakeSolver();
+   a->register_Solver( fs );
+   change( a );
+   for( Index n = 0 ; n < a->get_number_networks() ; ++n ) {
+    const auto na = a->get_network_block( n );
+    const auto nb = b->get_network_block( n );
+    for( Index i = 0 ; i < na->get_number_intervals() ; ++i )
+     for( Index k = 0 ; k < na->get_number_nodes() ; ++k ) {
+      const double amn = na->get_min_node_injection( i )[ k ];
+      const double amx = na->get_max_node_injection( i )[ k ];
+      const double bmn = nb->get_min_node_injection( i )[ k ];
+      const double bmx = nb->get_max_node_injection( i )[ k ];
+      check( close( amn , bmn ) && close( amx , bmx ) ,
+             "power range, " + what + ": network " + std::to_string( n ) +
+             ", node " + std::to_string( k ) + " has [ " + str( amn ) +
+             " , " + str( amx ) + " ] instead of [ " + str( bmn ) + " , " +
+             str( bmx ) + " ]" );
+      }
+    }
+   a->unregister_Solver( fs , true );
+   }
+  delete a;
+  delete b;
+  };
+
+ PRData p;
+ p.cuMax = { 100 , 150 };
+ run( "MaxPower of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
+  std::vector< double > v = { 150 };
+  static_cast< ConversionUnitBlock * >( uc->get_unit_block( 0 ) )->
+   set_maximum_power( v.cbegin() , 0 , Range( 1 , 2 ) , eModBlck ,
+                      eModBlck );
+  } );
+
+ p = PRData();
+ p.cuMin = { -40 , -20 };
+ run( "MinPower of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
+  std::vector< double > v = { -40 };
+  static_cast< ConversionUnitBlock * >( uc->get_unit_block( 0 ) )->
+   set_minimum_power( v.cbegin() , 0 , Range( 0 , 1 ) , eModBlck ,
+                      eModBlck );
+  } );
+
+ p = PRData();
+ p.tuMax = 250;
+ run( "MaxPower of the ThermalUnitBlock" , p , []( UCBlock * uc ) {
+  std::vector< double > v = { 250 , 250 };
+  static_cast< ThermalUnitBlock * >( uc->get_unit_block( 1 ) )->
+   set_maximum_power( v.cbegin() , Range( 0 , 2 ) , eModBlck , eModBlck );
+  } );
+
+ p = PRData();
+ p.iuMax = { 50 , 80 };
+ run( "MaxPower of the IntermittentUnitBlock" , p , []( UCBlock * uc ) {
+  std::vector< double > v = { 80 };
+  static_cast< IntermittentUnitBlock * >( uc->get_unit_block( 2 ) )->
+   set_maximum_power( v.cbegin() , Range( 1 , 2 ) , eModBlck , eModBlck );
+  } );
+
+ p = PRData();
+ p.iuKappa = 2;
+ run( "kappa of the IntermittentUnitBlock" , p , []( UCBlock * uc ) {
+  static_cast< IntermittentUnitBlock * >( uc->get_unit_block( 2 ) )->
+   set_kappa( 2 , eModBlck , eModBlck );
+  } );
+
+ p = PRData();
+ p.buKappa = 3;
+ run( "kappa of the BatteryUnitBlock" , p , []( UCBlock * uc ) {
+  static_cast< BatteryUnitBlock * >( uc->get_unit_block( 3 ) )->
+   set_kappa( 3 , eModBlck , eModBlck );
+  } );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -13685,6 +13845,7 @@ int main( int argc , char ** argv )
   test_conversion_delays();
   test_conversion_modules();
   test_conversion_design();
+  test_power_range_changes();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;
