@@ -2949,6 +2949,42 @@ void UCBlock::resize_unit( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
+void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
+                           Subset && subset , bool , ModParam issuePMod ,
+                           ModParam issueAMod )
+{
+ if( ( subset.size() > values.size() ) ||
+     ( subset.size() > second_values.size() ) )
+  throw( std::invalid_argument( "UCBlock::resize_unit: a span is shorter "
+                                "than the subset it is asked to write" ) );
+
+ ClassMethod< FunctionType< MF_dbl_sp , MF_dbl_sp , Range > >
+  method( "resize_unit with two sizes" , "::resize" );
+
+ for( Index k = 0 ; k < subset.size() ; ++k ) {
+  const auto u = subset[ k ];
+  if( u >= f_number_units )
+   throw( std::invalid_argument( "UCBlock::resize_unit: there is no unit of "
+                                 "index " + std::to_string( u ) ) );
+  const auto unit = get_unit_block( u );
+  std::invoke( method( unit , "unit" , u ) , unit , values.subspan( k , 1 ) ,
+               second_values.subspan( k , 1 ) , Range( 0 , 1 ) , issuePMod ,
+               issueAMod );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
+                           Range rng , ModParam issuePMod ,
+                           ModParam issueAMod )
+{
+ resize_unit( values , second_values , units_in( *this , rng ) , true ,
+              issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::replicate( MF_dbl_it values , Subset && subset , bool ,
                          ModParam issuePMod , ModParam issueAMod )
 {
@@ -3048,6 +3084,33 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
   const auto unit = get_unit_block( units[ k ] );
   std::invoke( query( unit , "unit" , units[ k ] ) , unit ,
                msp.subspan( k , 1 ) , Range( 0 , 1 ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
+                                             MF_dbl_msp second_msp ,
+                                             c_Subset & units ) const
+{
+ if( ( units.size() > msp.size() ) || ( units.size() > second_msp.size() ) )
+  throw( std::invalid_argument( "UCBlock::get_resize_unit_linearization: a "
+                                "span is shorter than the subset it is asked "
+                                "to answer for" ) );
+
+ ClassMethod< QueryType< MF_dbl_msp , MF_dbl_msp , Range > >
+  query( "get_resize_unit_linearization with two sizes" ,
+         "::get_resize_linearization" );
+
+ for( Index k = 0 ; k < units.size() ; ++k ) {
+  if( units[ k ] >= f_number_units )
+   throw( std::invalid_argument( "UCBlock::get_resize_unit_linearization: "
+                                 "there is no unit of index " +
+                                 std::to_string( units[ k ] ) ) );
+  const auto unit = get_unit_block( units[ k ] );
+  std::invoke( query( unit , "unit" , units[ k ] ) , unit ,
+               msp.subspan( k , 1 ) , second_msp.subspan( k , 1 ) ,
+               Range( 0 , 1 ) );
   }
  }
 

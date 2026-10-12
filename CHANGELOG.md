@@ -122,7 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<class>::replicate`, which stands for k identical copies of the unit;
   `IntermittentUnitBlock`, `BatteryUnitBlock`, `DCNetworkBlock`,
   `ACNetworkBlock` and `OTSNetworkBlock` register `set_kappa()` as
-  `<class>::resize`, which stands for one copy of k times the size. The thermal and the nuclear units deliberately do not offer the
+  `<class>::resize`, which stands for one copy of k times the size (for
+  `BatteryUnitBlock`, `resize( k , k )` below). The thermal and the nuclear units deliberately do not offer the
   second road, their commitment being binary. The old names stay registered, a registered name travelling
   inside the instances that name it.
 
@@ -181,6 +182,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   standard and elastic formulations, through the exclusivity row in the
   directional ones. The sensitivity of an OTS line adds the dual of that
   limit while kappa is below 1.
+
+- `BatteryUnitBlock::resize( kappa , conv_kappa )` sizes the storage, with
+  its power, and the converter apart, and
+  `BatteryUnitBlock::get_resize_linearization( g_kappa , g_conv_kappa )`
+  gives the two derivatives; they are registered as `BatteryUnitBlock::resize`
+  and `BatteryUnitBlock::get_resize_linearization` with two spans, next to
+  the forms with one value, which are now `resize( k , k )`, the storage and
+  the converter together as the one kappa sized them before the converter
+  had a kappa of its own, and the sum of the two derivatives. The converter
+  sized apart needs its rows, which exist if the data have
+  `ConverterMaxPower` or `ConverterKappa`, or if the two sizes are given
+  before the Constraints are generated; otherwise the call throws.
+  `UCBlock::resize_unit` and `UCBlock::get_resize_unit_linearization`
+  forward the forms with two spans to the units. They use the families of
+  the methods factory with two values per Index of SMS++
 
 ### Changed
 

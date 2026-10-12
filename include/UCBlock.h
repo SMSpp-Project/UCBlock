@@ -1430,6 +1430,23 @@ class UCBlock : public Block
   const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives with respect to the two sizes of the units in \p units
+ /** Writes in msp[ k ] and second_msp[ k ] the derivatives of the value of
+  * this UCBlock with respect to the two sizes of the unit units[ k ], as
+  * resize_unit( two values ) sets them: each unit answers through the getter
+  * that its class registers as "<classname>::get_resize_linearization" with
+  * two spans, which for a BatteryUnitBlock are the storage and the
+  * converter. It is reached by the name
+  * "UCBlock::get_resize_unit_linearization", with two spans.
+  *
+  * @throws std::invalid_argument if a span is shorter than \p units or an
+  *         index is not that of a unit, and std::logic_error if the class of
+  *         a unit does not register the getter with two spans. */
+
+ void get_resize_unit_linearization( MF_dbl_msp msp , MF_dbl_msp second_msp ,
+                                     c_Subset & units ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// the derivatives with respect to the size of the lines in \p lines
  /** Writes in msp[ k ] the derivative of the value of this UCBlock with
   * respect to the size parameter of the line lines[ k ], as resize_line()
@@ -1794,6 +1811,33 @@ class UCBlock : public Block
  /// as resize_unit( subset ), for the units in the range \p rng
 
  void resize_unit( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the two sizes of the units in \p subset
+ /** As resize_unit( subset ), for units that have two sizes: each unit is
+  * handed the value in the same position of \p values and of
+  * \p second_values, through the method that its class registers as
+  * "<classname>::resize" with two spans, which for a BatteryUnitBlock are
+  * the storage and the converter [see BatteryUnitBlock::resize()]. The
+  * derivatives are read back by the name
+  * "UCBlock::get_resize_unit_linearization", with two spans.
+  *
+  * @throws std::invalid_argument if an index in \p subset is not that of a
+  *         unit or a span is shorter than \p subset, and std::logic_error
+  *         if the class of a unit does not register "<classname>::resize"
+  *         with two spans; the units before
+  *         it are resized all the same. */
+
+ void resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
+                   Subset && subset , bool ordered = false ,
+                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// as resize_unit( two values , subset ), for the units in the range \p rng
+
+ void resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
+                   Range rng = Range( 0 , Inf< Index >() ) ,
                    ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -2387,6 +2431,12 @@ class UCBlock : public Block
   register_method< UCBlock , MF_dbl_it , Range >(
    "UCBlock::resize_unit" , & UCBlock::resize_unit );
 
+  register_method< UCBlock , MF_dbl_sp , MF_dbl_sp , Subset && , bool >(
+   "UCBlock::resize_unit" , & UCBlock::resize_unit );
+
+  register_method< UCBlock , MF_dbl_sp , MF_dbl_sp , Range >(
+   "UCBlock::resize_unit" , & UCBlock::resize_unit );
+
   register_method< UCBlock , MF_dbl_it , Subset && , bool >(
    "UCBlock::replicate" , & UCBlock::replicate );
 
@@ -2468,6 +2518,31 @@ class UCBlock : public Block
      for( Index u = rng.first ; u < rng.second ; ++u )
       units.push_back( u );
      ucb->get_resize_unit_linearization( msp , units );
+     } ) );
+
+  // ... and with two spans, for the units that have two sizes
+
+  using qry2_sbst = QueryType< MF_dbl_msp , MF_dbl_msp , c_Subset & , bool >;
+  using qry2_rngd = QueryType< MF_dbl_msp , MF_dbl_msp , Range >;
+
+  register_method< qry2_sbst >(
+   "UCBlock::get_resize_unit_linearization" , new qry2_sbst(
+    []( const Block * blck , MF_dbl_msp msp , MF_dbl_msp second_msp ,
+        c_Subset & units , bool ) {
+     static_cast< const UCBlock * >( blck )->
+      get_resize_unit_linearization( msp , second_msp , units );
+     } ) );
+
+  register_method< qry2_rngd >(
+   "UCBlock::get_resize_unit_linearization" , new qry2_rngd(
+    []( const Block * blck , MF_dbl_msp msp , MF_dbl_msp second_msp ,
+        Range rng ) {
+     const auto ucb = static_cast< const UCBlock * >( blck );
+     rng.second = std::min( rng.second , ucb->get_number_units() );
+     Subset units;
+     for( Index u = rng.first ; u < rng.second ; ++u )
+      units.push_back( u );
+     ucb->get_resize_unit_linearization( msp , second_msp , units );
      } ) );
 
   register_method< qry_sbst >(

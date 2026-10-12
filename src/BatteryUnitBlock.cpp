@@ -2617,6 +2617,90 @@ void BatteryUnitBlock::set_converter_kappa( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+void BatteryUnitBlock::resize( double kappa , double conv_kappa ,
+                               ModParam issuePMod , ModParam issueAMod )
+{
+ if( ! ( ( kappa >= 0 ) && ( conv_kappa >= 0 ) ) )
+  throw( std::invalid_argument( "BatteryUnitBlock::resize: the two kappa must "
+                                "be nonnegative, but they are " +
+                                std::to_string( kappa ) + " and " +
+                                std::to_string( conv_kappa ) ) );
+
+ // a converter that follows kappa keeps following it when the two sizes are
+ // equal: the unit is resized as a whole, by kappa alone
+ const bool follows = converter_follows_kappa() && ( conv_kappa == kappa );
+
+ const bool kappa_changes = ( f_kappa != kappa );
+ const bool conv_changes = ( ! follows ) &&
+                           ( converter_follows_kappa() ||
+                             ( f_conv_kappa != conv_kappa ) );
+
+ if( ! ( kappa_changes || conv_changes ) )
+  return;  // neither size changes: nothing to do
+
+ // as set_kappa(), a unit following a reference schedule is not resized
+ if( ! v_RefSchedule.empty() )
+  throw( std::logic_error( "BatteryUnitBlock::resize: resizing a unit that "
+   "follows a reference schedule is not supported, the schedule having to "
+   "be resized with it or not" ) );
+
+ // the rows of the converter are static: once the Constraints are there, a
+ // battery that has none cannot be given a converter of its own size
+ if( conv_changes && constraints_generated() && ( ! has_converter_rows() ) )
+  throw( std::logic_error( "BatteryUnitBlock::resize: the storage and the "
+   "converter cannot have different sizes, since the battery has no "
+   "converter rows, which exist only if \"ConverterMaxPower\" or "
+   "\"ConverterKappa\" is in the data, or a design variable exists, or the "
+   "two sizes were given before the Constraints were generated" ) );
+
+ if( not_dry_run( issuePMod ) ) {
+  f_kappa = kappa;
+  if( conv_changes )
+   f_conv_kappa = conv_kappa;  // from now on the converter has its own size
+
+  if( not_dry_run( issueAMod ) && constraints_generated() ) {
+   // the rows of kappa, and of the converter while it follows kappa
+   if( kappa_changes )
+    update_kappa_in_cnstrs( issueAMod );
+   if( conv_changes ) {
+    // one group, as in set_converter_kappa()
+    auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
+                                      open_channel( par2chnl( issueAMod ) ) ) );
+    update_conv_kappa_rows( nAM );
+    close_channel( par2chnl( nAM ) );
+    }
+   }
+  }
+
+ if( issue_pmod( issuePMod ) ) {
+  if( kappa_changes )
+   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                             this , BatteryUnitBlockMod::eSetKappa ) ,
+                            Observer::par2chnl( issuePMod ) );
+  if( conv_changes )
+   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                             this , BatteryUnitBlockMod::eSetConvKappa ) ,
+                            Observer::par2chnl( issuePMod ) );
+  }
+
+}  // end( BatteryUnitBlock::resize )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::get_resize_linearization( double & g_kappa ,
+                                                 double & g_conv_kappa ) const
+{
+ g_conv_kappa = get_converter_kappa_linearization();
+ g_kappa = get_kappa_linearization();
+
+ // get_kappa_linearization() counts the converter while it follows kappa
+ if( converter_follows_kappa() )
+  g_kappa -= g_conv_kappa;
+
+}  // end( BatteryUnitBlock::get_resize_linearization )
+
+/*--------------------------------------------------------------------------*/
+
 double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
  /* The kappa constant of a BatteryUnitBlock appears in the following
