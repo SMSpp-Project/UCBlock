@@ -173,8 +173,8 @@
  * \f[
  *   \underline{c}_s = \min\{ \, 0 \, , \, \min_{ P^{mn}_s \leq p \leq
  *     P^{mx}_s } \bigl( f_s( p ) + g_s( p , \min\{ p - P^{mn}_s , P^{mx}_s
- *     - p \} ) \bigr) + \min\{ 0 , c^{su}_s \} + \min\{ 0 , \underline{c}^{mv}_s
- *     \} \, \} + \min\{ 0 , c^{sd}_s \} \, ,
+ *     - p \} ) \bigr) + \min\{ 0 , c^{su}_s \} +
+ *     \min\{ 0 , \underline{c}^{mv}_s \} \, \} + \min\{ 0 , c^{sd}_s \} \, ,
  * \f]
  * where \f$ \underline{c}^{mv}_s \f$ is min_move_cost(); it is a lower bound
  * on the cost of the instant \f$ s \f$ in any schedule, since the reward of
@@ -201,7 +201,12 @@
  * for few states less. This
  * matters when the prices make the unit costly: a unit that stays off has
  * \f$ U \leq 0 \f$ from the first instant at which it can be off, and
- * \f$ L_t \f$ close to 0, so that almost no on-state survives.
+ * \f$ L_t \f$ close to 0, so that almost no on-state survives. A derived
+ * unit may refine \f$ L_t \f$ by a bound that depends on the label and on
+ * the output [see completion_bound()]: once more than 256 on-states are
+ * kept at an instant, prepare_completion_bound() is called, and from then on
+ * a state is also removed when that bound, plus \f$ F \f$, exceeds
+ * \f$ U \f$ at every point of its domain.
  *
  * The minimum up and down times are taken to be at least 1, as in
  * ThermalUnitBlock, and therefore the value (6) is the optimal value of the
@@ -652,6 +657,24 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   * upper bound of the optimal value [see the file comment]. The default is
   * true, the window of the single move of a thermal unit containing 0. */
  virtual bool can_hold( Index t , Index lab ) const { return( true ); }
+
+ /// prepares the bound of completion_bound(), at the start of a run
+ /** Called by run_DP() before the first instant with, for each instant,
+  * the reward of the reserves on the whole band (empty if none is
+  * rewarded) and the constant that being on adds for the reactive power. */
+ virtual void prepare_completion_bound( const std::vector< PQFun > & disc ,
+                                        const std::vector< double > & qd ) {}
+
+ /// whether the schedules through an on-state may cost at most \p lev
+ /** Returns false if a lower bound on the cost of any schedule that goes
+  * through the on-state at \p t with label \p lab, value function \p F
+  * and minimum \p m, its completion included, is larger than \p lev; the
+  * bounding then removes the state, on top of the bound of the file
+  * comment. The default true removes nothing. */
+ virtual bool completion_bound( Index t , Index lab , const PQFun & F ,
+                                const OnSlot & m , double lev ) const {
+  return( true );
+  }
 
  /// the intervals of [ a , b ] where G is not larger than F
  static void not_larger( const PQFun & F , const PQFun & G , double a ,

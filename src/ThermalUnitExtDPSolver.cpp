@@ -1029,6 +1029,7 @@ void ThermalUnitExtDPSolver::run_DP( void )
                   std::max( last ? - TUEDPINF : h.left , min_power[ s ] ) ,
                   std::min( last ? TUEDPINF : h.right , max_power[ s ] ) };
   }
+ bool cb_ready = false;
  double f_ub = TUEDPINF;
  // the off-trail of t can be completed by staying off
  const auto off_ub = [ & ]( Index t ) {
@@ -1067,8 +1068,16 @@ void ThermalUnitExtDPSolver::run_DP( void )
   const double lev = f_ub + 1e-9 * std::max( 1.0 , std::abs( f_ub ) ) -
                      f_lbsuf[ t ];
   std::size_t out = 0;
+  const double ulev = lev + f_lbsuf[ t ];
+  if( ( ! cb_ready ) && ( v_F.size() > 256 ) ) {
+   prepare_completion_bound( eff_disc , reactive_delta );
+   cb_ready = true;
+   }
   for( std::size_t i = 0 ; i < v_F.size() ; ++i ) {
-   if( v_on[ i ].min_val > lev ) {
+   if( ( v_on[ i ].min_val > lev ) ||
+       ( cb_ready &&
+         ( ! completion_bound( t , v_link[ i ].lab , v_F[ i ] , v_on[ i ] ,
+                               ulev ) ) ) ) {
     ++f_stats.bounded;
     pool_give( v_F[ i ] );
     continue;

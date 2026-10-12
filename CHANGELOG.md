@@ -117,6 +117,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the bounding of `ThermalUnitExtDPSolver` may use a bound of a derived unit
+  that depends on the label and on the output (`completion_bound()`, built
+  by `prepare_completion_bound()` once more than 256 states are kept at an
+  instant); `NuclearUnitExtDPSolver` gives the cost-to-go of a relaxation of
+  its rules, computed backwards on a grid of the output, which keeps the
+  stability, the lockout and the counter of the modulations of the day: the
+  values are the same to the last digit, and on the subproblems of the
+  Lagrangian duals without bands the dynamic program takes about half of
+  the instructions it took
+
 - `ThermalUnitExtDPSolver` prunes the on-states by bounds, as a
   branch-and-bound does: a state whose least value plus a lower bound on
   the cost of the instants that follow (each at least the smaller of 0 and
