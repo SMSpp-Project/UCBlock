@@ -320,6 +320,16 @@ class HydroUnitBlock : public UnitBlock
  *   \f$ P^{hy}_j = P_j - \rho_j \bar f_j \f$, with \f$ \rho_j \f$ and
  *   \f$ \bar f_j \f$ converted to the unit of the flows.
  *
+ * - The variable "ExactFlowToPower", of type netCDF::NcUint and indexed over
+ *   the dimension "NumberArcs": a nonzero entry says that arc \f$ l \f$, a
+ *   turbine with a single piece, produces exactly \f$ \rho^{hy}_j f_{t,l} +
+ *   P^{hy}_j \f$, i.e., that the water it passes always gives power, as in
+ *   a model whose turbines have a fixed efficiency (e.g., the hydro storage
+ *   of PyPSA, where the water released without producing is the spillage,
+ *   a flow of its own); its row is then the equality of (7) of
+ *   generate_abstract_constraints() whatever the spillways. The variable is
+ *   optional, and 0 if not provided.
+ *
  * - The variable "ActivePowerCost", of type netCDF::NcDouble and indexed
  *   over the dimension "NumberArcs": the cost \f$ b_l \f$ of one unit of
  *   active power of arc \f$ l \f$ during one instant. The variable is
@@ -568,7 +578,10 @@ class HydroUnitBlock : public UnitBlock
   *   than its power bounds the flow of the turbine, and (iii) at every
   *   instant \f$ F^{mx}_{t,k} \f$ is at least the sum of the
   *   \f$ F^{mx}_{t,l} \f$ of the turbines whose spillway is \f$ k \f$
-  *   (otherwise none of them has the equality). Even then the equality
+  *   (otherwise none of them has the equality); an arc whose entry of
+  *   "ExactFlowToPower" is nonzero has the equality in any case, since then
+  *   the data say that the turbine cannot pass water without producing (see
+  *   deserialize()). Even then the equality
   *   restricts the feasible set, since the spillway carries its own flow as
   *   well: a solution of (7) is excluded if at some instant the water that
   *   the turbines and their spillway release exceeds the maximum flow of the
@@ -1043,6 +1056,16 @@ class HydroUnitBlock : public UnitBlock
 
  const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of ExactFlowToPower
+ /** The returned vector V says which turbines produce exactly the power of
+  * their only piece (see deserialize()): either V is empty, and none does,
+  * or V has one entry per arc, nonzero for those that do. */
+
+ const std::vector< Index > & get_exact_flow_to_power( void ) const {
+  return( v_ExactFlowToPower );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1881,6 +1904,9 @@ class HydroUnitBlock : public UnitBlock
 
  /// the vector of ConstTerm
  std::vector< double > v_ConstTerm;
+
+ /// the vector of ExactFlowToPower
+ std::vector< Index > v_ExactFlowToPower;
 
  /// the vector of ActivePowerCost
  std::vector< double > v_ActivePowerCost;

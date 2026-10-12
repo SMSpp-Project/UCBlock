@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `HydroUnitBlock` reads the optional `ExactFlowToPower`, one entry per arc:
+  a single-piece turbine whose entry is nonzero produces exactly the power
+  of its piece, its row being the equality whatever the spillways, as for
+  the hydro storage of PyPSA, where the water released without producing
+  is a flow of its own
+
 - `ConversionUnitBlock` registers `scale()` in the methods factory also as
   `ConversionUnitBlock::replicate`, the name under which a Block is sized
   by identical copies
