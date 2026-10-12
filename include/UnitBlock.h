@@ -1047,6 +1047,19 @@ class UnitBlock : public Block
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// issues a physical Modification of the UnitBlock
+ /** Issues the physical Modification \p mod, a UnitBlockMod, on the channel
+  * of \p issuePMod if anyone reads it [see Observer::issue_pmod()].
+  * Otherwise, if \p mod changes the power range of the unit [see
+  * UnitBlockMod::changes_power_range()], it is passed to the father alone,
+  * which derives data from that range (the bounds of the node injections
+  * and the rows that carry the scale factor of a UCBlock, see
+  * UCBlock::add_Modification()) and has to keep them in step even if no
+  * Solver is listening, the Modification going no further [see
+  * Block::add_Modification()]. */
+
+ void issue_unit_mod( sp_Mod mod , ModParam issuePMod );
+
  /// deserializes the time horizon from a netCDF group
  void deserialize_time_horizon( const netCDF::NcGroup & group );
 

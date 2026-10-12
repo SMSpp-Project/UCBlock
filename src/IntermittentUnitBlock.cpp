@@ -967,16 +967,13 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    update_max_power_in_cnstrs( subset , issueAMod );
  }
 
- if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
-                 IntermittentUnitBlockMod::eSetMaxP ) ) ) {
-  if( ! ordered )
-   std::sort( subset.begin() , subset.end() );
+ if( ! ordered )
+  std::sort( subset.begin() , subset.end() );
 
-  Block::add_Modification(
-   std::make_shared< IntermittentUnitBlockSbstMod >(
-    this , IntermittentUnitBlockMod::eSetMaxP , std::move( subset ) ) ,
-   Observer::par2chnl( issuePMod ) );
- }
+ // issue a Physical Modification, which the father sees anyway
+ issue_unit_mod( std::make_shared< IntermittentUnitBlockSbstMod >(
+                  this , IntermittentUnitBlockMod::eSetMaxP ,
+                  std::move( subset ) ) , issuePMod );
 
 }  // end( IntermittentUnitBlock::set_maximum_power( subset ) )
 
@@ -1032,12 +1029,10 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    update_max_power_in_cnstrs( rng , issueAMod );
  }
 
- if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
-                 IntermittentUnitBlockMod::eSetMaxP ) ) )
-  Block::add_Modification(
-   std::make_shared< IntermittentUnitBlockRngdMod >(
-    this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
-   Observer::par2chnl( issuePMod ) );
+ // issue a Physical Modification, which the father sees anyway
+ issue_unit_mod( std::make_shared< IntermittentUnitBlockRngdMod >(
+                  this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
+                 issuePMod );
 
 }  // end( IntermittentUnitBlock::set_maximum_power( range ) )
 
@@ -1213,17 +1208,11 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
  }
 
  // issue a Physical Modification
- if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
-                 UnitBlockMod::eScale ) ) )
-  Block::add_Modification( std::make_shared< UnitBlockMod >(
-                                           this , UnitBlockMod::eScale ) ,
-                                           Observer::par2chnl( issuePMod ) );
- else if( auto f_Block = get_f_Block() )
-  // the father rewrites the rows that carry the scale factor even if no
-  // Solver is listening
-  f_Block->add_Modification( std::make_shared< UnitBlockMod >(
-                              this , UnitBlockMod::eScale ) ,
-                             Observer::par2chnl( issuePMod ) );
+ // issue a Physical Modification, which the father sees anyway: it rewrites
+ // the rows that carry the scale factor even if no Solver is listening
+ issue_unit_mod( std::make_shared< UnitBlockMod >( this ,
+                                                  UnitBlockMod::eScale ) ,
+                 issuePMod );
 
  }  // end( IntermittentUnitBlock::scale )
 
@@ -1348,12 +1337,9 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
   }  // end( if( not_dry_run( issueAMod ) )
  }  // end( if( not_dry_run( issuePMod ) )
 
- // Issue a Physical Modification
- if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
-                 IntermittentUnitBlockMod::eSetKappa ) ) )
-  Block::add_Modification( std::make_shared< IntermittentUnitBlockMod >(
-                            this , IntermittentUnitBlockMod::eSetKappa ) ,
-                           Observer::par2chnl( issuePMod ) );
+ // Issue a Physical Modification, which the father sees anyway
+ issue_unit_mod( std::make_shared< IntermittentUnitBlockMod >(
+                  this , IntermittentUnitBlockMod::eSetKappa ) , issuePMod );
 
  }  // end( IntermittentUnitBlock::set_kappa( subset ) )
 

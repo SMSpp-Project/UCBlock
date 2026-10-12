@@ -270,6 +270,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the bounds of the node injections of `UCBlock` follow a change of the
+  power range of a unit also when no Solver is listening, a Solver attached
+  later reading them stale otherwise: `UnitBlock::issue_unit_mod()` issues
+  the Modification of a unit as usual if anyone reads it and passes it to
+  the father alone otherwise, if it changes the power range, as `scale()`
+  already did; the setters of `MaxPower` of `ThermalUnitBlock` and
+  `IntermittentUnitBlock`, of the kappa of `IntermittentUnitBlock` and
+  `BatteryUnitBlock`, of the data of `ConversionUnitBlock` and `scale()` use
+  it, and the unit test checks the bounds also with no Solver attached
+
 - `UCBlock` recomputes the bounds of the node injections after a change of
   `MaxPower` or `MinPower` of a `ConversionUnitBlock`, which left them as
   they were: each `UnitBlockMod` says by `changes_power_range()` whether

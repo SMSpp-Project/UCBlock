@@ -13529,9 +13529,11 @@ static void test_conversion_design( void )
  * (MaxPower 50) and a BatteryUnitBlock (MinPower -4, MaxPower 5) at node 1,
  * the MaxPower and the MinPower of the ConversionUnitBlock, the MaxPower of
  * the ThermalUnitBlock, the MaxPower and the kappa of the
- * IntermittentUnitBlock and the kappa of the BatteryUnitBlock are changed
- * one at a time after the generation, and the bounds are each time those of
- * the UCBlock read afresh from the changed data. */
+ * IntermittentUnitBlock, the kappa of the BatteryUnitBlock and the scale of
+ * the ConversionUnitBlock are changed one at a time after the generation,
+ * with a Solver attached and with none (the father keeps its data in step
+ * anyway [see UnitBlock::issue_unit_mod()]), and the bounds are each time
+ * those of the UCBlock read afresh from the changed data. */
 
 struct PRData {
  std::vector< double > cuMin = { -20 , -20 };  // [ T ][ 1 ]
@@ -13540,6 +13542,7 @@ struct PRData {
  std::vector< double > iuMax = { 50 , 50 };
  double iuKappa = 1;
  double buKappa = 1;
+ double cuScale = 1;
  };
 
 /*--------------------------------------------------------------------------*/
@@ -13565,6 +13568,7 @@ static netCDF::NcGroup write_UC_power_range( const PRData & p )
  c.minP = p.cuMin;
  c.maxP = p.cuMax;
  c.lin = { 40 , 40 };
+ c.scale = p.cuScale;
  write_CU( g.addGroup( "UnitBlock_0" ) , c );
 
  TUData d;
@@ -13596,8 +13600,9 @@ static netCDF::NcGroup write_UC_power_range( const PRData & p )
 
 static void test_power_range_changes( void )
 {
- auto run = [ & ]( const std::string & what , const PRData & p ,
-                   const std::function< void( UCBlock * ) > & change ) {
+ auto run1 = [ & ]( const std::string & what , const PRData & p ,
+                    const std::function< void( UCBlock * ) > & change ,
+                    bool solver ) {
   auto a = dynamic_cast< UCBlock * >( Block::new_Block(
                                        write_UC_power_range( PRData() ) ) );
   auto b = dynamic_cast< UCBlock * >( Block::new_Block(
@@ -13606,8 +13611,9 @@ static void test_power_range_changes( void )
   if( a && b ) {
    generate_all( a );
    generate_all( b );
-   auto fs = new FakeSolver();
-   a->register_Solver( fs );
+   auto fs = solver ? new FakeSolver() : nullptr;
+   if( fs )
+    a->register_Solver( fs );
    change( a );
    for( Index n = 0 ; n < a->get_number_networks() ; ++n ) {
     const auto na = a->get_network_block( n );
@@ -13625,10 +13631,17 @@ static void test_power_range_changes( void )
              str( bmx ) + " ]" );
       }
     }
-   a->unregister_Solver( fs , true );
+   if( fs )
+    a->unregister_Solver( fs , true );
    }
   delete a;
   delete b;
+  };
+
+ auto run = [ & ]( const std::string & what , const PRData & p ,
+                   const std::function< void( UCBlock * ) > & change ) {
+  run1( what + ", a Solver attached" , p , change , true );
+  run1( what + ", no Solver" , p , change , false );
   };
 
  PRData p;
@@ -13677,6 +13690,12 @@ static void test_power_range_changes( void )
  run( "kappa of the BatteryUnitBlock" , p , []( UCBlock * uc ) {
   static_cast< BatteryUnitBlock * >( uc->get_unit_block( 3 ) )->
    set_kappa( 3 , eModBlck , eModBlck );
+  } );
+
+ p = PRData();
+ p.cuScale = 2;
+ run( "scale of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
+  uc->get_unit_block( 0 )->scale( 2 , eModBlck , eModBlck );
   } );
  }
 
