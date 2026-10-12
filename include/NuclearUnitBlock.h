@@ -225,8 +225,10 @@ namespace SMSpp_di_unipi_it
  * shut-down of the SU and SD formulations of ThermalUnitBlock, i.e., of
  *
  *  T. Bacci, A. Frangioni, C. Gentile "Start-Up/Shut-Down MINLP
- *  Formulations for the Unit Commitment with Ramp Constraints" Technical
- *  Report R. 20-01, IASI-CNR, Rome, 2020
+ *  Formulations for the Unit Commitment with Ramp Constraints" in Graphs
+ *  and Combinatorial Optimization: from Theory to Applications, C. Gentile,
+ *  G. Stecca, P. Ventura (eds.), AIRO Springer Series 5, 335 - 347, 2021,
+ *  doi:10.1007/978-3-030-63072-0_26
  *
  * with the reach that the rules allow in place of the full ramps.
  *
