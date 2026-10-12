@@ -1983,7 +1983,9 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
   change_active_demand_constraints( modified_nodes , issueAMod );
   }
 
- if( issue_pmod( issuePMod ) ) {  // Issue a Physical Modification
+ // Issue a Physical Modification
+ if( issue_pmod( issuePMod , NetworkBlockMod::changes_of(
+                 NetworkBlockMod::eSetActD ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2029,7 +2031,9 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , NetworkBlockMod::changes_of(
+                 NetworkBlockMod::eSetActD ) ) )
   Block::add_Modification( std::make_shared< NetworkBlockRngdMod >( this ,
                             NetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2336,7 +2340,8 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetNetCost ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2424,7 +2429,8 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetNetCost ) ) )
   Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >(
                             this , DCNetworkBlockMod::eSetNetCost , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2476,7 +2482,9 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
   // kappa only appears in limit constraints
   }
 
- if( issue_pmod( issuePMod ) ) {  // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetKappa ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2521,7 +2529,9 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
    }
   }
 
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetKappa ) ) )
   Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >( this ,
                DCNetworkBlockMod::eSetKappa , rng ) ,
                            Observer::par2chnl( issuePMod ) );

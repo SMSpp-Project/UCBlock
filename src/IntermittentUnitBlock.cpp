@@ -967,7 +967,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    update_max_power_in_cnstrs( subset , issueAMod );
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
+                 IntermittentUnitBlockMod::eSetMaxP ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -1031,7 +1032,8 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    update_max_power_in_cnstrs( rng , issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
+                 IntermittentUnitBlockMod::eSetMaxP ) ) )
   Block::add_Modification(
    std::make_shared< IntermittentUnitBlockRngdMod >(
     this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
@@ -1109,7 +1111,8 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
+                 IntermittentUnitBlockMod::eSetActPCost ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -1179,7 +1182,8 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
+                 IntermittentUnitBlockMod::eSetActPCost ) ) )
   Block::add_Modification(
    std::make_shared< IntermittentUnitBlockRngdMod >(
     this , IntermittentUnitBlockMod::eSetActPCost , rng ) ,
@@ -1208,7 +1212,9 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
    update_objective( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
+                 UnitBlockMod::eScale ) ) )
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                                            this , UnitBlockMod::eScale ) ,
                                            Observer::par2chnl( issuePMod ) );
@@ -1342,7 +1348,9 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
   }  // end( if( not_dry_run( issueAMod ) )
  }  // end( if( not_dry_run( issuePMod ) )
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
+ // Issue a Physical Modification
+ if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
+                 IntermittentUnitBlockMod::eSetKappa ) ) )
   Block::add_Modification( std::make_shared< IntermittentUnitBlockMod >(
                             this , IntermittentUnitBlockMod::eSetKappa ) ,
                            Observer::par2chnl( issuePMod ) );

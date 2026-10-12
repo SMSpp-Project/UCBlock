@@ -1721,7 +1721,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
    }
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of( type ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , type , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -1789,7 +1789,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
                                   true , un_ModBlock( issueAMod ) );
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of( type ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , type , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2147,7 +2147,9 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )  // issue a physical Modification
+ // issue a physical Modification
+ if( issue_pmod( issuePMod , NuclearUnitBlockMod::changes_of(
+                 NuclearUnitBlockMod::eSetModDP ) ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockSbstMod >( this ,
                                               NuclearUnitBlockMod::eSetModDP ,
                                               std::move( subset ) ) ,
@@ -2192,7 +2194,8 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , NuclearUnitBlockMod::changes_of(
+                 NuclearUnitBlockMod::eSetModDP ) ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockRngdMod >( this ,
                                       NuclearUnitBlockMod::eSetModDP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2242,7 +2245,9 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )  // issue a physical Modification
+ // issue a physical Modification
+ if( issue_pmod( issuePMod , NuclearUnitBlockMod::changes_of(
+                 NuclearUnitBlockMod::eSetModDM ) ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockSbstMod >( this ,
                                               NuclearUnitBlockMod::eSetModDM ,
                                               std::move( subset ) ) ,
@@ -2288,7 +2293,8 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , NuclearUnitBlockMod::changes_of(
+                 NuclearUnitBlockMod::eSetModDM ) ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockRngdMod >( this ,
                                       NuclearUnitBlockMod::eSetModDM , rng ) ,
                            Observer::par2chnl( issuePMod ) );

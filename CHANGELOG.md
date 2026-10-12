@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the unit test checks the boxes of the infeasible arcs on a unit whose
+  run from before the horizon cannot pass a low availability, read with it
+  and given it, and back, by `set_availability()`
+
+- the unit test checks the caps (27) through the maximum powers of a run on
+  two units with a varying availability, read with it and given it by
+  `set_availability()`, whose continuous relaxation in the pt, DP, SU, SD
+  and SUSD formulations is the integer optimum
+
 - `ThermalUnitExtDPSolver::get_dp_stats()` returns what the last run of
   the dynamic program did: the on-states built, split by the trimming, kept
   and their pieces, the largest number kept at an instant, the pairs of
@@ -200,6 +209,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- in the pt, SU, SD and SUSD formulations of `ThermalUnitBlock` (and of
+  `NuclearUnitBlock`) the arc of a run that no power satisfies (its bounds,
+  start-up and shut-down limits and ramps leave an empty interval at some
+  instant, the runs whose economic dispatch the DP Solvers find
+  infeasible) is fixed to 0 by its box "ArcBound_Const_Thermal", which
+  update_rows() changes with the data; before, such a run could carry a
+  fractional flow in these formulations, whose relaxation could then be
+  below that of the DP one also with the SUSD formulation
+
+- the maximum power rows (27) of the pt, SU, SD and SUSD formulations of
+  `ThermalUnitBlock` (and of `NuclearUnitBlock`, which inherits them) carry
+  by the ramps every maximum power met along a run, not only the start-up
+  and shut-down limits: the cap of an instant is the least of the maximum
+  powers of the instants of the run plus the ramps from them to it, which
+  is tighter when the maximum power changes in time, e.g., with the
+  availability, and the same as before with constant data; on 1312 random
+  units with a varying availability the continuous relaxation of SU is
+  below the integer optimum on 48 instead of 99, that of pt on 74 instead
+  of 129
+
+- the documentation of `ThermalUnitBlock` cites the SD and SUSD
+  formulations from their published version (AIRO Springer Series 5, 2021)
+  in place of the technical report R. 20-01 of IASI-CNR, whose rows have
+  the same numbers in the two
+
+- the bounding of `ThermalUnitExtDPSolver` may use a bound of a derived unit
+  that depends on the label and on the output (`completion_bound()`, built
+  by `prepare_completion_bound()` once more than 256 states are kept at an
+  instant); `NuclearUnitExtDPSolver` gives the cost-to-go of a relaxation of
+  its rules, computed backwards on a grid of the output, which keeps the
+  stability, the lockout and the counter of the modulations of the day: the
+  values are the same to the last digit, and on the subproblems of the
+  Lagrangian duals without bands the dynamic program takes about half of
+  the instructions it took
+
 - `ThermalUnitExtDPSolver` prunes the on-states by bounds, as a
   branch-and-bound does: a state whose least value plus a lower bound on
   the cost of the instants that follow (each at least the smaller of 0 and
@@ -279,6 +323,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each row (the same rows)
 
 ### Fixed
+
+- `ThermalUnitBlock` (and so `NuclearUnitBlock`) separated a perspective
+  cut every time the point violated it, also when the same cut, on the same
+  variable and at the same \check{p}, was in the Block already: in the
+  callback of a multithreaded MILP a point comes back many times, and on a
+  unit commitment of 10 units the 71461 cuts of a solve were 31175 distinct
+  ones. A cut is now added only if it is not there already, the
+  solver that has dropped it being the one that gives it again; and the
+  group "PC_cuts_Thermal" is registered once, by
+  `generate_abstract_constraints()`, where `generate_dynamic_constraints()`
+  added one more group viewing the same list at each call, so that a
+  solver reading the Block anew found each cut once per call made
 
 - `DCNetworkBlock` and `ACNetworkBlock` accept a network of several nodes
   with no line (`NumberLines` 0, with none of the variables of the lines),

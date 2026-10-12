@@ -190,6 +190,7 @@ ThermalUnitBlock::~ThermalUnitBlock()
  Constraint::clear( ShutDown_Binary_bound_Const );
 
  Constraint::clear( Commitment_fixed_to_One_Const );
+ Constraint::clear( ArcBound_Const );
 
  objective.clear();
 }
@@ -750,7 +751,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  if( f_cuts ) {
   AR |= PCuts;
 
-  prevpbar.resize( f_time_horizon , 0 );
   v_cut.resize( f_time_horizon );
   for( auto & var : v_cut )
    var.set_type( ColVariable::kNonNegative );
@@ -1006,6 +1006,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
  build_rows( generate_ZOConstraints );
 
+ // the group of the perspective cuts, filled by generate_dynamic_constraints()
+ if( AR & PCuts )
+  add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
+
  set_constraints_generated();
 
  }  // end( ThermalUnitBlock::generate_abstract_constraints )
@@ -1058,40 +1062,56 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
      ( ( AR & FormMsk ) == SDForm ) || ( ( AR & FormMsk ) == SUSDForm ) ) {
   v_psi.resize( v_P_h_k.size() );
 
+  // the interval ( h , k ) is on in the periods h - 1 , ... , k - 1: it
+  // starts up at h - 1 (before the horizon if h == 0) and shuts down at k
+  // (beyond the horizon if k >= T). At each instant t of it, the first and
+  // the last included, its power is at most xi[ h ][ t ], the largest
+  // power that the start-up limit (the initial power for h == 0), the
+  // maximum powers of the instants h - 1 , ... , t and the ramps up between
+  // them allow, and at most theta[ k ][ t ], the same backwards from the
+  // shut-down limit of k through the maximum powers of t , ... , k - 1 and
+  // the ramps down; without the ramps up (down) only the limit of the
+  // instant of the start-up (before the shut-down) is carried, there being
+  // no bound on a step
+  const Index T = f_time_horizon;
+  std::vector< std::vector< double > > xi( T + 1 ) , theta( T + 1 );
+  for( Index h = 0 ; h <= T ; ++h ) {
+   xi[ h ].assign( T , Inf< double >() );
+   if( h > 0 ) {
+    double c = std::min( double( v_StartUpLimit[ h - 1 ] ) ,
+                         get_operational_max_power( h - 1 ) );
+    xi[ h ][ h - 1 ] = c;
+    if( ! v_DeltaRampUp.empty() )
+     for( Index r = h ; r < T ; ++r )
+      xi[ h ][ r ] = c = std::min( c + v_DeltaRampUp[ r ] ,
+                                   get_operational_max_power( r ) );
+    }
+   else
+    if( ( f_InitUpDownTime > 0 ) && ( ! v_DeltaRampUp.empty() ) ) {
+     double c = f_InitialPower;
+     for( Index r = 0 ; r < T ; ++r )
+      xi[ 0 ][ r ] = c = std::min( c + v_DeltaRampUp[ r ] ,
+                                   get_operational_max_power( r ) );
+     }
+   }
+  for( Index k = 1 ; k < T ; ++k ) {
+   theta[ k ].assign( T , Inf< double >() );
+   double c = std::min( double( v_ShutDownLimit[ k ] ) ,
+                        get_operational_max_power( k - 1 ) );
+   theta[ k ][ k - 1 ] = c;
+   if( ! v_DeltaRampDown.empty() )
+    for( Index r = k - 1 ; r-- > 0 ; )
+     theta[ k ][ r ] = c = std::min( c + v_DeltaRampDown[ r + 1 ] ,
+                                     get_operational_max_power( r ) );
+   }
+
   for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
    const Index t = v_P_h_k[ j ].first;
    const Index h = v_P_h_k[ j ].second.first;
    const Index k = v_P_h_k[ j ].second.second;
-   // the interval ( h , k ) is on in the periods h - 1 , ... , k - 1: it
-   // starts up at h - 1 (before the horizon if h == 0) and shuts down at k
-   // (beyond the horizon if k >= T); every instant of it, the first and
-   // the last included, is capped by the maximum power, by the start-up
-   // limit plus the ramps up from the start-up (the initial power plus the
-   // ramps from -1 for h == 0) and by the shut-down limit plus the ramps
-   // down to the shut-down, the limits alone if the ramps are not given
-   v_psi[ j ] = get_operational_max_power( t );
-
-   if( k < f_time_horizon ) {
-    if( t + 1 == k )
-     v_psi[ j ] = std::min( v_psi[ j ] , double( v_ShutDownLimit[ k ] ) );
-    else
-     if( ! v_DeltaRampDown.empty() )
-      v_psi[ j ] = std::min( v_psi[ j ] , v_ShutDownLimit[ k ] +
-                                          ramp_down_sum( t + 1 , k - 1 ) );
-    }
-
-   if( h > 0 ) {
-    if( t + 1 == h )
-     v_psi[ j ] = std::min( v_psi[ j ] , double( v_StartUpLimit[ t ] ) );
-    else
-     if( ! v_DeltaRampUp.empty() )
-      v_psi[ j ] = std::min( v_psi[ j ] , v_StartUpLimit[ h - 1 ] +
-                                          ramp_up_sum( h , t ) );
-    }
-   else
-    if( ( f_InitUpDownTime > 0 ) && ( ! v_DeltaRampUp.empty() ) )
-     v_psi[ j ] = std::min( v_psi[ j ] ,
-                            f_InitialPower + ramp_up_sum( 0 , t ) );
+   v_psi[ j ] = std::min( get_operational_max_power( t ) , xi[ h ][ t ] );
+   if( ( k > 0 ) && ( k < T ) )
+    v_psi[ j ] = std::min( v_psi[ j ] , theta[ k ][ t ] );
    // a cap below the minimum power means that the run cannot be on at t,
    // which the maximum and minimum power rows then say together
    }
@@ -3351,6 +3371,26 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
 
  add_rows( ActivePower_Bound_Const , "ActivePowerBound_thermal" );
 
+ // the box of the arc of each run in the pt, SU, SD and SUSD formulations:
+ // 0 <= y^{hk}_+ <= 1, and y^{hk}_+ <= 0 if no power of the run satisfies
+ // its bounds, its start-up and shut-down limits and its ramps (the rows of
+ // the run in the DP formulation, whose economic dispatch is then
+ // infeasible). The intervals of the power that these allow are propagated
+ // forwards along the run, which on a chain of instants is exact: the run
+ // is feasible if and only if no interval is empty
+ if( ( ( AR & FormMsk ) == ptForm ) || ( ( AR & FormMsk ) == SUForm ) ||
+     ( ( AR & FormMsk ) == SDForm ) || ( ( AR & FormMsk ) == SUSDForm ) ) {
+  if( generating_rows() )
+   ArcBound_Const.resize( v_Y_plus.size() );
+
+  for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+   put_box( ArcBound_Const[ i ] , & v_commitment_plus[ i ] , 0 ,
+            run_feasible( v_Y_plus[ i ].first , v_Y_plus[ i ].second ) ?
+            1 : 0 );
+
+  add_rows( ArcBound_Const , "ArcBound_Const_Thermal" );
+  }
+
  }  // end( ThermalUnitBlock::build_rows )
 
 /*--------------------------------------------------------------------------*/
@@ -3513,6 +3553,49 @@ void ThermalUnitBlock::put_box( BoxConstraint & box , ColVariable * var ,
  else
   if( ( box.get_lhs() != lhs ) || ( box.get_rhs() != rhs ) )
    f_row_cmp->boxes.push_back( { & box , lhs , rhs } );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitBlock::run_feasible( Index h , Index k ) const
+{
+ // the run ( h , k ) is on at the instants h - 1 , ... , k - 1 (from 0 if
+ // h == 0, to T - 1 if k >= T); the arc ( 0 , 0 ) has no instant
+ const Index T = f_time_horizon;
+ const Index first = h > 0 ? h - 1 : 0;
+ const Index last = std::min( k , T ) - 1;
+ if( ( k == 0 ) || ( first > last ) )
+  return( true );
+
+ const double eps = 1e-9;
+ double lo = 0 , hi = 0;
+ for( Index t = first ; t <= last ; ++t ) {
+  double L = get_operational_min_power( t );
+  double U = get_operational_max_power( t );
+  if( ( h > 0 ) && ( t == first ) )
+   U = std::min( U , double( v_StartUpLimit[ t ] ) );
+  if( ( k < T ) && ( t == last ) )
+   U = std::min( U , double( v_ShutDownLimit[ k ] ) );
+  if( t == first ) {
+   if( ( h == 0 ) && ( f_InitUpDownTime > 0 ) ) {  // from the power at -1
+    if( ! v_DeltaRampUp.empty() )
+     U = std::min( U , f_InitialPower + v_DeltaRampUp[ 0 ] );
+    if( ! v_DeltaRampDown.empty() )
+     L = std::max( L , f_InitialPower - v_DeltaRampDown[ 0 ] );
+    }
+   }
+  else {
+   if( ! v_DeltaRampUp.empty() )
+    U = std::min( U , hi + v_DeltaRampUp[ t ] );
+   if( ! v_DeltaRampDown.empty() )
+    L = std::max( L , lo - v_DeltaRampDown[ t ] );
+   }
+  if( L > U + eps * std::max( 1.0 , std::abs( U ) ) )
+   return( false );
+  lo = L;
+  hi = U;
+  }
+ return( true );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -3703,7 +3786,6 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
   double tol = 1e-7;  // threshold parameter for P/C separation
   double eps = 1e-6;  // tolerance value to consider a binary variable
 
-  bool check_loop = false;
   // the violation of the cut at the point, p^2 / u - z = 2 p^2 / u - psum
   // with psum = z + p^2 / u, is compared with tol times max{ 1 , psum }
   double part1 , psum;
@@ -3727,40 +3809,50 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
    // if the given Configuration is not valid, try the one from the BlockConfig
    extract_parameters( f_BlockConfig->f_dynamic_constraints_Configuration );
 
+  // the \check{p} of the cuts already added, read again from PC_cuts if
+  // anything other than this method has changed it: the first two terms of
+  // each cut are 2 \check{p} p and - z
+  if( PC_pbar_size != PC_cuts.size() ) {
+   PC_pbar.clear();
+   for( const auto & c : PC_cuts )
+    if( auto lf = dynamic_cast< const LinearFunction * >( c.get_function() ) )
+     if( lf->get_num_active_var() >= 2 )
+      PC_pbar[ lf->get_v_var()[ 1 ].first ].insert(
+                                         lf->get_v_var()[ 0 ].second / 2 );
+   PC_pbar_size = PC_cuts.size();
+   }
+
+  // true if the cut on z at pbar has been added already, otherwise it
+  // records it as added
+  auto known = [ this ]( const ColVariable * z , double pbar ) -> bool {
+   auto & s = PC_pbar[ z ];
+   const double d = 1e-9 * std::max( 1.0 , std::abs( pbar ) );
+   auto it = s.lower_bound( pbar - d );
+   if( ( it != s.end() ) && ( *it <= pbar + d ) )
+    return( true );
+   s.insert( pbar );
+   ++PC_pbar_size;
+   return( false );
+   };
+
   LinearFunction::v_coeff_pair vars;
 
   // tbin and T formulations- - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == tbinForm || ( AR & FormMsk ) == TForm ) {
-   bool check_cut = false;
-   double pbar = 0;  // read only by the check_loop variant
-
    for( Index t = 0 ; t < f_time_horizon ; ++t )
 
     if( v_commitment[ t ].get_value() > eps ) {
 
-     check_cut = false;
+     psum = v_cut[ t ].get_value() + std::pow(
+            v_active_power[ t ].get_value() /
+              v_commitment[ t ].get_value() , 2 ) * v_commitment[ t ].get_value();
+     part1 = std::max( 1.0 , psum );
 
-     if( check_loop ) {
-      pbar = v_active_power[ t ].get_value() / v_commitment[ t ].get_value();
-      double value = ( v_active_power[ t ].get_value() *
-       v_active_power[ t ].get_value() ) / v_commitment[ t ].get_value();
-      if( v_cut[ t ].get_value() < value - tol )
-       if( prevpbar[ t ] == 0 || ( prevpbar[ t ] != 0 && std::abs(
-         ( prevpbar[ t ] - pbar ) / prevpbar[ t ] ) > eps ) )
-        check_cut = true;
-     } else {
-      psum = v_cut[ t ].get_value() + std::pow(
-             v_active_power[ t ].get_value() /
-               v_commitment[ t ].get_value() , 2 ) * v_commitment[ t ].get_value();
-      part1 = std::max( 1.0 , psum );
-
-      if( 2.0 * ( v_active_power[ t ].get_value() / v_commitment[ t ].get_value() ) *
-          v_active_power[ t ].get_value() - psum >= tol * part1 )
-       check_cut = true;
-     }
-
-     if( check_cut ) {
-      prevpbar[ t ] = pbar;
+     if( ( 2.0 * ( v_active_power[ t ].get_value() /
+                   v_commitment[ t ].get_value() ) *
+           v_active_power[ t ].get_value() - psum >= tol * part1 ) &&
+         ( ! known( & v_cut[ t ] , v_active_power[ t ].get_value() /
+                                   v_commitment[ t ].get_value() ) ) ) {
 
       std::list< FRowConstraint > cut( 1 );
 
@@ -3797,8 +3889,9 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
        std::pow( v_active_power[ t ].get_value() / sumy , 2 ) * sumy;
      part1 = std::max( 1.0 , psum );
 
-     if( 2.0 * ( v_active_power[ t ].get_value() / sumy ) *
-                 v_active_power[ t ].get_value() - psum >= tol * part1 ) {
+     if( ( 2.0 * ( v_active_power[ t ].get_value() / sumy ) *
+           v_active_power[ t ].get_value() - psum >= tol * part1 ) &&
+         ( ! known( & v_cut[ t ] , v_active_power[ t ].get_value() / sumy ) ) ) {
       std::list< FRowConstraint > cut( 1 );
 
       vars.push_back( std::make_pair( &v_active_power[ t ] ,
@@ -3841,9 +3934,12 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            v_commitment_plus[ j ].get_value();
          part1 = std::max( 1.0 , psum );
 
-         if( 2.0 * ( v_active_power_h_k[ i ].get_value() /
-             v_commitment_plus[ j ].get_value() ) *
-             v_active_power_h_k[ i ].get_value() - psum >= tol * part1 ) {
+         if( ( 2.0 * ( v_active_power_h_k[ i ].get_value() /
+               v_commitment_plus[ j ].get_value() ) *
+               v_active_power_h_k[ i ].get_value() - psum >= tol * part1 ) &&
+             ( ! known( & v_cut_h_k[ s ] ,
+                        v_active_power_h_k[ i ].get_value() /
+                        v_commitment_plus[ j ].get_value() ) ) ) {
           std::list< FRowConstraint > cut( 1 );
 
           vars.push_back(
@@ -3889,8 +3985,10 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            std::pow( v_active_power_h[ i ].get_value() / sumy , 2 ) * sumy;
          part1 = std::max( 1.0 , psum );
 
-         if( 2.0 * ( v_active_power_h[ i ].get_value() / sumy ) *
-             v_active_power_h[ i ].get_value() - psum >= tol * part1 ) {
+         if( ( 2.0 * ( v_active_power_h[ i ].get_value() / sumy ) *
+               v_active_power_h[ i ].get_value() - psum >= tol * part1 ) &&
+             ( ! known( & v_cut_h[ s ] ,
+                        v_active_power_h[ i ].get_value() / sumy ) ) ) {
           std::list< FRowConstraint > cut( 1 );
 
           vars.push_back(
@@ -3935,8 +4033,10 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            std::pow( v_active_power_k[ i ].get_value() / sumy , 2 ) * sumy;
          part1 = std::max( 1.0 , psum );
 
-         if( 2.0 * ( v_active_power_k[ i ].get_value() / sumy ) *
-          v_active_power_k[ i ].get_value() - psum >= tol * part1 ) {
+         if( ( 2.0 * ( v_active_power_k[ i ].get_value() / sumy ) *
+               v_active_power_k[ i ].get_value() - psum >= tol * part1 ) &&
+             ( ! known( & v_cut_k[ s ] ,
+                        v_active_power_k[ i ].get_value() / sumy ) ) ) {
 
           std::list< FRowConstraint > cut( 1 );
 
@@ -3964,8 +4064,6 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
         }
     }
   }
-
-  add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
   }
  }  // end( ThermalUnitBlock::generate_dynamic_constraints )
 
@@ -4296,7 +4394,8 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 				 , rel_viol )
   && RowConstraint::is_feasible( ReactivePowerMax_Const , tol , rel_viol )
   && RowConstraint::is_feasible( ReactivePowerMin_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ArcBound_Const , tol , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )
 
@@ -4835,7 +4934,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetAv ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetAv ,
@@ -4862,7 +4962,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetAv ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetAv , rng ) ,
@@ -4894,7 +4995,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetMaxP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetMaxP ,
@@ -4921,7 +5023,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetMaxP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetMaxP , rng ) ,
@@ -5088,7 +5191,8 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetInitP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
                             this , ThermalUnitBlockMod::eSetInitP ) ,
@@ -5133,7 +5237,8 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetInitP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
                             this , ThermalUnitBlockMod::eSetInitP ) ,
@@ -5200,7 +5305,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSUC ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetSUC ,
@@ -5265,7 +5371,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSUC ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetSUC , rng ) ,
@@ -5339,7 +5446,8 @@ void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSDC ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetSDC ,
@@ -5408,7 +5516,8 @@ void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSDC ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetSDC , rng ) ,
@@ -5476,7 +5585,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetConstT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetConstT ,
@@ -5542,7 +5652,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetConstT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetConstT , rng ) ,
@@ -5608,7 +5719,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetLinT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetLinT ,
@@ -5670,7 +5782,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetLinT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetLinT , rng ) ,
@@ -5728,7 +5841,8 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
                                   true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetReactiveLinT ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetReactiveLinT ,
                             std::move( subset ) ) ,
@@ -5775,7 +5889,8 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
                                   un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetReactiveLinT ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetReactiveLinT ,
                             rng ) ,
@@ -5903,7 +6018,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetQuadT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetQuadT ,
@@ -6022,7 +6138,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetQuadT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetQuadT , rng ) ,
@@ -6096,7 +6213,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetPrSpResCost ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetPrSpResCost ,
@@ -6170,7 +6288,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetPrSpResCost ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetPrSpResCost , rng ) ,
@@ -6243,7 +6362,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSecSpResCost ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetSecSpResCost ,
@@ -6317,7 +6437,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSecSpResCost ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetSecSpResCost , rng ) ,
@@ -6399,7 +6520,8 @@ void ThermalUnitBlock::guts_of_set_init_updown_time( int value ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetInitUD ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
                             this , ThermalUnitBlockMod::eSetInitUD ) ,
@@ -6463,7 +6585,8 @@ void ThermalUnitBlock::set_min_up_down_time( Index min_up_time ,
  f_MinDownTime = clamp_min_time( min_down_time , f_time_horizon ,
                                  f_InitUpDownTime , false );
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetInitUD ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
                             this , ThermalUnitBlockMod::eSetInitUD ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -6495,7 +6618,8 @@ void ThermalUnitBlock::scale( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
+                 UnitBlockMod::eScale ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                             this , UnitBlockMod::eScale ) ,
@@ -6644,7 +6768,8 @@ void ThermalUnitBlock::update_objective_investment( ModParam issuePMod ,
  if( ! ( cur == f_last_design_cost ) ) {  // ( cur != cached ), NaN-safe
   f_last_design_cost = cur;
 
-  if( issue_pmod( issuePMod ) )
+  if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                  ThermalUnitBlockMod::eSetInvCost ) ) )
    // Issue a Physical Modification so that Solvers that consume the structural
    // data (the DP Solvers) refresh their copy of the design cost. Note that the
    // design cost lives only in the abstract Objective (there is no separate
@@ -6802,7 +6927,8 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 			    "changing anything but the fixed status is not "
 			    "supported" ) );
 
-  if( anyone_there() )
+  if( anyone_there_for( ThermalUnitBlockMod::changes_of(
+                         ThermalUnitBlockMod::eFixVars ) ) )
    Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
 			     this , ThermalUnitBlockMod::eFixVars ) , chnl );
   return;

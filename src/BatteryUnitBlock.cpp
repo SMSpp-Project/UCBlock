@@ -1902,7 +1902,8 @@ void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
    update_initial_storage_in_cnstrs( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetInitS ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
                             this , BatteryUnitBlockMod::eSetInitS ) ,
@@ -1937,7 +1938,8 @@ void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
    update_initial_storage_in_cnstrs( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetInitS ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
                             this , BatteryUnitBlockMod::eSetInitS ) ,
@@ -1990,7 +1992,8 @@ void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
    update_initial_power_in_cnstrs( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetInitP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
                             this , BatteryUnitBlockMod::eSetInitP ) ,
@@ -2023,7 +2026,8 @@ void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
    update_initial_power_in_cnstrs( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetInitP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
                             this , BatteryUnitBlockMod::eSetInitP ) ,
@@ -2080,7 +2084,8 @@ void BatteryUnitBlock::set_cost( MF_dbl_it values ,
    update_objective( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetCost ) ) ) {
   // Issue a Physical Modification
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
@@ -2128,7 +2133,8 @@ void BatteryUnitBlock::set_cost( MF_dbl_it values ,
    update_objective( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetCost ) ) )
   // Issue a Physical Modification
    Block::add_Modification( std::make_shared< BatteryUnitBlockRngdMod >(
                              this , BatteryUnitBlockMod::eSetCost , rng ) ,
@@ -2161,7 +2167,8 @@ void BatteryUnitBlock::scale( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
+                 UnitBlockMod::eScale ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                             this , UnitBlockMod::eScale ) ,
@@ -2521,7 +2528,8 @@ void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
     update_kappa_in_cnstrs( issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetKappa ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
                             this , BatteryUnitBlockMod::eSetKappa ) ,
@@ -2591,7 +2599,8 @@ void BatteryUnitBlock::set_converter_kappa( MF_dbl_it values ,
    }
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetConvKappa ) ) )
   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
                             this , BatteryUnitBlockMod::eSetConvKappa ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2672,16 +2681,20 @@ void BatteryUnitBlock::resize( double kappa , double conv_kappa ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) {
-  if( kappa_changes )
-   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
-                             this , BatteryUnitBlockMod::eSetKappa ) ,
-                            Observer::par2chnl( issuePMod ) );
-  if( conv_changes )
-   Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
-                             this , BatteryUnitBlockMod::eSetConvKappa ) ,
-                            Observer::par2chnl( issuePMod ) );
-  }
+ // each only if anyone reads what it changes, as in set_kappa() and
+ // set_converter_kappa()
+ if( kappa_changes &&
+     issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetKappa ) ) )
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                            this , BatteryUnitBlockMod::eSetKappa ) ,
+                           Observer::par2chnl( issuePMod ) );
+ if( conv_changes &&
+     issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
+                 BatteryUnitBlockMod::eSetConvKappa ) ) )
+  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
+                            this , BatteryUnitBlockMod::eSetConvKappa ) ,
+                           Observer::par2chnl( issuePMod ) );
 
 }  // end( BatteryUnitBlock::resize )
 
