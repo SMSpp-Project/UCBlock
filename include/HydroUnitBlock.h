@@ -2316,7 +2316,7 @@ class HydroUnitBlockSolution : public UnitBlockSolution
 
  friend HydroUnitBlock;  ///< make HydroUnitBlock friend
 
-/*--------- CONSTRUCTING AND DESTRUCTING HydroUnitBlockSolution ----------*/
+/*--------- CONSTRUCTING AND DESTRUCTING HydroUnitBlockSolution ------------*/
 
  /// constructor, it has nothing to do
  explicit HydroUnitBlockSolution( void )
@@ -2331,7 +2331,7 @@ class HydroUnitBlockSolution : public UnitBlockSolution
  ~HydroUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*----- METHODS DESCRIBING THE BEHAVIOR OF A HydroUnitBlockSolution -----*/
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A HydroUnitBlockSolution --------*/
 
  void read( const Block * block ) override final;
 

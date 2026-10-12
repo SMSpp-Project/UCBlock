@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - NUBCfg-3bin-TR.txt- - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - NUBCfg-3bin-TR.txt  - - - - - - - - - - - - - - -
 #
 # The BlockConfig of a NuclearUnitBlock that selects the 3bin formulation
 # with the tight operating rules (TightRules) (static_variables = 32).
@@ -47,5 +47,5 @@ SimpleConfiguration<int>
 *  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - END NUBCfg-3bin-TR.txt- - - - - - - - - - - - - - -
+# - - - - - - - - - - - - END NUBCfg-3bin-TR.txt  - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

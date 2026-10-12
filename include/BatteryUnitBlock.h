@@ -2530,7 +2530,7 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
  ~BatteryUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*----- METHODS DESCRIBING THE BEHAVIOR OF A BatteryUnitBlockSolution -----*/
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A BatteryUnitBlockSolution ------*/
 
  void read( const Block * block ) override final;
 

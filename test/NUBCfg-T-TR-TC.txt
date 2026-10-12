@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - NUBCfg-T-TR-TC.txt- - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - NUBCfg-T-TR-TC.txt  - - - - - - - - - - - - - - -
 #
 # The BlockConfig of a NuclearUnitBlock that selects the T formulation with
 # the tight operating rules, whose rows on the start Variable are separated
@@ -48,5 +48,5 @@ SimpleConfiguration<int>
 *  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - END NUBCfg-T-TR-TC.txt- - - - - - - - - - - - - - -
+# - - - - - - - - - - - - END NUBCfg-T-TR-TC.txt  - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -1915,7 +1915,7 @@ class NuclearUnitBlockSolution : public ThermalUnitBlockSolution
  ~NuclearUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*----- METHODS DESCRIBING THE BEHAVIOR OF A NuclearUnitBlockSolution -----*/
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A NuclearUnitBlockSolution ------*/
 
  void read( const Block * block ) override final;
 

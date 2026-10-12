@@ -984,9 +984,9 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
 
- /*--------------------------------------------------------------*/
- /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c      */
- /*--------------------------------------------------------------*/
+ /*--------------------------------------------------------------------------*/
+ /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c                  */
+ /*--------------------------------------------------------------------------*/
  auto & DC_lines = f_NetworkData->get_DC_lines();
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
  int nb_dc_lines = DC_lines.size();
@@ -1564,15 +1564,15 @@ LinearFunction * DCNetworkBlock::overall_balance_function(
 
 void DCNetworkBlock::generate_bound_constraints( void )
 {
- /*-----------------------------------------------------------------------*/
- /*-------------------- flow limits with/without design ------------------*/
- /*-----------------------------------------------------------------------*/
+ /*--------------------------------------------------------------------------*/
+ /*-------------------- flow limits with/without design ---------------------*/
+ /*--------------------------------------------------------------------------*/
 
  LinearFunction::v_coeff_pair vars;
 
  const auto number_lines = get_number_lines();
 
- /*-------------------------- with design --------------------------------*/
+ /*-------------------------- with design -----------------------------------*/
  /** For lines having a design variable x_l (get_design( l ) != nullptr),
   *  impose:
   *
@@ -1640,7 +1640,7 @@ void DCNetworkBlock::generate_bound_constraints( void )
 			  "Power_flow_limit_design_min" );
   }
 
- /*------------------------- without design -------------------------------*/
+ /*------------------------- without design ---------------------------------*/
  /** For lines with no design variable (get_design( l ) == nullptr),
   *  impose the standard box:
   *

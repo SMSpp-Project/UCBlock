@@ -2884,7 +2884,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  ~DCNetworkBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*------ METHODS DESCRIBING THE BEHAVIOR OF A DCNetworkBlockSolution ------*/
+/*------ METHODS DESCRIBING THE BEHAVIOR OF A DCNetworkBlockSolution -------*/
 
  void read( const Block * block ) override;
 

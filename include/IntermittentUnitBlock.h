@@ -1393,7 +1393,7 @@ class IntermittentUnitBlockSolution : public UnitBlockSolution
  ~IntermittentUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*--- METHODS DESCRIBING THE BEHAVIOR OF A IntermittentUnitBlockSolution --*/
+/*--- METHODS DESCRIBING THE BEHAVIOR OF A IntermittentUnitBlockSolution ---*/
 
  void read( const Block * block ) override final;
 

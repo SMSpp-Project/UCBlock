@@ -652,7 +652,7 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
  ~HydroSystemUnitBlockSolution() override;
  ///< destructor: it deletes the "inner" Solution
 
-/*--- METHODS DESCRIBING THE BEHAVIOR OF A HydroSystemUnitBlockSolution ---*/
+/*--- METHODS DESCRIBING THE BEHAVIOR OF A HydroSystemUnitBlockSolution ----*/
 
  void read( const Block * block ) override final;
 

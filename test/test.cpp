@@ -11564,7 +11564,7 @@ static void test_nuclear_DP_bounding( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ THE CONVERSION UNIT ------------------------------*/
+/*------------------------ THE CONVERSION UNIT -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /* The data of a ConversionUnitBlock as the tests write it: the data over
  * the instants and the generators (or rows, or ramps) are row-major
