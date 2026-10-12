@@ -11140,6 +11140,68 @@ static void test_nuclear_DP_sliver_states( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* NuclearUnitExtDPSolver on a unit off before the horizon whose output
+ * crosses its range in 30 ramps, with modulations of up to 31 steps, at
+ * prices at which every instant on costs more than 0: the optimal schedule
+ * stays off, at the cost 0. Without the bounding the DP keeps thousands of
+ * on-states at an instant, all of them more costly than the schedule that
+ * stays off; with it, every on-state is removed as soon as it is built,
+ * since its value plus the lower bound 0 on the cost of the instants that
+ * follow exceeds that schedule. */
+
+static void test_nuclear_DP_bounding( void )
+{
+ NURules d;
+ d.T = 96;
+ d.minP = 100;
+ d.maxP = 400;
+ d.ru = d.rd = 10;
+ d.su = d.sd = 150;
+ d.initUD = -100;
+ d.minUp = 8;
+ d.minDown = 8;
+ d.modT = 4;
+ d.initMod = 4;
+ d.L = 31;
+ d.day = 96;
+ d.C = 2;
+ d.mru = d.mrd = 0;
+ d.downc = 2;
+ d.quad.assign( d.T , 1e-4 );
+ d.suc.assign( d.T , 1000 );
+ d.lin.resize( d.T );
+ for( Index t = 0 ; t < d.T ; ++t )
+  d.lin[ t ] = 5 + 3 * std::sin( 2 * std::numbers::pi * t / 96.0 );
+
+ auto nub = new_rules_NU( d );
+ generate_from_file( nub , "TUBCfg-T.txt" );
+ auto slv = new NuclearUnitExtDPSolver();
+ nub->register_Solver( slv );
+ try {
+  const auto st = slv->compute();
+  check( st == Solver::kOK , "DP bounding: compute() returns " +
+         std::to_string( st ) );
+  if( st == Solver::kOK ) {
+   check( slv->get_var_value() == 0 , "DP bounding: the value is " +
+          std::to_string( slv->get_var_value() ) + " instead of 0" );
+   slv->get_var_solution( nullptr );
+   SimpleConfiguration< double > tol( 1e-7 );
+   check( nub->is_feasible( true , & tol ) , "DP bounding: the schedule is "
+          "not feasible, " + violated_row( nub , 1e-7 ) );
+   }
+  const auto & z = slv->get_dp_stats();
+  check( ( z.kept == 0 ) && ( z.bounded > 0 ) , "DP bounding: "
+         + std::to_string( z.kept ) + " states kept, "
+         + std::to_string( z.bounded ) + " bounded" );
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "DP bounding: throws " ) + e.what() );
+  }
+ nub->unregister_Solver( slv , true );
+ delete nub;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ THE CONVERSION UNIT ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* The data of a ConversionUnitBlock as the tests write it: the data over
@@ -13243,6 +13305,7 @@ int main( int argc , char ** argv )
   test_nuclear_no_start_up_modulation();
   test_nuclear_is_feasible_tolerance();
   test_nuclear_DP_sliver_states();
+  test_nuclear_DP_bounding();
 
   test_conversion_reduction_thermal();
   test_conversion_hull();

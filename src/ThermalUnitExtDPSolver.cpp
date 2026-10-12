@@ -991,6 +991,102 @@ void ThermalUnitExtDPSolver::run_DP( void )
                          std::min( c * lo_off , c * hi_off );
    }
 
+ // bounding: a state that no completion can take below a feasible schedule
+ // is useless. f_lbsuf[ t ] is a lower bound on the cost of the instants
+ // t + 1 , ... , n - 1 of any schedule: each instant costs at least the
+ // smaller of 0 (off) and the least cost of being on there, the reward of
+ // the reserves on the whole band, a negative start-up, shut-down or move
+ // cost included. The feasible schedules are those that leave a state at t
+ // and stay off (cost c^{any}_t, if no instant after t is fixed on) or stay
+ // on at the same output to the end (if can_hold(), no instant after t is
+ // fixed off and the output is within the bounds of all of them): the cost
+ // of the latter is F( p ) plus the quadratic h_t( p ) whose coefficients
+ // are the sums of those of the instants after t, the reward of the reserves
+ // left out (it is not positive), and the best of these is f_ub
+ f_lbsuf.assign( n , 0.0 );
+ f_hold.assign( n , { 0.0 , 0.0 , 0.0 , - TUEDPINF , TUEDPINF } );
+ for( Index t = n - 1 ; t-- > 0 ; ) {
+  const Index s = t + 1;
+  PQFun G{ { quad_term[ s ] , linear_term[ s ] ,
+             const_term[ s ] + reactive_delta[ s ] ,
+             min_power[ s ] , max_power[ s ] } };
+  add_pwq( G , eff_disc[ s ] );
+  double m = ( min_power[ s ] <= max_power[ s ] + 1e-12 ) ?
+             min_over( G , min_power[ s ] , max_power[ s ] ).first : TUEDPINF;
+  if( m < TUEDPINF )
+   m += std::min( 0.0 , startup_costs.empty() ? 0.0 : startup_costs[ s ] ) +
+        std::min( 0.0 , min_move_cost( s ) );
+  double lb = std::min( 0.0 , m ) +
+              std::min( 0.0 , shutdown_costs.empty() ? 0.0
+                                                     : shutdown_costs[ s ] );
+  f_lbsuf[ t ] = f_lbsuf[ s ] + lb;
+  const auto & h = f_hold[ s ];
+  const bool last = ( s == n - 1 );
+  f_hold[ t ] = { ( last ? 0.0 : h.alfa ) + quad_term[ s ] ,
+                  ( last ? 0.0 : h.beta ) + linear_term[ s ] ,
+                  ( last ? 0.0 : h.gamma ) + const_term[ s ] +
+                  reactive_delta[ s ] ,
+                  std::max( last ? - TUEDPINF : h.left , min_power[ s ] ) ,
+                  std::min( last ? TUEDPINF : h.right , max_power[ s ] ) };
+  }
+ double f_ub = TUEDPINF;
+ // the off-trail of t can be completed by staying off
+ const auto off_ub = [ & ]( Index t ) {
+  if( ( t + 1 < n ) && f_has_fixings && ( nxt_on[ t + 1 ] < n ) )
+   return;
+  f_ub = std::min( f_ub , c_off_any[ t ] );
+  };
+ // the states at t can be completed by holding their output
+ const auto hold_ub = [ & ]( Index t , const std::vector< PQFun > & v_F ,
+                             const std::vector< OnLink > & v_link ) {
+  if( t + 1 >= n ) return;
+  if( f_has_fixings && ( nxt_off[ t + 1 ] < n ) ) return;
+  const auto & h = f_hold[ t ];
+  if( h.left > h.right + 1e-12 ) return;
+  for( std::size_t i = 0 ; i < v_F.size() ; ++i ) {
+   if( ! can_hold( t , v_link[ i ].lab ) ) continue;
+   for( const auto & pc : v_F[ i ] ) {
+    const double l = std::max( pc.left , h.left );
+    const double r = std::min( pc.right , h.right );
+    if( l > r + 1e-12 ) continue;
+    const PieceQuad q{ pc.alfa + h.alfa , pc.beta + h.beta ,
+                       pc.gamma + h.gamma , l , std::max( l , r ) };
+    f_ub = std::min( f_ub , eval_piece( q , argmin_piece( q ) ) );
+    }
+   }
+  };
+ // remove the states whose minimum plus f_lbsuf[ t ] exceeds f_ub, up to a
+ // relative tolerance (cutting the domains to the sublevel set would remove
+ // more, but it changes the parts of the transitions that are interpolated
+ // in the states that survive, hence their values in the last digits)
+ const auto bound = [ & ]( Index t , std::vector< PQFun > & v_F ,
+                           std::vector< Index > & v_tau ,
+                           std::vector< OnSlot > & v_on ,
+                           std::vector< OnLink > & v_link ) {
+  if( f_ub >= TUEDPINF ) return;
+  const double lev = f_ub + 1e-9 * std::max( 1.0 , std::abs( f_ub ) ) -
+                     f_lbsuf[ t ];
+  std::size_t out = 0;
+  for( std::size_t i = 0 ; i < v_F.size() ; ++i ) {
+   if( v_on[ i ].min_val > lev ) {
+    ++f_stats.bounded;
+    pool_give( v_F[ i ] );
+    continue;
+    }
+   if( out != i ) {
+    v_F   [ out ] = std::move( v_F  [ i ] );
+    v_tau [ out ] = v_tau [ i ];
+    v_on  [ out ] = v_on  [ i ];
+    v_link[ out ] = v_link[ i ];
+    }
+   ++out;
+   }
+  v_F   .resize( out );
+  v_tau .resize( out );
+  v_on  .resize( out );
+  v_link.resize( out );
+  };
+
  // domination pruning (RRF+ of Wuijts et al. 2021, Prop. 6.1, extended to
  // the labels): an on-state is "irrelevant" if it is pointwise dominated by
  // another one whose label is at least as good (label_dominates()) and which
@@ -1479,8 +1575,11 @@ void ThermalUnitExtDPSolver::run_DP( void )
  // prune at t = 0 (with a single seeded entry this is a no-op, but for
  // completeness we apply it to every time step)
  f_stats.built += f_F[ 0 ].size();
+ off_ub( 0 );
+ bound( 0 , f_F[ 0 ] , f_tau[ 0 ] , f_on[ 0 ] , f_link[ 0 ] );
  prune( f_F[ 0 ] , f_tau[ 0 ] , f_on[ 0 ] , f_link[ 0 ] );
  count_kept( f_F[ 0 ] );
+ hold_ub( 0 , f_F[ 0 ] , f_link[ 0 ] );
 
  // v_shutdown[0]: only meaningful if there is at least one more instant
  // in the horizon after t = 0 (so that being off at t = 1 is possible)
@@ -1831,8 +1930,11 @@ void ThermalUnitExtDPSolver::run_DP( void )
 
   // domination pruning of the new list
   f_stats.built += m_new_F.size();
+  off_ub( t );
+  bound( t , m_new_F , m_new_tau , m_new_on , m_new_link );
   prune( m_new_F , m_new_tau , m_new_on , m_new_link );
   count_kept( m_new_F );
+  hold_ub( t , m_new_F , m_new_link );
 
   // hand the per-step lists over to f_F[t] (emptied at reset); the build
   // buffers are left empty and regrow on the next step

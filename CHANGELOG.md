@@ -117,6 +117,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ThermalUnitExtDPSolver` prunes the on-states by bounds, as a
+  branch-and-bound does: a state whose least value plus a lower bound on
+  the cost of the instants that follow (each at least the smaller of 0 and
+  the least cost of being on there) exceeds the cost of a feasible schedule
+  already met (one that stays off from an off-state, or that keeps the
+  output of an on-state to the end) is removed, which leaves the optimal
+  value unchanged, and on the instances of the tests the value of each
+  solve is the same to the last digit; the new virtual methods `min_move_cost()` and
+  `can_hold()` give the derived units the cost of their moves and whether a
+  label can keep its output, which `NuclearUnitExtDPSolver` implements. On
+  the subproblems of a Lagrangian dual in which a nuclear unit stays off,
+  the dynamic program keeps a few states instead of thousands at an instant
+
+- the unit test checks the bounding on a nuclear unit with long modulations
+  at prices at which it stays off: the value is 0 and no on-state is kept
+
 - the domination of `ThermalUnitExtDPSolver` compares a state only with the
   states whose label dominates its own and whose domain meets its own, the
   answers of `label_dominates()` being asked once per pair of labels, and
