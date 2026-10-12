@@ -617,6 +617,10 @@ class HydroSystemUnitBlock : public UnitBlock
  * - one HydroUnitBlockSolution for each of the "inner" HydroUnitBlock of
  *   the HydroSystemUnitBlock
  *
+ * - the Solution of the PolyhedralFunctionBlock, if any, whose Variable
+ *   (e.g., the epigraph one of its linearized representation) carry the
+ *   future cost of the water
+ *
  * Note, however, that since the "root" UnitBlockSolution contains (if so
  * required) all the "standard" information, the same is not duplicated in
  * the "inner" HydroUnitBlockSolution */
@@ -645,8 +649,8 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~HydroSystemUnitBlockSolution() override = default;
- ///< destructor: it is virtual, and empty
+ ~HydroSystemUnitBlockSolution() override;
+ ///< destructor: it deletes the "inner" Solution
 
 /*--- METHODS DESCRIBING THE BEHAVIOR OF A HydroSystemUnitBlockSolution ---*/
 
@@ -667,6 +671,9 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
   * - The groups "HydroUnitBlockSolution_0", "HydroUnitBlockSolution_1", ...,
   *   "HydroUnitBlockSolution_(n-1)", with n == NumberHydroUnits, containing
   *   each one HydroUnitBlock.
+  *
+  * - The optional group "PolyhedralFunctionBlockSolution", containing the
+  *   Solution of the PolyhedralFunctionBlock, if there is one.
   *
   * Note, however, that since the "root" UnitBlockSolution contains (if so
   * required) all the "standard" information, the same is not duplicated in
@@ -700,6 +707,9 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
 
  std::vector< HydroUnitBlockSolution * > v_innerSol;
  ///< v_innerSol[ i ] = HydroUnitBlockSolution of inner Block i
+
+ Solution * f_pfSol = nullptr;
+ ///< Solution of the PolyhedralFunctionBlock, nullptr if there is none
 
 /*--------------------------------------------------------------------------*/
 

@@ -245,6 +245,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the Solution of a `HydroSystemUnitBlock` holds that of its
+  `PolyhedralFunctionBlock`, whose epigraph Variable carries the future cost
+  of the water in the linearized representation: without it, writing the
+  Solution left that Variable at whatever value it had, so that a Solver
+  keeping its solutions as Solution (e.g., `PrimalProximalHeur`) wrote back
+  a point whose cost was not the one it reported; the Solution is also
+  deleted with its inner ones, and serialized in the optional group
+  "PolyhedralFunctionBlockSolution"
+
 - `ThermalUnitBlock` (and so `NuclearUnitBlock`) separated a perspective
   cut every time the point violated it, also when the same cut, on the same
   variable and at the same \check{p}, was in the Block already: in the

@@ -3393,6 +3393,92 @@ static void test_hydro_system( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* HydroSystemUnitBlock: its Solution holds all the Variable of its tree,
+ * those of the PolyhedralFunctionBlock included, which carry the future cost
+ * of the water; a Solution that misses them, written in the Block, leaves
+ * them at whatever value they had, and the cost of the point is not that of
+ * the solution. */
+
+static Configuration * read_test_cfg( const std::string & name );
+
+static void test_hydro_system_solution( void )
+{
+ auto d0 = turbine_HU( 2 );
+ d0.R = 2;
+ d0.maxV.assign( 4 , 100 );
+ auto d1 = turbine_HU( 2 );
+
+ auto g = new_group( "HSS" , true );
+ g.putAtt( "type" , "HydroSystemUnitBlock" );
+ g.addDim( "TimeHorizon" , 2 );
+ g.addDim( "NumberHydroUnits" , 2 );
+ write_HU( g.addGroup( "HydroUnitBlock_0" ) , d0 );
+ write_HU( g.addGroup( "HydroUnitBlock_1" ) , d1 );
+ auto pg = g.addGroup( "PolyhedralFunctionBlock" );
+ pg.putAtt( "type" , "PolyhedralFunctionBlock" );
+ auto nv = pg.addDim( "PolyFunction_NumVar" , 3 );
+ auto nr = pg.addDim( "PolyFunction_NumRow" , 2 );
+ put( pg , "PolyFunction_A" , { nr , nv } , { -1 , -2 , -3 , -2 , -1 , 0 } );
+ put( pg , "PolyFunction_b" , nr , { 500 , 300 } );
+
+ std::unique_ptr< HydroSystemUnitBlock > b(
+		 dynamic_cast< HydroSystemUnitBlock * >( Block::new_Block( g ) ) );
+ if( ! b ) {
+  check( false , "hydro system Solution: not read" );
+  return;
+  }
+
+ // the linearized representation, whose epigraph Variable carries the
+ // value of the future cost [see PFBCfg.txt]
+ const auto pfb = b->get_polyhedral_function_block();
+ std::unique_ptr< BlockConfig > bc(
+		   dynamic_cast< BlockConfig * >( read_test_cfg( "PFBCfg.txt" ) ) );
+ if( ! bc ) {
+  check( false , "hydro system Solution: PFBCfg.txt not read" );
+  return;
+  }
+ bc->apply( pfb );
+ generate_all( b.get() );
+
+ // all the ColVariable of the tree, with the Block they belong to
+ std::vector< std::pair< ColVariable * , Block * > > vars;
+ std::function< void( Block * ) > collect = [ & ]( Block * blk ) {
+  blk->for_each_variable_group( [ & ]( const BaseGroup & grp ) {
+    grp.for_each( [ & ]( Variable & v ) {
+      if( auto cv = dynamic_cast< ColVariable * >( & v ) )
+       vars.emplace_back( cv , blk ); } ); } );
+  for( auto nb : blk->get_nested_Blocks() )
+   collect( nb );
+  };
+ collect( b.get() );
+
+ check( std::any_of( vars.begin() , vars.end() ,
+		     [ pfb ]( const auto & p ) { return( p.second == pfb ); } ) ,
+	"hydro system Solution: the PolyhedralFunctionBlock has no Variable" );
+
+ for( Index i = 0 ; i < vars.size() ; ++i )
+  vars[ i ].first->set_value( 0.5 * ( i + 1 ) );
+
+ std::unique_ptr< Solution > sol( b->get_Solution( nullptr , false ) );
+ std::unique_ptr< Solution > cln( sol->clone() );
+
+ auto restored = [ & ]( Solution * s , const std::string & what ) {
+  for( auto & p : vars )
+   p.first->set_value( -7 );
+  s->write( b.get() );
+  for( Index i = 0 ; i < vars.size() ; ++i )
+   if( vars[ i ].first->get_value() != 0.5 * ( i + 1 ) ) {
+    check( false , "hydro system Solution: " + what + " does not write a "
+	   "Variable of the " + vars[ i ].second->classname() );
+    return;
+    }
+  };
+
+ restored( sol.get() , "the Solution" );
+ restored( cln.get() , "its clone" );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------- STORAGE, INTERMITTENT AND SLACK UNITS ----------------*/
 /*--------------------------------------------------------------------------*/
 /// the coefficient of v in the row c, NaN if v is not in it
@@ -13449,6 +13535,7 @@ int main( int argc , char ** argv )
   test_hydro_spillage();
   test_hydro_inertia();
   test_hydro_system();
+  test_hydro_system_solution();
 
   test_battery_storage_balance();
   test_battery_initial_storage_sign();

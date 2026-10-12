@@ -468,6 +468,11 @@ Solution * HydroSystemUnitBlock::get_Solution( Configuration * csolc ,
   sol->v_innerSol[ i ] = static_cast< HydroUnitBlockSolution * >(
 	    get_hydro_unit_block( Index( i ) )->get_Solution( &iC , true ) );
 
+ // and that of the PolyhedralFunctionBlock, whose Variable are part of the
+ // cost of the HydroSystemUnitBlock
+ if( auto pfb = get_polyhedral_function_block() )
+  sol->f_pfSol = pfb->get_Solution( nullptr , true );
+
  if( ! emptys )
   sol->read( this );
 
@@ -508,6 +513,15 @@ void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const
 /*-------------- METHODS OF HydroSystemUnitBlockSolution -------------------*/
 /*--------------------------------------------------------------------------*/
 
+HydroSystemUnitBlockSolution::~HydroSystemUnitBlockSolution()
+{
+ for( auto sol : v_innerSol )
+  delete sol;
+ delete f_pfSol;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void HydroSystemUnitBlockSolution::deserialize(
 					     const netCDF::NcGroup & group )
 {
@@ -532,6 +546,13 @@ void HydroSystemUnitBlockSolution::deserialize(
 
   v_innerSol[ i ] = HSUSi;
   }
+
+ delete f_pfSol;
+ f_pfSol = nullptr;
+ auto pf_group = group.getGroup( "PolyhedralFunctionBlockSolution" );
+ if( ! pf_group.isNull() )
+  f_pfSol = Solution::new_Solution( pf_group );
+
  }  // end( HydroSystemUnitBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -547,6 +568,10 @@ void HydroSystemUnitBlockSolution::read( const Block * block )
 
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
   v_innerSol[ i ]->read( HSUB->get_hydro_unit_block( Index( i ) ) );
+
+ if( f_pfSol )
+  if( auto pfb = HSUB->get_polyhedral_function_block() )
+   f_pfSol->read( pfb );
 
  }  // end( HydroSystemUnitBlockSolution::read )
 
@@ -568,6 +593,10 @@ void HydroSystemUnitBlockSolution::write( Block * block )
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
   v_innerSol[ i ]->write( HSUB->get_hydro_unit_block( Index( i ) ) );
 
+ if( f_pfSol )
+  if( auto pfb = HSUB->get_polyhedral_function_block() )
+   f_pfSol->write( pfb );
+
  }  // end( HydroSystemUnitBlockSolution::write )
 
 /*--------------------------------------------------------------------------*/
@@ -583,6 +612,11 @@ void HydroSystemUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
                                                         std::to_string( i );
   auto sub_group = group.addGroup( sub_group_name );
   v_innerSol[ i ]->serialize( sub_group );
+  }
+
+ if( f_pfSol ) {
+  auto pf_group = group.addGroup( "PolyhedralFunctionBlockSolution" );
+  f_pfSol->serialize( pf_group );
   }
  }  // end( HydroSystemUnitBlockSolution::serialize )
 
@@ -602,6 +636,11 @@ HydroSystemUnitBlockSolution * HydroSystemUnitBlockSolution::scale(
  for( std::size_t i = 0 ; i < sol->v_innerSol.size() ; ++i ) {
   auto inner = sol->v_innerSol[ i ];
   sol->v_innerSol[ i ] = inner->scale( factor );
+  delete inner;
+  }
+
+ if( auto inner = sol->f_pfSol ) {
+  sol->f_pfSol = inner->scale( factor );
   delete inner;
   }
 
@@ -630,6 +669,9 @@ void HydroSystemUnitBlockSolution::sum( const Solution * solution ,
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
   v_innerSol[ i ]->sum( HSUBS->v_innerSol[ i ] , multiplier );
 
+ if( f_pfSol && HSUBS->f_pfSol )
+  f_pfSol->sum( HSUBS->f_pfSol , multiplier );
+
  }  // end( HydroSystemUnitBlockSolution::sum )
 
 /*--------------------------------------------------------------------------*/
@@ -645,6 +687,9 @@ HydroSystemUnitBlockSolution * HydroSystemUnitBlockSolution::clone(
   for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
    (sol->v_innerSol)[ i ] = v_innerSol[ i ]->clone( false );
   }
+
+ if( f_pfSol )
+  sol->f_pfSol = f_pfSol->clone( empty );
 
  return( sol );
 
