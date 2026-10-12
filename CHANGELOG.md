@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ConversionUnitBlock`: a continuous design ("MaxCapacityDesign" >= 0)
+  takes ramps and start-up and shut-down limits, written per unit of design
+  with big-M terms in the commitment and in the start-up and shut-down
+  indicators, as the extendable units with commitment of the energy-system
+  models; and a unit with a design may be on before the horizon, being
+  then built (the binary design is 1, the integer one at least the modules
+  on before it) and, with a continuous design, of a capacity that covers
+  its InitialPower
+
 - `BatteryUnitBlock` takes an infinite `MaxPower` or `MinPower` also with a
   battery design: the rows of the power stay free on that side with no term
   in the design, as those of an infinite level already did, and an infinite

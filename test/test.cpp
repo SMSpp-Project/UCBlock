@@ -13323,9 +13323,8 @@ static void test_conversion_modules( void )
  *   being weak; with a zero cost set after the generation and no minimum
  *   power nor input it is worth the unit of capacity 150;
  * - (d) Scale 2 with MaxCapacityDesign -3 is refused, as is a continuous
- *   design with ramps or with several modules, a unit with a design on
- *   before the horizon and a negative MaxCapacityDesign that is not an
- *   integer.
+ *   design with several modules, two modules on before the horizon at the
+ *   power of one and a negative MaxCapacityDesign that is not an integer.
  *
  * The optima of (a), (b) and (c), by an independent MILP, are 8010, 8010
  * and 29055. The unit of (c) is written and read back, and its Solution
@@ -13504,15 +13503,13 @@ static void test_conversion_design( void )
  e.scale = 2;
  refused( e , "Scale 2 with MaxCapacityDesign -3" );
  e = design_CU( true , 3 , 0 , 150 );
- e.rup.assign( 12 , 10 );
- refused( e , "a continuous design with ramps" );
- e = design_CU( true , 3 , 0 , 150 );
  e.modules = 2;
  refused( e , "a continuous design with two modules" );
  e = design_CU( false , 150 , 0 , -3 );
  e.initUD = 2;
+ e.initK = 2;
  e.initP = { -75 , 30 };
- refused( e , "a unit with a design on before the horizon" );
+ refused( e , "two modules on before the horizon at the power of one" );
  e = design_CU( false , 150 , 0 , -2.5 );
  refused( e , "MaxCapacityDesign -2.5" );
  e = design_CU( false , 150 , 0 , -3 );
@@ -13700,6 +13697,157 @@ static void test_power_range_changes( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The design of test_conversion_design() in the cases that need the big-M
+ * rows of the indicators or the initial state:
+ *
+ * - (c) with ramps of 0.3 per unit of capacity on the output, start-up and
+ *   shut-down limits of 0.5 per unit on it, off before the horizon:
+ *   38080 with capacity 75, and a continuous relaxation of 5444.13 or more
+ *   (reported, the big-M rows being weak);
+ * - the same on before the horizon for one instant (so on at 0 and 1),
+ *   with the output at 25 and at 45: 37030 in both, the capacity of 75
+ *   covering InitialPower;
+ * - (c) without ramps on before the horizon with the output at 100: the
+ *   capacity has to cover it, 33820 with capacity 100;
+ * - (b) with 2 of the 3 modules on before the horizon at 30 each: 7810,
+ *   as three units with a binary design each, two of them on before the
+ *   horizon (and therefore built).
+ *
+ * The values are those of an independent MILP written as the extendable
+ * and modular committable links of PyPSA (big-M equal to the largest
+ * capacity), which for the output at 100 without the covering row gives
+ * 28955 with capacity 75, below the power of the unit before the horizon. A
+ * unit with a continuous design on before the horizon is written and read
+ * back. Finally, the continuous relaxation of a unit of 2 modules is that
+ * of one module with Scale 2, its rows being homogeneous in the Variable
+ * and the commitment of the scaled unit times 2 ranging in [ 0 , 2 ] as
+ * that of the modules, while the two optima differ (the modules of the
+ * scaled unit are all on or all off): an InvestmentBlock, whose
+ * linearization is that of the relaxation, sees the same function of an
+ * integer number of modules in the two forms. */
+
+static void test_conversion_design_ext( void )
+{
+ const std::string w = "design ext, ";
+ auto ramps = []( CUData & d ) {
+  d.K = 1;
+  d.rampM = { 0 , 1 };
+  d.rup.assign( 6 , 0.3 );
+  d.rdn.assign( 6 , 0.3 );
+  d.sul = rep( 6 , { -1 , 0.5 } );
+  d.sdl = rep( 6 , { -1 , 0.5 } );
+  };
+ auto on_before = []( CUData & d , double y ) {
+  d.initUD = 1;
+  d.initP = { -2.5 * y , y };
+  };
+ struct Case {
+  std::string what;
+  bool r;
+  double y0;  // the output before the horizon, < 0 if off
+  double expected , x;
+  };
+ const std::vector< Case > cases = {
+  { "(c) with ramps and limits" , true , -1 , 38080 , 75 } ,
+  { "(c) with ramps, on at 25" , true , 25 , 37030 , 75 } ,
+  { "(c) with ramps, on at 45" , true , 45 , 37030 , 75 } ,
+  { "(c) on at 100" , false , 100 , 33820 , 100 } };
+
+ for( const auto & c : cases ) {
+  const auto what = w + c.what;
+  try {
+   auto d = design_CU( true , 3 , 0 , 150 );
+   if( c.r )
+    ramps( d );
+   if( c.y0 >= 0 )
+    on_before( d , c.y0 );
+   std::unique_ptr< UCBlock > uc( design_UC( { d } ) );
+   const double v = conv_milp( uc.get() );
+   if( std::isnan( v ) ) {
+    std::cout << "design ext: no :MILPSolver, skipped" << std::endl;
+    return;
+    }
+   auto cub = dynamic_cast< ConversionUnitBlock * >( uc->get_unit_block( 0 ) );
+   const double x = cub->get_design().get_value();
+   check( close( v , c.expected ) , what + ": optimum " + str( v ) +
+          " instead of " + str( c.expected ) );
+   check( close( x , c.x ) , what + ": capacity " + str( x ) +
+          " instead of " + str( c.x ) );
+   check( uc->is_feasible() , what + ": the solution is not feasible" );
+   if( c.what == "(c) with ramps and limits" ) {
+    const double l = conv_lp( uc.get() );
+    check( l <= v + 1e-6 * v , what + ": relaxation " + str( l ) +
+           " above the optimum" );
+    std::cout << what << ": optimum " << v << ", relaxation " << l
+              << std::endl;
+    }
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ // (b) with two modules on before the horizon, against three units
+ try {
+  auto db = design_CU( false , 150 , 0 , -3 );
+  on_before( db , 60 );
+  db.initK = 2;
+  std::unique_ptr< UCBlock > b( design_UC( { db } ) );
+  auto one = design_CU( false , 150 , 0 , -1 );
+  auto on = one;
+  on_before( on , 30 );
+  std::unique_ptr< UCBlock > r( design_UC( { on , on , one } ) );
+  const double vb = conv_milp( b.get() );
+  const double vr = conv_milp( r.get() );
+  if( ! std::isnan( vb ) ) {
+   check( close( vb , 7810 ) , w + "(b) on before: optimum " + str( vb ) +
+          " instead of 7810" );
+   check( close( vr , vb ) , w + "three units, two on before: optimum " +
+          str( vr ) + " instead of " + str( vb ) );
+   auto cb = dynamic_cast< ConversionUnitBlock * >( b->get_unit_block( 0 ) );
+   check( cb->get_design().get_value() >= 2 - 1e-9 , w + "(b) on before: "
+          "fewer modules built than on before the horizon" );
+   check( b->is_feasible() , w + "(b) on before: not feasible" );
+   }
+  }
+ catch( std::exception & e ) {
+  check( false , w + "(b) on before throws " + e.what() );
+  }
+
+ // 2 modules against Scale 2
+ {
+  auto dm = module_CU( 2 , -2 , 0 , false );
+  auto ds = module_CU( 1 , -2 , 0 , false );
+  ds.scale = 2;
+  std::unique_ptr< UCBlock > um( design_UC( { dm } ) );
+  std::unique_ptr< UCBlock > us( design_UC( { ds } ) );
+  const double lm = conv_lp( um.get() ) , ls = conv_lp( us.get() );
+  const double vm = conv_milp( um.get() ) , vs = conv_milp( us.get() );
+  if( ! std::isnan( lm ) ) {
+   check( close( lm , ls ) , w + "2 modules: relaxation " + str( lm ) +
+          " instead of " + str( ls ) + " of Scale 2" );
+   std::cout << w << "2 modules: relaxation " << lm << ", optimum " << vm
+             << "; Scale 2: relaxation " << ls << ", optimum " << vs
+             << std::endl;
+   }
+  }
+
+ // written and read back
+ auto d = design_CU( true , 3 , 0 , 150 );
+ ramps( d );
+ on_before( d , 45 );
+ auto g = new_group( "CU" , true );
+ write_CU( g , d );
+ auto b = round_trip( g , "design ext" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && ( cub->design_mode() == 'c' ) &&
+        ( cub->get_init_up_down_time() == 1 ) &&
+        ( cub->get_number_ramp_rows() == 1 ) ,
+        "design ext: the data read back differ" );
+ delete b;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -13865,6 +14013,7 @@ int main( int argc , char ** argv )
   test_conversion_modules();
   test_conversion_design();
   test_power_range_changes();
+  test_conversion_design_ext();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;
