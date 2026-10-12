@@ -207,6 +207,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ThermalUnitBlock` (and so `NuclearUnitBlock`) separated a perspective
+  cut every time the point violated it, also when the same cut, on the same
+  variable and at the same \check{p}, was in the Block already: in the
+  callback of a multithreaded MILP a point comes back many times, and on a
+  unit commitment of 10 units the 71461 cuts of a solve were 31175 distinct
+  ones. A cut is now added only if it is not there already, the
+  solver that has dropped it being the one that gives it again; and the
+  group "PC_cuts_Thermal" is registered once, by
+  `generate_abstract_constraints()`, where `generate_dynamic_constraints()`
+  added one more group viewing the same list at each call, so that a
+  solver reading the Block anew found each cut once per call made
+
 - `DCNetworkBlock` and `ACNetworkBlock` accept a network of several nodes
   with no line (`NumberLines` 0, with none of the variables of the lines),
   e.g., nodes of different carriers coupled only by a

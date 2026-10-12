@@ -750,7 +750,6 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
  if( f_cuts ) {
   AR |= PCuts;
 
-  prevpbar.resize( f_time_horizon , 0 );
   v_cut.resize( f_time_horizon );
   for( auto & var : v_cut )
    var.set_type( ColVariable::kNonNegative );
@@ -1005,6 +1004,10 @@ void ThermalUnitBlock::generate_abstract_constraints( Configuration * stcc )
   generate_ZOConstraints = sci->f_value;
 
  build_rows( generate_ZOConstraints );
+
+ // the group of the perspective cuts, filled by generate_dynamic_constraints()
+ if( AR & PCuts )
+  add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
 
  set_constraints_generated();
 
@@ -3703,7 +3706,6 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
   double tol = 1e-7;  // threshold parameter for P/C separation
   double eps = 1e-6;  // tolerance value to consider a binary variable
 
-  bool check_loop = false;
   // the violation of the cut at the point, p^2 / u - z = 2 p^2 / u - psum
   // with psum = z + p^2 / u, is compared with tol times max{ 1 , psum }
   double part1 , psum;
@@ -3727,40 +3729,50 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
    // if the given Configuration is not valid, try the one from the BlockConfig
    extract_parameters( f_BlockConfig->f_dynamic_constraints_Configuration );
 
+  // the \check{p} of the cuts already added, read again from PC_cuts if
+  // anything other than this method has changed it: the first two terms of
+  // each cut are 2 \check{p} p and - z
+  if( PC_pbar_size != PC_cuts.size() ) {
+   PC_pbar.clear();
+   for( const auto & c : PC_cuts )
+    if( auto lf = dynamic_cast< const LinearFunction * >( c.get_function() ) )
+     if( lf->get_num_active_var() >= 2 )
+      PC_pbar[ lf->get_v_var()[ 1 ].first ].insert(
+                                         lf->get_v_var()[ 0 ].second / 2 );
+   PC_pbar_size = PC_cuts.size();
+   }
+
+  // true if the cut on z at pbar has been added already, otherwise it
+  // records it as added
+  auto known = [ this ]( const ColVariable * z , double pbar ) -> bool {
+   auto & s = PC_pbar[ z ];
+   const double d = 1e-9 * std::max( 1.0 , std::abs( pbar ) );
+   auto it = s.lower_bound( pbar - d );
+   if( ( it != s.end() ) && ( *it <= pbar + d ) )
+    return( true );
+   s.insert( pbar );
+   ++PC_pbar_size;
+   return( false );
+   };
+
   LinearFunction::v_coeff_pair vars;
 
   // tbin and T formulations- - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == tbinForm || ( AR & FormMsk ) == TForm ) {
-   bool check_cut = false;
-   double pbar = 0;  // read only by the check_loop variant
-
    for( Index t = 0 ; t < f_time_horizon ; ++t )
 
     if( v_commitment[ t ].get_value() > eps ) {
 
-     check_cut = false;
+     psum = v_cut[ t ].get_value() + std::pow(
+            v_active_power[ t ].get_value() /
+              v_commitment[ t ].get_value() , 2 ) * v_commitment[ t ].get_value();
+     part1 = std::max( 1.0 , psum );
 
-     if( check_loop ) {
-      pbar = v_active_power[ t ].get_value() / v_commitment[ t ].get_value();
-      double value = ( v_active_power[ t ].get_value() *
-       v_active_power[ t ].get_value() ) / v_commitment[ t ].get_value();
-      if( v_cut[ t ].get_value() < value - tol )
-       if( prevpbar[ t ] == 0 || ( prevpbar[ t ] != 0 && std::abs(
-         ( prevpbar[ t ] - pbar ) / prevpbar[ t ] ) > eps ) )
-        check_cut = true;
-     } else {
-      psum = v_cut[ t ].get_value() + std::pow(
-             v_active_power[ t ].get_value() /
-               v_commitment[ t ].get_value() , 2 ) * v_commitment[ t ].get_value();
-      part1 = std::max( 1.0 , psum );
-
-      if( 2.0 * ( v_active_power[ t ].get_value() / v_commitment[ t ].get_value() ) *
-          v_active_power[ t ].get_value() - psum >= tol * part1 )
-       check_cut = true;
-     }
-
-     if( check_cut ) {
-      prevpbar[ t ] = pbar;
+     if( ( 2.0 * ( v_active_power[ t ].get_value() /
+                   v_commitment[ t ].get_value() ) *
+           v_active_power[ t ].get_value() - psum >= tol * part1 ) &&
+         ( ! known( & v_cut[ t ] , v_active_power[ t ].get_value() /
+                                   v_commitment[ t ].get_value() ) ) ) {
 
       std::list< FRowConstraint > cut( 1 );
 
@@ -3797,8 +3809,9 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
        std::pow( v_active_power[ t ].get_value() / sumy , 2 ) * sumy;
      part1 = std::max( 1.0 , psum );
 
-     if( 2.0 * ( v_active_power[ t ].get_value() / sumy ) *
-                 v_active_power[ t ].get_value() - psum >= tol * part1 ) {
+     if( ( 2.0 * ( v_active_power[ t ].get_value() / sumy ) *
+           v_active_power[ t ].get_value() - psum >= tol * part1 ) &&
+         ( ! known( & v_cut[ t ] , v_active_power[ t ].get_value() / sumy ) ) ) {
       std::list< FRowConstraint > cut( 1 );
 
       vars.push_back( std::make_pair( &v_active_power[ t ] ,
@@ -3841,9 +3854,12 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            v_commitment_plus[ j ].get_value();
          part1 = std::max( 1.0 , psum );
 
-         if( 2.0 * ( v_active_power_h_k[ i ].get_value() /
-             v_commitment_plus[ j ].get_value() ) *
-             v_active_power_h_k[ i ].get_value() - psum >= tol * part1 ) {
+         if( ( 2.0 * ( v_active_power_h_k[ i ].get_value() /
+               v_commitment_plus[ j ].get_value() ) *
+               v_active_power_h_k[ i ].get_value() - psum >= tol * part1 ) &&
+             ( ! known( & v_cut_h_k[ s ] ,
+                        v_active_power_h_k[ i ].get_value() /
+                        v_commitment_plus[ j ].get_value() ) ) ) {
           std::list< FRowConstraint > cut( 1 );
 
           vars.push_back(
@@ -3889,8 +3905,10 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            std::pow( v_active_power_h[ i ].get_value() / sumy , 2 ) * sumy;
          part1 = std::max( 1.0 , psum );
 
-         if( 2.0 * ( v_active_power_h[ i ].get_value() / sumy ) *
-             v_active_power_h[ i ].get_value() - psum >= tol * part1 ) {
+         if( ( 2.0 * ( v_active_power_h[ i ].get_value() / sumy ) *
+               v_active_power_h[ i ].get_value() - psum >= tol * part1 ) &&
+             ( ! known( & v_cut_h[ s ] ,
+                        v_active_power_h[ i ].get_value() / sumy ) ) ) {
           std::list< FRowConstraint > cut( 1 );
 
           vars.push_back(
@@ -3935,8 +3953,10 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
            std::pow( v_active_power_k[ i ].get_value() / sumy , 2 ) * sumy;
          part1 = std::max( 1.0 , psum );
 
-         if( 2.0 * ( v_active_power_k[ i ].get_value() / sumy ) *
-          v_active_power_k[ i ].get_value() - psum >= tol * part1 ) {
+         if( ( 2.0 * ( v_active_power_k[ i ].get_value() / sumy ) *
+               v_active_power_k[ i ].get_value() - psum >= tol * part1 ) &&
+             ( ! known( & v_cut_k[ s ] ,
+                        v_active_power_k[ i ].get_value() / sumy ) ) ) {
 
           std::list< FRowConstraint > cut( 1 );
 
@@ -3964,8 +3984,6 @@ void ThermalUnitBlock::generate_dynamic_constraints( Configuration * dycc )
         }
     }
   }
-
-  add_dynamic_constraint( PC_cuts , "PC_cuts_Thermal" );
   }
  }  // end( ThermalUnitBlock::generate_dynamic_constraints )
 

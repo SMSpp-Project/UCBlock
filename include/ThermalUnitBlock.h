@@ -42,6 +42,10 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <map>
+
+#include <set>
+
 #include "FRowConstraint.h"
 
 #include "LinearFunction.h"
@@ -1267,7 +1271,13 @@ class ThermalUnitBlock : public UnitBlock
   * tangent to the perspective of \f$ p^2 \f$ at \f$ \check{p} \f$, is added
   * with the corresponding variables, the commitment \f$ y \f$ being the
   * sum of arc variables that defines \f$ Y_t \f$, \f$ Y^h_t \f$ or
-  * \f$ \tilde{Y}^k_t \f$ in the formulations where it is one. */
+  * \f$ \tilde{Y}^k_t \f$ in the formulations where it is one.
+  *
+  * The cut is not added if one on the same \f$ z \f$ with the same
+  * \f$ \check{p} \f$, up to a relative \f$ 10^{-9} \f$, is in the group
+  * already: each cut is a Constraint of the Block for good, and the Solver
+  * that has given it to a solve and has seen it dropped is expected to give
+  * it again by itself. */
 
  void generate_dynamic_constraints( Configuration * dycc = nullptr ) override;
 
@@ -3269,8 +3279,12 @@ class ThermalUnitBlock : public UnitBlock
  /// the reference Schedule to deviate minimally from if there
  std::vector< double > v_RefSchedule;
 
- // the vector for separating PC-cuts
- std::vector< double > prevpbar;
+ /// the \f$ \check{p} \f$ of the cuts in PC_cuts, by their Variable \f$ z \f$
+ /// [see generate_dynamic_constraints()]
+ std::map< const ColVariable * , std::set< double > > PC_pbar;
+
+ /// how many cuts of PC_cuts PC_pbar accounts for
+ Index PC_pbar_size = 0;
 
  /// the vector of index of the variables \f$p_t^{hk}\f$ of the DP formulation.
  /// In particular, v_P_h_k.first = t, v_P_h_k.second.first = h,
