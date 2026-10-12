@@ -47,6 +47,7 @@
 #include "Objective.h"
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <numeric>
 
@@ -2621,7 +2622,10 @@ double UCBlock::get_zero_copy_linearization( Index unit )
  auto wrapper = new AbstractBlock();
  wrapper->add_nested_Block( copy );
 
- LinearFunction::v_coeff_pair terms;
+ // a Variable of the unit can be in several rows, say the active power in
+ // the node injection, an inertia zone and a pollutant budget, while a
+ // LinearFunction takes each Variable once: the coefficients are summed
+ std::map< ColVariable * , double > coefficients;
  double constant = 0;
  try {
   replicate_linking_terms( unit ,
@@ -2634,7 +2638,7 @@ double UCBlock::get_zero_copy_linearization( Index unit )
                               "UCBlock::get_replicate_linearization: a "
                               "Variable of the unit " + std::to_string( unit )
                               + " has no copy" ) );
-                            terms.emplace_back( cvar , coeff ); } ,
+                            coefficients[ cvar ] += coeff; } ,
                            constant );
   }
  catch( ... ) {
@@ -2642,8 +2646,9 @@ double UCBlock::get_zero_copy_linearization( Index unit )
   throw;
   }
 
- auto objective = new FRealObjective( wrapper ,
-                               new LinearFunction( std::move( terms ) ) );
+ auto objective = new FRealObjective( wrapper , new LinearFunction(
+                   LinearFunction::v_coeff_pair( coefficients.begin() ,
+                                                 coefficients.end() ) ) );
  objective->set_sense( copy->get_objective_sense() , eNoMod );
  wrapper->set_objective( objective , eNoMod );
 
