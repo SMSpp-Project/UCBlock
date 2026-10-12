@@ -1151,8 +1151,11 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * every instant \f$ t \f$ of every run is capped
  * ("RunReach_Nuclear") by
  * \f[
- *   \psi^N_{r,t} = \min\{ P^{mx}_t , P^{su}_{s_r} + R^+_{s_r,t} ,
- *     P^{sd}_k + R^-_{t,k-1}( q_r ) \} , \tag{51}
+ *   \psi^N_{r,t} = \min\Bigl\{ P^{mx}_t , P^{su}_{s_r} + R^+_{s_r,t} ,
+ *     P^{sd}_k + R^-_{t,k-1}( q_r ) , \min_{ s_r \leq s < t } ( P^{mx}_s +
+ *     \hat{R}^+_{s,t} ) , \min_{ t < s \leq k - 1 } ( P^{mx}_s +
+ *     R^-_{t,s}( q_r ) )
+ *     \Bigr\} , \tag{51}
  * \f]
  * where \f$ R^+_{s,t} \f$ is the largest increase of the output from
  * \f$ s \f$ to \f$ t \f$ that the rules allow from a start-up at \f$ s \f$
@@ -1160,7 +1163,12 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * \f$, the term being dropped if the unit is off before it), and \f$
  * R^-_{t,k-1}( q ) \f$ the largest decrease from \f$ t \f$ to \f$ k - 1
  * \f$ with no step before \f$ q \f$, the term being dropped if \f$ k \geq T
- * \f$ (the reach of (48), computed by rules_reach_all()). The caps are
+ * \f$ (the reach of (48), computed by rules_reach_all()); in the last two
+ * terms, which carry every maximum power met along the run to the other
+ * instants of it, \f$ \hat{R}^+_{s,t} \f$ is the largest increase from
+ * an on-state at \f$ s \f$ with any label, i.e., from a stable one with no
+ * lockout (a modulation in progress, or a lockout, allowing no more), and
+ * \f$ k - 1 \f$ is read as \f$ T - 1 \f$ if \f$ k \geq T \f$. The caps are
  * written on the private output of each network formulation, i.e.,
  * \f$ p^{ac}_t \leq \sum_r \psi^N_{r,t} y_r \f$ over the runs on at
  * \f$ t \f$ (pt), \f$ p^{hk}_t \leq \psi^N_{(h,k),t} y^{hk}_+ \f$ (DP),

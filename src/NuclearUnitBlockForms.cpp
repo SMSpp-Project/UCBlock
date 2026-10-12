@@ -1778,6 +1778,13 @@ void NuclearUnitBlock::build_run_rows( void )
     r = rules_reach_all( t , lk , false );
    return( r[ t1 - t ] );
    };
+  std::vector< std::vector< double > > Rmid( T );
+  auto rmid = [ & ]( int s , int t ) {       // from an on-state at s
+   auto & r = Rmid[ s ];
+   if( r.empty() )
+    r = rules_reach_all( s , 0 , true );
+   return( r[ t - s ] );
+   };
   const bool on0 = ( f_InitUpDownTime > 0 );
   auto psi = [ & ]( Index i , int t ) {
    const int h = int( v_Y_plus[ i ].first );
@@ -1794,6 +1801,18 @@ void NuclearUnitBlock::build_run_rows( void )
     if( on0 )
      c = std::min( c , power_before() + rup( -1 , t ) );
     }
+   // every maximum power met along the run, from an instant s at or after
+   // the start-up to t, plus the largest increase that the rules allow from
+   // s to t from any label (that of a stable instant with no lockout), and
+   // from t to an instant s before the shut-down, plus the largest decrease
+   // from t to s
+   const int s0 = h > 0 ? int( h ) - 1 : 0;
+   for( int s = s0 ; s < t ; ++s )
+    c = std::min( c , get_operational_max_power( s ) + rmid( s , t ) );
+   const int s1 = ( k < iT ) ? int( k ) - 1 : iT - 1;
+   for( int s = t + 1 ; s <= s1 ; ++s )
+    c = std::min( c , get_operational_max_power( s ) +
+                      rdn( t , s , std::max( 0 , q - t - 1 ) ) );
    if( k < iT )
     c = std::min( c , v_ShutDownLimit[ k ] +
                       ( t < k - 1 ? rdn( t , k - 1 ,

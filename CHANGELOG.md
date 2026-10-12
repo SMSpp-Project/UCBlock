@@ -160,6 +160,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the caps of the runs of `NuclearUnitBlock` (bit RunReach) carry every
+  maximum power met along a run to its other instants, by the largest
+  increase that the rules allow from an on-state with any label and by the
+  largest decrease towards the instant, as the caps (27) of
+  `ThermalUnitBlock` do with the full ramps
+
 - `NuclearUnitExtDPSolver` takes the labels of its states and the moves out
   of them from `NuclearRules` (the same values and schedules as before); the
   bands and the deep decreases of `NuclearUnitBlock` are written by
