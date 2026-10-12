@@ -88,9 +88,16 @@ namespace SMSpp_di_unipi_it
  * \f$ c \f$ and \f$ s \f$ through the admittances of the line. Then come the
  * thermal limits \f$ ( F^{fr}_l )^2 + ( Q^{fr}_l )^2 \le ( r^A_l )^2 \f$ and
  * \f$ ( F^{to}_l )^2 + ( Q^{to}_l )^2 \le ( r^A_l )^2 \f$ of each AC line,
- * the bounds on \f$ w_n \f$ given by the voltage limits, the bounds on the
- * angle difference, \f$ \tan( \phi^{mn}_l ) c_l \le s_l \le \tan( \phi^{mx}_l
- * ) c_l \f$, and the cone \f$ c_l^2 + s_l^2 \le w_{s(l)} w_{e(l)} \f$, i.e.,
+ * the bounds on \f$ w_n \f$ given by the voltage limits, the rows that the
+ * bounds \f$ \phi^{mn}_l \le \theta_{s(l)} - \theta_{e(l)} \le \phi^{mx}_l
+ * \f$ on the angle difference give, i.e., \f$ \tan( \phi^{mn}_l ) c_l \le
+ * s_l \le \tan( \phi^{mx}_l ) c_l \f$ for a range of at most
+ * \f$ \pi \f$ and the ranges of \f$ c_l \f$ and \f$ s_l \f$ over the
+ * angles and the voltages for one below \f$ 2 \pi \f$ (a line with a
+ * wider range, or with an unbounded side, has none: the bounds are read
+ * with the convention of MATPOWER, see
+ * ACNetworkData::get_angle_difference_bounds()), and the cone
+ * \f$ c_l^2 + s_l^2 \le w_{s(l)} w_{e(l)} \f$, i.e.,
  * the convex relaxation of \f$ c_l^2 + s_l^2 = w_{s(l)} w_{e(l)} \f$.
  * Finally, there are the bounds (1) of DCNetworkBlock on \f$ F^{fr}_l \f$
  * and, for an HVDC line, \f$ F^{fr}_l + F^{to}_l = 0 \f$ (no loss, since the
@@ -101,7 +108,40 @@ namespace SMSpp_di_unipi_it
  * recover_feasible_solution()]. Note that the
  * formulations and the angles of DCNetworkBlock play no role, since the only
  * rows of DCNetworkBlock that an ACNetworkBlock writes are the bounds (1) of
- * DCNetworkBlock::generate_abstract_constraints(). */
+ * DCNetworkBlock::generate_abstract_constraints().
+ *
+ * The relaxation comes in two forms, chosen by the static variables
+ * Configuration (see generate_abstract_variables()). With 0 it is the SOCP
+ * relaxation of the bus injection model (doi:10.1109/TPWRS.2006.879234),
+ * whose only quadratic rows are the thermal limits, i.e., second-order
+ * cones, and the cones \f$ c_l^2 + s_l^2 \le w_{s(l)} w_{e(l)} \f$, i.e.,
+ * rotated second-order cones, since the voltage bounds give
+ * \f$ w_n \ge 0 \f$; thus the continuous relaxation of a UCBlock on it is
+ * a convex QCP, which an interior point method solves with no treatment of
+ * nonconvex rows and which has the dual values of its quadratic rows. With
+ * a positive value, or by default, it is the QC relaxation cited above,
+ * which adds the voltage magnitudes
+ * \f$ v_n \f$, the angles \f$ \theta_n \f$ and the variables
+ * \f$ \alpha_l \f$, \f$ \beta_l \f$ and \f$ z_l \f$ standing for
+ * \f$ \cos \theta_l \f$, \f$ \sin \theta_l \f$ and \f$ v_{s(l)} v_{e(l)}
+ * \f$, with static rows that are convex as well (see
+ * strengthen_SOCP_relaxation()). These static rows alone do not restrict
+ * \f$ ( w , c , s ) \f$: \f$ c \f$ and \f$ s \f$ are in none of them,
+ * \f$ w \f$ is only in those with \f$ v \f$, which every \f$ w \f$
+ * within the voltage bounds satisfies with \f$ v_n = \sqrt{ w_n } \f$,
+ * since \f$ ( \sqrt{ w_n } - C^v V^{mn}_n ) ( C^v V^{mx}_n -
+ * \sqrt{ w_n } ) \ge 0 \f$ (see generate_abstract_constraints() for
+ * \f$ C^v \f$), and the rows of \f$ \theta \f$, \f$ \alpha \f$ and
+ * \f$ \beta \f$ do not have any of the three (they can only make the
+ * whole model infeasible, if the bounds on the angle differences are not
+ * consistent around a cycle). The relaxation is tightened only by the
+ * McCormick inequalities that link \f$ c_l \f$ and \f$ s_l \f$ to
+ * \f$ \alpha_l \f$, \f$ \beta_l \f$ and \f$ z_l \f$, which are dynamic
+ * constraints separated by
+ * generate_dynamic_constraints(); therefore a solve that does not separate
+ * them, e.g., a continuous relaxation solved by a :MILPSolver with
+ * intRelaxIntVars = 1, which installs no callback, has the value of the
+ * SOCP relaxation, with more variables and rows. */
 
 class ACNetworkBlock : public DCNetworkBlock
 {
@@ -192,8 +232,21 @@ class ACNetworkData : public DCNetworkData
   *
   * - the variables "LineMinAngle" and "LineMaxAngle", indexed over
   *   "NumberLines", the bounds \f$ \phi^{mn}_l \le \phi^{mx}_l \f$ on the
-  *   difference of the angles of the voltages at the ends of each AC line,
-  *   in degrees;
+  *   difference \f$ \theta_{s(l)} - \theta_{e(l)} \f$ of the angles of
+  *   the voltages at the ends of each AC line, in degrees, optional but
+  *   given together (one without the other is refused with a
+  *   std::invalid_argument); as in MATPOWER, "LineMinAngle" \f$ \le -360
+  *   \f$ means that the difference is not bounded below, "LineMaxAngle"
+  *   \f$ \ge 360 \f$ that it is not bounded above, a NaN means the same,
+  *   and both values 0 mean that it is not bounded at all (see
+  *   get_angle_difference_bounds()), while two finite bounds with
+  *   \f$ \phi^{mn}_l > \phi^{mx}_l \f$ are refused with a
+  *   std::invalid_argument; if the variables are not there, no angle
+  *   difference is bounded. The rows that the bounds give, and the lines
+  *   that have them, are those of
+  *   ACNetworkBlock::generate_abstract_constraints(); the strengthened
+  *   relaxation needs both bounds within \f$ [ -90 , 90 ] \f$ [see
+  *   ACNetworkBlock::generate_abstract_variables()];
   *
   * - the variables "NodeConductance" and "NodeSusceptance", indexed over
   *   "NumberNodes", the shunt conductance \f$ G^s_n \f$ and susceptance
@@ -209,8 +262,8 @@ class ACNetworkData : public DCNetworkData
   *   HVDC lines (those of the AC lines being ignored), optional.
   *
   * All the variables but "LineReactance" and "LineResistance" are read as
-  * optional; those without a default ("LineRATEA", the angles and the data
-  * of the nodes) are however used by
+  * optional; those without a default and without a meaning when absent
+  * ("LineRATEA" and the data of the nodes) are however used by
   * ACNetworkBlock::generate_abstract_constraints(), and therefore have to
   * be there if the abstract representation is generated. */
 
@@ -312,6 +365,9 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of line minimum angle differences
+ /** Returns the vector of the minimum angle differences of the lines, in
+  * degrees, which is empty if the data do not bound the angle differences
+  * (see has_angle_bounds()). */
 
  const std::vector< double > & get_line_min_angle( void ) const {
   return( v_line_min_angle );
@@ -319,10 +375,43 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of line maximum angle differences
+ /** Returns the vector of the maximum angle differences of the lines, in
+  * degrees, which is empty if the data do not bound the angle differences
+  * (see has_angle_bounds()). */
 
  const std::vector< double > & get_line_max_angle( void ) const {
   return( v_line_max_angle );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the data bound the angle differences of the lines
+ /** Returns true if "LineMinAngle" and "LineMaxAngle" have been read, in
+  * which case get_line_min_angle() and get_line_max_angle() have one entry
+  * per line; false if they were not there, in which case both vectors are
+  * empty and the angle differences are not bounded. */
+
+ bool has_angle_bounds( void ) const {
+  return( ! v_line_min_angle.empty() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the bounds on the angle difference of a line, in degrees
+ /** Returns the pair \f$ ( \phi^{mn}_l , \phi^{mx}_l ) \f$ of the bounds
+  * on the difference \f$ \theta_{s(l)} - \theta_{e(l)} \f$ of the angles
+  * of the voltages at the ends of the line \p line_id, in degrees, read
+  * with the convention of MATPOWER: a side is not bounded, and the
+  * corresponding value is - Inf< double >() or Inf< double >(), if
+  * "LineMinAngle" is at most -360 (respectively "LineMaxAngle" is at least
+  * 360) or NaN, and both are if the two values are 0, or if the data do
+  * not give the bounds at all (see has_angle_bounds()); otherwise the value
+  * is the one of the data. MATPOWER takes a side as unbounded only beyond
+  * \f$ \pm 360 \f$, but a bound of exactly \f$ \pm 360 \f$ leaves every
+  * angle modulo \f$ 2 \pi \f$ possible, hence it does not restrict
+  * \f$ ( c_l , s_l ) \f$ either (see
+  * ACNetworkBlock::generate_abstract_constraints()). */
+
+ std::pair< double , double > get_angle_difference_bounds( Index line_id )
+  const;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if minimum and maximum reactive flow bounds have been loaded
@@ -581,7 +670,24 @@ class ACNetworkData : public DCNetworkData
   * in either case the first value decides whether the variables needed for
   * the stronger SOCP relaxation are added (see
   * generate_strengthened_variables()), which is the case if it is positive
-  * and also when neither Configuration is given. A SimpleConfiguration< int >
+  * and also when neither Configuration is given. The envelopes of the
+  * strengthened relaxation (see strengthen_SOCP_relaxation()) are those of
+  * \f$ \cos \theta \f$ and \f$ \sin \theta \f$ over
+  * \f$ [ - \delta_l , \delta_l ] \f$, with \f$ \delta_l = \max\{
+  * | \phi^{mn}_l | , | \phi^{mx}_l | \} \f$, which are valid for
+  * \f$ \delta_l \le \pi / 2 \f$ (beyond it the range of
+  * \f$ \sin \theta \f$ is no longer \f$ [ - \sin \delta_l ,
+  * \sin \delta_l ] \f$, which the McCormick inequalities of \f$ s_l \f$
+  * use, so that they cut feasible points); therefore the relaxation only
+  * covers the AC lines whose two bounds, as
+  * ACNetworkData::get_angle_difference_bounds() reads them, are within
+  * \f$ [ -90 , 90 ] \f$ degrees (v_qc_lines), the other AC lines having
+  * none of its rows and Variable, which leaves a relaxation. If the network
+  * has an AC line but none is covered (in particular, if the data do not
+  * bound the angle differences), it is not generated when no Configuration
+  * asks for it, while a Configuration that asks for it makes the method
+  * throw a std::invalid_argument before any Variable is added. A
+  * SimpleConfiguration< int >
   * is also read by DCNetworkBlock::generate_abstract_variables(), which adds
   * the variables of the formulation it selects (of KIRCHHOFF with any other
   * Configuration); they play no role in the rows of an ACNetworkBlock. */
@@ -659,18 +765,81 @@ class ACNetworkData : public DCNetworkData
   *   \tag{7}
   * \f]
   * the bounds \f$ ( C^v V^{mn}_n )^2 \le w_n \le ( C^v V^{mx}_n )^2 \f$ of
-  * each node ("AC_voltage_bounds_limit"); for each AC line, with
-  * \f$ \phi^{mn}_l \f$ and \f$ \phi^{mx}_l \f$ in radians, the bounds on the
-  * angle difference
+  * each node ("AC_voltage_bounds_limit"); then the rows that the bounds
+  * \f$ \phi^{mn}_l \le \theta_l \le \phi^{mx}_l \f$ on the angle difference
+  * \f$ \theta_l = \theta_s - \theta_e \f$ of each AC line give, the bounds
+  * being read as ACNetworkData::get_angle_difference_bounds() says and
+  * taken in radians. With \f$ z_l = ( C^v )^2 | V_s | | V_e | \f$ we have
+  * \f$ c_l = z_l \cos \theta_l \f$ and \f$ s_l = z_l \sin \theta_l \f$, so
+  * that the bounds only matter modulo \f$ 2 \pi \f$: a line with an
+  * unbounded side, or with \f$ \phi^{mx}_l - \phi^{mn}_l \ge 2 \pi \f$,
+  * allows every \f$ \theta_l \f$ modulo \f$ 2 \pi \f$ and has none of the
+  * rows below. If \f$ \phi^{mx}_l - \phi^{mn}_l \le \pi \f$, then
+  * \f$ \theta_l - \phi^{mn}_l \f$ and \f$ \phi^{mx}_l - \theta_l \f$ lie
+  * in \f$ [ 0 , \pi ] \f$, where the sine is not negative, and multiplying
+  * \f$ \sin( \theta_l - \phi^{mn}_l ) \ge 0 \f$ and
+  * \f$ \sin( \phi^{mx}_l - \theta_l ) \ge 0 \f$ by \f$ z_l \ge 0 \f$ gives
+  * the rows
   * \f[
-  *   \tan( \phi^{mn}_l ) c_l \le s_l \le \tan( \phi^{mx}_l ) c_l
+  *   \cos( \phi^{mn}_l ) s_l - \sin( \phi^{mn}_l ) c_l \ge 0 \; ,
+  *   \qquad
+  *   \cos( \phi^{mx}_l ) s_l - \sin( \phi^{mx}_l ) c_l \le 0
   *   \tag{8}
   * \f]
-  * ("AC_angle_bounds_limit"), the bounds
-  * \f$ \min\{ \cos | \phi^{mn}_l | , \cos | \phi^{mx}_l | \} ( C^v )^2
-  * V^{mn}_s V^{mn}_e \le c_l \le ( C^v )^2 V^{mx}_s V^{mx}_e \f$ and
-  * \f$ | s_l | \le \sin( \phi^{mx}_l - \phi^{mn}_l ) ( C^v )^2 V^{mx}_s
-  * V^{mx}_e \f$ ("AC_elem_bounds"), the cone
+  * ("AC_angle_bounds_limit"), each divided by \f$ \cos \phi \f$ when
+  * \f$ \cos \phi \ge 1 / 2 \f$, i.e., written as
+  * \f$ \tan( \phi^{mn}_l ) c_l \le s_l \f$ and
+  * \f$ s_l \le \tan( \phi^{mx}_l ) c_l \f$. If
+  * \f$ \phi^{mx}_l - \phi^{mn}_l > \pi \f$ there is no row (8), since a
+  * nonzero \f$ \alpha c_l + \beta s_l = z_l \rho \cos( \theta_l - \psi )
+  * \f$ is negative over an open arc of length \f$ \pi \f$ of the angles,
+  * which then meets \f$ [ \phi^{mn}_l , \phi^{mx}_l ] \f$ modulo
+  * \f$ 2 \pi \f$, so that no inequality \f$ \alpha c_l + \beta s_l \ge 0
+  * \f$ but the trivial one is valid. If \f$ \phi^{mx}_l - \phi^{mn}_l <
+  * 2 \pi \f$, also the bounds
+  * \f[
+  *   \min\{ L_l \underline{\gamma}_l , U_l \underline{\gamma}_l \}
+  *   \le c_l \le
+  *   \max\{ L_l \overline{\gamma}_l , U_l \overline{\gamma}_l \} \; ,
+  *   \qquad
+  *   \min\{ L_l \underline{\sigma}_l , U_l \underline{\sigma}_l \}
+  *   \le s_l \le
+  *   \max\{ L_l \overline{\sigma}_l , U_l \overline{\sigma}_l \}
+  *   \tag{8a}
+  * \f]
+  * ("AC_elem_bounds") are written, where \f$ L_l = ( C^v )^2 V^{mn}_s
+  * V^{mn}_e \f$ and \f$ U_l = ( C^v )^2 V^{mx}_s V^{mx}_e \f$ are the
+  * bounds of \f$ z_l \f$, \f$ \underline{\gamma}_l \f$ and
+  * \f$ \overline{\gamma}_l \f$ are the minimum and the maximum of
+  * \f$ \cos \f$ over \f$ [ \phi^{mn}_l , \phi^{mx}_l ] \f$, and
+  * \f$ \underline{\sigma}_l \f$ and \f$ \overline{\sigma}_l \f$ those of
+  * \f$ \sin \f$. The maximum of \f$ \cos \f$ (respectively \f$ \sin \f$)
+  * is 1 if the interval contains \f$ 2 k \pi \f$ (respectively
+  * \f$ \pi / 2 + 2 k \pi \f$) for an integer \f$ k \f$, and the largest of
+  * its values at the two ends otherwise, since the critical points of the
+  * two functions alternate between maximizers and minimizers, so that over
+  * an interval without a maximizer the function is either monotone or
+  * first decreasing and then increasing; likewise, the minimum is -1 if
+  * the interval contains \f$ \pi + 2 k \pi \f$ (respectively
+  * \f$ - \pi / 2 + 2 k \pi \f$) and the smallest of the values at the ends
+  * otherwise. Since \f$ z_l \f$ and \f$ \theta_l \f$ range independently
+  * over \f$ [ L_l , U_l ] \f$ and \f$ [ \phi^{mn}_l , \phi^{mx}_l ] \f$,
+  * and \f$ z_l \cos \theta_l \f$ is linear in \f$ z_l \f$ for a fixed
+  * \f$ \theta_l \f$,
+  * \f[
+  *   \max_{ z_l , \theta_l } z_l \cos \theta_l
+  *   = \max_{ z_l \in \{ L_l , U_l \} } z_l \overline{\gamma}_l \; ,
+  * \f]
+  * and likewise for the minimum and for \f$ s_l \f$: the bounds (8a) are
+  * the exact ranges of \f$ c_l \f$ and \f$ s_l \f$ over the box of the
+  * angle difference and of the voltages, hence they cut no feasible point,
+  * and each of them is attained at one. For instance, with
+  * \f$ \phi^{mn}_l = - \phi^{mx}_l \f$ and \f$ \phi^{mx}_l \le \pi / 2 \f$
+  * they are \f$ L_l \cos \phi^{mx}_l \le c_l \le U_l \f$ and
+  * \f$ | s_l | \le U_l \sin \phi^{mx}_l \f$, while with
+  * \f$ \pi / 2 < \phi^{mx}_l < \pi \f$ the lower bound of \f$ c_l \f$ is
+  * \f$ U_l \cos \phi^{mx}_l < 0 \f$ and \f$ | s_l | \le U_l \f$. Then the
+  * cone
   * \f[
   *   c_l^2 + s_l^2 - w_s w_e \le 0
   *   \tag{9}
@@ -763,7 +932,11 @@ class ACNetworkData : public DCNetworkData
   * v_alpha, v_beta and v_z to v_sqrd_voltages, v_sum_product_voltages and
   * v_diff_product_voltages, following the QC relaxation of Coffrin, Hijazi
   * and Van Hentenryck (2016) and the envelopes of Hijazi, Coffrin and Van
-  * Hentenryck (2017) [see the class description for the references]. */
+  * Hentenryck (2017) [see the class description for the references], for
+  * the AC lines in v_qc_lines (see generate_abstract_variables()), the
+  * only ones whose angle differences enter v_theta_bounds and the
+  * envelopes; the cuts of generate_dynamic_constraints() cover the same
+  * lines. */
 
  void strengthen_SOCP_relaxation( void );
 
@@ -1055,15 +1228,20 @@ class ACNetworkData : public DCNetworkData
   *           of V_n V_n'
   *
   * N.B.: the auxiliary variables v_alpha, v_beta and v_z are only defined
-  *       for the AC lines. As a result, if any HVDC line is present, they
-  *       will have a different indexing than the other terms in the
-  *       equations, most notably v_sum_product_voltages and
-  *       v_diff_product_voltages. */
+  *       for the AC lines in v_qc_lines, in that order. As a result, if
+  *       any HVDC line is present or an AC line is not covered, they will
+  *       have a different indexing than the other terms in the equations,
+  *       most notably v_sum_product_voltages and v_diff_product_voltages. */
  std::vector< ColVariable > v_voltage;
  std::vector< ColVariable > v_theta;
  std::vector< ColVariable > v_alpha;
  std::vector< ColVariable > v_beta;
  std::vector< ColVariable > v_z;
+
+ std::vector< Index > v_qc_lines;
+ ///< the AC lines covered by the strengthened relaxation, those whose angle
+ ///< difference is bounded within [ -90 , 90 ] degrees, in increasing order
+ ///< [see generate_abstract_variables()]
 
 /*------------------------------- constraints ------------------------------*/
 

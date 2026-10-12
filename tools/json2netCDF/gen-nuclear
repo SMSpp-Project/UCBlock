@@ -16,16 +16,21 @@
 #   e2  e1 + days of 24 periods, at most 2 modulations and 1 start-up a day
 #   e3  e2 + deep decreases, at most 1 a day
 #   e4  e3 + a cost of the downward modulation steps and of the deep decreases
-#   e6  e4 + the output split into three bands at 30% and 70% of its range,
-#       a stable instant staying in its band and a modulation moving to an
-#       adjacent one
+#   e6  e4 + the output split into three bands at about 30% and 70% of its
+#       range, a stable instant staying in its band and a modulation moving
+#       to an adjacent one
 #   e5  e4 + 6 instants of stability after a start-up, with the unit off at
 #       the beginning of the horizon, and no start-up cost, so that the unit
 #       does start up inside the horizon and the rule is exercised
 #   e7  e4 + 3 instants of stability after a start-up, a load-following
 #       target whose trough lies below MinPower and a start-up cost reduced
 #       to 2%, so that the unit really cycles, and a deep decrease threshold
-#       at 75% of the range, so that the rules that a start-up brings into play are exercised too
+#       at about 75% of the range, so that the rules that a start-up brings
+#       into play are exercised too
+#
+# The breakpoints of the bands and the deep decrease thresholds are moved,
+# if needed, to at least a tenth of a ramp from any whole number of ramps
+# from MinPower and from MaxPower (see off_ramp in json2nc4.jl).
 #
 # Like gen-all-nc4 this only runs the (deterministic) JSON -> netCDF
 # conversion of json2nc4.jl.

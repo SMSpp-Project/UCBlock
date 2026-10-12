@@ -272,12 +272,15 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   for( Index t = 0 ; t < time_instants ; ++t )
    v_h_efficiency[ t ].resize( f_number_lines );
 
-  // the formulations index the end node of a line with a nonzero
-  // susceptance in get_end_line(), which is empty in a hypergraph
+  // a line with a nonzero susceptance obeys the voltage law between its
+  // two ends, hence it has a single branch; a hyperarc is a controllable
+  // flow, independent of the angles, whose susceptance must be zero
   if( ! v_line_susceptance.empty() )
-   throw( std::invalid_argument( "DCNetworkData::deserialize: a network "
-				 "with hyperarcs cannot have lines with "
-				 "nonzero susceptance" ) );
+   for( Index i = 0 ; i < f_number_lines ; ++i )
+    if( ( v_line_susceptance[ i ] != 0 ) && ( tmp[ i ].size() > 1 ) )
+     throw( std::invalid_argument( "DCNetworkData::deserialize: hyperarc " +
+				   std::to_string( i ) + " has nonzero "
+				   "susceptance" ) );
 
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    v_end_lines[ i ].resize( tmp[ i ].size() );
@@ -290,6 +293,15 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
      v_h_efficiency[ t ][ i ][ j ] =
                         v_efficiency[ std::get< 2 >( tmp[ i ][ j ] ) ][ t ];
     }
+   }
+
+  // the formulations read the two ends of a line with a nonzero
+  // susceptance in get_end_line(), which then holds the (first) end node
+  // of every line; with no such line it stays empty
+  if( ! v_line_susceptance.empty() ) {
+   v_end_line.resize( f_number_lines );
+   for( Index i = 0 ; i < f_number_lines ; ++i )
+    v_end_line[ i ] = v_end_lines[ i ].front();
    }
 
   // clear v_efficiency
@@ -458,10 +470,6 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
  // get data
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-    				                   "number of lines of DCNetworkBlock is not set" ) );
-
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
 
@@ -593,12 +601,6 @@ void DCNetworkData::compute_cycle_basis( void ) {
   return;
 
  const Index number_nodes = get_number_nodes();
- const Index number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw std::logic_error(
-   "DCNetworkData::compute_cycle_basis: number of lines not set"
-  );
 
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
@@ -963,12 +965,6 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  if( number_nodes <= 1 )
   return;
 
- const auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
-
  // ----- First step: compute the cycle basis and spanning tree
  // cycle incidence matrices C_{lc} in the paper
  auto basis = f_NetworkData->get_lines_in_cycles();
@@ -1169,12 +1165,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
  const auto number_nodes = get_number_nodes();
  if( number_nodes <= 1 )
   return;
-
- const auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_KIRCHHOFF_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
 
  LinearFunction::v_coeff_pair vars;
 
@@ -1417,12 +1407,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  if( number_nodes <= 1 )
   return;
 
- auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
-
  LinearFunction::v_coeff_pair vars;
 
  const auto & start_line = f_NetworkData->get_start_line();
@@ -1433,49 +1417,43 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  auto & DC_lines = f_NetworkData->get_DC_lines();
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
 
- // constraints on the HVDC part- - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ! f_NetworkData->is_DC() ) {  // ... if any
+ // pure HVDC network, or no line at all: the balance of every node
+ if( f_NetworkData->is_HVDC() ) {
+  v_power_flow_injection_const.resize( number_nodes );
 
-  // power flow node injection constraints for pure HVDC- - - - - - - - - - -
-  if( f_NetworkData->is_HVDC() ) {
-   v_power_flow_injection_const.resize( number_nodes );
+  for( Index n = 0 ; n < number_nodes ; ++n ) {
+   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
+   double eta = 1.0;
+   for( auto & line_id : HVDC_lines ) {
+    // start node
+    if( start_line[ line_id ] == n )
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
 
-   for( Index n = 0 ; n < number_nodes ; ++n ) {
-    vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
-    double eta = 1.0;
-    for( auto & line_id : HVDC_lines ) {
-     // start node
-     if( start_line[ line_id ] == n )
-      vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
-
-     if( ! f_NetworkData->is_hypergraph() ) {
-      // if no hyperarch -> normal behavior from get_line_efficiency
-      eta = get_line_efficiency( line_id );
-      // efficiency of the HVDC line
-      if( end_line[ line_id ] == n )
+    if( ! f_NetworkData->is_hypergraph() ) {
+     // if no hyperarch -> normal behavior from get_line_efficiency
+     eta = get_line_efficiency( line_id );
+     // efficiency of the HVDC line
+     if( end_line[ line_id ] == n )
+      vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
+     }
+    else { // if hyperarch -> loop over v_end_lines and get_line_efficiencies
+     auto & end_lines = f_NetworkData->get_end_lines()[ line_id ];
+     for( Index i = 0 ; i < end_lines.size() ; ++i ) {
+      if( end_lines[ i ] == n ) {
+       eta = get_line_efficiencies( line_id )[ i ];
        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-      }
-     else { // if hyperarch -> loop over v_end_lines and get_line_efficiencies
-      auto & end_lines = f_NetworkData->get_end_lines()[ line_id ];
-      for( Index i = 0 ; i < end_lines.size() ; ++i ) {
-       if( end_lines[ i ] == n ) {
-        eta = get_line_efficiencies( line_id )[ i ];
-        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-        }
        }
       }
      }
-
-    v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
-    v_power_flow_injection_const[ n ].set_function(
-				   new LinearFunction( std::move( vars ) ) );
     }
 
-   add_static_constraint( v_power_flow_injection_const ,
-			  "HVDC_power_flow_injection" );
+   v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
+   v_power_flow_injection_const[ n ].set_function(
+				   new LinearFunction( std::move( vars ) ) );
    }
 
+  add_static_constraint( v_power_flow_injection_const ,
+			  "HVDC_power_flow_injection" );
  }
 
  // the nodal balances at the ends of the HVDC lines and at the references

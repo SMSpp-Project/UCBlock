@@ -1,29 +1,35 @@
 #!/usr/bin/env bash
 #
-# gen-nuclear-uc  --  (re)build the UCBlock instances whose units are all
-# NuclearUnitBlocks with the operating rules of the nuclear units,
-# from the single-bus JSON instances under instances_singlebus/: the same
-# fleet, load, reserve and reactive power as the thermal instances, every unit
-# being a nuclear one with
+# gen-nuclear-uc  --  (re)build the UCBlock instances of a fleet of nuclear
+# and thermal units from the single-bus JSON instances under
+# instances_singlebus/: the same fleet, load, reserve and reactive power as
+# the thermal instances, the largest units, whose capacity is at least 45% of
+# the fleet's, being NuclearUnitBlocks with the operating rules of the nuclear
+# units, and the others ThermalUnitBlocks, which balance the load around the
+# output of the nuclear ones. Each nuclear unit has
 #
 #   - no change of the output outside the modulations (modulation ramp 0);
-#   - modulations of up to 2 hours at the full ramp, then 2 hours of stability
-#     (ModulationTime 8, MaxModulationLength 8);
+#   - modulations at the full ramp, whose length is only set by the ramps and
+#     by the bands, and no modulation step in the 7 instants that follow the
+#     end of one (ModulationTime 8);
+#   - the output split into three bands, the low and the high one as wide as
+#     the primary plus secondary reserve it offers at full output (the
+#     breakpoints moved, if needed, to at least a tenth of a ramp from any
+#     whole number of ramps, see off_ramp in json2nc4.jl), a modulation
+#     landing in the adjacent band;
 #   - days of 24 hours, at most 2 modulations, 1 start-up and 1 deep decrease
-#     a day;
-#   - 3 instants of stability after a start-up, and the output split into
-#     three bands at 30% and 70% of its range;
+#     a day, and 3 instants of stability after a start-up;
 #   - a cost of 2 per downward modulation step and of 20 per deep decrease.
 #
 # Two instances come out of each JSON source: one with the fleet as the data
 # has it, whose start-up costs are worth thousands of periods of production
-# and therefore keep every unit on for the whole horizon, and one with the
+# and therefore keep the units on for the whole horizon, and one with the
 # suffix _cyc, whose start-up costs are scaled to 2% and whose deep decreases
 # are cheaper to reach, so that the marginal units shut down at night and
 # start up again, which is the regime in which the rules that follow a
 # start-up are exercised.
 #
-# The instances are quarter-hourly, so 8 periods are 2 hours and a day is 96.
+# The instances are quarter-hourly, so a day is 96 periods.
 # Like gen-all-nc4 this only runs the (deterministic) JSON -> netCDF
 # conversion of json2nc4.jl.
 #
@@ -43,9 +49,10 @@ OUTDIR="${2:-$HERE/../../data/nc4/UC_singlebus-nuclear}"
 SIZES="${3:-50u}"
 SEEDS="${4:-1 2 3 4 5}"
 
-rules=( --nuclear --mod-frac 0 --mod-time 8 --mod-length 8
+rules=( --nuclear --nuclear-share 0.45
+        --mod-frac 0 --mod-time 8 --mod-length 0
         --day-length 96 --mods-per-day 2 --starts-per-day 1
-        --stab-start 3 --bands 0.3
+        --stab-start 3 --bands-reserve
         --deep --deeps-per-day 1 --down-cost 2 --deep-cost 20 )
 # what makes the marginal units cycle: an affordable start-up and a deep
 # decrease that a unit following the load actually reaches

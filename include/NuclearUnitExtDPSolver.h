@@ -175,7 +175,12 @@
  * any sequence of moves, start-ups and shut-downs of the other one, landing
  * again in labels at least as good, as the pruning of ThermalUnitExtDPSolver
  * requires. This pruning is applied with the trimming of the domains [see
- * trim_domination()].
+ * trim_domination()]. As for the bounding of ThermalUnitExtDPSolver, the
+ * moves cost at least \f$ \min\{ 0 , c^-_t , c^{dd}_t , c^-_t + c^{dd}_t \}
+ * \f$ [see min_move_cost()], and a state can keep its output to the end if
+ * its mode is \f$ \mathrm{st} \f$, the window of the stable move contains 0
+ * at all the instants and no Variable of the rules is fixed to 1 after it
+ * [see can_hold()], the stable move keeping the output in its band.
  *
  * <b>Exactness.</b> Move by move, (1) and the rules on the start-ups, the
  * shut-downs and the idle instants are the rows of NuclearUnitBlock at a
@@ -358,6 +363,10 @@ class NuclearUnitExtDPSolver : public ThermalUnitExtDPSolver
 
  bool trim_domination( void ) const override { return( true ); }
 
+ double min_move_cost( Index t ) const override;
+
+ bool can_hold( Index t , Index lab ) const override;
+
 /*--------------------------------------------------------------------------*/
  /// the lockout a modulation leaves behind, \f$ \tau^M - 1 \f$
  Index mod_lockout( void ) const {
@@ -459,6 +468,13 @@ class NuclearUnitExtDPSolver : public ThermalUnitExtDPSolver
  std::vector< signed char > f_fix_mod;
  std::vector< signed char > f_fix_down;  ///< as f_fix_mod, for \f$ d_t \f$
  std::vector< signed char > f_fix_deep;  ///< the same, for \f$ \delta_t \f$
+
+ /// the last instant at which a Variable of the rules is fixed to 1 [see
+ /// on_forced()], -1 if there is none
+ int f_last_forced{ -1 };
+
+ /// true if the window of the stable move contains 0 at every instant
+ bool f_can_stay{ true };
 
  /// true if a Variable of the operating rules is fixed to 1 at t, which
  /// needs the unit on at t and not starting up at t

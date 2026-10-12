@@ -121,7 +121,21 @@ namespace SMSpp_di_unipi_it
  * minus the power that reaches it. A network is pure HVDC when
  * \f$ \mathcal{L}^{S} = \emptyset \f$, pure DC when \f$ \mathcal{L}^{H} =
  * \emptyset \f$ and mixed otherwise (see DCNetworkData::is_HVDC(),
- * DCNetworkData::is_DC() and DCNetworkData::is_DC_HVDC()).
+ * DCNetworkData::is_DC() and DCNetworkData::is_DC_HVDC()). A network of
+ * several nodes may have no line at all, \f$ \mathcal{L} = \emptyset \f$
+ * (e.g., nodes of different carriers coupled only by the units that have
+ * generators on more than one of them): then it is treated as pure HVDC
+ * (DCNetworkData::is_HVDC() holds, and so does DCNetworkData::is_DC()),
+ * (B) reads \f$ S_n = D^{ac}_n \f$ and every node is balanced by its own
+ * units, in every formulation. A hyperarc is
+ * always in \f$ \mathcal{L}^{H} \f$, since the voltage law relates the
+ * angles of two nodes: its flow is a decision independent of the angles,
+ * and it enters every formulation only through its row of \f$ A^{H} \f$,
+ * i.e., as the injection \f$ - F_l \f$ at \f$ s(l) \f$ and
+ * \f$ \eta_{l,j} F_l \f$ at each \f$ e_j(l) \f$, as a line in
+ * \f$ \mathcal{L}^{H} \f$ with one end node does. Hence, hyperarcs and
+ * lines with nonzero susceptance can be in the same network, the latter
+ * making a meshed grid whose angles the hyperarcs do not touch.
  *
  * \par Components and references
  * Removing the lines in \f$ \mathcal{L}^{H} \f$ splits the network into the
@@ -261,8 +275,9 @@ namespace SMSpp_di_unipi_it
  * "NumberInstants" of DCNetworkData::deserialize(), and a NetworkBlock with a
  * separate NetworkData may have different susceptances); (ii) the losses on
  * the lines in \f$ \mathcal{L}^{S} \f$, the reactive power and the voltage
- * magnitudes (see ACNetworkBlock); (iii) a line with nonzero susceptance in a
- * network with hyperarcs, which deserialize() rejects. */
+ * magnitudes (see ACNetworkBlock); (iii) a hyperarc with nonzero
+ * susceptance, i.e., the voltage law along a line with several end nodes,
+ * which deserialize() rejects. */
 
 class DCNetworkBlock : public NetworkBlock
 {
@@ -350,7 +365,9 @@ class DCNetworkData : public NetworkData
   *   transmission network. Each line can be either a "regular" line (one
   *   start node and one end node) or a hyperarc (one start node and
   *   several end nodes); see the (optional) dimension "NumberBranches"
-  *   right next. The dimension is mandatory.
+  *   right next. The dimension is mandatory, and it may be 0: the nodes
+  *   are then not joined by any line, and none of the variables of the
+  *   lines below need be there.
   *
   * - The dimension "NumberBranches" that is used to describe hyperarcs.
   *   The dimension is optional, if it is not defined then it is assumed that
@@ -436,9 +453,10 @@ class DCNetworkData : public NetworkData
   *   otherwise. The variable is optional; if it is not provided, or if all
   *   its entries are 0, every line is in \f$ \mathcal{L}^{H} \f$ and the
   *   network is the net transfer capacity model of the class notes, which
-  *   need not be connected. A network with hyperarcs (see "HyperArcID")
-  *   must have no line with nonzero susceptance, otherwise exception is
-  *   thrown.
+  *   need not be connected. A hyperarc (see "HyperArcID") must have zero
+  *   susceptance, otherwise exception is thrown, while the lines with one
+  *   end node may have any susceptance also in a network with hyperarcs
+  *   (see the class notes).
   *
   * - The dimension "ReferenceNode", the node whose voltage angle is fixed
   *   to 0, with the role described in the class notes: it is the reference
@@ -508,7 +526,8 @@ class DCNetworkData : public NetworkData
  /** Method for returning the total number of lines of the network. When
   * get_number_nodes() == 1 (the network is a bus), get_number_lines() == 0
   * (no self-loops are allowed, hence there is no line to be made with a
-  * single node). */
+  * single node); it can be 0 with several nodes too, each of them being
+  * then balanced by itself. */
 
  Index get_number_lines( void ) const { return( f_number_lines ); }
 
@@ -604,8 +623,11 @@ class DCNetworkData : public NetworkData
   *   and  get_end_line()[ l ] gives ending (head) bus of line l.
   *
   * - if get_number_nodes() > 1 and get_number_hyperarcs() > 0, then the
-  *   network is a hypergraph and this vector is again empty since
-  *   get_end_lines() must be used to get the set of end buses of the lines.
+  *   network is a hypergraph and get_end_lines() must be used to get the
+  *   set of end buses of the lines; this vector is empty if no line has a
+  *   nonzero susceptance, and otherwise get_end_line()[ l ] is the first
+  *   end bus of line l, i.e., the end bus of a line with nonzero
+  *   susceptance, which has only one.
   */
 
  const std::vector< Index > & get_end_line( void ) const {
@@ -673,15 +695,18 @@ class DCNetworkData : public NetworkData
  /// returns the efficiency of the given \p line at the given \p time
  /** Returns the efficiency of the given \p line at the given \p time. If no
   * efficiencies are specified or \p line has a nonzero susceptance, 1 is
-  * returned. It cannot be called if the network has hyperarcs (see
-  * get_line_efficiencies()). */
+  * returned. If the network has hyperarcs it can be called only for a line
+  * with nonzero susceptance (see get_line_efficiencies()). */
 
   double get_line_efficiency( Index line , Index time ) const {
   assert( line < f_number_lines );
+  if( ( ! v_line_susceptance.empty() ) && ( v_line_susceptance[ line ] != 0 ) )
+   return( 1 );
   if( is_hypergraph() )
-   throw( std::logic_error( "get_line_efficiency() called but hypergraph" ) );
-  if( v_efficiency.empty() || ( ( ! v_line_susceptance.empty() ) &&
-				( v_line_susceptance[ line ] != 0 ) ) )
+   throw( std::logic_error( "DCNetworkData::get_line_efficiency: called "
+                            "for a line with zero susceptance in a "
+                            "hypergraph" ) );
+  if( v_efficiency.empty() )
    return( 1 );
 
   if( v_efficiency.shape()[ 1 ] == 1 )   // time-independent data

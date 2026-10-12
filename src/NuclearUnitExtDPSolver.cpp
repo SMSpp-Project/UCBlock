@@ -75,6 +75,10 @@ void NuclearUnitExtDPSolver::load_parameters( void )
  f_init_modulation = int( b->get_initial_modulation() );
  mod_ramp_up = b->get_modulation_ramp_up();
  mod_ramp_down = b->get_modulation_ramp_down();
+ f_can_stay = std::none_of( mod_ramp_up.begin() , mod_ramp_up.end() ,
+                            []( double r ) { return( r < 0 ); } ) &&
+              std::none_of( mod_ramp_down.begin() , mod_ramp_down.end() ,
+                            []( double r ) { return( r < 0 ); } );
 
  f_max_mod_length = std::max( b->get_max_modulation_length() , Index( 1 ) );
  f_stab_start = b->get_stability_after_start_up();
@@ -198,8 +202,12 @@ void NuclearUnitExtDPSolver::load_fixings( void )
  // commitment for the tables of the base DP [see start_label() for the
  // start-up, which cannot happen at that instant either]
  bool forced = false;
+ f_last_forced = -1;
  for( Index t = 0 ; t < time_horizon ; ++t )
-  forced |= on_forced( t );
+  if( on_forced( t ) ) {
+   forced = true;
+   f_last_forced = int( t );
+   }
  if( forced ) {
   if( nxt_on.size() != time_horizon + 1 ) {
    nxt_on.assign( time_horizon + 1 , time_horizon );
@@ -384,6 +392,33 @@ bool NuclearUnitExtDPSolver::label_dominates( Index a , Index b ) const
  // the output is, not how much history the unit carries
  return( ( la.mode == lb.mode ) && ( la.b == lb.b ) && ( la.lk <= lb.lk ) &&
          ( la.c <= lb.c ) && ( la.a <= lb.a ) && ( la.s <= lb.s ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// The moves that cost something are the downward steps, possibly deep
+// decreases.
+
+double NuclearUnitExtDPSolver::min_move_cost( Index t ) const
+{
+ const double cdn = f_down_cost.empty() ? 0.0 : f_down_cost[ t ];
+ const double cdd = f_deep_cost.empty() ? 0.0 : f_deep_cost[ t ];
+ return( std::min( { 0.0 , cdn , cdd , cdn + cdd } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// A stable unit can keep its output by the stable move, whose window
+// contains 0 and whose range is the band of the label, unless a modulation
+// is imposed later by a fixed Variable of the rules.
+
+bool NuclearUnitExtDPSolver::can_hold( Index t , Index lab ) const
+{
+ if( f_last_forced > int( t ) )
+  return( false );
+ if( ! f_can_stay )
+  return( false );
+ return( on_label( lab ).mode == 0 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -591,6 +626,13 @@ void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
   throw( std::runtime_error(
    "NuclearUnitExtDPSolver::get_var_solution: unable to lock the Block." ) );
 
+ // the lock is released however the method ends, a throw included
+ struct Unlock {
+  Block * b;
+  void * id;
+  ~Unlock() { if( b ) b->unlock( id ); }
+  } unlock_block{ owned ? nullptr : f_Block , f_id };
+
  auto b = static_cast< NuclearUnitBlock * >( f_Block );
  const bool built = ( ! has_design ) || design_on;
 
@@ -635,9 +677,6 @@ void NuclearUnitExtDPSolver::get_var_solution( Configuration * solc )
 
  // all the rest, the Block being already locked by this Solver
  ThermalUnitExtDPSolver::get_var_solution( solc );
-
- if( ! owned )
-  f_Block->unlock( f_id );
 
  }  // end( NuclearUnitExtDPSolver::get_var_solution )
 

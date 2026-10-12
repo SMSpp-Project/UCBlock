@@ -683,7 +683,7 @@ void NuclearUnitBlock::build_rows( bool generate_ZOConstraints )
   LinearFunction::v_coeff_pair cf( 2 );
 
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
-  cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , -1.0 );
+  cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , 1.0 );
 
   put_row( NoStartUpModulation , t - init_t , std::move( cf ) ,
            - Inf< double >() , 1.0 );
@@ -1913,12 +1913,14 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // if the given Configuration is not valid, try the one from the BlockConfig
   extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
- return( ThermalUnitBlock::is_feasible( useabstract )
+ return( ThermalUnitBlock::is_feasible( useabstract , fsbc )
    // Variable
    && ColVariable::is_feasible( v_modulation , tol )
    // Constraints
-   && RowConstraint::is_feasible( Modulation_RampUp_Constraints , tol , rel_viol )
-   && RowConstraint::is_feasible( Modulation_RampDown_Constraints , tol , rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampUp_Constraints , tol ,
+                                  rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampDown_Constraints , tol ,
+                                  rel_viol )
    && RowConstraint::is_feasible( NoDownModulation , tol , rel_viol )
    && RowConstraint::is_feasible( NoStartUpModulation , tol , rel_viol )
    && RowConstraint::is_feasible( ModulationConst , tol , rel_viol )
@@ -1988,8 +1990,10 @@ Solution * NuclearUnitBlock::get_Solution( Configuration * csolc ,
  // where it is not needed, and a Solution has to say which
  if( ( wsol & 2 ) && get_deep_decrease() ) {
   sol->v_deep.resize( get_time_horizon() );
-  sol->v_deep_drop.resize( get_time_horizon() );
-  sol->v_deep_low.resize( get_time_horizon() );
+  if( get_deep_drop() ) {
+   sol->v_deep_drop.resize( get_time_horizon() );
+   sol->v_deep_low.resize( get_time_horizon() );
+   }
   }
 
  if( ! emptys )

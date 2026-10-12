@@ -36,10 +36,12 @@
  * availability \f$ \chi_t \f$ and the nominal MaxPower \f$ \hat P^{mx}_t \f$
  * and MinPower \f$ \hat P^{mn}_t \f$. When DeltaRampUp (DeltaRampDown) is not
  * given, ThermalUnitBlock has no ramp row of that kind, and
- * \f$ \Delta^+_t \f$ (\f$ \Delta^-_t \f$) is taken to be the largest
- * \f$ \hat P^{mx}_t \f$ over the horizon, which no move exceeds; hence, the
- * moves and the reserves are free as long as InitialPower does not exceed it
- * either. If "FixToMaximum" is positive, the rows
+ * \f$ \Delta^+_t \f$ (\f$ \Delta^-_t \f$) is taken to be the largest of
+ * InitialPower \f$ p_{-1} \f$ and of the \f$ \hat P^{mx}_t \f$ over the
+ * horizon, which no move exceeds, also the one from \f$ p_{-1} \f$ to the
+ * power at 0; hence, the moves and the reserves are free, as in the rows,
+ * and a change of InitialPower makes the solvers compute it again. If
+ * "FixToMaximum" is positive, the rows
  * \f$ p^{ac}_t \geq P^{mx}_t \f$ make the output of an on instant
  * \f$ P^{mx}_t \f$ and the unit on wherever \f$ P^{mx}_t > 0 \f$. In this
  * case the solvers take \f$ P^{mn}_t = P^{mx}_t \f$ and fix the unit on at
@@ -139,10 +141,6 @@
  * - a fixed Variable other than the commitment and the design (and those
  *   that ThermalUnitBlock fixes for the initial state) is refused by the
  *   load_fixings() of each solver;
- *
- * - an InitialPower larger than the largest \f$ \hat P^{mx}_t \f$ when
- *   DeltaRampDown is not given, since the default ramp of the solvers then
- *   bounds \f$ p^{ac}_0 \f$ and its reserves from below, which no row does;
  *
  * - the parts of (4) computed by interpolation, above.
  *
@@ -593,7 +591,8 @@ class ThermalUnitDPSolverBase : public Solver
  std::vector< double > delta_ramp_up;
  std::vector< double > delta_ramp_down;
  // whether the Block actually defines ramp limits (as opposed to defaulting
- // them to the largest MaxPower); the shut-down at 0 of a unit on before
+ // them to the largest of InitialPower and MaxPower, see
+ // load_common_parameters()); the shut-down at 0 of a unit on before
  // the horizon is allowed iff InitialPower <= ShutDownLimit[ 0 ], whatever
  // the ramps, in both solvers as in every formulation
  bool has_ramp_up{ false };

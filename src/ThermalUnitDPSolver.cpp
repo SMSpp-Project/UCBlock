@@ -58,6 +58,8 @@
 
 #include "ThermalUnitBlock.h"
 
+#include <mutex>
+
 #if TUDPS_PROFILE
  #include <chrono>
  #include <iostream>
@@ -134,7 +136,8 @@ void ThermalUnitDPSolver::set_Block( Block * block )
 
 int ThermalUnitDPSolver::compute( bool changedvars )
 {
- lock();  // lock the mutex
+ // the mutex is released however compute() ends, a throw included
+ std::lock_guard< Solver > guard( *this );
 
  process_modifications();
 
@@ -167,8 +170,6 @@ int ThermalUnitDPSolver::compute( bool changedvars )
   case( path_OK ):  compute_solutions();
   }
 #endif
-
- unlock();  // unlock the mutex
 
  assert( stage == sol_OK );
  return( f_end.lab == TUDPINF ? kInfeasible : kOK );
@@ -1133,6 +1134,8 @@ bool ThermalUnitDPSolver::guts_of_process_modifications( const p_Mod mod )
      return( true );  // the bounds and the default ramps are derived
 
     case( ThermalUnitBlockMod::eSetInitP ):
+     if( ( ! has_ramp_up ) || ( ! has_ramp_down ) )
+      return( true );  // the default ramps depend on InitialPower
      initial_power = b->get_initial_power();
      stage = start;
      return( false );
