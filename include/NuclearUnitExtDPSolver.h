@@ -175,7 +175,35 @@
  * any sequence of moves, start-ups and shut-downs of the other one, landing
  * again in labels at least as good, as the pruning of ThermalUnitExtDPSolver
  * requires. This pruning is applied with the trimming of the domains [see
- * trim_domination()].
+ * trim_domination()]. As for the bounding of ThermalUnitExtDPSolver, the
+ * moves cost at least \f$ \min\{ 0 , c^-_t , c^{dd}_t , c^-_t + c^{dd}_t \}
+ * \f$ [see min_move_cost()], and a state can keep its output to the end if
+ * its mode is \f$ \mathrm{st} \f$, the window of the stable move contains 0
+ * at all the instants and no Variable of the rules is fixed to 1 after it
+ * [see can_hold()], the stable move keeping the output in its band.
+ * Furthermore, completion_bound() refines \f$ L_t \f$ by the cost-to-go of
+ * a relaxation of the rules, computed backwards on a grid of \f$ G \f$
+ * cells \f$ C_1 , \ldots , C_G \f$ of the output. The relaxation keeps the
+ * mode \f$ \mathrm{st} \f$ with its lockout and the counter \f$ n^M \f$,
+ * merges \f$ \mathrm{up} \f$ and \f$ \mathrm{dn} \f$ into one mode
+ * whose steps move within \f$ [ -\Delta^-_t , \Delta^+_t ] \f$ for any
+ * number of steps, and drops the bands, the other counters, the costs of the
+ * steps and of the deep decreases (not negative), the minimum up and down
+ * times and the fixings; an instant on in \f$ C_c \f$ costs at least
+ * \f$ \min_{ p \in C_c } \bigl( f_t( p ) + g_t( p , \min\{ p -
+ * P^{mn}_t , P^{mx}_t - p \} ) \bigr) \f$, and a move from
+ * \f$ C_c \f$ with window \f$ [ -\omega^- , \omega^+ ] \f$ may land in any
+ * cell that meets \f$ [ \min C_c - \omega^- , \sup C_c + \omega^+ ) \f$
+ * (the cells being half-open). Its value \f$ H_t( k , n^M , c ) \f$ is
+ * therefore not larger than the cost of the instants after \f$ t \f$ of any
+ * schedule on at \f$ t \f$ in \f$ C_c \f$ with a label of core \f$ k \f$
+ * and counter \f$ n^M \f$, and a state \f$ ( \tau , \ell , F ) \f$ is
+ * removed if \f$ \min_{ p \in C_c } F( p ) + H_t( k , n^M , c ) > U \f$
+ * for every cell \f$ C_c \f$ (taken closed) that meets its domain. The grid
+ * has \f$ G = \min\{ 128 , \max\{ 16 , 2^{18} / ( T K M ) \} \} \f$
+ * cells, \f$ K \f$ and \f$ M \f$ being the numbers of cores and of values
+ * of the counter, so that building the bound takes \f$ O( 2^{18} ) \f$
+ * operations unless the grid is at its coarsest.
  *
  * <b>Exactness.</b> Move by move, (1) and the rules on the start-ups, the
  * shut-downs and the idle instants are the rows of NuclearUnitBlock at a
@@ -375,6 +403,20 @@ class NuclearUnitExtDPSolver : public ThermalUnitExtDPSolver
 
  bool trim_domination( void ) const override { return( true ); }
 
+ double min_move_cost( Index t ) const override;
+
+ bool can_hold( Index t , Index lab ) const override;
+
+ void prepare_completion_bound( const std::vector< PQFun > & disc ,
+                                const std::vector< double > & qd ) override;
+
+ bool completion_bound( Index t , Index lab , const PQFun & F ,
+                        const OnSlot & m , double lev ) const override;
+
+ /// the least cost of being on at s with the output in [ a , b ]
+ double least_on_cost( Index s , const PQFun & disc , double qd , double a ,
+                       double b ) const;
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -383,6 +425,24 @@ class NuclearUnitExtDPSolver : public ThermalUnitExtDPSolver
  /// and the moves out of them, filled by load_parameters() and, for the
  /// fixed Variable of the rules, by load_fixings()
  NuclearRules f_rules;
+
+ /// the last instant at which a Variable of the rules is fixed to 1 [see
+ /// NuclearRules::on_forced()], -1 if there is none
+ int f_last_forced{ -1 };
+
+ /// true if the window of the stable move contains 0 at every instant
+ bool f_can_stay{ true };
+
+ /// the cost-to-go of the relaxation of the rules on a grid of the output
+ /// [see prepare_completion_bound()]: f_cb_H[ ( t * f_cb_nc + k * nc + m )
+ /// * f_cb_g + c ] is the bound at t for the core k, m modulations in the
+ /// day and the cell c (nc the range of the counter of the modulations of
+ /// f_rules), empty if it has not been computed
+ std::vector< double > f_cb_H;
+ double f_cb_p0{};    ///< the left end of the grid
+ double f_cb_h{};     ///< the width of a cell
+ Index f_cb_g{};      ///< the number of cells
+ Index f_cb_nc{};     ///< the number of cores times the range of the counter
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/

@@ -161,10 +161,52 @@
  * equal value up to the rounding, which the comparison piece by piece would
  * all keep, and whose number would grow at each step. Note that states
  * with different labels are never merged into their pointwise minimum, which
- * would not be convex. The surviving states are typically few, and therefore
- * the method often runs in a time close to linear in \f$ T \f$; however, in
- * the worst case their number grows linearly with \f$ t \f$ (times the number
- * of labels).
+ * would not be convex. A state is only compared with the states whose label
+ * dominates its own and whose domain meets its own, which are the only ones
+ * that can remove a part of it. The surviving states are typically few, and
+ * therefore the method often runs in a time close to linear in \f$ T \f$;
+ * however, in the worst case their number grows linearly with \f$ t \f$
+ * (times the number of labels).
+ *
+ * <b>Bounding.</b> Before the domination, the states are also pruned by
+ * bounds, as in a branch-and-bound. Let
+ * \f[
+ *   \underline{c}_s = \min\{ \, 0 \, , \, \min_{ P^{mn}_s \leq p \leq
+ *     P^{mx}_s } \bigl( f_s( p ) + g_s( p , \min\{ p - P^{mn}_s , P^{mx}_s
+ *     - p \} ) \bigr) + \min\{ 0 , c^{su}_s \} +
+ *     \min\{ 0 , \underline{c}^{mv}_s \} \, \} + \min\{ 0 , c^{sd}_s \} \, ,
+ * \f]
+ * where \f$ \underline{c}^{mv}_s \f$ is min_move_cost(); it is a lower bound
+ * on the cost of the instant \f$ s \f$ in any schedule, since the reward of
+ * the reserves is not positive and not increasing in the band, and hence
+ * \f$ L_t = \sum_{ s > t } \underline{c}_s \f$ is a lower bound on the cost of
+ * any completion of a state at \f$ t \f$. Also, let \f$ U \f$ be the cost of
+ * the best feasible schedule seen so far, among those that leave an off-state
+ * at some \f$ t' \f$ and stay off (\f$ c^{any}_{t'} \f$, if no instant after
+ * \f$ t' \f$ is fixed on) and those that leave an on-state
+ * \f$ ( \tau , \ell , F ) \f$ at \f$ t' \f$ and keep its output \f$ p \f$
+ * to the end, whose cost is at most
+ * \f$ F( p ) + \sum_{ s > t' } f_s( p ) \f$ (if can_hold(), no instant after
+ * \f$ t' \f$ is fixed off and \f$ P^{mn}_s \leq p \leq P^{mx}_s \f$ for all
+ * \f$ s > t' \f$). Then a state at \f$ t \f$ with
+ * \f$ \min_p F( p ) + L_t > U \f$ (up to the relative tolerance
+ * \f$ 10^{-9} \f$) is removed. Since a schedule through it costs more than
+ * \f$ U \f$, which is not smaller than the optimal value, the optimal value
+ * (6) does not change. The argument is pointwise, and it would also allow to
+ * cut the domain of a state to the sublevel set
+ * \f$ \{ p : F( p ) \leq U - L_t \} \f$; this is not done, since the parts
+ * of the transitions that are interpolated [see
+ * ThermalUnitDPSolverBase::sliding_min_corr()] depend on the domain, and the
+ * values of the states that survive would then change in the last digits,
+ * for few states less. This
+ * matters when the prices make the unit costly: a unit that stays off has
+ * \f$ U \leq 0 \f$ from the first instant at which it can be off, and
+ * \f$ L_t \f$ close to 0, so that almost no on-state survives. A derived
+ * unit may refine \f$ L_t \f$ by a bound that depends on the label and on
+ * the output [see completion_bound()]: once more than 256 on-states are
+ * kept at an instant, prepare_completion_bound() is called, and from then on
+ * a state is also removed when that bound, plus \f$ F \f$, exceeds
+ * \f$ U \f$ at every point of its domain.
  *
  * The minimum up and down times are taken to be at least 1, as in
  * ThermalUnitBlock, and therefore the value (6) is the optimal value of the
@@ -235,6 +277,49 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  /// diagnostic: print the on-states that survive at t, with their
  /// run-length, domain and value at p
  void dump_states_at( Index t , double p ) const;
+
+ /// what the last run of the dynamic program did, counted over the horizon
+ /** The counters do not depend on the machine nor on its load:
+  *
+  * - built: the on-states built by the moves and the restarts;
+  *
+  * - split: the on-states added by the trimming, when it splits a domain;
+  *
+  * - kept: the on-states that survive the pruning, i.e., the sum over the
+  *   instants of the size of the lists of the file comment;
+  *
+  * - pieces: the quadratic pieces of the value functions of the kept states;
+  *
+  * - peak: the largest number of on-states kept at an instant;
+  *
+  * - pairs: the pairs of states whose run-lengths and labels allow the
+  *   domination and whose domains meet, i.e., for which the value
+  *   functions are compared;
+  *
+  * - dominated: the states removed because another one is not larger on
+  *   their whole domain;
+  *
+  * - trimmed: the comparisons that removed a part of the domain of a
+  *   state;
+  *
+  * - bounded: the states removed by the bounding, because no completion
+  *   of theirs costs less than a feasible schedule
+  *   [see the file comment]. */
+
+ struct DPStats {
+  unsigned long long built = 0;
+  unsigned long long split = 0;
+  unsigned long long kept = 0;
+  unsigned long long pieces = 0;
+  unsigned long long peak = 0;
+  unsigned long long pairs = 0;
+  unsigned long long dominated = 0;
+  unsigned long long trimmed = 0;
+  unsigned long long bounded = 0;
+  };
+
+ /// the counters of the last run of the dynamic program
+ const DPStats & get_dp_stats( void ) const { return( f_stats ); }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -557,6 +642,40 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   * reachable range, it is false. */
  virtual bool trim_domination( void ) const { return( false ); }
 
+ /// a lower bound on the cost of the moves into instant \p t
+ /** Not larger than the cost of any move out of any label into \p t; the
+  * bounding of the states [see the file comment] adds it when it is
+  * negative. The default 0 is right for the moves of a thermal unit, whose
+  * cost is 0, and for any derived unit whose moves cost at least 0. */
+ virtual double min_move_cost( Index t ) const { return( 0 ); }
+
+ /// true if an on-state with label \p lab at \p t can keep its output
+ /** True if a unit in an on-state with label \p lab at \p t can stay on at
+  * the same output at all the instants after \p t, as far as its rules go
+  * (the bounds of the output, the commitment fixed off and the costs are
+  * checked by the DP): the bounding takes the cost of this schedule as an
+  * upper bound of the optimal value [see the file comment]. The default is
+  * true, the window of the single move of a thermal unit containing 0. */
+ virtual bool can_hold( Index t , Index lab ) const { return( true ); }
+
+ /// prepares the bound of completion_bound(), at the start of a run
+ /** Called by run_DP() before the first instant with, for each instant,
+  * the reward of the reserves on the whole band (empty if none is
+  * rewarded) and the constant that being on adds for the reactive power. */
+ virtual void prepare_completion_bound( const std::vector< PQFun > & disc ,
+                                        const std::vector< double > & qd ) {}
+
+ /// whether the schedules through an on-state may cost at most \p lev
+ /** Returns false if a lower bound on the cost of any schedule that goes
+  * through the on-state at \p t with label \p lab, value function \p F
+  * and minimum \p m, its completion included, is larger than \p lev; the
+  * bounding then removes the state, on top of the bound of the file
+  * comment. The default true removes nothing. */
+ virtual bool completion_bound( Index t , Index lab , const PQFun & F ,
+                                const OnSlot & m , double lev ) const {
+  return( true );
+  }
+
  /// the intervals of [ a , b ] where G is not larger than F
  static void not_larger( const PQFun & F , const PQFun & G , double a ,
                          double b ,
@@ -579,6 +698,7 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
  bool f_solved;               ///< true iff f_best_cost encodes a feasible
                               ///< schedule (finite cost); set by run_DP()
  double f_best_cost;          ///< optimal objective value after run_DP()
+ DPStats f_stats;             ///< the counters of the last run_DP()
 
  // -- ON-side value functions ------------------------------------------ //
 
@@ -612,6 +732,22 @@ class ThermalUnitExtDPSolver : public ThermalUnitDPSolverBase
   m_start_labs;   ///< scratch for on_moves()
  /// scratch of the domination with trimming
  std::vector< std::pair< double , double > > m_cover , m_rest;
+ /// scratch of the domination: the distinct labels of a list, the label of
+ /// each state, the states of each label, whether a label dominates another
+ /// one and the states a state is compared with
+ std::vector< Index > m_labs;
+ std::vector< std::size_t > m_lid , m_cand;
+ std::vector< std::vector< std::size_t > > m_members;
+ std::vector< signed char > m_ldom;
+ /// whether a label dominates another one, by their codes, for all the runs
+ /// until the parameters are loaded again (empty with too many labels)
+ std::vector< signed char > m_ldom_g;
+
+ /// f_lbsuf[ t ] is a lower bound on the cost of the instants after t of
+ /// any schedule, f_hold[ t ] the quadratic cost of holding an output over
+ /// them, with the range of the outputs where it is allowed [see run_DP()]
+ std::vector< double > f_lbsuf;
+ std::vector< PieceQuad > f_hold;
 
  // -- OFF-side values -------------------------------------------------- //
  // the arrays indexed by time and off label are flat, entry t * E + e with

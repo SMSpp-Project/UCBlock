@@ -1493,7 +1493,8 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
    }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetInf ) ) ) {
   // Issue a Physical Modification
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
@@ -1567,7 +1568,8 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetInf ) ) )
   Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >(
                             this , HydroUnitBlockMod::eSetInf , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -1626,7 +1628,8 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
   // the eSetInerP Modification [see UCBlock::add_Modification()]
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetInerP ) ) ) {
   // Issue a Physical Modification
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
@@ -1688,7 +1691,8 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
   // the eSetInerP Modification [see UCBlock::add_Modification()]
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetInerP ) ) )
   // Issue a Physical Modification
    Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >(
                              this , HydroUnitBlockMod::eSetInerP , rng ) ,
@@ -1768,7 +1772,8 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetInitV ) ) ) {
   // Issue a Physical Modification
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
@@ -1839,7 +1844,8 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetInitV ) ) )
   // Issue a Physical Modification
    Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >(
                              this , HydroUnitBlockMod::eSetInitV , rng ) ,
@@ -1962,7 +1968,8 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
    update_initial_flow_rate_in_cnstrs( subset , issueAMod );
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetInitF ) ) ) {
   // Issue a Physical Modification
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
@@ -2016,7 +2023,8 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
    update_initial_flow_rate_in_cnstrs( rng , issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetInitF ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< HydroUnitBlockRngdMod >(
                             this , HydroUnitBlockMod::eSetInitF , rng ) ,
@@ -2104,7 +2112,8 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetActPCost ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2184,7 +2193,8 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , HydroUnitBlockMod::changes_of(
+                 HydroUnitBlockMod::eSetActPCost ) ) )
   Block::add_Modification(
    std::make_shared< HydroUnitBlockRngdMod >(
     this , HydroUnitBlockMod::eSetActPCost , rng ) ,

@@ -2285,7 +2285,8 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
  if( ! changed ) // if nothing changes, return
   return;
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , UCBlockMod::changes_of(
+                 UCBlockMod::eSetActD ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2382,7 +2383,9 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
  if( ! changed )  // if nothing changes, return
   return;
 
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , UCBlockMod::changes_of(
+                 UCBlockMod::eSetActD ) ) )
   Block::add_Modification( std::make_shared< UCBlockRngdMod >(
                             this , UCBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2450,7 +2453,8 @@ void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Subset && subset ,
  if( grouped )
   close_channel( par2chnl( amod ) );
 
- if( changed && issue_pmod( issuePMod ) ) {
+ if( changed && issue_pmod( issuePMod , UCBlockMod::changes_of(
+                            UCBlockMod::eSetPolMinB ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2488,7 +2492,8 @@ void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Range rng ,
  if( grouped )
   close_channel( par2chnl( amod ) );
 
- if( changed && issue_pmod( issuePMod ) )
+ if( changed && issue_pmod( issuePMod , UCBlockMod::changes_of(
+                            UCBlockMod::eSetPolMinB ) ) )
   Block::add_Modification( std::make_shared< UCBlockRngdMod >( this ,
                             lower ? UCBlockMod::eSetPolMinB :
                                     UCBlockMod::eSetPolB , rng ) ,

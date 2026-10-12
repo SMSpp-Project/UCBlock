@@ -1488,12 +1488,14 @@ static netCDF::NcGroup write_net( const std::string & type , Index N ,
   mx.push_back( l.mx );
   eta.push_back( l.eta );
   }
- put_int( g , "StartLine" , L , s );
- put_int( g , "EndLine" , L , e );
- put( g , "LineSusceptance" , L , sus );
- put( g , "MinPowerFlow" , L , mn );
- put( g , "MaxPowerFlow" , L , mx );
- put( g , "Efficiency" , L , eta );
+ if( ! lines.empty() ) {  // with no line there is no data of the lines
+  put_int( g , "StartLine" , L , s );
+  put_int( g , "EndLine" , L , e );
+  put( g , "LineSusceptance" , L , sus );
+  put( g , "MinPowerFlow" , L , mn );
+  put( g , "MaxPowerFlow" , L , mx );
+  put( g , "Efficiency" , L , eta );
+  }
  put( g , "ActiveDemand" , ND , demand );
  return( g );
  }
@@ -1971,6 +1973,92 @@ static void test_net_dual_prices( void )
   check( ( dp.size() == 3 ) && ( dp[ 0 ] == -3 ) && ( dp[ 1 ] == 4 ) &&
 	 ( dp[ 2 ] == -2 ) , what + ": " + str( dp[ 0 ] ) + " , " +
 	 str( dp[ 1 ] ) + " , " + str( dp[ 2 ] ) + " instead of -3 , 4 , -2" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Several nodes and no line (NumberLines == 0, no data of the lines): each
+ * node is an island, whose injection has to equal its demand in every
+ * formulation, also with ReferenceNode not 0, a node with neither demand
+ * nor injection, after a change of the demand and for an ACNetworkBlock;
+ * the data are written and read back, and the dual prices are none. */
+
+static void test_net_no_lines( void )
+{
+ for( Index ref : { 0 , 2 } )
+  for( int wf = 0 ; wf < 3 ; ++wf ) {
+   const auto what = "no line, " + FORMULATION[ wf ] + ", ReferenceNode " +
+                     std::to_string( ref );
+   try {
+    std::unique_ptr< DCNetworkBlock > nb( new_net(
+	  write_net( "DCNetworkBlock" , 3 , { } , { 10 , 20 , 0 } , ref ) ,
+	  wf ) );
+    check( nb->get_number_lines() == 0 , what + ": lines read" );
+    set_net_point( nb.get() , { 10 , 20 , 0 } , { } );
+    check( nb->is_feasible() , what + ": the islands are not balanced" );
+    set_net_point( nb.get() , { 30 , 0 , 0 } , { } );
+    check( ! nb->is_feasible() , what + ": power moves with no line" );
+    set_net_point( nb.get() , { 10 , 20 , 5 } , { } );
+    check( ! nb->is_feasible() , what + ": an injection with no demand" );
+
+    std::vector< double > d = { 5 };
+    nb->set_active_demand( d.cbegin() , Subset( { 1 } ) , true );
+    set_net_point( nb.get() , { 10 , 5 , 0 } , { } );
+    check( nb->is_feasible() , what + ": the new demand is not met" );
+    set_net_point( nb.get() , { 10 , 20 , 0 } , { } );
+    check( ! nb->is_feasible() , what + ": the old demand is met" );
+
+    std::vector< double > dp( 1 , 1 );
+    nb->get_dual_prices( dp );
+    check( dp.empty() , what + ": dual prices of no line" );
+    }
+   catch( std::exception & e ) {
+    check( false , what + ": throws " + e.what() );
+    }
+   }
+
+ auto b = round_trip( write_net( "DCNetworkBlock" , 3 , { } ,
+                                 { 10 , 20 , 0 } , 2 ) , "no line" );
+ auto nb = dynamic_cast< DCNetworkBlock * >( b );
+ check( nb && ( nb->get_number_nodes() == 3 ) &&
+        ( nb->get_number_lines() == 0 ) ,
+        "no line: the network read back" );
+ delete b;
+
+ // an ACNetworkBlock of two nodes and no line: the active and the reactive
+ // balance of each node only have its injection and its voltage
+ auto g = write_net( "ACNetworkBlock" , 2 , { } , { 1 , 2 } );
+ auto N = g.getDim( "NumberNodes" );
+ put( g , "NodeConductance" , N , { 0 , 0 } );
+ put( g , "NodeSusceptance" , N , { 0 , 0 } );
+ put( g , "NodeMaxVoltage" , N , { 1.1 , 1.1 } );
+ put( g , "NodeMinVoltage" , N , { 0.9 , 0.9 } );
+ put( g , "ReactiveDemand" , N , { 0.5 , 0.5 } );
+ const std::string what = "no line, ACNetworkBlock";
+ try {
+  std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+						 Block::new_Block( g ) ) );
+  check( ab != nullptr , what + ": not read" );
+  if( ! ab )
+   return;
+  for( Index n = 0 ; n < 2 ; ++n ) {
+   ab->set_min_node_injection( -10 , n );
+   ab->set_max_node_injection( 10 , n );
+   ab->set_min_reactive_node_injection( -10 , n , 0 );
+   ab->set_max_reactive_node_injection( 10 , n , 0 );
+   }
+  ab->generate_abstract_variables();
+  ab->generate_abstract_constraints();
+  auto rows = ab->get_static_constraint_v< FRowConstraint >(
+						   "AC_power_flow_injection" );
+  bool ok = rows && ( rows->size() == 4 );
+  for( Index i = 0 ; ok && ( i < 4 ) ; ++i )
+   ok = ( ( *rows )[ i ].get_function()->get_num_active_var() == 2 ) &&
+        ( ( *rows )[ i ].get_lhs() == ( i < 2 ? - double( i + 1 ) : -0.5 ) );
+  check( ok , what + ": the balances of the nodes" );
   }
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );
@@ -10023,6 +10111,255 @@ static double relaxation_value( ThermalUnitBlock * tub )
  }
 
 /*--------------------------------------------------------------------------*/
+/*---------- THE SOCP AND THE STRENGTHENED RELAXATION OF THE AC MODEL ------*/
+/*--------------------------------------------------------------------------*/
+/// the first :MILPSolver of the build that solves a convex QCP (GUROBI
+/// first, then CPLEX), empty if there is none
+
+static std::string conic_solver( void )
+{
+ for( const auto & name : { "GRBMILPSolver" , "CPXMILPSolver" } )
+  if( Solver::has_Solver( name ) )
+   return( name );
+ return( "" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A UCBlock of one instant on an ACNetworkBlock of nodes nodes and the AC
+ * lines lines (start and end node of each; reactance 0.1 and resistance
+ * 0.01 upwards with the index of the line, angle differences within +-30
+ * degrees, a rating of 30), a ThermalUnitBlock at node 0 (power in
+ * [ 1 , 20 ] at the cost of 1, reactive power in [ -5 , 5 ], on since 5
+ * instants at the power of 5) and a
+ * SlackUnitBlock at the last node (power cost 1000); the active demand of
+ * node n is dem[ n ], the reactive one 0.5 at node 0 and qdem at the
+ * others. */
+
+static netCDF::NcGroup write_ac_uc( Index nodes ,
+                    const std::vector< std::pair< int , int > > & lines ,
+                    const std::vector< double > & dem , double qdem )
+{
+ auto g = new_group( "UCS" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 1 );
+ g.addDim( "NumberUnits" , 2 );
+ auto N = g.addDim( "NumberNodes" , nodes );
+ auto L = g.addDim( "NumberLines" , lines.size() );
+ auto G = g.addDim( "NumberElectricalGenerators" , 2 );
+ {
+  const char * cls = "ACNetworkBlock";
+  g.addVar( "NetworkBlockClassname" , netCDF::NcString() ).putVar( & cls );
+  }
+ if( ! lines.empty() ) {  // with no line there is no data of the lines
+  const Index nl = lines.size();
+  std::vector< int > st( nl ) , en( nl );
+  std::vector< double > x( nl ) , r( nl );
+  for( Index l = 0 ; l < nl ; ++l ) {
+   st[ l ] = lines[ l ].first;
+   en[ l ] = lines[ l ].second;
+   x[ l ] = 0.1 + 0.02 * l;
+   r[ l ] = 0.01 + 0.002 * l;
+   }
+  put_int( g , "StartLine" , L , st );
+  put_int( g , "EndLine" , L , en );
+  put( g , "MinPowerFlow" , L , std::vector< double >( nl , -30 ) );
+  put( g , "MaxPowerFlow" , L , std::vector< double >( nl , 30 ) );
+  put( g , "LineReactance" , L , x );
+  put( g , "LineResistance" , L , r );
+  put( g , "LineMinAngle" , L , std::vector< double >( nl , -30 ) );
+  put( g , "LineMaxAngle" , L , std::vector< double >( nl , 30 ) );
+  put( g , "LineRATEA" , L , std::vector< double >( nl , 30 ) );
+  }
+ put( g , "NodeConductance" , N , std::vector< double >( nodes , 0 ) );
+ put( g , "NodeSusceptance" , N , std::vector< double >( nodes , 0 ) );
+ put( g , "NodeMaxVoltage" , N , std::vector< double >( nodes , 1.1 ) );
+ put( g , "NodeMinVoltage" , N , std::vector< double >( nodes , 0.9 ) );
+ std::vector< double > qd( nodes , qdem );
+ qd[ 0 ] = 0.5;
+ put( g , "ActivePowerDemand" , { N , TH } , dem );
+ put( g , "ReactivePowerDemand" , { N , TH } , qd );
+ put_int( g , "GeneratorNode" , G , { 0 , int( nodes ) - 1 } );
+
+ auto u = g.addGroup( "UnitBlock_0" );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MinPower" , 1.0 );
+ put( u , "MaxPower" , 20.0 );
+ put( u , "LinearTerm" , 1.0 );
+ put( u , "MinReactivePower" , -5.0 );
+ put( u , "MaxReactivePower" , 5.0 );
+ put( u , "InitialPower" , 5.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ put_uint( u , "MinUpTime" , 1 );
+ put_uint( u , "MinDownTime" , 1 );
+
+ auto sl = g.addGroup( "UnitBlock_1" );
+ sl.putAtt( "type" , "SlackUnitBlock" );
+ put( sl , "MaxPower" , 1000.0 );
+ put( sl , "ActivePowerCost" , 1000.0 );
+ return( g );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The value that the :MILPSolver sname finds for the UCBlock of g with the
+ * ACNetworkBlock in the formulation of the BlockConfig in the file form
+ * (NaN if none is found); gap is the largest relative slack
+ * ( w_s w_e - c^2 - s^2 ) / ( w_s w_e ) of the cones (9) of
+ * ACNetworkBlock::generate_abstract_constraints() at the solution, 0 if
+ * there is no line. */
+
+static double ac_uc_value( const netCDF::NcGroup & g ,
+                           const std::string & form ,
+                           const std::string & sname ,
+                           const std::string & what , double & gap )
+{
+ double v = std::nan( "" );
+ gap = std::nan( "" );
+ std::unique_ptr< UCBlock > uc;
+ try {
+  uc.reset( dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  return( v );
+  }
+ check( uc != nullptr , what + ": the UCBlock is not read" );
+ if( ! uc )
+  return( v );
+ auto bc = dynamic_cast< BlockConfig * >( read_test_cfg( form ) );
+ check( bc , what + ": " + form + " is not read" );
+ if( ! bc )
+  return( v );
+ auto ab = dynamic_cast< ACNetworkBlock * >( uc->get_network_block( 0 ) );
+ check( ab , what + ": no ACNetworkBlock" );
+ if( ! ab ) {
+  delete bc;
+  return( v );
+  }
+ bc->apply( ab );
+ delete bc;
+
+ auto slv = Solver::new_Solver( sname );
+ try {
+  generate_all( uc.get() );
+  uc->register_Solver( slv );
+  const auto status = slv->compute();
+  if( status == Solver::kOK ) {
+   v = slv->get_var_value();
+   slv->get_var_solution();
+   gap = 0;
+   auto c = ab->get_static_variable_v< ColVariable >(
+                                                  "v_sum_product_voltages" );
+   auto s = ab->get_static_variable_v< ColVariable >(
+                                                 "v_diff_product_voltages" );
+   auto w = ab->get_static_variable_v< ColVariable >( "v_sqrd_voltages" );
+   const auto nd = static_cast< ACNetworkBlock::ACNetworkData * >(
+                                                      ab->get_NetworkData() );
+   const auto & lines = nd->get_DC_lines();
+   const auto & st = nd->get_start_line();
+   const auto & en = nd->get_end_line();
+   for( Index i = 0 ; c && s && w && ( i < lines.size() ) ; ++i ) {
+    const double ww = ( *w )[ st[ lines[ i ] ] ].get_value() *
+                      ( *w )[ en[ lines[ i ] ] ].get_value();
+    const double cc = ( *c )[ i ].get_value();
+    const double ss = ( *s )[ i ].get_value();
+    gap = std::max( gap , ( ww - cc * cc - ss * ss ) / ww );
+    }
+   }
+  else
+   if( status == Solver::kInfeasible )
+    v = INF;
+  uc->unregister_Solver( slv , true );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ return( v );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The SOCP relaxation of the AC model (ACBCfg-SOCP.txt) and the one
+ * strengthened by the envelopes of the trigonometric terms (ACBCfg-QC.txt),
+ * on a UCBlock solved by a :MILPSolver that solves a convex QCP:
+ *
+ * - on two nodes and no line every node is an island, whose active and
+ *   reactive demand its own units meet: the ThermalUnitBlock gives the 1 of
+ *   node 0 at the cost of 1, the SlackUnitBlock the 2 of node 1 at the cost
+ *   of 2000, and the value is 2001 in both formulations;
+ *
+ * - on a radial network (a line, and a chain of three nodes) the SOCP
+ *   relaxation is exact: the cost increases with the losses, which decrease
+ *   with c_l at fixed w, so that every cone is tight at the optimum and the
+ *   two relaxations, which lie between the SOCP one and the AC model, have
+ *   the same value;
+ *
+ * - on a meshed network (a triangle) the strengthened relaxation is a subset
+ *   of the SOCP one, whose value is therefore not larger. */
+
+static void test_ac_socp_and_strengthened( void )
+{
+ const auto sname = conic_solver();
+ if( sname.empty() ) {
+  std::cout << "AC SOCP and strengthened: no :MILPSolver solving a convex "
+            << "QCP, skipped" << std::endl;
+  return;
+  }
+
+ auto same = [ & ]( double a , double b ) {
+  return( std::abs( a - b ) <= 1e-6 * std::max( 1.0 , std::abs( b ) ) );
+  };
+ double gap;
+
+ // no line
+ for( const std::string form : { "ACBCfg-SOCP.txt" , "ACBCfg-QC.txt" } ) {
+  const std::string what = "AC no line, " + form;
+  const double v = ac_uc_value( write_ac_uc( 2 , { } , { 1 , 2 } , 0 ) ,
+                                form , sname , what , gap );
+  check( same( v , 2001 ) , what + ": value " + str( v ) + ", not 2001" );
+  }
+
+ // radial networks
+ const std::vector< std::pair< std::string ,
+                    std::vector< std::pair< int , int > > > > radial = {
+  { "a line" , { { 0 , 1 } } } ,
+  { "a chain" , { { 0 , 1 } , { 1 , 2 } } } };
+ for( const auto & [ name , lines ] : radial ) {
+  const Index nodes = lines.size() + 1;
+  std::vector< double > dem( nodes , 2 );
+  dem[ 0 ] = 1;
+  const auto g = write_ac_uc( nodes , lines , dem , 0.2 );
+  const std::string what = "AC " + name;
+  const double socp = ac_uc_value( g , "ACBCfg-SOCP.txt" , sname ,
+                                   what + ", SOCP" , gap );
+  check( std::isfinite( socp ) && ( gap <= 1e-4 ) ,
+         what + ", SOCP: value " + str( socp ) + ", cone slack " +
+         str( gap ) );
+  double gap_qc;
+  const double qc = ac_uc_value( g , "ACBCfg-QC.txt" , sname ,
+                                 what + ", strengthened" , gap_qc );
+  std::cout << what << ": SOCP " << socp << " (cone slack " << gap
+            << "), strengthened " << qc << std::endl;
+  check( same( socp , qc ) , what + ": SOCP value " + str( socp ) +
+         ", strengthened " + str( qc ) );
+  }
+
+ // a meshed network
+ {
+  const auto g = write_ac_uc( 3 , { { 0 , 1 } , { 1 , 2 } , { 0 , 2 } } ,
+                              { 1 , 3 , 4 } , 0.2 );
+  const double socp = ac_uc_value( g , "ACBCfg-SOCP.txt" , sname ,
+                                   "AC triangle, SOCP" , gap );
+  const double qc = ac_uc_value( g , "ACBCfg-QC.txt" , sname ,
+                                 "AC triangle, strengthened" , gap );
+  std::cout << "AC triangle: SOCP " << socp << ", strengthened " << qc
+            << std::endl;
+  check( std::isfinite( socp ) && std::isfinite( qc ) &&
+         ( socp <= qc + 1e-6 * std::max( 1.0 , std::abs( qc ) ) ) ,
+         "AC triangle: SOCP value " + str( socp ) + ", strengthened " +
+         str( qc ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The SUSD formulation has the ramp rows of the SU and SD formulations,
  * i.e., also those downwards on the powers p^h of the runs that start at h
  * and upwards on the powers of the runs that end at k, besides those over
@@ -10321,6 +10658,105 @@ static void test_thermal_psi_first_last( void )
    }
   delete ref;
   delete tub;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The bound psi of the rows (27) carries by the ramps every maximum power
+ * met along a run, not only the start-up and shut-down limits. With
+ * MinPower 10, MaxPower 100 and the availability changing in time, in the
+ * cases
+ *
+ * - G: T = 6, availability 0.3, 0.3, 0.5, 0.8, 0.8, 0.8, StartUpLimit 30,
+ *   30, 50, 59, 59, 59, ShutDownLimit 30, 30, 50, 80, 80, 80, DeltaRampUp
+ *   9, DeltaRampDown 50, minimum up and down times 2, on since 1 instant at
+ *   78: a run that is on at 1 has at most 30 there, hence at most 30 + 9
+ *   at 2 and 30 + 2 * 9 at 3, below the start-up limit plus the ramps;
+ *
+ * - H: T = 6, availability 1, 1, 1, 0.3, 1, 0.5, StartUpLimit 19, 19, 19,
+ *   19, 19, 19, ShutDownLimit 18, 18, 18, 18, 18, 18, DeltaRampUp 5,
+ *   DeltaRampDown 26, minimum up time 4 and down time 1, on since 2
+ *   instants at 72: the run from before the horizon goes through 30 at 3;
+ *
+ * with the costs below, the continuous relaxation of the pt, DP, SU, SD and
+ * SUSD formulations is the integer optimum, which also the MILP of every
+ * formulation and both DP Solvers give; with the start-up and shut-down
+ * limits alone carried by the ramps, those of the pt and SU formulations
+ * were -312.47 in G and -588.14 in H, and only the ramp rows over several
+ * steps of the SUSD formulation, written in the SU one, reached the
+ * optimum. Also, the unit generated with the availability 1 and then given
+ * the availability of the case by set_availability() has the same
+ * relaxation in the pt and SU formulations as the unit read with it. */
+
+static void test_thermal_psi_propagation( void )
+{
+ struct Case {
+  std::string name; std::vector< double > av , su , sd; double ru , rd;
+  unsigned int up , down; int init; double ip;
+  std::vector< double > lin , cnst , suc; double opt;
+  };
+ const std::vector< Case > cases = {
+  { "G" , { 0.3 , 0.3 , 0.5 , 0.8 , 0.8 , 0.8 } ,
+    { 30 , 30 , 50 , 59 , 59 , 59 } , { 30 , 30 , 50 , 80 , 80 , 80 } ,
+    9 , 50 , 2 , 2 , 1 , 78 , { 1 , -6 , -5 , -1 , 1 , -3 } ,
+    { 31 , 4 , 69 , 60 , 50 , 18 } , { 184 , 188 , 16 , 115 , 182 , 187 } ,
+    -304 } ,
+  { "H" , { 1 , 1 , 1 , 0.3 , 1 , 0.5 } , std::vector< double >( 6 , 19 ) ,
+    std::vector< double >( 6 , 18 ) , 5 , 26 , 4 , 1 , 2 , 72 ,
+    { -4 , -1 , -1 , -2 , -5 , -5 } , { 64 , 93 , 28 , 3 , 22 , 86 } ,
+    { 192 , 131 , 58 , 186 , 38 , 91 } , -585 } };
+
+ auto make = []( const Case & c , bool with_av ) {
+  const Index T = c.av.size();
+  auto cst = [ & ]( double v ) { return( std::vector< double >( T , v ) ); };
+  std::vector< std::pair< std::string , std::vector< double > > > vecs = {
+   { "MinPower" , cst( 10 ) } , { "MaxPower" , cst( 100 ) } ,
+   { "StartUpLimit" , c.su } , { "ShutDownLimit" , c.sd } ,
+   { "QuadTerm" , cst( 0 ) } , { "LinearTerm" , c.lin } ,
+   { "ConstTerm" , c.cnst } , { "StartUpCost" , c.suc } ,
+   { "DeltaRampUp" , cst( c.ru ) } , { "DeltaRampDown" , cst( c.rd ) } };
+  if( with_av )
+   vecs.push_back( { "Availability" , c.av } );
+  return( new_unit_gen( false , T , vecs , { { "InitialPower" , c.ip } } ,
+                        { { "InitUpDownTime" , c.init } } ,
+                        { { "MinUpTime" , c.up } ,
+                          { "MinDownTime" , c.down } } ) );
+  };
+
+ const std::vector< std::string > forms = { "TUBCfg-pt.txt" ,
+  "TUBCfg-DP.txt" , "TUBCfg-SU.txt" , "TUBCfg-SD.txt" , "TUBCfg-SUSD.txt" };
+
+ for( const auto & c : cases ) {
+  const auto who = "psi through the maximum powers of a run, case " + c.name;
+
+  // the integer optimum, every formulation and both DP Solvers
+  check_all_forms( [ & ]() { return( make( c , true ) ); } , c.opt , who );
+
+  // the continuous relaxations, of the unit read with the availability
+  // and, for pt and SU, of the unit that is given it afterwards
+  for( const auto & form : forms )
+   for( bool later : { false , true } ) {
+    if( later && ( form != "TUBCfg-pt.txt" ) && ( form != "TUBCfg-SU.txt" ) )
+     continue;
+    auto tub = make( c , ! later );
+    if( ! generate_from_file( tub , form ) ) {
+     check( false , who + ": cannot read " + form );
+     delete tub;
+     continue;
+     }
+    if( later )
+     tub->set_availability( c.av.begin() );
+    const auto v = relaxation_value( tub );
+    const auto what = who + ", " + form + ( later ? ", set_availability()"
+                                                  : "" );
+    if( std::isnan( v ) )
+     std::cout << what << ": no relaxation value (no :MILPSolver of "
+               << "LPRelaxBSCfg.txt?), skipped" << std::endl;
+    else
+     check( close( v , c.opt ) , what + ": the continuous relaxation is " +
+            str( v ) + " instead of " + str( c.opt ) );
+    delete tub;
+    }
   }
  }
 
@@ -11574,6 +12010,68 @@ static void test_nuclear_DP_sliver_states( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* NuclearUnitExtDPSolver on a unit off before the horizon whose output
+ * crosses its range in 30 ramps, with modulations of up to 31 steps, at
+ * prices at which every instant on costs more than 0: the optimal schedule
+ * stays off, at the cost 0. Without the bounding the DP keeps thousands of
+ * on-states at an instant, all of them more costly than the schedule that
+ * stays off; with it, every on-state is removed as soon as it is built,
+ * since its value plus the lower bound 0 on the cost of the instants that
+ * follow exceeds that schedule. */
+
+static void test_nuclear_DP_bounding( void )
+{
+ NURules d;
+ d.T = 96;
+ d.minP = 100;
+ d.maxP = 400;
+ d.ru = d.rd = 10;
+ d.su = d.sd = 150;
+ d.initUD = -100;
+ d.minUp = 8;
+ d.minDown = 8;
+ d.modT = 4;
+ d.initMod = 4;
+ d.L = 31;
+ d.day = 96;
+ d.C = 2;
+ d.mru = d.mrd = 0;
+ d.downc = 2;
+ d.quad.assign( d.T , 1e-4 );
+ d.suc.assign( d.T , 1000 );
+ d.lin.resize( d.T );
+ for( Index t = 0 ; t < d.T ; ++t )
+  d.lin[ t ] = 5 + 3 * std::sin( 2 * std::numbers::pi * t / 96.0 );
+
+ auto nub = new_rules_NU( d );
+ generate_from_file( nub , "TUBCfg-T.txt" );
+ auto slv = new NuclearUnitExtDPSolver();
+ nub->register_Solver( slv );
+ try {
+  const auto st = slv->compute();
+  check( st == Solver::kOK , "DP bounding: compute() returns " +
+         std::to_string( st ) );
+  if( st == Solver::kOK ) {
+   check( slv->get_var_value() == 0 , "DP bounding: the value is " +
+          std::to_string( slv->get_var_value() ) + " instead of 0" );
+   slv->get_var_solution( nullptr );
+   SimpleConfiguration< double > tol( 1e-7 );
+   check( nub->is_feasible( true , & tol ) , "DP bounding: the schedule is "
+          "not feasible, " + violated_row( nub , 1e-7 ) );
+   }
+  const auto & z = slv->get_dp_stats();
+  check( ( z.kept == 0 ) && ( z.bounded > 0 ) , "DP bounding: "
+         + std::to_string( z.kept ) + " states kept, "
+         + std::to_string( z.bounded ) + " bounded" );
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "DP bounding: throws " ) + e.what() );
+  }
+ nub->unregister_Solver( slv , true );
+ delete nub;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ THE CONVERSION UNIT ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* The data of a ConversionUnitBlock as the tests write it: the data over
@@ -11612,6 +12110,18 @@ struct CUData {
  unsigned int minDown = 1;
  unsigned int cg = 0;             // CommitmentGenerator
  double scale = 1;
+ Index ni = 0;                    // NumberIntervals, 0 = not written
+ std::vector< unsigned long long > ci;  // ChangeIntervals [ ni ]
+ Index An = 0;                    // first dimension of a [ An ][ M ][ G ]
+                                  // OperatingMatrix, 0 = [ M ][ G ]
+ std::vector< unsigned int > delay;  // Delay [ G ]
+ std::vector< int > cyclic;       // CyclicDelay [ G ]
+ std::vector< double > idp;       // InitialDelayedPower [ H ][ G ]
+ unsigned int modules = 0;        // Modules, 0 = not written
+ unsigned int initK = 0;          // InitialCommitment, 0 = not written
+ double invCost = 0;              // InvestmentCost, 0 = not written
+ double minX = 0;                 // MinCapacityDesign, 0 = not written
+ double maxX = -1;                // MaxCapacityDesign, -1 = not written
  };
 
 /*--------------------------------------------------------------------------*/
@@ -11634,9 +12144,14 @@ static void write_CU( netCDF::NcGroup g , const CUData & d )
  if( TH.isNull() )
   TH = g.addDim( "TimeHorizon" , d.T );
  auto NG = g.addDim( "NumberGenerators" , d.G );
- netCDF::NcDim NM , NK = NG;
+ netCDF::NcDim NM , NK = NG , NI;
  if( d.M )
   NM = g.addDim( "NumberOperatingRows" , d.M );
+ if( d.ni ) {
+  NI = g.addDim( "NumberIntervals" , d.ni );
+  g.addVar( "ChangeIntervals" , netCDF::NcUint64() , NI ).putVar(
+                                                             d.ci.data() );
+  }
  if( d.K )
   NK = g.addDim( "NumberRampRows" , d.K );
 
@@ -11655,7 +12170,14 @@ static void write_CU( netCDF::NcGroup g , const CUData & d )
  opt( "MinPower" , TH , NG , d.minP );
  opt( "MaxPower" , TH , NG , d.maxP );
  if( d.M ) {
-  opt( "OperatingMatrix" , NM , NG , d.A );
+  if( d.An ) {  // indexed over the instants too
+   netCDF::NcDim N0 = ( d.An == d.T ) ? TH :
+                      ( ( d.An == d.ni ) ? NI : g.addDim( "OneOrOther" ,
+                                                          d.An ) );
+   put( g , "OperatingMatrix" , { N0 , NM , NG } , d.A );
+   }
+  else
+   opt( "OperatingMatrix" , NM , NG , d.A );
   opt( "OperatingLHS" , TH , NM , d.lhs );
   opt( "OperatingRHS" , TH , NM , d.rhs );
   }
@@ -11684,6 +12206,25 @@ static void write_CU( netCDF::NcGroup g , const CUData & d )
   put_uint( g , "CommitmentGenerator" , d.cg );
  if( d.scale != 1 )
   put( g , "Scale" , d.scale );
+ if( d.modules )
+  put_uint( g , "Modules" , d.modules );
+ if( d.invCost != 0 ) {
+  put( g , "InvestmentCost" , d.invCost );
+  if( d.minX != 0 )
+   put( g , "MinCapacityDesign" , d.minX );
+  if( d.maxX != -1 )
+   put( g , "MaxCapacityDesign" , d.maxX );
+  }
+ if( d.initK )
+  put_uint( g , "InitialCommitment" , d.initK );
+ if( ! d.delay.empty() )
+  g.addVar( "Delay" , netCDF::NcUint() , NG ).putVar( d.delay.data() );
+ if( ! d.cyclic.empty() )
+  put_int( g , "CyclicDelay" , NG , d.cyclic );
+ if( ! d.idp.empty() )
+  put( g , "InitialDelayedPower" ,
+       { g.addDim( "NumberDelayedInstants" , d.idp.size() / d.G ) , NG } ,
+       d.idp );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -12068,6 +12609,156 @@ static void test_conversion_meshed_heat( void )
    }
   check( close( v , 15800 ) , "meshed heat, " + FORMULATION[ wf ] +
          ": optimum " + str( v ) + " instead of 15800" );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Four nodes and no line: an electric node 0 with demand 60, a heat node 1
+ * with demand dh, an electric node 2 with demand 50 and a node 3 with
+ * demand d3 and no unit. A back-pressure plant (heat = 1.25 electricity,
+ * electricity in [ 30 , 100 ], 40 per MWh of electricity and 100 per
+ * instant on, on before the horizon) has its electricity on node 0 and its
+ * heat on node 1, the only coupling of the two; a peaker (100 per MWh) is
+ * on node 0, a boiler (60 per MWh) on node 1 and a unit (20 per MWh) on
+ * node 2. One instant. With no line every node is balanced by its own
+ * units: the plant is worth 175 - 40 per MWh of electricity, hence runs as
+ * far as both of its nodes take, i.e., at min( 60 , dh / 1.25 ), and is
+ * off if dh < 37.5, since no line can take the heat away. The optima, by
+ * hand and by an independent MILP:
+ *
+ * - dh = 100: 100 + 40 60 + 60 25 + 20 50 = 5000;
+ * - dh = 50: the heat caps the plant at 40, 100 + 40 40 + 100 20 + 1000 =
+ *   4700;
+ * - dh = 30: the plant is off, 100 60 + 60 30 + 1000 = 8800;
+ * - d3 = 10: infeasible, node 3 has no unit;
+ *
+ * in each formulation of the DCNetworkBlock, with ReferenceNode 0 and 3,
+ * after the demand of node 1 is changed from 100 to 30 once the rows are
+ * generated, and after the UCBlock is written and read back. */
+
+static netCDF::NcGroup write_UC_islands( double dh , double d3 , Index ref )
+{
+ auto g = new_group( "IS" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 1 );
+ auto ND = g.addDim( "NumberNodes" , 4 );
+ g.addDim( "NumberLines" , 0 );  // an unlimited dimension, of size 0
+ if( ref > 0 )
+  g.addDim( "ReferenceNode" , ref );
+ g.addDim( "NumberUnits" , 4 );
+ auto NG = g.addDim( "NumberElectricalGenerators" , 5 );
+ put( g , "ActivePowerDemand" , { ND , TH } , { 60 , dh , 50 , d3 } );
+ put_int( g , "GeneratorNode" , NG , { 0 , 1 , 0 , 1 , 2 } );
+
+ CUData d;
+ d.G = 2;
+ d.minP = { 30 , 37.5 };
+ d.maxP = { 100 , 125 };
+ d.M = 1;
+ d.A = { -1.25 , 1 };
+ d.lhs = { 0 };
+ d.rhs = { 0 };
+ d.lin = { 40 , 0 };
+ d.cnst = { 100 };
+ d.initP = { 30 , 37.5 };
+ d.initUD = 5;
+ write_CU( g.addGroup( "UnitBlock_0" ) , d );
+
+ const std::vector< double > cost = { 100 , 60 , 20 };
+ for( Index i = 1 ; i < 4 ; ++i ) {
+  auto u = g.addGroup( "UnitBlock_" + std::to_string( i ) );
+  u.putAtt( "type" , "ThermalUnitBlock" );
+  put( u , "MaxPower" , 300.0 );
+  put( u , "LinearTerm" , cost[ i - 1 ] );
+  put_int( u , "InitUpDownTime" , 5 );
+  }
+
+ return( g );
+ }
+
+static void test_conversion_no_lines( void )
+{
+ // the optimum of the UCBlock with the networks in the formulation wf,
+ // after the demand dh1 is given to node 1 if dh1 >= 0
+ auto value = [ & ]( UCBlock * uc , int wf , double dh1 ) {
+  for( auto nb : uc->get_network_blocks() ) {
+   SimpleConfiguration< int > f( wf );
+   nb->generate_abstract_variables( & f );
+   }
+  generate_all( uc );
+  if( dh1 >= 0 ) {
+   std::vector< double > dh = { dh1 };
+   for( auto nb : uc->get_network_blocks() )
+    nb->set_active_demand( dh.cbegin() , Range( 1 , 2 ) , eNoBlck ,
+                           eNoBlck );
+   }
+  return( conv_milp( uc ) );
+  };
+
+ struct Case {
+  std::string what;
+  double dh , d3;
+  Index ref;
+  double dh1;  // the demand of node 1 changed to, if >= 0
+  double expected;
+  };
+ const std::vector< Case > cases = {
+  { "heat 100" , 100 , 0 , 0 , -1 , 5000 } ,
+  { "heat 100, ReferenceNode 3" , 100 , 0 , 3 , -1 , 5000 } ,
+  { "heat 50" , 50 , 0 , 0 , -1 , 4700 } ,
+  { "heat 30" , 30 , 0 , 0 , -1 , 8800 } ,
+  { "heat 100 changed to 30" , 100 , 0 , 0 , 30 , 8800 } ,
+  { "demand on the node with no unit" , 100 , 10 , 0 , -1 , INF } };
+
+ for( const auto & c : cases )
+  for( int wf = 0 ; wf < 3 ; ++wf ) {
+   const auto what = "no line, " + c.what + ", " + FORMULATION[ wf ];
+   try {
+    std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+		     Block::new_Block( write_UC_islands( c.dh , c.d3 ,
+							 c.ref ) ) ) );
+    if( ! uc ) {
+     check( false , what + ": the UCBlock is not built" );
+     continue;
+     }
+    const double v = value( uc.get() , wf , c.dh1 );
+    if( std::isnan( v ) ) {
+     std::cout << "no line: no :MILPSolver of ConvMILPBSCfg.txt, skipped"
+	       << std::endl;
+     return;
+     }
+    check( ( v == c.expected ) || close( v , c.expected ) ,
+	   what + ": optimum " + str( v ) + " instead of " +
+	   str( c.expected ) );
+    }
+   catch( std::exception & e ) {
+    check( false , what + ": throws " + e.what() );
+    }
+   }
+
+ // written and read back: the same network, the same optimum, and the
+ // Solution restores a feasible point
+ auto b = round_trip( write_UC_islands( 100 , 0 , 3 ) , "no line, UCBlock" );
+ std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >( b ) );
+ if( ! uc ) {
+  check( false , "no line, UCBlock: not read back" );
+  delete b;
+  return;
+  }
+ const std::string what = "no line, UCBlock read back";
+ try {
+  auto nb = dynamic_cast< DCNetworkBlock * >( uc->get_network_blocks()[ 0 ] );
+  check( nb && ( nb->get_number_nodes() == 4 ) &&
+	 ( nb->get_number_lines() == 0 ) , what + ": the network" );
+  const double v = value( uc.get() , 2 , -1 );
+  check( close( v , 5000 ) , what + ": optimum " + str( v ) +
+	 " instead of 5000" );
+  std::unique_ptr< Solution > sol( uc->get_Solution( nullptr , false ) );
+  sol->write( uc.get() );
+  check( uc->is_feasible() , what + ": the Solution is not feasible" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
   }
  }
 
@@ -12612,6 +13303,732 @@ static void test_conversion_round_trip( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A heat pump over T = 4 instants: generator 0 is the electricity it draws,
+ * in [ -10 , 0 ], at the price 5 (LinearTerm -5 on the nonpositive power),
+ * generator 1 the heat it gives, in [ 0 , 40 ], sold at 2 (LinearTerm -2),
+ * the operating row p_1 + COP_t p_0 = 0, 5 per instant on, no start-up
+ * cost, minimum up and down times 1, off before the horizon. When on it
+ * draws all it can, and is worth 5 + 50 - 20 COP_t, hence it is on exactly
+ * when COP_t > 2.75. By hand:
+ *
+ * - COP 3 at every instant, written as [ M ][ G ], as [ T ][ M ][ G ] with
+ *   the same values and as [ 1 ][ M ][ G ]: on at every instant, -20, and
+ *   the three units have the same rows, coefficient by coefficient;
+ * - COP ( 3 , 0 , 4 , 2 ) over the instants (the coefficient of p_0 is 0
+ *   at the instant 1, where the row has one Variable less): on at 0 and 2,
+ *   -5 - 25 = -30;
+ * - NumberIntervals 2 with ChangeIntervals ( 1 , 3 ) and the matrix over the
+ *   intervals, COP 3 then 4: -5 -5 -25 -25 = -60.
+ *
+ * Without ramps and limits the continuous relaxation is the optimum. The
+ * unit with the matrix over the instants is written and read back, and a
+ * first dimension of OperatingMatrix that is neither 1 nor NumberIntervals
+ * nor TimeHorizon is refused. */
+
+static CUData heat_pump_CU( const std::vector< double > & cop , Index An )
+{
+ const Index T = 4;
+ CUData d;
+ d.T = T;
+ d.G = 2;
+ d.minP = rep( T , { -10 , 0 } );
+ d.maxP = rep( T , { 0 , 40 } );
+ d.M = 1;
+ d.An = An;
+ for( auto c : cop ) {
+  d.A.push_back( c );
+  d.A.push_back( 1 );
+  }
+ d.lhs = rep( T , { 0 } );
+ d.rhs = rep( T , { 0 } );
+ d.lin = rep( T , { -5 , -2 } );
+ d.cnst.assign( T , 5 );
+ d.initUD = -1;
+ return( d );
+ }
+
+static void test_conversion_varying_matrix( void )
+{
+ struct Case {
+  std::string what;
+  std::vector< double > cop;
+  Index An , ni;
+  std::vector< unsigned long long > ci;
+  double expected;
+  };
+ const std::vector< Case > cases = {
+  { "static" , { 3 } , 0 , 0 , {} , -20 } ,
+  { "over the instants, constant" , { 3 , 3 , 3 , 3 } , 4 , 0 , {} , -20 } ,
+  { "one instant for all" , { 3 } , 1 , 0 , {} , -20 } ,
+  { "over the instants" , { 3 , 0 , 4 , 2 } , 4 , 0 , {} , -30 } ,
+  { "over two intervals" , { 3 , 4 } , 2 , 2 , { 1 , 3 } , -60 } };
+
+ ConversionUnitBlock * first = nullptr;
+ for( const auto & c : cases ) {
+  const auto what = "varying matrix, " + c.what;
+  auto d = heat_pump_CU( c.cop , c.An );
+  d.ni = c.ni;
+  d.ci = c.ci;
+  ConversionUnitBlock * cub = nullptr;
+  try {
+   cub = new_CU( d );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   continue;
+   }
+  generate_all( cub );
+  if( c.expected == -20 ) {
+   if( ! first )
+    first = cub;
+   else {
+    const auto why = rows_differ( cub , first );
+    check( why.empty() , what + ": the rows differ from the static ones, " +
+           why );
+    }
+   }
+  const double v = conv_milp( cub );
+  if( std::isnan( v ) ) {
+   std::cout << "varying matrix: no :MILPSolver, skipped" << std::endl;
+   if( cub != first )
+    delete cub;
+   break;
+   }
+  check( close( v , c.expected ) , what + ": optimum " + str( v ) +
+         " instead of " + str( c.expected ) );
+  const double l = conv_lp( cub );
+  check( close( l , v ) , what + ": relaxation " + str( l ) +
+         " instead of the optimum " + str( v ) );
+  if( cub != first )
+   delete cub;
+  }
+ delete first;
+
+ // written and read back
+ auto g = new_group( "CU" , true );
+ write_CU( g , heat_pump_CU( { 3 , 0 , 4 , 2 } , 4 ) );
+ auto b = round_trip( g , "varying matrix" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && cub->has_varying_operating_matrix() &&
+        ( cub->get_operating_coefficient( 0 , 0 , 2 ) == 4 ) &&
+        ( cub->get_operating_coefficient( 0 , 0 , 1 ) == 0 ) ,
+        "varying matrix: the matrix read back differs" );
+ delete b;
+
+ // a first dimension of the wrong size
+ bool thrown = false;
+ try { delete new_CU( heat_pump_CU( { 3 , 3 , 3 } , 3 ) ); }
+ catch( std::exception & ) { thrown = true; }
+ check( thrown , "varying matrix: a matrix over 3 of 4 instants is not "
+        "refused" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A pipe with a delay over T = 5 instants and two nodes with no line: a
+ * ConversionUnitBlock draws the power of node 0 (generator 0, in
+ * [ -50 , 0 ]) and gives 0.9 times it to node 1 (generator 1, in
+ * [ 0 , 50 ]), the operating row p_1 + 0.9 p_0 = 0 being of the instant of
+ * operation, with no cost of its own and off before the horizon. Node 0
+ * has a source at the prices ( 10 , 10 , 10 , 50 , 50 ), node 1 the demand
+ * ( 5 , 5 , 30 , 30 , 5 ) and a boiler at 100. By hand, 1 MWh at node 1
+ * costs the price of its instant of operation over 0.9:
+ *
+ * - no delay (also written as Delay 0, with the same rows as without it):
+ *   ( 5 + 5 + 30 ) 10 / 0.9 + ( 30 + 5 ) 50 / 0.9 = 2388.89;
+ * - delay 2, not cyclic, InitialDelayedPower 5 at the instants 0 and 1: the
+ *   operation of 0, 1, 2 feeds the instants 2, 3, 4, ( 30 + 30 + 5 ) 10 / 0.9
+ *   = 722.22, and the operation of 3 and 4 is delivered after the horizon;
+ * - the same with no InitialDelayedPower: the boiler gives 5 + 5,
+ *   722.22 + 1000 = 1722.22; and 722.22 again after the setter gives the
+ *   powers 5 and 5 to the unit already generated;
+ * - delay 2, cyclic: the operation of 3 and 4 feeds the instants 0 and 1,
+ *   722.22 + ( 5 + 5 ) 50 / 0.9 = 1277.78;
+ * - delay 7 > T, not cyclic, InitialDelayedPower 5 (one value for all the
+ *   instants): node 1 receives 5 at every instant from the past, the boiler
+ *   gives 25 + 25, 5000;
+ * - delay 7, cyclic: as delay 2, 1277.78.
+ *
+ * The unit with the delay is written and read back, its Solution restores
+ * the powers delivered after the horizon, and a reserve of a delayed
+ * generator and an InitialDelayedPower over too few instants are refused. */
+
+static CUData pipe_CU( unsigned int delay , int cyclic ,
+                       const std::vector< double > & idp )
+{
+ const Index T = 5;
+ CUData d;
+ d.T = T;
+ d.G = 2;
+ d.minP = rep( T , { -50 , 0 } );
+ d.maxP = rep( T , { 0 , 50 } );
+ d.M = 1;
+ d.A = { 0.9 , 1 };
+ d.lhs = rep( T , { 0 } );
+ d.rhs = rep( T , { 0 } );
+ d.initUD = -1;
+ d.delay = { 0 , delay };
+ d.cyclic = { 0 , cyclic };
+ d.idp = idp;
+ return( d );
+ }
+
+static netCDF::NcGroup write_UC_pipe( const CUData & d )
+{
+ const Index T = 5;
+ auto g = new_group( "PP" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , T );
+ auto ND = g.addDim( "NumberNodes" , 2 );
+ g.addDim( "NumberLines" , 0 );
+ g.addDim( "NumberUnits" , 3 );
+ auto NG = g.addDim( "NumberElectricalGenerators" , 4 );
+ put( g , "ActivePowerDemand" , { ND , TH } ,
+      { 0 , 0 , 0 , 0 , 0 , 5 , 5 , 30 , 30 , 5 } );
+ put_int( g , "GeneratorNode" , NG , { 0 , 1 , 0 , 1 } );
+ write_CU( g.addGroup( "UnitBlock_0" ) , d );
+ for( Index i = 1 ; i < 3 ; ++i ) {
+  auto u = g.addGroup( "UnitBlock_" + std::to_string( i ) );
+  u.putAtt( "type" , "ThermalUnitBlock" );
+  put( u , "MaxPower" , i == 1 ? 1000.0 : 300.0 );
+  put( u , "LinearTerm" , TH ,
+       i == 1 ? std::vector< double >{ 10 , 10 , 10 , 50 , 50 }
+              : std::vector< double >( T , 100 ) );
+  put_int( u , "InitUpDownTime" , 5 );
+  }
+ return( g );
+ }
+
+static void test_conversion_delays( void )
+{
+ struct Case {
+  std::string what;
+  unsigned int delay;
+  int cyclic;
+  std::vector< double > idp;
+  double expected;
+  };
+ const std::vector< Case > cases = {
+  { "no delay" , 0 , 0 , {} , 2388.888888889 } ,
+  { "delay 2" , 2 , 0 , { 0 , 5 , 0 , 5 } , 722.222222222 } ,
+  { "delay 2, nothing from the past" , 2 , 0 , {} , 1722.222222222 } ,
+  { "delay 2, cyclic" , 2 , 1 , {} , 1277.777777778 } ,
+  { "delay 7" , 7 , 0 , { 0 , 5 } , 5000 } ,
+  { "delay 7, cyclic" , 7 , 1 , {} , 1277.777777778 } };
+
+ for( const auto & c : cases ) {
+  const auto what = "delays, " + c.what;
+  try {
+   std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+                Block::new_Block( write_UC_pipe( pipe_CU( c.delay , c.cyclic ,
+                                                          c.idp ) ) ) ) );
+   generate_all( uc.get() );
+   const double v = conv_milp( uc.get() );
+   if( std::isnan( v ) ) {
+    std::cout << "delays: no :MILPSolver, skipped" << std::endl;
+    return;
+    }
+   check( close( v , c.expected ) , what + ": optimum " + str( v ) +
+          " instead of " + str( c.expected ) );
+
+   if( c.what == "delay 2, nothing from the past" ) {
+    // the powers from the past given after the generation
+    auto cub = dynamic_cast< ConversionUnitBlock * >(
+                                                uc->get_unit_block( 0 ) );
+    std::vector< double > p = { 5 , 5 };
+    cub->set_initial_delayed_power( p.cbegin() , 1 , Range( 0 , 2 ) ,
+                                    eModBlck , eModBlck );
+    const double w = conv_milp( uc.get() );
+    check( close( w , 722.222222222 ) , what + ", powers set after the "
+           "generation: optimum " + str( w ) + " instead of 722.22" );
+    }
+
+   if( c.what == "delay 2" ) {
+    // the Solution restores the powers delivered after the horizon
+    auto cub = dynamic_cast< ConversionUnitBlock * >(
+                                                uc->get_unit_block( 0 ) );
+    check( cub->get_number_tail_powers( 1 ) == 2 , what + ": " +
+           std::to_string( cub->get_number_tail_powers( 1 ) ) + " powers "
+           "after the horizon instead of 2" );
+    std::unique_ptr< Solution > sol( cub->get_Solution( nullptr , false ) );
+    auto tp = cub->get_tail_power( 1 );
+    std::vector< double > old = { tp[ 0 ].get_value() ,
+                                  tp[ 1 ].get_value() };
+    tp[ 0 ].set_value( 77 );
+    tp[ 1 ].set_value( 77 );
+    sol->write( cub );
+    check( ( tp[ 0 ].get_value() == old[ 0 ] ) &&
+           ( tp[ 1 ].get_value() == old[ 1 ] ) , what + ": the Solution "
+           "does not restore the powers after the horizon" );
+    check( uc->is_feasible() , what + ": the solution is not feasible" );
+    }
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ // Delay 0 written is the same as no Delay
+ {
+  auto a = new_CU( pipe_CU( 0 , 0 , {} ) );
+  auto e = pipe_CU( 0 , 0 , {} );
+  e.delay.clear();
+  e.cyclic.clear();
+  auto b = new_CU( e );
+  generate_all( a );
+  generate_all( b );
+  const auto why = rows_differ( a , b );
+  check( why.empty() , "delays: Delay 0 gives other rows, " + why );
+  delete a;
+  delete b;
+  }
+
+ // written and read back
+ auto g = new_group( "CU" , true );
+ write_CU( g , pipe_CU( 2 , 0 , { 1 , 2 , 3 , 4 } ) );
+ auto b = round_trip( g , "delays" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && ( cub->get_delay( 1 ) == 2 ) && ( ! cub->is_cyclic_delay( 1 ) )
+        && ( cub->get_initial_delayed_power( 1 , 1 ) == 4 ) ,
+        "delays: the data read back differ" );
+ delete b;
+
+ // the refused data
+ auto refused = [ & ]( const CUData & d , const std::string & what ) {
+  bool thrown = false;
+  try { delete new_CU( d ); }
+  catch( std::exception & ) { thrown = true; }
+  check( thrown , "delays: " + what + " is not refused" );
+  };
+ auto e = pipe_CU( 2 , 0 , {} );
+ e.minP = rep( 5 , { -50 , 0 } );
+ e.prho = rep( 5 , { 0 , 0.1 } );
+ refused( e , "a reserve of a delayed generator" );
+ e = pipe_CU( 3 , 0 , { 0 , 1 , 0 , 1 } );  // two instants, three needed
+ refused( e , "an InitialDelayedPower over too few instants" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* An electric node 0 with the demand ( 40 , 90 , 140 , 60 , 30 , 120 ) and a
+ * peaker at 200, a gas node 1 with a free source and no line, and a plant
+ * of 3 identical modules, each with a fuel input (generator 0, in
+ * [ -125 , -50 ], on node 1) and an output (generator 1, in [ 20 , 50 ], on
+ * node 0) tied by p_1 + 0.4 p_0 = 0, the fuel at 4 per unit, 30
+ * per instant on, 100 per start-up, minimum up time 3 and down time 2. The
+ * plant is either one ConversionUnitBlock with Modules 3 or three
+ * ConversionUnitBlock of one module each, in three cases: all off before the
+ * horizon; two modules on for one instant before it at 30 each (the third
+ * off since long, InitUpDownTime -10 for its copy), which then cannot shut
+ * down before the instant 2; the latter with ramps of 20 on the output.
+ * Without ramps the two models have the same optimum, the commitments of
+ * the modules being exactly the sums of those of single modules; with ramps
+ * the aggregated ramps are a relaxation of those of the single modules, and
+ * the optimum of the plant of modules is at most that of the three units.
+ * The optima of the three units, by an independent MILP, are 7560, 7360
+ * and 7390; the continuous relaxations of the two models are reported.
+ * With Modules 1 written the rows are those of the unit without it; Modules >
+ * 1 with Scale != 1 or with FixedConsumption, and InitialCommitment > Modules
+ * are refused; the unit
+ * is written and read back. */
+
+static CUData module_CU( Index N , int initUD , Index k , bool ramps )
+{
+ const Index T = 6;
+ CUData d;
+ d.T = T;
+ d.G = 2;
+ d.minP = rep( T , { -125 , 20 } );
+ d.maxP = rep( T , { -50 , 50 } );
+ d.M = 1;
+ d.A = { 0.4 , 1 };
+ d.lhs = rep( T , { 0 } );
+ d.rhs = rep( T , { 0 } );
+ d.lin = rep( T , { -4 , 0 } );
+ d.cnst.assign( T , 30 );
+ d.suc.assign( T , 100 );
+ d.minUp = 3;
+ d.minDown = 2;
+ d.initUD = initUD;
+ d.modules = N;
+ d.initK = k;
+ if( initUD > 0 )
+  d.initP = { -75.0 * k , 30.0 * k };
+ if( ramps ) {
+  d.K = 1;
+  d.rampM = { 0 , 1 };
+  d.rup.assign( T , 20 );
+  d.rdn.assign( T , 20 );
+  }
+ return( d );
+ }
+
+// the bus with the plant as one unit of N modules (copies == 1) or as N
+// units of one module (copies == N), the first k of which on before
+static UCBlock * modules_UC( Index N , Index copies , int initUD , Index k ,
+                             bool ramps )
+{
+ const Index T = 6;
+ auto g = new_group( "MO" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , T );
+ auto ND = g.addDim( "NumberNodes" , 2 );
+ g.addDim( "NumberLines" , 0 );
+ g.addDim( "NumberUnits" , copies + 2 );
+ auto NG = g.addDim( "NumberElectricalGenerators" , 2 * copies + 2 );
+ put( g , "ActivePowerDemand" , { ND , TH } ,
+      { 40 , 90 , 140 , 60 , 30 , 120 , 0 , 0 , 0 , 0 , 0 , 0 } );
+ std::vector< int > gn;
+ for( Index i = 0 ; i < copies ; ++i ) {
+  gn.push_back( 1 );
+  gn.push_back( 0 );
+  }
+ gn.push_back( 0 );
+ gn.push_back( 1 );
+ put_int( g , "GeneratorNode" , NG , gn );
+ for( Index i = 0 ; i < copies ; ++i ) {
+  auto d = ( copies == 1 ) ? module_CU( N , initUD , k , ramps )
+   : module_CU( 1 , ( initUD > 0 ) && ( i < k ) ? initUD : -10 ,
+                ( initUD > 0 ) && ( i < k ) ? 1 : 0 , ramps );
+  if( copies > 1 )
+   d.initK = 0;
+  write_CU( g.addGroup( "UnitBlock_" + std::to_string( i ) ) , d );
+  }
+ auto u = g.addGroup( "UnitBlock_" + std::to_string( copies ) );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MaxPower" , 1000.0 );
+ put( u , "LinearTerm" , 200.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ u = g.addGroup( "UnitBlock_" + std::to_string( copies + 1 ) );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MaxPower" , 10000.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+ if( ! uc )
+  throw( std::logic_error( "modules_UC: no UCBlock built" ) );
+ return( uc );
+ }
+
+static void test_conversion_modules( void )
+{
+ struct Case {
+  std::string what;
+  int initUD;
+  Index k;
+  bool ramps;
+  double expected;  // by an independent MILP
+  };
+ const std::vector< Case > cases = {
+  { "off before" , -2 , 0 , false , 7560 } ,
+  { "two on before" , 1 , 2 , false , 7360 } ,
+  { "two on before, ramps" , 1 , 2 , true , 7390 } };
+
+ for( const auto & c : cases ) {
+  const auto what = "modules, " + c.what;
+  try {
+   std::unique_ptr< UCBlock > agg( modules_UC( 3 , 1 , c.initUD , c.k ,
+                                               c.ramps ) );
+   std::unique_ptr< UCBlock > rpl( modules_UC( 3 , 3 , c.initUD , c.k ,
+                                               c.ramps ) );
+   generate_all( agg.get() );
+   generate_all( rpl.get() );
+   const double va = conv_milp( agg.get() );
+   const double vr = conv_milp( rpl.get() );
+   if( std::isnan( va ) ) {
+    std::cout << "modules: no :MILPSolver, skipped" << std::endl;
+    return;
+    }
+   check( agg->is_feasible() , what + ": the solution is not feasible" );
+   if( ! c.ramps ) {
+    check( close( va , vr ) , what + ": optimum " + str( va ) + " instead "
+           "of " + str( vr ) + " of three units" );
+    check( close( va , c.expected ) , what + ": optimum " + str( va ) +
+           " instead of " + str( c.expected ) );
+    const double la = conv_lp( agg.get() );
+    const double lr = conv_lp( rpl.get() );
+    std::cout << what << ": optimum " << va << ", relaxation " << la
+              << " (three units " << lr << ")" << std::endl;
+    }
+   else {
+    check( va <= vr + 1e-6 * std::max( 1.0 , std::abs( vr ) ) , what +
+           ": optimum " + str( va ) + " above " + str( vr ) + " of three "
+           "units" );
+    check( close( vr , c.expected ) , what + ": three units are worth " +
+           str( vr ) + " instead of " + str( c.expected ) );
+    std::cout << what << ": optimum " << va << ", three units " << vr
+              << std::endl;
+    }
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ // Modules 1 written is the same as no Modules
+ {
+  auto a = new_CU( module_CU( 1 , -2 , 0 , true ) );
+  auto e = module_CU( 1 , -2 , 0 , true );
+  e.modules = 0;  // not written
+  auto b = new_CU( e );
+  generate_all( a );
+  generate_all( b );
+  const auto why = rows_differ( a , b );
+  check( why.empty() , "modules: Modules 1 gives other rows, " + why );
+  check( a->get_design_ub() == 1 , "modules: one module, design ub not 1" );
+  delete a;
+  delete b;
+  }
+
+ // written and read back
+ auto g = new_group( "CU" , true );
+ write_CU( g , module_CU( 3 , 1 , 2 , true ) );
+ auto b = round_trip( g , "modules" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && ( cub->get_number_modules() == 3 ) &&
+        ( cub->get_initial_commitment() == 2 ) &&
+        ( cub->get_design_ub() == 3 ) ,
+        "modules: the data read back differ" );
+ delete b;
+
+ // the refused data
+ auto refused = [ & ]( const CUData & d , const std::string & what ) {
+  bool thrown = false;
+  try { delete new_CU( d ); }
+  catch( std::exception & ) { thrown = true; }
+  check( thrown , "modules: " + what + " is not refused" );
+  };
+ auto e = module_CU( 3 , -2 , 0 , false );
+ e.scale = 2;
+ refused( e , "Modules > 1 with Scale != 1" );
+ e = module_CU( 3 , -2 , 0 , false );
+ e.fc.assign( 6 , 1 );
+ refused( e , "Modules > 1 with FixedConsumption" );
+ e = module_CU( 3 , 1 , 2 , false );
+ e.initK = 4;
+ refused( e , "InitialCommitment > Modules" );
+ e = module_CU( 3 , 1 , 2 , false );
+ e.initP = { -75 , 30 };  // the power of one module, two are on
+ e.minP = rep( 6 , { -125 , 20 } );
+ refused( e , "an InitialPower outside the region of the modules on" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The design of a ConversionUnitBlock, on the two nodes of
+ * test_conversion_modules() (no ramps, off before the horizon, the module
+ * of 20 to 50 of output, 30 per instant on, 100 per start-up, fuel at 4,
+ * minimum up time 3 and down time 2), in the four modes:
+ *
+ * - (b) MaxCapacityDesign -3, InvestmentCost 150 per module: the number of
+ *   modules built, each committed by itself; the same optimum as three
+ *   units with a binary design each (MaxCapacityDesign -1, 150), with
+ *   fewer Variable;
+ * - (a) Modules 3 and MaxCapacityDesign -1, InvestmentCost 450: the three
+ *   modules built together or not at all;
+ * - (c) MaxCapacityDesign 150, the capacity of the output, with the data
+ *   per unit of it (output in [ 0.4 , 1 ], fuel in [ -2.5 , -1 ]) and
+ *   InvestmentCost 3 per unit: with the design fixed at 100 (both bounds)
+ *   it is the unit of capacity 100 without design plus 300; with the
+ *   design free it is checked against an independent MILP, and its
+ *   continuous relaxation is reported against that of (b), the big-M rows
+ *   being weak; with a zero cost set after the generation and no minimum
+ *   power nor input it is worth the unit of capacity 150;
+ * - (d) Scale 2 with MaxCapacityDesign -3 is refused, as is a continuous
+ *   design with ramps or with several modules, a unit with a design on
+ *   before the horizon and a negative MaxCapacityDesign that is not an
+ *   integer.
+ *
+ * The optima of (a), (b) and (c), by an independent MILP, are 8010, 8010
+ * and 29055. The unit of (c) is written and read back, and its Solution
+ * restores the design. */
+
+// the unit of the design tests: per module (c == false) or per unit of
+// capacity (c == true)
+static CUData design_CU( bool c , double cost , double minX , double maxX )
+{
+ auto d = module_CU( 1 , -2 , 0 , false );
+ if( c ) {
+  d.minP = rep( 6 , { -2.5 , 0.4 } );
+  d.maxP = rep( 6 , { -1 , 1 } );
+  }
+ d.invCost = cost;
+ d.minX = minX;
+ d.maxX = maxX;
+ return( d );
+ }
+
+// the two nodes of modules_UC() with the units d[ 0 ], d[ 1 ], ...
+static UCBlock * design_UC( const std::vector< CUData > & d )
+{
+ const Index T = 6;
+ const Index n = d.size();
+ auto g = new_group( "DE" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , T );
+ auto ND = g.addDim( "NumberNodes" , 2 );
+ g.addDim( "NumberLines" , 0 );
+ g.addDim( "NumberUnits" , n + 2 );
+ auto NG = g.addDim( "NumberElectricalGenerators" , 2 * n + 2 );
+ put( g , "ActivePowerDemand" , { ND , TH } ,
+      { 40 , 90 , 140 , 60 , 30 , 120 , 0 , 0 , 0 , 0 , 0 , 0 } );
+ std::vector< int > gn;
+ for( Index i = 0 ; i < n ; ++i ) {
+  gn.push_back( 1 );
+  gn.push_back( 0 );
+  }
+ gn.push_back( 0 );
+ gn.push_back( 1 );
+ put_int( g , "GeneratorNode" , NG , gn );
+ for( Index i = 0 ; i < n ; ++i )
+  write_CU( g.addGroup( "UnitBlock_" + std::to_string( i ) ) , d[ i ] );
+ auto u = g.addGroup( "UnitBlock_" + std::to_string( n ) );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MaxPower" , 1000.0 );
+ put( u , "LinearTerm" , 200.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ u = g.addGroup( "UnitBlock_" + std::to_string( n + 1 ) );
+ u.putAtt( "type" , "ThermalUnitBlock" );
+ put( u , "MaxPower" , 10000.0 );
+ put_int( u , "InitUpDownTime" , 5 );
+ auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+ if( ! uc )
+  throw( std::logic_error( "design_UC: no UCBlock built" ) );
+ generate_all( uc );
+ return( uc );
+ }
+
+static void test_conversion_design( void )
+{
+ const std::string w = "design, ";
+ try {
+  // (b) against three units with a binary design each
+  std::unique_ptr< UCBlock > b( design_UC( { design_CU( false , 150 , 0 ,
+                                                        -3 ) } ) );
+  const auto one = design_CU( false , 150 , 0 , -1 );
+  std::unique_ptr< UCBlock > r( design_UC( { one , one , one } ) );
+  const double vb = conv_milp( b.get() );
+  if( std::isnan( vb ) ) {
+   std::cout << "design: no :MILPSolver, skipped" << std::endl;
+   return;
+   }
+  const double vr = conv_milp( r.get() );
+  check( close( vb , 8010.0 ) , w + "(b): optimum " + str( vb ) +
+         " instead of " + str( 8010.0 ) );
+  check( close( vr , vb ) , w + "three binary designs: optimum " +
+         str( vr ) + " instead of " + str( vb ) );
+  auto cb = dynamic_cast< ConversionUnitBlock * >( b->get_unit_block( 0 ) );
+  check( cb->get_number_modules() == 3 , w + "(b): not 3 modules" );
+  check( b->is_feasible() , w + "(b): the solution is not feasible" );
+  const double xb = cb->get_design().get_value();
+  const double lb = conv_lp( b.get() );
+  const double lr = conv_lp( r.get() );
+  std::cout << w << "(b): optimum " << vb << ", " << xb << " modules "
+            << "built, relaxation " << lb << " (three binary designs " << lr
+            << ")" << std::endl;
+
+  // (a) the three modules together
+  auto da = design_CU( false , 450 , 0 , -1 );
+  da.modules = 3;
+  std::unique_ptr< UCBlock > a( design_UC( { da } ) );
+  const double va = conv_milp( a.get() );
+  check( close( va , 8010.0 ) , w + "(a): optimum " + str( va ) +
+         " instead of " + str( 8010.0 ) );
+
+  // (c) fixed at 100 against the unit of capacity 100
+  std::unique_ptr< UCBlock > cf( design_UC( { design_CU( true , 3 , 100 ,
+                                                         100 ) } ) );
+  auto d100 = module_CU( 1 , -2 , 0 , false );
+  d100.minP = rep( 6 , { -250 , 40 } );
+  d100.maxP = rep( 6 , { -100 , 100 } );
+  std::unique_ptr< UCBlock > u100( design_UC( { d100 } ) );
+  const double vcf = conv_milp( cf.get() );
+  const double v100 = conv_milp( u100.get() );
+  check( close( vcf , v100 + 300 ) , w + "(c) at 100: optimum " +
+         str( vcf ) + " instead of " + str( v100 + 300 ) );
+
+  // (c) free
+  std::unique_ptr< UCBlock > c( design_UC( { design_CU( true , 3 , 0 ,
+                                                        150 ) } ) );
+  const double vc = conv_milp( c.get() );
+  check( close( vc , 29055.0 ) , w + "(c): optimum " + str( vc ) +
+         " instead of " + str( 29055.0 ) );
+  check( c->is_feasible() , w + "(c): the solution is not feasible" );
+  const double xc = dynamic_cast< ConversionUnitBlock * >(
+                         c->get_unit_block( 0 ) )->get_design().get_value();
+  const double lc = conv_lp( c.get() );
+  std::cout << w << "(c): optimum " << vc << ", capacity " << xc
+            << ", relaxation " << lc << std::endl;
+
+  // (c) with a zero cost and no minimum power (nor minimum input): the
+  // unit of capacity 150
+  auto dz = design_CU( true , 3 , 0 , 150 );
+  dz.minP = rep( 6 , { -2.5 , 0 } );
+  dz.maxP = rep( 6 , { 0 , 1 } );
+  std::unique_ptr< UCBlock > z( design_UC( { dz } ) );
+  std::vector< double > zero = { 0 };
+  dynamic_cast< ConversionUnitBlock * >( z->get_unit_block( 0 )
+                    )->set_investment_cost( zero.cbegin() , Range( 0 , 1 ) ,
+                                            eModBlck , eModBlck );
+  auto d150 = module_CU( 1 , -2 , 0 , false );
+  d150.minP = rep( 6 , { -375 , 0 } );
+  d150.maxP = rep( 6 , { 0 , 150 } );
+  std::unique_ptr< UCBlock > u150( design_UC( { d150 } ) );
+  const double vz = conv_milp( z.get() );
+  const double v150 = conv_milp( u150.get() );
+  check( close( vz , v150 ) , w + "(c) at zero cost: optimum " + str( vz ) +
+         " instead of " + str( v150 ) + " of the largest unit" );
+  }
+ catch( std::exception & e ) {
+  check( false , w + "throws " + e.what() );
+  }
+
+ // written and read back, the Solution restores the design
+ auto g = new_group( "CU" , true );
+ write_CU( g , design_CU( true , 3 , 10 , 150 ) );
+ auto b = round_trip( g , "design" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && ( cub->design_mode() == 'c' ) &&
+        ( cub->get_max_capacity_design() == 150 ) &&
+        ( cub->get_min_capacity_design() == 10 ) &&
+        ( cub->get_investment_cost() == 3 ) &&
+        ( cub->get_design_ub() == 150 ) ,
+        "design: the data read back differ" );
+ if( cub ) {
+  generate_all( cub );
+  cub->get_design().set_value( 42 );
+  std::unique_ptr< Solution > sol( cub->get_Solution( nullptr , false ) );
+  cub->get_design().set_value( 7 );
+  sol->write( cub );
+  check( cub->get_design().get_value() == 42 , "design: the Solution does "
+         "not restore the design" );
+  }
+ delete b;
+
+ // (d) and the refused data
+ auto refused = [ & ]( const CUData & d , const std::string & what ) {
+  bool thrown = false;
+  try { delete new_CU( d ); }
+  catch( std::exception & ) { thrown = true; }
+  check( thrown , "design: " + what + " is not refused" );
+  };
+ auto e = design_CU( false , 150 , 0 , -3 );
+ e.scale = 2;
+ refused( e , "Scale 2 with MaxCapacityDesign -3" );
+ e = design_CU( true , 3 , 0 , 150 );
+ e.rup.assign( 12 , 10 );
+ refused( e , "a continuous design with ramps" );
+ e = design_CU( true , 3 , 0 , 150 );
+ e.modules = 2;
+ refused( e , "a continuous design with two modules" );
+ e = design_CU( false , 150 , 0 , -3 );
+ e.initUD = 2;
+ e.initP = { -75 , 30 };
+ refused( e , "a unit with a design on before the horizon" );
+ e = design_CU( false , 150 , 0 , -2.5 );
+ refused( e , "MaxCapacityDesign -2.5" );
+ e = design_CU( false , 150 , 0 , -3 );
+ e.modules = 2;
+ refused( e , "Modules 2 with MaxCapacityDesign -3" );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -12687,6 +14104,7 @@ int main( int argc , char ** argv )
   test_net_OTS_cost();
   test_net_negative_cost();
   test_net_dual_prices();
+  test_net_no_lines();
   test_net_hyperarc_susceptance();
   test_RT_UCBlock();
 
@@ -12736,11 +14154,13 @@ int main( int argc , char ** argv )
   test_ac_angle_bounds_matpower();
   test_ac_angle_bounds_unbounded();
   test_ac_flow_check_no_names();
+  test_ac_socp_and_strengthened();
   test_thermal_T_ramp_bound_rows();
   test_thermal_shut_down_limit_at_t0();
   test_thermal_psi_initial_run();
   test_thermal_SUSD_ramp_rows();
   test_thermal_psi_first_last();
+  test_thermal_psi_propagation();
 
   test_hydro_set_inflow_subset();
   test_hydro_initial_flow_absent();
@@ -12761,14 +14181,20 @@ int main( int argc , char ** argv )
   test_nuclear_no_start_up_modulation();
   test_nuclear_is_feasible_tolerance();
   test_nuclear_DP_sliver_states();
+  test_nuclear_DP_bounding();
 
   test_conversion_reduction_thermal();
   test_conversion_hull();
   test_conversion_multi_energy();
   test_conversion_meshed_heat();
+  test_conversion_no_lines();
   test_conversion_setters();
   test_conversion_edge_cases();
   test_conversion_round_trip();
+  test_conversion_varying_matrix();
+  test_conversion_delays();
+  test_conversion_modules();
+  test_conversion_design();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

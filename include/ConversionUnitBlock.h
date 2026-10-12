@@ -25,6 +25,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <limits>
 #include <map>
 
 #include "FRowConstraint.h"
@@ -83,19 +84,20 @@ namespace SMSpp_di_unipi_it
  * \f[
  *   \mathcal{P}_t = \bigl\{ \, p \in \mathbb{R}^G \,:\, P^{mn}_{t,g} \leq
  *   p_g \leq P^{mx}_{t,g} \; g \in \mathcal{G} \; , \;\;
- *   \underline{b}_{t,m} \leq \sum_{ g \in \mathcal{G} } a_{m,g} p_g \leq
+ *   \underline{b}_{t,m} \leq \sum_{ g \in \mathcal{G} } a_{t,m,g} p_g \leq
  *   \bar{b}_{t,m} \; m \in \mathcal{M} \, \bigr\} \; ,
  * \f]
  * the operating region of the unit, given by the bounds of each generator
  * and by \f$ M \f$ operating rows \f$ \mathcal{M} = \{ 0 , \ldots , M - 1
- * \} \f$ whose coefficients \f$ a_{m,g} \f$ are the same at every instant;
- * when it is off all its powers are 0. The unit is thus described by the
- * perspective of \f$ \mathcal{P}_t \f$ (the rows (4), (5) and (8) of
- * generate_abstract_constraints()), which for one instant is the tightest
- * possible description of the set \f$ \{ ( 0 , 0 ) \} \cup ( \mathcal{P}_t
- * \times \{ 1 \} ) \f$ of the pairs \f$ ( p , u ) \f$, whatever the shape of
- * the polytope; the perspective formulation of a disjunction of polytopes
- * is that of
+ * \} \f$ whose coefficients \f$ a_{t,m,g} \f$ may change with the instant
+ * (say, the coefficient of performance of a heat pump, which follows the
+ * temperature of its source); when it is off all its powers are 0. The
+ * unit is thus described by the perspective of \f$ \mathcal{P}_t \f$ (the rows
+ * (4), (5) and (8) of generate_abstract_constraints()), which for one instant
+ * is the tightest possible description of the set \f$ \{ ( 0 , 0 ) \} \cup (
+ * \mathcal{P}_t \times \{ 1 \} ) \f$ of the pairs \f$ ( p , u ) \f$, whatever
+ * the shape of the polytope; the perspective formulation of a disjunction of
+ * polytopes is that of
  *
  *  E. Balas "Disjunctive Programming: Properties of the Convex Hull of
  *  Feasible Points" Discrete Applied Mathematics 89(1-3), 3 - 44, 1998
@@ -217,6 +219,132 @@ namespace SMSpp_di_unipi_it
  * factor \f$ \sigma \f$ of the unit (see UnitBlock::scale()) multiplies
  * every term of the unit, as for any UnitBlock.
  *
+ * <b>Modules.</b> A unit may be made of \f$ N \geq 1 \f$ identical modules
+ * ("Modules"), committed independently of one another: \f$ u_t \f$,
+ * \f$ v_t \f$ and \f$ w_t \f$ are then the numbers of modules on, started
+ * up and shut down, integer in \f$ \{ 0 , \ldots , N \} \f$, and every
+ * datum (bound, row side, limit, ramp, reserve fraction, cost) is that of
+ * one module, as in the clustered formulation of
+ *
+ *  B.S. Palmintier, M.D. Webster "Heterogeneous Unit Clustering for
+ *  Efficient Operational Flexibility Modeling" IEEE Transactions on Power
+ *  Systems 29(3), 1089 - 1098, 2014
+ *
+ * Every row of the unit but the minimum down time is homogeneous of degree
+ * one in \f$ ( p , r , u , v , w ) \f$, hence it is the sum of the rows of
+ * the modules, each with its share of the powers; the right-hand side of
+ * (3) becomes \f$ N - u_t \f$, the number of modules that are off, and
+ * \f$ u_{-1} \f$ is the number of modules on before the horizon
+ * ("InitialCommitment", all of them by default), the others being off
+ * since long enough to start, with the shut-downs fixed to 0 before
+ * \f$ t_0 \f$ since the modules on before the horizon cannot shut down
+ * then. With these rows the integer \f$ ( u , v , w ) \f$ are exactly the
+ * sums of \f$ N \f$ feasible commitments of one module each (start up the
+ * modules that have been off for the longest time and shut down those that
+ * have been on for the longest time), and with equal shares of the powers
+ * the region, the bounds and the reserves of the unit are exactly those of
+ * the modules; the ramps and the start-up and shut-down limits of the unit
+ * are the sums of those of the modules, a relaxation of the modules ramped
+ * one by one, as in the clustered formulations. The cumulative
+ * sums of \f$ v \f$ and \f$ w \f$ still make every commitment row a
+ * difference constraint, so that what is said below about the convex hull
+ * holds for any \f$ N \f$. With \f$ N = 1 \f$ the model is the one of a
+ * single unit, row by row. A fleet of modules all on or all off at the
+ * same time is instead given by "Scale" (see UnitBlock::scale()), and the
+ * two are not combined; a unit with several modules has no fixed
+ * consumption, which the UCBlock counts as \f$ P^{au}_t ( 1 - u_t ) \f$.
+ *
+ * <b>Investment.</b> As in the other units, a design variable \f$ x \f$
+ * ("x_conversion") exists if the cost \f$ c^{inv} \f$ of one unit of it
+ * ("InvestmentCost") is nonzero, it costs \f$ \sigma c^{inv} x \f$ and its
+ * domain is given by \f$ \underline{X} \f$ ("MinCapacityDesign", 0 by
+ * default) and \f$ \bar{X} \f$ ("MaxCapacityDesign", \f$ -1 \f$ by
+ * default), with the sign convention of IntermittentUnitBlock; the unit
+ * is then not on before the horizon and has no fixed consumption. Three
+ * cases follow.
+ *
+ * (a) \f$ \bar{X} = -1 \f$: \f$ x \f$ is binary, the unit is built or not
+ * (all its \f$ N \f$ modules together), and the rows \f$ u_t \leq N x \f$
+ * ("CommitmentDesign_Const_Conversion") are added, as in
+ * ThermalUnitBlock.
+ *
+ * (b) \f$ \bar{X} = -N < -1 \f$: \f$ x \in \{ \underline{X} , \ldots , N
+ * \} \f$ is the number of modules built, each committed by itself as above
+ * (the unit has \f$ N \f$ modules, "Modules" being either absent or
+ * \f$ N \f$), and the rows are \f$ u_t \leq x \f$ and the minimum down time
+ * rows (3) with \f$ x - u_t \f$, the number of modules built and off, in
+ * place of \f$ N - u_t \f$. Every other row is homogeneous in
+ * \f$ ( p , r , u , v , w ) \f$ and does not involve \f$ x \f$, which
+ * enters the powers only through \f$ u_t \leq x \f$; since all the
+ * modules are off before the horizon, the integer points are the sums of
+ * \f$ x \f$ feasible schedules of one module, and the model is the one of
+ * \f$ N \f$ copies of the unit with a binary design each, in fewer rows
+ * and Variable and without their symmetry.
+ *
+ * (c) \f$ \bar{X} \geq 0 \f$: \f$ x \in [ \underline{X} , \bar{X} ] \f$
+ * is continuous (say, the nominal capacity of the input, as an extendable
+ * unit of an energy-system model), every bound and side of the operating
+ * rows is per unit of design, and the commitment is binary (one module).
+ * The product \f$ x u_t \f$ then appears in every row that is
+ * proportional to the commitment, and it is replaced by the big-M
+ * relaxation on the largest capacity \f$ \bar{X} \f$: a row
+ * \f$ e_t \leq P u_t \f$ ((5), (8), (11), (12)) becomes
+ * \f[
+ *   e_t \leq P x + ( - P )^+ \bar{X} ( 1 - u_t ) \; , \qquad
+ *   e_t \leq P^+ \bar{X} u_t \; ,
+ * \f]
+ * and a row \f$ e_t \geq P u_t \f$ ((4), (8), (11), (12)) becomes
+ * \f[
+ *   e_t \geq P x - P^+ \bar{X} ( 1 - u_t ) \; , \qquad
+ *   e_t \geq - ( - P )^+ \bar{X} u_t \; ,
+ * \f]
+ * e.g., \f$ p_{t,g} \geq P^{mn}_{t,g} x - P^{mn}_{t,g} \bar{X} ( 1 - u_t )
+ * \f$ for a minimum power \f$ P^{mn}_{t,g} \geq 0 \f$ (the second row of
+ * each pair is written only for the bounds of the powers, the other rows
+ * being implied by them when the unit is off). Each pair is exact for
+ * \f$ u_t \in \{ 0 , 1 \} \f$, but its continuous relaxation is weak:
+ * with \f$ u_t \f$ fractional the minimum power is lost almost entirely,
+ * and the bound of the relaxation can be far below the optimum. The ramps
+ * and the start-up and shut-down limits, which multiply the indicators,
+ * are refused with a continuous design, as are several modules. For
+ * investment studies the recommended forms remain (b), exact and linear,
+ * and the investment from outside, through "Scale" changed by an
+ * InvestmentBlock (see UnitBlock::scale()), which multiplies the data and
+ * involves no product; (c) is meant for translating models that describe
+ * an extendable unit with commitment in this way.
+ *
+ * "Scale" \f$ \neq 1 \f$ is refused together with \f$ | \bar{X} | > 1 \f$
+ * and with \f$ N > 1 \f$, since they all replicate the unit.
+ *
+ * <b>Delays.</b> A generator \f$ g \f$ may deliver its power with a delay
+ * of \f$ d_g \geq 0 \f$ instants ("Delay"), as the heat of a district
+ * heating pipe or the gas of a long pipeline reaches its node some time
+ * after the plant has produced it: the operation of the unit at the instant
+ * \f$ t \f$ (its commitment and the point of its region) gives the power
+ * \f$ q_{t,g} \f$ of the generator, which the node receives at the instant
+ * \f$ t + d_g \f$, i.e., the power at the node at the instant \f$ s \f$ is
+ * \f$ p_{s,g} = q_{s - d_g , g} \f$. Every row of the unit is written in
+ * the instants of operation, hence a delay is a renaming of the Variable
+ * and changes neither the form of the rows nor what is said below about
+ * their tightness: an output delayed by \f$ d \f$ with respect to its
+ * input is a generator with delay \f$ d \f$ and an input with none, and
+ * outputs with different delays (say, two pipes of different lengths) have
+ * different delays. Two cases differ at the ends of the horizon. If the
+ * delay is not cyclic, the node receives at the instants
+ * \f$ s < \min\{ d_g , T \} \f$ the powers \f$ \hat{p}_{s,g} \f$ of the
+ * operation before the horizon ("InitialDelayedPower", 0 by default), which
+ * are data, and the powers \f$ q_{t,g} \f$ of the instants
+ * \f$ t \geq T - d_g \f$ reach the node after the horizon, so that they are
+ * Variable of the unit that enter no linking row of the UCBlock; if it is
+ * cyclic ("CyclicDelay"), the horizon wraps around, \f$ p_{s,g} =
+ * q_{( s - d_g ) \bmod T , g} \f$, as for a horizon that repeats itself.
+ * A generator with a delay offers no spinning reserve (the reserve would be
+ * deployed at an instant other than the one of the operation). The
+ * commitment, the fixed consumption and the inertia per unit of
+ * commitment are of the instants of operation, and the inertia per unit of
+ * power and the emissions of a generator are of the power its node
+ * receives.
+ *
  * As for ThermalUnitBlock, all the data are given per instant and no length
  * of the time step appears in any row: a ramp is the largest change of a
  * combination of the powers between two consecutive instants, a minimum up
@@ -297,14 +425,20 @@ class ConversionUnitBlock : public UnitBlock
   *   operating rows; optional with default 0, in which case the region is
   *   the box of the bounds.
   *
-  * - The variable "OperatingMatrix", indexed over "NumberOperatingRows" and
-  *   "NumberGenerators", the coefficients \f$ a_{m,g} \f$ of the operating
-  *   rows, the same at every instant; mandatory if \f$ M > 0 \f$.
+  * - The variable "OperatingMatrix", the coefficients \f$ a_{t,m,g} \f$ of
+  *   the operating rows; mandatory if \f$ M > 0 \f$. It is either indexed
+  *   over "NumberOperatingRows" and "NumberGenerators", and then the
+  *   coefficients are the same at every instant, or it has a first
+  *   dimension indexed over the instants as the other data (of size 1,
+  *   "NumberIntervals" or "TimeHorizon", with the meaning given above)
+  *   followed by "NumberOperatingRows" and "NumberGenerators". Whether a
+  *   coefficient is zero may change with the instant, since the rows of
+  *   different instants are distinct.
   *
   * - The variables "OperatingLHS" and "OperatingRHS", indexed over the
   *   instants and over "NumberOperatingRows", the sides
   *   \f$ \underline{b}_{t,m} \leq \bar{b}_{t,m} \f$ of the operating rows,
-  *   \f$ \underline{b}_{t,m} u_t \leq \sum_g a_{m,g} p_{t,g} \leq
+  *   \f$ \underline{b}_{t,m} u_t \leq \sum_g a_{t,m,g} p_{t,g} \leq
   *   \bar{b}_{t,m} u_t \f$; each is optional, with default \f$ - \infty \f$,
   *   respectively \f$ + \infty \f$, but each row must have a finite side at
   *   some instant. Whether a side is finite is a property of the row and
@@ -395,6 +529,26 @@ class ConversionUnitBlock : public UnitBlock
   *   which case it must lie in the region \f$ \mathcal{P}_0 \f$ of the
   *   instant 0 (an exception is thrown otherwise).
   *
+  * - The variable "Delay", of type netCDF::NcUint and indexed over
+  *   "NumberGenerators" (or a scalar, for the same delay for all the
+  *   generators), the delays \f$ d_g \f$ in instants (see the class
+  *   documentation); optional with default 0.
+  *
+  * - The variable "CyclicDelay", of type netCDF::NcInt and indexed over
+  *   "NumberGenerators" (or a scalar), nonzero for the generators whose
+  *   delay wraps around the horizon; optional with default 0.
+  *
+  * - The variable "InitialDelayedPower", indexed over a dimension of size
+  *   1 (the same value at every instant) or at least
+  *   \f$ H = \max_g \min\{ d_g , T \} \f$ over the generators with a delay
+  *   that is not cyclic (say, "NumberDelayedInstants") and over
+  *   "NumberGenerators", whose entry \f$ [ s ][ g ] \f$ is the power
+  *   \f$ \hat{p}_{s,g} \f$ the generator delivers at the instant
+  *   \f$ s < \min\{ d_g , T \} \f$ as the result of the operation before
+  *   the horizon (the other entries are ignored); optional with default 0.
+  *   It is independent of InitialPower, which is the operating point at
+  *   \f$ -1 \f$ for the rows that tie the instant 0 to the past.
+  *
   * - The scalar variable "InitUpDownTime", of type netCDF::NcInt, the
   *   number \f$ \tau_0 \f$ of instants the unit has been on
   *   (\f$ \tau_0 > 0 \f$) or off (\f$ \tau_0 \leq 0 \f$, for \f$ - \tau_0
@@ -421,6 +575,33 @@ class ConversionUnitBlock : public UnitBlock
   *
   * - The scalar variable "Scale", the scale factor \f$ \sigma \f$ of the
   *   unit (see UnitBlock::scale()); optional with default 1.
+  *
+  * - The scalar variable "Modules", of type netCDF::NcUint, the number
+  *   \f$ N \geq 1 \f$ of identical modules of the unit, every other datum
+  *   being of one module (see the class documentation); optional with
+  *   default 1. It is refused together with Scale \f$ \neq 1 \f$ (both
+  *   replicate the unit) and with FixedConsumption.
+  *
+  * - The scalar variables "InvestmentCost", "MinCapacityDesign" and
+  *   "MaxCapacityDesign", of type netCDF::NcDouble, the cost
+  *   \f$ c^{inv} \f$ of one unit of design and the bounds
+  *   \f$ \underline{X} \geq 0 \f$ and \f$ \bar{X} \f$ of the design (see
+  *   the class documentation); InvestmentCost is optional with default 0
+  *   (no design), the other two are read only if it is given, with
+  *   defaults 0 and \f$ -1 \f$ (binary design). A negative
+  *   \f$ \bar{X} \f$ must be an integer, \f$ \underline{X} \leq
+  *   | \bar{X} | \f$, and \f$ \bar{X} < -1 \f$ fixes the number of
+  *   modules; with \f$ \bar{X} \geq 0 \f$ the data are per unit of design
+  *   and ramps, start-up and shut-down limits and several modules are
+  *   refused. A unit with a design must be off before the horizon
+  *   (\f$ \tau_0 \leq 0 \f$) and have no FixedConsumption.
+  *
+  * - The scalar variable "InitialCommitment", of type netCDF::NcUint, the
+  *   number \f$ u_{-1} \in \{ 1 , \ldots , N \} \f$ of modules on before
+  *   the horizon if \f$ \tau_0 > 0 \f$, InitialPower being their total
+  *   power, which must lie in \f$ u_{-1} \f$ times the region of the
+  *   instant 0; optional, with default \f$ N \f$, and not used if
+  *   \f$ \tau_0 \leq 0 \f$.
   *
   * The data are checked when they are read: an exception is thrown if a
   * bound is not finite, a lower bound or limit exceeds the upper one, an
@@ -462,18 +643,31 @@ class ConversionUnitBlock : public UnitBlock
   * \f$ u_{-1} = 0 \f$ otherwise, and \f$ p_{-1,g} \f$ for InitialPower if
   * \f$ \tau_0 > 0 \f$ and 0 otherwise. The Variable are
   *
+  * - the design \f$ x \f$ ("x_conversion"), if InvestmentCost is nonzero:
+  *   binary, integer or continuous as in the class documentation, its
+  *   bounds being the BoxConstraint "DesignBound_Conversion";
+  *
   * - the binary commitment \f$ u_t \f$, \f$ t \in \mathcal{T} \f$
-  *   ("u_conversion");
+  *   ("u_conversion"), the number of modules on, integer in
+  *   \f$ \{ 0 , \ldots , N \} \f$, if \f$ N > 1 \f$;
   *
   * - the binary start-up and shut-down indicators \f$ v_t \f$
   *   ("v_conversion") and \f$ w_t \f$ ("w_conversion"),
   *   \f$ t \in \mathcal{T} \f$, \f$ v_t = 1 \f$ if the unit is off at
   *   \f$ t - 1 \f$ and on at \f$ t \f$, \f$ w_t = 1 \f$ if it is on at
-  *   \f$ t - 1 \f$ and off at \f$ t \f$;
+  *   \f$ t - 1 \f$ and off at \f$ t \f$ (the numbers of modules started up
+  *   and shut down, integer, if \f$ N > 1 \f$);
   *
   * - the active powers \f$ p_{t,g} \f$, \f$ t \in \mathcal{T} \f$,
   *   \f$ g \in \mathcal{G} \f$ ("p_conversion", one vector per generator),
-  *   continuous, their bounds being rows;
+  *   continuous, their bounds being rows; for a generator with a delay
+  *   \f$ d_g > 0 \f$ that is not cyclic, the vector has the
+  *   \f$ T \f$ powers delivered at the instants of the horizon, the first
+  *   \f$ \min\{ d_g , T \} \f$ fixed to InitialDelayedPower by their
+  *   bounds, followed by the \f$ \min\{ d_g , T \} \f$ powers
+  *   \f$ q_{t,g} \f$ of the instants of operation
+  *   \f$ t \geq T - d_g \f$, which are delivered after the horizon (see
+  *   get_tail_power());
   *
   * - the primary reserves \f$ p^{pr}_{t,g} \geq 0 \f$ ("pr_conversion") of
   *   the generators with a nonzero PrimaryRho, if the UCBlock has a primary
@@ -494,25 +688,35 @@ class ConversionUnitBlock : public UnitBlock
   * notation of deserialize() and generate_abstract_variables(); each group
   * of rows is given with the name under which it is added to the Block, and
   * a group whose data are absent is not generated. A term in \f$ w_{t+1}
-  * \f$ is absent for \f$ t = T - 1 \f$.
+  * \f$ is absent for \f$ t = T - 1 \f$. Every row is written in the
+  * instants of operation: for a generator with a delay \f$ d_g \f$,
+  * \f$ p_{t,g} \f$ below is the power \f$ q_{t,g} \f$ of the operation at
+  * \f$ t \f$, delivered at \f$ t + d_g \f$ (see the class documentation),
+  * and the two coincide if \f$ d_g = 0 \f$.
   *
   * <b>Commitment.</b> For \f$ t \in \mathcal{T} \f$,
   * \f{align*}{
   *   & u_t - u_{t-1} = v_t - w_t \tag{1} \\
   *   & \sum_{ s = \max\{ 0 , t - \tau^+ + 1 \} }^{ t } v_s \leq u_t
   *     \tag{2} \\
-  *   & \sum_{ s = \max\{ 0 , t - \tau^- + 1 \} }^{ t } w_s \leq 1 - u_t
+  *   & \sum_{ s = \max\{ 0 , t - \tau^- + 1 \} }^{ t } w_s \leq N - u_t
   *     \tag{3}
   * \f}
   * ("Logical_Const_Conversion", "MinUp_Const_Conversion",
   * "MinDown_Const_Conversion"), with the constant \f$ u_{-1} \f$ in (1) at
-  * \f$ t = 0 \f$, and the bounds ("Commitment_Bound_Conversion") \f$ u_t = 1
-  * \f$ for \f$ t < t_0 \f$ if \f$ \tau_0 > 0 \f$, \f$ u_t = 0 \f$ for
-  * \f$ t < t_0 \f$ if \f$ \tau_0 \leq 0 \f$, and \f$ 0 \leq u_t \leq 1 \f$
-  * otherwise. These are the rows of the 3bin formulation of
-  * ThermalUnitBlock, with the windows of (2) and (3) cut at the instant 0
-  * rather than at \f$ t_0 \f$, the bounds of \f$ u \f$ saying the rest;
-  * they force \f$ v_t = w_t = 0 \f$ for \f$ t < t_0 \f$.
+  * \f$ t = 0 \f$, and the bounds ("Commitment_Bound_Conversion")
+  * \f$ u_{-1} \leq u_t \leq N \f$ for \f$ t < t_0 \f$ if \f$ \tau_0 > 0
+  * \f$, \f$ u_t = 0 \f$ for \f$ t < t_0 \f$ if \f$ \tau_0 \leq 0 \f$, and
+  * \f$ 0 \leq u_t \leq N \f$ otherwise, \f$ N \f$ being the number of
+  * modules (1 by default, see the class documentation); with
+  * \f$ N > 1 \f$ and \f$ \tau_0 > 0 \f$ also \f$ w_t \leq 0 \f$ for
+  * \f$ t < t_0 \f$ ("ShutDown_Initial_Bound_Conversion" for
+  * \f$ t \geq 1 \f$, whose bound is \f$ w_t \leq N \f$ otherwise, and
+  * "ShutDownZero_Bound_Conversion" below for \f$ t = 0 \f$). These are the
+  * rows of the 3bin formulation of ThermalUnitBlock, with the windows of
+  * (2) and (3) cut at the instant 0 rather than at \f$ t_0 \f$, the bounds of
+  * \f$ u \f$ saying the rest; they force \f$ v_t = w_t = 0 \f$ for
+  * \f$ t < t_0 \f$.
   *
   * <b>Bounds of the powers.</b> For \f$ t \in \mathcal{T} \f$ and
   * \f$ g \in \mathcal{G} \f$ ("MinPower_Const_Conversion",
@@ -521,11 +725,13 @@ class ConversionUnitBlock : public UnitBlock
   *   & P^{mn}_{t,g} u_t \leq p_{t,g} \; , \tag{4} \\
   *   & p_{t,g} \leq P^{mx}_{t,g} u_t \; , \tag{5}
   * \f}
-  * and \f$ \min\{ 0 , P^{mn}_{t,g} \} \leq p_{t,g} \leq \max\{ 0 ,
+  * and \f$ N \min\{ 0 , P^{mn}_{t,g} \} \leq p_{t,g} \leq N \max\{ 0 ,
   * P^{mx}_{t,g} \} \f$ as a BoxConstraint ("ActivePower_Bound_Conversion"),
   * which the rows imply but a Solver that only reads the bounds of the
-  * Variable needs. For a generator with an upper start-up or shut-down
-  * limit, let
+  * Variable needs; the powers delivered at \f$ s < \min\{ d_g , T \} \f$
+  * by the operation before the horizon are fixed to
+  * \f$ \hat{p}_{s,g} \f$ in the same BoxConstraint. For a generator with an
+  * upper start-up or shut-down limit, let
   * \f[
   *   \hat{U}^{su}_{t,g} = \min\{ \bar{S}^{su}_{t,g} , P^{mx}_{t,g} \} \; ,
   *   \qquad
@@ -566,9 +772,9 @@ class ConversionUnitBlock : public UnitBlock
   * <b>Operating region</b> ("Operating_Const_Conversion"). For
   * \f$ t \in \mathcal{T} \f$ and \f$ m \in \mathcal{M} \f$, the row
   * \f[
-  *   \sum_{ g \in \mathcal{G} } a_{m,g} p_{t,g} - \bar{b}_{t,m} u_t \leq 0
+  *   \sum_{ g \in \mathcal{G} } a_{t,m,g} p_{t,g} - \bar{b}_{t,m} u_t \leq 0
   *   \; , \qquad
-  *   \sum_{ g \in \mathcal{G} } a_{m,g} p_{t,g} - \underline{b}_{t,m} u_t
+  *   \sum_{ g \in \mathcal{G} } a_{t,m,g} p_{t,g} - \underline{b}_{t,m} u_t
   *   \geq 0 \tag{8}
   * \f]
   * for each finite side, one equality row if the two sides coincide.
@@ -599,10 +805,10 @@ class ConversionUnitBlock : public UnitBlock
   * generator, the default limits and nonnegative bounds, (9) is the ramp row
   * of the T formulation of ThermalUnitBlock. At \f$ t = 0 \f$ the terms in
   * \f$ y_{-1,k} \f$ are constants; a unit on before the horizon whose
-  * InitialPower is outside the shut-down box at 0 cannot shut down at 0,
-  * and the bound \f$ w_0 \leq 0 \f$ ("ShutDownZero_Bound_Conversion")
-  * says so also without ramps (the bound is \f$ 0 \leq w_0 \leq 1 \f$
-  * otherwise).
+  * InitialPower is outside the shut-down box at 0 (\f$ u_{-1} \f$ times
+  * it, with several modules) cannot shut down at 0, and the bound
+  * \f$ w_0 \leq 0 \f$ ("ShutDownZero_Bound_Conversion") says so also
+  * without ramps (the bound is \f$ 0 \leq w_0 \leq N \f$ otherwise).
   *
   * <b>Spinning reserves.</b> Let \f$ \mathcal{R} \f$ be the generators that
   * have reserve Variable, \f$ r_{t,g} = p^{pr}_{t,g} + p^{sc}_{t,g} \f$ for
@@ -624,16 +830,16 @@ class ConversionUnitBlock : public UnitBlock
   * \f]
   * and the operating rows ("Reserve_Operating_Const_Conversion")
   * \f[
-  *   \underline{b}_{t,m} u_t \leq \sum_h a_{m,h} q^s_{t,h} \leq
+  *   \underline{b}_{t,m} u_t \leq \sum_h a_{t,m,h} q^s_{t,h} \leq
   *   \bar{b}_{t,m} u_t \; , \tag{12}
   * \f]
   * where only the sides that the deployment can violate are written: the
   * upper side of (11) for \f$ h \f$ if \f$ s D_{h,g} > 0 \f$ for some
   * \f$ g \in \mathcal{R} \f$, the lower one if \f$ s D_{h,g} < 0 \f$ for
-  * some, and the same for (12) with the entries \f$ \sum_h a_{m,h} D_{h,g}
+  * some, and the same for (12) with the entries \f$ \sum_h a_{t,m,h} D_{h,g}
   * \f$ in place of \f$ D_{h,g} \f$, the other sides being implied by (4),
   * (5) and (8) since \f$ r \geq 0 \f$. An equality operating row is written
-  * as \f$ \sum_{ g \in \mathcal{R} } ( \sum_h a_{m,h} D_{h,g} ) r_{t,g} = 0
+  * as \f$ \sum_{ g \in \mathcal{R} } ( \sum_h a_{t,m,h} D_{h,g} ) r_{t,g} = 0
   * \f$, once for both directions, if any of these entries is nonzero. For a
   * generator \f$ h \f$ with start-up or shut-down limits the bounds of (11)
   * are each replaced by two rows, as the rows (30) of ThermalUnitBlock,
@@ -678,9 +884,9 @@ class ConversionUnitBlock : public UnitBlock
   * abstract representation is the one a fresh load of the changed data
   * would generate. If \p stcc (or, if \p stcc is nullptr,
   * f_BlockConfig->f_static_constraints_Configuration) is a
-  * SimpleConfiguration< int > with a nonzero value, the bounds \f$ 0 \leq
-  * v_t \leq 1 \f$ and \f$ 0 \leq w_t \leq 1 \f$ are added as explicit
-  * ZOConstraint as well ("StartUp_Binary_Bound_Conversion",
+  * SimpleConfiguration< int > with a nonzero value and \f$ N = 1 \f$, the
+  * bounds \f$ 0 \leq v_t \leq 1 \f$ and \f$ 0 \leq w_t \leq 1 \f$ are added
+  * as explicit ZOConstraint as well ("StartUp_Binary_Bound_Conversion",
   * "ShutDown_Binary_Bound_Conversion"). */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr ) override;
@@ -700,9 +906,12 @@ class ConversionUnitBlock : public UnitBlock
   * that every cost can be changed after the generation (a reserve with no
   * Variable having no term). The order of the Variable in the DQuadFunction
   * is \f$ v \f$, \f$ w \f$, \f$ u \f$ (each over \f$ \mathcal{T} \f$), then
-  * the powers of each generator in turn, then the primary and the secondary
-  * reserves of each generator that has them, in turn. The parameter
-  * \p objc is not used. */
+  * the powers of each generator in turn (those of the instants of operation,
+  * \f$ p_{t,g} = q_{t,g} \f$ in the order of \f$ t \f$, the powers
+  * delivered from before the horizon having no term), then the primary and
+  * the secondary reserves of each generator that has them, in turn, and
+  * last the design \f$ x \f$, with the term \f$ \sigma c^{inv} x \f$, if
+  * it exists. The parameter \p objc is not used. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -757,9 +966,16 @@ class ConversionUnitBlock : public UnitBlock
   return( v_MaxPower[ t ][ generator ] );
   }
 
- /// returns the coefficient \f$ a_{m,g} \f$ of the operating row m
- double get_operating_coefficient( Index m , Index generator ) const {
-  return( v_OperatingMatrix[ m ][ generator ] );
+ /// returns the coefficient \f$ a_{t,m,g} \f$ of the operating row m
+ double get_operating_coefficient( Index m , Index generator ,
+                                   Index t = 0 ) const {
+  return( v_OperatingMatrix[ v_OperatingMatrix.shape()[ 0 ] > 1 ? t : 0 ][
+                                                          m ][ generator ] );
+  }
+
+ /// true if the coefficients of the operating rows change with the instant
+ bool has_varying_operating_matrix( void ) const {
+  return( v_OperatingMatrix.shape()[ 0 ] > 1 );
   }
 
  /// returns the left-hand side \f$ \underline{b}_{t,m} \f$ (may be -INF)
@@ -776,6 +992,24 @@ class ConversionUnitBlock : public UnitBlock
   return( v_InitialPower[ generator ] );
   }
 
+ /// returns the delay \f$ d_g \f$ of the generator, in instants
+ Index get_delay( Index generator ) const {
+  return( v_Delay.empty() ? 0 : v_Delay[ generator ] );
+  }
+
+ /// true if the delay of the generator wraps around the horizon
+ bool is_cyclic_delay( Index generator ) const {
+  return( ( ! v_CyclicDelay.empty() ) && v_CyclicDelay[ generator ] &&
+          get_delay( generator ) );
+  }
+
+ /// returns the power \f$ \hat{p}_{s,g} \f$ delivered at s < \f$ d_g \f$
+ /** Returns the power that the generator delivers at the instant \p s of the
+  * horizon as the result of the operation before it (InitialDelayedPower),
+  * 0 if it is not given. */
+
+ double get_initial_delayed_power( Index s , Index generator ) const;
+
  /// returns the initial up/down time \f$ \tau_0 \f$
  int get_init_up_down_time( void ) const { return( f_InitUpDownTime ); }
 
@@ -784,6 +1018,54 @@ class ConversionUnitBlock : public UnitBlock
 
  /// returns the minimum down time \f$ \tau^- \f$
  Index get_min_down_time( void ) const { return( f_MinDownTime ); }
+
+ /// returns the number \f$ N \f$ of identical modules of the unit
+ /** Returns "Modules", or \f$ | \bar{X} | \f$ for an integer design (see
+  * the class documentation). */
+
+ Index get_number_modules( void ) const {
+  return( design_mode() == 'b' ? Index( - f_MaxCapacityDesign )
+                               : f_Modules );
+  }
+
+ /// true if the unit has a design variable \f$ x \f$
+ bool has_design( void ) const { return( f_has_design ); }
+
+ /// the kind of design: 0 none, 'a' binary, 'b' integer, 'c' continuous
+ char design_mode( void ) const {
+  if( ! has_design() )
+   return( 0 );
+  if( f_MaxCapacityDesign >= 0 )
+   return( 'c' );
+  return( f_MaxCapacityDesign < -1 ? 'b' : 'a' );
+  }
+
+ /// returns the investment cost \f$ c^{inv} \f$ of one unit of design
+ double get_investment_cost( void ) const { return( f_InvestmentCost ); }
+
+ /// returns the lower bound \f$ \underline{X} \f$ of the design
+ double get_min_capacity_design( void ) const {
+  return( f_MinCapacityDesign );
+  }
+
+ /// returns "MaxCapacityDesign" \f$ \bar{X} \f$, signed as it is read
+ double get_max_capacity_design( void ) const {
+  return( f_MaxCapacityDesign );
+  }
+
+ /// returns \f$ u_{-1} \f$, the number of modules on before the horizon
+ Index get_initial_commitment( void ) const;
+
+ /// returns the largest multiplier of the data of one module
+ /** Returns the largest number by which the data of the unit are
+  * multiplied, which the UCBlock uses in the bounds of the injections at
+  * the nodes (see UnitBlock::get_design_ub()): \f$ \bar{X} \f$ with a
+  * continuous design, the number \f$ N \f$ of modules otherwise. */
+
+ double get_design_ub( void ) const override {
+  return( design_mode() == 'c' ? f_MaxCapacityDesign
+                               : double( get_number_modules() ) );
+  }
 
  /// returns the linear cost \f$ b_{t,g} \f$
  double get_linear_term( Index t , Index generator ) const {
@@ -876,6 +1158,42 @@ class ConversionUnitBlock : public UnitBlock
   return( v_commitment.empty() ? nullptr : v_commitment.data() );
   }
 
+ /// returns the power Variable of the generator at the operation instant t
+ /** Returns the Variable \f$ q_{t,g} \f$ of the power of the generator due
+  * to the operation of the unit at the instant \p t, i.e., the one
+  * delivered at \f$ t + d_g \f$ (see generate_abstract_variables()). */
+
+ ColVariable & get_operating_power( Index generator , Index t ) {
+  return( op( generator , t ) );
+  }
+
+ /// the number of powers of the generator delivered after the horizon
+ Index get_number_tail_powers( Index generator ) const {
+  return( ( generator < v_active_power.size() ) &&
+          ( v_active_power[ generator ].size() > f_time_horizon ) ?
+          v_active_power[ generator ].size() - f_time_horizon : 0 );
+  }
+
+ /// the powers of the generator delivered after the horizon, if any
+ /** Returns the array of the get_number_tail_powers() Variable of the powers
+  * of the operation instants \f$ t \geq T - d_g \f$, in the order of
+  * \f$ t \f$, which are delivered after the horizon (nullptr if there are
+  * none). */
+
+ ColVariable * get_tail_power( Index generator ) {
+  return( get_number_tail_powers( generator ) ?
+          v_active_power[ generator ].data() + f_time_horizon : nullptr );
+  }
+
+ /// returns the design Variable \f$ x \f$ ("x_conversion")
+ /** Returns the design Variable, which is in the abstract representation
+  * only if has_design() (its value is NaN otherwise). */
+
+ ColVariable & get_design( void ) { return( design ); }
+
+ /// returns the design Variable \f$ x \f$, const version
+ const ColVariable & get_const_design( void ) const { return( design ); }
+
  /// returns the start-up Variable \f$ v_t \f$
  ColVariable * get_start_up( void ) {
   return( v_start_up.empty() ? nullptr : v_start_up.data() );
@@ -887,6 +1205,10 @@ class ConversionUnitBlock : public UnitBlock
   }
 
  /// returns the active power Variable of the given generator
+ /** Returns the array of the powers \f$ p_{s,g} \f$ that the generator
+  * delivers at its node at the instants \f$ s \in \mathcal{T} \f$ of the
+  * horizon (see generate_abstract_variables()). */
+
  ColVariable * get_active_power( Index generator ) override {
   if( ( generator >= v_active_power.size() ) ||
       v_active_power[ generator ].empty() )
@@ -1095,6 +1417,18 @@ class ConversionUnitBlock : public UnitBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
+ /// sets the powers \f$ \hat{p}_{s,g} \f$ delivered from before the horizon
+ /** Sets the powers that the generator \p generator delivers at the
+  * instants \p rng of the horizon as the result of the operation before it
+  * (InitialDelayedPower), the instants at or after \f$ \min\{ d_g , T \}
+  * \f$ being ignored; they are the bounds of the delivered powers of those
+  * instants. */
+
+ void set_initial_delayed_power( MF_dbl_it values , Index generator ,
+                                 Range rng = INFRange ,
+                                 ModParam issuePMod = eNoBlck ,
+                                 ModParam issueAMod = eNoBlck );
+
  /// sets the initial up/down time \f$ \tau_0 \f$
  /** Sets \f$ \tau_0 \f$ to *values, \p rng being ignored unless it is
   * empty. The change moves the bounds of \f$ u \f$ and \f$ w_0 \f$ and the
@@ -1199,11 +1533,36 @@ class ConversionUnitBlock : public UnitBlock
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
+ /// sets the powers delivered from before the horizon, entries [ g ][ s ]
+ void set_initial_delayed_power( MF_dbl_it values , Subset && subset ,
+                                 const bool ordered = false ,
+                                 ModParam issuePMod = eNoBlck ,
+                                 ModParam issueAMod = eNoBlck );
+ void set_initial_delayed_power( MF_dbl_it values , Range rng = INFRange ,
+                                 ModParam issuePMod = eNoBlck ,
+                                 ModParam issueAMod = eNoBlck );
+
  /// sets \f$ \tau_0 \f$ to *values if \p subset is not empty
  void set_init_updown_time( MF_int_it values , Subset && subset ,
                             const bool ordered = false ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
+
+ /// sets the investment cost \f$ c^{inv} \f$ to *values
+ /** Sets \f$ c^{inv} \f$ to *values, \p rng being ignored unless it is
+  * empty; refused if the unit has no design variable. A zero cost keeps
+  * the design variable, which then costs nothing (a unit with a zero
+  * InvestmentCost written and read back has none). */
+
+ void set_investment_cost( MF_dbl_it values , Range rng = INFRange ,
+                           ModParam issuePMod = eNoBlck ,
+                           ModParam issueAMod = eNoBlck );
+
+ /// sets \f$ c^{inv} \f$ to *values if \p subset is not empty
+ void set_investment_cost( MF_dbl_it values , Subset && subset ,
+                           const bool ordered = false ,
+                           ModParam issuePMod = eNoBlck ,
+                           ModParam issueAMod = eNoBlck );
 
  /// sets the scale factor \f$ \sigma \f$ [see UnitBlock::scale()]
  void scale( MF_dbl_it values , Subset && subset ,
@@ -1230,6 +1589,27 @@ class ConversionUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ /// reads "OperatingMatrix", static or indexed over the instants
+ void read_operating_matrix( const netCDF::NcGroup & group ,
+                             const std::string & who );
+
+ /// reads the delays and the powers delivered from before the horizon
+ void read_delays( const netCDF::NcGroup & group , const std::string & who );
+
+ /// the number of instants at which g delivers the operation before 0
+ Index head_size( Index g ) const;
+
+ /// the position in v_active_power[ g ] of the operation instant t
+ Index position_of( Index g , Index t ) const;
+
+ /// the operation instant of the position i >= head_size( g )
+ Index instant_of( Index g , Index i ) const;
+
+ /// the power Variable of g at the operation instant t
+ ColVariable & op( Index g , Index t ) {
+  return( v_active_power[ g ][ position_of( g , t ) ] );
+  }
 
  /// the first instant at which the commitment is free
  Index first_free_instant( void ) const;
@@ -1273,6 +1653,9 @@ class ConversionUnitBlock : public UnitBlock
  /// registers a group of rows when generating
  void add_rows( std::vector< FRowConstraint > & rows , std::string && name );
 
+ /// rewrites the coefficient of the design in the Objective
+ void update_design_cost( ModParam issueAMod );
+
  /// rewrites the coefficients of the Objective for the given instants
  void update_objective( const Subset & instants , ModParam issueAMod );
 
@@ -1309,7 +1692,8 @@ class ConversionUnitBlock : public UnitBlock
 
  MAdbl v_MinPower;                    ///< [ T ][ G ] minimum power
  MAdbl v_MaxPower;                    ///< [ T ][ G ] maximum power
- MAdbl v_OperatingMatrix;             ///< [ M ][ G ] operating rows
+ boost::multi_array< double , 3 > v_OperatingMatrix;
+ ///< [ T or 1 ][ M ][ G ] operating rows, the first index the instant
  MAdbl v_OperatingLHS;                ///< [ T ][ M ], empty = -INF
  MAdbl v_OperatingRHS;                ///< [ T ][ M ], empty = +INF
  MAdbl v_RampMatrix;                  ///< [ K ][ G ], empty = identity
@@ -1337,20 +1721,31 @@ class ConversionUnitBlock : public UnitBlock
  ///< [ G ][ T ] inertia per unit of power, an empty row being none
 
  std::vector< double > v_InitialPower;  ///< [ G ] initial powers
+ std::vector< Index > v_Delay;          ///< [ G ] delays, empty = 0
+ std::vector< int > v_CyclicDelay;      ///< [ G ] cyclic, empty = none
+ MAdbl v_InitialDelayedPower;           ///< [ H ][ G ], empty = 0
  int f_InitUpDownTime = 0;              ///< initial up/down time
  Index f_MinUpTime = 1;                 ///< minimum up time
  Index f_MinDownTime = 1;               ///< minimum down time
  double f_scale = 1;                    ///< the scale factor
+ Index f_Modules = 1;                   ///< the number of modules
+ Index f_InitialCommitment = 0;         ///< modules on before, 0 = all
+ bool f_has_design = false;             ///< the unit has a design
+ double f_InvestmentCost = 0;           ///< cost of one unit of design
+ double f_MinCapacityDesign = 0;        ///< lower bound of the design
+ double f_MaxCapacityDesign = -1;       ///< upper bound, signed
 
  std::vector< int > v_sign;  ///< [ G ] the sign of a reserve generator
  bool f_has_primary = false;    ///< some generator offers primary reserve
  bool f_has_secondary = false;  ///< some generator offers secondary one
 
  // the Variable
+ ColVariable design;                       ///< x, if has_design()
  std::vector< ColVariable > v_commitment;  ///< u[ t ]
  std::vector< ColVariable > v_start_up;    ///< v[ t ]
  std::vector< ColVariable > v_shut_down;   ///< w[ t ]
- std::vector< std::vector< ColVariable > > v_active_power;  ///< p[ g ][ t ]
+ std::vector< std::vector< ColVariable > > v_active_power;
+ ///< p[ g ][ s ], the T delivered powers then the tail [see op()]
  std::vector< std::vector< ColVariable > > v_primary_reserve;
  ///< pr[ g ][ t ], an empty row for a generator with no primary reserve
  std::vector< std::vector< ColVariable > > v_secondary_reserve;
@@ -1370,9 +1765,13 @@ class ConversionUnitBlock : public UnitBlock
  std::vector< FRowConstraint > ReserveBound_Const;
  std::vector< FRowConstraint > ReserveOperating_Const;
  std::vector< FRowConstraint > ReserveRamp_Const;
+ std::vector< FRowConstraint > CommitmentDesign_Const;
 
  std::vector< BoxConstraint > Commitment_Bound;     ///< bounds of u[ t ]
  BoxConstraint ShutDownZero_Bound;                  ///< bound of w[ 0 ]
+ std::vector< BoxConstraint > ShutDownInitial_Bound;
+ ///< bounds of w[ t ], t >= 1, with several modules
+ BoxConstraint DesignBound;                         ///< bounds of x
  std::vector< std::vector< BoxConstraint > > ActivePower_Bound;
  ///< [ g ][ t ] bounds of the power
  std::vector< ZOConstraint > StartUp_Binary_Bound;   ///< 0 <= v <= 1
@@ -1514,12 +1913,28 @@ class ConversionUnitBlock : public UnitBlock
    & ConversionUnitBlock::set_initial_power );
 
   register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ConversionUnitBlock::set_investment_cost" ,
+   & ConversionUnitBlock::set_investment_cost );
+
+  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+   "ConversionUnitBlock::set_investment_cost" ,
+   & ConversionUnitBlock::set_investment_cost );
+
+  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
    "ConversionUnitBlock::scale" ,
    & ConversionUnitBlock::scale );
 
   register_method< ConversionUnitBlock , MF_dbl_it , Range >(
    "ConversionUnitBlock::scale" ,
    & ConversionUnitBlock::scale );
+
+  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ConversionUnitBlock::set_initial_delayed_power" ,
+   & ConversionUnitBlock::set_initial_delayed_power );
+
+  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+   "ConversionUnitBlock::set_initial_delayed_power" ,
+   & ConversionUnitBlock::set_initial_delayed_power );
 
   register_method< ConversionUnitBlock , MF_int_it , Subset && , bool >(
    "ConversionUnitBlock::set_init_updown_time" ,
@@ -1565,8 +1980,50 @@ class ConversionUnitBlockMod : public UnitBlockMod
   eSetRampDown ,                ///< ramp-down limit of a combination
   eSetInitP ,                   ///< initial powers (nms() = generators)
   eSetInitUD ,                  ///< initial up/down time
+  eSetInitDelP ,                ///< powers delivered from before the horizon
+  eSetInvCost ,                 ///< investment cost
   eCUBModLastParam    ///< first allowed parameter value for derived classes
   };
+
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetLinT ):
+   case( eSetQuadT ):
+   case( eSetPrCost ):
+   case( eSetScCost ):
+   case( eSetConstT ):
+   case( eSetSUC ):
+   case( eSetSDC ):
+   case( eSetInvCost ):
+    return( ePhysObj );
+   case( eSetMaxP ):
+   case( eSetMinP ):
+   case( eSetRampUp ):
+   case( eSetRampDown ):
+   case( eSetInitP ):
+   case( eSetInitDelP ):
+    return( ePhysCns );
+   case( eSetInitUD ):
+    return( ePhysCns | ePhysVars );
+   case( eSetOpRHS ):
+   case( eSetOpLHS ):
+    return( ePhysSides );
+   default:
+    return( UnitBlockMod::changes_of( type ) );
+   }
+  }
+
+ /// what the Modification changes, as its type says [see changes_of()]
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( changes_of( type() ) );
+  }
 
  /// constructor: the ConversionUnitBlock, the type, the index, the instants
  ConversionUnitBlockMod( ConversionUnitBlock * const fblock , const int type ,
@@ -1605,11 +2062,13 @@ class ConversionUnitBlockMod : public UnitBlockMod
 /** The ConversionUnitBlockSolution class derives from UnitBlockSolution and
  * adds to the information stored there (the active powers, the commitment
  * of the commitment generator and the reserves) the start-up and shut-down
- * indicators of the unit, which are saved with the commitment: deriving
+ * indicators of the unit, which are saved with the commitment (deriving
  * them from the commitment when the Solution is written back is right for
  * one schedule but not for a convex combination of several, whose
  * start-ups are the average of those of the schedules, not those of their
- * averaged commitment. */
+ * averaged commitment), the powers that the generators with a delay
+ * deliver after the horizon, which are saved with the active powers, and
+ * the design variable, if any. */
 
 class ConversionUnitBlockSolution : public UnitBlockSolution
 {
@@ -1643,7 +2102,11 @@ class ConversionUnitBlockSolution : public UnitBlockSolution
   * UnitBlockSolution::serialize()], plus, if they are saved, the variables
   * "ConversionStartUp" and "ConversionShutDown", of type netCDF::NcDouble
   * and indexed over "TimeHorizon", the start-up and shut-down indicators of
-  * the unit. */
+  * the unit, and "ConversionTailPower", of type netCDF::NcDouble and indexed
+  * over "NumberTailPowers", the powers delivered after the horizon by the
+  * generators with a delay, generator after generator, and the scalar
+  * "ConversionDesign", the value of the design variable, if the unit has
+  * one. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1665,6 +2128,9 @@ class ConversionUnitBlockSolution : public UnitBlockSolution
  [[nodiscard]] const std::vector< double > & get_shut_down( void ) const {
   return( v_shut_down );
   }
+
+ /// the design, NaN if not saved
+ [[nodiscard]] double get_design( void ) const { return( f_design ); }
 
  /// sets the start-up indicators
  void set_start_up( std::vector< double > && su ) {
@@ -1688,6 +2154,11 @@ class ConversionUnitBlockSolution : public UnitBlockSolution
  std::vector< double > v_start_up;   ///< the start-up indicators, if saved
 
  std::vector< double > v_shut_down;  ///< the shut-down indicators, if saved
+
+ std::vector< double > v_tail;  ///< the powers delivered after the horizon
+
+ double f_design = std::numeric_limits< double >::quiet_NaN();
+ ///< the design, NaN if not saved
 
  SMSpp_insert_in_factory_h;  ///< registration in the factory
 

@@ -16,6 +16,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <limits>
 #include <map>
 #include <set>
 
@@ -149,6 +151,9 @@ ConversionUnitBlock::~ConversionUnitBlock()
  Constraint::clear( ReserveRamp_Const );
  Constraint::clear( Commitment_Bound );
  ShutDownZero_Bound.clear();
+ Constraint::clear( ShutDownInitial_Bound );
+ Constraint::clear( CommitmentDesign_Const );
+ DesignBound.clear();
  Constraint::clear( ActivePower_Bound );
  Constraint::clear( StartUp_Binary_Bound );
  Constraint::clear( ShutDown_Binary_Bound );
@@ -158,6 +163,118 @@ ConversionUnitBlock::~ConversionUnitBlock()
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/* Reads "OperatingMatrix", either [ M ][ G ], the same at every instant, or
+ * [ n ][ M ][ G ] with n = 1, the number of change intervals or the time
+ * horizon, the latter two expanded to one matrix per instant as the other
+ * data indexed over the instants. */
+
+void ConversionUnitBlock::read_operating_matrix(
+                      const netCDF::NcGroup & group , const std::string & who )
+{
+ const Index T = f_time_horizon;
+ auto var = group.getVar( "OperatingMatrix" );
+ if( var.isNull() )
+  throw( std::invalid_argument( who + ": OperatingMatrix is missing with " +
+                                std::to_string( f_M ) + " operating rows" ) );
+
+ const auto nd = var.getDimCount();
+ if( ( nd != 2 ) && ( nd != 3 ) )
+  throw( std::invalid_argument( who + ": OperatingMatrix has " +
+                                std::to_string( nd ) + " dimensions instead "
+                                "of 2 or 3" ) );
+ const Index n0 = ( nd == 3 ) ? var.getDim( 0 ).getSize() : 1;
+ if( ( var.getDim( nd - 2 ).getSize() != f_M ) ||
+     ( var.getDim( nd - 1 ).getSize() != f_G ) )
+  throw( std::invalid_argument( who + ": OperatingMatrix is not indexed over "
+                                "NumberOperatingRows and NumberGenerators" ) );
+
+ const auto & ci = v_change_intervals;
+ if( ( n0 != 1 ) && ( n0 != T ) && ( ci.empty() || ( n0 != ci.size() ) ) )
+  throw( std::invalid_argument( who + ": the first dimension of "
+                                "OperatingMatrix has size " +
+                                std::to_string( n0 ) + ", neither 1 nor "
+                                "NumberIntervals nor TimeHorizon" ) );
+
+ std::vector< double > buf( n0 * f_M * f_G );
+ var.getVar( buf.data() );
+ const Index MG = f_M * f_G;
+
+ if( ( n0 == 1 ) || ( n0 == T ) ) {
+  v_OperatingMatrix.resize( boost::extents[ n0 ][ f_M ][ f_G ] );
+  std::copy( buf.begin() , buf.end() , v_OperatingMatrix.data() );
+  return;
+  }
+
+ // expanded over the change intervals, entry k covering the instants
+ // ChangeIntervals[ k - 1 ] < t <= ChangeIntervals[ k ]
+ v_OperatingMatrix.resize( boost::extents[ T ][ f_M ][ f_G ] );
+ Index t = 0;
+ for( Index k = 0 ; k < ci.size() ; ++k ) {
+  const Index up = ( k + 1 == ci.size() ) ? T - 1 : ci[ k ];
+  for( ; t <= up ; ++t )
+   std::copy( buf.begin() + k * MG , buf.begin() + ( k + 1 ) * MG ,
+              v_OperatingMatrix.data() + t * MG );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* Reads "Delay", "CyclicDelay" and "InitialDelayedPower", the last one
+ * expanded to [ H ][ G ], H the largest number of instants of the horizon
+ * whose power some generator receives from the operation before it. */
+
+void ConversionUnitBlock::read_delays( const netCDF::NcGroup & group ,
+                                       const std::string & who )
+{
+ const Index T = f_time_horizon;
+ auto zero = []( const auto & v ) {
+  return( std::all_of( v.begin() , v.end() ,
+                       []( auto x ) { return( x == 0 ); } ) );
+  };
+
+ v_Delay.clear();
+ if( ::deserialize( group , "Delay" , f_G , v_Delay , true , true ) &&
+     ( v_Delay.size() == 1 ) )
+  v_Delay.resize( f_G , v_Delay.front() );
+ if( zero( v_Delay ) )
+  v_Delay.clear();
+
+ v_CyclicDelay.clear();
+ if( ::deserialize( group , "CyclicDelay" , f_G , v_CyclicDelay , true ,
+                    true ) && ( v_CyclicDelay.size() == 1 ) )
+  v_CyclicDelay.resize( f_G , v_CyclicDelay.front() );
+ if( zero( v_CyclicDelay ) )
+  v_CyclicDelay.clear();
+
+ Index H = 0;
+ for( Index g = 0 ; g < f_G ; ++g )
+  H = std::max( H , head_size( g ) );
+
+ v_InitialDelayedPower.resize( boost::extents[ 0 ][ 0 ] );
+ auto var = group.getVar( "InitialDelayedPower" );
+ if( var.isNull() || ( H == 0 ) || ( T == 0 ) )
+  return;
+
+ const Index d0 = var.getDimCount() ? var.getDim( 0 ).getSize() : 1;
+ MAdbl idp;
+ ::deserialize( group , "InitialDelayedPower" , { d0 , f_G } , idp , false ,
+                true );
+ if( ( d0 != 1 ) && ( d0 < H ) )
+  throw( std::invalid_argument( who + ": InitialDelayedPower has " +
+                                std::to_string( d0 ) + " instants, fewer "
+                                "than the " + std::to_string( H ) +
+                                " the delays need" ) );
+ v_InitialDelayedPower.resize( boost::extents[ H ][ f_G ] );
+ for( Index s = 0 ; s < H ; ++s )
+  for( Index g = 0 ; g < f_G ; ++g )
+   v_InitialDelayedPower[ s ][ g ] = idp[ d0 == 1 ? 0 : s ][ g ];
+ if( zero( std::vector< double >( v_InitialDelayedPower.data() ,
+                                  v_InitialDelayedPower.data() +
+                                  v_InitialDelayedPower.num_elements() ) ) )
+  v_InitialDelayedPower.resize( boost::extents[ 0 ][ 0 ] );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
@@ -208,13 +325,12 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
  // the operating rows - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( f_M ) {
-  ::deserialize( group , "OperatingMatrix" , { f_M , f_G } ,
-                 v_OperatingMatrix , false , false );
+  read_operating_matrix( group , who );
   read( "OperatingLHS" , f_M , v_OperatingLHS , true );
   read( "OperatingRHS" , f_M , v_OperatingRHS , true );
   }
  else {
-  v_OperatingMatrix.resize( boost::extents[ 0 ][ 0 ] );
+  v_OperatingMatrix.resize( boost::extents[ 1 ][ 0 ][ 0 ] );
   v_OperatingLHS.resize( boost::extents[ 0 ][ 0 ] );
   v_OperatingRHS.resize( boost::extents[ 0 ][ 0 ] );
   }
@@ -304,6 +420,10 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
   if( v_InitialPower.size() == 1 )
    v_InitialPower.resize( f_G , v_InitialPower.front() );
 
+ // the delays- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ read_delays( group , who );
+
  f_MinUpTime = f_MinDownTime = 1;
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = std::max( f_MinUpTime , Index( 1 ) );
@@ -324,7 +444,68 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
  f_scale = 1;
  ::deserialize( group , f_scale , "Scale" );
 
+ // the modules- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ f_Modules = 1;
+ if( ::deserialize( group , f_Modules , "Modules" ) && ( f_Modules == 0 ) )
+  throw( std::invalid_argument( who + ": Modules is 0" ) );
+ f_InitialCommitment = 0;
+ ::deserialize( group , f_InitialCommitment , "InitialCommitment" );
+
+ // the design- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ f_InvestmentCost = 0;
+ f_MinCapacityDesign = 0;
+ f_MaxCapacityDesign = -1;
+ if( ::deserialize( group , f_InvestmentCost , "InvestmentCost" ) ) {
+  ::deserialize( group , f_MinCapacityDesign , "MinCapacityDesign" );
+  ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
+  }
+ f_has_design = ( f_InvestmentCost != 0 );
+ if( has_design() ) {
+  const double X = f_MaxCapacityDesign;
+  if( f_MinCapacityDesign < 0 )
+   throw( std::invalid_argument( who + ": MinCapacityDesign < 0" ) );
+  if( ( X >= 0 ) && ( f_MinCapacityDesign > X ) )
+   throw( std::invalid_argument( who + ": MinCapacityDesign > "
+                                 "MaxCapacityDesign" ) );
+  if( ( X < 0 ) && ( ( std::floor( X ) != X ) ||
+                     ( f_MinCapacityDesign > - X ) ) )
+   throw( std::invalid_argument( who + ": a negative MaxCapacityDesign must "
+                                 "be an integer, at least MinCapacityDesign "
+                                 "in absolute value" ) );
+  if( ( X < -1 ) && ( f_Modules != 1 ) && ( f_Modules != Index( - X ) ) )
+   throw( std::invalid_argument( who + ": Modules is not the number of "
+                                 "modules of MaxCapacityDesign" ) );
+  if( ( X >= 0 ) && ( f_Modules > 1 ) )
+   throw( std::invalid_argument( who + ": a continuous design "
+                                 "(MaxCapacityDesign >= 0) with more than "
+                                 "one module" ) );
+  if( ( X >= 0 ) && ( ( ! absent( v_DeltaRampUp ) ) ||
+                      ( ! absent( v_DeltaRampDown ) ) ||
+                      ( ! absent( v_StartUpLimit ) ) ||
+                      ( ! absent( v_StartUpLowerLimit ) ) ||
+                      ( ! absent( v_ShutDownLimit ) ) ||
+                      ( ! absent( v_ShutDownLowerLimit ) ) ) )
+   throw( std::invalid_argument( who + ": a continuous design "
+                                 "(MaxCapacityDesign >= 0) with ramps or "
+                                 "start-up and shut-down limits, which would "
+                                 "multiply the commitment" ) );
+  if( ( f_scale != 1 ) && ( std::abs( X ) > 1 ) )
+   throw( std::invalid_argument( who + ": Scale != 1 together with "
+                                 "|MaxCapacityDesign| > 1, which represent "
+                                 "the same replication of the unit" ) );
+  }
+ if( ( f_scale != 1 ) && ( f_Modules > 1 ) )
+  throw( std::invalid_argument( who + ": Scale != 1 together with Modules > "
+                                "1, which represent the same replication of "
+                                "the unit" ) );
+
  compute_reserve_signs( who );
+ for( Index g = 0 ; g < f_G ; ++g )
+  if( v_sign[ g ] && get_delay( g ) )
+   throw( std::invalid_argument( who + ": generator " + std::to_string( g ) +
+                                 " offers a reserve and has a delay" ) );
  check_data( who );
 
  }  // end( ConversionUnitBlock::deserialize )
@@ -336,7 +517,8 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
 std::vector< std::string > ConversionUnitBlock::expected_dims( void ) const
 {
  static const std::vector< std::string > ed =
-  { "NumberGenerators" , "NumberOperatingRows" , "NumberRampRows" };
+  { "NumberGenerators" , "NumberOperatingRows" , "NumberRampRows" ,
+    "NumberDelayedInstants" };
 
  auto ret = UnitBlock::expected_dims();
  ret.insert( ret.end() , ed.begin() , ed.end() );
@@ -356,7 +538,10 @@ std::vector< std::string > ConversionUnitBlock::expected_vars( void ) const
     "SecondarySpinningReserveCost" , "LinearTerm" , "QuadTerm" ,
     "ConstTerm" , "StartUpCost" , "ShutDownCost" , "FixedConsumption" ,
     "InertiaCommitment" , "InertiaPower" , "InitialPower" ,
-    "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Scale" };
+    "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Scale" , "Delay" ,
+    "CyclicDelay" , "InitialDelayedPower" , "Modules" ,
+    "InitialCommitment" , "InvestmentCost" , "MinCapacityDesign" ,
+    "MaxCapacityDesign" };
 
  auto ret = UnitBlock::expected_vars();
  ret.insert( ret.end() , ev.begin() , ev.end() );
@@ -480,17 +665,29 @@ void ConversionUnitBlock::check_data( const std::string & who ) const
   if( fc < 0 )
    fail( "FixedConsumption < 0" );
 
+ const Index N = get_number_modules();
+ if( ( N > 1 ) && ( ! v_FixedConsumption.empty() ) )
+  fail( "FixedConsumption with more than one module" );
+ if( has_design() && ( ! v_FixedConsumption.empty() ) )
+  fail( "FixedConsumption with a design variable" );
+ if( has_design() && ( f_InitUpDownTime > 0 ) )
+  fail( "a unit with a design variable is on before the horizon" );
+ if( f_InitialCommitment > N )
+  fail( "InitialCommitment > the number of modules" );
+
  if( v_InitialPower.size() != f_G )
   fail( "InitialPower has not NumberGenerators entries" );
 
- // a unit on before the horizon is in the region of the instant 0
+ // a unit on before the horizon is in the region of the instant 0, that
+ // of the modules on before the horizon
  if( f_InitUpDownTime > 0 && T ) {
+  const double k = get_initial_commitment();
   auto eps = []( double v ) { return( 1e-9 * std::max( 1.0 ,
                                                        std::abs( v ) ) ); };
   for( Index g = 0 ; g < f_G ; ++g ) {
    const double p = v_InitialPower[ g ];
-   if( ( p < v_MinPower[ 0 ][ g ] - eps( p ) ) ||
-       ( p > v_MaxPower[ 0 ][ g ] + eps( p ) ) )
+   if( ( p < k * v_MinPower[ 0 ][ g ] - eps( p ) ) ||
+       ( p > k * v_MaxPower[ 0 ][ g ] + eps( p ) ) )
     fail( "InitialPower of generator " + std::to_string( g ) + " is "
           "outside its bounds at the instant 0 of a unit on before the "
           "horizon" );
@@ -498,9 +695,9 @@ void ConversionUnitBlock::check_data( const std::string & who ) const
   for( Index m = 0 ; m < f_M ; ++m ) {
    double ap = 0;
    for( Index g = 0 ; g < f_G ; ++g )
-    ap += v_OperatingMatrix[ m ][ g ] * v_InitialPower[ g ];
-   if( ( ap < get_operating_lhs( 0 , m ) - eps( ap ) ) ||
-       ( ap > get_operating_rhs( 0 , m ) + eps( ap ) ) )
+    ap += get_operating_coefficient( m , g , 0 ) * v_InitialPower[ g ];
+   if( ( ap < k * get_operating_lhs( 0 , m ) - eps( ap ) ) ||
+       ( ap > k * get_operating_rhs( 0 , m ) + eps( ap ) ) )
     fail( "InitialPower violates the operating row " + std::to_string( m ) +
           " at the instant 0 of a unit on before the horizon" );
    }
@@ -530,6 +727,66 @@ double ConversionUnitBlock::get_ramp_coefficient( Index k , Index g ) const
  if( absent( v_RampMatrix ) )
   return( k == g ? 1 : 0 );
  return( v_RampMatrix[ k ][ g ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double ConversionUnitBlock::get_initial_delayed_power( Index s ,
+                                                       Index g ) const
+{
+ if( absent( v_InitialDelayedPower ) ||
+     ( s >= v_InitialDelayedPower.shape()[ 0 ] ) )
+  return( 0 );
+ return( v_InitialDelayedPower[ s ][ g ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+Index ConversionUnitBlock::head_size( Index g ) const
+{
+ return( is_cyclic_delay( g ) ? 0 : std::min( get_delay( g ) ,
+                                              f_time_horizon ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The position in v_active_power[ g ] of the power of the instant of
+ * operation t: the instant t + d at which it is delivered, if it is in the
+ * horizon, modulo T if the delay is cyclic, and otherwise one of the
+ * positions after T, in the order of t. */
+
+Index ConversionUnitBlock::position_of( Index g , Index t ) const
+{
+ const Index T = f_time_horizon;
+ const Index d = get_delay( g );
+ if( is_cyclic_delay( g ) )
+  return( ( t + d ) % T );
+ if( t + d < T )
+  return( t + d );
+ return( T + t - ( T > d ? T - d : 0 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The instant of operation whose power is in the position i of
+ * v_active_power[ g ], i >= head_size( g ) [see position_of()]. */
+
+Index ConversionUnitBlock::instant_of( Index g , Index i ) const
+{
+ const Index T = f_time_horizon;
+ const Index d = get_delay( g );
+ if( is_cyclic_delay( g ) )
+  return( ( i + T - ( d % T ) ) % T );
+ if( i < T )
+  return( i - d );
+ return( i - T + ( T > d ? T - d : 0 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+Index ConversionUnitBlock::get_initial_commitment( void ) const
+{
+ if( f_InitUpDownTime <= 0 )
+  return( 0 );
+ return( f_InitialCommitment ? f_InitialCommitment : get_number_modules() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -609,25 +866,42 @@ void ConversionUnitBlock::generate_abstract_variables( Configuration * stvv )
  UnitBlock::generate_abstract_variables( stvv );
  const Index T = f_time_horizon;
 
+ // the design: binary, the number of modules built or the capacity
+ if( has_design() ) {
+  const char dm = design_mode();
+  design.set_type( dm == 'a' ? ColVariable::kBinary :
+                   ( dm == 'b' ? ColVariable::kNatural :
+                                 ColVariable::kNonNegative ) );
+  add_static_variable( design , "x_conversion" );
+  }
+ else
+  design.set_value( std::numeric_limits< double >::quiet_NaN() );
+
+ // binary, or the numbers of modules on, started up and shut down
+ const auto ct = ( get_number_modules() > 1 ) ? ColVariable::kNatural
+                                              : ColVariable::kBinary;
+
  v_commitment.resize( T );
  for( auto & var : v_commitment )
-  var.set_type( ColVariable::kBinary );
+  var.set_type( ct );
  add_static_variable( v_commitment , "u_conversion" );
 
  v_start_up.resize( T );
  for( auto & var : v_start_up )
-  var.set_type( ColVariable::kBinary );
+  var.set_type( ct );
  add_static_variable( v_start_up , "v_conversion" );
 
  v_shut_down.resize( T );
  for( auto & var : v_shut_down )
-  var.set_type( ColVariable::kBinary );
+  var.set_type( ct );
  add_static_variable( v_shut_down , "w_conversion" );
 
+ // the powers delivered at the instants of the horizon, then those of the
+ // instants of operation whose power is delivered after it
  v_active_power.resize( f_G );
- for( auto & pg : v_active_power ) {
-  pg.resize( T );
-  for( auto & var : pg )
+ for( Index g = 0 ; g < f_G ; ++g ) {
+  v_active_power[ g ].resize( T + head_size( g ) );
+  for( auto & var : v_active_power[ g ] )
    var.set_type( ColVariable::kContinuous );
   }
  add_static_variable( v_active_power , "p_conversion" );
@@ -693,7 +967,7 @@ void ConversionUnitBlock::generate_abstract_constraints( Configuration * stcc )
  f_row_count.clear();  // now the position of the next row of each group
  build_rows();
 
- if( zo ) {
+ if( zo && ( get_number_modules() == 1 ) ) {
   StartUp_Binary_Bound.resize( f_time_horizon );
   ShutDown_Binary_Bound.resize( f_time_horizon );
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
@@ -821,6 +1095,11 @@ void ConversionUnitBlock::build_rows( void )
  const Index t0 = first_free_instant();
  const bool on0 = ( f_InitUpDownTime > 0 );
  auto p_init = [ & ]( Index g ) { return( on0 ? v_InitialPower[ g ] : 0 ); };
+ const Index N = get_number_modules();
+ const double k0 = get_initial_commitment();  // u[ -1 ]
+ const double U = get_design_ub();  // the multiplier of the data
+ const char dm = design_mode();
+ const bool cd = ( dm == 'c' );  // a continuous design
 
  LinearFunction::v_coeff_pair vars;
  auto add = [ & vars ]( ColVariable & v , double c ) {
@@ -860,7 +1139,7 @@ void ConversionUnitBlock::build_rows( void )
    add( v_commitment[ t - 1 ] , -1 );
   add( v_start_up[ t ] , -1 );
   add( v_shut_down[ t ] , 1 );
-  const double rhs = ( t == 0 ) && on0 ? 1 : 0;
+  const double rhs = ( t == 0 ) ? k0 : 0;
   push_row( Logical_Const , std::move( vars ) , rhs , rhs );
   }
  add_rows( Logical_Const , "Logical_Const_Conversion" );
@@ -879,9 +1158,32 @@ void ConversionUnitBlock::build_rows( void )
        s <= t ; ++s )
    add( v_shut_down[ s ] , 1 );
   add( v_commitment[ t ] , 1 );
-  push_row( MinDown_Const , std::move( vars ) , - INF , 1 );
+  if( dm == 'b' ) {  // the modules built and off
+   add( design , -1 );
+   push_row( MinDown_Const , std::move( vars ) , - INF , 0 );
+   }
+  else
+   push_row( MinDown_Const , std::move( vars ) , - INF , double( N ) );
   }
  add_rows( MinDown_Const , "MinDown_Const_Conversion" );
+
+ // u_t <= N x (binary design) or u_t <= x (integer design) - - - - - - - - -
+
+ if( ( dm == 'a' ) || ( dm == 'b' ) ) {
+  for( Index t = 0 ; t < T ; ++t ) {
+   add( v_commitment[ t ] , 1 );
+   add( design , dm == 'a' ? - double( N ) : -1.0 );
+   push_row( CommitmentDesign_Const , std::move( vars ) , - INF , 0 );
+   }
+  add_rows( CommitmentDesign_Const , "CommitmentDesign_Const_Conversion" );
+  }
+
+ if( has_design() ) {
+  put_box( DesignBound , & design , std::max( 0.0 , f_MinCapacityDesign ) ,
+           std::abs( f_MaxCapacityDesign ) );
+  if( generating_rows() && ( ! f_counting ) )
+   add_static_constraint( DesignBound , "DesignBound_Conversion" );
+  }
 
  // the bounds of u and w[ 0 ]- - - - - - - - - - - - - - - - - - - - - - -
 
@@ -889,8 +1191,8 @@ void ConversionUnitBlock::build_rows( void )
   Commitment_Bound.resize( T );
  for( Index t = 0 ; t < T ; ++t )
   put_box( Commitment_Bound[ t ] , & v_commitment[ t ] ,
-           ( on0 && ( t < t0 ) ) ? 1 : 0 ,
-           ( ( ! on0 ) && ( t < t0 ) ) ? 0 : 1 );
+           ( on0 && ( t < t0 ) ) ? k0 : 0 ,
+           ( ( ! on0 ) && ( t < t0 ) ) ? 0 : double( N ) );
  if( generating_rows() && ( ! f_counting ) && T )
   add_static_constraint( Commitment_Bound , "Commitment_Bound_Conversion" );
 
@@ -900,15 +1202,33 @@ void ConversionUnitBlock::build_rows( void )
    for( Index g = 0 ; g < f_G ; ++g ) {
     double lo , hi;
     limit_box( false , 0 , g , lo , hi );
+    lo *= k0;  // the box of the modules on before the horizon
+    hi *= k0;
     const double p = p_init( g );
     if( ( p < lo - 1e-9 * std::max( 1.0 , std::abs( lo ) ) ) ||
         ( p > hi + 1e-9 * std::max( 1.0 , std::abs( hi ) ) ) )
      sd0 = false;
     }
-  put_box( ShutDownZero_Bound , & v_shut_down[ 0 ] , 0 , sd0 ? 1 : 0 );
+  // with several modules, those on before the horizon cannot shut down
+  // before t0, which with one module the bounds of u already say
+  if( ( N > 1 ) && on0 && ( t0 > 0 ) )
+   sd0 = false;
+  put_box( ShutDownZero_Bound , & v_shut_down[ 0 ] , 0 ,
+           sd0 ? double( N ) : 0 );
   if( generating_rows() && ( ! f_counting ) )
    add_static_constraint( ShutDownZero_Bound ,
                           "ShutDownZero_Bound_Conversion" );
+  }
+
+ if( ( N > 1 ) && ( T > 1 ) ) {
+  if( generating_rows() )
+   ShutDownInitial_Bound.resize( T - 1 );
+  for( Index t = 1 ; t < T ; ++t )
+   put_box( ShutDownInitial_Bound[ t - 1 ] , & v_shut_down[ t ] , 0 ,
+            ( on0 && ( t < t0 ) ) ? 0 : double( N ) );
+  if( generating_rows() && ( ! f_counting ) )
+   add_static_constraint( ShutDownInitial_Bound ,
+                          "ShutDown_Initial_Bound_Conversion" );
   }
 
  // (4)-(7), the bounds of the powers - - - - - - - - - - - - - - - - - - - -
@@ -923,18 +1243,46 @@ void ConversionUnitBlock::build_rows( void )
   return( upper ? hi : lo );
   };
 
+ // the row terms <= P u_t (upper) or terms >= P u_t, P being per unit
+ // of design: with a continuous design x in [ 0 , X ] the pair
+ // terms <= P x + ( - P )^+ X ( 1 - u_t ) and, if ubox, terms <= P^+ X u_t
+ // (terms >= P x - P^+ X ( 1 - u_t ) and terms >= - ( - P )^+ X u_t)
+ const double XU = cd ? f_MaxCapacityDesign : 0;
+ auto side_rows = [ & ]( Index t ,
+                         const std::function< void( void ) > & terms ,
+                         std::vector< FRowConstraint > & rows , double P ,
+                         bool upper , bool ubox ) {
+  if( ! cd ) {
+   terms();
+   add( v_commitment[ t ] , - P );
+   push_row( rows , std::move( vars ) , upper ? - INF : 0 ,
+             upper ? 0 : INF );
+   return;
+   }
+  const double c = ( upper ? pos( - P ) : pos( P ) ) * XU;
+  terms();
+  add( design , - P );
+  add( v_commitment[ t ] , upper ? c : - c );
+  push_row( rows , std::move( vars ) , upper ? - INF : - c ,
+            upper ? c : INF );
+  if( ubox ) {
+   terms();
+   add( v_commitment[ t ] , - ( upper ? pos( P ) : - pos( - P ) ) * XU );
+   push_row( rows , std::move( vars ) , upper ? - INF : 0 ,
+             upper ? 0 : INF );
+   }
+  };
+
  for( Index t = 0 ; t < T ; ++t )
   for( Index g = 0 ; g < f_G ; ++g ) {
    const double mn = v_MinPower[ t ][ g ];
    const double mx = v_MaxPower[ t ][ g ];
    const bool last = ( t + 1 >= T );
-   auto & p = v_active_power[ g ][ t ];
+   auto & p = op( g , t );
 
-   if( ! has_lower_limit( g ) ) {
-    add( p , 1 );
-    add( v_commitment[ t ] , - mn );
-    push_row( MinPower_Const , std::move( vars ) , 0 , INF );
-    }
+   if( ! has_lower_limit( g ) )
+    side_rows( t , [ & ]() { add( p , 1 ); } , MinPower_Const , mn , false ,
+               true );
    else {
     const double ls = hat( false , true , t , g );
     const double ld = hat( false , false , t , g );
@@ -963,11 +1311,9 @@ void ConversionUnitBlock::build_rows( void )
      }
     }
 
-   if( ! has_upper_limit( g ) ) {
-    add( p , 1 );
-    add( v_commitment[ t ] , - mx );
-    push_row( MaxPower_Const , std::move( vars ) , - INF , 0 );
-    }
+   if( ! has_upper_limit( g ) )
+    side_rows( t , [ & ]() { add( p , 1 ); } , MaxPower_Const , mx , true ,
+               true );
    else {
     const double us = hat( true , true , t , g );
     const double ud = hat( true , false , t , g );
@@ -1001,14 +1347,22 @@ void ConversionUnitBlock::build_rows( void )
 
  if( generating_rows() ) {
   ActivePower_Bound.resize( f_G );
-  for( auto & b : ActivePower_Bound )
-   b.resize( T );
+  for( Index g = 0 ; g < f_G ; ++g )
+   ActivePower_Bound[ g ].resize( v_active_power[ g ].size() );
   }
  for( Index g = 0 ; g < f_G ; ++g )
-  for( Index t = 0 ; t < T ; ++t )
-   put_box( ActivePower_Bound[ g ][ t ] , & v_active_power[ g ][ t ] ,
-            std::min( 0.0 , double( v_MinPower[ t ][ g ] ) ) ,
-            std::max( 0.0 , double( v_MaxPower[ t ][ g ] ) ) );
+  for( Index i = 0 ; i < v_active_power[ g ].size() ; ++i ) {
+   if( i < head_size( g ) ) {  // delivered by the operation before 0
+    const double d = get_initial_delayed_power( i , g );
+    put_box( ActivePower_Bound[ g ][ i ] , & v_active_power[ g ][ i ] , d ,
+             d );
+    continue;
+    }
+   const Index t = instant_of( g , i );
+   put_box( ActivePower_Bound[ g ][ i ] , & v_active_power[ g ][ i ] ,
+            U * std::min( 0.0 , double( v_MinPower[ t ][ g ] ) ) ,
+            U * std::max( 0.0 , double( v_MaxPower[ t ][ g ] ) ) );
+   }
  if( generating_rows() && ( ! f_counting ) && T )
   add_static_constraint( ActivePower_Bound ,
                          "ActivePower_Bound_Conversion" );
@@ -1017,30 +1371,26 @@ void ConversionUnitBlock::build_rows( void )
 
  auto add_ap = [ & ]( Index t , Index m ) {
   for( Index g = 0 ; g < f_G ; ++g )
-   if( v_OperatingMatrix[ m ][ g ] != 0 )
-    add( v_active_power[ g ][ t ] , v_OperatingMatrix[ m ][ g ] );
+   if( const double a = get_operating_coefficient( m , g , t ) ; a != 0 )
+    add( op( g , t ) , a );
   };
 
  for( Index t = 0 ; t < T ; ++t )
   for( Index m = 0 ; m < f_M ; ++m ) {
    const double lo = get_operating_lhs( t , m );
    const double hi = get_operating_rhs( t , m );
-   if( lo == hi ) {
+   if( ( lo == hi ) && ( ! cd ) ) {
     add_ap( t , m );
     add( v_commitment[ t ] , - hi );
     push_row( Operating_Const , std::move( vars ) , 0 , 0 );
     continue;
     }
-   if( hi < INF ) {
-    add_ap( t , m );
-    add( v_commitment[ t ] , - hi );
-    push_row( Operating_Const , std::move( vars ) , - INF , 0 );
-    }
-   if( lo > - INF ) {
-    add_ap( t , m );
-    add( v_commitment[ t ] , - lo );
-    push_row( Operating_Const , std::move( vars ) , 0 , INF );
-    }
+   if( hi < INF )
+    side_rows( t , [ & ]() { add_ap( t , m ); } , Operating_Const , hi ,
+               true , false );
+   if( lo > - INF )
+    side_rows( t , [ & ]() { add_ap( t , m ); } , Operating_Const , lo ,
+               false , false );
    }
  add_rows( Operating_Const , "Operating_Const_Conversion" );
 
@@ -1055,9 +1405,9 @@ void ConversionUnitBlock::build_rows( void )
    const double c = get_ramp_coefficient( k , g );
    if( c == 0 )
     continue;
-   add( v_active_power[ g ][ t ] , sgn * c );
+   add( op( g , t ) , sgn * c );
    if( t )
-    add( v_active_power[ g ][ t - 1 ] , - sgn * c );
+    add( op( g , t - 1 ) , - sgn * c );
    else
     cst += sgn * c * p_init( g );
    }
@@ -1123,7 +1473,7 @@ void ConversionUnitBlock::build_rows( void )
                         Index g , std::vector< FRowConstraint > & rows ) {
   for( Index t = 0 ; t < T ; ++t ) {
    add( ( * r )[ t ] , 1 );
-   add( v_active_power[ g ][ t ] , - rho[ t ][ g ] * v_sign[ g ] );
+   add( op( g , t ) , - rho[ t ][ g ] * v_sign[ g ] );
    push_row( rows , std::move( vars ) , - INF , 0 );
    }
   };
@@ -1143,7 +1493,7 @@ void ConversionUnitBlock::build_rows( void )
 
  // the terms of q^s[ t ][ h ]
  auto add_q = [ & ]( Index t , Index h , double s ) {
-  add( v_active_power[ h ][ t ] , 1 );
+  add( op( h , t ) , 1 );
   for( auto g : R )
    if( D( h , g ) != 0 )
     add_r( t , g , s * D( h , g ) );
@@ -1160,11 +1510,9 @@ void ConversionUnitBlock::build_rows( void )
     const bool last = ( t + 1 >= T );
 
     if( pos_entry( dh , s ) ) {  // the upper side
-     if( ! has_upper_limit( h ) ) {
-      add_q( t , h , s );
-      add( v_commitment[ t ] , - mx );
-      push_row( ReserveBound_Const , std::move( vars ) , - INF , 0 );
-      }
+     if( ! has_upper_limit( h ) )
+      side_rows( t , [ & ]() { add_q( t , h , s ); } , ReserveBound_Const ,
+                 mx , true , true );
      else {
       add_q( t , h , s );
       add( v_commitment[ t ] , - mx );
@@ -1180,11 +1528,9 @@ void ConversionUnitBlock::build_rows( void )
      }
 
     if( pos_entry( dh , - s ) ) {  // the lower side
-     if( ! has_lower_limit( h ) ) {
-      add_q( t , h , s );
-      add( v_commitment[ t ] , - mn );
-      push_row( ReserveBound_Const , std::move( vars ) , 0 , INF );
-      }
+     if( ! has_lower_limit( h ) )
+      side_rows( t , [ & ]() { add_q( t , h , s ); } , ReserveBound_Const ,
+                 mn , false , true );
      else {
       add_q( t , h , s );
       add( v_commitment[ t ] , - mn );
@@ -1208,7 +1554,7 @@ void ConversionUnitBlock::build_rows( void )
    std::vector< double > ad( f_G , 0 );
    for( auto g : R )
     for( Index h = 0 ; h < f_G ; ++h )
-     ad[ g ] += v_OperatingMatrix[ m ][ h ] * D( h , g );
+     ad[ g ] += get_operating_coefficient( m , h , t ) * D( h , g );
    const double lo = get_operating_lhs( t , m );
    const double hi = get_operating_rhs( t , m );
 
@@ -1223,18 +1569,16 @@ void ConversionUnitBlock::build_rows( void )
     }
 
    for( double s : { 1.0 , -1.0 } ) {
-    auto row = [ & ]( double b , double lhs , double rhs ) {
+    auto terms = [ & ]() {
      add_ap( t , m );
      for( auto g : R )
       if( ad[ g ] != 0 )
        add_r( t , g , s * ad[ g ] );
-     add( v_commitment[ t ] , - b );
-     push_row( ReserveOperating_Const , std::move( vars ) , lhs , rhs );
      };
     if( ( hi < INF ) && pos_entry( ad , s ) )
-     row( hi , - INF , 0 );
+     side_rows( t , terms , ReserveOperating_Const , hi , true , false );
     if( ( lo > - INF ) && pos_entry( ad , - s ) )
-     row( lo , 0 , INF );
+     side_rows( t , terms , ReserveOperating_Const , lo , false , false );
     }
    }
  add_rows( ReserveOperating_Const , "Reserve_Operating_Const_Conversion" );
@@ -1351,7 +1695,7 @@ void ConversionUnitBlock::generate_objective( Configuration * objc )
                                    f_scale * get_const_term( t ) , 0 ) );
  for( Index g = 0 ; g < f_G ; ++g )
   for( Index t = 0 ; t < T ; ++t )
-   vars.push_back( std::make_tuple( & v_active_power[ g ][ t ] ,
+   vars.push_back( std::make_tuple( & op( g , t ) ,
                                     f_scale * get_linear_term( t , g ) ,
                                     f_scale * get_quad_term( t , g ) ) );
  auto reserve = [ & ]( std::vector< std::vector< ColVariable > > & r ,
@@ -1363,6 +1707,9 @@ void ConversionUnitBlock::generate_objective( Configuration * objc )
   };
  reserve( v_primary_reserve , v_PrimaryCost );
  reserve( v_secondary_reserve , v_SecondaryCost );
+ if( has_design() )  // the design last
+  vars.push_back( std::make_tuple( & design , f_scale * f_InvestmentCost ,
+                                   0 ) );
 
  objective.set_function( new DQuadFunction( std::move( vars ) ) );
  objective.set_sense( Objective::eMin );
@@ -1415,6 +1762,17 @@ void ConversionUnitBlock::update_objective( const Subset & instants ,
  }
 
 /*--------------------------------------------------------------------------*/
+
+void ConversionUnitBlock::update_design_cost( ModParam issueAMod )
+{
+ if( ( ! objective_generated() ) || ( ! has_design() ) )
+  return;
+ auto f = static_cast< DQuadFunction * >( objective.get_function() );
+ f->modify_term( f->get_num_active_var() - 1 , f_scale * f_InvestmentCost ,
+                 0 , un_ModBlock( issueAMod ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- CHECKING THE ConversionUnitBlock --------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1425,7 +1783,9 @@ bool ConversionUnitBlock::is_feasible( bool useabstract ,
  bool rel_viol = true;
  extract_tolerance( fsbc , f_BlockConfig , tol , rel_viol );
 
- return( ColVariable::is_feasible( v_commitment , tol )
+ return( ( ( ! has_design() ) || ( ! variables_generated() ) ||
+           design.is_feasible( tol ) )
+  && ColVariable::is_feasible( v_commitment , tol )
   && ColVariable::is_feasible( v_start_up , tol )
   && ColVariable::is_feasible( v_shut_down , tol )
   && ColVariable::is_feasible( v_active_power , tol )
@@ -1447,6 +1807,10 @@ bool ConversionUnitBlock::is_feasible( bool useabstract ,
   && RowConstraint::is_feasible( Commitment_Bound , tol , rel_viol )
   && ( ( ! constraints_generated() ) || ( ! f_time_horizon ) ||
        RowConstraint::is_feasible( ShutDownZero_Bound , tol , rel_viol ) )
+  && RowConstraint::is_feasible( ShutDownInitial_Bound , tol , rel_viol )
+  && RowConstraint::is_feasible( CommitmentDesign_Const , tol , rel_viol )
+  && ( ( ! has_design() ) || ( ! constraints_generated() ) ||
+       RowConstraint::is_feasible( DesignBound , tol , rel_viol ) )
   && RowConstraint::is_feasible( ActivePower_Bound , tol , rel_viol ) );
  }
 
@@ -1508,7 +1872,13 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
  put( "MinPower" , v_MinPower , TH , NG );
  put( "MaxPower" , v_MaxPower , TH , NG );
  if( f_M ) {
-  put( "OperatingMatrix" , v_OperatingMatrix , NM , NG );
+  const Index n0 = v_OperatingMatrix.shape()[ 0 ];
+  if( n0 > 1 )  // one matrix per instant
+   group.addVar( "OperatingMatrix" , netCDF::NcDouble() ,
+                 { TH , NM , NG } ).putVar( v_OperatingMatrix.data() );
+  else
+   group.addVar( "OperatingMatrix" , netCDF::NcDouble() ,
+                 { NM , NG } ).putVar( v_OperatingMatrix.data() );
   put( "OperatingLHS" , v_OperatingLHS , TH , NM );
   put( "OperatingRHS" , v_OperatingRHS , TH , NM );
   }
@@ -1547,8 +1917,35 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
               f_InitUpDownTime );
  ::serialize( group , "MinUpTime" , netCDF::NcUint() , f_MinUpTime );
  ::serialize( group , "MinDownTime" , netCDF::NcUint() , f_MinDownTime );
+ if( f_Modules != 1 )
+  ::serialize( group , "Modules" , netCDF::NcUint() , f_Modules );
+ if( f_InitialCommitment )
+  ::serialize( group , "InitialCommitment" , netCDF::NcUint() ,
+               f_InitialCommitment );
+ if( has_design() ) {
+  ::serialize( group , "InvestmentCost" , netCDF::NcDouble() ,
+               f_InvestmentCost );
+  if( f_MinCapacityDesign != 0 )
+   ::serialize( group , "MinCapacityDesign" , netCDF::NcDouble() ,
+                f_MinCapacityDesign );
+  if( f_MaxCapacityDesign != -1 )
+   ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
+                f_MaxCapacityDesign );
+  }
  if( f_scale != 1 )
   ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
+
+ if( ! v_Delay.empty() ) {
+  std::vector< unsigned int > d( v_Delay.begin() , v_Delay.end() );
+  group.addVar( "Delay" , netCDF::NcUint() , NG ).putVar( d.data() );
+  }
+ if( ! v_CyclicDelay.empty() )
+  group.addVar( "CyclicDelay" , netCDF::NcInt() , NG ).putVar(
+                                                     v_CyclicDelay.data() );
+ if( ! absent( v_InitialDelayedPower ) )
+  put( "InitialDelayedPower" , v_InitialDelayedPower ,
+       group.addDim( "NumberDelayedInstants" ,
+                     v_InitialDelayedPower.shape()[ 0 ] ) , NG );
 
  }  // end( ConversionUnitBlock::serialize )
 
@@ -1559,7 +1956,7 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
 void ConversionUnitBlock::issue_mod( int type , Index index ,
                                      Subset && subset , ModParam issuePMod )
 {
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ConversionUnitBlockMod::changes_of( type ) ) )
   Block::add_Modification( std::make_shared< ConversionUnitBlockMod >(
                             this , type , index , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -1967,6 +2364,90 @@ void ConversionUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+                                                     Index g , Range rng ,
+                                                     ModParam issuePMod ,
+                                                     ModParam issueAMod )
+{
+ static const std::string who =
+                         "ConversionUnitBlock::set_initial_delayed_power";
+ if( g >= f_G )
+  throw( std::invalid_argument( who + ": invalid generator " +
+                                std::to_string( g ) ) );
+ rng.second = std::min( rng.second , head_size( g ) );
+ if( rng.second <= rng.first )
+  return;
+
+ bool same = true;
+ auto it = values;
+ for( Index s = rng.first ; s < rng.second ; ++s )
+  same &= ( get_initial_delayed_power( s , g ) == *( it++ ) );
+ if( same )
+  return;
+
+ if( not_dry_run( issuePMod ) ) {
+  MAdbl old;
+  copy_into( old , v_InitialDelayedPower );
+  if( absent( v_InitialDelayedPower ) ) {
+   Index H = 0;
+   for( Index h = 0 ; h < f_G ; ++h )
+    H = std::max( H , head_size( h ) );
+   v_InitialDelayedPower.resize( boost::extents[ H ][ f_G ] );
+   std::fill( v_InitialDelayedPower.data() , v_InitialDelayedPower.data() +
+              v_InitialDelayedPower.num_elements() , 0.0 );
+   }
+  it = values;
+  for( Index s = rng.first ; s < rng.second ; ++s )
+   v_InitialDelayedPower[ s ][ g ] = *( it++ );
+  try {
+   if( not_dry_run( issueAMod ) )
+    update_rows( issueAMod );
+   }
+  catch( ... ) {
+   copy_into( v_InitialDelayedPower , old );
+   throw;
+   }
+  }
+
+ issue_mod( ConversionUnitBlockMod::eSetInitDelP , g ,
+            range_subset( rng , head_size( g ) ) , issuePMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+                                                     Subset && subset ,
+                                                     const bool ordered ,
+                                                     ModParam issuePMod ,
+                                                     ModParam issueAMod )
+{
+ // one change per entry [ g ][ s ], of index g T + s
+ const Index T = f_time_horizon;
+ for( auto i : subset ) {
+  if( ( ! T ) || ( i >= f_G * T ) )
+   throw( std::invalid_argument( "ConversionUnitBlock::"
+                                 "set_initial_delayed_power: invalid index " +
+                                 std::to_string( i ) ) );
+  set_initial_delayed_power( values++ , i / T ,
+                             Range( i % T , i % T + 1 ) , issuePMod ,
+                             issueAMod );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+                                                     Range rng ,
+                                                     ModParam issuePMod ,
+                                                     ModParam issueAMod )
+{
+ set_initial_delayed_power( values ,
+                            range_subset( rng , f_G * f_time_horizon ) ,
+                            true , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void ConversionUnitBlock::set_init_updown_time( MF_int_it values ,
                                                 Range rng ,
                                                 ModParam issuePMod ,
@@ -1998,6 +2479,41 @@ void ConversionUnitBlock::set_init_updown_time( MF_int_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+void ConversionUnitBlock::set_investment_cost( MF_dbl_it values ,
+                                               Range rng ,
+                                               ModParam issuePMod ,
+                                               ModParam issueAMod )
+{
+ if( ( rng.second <= rng.first ) || ( *values == f_InvestmentCost ) )
+  return;
+ if( ! has_design() )
+  throw( std::invalid_argument( "ConversionUnitBlock::set_investment_cost: "
+                                "the unit has no design variable" ) );
+
+ if( not_dry_run( issuePMod ) ) {
+  f_InvestmentCost = *values;
+  if( not_dry_run( issueAMod ) )
+   update_design_cost( issueAMod );
+  }
+
+ issue_mod( ConversionUnitBlockMod::eSetInvCost , 0 , Subset() ,
+            issuePMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void ConversionUnitBlock::set_investment_cost( MF_dbl_it values ,
+                                               Subset && subset ,
+                                               const bool ordered ,
+                                               ModParam issuePMod ,
+                                               ModParam issueAMod )
+{
+ if( ! subset.empty() )
+  set_investment_cost( values , Range( 0 , 1 ) , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void ConversionUnitBlock::scale( MF_dbl_it values , Subset && subset ,
                                  const bool ordered ,
                                  c_ModParam issuePMod ,
@@ -2008,12 +2524,15 @@ void ConversionUnitBlock::scale( MF_dbl_it values , Subset && subset ,
 
  if( not_dry_run( issuePMod ) ) {
   f_scale = *values;
-  if( not_dry_run( issueAMod ) && objective_generated() )
+  if( not_dry_run( issueAMod ) && objective_generated() ) {
    update_objective( range_subset( Range( 0 , f_time_horizon ) ,
                                    f_time_horizon ) , issueAMod );
+   update_design_cost( issueAMod );
+   }
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
+                 UnitBlockMod::eScale ) ) )
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                             this , UnitBlockMod::eScale ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2266,6 +2785,13 @@ void ConversionUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
                 true , false );
  ::deserialize( group , "ConversionShutDown" , f_time_horizon , v_shut_down ,
                 true , false );
+ v_tail.clear();
+ Index nt = 0;
+ if( deserialize_dim( group , "NumberTailPowers" , nt ) )
+  ::deserialize( group , "ConversionTailPower" , nt , v_tail , false ,
+                 false );
+ if( ! ::deserialize< double >( group , f_design , "ConversionDesign" ) )
+  f_design = std::numeric_limits< double >::quiet_NaN();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2293,6 +2819,16 @@ void ConversionUnitBlockSolution::read( const Block * block )
   v_start_up.clear();
   v_shut_down.clear();
   }
+
+ f_design = cub->has_design() ? cub->get_design().get_value()
+                               : std::numeric_limits< double >::quiet_NaN();
+
+ v_tail.clear();
+ if( get_active_power().num_elements() )  // with the active powers
+  for( Index g = 0 ; g < CUB->get_number_generators() ; ++g )
+   if( auto tp = cub->get_tail_power( g ) )
+    for( Index i = 0 ; i < cub->get_number_tail_powers( g ) ; ++i )
+     v_tail.push_back( tp[ i ].get_value() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2315,6 +2851,20 @@ void ConversionUnitBlockSolution::write( Block * block )
   if( auto sd = CUB->get_shut_down() )
    for( Index t = 0 ; t < T ; ++t )
     sd[ t ].set_value( v_shut_down[ t ] );
+
+ if( CUB->has_design() && ( ! std::isnan( f_design ) ) )
+  CUB->get_design().set_value( f_design );
+
+ Index nt = 0;
+ for( Index g = 0 ; g < CUB->get_number_generators() ; ++g )
+  nt += CUB->get_number_tail_powers( g );
+ if( nt && ( v_tail.size() == nt ) ) {
+  auto it = v_tail.begin();
+  for( Index g = 0 ; g < CUB->get_number_generators() ; ++g )
+   if( auto tp = CUB->get_tail_power( g ) )
+    for( Index i = 0 ; i < CUB->get_number_tail_powers( g ) ; ++i )
+     tp[ i ].set_value( *( it++ ) );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2331,6 +2881,13 @@ void ConversionUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
  if( ! v_shut_down.empty() )
   group.addVar( "ConversionShutDown" , netCDF::NcDouble() , TH ).putVar(
                                                        v_shut_down.data() );
+ if( ! std::isnan( f_design ) )
+  ::serialize< double >( group , "ConversionDesign" , netCDF::NcDouble() ,
+                         f_design );
+ if( ! v_tail.empty() )
+  group.addVar( "ConversionTailPower" , netCDF::NcDouble() ,
+                group.addDim( "NumberTailPowers" , v_tail.size() ) ).putVar(
+                                                            v_tail.data() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2346,6 +2903,10 @@ ConversionUnitBlockSolution * ConversionUnitBlockSolution::scale(
   v *= factor;
  for( auto & v : sol->v_shut_down )
   v *= factor;
+ for( auto & v : sol->v_tail )
+  v *= factor;
+ if( ! std::isnan( sol->f_design ) )
+  sol->f_design *= factor;
  return( sol );
  }
 
@@ -2362,14 +2923,23 @@ void ConversionUnitBlockSolution::sum( const Solution * solution ,
                                 "solution not a "
                                 "ConversionUnitBlockSolution" ) );
  if( ( v_start_up.size() != CS->v_start_up.size() ) ||
-     ( v_shut_down.size() != CS->v_shut_down.size() ) )
+     ( v_shut_down.size() != CS->v_shut_down.size() ) ||
+     ( v_tail.size() != CS->v_tail.size() ) )
   throw( std::invalid_argument( "ConversionUnitBlockSolution::sum: "
                                 "inconsistent start-up or shut-down "
-                                "indicators" ) );
+                                "indicators, or powers after the "
+                                "horizon" ) );
  for( Index i = 0 ; i < v_start_up.size() ; ++i )
   v_start_up[ i ] += CS->v_start_up[ i ] * multiplier;
  for( Index i = 0 ; i < v_shut_down.size() ; ++i )
   v_shut_down[ i ] += CS->v_shut_down[ i ] * multiplier;
+ for( Index i = 0 ; i < v_tail.size() ; ++i )
+  v_tail[ i ] += CS->v_tail[ i ] * multiplier;
+ if( std::isnan( f_design ) != std::isnan( CS->f_design ) )
+  throw( std::invalid_argument( "ConversionUnitBlockSolution::sum: "
+                                "inconsistent design" ) );
+ if( ! std::isnan( f_design ) )
+  f_design += CS->f_design * multiplier;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2382,6 +2952,8 @@ ConversionUnitBlockSolution * ConversionUnitBlockSolution::clone(
   guts_of_clone( sol );
   sol->v_start_up = v_start_up;
   sol->v_shut_down = v_shut_down;
+  sol->v_tail = v_tail;
+  sol->f_design = f_design;
   }
  return( sol );
  }

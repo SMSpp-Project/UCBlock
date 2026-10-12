@@ -11,7 +11,9 @@ base class `UnitBlock`; several of these are available, such as
 `HydroSystemUnitBlock`, `BatteryUnitBlock`, `IntermittentUnitBlock`,
 `SlackUnitBlock` and `ConversionUnitBlock` (a plant with one commitment and
 several outputs or inputs on different nodes, such as a combined heat and power
-plant, the nodes of the network being of any energy carrier). Also, `UCBlock`
+plant or a heat pump, the nodes of the network being of any energy carrier,
+with coefficients that may change over time, outputs delivered with a delay,
+identical modules committed one by one and a design variable). Also, `UCBlock`
 knows that energy must flow between generating units and consumption points
 through an energy network, represented by a concrete class deriving from the
 abstract base class `NetworkBlock` (unless there is no network, i.e., the "bus"

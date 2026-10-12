@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the unit test checks the caps (27) through the maximum powers of a run on
+  two units with a varying availability, read with it and given it by
+  `set_availability()`, whose continuous relaxation in the pt, DP, SU, SD
+  and SUSD formulations is the integer optimum
+
+- `ThermalUnitExtDPSolver::get_dp_stats()` returns what the last run of
+  the dynamic program did: the on-states built, split by the trimming, kept
+  and their pieces, the largest number kept at an instant, the pairs of
+  states compared for the domination and how many of them removed a state
+  or a part of its domain; these counters do not depend on the machine
+
+- the documentation of `ACNetworkBlock` says which relaxation each value of
+  the static variables `Configuration` gives: with 0 the SOCP relaxation of
+  the bus injection model, a convex QCP whose quadratic rows are second-order
+  cones; by default its strengthening, whose static rows do not restrict
+  the voltage products, so that a solve that does not separate its McCormick
+  inequalities (a continuous relaxation by a `:MILPSolver` with
+  `intRelaxIntVars` 1) has the value of the SOCP relaxation
+
+- the unit test solves a `UCBlock` on an `ACNetworkBlock` in the two
+  relaxations, read from `test/ACBCfg-SOCP.txt` and `test/ACBCfg-QC.txt`,
+  with a `:MILPSolver` that solves a convex QCP (GUROBI or CPLEX): two
+  nodes and no line (each node an island, the known value), a line and a
+  chain (radial, the cones tight at the optimum and the two values equal)
+  and a triangle (the SOCP value not above the strengthened one)
+
 - `DCNetworkBlock` accepts hyperarcs together with lines of nonzero
   susceptance, in the KIRCHHOFF, PTDF and CYCLE formulations: a hyperarc,
   whose susceptance must be zero, is a controllable flow that enters the
@@ -31,6 +57,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the powers, spinning reserves deployed along directions given by the
   data, its netCDF format, setters with Modification and its Solution
 
+- `ConversionUnitBlock`: the coefficients of the operating rows may change
+  with the instant ("OperatingMatrix" with a first dimension indexed over the
+  instants, as the other data), e.g., the coefficient of performance of a
+  heat pump; a file with the matrix of old reads and behaves as before
+
+- `ConversionUnitBlock`: a generator may deliver its power with a delay of
+  some instants ("Delay"), the rows being written at the instant of
+  operation; the power delivered at the first instants comes from the
+  operation before the horizon ("InitialDelayedPower", 0 by default) and the
+  power of the last instants of operation is delivered after it, unless the
+  delay wraps around the horizon ("CyclicDelay"); the Solution saves the
+  powers delivered after the horizon
+
+- `ConversionUnitBlock`: a unit of N identical modules committed one by
+  one ("Modules"), the commitment, start-ups and shut-downs being the
+  numbers of modules, integer in 0..N, with the data of one module, the
+  minimum down time rows written with N - u and the modules on before the
+  horizon given by "InitialCommitment"; with N = 1 the rows are those of
+  before
+
+- `ConversionUnitBlock`: the design variable of the other units
+  ("InvestmentCost", "MinCapacityDesign", "MaxCapacityDesign", with their
+  sign convention): binary (the unit built or not, u <= N x), integer (the
+  number of modules built, each committed by itself, u <= x and the
+  minimum down time rows with x - u, exact and linear) or continuous (the
+  capacity, the data being per unit of it, with the big-M relaxation of
+  the product with the commitment on the largest capacity, documented as
+  weak); its cost in the Objective, its setter and its value in the
+  Solution
+
 - `data/gen_multi_energy.py` writes the multi-energy instances (a combined
   heat and power plant as a `ConversionUnitBlock` and with hyperarcs, a
   meshed network with a heat node) and prints their known optima; they are
@@ -45,6 +101,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on a meshed network with a heat node in the three formulations, its
   continuous relaxation against the optimum, its setters against a unit
   read afresh, its refused data and its round trip
+
+- `json2nc4.jl` accepts `--nuclear-share` and `--bands-reserve` with
+  `--nuclear-single`, which then writes the nuclear units of the fleet of
+  `--nuclear --nuclear-share`, with the reserve participation of the data
+  and bands as wide as that reserve, i.e., the units of the fleet as
+  standalone files; the output of the other options does not change
 
 - the unit test checks the continuous relaxations of the pt, SU, SD and SUSD
   formulations against the integer optimum on units on and off before the
@@ -104,6 +166,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `build_band_rows()` and `build_deep_rows_f1()`, which the formulations of
   the rules share
 
+- the maximum power rows (27) of the pt, SU, SD and SUSD formulations of
+  `ThermalUnitBlock` (and of `NuclearUnitBlock`, which inherits them) carry
+  by the ramps every maximum power met along a run, not only the start-up
+  and shut-down limits: the cap of an instant is the least of the maximum
+  powers of the instants of the run plus the ramps from them to it, which
+  is tighter when the maximum power changes in time, e.g., with the
+  availability, and the same as before with constant data; on 1312 random
+  units with a varying availability the continuous relaxation of SU is
+  below the integer optimum on 48 instead of 99, that of pt on 74 instead
+  of 129
+
+- the documentation of `ThermalUnitBlock` cites the SD and SUSD
+  formulations from their published version (AIRO Springer Series 5, 2021)
+  in place of the technical report R. 20-01 of IASI-CNR, whose rows have
+  the same numbers in the two
+
+- the bounding of `ThermalUnitExtDPSolver` may use a bound of a derived unit
+  that depends on the label and on the output (`completion_bound()`, built
+  by `prepare_completion_bound()` once more than 256 states are kept at an
+  instant); `NuclearUnitExtDPSolver` gives the cost-to-go of a relaxation of
+  its rules, computed backwards on a grid of the output, which keeps the
+  stability, the lockout and the counter of the modulations of the day: the
+  values are the same to the last digit, and on the subproblems of the
+  Lagrangian duals without bands the dynamic program takes about half of
+  the instructions it took
+
+- `ThermalUnitExtDPSolver` prunes the on-states by bounds, as a
+  branch-and-bound does: a state whose least value plus a lower bound on
+  the cost of the instants that follow (each at least the smaller of 0 and
+  the least cost of being on there) exceeds the cost of a feasible schedule
+  already met (one that stays off from an off-state, or that keeps the
+  output of an on-state to the end) is removed, which leaves the optimal
+  value unchanged, and on the instances of the tests the value of each
+  solve is the same to the last digit; the new virtual methods `min_move_cost()` and
+  `can_hold()` give the derived units the cost of their moves and whether a
+  label can keep its output, which `NuclearUnitExtDPSolver` implements. On
+  the subproblems of a Lagrangian dual in which a nuclear unit stays off,
+  the dynamic program keeps a few states instead of thousands at an instant
+
+- the unit test checks the bounding on a nuclear unit with long modulations
+  at prices at which it stays off: the value is 0 and no on-state is kept
+
+- the domination of `ThermalUnitExtDPSolver` compares a state only with the
+  states whose label dominates its own and whose domain meets its own, the
+  answers of `label_dominates()` being asked once per pair of labels, and
+  kept until the parameters are loaded again: the states kept and their value functions are those of before,
+  and the cost of the pruning is no longer that of all the pairs of states
+  (on a unit with long modulations, the domination took 96% of the time and
+  the decoding of the labels alone 43%)
+
 - the documentation of `UCBlock` and of the model describes nodes of any
   carrier (heat, gas) with their units, lines, zones and pollutant budgets,
   instead of saying that units producing heat are not modelled
@@ -159,6 +271,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each row (the same rows)
 
 ### Fixed
+
+- `ThermalUnitBlock` (and so `NuclearUnitBlock`) separated a perspective
+  cut every time the point violated it, also when the same cut, on the same
+  variable and at the same \check{p}, was in the Block already: in the
+  callback of a multithreaded MILP a point comes back many times, and on a
+  unit commitment of 10 units the 71461 cuts of a solve were 31175 distinct
+  ones. A cut is now added only if it is not there already, the
+  solver that has dropped it being the one that gives it again; and the
+  group "PC_cuts_Thermal" is registered once, by
+  `generate_abstract_constraints()`, where `generate_dynamic_constraints()`
+  added one more group viewing the same list at each call, so that a
+  solver reading the Block anew found each cut once per call made
+
+- `DCNetworkBlock` and `ACNetworkBlock` accept a network of several nodes
+  with no line (`NumberLines` 0, with none of the variables of the lines),
+  e.g., nodes of different carriers coupled only by a
+  `ConversionUnitBlock`, where they refused to generate their rows: every
+  node is then an island balanced by its own units, in the PTDF, CYCLE and
+  KIRCHHOFF formulations as in the AC one (the PTDF formulation writes then
+  the node balances of a pure HVDC network, which it wrote only when some
+  line had zero susceptance, while a change of the demand already looked
+  for them); a network with lines gives the same model as before
 
 - `ThermalUnitExtDPSolver` (and so `NuclearUnitExtDPSolver`) prunes a
   state whose domain is narrower than 1e-9 by comparing the values at that
@@ -1222,7 +1356,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - DesignNetworkBlockSolution
 
-- [big] DesignNetworkBlock allowing to do desing of lines across the
+- [big] DesignNetworkBlock allowing to do design of lines across the
   time horizon
 
 - simple stochastic case in csv2netcdf
@@ -1277,7 +1411,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - UCBlock::set\_active_power\_demand methods
 
-- separated battery desing from converter design in BatteryUnitBlock
+- separated battery design from converter design in BatteryUnitBlock
 
 - IntakeOuttake\_Design\_Battery constraint in BatteryUnitBlock
 

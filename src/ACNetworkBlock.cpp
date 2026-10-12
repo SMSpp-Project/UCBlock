@@ -631,11 +631,6 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  const auto number_lines = get_number_lines();
 
- if( number_lines <= 0 )
-  throw( std::logic_error( "ACNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" )
-         );
-
  // do not call DCNetworkBlock::generate_abstract_constraints( stcc ) since
  // the class entirely redefines its constraints, but directly call
  // generate_bound_constraints() to have the bound constraints generated

@@ -470,10 +470,6 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
  // get data
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-    				                   "number of lines of DCNetworkBlock is not set" ) );
-
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
 
@@ -605,12 +601,6 @@ void DCNetworkData::compute_cycle_basis( void ) {
   return;
 
  const Index number_nodes = get_number_nodes();
- const Index number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw std::logic_error(
-   "DCNetworkData::compute_cycle_basis: number of lines not set"
-  );
 
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
@@ -975,12 +965,6 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  if( number_nodes <= 1 )
   return;
 
- const auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
-
  // ----- First step: compute the cycle basis and spanning tree
  // cycle incidence matrices C_{lc} in the paper
  auto basis = f_NetworkData->get_lines_in_cycles();
@@ -1181,12 +1165,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
  const auto number_nodes = get_number_nodes();
  if( number_nodes <= 1 )
   return;
-
- const auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_KIRCHHOFF_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
 
  LinearFunction::v_coeff_pair vars;
 
@@ -1429,12 +1407,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  if( number_nodes <= 1 )
   return;
 
- auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
-
  LinearFunction::v_coeff_pair vars;
 
  const auto & start_line = f_NetworkData->get_start_line();
@@ -1445,49 +1417,43 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  auto & DC_lines = f_NetworkData->get_DC_lines();
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
 
- // constraints on the HVDC part- - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ! f_NetworkData->is_DC() ) {  // ... if any
+ // pure HVDC network, or no line at all: the balance of every node
+ if( f_NetworkData->is_HVDC() ) {
+  v_power_flow_injection_const.resize( number_nodes );
 
-  // power flow node injection constraints for pure HVDC- - - - - - - - - - -
-  if( f_NetworkData->is_HVDC() ) {
-   v_power_flow_injection_const.resize( number_nodes );
+  for( Index n = 0 ; n < number_nodes ; ++n ) {
+   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
+   double eta = 1.0;
+   for( auto & line_id : HVDC_lines ) {
+    // start node
+    if( start_line[ line_id ] == n )
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
 
-   for( Index n = 0 ; n < number_nodes ; ++n ) {
-    vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
-    double eta = 1.0;
-    for( auto & line_id : HVDC_lines ) {
-     // start node
-     if( start_line[ line_id ] == n )
-      vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
-
-     if( ! f_NetworkData->is_hypergraph() ) {
-      // if no hyperarch -> normal behavior from get_line_efficiency
-      eta = get_line_efficiency( line_id );
-      // efficiency of the HVDC line
-      if( end_line[ line_id ] == n )
+    if( ! f_NetworkData->is_hypergraph() ) {
+     // if no hyperarch -> normal behavior from get_line_efficiency
+     eta = get_line_efficiency( line_id );
+     // efficiency of the HVDC line
+     if( end_line[ line_id ] == n )
+      vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
+     }
+    else { // if hyperarch -> loop over v_end_lines and get_line_efficiencies
+     auto & end_lines = f_NetworkData->get_end_lines()[ line_id ];
+     for( Index i = 0 ; i < end_lines.size() ; ++i ) {
+      if( end_lines[ i ] == n ) {
+       eta = get_line_efficiencies( line_id )[ i ];
        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-      }
-     else { // if hyperarch -> loop over v_end_lines and get_line_efficiencies
-      auto & end_lines = f_NetworkData->get_end_lines()[ line_id ];
-      for( Index i = 0 ; i < end_lines.size() ; ++i ) {
-       if( end_lines[ i ] == n ) {
-        eta = get_line_efficiencies( line_id )[ i ];
-        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-        }
        }
       }
      }
-
-    v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
-    v_power_flow_injection_const[ n ].set_function(
-				   new LinearFunction( std::move( vars ) ) );
     }
 
-   add_static_constraint( v_power_flow_injection_const ,
-			  "HVDC_power_flow_injection" );
+   v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
+   v_power_flow_injection_const[ n ].set_function(
+				   new LinearFunction( std::move( vars ) ) );
    }
 
+  add_static_constraint( v_power_flow_injection_const ,
+			  "HVDC_power_flow_injection" );
  }
 
  // the nodal balances at the ends of the HVDC lines and at the references
@@ -2017,7 +1983,9 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
   change_active_demand_constraints( modified_nodes , issueAMod );
   }
 
- if( issue_pmod( issuePMod ) ) {  // Issue a Physical Modification
+ // Issue a Physical Modification
+ if( issue_pmod( issuePMod , NetworkBlockMod::changes_of(
+                 NetworkBlockMod::eSetActD ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2063,7 +2031,9 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , NetworkBlockMod::changes_of(
+                 NetworkBlockMod::eSetActD ) ) )
   Block::add_Modification( std::make_shared< NetworkBlockRngdMod >( this ,
                             NetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2370,7 +2340,8 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetNetCost ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2458,7 +2429,8 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetNetCost ) ) )
   Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >(
                             this , DCNetworkBlockMod::eSetNetCost , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2510,7 +2482,9 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
   // kappa only appears in limit constraints
   }
 
- if( issue_pmod( issuePMod ) ) {  // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetKappa ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2555,7 +2529,9 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
    }
   }
 
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetKappa ) ) )
   Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >( this ,
                DCNetworkBlockMod::eSetKappa , rng ) ,
                            Observer::par2chnl( issuePMod ) );
