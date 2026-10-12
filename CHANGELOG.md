@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the unit test checks the caps (27) through the maximum powers of a run on
+  two units with a varying availability, read with it and given it by
+  `set_availability()`, whose continuous relaxation in the pt, DP, SU, SD
+  and SUSD formulations is the integer optimum
+
 - `ThermalUnitExtDPSolver::get_dp_stats()` returns what the last run of
   the dynamic program did: the on-states built, split by the trimming, kept
   and their pieces, the largest number kept at an instant, the pairs of
@@ -116,6 +121,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NuclearUnitBlock::is_feasible()`
 
 ### Changed
+
+- the maximum power rows (27) of the pt, SU, SD and SUSD formulations of
+  `ThermalUnitBlock` (and of `NuclearUnitBlock`, which inherits them) carry
+  by the ramps every maximum power met along a run, not only the start-up
+  and shut-down limits: the cap of an instant is the least of the maximum
+  powers of the instants of the run plus the ramps from them to it, which
+  is tighter when the maximum power changes in time, e.g., with the
+  availability, and the same as before with constant data; on 1312 random
+  units with a varying availability the continuous relaxation of SU is
+  below the integer optimum on 48 instead of 99, that of pt on 74 instead
+  of 129
 
 - the documentation of `ThermalUnitBlock` cites the SD and SUSD
   formulations from their published version (AIRO Springer Series 5, 2021)

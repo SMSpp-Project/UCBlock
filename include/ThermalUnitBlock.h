@@ -178,9 +178,10 @@ namespace SMSpp_di_unipi_it
  *
  * the SUSD one with, in addition, the ramp rows over several steps, which
  * extend the single-step ones of the paper. In the pt, SU, SD and SUSD
- * formulations the maximum power rows (27) cap the first and the last
- * instant of a run by the ramps as well as by the start-up and shut-down
- * limits, and are thus stronger than those of the two papers [see
+ * formulations the maximum power rows (27) cap every instant of a run, the
+ * first and the last included, by the start-up and shut-down limits and by
+ * every maximum power met along the run, each carried by the ramps, and
+ * are thus stronger than those of the two papers [see
  * generate_abstract_constraints()]. Finally, the perspective cuts (33) are
  * those of
  *
@@ -1075,22 +1076,40 @@ class ThermalUnitBlock : public UnitBlock
   *   the last one included, let
   *   \f[
   *     \psi^{hk}_t = \min\{ P^{mx}_t , \Xi^h_t , \Theta^k_t \} \; ,
-  *     \qquad
-  *     \Xi^h_t = P^{su}_{h-1} + \sum_{ r = h }^{ t } \Delta^+_r \; ,
-  *     \quad \Theta^k_t = P^{sd}_k + \sum_{ r = t + 1 }^{ k - 1 }
-  *     \Delta^-_r \; ,
   *   \f]
-  *   and \f$ \Xi^0_t = p_{-1} + \sum_{ r = 0 }^{ t } \Delta^+_r \f$ for the
-  *   run from before the horizon, the largest power that the start-up and
-  *   shut-down limits and the ramps allow at \f$ t \f$ in that run: the sums
-  *   are empty at the first instant, \f$ \Xi^h_{h-1} = P^{su}_{h-1} \f$, and
-  *   at the last one, \f$ \Theta^k_{k-1} = P^{sd}_k \f$. Without
-  *   DeltaRampUp, \f$ \Xi^h_t \f$ is there only at the first instant and
-  *   \f$ \Xi^0_t \f$ is dropped (as it is if \f$ \tau_0 \leq 0 \f$);
-  *   without DeltaRampDown, \f$ \Theta^k_t \f$ is there only at the last
-  *   instant; and \f$ \Theta^k_t \f$ is dropped if \f$ k \geq T \f$, there
-  *   being no shut-down within the horizon (the run from before the horizon
-  *   keeps it, as every other run). Then the pt formulation has, for
+  *   where \f$ \Xi^h_t \f$ is the largest power at \f$ t \f$ that the
+  *   start-up limit, the maximum powers of the instants from the start-up
+  *   to \f$ t \f$ and the ramps up between them allow, and \f$ \Theta^k_t
+  *   \f$ the same backwards from the shut-down:
+  *   \f{align*}{
+  *     & \Xi^h_{h-1} = \min\{ P^{su}_{h-1} , P^{mx}_{h-1} \} \; , \quad
+  *       \Xi^h_t = \min\{ \Xi^h_{t-1} + \Delta^+_t , P^{mx}_t \}
+  *       \;\text{ for } t \geq h \; , \\
+  *     & \Theta^k_{k-1} = \min\{ P^{sd}_k , P^{mx}_{k-1} \} \; , \quad
+  *       \Theta^k_t = \min\{ \Theta^k_{t+1} + \Delta^-_{t+1} , P^{mx}_t \}
+  *       \;\text{ for } t < k - 1 \; ,
+  *   \f}
+  *   and, for the run from before the horizon, \f$ \Xi^0_{-1} = p_{-1} \f$
+  *   and the same recursion for \f$ t \geq 0 \f$. Unrolled,
+  *   \f$ \Xi^h_t = \min_{ h - 1 \leq s \leq t } \{ C_s + \sum_{ r = s + 1
+  *   }^{ t } \Delta^+_r \} \f$ with \f$ C_{h-1} = \min\{ P^{su}_{h-1} ,
+  *   P^{mx}_{h-1} \} \f$ and \f$ C_s = P^{mx}_s \f$ otherwise, and
+  *   symmetrically for \f$ \Theta^k_t \f$: each maximum power met along the
+  *   run, not only the limits at its ends, is carried by the ramps to the
+  *   other instants of the run, which matters when the maximum power
+  *   changes in time (e.g., with the availability); with constant data
+  *   \f$ \psi^{hk}_t = \min\{ P^{mx} , P^{su} + \sum_{ r = h }^{ t }
+  *   \Delta^+_r , P^{sd} + \sum_{ r = t + 1 }^{ k - 1 } \Delta^-_r \} \f$.
+  *   Without DeltaRampUp, \f$ \Xi^h_t \f$ is there only at the first
+  *   instant and \f$ \Xi^0_t \f$ is dropped (as it is if \f$ \tau_0 \leq 0
+  *   \f$); without DeltaRampDown, \f$ \Theta^k_t \f$ is there only at the
+  *   last instant; and \f$ \Theta^k_t \f$ is dropped if \f$ k \geq T \f$,
+  *   there being no shut-down within the horizon (the run from before the
+  *   horizon keeps it, as every other run). A schedule satisfies these caps
+  *   by induction along its run: \f$ p_{h-1} \leq \Xi^h_{h-1} \f$ at the
+  *   start-up, and \f$ p_t \leq p_{t-1} + \Delta^+_t \f$ and \f$ p_t \leq
+  *   P^{mx}_t \f$ give \f$ p_t \leq \Xi^h_t \f$, and backwards for
+  *   \f$ \Theta^k_t \f$. Then the pt formulation has, for
   *   \f$ t \in \mathcal{T} \f$,
   *   \f[
   *     p^{ac}_t \leq \sum_{ (h,k) \,:\, h \leq t + 1 \leq k }
@@ -1112,8 +1131,9 @@ class ThermalUnitBlock : public UnitBlock
   *   rows of the papers cited in the class description, which cap the first
   *   and the last instant of a run by these limits alone, are therefore
   *   implied by (27), which is stronger
-  *   at the first instant of a run that shuts down soon after it and at the
-  *   last instant of a run that started shortly before; also, the arcs
+  *   at the first instant of a run that shuts down soon after it, at the
+  *   last instant of a run that started shortly before, and at the instants
+  *   near one where the maximum power drops; also, the arcs
   *   \f$ ( h , T ) \f$ and \f$ ( h , T + 1 ) \f$, which describe the same
   *   schedule, have the same coefficients in (27).
   *

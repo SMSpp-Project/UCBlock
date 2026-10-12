@@ -1061,40 +1061,56 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
      ( ( AR & FormMsk ) == SDForm ) || ( ( AR & FormMsk ) == SUSDForm ) ) {
   v_psi.resize( v_P_h_k.size() );
 
+  // the interval ( h , k ) is on in the periods h - 1 , ... , k - 1: it
+  // starts up at h - 1 (before the horizon if h == 0) and shuts down at k
+  // (beyond the horizon if k >= T). At each instant t of it, the first and
+  // the last included, its power is at most xi[ h ][ t ], the largest
+  // power that the start-up limit (the initial power for h == 0), the
+  // maximum powers of the instants h - 1 , ... , t and the ramps up between
+  // them allow, and at most theta[ k ][ t ], the same backwards from the
+  // shut-down limit of k through the maximum powers of t , ... , k - 1 and
+  // the ramps down; without the ramps up (down) only the limit of the
+  // instant of the start-up (before the shut-down) is carried, there being
+  // no bound on a step
+  const Index T = f_time_horizon;
+  std::vector< std::vector< double > > xi( T + 1 ) , theta( T + 1 );
+  for( Index h = 0 ; h <= T ; ++h ) {
+   xi[ h ].assign( T , Inf< double >() );
+   if( h > 0 ) {
+    double c = std::min( double( v_StartUpLimit[ h - 1 ] ) ,
+                         get_operational_max_power( h - 1 ) );
+    xi[ h ][ h - 1 ] = c;
+    if( ! v_DeltaRampUp.empty() )
+     for( Index r = h ; r < T ; ++r )
+      xi[ h ][ r ] = c = std::min( c + v_DeltaRampUp[ r ] ,
+                                   get_operational_max_power( r ) );
+    }
+   else
+    if( ( f_InitUpDownTime > 0 ) && ( ! v_DeltaRampUp.empty() ) ) {
+     double c = f_InitialPower;
+     for( Index r = 0 ; r < T ; ++r )
+      xi[ 0 ][ r ] = c = std::min( c + v_DeltaRampUp[ r ] ,
+                                   get_operational_max_power( r ) );
+     }
+   }
+  for( Index k = 1 ; k < T ; ++k ) {
+   theta[ k ].assign( T , Inf< double >() );
+   double c = std::min( double( v_ShutDownLimit[ k ] ) ,
+                        get_operational_max_power( k - 1 ) );
+   theta[ k ][ k - 1 ] = c;
+   if( ! v_DeltaRampDown.empty() )
+    for( Index r = k - 1 ; r-- > 0 ; )
+     theta[ k ][ r ] = c = std::min( c + v_DeltaRampDown[ r + 1 ] ,
+                                     get_operational_max_power( r ) );
+   }
+
   for( Index j = 0 ; j < v_P_h_k.size() ; ++j ) {
    const Index t = v_P_h_k[ j ].first;
    const Index h = v_P_h_k[ j ].second.first;
    const Index k = v_P_h_k[ j ].second.second;
-   // the interval ( h , k ) is on in the periods h - 1 , ... , k - 1: it
-   // starts up at h - 1 (before the horizon if h == 0) and shuts down at k
-   // (beyond the horizon if k >= T); every instant of it, the first and
-   // the last included, is capped by the maximum power, by the start-up
-   // limit plus the ramps up from the start-up (the initial power plus the
-   // ramps from -1 for h == 0) and by the shut-down limit plus the ramps
-   // down to the shut-down, the limits alone if the ramps are not given
-   v_psi[ j ] = get_operational_max_power( t );
-
-   if( k < f_time_horizon ) {
-    if( t + 1 == k )
-     v_psi[ j ] = std::min( v_psi[ j ] , double( v_ShutDownLimit[ k ] ) );
-    else
-     if( ! v_DeltaRampDown.empty() )
-      v_psi[ j ] = std::min( v_psi[ j ] , v_ShutDownLimit[ k ] +
-                                          ramp_down_sum( t + 1 , k - 1 ) );
-    }
-
-   if( h > 0 ) {
-    if( t + 1 == h )
-     v_psi[ j ] = std::min( v_psi[ j ] , double( v_StartUpLimit[ t ] ) );
-    else
-     if( ! v_DeltaRampUp.empty() )
-      v_psi[ j ] = std::min( v_psi[ j ] , v_StartUpLimit[ h - 1 ] +
-                                          ramp_up_sum( h , t ) );
-    }
-   else
-    if( ( f_InitUpDownTime > 0 ) && ( ! v_DeltaRampUp.empty() ) )
-     v_psi[ j ] = std::min( v_psi[ j ] ,
-                            f_InitialPower + ramp_up_sum( 0 , t ) );
+   v_psi[ j ] = std::min( get_operational_max_power( t ) , xi[ h ][ t ] );
+   if( ( k > 0 ) && ( k < T ) )
+    v_psi[ j ] = std::min( v_psi[ j ] , theta[ k ][ t ] );
    // a cap below the minimum power means that the run cannot be on at t,
    // which the maximum and minimum power rows then say together
    }
