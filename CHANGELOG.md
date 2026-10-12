@@ -117,6 +117,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the documentation of `ThermalUnitBlock` cites the SD and SUSD
+  formulations from their published version (AIRO Springer Series 5, 2021)
+  in place of the technical report R. 20-01 of IASI-CNR, whose rows have
+  the same numbers in the two
+
 - the bounding of `ThermalUnitExtDPSolver` may use a bound of a derived unit
   that depends on the label and on the output (`completion_bound()`, built
   by `prepare_completion_bound()` once more than 256 states are kept at an

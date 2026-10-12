@@ -171,11 +171,13 @@ namespace SMSpp_di_unipi_it
  * one and the combination of the two, are those of
  *
  *  T. Bacci, A. Frangioni, C. Gentile "Start-Up/Shut-Down MINLP
- *  Formulations for the Unit Commitment with Ramp Constraints" Technical
- *  Report R. 20-01, IASI-CNR, Rome, 2020
+ *  Formulations for the Unit Commitment with Ramp Constraints" in Graphs
+ *  and Combinatorial Optimization: from Theory to Applications, C. Gentile,
+ *  G. Stecca, P. Ventura (eds.), AIRO Springer Series 5, 335 - 347, 2021,
+ *  doi:10.1007/978-3-030-63072-0_26
  *
  * the SUSD one with, in addition, the ramp rows over several steps, which
- * extend the single-step ones of the report. In the pt, SU, SD and SUSD
+ * extend the single-step ones of the paper. In the pt, SU, SD and SUSD
  * formulations the maximum power rows (27) cap the first and the last
  * instant of a run by the ramps as well as by the start-up and shut-down
  * limits, and are thus stronger than those of the two papers [see
@@ -922,8 +924,8 @@ class ThermalUnitBlock : public UnitBlock
   *   \f$ j = 1 \f$ the rows (18) are the rows (16) upwards and (17)
   *   downwards, and with \f$ j = 0 \f$ those at \f$ 0 \f$ are their rows
   *   at \f$ t = 0 \f$: thus, the SUSD formulation contains all the ramp
-  *   rows of the SU and SD formulations, as in the technical report cited
-  *   in the class description, together with those over more than one
+  *   rows of the SU and SD formulations, as in the paper cited in the
+  *   class description, together with those over more than one
   *   step. Both families matter for the continuous relaxation: the powers
   *   \f$ p^h_t \f$ and \f$ \tilde{p}^k_t \f$ of a fractional point are
   *   linked by the active power alone [see (10)], so that the upward rows
