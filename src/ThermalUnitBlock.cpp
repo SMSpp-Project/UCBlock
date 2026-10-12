@@ -190,6 +190,7 @@ ThermalUnitBlock::~ThermalUnitBlock()
  Constraint::clear( ShutDown_Binary_bound_Const );
 
  Constraint::clear( Commitment_fixed_to_One_Const );
+ Constraint::clear( ArcBound_Const );
 
  objective.clear();
 }
@@ -3370,6 +3371,26 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
 
  add_rows( ActivePower_Bound_Const , "ActivePowerBound_thermal" );
 
+ // the box of the arc of each run in the pt, SU, SD and SUSD formulations:
+ // 0 <= y^{hk}_+ <= 1, and y^{hk}_+ <= 0 if no power of the run satisfies
+ // its bounds, its start-up and shut-down limits and its ramps (the rows of
+ // the run in the DP formulation, whose economic dispatch is then
+ // infeasible). The intervals of the power that these allow are propagated
+ // forwards along the run, which on a chain of instants is exact: the run
+ // is feasible if and only if no interval is empty
+ if( ( ( AR & FormMsk ) == ptForm ) || ( ( AR & FormMsk ) == SUForm ) ||
+     ( ( AR & FormMsk ) == SDForm ) || ( ( AR & FormMsk ) == SUSDForm ) ) {
+  if( generating_rows() )
+   ArcBound_Const.resize( v_Y_plus.size() );
+
+  for( Index i = 0 ; i < v_Y_plus.size() ; ++i )
+   put_box( ArcBound_Const[ i ] , & v_commitment_plus[ i ] , 0 ,
+            run_feasible( v_Y_plus[ i ].first , v_Y_plus[ i ].second ) ?
+            1 : 0 );
+
+  add_rows( ArcBound_Const , "ArcBound_Const_Thermal" );
+  }
+
  }  // end( ThermalUnitBlock::build_rows )
 
 /*--------------------------------------------------------------------------*/
@@ -3532,6 +3553,49 @@ void ThermalUnitBlock::put_box( BoxConstraint & box , ColVariable * var ,
  else
   if( ( box.get_lhs() != lhs ) || ( box.get_rhs() != rhs ) )
    f_row_cmp->boxes.push_back( { & box , lhs , rhs } );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool ThermalUnitBlock::run_feasible( Index h , Index k ) const
+{
+ // the run ( h , k ) is on at the instants h - 1 , ... , k - 1 (from 0 if
+ // h == 0, to T - 1 if k >= T); the arc ( 0 , 0 ) has no instant
+ const Index T = f_time_horizon;
+ const Index first = h > 0 ? h - 1 : 0;
+ const Index last = std::min( k , T ) - 1;
+ if( ( k == 0 ) || ( first > last ) )
+  return( true );
+
+ const double eps = 1e-9;
+ double lo = 0 , hi = 0;
+ for( Index t = first ; t <= last ; ++t ) {
+  double L = get_operational_min_power( t );
+  double U = get_operational_max_power( t );
+  if( ( h > 0 ) && ( t == first ) )
+   U = std::min( U , double( v_StartUpLimit[ t ] ) );
+  if( ( k < T ) && ( t == last ) )
+   U = std::min( U , double( v_ShutDownLimit[ k ] ) );
+  if( t == first ) {
+   if( ( h == 0 ) && ( f_InitUpDownTime > 0 ) ) {  // from the power at -1
+    if( ! v_DeltaRampUp.empty() )
+     U = std::min( U , f_InitialPower + v_DeltaRampUp[ 0 ] );
+    if( ! v_DeltaRampDown.empty() )
+     L = std::max( L , f_InitialPower - v_DeltaRampDown[ 0 ] );
+    }
+   }
+  else {
+   if( ! v_DeltaRampUp.empty() )
+    U = std::min( U , hi + v_DeltaRampUp[ t ] );
+   if( ! v_DeltaRampDown.empty() )
+    L = std::max( L , lo - v_DeltaRampDown[ t ] );
+   }
+  if( L > U + eps * std::max( 1.0 , std::abs( U ) ) )
+   return( false );
+  lo = L;
+  hi = U;
+  }
+ return( true );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -4330,7 +4394,8 @@ bool ThermalUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
 				 , rel_viol )
   && RowConstraint::is_feasible( ReactivePowerMax_Const , tol , rel_viol )
   && RowConstraint::is_feasible( ReactivePowerMin_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol ) );
+  && RowConstraint::is_feasible( ActivePower_Bound_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( ArcBound_Const , tol , rel_viol ) );
 
 }  // end( ThermalUnitBlock::is_feasible )
 

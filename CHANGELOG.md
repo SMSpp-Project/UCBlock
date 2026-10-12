@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the unit test checks the boxes of the infeasible arcs on a unit whose
+  run from before the horizon cannot pass a low availability, read with it
+  and given it, and back, by `set_availability()`
+
 - the unit test checks the caps (27) through the maximum powers of a run on
   two units with a varying availability, read with it and given it by
   `set_availability()`, whose continuous relaxation in the pt, DP, SU, SD
@@ -171,6 +175,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bands and the deep decreases of `NuclearUnitBlock` are written by
   `build_band_rows()` and `build_deep_rows_f1()`, which the formulations of
   the rules share
+
+- in the pt, SU, SD and SUSD formulations of `ThermalUnitBlock` (and of
+  `NuclearUnitBlock`) the arc of a run that no power satisfies (its bounds,
+  start-up and shut-down limits and ramps leave an empty interval at some
+  instant, the runs whose economic dispatch the DP Solvers find
+  infeasible) is fixed to 0 by its box "ArcBound_Const_Thermal", which
+  update_rows() changes with the data; before, such a run could carry a
+  fractional flow in these formulations, whose relaxation could then be
+  below that of the DP one also with the SUSD formulation
 
 - the maximum power rows (27) of the pt, SU, SD and SUSD formulations of
   `ThermalUnitBlock` (and of `NuclearUnitBlock`, which inherits them) carry
