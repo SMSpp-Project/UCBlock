@@ -2622,6 +2622,9 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // deserialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "FlowValue" , v_flow , false );
 
+ // deserialize the Auxiliary Variables of the cost of the flows- - - - - - -
+ ::deserialize< double >( group , "AuxiliaryValue" , v_aux , false );
+
  // deserialize the Dual Prices - - - - - - - - - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "DualCost" , v_cost , false );
 
@@ -2649,6 +2652,15 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
  else {
   v_flow.resize( f_number_lines );
   ncVar.getVar( strt , cnt , v_flow.data() );
+  }
+
+ // deserialize the Auxiliary Variables of the cost of the flows- - - - - - -
+ ncVar = group.getVar( "AuxiliaryValue" );
+ if( ncVar.isNull() )
+  v_aux.clear();
+ else {
+  v_aux.resize( f_number_lines );
+  ncVar.getVar( strt , cnt , v_aux.data() );
   }
 
  // deserialize the Dual Prices- - - - - - - - - - - - - - - - - - - - - - -
@@ -2680,6 +2692,14 @@ void DCNetworkBlockSolution::read( const Block * block )
   auto Fl = DCNB->get_power_flow();
   for( Index l = 0 ; l < f_number_lines ; ++l )
    v_flow[ l ] = Fl[ l ].get_value();
+
+  // the auxiliary variables V_l >= | F_l | carry the cost of the flows, and
+  // a Solution without them would give back the flows with whatever value
+  // they had before, hence another cost
+  const auto & V = DCNB->get_auxiliary_variable();
+  v_aux.resize( V.size() );
+  for( Index l = 0 ; l < V.size() ; ++l )
+   v_aux[ l ] = V[ l ].get_value();
   }
 
  if( ! v_cost.empty() )
@@ -2708,6 +2728,14 @@ void DCNetworkBlockSolution::write( Block * block )
  if( ! v_flow.empty() )
   DCNB->set_power_flow( v_flow );
 
+ // write the auxiliary variables of the cost of the flows- - - - - - - - - -
+ if( ! v_aux.empty() ) {
+  if( DCNB->get_auxiliary_variable().size() != v_aux.size() )
+   throw( std::invalid_argument( "DCNetworkBlockSolution::write: "
+                                 "inconsistent auxiliary variables" ) );
+  DCNB->set_auxiliary_variable( v_aux );
+  }
+
  // write the dual prices- - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_cost.empty() )
   DCNB->set_dual_prices( v_cost );
@@ -2729,6 +2757,11 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   ::serialize< double >( group , "FlowValue" , netCDF::NcDouble() , nl ,
        v_flow );
 
+ // serialize the Auxiliary Variables of the cost of the flows- - - - - - - -
+ if( ! v_aux.empty() )
+  ::serialize< double >( group , "AuxiliaryValue" , netCDF::NcDouble() , nl ,
+       v_aux );
+
  // serialize the Dual Prices - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_cost.empty() )
   ::serialize< double >( group , "DualCost" , netCDF::NcDouble() , nl ,
@@ -2746,6 +2779,7 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
  // now serialize the data structures - - - - - - - - - - - - - - - - - - - -
 
  netCDF::NcVar FV;  // FlowValue
+ netCDF::NcVar AV;  // AuxiliaryValue
  netCDF::NcVar DC;  // DualCost
 
  if( idx == 0 ) {  // first call, have to initialize everything
@@ -2758,12 +2792,18 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
   if( ! v_flow.empty() )
    FV = group.addVar( "FlowValue" , netCDF::NcDouble() , { nnw , nl } );
 
+  if( ! v_aux.empty() )
+   AV = group.addVar( "AuxiliaryValue" , netCDF::NcDouble() , { nnw , nl } );
+
   if( ! v_cost.empty() )
    DC = group.addVar( "DualCost" , netCDF::NcDouble() , { nnw , nl } );
   }
  else {  // subsequent call, read what is supposedly already there
   if( ! v_flow.empty() )
    FV = group.getVar( "FlowValue" );
+
+  if( ! v_aux.empty() )
+   AV = group.getVar( "AuxiliaryValue" );
 
   if( ! v_cost.empty() )
    DC = group.getVar( "DualCost" );
@@ -2774,6 +2814,9 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
 
  if( ! FV.isNull() )  // if power flows have to be serialised
   FV.putVar( strt , cnt , v_flow.data() );
+
+ if( ! AV.isNull() )  // if the auxiliary variables have to be serialised
+  AV.putVar( strt , cnt , v_aux.data() );
 
  if( ! DC.isNull() )  // if Flow Variables have to be serialised
   DC.putVar( strt , cnt , v_cost.data() );
@@ -2796,6 +2839,9 @@ DCNetworkBlockSolution * DCNetworkBlockSolution::scale( double factor ) const
  if( ! v_flow.empty() )
   for( Index l = 0 ; l < f_number_lines ; ++l )
    sol->v_flow[ l ] *= factor;
+
+ for( auto & v : sol->v_aux )
+  v *= factor;
 
  if( ! v_cost.empty() )
   for( Index l = 0 ; l < f_number_lines ; ++l )
@@ -2826,6 +2872,12 @@ void DCNetworkBlockSolution::sum( const Solution * solution ,
   for( Index l = 0 ; l < f_number_lines ; ++l )
    v_flow[ l ] += DCNBS->v_flow[ l ] * multiplier;
 
+ if( v_aux.size() != DCNBS->v_aux.size() )
+  throw( std::invalid_argument(
+    "DCNetworkBlockSolution::sum: inconsistent auxiliary variables" ) );
+ for( Index l = 0 ; l < v_aux.size() ; ++l )
+  v_aux[ l ] += DCNBS->v_aux[ l ] * multiplier;
+
  if( ! v_cost.empty() )
   for( Index l = 0 ; l < f_number_lines ; ++l )
    v_cost[ l ] += DCNBS->v_cost[ l ] * multiplier;
@@ -2843,6 +2895,7 @@ DCNetworkBlockSolution * DCNetworkBlockSolution::clone( bool empty ) const
 
   sol->f_number_lines = f_number_lines;
   sol->v_flow = v_flow;
+  sol->v_aux = v_aux;
   sol->v_cost = v_cost;
   }
 

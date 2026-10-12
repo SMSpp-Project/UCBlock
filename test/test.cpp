@@ -1874,6 +1874,82 @@ static void test_net_OTS_cost( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The Solution of a DCNetworkBlock holds the auxiliary Variable V_l >= | F_l |
+ * of the lines with a NetworkCost, which carry the cost of the flows: a
+ * Solution that misses them, written in the Block, leaves them at whatever
+ * value they had, and the cost of the point is not that of the solution (a
+ * Solver that keeps its solutions as Solution, as PrimalProximalHeur does,
+ * then wrote back a point whose cost was not the one it reported). The
+ * Solution, its clone and the one deserialized from what it serialized are
+ * written on a Block whose Variable have been changed, and the flows, the
+ * auxiliary Variable and the value of the Objective must be back. */
+
+static void test_net_cost_solution( void )
+{
+ const double B = 1000;
+ auto g = write_net( "DCNetworkBlock" , 3 ,
+		     { { 0 , 1 , 0 , -B , B } , { 1 , 2 , 0 , -B , B } } ,
+		     { 0 , 0 , 1 } );
+ put( g , "NetworkCost" , g.getDim( "NumberLines" ) , { 2 , 3 } );
+ const std::string what = "network cost Solution";
+ try {
+  std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
+						 Block::new_Block( g ) ) );
+  nb->generate_abstract_variables();
+  nb->generate_abstract_constraints();
+  nb->generate_objective();
+
+  const auto & flow = nb->get_power_flow();
+  const auto & aux = nb->get_auxiliary_variable();
+  check( aux.size() == 2 , what + ": no auxiliary Variable" );
+  if( aux.size() != 2 )
+   return;
+
+  auto lf = static_cast< LinearFunction * >( static_cast< FRealObjective * >(
+				       nb->get_objective() )->get_function() );
+  auto value = [ & ]( void ) {
+   lf->compute( true );
+   return( lf->get_value() );
+   };
+
+  // a point with V_l > | F_l |, which the Solution has to give back as it is
+  const std::vector< double > f = { -4 , 7 };
+  const std::vector< double > v = { 5 , 9 };
+  nb->set_power_flow( f );
+  nb->set_auxiliary_variable( v );
+  const double cost = value();
+
+  std::unique_ptr< Solution > sol( nb->get_Solution( nullptr , false ) );
+  std::unique_ptr< Solution > cln( sol->clone() );
+
+  auto sg = new_group( "SOL" );
+  sol->serialize( sg );
+  std::unique_ptr< Solution > des( new DCNetworkBlockSolution() );
+  des->deserialize( sg );
+
+  auto restored = [ & ]( Solution * s , const std::string & which ) {
+   nb->set_power_flow( { 1 , 1 } );
+   nb->set_auxiliary_variable( { 1 , 1 } );
+   s->write( nb.get() );
+   for( Index l = 0 ; l < 2 ; ++l )
+    check( ( flow[ l ].get_value() == f[ l ] ) &&
+	   ( aux[ l ].get_value() == v[ l ] ) ,
+	   what + ": " + which + " does not write line " +
+	   std::to_string( l ) );
+   check( value() == cost , what + ": the point " + which + " writes "
+	  "costs " + str( value() ) + ", not " + str( cost ) );
+   };
+
+  restored( sol.get() , "the Solution" );
+  restored( cln.get() , "its clone" );
+  restored( des.get() , "the deserialized one" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* A negative NetworkCost leaves V_l >= | F_l | unbounded above in the
  * Objective: it is refused when read and by both set_network_cost(), while
  * a zero cost is accepted. */
@@ -13519,6 +13595,7 @@ int main( int argc , char ** argv )
   test_net_demand_change();
   test_net_OTS_cost();
   test_net_negative_cost();
+  test_net_cost_solution();
   test_net_dual_prices();
   test_net_no_lines();
   test_net_hyperarc_susceptance();

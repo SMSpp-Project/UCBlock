@@ -2110,6 +2110,18 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// sets the auxiliary variables of the cost of the flows
+ /** Writes \p av[ l ] as the value of the auxiliary variable \f$ V_l \geq
+  * | F_l | \f$ of line \f$ l \f$ [see get_auxiliary_variable()]; nothing is
+  * written if no line has a cost, and otherwise \p av must have
+  * get_number_lines() elements. */
+
+ void set_auxiliary_variable( const std::vector< double > & av ) {
+  for( Index l = 0 ; l < v_auxiliary_variable.size() ; ++l )
+   v_auxiliary_variable[ l ].set_value( av[ l ] );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// sets the dual prices of power flow limits
  /** Writes \p dp[ l ] as the dual value of the bound (1) of line \f$ l \f$
   * of generate_abstract_constraints(); nothing is written if no line has
@@ -2900,6 +2912,13 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   the dimension "NumberLines"; FlowValue[ l ] is the optimal value of
   *   the power flow on line l. The variable is optional.
   *
+  * - The variable "AuxiliaryValue", of type netCDF::NcDouble and indexed
+  *   over the dimension "NumberLines"; AuxiliaryValue[ l ] is the value of
+  *   the auxiliary variable \f$ V_l \geq | F_l | \f$ of line l, which carries
+  *   the cost of its flow [see DCNetworkBlock::get_auxiliary_variable()].
+  *   The variable is optional, and it is present only together with
+  *   "FlowValue" and if some line has a nonzero "NetworkCost".
+  *
   * - The variable "DualCost", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; DualCost[ l ] is the dual price of the
   *   flow limits of line l given by DCNetworkBlock::get_dual_prices(). The
@@ -2940,6 +2959,14 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   "NumberLines"; FlowValue[ idx ][ l ] is the optimal value of
   *   the power flow on line l for this DCNetworkBlock. The variable is
   *   optional.
+  *
+  * - The variable "AuxiliaryValue", of type netCDF::NcDouble and indexed
+  *   both over the dimension "NumberNetworks" and the dimension
+  *   "NumberLines"; AuxiliaryValue[ idx ][ l ] is the value of the
+  *   auxiliary variable \f$ V_l \geq | F_l | \f$ of line l of this
+  *   DCNetworkBlock. The variable is optional, and it is present only
+  *   together with "FlowValue" and if some line has a nonzero
+  *   "NetworkCost".
   *
   * - The variable "DualCost", of type netCDF::NcDouble and indexed both
   *   over the dimension "NumberNetworks" (which is the same as
@@ -2985,6 +3012,14 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  Index f_number_lines;          ///< the number of lines
 
  std::vector< double > v_flow;  ///< v_flow[ l ] = flow variable on line l
+
+ std::vector< double > v_aux;   /**< v_aux[ l ] = auxiliary variable
+                                 *   \f$ V_l \geq | F_l | \f$ of line l,
+                                 *   which carries the cost of its flow
+                                 *   [see
+                                 *   DCNetworkBlock::get_auxiliary_variable()];
+                                 *   empty if the flows are not held or no
+                                 *   line has a cost */
 
  std::vector< double > v_cost;  /**< v_cost[ l ] = dual price of the flow
                                  *   limits of line l [see

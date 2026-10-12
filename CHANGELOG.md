@@ -270,6 +270,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the Solution of a `DCNetworkBlock` holds the auxiliary Variable
+  V_l >= | F_l | of the lines, which carry the cost of the flows
+  when some line has a `NetworkCost`: without them, writing the Solution left
+  those Variable at whatever value they had, so that a Solver keeping its
+  solutions as Solution (e.g., `PrimalProximalHeur`) wrote back a point whose
+  cost was not the one it reported; they are read, written, scaled, summed,
+  cloned and serialized with the flows (the optional "AuxiliaryValue"), and
+  `DCNetworkBlock::set_auxiliary_variable()` writes them
+
 - the Solution of a `HydroSystemUnitBlock` holds that of its
   `PolyhedralFunctionBlock`, whose epigraph Variable carries the future cost
   of the water in the linearized representation: without it, writing the
