@@ -55,14 +55,15 @@ using namespace SMSpp_di_unipi_it;
 
 namespace {
 
-// kappa times a storage bound, an infinite bound staying infinite whatever
-// kappa is (also 0, where the product would be NaN)
+// kappa times a bound of the storage or of the power, an infinite bound
+// staying infinite whatever kappa is (also 0, where the product would be NaN)
 double kappa_bound( double kappa , double bound ) {
  return( std::isinf( bound ) ? bound : kappa * bound );
  }
 
-// the coefficient of the design variable in the row of a storage bound: an
-// infinite bound bounds nothing, and the row is written with no x_b
+// the coefficient of the design variable in the row of a bound of the
+// storage or of the power: an infinite bound bounds nothing, and the row is
+// written with no x_b
 double kappa_coeff( double kappa , double bound ) {
  return( std::isinf( bound ) ? 0.0 : - kappa * bound );
  }
@@ -731,13 +732,13 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
     // set the maximum dispatch of converter not to exceed the C-rate of the
     // battery in charge
     intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-                              - f_kappa * f_MaxCRateCharge * v_MinPower[ t ] );
+               - kappa_bound( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) );
     intake_outtake_bounds_Const[ 0 ][ t ].set_variable( &v_intake_level[ t ] );
 
     // set the maximum dispatch of converter not to exceed the C-rate of the
     // battery in discharge
     intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
-     f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] );
+     kappa_bound( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) );
     intake_outtake_bounds_Const[ 1 ][ t ].set_variable( &v_outtake_level[ t ] );
     }
    }
@@ -752,9 +753,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     intake_outtake_bounds_Const[ 0 ][ t ].set_lhs(
-     f_kappa * f_MaxCRateCharge * v_MinPower[ t ] );
+     kappa_bound( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) );
     intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-     f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] );
+     kappa_bound( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) );
     intake_outtake_bounds_Const[ 0 ][ t ].set_variable( &v_active_power[ t ] );
     }
    }
@@ -782,7 +783,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     const double conv_power = v_ConvMaxPower[ t ];
-    const bool binding = ( conv_power > 0 );
+    // an infinite converter power is no limit, as a nonpositive one
+    const bool binding = ( conv_power > 0 ) && ( ! std::isinf( conv_power ) );
 
     for( Index row = 0 ; row < rows ; ++row ) {
      if( split ) {
@@ -832,7 +834,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
      vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
                                      -1.0 ) );
 
-   active_power_bounds_Const[ 0 ][ t ].set_lhs( f_kappa * v_MinPower[ t ] );
+   active_power_bounds_Const[ 0 ][ t ].set_lhs(
+                                    kappa_bound( f_kappa , v_MinPower[ t ] ) );
    active_power_bounds_Const[ 0 ][ t ].set_rhs( Inf< double >() );
    active_power_bounds_Const[ 0 ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
@@ -852,7 +855,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                      1.0 ) );
 
    active_power_bounds_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
-   active_power_bounds_Const[ 1 ][ t ].set_rhs( f_kappa * v_MaxPower[ t ] );
+   active_power_bounds_Const[ 1 ][ t ].set_rhs(
+                                    kappa_bound( f_kappa , v_MaxPower[ t ] ) );
    active_power_bounds_Const[ 1 ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
    }
@@ -901,10 +905,11 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
     vars.push_back( std::make_pair( & v_active_power[ t ] , -1.0 ) );
 
    vars.push_back( std::make_pair( & batt_design ,
-			   f_kappa * f_MaxCRateCharge * v_MinPower[ t ] ) );
+           - kappa_coeff( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) ) );
 
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
-   intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_rhs( 0.0 );
+   intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_rhs(
+                  std::isinf( v_MinPower[ t ] ) ? Inf< double >() : 0.0 );
    intake_outtake_upper_bounds_design_Const[ 0 ][ t ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
 
@@ -925,10 +930,11 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
     vars.push_back( std::make_pair( & v_active_power[ t ] , 1.0 ) );
 
    vars.push_back( std::make_pair( & batt_design ,
-                        -f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] ) );
+           kappa_coeff( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) ) );
 
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
-   intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
+   intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_rhs(
+                  std::isinf( v_MaxPower[ t ] ) ? Inf< double >() : 0.0 );
    intake_outtake_upper_bounds_design_Const[ 1 ][ t ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
 
@@ -942,7 +948,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // converter power a numerical bound, and a non-binding row if the
    // converter power is not positive, to avoid disabling the battery.
 
-   const double conv_power = v_ConvMaxPower.empty() ? 0.
+   // an infinite converter power is no limit, as a nonpositive one
+   const double conv_power = v_ConvMaxPower.empty() ||
+                             std::isinf( v_ConvMaxPower[ t ] ) ? 0.
                                                     : v_ConvMaxPower[ t ];
 
    if( split ) {
@@ -1032,9 +1040,9 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     if( v_ConvMaxPower[ t ] > 0 ) {
      intake_outtake_bounds_Const[ 0 ][ t ].set_lhs(
-                                       -conv_kappa * v_ConvMaxPower[ t ] );
+                           - kappa_bound( conv_kappa , v_ConvMaxPower[ t ] ) );
      intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-                                        conv_kappa * v_ConvMaxPower[ t ] );
+                             kappa_bound( conv_kappa , v_ConvMaxPower[ t ] ) );
      }
     else {
      intake_outtake_bounds_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
@@ -1075,9 +1083,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                       -1.0 ) );
 
    vars.push_back( std::make_pair( &batt_design ,
-                                   -f_kappa * v_MinPower[ t ] ) );
+                                  kappa_coeff( f_kappa , v_MinPower[ t ] ) ) );
 
-   active_power_bounds_design_Const[ 0 ][ t ].set_lhs( 0.0 );
+   active_power_bounds_design_Const[ 0 ][ t ].set_lhs(
+                 std::isinf( v_MinPower[ t ] ) ? -Inf< double >() : 0.0 );
    active_power_bounds_design_Const[ 0 ][ t ].set_rhs( Inf< double >() );
    active_power_bounds_design_Const[ 0 ][ t ].set_function(
     new LinearFunction( std::move( vars ) ) );
@@ -1102,10 +1111,11 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                       1.0 ) );
 
    vars.push_back( std::make_pair( &batt_design ,
-                                   -f_kappa * v_MaxPower[ t ] ) );
+                                  kappa_coeff( f_kappa , v_MaxPower[ t ] ) ) );
 
    active_power_bounds_design_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
-   active_power_bounds_design_Const[ 1 ][ t ].set_rhs( 0.0 );
+   active_power_bounds_design_Const[ 1 ][ t ].set_rhs(
+                  std::isinf( v_MaxPower[ t ] ) ? Inf< double >() : 0.0 );
    active_power_bounds_design_Const[ 1 ][ t ].set_function(
                                  new LinearFunction( std::move( vars ) ) );
    }
@@ -1395,10 +1405,11 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    //  positive intake bound when b == 1)
    vars.push_back( std::make_pair( & v_intake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( & v_battery_binary[ t ] ,
-                                   f_kappa * mb * v_MinPower[ t ] ) );
+                           - kappa_coeff( f_kappa * mb , v_MinPower[ t ] ) ) );
 
    intake_outtake_binary_Const[ 0 ][ t ].set_lhs( -Inf< double >() );
-   intake_outtake_binary_Const[ 0 ][ t ].set_rhs( 0.0 );
+   intake_outtake_binary_Const[ 0 ][ t ].set_rhs(
+                  std::isinf( v_MinPower[ t ] ) ? Inf< double >() : 0.0 );
    intake_outtake_binary_Const[ 0 ][ t ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
 
@@ -1406,11 +1417,11 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    // => v_outtake_level + v_MaxPower b <= v_MaxPower
    vars.push_back( std::make_pair( & v_outtake_level[ t ] , 1.0 ) );
    vars.push_back( std::make_pair( & v_battery_binary[ t ] ,
-                                   f_kappa * mb * v_MaxPower[ t ] ) );
+                           - kappa_coeff( f_kappa * mb , v_MaxPower[ t ] ) ) );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_lhs( -Inf< double >() );
    intake_outtake_binary_Const[ 1 ][ t ].set_rhs(
-					   f_kappa * mb * v_MaxPower[ t ] );
+                             kappa_bound( f_kappa * mb , v_MaxPower[ t ] ) );
    intake_outtake_binary_Const[ 1 ][ t ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
    }
@@ -2204,17 +2215,17 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
   if( split )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-     -f_kappa * f_MaxCRateCharge * v_MinPower[ t ] , nAM );
+     - kappa_bound( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) , nAM );
     intake_outtake_bounds_Const[ 1 ][ t ].set_rhs(
-     f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] , nAM );
+     kappa_bound( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) , nAM );
    }
   else
    if( f_BattInvestmentCost == 0 )
     for( Index t = 0 ; t < f_time_horizon ; ++t ) {
      intake_outtake_bounds_Const[ 0 ][ t ].set_lhs(
-      f_kappa * f_MaxCRateCharge * v_MinPower[ t ] , nAM );
+      kappa_bound( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) , nAM );
      intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-      f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] , nAM );
+      kappa_bound( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) , nAM );
     }
    // else the bound is the converter fence [see update_conv_kappa_rows()]
   }
@@ -2234,7 +2245,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                              "intake_outtake_upper_bounds_design_Const." ) );
 
    f0->modify_coefficient( batt_design_idx0 ,
-                           f_kappa * f_MaxCRateCharge * v_MinPower[ t ] ,
+             - kappa_coeff( f_kappa * f_MaxCRateCharge , v_MinPower[ t ] ) ,
                            nAM );
 
    auto f1 = static_cast< LinearFunction * >(
@@ -2248,7 +2259,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                              "intake_outtake_upper_bounds_design_Const." ) );
 
    f1->modify_coefficient( batt_design_idx1 ,
-                           -f_kappa * f_MaxCRateDischarge * v_MaxPower[ t ] ,
+             kappa_coeff( f_kappa * f_MaxCRateDischarge , v_MaxPower[ t ] ) ,
                            nAM );
    }
 
@@ -2260,9 +2271,9 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
 
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
    active_power_bounds_Const[ 0 ][ t ].set_lhs(
-    f_kappa * v_MinPower[ t ] , nAM );
+    kappa_bound( f_kappa , v_MinPower[ t ] ) , nAM );
    active_power_bounds_Const[ 1 ][ t ].set_rhs(
-    f_kappa * v_MaxPower[ t ] , nAM );
+    kappa_bound( f_kappa , v_MaxPower[ t ] ) , nAM );
   }
 
  else if( ! active_power_bounds_design_Const.empty() )
@@ -2279,7 +2290,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                              "active_power_bounds_design_Const." ) );
 
    f0->modify_coefficient( batt_design_idx0 ,
-                           -f_kappa * v_MinPower[ t ] ,
+                           kappa_coeff( f_kappa , v_MinPower[ t ] ) ,
                            nAM );
 
    auto f1 = static_cast< LinearFunction * >(
@@ -2293,7 +2304,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
                              "active_power_bounds_design_Const." ) );
 
    f1->modify_coefficient( batt_design_idx1 ,
-                           -f_kappa * v_MaxPower[ t ] ,
+                           kappa_coeff( f_kappa , v_MaxPower[ t ] ) ,
                            nAM );
   }
 
@@ -2356,7 +2367,8 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    // intake bound is - v_MinPower b (v_MinPower is the charging-side limit,
    // negative by convention): coefficient on v_battery_binary is + kappa
    // v_MinPower, see the construction at the top of the file
-   f->modify_coefficient( index , f_kappa * mb * v_MinPower[ t ] , nAM );
+   f->modify_coefficient( index ,
+                       - kappa_coeff( f_kappa * mb , v_MinPower[ t ] ) , nAM );
   }
 
  if( ( ! intake_outtake_binary_Const.empty() ) &&
@@ -2376,10 +2388,11 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
    // outtake bound is v_MaxPower (1 - b): coefficient on v_battery_binary
    // is + kappa v_MaxPower and the RHS is kappa v_MaxPower, see the
    // construction at the top of the file
-   f->modify_coefficient( index , f_kappa * mb * v_MaxPower[ t ] , nAM );
+   f->modify_coefficient( index ,
+                       - kappa_coeff( f_kappa * mb , v_MaxPower[ t ] ) , nAM );
 
    intake_outtake_binary_Const[ 1 ][ t ].set_rhs(
-    f_kappa * mb * v_MaxPower[ t ] , nAM );
+    kappa_bound( f_kappa * mb , v_MaxPower[ t ] ) , nAM );
   }
 
  if( ! primary_upper_bound_Const.empty() )
@@ -2426,15 +2439,16 @@ void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( v_ConvMaxPower[ t ] > 0 ) {
     intake_outtake_bounds_Const[ 0 ][ t ].set_lhs(
-     -conv_kappa * v_ConvMaxPower[ t ] , nAM );
+     - kappa_bound( conv_kappa , v_ConvMaxPower[ t ] ) , nAM );
     intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
-     conv_kappa * v_ConvMaxPower[ t ] , nAM );
+     kappa_bound( conv_kappa , v_ConvMaxPower[ t ] ) , nAM );
     }
 
  // the rows (10d) of a battery design
  if( ! intake_outtake_upper_bounds_design_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_ConvMaxPower.empty() || ( v_ConvMaxPower[ t ] <= 0 ) )
+   if( v_ConvMaxPower.empty() || ( v_ConvMaxPower[ t ] <= 0 ) ||
+       std::isinf( v_ConvMaxPower[ t ] ) )
     continue;  // the converter fence is not binding
 
    if( auto conv_x = conv_scale_var() ) {
@@ -2470,7 +2484,7 @@ void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
  if( converter_bounds_Const.num_elements() > 0 )
   for( Index row = 0 ; row < converter_bounds_Const.shape()[ 0 ] ; ++row )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( v_ConvMaxPower[ t ] <= 0 )
+    if( ( v_ConvMaxPower[ t ] <= 0 ) || std::isinf( v_ConvMaxPower[ t ] ) )
      continue;
 
     if( f_ConvInvestmentCost == 0 ) {
@@ -2745,6 +2759,12 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   return( obj_sign < 0 ? std::min( one , other ) : std::max( one , other ) );
   };
 
+ // a multiplier times a bound: a zero multiplier gives no term, also when
+ // the bound is infinite, as that of a power with no limit
+ const auto term = []( double dual , double bound ) {
+  return( dual == 0 ? 0.0 : dual * bound );
+  };
+
  const auto time_horizon = get_time_horizon();
 
  for( Index t = 0 ; t < time_horizon ; ++t ) {
@@ -2769,8 +2789,8 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
   const auto lambda_max = std::abs( max_power_constraints[ t ].get_dual() );
 
   linearization += ( f_kappa == 0 )
-   ? safe( min_power * lambda_min , - max_power * lambda_max )
-   : min_power * lambda_min - max_power * lambda_max;
+   ? safe( term( lambda_min , min_power ) , term( - lambda_max , max_power ) )
+   : term( lambda_min , min_power ) + term( - lambda_max , max_power );
 
   /* Intake and outtake level bounds, in the very form the unit states them
    * [see update_kappa_in_cnstrs()]: two one-sided bounds, one per variable,
@@ -2787,11 +2807,11 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
      * move: only the upper side counts. */
     const auto alpha_in = intake_bound_constraints[ t ].get_dual();
     if( obj_sign * alpha_in <= 0 )
-     linearization += alpha_in * f_MaxCRateCharge * min_power;
+     linearization += term( alpha_in * f_MaxCRateCharge , min_power );
 
     const auto alpha_out = outtake_bound_constraints[ t ].get_dual();
     if( obj_sign * alpha_out <= 0 )
-     linearization += - alpha_out * f_MaxCRateDischarge * max_power;
+     linearization += term( - alpha_out * f_MaxCRateDischarge , max_power );
     }
    else {
     const auto lower = f_MaxCRateCharge * min_power;
@@ -2799,21 +2819,22 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
     const auto alpha = intake_bound_constraints[ t ].get_dual();
     linearization += ( f_kappa == 0 )
-     ? safe( - alpha * lower , - alpha * upper )
-     : - alpha * ( ( obj_sign * alpha > 0 ) ? lower : upper );
+     ? safe( term( - alpha , lower ) , term( - alpha , upper ) )
+     : term( - alpha , ( obj_sign * alpha > 0 ) ? lower : upper );
     }
    }
 
   if( max_intake_binary_constraints ) {
    const auto alpha_max_u =
     std::abs( max_intake_binary_constraints[ t ].get_dual() );
-   linearization += alpha_max_u * u[ t ].get_value() * min_power;
+   linearization += term( alpha_max_u * u[ t ].get_value() , min_power );
   }
 
   if( max_outtake_binary_constraints ) {
    const auto alpha_min_u =
     std::abs( max_outtake_binary_constraints[ t ].get_dual() );
-   linearization += - ( 1.0 - u[ t ].get_value() ) * alpha_min_u * max_power;
+   linearization += term( - ( 1.0 - u[ t ].get_value() ) * alpha_min_u ,
+                          max_power );
   }
 
   // Storage level bounds

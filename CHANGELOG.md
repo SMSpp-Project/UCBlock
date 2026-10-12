@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `BatteryUnitBlock` takes an infinite `MaxPower` or `MinPower` also with a
+  battery design: the rows of the power stay free on that side with no term
+  in the design, as those of an infinite level already did, and an infinite
+  `ConverterMaxPower` is no converter limit; a Store of PyPSA, whose power is
+  only bounded by its levels and by its lines, is written so
+
 - `HydroUnitBlock` reads the optional `ExactFlowToPower`, one entry per arc:
   a single-piece turbine whose entry is nonzero produces exactly the power
   of its piece, its row being the equality whatever the spillways, as for
