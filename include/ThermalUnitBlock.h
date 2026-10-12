@@ -1137,6 +1137,33 @@ class ThermalUnitBlock : public UnitBlock
   *   \f$ ( h , T ) \f$ and \f$ ( h , T + 1 ) \f$, which describe the same
   *   schedule, have the same coefficients in (27).
   *
+  * <b>Arcs of the runs</b> ("ArcBound_Const_Thermal"), in the pt, SU, SD
+  * and SUSD formulations: \f$ 0 \leq y^{hk}_+ \leq 1 \f$ for every on-arc,
+  * and \f$ y^{hk}_+ \leq 0 \f$ if no power of the run \f$ (h,k) \f$
+  * satisfies its rows in the DP formulation, i.e., if the intervals
+  * \f{align*}{
+  *   & [ \ell_{h-1} , \upsilon_{h-1} ] = [ P^{mn}_{h-1} , \min\{ P^{mx}_{h-1}
+  *     , P^{su}_{h-1} \} ] \; , \\
+  *   & [ \ell_t , \upsilon_t ] = [ \max\{ P^{mn}_t , \ell_{t-1} -
+  *     \Delta^-_t \} , \min\{ P^{mx}_t , \upsilon_{t-1} + \Delta^+_t \} ]
+  *     \qquad t = h , \ldots , k - 1 \; ,
+  * \f}
+  * with \f$ \upsilon_{k-1} \f$ also at most \f$ P^{sd}_k \f$ if \f$ k < T
+  * \f$, and with \f$ \ell_{-1} = \upsilon_{-1} = p_{-1} \f$ for the run
+  * from before the horizon (\f$ h = 0 \f$, starting from \f$ t = 0 \f$),
+  * are not all nonempty (a term with a ramp is dropped if the ramp is not
+  * given). On a chain of instants this forward propagation is exact: the
+  * run has a feasible power if and only if no interval is empty, and these
+  * are the runs whose economic dispatch is infeasible in the dynamic
+  * programming Solvers and whose arc the DP formulation fixes to 0 through
+  * its rows (15) and the bounds of \f$ p^{hk}_t \f$. In the aggregated
+  * formulations such a run could otherwise carry a fractional flow, the
+  * other runs that share its powers \f$ p^{ac}_t \f$, \f$ p^h_t \f$ or
+  * \f$ \tilde{p}^k_t \f$ lending it their room; this happens, e.g., when a
+  * low maximum power inside the run is below what the ramps let the run
+  * from before the horizon reach. The boxes change with the data (an arc
+  * that becomes feasible again has the bound 1 back), never in number.
+  *
   * <b>Spinning reserves.</b> If the reserve variables exist, then
   * ("PrimaryRho_Const_Thermal", "SecondaryRho_Const_Thermal")
   * \f[
@@ -2842,6 +2869,12 @@ class ThermalUnitBlock : public UnitBlock
                    double rhs );
 
 /*--------------------------------------------------------------------------*/
+ /// whether some power of the run ( h , k ) satisfies its bounds, its
+ /// start-up and shut-down limits and its ramps [see build_rows()]
+
+ bool run_feasible( Index h , Index k ) const;
+
+/*--------------------------------------------------------------------------*/
  /// the box \p lhs <= \p var <= \p rhs
  /** Sets the box when generating, records the sides that differ when
   * comparing. */
@@ -3568,6 +3601,9 @@ class ThermalUnitBlock : public UnitBlock
  /// maximum power: redundant with the rows of the commitment, but readable
  /// by a Solver that only reads the boxes (say, a BoxSolver)
  std::vector< BoxConstraint > ActivePower_Bound_Const;
+
+ /// the boxes of the arcs of the runs (pt, SU, SD, SUSD formulations)
+ std::vector< BoxConstraint > ArcBound_Const;
 
  /// the reactive power upper bound constraints (commitment-gated variant):
  /// q[t] - Qmax_on[t] u[t] <= Qmax_off[t]

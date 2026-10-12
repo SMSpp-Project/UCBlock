@@ -10759,6 +10759,107 @@ static void test_thermal_psi_propagation( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The arc of a run that no power satisfies is fixed to 0 in the pt, SU, SD
+ * and SUSD formulations [see "ArcBound_Const_Thermal"]. Case I: T = 5,
+ * MinPower 10, MaxPower 100, availability 1, 0.8, 1, 0.3, 0.8,
+ * StartUpLimit 56, 56, 56, 30, 56, ShutDownLimit 94, 80, 94, 30, 80,
+ * DeltaRampDown 15 and no DeltaRampUp, minimum up and down times 1, on
+ * since 2 instants at 91: the run from before the horizon is at least 46 at
+ * 2 and 31 at 3, above the shut-down limit 30 of 3 and the maximum power 30
+ * of 3, so its arcs ( 0 , 3 ) to ( 0 , T + 1 ) are infeasible. With the
+ * costs below the continuous relaxation of the SU, SD and SUSD formulations
+ * is the integer optimum -181 (it was -266.11, -196 and -190.28, the LP
+ * putting 0.93 on the arc ( 0 , T + 1 )), which also the MILP of every
+ * formulation and both DP Solvers give. Then the unit read with the
+ * availability 1 at 3 has 0 such arcs (and the shut-down limit 30 of 3
+ * makes only ( 0 , 3 ) infeasible); set_availability() to 0.3 at 3 and
+ * back gives the boxes and the relaxations of the units read with those
+ * data. */
+
+static void test_thermal_infeasible_arcs( void )
+{
+ const std::vector< double > lin = { 0 , -3 , -5 , -2 , 1 } ,
+  cnst = { 49 , 47 , 48 , 51 , 59 } , suc = { 189 , 126 , 106 , 43 , 169 };
+ const std::vector< double > av_lo = { 1 , 0.8 , 1 , 0.3 , 0.8 } ,
+  av_hi = { 1 , 0.8 , 1 , 1 , 0.8 };
+ auto make = [ & ]( const std::vector< double > & av ) {
+  auto cst = [ & ]( double v ) { return( std::vector< double >( 5 , v ) ); };
+  return( new_unit_gen( false , 5 , {
+   { "MinPower" , cst( 10 ) } , { "MaxPower" , cst( 100 ) } ,
+   { "Availability" , av } ,
+   { "StartUpLimit" , { 56 , 56 , 56 , 30 , 56 } } ,
+   { "ShutDownLimit" , { 94 , 80 , 94 , 30 , 80 } } ,
+   { "QuadTerm" , cst( 0 ) } , { "LinearTerm" , lin } ,
+   { "ConstTerm" , cnst } , { "StartUpCost" , suc } ,
+   { "DeltaRampDown" , cst( 15 ) } } , { { "InitialPower" , 91 } } ,
+   { { "InitUpDownTime" , 2 } } ,
+   { { "MinUpTime" , 1 } , { "MinDownTime" , 1 } } ) );
+  };
+ const std::string who = "infeasible arcs, case I";
+
+ check_all_forms( [ & ]() { return( make( av_lo ) ); } , -181 , who );
+
+ // the number of arcs with the bound 0, and the continuous relaxation
+ auto zeros = []( ThermalUnitBlock * tub ) {
+  auto boxes = tub->get_static_constraint_v< BoxConstraint >(
+                                                  "ArcBound_Const_Thermal" );
+  int n = 0;
+  if( boxes )
+   for( const auto & b : * boxes )
+    n += ( b.get_rhs() == 0 );
+  return( boxes ? n : -1 );
+  };
+
+ for( const auto & form : { "TUBCfg-pt.txt" , "TUBCfg-SU.txt" ,
+                            "TUBCfg-SD.txt" , "TUBCfg-SUSD.txt" } ) {
+  const auto what = who + ", " + form;
+  // the unit read with each availability: boxes and relaxation
+  double v_lo = std::nan( "" ) , v_hi = std::nan( "" );
+  int z_lo = -2 , z_hi = -2;
+  for( bool lo : { true , false } ) {
+   auto tub = make( lo ? av_lo : av_hi );
+   if( ! generate_from_file( tub , form ) ) {
+    check( false , what + ": cannot read the configuration" );
+    delete tub;
+    continue;
+    }
+   ( lo ? z_lo : z_hi ) = zeros( tub );
+   ( lo ? v_lo : v_hi ) = relaxation_value( tub );
+   delete tub;
+   }
+  check( z_lo == 4 , what + ": " + std::to_string( z_lo ) + " arcs fixed "
+         "to 0 instead of 4" );
+  check( z_hi == 1 , what + ": " + std::to_string( z_hi ) + " arcs fixed "
+         "to 0 instead of 1 with the availability 1 at 3" );
+  if( std::isnan( v_lo ) ) {
+   std::cout << what << ": no relaxation value (no :MILPSolver of "
+             << "LPRelaxBSCfg.txt?), skipped" << std::endl;
+   continue;
+   }
+  if( std::string( form ) != "TUBCfg-pt.txt" )
+   check( close( v_lo , -181 ) , what + ": the continuous relaxation is " +
+          str( v_lo ) + " instead of -181" );
+
+  // the availability changed to 0.3 at 3 and back to 1
+  auto tub = make( av_hi );
+  generate_from_file( tub , form );
+  tub->set_availability( av_lo.begin() );
+  check( zeros( tub ) == 4 , what + ": set_availability() to 0.3 leaves " +
+         std::to_string( zeros( tub ) ) + " arcs fixed to 0" );
+  double v = relaxation_value( tub );
+  check( close( v , v_lo ) , what + ": after set_availability() to 0.3 the "
+         "relaxation is " + str( v ) + " instead of " + str( v_lo ) );
+  tub->set_availability( av_hi.begin() );
+  check( zeros( tub ) == 1 , what + ": set_availability() back to 1 "
+         "leaves " + std::to_string( zeros( tub ) ) + " arcs fixed to 0" );
+  v = relaxation_value( tub );
+  check( close( v , v_hi ) , what + ": after set_availability() back to 1 "
+         "the relaxation is " + str( v ) + " instead of " + str( v_hi ) );
+  delete tub;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /*---------- THE OPERATING RULES OF NuclearUnitBlock AND ITS DP ------------*/
 /*--------------------------------------------------------------------------*/
 /* The data of a NuclearUnitBlock for the tests of its operating rules: the
@@ -13390,6 +13491,7 @@ int main( int argc , char ** argv )
   test_thermal_SUSD_ramp_rows();
   test_thermal_psi_first_last();
   test_thermal_psi_propagation();
+  test_thermal_infeasible_arcs();
 
   test_hydro_set_inflow_subset();
   test_hydro_initial_flow_absent();
