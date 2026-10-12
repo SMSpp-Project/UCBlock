@@ -117,6 +117,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   optima by hand; they are in `constant/` of the archive of `data/` from
   version 2026-10-13, which is that of 2026-10-12 plus this folder
 
+- `data/gen_conversion.py` writes the instances that pypsa2smspp makes of
+  the committable links of its test networks, each a `ConversionUnitBlock`
+  (a combined heat and power plant with ramps, a store, a meshed network, a
+  heat pump whose COP changes over time, delays, modules, the modules built
+  and a continuous design), and prints the optimum of PyPSA; they are in
+  `conversion/` of the archive of `data/` from version 2026-10-14, which is
+  that of 2026-10-13 plus this folder
+
 - the commitment of a unit whose generators share it is exposed through one
   generator only, and the documentation of `UnitBlock::get_commitment()`
   says so
