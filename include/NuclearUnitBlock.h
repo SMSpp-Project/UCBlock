@@ -1734,6 +1734,31 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
    * types of NuclearUnitBlockMod. */
   };
 
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetModDP ):
+   case( eSetModDM ):
+    return( ePhysCns );
+   case( eSetModCost ):
+   case( eSetDeepCost ):
+    return( ePhysObj );
+   default:
+    return( ThermalUnitBlockMod::changes_of( type ) );
+   }
+  }
+
+ /// what the Modification changes, as its type says [see changes_of()]
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( changes_of( type() ) );
+  }
+
  /// Constructor, takes the NuclearUnitBlock and the type
  NuclearUnitBlockMod( NuclearUnitBlock * fblock , int type )
   : ThermalUnitBlockMod( fblock , type ) {}

@@ -1956,7 +1956,7 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
 void ConversionUnitBlock::issue_mod( int type , Index index ,
                                      Subset && subset , ModParam issuePMod )
 {
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ConversionUnitBlockMod::changes_of( type ) ) )
   Block::add_Modification( std::make_shared< ConversionUnitBlockMod >(
                             this , type , index , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2531,7 +2531,8 @@ void ConversionUnitBlock::scale( MF_dbl_it values , Subset && subset ,
    }
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
+                 UnitBlockMod::eScale ) ) )
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                             this , UnitBlockMod::eScale ) ,
                            Observer::par2chnl( issuePMod ) );

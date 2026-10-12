@@ -2703,6 +2703,29 @@ class DCNetworkBlockMod : public NetworkBlockMod
    * types of DCNetworkBlockMod. */
   };
 
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetKappa ):
+    return( ePhysCns );
+   case( eSetNetCost ):
+    return( ePhysObj );
+   default:
+    return( NetworkBlockMod::changes_of( type ) );
+   }
+  }
+
+ /// what the Modification changes, as its type says [see changes_of()]
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( changes_of( type() ) );
+  }
+
  /// constructor, takes the DCNetworkBlock and the type
  DCNetworkBlockMod( DCNetworkBlock * const fblock , int type )
   : NetworkBlockMod( fblock , type ) {}

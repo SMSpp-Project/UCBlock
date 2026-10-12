@@ -1985,6 +1985,46 @@ class ConversionUnitBlockMod : public UnitBlockMod
   eCUBModLastParam    ///< first allowed parameter value for derived classes
   };
 
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetLinT ):
+   case( eSetQuadT ):
+   case( eSetPrCost ):
+   case( eSetScCost ):
+   case( eSetConstT ):
+   case( eSetSUC ):
+   case( eSetSDC ):
+   case( eSetInvCost ):
+    return( ePhysObj );
+   case( eSetMaxP ):
+   case( eSetMinP ):
+   case( eSetRampUp ):
+   case( eSetRampDown ):
+   case( eSetInitP ):
+   case( eSetInitDelP ):
+    return( ePhysCns );
+   case( eSetInitUD ):
+    return( ePhysCns | ePhysVars );
+   case( eSetOpRHS ):
+   case( eSetOpLHS ):
+    return( ePhysSides );
+   default:
+    return( UnitBlockMod::changes_of( type ) );
+   }
+  }
+
+ /// what the Modification changes, as its type says [see changes_of()]
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( changes_of( type() ) );
+  }
+
  /// constructor: the ConversionUnitBlock, the type, the index, the instants
  ConversionUnitBlockMod( ConversionUnitBlock * const fblock , const int type ,
                          Block::Index index , Block::Subset && nms )

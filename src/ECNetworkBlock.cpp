@@ -700,7 +700,8 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
       close_channel( par2chnl( nAM ) );
      }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetActD ) ) ) {
   // Issue a Physical Modification
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
@@ -766,7 +767,8 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetActD ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetActD , rng ) ,
@@ -839,7 +841,8 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetBuyP ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -900,7 +903,8 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetBuyP ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetBuyP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -971,7 +975,8 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetSellP ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -1032,7 +1037,8 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetSellP ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetSellP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -1082,7 +1088,8 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetPeakT ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -1132,7 +1139,8 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetPeakT ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetPeakT ,
                             Range( 0 , 1 ) ) ,
@@ -1165,7 +1173,8 @@ void ECNetworkBlock::set_const_term( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetConstT ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -1197,7 +1206,8 @@ void ECNetworkBlock::set_const_term( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetConstT ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetConstT ,
                             Range( 0 , 1 ) ) ,
@@ -1268,7 +1278,8 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
       close_channel( par2chnl( nAM ) );
      }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetPenaltyP ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -1333,7 +1344,8 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
       }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetPenaltyP ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetPenaltyP , rng ) ,
                            Observer::par2chnl( issuePMod ) );

@@ -4853,7 +4853,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetAv ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetAv ,
@@ -4880,7 +4881,8 @@ void ThermalUnitBlock::set_availability( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetAv ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetAv , rng ) ,
@@ -4912,7 +4914,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetMaxP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetMaxP ,
@@ -4939,7 +4942,8 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetMaxP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetMaxP , rng ) ,
@@ -5106,7 +5110,8 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetInitP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
                             this , ThermalUnitBlockMod::eSetInitP ) ,
@@ -5151,7 +5156,8 @@ void ThermalUnitBlock::set_initial_power( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetInitP ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
                             this , ThermalUnitBlockMod::eSetInitP ) ,
@@ -5218,7 +5224,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSUC ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetSUC ,
@@ -5283,7 +5290,8 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSUC ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetSUC , rng ) ,
@@ -5357,7 +5365,8 @@ void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSDC ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetSDC ,
@@ -5426,7 +5435,8 @@ void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSDC ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetSDC , rng ) ,
@@ -5494,7 +5504,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetConstT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetConstT ,
@@ -5560,7 +5571,8 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetConstT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetConstT , rng ) ,
@@ -5626,7 +5638,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetLinT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetLinT ,
@@ -5688,7 +5701,8 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetLinT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetLinT , rng ) ,
@@ -5746,7 +5760,8 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
                                   true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetReactiveLinT ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetReactiveLinT ,
                             std::move( subset ) ) ,
@@ -5793,7 +5808,8 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
                                   un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetReactiveLinT ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetReactiveLinT ,
                             rng ) ,
@@ -5921,7 +5937,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetQuadT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetQuadT ,
@@ -6040,7 +6057,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetQuadT ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetQuadT , rng ) ,
@@ -6114,7 +6132,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetPrSpResCost ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetPrSpResCost ,
@@ -6188,7 +6207,8 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetPrSpResCost ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetPrSpResCost , rng ) ,
@@ -6261,7 +6281,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                                  true , un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSecSpResCost ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , ThermalUnitBlockMod::eSetSecSpResCost ,
@@ -6335,7 +6356,8 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
                                  un_ModBlock( issueAMod ) );
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetSecSpResCost ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , ThermalUnitBlockMod::eSetSecSpResCost , rng ) ,
@@ -6417,7 +6439,8 @@ void ThermalUnitBlock::guts_of_set_init_updown_time( int value ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetInitUD ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
                             this , ThermalUnitBlockMod::eSetInitUD ) ,
@@ -6481,7 +6504,8 @@ void ThermalUnitBlock::set_min_up_down_time( Index min_up_time ,
  f_MinDownTime = clamp_min_time( min_down_time , f_time_horizon ,
                                  f_InitUpDownTime , false );
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                 ThermalUnitBlockMod::eSetInitUD ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
                             this , ThermalUnitBlockMod::eSetInitUD ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -6513,7 +6537,8 @@ void ThermalUnitBlock::scale( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
+                 UnitBlockMod::eScale ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< UnitBlockMod >(
                             this , UnitBlockMod::eScale ) ,
@@ -6662,7 +6687,8 @@ void ThermalUnitBlock::update_objective_investment( ModParam issuePMod ,
  if( ! ( cur == f_last_design_cost ) ) {  // ( cur != cached ), NaN-safe
   f_last_design_cost = cur;
 
-  if( issue_pmod( issuePMod ) )
+  if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
+                  ThermalUnitBlockMod::eSetInvCost ) ) )
    // Issue a Physical Modification so that Solvers that consume the structural
    // data (the DP Solvers) refresh their copy of the design cost. Note that the
    // design cost lives only in the abstract Objective (there is no separate
@@ -6820,7 +6846,8 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 			    "changing anything but the fixed status is not "
 			    "supported" ) );
 
-  if( anyone_there() )
+  if( anyone_there_for( ThermalUnitBlockMod::changes_of(
+                         ThermalUnitBlockMod::eFixVars ) ) )
    Block::add_Modification( std::make_shared< ThermalUnitBlockMod >(
 			     this , ThermalUnitBlockMod::eFixVars ) , chnl );
   return;

@@ -644,7 +644,8 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , SlackUnitBlockMod::changes_of(
+                 SlackUnitBlockMod::eSetActPCost ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -723,7 +724,8 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
    }
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , SlackUnitBlockMod::changes_of(
+                 SlackUnitBlockMod::eSetActPCost ) ) )
   Block::add_Modification(
    std::make_shared< SlackUnitBlockRngdMod >(
     this , SlackUnitBlockMod::eSetActPCost , rng ) ,
