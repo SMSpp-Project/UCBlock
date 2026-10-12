@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ConversionUnitBlock` registers `scale()` in the methods factory also as
+  `ConversionUnitBlock::replicate`, the name under which a Block is sized
+  by identical copies
+
 - the unit test checks the boxes of the infeasible arcs on a unit whose
   run from before the horizon cannot pass a low availability, read with it
   and given it, and back, by `set_availability()`
