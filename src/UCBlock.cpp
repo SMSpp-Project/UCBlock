@@ -36,11 +36,18 @@
 
 #include "BlockInspection.h"
 
+#include "AbstractBlock.h"
+
+#include "BlockSolverConfig.h"
+
+#include "FRealObjective.h"
+
 #include "LinearFunction.h"
 
 #include "Objective.h"
 
 #include <functional>
+#include <memory>
 #include <numeric>
 
 #include "UCBlock.h"
@@ -2386,13 +2393,10 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-double UCBlock::get_replicate_linearization( Index unit )
+template< class F >
+void UCBlock::replicate_linking_terms( Index unit , F && term ,
+                                       double & constant )
 {
- if( ! constraints_generated() )
-  throw( std::logic_error( "UCBlock::get_replicate_linearization: the abstract "
-                           "representation has not been generated, so there "
-                           "are no rows to read the duals of" ) );
-
  /* TODO The following does not take into account the heat constraints.
   * When these constraints are correctly implemented, this method must be
   * updated. */
@@ -2412,8 +2416,6 @@ double UCBlock::get_replicate_linearization( Index unit )
  for( Index u = 0 ; u < unit ; ++u )
   first_generator += get_unit_block( u )->get_number_generators();
 
- double linearization = 0;
-
  // The node injection constraints - - - - - - - - - - - - - - - - - - - - -
 
  for( Index t = 0 ; t < time_horizon ; ++t )
@@ -2426,23 +2428,25 @@ double UCBlock::get_replicate_linearization( Index unit )
    const auto dual = constraint.get_dual();
 
    const auto & active_power = block->get_active_power( g )[ t ];
-   linearization += dual * active_power.get_value();
+   term( & active_power , dual );
 
    assert( active_power.is_active( & constraint ) < Inf< Index >() );
 
    // the fixed consumption is subtracted when the unit is off, and the
    // factor multiplies it as it multiplies the power
    if( auto fc = block->get_fixed_consumption( g ) )
-    if( auto u = block->get_commitment( g ) )
-     linearization -= dual * fc[ t ] * ( 1.0 - u[ t ].get_value() );
+    if( auto u = block->get_commitment( g ) ) {
+     constant -= dual * fc[ t ];
+     term( & u[ t ] , dual * fc[ t ] );
+     }
 
    // the reactive node injection constraints, if any, carry the reactive
    // power alone, which the factor multiplies as it multiplies the active
    // one [see generate_reactive_node_injection_constraints()]
    if( ! v_reactive_node_injection_Const.empty() )
     if( auto q = block->get_reactive_power( g ) )
-     linearization += v_reactive_node_injection_Const[ t ][ node ].get_dual()
-                      * q[ t ].get_value();
+     term( & q[ t ] ,
+           v_reactive_node_injection_Const[ t ][ node ].get_dual() );
 
    }  // end( for each generator, for each time instant )
 
@@ -2456,7 +2460,7 @@ double UCBlock::get_replicate_linearization( Index unit )
 
  const auto zone_contribution =
   [ & ]( const auto & constraints , Index number_zones ,
-         auto belongs_to_zone , auto term ) {
+         auto belongs_to_zone , auto contribute ) {
 
    if( constraints.empty() )
     return;
@@ -2472,39 +2476,37 @@ double UCBlock::get_replicate_linearization( Index unit )
 
       for( Index g = 0 ; g < num_generators ; ++g )
        if( generator_belongs_to_node( first_generator + g , node ) )
-        linearization += dual * term( g , t );
+        contribute( g , t , dual );
       }
    };
 
  zone_contribution( v_PrimaryDemand_Const , f_number_primary_zones ,
                     [ this ]( Index node , Index zone ) {
                      return( node_belongs_to_primary_zone( node , zone ) ); } ,
-                    [ block ]( Index g , Index t ) {
-                     const auto r = block->get_primary_spinning_reserve( g );
-                     return( r ? r[ t ].get_value() : 0.0 ); } );
+                    [ & ]( Index g , Index t , double dual ) {
+                     if( auto r = block->get_primary_spinning_reserve( g ) )
+                      term( & r[ t ] , dual ); } );
 
  zone_contribution( v_SecondaryDemand_Const , f_number_secondary_zones ,
                     [ this ]( Index node , Index zone ) {
                      return( node_belongs_to_secondary_zone( node ,
                                                              zone ) ); } ,
-                    [ block ]( Index g , Index t ) {
-                     const auto r = block->get_secondary_spinning_reserve( g );
-                     return( r ? r[ t ].get_value() : 0.0 ); } );
+                    [ & ]( Index g , Index t , double dual ) {
+                     if( auto r = block->get_secondary_spinning_reserve( g ) )
+                      term( & r[ t ] , dual ); } );
 
  zone_contribution( v_InertiaDemand_Const , f_number_inertia_zones ,
                     [ this ]( Index node , Index zone ) {
                      return( node_belongs_to_inertia_zone( node , zone ) ); } ,
-                    [ block ]( Index g , Index t ) {
-                     double term = 0;
+                    [ & ]( Index g , Index t , double dual ) {
                      const auto u = block->get_commitment( g );
                      const auto iu = block->get_inertia_commitment( g );
                      if( u && iu )
-                      term += iu[ t ] * u[ t ].get_value();
+                      term( & u[ t ] , dual * iu[ t ] );
                      const auto p = block->get_active_power( g );
                      const auto ip = block->get_inertia_power( g );
                      if( p && ip )
-                      term += ip[ t ] * p[ t ].get_value();
-                     return( term ); } );
+                      term( & p[ t ] , dual * ip[ t ] ); } );
 
  // The pollutant budget constraints - - - - - - - - - - - - - - - - - - - - -
 
@@ -2516,41 +2518,174 @@ double UCBlock::get_replicate_linearization( Index unit )
                                       Index zone_id , ColVariable * var ,
                                       double factor ) {
    if( unit_id == unit )
-    linearization += v_PollutantBudget_Const[ p ][ zone_id ].get_dual() *
-                     factor * var->get_value();
+    term( var , v_PollutantBudget_Const[ p ][ zone_id ].get_dual() *
+                factor );
    } );
 
- // The Objective of the unit - - - - - - - - - - - - - - - - - - - - - - - -
+}  // end( UCBlock::replicate_linking_terms )
+
+/*--------------------------------------------------------------------------*/
+
+double UCBlock::get_replicate_linearization( Index unit )
+{
+ if( ! constraints_generated() )
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: the abstract "
+                           "representation has not been generated, so there "
+                           "are no rows to read the duals of" ) );
+
+ const auto block = get_unit_block( unit );
+ const auto scale = block->get_scale();
+
+ // with no copies the power of the unit is 0 whatever the duals are
+ if( scale == 0 )
+  return( get_zero_copy_linearization( unit ) );
+
+ // the rows above the unit, at the solution
+ double linearization = 0;
+ replicate_linking_terms( unit ,
+                          [ & linearization ]( const ColVariable * var ,
+                                               double coeff ) {
+                           linearization += coeff * var->get_value(); } ,
+                          linearization );
 
  /* The Objective of a UnitBlock carrying the factor has the form k f(x)
-  * [see UnitBlock.h], so what it contributes here is f(x). With k != 0 that
-  * is the value divided by k; with k == 0 dividing says nothing, and the
-  * only way of reading f(x) is to scale the unit to 1, read, and put it
-  * back. The unit is left as it was found, but it tells this UCBlock each
-  * time, eNoMod notwithstanding, and the rows of this UCBlock that carry the
-  * factor are rewritten twice, back to what they were. */
+  * [see UnitBlock.h], so what it contributes here is f(x), the value divided
+  * by k. */
 
  if( const auto objective =
      dynamic_cast< FRealObjective * >( block->get_objective() ) ) {
-
-  const auto scale = block->get_scale();
-
-  if( scale != 0 ) {
-   objective->compute();
-   linearization += objective->value() / scale;
-   }
-  else {
-   block->scale( 1.0 , eNoMod , eNoMod );
-   objective->compute();
-   linearization += objective->value();
-   block->scale( scale , eNoMod , eNoMod );
-   objective->compute();  // back to the value it had
-   }
+  objective->compute();
+  linearization += objective->value() / scale;
   }
 
  return( linearization );
 
 } // end( UCBlock::get_replicate_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+double UCBlock::get_zero_copy_linearization( Index unit )
+{
+ /* The copy is the mirror of the abstract representation of the unit [see
+  * AbstractBlock::mirror()], taken while the unit is scaled to 1 so that its
+  * Objective is that of one copy, f^1; it then sits in an AbstractBlock whose
+  * Objective holds the terms of the rows above the unit on the Variable of
+  * the copy, and the two Objective are summed by the Solver of the
+  * AbstractBlock. The scale is put back with no Modification, as if it had
+  * never changed. Whatever the mirror cannot reproduce is left out of the
+  * copy, which is then a relaxation of one copy of the unit: the minimum is
+  * not larger than the true one, and since the number of copies cannot
+  * decrease below 0 the linearization stays below the value function. */
+
+ const auto block = get_unit_block( unit );
+
+ // the Solver of the copy: the one the extra part of the BlockConfig gives
+ // (an empty one is none), or else a clone of those registered with this
+ // UCBlock
+ BlockSolverConfig * bsc = nullptr;
+ if( f_BlockConfig )
+  bsc = dynamic_cast< BlockSolverConfig * >(
+                                        f_BlockConfig->f_extra_Configuration );
+
+ std::unique_ptr< BlockSolverConfig > registered;
+ if( ( ! bsc ) || bsc->get_SolverNames().empty() ) {
+  registered.reset( new BlockSolverConfig( this ) );
+  bsc = registered.get();
+  }
+
+ if( bsc->get_SolverNames().empty() )
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: unit " +
+                           std::to_string( unit ) + " has no copies, and "
+                           "the derivative is then the minimum over one "
+                           "copy of the unit, for which a Solver is needed: "
+                           "none is registered with this UCBlock and the "
+                           "extra Configuration of its BlockConfig is not a "
+                           "BlockSolverConfig with a Solver" ) );
+
+ auto copy = new AbstractBlock();
+ {
+  const auto scale = block->get_scale();
+  block->scale( 1.0 , eNoMod , eNoMod );
+  try {
+   copy->mirror( block );
+   }
+  catch( ... ) {
+   block->scale( scale , eNoMod , eNoMod );
+   delete copy;
+   throw;
+   }
+  block->scale( scale , eNoMod , eNoMod );
+  }
+
+ auto wrapper = new AbstractBlock();
+ wrapper->add_nested_Block( copy );
+
+ LinearFunction::v_coeff_pair terms;
+ double constant = 0;
+ try {
+  replicate_linking_terms( unit ,
+                           [ & ]( const ColVariable * var , double coeff ) {
+                            if( coeff == 0 )
+                             return;
+                            auto cvar = copy->mirror_of( var );
+                            if( ! cvar )
+                             throw( std::logic_error(
+                              "UCBlock::get_replicate_linearization: a "
+                              "Variable of the unit " + std::to_string( unit )
+                              + " has no copy" ) );
+                            terms.emplace_back( cvar , coeff ); } ,
+                           constant );
+  }
+ catch( ... ) {
+  delete wrapper;   // and the copy it holds
+  throw;
+  }
+
+ auto objective = new FRealObjective( wrapper ,
+                               new LinearFunction( std::move( terms ) ) );
+ objective->set_sense( copy->get_objective_sense() , eNoMod );
+ wrapper->set_objective( objective , eNoMod );
+
+ // registered for this solution only
+ auto cbsc = bsc->clone();
+ cbsc->apply( wrapper );
+ cbsc->clear();
+
+ const auto cleanup = [ & ]() {
+  cbsc->apply( wrapper );
+  delete cbsc;
+  delete wrapper;
+  delete objective;
+  };
+
+ if( wrapper->get_registered_solvers().empty() ) {
+  cleanup();
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: the "
+                           "BlockSolverConfig of the copy of unit " +
+                           std::to_string( unit ) +
+                           " registers no Solver" ) );
+  }
+
+ double value = 0;
+ try {
+  auto solver = wrapper->get_registered_solvers().front();
+  solver->compute();
+  if( ! solver->has_var_solution() )
+   throw( std::logic_error( "UCBlock::get_replicate_linearization: the copy "
+                            "of unit " + std::to_string( unit ) +
+                            " has no solution" ) );
+  value = solver->get_var_value();
+  }
+ catch( ... ) {
+  cleanup();
+  throw;
+  }
+
+ cleanup();
+
+ return( value + constant );
+
+} // end( UCBlock::get_zero_copy_linearization )
 
 /*--------------------------------------------------------------------------*/
 

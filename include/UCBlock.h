@@ -1359,8 +1359,8 @@ class UCBlock : public Block
   * the Objective of the unit is \f$ k f(x) \f$, its contribution here is
   * \f$ f(x) \f$.
   *
-  * The duals are read as they are: this method does not solve anything, and
-  * it is the caller's business to have solved this UCBlock, and as a
+  * With one copy or more the duals are read as they are: nothing is solved,
+  * and it is the caller's business to have solved this UCBlock, and as a
   * continuous relaxation, before asking. It is also the caller's business to
   * ask only where that solve left the duals: a RowConstraint hands back the
   * value it has, which before any solve is 0 and after a failed one is the
@@ -1369,20 +1369,39 @@ class UCBlock : public Block
   * see by itself, that the abstract representation exists: it throws if the
   * Constraint it has to read have not been generated.
   *
+  * With 0 copies the unit has no power to weigh the duals with, and the sum
+  * above would be 0 whatever the duals are, which is not a subgradient: the
+  * value of this UCBlock is a convex function of the number of copies, and
+  * at 0 its derivative is the least of the derivatives that a copy of the
+  * unit, free to take any feasible operation, gives against the current
+  * duals. So the unit is mirrored [see AbstractBlock::mirror()] as one copy,
+  * and a Solver minimises over the mirror the Objective of the copy plus the
+  * terms of the rows above the unit, each weighed by the dual of its row: the
+  * result is the derivative. What the mirror cannot reproduce is left out
+  * of the copy, which then is a relaxation of one copy of the unit: the
+  * minimum is not larger than the true one, and since the number of copies
+  * cannot go below 0 the linearization stays below the value function, so
+  * that the cut it gives is valid. The Solver must therefore solve the
+  * relaxation: the one given by the BlockSolverConfig in the extra part of
+  * the BlockConfig of this UCBlock, if there is one, and otherwise a clone of
+  * the Solver registered with this UCBlock, with their ComputeConfig. A
+  * Solver that returns a value that is not a lower bound of the minimum of
+  * the relaxation, such as a dynamic programming one that works on integer
+  * states, would make the cut invalid and must not be given. If no Solver
+  * can be found the method throws.
+  *
   * @param unit the index of the UnitBlock, between 0 and
   *        get_number_units() - 1
   *
   * @return the derivative of the value of this UCBlock with respect to the
   *         scale factor of the given unit
   *
-  * @note This method is not const because of one case: when the scale factor
-  *       of the unit is 0 the term of its Objective cannot be recovered by
-  *       dividing, so the unit is scaled to 1, read, and scaled back. The
-  *       unit tells this UCBlock each time, even if asked to issue no
-  *       Modification, and this UCBlock rewrites the rows that carry the
-  *       factor and passes the change on to whoever listens: the rows end as
-  *       they were found, but its Solvers receive two changes that cancel
-  *       out. */
+  * @note This method is not const because, with 0 copies, the unit is scaled
+  *       to 1 to be mirrored and scaled back. The unit tells this UCBlock
+  *       each time, even if asked to issue no Modification, and this UCBlock
+  *       rewrites the rows that carry the factor and passes the change on to
+  *       whoever listens: the rows end as they were found, but its Solvers
+  *       receive two changes that cancel out. */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /* The supported way in is the name: a consumer that holds a Block it does
@@ -2220,6 +2239,31 @@ class UCBlock : public Block
 
  template< class F >
  void for_each_pollutant_term( Index p , F && visit );
+
+/*--------------------------------------------------------------------------*/
+ /// calls term on each Variable of a unit that the rows above it weigh
+ /** Calls term( var , coeff ) for each Variable of the unit \p unit that
+  * appears in the rows this UCBlock builds on top of its units with the scale
+  * factor of the unit, where coeff is the dual of the row times what the
+  * factor multiplies there (the power in the node injections, the reserves in
+  * their balances, the inertia, the emissions), and adds to \p constant the
+  * terms that do not depend on a Variable of the unit (the fixed consumption
+  * of a unit that is off is the constant -dual * fc plus dual * fc times the
+  * commitment). The sum of coeff times the value of var, plus the constant,
+  * is the part of the derivative of get_replicate_linearization() that comes
+  * from those rows. The same terms are evaluated at the current solution
+  * with one copy or more, and minimised over a mirror of the unit with 0
+  * copies [see get_zero_copy_linearization()]. */
+
+ template< class F >
+ void replicate_linking_terms( Index unit , F && term , double & constant );
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative of the value of this UCBlock w.r.t. the scale of a unit at 0
+ /** The case of get_replicate_linearization() in which the scale factor of
+  * the unit is 0 [see]. */
+
+ double get_zero_copy_linearization( Index unit );
 
 /*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand

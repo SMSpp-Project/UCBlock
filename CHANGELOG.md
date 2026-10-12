@@ -139,7 +139,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unit in the active and in the reactive node injection, with the fixed
   consumption of a unit that is off subtracted, its reserves, its inertia,
   its emissions in the pollutant budget with the levels of its storages, and
-  the cost of one copy.
+  the cost of one copy. With no copies the unit has no power to weigh the
+  duals with, and that sum would be 0 whatever they are, which is not a
+  subgradient of the value function: the derivative is then the minimum, over
+  a mirror of one copy of the unit that a Solver minimises, of its Objective
+  plus those terms. The mirror is a relaxation, so the minimum is not above
+  the true one and the cut it gives stays valid. The Solver is the one in the
+  extra Configuration of the BlockConfig of the `UCBlock`, if it is a
+  `BlockSolverConfig` with a Solver, and otherwise a clone of those
+  registered with the `UCBlock`; with neither the call throws.
 
 - `DCNetworkBlock::get_resize_linearization( line )` and
   `UCBlock::get_replicate_linearization( unit )`, the two protected methods
