@@ -112,6 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   meshed network with a heat node) and prints their known optima; they are
   in `multi-energy/` of the archive of `data/` from version 2026-10-12
 
+- `data/gen_constant.py` writes two bus `UCBlock` whose own `Objective` has
+  the constant term of the network (+1000 and -1000) and prints their
+  optima by hand; they are in `constant/` of the archive of `data/` from
+  version 2026-10-13, which is that of 2026-10-12 plus this folder
+
 - the commitment of a unit whose generators share it is exposed through one
   generator only, and the documentation of `UnitBlock::get_commitment()`
   says so
