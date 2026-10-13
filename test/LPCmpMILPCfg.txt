@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - LPCmpMILPCfg.txt - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - LPCmpMILPCfg.txt  - - - - - - - - - - - - - - -
 #
 # ComputeConfig of the :MILPSolver of LPCmpBSCfg.txt and LPCmpBSCfg-nuc.txt,
 # the reference of the test of the power limits (test_power_limits.cpp):
@@ -54,5 +54,5 @@ strOutputFile    lp_compare.lp # the model written at each compute()
 *  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - END LPCmpMILPCfg.txt - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - END LPCmpMILPCfg.txt  - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

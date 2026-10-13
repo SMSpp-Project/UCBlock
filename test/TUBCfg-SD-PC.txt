@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - TUBCfg-SD-PC.txt- - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - TUBCfg-SD-PC.txt  - - - - - - - - - - - - - - -
 #
 # The BlockConfig of a ThermalUnitBlock, or of a NuclearUnitBlock without its
 # tightening bits, that selects the SD formulation with the Perspective Cuts
@@ -47,5 +47,5 @@ SimpleConfiguration<int>
 *  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - END TUBCfg-SD-PC.txt- - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - END TUBCfg-SD-PC.txt  - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

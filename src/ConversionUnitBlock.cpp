@@ -153,6 +153,7 @@ ConversionUnitBlock::~ConversionUnitBlock()
  ShutDownZero_Bound.clear();
  Constraint::clear( ShutDownInitial_Bound );
  Constraint::clear( CommitmentDesign_Const );
+ Constraint::clear( InitialDesign_Const );
  DesignBound.clear();
  Constraint::clear( ActivePower_Bound );
  Constraint::clear( StartUp_Binary_Bound );
@@ -481,16 +482,6 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
    throw( std::invalid_argument( who + ": a continuous design "
                                  "(MaxCapacityDesign >= 0) with more than "
                                  "one module" ) );
-  if( ( X >= 0 ) && ( ( ! absent( v_DeltaRampUp ) ) ||
-                      ( ! absent( v_DeltaRampDown ) ) ||
-                      ( ! absent( v_StartUpLimit ) ) ||
-                      ( ! absent( v_StartUpLowerLimit ) ) ||
-                      ( ! absent( v_ShutDownLimit ) ) ||
-                      ( ! absent( v_ShutDownLowerLimit ) ) ) )
-   throw( std::invalid_argument( who + ": a continuous design "
-                                 "(MaxCapacityDesign >= 0) with ramps or "
-                                 "start-up and shut-down limits, which would "
-                                 "multiply the commitment" ) );
   if( ( f_scale != 1 ) && ( std::abs( X ) > 1 ) )
    throw( std::invalid_argument( who + ": Scale != 1 together with "
                                  "|MaxCapacityDesign| > 1, which represent "
@@ -670,8 +661,6 @@ void ConversionUnitBlock::check_data( const std::string & who ) const
   fail( "FixedConsumption with more than one module" );
  if( has_design() && ( ! v_FixedConsumption.empty() ) )
   fail( "FixedConsumption with a design variable" );
- if( has_design() && ( f_InitUpDownTime > 0 ) )
-  fail( "a unit with a design variable is on before the horizon" );
  if( f_InitialCommitment > N )
   fail( "InitialCommitment > the number of modules" );
 
@@ -680,7 +669,7 @@ void ConversionUnitBlock::check_data( const std::string & who ) const
 
  // a unit on before the horizon is in the region of the instant 0, that
  // of the modules on before the horizon
- if( f_InitUpDownTime > 0 && T ) {
+ if( ( f_InitUpDownTime > 0 ) && T && ( design_mode() != 'c' ) ) {
   const double k = get_initial_commitment();
   auto eps = []( double v ) { return( 1e-9 * std::max( 1.0 ,
                                                        std::abs( v ) ) ); };
@@ -1179,8 +1168,13 @@ void ConversionUnitBlock::build_rows( void )
   }
 
  if( has_design() ) {
-  put_box( DesignBound , & design , std::max( 0.0 , f_MinCapacityDesign ) ,
-           std::abs( f_MaxCapacityDesign ) );
+  // the modules on before the horizon are built, as is a binary unit
+  double xlo = std::max( 0.0 , f_MinCapacityDesign );
+  if( on0 && ( dm == 'b' ) )
+   xlo = std::max( xlo , k0 );
+  if( on0 && ( dm == 'a' ) )
+   xlo = std::max( xlo , 1.0 );
+  put_box( DesignBound , & design , xlo , std::abs( f_MaxCapacityDesign ) );
   if( generating_rows() && ( ! f_counting ) )
    add_static_constraint( DesignBound , "DesignBound_Conversion" );
   }
@@ -1198,7 +1192,7 @@ void ConversionUnitBlock::build_rows( void )
 
  if( T ) {
   bool sd0 = true;  // whether the unit may shut down at 0
-  if( on0 )
+  if( on0 && ( ! cd ) )
    for( Index g = 0 ; g < f_G ; ++g ) {
     double lo , hi;
     limit_box( false , 0 , g , lo , hi );
@@ -1273,6 +1267,23 @@ void ConversionUnitBlock::build_rows( void )
    }
   };
 
+ // with a continuous design, the limit L (per unit of design) that holds
+ // when the indicator ind is 1: terms <= L x + M ( 1 - ind ) (upper) or
+ // terms >= L x - M ( 1 - ind ), with M = X ( mx^+ + ( - L )^+ ), resp.
+ // M = X ( L^+ + ( - mn )^+ ), mn and mx the bounds per unit of the terms
+ auto lim_row = [ & ]( const std::function< void( void ) > & terms ,
+                       std::vector< FRowConstraint > & rows , double L ,
+                       ColVariable & ind , bool upper , double mn ,
+                       double mx ) {
+  const double M = XU * ( upper ? pos( mx ) + pos( - L )
+                                : pos( L ) + pos( - mn ) );
+  terms();
+  add( design , - L );
+  add( ind , upper ? M : - M );
+  push_row( rows , std::move( vars ) , upper ? - INF : - M ,
+            upper ? M : INF );
+  };
+
  for( Index t = 0 ; t < T ; ++t )
   for( Index g = 0 ; g < f_G ; ++g ) {
    const double mn = v_MinPower[ t ][ g ];
@@ -1283,6 +1294,16 @@ void ConversionUnitBlock::build_rows( void )
    if( ! has_lower_limit( g ) )
     side_rows( t , [ & ]() { add( p , 1 ); } , MinPower_Const , mn , false ,
                true );
+   else
+    if( cd ) {  // the bounds, then the limits at a start-up, a shut-down
+     auto tp = [ & ]() { add( p , 1 ); };
+     side_rows( t , tp , MinPower_Const , mn , false , true );
+     lim_row( tp , MinPower_Const , hat( false , true , t , g ) ,
+              v_start_up[ t ] , false , mn , mx );
+     if( ! last )
+      lim_row( tp , MinPower_Const , hat( false , false , t , g ) ,
+               v_shut_down[ t + 1 ] , false , mn , mx );
+     }
    else {
     const double ls = hat( false , true , t , g );
     const double ld = hat( false , false , t , g );
@@ -1314,6 +1335,16 @@ void ConversionUnitBlock::build_rows( void )
    if( ! has_upper_limit( g ) )
     side_rows( t , [ & ]() { add( p , 1 ); } , MaxPower_Const , mx , true ,
                true );
+   else
+    if( cd ) {
+     auto tp = [ & ]() { add( p , 1 ); };
+     side_rows( t , tp , MaxPower_Const , mx , true , true );
+     lim_row( tp , MaxPower_Const , hat( true , true , t , g ) ,
+              v_start_up[ t ] , true , mn , mx );
+     if( ! last )
+      lim_row( tp , MaxPower_Const , hat( true , false , t , g ) ,
+               v_shut_down[ t + 1 ] , true , mn , mx );
+     }
    else {
     const double us = hat( true , true , t , g );
     const double ud = hat( true , false , t , g );
@@ -1344,6 +1375,42 @@ void ConversionUnitBlock::build_rows( void )
    }
  add_rows( MinPower_Const , "MinPower_Const_Conversion" );
  add_rows( MaxPower_Const , "MaxPower_Const_Conversion" );
+
+ // a continuous design of a unit on before the horizon covers InitialPower,
+ // P^mx x >= p_{-1} for a positive power and P^mn x <= p_{-1} for a
+ // negative one, and the shut-down limits of the instant 0 hold for it if
+ // the unit shuts down
+ if( cd && on0 && T ) {
+  for( Index g = 0 ; g < f_G ; ++g ) {
+   const double pg = p_init( g );
+   if( pg > 0 ) {
+    add( design , v_MaxPower[ 0 ][ g ] );
+    push_row( InitialDesign_Const , std::move( vars ) , pg , INF );
+    }
+   if( pg < 0 ) {
+    add( design , v_MinPower[ 0 ][ g ] );
+    push_row( InitialDesign_Const , std::move( vars ) , - INF , pg );
+    }
+   if( has_upper_limit( g ) || has_lower_limit( g ) ) {
+    double lo , hi;
+    limit_box( false , 0 , g , lo , hi );
+    const double mn = v_MinPower[ 0 ][ g ] , mx = v_MaxPower[ 0 ][ g ];
+    if( has_upper_limit( g ) ) {  // pg <= hi x + M ( 1 - w_0 )
+     const double M = XU * ( pos( mx ) + pos( - hi ) );
+     add( design , - hi );
+     add( v_shut_down[ 0 ] , M );
+     push_row( InitialDesign_Const , std::move( vars ) , - INF , M - pg );
+     }
+    if( has_lower_limit( g ) ) {  // pg >= lo x - M ( 1 - w_0 )
+     const double M = XU * ( pos( lo ) + pos( - mn ) );
+     add( design , - lo );
+     add( v_shut_down[ 0 ] , - M );
+     push_row( InitialDesign_Const , std::move( vars ) , - M - pg , INF );
+     }
+    }
+   }
+  add_rows( InitialDesign_Const , "InitialDesign_Const_Conversion" );
+  }
 
  if( generating_rows() ) {
   ActivePower_Bound.resize( f_G );
@@ -1422,9 +1489,56 @@ void ConversionUnitBlock::build_rows( void )
   return( cst );
   };
 
+ // the range of y[ t ][ k ] per unit of design over the bounds and 0
+ auto y_range = [ & ]( Index t , Index k , double & lo , double & hi ) {
+  lo = hi = 0;
+  for( Index g = 0 ; g < f_G ; ++g ) {
+   const double c = get_ramp_coefficient( k , g );
+   const double l = std::min( 0.0 , double( v_MinPower[ t ][ g ] ) );
+   const double h = std::max( 0.0 , double( v_MaxPower[ t ][ g ] ) );
+   lo += std::min( c * l , c * h );
+   hi += std::max( c * l , c * h );
+   }
+  };
+
+ // with a continuous design, the rows (9) of k at t as in big-M form: for
+ // sgn = 1 the change y_t - y_{t-1} is at most Delta^+ x when the unit is
+ // on at both instants, Y^{su,hi} x at a start-up and - Y^{sd,lo} x at a
+ // shut-down, each with M ( 1 - indicator ); for sgn = -1 the same for
+ // y_{t-1} - y_t with Delta^-, Y^{sd,hi} and - Y^{su,lo}
+ auto ramp_cd = [ & ]( std::vector< FRowConstraint > & rows , Index t ,
+                       Index k , double rs , double sgn ) {
+  double sl , sh , dl , dh , al , ah , bl , bh;
+  combination_range( true , t , k , sl , sh );
+  combination_range( false , t , k , dl , dh );
+  y_range( t , k , al , ah );
+  y_range( t ? t - 1 : t , k , bl , bh );
+  const double rng = ( sgn > 0 ) ? ah - bl : bh - al;  // largest change
+  const double dlt = ( sgn > 0 ) ? v_DeltaRampUp[ t ][ k ]
+                                 : v_DeltaRampDown[ t ][ k ];
+  const double a[ 3 ] = { dlt , sgn > 0 ? sh : dh , sgn > 0 ? - dl : - sl };
+  for( int r = 0 ; r < 3 ; ++r ) {
+   const double M = XU * ( rng + pos( - a[ r ] ) );
+   const double cst = add_dy( t , k , sgn , rs );
+   add( design , - a[ r ] );
+   if( r == 0 ) {  // on at t - 1 and at t: u_t - v_t
+    add( v_commitment[ t ] , M );
+    add( v_start_up[ t ] , - M );
+    }
+   else
+    add( ( ( r == 1 ) == ( sgn > 0 ) ) ? v_start_up[ t ] : v_shut_down[ t ] ,
+         M );
+   push_row( rows , std::move( vars ) , - INF , cst + M );
+   }
+  };
+
  // the up row (9) of k at t, with the reserve terms times rs
  auto ramp_up = [ & ]( std::vector< FRowConstraint > & rows , Index t ,
                        Index k , double rs ) {
+  if( cd ) {
+   ramp_cd( rows , t , k , rs , 1 );
+   return;
+   }
   double sl , sh , dl , dh;
   combination_range( true , t , k , sl , sh );
   combination_range( false , t , k , dl , dh );
@@ -1439,6 +1553,10 @@ void ConversionUnitBlock::build_rows( void )
  // the down row (9) of k at t, with the reserve terms times rs
  auto ramp_dn = [ & ]( std::vector< FRowConstraint > & rows , Index t ,
                        Index k , double rs ) {
+  if( cd ) {
+   ramp_cd( rows , t , k , rs , -1 );
+   return;
+   }
   double sl , sh , dl , dh;
   combination_range( true , t , k , sl , sh );
   combination_range( false , t , k , dl , dh );
@@ -1513,6 +1631,16 @@ void ConversionUnitBlock::build_rows( void )
      if( ! has_upper_limit( h ) )
       side_rows( t , [ & ]() { add_q( t , h , s ); } , ReserveBound_Const ,
                  mx , true , true );
+     else
+      if( cd ) {
+       auto tq = [ & ]() { add_q( t , h , s ); };
+       side_rows( t , tq , ReserveBound_Const , mx , true , true );
+       lim_row( tq , ReserveBound_Const , hat( true , true , t , h ) ,
+                v_start_up[ t ] , true , mn , mx );
+       if( ! last )
+        lim_row( tq , ReserveBound_Const , hat( true , false , t , h ) ,
+                 v_shut_down[ t + 1 ] , true , mn , mx );
+       }
      else {
       add_q( t , h , s );
       add( v_commitment[ t ] , - mx );
@@ -1531,6 +1659,16 @@ void ConversionUnitBlock::build_rows( void )
      if( ! has_lower_limit( h ) )
       side_rows( t , [ & ]() { add_q( t , h , s ); } , ReserveBound_Const ,
                  mn , false , true );
+     else
+      if( cd ) {
+       auto tq = [ & ]() { add_q( t , h , s ); };
+       side_rows( t , tq , ReserveBound_Const , mn , false , true );
+       lim_row( tq , ReserveBound_Const , hat( false , true , t , h ) ,
+                v_start_up[ t ] , false , mn , mx );
+       if( ! last )
+        lim_row( tq , ReserveBound_Const , hat( false , false , t , h ) ,
+                 v_shut_down[ t + 1 ] , false , mn , mx );
+       }
      else {
       add_q( t , h , s );
       add( v_commitment[ t ] , - mn );
@@ -1809,6 +1947,7 @@ bool ConversionUnitBlock::is_feasible( bool useabstract ,
        RowConstraint::is_feasible( ShutDownZero_Bound , tol , rel_viol ) )
   && RowConstraint::is_feasible( ShutDownInitial_Bound , tol , rel_viol )
   && RowConstraint::is_feasible( CommitmentDesign_Const , tol , rel_viol )
+  && RowConstraint::is_feasible( InitialDesign_Const , tol , rel_viol )
   && ( ( ! has_design() ) || ( ! constraints_generated() ) ||
        RowConstraint::is_feasible( DesignBound , tol , rel_viol ) )
   && RowConstraint::is_feasible( ActivePower_Bound , tol , rel_viol ) );
@@ -1956,10 +2095,8 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
 void ConversionUnitBlock::issue_mod( int type , Index index ,
                                      Subset && subset , ModParam issuePMod )
 {
- if( issue_pmod( issuePMod , ConversionUnitBlockMod::changes_of( type ) ) )
-  Block::add_Modification( std::make_shared< ConversionUnitBlockMod >(
-                            this , type , index , std::move( subset ) ) ,
-                           Observer::par2chnl( issuePMod ) );
+ issue_unit_mod( std::make_shared< ConversionUnitBlockMod >(
+                  this , type , index , std::move( subset ) ) , issuePMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2531,16 +2668,9 @@ void ConversionUnitBlock::scale( MF_dbl_it values , Subset && subset ,
    }
   }
 
- if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
-                 UnitBlockMod::eScale ) ) )
-  Block::add_Modification( std::make_shared< UnitBlockMod >(
-                            this , UnitBlockMod::eScale ) ,
-                           Observer::par2chnl( issuePMod ) );
- else
-  if( auto fb = get_f_Block() )
-   fb->add_Modification( std::make_shared< UnitBlockMod >(
-                          this , UnitBlockMod::eScale ) ,
-                         Observer::par2chnl( issuePMod ) );
+ issue_unit_mod( std::make_shared< UnitBlockMod >( this ,
+                                                  UnitBlockMod::eScale ) ,
+                 issuePMod );
  }
 
 /*--------------------------------------------------------------------------*/

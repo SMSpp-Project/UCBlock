@@ -4995,13 +4995,10 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
-                 ThermalUnitBlockMod::eSetMaxP ) ) )
-  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
-                            this , ThermalUnitBlockMod::eSetMaxP ,
-                            std::move( subset ) ) ,
-                           Observer::par2chnl( issuePMod ) );
+ // Issue a Physical Modification, which the father sees anyway
+ issue_unit_mod( std::make_shared< ThermalUnitBlockSbstMod >(
+                  this , ThermalUnitBlockMod::eSetMaxP ,
+                  std::move( subset ) ) , issuePMod );
 
 }  // end( ThermalUnitBlock::set_maximum_power( subset ) )
 
@@ -5023,12 +5020,9 @@ void ThermalUnitBlock::set_maximum_power( MF_dbl_it values ,
                                  issueAMod ) )
   return;  // nothing changes
 
- if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of(
-                 ThermalUnitBlockMod::eSetMaxP ) ) )
-  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
-                            this , ThermalUnitBlockMod::eSetMaxP , rng ) ,
-                           Observer::par2chnl( issuePMod ) );
+ // Issue a Physical Modification, which the father sees anyway
+ issue_unit_mod( std::make_shared< ThermalUnitBlockRngdMod >(
+                  this , ThermalUnitBlockMod::eSetMaxP , rng ) , issuePMod );
 
 }  // end( ThermalUnitBlock::set_maximum_power( range ) )
 
@@ -6618,16 +6612,11 @@ void ThermalUnitBlock::scale( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod , UnitBlockMod::changes_of(
-                 UnitBlockMod::eScale ) ) )
-  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< UnitBlockMod >(
-                            this , UnitBlockMod::eScale ) ,
-                           Observer::par2chnl( issuePMod ) );
- else if( auto f_Block = get_f_Block() )
-  f_Block->add_Modification( std::make_shared< UnitBlockMod >(
-                              this , UnitBlockMod::eScale ) ,
-                             Observer::par2chnl( issuePMod ) );
+ // Issue a Physical Modification, which the father sees anyway: it rewrites
+ // the rows that carry the scale factor even if no Solver is listening
+ issue_unit_mod( std::make_shared< UnitBlockMod >( this ,
+                                                  UnitBlockMod::eScale ) ,
+                 issuePMod );
 
 }  // end( ThermalUnitBlock::scale )
 

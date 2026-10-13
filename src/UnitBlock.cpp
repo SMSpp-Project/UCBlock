@@ -76,6 +76,22 @@ static void copy_multi_array( boost::multi_array< T , K > & to ,
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void UnitBlock::issue_unit_mod( sp_Mod mod , ModParam issuePMod )
+{
+ if( issue_pmod( issuePMod , mod->changes() ) )
+  Block::add_Modification( std::move( mod ) ,
+                           Observer::par2chnl( issuePMod ) );
+ else
+  if( auto fb = get_f_Block() ) {
+   const auto umod = dynamic_cast< const UnitBlockMod * >( mod.get() );
+   if( umod && umod->changes_power_range() )
+    fb->add_Modification( std::move( mod ) ,
+                          Observer::par2chnl( issuePMod ) );
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
 {
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );

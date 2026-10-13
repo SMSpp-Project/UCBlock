@@ -260,8 +260,10 @@ namespace SMSpp_di_unipi_it
  * domain is given by \f$ \underline{X} \f$ ("MinCapacityDesign", 0 by
  * default) and \f$ \bar{X} \f$ ("MaxCapacityDesign", \f$ -1 \f$ by
  * default), with the sign convention of IntermittentUnitBlock; the unit
- * is then not on before the horizon and has no fixed consumption. Three
- * cases follow.
+ * then has no fixed consumption. Three cases follow, and a unit on before
+ * the horizon is built: \f$ x = 1 \f$ in (a), \f$ x \geq u_{-1} \f$ (the
+ * modules on before the horizon) in (b), both written in the bounds of
+ * \f$ x \f$, and in (c) the rows below.
  *
  * (a) \f$ \bar{X} = -1 \f$: \f$ x \f$ is binary, the unit is built or not
  * (all its \f$ N \f$ modules together), and the rows \f$ u_t \leq N x \f$
@@ -275,11 +277,11 @@ namespace SMSpp_di_unipi_it
  * rows (3) with \f$ x - u_t \f$, the number of modules built and off, in
  * place of \f$ N - u_t \f$. Every other row is homogeneous in
  * \f$ ( p , r , u , v , w ) \f$ and does not involve \f$ x \f$, which
- * enters the powers only through \f$ u_t \leq x \f$; since all the
- * modules are off before the horizon, the integer points are the sums of
- * \f$ x \f$ feasible schedules of one module, and the model is the one of
- * \f$ N \f$ copies of the unit with a binary design each, in fewer rows
- * and Variable and without their symmetry.
+ * enters the powers only through \f$ u_t \leq x \f$; as for \f$ N \f$
+ * modules (see above, with \f$ x \f$ in place of \f$ N \f$), the integer
+ * points are the sums of \f$ x \f$ feasible schedules of one module, and
+ * the model is the one of \f$ N \f$ copies of the unit with a binary
+ * design each, in fewer rows and Variable and without their symmetry.
  *
  * (c) \f$ \bar{X} \geq 0 \f$: \f$ x \in [ \underline{X} , \bar{X} ] \f$
  * is continuous (say, the nominal capacity of the input, as an extendable
@@ -304,14 +306,56 @@ namespace SMSpp_di_unipi_it
  * being implied by them when the unit is off). Each pair is exact for
  * \f$ u_t \in \{ 0 , 1 \} \f$, but its continuous relaxation is weak:
  * with \f$ u_t \f$ fractional the minimum power is lost almost entirely,
- * and the bound of the relaxation can be far below the optimum. The ramps
- * and the start-up and shut-down limits, which multiply the indicators,
- * are refused with a continuous design, as are several modules. For
- * investment studies the recommended forms remain (b), exact and linear,
+ * and the bound of the relaxation can be far below the optimum. The
+ * start-up and shut-down limits and the ramps, which multiply the
+ * indicators, are written in the same way, as in the extendable units
+ * with commitment of the energy-system models: for a limit \f$ L \f$ per
+ * unit of design of the power \f$ e_t \f$ of a generator (or of a deployed
+ * power, (11)) at a start-up, \f$ e_t \leq L x + M ( 1 - v_t ) \f$ and
+ * \f$ e_t \geq L x - M ( 1 - v_t ) \f$ for a lower one, with \f$ w_{t+1}
+ * \f$ for a shut-down; for the ramps (9) and (13),
+ * \f{align*}{
+ *   y_{t,k} - y_{t-1,k} & \leq \Delta^+_{t,k} x + M ( 1 - u_t + v_t ) \; ,
+ *   & y_{t-1,k} - y_{t,k} & \leq \Delta^-_{t,k} x + M ( 1 - u_t + v_t )
+ *   \; , \\
+ *   y_{t,k} - y_{t-1,k} & \leq Y^{su,hi}_{t,k} x + M ( 1 - v_t ) \; ,
+ *   & y_{t-1,k} - y_{t,k} & \leq Y^{sd,hi}_{t,k} x + M ( 1 - w_t ) \; ,
+ *   \\
+ *   y_{t,k} - y_{t-1,k} & \leq - Y^{sd,lo}_{t,k} x + M ( 1 - w_t ) \; ,
+ *   & y_{t-1,k} - y_{t,k} & \leq - Y^{su,lo}_{t,k} x + M ( 1 - v_t ) \; ,
+ * \f}
+ * the ranges \f$ Y \f$ being per unit of design; each \f$ M \f$ is
+ * \f$ \bar{X} \f$ times the largest value the row may need, i.e., the
+ * largest change of \f$ y_{t,k} \f$ over the bounds of two instants (and
+ * 0), or the largest bound per unit of the power, plus the negative part of
+ * the coefficient of \f$ x \f$. These rows are exact for an integer
+ * commitment and weaker than (6), (7) and (9) in the continuous relaxation.
+ * A unit on before the horizon has a capacity that covers its InitialPower,
+ * \f$ P^{mx}_{0,g} x \geq p_{-1,g} \f$ for \f$ p_{-1,g} > 0 \f$ and
+ * \f$ P^{mn}_{0,g} x \leq p_{-1,g} \f$ for \f$ p_{-1,g} < 0 \f$, and its
+ * shut-down limits of the instant 0 with \f$ w_0 \f$ in the same big-M form
+ * ("InitialDesign_Const_Conversion"); the minimum power and the operating
+ * rows are not imposed on InitialPower, which is the operation before the
+ * horizon, with the capacity that it had then. Several modules are
+ * refused with a continuous design. For investment studies the
+ * recommended forms remain (b), exact and linear,
  * and the investment from outside, through "Scale" changed by an
  * InvestmentBlock (see UnitBlock::scale()), which multiplies the data and
  * involves no product; (c) is meant for translating models that describe
  * an extendable unit with commitment in this way.
+ *
+ * The continuous relaxation of a unit of \f$ N \f$ modules and that of one
+ * module with \f$ \sigma = N \f$ coincide: every row is homogeneous in
+ * \f$ ( p , r , u , v , w ) \f$, and \f$ \sigma u_t \f$ ranges in
+ * \f$ [ 0 , N ] \f$ as the number of modules on does, the data being those
+ * of one module in both. An InvestmentBlock, whose linearization is the one
+ * of the relaxation of the units, therefore sees the same function of an
+ * integer number of modules whether it changes "Scale" of one module (with
+ * integer investment Variable) or the number of modules, and the former is
+ * the form for investment studies through it; the two differ only with an
+ * integer commitment, where the modules of a scaled unit are all on or
+ * all off, and the exact form with modules committed one by one is (b) in
+ * the UCBlock.
  *
  * "Scale" \f$ \neq 1 \f$ is refused together with \f$ | \bar{X} | > 1 \f$
  * and with \f$ N > 1 \f$, since they all replicate the unit.
@@ -592,9 +636,12 @@ class ConversionUnitBlock : public UnitBlock
   *   \f$ \bar{X} \f$ must be an integer, \f$ \underline{X} \leq
   *   | \bar{X} | \f$, and \f$ \bar{X} < -1 \f$ fixes the number of
   *   modules; with \f$ \bar{X} \geq 0 \f$ the data are per unit of design
-  *   and ramps, start-up and shut-down limits and several modules are
-  *   refused. A unit with a design must be off before the horizon
-  *   (\f$ \tau_0 \leq 0 \f$) and have no FixedConsumption.
+  *   and several modules are refused. A unit with a design has no
+  *   FixedConsumption; if it is on before the horizon it is built (see
+  *   the class documentation), and with \f$ \bar{X} \geq 0 \f$ its
+  *   InitialPower is not checked against the region, which depends on
+  *   \f$ x \f$: the design is only required to cover it (see the class
+  *   documentation).
   *
   * - The scalar variable "InitialCommitment", of type netCDF::NcUint, the
   *   number \f$ u_{-1} \in \{ 1 , \ldots , N \} \f$ of modules on before
@@ -1766,6 +1813,7 @@ class ConversionUnitBlock : public UnitBlock
  std::vector< FRowConstraint > ReserveOperating_Const;
  std::vector< FRowConstraint > ReserveRamp_Const;
  std::vector< FRowConstraint > CommitmentDesign_Const;
+ std::vector< FRowConstraint > InitialDesign_Const;
 
  std::vector< BoxConstraint > Commitment_Bound;     ///< bounds of u[ t ]
  BoxConstraint ShutDownZero_Bound;                  ///< bound of w[ 0 ]
@@ -1928,6 +1976,17 @@ class ConversionUnitBlock : public UnitBlock
    "ConversionUnitBlock::scale" ,
    & ConversionUnitBlock::scale );
 
+  // scale() again under the name of the way of sizing a Block it is: k
+  // identical copies of this unit, committed together
+
+  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+   "ConversionUnitBlock::replicate" ,
+   & ConversionUnitBlock::scale );
+
+  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+   "ConversionUnitBlock::replicate" ,
+   & ConversionUnitBlock::scale );
+
   register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
    "ConversionUnitBlock::set_initial_delayed_power" ,
    & ConversionUnitBlock::set_initial_delayed_power );
@@ -2023,6 +2082,15 @@ class ConversionUnitBlockMod : public UnitBlockMod
  /// what the Modification changes, as its type says [see changes_of()]
  [[nodiscard]] ModConcern changes( void ) const override {
   return( changes_of( type() ) );
+  }
+
+ /// whether the Modification changes the power range of the unit
+ /** Of the types of this class, those of the MaxPower and MinPower [see
+  * UnitBlockMod::changes_power_range()]. */
+
+ [[nodiscard]] bool changes_power_range( void ) const override {
+  return( ( f_type == eSetMaxP ) || ( f_type == eSetMinP ) ||
+          UnitBlockMod::changes_power_range() );
   }
 
  /// constructor: the ConversionUnitBlock, the type, the index, the instants

@@ -832,7 +832,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
    delete nbs;
   }
 
-/*---- METHODS DESCRIBING THE BEHAVIOR OF A DesignNetworkBlockSolution ----*/
+/*---- METHODS DESCRIBING THE BEHAVIOR OF A DesignNetworkBlockSolution -----*/
 
  void read( const Block * block ) override final;
 

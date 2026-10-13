@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ConversionUnitBlock`: a continuous design ("MaxCapacityDesign" >= 0)
+  takes ramps and start-up and shut-down limits, written per unit of design
+  with big-M terms in the commitment and in the start-up and shut-down
+  indicators, as the extendable units with commitment of the energy-system
+  models; and a unit with a design may be on before the horizon, being
+  then built (the binary design is 1, the integer one at least the modules
+  on before it) and, with a continuous design, of a capacity that covers
+  its InitialPower
+
+- `BatteryUnitBlock` takes an infinite `MaxPower` or `MinPower` also with a
+  battery design: the rows of the power stay free on that side with no term
+  in the design, as those of an infinite level already did, and an infinite
+  `ConverterMaxPower` is no converter limit; a Store of PyPSA, whose power is
+  only bounded by its levels and by its lines, is written so
+
+- `HydroUnitBlock` reads the optional `ExactFlowToPower`, one entry per arc:
+  a single-piece turbine whose entry is nonzero produces exactly the power
+  of its piece, its row being the equality whatever the spillways, as for
+  the hydro storage of PyPSA, where the water released without producing
+  is a flow of its own
+
+- `ConversionUnitBlock` registers `scale()` in the methods factory also as
+  `ConversionUnitBlock::replicate`, the name under which a Block is sized
+  by identical copies
+
 - the unit test checks the boxes of the infeasible arcs on a unit whose
   run from before the horizon cannot pass a low availability, read with it
   and given it, and back, by `set_availability()`
@@ -95,6 +120,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   heat and power plant as a `ConversionUnitBlock` and with hyperarcs, a
   meshed network with a heat node) and prints their known optima; they are
   in `multi-energy/` of the archive of `data/` from version 2026-10-12
+
+- `data/gen_constant.py` writes two bus `UCBlock` whose own `Objective` has
+  the constant term of the network (+1000 and -1000) and prints their
+  optima by hand; they are in `constant/` of the archive of `data/` from
+  version 2026-10-13, which is that of 2026-10-12 plus this folder
+
+- `data/gen_conversion.py` writes the instances that pypsa2smspp makes of
+  the committable links of its test networks, each a `ConversionUnitBlock`
+  (a combined heat and power plant with ramps, a store, a meshed network, a
+  heat pump whose COP changes over time, delays, modules, the modules built
+  and a continuous design), and prints the optimum of PyPSA; they are in
+  `conversion/` of the archive of `data/` from version 2026-10-14, which is
+  that of 2026-10-13 plus this folder; version 2026-10-15 adds four of them,
+  with a continuous design with ramps and start-up and shut-down limits,
+  with a continuous design and with modules built on before the horizon,
+  and with modules built for the InvestmentBlock form
 
 - the commitment of a unit whose generators share it is exposed through one
   generator only, and the documentation of `UnitBlock::get_commitment()`
@@ -323,6 +364,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each row (the same rows)
 
 ### Fixed
+
+- the bounds of the node injections of `UCBlock` follow a change of the
+  power range of a unit also when no Solver is listening, a Solver attached
+  later reading them stale otherwise: `UnitBlock::issue_unit_mod()` issues
+  the Modification of a unit as usual if anyone reads it and passes it to
+  the father alone otherwise, if it changes the power range, as `scale()`
+  already did; the setters of `MaxPower` of `ThermalUnitBlock` and
+  `IntermittentUnitBlock`, of the kappa of `IntermittentUnitBlock` and
+  `BatteryUnitBlock`, of the data of `ConversionUnitBlock` and `scale()` use
+  it, and the unit test checks the bounds also with no Solver attached
+
+- `UCBlock` recomputes the bounds of the node injections after a change of
+  `MaxPower` or `MinPower` of a `ConversionUnitBlock`, which left them as
+  they were: each `UnitBlockMod` says by `changes_power_range()` whether
+  its type changes a datum of those bounds, and `UCBlock::add_Modification()`
+  asks that of every unit instead of listing the types of some classes; the
+  unit test compares the bounds after each such change with those of the
+  `UCBlock` read afresh from the changed data
+
+- the Solution of a `DCNetworkBlock` holds the auxiliary Variable
+  V_l >= | F_l | of the lines, which carry the cost of the flows
+  when some line has a `NetworkCost`: without them, writing the Solution left
+  those Variable at whatever value they had, so that a Solver keeping its
+  solutions as Solution (e.g., `PrimalProximalHeur`) wrote back a point whose
+  cost was not the one it reported; they are read, written, scaled, summed,
+  cloned and serialized with the flows (the optional "AuxiliaryValue"), and
+  `DCNetworkBlock::set_auxiliary_variable()` writes them
+
+- the Solution of a `HydroSystemUnitBlock` holds that of its
+  `PolyhedralFunctionBlock`, whose epigraph Variable carries the future cost
+  of the water in the linearized representation: without it, writing the
+  Solution left that Variable at whatever value it had, so that a Solver
+  keeping its solutions as Solution (e.g., `PrimalProximalHeur`) wrote back
+  a point whose cost was not the one it reported; the Solution is also
+  deleted with its inner ones, and serialized in the optional group
+  "PolyhedralFunctionBlockSolution"
 
 - `ThermalUnitBlock` (and so `NuclearUnitBlock`) separated a perspective
   cut every time the point violated it, also when the same cut, on the same

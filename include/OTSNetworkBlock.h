@@ -518,7 +518,7 @@ class OTSNetworkData : public DCNetworkData
   }
 
 /** @} ---------------------------------------------------------------------*/
-/*-------------- Methods for checking the OTSNetworkBlock -----------------*/
+/*-------------- Methods for checking the OTSNetworkBlock ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the OTSNetworkBlock
  * @{ */
@@ -533,7 +533,7 @@ class OTSNetworkData : public DCNetworkData
 
 
 /** @} ---------------------------------------------------------------------*/
-/*---------- METHODS FOR READING THE DATA OF THE OTSNetworkBlock ----------*/
+/*---------- METHODS FOR READING THE DATA OF THE OTSNetworkBlock -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the OTSNetworkBlock
  * @{ */
@@ -590,7 +590,7 @@ class OTSNetworkData : public DCNetworkData
   }
 
 /** @} ---------------------------------------------------------------------*/
-/*-------------- METHODS FOR READING THE Constraint -----------------------*/
+/*-------------- METHODS FOR READING THE Constraint ------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the Constraint of the OTSNetworkBlock
  * @{ */
@@ -704,7 +704,7 @@ class OTSNetworkData : public DCNetworkData
 
  ots_formulation_type f_ots_type;  ///< the OTS formulation in use
 
-/*---------------------------------- data ---------------------------------*/
+/*---------------------------------- data ----------------------------------*/
 
  /// BigM values, one per DC line
  std::vector< double > v_big_M;
@@ -715,7 +715,7 @@ class OTSNetworkData : public DCNetworkData
  /// elastic beta coefficients: beta_l = 1 - alpha_l
  std::vector< double > v_beta;
 
-/*-------------------------------- variables ------------------------------*/
+/*-------------------------------- variables -------------------------------*/
 
  /// binary switching variables \f$ \zeta_l \f$ (Standard, Elastic)
  std::vector< ColVariable > v_switching;
@@ -729,7 +729,7 @@ class OTSNetworkData : public DCNetworkData
  /// continuous elastic variables z1_l, without bounds (Elastic, ElasDir)
  std::vector< ColVariable > v_elastic;
 
-/*------------------------------- constraints -----------------------------*/
+/*------------------------------- constraints ------------------------------*/
 
  /// the upper BigM rows of the voltage law, one for each DC line
  std::vector< FRowConstraint > v_OTS_KVL_upper;

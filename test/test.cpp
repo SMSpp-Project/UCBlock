@@ -1874,6 +1874,82 @@ static void test_net_OTS_cost( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The Solution of a DCNetworkBlock holds the auxiliary Variable V_l >= | F_l |
+ * of the lines with a NetworkCost, which carry the cost of the flows: a
+ * Solution that misses them, written in the Block, leaves them at whatever
+ * value they had, and the cost of the point is not that of the solution (a
+ * Solver that keeps its solutions as Solution, as PrimalProximalHeur does,
+ * then wrote back a point whose cost was not the one it reported). The
+ * Solution, its clone and the one deserialized from what it serialized are
+ * written on a Block whose Variable have been changed, and the flows, the
+ * auxiliary Variable and the value of the Objective must be back. */
+
+static void test_net_cost_solution( void )
+{
+ const double B = 1000;
+ auto g = write_net( "DCNetworkBlock" , 3 ,
+		     { { 0 , 1 , 0 , -B , B } , { 1 , 2 , 0 , -B , B } } ,
+		     { 0 , 0 , 1 } );
+ put( g , "NetworkCost" , g.getDim( "NumberLines" ) , { 2 , 3 } );
+ const std::string what = "network cost Solution";
+ try {
+  std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
+						 Block::new_Block( g ) ) );
+  nb->generate_abstract_variables();
+  nb->generate_abstract_constraints();
+  nb->generate_objective();
+
+  const auto & flow = nb->get_power_flow();
+  const auto & aux = nb->get_auxiliary_variable();
+  check( aux.size() == 2 , what + ": no auxiliary Variable" );
+  if( aux.size() != 2 )
+   return;
+
+  auto lf = static_cast< LinearFunction * >( static_cast< FRealObjective * >(
+				       nb->get_objective() )->get_function() );
+  auto value = [ & ]( void ) {
+   lf->compute( true );
+   return( lf->get_value() );
+   };
+
+  // a point with V_l > | F_l |, which the Solution has to give back as it is
+  const std::vector< double > f = { -4 , 7 };
+  const std::vector< double > v = { 5 , 9 };
+  nb->set_power_flow( f );
+  nb->set_auxiliary_variable( v );
+  const double cost = value();
+
+  std::unique_ptr< Solution > sol( nb->get_Solution( nullptr , false ) );
+  std::unique_ptr< Solution > cln( sol->clone() );
+
+  auto sg = new_group( "SOL" );
+  sol->serialize( sg );
+  std::unique_ptr< Solution > des( new DCNetworkBlockSolution() );
+  des->deserialize( sg );
+
+  auto restored = [ & ]( Solution * s , const std::string & which ) {
+   nb->set_power_flow( { 1 , 1 } );
+   nb->set_auxiliary_variable( { 1 , 1 } );
+   s->write( nb.get() );
+   for( Index l = 0 ; l < 2 ; ++l )
+    check( ( flow[ l ].get_value() == f[ l ] ) &&
+	   ( aux[ l ].get_value() == v[ l ] ) ,
+	   what + ": " + which + " does not write line " +
+	   std::to_string( l ) );
+   check( value() == cost , what + ": the point " + which + " writes "
+	  "costs " + str( value() ) + ", not " + str( cost ) );
+   };
+
+  restored( sol.get() , "the Solution" );
+  restored( cln.get() , "its clone" );
+  restored( des.get() , "the deserialized one" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* A negative NetworkCost leaves V_l >= | F_l | unbounded above in the
  * Objective: it is refused when read and by both set_network_cost(), while
  * a zero cost is accepted. */
@@ -3390,6 +3466,92 @@ static void test_hydro_system( void )
   #endif
   delete b;
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* HydroSystemUnitBlock: its Solution holds all the Variable of its tree,
+ * those of the PolyhedralFunctionBlock included, which carry the future cost
+ * of the water; a Solution that misses them, written in the Block, leaves
+ * them at whatever value they had, and the cost of the point is not that of
+ * the solution. */
+
+static Configuration * read_test_cfg( const std::string & name );
+
+static void test_hydro_system_solution( void )
+{
+ auto d0 = turbine_HU( 2 );
+ d0.R = 2;
+ d0.maxV.assign( 4 , 100 );
+ auto d1 = turbine_HU( 2 );
+
+ auto g = new_group( "HSS" , true );
+ g.putAtt( "type" , "HydroSystemUnitBlock" );
+ g.addDim( "TimeHorizon" , 2 );
+ g.addDim( "NumberHydroUnits" , 2 );
+ write_HU( g.addGroup( "HydroUnitBlock_0" ) , d0 );
+ write_HU( g.addGroup( "HydroUnitBlock_1" ) , d1 );
+ auto pg = g.addGroup( "PolyhedralFunctionBlock" );
+ pg.putAtt( "type" , "PolyhedralFunctionBlock" );
+ auto nv = pg.addDim( "PolyFunction_NumVar" , 3 );
+ auto nr = pg.addDim( "PolyFunction_NumRow" , 2 );
+ put( pg , "PolyFunction_A" , { nr , nv } , { -1 , -2 , -3 , -2 , -1 , 0 } );
+ put( pg , "PolyFunction_b" , nr , { 500 , 300 } );
+
+ std::unique_ptr< HydroSystemUnitBlock > b(
+		 dynamic_cast< HydroSystemUnitBlock * >( Block::new_Block( g ) ) );
+ if( ! b ) {
+  check( false , "hydro system Solution: not read" );
+  return;
+  }
+
+ // the linearized representation, whose epigraph Variable carries the
+ // value of the future cost [see PFBCfg.txt]
+ const auto pfb = b->get_polyhedral_function_block();
+ std::unique_ptr< BlockConfig > bc(
+		   dynamic_cast< BlockConfig * >( read_test_cfg( "PFBCfg.txt" ) ) );
+ if( ! bc ) {
+  check( false , "hydro system Solution: PFBCfg.txt not read" );
+  return;
+  }
+ bc->apply( pfb );
+ generate_all( b.get() );
+
+ // all the ColVariable of the tree, with the Block they belong to
+ std::vector< std::pair< ColVariable * , Block * > > vars;
+ std::function< void( Block * ) > collect = [ & ]( Block * blk ) {
+  blk->for_each_variable_group( [ & ]( const BaseGroup & grp ) {
+    grp.for_each( [ & ]( Variable & v ) {
+      if( auto cv = dynamic_cast< ColVariable * >( & v ) )
+       vars.emplace_back( cv , blk ); } ); } );
+  for( auto nb : blk->get_nested_Blocks() )
+   collect( nb );
+  };
+ collect( b.get() );
+
+ check( std::any_of( vars.begin() , vars.end() ,
+		     [ pfb ]( const auto & p ) { return( p.second == pfb ); } ) ,
+	"hydro system Solution: the PolyhedralFunctionBlock has no Variable" );
+
+ for( Index i = 0 ; i < vars.size() ; ++i )
+  vars[ i ].first->set_value( 0.5 * ( i + 1 ) );
+
+ std::unique_ptr< Solution > sol( b->get_Solution( nullptr , false ) );
+ std::unique_ptr< Solution > cln( sol->clone() );
+
+ auto restored = [ & ]( Solution * s , const std::string & what ) {
+  for( auto & p : vars )
+   p.first->set_value( -7 );
+  s->write( b.get() );
+  for( Index i = 0 ; i < vars.size() ; ++i )
+   if( vars[ i ].first->get_value() != 0.5 * ( i + 1 ) ) {
+    check( false , "hydro system Solution: " + what + " does not write a "
+	   "Variable of the " + vars[ i ].second->classname() );
+    return;
+    }
+  };
+
+ restored( sol.get() , "the Solution" );
+ restored( cln.get() , "its clone" );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -11402,7 +11564,7 @@ static void test_nuclear_DP_bounding( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ THE CONVERSION UNIT ------------------------------*/
+/*------------------------ THE CONVERSION UNIT -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /* The data of a ConversionUnitBlock as the tests write it: the data over
  * the instants and the generators (or rows, or ramps) are row-major
@@ -13161,9 +13323,8 @@ static void test_conversion_modules( void )
  *   being weak; with a zero cost set after the generation and no minimum
  *   power nor input it is worth the unit of capacity 150;
  * - (d) Scale 2 with MaxCapacityDesign -3 is refused, as is a continuous
- *   design with ramps or with several modules, a unit with a design on
- *   before the horizon and a negative MaxCapacityDesign that is not an
- *   integer.
+ *   design with several modules, two modules on before the horizon at the
+ *   power of one and a negative MaxCapacityDesign that is not an integer.
  *
  * The optima of (a), (b) and (c), by an independent MILP, are 8010, 8010
  * and 29055. The unit of (c) is written and read back, and its Solution
@@ -13342,20 +13503,348 @@ static void test_conversion_design( void )
  e.scale = 2;
  refused( e , "Scale 2 with MaxCapacityDesign -3" );
  e = design_CU( true , 3 , 0 , 150 );
- e.rup.assign( 12 , 10 );
- refused( e , "a continuous design with ramps" );
- e = design_CU( true , 3 , 0 , 150 );
  e.modules = 2;
  refused( e , "a continuous design with two modules" );
  e = design_CU( false , 150 , 0 , -3 );
  e.initUD = 2;
+ e.initK = 2;
  e.initP = { -75 , 30 };
- refused( e , "a unit with a design on before the horizon" );
+ refused( e , "two modules on before the horizon at the power of one" );
  e = design_CU( false , 150 , 0 , -2.5 );
  refused( e , "MaxCapacityDesign -2.5" );
  e = design_CU( false , 150 , 0 , -3 );
  e.modules = 2;
  refused( e , "Modules 2 with MaxCapacityDesign -3" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The bounds of the node injections given to the NetworkBlock follow every
+ * change of the power range of a unit, whatever its class [see
+ * UnitBlockMod::changes_power_range()]. In a UCBlock on two nodes and two
+ * instants, with a ConversionUnitBlock (MinPower -20, MaxPower 100) and a
+ * ThermalUnitBlock (MaxPower 200) at node 0, and an IntermittentUnitBlock
+ * (MaxPower 50) and a BatteryUnitBlock (MinPower -4, MaxPower 5) at node 1,
+ * the MaxPower and the MinPower of the ConversionUnitBlock, the MaxPower of
+ * the ThermalUnitBlock, the MaxPower and the kappa of the
+ * IntermittentUnitBlock, the kappa of the BatteryUnitBlock and the scale of
+ * the ConversionUnitBlock are changed one at a time after the generation,
+ * with a Solver attached and with none (the father keeps its data in step
+ * anyway [see UnitBlock::issue_unit_mod()]), and the bounds are each time
+ * those of the UCBlock read afresh from the changed data. */
+
+struct PRData {
+ std::vector< double > cuMin = { -20 , -20 };  // [ T ][ 1 ]
+ std::vector< double > cuMax = { 100 , 100 };  // [ T ][ 1 ]
+ double tuMax = 200;
+ std::vector< double > iuMax = { 50 , 50 };
+ double iuKappa = 1;
+ double buKappa = 1;
+ double cuScale = 1;
+ };
+
+/*--------------------------------------------------------------------------*/
+
+static netCDF::NcGroup write_UC_power_range( const PRData & p )
+{
+ auto g = new_group( "PR" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 2 );
+ g.addDim( "NumberUnits" , 4 );
+ auto N = g.addDim( "NumberNodes" , 2 );
+ auto L = g.addDim( "NumberLines" , 1 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 4 );
+ put_int( g , "StartLine" , L , { 0 } );
+ put_int( g , "EndLine" , L , { 1 } );
+ put( g , "MinPowerFlow" , L , { -30 } );
+ put( g , "MaxPowerFlow" , L , { 30 } );
+ put( g , "ActivePowerDemand" , { N , TH } , { 50 , 50 , 20 , 20 } );
+ put_int( g , "GeneratorNode" , G , { 0 , 0 , 1 , 1 } );
+
+ CUData c;
+ c.T = 2;
+ c.minP = p.cuMin;
+ c.maxP = p.cuMax;
+ c.lin = { 40 , 40 };
+ c.scale = p.cuScale;
+ write_CU( g.addGroup( "UnitBlock_0" ) , c );
+
+ TUData d;
+ d.T = 2;
+ d.minP = 20;
+ d.maxP = p.tuMax;
+ d.ru = d.rd = d.su = d.sd = 200;
+ d.lin = { 60 , 60 };
+ write_TU( g.addGroup( "UnitBlock_1" ) , d );
+
+ auto u = g.addGroup( "UnitBlock_2" );
+ u.putAtt( "type" , "IntermittentUnitBlock" );
+ put( u , "MaxPower" , TH , p.iuMax );
+ put( u , "ActivePowerCost" , 10.0 );
+ put( u , "Kappa" , p.iuKappa );
+
+ u = g.addGroup( "UnitBlock_3" );
+ u.putAtt( "type" , "BatteryUnitBlock" );
+ put( u , "MinStorage" , TH , { 0 , 0 } );
+ put( u , "MaxStorage" , TH , { 10 , 10 } );
+ put( u , "MaxPower" , TH , { 5 , 5 } );
+ put( u , "MinPower" , TH , { -4 , -4 } );
+ put( u , "Kappa" , p.buKappa );
+
+ return( g );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_power_range_changes( void )
+{
+ auto run1 = [ & ]( const std::string & what , const PRData & p ,
+                    const std::function< void( UCBlock * ) > & change ,
+                    bool solver ) {
+  auto a = dynamic_cast< UCBlock * >( Block::new_Block(
+                                       write_UC_power_range( PRData() ) ) );
+  auto b = dynamic_cast< UCBlock * >( Block::new_Block(
+                                       write_UC_power_range( p ) ) );
+  check( a && b , "power range, " + what + ": the UCBlock is not read" );
+  if( a && b ) {
+   generate_all( a );
+   generate_all( b );
+   auto fs = solver ? new FakeSolver() : nullptr;
+   if( fs )
+    a->register_Solver( fs );
+   change( a );
+   for( Index n = 0 ; n < a->get_number_networks() ; ++n ) {
+    const auto na = a->get_network_block( n );
+    const auto nb = b->get_network_block( n );
+    for( Index i = 0 ; i < na->get_number_intervals() ; ++i )
+     for( Index k = 0 ; k < na->get_number_nodes() ; ++k ) {
+      const double amn = na->get_min_node_injection( i )[ k ];
+      const double amx = na->get_max_node_injection( i )[ k ];
+      const double bmn = nb->get_min_node_injection( i )[ k ];
+      const double bmx = nb->get_max_node_injection( i )[ k ];
+      check( close( amn , bmn ) && close( amx , bmx ) ,
+             "power range, " + what + ": network " + std::to_string( n ) +
+             ", node " + std::to_string( k ) + " has [ " + str( amn ) +
+             " , " + str( amx ) + " ] instead of [ " + str( bmn ) + " , " +
+             str( bmx ) + " ]" );
+      }
+    }
+   if( fs )
+    a->unregister_Solver( fs , true );
+   }
+  delete a;
+  delete b;
+  };
+
+ auto run = [ & ]( const std::string & what , const PRData & p ,
+                   const std::function< void( UCBlock * ) > & change ) {
+  run1( what + ", a Solver attached" , p , change , true );
+  run1( what + ", no Solver" , p , change , false );
+  };
+
+ PRData p;
+ p.cuMax = { 100 , 150 };
+ run( "MaxPower of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
+  std::vector< double > v = { 150 };
+  static_cast< ConversionUnitBlock * >( uc->get_unit_block( 0 ) )->
+   set_maximum_power( v.cbegin() , 0 , Range( 1 , 2 ) , eModBlck ,
+                      eModBlck );
+  } );
+
+ p = PRData();
+ p.cuMin = { -40 , -20 };
+ run( "MinPower of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
+  std::vector< double > v = { -40 };
+  static_cast< ConversionUnitBlock * >( uc->get_unit_block( 0 ) )->
+   set_minimum_power( v.cbegin() , 0 , Range( 0 , 1 ) , eModBlck ,
+                      eModBlck );
+  } );
+
+ p = PRData();
+ p.tuMax = 250;
+ run( "MaxPower of the ThermalUnitBlock" , p , []( UCBlock * uc ) {
+  std::vector< double > v = { 250 , 250 };
+  static_cast< ThermalUnitBlock * >( uc->get_unit_block( 1 ) )->
+   set_maximum_power( v.cbegin() , Range( 0 , 2 ) , eModBlck , eModBlck );
+  } );
+
+ p = PRData();
+ p.iuMax = { 50 , 80 };
+ run( "MaxPower of the IntermittentUnitBlock" , p , []( UCBlock * uc ) {
+  std::vector< double > v = { 80 };
+  static_cast< IntermittentUnitBlock * >( uc->get_unit_block( 2 ) )->
+   set_maximum_power( v.cbegin() , Range( 1 , 2 ) , eModBlck , eModBlck );
+  } );
+
+ p = PRData();
+ p.iuKappa = 2;
+ run( "kappa of the IntermittentUnitBlock" , p , []( UCBlock * uc ) {
+  static_cast< IntermittentUnitBlock * >( uc->get_unit_block( 2 ) )->
+   set_kappa( 2 , eModBlck , eModBlck );
+  } );
+
+ p = PRData();
+ p.buKappa = 3;
+ run( "kappa of the BatteryUnitBlock" , p , []( UCBlock * uc ) {
+  static_cast< BatteryUnitBlock * >( uc->get_unit_block( 3 ) )->
+   set_kappa( 3 , eModBlck , eModBlck );
+  } );
+
+ p = PRData();
+ p.cuScale = 2;
+ run( "scale of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
+  uc->get_unit_block( 0 )->scale( 2 , eModBlck , eModBlck );
+  } );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The design of test_conversion_design() in the cases that need the big-M
+ * rows of the indicators or the initial state:
+ *
+ * - (c) with ramps of 0.3 per unit of capacity on the output, start-up and
+ *   shut-down limits of 0.5 per unit on it, off before the horizon:
+ *   38080 with capacity 75, and a continuous relaxation of 5444.13 or more
+ *   (reported, the big-M rows being weak);
+ * - the same on before the horizon for one instant (so on at 0 and 1),
+ *   with the output at 25 and at 45: 37030 in both, the capacity of 75
+ *   covering InitialPower;
+ * - (c) without ramps on before the horizon with the output at 100: the
+ *   capacity has to cover it, 33820 with capacity 100;
+ * - (b) with 2 of the 3 modules on before the horizon at 30 each: 7810,
+ *   as three units with a binary design each, two of them on before the
+ *   horizon (and therefore built).
+ *
+ * The values are those of an independent MILP written as the extendable
+ * and modular committable links of PyPSA (big-M equal to the largest
+ * capacity), which for the output at 100 without the covering row gives
+ * 28955 with capacity 75, below the power of the unit before the horizon. A
+ * unit with a continuous design on before the horizon is written and read
+ * back. Finally, the continuous relaxation of a unit of 2 modules is that
+ * of one module with Scale 2, its rows being homogeneous in the Variable
+ * and the commitment of the scaled unit times 2 ranging in [ 0 , 2 ] as
+ * that of the modules, while the two optima differ (the modules of the
+ * scaled unit are all on or all off): an InvestmentBlock, whose
+ * linearization is that of the relaxation, sees the same function of an
+ * integer number of modules in the two forms. */
+
+static void test_conversion_design_ext( void )
+{
+ const std::string w = "design ext, ";
+ auto ramps = []( CUData & d ) {
+  d.K = 1;
+  d.rampM = { 0 , 1 };
+  d.rup.assign( 6 , 0.3 );
+  d.rdn.assign( 6 , 0.3 );
+  d.sul = rep( 6 , { -1 , 0.5 } );
+  d.sdl = rep( 6 , { -1 , 0.5 } );
+  };
+ auto on_before = []( CUData & d , double y ) {
+  d.initUD = 1;
+  d.initP = { -2.5 * y , y };
+  };
+ struct Case {
+  std::string what;
+  bool r;
+  double y0;  // the output before the horizon, < 0 if off
+  double expected , x;
+  };
+ const std::vector< Case > cases = {
+  { "(c) with ramps and limits" , true , -1 , 38080 , 75 } ,
+  { "(c) with ramps, on at 25" , true , 25 , 37030 , 75 } ,
+  { "(c) with ramps, on at 45" , true , 45 , 37030 , 75 } ,
+  { "(c) on at 100" , false , 100 , 33820 , 100 } };
+
+ for( const auto & c : cases ) {
+  const auto what = w + c.what;
+  try {
+   auto d = design_CU( true , 3 , 0 , 150 );
+   if( c.r )
+    ramps( d );
+   if( c.y0 >= 0 )
+    on_before( d , c.y0 );
+   std::unique_ptr< UCBlock > uc( design_UC( { d } ) );
+   const double v = conv_milp( uc.get() );
+   if( std::isnan( v ) ) {
+    std::cout << "design ext: no :MILPSolver, skipped" << std::endl;
+    return;
+    }
+   auto cub = dynamic_cast< ConversionUnitBlock * >( uc->get_unit_block( 0 ) );
+   const double x = cub->get_design().get_value();
+   check( close( v , c.expected ) , what + ": optimum " + str( v ) +
+          " instead of " + str( c.expected ) );
+   check( close( x , c.x ) , what + ": capacity " + str( x ) +
+          " instead of " + str( c.x ) );
+   check( uc->is_feasible() , what + ": the solution is not feasible" );
+   if( c.what == "(c) with ramps and limits" ) {
+    const double l = conv_lp( uc.get() );
+    check( l <= v + 1e-6 * v , what + ": relaxation " + str( l ) +
+           " above the optimum" );
+    std::cout << what << ": optimum " << v << ", relaxation " << l
+              << std::endl;
+    }
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ // (b) with two modules on before the horizon, against three units
+ try {
+  auto db = design_CU( false , 150 , 0 , -3 );
+  on_before( db , 60 );
+  db.initK = 2;
+  std::unique_ptr< UCBlock > b( design_UC( { db } ) );
+  auto one = design_CU( false , 150 , 0 , -1 );
+  auto on = one;
+  on_before( on , 30 );
+  std::unique_ptr< UCBlock > r( design_UC( { on , on , one } ) );
+  const double vb = conv_milp( b.get() );
+  const double vr = conv_milp( r.get() );
+  if( ! std::isnan( vb ) ) {
+   check( close( vb , 7810 ) , w + "(b) on before: optimum " + str( vb ) +
+          " instead of 7810" );
+   check( close( vr , vb ) , w + "three units, two on before: optimum " +
+          str( vr ) + " instead of " + str( vb ) );
+   auto cb = dynamic_cast< ConversionUnitBlock * >( b->get_unit_block( 0 ) );
+   check( cb->get_design().get_value() >= 2 - 1e-9 , w + "(b) on before: "
+          "fewer modules built than on before the horizon" );
+   check( b->is_feasible() , w + "(b) on before: not feasible" );
+   }
+  }
+ catch( std::exception & e ) {
+  check( false , w + "(b) on before throws " + e.what() );
+  }
+
+ // 2 modules against Scale 2
+ {
+  auto dm = module_CU( 2 , -2 , 0 , false );
+  auto ds = module_CU( 1 , -2 , 0 , false );
+  ds.scale = 2;
+  std::unique_ptr< UCBlock > um( design_UC( { dm } ) );
+  std::unique_ptr< UCBlock > us( design_UC( { ds } ) );
+  const double lm = conv_lp( um.get() ) , ls = conv_lp( us.get() );
+  const double vm = conv_milp( um.get() ) , vs = conv_milp( us.get() );
+  if( ! std::isnan( lm ) ) {
+   check( close( lm , ls ) , w + "2 modules: relaxation " + str( lm ) +
+          " instead of " + str( ls ) + " of Scale 2" );
+   std::cout << w << "2 modules: relaxation " << lm << ", optimum " << vm
+             << "; Scale 2: relaxation " << ls << ", optimum " << vs
+             << std::endl;
+   }
+  }
+
+ // written and read back
+ auto d = design_CU( true , 3 , 0 , 150 );
+ ramps( d );
+ on_before( d , 45 );
+ auto g = new_group( "CU" , true );
+ write_CU( g , d );
+ auto b = round_trip( g , "design ext" );
+ auto cub = dynamic_cast< ConversionUnitBlock * >( b );
+ check( cub && ( cub->design_mode() == 'c' ) &&
+        ( cub->get_init_up_down_time() == 1 ) &&
+        ( cub->get_number_ramp_rows() == 1 ) ,
+        "design ext: the data read back differ" );
+ delete b;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -13433,6 +13922,7 @@ int main( int argc , char ** argv )
   test_net_demand_change();
   test_net_OTS_cost();
   test_net_negative_cost();
+  test_net_cost_solution();
   test_net_dual_prices();
   test_net_no_lines();
   test_net_hyperarc_susceptance();
@@ -13449,6 +13939,7 @@ int main( int argc , char ** argv )
   test_hydro_spillage();
   test_hydro_inertia();
   test_hydro_system();
+  test_hydro_system_solution();
 
   test_battery_storage_balance();
   test_battery_initial_storage_sign();
@@ -13521,6 +14012,8 @@ int main( int argc , char ** argv )
   test_conversion_delays();
   test_conversion_modules();
   test_conversion_design();
+  test_power_range_changes();
+  test_conversion_design_ext();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;
