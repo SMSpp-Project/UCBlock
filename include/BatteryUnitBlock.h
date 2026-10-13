@@ -340,7 +340,8 @@ namespace SMSpp_di_unipi_it
  * 0), and the side of (7d) that it would give has no term in \f$ x_b \f$, and
  * the row is free on that side. The same holds for an infinite
  * \f$ P^{mx}_t \f$ or \f$ P^{mn}_t \f$ in (1), (2), (5) and (8) and in their
- * forms (1d), (2d), (5d) and (8d), and an infinite \f$ P^{cv}_t \f$ is no
+ * forms (1d), (2d), (5d) and (8d), and for an infinite \f$ P^{pr}_t \f$ or
+ * \f$ P^{sc}_t \f$ in (9) and (9d), and an infinite \f$ P^{cv}_t \f$ is no
  * converter limit, as a nonpositive one: e.g., a storage whose power is
  * only bounded by its levels and by the lines that connect it, as the Store
  * of PyPSA, has \f$ P^{mx}_t = + \infty \f$ and

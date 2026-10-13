@@ -292,6 +292,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   row is handed to the Solver, and the two linearizations skip the other
   instants
 
+- an infinite `MaxPrimaryPower` or `MaxSecondaryPower` of a
+  `BatteryUnitBlock` gave the reserve bound (9) the right-hand side NaN at
+  kappa 0 (0 times +inf), a row (9d) with an infinite coefficient of the
+  design variable, and a NaN `get_kappa_linearization()` (the zero dual of
+  the free bound times +inf): the bound is now +inf whatever kappa is, the
+  row (9d) is free with no term in the design, and the zero dual gives no
+  term, as for the other infinite bounds of the unit
+
 - the bounds of the node injections of `UCBlock` follow a change of the
   power range of a unit also when no Solver is listening, a Solver attached
   later reading them stale otherwise: `UnitBlock::issue_unit_mod()` issues

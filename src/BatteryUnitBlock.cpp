@@ -1448,7 +1448,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     primary_upper_bound_Const[ t ].set_rhs(
-				    f_kappa * mb * v_MaxPrimaryPower[ t ] );
+     kappa_bound( f_kappa * mb , v_MaxPrimaryPower[ t ] ) );
     primary_upper_bound_Const[ t ].set_variable(
 					& v_primary_spinning_reserve[ t ] );
     }
@@ -1463,9 +1463,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
      vars.push_back( std::make_pair( & v_primary_spinning_reserve[ t ] ,
 				     1.0 ) );
      vars.push_back( std::make_pair( & batt_design ,
-				     -f_kappa * v_MaxPrimaryPower[ t ] ) );
+			    kappa_coeff( f_kappa , v_MaxPrimaryPower[ t ] ) ) );
      primary_upper_bound_design_Const[ t ].set_lhs( -Inf< double >() );
-     primary_upper_bound_design_Const[ t ].set_rhs( 0.0 );
+     primary_upper_bound_design_Const[ t ].set_rhs(
+      std::isinf( v_MaxPrimaryPower[ t ] ) ? Inf< double >() : 0.0 );
      primary_upper_bound_design_Const[ t ].set_function(
 				    new LinearFunction( std::move( vars ) ) );
      }
@@ -1485,7 +1486,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
     secondary_upper_bound_Const[ t ].set_rhs(
-				  f_kappa * mb * v_MaxSecondaryPower[ t ] );
+     kappa_bound( f_kappa * mb , v_MaxSecondaryPower[ t ] ) );
     secondary_upper_bound_Const[ t ].set_variable(
 				       & v_secondary_spinning_reserve[ t ] );
     }
@@ -1501,9 +1502,10 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
      vars.push_back( std::make_pair( & v_secondary_spinning_reserve[ t ] ,
 				     1.0 ) );
      vars.push_back( std::make_pair( & batt_design ,
-				     -f_kappa * v_MaxSecondaryPower[ t ] ) );
+			  kappa_coeff( f_kappa , v_MaxSecondaryPower[ t ] ) ) );
      secondary_upper_bound_design_Const[ t ].set_lhs( -Inf< double >() );
-     secondary_upper_bound_design_Const[ t ].set_rhs( 0.0 );
+     secondary_upper_bound_design_Const[ t ].set_rhs(
+      std::isinf( v_MaxSecondaryPower[ t ] ) ? Inf< double >() : 0.0 );
      secondary_upper_bound_design_Const[ t ].set_function(
 				    new LinearFunction( std::move( vars ) ) );
      }
@@ -2400,12 +2402,12 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
  if( ! primary_upper_bound_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    primary_upper_bound_Const[ t ].set_rhs(
-			     f_kappa * mb * v_MaxPrimaryPower[ t ] , nAM );
+    kappa_bound( f_kappa * mb , v_MaxPrimaryPower[ t ] ) , nAM );
 
  if( ! secondary_upper_bound_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    secondary_upper_bound_Const[ t ].set_rhs(
-			   f_kappa * mb * v_MaxSecondaryPower[ t ] , nAM );
+    kappa_bound( f_kappa * mb , v_MaxSecondaryPower[ t ] ) , nAM );
 
  // the reserve rows of the design: the coefficient of x_b
  auto reserve_design = [ & ]( std::vector< FRowConstraint > & rows ,
@@ -2417,7 +2419,7 @@ void BatteryUnitBlock::update_kappa_in_cnstrs( ModParam issueAMod )
     throw( std::logic_error( "BatteryUnitBlock::update_kappa_in_cnstrs: "
 			     "expected Variable not found in the reserve "
 			     "rows of the design" ) );
-   f->modify_coefficient( idx , -f_kappa * bound[ t ] , nAM );
+   f->modify_coefficient( idx , kappa_coeff( f_kappa , bound[ t ] ) , nAM );
    }
   };
  reserve_design( primary_upper_bound_design_Const , v_MaxPrimaryPower );
@@ -2854,12 +2856,12 @@ double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
   if( ! primary_reserve_bounds.empty() ) {
    const auto gamma_pr = std::abs( primary_reserve_bounds[ t ].get_dual() );
-   linearization += - get_max_primary_power()[ t ] * gamma_pr;
+   linearization += term( - gamma_pr , get_max_primary_power()[ t ] );
   }
 
   if( ! secondary_reserve_bounds.empty() ) {
    const auto gamma_sc = std::abs( secondary_reserve_bounds[ t ].get_dual() );
-   linearization += - get_max_secondary_power()[ t ] * gamma_sc;
+   linearization += term( - gamma_sc , get_max_secondary_power()[ t ] );
   }
 
  }
