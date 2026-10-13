@@ -375,6 +375,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BatteryUnitBlock`, of the data of `ConversionUnitBlock` and `scale()` use
   it, and the unit test checks the bounds also with no Solver attached
 
+- `BatteryUnitBlock::resize` passes its change of kappa through
+  `UnitBlock::issue_unit_mod()` as `set_kappa()` does, so that the bounds of
+  the node injections follow it also when no Solver is listening
+
 - `UCBlock` recomputes the bounds of the node injections after a change of
   `MaxPower` or `MinPower` of a `ConversionUnitBlock`, which left them as
   they were: each `UnitBlockMod` says by `changes_power_range()` whether

@@ -2687,14 +2687,11 @@ void BatteryUnitBlock::resize( double kappa , double conv_kappa ,
    }
   }
 
- // each only if anyone reads what it changes, as in set_kappa() and
- // set_converter_kappa()
- if( kappa_changes &&
-     issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
-                 BatteryUnitBlockMod::eSetKappa ) ) )
-  Block::add_Modification( std::make_shared< BatteryUnitBlockMod >(
-                            this , BatteryUnitBlockMod::eSetKappa ) ,
-                           Observer::par2chnl( issuePMod ) );
+ // kappa as in set_kappa(), which the father sees anyway; the converter only
+ // if anyone reads what it changes, as in set_converter_kappa()
+ if( kappa_changes )
+  issue_unit_mod( std::make_shared< BatteryUnitBlockMod >(
+                   this , BatteryUnitBlockMod::eSetKappa ) , issuePMod );
  if( conv_changes &&
      issue_pmod( issuePMod , BatteryUnitBlockMod::changes_of(
                  BatteryUnitBlockMod::eSetConvKappa ) ) )
