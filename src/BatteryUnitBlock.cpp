@@ -769,22 +769,30 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // the two rows p <= k_cv ConvMaxPower [ x_c ] and -p <= k_cv
   // ConvMaxPower [ x_c ]; they are there if "ConverterMaxPower" or
   // "ConverterKappa" is in the data or the converter has a design Variable,
-  // and a nonpositive converter power leaves the rows of that instant
-  // non-binding, as in the design case
+  // and only at the instants where the converter power is positive and
+  // finite, which are the columns of the rows in their order: elsewhere the
+  // row would be free [see converter_binds()]
 
-  if( has_converter_rows() ) {
+  Index n_conv = 0;
+  if( has_converter_rows() )
+   for( Index t = 0 ; t < f_time_horizon ; ++t )
+    if( converter_binds( t ) )
+     ++n_conv;
+
+  if( n_conv > 0 ) {
    const double conv_kappa = get_converter_kappa();
    const bool split = ! v_intake_level.empty();
    const Index rows = split ? 1 : 2;
 
    converter_bounds_Const.resize(
     boost::multi_array< FRowConstraint , 2 >::extent_gen()
-    [ rows ][ f_time_horizon ] );
+    [ rows ][ n_conv ] );
 
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+   for( Index t = 0 , k = 0 ; t < f_time_horizon ; ++t ) {
+    if( ! converter_binds( t ) )
+     continue;
+
     const double conv_power = v_ConvMaxPower[ t ];
-    // an infinite converter power is no limit, as a nonpositive one
-    const bool binding = ( conv_power > 0 ) && ( ! std::isinf( conv_power ) );
 
     for( Index row = 0 ; row < rows ; ++row ) {
      if( split ) {
@@ -795,19 +803,17 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
       vars.push_back( std::make_pair( &v_active_power[ t ] ,
                                       row == 0 ? 1.0 : -1.0 ) );
 
-     if( binding && ( f_ConvInvestmentCost != 0 ) )
+     if( f_ConvInvestmentCost != 0 )
       vars.push_back( std::make_pair( &conv_design ,
                                       -conv_kappa * conv_power ) );
 
-     converter_bounds_Const[ row ][ t ].set_lhs( -Inf< double >() );
-     if( ! binding )
-      converter_bounds_Const[ row ][ t ].set_rhs( Inf< double >() );
-     else
-      converter_bounds_Const[ row ][ t ].set_rhs(
-       ( f_ConvInvestmentCost != 0 ) ? 0.0 : conv_kappa * conv_power );
-     converter_bounds_Const[ row ][ t ].set_function(
+     converter_bounds_Const[ row ][ k ].set_lhs( -Inf< double >() );
+     converter_bounds_Const[ row ][ k ].set_rhs(
+      ( f_ConvInvestmentCost != 0 ) ? 0.0 : conv_kappa * conv_power );
+     converter_bounds_Const[ row ][ k ].set_function(
                                     new LinearFunction( std::move( vars ) ) );
      }
+    ++k;
     }
 
    add_static_constraint( converter_bounds_Const , "Converter_Battery" );
@@ -945,13 +951,12 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
    //
    // with x the converter design, or the battery design if the converter
    // has none and "ConverterMaxPower" is not given; with a constant
-   // converter power a numerical bound, and a non-binding row if the
-   // converter power is not positive, to avoid disabling the battery.
+   // converter power a numerical bound, and a free row with no term if the
+   // converter power is not positive and finite, to avoid disabling the
+   // battery (the row stays, as the rows of the design share the array).
 
    // an infinite converter power is no limit, as a nonpositive one
-   const double conv_power = v_ConvMaxPower.empty() ||
-                             std::isinf( v_ConvMaxPower[ t ] ) ? 0.
-                                                    : v_ConvMaxPower[ t ];
+   const double conv_power = converter_binds( t ) ? v_ConvMaxPower[ t ] : 0.;
 
    if( split ) {
     if( conv_x && ( conv_power > 0 ) ) {
@@ -981,7 +986,7 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
                                    new LinearFunction( std::move( vars ) ) );
       }
      else {
-      // Case 3: zero converter power -> deactivate constraint
+      // Case 3: no converter limit -> a free row with no term
       // Avoid generating "il + ol <= 0" which would switch off the battery
       intake_outtake_upper_bounds_design_Const[ 2 ][ t ].set_lhs(
                                                          -Inf< double >() );
@@ -995,8 +1000,8 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
     if( conv_x ) {
      // folded onto the active power the converter fence is |p| <= C x,
      // i.e., the two rows p - ( k_cv v_ConvMaxPower ) x <= 0 and
-     // -p - ( k_cv v_ConvMaxPower ) x <= 0; a zero converter power leaves
-     // them non-binding, as it leaves the single row above
+     // -p - ( k_cv v_ConvMaxPower ) x <= 0; a converter power that is not
+     // positive and finite leaves them free, as it leaves the row above
      const bool binding = ( conv_power > 0 );
 
      vars.push_back( std::make_pair( & v_active_power[ t ] , 1.0 ) );
@@ -1029,16 +1034,18 @@ void BatteryUnitBlock::generate_abstract_constraints( Configuration * stcc )
   // with a constant converter power the folded converter fence is the
   // plain bound -k_cv v_ConvMaxPower <= p <= k_cv v_ConvMaxPower
 
-  if( ( ! split ) && ( ! conv_x ) &&
-      std::any_of( v_ConvMaxPower.begin() , v_ConvMaxPower.end() ,
-                   []( double power ) { return( power > 0 ); } ) ) {
+  bool conv_binds = false;
+  for( Index t = 0 ; t < f_time_horizon ; ++t )
+   conv_binds = conv_binds || converter_binds( t );
+
+  if( ( ! split ) && ( ! conv_x ) && conv_binds ) {
 
    intake_outtake_bounds_Const.resize(
     boost::multi_array< BoxConstraint , 2 >::extent_gen()
     [ 1 ][ f_time_horizon ] );
 
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( v_ConvMaxPower[ t ] > 0 ) {
+    if( converter_binds( t ) ) {
      intake_outtake_bounds_Const[ 0 ][ t ].set_lhs(
                            - kappa_bound( conv_kappa , v_ConvMaxPower[ t ] ) );
      intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
@@ -2432,7 +2439,7 @@ void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
  if( ( f_BattInvestmentCost != 0 ) && ( ! split ) &&
      ( ! intake_outtake_bounds_Const.empty() ) )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   if( v_ConvMaxPower[ t ] > 0 ) {
+   if( converter_binds( t ) ) {
     intake_outtake_bounds_Const[ 0 ][ t ].set_lhs(
      - kappa_bound( conv_kappa , v_ConvMaxPower[ t ] ) , nAM );
     intake_outtake_bounds_Const[ 0 ][ t ].set_rhs(
@@ -2442,8 +2449,7 @@ void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
  // the rows (10d) of a battery design
  if( ! intake_outtake_upper_bounds_design_Const.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   if( v_ConvMaxPower.empty() || ( v_ConvMaxPower[ t ] <= 0 ) ||
-       std::isinf( v_ConvMaxPower[ t ] ) )
+   if( ! converter_binds( t ) )
     continue;  // the converter fence is not binding
 
    if( auto conv_x = conv_scale_var() ) {
@@ -2475,21 +2481,22 @@ void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
 
  // the converter fence of a battery with no design Variable: the converter
  // power is a right-hand side, or a coefficient of the converter design
- // Variable if there is one; non-binding rows stay so
+ // Variable if there is one; the column k of the rows is the k-th instant
+ // where the converter binds
  if( converter_bounds_Const.num_elements() > 0 )
   for( Index row = 0 ; row < converter_bounds_Const.shape()[ 0 ] ; ++row )
-   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    if( ( v_ConvMaxPower[ t ] <= 0 ) || std::isinf( v_ConvMaxPower[ t ] ) )
+   for( Index t = 0 , k = 0 ; t < f_time_horizon ; ++t ) {
+    if( ! converter_binds( t ) )
      continue;
 
+    auto & cb = converter_bounds_Const[ row ][ k++ ];
+
     if( f_ConvInvestmentCost == 0 ) {
-     converter_bounds_Const[ row ][ t ].set_rhs(
-      conv_kappa * v_ConvMaxPower[ t ] , nAM );
+     cb.set_rhs( conv_kappa * v_ConvMaxPower[ t ] , nAM );
      continue;
      }
 
-    auto f = static_cast< LinearFunction * >(
-     converter_bounds_Const[ row ][ t ].get_function() );
+    auto f = static_cast< LinearFunction * >( cb.get_function() );
 
     const auto conv_design_idx = f->is_active( &conv_design );
 
@@ -2882,25 +2889,29 @@ double BatteryUnitBlock::get_converter_kappa_linearization( void ) const {
   * plus the outtake, or two on the active power, p and -p, when they are
   * folded. Where that kappa is 0 the two folded rows meet, both multipliers
   * can be nonzero on what is one equality, and only their net multiplier is
-  * what pushes the variable [see get_kappa_linearization()]. */
+  * what pushes the variable [see get_kappa_linearization()]. The rows exist
+  * only at the instants where the converter binds, the k-th of which is
+  * their column k: elsewhere the converter power is nonpositive or
+  * infinite, and limits nothing. */
 
  const auto & cb = converter_bounds_Const;
  const bool meet = ( cb.shape()[ 0 ] == 2 ) && ( get_converter_kappa() == 0 );
 
  double linearization = 0;
 
- for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-  if( v_ConvMaxPower[ t ] <= 0 )
-   continue;  // non-binding rows
+ for( Index t = 0 , k = 0 ; t < f_time_horizon ; ++t ) {
+  if( ! converter_binds( t ) )
+   continue;
 
   if( meet )
-   linearization += - std::abs( cb[ 0 ][ t ].get_dual() -
-                                cb[ 1 ][ t ].get_dual() ) *
+   linearization += - std::abs( cb[ 0 ][ k ].get_dual() -
+                                cb[ 1 ][ k ].get_dual() ) *
                     v_ConvMaxPower[ t ];
   else
    for( Index row = 0 ; row < cb.shape()[ 0 ] ; ++row )
-    linearization += - std::abs( cb[ row ][ t ].get_dual() ) *
+    linearization += - std::abs( cb[ row ][ k ].get_dual() ) *
                      v_ConvMaxPower[ t ];
+  ++k;
   }
 
  return( linearization );
