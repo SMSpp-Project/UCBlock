@@ -132,7 +132,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   heat pump whose COP changes over time, delays, modules, the modules built
   and a continuous design), and prints the optimum of PyPSA; they are in
   `conversion/` of the archive of `data/` from version 2026-10-14, which is
-  that of 2026-10-13 plus this folder
+  that of 2026-10-13 plus this folder; version 2026-10-15 adds four of them,
+  with a continuous design with ramps and start-up and shut-down limits,
+  with a continuous design and with modules built on before the horizon,
+  and with modules built for the InvestmentBlock form
 
 - the commitment of a unit whose generators share it is exposed through one
   generator only, and the documentation of `UnitBlock::get_commitment()`

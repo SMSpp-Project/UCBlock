@@ -2,14 +2,15 @@
 """
 Writes the UCBlock instances with a ConversionUnitBlock that pypsa2smspp
 makes of the committable links of its test networks, i.e., the xlsx cases
-chp_* and chpx_* of test/configs/data/test of pypsa2smspp that its sweep
-test_ucblock solves in the UCBlock form: a back-pressure CHP between a gas,
-an electric and a heat node, alone, with no line, with ramps and an empty
-start-up range, with a heat store and the CO2 of the fuel as third output,
-in a meshed AC network with a hyperarc, with an extendable boiler or a solar
-generator, with a heat pump whose COP changes over time (also delayed), with
-a delayed heat output, with modules, with the modules built and with a
-continuous design.
+chp_*, chpx_* and chpy_* of test/configs/data/test of pypsa2smspp that its
+sweep test_ucblock solves in the UCBlock form: a back-pressure CHP between a
+gas, an electric and a heat node, alone, with no line, with ramps and an
+empty start-up range, with a heat store and the CO2 of the fuel as third
+output, in a meshed AC network with a hyperarc, with an extendable boiler or
+a solar generator, with a heat pump whose COP changes over time (also
+delayed), with a delayed heat output, with modules, with the modules built
+(also with one on before the horizon) and with a continuous design (also
+with ramps and start-up and shut-down limits, and on before the horizon).
 
 Each network is built as test_ucblock builds it (the slack units included),
 solved by PyPSA with HiGHS, whose optimum is the reference, and written by
@@ -49,7 +50,7 @@ def main():
     from pypsa2smspp.transformation import Transformation
 
     cases = sorted(p for p in (root / "test/configs/data/test").glob("*.xlsx")
-                   if p.name.startswith(("chp_", "chpx_")))
+                   if p.name.startswith(("chp_", "chpx_", "chpy_")))
 
     for xlsx in cases:
         n = clean_ciclicity_storage(NetworkDefinition(
