@@ -3849,8 +3849,9 @@ static void test_battery_data_checks( void )
 /* The converter fence of a battery with no design Variable: there only if
  * "ConverterMaxPower" is in the data (or the converter is designed), one
  * row on intake plus outtake or two on the active power, kappa times the
- * converter power on the right-hand side and non-binding where the latter
- * is 0; set_kappa() moves it; the default is not written back. */
+ * converter power on the right-hand side, and no row at the instants where
+ * the latter is 0 or + inf, where it would be free; set_kappa() moves it;
+ * the default is not written back. */
 
 static void test_battery_converter( void )
 {
@@ -3870,26 +3871,29 @@ static void test_battery_converter( void )
   delete bu;
   }
 
- // split, the second converter power 0
+ // split, the second converter power 0 or + inf: a row at the first
+ // instant only
  auto data = base;
- data.push_back( { "StoringBatteryRho" , { 0.8 , 0.8 } } );
- data.push_back( { "ConverterMaxPower" , { 2 , 0 } } );
- if( auto bu = new_BU( 2 , data ) ) {
+ for( double off : { 0.0 , INF } ) {
+  data = base;
+  data.push_back( { "StoringBatteryRho" , { 0.8 , 0.8 } } );
+  data.push_back( { "ConverterMaxPower" , { 2 , off } } );
+  auto bu = new_BU( 2 , data );
+  if( ! bu )
+   continue;
   generate_all( bu );
   const auto & cb = bu->get_converter_bounds();
   auto & il = bu->get_intake_level();
   auto & ol = bu->get_outtake_level();
-  check( ( cb.shape()[ 0 ] == 1 ) && ( cb.shape()[ 1 ] == 2 ) ,
-	 "battery, split: not one converter row per instant" );
-  if( cb.num_elements() == 2 ) {
+  check( ( cb.shape()[ 0 ] == 1 ) && ( cb.shape()[ 1 ] == 1 ) ,
+	 "battery, split, converter power " + str( off ) + " at the second "
+	 "instant: not one converter row at the first instant only" );
+  if( cb.num_elements() == 1 )
    check( close( cb[ 0 ][ 0 ].get_rhs() , 2 ) &&
 	  close( row_coef( cb[ 0 ][ 0 ] , & il[ 0 ] ) , 1 ) &&
 	  close( row_coef( cb[ 0 ][ 0 ] , & ol[ 0 ] ) , 1 ) ,
 	  "battery, split: converter row il + ol <= " +
 	  str( cb[ 0 ][ 0 ].get_rhs() ) + " instead of 2" );
-   check( cb[ 0 ][ 1 ].get_rhs() == INF ,
-	  "battery, split: converter power 0 binds" );
-   }
   auto g = new_group( "BUs" );
   bu->serialize( g );
   check( ! g.getVar( "ConverterMaxPower" ).isNull() ,
@@ -4424,6 +4428,268 @@ static void test_battery_two_kappas( void )
 	 "battery: a converter kappa 2 given before the Constraint does not "
 	 "give the rows | p | <= 20" );
   delete b;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A single bus over 4 instants with demand 40 , 40 , 160 , 160, a source of
+ * 100 at no cost, a slack of 1000 at price 1000 and a lossless battery with
+ * no design Variable, of storage 50 and power bmax (with MinPower - bmax),
+ * whose "ConverterMaxPower" is conv and "ConverterKappa" kc, neither written
+ * if NaN: with the converter not binding, the battery stores 50 of the
+ * surplus of the first two instants, and the slack covers the remaining 70
+ * of the last two, for 70000. If pr is not NaN the battery has
+ * "MaxPrimaryPower" pr, in a primary zone with demand 1 that only the
+ * battery serves. */
+
+static UCBlock * new_UC_battery_slack( double conv , double kc , double bmax ,
+                                       double pr =
+                                       std::numeric_limits< double >::
+                                       quiet_NaN() )
+{
+ auto g = new_group( "UCBS" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto th = g.addDim( "TimeHorizon" , 4 );
+ g.addDim( "NumberUnits" , 3 );
+ auto ng = g.addDim( "NumberElectricalGenerators" , 3 );
+ auto nn = g.addDim( "NumberNodes" , 1 );
+ put_int( g , "GeneratorNode" , ng , { 0 , 0 , 0 } );
+ put( g , "ActivePowerDemand" , { nn , th } , { 40 , 40 , 160 , 160 } );
+ if( ! std::isnan( pr ) ) {
+  auto zp = g.addDim( "NumberPrimaryZones" , 1 );
+  put( g , "PrimaryDemand" , { zp , th } , { 1 , 1 , 1 , 1 } );
+  }
+
+ auto u = g.addGroup( "UnitBlock_0" );
+ u.putAtt( "type" , "IntermittentUnitBlock" );
+ put( u , "MaxPower" , th , { 100 , 100 , 100 , 100 } );
+
+ u = g.addGroup( "UnitBlock_1" );
+ u.putAtt( "type" , "SlackUnitBlock" );
+ put( u , "MaxPower" , th , { 1000 , 1000 , 1000 , 1000 } );
+ put( u , "ActivePowerCost" , th , { 1000 , 1000 , 1000 , 1000 } );
+
+ u = g.addGroup( "UnitBlock_2" );
+ u.putAtt( "type" , "BatteryUnitBlock" );
+ put( u , "MinStorage" , th , { 0 , 0 , 0 , 0 } );
+ put( u , "MaxStorage" , th , { 50 , 50 , 50 , 50 } );
+ put( u , "MaxPower" , th , { bmax , bmax , bmax , bmax } );
+ put( u , "MinPower" , th , { -bmax , -bmax , -bmax , -bmax } );
+ if( ! std::isnan( conv ) )
+  put( u , "ConverterMaxPower" , th , { conv , conv , conv , conv } );
+ if( ! std::isnan( kc ) )
+  put( u , "ConverterKappa" , kc );
+ if( ! std::isnan( pr ) )
+  put( u , "MaxPrimaryPower" , th , { pr , pr , pr , pr } );
+
+ return( dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The linearizations of the battery of new_UC_battery_slack(), with respect
+ * to kappa (the converter following it) at 1 and to the kappa of the
+ * converter at 0.5, against the finite differences of the optimal value,
+ * which is convex in either kappa: each has to lie between the left and
+ * the right derivative, for the converter powers 30 (binding at the kappa
+ * 0.5 of the converter), 1e3, 1e6 and + inf. An infinite converter power is
+ * no limit, as a large one, and the converter has rows only at the instants
+ * where its power is positive and finite, i.e., none here. */
+
+static void test_battery_converter_infinite( void )
+{
+ const auto sname = milp_solver();
+ if( sname.empty() ) {
+  std::cout << "battery, infinite converter: no :MILPSolver, skipped"
+	    << std::endl;
+  return;
+  }
+
+ const double NaN = std::numeric_limits< double >::quiet_NaN();
+
+ for( double conv : { 30.0 , 1e3 , 1e6 , INF } )
+  for( bool follows : { true , false } ) {
+   const std::string what = "battery, converter power " + str( conv ) +
+                            ( follows ? ", kappa" : ", converter kappa" );
+   auto uc = new_UC_battery_slack( conv , follows ? NaN : 0.5 , 50 );
+   if( ! uc ) {
+    check( false , what + ": the UCBlock is not read" );
+    continue;
+    }
+   auto bu = static_cast< BatteryUnitBlock * >( uc->get_unit_block( 2 ) );
+
+   auto bsc = new BlockSolverConfig( 1 );
+   bsc->add_ComputeConfig( std::string( sname ) , nullptr );
+   bsc->apply( uc );
+   bsc->clear();
+   auto slv = static_cast< CDASolver * >(
+                                     uc->get_registered_solvers().front() );
+   const auto par = slv->int_par_str2idx( "intLogVerb" );
+   if( par < Inf< Solver::idx_type >() )
+    slv->set_par( par , 0 );
+
+   auto value = [ & ]( double k ) {
+    if( follows )
+     bu->set_kappa( k );
+    else
+     bu->set_converter_kappa( k );
+    if( ( slv->compute( false ) != Solver::kOK ) ||
+	( ! slv->has_dual_solution() ) )
+     return( NaN );
+    slv->get_var_solution();
+    slv->get_dual_solution();
+    return( slv->get_var_value() );
+    };
+
+   const double k0 = follows ? 1 : 0.5;
+   const double h = 1e-2;
+   const double vr = value( k0 + h );
+   const double vl = value( k0 - h );
+   const double v0 = value( k0 );
+   const double g = follows ? bu->get_kappa_linearization()
+                            : bu->get_converter_kappa_linearization();
+   const double left = ( v0 - vl ) / h;
+   const double right = ( vr - v0 ) / h;
+   const double tol = 1e-6 * std::max( 1.0 , std::abs( g ) );
+   check( std::isfinite( g ) && ( g >= left - tol ) && ( g <= right + tol ) ,
+	  what + ": the linearization " + str( g ) + " is not between the "
+	  "left and right derivatives " + str( left ) + " and " + str( right )
+	  );
+
+   if( std::isinf( conv ) )
+    check( bu->get_converter_bounds().num_elements() == 0 , what +
+	   ": an infinite converter power gives converter rows" );
+
+   bsc->apply( uc );
+   delete bsc;
+   delete uc;
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The battery of new_UC_battery_slack() with a primary reserve, of
+ * "MaxPrimaryPower" 30 or + inf, in a zone with demand 1: an infinite one
+ * is no limit, its row is free whatever kappa is (also 0, where the right-
+ * hand side would be 0 times + inf), and get_kappa_linearization() at
+ * kappa 1 has to lie between the left and the right derivative of the
+ * optimal value, as in test_battery_converter_infinite(). */
+
+static void test_battery_reserve_infinite( void )
+{
+ const auto sname = milp_solver();
+ if( sname.empty() ) {
+  std::cout << "battery, infinite reserve: no :MILPSolver, skipped"
+	    << std::endl;
+  return;
+  }
+
+ const double NaN = std::numeric_limits< double >::quiet_NaN();
+
+ for( double pr : { 30.0 , INF } ) {
+  const std::string what = "battery, MaxPrimaryPower " + str( pr );
+  auto uc = new_UC_battery_slack( NaN , NaN , 50 , pr );
+  if( ! uc ) {
+   check( false , what + ": the UCBlock is not read" );
+   continue;
+   }
+  auto bu = static_cast< BatteryUnitBlock * >( uc->get_unit_block( 2 ) );
+
+  auto bsc = new BlockSolverConfig( 1 );
+  bsc->add_ComputeConfig( std::string( sname ) , nullptr );
+  bsc->apply( uc );
+  bsc->clear();
+  auto slv = static_cast< CDASolver * >(
+                                     uc->get_registered_solvers().front() );
+  const auto par = slv->int_par_str2idx( "intLogVerb" );
+  if( par < Inf< Solver::idx_type >() )
+   slv->set_par( par , 0 );
+
+  auto value = [ & ]( double k ) {
+   bu->set_kappa( k );
+   if( ( slv->compute( false ) != Solver::kOK ) ||
+       ( ! slv->has_dual_solution() ) )
+    return( NaN );
+   slv->get_var_solution();
+   slv->get_dual_solution();
+   return( slv->get_var_value() );
+   };
+
+  // kappa 0: the row of the reserve has a right-hand side, not NaN
+  bu->set_kappa( 0 );
+  const auto & rb = bu->get_primary_reserve_bounds();
+  check( ( ! rb.empty() ) && ( ! std::isnan( rb[ 0 ].get_rhs() ) ) ,
+	 what + ": at kappa 0 the reserve bound is NaN or missing" );
+
+  const double h = 1e-2;
+  const double vr = value( 1 + h );
+  const double vl = value( 1 - h );
+  const double v0 = value( 1 );
+  const double g = bu->get_kappa_linearization();
+  const double left = ( v0 - vl ) / h;
+  const double right = ( vr - v0 ) / h;
+  const double tol = 1e-6 * std::max( 1.0 , std::abs( g ) );
+  check( std::isfinite( g ) && ( g >= left - tol ) && ( g <= right + tol ) ,
+	 what + ": the linearization " + str( g ) + " is not between the "
+	 "left and right derivatives " + str( left ) + " and " + str( right )
+	 );
+
+  bsc->apply( uc );
+  delete bsc;
+  delete uc;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Rows free on both sides and a warm re-solve, with each :MILPSolver of the
+ * build: in new_UC_battery_slack() the battery with an infinite converter
+ * power, and the one with power + inf (MinPower - inf, as the Store of
+ * PyPSA, whose two rows of the active power are free), are solved, the
+ * source is scaled to 0.5, which changes its coefficients in the node
+ * balance, and the problem is solved again, warm: the value is that of a
+ * Solver loaded from scratch, 200000 (the battery stores the surplus 20). */
+
+static void test_battery_free_rows_resolve( void )
+{
+ const double NaN = std::numeric_limits< double >::quiet_NaN();
+
+ for( const auto & sname : { "CPXMILPSolver" , "GRBMILPSolver" ,
+			     "HiGHSMILPSolver" , "SCIPMILPSolver" } ) {
+  if( ! Solver::has_Solver( sname ) )
+   continue;
+
+  for( const auto & [ conv , bmax ] :
+	 std::vector< std::pair< double , double > >{ { INF , 50 } ,
+						      { NaN , INF } } ) {
+   const std::string what = std::string( "free rows, " ) + sname +
+    ( std::isnan( conv ) ? ", infinite power" : ", infinite converter" );
+   auto uc = new_UC_battery_slack( conv , NaN , bmax );
+   if( ! uc ) {
+    check( false , what + ": the UCBlock is not read" );
+    continue;
+    }
+
+   auto slv = Solver::new_Solver( sname );
+   uc->register_Solver( slv );
+   const auto par = slv->int_par_str2idx( "intLogVerb" );
+   if( par < Inf< Solver::idx_type >() )
+    slv->set_par( par , 0 );
+
+   const auto s0 = slv->compute();
+   const double v0 = ( s0 == Solver::kOK ) ? slv->get_var_value() : NaN;
+   uc->get_unit_block( 0 )->scale( 0.5 , eModBlck , eModBlck );
+   const auto s1 = slv->compute();
+   const double v1 = ( s1 == Solver::kOK ) ? slv->get_var_value() : NaN;
+   const double fresh = milp_value( uc , sname );
+
+   check( close( v0 , 70000 ) , what + ": the value is " + str( v0 ) +
+	  " (status " + str( s0 ) + ") instead of 70000" );
+   check( close( v1 , 200000 ) && close( fresh , 200000 ) , what +
+	  ": after the scaling the value is " + str( v1 ) + " (status " +
+	  str( s1 ) + ") warm and " + str( fresh ) + " from scratch instead "
+	  "of 200000" );
+
+   uc->unregister_Solver( slv , true );
+   delete uc;
+   }
   }
  }
 
@@ -13950,6 +14216,9 @@ int main( int argc , char ** argv )
   test_intermittent_design_reserve();
   test_design_fixed_to_one();
   test_battery_two_kappas();
+ test_battery_converter_infinite();
+ test_battery_reserve_infinite();
+ test_battery_free_rows_resolve();
   test_battery_design_modules();
   test_battery_converter_modules();
   test_slack_unit();

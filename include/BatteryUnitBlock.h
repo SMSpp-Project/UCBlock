@@ -186,7 +186,8 @@ namespace SMSpp_di_unipi_it
  * (10) the sum \f$ p^-_t + p^+_t \f$ of the power through it in the two
  * directions, or \f$ | p^{ac}_t | \f$ when the split is not generated (the
  * two coincide unless the unit charges and discharges at the same instant); a
- * nonpositive \f$ P^{cv}_t \f$ means no converter limit at \f$ t \f$.
+ * nonpositive or infinite \f$ P^{cv}_t \f$ means no converter limit at
+ * \f$ t \f$.
  *
  * \par Price of the energy
  * In the Objective, the datum \f$ b_t \f$ ("Cost") is a price on the net
@@ -310,7 +311,7 @@ namespace SMSpp_di_unipi_it
  * "ConverterKappa" is given (the latter also by set_converter_kappa()
  * before the rows are generated) or a design variable exists (with
  * \f$ P^{cv}_t = P^{mx}_t \f$ by default), and only at the instants where
- * \f$ P^{cv}_t > 0 \f$. Finally, (11), with
+ * \f$ P^{cv}_t \f$ is positive and finite. Finally, (11), with
  * \f$ \delta^{rs}_t \geq 0 \f$ ("v_absb_refschd"), exists only if
  * "ReferenceSchedule" is given. Note that the levels \f$ v^{ba}_t \f$ and the
  * active power are free variables, whose sign is given by (7) and (1)-(2)
@@ -339,7 +340,8 @@ namespace SMSpp_di_unipi_it
  * 0), and the side of (7d) that it would give has no term in \f$ x_b \f$, and
  * the row is free on that side. The same holds for an infinite
  * \f$ P^{mx}_t \f$ or \f$ P^{mn}_t \f$ in (1), (2), (5) and (8) and in their
- * forms (1d), (2d), (5d) and (8d), and an infinite \f$ P^{cv}_t \f$ is no
+ * forms (1d), (2d), (5d) and (8d), and for an infinite \f$ P^{pr}_t \f$ or
+ * \f$ P^{sc}_t \f$ in (9) and (9d), and an infinite \f$ P^{cv}_t \f$ is no
  * converter limit, as a nonpositive one: e.g., a storage whose power is
  * only bounded by its levels and by the lines that connect it, as the Store
  * of PyPSA, has \f$ P^{mx}_t = + \infty \f$ and
@@ -536,8 +538,8 @@ class BatteryUnitBlock : public UnitBlock
   *   absent, in which case
   *   a battery with a design variable and a converter without one has a
   *   converter per module, i.e., (10d) with \f$ x_b \f$; a nonpositive
-  *   \f$ P^{cv}_t \f$ means no converter limit at \f$ t \f$. The default is
-  *   not written by serialize();
+  *   or infinite \f$ P^{cv}_t \f$ means no converter limit at \f$ t \f$.
+  *   The default is not written by serialize();
   *
   * - the scalar variable "InitialStorage", the datum \f$ V^0 \f$ (0 if
   *   absent): if \f$ V^0 \geq 0 \f$ it is the level at the start of the
@@ -730,18 +732,19 @@ class BatteryUnitBlock : public UnitBlock
   *   two vectors of LB0Constraint;
   *
   * - (10) is, with no battery design variable, "Converter_Battery", a
-  *   multi_array of FRowConstraint with one row per instant on the intake
-  *   plus the outtake, or two (on \f$ p^{ac}_t \f$ and on
-  *   \f$ - p^{ac}_t \f$) when the split is not generated [see
-  *   get_converter_bounds()]; with a battery design variable it is the row 2
-  *   of "IntakeOuttake_Design_Battery", or its rows 2 and 3 on
-  *   \f$ \pm p^{ac}_t \f$ when the split is not generated and (10d) holds
-  *   (a converter design variable, or none and no "ConverterMaxPower"), or,
-  *   when the split is not generated and the converter power is the
-  *   constant "ConverterMaxPower", the bound on \f$ p^{ac}_t \f$ in
-  *   "IntakeOuttake_Battery" (present if \f$ P^{cv}_t > 0 \f$ at some
-  *   instant); at the instants where \f$ P^{cv}_t \leq 0 \f$ these rows
-  *   are present and non-binding;
+  *   multi_array of FRowConstraint with one row on the intake plus the
+  *   outtake, or two (on \f$ p^{ac}_t \f$ and on \f$ - p^{ac}_t \f$) when
+  *   the split is not generated, per instant where \f$ P^{cv}_t \f$ is
+  *   positive and finite [see get_converter_bounds()]; with a battery
+  *   design variable it is the row 2 of "IntakeOuttake_Design_Battery", or
+  *   its rows 2 and 3 on \f$ \pm p^{ac}_t \f$ when the split is not
+  *   generated and (10d) holds (a converter design variable, or none and no
+  *   "ConverterMaxPower"), or, when the split is not generated and the
+  *   converter power is the constant "ConverterMaxPower", the bound on
+  *   \f$ p^{ac}_t \f$ in "IntakeOuttake_Battery" (present if
+  *   \f$ P^{cv}_t \f$ is positive and finite at some instant); at the
+  *   instants where \f$ P^{cv}_t \f$ is not positive and finite the rows of
+  *   the design are present and free;
   *
   * - (11) is "Norm1B_Reference_Schedule", a vector of 2 T FRowConstraint,
   *   the upper sides first;
@@ -1150,14 +1153,14 @@ class BatteryUnitBlock : public UnitBlock
   * \f]
   * where \f$ \mu^{(10)}_t \geq 0 \f$ is the sum of the absolute values of
   * the dual values of the rows (10) of instant \f$ t \f$ (one row with the
-  * split, two without it), 0 where \f$ P^{cv}_t \leq 0 \f$ or if the rows
-  * do not exist. Where \f$ \kappa^{cv} = 0 \f$ the two folded rows meet
-  * on what is one equality, and their net dual value is taken, as in
-  * get_kappa_linearization(). The value is the derivative with respect to
-  * \f$ \kappa^{cv} \f$ also when the converter follows \f$ \kappa \f$, in
-  * which case it is the part of get_kappa_linearization() due to the
-  * converter. If the battery or the converter has a design variable the
-  * method throws std::logic_error. */
+  * split, two without it), 0 where \f$ P^{cv}_t \f$ is not positive and
+  * finite or if the rows do not exist. Where \f$ \kappa^{cv} = 0 \f$ the
+  * two folded rows meet on what is one equality, and their net dual value
+  * is taken, as in get_kappa_linearization(). The value is the derivative
+  * with respect to \f$ \kappa^{cv} \f$ also when the converter follows
+  * \f$ \kappa \f$, in which case it is the part of
+  * get_kappa_linearization() due to the converter. If the battery or the
+  * converter has a design variable the method throws std::logic_error. */
 
  double get_converter_kappa_linearization( void ) const;
 
@@ -1513,8 +1516,10 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the converter bound constraints of a battery with no design
  /** The rows (10) of a battery with no design Variable, empty if there are
   * none: the first index is 0 for the row on intake plus outtake, and 0 and
-  * 1 for the two rows on the active power when the pair is folded onto it
-  * [see generate_abstract_constraints()]. */
+  * 1 for the two rows on the active power when the pair is folded onto it,
+  * and the second index k is the k-th instant where \f$ P^{cv}_t \f$ is
+  * positive and finite, the only ones that have rows [see
+  * converter_binds() and generate_abstract_constraints()]. */
 
  const boost::multi_array< FRowConstraint , 2 > &
  get_converter_bounds( void ) const {
@@ -2240,6 +2245,17 @@ class BatteryUnitBlock : public UnitBlock
  bool has_converter_rows( void ) const {
   return( f_conv_max_power_given || ( ! converter_follows_kappa() ) ||
           ( f_BattInvestmentCost != 0 ) || ( f_ConvInvestmentCost != 0 ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells whether the converter limits the power at the instant t
+ /** True if \f$ P^{cv}_t \f$ is positive and finite: a nonpositive or an
+  * infinite converter power is no limit, and with no battery design
+  * variable the rows (10) exist only at the instants where this holds. */
+
+ bool converter_binds( Index t ) const {
+  return( ( t < v_ConvMaxPower.size() ) && ( v_ConvMaxPower[ t ] > 0 ) &&
+          ( ! std::isinf( v_ConvMaxPower[ t ] ) ) );
   }
 
 /*--------------------------------------------------------------------------*/
