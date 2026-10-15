@@ -375,8 +375,9 @@ Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
 
  if( wsol & 4 ) {
   sol->v_network_Solution.resize( v_Block.size() );
-  int swsol = wsol & 1;  // copy the first bit of wsol
-  swsol |= wsol >> 3;    // copy the bits 4 - ... shifted by 3
+  // bit 0 of wsol, and its bits 4 - ... as bits 1 - ...: bit 3 (the
+  // compressed format) is not one of them
+  int swsol = ( wsol & 1 ) | ( ( wsol >> 3 ) & ~ 1 );
   SimpleConfiguration< int > snc;
   snc.f_value = swsol;
   for( Index i = 0 ; i < v_Block.size() ; ++i ) {

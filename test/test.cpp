@@ -3937,8 +3937,11 @@ static void test_net_solution_formats( void )
 /* The Solution of a DesignNetworkBlock with three sub-networks goes through
  * netCDF with the default Configuration, whose sub-Solution are in the
  * compressed format in its own group, together with the dimensions of its
- * own node injections (which it does not hold), and with that of
- * DNBSolCfg-natural.txt, whose sub-Solution have a group each: the one
+ * own node injections (which it does not hold), with that of
+ * DNBSolCfg-natural.txt, whose sub-Solution have a group each, and with
+ * that of DNBSolCfg-noinjection.txt, whose sub-Solution are compressed and
+ * hold the flows but not the node injections, bit 3 of the Configuration
+ * (the compressed format) not being one of those passed to them: the one
  * read back has to write what the one written writes, and to write in
  * netCDF what it was read from. */
 
@@ -3948,7 +3951,10 @@ static void test_design_solution_formats( void )
 					      -5 , 5 } } , { 1 , 2 } ) , 0 );
  auto nd = base->get_NetworkData();
 
- for( const std::string cfg : { "" , "DNBSolCfg-natural.txt" } ) {
+ for( const std::string cfg : { "" , "DNBSolCfg-natural.txt" ,
+				"DNBSolCfg-noinjection.txt" } ) {
+  const bool natural = ( cfg == "DNBSolCfg-natural.txt" );
+  const bool injection = ( cfg != "DNBSolCfg-noinjection.txt" );
   const std::string who = "Design Solution, " +
    ( cfg.empty() ? std::string( "compressed format" ) : cfg );
   std::unique_ptr< Configuration > c;
@@ -3975,16 +3981,26 @@ static void test_design_solution_formats( void )
    set_distinct( d );
    std::vector< const ColVariable * > must;
    for( auto b : d->get_nested_Blocks() )
-    for( auto v : flow_vars( static_cast< NetworkBlock * >( b ) ) )
-     must.push_back( v );
-   for( const auto & v : d->get_const_design() )
-    must.push_back( & v );
+    if( injection )
+     for( auto v : flow_vars( static_cast< NetworkBlock * >( b ) ) )
+      must.push_back( v );
+    else
+     for( const auto & f : static_cast< DCNetworkBlock * >( b )
+	                                               ->get_power_flow() )
+      must.push_back( & f );
+   if( injection )
+    for( const auto & v : d->get_const_design() )
+     must.push_back( & v );
 
    std::unique_ptr< Solution > s( d->get_Solution( c.get() , false ) );
    auto sg = new_group( "SOL" );
    s->serialize( sg );
-   check( sg.getGroups().empty() == cfg.empty() , who + ": the "
+   check( sg.getGroups().empty() != natural , who + ": the "
 	  "sub-Solution are not in the format of the Configuration" );
+   // the compressed sub-Solution have their node injections in sg
+   check( natural || ( sg.getVar( "NodeInjection" ).isNull() != injection ) ,
+	  who + ": the node injections of the sub-Solution are not as the "
+	  "Configuration asks" );
    std::unique_ptr< Solution > r( Solution::new_Solution( sg ) );
    check( r != nullptr , who + ": not read back" );
    if( r ) {

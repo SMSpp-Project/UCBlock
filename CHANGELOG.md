@@ -291,6 +291,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DesignNetworkBlock::get_Solution()` passed to its sub-Solution bit 0
+  of its own `Configuration` and its bits from 3 upward shifted by 3, so
+  that bit 3 (its compressed format) became bit 0 of the sub-Solution and
+  they held their node injections also when bit 0 did not ask for them;
+  only the bits from 4 upward are passed, as documented, and the default
+  31 is documented as what it is (15 + 16, the sub-Solution with their node
+  injections and their flows)
+
 - `DCNetworkBlock::set_dual_prices()` was not the inverse of
   `get_dual_prices()` on a line with a design variable: the latter gives
   the sum of the dual values of the two sides of its flow limit (the upper

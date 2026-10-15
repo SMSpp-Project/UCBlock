@@ -1,0 +1,16 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - DNBSolCfg-noinjection.txt - - - - - - - - - - - - -
+#
+# The Configuration of the DesignNetworkBlockSolution that holds the
+# Solution of the sub-NetworkBlock in the compressed format with their
+# flows and without their node injections, and no design variable.
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+SimpleConfiguration<int> # exact type of the Configuration object
+28  # 4 sub-networks + 8 compressed + 16 their flows
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - END DNBSolCfg-noinjection.txt - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

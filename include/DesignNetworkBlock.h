@@ -592,9 +592,9 @@ class DesignNetworkBlock : public NetworkBlock
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 15 + 24 = 31 (save everything in compressed format
-  *   and set bit 1 and 2 of the sub-Networks, which corresponds to the
-  *   default value in DCNetworkBlock). */
+  * - otherwise, it is 15 + 16 = 31 (save everything in compressed format
+  *   and set bit 1 of the sub-Networks, i.e., their node injections and
+  *   their flows but not their dual prices). */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
