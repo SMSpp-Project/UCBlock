@@ -325,6 +325,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NetworkBlockSolution` and `ECNetworkBlockSolution`, which is right only
   on a little-endian machine; it is read in an `int`
 
+- reading a `UCBlockSolution` in the natural format was quadratic in the
+  number of `NetworkBlock`, 301400 calls of `nc_inq_grpname()` for 548
+  instants, since `NcGroup::getGroup()` lists all the sub-groups at each
+  call: `UCBlockSolution::deserialize()`, `UCBlock::deserialize()` and the
+  two of `DesignNetworkBlock` list them once, and the calls are 550
+
 - `BatteryUnitBlock::get_converter_kappa_linearization()`, and with it
   `get_kappa_linearization()` when the converter follows the kappa, was NaN
   with an infinite `ConverterMaxPower`, the zero dual value of the free
