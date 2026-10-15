@@ -291,6 +291,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DCNetworkBlock`, PTDF formulation of a network with lines with
+  susceptance and HVDC lines that is not in a `UCBlock`: its instant is
+  `Inf< Index >()`, the value that marks the distribution factors of the
+  HVDC lines as never computed, hence they were never computed and the rows
+  of the flows read an empty matrix (an Eigen assertion in Debug, undefined
+  behaviour otherwise); the matrix, which has a row and a column per line,
+  is read where it is instead of being copied for each line
+
 - `NetworkBlockSolution::serialize()` wrote the node injections of a
   Solution of one instant, as that of each `DCNetworkBlock` of a `UCBlock`,
   out of the column of the instant instead of its row, reading past the

@@ -338,6 +338,7 @@ class DCNetworkData : public NetworkData
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_number_HVDC_lines( 0 ) ,
   f_reference_node( 0 ) , DCDF_was_computed( Inf< Index >() ) ,
+  DCDF_computed( false ) ,
   f_number_branches( 0 ) , cycle_basis_was_computed( false ) ,
   nb_components( 0 ) {}
 
@@ -817,9 +818,11 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// true if get_DCDF() holds the matrix of instant \p t
+ /** True if compute_DCDF() has been called, the last time with \p t; the
+  * instant of a NetworkBlock that is not in a UCBlock is Inf< Index >(). */
 
  bool was_DCDF_computed( Index t ) const {
-  return( DCDF_was_computed == t );
+  return( DCDF_computed && ( DCDF_was_computed == t ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1042,6 +1045,9 @@ class DCNetworkData : public NetworkData
 
  /// the instant of the DCDF matrix computed last, to avoid recomputing it
  Index DCDF_was_computed;
+
+ /// true if the DCDF matrix has been computed at all
+ bool DCDF_computed;
 
  /// A boolean to avoid recomputing the cycle basis algorithm
  bool cycle_basis_was_computed;

@@ -1595,6 +1595,39 @@ static void test_net_components( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The flow of an HVDC line in the rows of the other lines, on a network that
+ * is not in a UCBlock: a line 0 -> 1 with susceptance and an HVDC line
+ * 1 -> 2 of efficiency 0.9, which takes 50 from node 1 and delivers 45 to
+ * the demand at node 2. In the PTDF formulation the row of the first line
+ * holds the HVDC flow through its distribution factor, which is 1 since
+ * the line starts at a node that is not a reference: the point that
+ * carries the 50 along both lines is feasible in every formulation, the
+ * one that has the HVDC line take them from nowhere is not. */
+
+static void test_net_HVDC_flow( void )
+{
+ const double B = 1000;
+ const std::vector< NetLine > lines = { { 0 , 1 , 10 , -B , B } ,
+					{ 1 , 2 , 0 , -B , B , 0.9 } };
+ for( int wf = 0 ; wf < 3 ; ++wf ) {
+  const auto what = "HVDC flow, " + FORMULATION[ wf ];
+  try {
+   std::unique_ptr< DCNetworkBlock > nb( new_net(
+	      write_net( "DCNetworkBlock" , 3 , lines , { 0 , 0 , 45 } ) ,
+	      wf ) );
+   set_net_point( nb.get() , { 50 , 0 , 0 } , { 50 , 50 } , { 0 , -5 , 0 } );
+   check( nb->is_feasible() , what + ": the flow along both lines is cut" );
+   set_net_point( nb.get() , { 50 , 0 , 0 } , { 0 , 50 } , { 0 , 0 , 0 } );
+   check( ! nb->is_feasible() , what + ": the HVDC line takes power from "
+	  "nowhere" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The reference nodes. A line 0 -> 1 with susceptance, an HVDC line 0 -> 2
  * and ReferenceNode = 1, which is not the lowest node of its component:
  * the flow 100 on the line from 0 to the demand at 1 is feasible in every
@@ -14691,6 +14724,7 @@ int main( int argc , char ** argv )
   test_RT_networks();
   test_cycle_basis();
   test_net_components();
+  test_net_HVDC_flow();
   test_net_reference();
   test_net_ptdf();
   test_net_demand_change();

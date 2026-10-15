@@ -461,6 +461,7 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
   }
  DCDF = -PTDF_matrix * A_DC_transpose;
  DCDF_was_computed = time;
+ DCDF_computed = true;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1501,10 +1502,11 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
     }  // for each node
 
    if( f_NetworkData->is_DC_HVDC() ) {
-    SpMat DCDF_ = f_NetworkData->get_DCDF();
+    // DCDF has a row and a column per line, the HVDC ones included
+    const auto & DCDF = f_NetworkData->get_DCDF();
     // TODO : Also only loop over the non zero entries of DCDF only ...
     for( auto & dc_line_id : HVDC_lines ) {
-     double coeff = round_to( DCDF_.coeff( line_id , dc_line_id ) ,
+     double coeff = round_to( DCDF.coeff( line_id , dc_line_id ) ,
                               f_ptdf_round );
      vars.push_back( std::make_pair( &v_power_flow[ dc_line_id ] , coeff ) );
      }
