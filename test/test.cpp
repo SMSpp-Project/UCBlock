@@ -2045,7 +2045,10 @@ static void test_net_negative_cost( void )
  * and a nonzero minimum flow the two sides are two rows, whose duals
  * (>= 0 for the upper one, <= 0 for the lower one) add up to the price of
  * the line, with the sign that the dual of the bound of a line with no
- * design variable has. */
+ * design variable has. Setting the prices is the inverse: the price of a
+ * line with a design variable goes, by its sign, to the upper row or to
+ * the lower side (the lower row, or the lower half of the bound), and 0 to
+ * the other side, so that the prices set are those read back. */
 
 static void test_net_dual_prices( void )
 {
@@ -2082,6 +2085,20 @@ static void test_net_dual_prices( void )
   check( ( dp.size() == 3 ) && ( dp[ 0 ] == -3 ) && ( dp[ 1 ] == 4 ) &&
 	 ( dp[ 2 ] == -2 ) , what + ": " + str( dp[ 0 ] ) + " , " +
 	 str( dp[ 1 ] ) + " , " + str( dp[ 2 ] ) + " instead of -3 , 4 , -2" );
+
+  // line 0 upper row active, line 1 lower half of its bound active
+  nb->set_dual_prices( { 2 , -1 , 3 } );
+  check( ( ( *up )[ 0 ].get_dual() == 2 ) &&
+	 ( ( *lo )[ 0 ].get_dual() == 0 ) &&
+	 ( ( *up )[ 1 ].get_dual() == 0 ) &&
+	 ( ( *box )[ 1 ].get_dual() == -1 ) &&
+	 ( ( *box )[ 2 ].get_dual() == 3 ) ,
+	 what + ": the prices set are not on the active sides" );
+  nb->get_dual_prices( dp );
+  check( ( dp.size() == 3 ) && ( dp[ 0 ] == 2 ) && ( dp[ 1 ] == -1 ) &&
+	 ( dp[ 2 ] == 3 ) , what + ": set and read back as " +
+	 str( dp[ 0 ] ) + " , " + str( dp[ 1 ] ) + " , " + str( dp[ 2 ] ) +
+	 " instead of 2 , -1 , 3" );
   }
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );

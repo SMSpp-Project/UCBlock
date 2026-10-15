@@ -291,6 +291,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DCNetworkBlock::set_dual_prices()` was not the inverse of
+  `get_dual_prices()` on a line with a design variable: the latter gives
+  the sum of the dual values of the two sides of its flow limit (the upper
+  row, and the lower row or the lower half of the bound), the former wrote
+  the whole price on the bound, which a line with a lower row does not use,
+  so that a `DCNetworkBlockSolution` written in the network did not read
+  back its prices; the price now goes by its sign to the side that it
+  belongs to, the upper row if it is nonnegative and the lower side
+  otherwise, with 0 on the other side
+
 - `DCNetworkBlock`, PTDF formulation of a network with lines with
   susceptance and HVDC lines that is not in a `UCBlock`: its instant is
   `Inf< Index >()`, the value that marks the distribution factors of the
