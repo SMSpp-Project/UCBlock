@@ -1430,7 +1430,10 @@ class NetworkBlockSolution : public Solution
   * NetworkBlockSolution to be serialised. Then it and proceeds to
   * serialize the contents of \p sols starting from the given \p idx,
   * which must of course be compatible with the values of the dimensions.
-  * "NumberNodes" is written if \p idx == 0, unless it is already there. */
+  * "NumberNodes" is written if \p idx == 0, unless it is already there.
+  * The format has no way to say that a NetworkBlockSolution is absent: if
+  * an element of \p sols is nullptr, std::invalid_argument is thrown and
+  * \p group is left as it is. */
 
  static void serialize( netCDF::NcGroup & group ,
 			const std::vector< NetworkBlockSolution * > & sols ,

@@ -473,6 +473,15 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
 void NetworkBlockSolution::serialize( netCDF::NcGroup & group ,
 	    const std::vector< NetworkBlockSolution * > & sols , size_t idx )
 {
+ // the format has no way to say that a NetworkBlockSolution is absent: all
+ // of them must be there, and the group is left untouched if one is not
+ for( Index i = 0 ; i < sols.size() ; ++i )
+  if( ! sols[ i ] )
+   throw( std::invalid_argument( "NetworkBlockSolution::serialize: the "
+				 "compressed format needs all the "
+				 "NetworkBlockSolution, " + std::to_string( i )
+				 + " is absent" ) );
+
  // ensure NumberNetworks is there
  auto nnw = group.getDim( "NumberNetworks" );
  if( nnw.isNull() )

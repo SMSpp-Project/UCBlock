@@ -3765,8 +3765,10 @@ static std::vector< const ColVariable * > flow_vars( NetworkBlock * nb ,
  * Solution read back has to write in each network what the one written
  * writes, and the clone of the latter as well, the node injections and, if
  * flows, the flows given back, and to write in netCDF what it was read
- * from. The networks are those of the group g, generated in the
- * formulation wf if it is not negative; who names the case. */
+ * from. The compressed format, which needs all the Solution, refuses an
+ * absent one and leaves its group empty. The networks are those of the
+ * group g, generated in the formulation wf if it is not negative; who
+ * names the case. */
 
 static void check_net_solution( const netCDF::NcGroup & g , int wf ,
 				const std::string & cfg , bool flows ,
@@ -3873,6 +3875,19 @@ static void check_net_solution( const netCDF::NcGroup & g , int wf ,
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );
   }
+
+ // the compressed format cannot say that a Solution is absent
+ auto sg = new_group( "SOL" );
+ bool refused = false;
+ try {
+  std::vector< NetworkBlockSolution * > s = { sol[ 0 ].get() , nullptr };
+  NetworkBlockSolution::serialize( sg , s );
+  }
+ catch( std::invalid_argument & ) { refused = true; }
+ catch( std::exception & ) {}
+ check( refused && sg.getDims().empty() && sg.getVars().empty() &&
+	sg.getAtts().empty() , what + ": an absent Solution is not refused, "
+	"or the group is written" );
  }
 
 /*--------------------------------------------------------------------------*/

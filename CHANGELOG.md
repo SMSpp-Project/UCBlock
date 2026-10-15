@@ -291,6 +291,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the compressed format of the `NetworkBlockSolution` of several networks
+  (that of a `UCBlockSolution` and of a `DesignNetworkBlockSolution`)
+  dereferenced an absent (nullptr) Solution, which the natural format
+  skips; the compressed format has no way to say that a Solution is
+  absent, and `NetworkBlockSolution::serialize()` throws
+  `std::invalid_argument` before writing anything
+
 - `DesignNetworkBlock::get_Solution()` passed to its sub-Solution bit 0
   of its own `Configuration` and its bits from 3 upward shifted by 3, so
   that bit 3 (its compressed format) became bit 0 of the sub-Solution and
