@@ -291,6 +291,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `HydroSystemUnitBlock::deserialize()` and
+  `HydroSystemUnitBlockSolution::deserialize()` looked up each sub-group with
+  `NcGroup::getGroup()`, which lists all the sub-groups at each call: they
+  list them once, as `UCBlock` does
+
 - the compressed format of the `NetworkBlockSolution` of several networks
   (that of a `UCBlockSolution` and of a `DesignNetworkBlockSolution`)
   dereferenced an absent (nullptr) Solution, which the natural format
