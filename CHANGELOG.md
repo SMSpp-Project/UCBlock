@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the unit test writes in netCDF the Solution of each kind of
+  `NetworkBlock`, of a `DesignNetworkBlock` and of a `UCBlock` on three
+  nodes, in the natural format and in the compressed one, with the
+  `Configuration` of the files `*SolCfg-*.txt`, and reads it back: the
+  Solution read back has to write in the Block what the one written writes
+  and to write in netCDF what it was read from, on a horizon of one instant
+  and of four, with lines with and without a cost, an `ACNetworkBlock` with
+  no flow and an `ECNetworkBlock` of one interval and of two
+
 - `ConversionUnitBlock`: a continuous design ("MaxCapacityDesign" >= 0)
   takes ramps and start-up and shut-down limits, written per unit of design
   with big-M terms in the commitment and in the start-up and shut-down
@@ -281,6 +290,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each row (the same rows)
 
 ### Fixed
+
+- `NetworkBlockSolution::serialize()` wrote the node injections of a
+  Solution of one instant, as that of each `DCNetworkBlock` of a `UCBlock`,
+  out of the column of the instant instead of its row, reading past the
+  array for every node but 0: the natural format of a `UCBlockSolution`
+  held garbage, now it holds the injections
+
+- `DCNetworkBlockSolution::deserialize()` wanted "FlowValue",
+  "AuxiliaryValue" and "DualCost", which `serialize()` writes only when the
+  Solution holds them: a Solution with no auxiliary variable (no line with
+  a nonzero `NetworkCost`) or with no flow could not be read back in the
+  natural format, and `UCBlockSolution::deserialize()` lost its
+  `NetworkBlock` without a word; they are optional, as documented, a
+  missing "NetworkBlock_<t>" group is a missing `NetworkBlock` as for
+  `serialize()`, and one that is not a `NetworkBlockSolution` an error
+
+- `ACNetworkBlockSolution`: the natural format wrote "ReactiveFlowTOValue"
+  in place of "ReactiveFlowToValue" and read its three variables as
+  mandatory; the compressed one wrote the reactive injections only with the
+  reactive flows, and with the flows and no injection wrote on a null
+  variable; `clone()` (and so `scale()`) lost the auxiliary variables
+
+- `DCNetworkBlock::set_power_flow()` read past its argument on an
+  `ACNetworkBlock`, whose flows are two per line (the "from" ones first)
+  while a `DCNetworkBlockSolution` holds one per line: it writes the first
+  `pf.size()` flows
+
+- the compressed `DesignNetworkBlockSolution` read the node injections of
+  its sub-Solution as its own, and once read could not be written again
+  ("NodeInjection" defined twice)
+
+- "EndInstant", an `NcInt`, was read in a `size_t` through `void *` by
+  `NetworkBlockSolution` and `ECNetworkBlockSolution`, which is right only
+  on a little-endian machine; it is read in an `int`
 
 - `BatteryUnitBlock::get_converter_kappa_linearization()`, and with it
   `get_kappa_linearization()` when the converter follows the kappa, was NaN

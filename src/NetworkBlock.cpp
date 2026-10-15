@@ -249,12 +249,14 @@ void NetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
   auto EI = group.getVar( "EndInstant" );
   if( EI.isNull() )
    throw( std::invalid_argument(
-	          "NetworkBlockSolution::serialize: missing EndInstant" ) );
-  start = 0;
+	        "NetworkBlockSolution::deserialize: missing EndInstant" ) );
+  // EndInstant is an NcInt, read in an int and not in the size_t start
+  int si = 0;
   if( idx > 0 ) {
    std::vector< size_t > vidx = { idx - 1 };
-   EI.getVar( vidx , & start );
+   EI.getVar( vidx , & si );
    }
+  start = si;
 
   int ei;
   std::vector< size_t > vidx = { idx };
@@ -381,7 +383,7 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   if( ni.isNull() ) {
    std::vector< double > tmp_injection( f_number_nodes );
    for( Index i = 0 ; i < f_number_nodes ; ++i )
-    tmp_injection[ i ] = v_node_injection[ i ][ 0 ];
+    tmp_injection[ i ] = v_node_injection[ 0 ][ i ];
    ::serialize< double >( group , "NodeInjection" , netCDF::NcDouble() ,
                           nn , tmp_injection );
    }
@@ -437,11 +439,13 @@ void NetworkBlockSolution::serialize( netCDF::NcGroup & group , size_t idx )
 				  "missing EndInstant" ) );
    }
 
-  start = 0;
+  // EndInstant is an NcInt, read in an int and not in the size_t start
+  int si = 0;
   if( idx > 0 ) {
    std::vector< size_t > vidx = { idx - 1 };
-   EI.getVar( vidx , & start );
+   EI.getVar( vidx , & si );
    }
+  start = si;
 
   // now write EndInstant[ idx ]
   std::vector< size_t > vidx = { idx };

@@ -2577,8 +2577,18 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
    for( Index i = 0 ; i < number_networks ; ++i ) {
     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
     auto sub_group = group.getGroup( sub_group_name );
-    auto NSi = dynamic_cast< NetworkBlockSolution * >(
-				      Solution::new_Solution( sub_group ) );
+    if( sub_group.isNull() ) {  // serialize() skips the missing NetworkBlock
+     v_network_Solution[ i ] = nullptr;
+     continue;
+     }
+    auto Si = Solution::new_Solution( sub_group );
+    auto NSi = dynamic_cast< NetworkBlockSolution * >( Si );
+    if( ! NSi ) {
+     delete Si;
+     throw( std::invalid_argument( "UCBlockSolution::deserialize: " +
+				   sub_group_name +
+				   " not a valid NetworkBlockSolution" ) );
+     }
     v_network_Solution[ i ] = NSi;
     }
   }

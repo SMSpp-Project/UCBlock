@@ -703,8 +703,25 @@ void DesignNetworkBlock::set_network_cost( MF_dbl_it values ,
 
 void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 {
- // call the method of the base class
- NetworkBlockSolution::deserialize( group );
+ // check if compressed or standard format: if compressed (and not empty)
+ // then "NBSType" must be defined
+ auto gtype = group.getAtt( "NBSType" );
+ f_compressed = ! gtype.isNull();
+
+ if( f_compressed ) {
+  // the "NodeInjection" in group is that of the sub-NetworkBlockSolution,
+  // indexed over all their instants, and the node injections are never
+  // held here [see DesignNetworkBlock::get_Solution()]: only the
+  // dimensions are read
+  deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
+  if( ! deserialize_dim( group , "NumberInstants" , f_number_intervals ,
+                         true ) )
+   f_number_intervals = 1;
+  std::vector< MAdouble::index > sizes( 2 , 0 );
+  v_node_injection.resize( sizes );
+  }
+ else  // call the method of the base class
+  NetworkBlockSolution::deserialize( group );
 
  // "NumberDesignLines" - - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto NDL = group.getDim( "NumberDesignLines" );
@@ -718,11 +735,6 @@ void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
   }
 
  // deserialize the sub-NetworkBlockSolution - - - - - - - - - - - - - - - - -
- // check if compressed or standard format: if compressed (and not empty)
- // then "NBSType" must be defined
- auto gtype = group.getAtt( "NBSType" );
- f_compressed = ! gtype.isNull();
-
  if( f_compressed ) {  // compressed format- - - - - - - - - - - - - - - - - -
   auto NN = group.getDim( "NumberNetworks" );
   if( NN.isNull() ) {

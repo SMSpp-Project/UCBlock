@@ -2103,9 +2103,15 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// sets the power flows
+ /** Writes \p pf[ l ] as the value of the power flow variable l [see
+  * get_power_flow()] for each l < \p pf.size(), the others being left as
+  * they are: an ACNetworkBlock has the flows of both ends of each line,
+  * those of the "from" ends first, and a DCNetworkBlockSolution holds one
+  * flow per line. */
 
  void set_power_flow( const std::vector< double > & pf ) {
-  for( Index l = 0 ; l < v_power_flow.size() ; ++l )
+  const auto n = std::min( v_power_flow.size() , pf.size() );
+  for( Index l = 0 ; l < n ; ++l )
    v_power_flow[ l ].set_value( pf[ l ] );
   }
 

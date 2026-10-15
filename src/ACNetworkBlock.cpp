@@ -1672,16 +1672,20 @@ void ACNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // call the method of the base class
  DCNetworkBlockSolution::deserialize( group );
 
+ // all optional, as serialize() writes each of them only if it is there
+
  // deserialize the (reactive) flow injection - - - - - - - - - - - - - - -
  ::deserialize< double >( group , "NodeInjectionReactive" ,
-                          v_node_injection_reactive , false );
+                          v_node_injection_reactive , true );
 
  // deserialize the (reactive) flow variables - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "ReactiveFlowFromValue" ,
-                          v_reactive_flow_from , false );
-
- ::deserialize< double >( group , "ReactiveFlowToValue" ,
-                          v_reactive_flow_to , false );
+ // ... but the "to" ones must be there with the "from" ones
+ if( ::deserialize< double >( group , "ReactiveFlowFromValue" ,
+                              v_reactive_flow_from , true ) )
+  ::deserialize< double >( group , "ReactiveFlowToValue" ,
+                           v_reactive_flow_to , false );
+ else
+  v_reactive_flow_to.clear();
  }  // end( ACNetworkBlockSolution::deserialize( NcGroup & ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1718,7 +1722,7 @@ void ACNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
 
   ncVar = group.getVar( "ReactiveFlowToValue" );
   if( ncVar.isNull() )
-   throw( std::logic_error( "DCNetworkBlockSolution::deserialize( idx ): "
+   throw( std::logic_error( "ACNetworkBlockSolution::deserialize( idx ): "
                             "ReactiveFlowFromValue present but "
                             "ReactiveFlowToValue not" ) );
 
@@ -1765,7 +1769,7 @@ void ACNetworkBlockSolution::write( Block * block )
  auto ACNB = dynamic_cast< ACNetworkBlock * >( block );
  if( ! ACNB )
   throw( std::invalid_argument(
-   "ACNetworkBlockSolution::write: block is not a DCNetworkBlock" ) );
+   "ACNetworkBlockSolution::write: block is not an ACNetworkBlock" ) );
 
  if( ! v_node_injection_reactive.empty() ) {
   // write the (reactive) node injection variables- - - - - - - - - - - - -
@@ -1804,7 +1808,7 @@ void ACNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   auto nl = group.getDim( "NumberLines" );
   ::serialize< double >( group , "ReactiveFlowFromValue" ,
                          netCDF::NcDouble() , nl , v_reactive_flow_from );
-  ::serialize< double >( group , "ReactiveFlowTOValue" ,
+  ::serialize< double >( group , "ReactiveFlowToValue" ,
                          netCDF::NcDouble() , nl , v_reactive_flow_to );
   }
  }  // end( ACNetworkBlockSolution::serialize( NcGroup & ) )
@@ -1855,7 +1859,7 @@ void ACNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
 
  std::vector< size_t > strt = { idx , 0 };
 
- if( ! RFFV.isNull() ) {  // reactive power injection has to be serialised
+ if( ! RNI.isNull() ) {  // reactive power injection has to be serialised
   std::vector< size_t > cnt = { 1 , f_number_nodes };
   RNI.putVar( strt , cnt , v_node_injection_reactive.data() );
   }
@@ -1933,6 +1937,7 @@ ACNetworkBlockSolution * ACNetworkBlockSolution::clone( bool empty ) const
   //!! DCNetworkBlockSolution::clone(), better solution needed
   sol->f_number_lines = f_number_lines;
   sol->v_flow = v_flow;
+  sol->v_aux = v_aux;
   sol->v_cost = v_cost;
   //!! end of kludge
 

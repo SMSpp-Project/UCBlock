@@ -1939,11 +1939,13 @@ void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
  size_t start;
  if( has_tni ) {
   auto EI = group.getVar( "EndInstant" );  // base class created it already
-  start = 0;
+  // EndInstant is an NcInt, read in an int and not in the size_t start
+  int si = 0;
   if( idx > 0 ) {
    std::vector< size_t > vidx = { idx - 1 };
-   EI.getVar( vidx , & start );
+   EI.getVar( vidx , & si );
    }
+  start = si;
   }
  else
   start = idx;
