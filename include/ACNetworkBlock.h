@@ -215,7 +215,8 @@ class ACNetworkData : public DCNetworkData
   *   \f$ x_l \f$ and the resistance \f$ r_l \f$ of each line in per unit,
   *   which are mandatory, since they decide which lines are AC lines (those
   *   with a nonzero susceptance, reactance or resistance) and which are
-  *   HVDC lines (the others);
+  *   HVDC lines (the others): if there are lines and either is missing,
+  *   std::invalid_argument is thrown;
   *
   * - the variables "LineChargingSusceptance", "LineRatio" and
   *   "LineShiftAngle", indexed over "NumberLines", the charging susceptance
@@ -265,7 +266,8 @@ class ACNetworkData : public DCNetworkData
   * optional; those without a default and without a meaning when absent
   * ("LineRATEA" and the data of the nodes) are however used by
   * ACNetworkBlock::generate_abstract_constraints(), and therefore have to
-  * be there if the abstract representation is generated. */
+  * be there if the abstract representation is generated, which throws
+  * std::invalid_argument otherwise. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -604,7 +606,7 @@ class ACNetworkData : public DCNetworkData
   * get_new_NetworkData(); hence this method dispatches to
   * DCNetworkBlock::deserialize() and then only reads the optional
   * "ReactiveDemand" variable, which mirrors the (one-dimensional)
-  * "ActiveDemand" one. */
+  * "ActiveDemand" one; if it is not there the reactive demand is 0. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -853,7 +855,12 @@ class ACNetworkData : public DCNetworkData
   * DCNetworkBlock::generate_abstract_constraints() on \f$ F^{fr}_l \f$
   * (see DCNetworkBlock::generate_bound_constraints()), and the bounds on
   * \f$ R_n \f$ given by set_min_reactive_node_injection() and
-  * set_max_reactive_node_injection(). If #b_strongSOCP is true, also
+  * set_max_reactive_node_injection(), a bound that has not been given
+  * being infinite (as for a network that is not in a UCBlock). If the
+  * network has AC lines and no "LineRATEA", or no "NodeMinVoltage",
+  * "NodeMaxVoltage", "NodeConductance" or "NodeSusceptance" [see
+  * ACNetworkData::deserialize()], std::invalid_argument is thrown before
+  * anything is generated. If #b_strongSOCP is true, also
   * strengthen_SOCP_relaxation() is called, which adds the bounds of the
   * strengthened relaxation; its McCormick inequalities are separated by
   * generate_dynamic_constraints().
@@ -1144,8 +1151,8 @@ class ACNetworkData : public DCNetworkData
 
  void set_min_reactive_node_injection( double min_inj , Index node ,
                                        Index t ) override {
-  if( v_MinReactiveNodeInjection.empty() )
-   v_MinReactiveNodeInjection.resize( get_number_nodes() );
+  if( v_MinReactiveNodeInjection.empty() )  // the others are not bounded
+   v_MinReactiveNodeInjection.resize( get_number_nodes() , -Inf< double >() );
   v_MinReactiveNodeInjection[ node ] = min_inj;
   if( ! reactive_node_injection_bounds_const.empty() )  // the rows are there
    reactive_node_injection_bounds_const[ node ].set_lhs( min_inj );
@@ -1159,8 +1166,8 @@ class ACNetworkData : public DCNetworkData
 
  void set_max_reactive_node_injection( double max_inj , Index node ,
                                        Index t ) override {
-  if( v_MaxReactiveNodeInjection.empty() )
-   v_MaxReactiveNodeInjection.resize( get_number_nodes() );
+  if( v_MaxReactiveNodeInjection.empty() )  // the others are not bounded
+   v_MaxReactiveNodeInjection.resize( get_number_nodes() , Inf< double >() );
   v_MaxReactiveNodeInjection[ node ] = max_inj;
   if( ! reactive_node_injection_bounds_const.empty() )  // the rows are there
    reactive_node_injection_bounds_const[ node ].set_rhs( max_inj );

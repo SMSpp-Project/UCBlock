@@ -73,6 +73,7 @@
 #include <iostream>
 #include <limits>
 #include <random>
+#include <set>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -1863,6 +1864,119 @@ static void test_net_demand_change( void )
   }
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/// an ACNetworkBlock of three nodes on a line, with all its data but those
+/// whose names are in skip
+
+static netCDF::NcGroup write_AC_line( const std::set< std::string > & skip )
+{
+ auto g = new_group( "AC" , true );
+ g.putAtt( "type" , "ACNetworkBlock" );
+ auto N = g.addDim( "NumberNodes" , 3 );
+ auto L = g.addDim( "NumberLines" , 2 );
+ auto line = [ & ]( const std::string & n , std::vector< double > v ) {
+  if( ! skip.contains( n ) )
+   put( g , n , L , v );
+  };
+ auto node = [ & ]( const std::string & n , std::vector< double > v ) {
+  if( ! skip.contains( n ) )
+   put( g , n , N , v );
+  };
+ put_int( g , "StartLine" , L , { 0 , 1 } );
+ put_int( g , "EndLine" , L , { 1 , 2 } );
+ line( "MinPowerFlow" , { -100 , -100 } );
+ line( "MaxPowerFlow" , { 100 , 100 } );
+ line( "LineSusceptance" , { 1 , 2 } );
+ line( "LineRATEA" , { 100 , 100 } );
+ line( "LineReactance" , { 0.1 , 0.2 } );
+ line( "LineResistance" , { 0.01 , 0.02 } );
+ line( "LineMinAngle" , { -30 , -30 } );
+ line( "LineMaxAngle" , { 30 , 30 } );
+ node( "NodeConductance" , { 0 , 0 , 0 } );
+ node( "NodeSusceptance" , { 0 , 0 , 0 } );
+ node( "NodeMaxVoltage" , { 1.1 , 1.1 , 1.1 } );
+ node( "NodeMinVoltage" , { 0.9 , 0.9 , 0.9 } );
+ node( "ReactiveDemand" , { 0.5 , 0.5 , 0.5 } );
+ node( "ActiveDemand" , { 1 , 2 , 3 } );
+ return( g );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The optional data of an ACNetworkBlock that is not in a UCBlock. With no
+ * angle bounds, no reactive demand and no bound on the reactive injections
+ * the model is generated: the angle differences are not bounded, the
+ * reactive balance has right-hand side 0 and the rows of the reactive
+ * injections are free until a bound is given, which leaves the other side
+ * free. The data with no default (the reactances and the resistances of
+ * the lines, the thermal limits and the data of the nodes) are refused
+ * with std::invalid_argument when they are missing: the first two when
+ * reading, the others when generating, before anything is generated. */
+
+static void test_net_ac_optional_data( void )
+{
+ std::string what = "AC optional data";
+ try {
+  std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+   Block::new_Block( write_AC_line( { "LineMinAngle" , "LineMaxAngle" ,
+				      "ReactiveDemand" } ) ) ) );
+  generate_all( ab.get() );
+  auto ri = ab->get_static_constraint_v< BoxConstraint >(
+			      "Reactive_Node_Injection_Bound_Const_Network" );
+  auto bal = ab->get_static_constraint_v< FRowConstraint >(
+						   "AC_power_flow_injection" );
+  check( ab->get_s_const_index( "AC_angle_bounds_limit" ) >=
+	 ab->get_number_static_constraints() ,
+	 what + ": angle differences bounded with no LineMinAngle" );
+  check( bal && ( bal->size() == 6 ) && ( ( *bal )[ 4 ].get_lhs() == 0 ) &&
+	 ( ( *bal )[ 4 ].get_rhs() == 0 ) ,
+	 what + ": the reactive balance with no ReactiveDemand is not 0" );
+  check( ri && ( ri->size() == 3 ) &&
+	 ( ( *ri )[ 1 ].get_lhs() == -Inf< double >() ) &&
+	 ( ( *ri )[ 1 ].get_rhs() == Inf< double >() ) ,
+	 what + ": the reactive injections are bounded with no bound" );
+  ab->set_min_reactive_node_injection( -3 , 1 , 0 );
+  check( ri && ( ( *ri )[ 1 ].get_lhs() == -3 ) &&
+	 ( ( *ri )[ 1 ].get_rhs() == Inf< double >() ) &&
+	 ( ( *ri )[ 0 ].get_lhs() == -Inf< double >() ) ,
+	 what + ": a lower bound of the reactive injection bounds others" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+
+ for( const std::string n : { "LineReactance" , "LineResistance" } ) {
+  bool refused = false;
+  try {
+   auto b = Block::new_Block( write_AC_line( { n } ) );
+   refused = ! b;
+   delete b;
+   }
+  catch( std::invalid_argument & ) { refused = true; }
+  catch( std::exception & ) {}
+  check( refused , what + ": no " + n + " is not refused when reading" );
+  }
+
+ for( const std::string n : { "LineRATEA" , "NodeMinVoltage" ,
+			      "NodeMaxVoltage" , "NodeConductance" ,
+			      "NodeSusceptance" } ) {
+  bool refused = false;
+  try {
+   std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+				  Block::new_Block( write_AC_line( { n } ) ) ) );
+   ab->generate_abstract_variables();
+   try {
+    ab->generate_abstract_constraints();
+    }
+   catch( std::invalid_argument & ) {
+    refused = ( ab->get_number_static_constraints() == 0 );
+    }
+   }
+  catch( std::exception & ) {}
+  check( refused , what + ": no " + n + " is not refused when "
+	 "generating, or something is generated" );
   }
  }
 
@@ -14776,6 +14890,7 @@ int main( int argc , char ** argv )
   test_net_reference();
   test_net_ptdf();
   test_net_demand_change();
+  test_net_ac_optional_data();
   test_net_OTS_cost();
   test_net_negative_cost();
   test_net_cost_solution();

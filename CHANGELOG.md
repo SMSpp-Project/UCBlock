@@ -291,6 +291,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- an `ACNetworkBlock` with no "ReactiveDemand", or with no bound given on
+  its reactive injections (as one that is not in a `UCBlock`), read past
+  empty vectors when generating its constraints: the reactive demand is 0
+  and the bounds not given are infinite, also on the other side of a bound
+  given afterwards. The data with no default are refused with
+  `std::invalid_argument` where they read past them before:
+  "LineReactance" and "LineResistance", mandatory as documented, by
+  `ACNetworkData::deserialize()` when there are lines, "LineRATEA" (with
+  AC lines) and the data of the nodes by
+  `ACNetworkBlock::generate_abstract_constraints()`, before generating
+  anything; "LineMinAngle" and "LineMaxAngle" remain optional
+
 - `HydroSystemUnitBlock::deserialize()` and
   `HydroSystemUnitBlockSolution::deserialize()` looked up each sub-group with
   `NcGroup::getGroup()`, which lists all the sub-groups at each call: they
