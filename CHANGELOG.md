@@ -291,6 +291,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the distribution factors of the HVDC lines that a `DCNetworkData` keeps
+  were those of the instant only, and a `DCNetworkBlock` sharing it with
+  another of the same instant (as those not in a `UCBlock`, all at the
+  instant `Inf< Index >()`) but with another Tikhonov coefficient got the
+  factors of that coefficient: the coefficient is part of what they are
+  kept for (`DCNetworkData::was_DCDF_computed()` and `compute_DCDF()`
+  take it, 0 by default), and the unit test checks the factor of each
+  coefficient on a `DCNetworkData` shared in both orders
+
 - an `ACNetworkBlock` with no "ReactiveDemand", or with no bound given on
   its reactive injections (as one that is not in a `UCBlock`), read past
   empty vectors when generating its constraints: the reactive demand is 0

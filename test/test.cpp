@@ -1629,6 +1629,85 @@ static void test_net_HVDC_flow( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The distribution factors of the HVDC lines of a DCNetworkData shared by
+ * networks of the same instant with different Tikhonov coefficients: a line
+ * 0 -> 1 of susceptance 10 and an HVDC line 1 -> 2, whose factor in the
+ * PTDF row of the first line is 10 / ( 10 + tau ), i.e., 1 with tau = 0 and
+ * 0.5 with the coefficient 10 of DCNBCfg-PTDF-T.txt. The networks are not
+ * in a UCBlock, hence all at the instant Inf< Index >(); each has to get
+ * the factor of its own coefficient, in whatever order they are generated,
+ * as one with its own DCNetworkData does. */
+
+static Configuration * read_test_cfg( const std::string & name );
+static double row_coef( const FRowConstraint & c , const Variable * v );
+
+static void test_net_DCDF_shared( void )
+{
+ const double B = 1000;
+ const auto g = write_net( "DCNetworkBlock" , 3 ,
+			   { { 0 , 1 , 10 , -B , B } ,
+			     { 1 , 2 , 0 , -B , B , 0.9 } } , { 0 , 0 , 45 } );
+
+ // the factor of the HVDC flow in the row of the first line
+ auto factor = []( DCNetworkBlock * nb ) {
+  auto rows = nb->get_static_constraint_v< FRowConstraint >(
+					        "AC/HVDC_powerflow_def" );
+  if( ( ! rows ) || rows->empty() )
+   return( std::numeric_limits< double >::quiet_NaN() );
+  return( row_coef( ( *rows )[ 0 ] , & nb->get_power_flow()[ 1 ] ) );
+  };
+
+ // a network of the group in the PTDF formulation, sharing nd if given,
+ // with the coefficient 10 if tikhonov and 0 otherwise
+ auto net = [ & ]( NetworkBlock::NetworkData * nd , bool tikhonov ) {
+  std::unique_ptr< DCNetworkBlock > nb;
+  if( ! tikhonov ) {
+   nb.reset( dynamic_cast< DCNetworkBlock * >( Block::new_Block( g ) ) );
+   if( nd )
+    nb->set_NetworkData( nd );
+   SimpleConfiguration< int > f( 0 );
+   nb->generate_abstract_variables( & f );
+   generate_all( nb.get() );
+   return( nb );
+   }
+  std::unique_ptr< BlockConfig > bc( dynamic_cast< BlockConfig * >(
+				 read_test_cfg( "DCNBCfg-PTDF-T.txt" ) ) );
+  if( ! bc )
+   throw( std::logic_error( "DCNBCfg-PTDF-T.txt not read" ) );
+  nb.reset( dynamic_cast< DCNetworkBlock * >( Block::new_Block( g ) ) );
+  if( nd )
+   nb->set_NetworkData( nd );
+  bc->apply( nb.get() );
+  generate_all( nb.get() );
+  return( nb );
+  };
+
+ try {
+  auto own = net( nullptr , true );
+  check( close( factor( own.get() ) , 0.5 ) , "shared DCDF: the factor "
+	 "with its own data is " + str( factor( own.get() ) ) + ", not 0.5" );
+
+  auto a = net( nullptr , false );
+  auto nd = a->get_NetworkData();
+  auto b = net( nd , true );
+  auto c = net( nd , false );
+  check( close( factor( a.get() ) , 1 ) , "shared DCDF: the factor with "
+	 "tau = 0 is " + str( factor( a.get() ) ) + ", not 1" );
+  check( close( factor( b.get() ) , 0.5 ) , "shared DCDF: the factor with "
+	 "tau = 10 after one with tau = 0 is " + str( factor( b.get() ) ) +
+	 ", not 0.5" );
+  check( close( factor( c.get() ) , 1 ) , "shared DCDF: the factor with "
+	 "tau = 0 after one with tau = 10 is " + str( factor( c.get() ) ) +
+	 ", not 1" );
+  b.reset();
+  c.reset();
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "shared DCDF: throws " ) + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The reference nodes. A line 0 -> 1 with susceptance, an HVDC line 0 -> 2
  * and ReferenceNode = 1, which is not the lowest node of its component:
  * the flow 100 on the line from 0 to the demand at 1 is feasible in every
@@ -14887,6 +14966,7 @@ int main( int argc , char ** argv )
   test_cycle_basis();
   test_net_components();
   test_net_HVDC_flow();
+  test_net_DCDF_shared();
   test_net_reference();
   test_net_ptdf();
   test_net_demand_change();

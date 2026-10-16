@@ -421,7 +421,8 @@ void DCNetworkData::identify_connected_components( void )
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
-                                  const SpMat & PTDF_matrix , Index time )
+                                  const SpMat & PTDF_matrix , Index time ,
+                                  double tikhonov_coeff )
 {
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
@@ -461,6 +462,7 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
   }
  DCDF = -PTDF_matrix * A_DC_transpose;
  DCDF_was_computed = time;
+ DCDF_tikhonov_coeff = tikhonov_coeff;
  DCDF_computed = true;
  }
 
@@ -1469,8 +1471,10 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
   // compute PTDF and, if necessary, DCDF
   SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines , f_tikhonov_coeff);
   if( f_NetworkData->is_DC_HVDC() )
-   if( ! f_NetworkData->was_DCDF_computed( f_time_instant ) )
-    f_NetworkData->compute_DCDF( HVDC_lines , PTDF_matrix , f_time_instant );
+   if( ! f_NetworkData->was_DCDF_computed( f_time_instant ,
+                                           f_tikhonov_coeff ) )
+    f_NetworkData->compute_DCDF( HVDC_lines , PTDF_matrix , f_time_instant ,
+                                 f_tikhonov_coeff );
 
   // Flow limit constraints
   // one row per DC line, in the order of DC_lines: the HVDC lines have none
