@@ -4142,6 +4142,271 @@ static void test_net_solution_formats( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The data of the networks given as netCDF scalars, which are the same for
+ * every line, node or instant: a DCNetworkBlock with two lines and two
+ * instants and every datum of the lines a scalar (the efficiency on HVDC
+ * lines, that of a line with susceptance being 1), an ACNetworkBlock with
+ * its impedances, its rate and the bounds of the voltages scalars, and an
+ * ECNetworkBlock of three intervals with scalar prices. */
+
+static void test_net_scalar_data( void )
+{
+ auto lines = []( const std::string & type , double sus ) {
+  auto g = new_group( "NET" , true );
+  g.putAtt( "type" , type );
+  auto ND = g.addDim( "NumberNodes" , 3 );
+  auto L = g.addDim( "NumberLines" , 2 );
+  g.addDim( "NumberInstants" , 2 );
+  put_int( g , "StartLine" , L , { 0 , 1 } );
+  put_int( g , "EndLine" , L , { 1 , 2 } );
+  put( g , "LineSusceptance" , sus );
+  put( g , "MaxPowerFlow" , 7 );
+  put( g , "MinPowerFlow" , -7 );
+  put( g , "Efficiency" , 0.9 );
+  put( g , "NetworkCost" , 2 );
+  put( g , "ActiveDemand" , ND , { 0 , 0 , 0 } );
+  return( g );
+  };
+
+ try {
+  for( double sus : { 5 , 0 } ) {
+   std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
+		       Block::new_Block( lines( "DCNetworkBlock" , sus ) ) ) );
+   auto nd = static_cast< DCNetworkBlock::DCNetworkData * >(
+						     nb->get_NetworkData() );
+   bool ok = ( nd->get_network_cost().size() == 2 ) &&
+	     ( nd->get_line_susceptance().size() == ( sus ? 2 : 0 ) );
+   for( Index l = 0 ; ok && ( l < 2 ) ; ++l ) {
+    ok = ( nd->get_network_cost()[ l ] == 2 ) &&
+	 ( ( ! sus ) || ( nd->get_line_susceptance()[ l ] == sus ) );
+    for( Index t = 0 ; t < 2 ; ++t )
+     ok = ok && ( nd->get_max_power_flow( l , t ) == 7 ) &&
+	  ( nd->get_min_power_flow( l , t ) == -7 ) &&
+	  ( nd->get_line_efficiency( l , t ) == ( sus ? 1 : 0.9 ) );
+    }
+   check( ok , "scalar data: a scalar of the DC lines of susceptance " +
+	  str( sus ) + " is not the same for every line and instant" );
+   }
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "scalar data: the DC network throws " ) +
+	 e.what() );
+  }
+
+ try {
+  auto g = lines( "ACNetworkBlock" , 5 );
+  put( g , "LineReactance" , 0.1 );
+  put( g , "LineResistance" , 0.01 );
+  put( g , "LineRATEA" , 100 );
+  put( g , "NodeMaxVoltage" , 1.1 );
+  put( g , "NodeMinVoltage" , 0.9 );
+  std::unique_ptr< ACNetworkBlock > nb( dynamic_cast< ACNetworkBlock * >(
+						  Block::new_Block( g ) ) );
+  auto nd = static_cast< ACNetworkBlock::ACNetworkData * >(
+						    nb->get_NetworkData() );
+  const std::vector< double > x( 2 , 0.1 ) , r( 2 , 0.01 ) ,
+			      vmx( 3 , 1.1 ) , vmn( 3 , 0.9 );
+  check( ( nd->get_line_reactance() == x ) &&
+	 ( nd->get_line_resistance() == r ) &&
+	 ( nd->get_node_max_voltage() == vmx ) &&
+	 ( nd->get_node_min_voltage() == vmn ) , "scalar data: a scalar of "
+	 "the AC lines or nodes is not the same for every line or node" );
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "scalar data: the AC network throws " ) +
+	 e.what() );
+  }
+
+ try {
+  auto e = new_group( "EC" , true );
+  e.putAtt( "type" , "ECNetworkBlock" );
+  auto I = e.addDim( "NumberIntervals" , 3 );
+  auto N = e.addDim( "NumberNodes" , 2 );
+  put( e , "BuyPrice" , 3 );
+  put( e , "SellPrice" , 1 );
+  put( e , "RewardPrice" , 2 );
+  put( e , "PeakTariff" , 2 );
+  put( e , "ActiveDemand" , { I , N } , std::vector< double >( 6 , 5 ) );
+  std::unique_ptr< ECNetworkBlock > nb( dynamic_cast< ECNetworkBlock * >(
+						  Block::new_Block( e ) ) );
+  bool ok = true;
+  for( Index t = 0 ; t < 3 ; ++t )
+   ok = ok && ( nb->get_buy_price( t ) == 3 ) &&
+	( nb->get_sell_price( t ) == 1 );
+  check( ok , "scalar data: a scalar price is not the same for every "
+	 "interval" );
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "scalar data: the EC network throws " ) +
+	 e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A Solution whose values indexed over the lines, the nodes or the instants
+ * are netCDF scalars, which its format does not have: read() and write()
+ * run over the lines, the nodes or the instants of the Block, and a vector
+ * of one value read past its end. Each value of a DCNetworkBlockSolution
+ * and of an ACNetworkBlockSolution of three lines and three nodes, and the
+ * storage level and the intake of a BatteryUnitBlockSolution of three
+ * instants, has to be refused by deserialize() when it is a scalar. A
+ * UnitBlockSolution with no "NumberGenerators", instead, takes its values
+ * as scalars, which are the same at every instant as with
+ * "NumberGenerators". */
+
+static BatteryUnitBlock * new_BU( Index T ,
+				  const std::vector< std::pair< std::string ,
+				   std::vector< double > > > & data ,
+				  std::string * why );
+
+static void test_sol_scalars( void )
+{
+ const double B = 100;
+ const std::vector< NetLine > tri = { { 0 , 1 , 1 , -B , B } ,
+				      { 1 , 2 , 2 , -B , B } ,
+				      { 0 , 2 , 4 , -B , B } };
+
+ // the Solution of the network b out of a group with the scalar name and
+ // the values of the lines in full: true if deserialize() refuses it,
+ // otherwise it is read from and written into b
+ auto refused = []( Block * b , const std::string & type ,
+		    const std::string & name ,
+		    const std::vector< std::string > & full ) {
+  auto sg = new_group( "SOL" );
+  sg.putAtt( "type" , type );
+  sg.addDim( "NumberNodes" , 3 );
+  auto L = sg.addDim( "NumberLines" , 3 );
+  for( const auto & f : full )
+   put( sg , f , L , { 1 , 2 , 3 } );
+  put( sg , name , 1 );
+  std::unique_ptr< Solution > s( Solution::new_Solution( type ) );
+  try {
+   s->deserialize( sg );
+   }
+  catch( std::invalid_argument & ) { return( true ); }
+  s->read( b );
+  s->write( b );
+  return( false );
+  };
+
+ for( const std::string type : { "DCNetworkBlock" , "ACNetworkBlock" } ) {
+  auto g = write_net( type , 3 , tri , { 1 , 2 , 3 } );
+  std::vector< std::string > names = { "FlowValue" , "AuxiliaryValue" ,
+				       "DualCost" };
+  if( type == "ACNetworkBlock" ) {
+   auto L = g.getDim( "NumberLines" );
+   auto N = g.getDim( "NumberNodes" );
+   put( g , "LineRATEA" , L , { 100 , 100 , 100 } );
+   put( g , "LineReactance" , L , { 0.1 , 0.2 , 0.3 } );
+   put( g , "LineResistance" , L , { 0.01 , 0.02 , 0.03 } );
+   put( g , "NodeConductance" , N , { 0 , 0 , 0 } );
+   put( g , "NodeSusceptance" , N , { 0 , 0 , 0 } );
+   put( g , "NodeMaxVoltage" , N , { 1.1 , 1.1 , 1.1 } );
+   put( g , "NodeMinVoltage" , N , { 0.9 , 0.9 , 0.9 } );
+   put( g , "ReactiveDemand" , N , { 0.5 , 0.5 , 0.5 } );
+   names.insert( names.end() , { "NodeInjectionReactive" ,
+				 "ReactiveFlowFromValue" ,
+				 "ReactiveFlowToValue" } );
+   }
+  put( g , "NetworkCost" , g.getDim( "NumberLines" ) , { 2 , 0 , 3 } );
+  for( const auto & name : names ) {
+   const auto what = type + " Solution, scalar " + name;
+   try {
+    std::unique_ptr< NetworkBlock > nb( dynamic_cast< NetworkBlock * >(
+						  Block::new_Block( g ) ) );
+    for( Index n = 0 ; n < 3 ; ++n ) {
+     nb->set_min_node_injection( -10 , n , 0 );
+     nb->set_max_node_injection( 10 , n , 0 );
+     }
+    if( auto ac = dynamic_cast< ACNetworkBlock * >( nb.get() ) )
+     for( Index n = 0 ; n < 3 ; ++n ) {
+      ac->set_min_reactive_node_injection( -10 , n , 0 );
+      ac->set_max_reactive_node_injection( 10 , n , 0 );
+      }
+    generate_all( nb.get() );
+    // the reactive flows go in pairs
+    std::vector< std::string > full;
+    if( name == "ReactiveFlowFromValue" )
+     full = { "ReactiveFlowToValue" };
+    if( name == "ReactiveFlowToValue" )
+     full = { "ReactiveFlowFromValue" };
+    check( refused( nb.get() , type + "Solution" , name , full ) ,
+	   what + ": not refused" );
+    }
+   catch( std::exception & e ) {
+    check( false , what + ": throws " + e.what() );
+    }
+   }
+  }
+
+ for( const std::string name : { "StorageLevel" , "InOutTake" } ) {
+  const auto what = "BatteryUnitBlock Solution, scalar " + name;
+  try {
+   std::unique_ptr< BatteryUnitBlock > bu( new_BU( 3 ,
+	{ { "MinStorage" , { 0 , 0 , 0 } } ,
+	  { "MaxStorage" , { 20 , 20 , 20 } } ,
+	  { "MaxPower" , { 10 , 10 , 10 } } ,
+	  { "MinPower" , { -10 , -10 , -10 } } ,
+	  { "InitialStorage" , { 5 } } } , nullptr ) );
+   generate_all( bu.get() );
+   auto sg = new_group( "SOL" );
+   sg.putAtt( "type" , "BatteryUnitBlockSolution" );
+   auto TH = sg.addDim( "TimeHorizon" , 3 );
+   const std::string other = ( name == "StorageLevel" ) ? "InOutTake" :
+							"StorageLevel";
+   put( sg , other , TH , { 1 , 2 , 3 } );
+   put( sg , name , 1 );
+   bool no = false;
+   std::unique_ptr< Solution > s( Solution::new_Solution(
+					      "BatteryUnitBlockSolution" ) );
+   try {
+    s->deserialize( sg );
+    }
+   catch( std::invalid_argument & ) { no = true; }
+   if( ! no ) {
+    s->read( bu.get() );
+    s->write( bu.get() );
+    }
+   check( no , what + ": not refused" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ for( bool ng : { false , true } ) {
+  const std::string what = std::string( "UnitBlock Solution, scalar " ) +
+			   "ActivePower, " + ( ng ? "with" : "no" ) +
+			   " NumberGenerators";
+  try {
+   TUData d;
+   d.T = 3;
+   std::unique_ptr< ThermalUnitBlock > tub( new_TU( d ) );
+   generate_all( tub.get() );
+   auto sg = new_group( "SOL" );
+   sg.putAtt( "type" , "UnitBlockSolution" );
+   sg.addDim( "TimeHorizon" , 3 );
+   if( ng )
+    sg.addDim( "NumberGenerators" , 1 );
+   put( sg , "ActivePower" , 7 );
+   std::unique_ptr< Solution > s( Solution::new_Solution( sg ) );
+   if( ! s ) {
+    check( false , what + ": not read" );
+    continue;
+    }
+   s->write( tub.get() );
+   bool ok = true;
+   for( Index t = 0 ; t < 3 ; ++t )
+    ok = ok && ( tub->get_active_power( 0 )[ t ].get_value() == 7 );
+   check( ok , what + ": not the same at every instant" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The Solution of a DesignNetworkBlock with three sub-networks goes through
  * netCDF with the default Configuration, whose sub-Solution are in the
  * compressed format in its own group, together with the dimensions of its
@@ -14993,6 +15258,8 @@ int main( int argc , char ** argv )
   test_hydro_system_solution();
 
   test_net_solution_formats();
+  test_net_scalar_data();
+  test_sol_scalars();
   test_design_solution_formats();
   test_UC_solution_formats();
 

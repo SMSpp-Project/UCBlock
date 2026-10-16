@@ -321,79 +321,36 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
+ // with no "NumberGenerators" there is one generator, and the variables
+ // are indexed over the instants only; a scalar gives the same value to
+ // every generator and instant
  if( ! deserialize_dim( group , "NumberGenerators" , f_number_generators ,
-			true ) ) {
+			true ) )
   f_number_generators = 1;
 
-  using index = boost::multi_array< double , 2 >::index;
-  const std::vector< index > empty = { 0 , 0 };
-  const std::vector< index > full = { 1 , f_time_horizon };
+ // deserialize the Active Power - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "ActivePower" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_active_power , true , true );
 
-  auto ncVar = group.getVar( "ActivePower" );
-  if( ncVar.isNull() )
-   v_active_power.resize( empty );
-  else {
-   v_active_power.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_active_power.data() );
-   }
+ ::deserialize< double , 2 >( group , "ReactivePower" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_reactive_power , true , true );
 
-  ncVar = group.getVar( "ReactivePower" );
-  if( ncVar.isNull() )
-   v_reactive_power.resize( empty );
-  else {
-   v_reactive_power.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_reactive_power.data() );
-   }
+ // deserialize the Commitment - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "Commitment" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_commitment , true , true );
 
-  ncVar = group.getVar( "Commitment" );
-  if( ncVar.isNull() )
-   v_commitment.resize( empty );
-  else {
-   v_commitment.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_commitment.data() );
-   }
+ // deserialize the Primary Reserve- - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "PrimaryReserve" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_primary_reserve , true , true );
 
-  ncVar = group.getVar( "PrimaryReserve" );
-  if( ncVar.isNull() )
-   v_primary_reserve.resize( empty );
-  else {
-   v_primary_reserve.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_primary_reserve.data() );
-   }
-
-  ncVar = group.getVar( "SecondaryReserve" );
-  if( ncVar.isNull() )
-   v_secondary_reserve.resize( empty );
-  else {
-   v_secondary_reserve.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_secondary_reserve.data() );
-   }
-  }
- else {
-  // deserialize the Active Power - - - - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "ActivePower" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_active_power , true , true );
-
-  ::deserialize< double , 2 >( group , "ReactivePower" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_reactive_power , true , true );
-
-  // deserialize the Commitment - - - - - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "Commitment" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_commitment , true , true );
-
-  // deserialize the Primary Reserve- - - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "PrimaryReserve" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_primary_reserve , true , true );
-
-  // deserialize the Secondary Reserve - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "SecondaryReserve" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_secondary_reserve , true , true );
-  }
+ // deserialize the Secondary Reserve - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "SecondaryReserve" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_secondary_reserve , true , true );
  }  // end( UnitBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/

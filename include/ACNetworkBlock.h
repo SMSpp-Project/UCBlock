@@ -1425,6 +1425,10 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize an ACNetworkBlockSolution from a netCDF::NcGroup
+ /** Deserialize an ACNetworkBlockSolution from a netCDF::NcGroup with the
+  * format of serialize(); a variable that is a scalar rather than indexed
+  * over "NumberNodes" or "NumberLines" makes it throw
+  * std::invalid_argument. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

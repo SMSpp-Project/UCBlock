@@ -291,6 +291,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `DCNetworkBlockSolution`, `ACNetworkBlockSolution` and
+  `BatteryUnitBlockSolution` read their values indexed over the lines, the
+  nodes or the instants whatever their size, and a netCDF scalar gave one
+  value, past which `read()` and `write()` went, running over the lines,
+  the nodes or the instants of the Block: a scalar, which their format
+  does not have, is refused by `deserialize()` with
+  `std::invalid_argument`. A `UnitBlockSolution` with no
+  "NumberGenerators" read a scalar into the first instant only, and the
+  others were 0: it gives the same value to every instant, as it already
+  did with "NumberGenerators". The data of the Blocks that are netCDF
+  scalars were already the same for every line, node or instant; the unit
+  test checks them on the networks, and that each of these values of the
+  Solution is refused, or read, as a scalar
+
 - the distribution factors of the HVDC lines that a `DCNetworkData` keeps
   were those of the instant only, and a `DCNetworkBlock` sharing it with
   another of the same instant (as those not in a `UCBlock`, all at the

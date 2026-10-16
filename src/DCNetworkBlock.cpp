@@ -2627,16 +2627,17 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  // all optional, as serialize() writes each of them only if it is there:
  // the Solution may not hold them, and the auxiliary Variable exist only
- // if some line has a nonzero NetworkCost
+ // if some line has a nonzero NetworkCost; each is indexed over the lines,
+ // which read() and write() run over, and a scalar is refused
 
  // deserialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "FlowValue" , v_flow , true );
+ ::deserialize( group , "FlowValue" , f_number_lines , v_flow );
 
  // deserialize the Auxiliary Variables of the cost of the flows- - - - - - -
- ::deserialize< double >( group , "AuxiliaryValue" , v_aux , true );
+ ::deserialize( group , "AuxiliaryValue" , f_number_lines , v_aux );
 
  // deserialize the Dual Prices - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "DualCost" , v_cost , true );
+ ::deserialize( group , "DualCost" , f_number_lines , v_cost );
 
  }  // end( DCNetworkBlockSolution::deserialize( NcGroup & ) )
 
