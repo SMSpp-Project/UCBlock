@@ -461,6 +461,7 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
   }
  DCDF = -PTDF_matrix * A_DC_transpose;
  DCDF_was_computed = time;
+ DCDF_computed = true;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1501,10 +1502,11 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
     }  // for each node
 
    if( f_NetworkData->is_DC_HVDC() ) {
-    SpMat DCDF_ = f_NetworkData->get_DCDF();
+    // DCDF has a row and a column per line, the HVDC ones included
+    const auto & DCDF = f_NetworkData->get_DCDF();
     // TODO : Also only loop over the non zero entries of DCDF only ...
     for( auto & dc_line_id : HVDC_lines ) {
-     double coeff = round_to( DCDF_.coeff( line_id , dc_line_id ) ,
+     double coeff = round_to( DCDF.coeff( line_id , dc_line_id ) ,
                               f_ptdf_round );
      vars.push_back( std::make_pair( &v_power_flow[ dc_line_id ] , coeff ) );
      }
@@ -2619,14 +2621,18 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  if( get_number_nodes() > 1 )
   deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
+ // all optional, as serialize() writes each of them only if it is there:
+ // the Solution may not hold them, and the auxiliary Variable exist only
+ // if some line has a nonzero NetworkCost
+
  // deserialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "FlowValue" , v_flow , false );
+ ::deserialize< double >( group , "FlowValue" , v_flow , true );
 
  // deserialize the Auxiliary Variables of the cost of the flows- - - - - - -
- ::deserialize< double >( group , "AuxiliaryValue" , v_aux , false );
+ ::deserialize< double >( group , "AuxiliaryValue" , v_aux , true );
 
  // deserialize the Dual Prices - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "DualCost" , v_cost , false );
+ ::deserialize< double >( group , "DualCost" , v_cost , true );
 
  }  // end( DCNetworkBlockSolution::deserialize( NcGroup & ) )
 

@@ -71,13 +71,16 @@ void DesignNetworkBlock::deserialize_network_blocks(
  v_Block.clear();
  Index found = 0;
 
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call
+ const auto sub_groups = group.getGroups();
  for( Index i = 0 ; i < f_number_subnetworks ; ++i ) {
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
-  if( sub_group.isNull() )
+  auto it = sub_groups.find( sub_group_name );
+  if( it == sub_groups.end() )
    break;
 
-  auto res = almost_new_Block( sub_group , this );
+  auto res = almost_new_Block( it->second , this );
   if( auto nbi = dynamic_cast< NetworkBlock * >( res.second ) ) {
    nbi->set_NetworkData( f_NetworkData );
    nbi->deserialize( res.first );
@@ -372,8 +375,9 @@ Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
 
  if( wsol & 4 ) {
   sol->v_network_Solution.resize( v_Block.size() );
-  int swsol = wsol & 1;  // copy the first bit of wsol
-  swsol |= wsol >> 3;    // copy the bits 4 - ... shifted by 3
+  // bit 0 of wsol, and its bits 4 - ... as bits 1 - ...: bit 3 (the
+  // compressed format) is not one of them
+  int swsol = ( wsol & 1 ) | ( ( wsol >> 3 ) & ~ 1 );
   SimpleConfiguration< int > snc;
   snc.f_value = swsol;
   for( Index i = 0 ; i < v_Block.size() ; ++i ) {
@@ -703,8 +707,25 @@ void DesignNetworkBlock::set_network_cost( MF_dbl_it values ,
 
 void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 {
- // call the method of the base class
- NetworkBlockSolution::deserialize( group );
+ // check if compressed or standard format: if compressed (and not empty)
+ // then "NBSType" must be defined
+ auto gtype = group.getAtt( "NBSType" );
+ f_compressed = ! gtype.isNull();
+
+ if( f_compressed ) {
+  // the "NodeInjection" in group is that of the sub-NetworkBlockSolution,
+  // indexed over all their instants, and the node injections are never
+  // held here [see DesignNetworkBlock::get_Solution()]: only the
+  // dimensions are read
+  deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
+  if( ! deserialize_dim( group , "NumberInstants" , f_number_intervals ,
+                         true ) )
+   f_number_intervals = 1;
+  std::vector< MAdouble::index > sizes( 2 , 0 );
+  v_node_injection.resize( sizes );
+  }
+ else  // call the method of the base class
+  NetworkBlockSolution::deserialize( group );
 
  // "NumberDesignLines" - - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto NDL = group.getDim( "NumberDesignLines" );
@@ -718,11 +739,6 @@ void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
   }
 
  // deserialize the sub-NetworkBlockSolution - - - - - - - - - - - - - - - - -
- // check if compressed or standard format: if compressed (and not empty)
- // then "NBSType" must be defined
- auto gtype = group.getAtt( "NBSType" );
- f_compressed = ! gtype.isNull();
-
  if( f_compressed ) {  // compressed format- - - - - - - - - - - - - - - - - -
   auto NN = group.getDim( "NumberNetworks" );
   if( NN.isNull() ) {
@@ -746,13 +762,16 @@ void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
   else {
    Index nsn = NSN.getSize();
    v_network_Solution.resize( nsn );
+   // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+   // each call
+   const auto sub_groups = group.getGroups();
    for( Index i = 0 ; i < nsn ; ++i ) {
     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-    auto sub_group = group.getGroup( sub_group_name );
-    if( sub_group.isNull() )
+    auto it = sub_groups.find( sub_group_name );
+    if( it == sub_groups.end() )
      throw( std::invalid_argument( "DesignNetworkBlockSolution::deserialize: "
            + sub_group_name + " missing" ) );
-    auto Si = Solution::new_Solution( sub_group );
+    auto Si = Solution::new_Solution( it->second );
     if( auto NSi = dynamic_cast< NetworkBlockSolution * >( Si ) )
      v_network_Solution[ i ] = NSi;
     else

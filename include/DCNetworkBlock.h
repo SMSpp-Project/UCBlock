@@ -338,6 +338,7 @@ class DCNetworkData : public NetworkData
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_number_HVDC_lines( 0 ) ,
   f_reference_node( 0 ) , DCDF_was_computed( Inf< Index >() ) ,
+  DCDF_computed( false ) ,
   f_number_branches( 0 ) , cycle_basis_was_computed( false ) ,
   nb_components( 0 ) {}
 
@@ -817,9 +818,11 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// true if get_DCDF() holds the matrix of instant \p t
+ /** True if compute_DCDF() has been called, the last time with \p t; the
+  * instant of a NetworkBlock that is not in a UCBlock is Inf< Index >(). */
 
  bool was_DCDF_computed( Index t ) const {
-  return( DCDF_was_computed == t );
+  return( DCDF_computed && ( DCDF_was_computed == t ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1042,6 +1045,9 @@ class DCNetworkData : public NetworkData
 
  /// the instant of the DCDF matrix computed last, to avoid recomputing it
  Index DCDF_was_computed;
+
+ /// true if the DCDF matrix has been computed at all
+ bool DCDF_computed;
 
  /// A boolean to avoid recomputing the cycle basis algorithm
  bool cycle_basis_was_computed;
@@ -2172,9 +2178,15 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// sets the power flows
+ /** Writes \p pf[ l ] as the value of the power flow variable l [see
+  * get_power_flow()] for each l < \p pf.size(), the others being left as
+  * they are: an ACNetworkBlock has the flows of both ends of each line,
+  * those of the "from" ends first, and a DCNetworkBlockSolution holds one
+  * flow per line. */
 
  void set_power_flow( const std::vector< double > & pf ) {
-  for( Index l = 0 ; l < v_power_flow.size() ; ++l )
+  const auto n = std::min( v_power_flow.size() , pf.size() );
+  for( Index l = 0 ; l < n ; ++l )
    v_power_flow[ l ].set_value( pf[ l ] );
   }
 
@@ -2192,22 +2204,37 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// sets the dual prices of power flow limits
- /** Writes \p dp[ l ] as the dual value of the bound (1) of line \f$ l \f$
-  * of generate_abstract_constraints(); nothing is written if no line has
-  * such a bound (every line having the rows (2) and (3)), while the entry
-  * of a line with the rows (2) and (3) is an empty BoxConstraint, whose
-  * dual value is written as well but means nothing. */
+ /** Writes \p dp[ l ] as the dual value \f$ \mu_l \f$ of the flow limits
+  * of line \f$ l \f$, the inverse of get_dual_prices(), which gives it
+  * back. For a line with no design variable it is the dual value of its
+  * bound (1) of generate_abstract_constraints(). For a line with a design
+  * variable it is split by its sign between the two sides of the limit: a
+  * \f$ \mu_l \ge 0 \f$ goes to the upper row (2) and 0 to the lower side,
+  * a \f$ \mu_l < 0 \f$ to the lower side and 0 to the row (2), the lower
+  * side being the row (3) or, if the line has none, the lower half of its
+  * bound (1). Nothing is written for a line whose limits are not there.
+  * \p dp must have get_number_lines() elements. */
 
  void set_dual_prices( const std::vector< double > & dp ) {
-  auto nl = get_number_lines();
-  if( ! nl )
-   return;
+  const auto nl = get_number_lines();
+  for( Index l = 0 ; l < nl ; ++l ) {
+   if( ( l < v_design_row.size() ) &&
+       ( v_design_row[ l ] < Inf< Index >() ) ) {  // design on this line
+    const double up = std::max( dp[ l ] , 0.0 );
+    const double lo = std::min( dp[ l ] , 0.0 );
+    v_power_flow_limit_design_const[ v_design_row[ l ] ].set_dual( up );
+    if( v_design_min_row[ l ] < Inf< Index >() )
+     v_power_flow_limit_design_min_const[ v_design_min_row[ l ]
+                                          ].set_dual( lo );
+    else
+     if( ! v_power_flow_limit_const.empty() )
+      v_power_flow_limit_const[ l ].set_dual( lo );
+    continue;
+    }
 
-  if( v_power_flow_limit_const.size() < nl )
-   return;  // no bound to write the dual price on
-
-  for( Index l = 0 ; l < nl ; ++l )
-   v_power_flow_limit_const[ l ].set_dual( dp[ l ] );
+   if( ! v_power_flow_limit_const.empty() )
+    v_power_flow_limit_const[ l ].set_dual( dp[ l ] );
+   }
   }
 
 /*--------------------------------------------------------------------------*/

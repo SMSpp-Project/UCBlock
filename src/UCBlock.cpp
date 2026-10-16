@@ -215,14 +215,17 @@ void UCBlock::deserialize_sub_blocks( const netCDF::NcGroup & group ,
 {
  auto sz = v_Block.size();
  v_Block.resize( sz + num_sub_blocks );
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call
+ const auto sub_groups = group.getGroups();
  for( Index i = 0 ; i < num_sub_blocks ; ++i ) {
   std::string sub_group_name = prefix + std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
-  if( sub_group.isNull() )
+  auto it = sub_groups.find( sub_group_name );
+  if( it == sub_groups.end() )
    throw( std::invalid_argument( "UCBlock::deserialize: " +
                                  sub_group_name + " not present" ) );
 
-  if( auto bk = new_Block( sub_group , this ) )
+  if( auto bk = new_Block( it->second , this ) )
    v_Block[ sz++ ] = bk;
   else
    throw( std::invalid_argument( "UCBlock::deserialize: " +
@@ -237,13 +240,16 @@ void UCBlock::deserialize_network_blocks( const netCDF::NcGroup & group )
  Index cntr = 0;
  v_network_blocks.resize( f_number_networks , nullptr );
 
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call
+ const auto sub_groups = group.getGroups();
  for( Index i = 0 ; i < f_number_networks ; ++i ) {
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
-  if( sub_group.isNull() )
+  auto it = sub_groups.find( sub_group_name );
+  if( it == sub_groups.end() )
    continue;
 
-  auto res = almost_new_Block( sub_group , this );
+  auto res = almost_new_Block( it->second , this );
   if( auto nbi = dynamic_cast< NetworkBlock * >( res.second ) ) {
    v_network_blocks[ i ] = nbi;
    nbi->set_NetworkData( f_NetworkData );  // set the global NetworkData
@@ -287,10 +293,14 @@ void UCBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "NetworkConstantTerms" , f_number_networks ,
                 v_network_constant_terms );
 
- // true if "NetworkBlock_n" is given with its own "ConstantTerm"
- auto own_constant = [ & group ]( Index n ) {
-  const auto sg = group.getGroup( "NetworkBlock_" + std::to_string( n ) );
-  return( ( ! sg.isNull() ) && ( ! sg.getVar( "ConstantTerm" ).isNull() ) );
+ // true if "NetworkBlock_n" is given with its own "ConstantTerm"; the
+ // sub-groups are listed once, NcGroup::getGroup() lists them all at each
+ // call
+ const auto sub_groups = group.getGroups();
+ auto own_constant = [ & sub_groups ]( Index n ) {
+  auto it = sub_groups.find( "NetworkBlock_" + std::to_string( n ) );
+  return( ( it != sub_groups.end() ) &&
+          ( ! it->second.getVar( "ConstantTerm" ).isNull() ) );
   };
 
  if( ! ::deserialize( group , network_block_classname ,
@@ -3196,15 +3206,22 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call, and there is one per NetworkBlock in the standard format
+ const auto sub_groups = group.getGroups();
+ auto sub_group = [ & sub_groups ]( const std::string & name ) {
+  auto it = sub_groups.find( name );
+  return( it == sub_groups.end() ? netCDF::NcGroup() : it->second );
+  };
+
  // deserialize the UnitBlockSolution - - - - - - - - - - - - - - - - - - - -
  Index number_units = 0;
  if( deserialize_dim( group , "NumberUnits" , number_units ) ) {
   v_unit_Solution.resize( number_units );
   for( Index i = 0 ; i < number_units ; ++i ) {
    std::string sub_group_name = "UnitBlock_" + std::to_string( i );
-   auto sub_group = group.getGroup( sub_group_name );
    auto USi = dynamic_cast< UnitBlockSolution * >(
-				      Solution::new_Solution( sub_group ) );
+		       Solution::new_Solution( sub_group( sub_group_name ) ) );
    if( ! USi )
     throw( std::invalid_argument( "UCBlockSolution::deserialize: UnitBlock_"
 				  + std::to_string( i ) +
@@ -3220,16 +3237,26 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
   v_network_Solution.resize( number_networks );
 
   // differently handle the standard format from the compressed one
-  auto sub_group = group.getGroup( "NetworkBlock" );
-  f_compressed_network = ! sub_group.isNull();
+  auto nb_group = sub_group( "NetworkBlock" );
+  f_compressed_network = ! nb_group.isNull();
   if( f_compressed_network )  // compressed format
-   NetworkBlockSolution::deserialize( sub_group , v_network_Solution );
+   NetworkBlockSolution::deserialize( nb_group , v_network_Solution );
   else  // standard format
    for( Index i = 0 ; i < number_networks ; ++i ) {
     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-    auto sub_group = group.getGroup( sub_group_name );
-    auto NSi = dynamic_cast< NetworkBlockSolution * >(
-				      Solution::new_Solution( sub_group ) );
+    auto NBi = sub_group( sub_group_name );
+    if( NBi.isNull() ) {  // serialize() skips the missing NetworkBlock
+     v_network_Solution[ i ] = nullptr;
+     continue;
+     }
+    auto Si = Solution::new_Solution( NBi );
+    auto NSi = dynamic_cast< NetworkBlockSolution * >( Si );
+    if( ! NSi ) {
+     delete Si;
+     throw( std::invalid_argument( "UCBlockSolution::deserialize: " +
+				   sub_group_name +
+				   " not a valid NetworkBlockSolution" ) );
+     }
     v_network_Solution[ i ] = NSi;
     }
   }

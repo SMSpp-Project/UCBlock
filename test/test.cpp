@@ -73,6 +73,7 @@
 #include <iostream>
 #include <limits>
 #include <random>
+#include <set>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -1272,7 +1273,9 @@ static Block * round_trip( const netCDF::NcGroup & g ,
   auto g2 = new_group( "RT" );
   b2->serialize( g2 );
   std::string why;
-  check( same_group( g1 , g2 , why ) , what + ": " + why );
+  // why is filled by same_group(), before the message is made
+  const bool same = same_group( g1 , g2 , why );
+  check( same , what + ": " + why );
   check( b2->classname() == b1->classname() ,
 	 what + ": " + b2->classname() + " read back as " +
 	 b1->classname() );
@@ -1593,6 +1596,39 @@ static void test_net_components( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The flow of an HVDC line in the rows of the other lines, on a network that
+ * is not in a UCBlock: a line 0 -> 1 with susceptance and an HVDC line
+ * 1 -> 2 of efficiency 0.9, which takes 50 from node 1 and delivers 45 to
+ * the demand at node 2. In the PTDF formulation the row of the first line
+ * holds the HVDC flow through its distribution factor, which is 1 since
+ * the line starts at a node that is not a reference: the point that
+ * carries the 50 along both lines is feasible in every formulation, the
+ * one that has the HVDC line take them from nowhere is not. */
+
+static void test_net_HVDC_flow( void )
+{
+ const double B = 1000;
+ const std::vector< NetLine > lines = { { 0 , 1 , 10 , -B , B } ,
+					{ 1 , 2 , 0 , -B , B , 0.9 } };
+ for( int wf = 0 ; wf < 3 ; ++wf ) {
+  const auto what = "HVDC flow, " + FORMULATION[ wf ];
+  try {
+   std::unique_ptr< DCNetworkBlock > nb( new_net(
+	      write_net( "DCNetworkBlock" , 3 , lines , { 0 , 0 , 45 } ) ,
+	      wf ) );
+   set_net_point( nb.get() , { 50 , 0 , 0 } , { 50 , 50 } , { 0 , -5 , 0 } );
+   check( nb->is_feasible() , what + ": the flow along both lines is cut" );
+   set_net_point( nb.get() , { 50 , 0 , 0 } , { 0 , 50 } , { 0 , 0 , 0 } );
+   check( ! nb->is_feasible() , what + ": the HVDC line takes power from "
+	  "nowhere" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The reference nodes. A line 0 -> 1 with susceptance, an HVDC line 0 -> 2
  * and ReferenceNode = 1, which is not the lowest node of its component:
  * the flow 100 on the line from 0 to the demand at 1 is feasible in every
@@ -1832,6 +1868,119 @@ static void test_net_demand_change( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// an ACNetworkBlock of three nodes on a line, with all its data but those
+/// whose names are in skip
+
+static netCDF::NcGroup write_AC_line( const std::set< std::string > & skip )
+{
+ auto g = new_group( "AC" , true );
+ g.putAtt( "type" , "ACNetworkBlock" );
+ auto N = g.addDim( "NumberNodes" , 3 );
+ auto L = g.addDim( "NumberLines" , 2 );
+ auto line = [ & ]( const std::string & n , std::vector< double > v ) {
+  if( ! skip.contains( n ) )
+   put( g , n , L , v );
+  };
+ auto node = [ & ]( const std::string & n , std::vector< double > v ) {
+  if( ! skip.contains( n ) )
+   put( g , n , N , v );
+  };
+ put_int( g , "StartLine" , L , { 0 , 1 } );
+ put_int( g , "EndLine" , L , { 1 , 2 } );
+ line( "MinPowerFlow" , { -100 , -100 } );
+ line( "MaxPowerFlow" , { 100 , 100 } );
+ line( "LineSusceptance" , { 1 , 2 } );
+ line( "LineRATEA" , { 100 , 100 } );
+ line( "LineReactance" , { 0.1 , 0.2 } );
+ line( "LineResistance" , { 0.01 , 0.02 } );
+ line( "LineMinAngle" , { -30 , -30 } );
+ line( "LineMaxAngle" , { 30 , 30 } );
+ node( "NodeConductance" , { 0 , 0 , 0 } );
+ node( "NodeSusceptance" , { 0 , 0 , 0 } );
+ node( "NodeMaxVoltage" , { 1.1 , 1.1 , 1.1 } );
+ node( "NodeMinVoltage" , { 0.9 , 0.9 , 0.9 } );
+ node( "ReactiveDemand" , { 0.5 , 0.5 , 0.5 } );
+ node( "ActiveDemand" , { 1 , 2 , 3 } );
+ return( g );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The optional data of an ACNetworkBlock that is not in a UCBlock. With no
+ * angle bounds, no reactive demand and no bound on the reactive injections
+ * the model is generated: the angle differences are not bounded, the
+ * reactive balance has right-hand side 0 and the rows of the reactive
+ * injections are free until a bound is given, which leaves the other side
+ * free. The data with no default (the reactances and the resistances of
+ * the lines, the thermal limits and the data of the nodes) are refused
+ * with std::invalid_argument when they are missing: the first two when
+ * reading, the others when generating, before anything is generated. */
+
+static void test_net_ac_optional_data( void )
+{
+ std::string what = "AC optional data";
+ try {
+  std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+   Block::new_Block( write_AC_line( { "LineMinAngle" , "LineMaxAngle" ,
+				      "ReactiveDemand" } ) ) ) );
+  generate_all( ab.get() );
+  auto ri = ab->get_static_constraint_v< BoxConstraint >(
+			      "Reactive_Node_Injection_Bound_Const_Network" );
+  auto bal = ab->get_static_constraint_v< FRowConstraint >(
+						   "AC_power_flow_injection" );
+  check( ab->get_s_const_index( "AC_angle_bounds_limit" ) >=
+	 ab->get_number_static_constraints() ,
+	 what + ": angle differences bounded with no LineMinAngle" );
+  check( bal && ( bal->size() == 6 ) && ( ( *bal )[ 4 ].get_lhs() == 0 ) &&
+	 ( ( *bal )[ 4 ].get_rhs() == 0 ) ,
+	 what + ": the reactive balance with no ReactiveDemand is not 0" );
+  check( ri && ( ri->size() == 3 ) &&
+	 ( ( *ri )[ 1 ].get_lhs() == -Inf< double >() ) &&
+	 ( ( *ri )[ 1 ].get_rhs() == Inf< double >() ) ,
+	 what + ": the reactive injections are bounded with no bound" );
+  ab->set_min_reactive_node_injection( -3 , 1 , 0 );
+  check( ri && ( ( *ri )[ 1 ].get_lhs() == -3 ) &&
+	 ( ( *ri )[ 1 ].get_rhs() == Inf< double >() ) &&
+	 ( ( *ri )[ 0 ].get_lhs() == -Inf< double >() ) ,
+	 what + ": a lower bound of the reactive injection bounds others" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+
+ for( const std::string n : { "LineReactance" , "LineResistance" } ) {
+  bool refused = false;
+  try {
+   auto b = Block::new_Block( write_AC_line( { n } ) );
+   refused = ! b;
+   delete b;
+   }
+  catch( std::invalid_argument & ) { refused = true; }
+  catch( std::exception & ) {}
+  check( refused , what + ": no " + n + " is not refused when reading" );
+  }
+
+ for( const std::string n : { "LineRATEA" , "NodeMinVoltage" ,
+			      "NodeMaxVoltage" , "NodeConductance" ,
+			      "NodeSusceptance" } ) {
+  bool refused = false;
+  try {
+   std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
+				  Block::new_Block( write_AC_line( { n } ) ) ) );
+   ab->generate_abstract_variables();
+   try {
+    ab->generate_abstract_constraints();
+    }
+   catch( std::invalid_argument & ) {
+    refused = ( ab->get_number_static_constraints() == 0 );
+    }
+   }
+  catch( std::exception & ) {}
+  check( refused , what + ": no " + n + " is not refused when "
+	 "generating, or something is generated" );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The cost of the flows of an OTSNetworkBlock: each priced line has its
  * auxiliary Variable once in the Objective, with the cost of the data as
  * the coefficient, also if the Objective is asked for twice. */
@@ -2010,7 +2159,10 @@ static void test_net_negative_cost( void )
  * and a nonzero minimum flow the two sides are two rows, whose duals
  * (>= 0 for the upper one, <= 0 for the lower one) add up to the price of
  * the line, with the sign that the dual of the bound of a line with no
- * design variable has. */
+ * design variable has. Setting the prices is the inverse: the price of a
+ * line with a design variable goes, by its sign, to the upper row or to
+ * the lower side (the lower row, or the lower half of the bound), and 0 to
+ * the other side, so that the prices set are those read back. */
 
 static void test_net_dual_prices( void )
 {
@@ -2047,6 +2199,20 @@ static void test_net_dual_prices( void )
   check( ( dp.size() == 3 ) && ( dp[ 0 ] == -3 ) && ( dp[ 1 ] == 4 ) &&
 	 ( dp[ 2 ] == -2 ) , what + ": " + str( dp[ 0 ] ) + " , " +
 	 str( dp[ 1 ] ) + " , " + str( dp[ 2 ] ) + " instead of -3 , 4 , -2" );
+
+  // line 0 upper row active, line 1 lower half of its bound active
+  nb->set_dual_prices( { 2 , -1 , 3 } );
+  check( ( ( *up )[ 0 ].get_dual() == 2 ) &&
+	 ( ( *lo )[ 0 ].get_dual() == 0 ) &&
+	 ( ( *up )[ 1 ].get_dual() == 0 ) &&
+	 ( ( *box )[ 1 ].get_dual() == -1 ) &&
+	 ( ( *box )[ 2 ].get_dual() == 3 ) ,
+	 what + ": the prices set are not on the active sides" );
+  nb->get_dual_prices( dp );
+  check( ( dp.size() == 3 ) && ( dp[ 0 ] == 2 ) && ( dp[ 1 ] == -1 ) &&
+	 ( dp[ 2 ] == 3 ) , what + ": set and read back as " +
+	 str( dp[ 0 ] ) + " , " + str( dp[ 1 ] ) + " , " + str( dp[ 2 ] ) +
+	 " instead of 2 , -1 , 3" );
   }
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );
@@ -3552,6 +3718,543 @@ static void test_hydro_system_solution( void )
 
  restored( sol.get() , "the Solution" );
  restored( cln.get() , "its clone" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*----------------- THE Solution IN netCDF, BOTH FORMATS -------------------*/
+/*--------------------------------------------------------------------------*/
+/// the ColVariable and the RowConstraint of the tree of b, in a fixed order
+
+static void tree_of( Block * b , std::vector< ColVariable * > & vars ,
+		     std::vector< RowConstraint * > & rows )
+{
+ b->for_each_variable_group( [ & ]( const BaseGroup & g ) {
+   g.for_each( [ & ]( Variable & v ) {
+     if( auto cv = dynamic_cast< ColVariable * >( & v ) )
+      vars.push_back( cv ); } ); } );
+ b->for_each_constraint_group( [ & ]( const BaseGroup & g ) {
+   g.for_each( [ & ]( Constraint & c ) {
+     if( auto rc = dynamic_cast< RowConstraint * >( & c ) )
+      rows.push_back( rc ); } ); } );
+ for( auto nb : b->get_nested_Blocks() )
+  tree_of( nb , vars , rows );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// a different value for each ColVariable and a different dual for each
+/// RowConstraint of the tree of b, all positive
+
+static void set_distinct( Block * b )
+{
+ std::vector< ColVariable * > vars;
+ std::vector< RowConstraint * > rows;
+ tree_of( b , vars , rows );
+ for( Index k = 0 ; k < vars.size() ; ++k )
+  vars[ k ]->set_value( 1 + 0.125 * k );
+ for( Index k = 0 ; k < rows.size() ; ++k )
+  rows[ k ]->set_dual( 0.5 + 0.125 * k );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The Solution s, read from b, and r, read back from what s wrote in
+ * netCDF, are written in turn in the tree of b, whose Variable and duals are
+ * first set to -7, which no Solution holds: they have to leave the same
+ * values and duals, bitwise. The Variable in must have to be given back by
+ * r with the value they had when s was read, as the ones the Solution is
+ * there for. The values and duals of b are left as they were. */
+
+static void same_writing( Block * b , Solution * s , Solution * r ,
+			  const std::vector< const ColVariable * > & must ,
+			  const std::string & who )
+{
+ std::vector< ColVariable * > vars;
+ std::vector< RowConstraint * > rows;
+ tree_of( b , vars , rows );
+
+ auto state = [ & ]( std::vector< double > & x , std::vector< double > & d ) {
+  for( auto v : vars )
+   x.push_back( v->get_value() );
+  for( auto c : rows )
+   d.push_back( c->get_dual() );
+  };
+
+ std::vector< double > x0 , d0 , xs , ds , xr , dr;
+ state( x0 , d0 );
+
+ auto written = [ & ]( Solution * sol , std::vector< double > & x ,
+		       std::vector< double > & d ) {
+  for( auto v : vars )
+   v->set_value( -7 );
+  for( auto c : rows )
+   c->set_dual( -7 );
+  sol->write( b );
+  state( x , d );
+  };
+
+ try {
+  written( s , xs , ds );
+  written( r , xr , dr );
+  bool ok = true;
+  for( Index k = 0 ; ok && ( k < vars.size() ) ; ++k )
+   if( xs[ k ] != xr[ k ] ) {
+    check( false , who + ": Variable " + std::to_string( k ) + " is " +
+	   str( xr[ k ] ) + " read back, " + str( xs[ k ] ) + " from the "
+	   "Solution" );
+    ok = false;
+    }
+  for( Index k = 0 ; ok && ( k < rows.size() ) ; ++k )
+   if( ds[ k ] != dr[ k ] ) {
+    check( false , who + ": the dual of row " + std::to_string( k ) +
+	   " is " + str( dr[ k ] ) + " read back, " + str( ds[ k ] ) +
+	   " from the Solution" );
+    ok = false;
+    }
+  for( Index k = 0 ; ok && ( k < vars.size() ) ; ++k )
+   if( ( xr[ k ] != x0[ k ] ) &&
+       ( std::find( must.begin() , must.end() , vars[ k ] ) != must.end() ) ) {
+    check( false , who + ": Variable " + std::to_string( k ) + " is " +
+	   str( xr[ k ] ) + " read back, not " + str( x0[ k ] ) );
+    ok = false;
+    }
+  }
+ catch( std::exception & e ) {
+  check( false , who + ": writing throws " + e.what() );
+  }
+
+ for( Index k = 0 ; k < vars.size() ; ++k )
+  vars[ k ]->set_value( x0[ k ] );
+ for( Index k = 0 ; k < rows.size() ; ++k )
+  rows[ k ]->set_dual( d0[ k ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// what r, read back from the group sg, writes in a new group has to be
+/// what is in sg
+
+static void same_again( Solution * r , const netCDF::NcGroup & sg ,
+			const std::string & who )
+{
+ try {
+  auto sg2 = new_group( "SOL" );
+  r->serialize( sg2 );
+  std::string why;
+  const bool same = same_group( sg , sg2 , why );
+  check( same , who + ": written again, " + why );
+  }
+ catch( std::exception & e ) {
+  check( false , who + ": writing it again throws " + e.what() );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the node injections of the network nb and, if flows, its flows (one per
+/// line, the "from" ones of an ACNetworkBlock) and auxiliary Variable
+
+static std::vector< const ColVariable * > flow_vars( NetworkBlock * nb ,
+						     bool flows = true )
+{
+ std::vector< const ColVariable * > v;
+ for( Index t = 0 ; t < nb->get_number_intervals() ; ++t ) {
+  if( auto inj = nb->get_const_node_injection( t ) )
+   for( Index n = 0 ; n < nb->get_number_nodes() ; ++n )
+    v.push_back( & inj[ n ] );
+  }
+ auto dc = dynamic_cast< DCNetworkBlock * >( nb );
+ if( dc && flows ) {
+  const auto & f = dc->get_power_flow();
+  for( Index l = 0 ; ( l < dc->get_number_lines() ) && ( l < f.size() ) ;
+       ++l )
+   v.push_back( & f[ l ] );
+  for( const auto & a : dc->get_auxiliary_variable() )
+   v.push_back( & a );
+  }
+ return( v );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Two networks of the same kind, with every Variable and dual different,
+ * have their Solution (in the Configuration of file cfg, the default one if
+ * cfg is empty) written in netCDF in the natural format, one group each,
+ * and in the compressed one, both in a single group, and read back: the
+ * Solution read back has to write in each network what the one written
+ * writes, and the clone of the latter as well, the node injections and, if
+ * flows, the flows given back, and to write in netCDF what it was read
+ * from. The compressed format, which needs all the Solution, refuses an
+ * absent one and leaves its group empty. The networks are those of the
+ * group g, generated in the formulation wf if it is not negative; who
+ * names the case. */
+
+static void check_net_solution( const netCDF::NcGroup & g , int wf ,
+				const std::string & cfg , bool flows ,
+				const std::string & who )
+{
+ std::unique_ptr< Configuration > c;
+ if( ! cfg.empty() ) {
+  c.reset( read_test_cfg( cfg ) );
+  if( ! c ) {
+   check( false , who + ": " + cfg + " not read" );
+   return;
+   }
+  }
+
+ std::vector< std::unique_ptr< NetworkBlock > > nb;
+ std::vector< std::unique_ptr< NetworkBlockSolution > > sol;
+ try {
+  for( Index i = 0 ; i < 2 ; ++i ) {
+   nb.emplace_back( dynamic_cast< NetworkBlock * >( Block::new_Block( g ) ) );
+   // the bounds of the node injections, which a UCBlock would set
+   for( Index t = 0 ; t < nb[ i ]->get_number_intervals() ; ++t )
+    for( Index n = 0 ; n < nb[ i ]->get_number_nodes() ; ++n ) {
+     nb[ i ]->set_min_node_injection( -10 , n , t );
+     nb[ i ]->set_max_node_injection( 10 , n , t );
+     }
+   if( auto ac = dynamic_cast< ACNetworkBlock * >( nb[ i ].get() ) )
+    for( Index n = 0 ; n < ac->get_number_nodes() ; ++n ) {
+     ac->set_min_reactive_node_injection( -10 , n , 0 );
+     ac->set_max_reactive_node_injection( 10 , n , 0 );
+     }
+   if( wf >= 0 ) {
+    SimpleConfiguration< int > f( wf );
+    nb[ i ]->generate_abstract_variables( & f );
+    }
+   generate_all( nb[ i ].get() );
+   set_distinct( nb[ i ].get() );
+   if( i )  // the second network has values of its own
+    for( auto v : flow_vars( nb[ i ].get() ) )
+     const_cast< ColVariable * >( v )->set_value( v->get_value() + 1000 );
+   sol.emplace_back( dynamic_cast< NetworkBlockSolution * >(
+				 nb[ i ]->get_Solution( c.get() , false ) ) );
+   }
+  }
+ catch( std::exception & e ) {
+  check( false , who + ": the networks throw " + e.what() );
+  return;
+  }
+
+ for( Index i = 0 ; i < 2 ; ++i ) {
+  std::unique_ptr< Solution > cln( sol[ i ]->clone() );
+  same_writing( nb[ i ].get() , sol[ i ].get() , cln.get() ,
+		flow_vars( nb[ i ].get() , flows ) ,
+		who + ", the clone of network " + std::to_string( i ) );
+  }
+
+ // the natural format
+ for( Index i = 0 ; i < 2 ; ++i ) {
+  const auto what = who + ", natural format, network " + std::to_string( i );
+  try {
+   auto sg = new_group( "SOL" );
+   sol[ i ]->serialize( sg );
+   std::unique_ptr< Solution > r( Solution::new_Solution( sg ) );
+   check( r != nullptr , what + ": not read back" );
+   if( r ) {
+    same_writing( nb[ i ].get() , sol[ i ].get() , r.get() ,
+		  flow_vars( nb[ i ].get() , flows ) , what );
+    same_again( r.get() , sg , what );
+    }
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": throws " + e.what() );
+   }
+  }
+
+ // the compressed format
+ const auto what = who + ", compressed format";
+ try {
+  auto sg = new_group( "SOL" );
+  std::vector< NetworkBlockSolution * > s = { sol[ 0 ].get() ,
+					      sol[ 1 ].get() };
+  NetworkBlockSolution::serialize( sg , s );
+  std::vector< NetworkBlockSolution * > r( 2 , nullptr );
+  std::vector< std::unique_ptr< NetworkBlockSolution > > keep;
+  try {
+   NetworkBlockSolution::deserialize( sg , r );
+   }
+  catch( ... ) {
+   for( auto ri : r )
+    delete ri;
+   throw;
+   }
+  for( auto ri : r )
+   keep.emplace_back( ri );
+  for( Index i = 0 ; i < 2 ; ++i )
+   same_writing( nb[ i ].get() , sol[ i ].get() , r[ i ] ,
+		 flow_vars( nb[ i ].get() , flows ) ,
+		 what + ", network " + std::to_string( i ) );
+  auto sg2 = new_group( "SOL" );
+  NetworkBlockSolution::serialize( sg2 , r );
+  std::string why;
+  const bool same = same_group( sg , sg2 , why );
+  check( same , what + ": written again, " + why );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+
+ // the compressed format cannot say that a Solution is absent
+ auto sg = new_group( "SOL" );
+ bool refused = false;
+ try {
+  std::vector< NetworkBlockSolution * > s = { sol[ 0 ].get() , nullptr };
+  NetworkBlockSolution::serialize( sg , s );
+  }
+ catch( std::invalid_argument & ) { refused = true; }
+ catch( std::exception & ) {}
+ check( refused && sg.getDims().empty() && sg.getVars().empty() &&
+	sg.getAtts().empty() , what + ": an absent Solution is not refused, "
+	"or the group is written" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The Solution of each kind of network goes through netCDF in both formats
+ * [see check_net_solution()], on the edges: a DCNetworkBlock with no cost of
+ * the lines (no auxiliary Variable), and with one; an ACNetworkBlock with a
+ * cost, with everything and with the reactive injections but no flow; an
+ * ECNetworkBlock of one interval (whose scalars are netCDF scalars) and of
+ * two (whose compressed format has "EndInstant"). */
+
+static void test_net_solution_formats( void )
+{
+ const double B = 100;
+ const std::vector< NetLine > tri = { { 0 , 1 , 1 , -B , B } ,
+				      { 1 , 2 , 2 , -B , B } ,
+				      { 0 , 2 , 4 , -B , B } };
+ for( bool cost : { false , true } ) {
+  auto g = write_net( "DCNetworkBlock" , 3 , tri , { 1 , 2 , 3 } );
+  put( g , "NetworkCost" , g.getDim( "NumberLines" ) ,
+       cost ? std::vector< double >{ 2 , 0 , 3 } :
+	      std::vector< double >{ 0 , 0 , 0 } );
+  check_net_solution( g , 0 , "" , true ,
+		      std::string( "DC network Solution, " ) +
+		      ( cost ? "a cost" : "no cost" ) );
+  }
+
+ auto g = write_net( "ACNetworkBlock" , 3 , tri , { 1 , 2 , 3 } );
+ auto L = g.getDim( "NumberLines" );
+ auto N = g.getDim( "NumberNodes" );
+ put( g , "NetworkCost" , L , { 1 , 1 , 1 } );
+ put( g , "LineRATEA" , L , { 100 , 100 , 100 } );
+ put( g , "LineReactance" , L , { 0.1 , 0.2 , 0.3 } );
+ put( g , "LineResistance" , L , { 0.01 , 0.02 , 0.03 } );
+ put( g , "LineMinAngle" , L , { -30 , -30 , -30 } );
+ put( g , "LineMaxAngle" , L , { 30 , 30 , 30 } );
+ put( g , "NodeConductance" , N , { 0 , 0 , 0 } );
+ put( g , "NodeSusceptance" , N , { 0 , 0 , 0 } );
+ put( g , "NodeMaxVoltage" , N , { 1.1 , 1.1 , 1.1 } );
+ put( g , "NodeMinVoltage" , N , { 0.9 , 0.9 , 0.9 } );
+ put( g , "ReactiveDemand" , N , { 0.5 , 0.5 , 0.5 } );
+ check_net_solution( g , -1 , "" , true ,
+		     "AC network Solution, everything" );
+ check_net_solution( g , -1 , "ACSolCfg-injection.txt" , false ,
+		     "AC network Solution, no flow" );
+
+ for( Index ni : { 1 , 2 } ) {
+  auto e = new_group( "EC" , true );
+  e.putAtt( "type" , "ECNetworkBlock" );
+  auto I = e.addDim( "NumberIntervals" , ni );
+  auto EN = e.addDim( "NumberNodes" , 2 );
+  put( e , "BuyPrice" , I , std::vector< double >( ni , 3 ) );
+  put( e , "SellPrice" , I , std::vector< double >( ni , 1 ) );
+  put( e , "PeakTariff" , 2 );
+  put( e , "ActiveDemand" , { I , EN } ,
+       std::vector< double >( 2 * ni , 5 ) );
+  check_net_solution( e , -1 , "" , true , "EC network Solution, " +
+		      std::to_string( ni ) + " interval(s)" );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The Solution of a DesignNetworkBlock with three sub-networks goes through
+ * netCDF with the default Configuration, whose sub-Solution are in the
+ * compressed format in its own group, together with the dimensions of its
+ * own node injections (which it does not hold), with that of
+ * DNBSolCfg-natural.txt, whose sub-Solution have a group each, and with
+ * that of DNBSolCfg-noinjection.txt, whose sub-Solution are compressed and
+ * hold the flows but not the node injections, bit 3 of the Configuration
+ * (the compressed format) not being one of those passed to them: the one
+ * read back has to write what the one written writes, and to write in
+ * netCDF what it was read from. */
+
+static void test_design_solution_formats( void )
+{
+ auto base = new_net( write_net( "DCNetworkBlock" , 2 , { { 0 , 1 , 1 ,
+					      -5 , 5 } } , { 1 , 2 } ) , 0 );
+ auto nd = base->get_NetworkData();
+
+ for( const std::string cfg : { "" , "DNBSolCfg-natural.txt" ,
+				"DNBSolCfg-noinjection.txt" } ) {
+  const bool natural = ( cfg == "DNBSolCfg-natural.txt" );
+  const bool injection = ( cfg != "DNBSolCfg-noinjection.txt" );
+  const std::string who = "Design Solution, " +
+   ( cfg.empty() ? std::string( "compressed format" ) : cfg );
+  std::unique_ptr< Configuration > c;
+  if( ! cfg.empty() ) {
+   c.reset( read_test_cfg( cfg ) );
+   if( ! c ) {
+    check( false , who + ": not read" );
+    continue;
+    }
+   }
+
+  auto g = new_group( "DNB" , true );
+  g.putAtt( "type" , "DesignNetworkBlock" );
+  auto D = g.addDim( "NumberDesignLines" , 1 );
+  g.addDim( "NumberSubNetwork" , 3 );
+  put( g , "InvestmentCost" , D , { 10 } );
+  put_int( g , "DesignLines" , D , { 0 } );
+
+  auto d = new DesignNetworkBlock();
+  d->set_NetworkData( nd );
+  try {
+   d->deserialize( g );
+   d->generate_abstract_variables();  // all that a Solution needs
+   set_distinct( d );
+   std::vector< const ColVariable * > must;
+   for( auto b : d->get_nested_Blocks() )
+    if( injection )
+     for( auto v : flow_vars( static_cast< NetworkBlock * >( b ) ) )
+      must.push_back( v );
+    else
+     for( const auto & f : static_cast< DCNetworkBlock * >( b )
+	                                               ->get_power_flow() )
+      must.push_back( & f );
+   if( injection )
+    for( const auto & v : d->get_const_design() )
+     must.push_back( & v );
+
+   std::unique_ptr< Solution > s( d->get_Solution( c.get() , false ) );
+   auto sg = new_group( "SOL" );
+   s->serialize( sg );
+   check( sg.getGroups().empty() != natural , who + ": the "
+	  "sub-Solution are not in the format of the Configuration" );
+   // the compressed sub-Solution have their node injections in sg
+   check( natural || ( sg.getVar( "NodeInjection" ).isNull() != injection ) ,
+	  who + ": the node injections of the sub-Solution are not as the "
+	  "Configuration asks" );
+   std::unique_ptr< Solution > r( Solution::new_Solution( sg ) );
+   check( r != nullptr , who + ": not read back" );
+   if( r ) {
+    same_writing( d , s.get() , r.get() , must , who );
+    same_again( r.get() , sg , who );
+    }
+   }
+  catch( std::exception & e ) {
+   check( false , who + ": throws " + e.what() );
+   }
+  for( auto b : d->get_nested_Blocks() )
+   delete b;
+  delete d;
+  }
+
+ delete base;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// a UCBlock of horizon T on the triangle 0 - 1 - 2 of DC lines whose
+/// NetworkCost is cost, with an IntermittentUnitBlock on each node and a
+/// SlackUnitBlock on node 2
+
+static netCDF::NcGroup write_UC_triangle( Index T ,
+					  const std::vector< double > & cost )
+{
+ auto g = new_group( "UC" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , T );
+ g.addDim( "NumberUnits" , 4 );
+ auto N = g.addDim( "NumberNodes" , 3 );
+ auto L = g.addDim( "NumberLines" , 3 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 4 );
+ put_int( g , "StartLine" , L , { 0 , 1 , 0 } );
+ put_int( g , "EndLine" , L , { 1 , 2 , 2 } );
+ put( g , "MinPowerFlow" , L , { -30 , -30 , -30 } );
+ put( g , "MaxPowerFlow" , L , { 30 , 30 , 30 } );
+ put( g , "LineSusceptance" , L , { 1 , 2 , 4 } );
+ put( g , "NetworkCost" , L , cost );
+ std::vector< double > demand( 3 * T );
+ for( Index i = 0 ; i < demand.size() ; ++i )
+  demand[ i ] = 10 + i;
+ put( g , "ActivePowerDemand" , { N , TH } , demand );
+ put_int( g , "GeneratorNode" , G , { 0 , 1 , 2 , 2 } );
+
+ for( Index i = 0 ; i < 3 ; ++i ) {
+  auto u = g.addGroup( "UnitBlock_" + std::to_string( i ) );
+  u.putAtt( "type" , "IntermittentUnitBlock" );
+  put( u , "MaxPower" , 100.0 );
+  put( u , "ActivePowerCost" , 10.0 * ( i + 1 ) );
+  }
+
+ auto u = g.addGroup( "UnitBlock_3" );
+ u.putAtt( "type" , "SlackUnitBlock" );
+ put( u , "MaxPower" , 1000.0 );
+ put( u , "ActivePowerCost" , 1000.0 );
+
+ return( g );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The UCBlockSolution of a UCBlock on three nodes, with every Variable and
+ * dual different, goes through netCDF in the natural format of
+ * UCSolCfg-natural.txt (a group per NetworkBlock, each of one instant) and
+ * in the compressed one of UCSolCfg-compressed.txt, with a horizon of one
+ * instant and of four, and lines with no cost (hence no auxiliary
+ * Variable) and with one: the Solution read back has to write in the
+ * UCBlock what the one written writes, the node injections, the flows and
+ * the auxiliary Variable of every network included, and to write in netCDF
+ * what it was read from. */
+
+static void test_UC_solution_formats( void )
+{
+ for( const std::string cfg : { "UCSolCfg-natural.txt" ,
+				"UCSolCfg-compressed.txt" } ) {
+  std::unique_ptr< Configuration > c( read_test_cfg( cfg ) );
+  if( ! c ) {
+   check( false , "UCBlock Solution: " + cfg + " not read" );
+   continue;
+   }
+  const bool natural = ( cfg == "UCSolCfg-natural.txt" );
+
+  for( Index T : { 1 , 4 } )
+   for( bool cost : { false , true } ) {
+    const std::string who = "UCBlock Solution, " + cfg + ", T = " +
+     std::to_string( T ) + ( cost ? ", a cost" : ", no cost" );
+    auto g = write_UC_triangle( T , cost ?
+				std::vector< double >{ 1 , 0 , 2 } :
+				std::vector< double >{ 0 , 0 , 0 } );
+    std::unique_ptr< UCBlock > uc;
+    try {
+     uc.reset( dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+     generate_all( uc.get() );
+     set_distinct( uc.get() );
+     std::vector< const ColVariable * > must;
+     for( Index t = 0 ; t < uc->get_number_networks() ; ++t ) {
+      auto nbt = uc->get_network_block( t );
+      auto dc = dynamic_cast< DCNetworkBlock * >( nbt );
+      const Index na = cost ? 3 : 0;
+      check( dc && ( dc->get_auxiliary_variable().size() == na ) ,
+	     who + ": NetworkBlock " + std::to_string( t ) + " has not the "
+	     "auxiliary Variable of its cost" );
+      for( auto v : flow_vars( nbt ) )
+       must.push_back( v );
+      }
+
+     std::unique_ptr< Solution > s( uc->get_Solution( c.get() , false ) );
+     auto sg = new_group( "SOL" );
+     s->serialize( sg );
+     check( ( sg.getGroup( "NetworkBlock_0" ).isNull() != natural ) &&
+	    ( sg.getGroup( "NetworkBlock" ).isNull() == natural ) ,
+	    who + ": the NetworkBlock are not in the format of the "
+	    "Configuration" );
+     std::unique_ptr< Solution > r( Solution::new_Solution( sg ) );
+     check( r != nullptr , who + ": not read back" );
+     if( r ) {
+      same_writing( uc.get() , s.get() , r.get() , must , who );
+      same_again( r.get() , sg , who );
+      }
+     }
+    catch( std::exception & e ) {
+     check( false , who + ": throws " + e.what() );
+     }
+    }
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -14183,9 +14886,11 @@ int main( int argc , char ** argv )
   test_RT_networks();
   test_cycle_basis();
   test_net_components();
+  test_net_HVDC_flow();
   test_net_reference();
   test_net_ptdf();
   test_net_demand_change();
+  test_net_ac_optional_data();
   test_net_OTS_cost();
   test_net_negative_cost();
   test_net_cost_solution();
@@ -14206,6 +14911,10 @@ int main( int argc , char ** argv )
   test_hydro_inertia();
   test_hydro_system();
   test_hydro_system_solution();
+
+  test_net_solution_formats();
+  test_design_solution_formats();
+  test_UC_solution_formats();
 
   test_battery_storage_balance();
   test_battery_initial_storage_sign();

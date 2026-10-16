@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the unit test writes in netCDF the Solution of each kind of
+  `NetworkBlock`, of a `DesignNetworkBlock` and of a `UCBlock` on three
+  nodes, in the natural format and in the compressed one, with the
+  `Configuration` of the files `*SolCfg-*.txt`, and reads it back: the
+  Solution read back has to write in the Block what the one written writes
+  and to write in netCDF what it was read from, on a horizon of one instant
+  and of four, with lines with and without a cost, an `ACNetworkBlock` with
+  no flow and an `ECNetworkBlock` of one interval and of two
+
 - `ConversionUnitBlock`: a continuous design ("MaxCapacityDesign" >= 0)
   takes ramps and start-up and shut-down limits, written per unit of design
   with big-M terms in the commitment and in the start-up and shut-down
@@ -364,6 +373,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each row (the same rows)
 
 ### Fixed
+
+- an `ACNetworkBlock` with no "ReactiveDemand", or with no bound given on
+  its reactive injections (as one that is not in a `UCBlock`), read past
+  empty vectors when generating its constraints: the reactive demand is 0
+  and the bounds not given are infinite, also on the other side of a bound
+  given afterwards. The data with no default are refused with
+  `std::invalid_argument` where they read past them before:
+  "LineReactance" and "LineResistance", mandatory as documented, by
+  `ACNetworkData::deserialize()` when there are lines, "LineRATEA" (with
+  AC lines) and the data of the nodes by
+  `ACNetworkBlock::generate_abstract_constraints()`, before generating
+  anything; "LineMinAngle" and "LineMaxAngle" remain optional
+
+- `HydroSystemUnitBlock::deserialize()` and
+  `HydroSystemUnitBlockSolution::deserialize()` looked up each sub-group with
+  `NcGroup::getGroup()`, which lists all the sub-groups at each call: they
+  list them once, as `UCBlock` does
+
+- the compressed format of the `NetworkBlockSolution` of several networks
+  (that of a `UCBlockSolution` and of a `DesignNetworkBlockSolution`)
+  dereferenced an absent (nullptr) Solution, which the natural format
+  skips; the compressed format has no way to say that a Solution is
+  absent, and `NetworkBlockSolution::serialize()` throws
+  `std::invalid_argument` before writing anything
+
+- `DesignNetworkBlock::get_Solution()` passed to its sub-Solution bit 0
+  of its own `Configuration` and its bits from 3 upward shifted by 3, so
+  that bit 3 (its compressed format) became bit 0 of the sub-Solution and
+  they held their node injections also when bit 0 did not ask for them;
+  only the bits from 4 upward are passed, as documented, and the default
+  31 is documented as what it is (15 + 16, the sub-Solution with their node
+  injections and their flows)
+
+- `DCNetworkBlock::set_dual_prices()` was not the inverse of
+  `get_dual_prices()` on a line with a design variable: the latter gives
+  the sum of the dual values of the two sides of its flow limit (the upper
+  row, and the lower row or the lower half of the bound), the former wrote
+  the whole price on the bound, which a line with a lower row does not use,
+  so that a `DCNetworkBlockSolution` written in the network did not read
+  back its prices; the price now goes by its sign to the side that it
+  belongs to, the upper row if it is nonnegative and the lower side
+  otherwise, with 0 on the other side
+
+- `DCNetworkBlock`, PTDF formulation of a network with lines with
+  susceptance and HVDC lines that is not in a `UCBlock`: its instant is
+  `Inf< Index >()`, the value that marks the distribution factors of the
+  HVDC lines as never computed, hence they were never computed and the rows
+  of the flows read an empty matrix (an Eigen assertion in Debug, undefined
+  behaviour otherwise); the matrix, which has a row and a column per line,
+  is read where it is instead of being copied for each line
+
+- `NetworkBlockSolution::serialize()` wrote the node injections of a
+  Solution of one instant, as that of each `DCNetworkBlock` of a `UCBlock`,
+  out of the column of the instant instead of its row, reading past the
+  array for every node but 0: the natural format of a `UCBlockSolution`
+  held garbage, now it holds the injections
+
+- `DCNetworkBlockSolution::deserialize()` wanted "FlowValue",
+  "AuxiliaryValue" and "DualCost", which `serialize()` writes only when the
+  Solution holds them: a Solution with no auxiliary variable (no line with
+  a nonzero `NetworkCost`) or with no flow could not be read back in the
+  natural format, and `UCBlockSolution::deserialize()` lost its
+  `NetworkBlock` without a word; they are optional, as documented, a
+  missing "NetworkBlock_<t>" group is a missing `NetworkBlock` as for
+  `serialize()`, and one that is not a `NetworkBlockSolution` an error
+
+- `ACNetworkBlockSolution`: the natural format wrote "ReactiveFlowTOValue"
+  in place of "ReactiveFlowToValue" and read its three variables as
+  mandatory; the compressed one wrote the reactive injections only with the
+  reactive flows, and with the flows and no injection wrote on a null
+  variable; `clone()` (and so `scale()`) lost the auxiliary variables
+
+- `DCNetworkBlock::set_power_flow()` read past its argument on an
+  `ACNetworkBlock`, whose flows are two per line (the "from" ones first)
+  while a `DCNetworkBlockSolution` holds one per line: it writes the first
+  `pf.size()` flows
+
+- the compressed `DesignNetworkBlockSolution` read the node injections of
+  its sub-Solution as its own, and once read could not be written again
+  ("NodeInjection" defined twice)
+
+- "EndInstant", an `NcInt`, was read in a `size_t` through `void *` by
+  `NetworkBlockSolution` and `ECNetworkBlockSolution`, which is right only
+  on a little-endian machine; it is read in an `int`
+
+- reading a `UCBlockSolution` in the natural format was quadratic in the
+  number of `NetworkBlock`, 301400 calls of `nc_inq_grpname()` for 548
+  instants, since `NcGroup::getGroup()` lists all the sub-groups at each
+  call: `UCBlockSolution::deserialize()`, `UCBlock::deserialize()` and the
+  two of `DesignNetworkBlock` list them once, and the calls are 550
 
 - `BatteryUnitBlock::get_converter_kappa_linearization()`, and with it
   `get_kappa_linearization()` when the converter follows the kappa, was NaN

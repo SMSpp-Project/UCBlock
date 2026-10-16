@@ -205,10 +205,14 @@ void HydroSystemUnitBlock::deserialize_sub_blocks(
 				 const std::string & sub_group_name_prefix ,
 				 Index num_sub_blocks )
 {
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call
+ const auto sub_groups = group.getGroups();
  for( Index i = 0 ; i < num_sub_blocks ; ++i ) {
   std::string sub_group_name = sub_group_name_prefix + std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
-  auto sub_block = new_Block( sub_group , this );
+  auto it = sub_groups.find( sub_group_name );
+  auto sub_block = ( it == sub_groups.end() ) ? nullptr :
+                   new_Block( it->second , this );
   if( ! sub_block )
    throw( std::invalid_argument( "HydroSystemUnitBlock::deserialize: error "
                                  "when creating Block from group " +
@@ -531,13 +535,17 @@ void HydroSystemUnitBlockSolution::deserialize(
  Index n_units;
  deserialize_dim( group , "NumberHydroUnits" , n_units , false );
 
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call
+ const auto sub_groups = group.getGroups();
  v_innerSol.resize( n_units , nullptr );
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i ) {
   std::string sub_group_name = "HydroSystemUnitSolution_" +
                                                         std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
-  auto HSUSi = dynamic_cast< HydroUnitBlockSolution * >(
-				       Solution::new_Solution( sub_group ) );
+  auto it = sub_groups.find( sub_group_name );
+  auto HSUSi = ( it == sub_groups.end() ) ? nullptr :
+               dynamic_cast< HydroUnitBlockSolution * >(
+				       Solution::new_Solution( it->second ) );
   if( ! HSUSi )
    throw( std::invalid_argument(
 		              "HydroSystemUnitBlockSolution::deserialize: " +
@@ -549,9 +557,9 @@ void HydroSystemUnitBlockSolution::deserialize(
 
  delete f_pfSol;
  f_pfSol = nullptr;
- auto pf_group = group.getGroup( "PolyhedralFunctionBlockSolution" );
- if( ! pf_group.isNull() )
-  f_pfSol = Solution::new_Solution( pf_group );
+ if( auto it = sub_groups.find( "PolyhedralFunctionBlockSolution" ) ;
+     it != sub_groups.end() )
+  f_pfSol = Solution::new_Solution( it->second );
 
  }  // end( HydroSystemUnitBlockSolution::deserialize )
 
