@@ -1698,18 +1698,20 @@ void ACNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // call the method of the base class
  DCNetworkBlockSolution::deserialize( group );
 
- // all optional, as serialize() writes each of them only if it is there
+ // all optional, as serialize() writes each of them only if it is there;
+ // each is indexed over the nodes or the lines, which read() and write()
+ // run over, and a scalar is refused
 
  // deserialize the (reactive) flow injection - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "NodeInjectionReactive" ,
-                          v_node_injection_reactive , true );
+ ::deserialize( group , "NodeInjectionReactive" , f_number_nodes ,
+                v_node_injection_reactive );
 
  // deserialize the (reactive) flow variables - - - - - - - - - - - - - - -
  // ... but the "to" ones must be there with the "from" ones
- if( ::deserialize< double >( group , "ReactiveFlowFromValue" ,
-                              v_reactive_flow_from , true ) )
-  ::deserialize< double >( group , "ReactiveFlowToValue" ,
-                           v_reactive_flow_to , false );
+ if( ::deserialize( group , "ReactiveFlowFromValue" , f_number_lines ,
+                    v_reactive_flow_from ) )
+  ::deserialize( group , "ReactiveFlowToValue" , f_number_lines ,
+                 v_reactive_flow_to , false );
  else
   v_reactive_flow_to.clear();
  }  // end( ACNetworkBlockSolution::deserialize( NcGroup & ) )

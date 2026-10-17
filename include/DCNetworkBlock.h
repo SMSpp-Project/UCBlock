@@ -338,7 +338,7 @@ class DCNetworkData : public NetworkData
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_number_HVDC_lines( 0 ) ,
   f_reference_node( 0 ) , DCDF_was_computed( Inf< Index >() ) ,
-  DCDF_computed( false ) ,
+  DCDF_tikhonov_coeff( 0 ) , DCDF_computed( false ) ,
   f_number_branches( 0 ) , cycle_basis_was_computed( false ) ,
   nb_components( 0 ) {}
 
@@ -803,13 +803,13 @@ class DCNetworkData : public NetworkData
   * \f$ \mathrm{DCDF} = - \Psi I_R^\top ( A^{H} )^\top \f$ of the class
   * notes, whose only nonzero columns are those of the lines in
   * \p HVDC_lines, from the PTDF matrix \p PTDF_matrix given by get_PTDF()
-  * and from the efficiencies of the instant \p time; entry
-  * \f$ ( l , h ) \f$ is the change of the flow of line \f$ l \f$ due to
-  * a unit of flow on the HVDC line \f$ h \f$. The result is read with
-  * get_DCDF(). */
+  * with the Tikhonov coefficient \p tikhonov_coeff and from the
+  * efficiencies of the instant \p time; entry \f$ ( l , h ) \f$ is the
+  * change of the flow of line \f$ l \f$ due to a unit of flow on the HVDC
+  * line \f$ h \f$. The result is read with get_DCDF(). */
 
  void compute_DCDF( c_Subset & HVDC_lines , const SpMat & PTDF_matrix ,
-		    Index time );
+		    Index time , double tikhonov_coeff = 0 );
 
 /*--------------------------------------------------------------------------*/
  /// the matrix computed by the last call to compute_DCDF()
@@ -817,12 +817,17 @@ class DCNetworkData : public NetworkData
  const SpMat & get_DCDF( void ) const { return( DCDF ); }
 
 /*--------------------------------------------------------------------------*/
- /// true if get_DCDF() holds the matrix of instant \p t
- /** True if compute_DCDF() has been called, the last time with \p t; the
-  * instant of a NetworkBlock that is not in a UCBlock is Inf< Index >(). */
+ /// true if get_DCDF() holds the matrix of instant \p t and coefficient
+ /// \p tikhonov_coeff
+ /** True if compute_DCDF() has been called, the last time with \p t and
+  * \p tikhonov_coeff, which are all the matrix depends on besides the
+  * data; the NetworkBlock that share the DCNetworkData may have different
+  * coefficients, and the instant of one that is not in a UCBlock is
+  * Inf< Index >(). */
 
- bool was_DCDF_computed( Index t ) const {
-  return( DCDF_computed && ( DCDF_was_computed == t ) );
+ bool was_DCDF_computed( Index t , double tikhonov_coeff = 0 ) const {
+  return( DCDF_computed && ( DCDF_was_computed == t ) &&
+          ( DCDF_tikhonov_coeff == tikhonov_coeff ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1045,6 +1050,9 @@ class DCNetworkData : public NetworkData
 
  /// the instant of the DCDF matrix computed last, to avoid recomputing it
  Index DCDF_was_computed;
+
+ /// the Tikhonov coefficient of the DCDF matrix computed last
+ double DCDF_tikhonov_coeff;
 
  /// true if the DCDF matrix has been computed at all
  bool DCDF_computed;
@@ -3021,6 +3029,9 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a DCNetworkBlockSolution from a netCDF::NcGroup
+ /** Deserialize a DCNetworkBlockSolution from a netCDF::NcGroup with the
+  * format of serialize(); a variable that is a scalar rather than indexed
+  * over "NumberLines" makes it throw std::invalid_argument. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

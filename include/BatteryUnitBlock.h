@@ -2753,6 +2753,11 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
   f_b_design( dNaN ) , f_c_design( dNaN ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a BatteryUnitBlockSolution from a netCDF::NcGroup
+ /** Deserialize a BatteryUnitBlockSolution from a netCDF::NcGroup with the
+  * format of serialize(); "StorageLevel" or "InOutTake" that is a scalar
+  * rather than indexed over "TimeHorizon" makes it throw
+  * std::invalid_argument. */
 
  void deserialize( const netCDF::NcGroup & group ) override final;
 

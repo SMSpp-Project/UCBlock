@@ -1332,7 +1332,10 @@ class UnitBlockSolution : public Solution {
   *   dimensions "NumberGenerators" and "TimeHorizon", otherwise only
   *   over the dimension "TimeHorizon". SecondaryReserve[ i , t ] is assumed
   *   to contain the optimal active power for generator i at the time t. The
-  *   variable is optional. */
+  *   variable is optional.
+  *
+  * deserialize() also takes each of these variables as a scalar, which
+  * gives the same value to every generator and time. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 

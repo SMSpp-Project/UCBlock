@@ -421,7 +421,8 @@ void DCNetworkData::identify_connected_components( void )
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
-                                  const SpMat & PTDF_matrix , Index time )
+                                  const SpMat & PTDF_matrix , Index time ,
+                                  double tikhonov_coeff )
 {
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
@@ -461,6 +462,7 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
   }
  DCDF = -PTDF_matrix * A_DC_transpose;
  DCDF_was_computed = time;
+ DCDF_tikhonov_coeff = tikhonov_coeff;
  DCDF_computed = true;
  }
 
@@ -1469,8 +1471,10 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
   // compute PTDF and, if necessary, DCDF
   SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines , f_tikhonov_coeff);
   if( f_NetworkData->is_DC_HVDC() )
-   if( ! f_NetworkData->was_DCDF_computed( f_time_instant ) )
-    f_NetworkData->compute_DCDF( HVDC_lines , PTDF_matrix , f_time_instant );
+   if( ! f_NetworkData->was_DCDF_computed( f_time_instant ,
+                                           f_tikhonov_coeff ) )
+    f_NetworkData->compute_DCDF( HVDC_lines , PTDF_matrix , f_time_instant ,
+                                 f_tikhonov_coeff );
 
   // Flow limit constraints
   // one row per DC line, in the order of DC_lines: the HVDC lines have none
@@ -2623,16 +2627,17 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 
  // all optional, as serialize() writes each of them only if it is there:
  // the Solution may not hold them, and the auxiliary Variable exist only
- // if some line has a nonzero NetworkCost
+ // if some line has a nonzero NetworkCost; each is indexed over the lines,
+ // which read() and write() run over, and a scalar is refused
 
  // deserialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "FlowValue" , v_flow , true );
+ ::deserialize( group , "FlowValue" , f_number_lines , v_flow );
 
  // deserialize the Auxiliary Variables of the cost of the flows- - - - - - -
- ::deserialize< double >( group , "AuxiliaryValue" , v_aux , true );
+ ::deserialize( group , "AuxiliaryValue" , f_number_lines , v_aux );
 
  // deserialize the Dual Prices - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "DualCost" , v_cost , true );
+ ::deserialize( group , "DualCost" , f_number_lines , v_cost );
 
  }  // end( DCNetworkBlockSolution::deserialize( NcGroup & ) )
 

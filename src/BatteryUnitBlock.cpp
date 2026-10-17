@@ -3076,11 +3076,15 @@ void BatteryUnitBlockSolution::deserialize( const netCDF::NcGroup & group )
   throw( std::logic_error( "BatteryUnitBlockSolution::deserialize: "
 			   "batteries have only one generator" ) );
 
+ // both indexed over the instants, which read() and write() run over: a
+ // scalar is refused
+
  // deserialize the storage levels - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "StorageLevel" , v_storage , false );
+ ::deserialize( group , "StorageLevel" , f_time_horizon , v_storage ,
+                false );
 
  // deserialize the intakes- - - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "InOutTake" , v_intake , false );
+ ::deserialize( group , "InOutTake" , f_time_horizon , v_intake , false );
 
  // deserialize the battery design - - - - - - - - - - - - - - - - - - - - -
 

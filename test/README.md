@@ -34,7 +34,9 @@ in the Block what the one written writes, the node injections and the flows
 included, and to write in netCDF what it was read from. The cases are on
 the edges: a horizon of one instant and lines with no cost, hence no
 auxiliary variable, an `ACNetworkBlock` with the reactive injections and no
-flow, an `ECNetworkBlock` of one interval and of two.
+flow, an `ECNetworkBlock` of one interval and of two. Values of a Solution
+given as netCDF scalars, which its format does not have, have to be refused,
+but those of a `UnitBlockSolution`, which are the same at every instant.
 
 Finally the setters of the costs and of the scale factor of a
 `ThermalUnitBlock`, and the one of the demand of a `UCBlock`, are called with
