@@ -1815,6 +1815,10 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "Cost" , v_Cost );
  serialize( "Demand" , v_Demand );
 
+ serialize( "MaxReactivePower" , v_MaxReactivePower );
+ serialize( "MinReactivePower" , v_MinReactivePower );
+ serialize( "ReferenceSchedule" , v_RefSchedule );
+
 }  // end( BatteryUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

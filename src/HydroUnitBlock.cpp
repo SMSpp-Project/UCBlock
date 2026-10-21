@@ -1442,6 +1442,19 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
  ::serialize( group , "InertiaPower" , netCDF::NcDouble() ,
               { NumberArcs , TimeHorizon } , v_InertiaPower );
 
+ // the optional AC data and the reference schedule, when given
+ if( v_MinReactivePower.num_elements() )
+  ::serialize( group , "MinReactivePower" , netCDF::NcDouble() ,
+               { TimeHorizon , NumberArcs } , v_MinReactivePower );
+
+ if( v_MaxReactivePower.num_elements() )
+  ::serialize( group , "MaxReactivePower" , netCDF::NcDouble() ,
+               { TimeHorizon , NumberArcs } , v_MaxReactivePower );
+
+ if( ! v_RefSchedule.empty() )
+  ::serialize( group , "ReferenceSchedule" , netCDF::NcDouble() ,
+               TimeHorizon , v_RefSchedule );
+
 }  // end( HydroUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

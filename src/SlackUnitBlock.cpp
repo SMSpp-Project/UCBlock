@@ -562,6 +562,9 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "SecondaryCost" , v_SecondaryCost );
  serialize( "InertiaCost" , v_InertiaCost );
 
+ serialize( "MaxReactivePower" , v_MaxReactivePower );
+ serialize( "MinReactivePower" , v_MinReactivePower );
+
 }  // end( SlackUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

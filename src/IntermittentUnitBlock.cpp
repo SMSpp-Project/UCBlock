@@ -759,6 +759,8 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "MaxPower" , v_MaxPower );
  serialize( "InertiaPower" , v_InertiaPower );
  serialize( "ActivePowerCost" , v_ActivePowerCost );
+ serialize( "MaxReactivePower" , v_MaxReactivePower );
+ serialize( "MinReactivePower" , v_MinReactivePower );
 
  }  // end( IntermittentUnitBlock::serialize )
 

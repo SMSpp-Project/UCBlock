@@ -777,6 +777,9 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
    }
   }
 
+ // the constants of the lines, all 1 if not given [see set_kappa()]
+ ::deserialize( group , "Kappa" , get_number_lines() , v_kappa );
+
  // note: NetworkBlock::deserialize() is called after dealing with the
  //       DCNetworkData, so that it's there when the list of expected stuff
  //       is constructed and checked
@@ -791,6 +794,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 std::vector< std::string > DCNetworkBlock::expected_vars( void ) const {
  auto ret = NetworkBlock::expected_vars();
  ret.push_back( "ActiveDemand" );
+ ret.push_back( "Kappa" );
 
  return( ret );
  }
@@ -1944,6 +1948,13 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                NumberNodes , v_ActiveDemand );
   }
+
+ // the constants of the lines, if one is not 1 [see set_kappa()], over the
+ // dimension "NumberLines" that the DCNetworkData has written
+ if( std::any_of( v_kappa.begin() , v_kappa.end() ,
+                  []( double kappa ) { return( kappa != 1 ); } ) )
+  ::serialize( group , "Kappa" , netCDF::NcDouble() ,
+               group.getDim( "NumberLines" ) , v_kappa );
  }  // end( DCNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

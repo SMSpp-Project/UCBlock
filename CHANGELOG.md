@@ -379,6 +379,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- a Block written with `serialize()` and read back with `deserialize()` has
+  all the data it was read with: `DCNetworkBlock` writes `Kappa` (when a
+  constant of a line is not 1), `ThermalUnitBlock` the `ReferenceSchedule`
+  and `FixToMaximum`, `BatteryUnitBlock` and `HydroUnitBlock` the
+  `ReferenceSchedule` and the bounds of the reactive power, and
+  `IntermittentUnitBlock` and `SlackUnitBlock` the bounds of the reactive
+  power; the unit test writes each of them to an image, reads it back and
+  checks that the image of the copy is the same
 - `DCNetworkBlockSolution`, `ACNetworkBlockSolution` and
   `BatteryUnitBlockSolution` read their values indexed over the lines, the
   nodes or the instants whatever their size, and a netCDF scalar gave one

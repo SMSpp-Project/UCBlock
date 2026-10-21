@@ -4732,6 +4732,11 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "StartUpLimit" , v_StartUpLimit );
  serialize( "ShutDownLimit" , v_ShutDownLimit );
 
+ serialize( "ReferenceSchedule" , v_RefSchedule );
+
+ if( f_fixToMax )
+  ::serialize( group , "FixToMaximum" , netCDF::NcInt() , f_fixToMax );
+
 }  // end( ThermalUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

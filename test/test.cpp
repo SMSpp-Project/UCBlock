@@ -96,6 +96,7 @@
 #include "HydroUnitBlock.h"
 #include "IntermittentUnitBlock.h"
 #include "LinearFunction.h"
+#include "SMSnetCDF.h"
 #include "NuclearUnitBlock.h"
 #include "NuclearUnitExtDPSolver.h"
 #include "SlackUnitBlock.h"
@@ -15583,6 +15584,132 @@ static void test_conversion_design_ext( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* A unit or a network written to an image and read back, as the
+ * InvestmentFunction does to simulate on a copy of an SDDPBlock: the image
+ * of the copy is the image of the Block, and each datum the Block was read
+ * with is in it (the reference schedule, FixToMaximum, the bounds of the
+ * reactive power, the constants of the lines). */
+
+static bool image_has( const netCDF::NcGroup & g , const std::string & name )
+{
+ if( ! g.getVar( name ).isNull() )
+  return( true );
+ for( const auto & sub : g.getGroups() )
+  if( image_has( sub.second , name ) )
+   return( true );
+ return( false );
+ }
+
+static void round_trip( Block * b , const std::string & what ,
+			const std::vector< std::string > & names )
+{
+ try {
+  check( b != nullptr , what + ": the Block is not built" );
+  if( ! b )
+   return;
+  std::vector< unsigned char > first , second;
+  b->Block::serialize( first );
+  std::unique_ptr< Block > c( Block::deserialize( first ) );
+  check( c != nullptr , what + ": the image is not read back" );
+  if( ! c )
+   return;
+  c->Block::serialize( second );
+  check( first == second , what + ": the image of the copy differs" );
+  NcMemFile f( first );
+  for( const auto & n : names )
+   check( image_has( f , n ) , what + ": " + n + " is not written" );
+  }
+ catch( std::exception & e ) {
+  check( false , what + ": throws " + e.what() );
+  }
+ }
+
+static void test_serialize_round_trip( void )
+{
+ const Index T = 3;
+ const std::vector< double > sched = { 2 , 3 , 4 };
+
+ {  // a ThermalUnitBlock
+  TUData d;
+  d.T = T;
+  d.lin = { 1 };
+  auto g = new_group( "TU" , true );
+  write_TU( g , d );
+  put( g , "ReferenceSchedule" , g.getDim( "TimeHorizon" ) , sched );
+  put_int( g , "FixToMaximum" , 1 );
+  std::unique_ptr< Block > b( Block::new_Block( g ) );
+  round_trip( b.get() , "ThermalUnitBlock round trip" ,
+	      { "ReferenceSchedule" , "FixToMaximum" } );
+  }
+
+ {  // a BatteryUnitBlock
+  std::unique_ptr< Block > b( new_BU( T ,
+	{ { "MinStorage" , { 0 , 0 , 0 } } ,
+	  { "MaxStorage" , { 20 , 20 , 20 } } ,
+	  { "MaxPower" , { 10 , 10 , 10 } } ,
+	  { "MinPower" , { -10 , -10 , -10 } } ,
+	  { "InitialStorage" , { 5 } } ,
+	  { "MaxReactivePower" , { 4 , 4 , 4 } } ,
+	  { "MinReactivePower" , { -4 , -4 , -4 } } ,
+	  { "ReferenceSchedule" , sched } } ) );
+  round_trip( b.get() , "BatteryUnitBlock round trip" ,
+	      { "MaxReactivePower" , "MinReactivePower" ,
+		"ReferenceSchedule" } );
+  }
+
+ {  // a HydroUnitBlock
+  HUData d;
+  d.T = T;
+  d.start = { 0 };
+  d.end = { 1 };
+  d.maxF.assign( T , 10 );
+  d.maxP.assign( T , 10 );
+  d.lin = { 1 };
+  d.maxV.assign( T , 100 );
+  auto g = new_group( "HU" , true );
+  write_HU( g , d );
+  put( g , "MinReactivePower" ,
+       { g.getDim( "TimeHorizon" ) , g.getDim( "NumberArcs" ) } ,
+       { -1 , -1 , -1 } );
+  put( g , "MaxReactivePower" ,
+       { g.getDim( "TimeHorizon" ) , g.getDim( "NumberArcs" ) } ,
+       { 1 , 1 , 1 } );
+  put( g , "ReferenceSchedule" , g.getDim( "TimeHorizon" ) , sched );
+  std::unique_ptr< Block > b( Block::new_Block( g ) );
+  round_trip( b.get() , "HydroUnitBlock round trip" ,
+	      { "MinReactivePower" , "MaxReactivePower" ,
+		"ReferenceSchedule" } );
+  }
+
+ // an IntermittentUnitBlock and a SlackUnitBlock
+ for( const std::string type : { "IntermittentUnitBlock" ,
+				 "SlackUnitBlock" } ) {
+  auto g = new_group( "U" , true );
+  g.putAtt( "type" , type );
+  auto TH = g.addDim( "TimeHorizon" , T );
+  put( g , "MaxPower" , TH , { 10 , 10 , 10 } );
+  put( g , "MaxReactivePower" , TH , { 4 , 4 , 4 } );
+  put( g , "MinReactivePower" , TH , { -4 , -4 , -4 } );
+  std::unique_ptr< Block > b( Block::new_Block( g ) );
+  round_trip( b.get() , type + " round trip" ,
+	      { "MaxReactivePower" , "MinReactivePower" } );
+  }
+
+ {  // a DCNetworkBlock whose second line has kappa 2
+  std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
+   Block::new_Block( write_net( "DCNetworkBlock" , 3 ,
+				{ { 0 , 1 , 1 , -10 , 10 } ,
+				  { 1 , 2 , 1 , -10 , 10 } } ,
+				{ 0 , 0 , 5 } ) ) ) );
+  std::vector< double > k = { 2 };
+  nb->set_kappa( k.begin() , Range( 1 , 2 ) );
+  round_trip( nb.get() , "DCNetworkBlock round trip" , { "Kappa" } );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  // --power-limits: only the test of the power limits, with the options
@@ -15657,6 +15784,7 @@ int main( int argc , char ** argv )
   test_net_ptdf();
   test_net_demand_change();
   test_net_ac_optional_data();
+  test_serialize_round_trip();
   test_net_OTS_cost();
   test_net_negative_cost();
   test_net_cost_solution();
