@@ -6414,6 +6414,368 @@ static void test_dual_signs_UCBlock( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*------------------------- THE CARRIERS OF A UCBlock ----------------------*/
+/*--------------------------------------------------------------------------*/
+/* A UCBlock with three carriers over two instants: the electricity, with
+ * demand 50 and 80, the heat, with demand 40 and 40, and the gas, with no
+ * demand. The units are IntermittentUnitBlock, i.e., with power in [ 0 ,
+ * pmax ] and no commitment, so that the duals are there, whose outputs say
+ * where their power goes: a back-pressure plant (10 per MWh,
+ * electricity 1, heat 0.5, gas -2), a boiler (30, heat 1, gas -1.25), the
+ * supply of the gas (5, gas 1) and a peaker (50, the default electricity
+ * 1). The plant, which costs 20 per MWh of electricity with its gas, covers
+ * the electric demand, and the boiler the heat it leaves, 15 at the instant
+ * 0: the optimum is 1000 + 450 + 93.75 + 1600 = 3143.75. With heat_network
+ * the heat has two nodes, the plant at the node 1, where the demand is, and
+ * the boiler at the node 0, with a line between them that costs nothing:
+ * the optimum is the same. */
+
+static void put_carrier_unit( netCDF::NcGroup & g , int i , double pmax ,
+			      double cost ,
+			      const std::vector< std::string > & carriers ,
+			      const std::vector< double > & eta )
+{
+ auto u = g.addGroup( "UnitBlock_" + std::to_string( i ) );
+ u.putAtt( "type" , "IntermittentUnitBlock" );
+ put( u , "MaxPower" , pmax );
+ put( u , "ActivePowerCost" , cost );
+ if( carriers.empty() )
+  return;
+ auto NO = u.addDim( "NumberOutputs" , carriers.size() );
+ ::serialize( u , "OutputCarrier" , NO , carriers );
+ put( u , "OutputEfficiency" , { u.addDim( "OutputTime" , 1 ) , NO } , eta );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static netCDF::NcGroup write_UC_carriers( bool heat_network ,
+					 bool pollutants = false ,
+					 bool heat_design = false )
+{
+ auto g = new_group( "UCcarriers" );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 2 );
+ g.addDim( "NumberUnits" , 4 );
+ auto NG = g.addDim( "NumberGenerators" , 4 );
+ auto NC = g.addDim( "NumberCarriers" , 3 );
+ ::serialize( g , "CarrierName" , NC ,
+	      std::vector< std::string >{ "electricity" , "heat" , "gas" } );
+ put( g , "ActivePowerDemand" , { g.addDim( "NumberNodes" , 1 ) , TH } ,
+      { 50 , 80 } );
+
+ auto h = g.addGroup( "Carrier_1" );
+ if( heat_network ) {
+  auto HN = h.addDim( "NumberNodes" , 2 );
+  auto HL = h.addDim( "NumberLines" , 1 );
+  std::vector< unsigned int > start{ 0 } , end{ 1 };
+  h.addVar( "StartLine" , netCDF::NcUint() , HL ).putVar( start.data() );
+  h.addVar( "EndLine" , netCDF::NcUint() , HL ).putVar( end.data() );
+  put( h , "MaxPowerFlow" , HL , { 1000 } );
+  put( h , "MinPowerFlow" , HL , { -1000 } );
+  put( h , "EnergyDemand" , { HN , h.addDim( "TimeHorizon" , 2 ) } ,
+       { 0 , 0 , 40 , 40 } );
+  if( heat_design ) {
+   // the network given in the group, one DesignNetworkBlock over the two
+   // instants whose line has a design of no cost, at most 1
+   h.addDim( "NumberNetworks" , 1 );
+   auto d = h.addGroup( "NetworkBlock_0" );
+   d.putAtt( "type" , "DesignNetworkBlock" );
+   auto DL = d.addDim( "NumberDesignLines" , 1 );
+   d.addDim( "NumberSubNetwork" , 2 );
+   std::vector< unsigned int > lines{ 0 };
+   d.addVar( "DesignLines" , netCDF::NcUint() , DL ).putVar( lines.data() );
+   put( d , "InvestmentCost" , DL , { 0 } );
+   put( d , "MaxCapacityDesign" , DL , { 1 } );
+   }
+  }
+ else
+  put( h , "EnergyDemand" , { h.addDim( "NumberNodes" , 1 ) ,
+			      h.addDim( "TimeHorizon" , 2 ) } , { 40 , 40 } );
+
+ if( pollutants ) {
+  // one pollutant with two zones: the electricity in the zone 0, the heat
+  // and the gas in the zone 1
+  auto P = g.addDim( "NumberPollutants" , 1 );
+  std::vector< unsigned int > nz{ 2 };
+  g.addVar( "NumberPollutantZones" , netCDF::NcUint() , P ).putVar(
+							       nz.data() );
+  put( g , "PollutantBudget" , g.addDim( "TotalNumberPollutantZones" , 2 ) ,
+       { 1e6 , 1e6 } );
+  put( g , "PollutantRho" , { g.addDim( "PollutantTime" , 1 ) , P , NG } ,
+       { 1 , 1 , 1 , 1 } );
+  std::vector< unsigned int > z0{ 0 } , z1( heat_network ? 2 : 1 , 1 );
+  g.addVar( "PollutantZones" , netCDF::NcUint() ,
+	    { P , g.getDim( "NumberNodes" ) } ).putVar( z0.data() );
+  h.addVar( "PollutantZones" , netCDF::NcUint() ,
+	    { P , h.getDim( "NumberNodes" ) } ).putVar( z1.data() );
+  auto gas = g.addGroup( "Carrier_2" );
+  gas.addVar( "PollutantZones" , netCDF::NcUint() ,
+	      { P , gas.addDim( "NumberNodes" , 1 ) } ).putVar( z1.data() );
+  }
+
+ // the nodes of the plant, the boiler, the supply and the peaker on the
+ // electricity, the heat and the gas, -1 where they have none
+ const int hp = heat_network ? 1 : 0;
+ std::vector< int > nodes{ 0 , hp , 0 ,  -1 , 0 , 0 ,  -1 , -1 , 0 ,
+			   0 , -1 , -1 };
+ g.addVar( "GeneratorNode" , netCDF::NcInt() , { NG , NC } ).putVar(
+							    nodes.data() );
+
+ put_carrier_unit( g , 0 , 100 , 10 , { "electricity" , "heat" , "gas" } ,
+		   { 1 , 0.5 , -2 } );
+ put_carrier_unit( g , 1 , 100 , 30 , { "heat" , "gas" } , { 1 , -1.25 } );
+ put_carrier_unit( g , 2 , 1000 , 5 , { "gas" } , { 1 } );
+ put_carrier_unit( g , 3 , 100 , 50 , {} , {} );
+ return( g );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+/// the coefficient of var in row, 0 if it is not there
+
+static double coefficient_of( const FRowConstraint & row ,
+			      const ColVariable & var )
+{
+ auto lf = static_cast< const LinearFunction * >( row.get_function() );
+ for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
+  if( lf->get_active_var( i ) == & var )
+   return( lf->get_coefficient( i ) );
+ return( 0 );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/* The rows (1c) of the heat and of the gas carry the efficiencies of the
+ * outputs times the scale, the units without a node on a carrier are not
+ * in its rows, and the optimum is the one by hand, in the three forms of
+ * the heat (one node, a network of one NetworkBlock per instant, a network
+ * given in its group as one DesignNetworkBlock whose line has a design of
+ * no cost); the duals are the prices of the boiler (heat at the instant 0), of
+ * the supply (gas) and of the plant net of its heat (electricity at the
+ * instant 0). Then the demand of the heat changes through
+ * set_energy_demand(), the scale of the boiler through UnitBlock::scale(),
+ * which the rows (1c) follow, the UCBlockSolution writes the duals of (1c) in
+ * the group of the carrier, the UCBlock goes through its netCDF group and
+ * back with the same optimum, the pollutant zones of the units without a
+ * node on the electricity are those of their first carrier, and the data
+ * that cannot be read are refused. */
+
+static void test_carriers_UCBlock( void )
+{
+ std::string sname;
+ for( const auto & name : { "CPXMILPSolver" , "GRBMILPSolver" ,
+                            "HiGHSMILPSolver" , "SCIPMILPSolver" } )
+  if( Solver::has_Solver( name ) ) {
+   sname = name;
+   break;
+   }
+
+ // the optimum of uc, with its duals; NaN if it is not found
+ auto solve = [ & ]( UCBlock * uc ) -> double {
+  BlockSolverConfig bsc( 1 );
+  bsc.add_ComputeConfig( std::string( sname ) , nullptr );
+  bsc.apply( uc );
+  auto slv = static_cast< CDASolver * >(
+                                     uc->get_registered_solvers().front() );
+  const auto par = slv->int_par_str2idx( "intLogVerb" );
+  if( par < Inf< Solver::idx_type >() )
+   slv->set_par( par , 0 );
+  double value = std::nan( "" );
+  if( slv->compute( false ) == Solver::kOK ) {
+   slv->get_var_solution();
+   if( slv->has_dual_solution() )
+    slv->get_dual_solution();
+   value = slv->get_var_value();
+   }
+  bsc.clear();
+  bsc.apply( uc );
+  return( value );
+  };
+
+ // the heat with one node, with a network of one NetworkBlock per instant,
+ // and with a network given as one DesignNetworkBlock over the horizon
+ for( const int form : { 0 , 1 , 2 } ) {
+  const bool net = form > 0;
+  const bool design = form == 2;
+  const Index networks = net ? ( design ? 1 : 2 ) : 0;
+  const std::string what = std::string( "carriers" ) +
+                     ( net ? ( design ? ", heat design network" :
+			       ", heat network" ) : "" );
+  auto g = write_UC_carriers( net , false , design );
+  auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+  check( uc && ( uc->get_number_carriers() == 3 ) &&
+	 ( uc->get_number_nodes( 1 ) == ( net ? 2 : 1 ) ) &&
+	 ( uc->get_carrier_index( "gas" ) == 2 ) &&
+	 ( uc->get_generator_node( 1 , 0 ) == Inf< Index >() ) &&
+	 ( uc->get_network_blocks( 1 ).size() == networks ) ,
+	 what + ": the carriers are not read" );
+  if( ! uc )
+   continue;
+
+  SimpleConfiguration< int > wf( 0 );
+  uc->generate_abstract_variables( & wf );
+  uc->generate_abstract_constraints();
+  uc->generate_objective();
+
+  // the coefficients of the rows (1c) at the instant 0
+  const auto & heat = uc->get_const_carrier_balance_constraints( 1 );
+  const auto & gas = uc->get_const_carrier_balance_constraints( 2 );
+  auto p = [ & ]( Index u ) -> const ColVariable & {
+   return( uc->get_unit_block( u )->get_active_power( 0 )[ 0 ] );
+   };
+  check( close( coefficient_of( heat[ 0 ][ net ? 1 : 0 ] , p( 0 ) ) , 0.5 ) &&
+	 close( coefficient_of( heat[ 0 ][ 0 ] , p( 1 ) ) , 1 ) &&
+	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 0 ) ) , -2 ) &&
+	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) ) , -1.25 ) &&
+	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 2 ) ) , 1 ) &&
+	 ( coefficient_of( gas[ 0 ][ 0 ] , p( 3 ) ) == 0 ) &&
+	 ( coefficient_of( uc->get_const_node_injection_constraints()[ 0 ][ 0 ] ,
+			   p( 1 ) ) == 0 ) ,
+	 what + ": the rows (1c) do not carry the efficiencies" );
+
+  if( sname.empty() ) {
+   delete uc;
+   continue;
+   }
+
+  check( close( solve( uc ) , 3143.75 ) , what + ": the optimum is not "
+	 "3143.75" );
+  if( ! net ) {
+   check( close( heat[ 0 ][ 0 ].get_dual() , -36.25 , 1e-5 ) &&
+	  close( gas[ 0 ][ 0 ].get_dual() , -5 , 1e-5 ) &&
+	  close( uc->get_const_node_injection_constraints()[ 0 ][ 0 ].get_dual()
+		 , -1.875 , 1e-5 ) ,
+	  what + ": the duals are " + str( heat[ 0 ][ 0 ].get_dual() ) + " , " +
+	  str( gas[ 0 ][ 0 ].get_dual() ) + " , " +
+	  str( uc->get_const_node_injection_constraints()[ 0 ][ 0 ].get_dual() )
+	  + ", not the prices of the boiler, of the supply and of the plant" );
+
+   // the duals of (1c) in the group of the carrier
+   SimpleConfiguration< int > wsol( 8 );
+   auto sol = uc->get_Solution( & wsol , false );
+   auto sg = new_group( "SOLc" );
+   sol->serialize( sg );
+   auto cg = sg.getGroup( "Carrier_1" );
+   auto ed = cg.isNull() ? netCDF::NcVar() : cg.getVar( "EnergyDuals" );
+   double d0 = 0;
+   if( ! ed.isNull() )
+    ed.getVar( { 0 , 0 } , & d0 );
+   check( close( d0 , -36.25 , 1e-5 ) , what + ": EnergyDuals of Carrier_1 "
+	  "is " + str( d0 ) + ", not the price of the heat" );
+   auto back = Solution::new_Solution( sg );
+   check( dynamic_cast< UCBlockSolution * >( back ) , what +
+	  ": the UCBlockSolution is not read back" );
+   delete back;
+   delete sol;
+   }
+
+  // a Solution with the networks and without the duals of the carriers
+  // through its netCDF group and back to the UCBlock
+  {
+   SimpleConfiguration< int > wsol( 2 );
+   auto sol = uc->get_Solution( & wsol , false );
+   auto sg = new_group( "SOLnet" );
+   sol->serialize( sg );
+   auto back = Solution::new_Solution( sg );
+   bool written = back != nullptr;
+   try {
+    if( back )
+     back->write( uc );
+    }
+   catch( const std::exception & ) {
+    written = false;
+    }
+   check( written , what + ": a Solution without the duals of the carriers "
+	  "is not written back" );
+   delete back;
+   delete sol;
+   }
+
+  // the demand of the heat at the instant 0 down to 25: no boiler
+  std::vector< double > d{ 25 };
+  const Index index = ( net ? 2 : 1 ) * 2;  // the demand node of the heat
+  uc->set_energy_demand( d.begin() , Block::Subset{ index } , true );
+  check( close( solve( uc ) , 2600 ) , what + ": after set_energy_demand() "
+	 "the optimum is not 2600" );
+  d[ 0 ] = 40;
+  uc->set_energy_demand( d.begin() , Block::Subset{ index } , true );
+
+  // the boiler scaled by 2: the coefficients follow, the optimum does not
+  // change
+  std::vector< double > sc{ 2 };
+  uc->get_unit_block( 1 )->scale( sc.begin() , Block::Range( 0 , 1 ) );
+  check( close( coefficient_of( heat[ 0 ][ 0 ] , p( 1 ) ) , 2 ) &&
+	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) ) , -2.5 ) ,
+	 what + ": the rows (1c) do not follow the scale" );
+  check( close( solve( uc ) , 3143.75 ) , what + ": with the boiler scaled "
+	 "the optimum is not 3143.75" );
+
+  // the UCBlock through its netCDF group and back
+  auto wg = new_group( "UCcarriersRT" );
+  uc->serialize( wg );
+  auto uc2 = dynamic_cast< UCBlock * >( Block::new_Block( wg ) );
+  check( uc2 && ( uc2->get_number_carriers() == 3 ) &&
+	 ( uc2->get_carrier_name( 2 ) == "gas" ) &&
+	 ( uc2->get_number_nodes( 1 ) == ( net ? 2 : 1 ) ) &&
+	 ( uc2->get_generator_node( 2 , 2 ) == 0 ) &&
+	 ( uc2->get_generator_node( 3 , 1 ) == Inf< Index >() ) &&
+	 ( uc2->get_network_blocks( 1 ).size() == networks ) &&
+	 close( solve( uc2 ) , 3143.75 ) ,
+	 what + ": the UCBlock written and read back is not the same" );
+  delete uc2;
+  delete uc;
+  }
+
+ // the pollutant zones of the units without a node on the electricity
+ {
+  auto g = write_UC_carriers( false , true );
+  auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+  check( uc && ( uc->get_generator_pollutant_zone( 0 , 0 ) == 0 ) &&
+	 ( uc->get_generator_pollutant_zone( 0 , 1 ) == 1 ) &&
+	 ( uc->get_generator_pollutant_zone( 0 , 2 ) == 1 ) &&
+	 ( uc->get_generator_pollutant_zone( 0 , 3 ) == 0 ) ,
+	 "carriers: the pollutant zones are not those of the first carrier "
+	 "of each unit" );
+  delete uc;
+  }
+
+ // what cannot be read
+ auto refused = []( const std::function< void( netCDF::NcGroup & ) > & spoil ,
+		    bool net , const std::string & what ) {
+  auto g = write_UC_carriers( net );
+  spoil( g );
+  // new_Block() gives nullptr when the reading throws
+  bool thrown = false;
+  try {
+   auto b = Block::new_Block( g );
+   thrown = ! b;
+   delete b;
+   }
+  catch( const std::exception & ) {
+   thrown = true;
+   }
+  check( thrown , "carriers: " + what + " is not refused" );
+  };
+
+ refused( []( netCDF::NcGroup & g ) {
+  g.getVar( "CarrierName" ).rename( "CarrierNames" );
+  } , false , "NumberCarriers without CarrierName" );
+
+ refused( []( netCDF::NcGroup & g ) {
+  g.getVar( "GeneratorNode" ).rename( "GeneratorNodes" );
+  std::vector< unsigned int > nodes{ 0 , 0 , 0 , 0 };
+  g.addVar( "GeneratorNode" , netCDF::NcUint() ,
+	    g.getDim( "NumberGenerators" ) ).putVar( nodes.data() );
+  } , true , "GeneratorNode in one dimension with two heat nodes" );
+
+ // the lines of the heat cannot be those of the electricity: the dimension
+ // is looked for in the group of the carrier alone
+ refused( []( netCDF::NcGroup & g ) {
+  g.addDim( "NumberLines" , 1 );
+  g.getGroup( "Carrier_1" ).getDim( "NumberLines" ).rename( "Lines" );
+  } , true , "a heat network whose NumberLines is only in the UCBlock" );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------------- MAIN ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -13046,6 +13408,65 @@ static ConversionUnitBlock * new_CU( const CUData & d )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The outputs given per generator: those of a ConversionUnitBlock, whose two
+ * generators are on the electricity and on the heat, the second with
+ * efficiency 0.9, through the netCDF group and back; given over three
+ * generators, they are refused by UnitBlock::check_outputs(). */
+
+static void test_carriers_conversion_outputs( void )
+{
+ for( const Index og : { 2 , 3 } ) {
+  CUData d;
+  d.G = 2;
+  d.minP = { 0 , 0 };
+  d.maxP = { 100 , 125 };
+  d.lin = { 40 , 0 };
+  d.initP = { 0 , 0 };
+  auto g = new_group( "CUout" , true );
+  write_CU( g , d );
+  auto NO = g.addDim( "NumberOutputs" , 1 );
+  auto OG = g.addDim( "OutputGenerators" , og );
+  std::vector< const char * > carriers{ "electricity" , "heat" , "gas" };
+  g.addVar( "OutputCarrier" , netCDF::NcString() , { OG , NO } ).putVar(
+							     carriers.data() );
+  put( g , "OutputEfficiency" , { g.addDim( "OutputTime" , 1 ) , OG , NO } ,
+       { 1 , 0.9 , 1 } );
+  auto cub = dynamic_cast< ConversionUnitBlock * >( Block::new_Block( g ) );
+  bool refused = false;
+  try {
+   if( cub )
+    cub->check_outputs();
+   }
+  catch( const std::exception & ) {
+   refused = true;
+   }
+  if( og == 3 ) {
+   check( refused , "carriers: outputs over three generators of a unit with "
+	  "two are not refused" );
+   delete cub;
+   continue;
+   }
+  check( cub && ( ! refused ) &&
+	 ( cub->get_output_carrier( 0 , 0 ) == "electricity" ) &&
+	 ( cub->get_output_carrier( 1 , 0 ) == "heat" ) &&
+	 close( cub->get_output_efficiency( 0 , 1 , 0 ) , 0.9 ) ,
+	 "carriers: the outputs per generator are not read" );
+  if( ! cub )
+   continue;
+  auto wg = new_group( "CUoutRT" );
+  cub->serialize( wg );
+  auto back = dynamic_cast< ConversionUnitBlock * >( Block::new_Block( wg ) );
+  check( back && ( back->get_output_carrier( 1 , 0 ) == "heat" ) &&
+	 close( back->get_output_efficiency( 0 , 1 , 0 ) , 0.9 ) &&
+	 close( back->get_output_efficiency( 0 , 0 , 0 ) , 1 ) ,
+	 "carriers: the outputs per generator are not written back" );
+  delete back;
+  delete cub;
+  }
+
+ }
+
+/*--------------------------------------------------------------------------*/
 /// the value that the first Solver of the BlockSolverConfig in the file
 /// cfg finds on the Block b (with its abstract representation): NaN if the
 /// Solver is not in the build or finds no value, INF if infeasible
@@ -15283,6 +15704,8 @@ int main( int argc , char ** argv )
   test_slack_no_inertia_UCBlock();
   test_network_constants_UCBlock();
   test_dual_signs_UCBlock();
+  test_carriers_UCBlock();
+  test_carriers_conversion_outputs();
   test_node_injection_bounds();
   test_zone_rows_two_nodes();
   test_storage_infinite_bounds();

@@ -130,7 +130,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 {
  NetworkData::deserialize( group );
 
- if( ! deserialize_dim( group , "ReferenceNode" , f_reference_node , true ) )
+ if( ! deserialize_local_dim( group , "ReferenceNode" , f_reference_node ,
+			      true ) )
   f_reference_node = 0;
 
  if( f_reference_node >= f_number_nodes )
@@ -143,14 +144,14 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  if( f_number_nodes == 1 )
   return;
 
- deserialize_dim( group , "NumberLines" , f_number_lines , false );
+ deserialize_local_dim( group , "NumberLines" , f_number_lines , false );
 
- if( ! deserialize_dim( group , "NumberBranches" , f_number_branches ,
-			true ) )
+ if( ! deserialize_local_dim( group , "NumberBranches" , f_number_branches ,
+			      true ) )
   f_number_branches = f_number_lines;
 
  Index time_instants = 1;
- deserialize_dim( group , "NumberInstants" , time_instants , true );
+ deserialize_local_dim( group , "NumberInstants" , time_instants , true );
  
  ::deserialize( group , "StartLine" , f_number_branches , v_start_line ,
                 false , false );
@@ -731,7 +732,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  // deal with the DCNetworkData first
 
  Index NumberNodes;
- if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+ if( deserialize_local_dim( group , "NumberNodes" , NumberNodes ) ) {
   // since the dimension "NumberNodes" has been provided, a DCNetworkData
   // is there: deserialize is and mark it as being local
   if( f_local_NetworkData ) {   // if the NetworkData has not been passed

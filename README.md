@@ -27,7 +27,16 @@ case, which is handled directly by `UCBlock`); some of these are available, such
 as `DCNetworkBlock` for the linear DC or HVDC (or hybrid) cases,
 `ACNetworkBlock` for the AC case and `ECNetworkBlock` for Energy Communities
 having to share the energy between users and then with the external grid, with
-`OTSNetworkBlock` and `DesignNetworkBlock` also available. Other kinds of units
+`OTSNetworkBlock` and `DesignNetworkBlock` also available. The system can have
+several energy carriers (electricity, heat, gas, hydrogen, ...), each with its
+own nodes, network and demand: the power of a unit goes to each carrier with
+the efficiency of its outputs, a negative one being what the unit consumes, so
+that a gas turbine, a combined heat and power plant with a fixed heat-to-power
+ratio, an electrolyser or a heat pump is a unit of any kind, with its
+commitment, whose outputs are on the carriers, and each generator of a
+`ConversionUnitBlock` may have its output on the carrier of its own port; the
+network of a carrier may have lines with a design, as that of the
+electricity. Other kinds of units
 and networks can easily be added, and specialised solution methods for certain
 units (e.g., `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver` for
 `ThermalUnitBlock`, `NuclearUnitExtDPSolver` for `NuclearUnitBlock`) can be

@@ -210,7 +210,34 @@ class UnitBlock : public Block
   *   to be set (although the variable has actually "NumberIntervals"
   *   elements). Anyway, the whole variable is ignored if either
   *   "NumberIntervals" <= 1 (such as if it is not defined), or
-  *   "NumberIntervals" >= "TimeHorizon". */
+  *   "NumberIntervals" >= "TimeHorizon".
+  *
+  * - The dimension "NumberOutputs", the number of outputs of each generator
+  *   of the unit (see get_number_outputs()). It is optional: without it each
+  *   generator has the only output kElectricity, with efficiency 1, and the
+  *   two variables below are not read.
+  *
+  * - The variable "OutputCarrier", of type netCDF::NcString and indexed over
+  *   "NumberOutputs": OutputCarrier[ k ] is the carrier of output k (see
+  *   get_output_carrier()), the same for all the generators of the unit. It
+  *   can also be indexed over the generators of the unit and over
+  *   "NumberOutputs", OutputCarrier[ g , k ] being then the carrier of output
+  *   k of generator g, when the generators are not on the same carrier (the
+  *   inputs and the outputs of a ConversionUnitBlock). It is mandatory if
+  *   "NumberOutputs" is there.
+  *
+  * - The variable "OutputEfficiency", of type netCDF::NcDouble and indexed
+  *   over "TimeHorizon" and "NumberOutputs": OutputEfficiency[ t , k ] is the
+  *   efficiency \f$ \eta_{t,g,k} \f$ of output k at time t (see
+  *   get_output_efficiency()), the same for all the generators of the unit.
+  *   It can also be indexed over "TimeHorizon", the generators and
+  *   "NumberOutputs", OutputEfficiency[ t , g , k ] being then that of
+  *   output k of generator g. The first dimension can have size 1, in which
+  *   case the efficiency is the same at every time instant, and so can the
+  *   one of the generators, in which case it is the same for all of them. It
+  *   is mandatory if "NumberOutputs" is there. The number of the generators
+  *   is checked by the UCBlock, once the unit is read (see check_outputs()).
+  *   */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -272,6 +299,78 @@ class UnitBlock : public Block
   * constraints) will have to handle this number by their-self. */
 
  virtual Index get_number_generators( void ) const { return( 1 ); }
+
+/*--------------------------------------------------------------------------*/
+ /** @name The outputs of the generators
+  *
+  * The active power \f$ p_{t,g} \f$ of a generator is the only Variable of
+  * its energy balance, but it may enter the balance of more than one energy
+  * carrier (electricity, heat, gas, hydrogen, ...), each with its own
+  * efficiency: output k of generator g gives
+  * \f$ \eta_{t,g,k} \, p_{t,g} \f$ to the carrier
+  * get_output_carrier( g , k ), at the node of the generator on that carrier
+  * (see "GeneratorNode" in UCBlock::deserialize()). An efficiency may be
+  * negative, which is how what the generator consumes is written: a gas
+  * turbine of efficiency \f$ e \f$ has the outputs "electricity", with
+  * \f$ \eta = 1 \f$, and "gas", with \f$ \eta = - 1 / e \f$, and an
+  * electrolyzer of efficiency \f$ e \f$ has "hydrogen", with
+  * \f$ \eta = 1 \f$, and "electricity", with \f$ \eta = - 1 / e \f$; the
+  * active power is then the main product, and its bounds are those of the
+  * unit. The UCBlock reads the outputs with these methods
+  * and writes each term in the balance of its carrier; an output on a
+  * carrier that the UCBlock does not have, or where the generator has no
+  * node, is ignored.
+  *
+  * The names of the carriers are free, but the standard ones below are
+  * those that all the UnitBlock use: in particular, kElectricity is the
+  * carrier 0 of the UCBlock, whatever name this gives to it. By default a
+  * generator has the only output kElectricity with efficiency 1, i.e., the
+  * single-carrier model; the outputs given in the netCDF group of the unit
+  * (see deserialize()) replace that default, and a :UnitBlock that computes
+  * its efficiencies by itself redefines the three methods.
+  * @{ */
+
+ static constexpr const char * kElectricity = "electricity";
+ static constexpr const char * kHeat = "heat";
+ static constexpr const char * kGas = "gas";
+ static constexpr const char * kHydrogen = "hydrogen";
+
+ /// returns the number of outputs of the given generator
+
+ virtual Index get_number_outputs( Index generator = 0 ) const {
+  return( v_output_carrier.empty() ? 1 : f_number_outputs );
+  }
+
+ /// returns the carrier of output k of the given generator
+
+ virtual std::string get_output_carrier( Index generator , Index k ) const {
+  if( v_output_carrier.empty() )
+   return( kElectricity );
+  return( v_output_carrier[ ( f_output_generators > 1 ? generator : 0 ) *
+			    f_number_outputs + k ] );
+  }
+
+ /// returns the efficiency of output k of the given generator at time t
+
+ virtual double get_output_efficiency( Index t , Index generator ,
+                                       Index k ) const {
+  if( v_output_efficiency.empty() )
+   return( 1 );
+  const auto shp = v_output_efficiency.shape();
+  return( v_output_efficiency[ shp[ 0 ] > 1 ? t : 0 ]
+	                     [ shp[ 1 ] > 1 ? generator : 0 ][ k ] );
+  }
+
+ /// checks that the outputs given per generator fit the generators
+ /** Throws std::invalid_argument if "OutputCarrier" or "OutputEfficiency"
+  * have been given per generator (see deserialize()) over a number of
+  * generators other than get_number_generators(), which the UCBlock calls
+  * once the unit is read, the number of the generators of a :UnitBlock being
+  * known only after its own data. */
+
+ void check_outputs( void ) const;
+
+/** @} ---------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
  /// returns the fixed consumption of the given generator
@@ -1066,6 +1165,12 @@ class UnitBlock : public Block
  /// deserializes the change intervals vector from a netCDF group
  void deserialize_change_intervals( const netCDF::NcGroup & group );
 
+ /// deserializes the outputs of the generators from a netCDF group
+ void deserialize_outputs( const netCDF::NcGroup & group );
+
+ /// serializes the outputs of the generators to a netCDF group
+ void serialize_outputs( netCDF::NcGroup & group ) const;
+
  /// states that the Variable of the UnitBlock have been generated
  void set_variables_generated( void ) { AR |= HasVar; }
 
@@ -1096,6 +1201,21 @@ class UnitBlock : public Block
 
  /// the vector of change intervals
  std::vector< std::size_t > v_change_intervals;
+
+ /// the number of outputs of each generator, 0 for the default one
+ Index f_number_outputs = 0;
+
+ /// the generators over which the carriers of the outputs are given
+ /** 1 if they are the same for all the generators, 0 if there are none. */
+ Index f_output_generators = 0;
+
+ /// the carrier of each output, [ output generators ][ outputs ]
+ /** Flattened, empty for the only output kElectricity. */
+ std::vector< std::string > v_output_carrier;
+
+ /// the efficiency of each output, [ 1 or time horizon ]
+ /// [ 1 or generators ][ outputs ]
+ boost::multi_array< double , 3 > v_output_efficiency;
 
  /// bit-wise coded: which reserve variables generate
  unsigned char reserve_vars;

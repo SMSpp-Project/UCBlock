@@ -105,7 +105,8 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- if( ! deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
+ if( ! deserialize_local_dim( group , "NumberIntervals" ,
+			      f_number_intervals ) )
   f_number_intervals = 1;
 
  // Mandatory variables
@@ -160,11 +161,11 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
  // Optional variables
  Index NumberIntervals;
- if( ! deserialize_dim( group , "NumberIntervals" , NumberIntervals ) )
+ if( ! deserialize_local_dim( group , "NumberIntervals" , NumberIntervals ) )
   NumberIntervals = 1;
  
  Index NumberNodes;
- if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+ if( deserialize_local_dim( group , "NumberNodes" , NumberNodes ) ) {
   // since the dimensions "NumberNodes" has been provided, an ECNetworkData
   // is there: deserialize it and mark it as local
   if( f_local_NetworkData ) {  // if the NetworkData has not been passed

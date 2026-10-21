@@ -14,14 +14,20 @@ with ramps and start-up and shut-down limits, and on before the horizon).
 
 Each network is built as test_ucblock builds it (the slack units included),
 solved by PyPSA with HiGHS, whose optimum is the reference, and written by
-pypsa2smspp as the SMS++ file of its UCBlock, <case>.nc4.
+pypsa2smspp as the SMS++ file of its UCBlock, <case>.nc4, and, with
+--carriers, also with the gas, the electric and the heat buses as the nodes
+of three carriers (option multi_carrier), the generators of the
+ConversionUnitBlock having each its output on the carrier of its node,
+<case>_carriers.nc4, held to the same reference.
 
 usage: gen_conversion.py <pypsa2smspp directory> <output directory>
+                         [--carriers]
 
 The pypsa2smspp directory is a checkout with ConversionUnitBlock (option
-enable_conversion_units) and with its test cases, in an environment with
-PyPSA, HiGHS and pySMSpp; the reference objectives are printed in the form
-the batteries read them.
+enable_conversion_units), and with the carriers (option multi_carrier) for
+--carriers, and with its test cases, in an environment with PyPSA, HiGHS
+and pySMSpp; the reference objectives are printed in the form the batteries
+read them.
 """
 
 import os
@@ -30,9 +36,10 @@ from pathlib import Path
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4) or sys.argv[3:] not in ([], ["--carriers"]):
         sys.exit("usage: gen_conversion.py <pypsa2smspp directory> "
-                 "<output directory>")
+                 "<output directory> [--carriers]")
+    forms = (False, True) if sys.argv[3:] else (False,)
     root = Path(sys.argv[1]).resolve()
     out = Path(sys.argv[2]).resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -62,17 +69,20 @@ def main():
         objective = float(reference.objective
                           + getattr(reference, "objective_constant", 0.0))
 
-        transformation = Transformation(
-            capacity_expansion_ucblock=True,
-            enable_thermal_units=bool(n.generators.committable.any()),
-            enable_conversion_units=bool(n.links.committable.any()),
-            workdir=out, name=xlsx.stem, overwrite=True,
-        )
-        transformation.create_model(n, verbose=False)
-        transformation.sms_network.to_netcdf(str(out / f"{xlsx.stem}.nc4"),
-                                             force=True)
+        for multi_carrier in forms:
+            name = xlsx.stem + ("_carriers" if multi_carrier else "")
+            transformation = Transformation(
+                capacity_expansion_ucblock=True,
+                enable_thermal_units=bool(n.generators.committable.any()),
+                enable_conversion_units=bool(n.links.committable.any()),
+                multi_carrier=multi_carrier,
+                workdir=out, name=name, overwrite=True,
+            )
+            transformation.create_model(n.copy(), verbose=False)
+            transformation.sms_network.to_netcdf(str(out / f"{name}.nc4"),
+                                                 force=True)
 
-        print("REF_OBJ[%s.nc4]=%.9e" % (xlsx.stem, objective))
+            print("REF_OBJ[%s.nc4]=%.9e" % (name, objective))
 
 
 if __name__ == "__main__":
