@@ -7476,8 +7476,14 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
     }
    }
 
-  throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: invalid "
-				"variable in Modification" ) );
+  throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
+				"cost of a Variable that is not in the "
+				"Objective changes (the reserve "
+				"variables are there only if their cost "
+				"is nonzero, or if the objective "
+				"Configuration of the BlockConfig asks "
+				"for them, as a LagrangianDualSolver "
+				"needs)" ) );
   return;
 
   }  // end( Rngd )
@@ -7775,8 +7781,14 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    }
 
   if( l != sbs->end() )
-   throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: invalid "
-				 "variable in Modification" ) );
+   throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
+				 "cost of a Variable that is not in the "
+				 "Objective changes (the reserve "
+				 "variables are there only if their cost "
+				 "is nonzero, or if the objective "
+				 "Configuration of the BlockConfig asks "
+				 "for them, as a LagrangianDualSolver "
+				 "needs)" ) );
   return;
 
   }  // end( Sbst )

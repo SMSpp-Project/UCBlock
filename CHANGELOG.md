@@ -176,6 +176,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the exception of `ThermalUnitBlock` when the cost of a Variable that is
+  not in its Objective changes says so, and that the reserve variables are
+  there only with a nonzero cost or when the objective Configuration of the
+  BlockConfig asks for them, as a `LagrangianDualSolver` needs
 - in the pt, SU, SD and SUSD formulations of `ThermalUnitBlock` (and of
   `NuclearUnitBlock`) the arc of a run that no power satisfies (its bounds,
   start-up and shut-down limits and ramps leave an empty interval at some
