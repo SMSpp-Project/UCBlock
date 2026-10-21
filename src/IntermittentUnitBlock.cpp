@@ -1201,6 +1201,14 @@ void IntermittentUnitBlock::scale( MF_dbl_it values ,
  if( f_scale == *values )  // the scale factor does not change: nothing to do
   return;
 
+ // the scale and a design of more than one module are the same fleet, as
+ // deserialize() says [see check_data_consistency()]
+ if( ( *values != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
+  throw( std::logic_error( "IntermittentUnitBlock::scale: cannot combine "
+                           "Scale != 1 with |MaxCapacityDesign| > 1; they "
+                           "represent the same multi-module fleet and would "
+                           "double-count." ) );
+
  if( not_dry_run( issuePMod ) ) {
   f_scale = *values;  // Update the scale factor
 

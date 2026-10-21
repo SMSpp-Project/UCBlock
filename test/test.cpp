@@ -15731,6 +15731,57 @@ static void test_serialize_round_trip( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* The scale of a unit and a design of more than one module are the same
+ * fleet: scale() refuses the two together, as deserialize() does, and
+ * accepts a scale with a design of one module. */
+
+static void test_scale_design_guard( void )
+{
+ const Index T = 2;
+ for( const double design : { -3.0 , 1.0 } ) {
+  const std::string what = "scale with MaxCapacityDesign " + str( design );
+  auto g = new_group( "IU" , true );
+  g.putAtt( "type" , "IntermittentUnitBlock" );
+  auto TH = g.addDim( "TimeHorizon" , T );
+  put( g , "MaxPower" , TH , { 10 , 10 } );
+  put( g , "InvestmentCost" , 1.0 );
+  put( g , "MaxCapacityDesign" , design );
+  std::unique_ptr< UnitBlock > u( dynamic_cast< UnitBlock * >(
+						    Block::new_Block( g ) ) );
+  bool refused = false;
+  try {
+   u->scale( 2 );
+   }
+  catch( std::logic_error & ) { refused = true; }
+  check( refused == ( std::abs( design ) > 1 ) ,
+	 "IntermittentUnitBlock " + what + ( refused ? ": refused" :
+					      ": accepted" ) );
+  }
+
+ std::string why;
+ std::unique_ptr< BatteryUnitBlock > bu( new_BU( T ,
+	{ { "MinStorage" , { 0 , 0 } } , { "MaxStorage" , { 20 , 20 } } ,
+	  { "MaxPower" , { 10 , 10 } } , { "MinPower" , { -10 , -10 } } ,
+	  { "BatteryInvestmentCost" , { 1 } } ,
+	  { "BatteryMaxCapacityDesign" , { -3 } } } , & why ) );
+ check( bu != nullptr , "BatteryUnitBlock with BatteryMaxCapacityDesign -3 "
+	"not built: " + why );
+ bool refused = false;
+ std::string msg;
+ try {
+  if( bu )
+   bu->scale( 2 );
+  }
+ catch( std::logic_error & e ) { refused = true; }
+ catch( std::exception & e ) { msg = e.what(); }
+ check( ( ! bu ) || refused ,
+	"BatteryUnitBlock scale with BatteryMaxCapacityDesign -3 accepted " +
+	msg );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  // --power-limits: only the test of the power limits, with the options
@@ -15806,6 +15857,7 @@ int main( int argc , char ** argv )
   test_net_demand_change();
   test_net_ac_optional_data();
   test_serialize_round_trip();
+  test_scale_design_guard();
   test_net_OTS_cost();
   test_net_negative_cost();
   test_net_cost_solution();

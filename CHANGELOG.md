@@ -380,6 +380,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `scale()` of `IntermittentUnitBlock`, `BatteryUnitBlock` and
+  `ConversionUnitBlock` refuses a scale other than 1 on a unit whose design
+  has more than one module (or, for the `ConversionUnitBlock`, with more
+  than one module), as `deserialize()` does: the two are the same fleet,
+  which a unit with both counts twice
 - a Block written with `serialize()` and read back with `deserialize()` has
   all the data it was read with: `DCNetworkBlock` writes `Kappa` (when a
   constant of a line is not 1), `ThermalUnitBlock` the `ReferenceSchedule`
