@@ -257,8 +257,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   forward the forms with two spans to the units. They use the families of
   the methods factory with two values per Index of SMS++
 
+- the C++20 module `smspp.ucblock` (`src/UCBlock.cppm`), which exports every
+  name that the headers declare at namespace scope and re-exports `smspp`,
+  so that a source file can write `import smspp.ucblock;` in place of the
+  `#include` of the headers; it is built with the CMake option
+  `SMSpp_BUILD_MODULE`, as the target `SMS++::UCBlock_module`
+
 ### Changed
 
+- the exception of `ThermalUnitBlock` when the cost of a Variable that is
+  not in its Objective changes says so, and that the reserve variables are
+  there only with a nonzero cost or when the objective Configuration of the
+  BlockConfig asks for them, as a `LagrangianDualSolver` needs
 - in the pt, SU, SD and SUSD formulations of `ThermalUnitBlock` (and of
   `NuclearUnitBlock`) the arc of a run that no power satisfies (its bounds,
   start-up and shut-down limits and ramps leave an empty interval at some
