@@ -1279,6 +1279,18 @@ static Block * round_trip( const netCDF::NcGroup & g ,
   check( b2->classname() == b1->classname() ,
 	 what + ": " + b2->classname() + " read back as " +
 	 b1->classname() );
+  #ifndef NDEBUG
+  // what serialize() writes in the group of the Block is what deserialize()
+  // expects there, or it says it is unexpected [see Block::deserialize()]
+  const auto ed = b2->expected_dims();
+  for( const auto & [ name , dim ] : g1.getDims() )
+   check( std::find( ed.begin() , ed.end() , name ) != ed.end() ,
+	  what + ": dimension " + name + " written but not expected" );
+  const auto ev = b2->expected_vars();
+  for( const auto & [ name , var ] : g1.getVars() )
+   check( std::find( ev.begin() , ev.end() , name ) != ev.end() ,
+	  what + ": variable " + name + " written but not expected" );
+  #endif
   }
  catch( std::exception & e ) {
   check( false , what + ": throws " + e.what() );
@@ -2468,9 +2480,10 @@ static void test_RT_thermal( void )
   delete b;
   }
 
- // a nuclear unit
+ // a nuclear unit, with power bands
  d.nuclear = true;
  d.scale = 1;
+ d.bands = { 4 , 6 };
  d.modT = 3;
  d.initMod = 2;
  d.mru = 1;
@@ -2634,6 +2647,11 @@ static void test_RT_networks( void )
   put( g , "ReactiveDemand" , N , { 0.5 , 0.5 , 0.5 } );
   }
  delete round_trip( g , "AC network" );
+
+ g = new_group( "OTS" , true );
+ write_DC( g , "OTSNetworkBlock" );
+ put( g , "SwitchingCost" , g.getDim( "NumberLines" ) , { 3 , 4 } );
+ delete round_trip( g , "OTS network" );
 
  g = new_group( "EC" , true );
  g.putAtt( "type" , "ECNetworkBlock" );

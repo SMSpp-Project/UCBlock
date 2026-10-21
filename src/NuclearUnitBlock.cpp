@@ -279,18 +279,17 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 #ifndef NDEBUG
 
-/*
 std::vector< std::string > NuclearUnitBlock::expected_dims( void )
  const {
- static const std::vector< std::string > ed = { };
+ static const std::vector< std::string > ed = { "NumberPowerBands" };
 
- auto ret = UnitBlock::expected_dims();
+ auto ret = ThermalUnitBlock::expected_dims();
  ret.insert( ret.end() , ed.begin() , ed.end() );
 
  return( ret );
  }
 
-----------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 std::vector< std::string > NuclearUnitBlock::expected_vars( void )
  const {

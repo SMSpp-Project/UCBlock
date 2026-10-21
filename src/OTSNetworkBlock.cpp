@@ -86,6 +86,21 @@ void OTSNetworkData::serialize( netCDF::NcGroup & group ) const
  }  // end( OTSNetworkData::serialize )
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > OTSNetworkData::expected_vars( void ) const {
+ static const std::vector< std::string > ev = { "SwitchingCost" };
+
+ auto ret = DCNetworkData::expected_vars();
+ ret.insert( ret.end() , ev.begin() , ev.end() );
+
+ return( ret );
+ }
+
+#endif
+
+/*--------------------------------------------------------------------------*/
 /*------------------- METHODS OF OTSNetworkBlock ---------------------------*/
 /*--------------------------------------------------------------------------*/
 

@@ -384,6 +384,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `NuclearUnitBlock` expects the dimension `NumberPowerBands` that its
+  `serialize()` writes, and `OTSNetworkData` the variable `SwitchingCost`,
+  which the checks of `Block::deserialize()` in Debug reported as
+  unexpected at each read; the round trip of the unit test checks, in
+  Debug, that what `serialize()` writes in the group of a Block is what it
+  expects there, with a nuclear unit with power bands and an
+  `OTSNetworkBlock` among them.
 - `DCNetworkBlockSolution`, `ACNetworkBlockSolution` and
   `BatteryUnitBlockSolution` read their values indexed over the lines, the
   nodes or the instants whatever their size, and a netCDF scalar gave one

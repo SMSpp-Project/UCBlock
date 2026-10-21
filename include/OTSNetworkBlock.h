@@ -284,6 +284,15 @@ class OTSNetworkData : public DCNetworkData
 
  void serialize( netCDF::NcGroup & group ) const override;
 
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /// extends DCNetworkData::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override;
+
+#endif
+
 /** @} ----------------------- ACCESSOR METHODS ----------------------------*/
 /** @name Accessor methods
  * @{ */
