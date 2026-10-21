@@ -174,6 +174,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   step at a start-up instant and the tolerance of
   `NuclearUnitBlock::is_feasible()`
 
+- the C++20 module `smspp.ucblock` (`src/UCBlock.cppm`), which exports every
+  name that the headers declare at namespace scope and re-exports `smspp`,
+  so that a source file can write `import smspp.ucblock;` in place of the
+  `#include` of the headers; it is built with the CMake option
+  `SMSpp_BUILD_MODULE`, as the target `SMS++::UCBlock_module`
+
 ### Changed
 
 - the exception of `ThermalUnitBlock` when the cost of a Variable that is
