@@ -361,7 +361,8 @@ class UCBlock : public Block
   *   NumberUnits (all UnitBlock have exactly one generator), then this
   *   variable is indexed over NumberUnits. If every carrier has one node
   *   (say, "NumberNodes" is not provided at all and there is no other
-  *   carrier), then this variable need not be defined, since it is not used.
+  *   carrier), or if there is no generator at all, then this variable need
+  *   not be defined, since it is not used.
   *   With more than one carrier (see "NumberCarriers" below) the variable can
   *   also be of type netCDF::NcInt and indexed over the generators and over
   *   "NumberCarriers": GeneratorNode[ g , c ] is the node of generator g on

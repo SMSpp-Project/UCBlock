@@ -6739,6 +6739,27 @@ static void test_carriers_UCBlock( void )
   delete uc;
   }
 
+ // a network with no unit, whose GeneratorNode has nothing to say and is
+ // not there, is read
+ {
+  auto g = new_group( "UCnounits" );
+  g.putAtt( "type" , "UCBlock" );
+  auto TH = g.addDim( "TimeHorizon" , 1 );
+  g.addDim( "NumberUnits" , 0 );
+  auto NN = g.addDim( "NumberNodes" , 2 );
+  auto NL = g.addDim( "NumberLines" , 1 );
+  std::vector< unsigned int > start{ 0 } , end{ 1 };
+  g.addVar( "StartLine" , netCDF::NcUint() , NL ).putVar( start.data() );
+  g.addVar( "EndLine" , netCDF::NcUint() , NL ).putVar( end.data() );
+  put( g , "MaxPowerFlow" , NL , { 10 } );
+  put( g , "MinPowerFlow" , NL , { -10 } );
+  put( g , "ActivePowerDemand" , { NN , TH } , { 0 , 0 } );
+  auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+  check( uc && ( uc->get_number_nodes() == 2 ) , "carriers: a network "
+	 "with no unit and no GeneratorNode is not read" );
+  delete uc;
+  }
+
  // what cannot be read
  auto refused = []( const std::function< void( netCDF::NcGroup & ) > & spoil ,
 		    bool net , const std::string & what ) {

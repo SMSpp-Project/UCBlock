@@ -207,7 +207,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (1c); the standard names `kElectricity`, `kHeat`, `kGas` and `kHydrogen`
 
 - "GeneratorNode" indexed over the generators and the carriers, with -1
-  where a generator has no node on a carrier; such a generator gives
+  where a generator has no node on a carrier (and, as before, not needed
+  by a network with no generator at all); such a generator gives
   nothing to that carrier, and one with no node on the electricity is in no
   zone of the reserves and of the inertia; its emissions are counted at its
   node on the first carrier where it has one [see

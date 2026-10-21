@@ -884,8 +884,9 @@ void UCBlock::deserialize_generator_nodes( const netCDF::NcGroup & group )
 
  auto gn_var = group.getVar( "GeneratorNode" );
  if( gn_var.isNull() ) {
-  // every generator is then at the only node of each carrier
-  for( Index c = 0 ; c < nc ; ++c )
+  // every generator is then at the only node of each carrier, which with
+  // no generator at all (a network of demand only) says nothing
+  for( Index c = 0 ; f_number_elc_generators && ( c < nc ) ; ++c )
    if( get_number_nodes( c ) > 1 )
     throw( std::invalid_argument( "UCBlock::deserialize: GeneratorNode "
 				  "mandatory if a carrier has more than one "
