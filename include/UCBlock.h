@@ -1467,7 +1467,9 @@ class UCBlock : public Block
   * balances. The derivative of the value of this UCBlock with respect to
   * that factor is therefore a sum over those rows, of the dual of each row
   * times what the factor multiplies there, and only this UCBlock can compute
-  * it, the rows being its own.
+  * it, the rows being its own; so are the bounds of the node injections it
+  * gives to its NetworkBlock, which the factor multiplies too [see
+  * injection_bounds_linearization()].
   *
   * To that sum is added the term of the Objective of the unit, which under
   * the "k copies" reading carries the factor already
@@ -2696,10 +2698,24 @@ class UCBlock : public Block
   * is the part of the derivative of get_replicate_linearization() that comes
   * from those rows. The same terms are evaluated at the current solution
   * with one copy or more, and minimised over a mirror of the unit with 0
-  * copies [see get_zero_copy_linearization()]. */
+  * copies [see get_zero_copy_linearization()]. The bounds of the node
+  * injections of the NetworkBlock add their part to \p constant [see
+  * injection_bounds_linearization()]. */
 
  template< class F >
  void replicate_linking_terms( Index unit , F && term , double & constant );
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative of the bounds of the node injections w.r.t. a unit
+ /** Returns the sum, over the rows of the bounds of the node injections of
+  * the NetworkBlock of all the carriers and over those of the reactive ones
+  * of an ACNetworkBlock [see set_node_injection_bounds()], of minus the dual
+  * of each row times the derivative of its side, the one the sign of the
+  * dual says, with respect to the scale of the unit \p unit if \p copies,
+  * to its kappa otherwise: a unit at its bound shares the dual with the
+  * bound of its node, which the solver may take instead. */
+
+ double injection_bounds_linearization( Index unit , bool copies ) const;
 
 /*--------------------------------------------------------------------------*/
  /// the derivative of the value of this UCBlock w.r.t. the scale of a unit at 0

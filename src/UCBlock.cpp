@@ -55,6 +55,8 @@
 
 #include "BatteryUnitBlock.h"
 
+#include "ACNetworkBlock.h"
+
 #include "DCNetworkBlock.h"
 
 #include "HydroUnitBlock.h"
@@ -2726,6 +2728,10 @@ void UCBlock::replicate_linking_terms( Index unit , F && term ,
                      if( p && ip )
                       term( & p[ t ] , dual * ip[ t ] ); } );
 
+ // The bounds of the node injections - - - - - - - - - - - - - - - - - - - -
+
+ constant += injection_bounds_linearization( unit , true );
+
  // The pollutant budget constraints - - - - - - - - - - - - - - - - - - - - -
 
  // in the constraint of each zone the factor multiplies rho * p for each
@@ -2741,6 +2747,88 @@ void UCBlock::replicate_linking_terms( Index unit , F && term ,
    } );
 
 }  // end( UCBlock::replicate_linking_terms )
+
+/*--------------------------------------------------------------------------*/
+
+double UCBlock::injection_bounds_linearization( Index unit ,
+                                                bool copies ) const
+{
+ if( ! constraints_generated() )
+  return( 0 );
+
+ /* A bound of a node injection is the sum, over the generators at the node,
+  * of the scale times the upper bound of the design times the kappa of the
+  * unit times what the generator can inject [see set_node_injection_bounds()]:
+  * its derivative with respect to the scale, or to the kappa, is what
+  * multiplies it there, on the side that the sign of the dual says, as for
+  * the flow limits [see DCNetworkBlock::get_resize_linearization()]. */
+ const auto block = get_unit_block( unit );
+ const double factor = block->get_design_ub() *
+                       ( copies ? block->get_kappa() : block->get_scale() );
+ const auto obj_sign = ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+
+ Index first_generator = 0;
+ for( Index u = 0 ; u < unit ; ++u )
+  first_generator += get_unit_block( u )->get_number_generators();
+
+ double linearization = 0;
+ const auto add = [ & ]( const BoxConstraint & row , double mn , double mx ) {
+  const auto dual = row.get_dual();
+  linearization -= dual * factor * ( ( obj_sign * dual > 0 ) ? mn : mx );
+  };
+
+ for( Index c = 0 ; c < get_number_carriers() ; ++c ) {
+  const auto & networks = c ? v_carrier[ c ].v_network_blocks
+                            : v_network_blocks;
+  const auto & of_instant = c ? v_carrier[ c ].v_network_of_instant
+                              : v_network_of_instant;
+  for( Index t = 0 ; t < of_instant.size() ; ++t ) {
+   const auto [ n , i ] = of_instant[ t ];
+   const auto & rows = networks[ n ]->get_node_injection_bounds();
+   if( ! rows.num_elements() )
+    continue;
+   for( Index g = 0 ; g < block->get_number_generators() ; ++g ) {
+    const auto node = get_generator_node( first_generator + g , c );
+    if( node == Inf< Index >() )
+     continue;
+    const auto eta = get_carrier_efficiency( t , first_generator + g , c );
+    const auto p_mn = eta * block->get_min_power( t , g );
+    const auto p_mx = eta * block->get_max_power( t , g );
+    const auto fc = c ? nullptr : block->get_fixed_consumption( g );
+    add( rows[ node ][ i ] ,
+         std::min( { p_mn , p_mx , fc ? - fc[ t ] : 0 } ) ,
+         std::max( { 0.0 , p_mn , p_mx } ) );
+    }
+   }
+  }
+
+ // the reactive ones, on the carrier 0, of an ACNetworkBlock
+ if( f_has_reactive ) {
+  const auto thermal = dynamic_cast< const ThermalUnitBlock * >( block );
+  for( Index t = 0 ; t < v_network_of_instant.size() ; ++t ) {
+   const auto [ n , i ] = v_network_of_instant[ t ];
+   const auto ac = dynamic_cast< const ACNetworkBlock * >(
+                                                     v_network_blocks[ n ] );
+   if( ( ! ac ) || ac->get_reactive_node_injection_bounds().empty() )
+    continue;
+   const auto & rows = ac->get_reactive_node_injection_bounds();
+   for( Index g = 0 ; g < block->get_number_generators() ; ++g ) {
+    const auto node = get_generator_node( first_generator + g , 0 );
+    if( node == Inf< Index >() )
+     continue;
+    double q_mn = block->get_min_reactive_power( t , g );
+    double q_mx = block->get_max_reactive_power( t , g );
+    if( thermal ) {
+     q_mn += std::min( 0.0 , thermal->get_min_reactive_power_on( t , g ) );
+     q_mx += std::max( 0.0 , thermal->get_max_reactive_power_on( t , g ) );
+     }
+    add( rows[ node ] , q_mn , q_mx );
+    }
+   }
+  }
+
+ return( linearization );
+ }  // end( UCBlock::injection_bounds_linearization )
 
 /*--------------------------------------------------------------------------*/
 
@@ -3519,6 +3607,8 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
   const auto unit = get_unit_block( units[ k ] );
   std::invoke( query( unit , "unit" , units[ k ] ) , unit ,
                msp.subspan( k , 1 ) , Range( 0 , 1 ) );
+  // the bounds of the node injections, which the unit does not see
+  msp[ k ] += injection_bounds_linearization( units[ k ] , false );
   }
  }
 
@@ -3546,6 +3636,8 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
   std::invoke( query( unit , "unit" , units[ k ] ) , unit ,
                msp.subspan( k , 1 ) , second_msp.subspan( k , 1 ) ,
                Range( 0 , 1 ) );
+  // the bounds of the node injections, in which only the first kappa is
+  msp[ k ] += injection_bounds_linearization( units[ k ] , false );
   }
  }
 

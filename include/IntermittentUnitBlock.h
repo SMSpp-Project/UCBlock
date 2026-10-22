@@ -1200,7 +1200,9 @@ class IntermittentUnitBlock : public UnitBlock
   //   coupling multiplies by get_scale(); only its Objective is rewritten;
   //
   // - resize: this UnitBlock stands for one unit of k times the size it was
-  //   given. Its own rows are rewritten and no consumer multiplies anything.
+  //   given. Its own rows are rewritten, and the UCBlock multiplies its
+  //   kappa in the bounds of the node injections only [see
+  //   UCBlock::set_node_injection_bounds()].
   //
   // The old names are kept so that instances naming them keep working: a
   // registered name travels inside the instances, and dropping one breaks

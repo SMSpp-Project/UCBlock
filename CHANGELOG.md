@@ -473,6 +473,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the derivatives of the value of a UCBlock with respect to the size of a
+  unit, `get_replicate_linearization` (also at zero copies) and
+  `get_resize_unit_linearization`, count the duals of the bounds of the
+  node injections that the UCBlock gives to its NetworkBlock, which the
+  scale and the kappa of the unit multiply: those of an `ECNetworkBlock`,
+  on every carrier, and the reactive ones of an `ACNetworkBlock` (given
+  by `NetworkBlock::get_node_injection_bounds()` and
+  `ACNetworkBlock::get_reactive_node_injection_bounds()`). A unit at its
+  maximum alone at its node shares the dual with the bound of the node,
+  where the solver may put it, and the derivative was then 0 (-30000 on
+  the energy community of the test)
 - a `DesignNetworkBlock` over `ACNetworkBlock` forwards to its sub-networks
   `handles_reactive()`, the bounds of the reactive node injections, the
   reactive node injections and the reactive demand, as it does with the

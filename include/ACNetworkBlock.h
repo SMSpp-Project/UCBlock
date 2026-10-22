@@ -973,6 +973,16 @@ class ACNetworkData : public DCNetworkData
 
  bool handles_reactive( void ) const override { return( true ); }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the bounds of the reactive node injections, one per node
+ /** Returns the rows "Reactive_Node_Injection_Bound_Const_Network" of
+  * generate_abstract_constraints(), empty before they are generated. */
+
+ const std::vector< BoxConstraint > &
+  get_reactive_node_injection_bounds( void ) const {
+  return( reactive_node_injection_bounds_const );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ACNetworkBlock --------*/
 /*--------------------------------------------------------------------------*/
