@@ -473,6 +473,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- a `DesignNetworkBlock` over `ACNetworkBlock` forwards to its sub-networks
+  `handles_reactive()`, the bounds of the reactive node injections, the
+  reactive node injections and the reactive demand, as it does with the
+  active ones: the UCBlock, which asks its first NetworkBlock whether the
+  model has reactive power, left out the reactive balance, the reactive
+  power of the units and the bounds of the sub-networks, and solved a
+  relaxation with no error (on case_2zones_transformer with the design
+  of a line fixed at 1, 4066.29 instead of 4071.3)
 - `scale()` of `IntermittentUnitBlock`, `BatteryUnitBlock` and
   `ConversionUnitBlock` refuses a scale other than 1 on a unit whose design
   has more than one module (or, for the `ConversionUnitBlock`, with more
