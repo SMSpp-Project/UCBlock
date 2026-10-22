@@ -161,12 +161,89 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
+void UnitBlock::deserialize_outputs( const netCDF::NcGroup & group )
+{
+ static const std::string who = "::deserialize: ";
+
+ f_number_outputs = 0;
+ f_output_generators = 0;
+ v_output_carrier.clear();
+ v_output_efficiency.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
+
+ // without "NumberOutputs", the only output kElectricity, with efficiency 1;
+ // the dimension is that of the group, not of the UCBlock above it
+ Index K = 0;
+ if( ! deserialize_local_dim( group , "NumberOutputs" , K ) )
+  return;
+ if( ! K )
+  throw( std::invalid_argument( classname() + who + "NumberOutputs is 0" ) );
+
+ // OutputCarrier, [ outputs ] or [ generators ][ outputs ]
+ auto oc = group.getVar( "OutputCarrier" );
+ if( oc.isNull() )
+  throw( std::invalid_argument( classname() + who + "OutputCarrier "
+				"mandatory with NumberOutputs" ) );
+ const auto ocd = oc.getDimCount();
+ if( ( ocd < 1 ) || ( ocd > 2 ) || ( oc.getDim( ocd - 1 ).getSize() != K ) )
+  throw( std::invalid_argument( classname() + who + "OutputCarrier must "
+				"be indexed over [ generators , ] "
+				"NumberOutputs" ) );
+ const Index G = ( ocd == 2 ) ? oc.getDim( 0 ).getSize() : 1;
+ if( ! G )
+  throw( std::invalid_argument( classname() + who + "OutputCarrier over 0 "
+				"generators" ) );
+ std::vector< char * > names( G * K );
+ oc.getVar( names.data() );
+ v_output_carrier.assign( names.begin() , names.end() );
+ for( auto n : names )
+  free( n );
+ f_number_outputs = K;
+ f_output_generators = G;
+
+ // OutputEfficiency, [ 1 or time ][ outputs ] or [ 1 or time ][ 1 or
+ // generators ][ outputs ]
+ auto oe = group.getVar( "OutputEfficiency" );
+ if( oe.isNull() )
+  throw( std::invalid_argument( classname() + who + "OutputEfficiency "
+				"mandatory with NumberOutputs" ) );
+ const auto oed = oe.getDimCount();
+ if( ( oed < 2 ) || ( oed > 3 ) || ( oe.getDim( oed - 1 ).getSize() != K ) )
+  throw( std::invalid_argument( classname() + who + "OutputEfficiency must "
+				"be indexed over TimeHorizon , [ generators , ] "
+				"NumberOutputs" ) );
+ const Index Tn = oe.getDim( 0 ).getSize();
+ const Index Gn = ( oed == 3 ) ? oe.getDim( 1 ).getSize() : 1;
+ if( ( ( Tn != 1 ) && ( Tn != f_time_horizon ) ) || ( ! Gn ) )
+  throw( std::invalid_argument( classname() + who + "OutputEfficiency must "
+				"have size [ 1 or TimeHorizon , [ 1 or "
+				"generators , ] NumberOutputs ]" ) );
+ v_output_efficiency.resize( boost::extents[ Tn ][ Gn ][ K ] );
+ oe.getVar( v_output_efficiency.data() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::check_outputs( void ) const
+{
+ const auto G = get_number_generators();
+ if( ( ( f_output_generators > 1 ) && ( f_output_generators != G ) ) ||
+     ( ( ! v_output_efficiency.empty() ) &&
+       ( v_output_efficiency.shape()[ 1 ] > 1 ) &&
+       ( v_output_efficiency.shape()[ 1 ] != G ) ) )
+  throw( std::invalid_argument( classname() + "::deserialize: the outputs "
+				"are given over a number of generators other "
+				"than " + std::to_string( G ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void UnitBlock::deserialize( const netCDF::NcGroup & group )
 {
  Block::deserialize( group );
 
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
+ deserialize_outputs( group );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -177,6 +254,7 @@ std::vector< std::string > UnitBlock::expected_dims( void ) const {
  auto ret = Block::expected_dims();
  ret.push_back( "TimeHorizon" );
  ret.push_back( "NumberIntervals" );
+ ret.push_back( "NumberOutputs" );
 
  return( ret );
  }
@@ -186,6 +264,8 @@ std::vector< std::string > UnitBlock::expected_dims( void ) const {
 std::vector< std::string > UnitBlock::expected_vars( void ) const {
  auto ret = Block::expected_vars();
  ret.push_back( "ChangeIntervals" );
+ ret.push_back( "OutputCarrier" );
+ ret.push_back( "OutputEfficiency" );
 
  return( ret );
  }
@@ -307,8 +387,53 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const
      ( f_number_intervals < f_time_horizon ) ) {
   auto NI = group.addDim( "NumberIntervals" , f_number_intervals );
 
-  ::serialize( group , "ChangeInterval" , netCDF::NcUint64() , NI ,
+  ::serialize( group , "ChangeIntervals" , netCDF::NcUint64() , NI ,
                v_change_intervals );
+  }
+
+ serialize_outputs( group );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::serialize_outputs( netCDF::NcGroup & group ) const
+{
+ if( v_output_carrier.empty() )
+  return;  // the only output kElectricity, with efficiency 1
+
+ auto NO = group.addDim( "NumberOutputs" , f_number_outputs );
+ const auto shp = v_output_efficiency.shape();
+
+ // the dimension of the generators, if anything is given per generator
+ netCDF::NcDim NG;
+ if( ( f_output_generators > 1 ) || ( shp[ 1 ] > 1 ) )
+  NG = group.addDim( "NumberOutputGenerators" ,
+		     std::max< Index >( f_output_generators , shp[ 1 ] ) );
+
+ if( f_output_generators > 1 ) {
+  std::vector< const char * > names( v_output_carrier.size() );
+  std::transform( v_output_carrier.begin() , v_output_carrier.end() ,
+		  names.begin() ,
+		  []( const std::string & n ) { return( n.c_str() ); } );
+  group.addVar( "OutputCarrier" , netCDF::NcString() , { NG , NO } ).putVar(
+							       names.data() );
+  }
+ else
+  ::serialize( group , "OutputCarrier" , NO , v_output_carrier );
+
+ // the first dimension is a singleton if the efficiencies do not depend on
+ // time
+ auto TH = group.getDim( "TimeHorizon" );
+ if( shp[ 1 ] > 1 )
+  ::serialize( group , "OutputEfficiency" , netCDF::NcDouble() ,
+	       { TH , NG , NO } , v_output_efficiency , false , true );
+ else {
+  MAdouble eff( MAdouble_ext()[ shp[ 0 ] ][ f_number_outputs ] );
+  std::copy( v_output_efficiency.data() ,
+	     v_output_efficiency.data() + v_output_efficiency.num_elements() ,
+	     eff.data() );
+  ::serialize( group , "OutputEfficiency" , netCDF::NcDouble() ,
+	       { TH , NO } , eff , false , true );
   }
  }
 

@@ -28,6 +28,19 @@ back-pressure plant with its electricity on node 0 and its heat on node 3, a
 peaker on node 2 and a boiler on node 3, demands 100 on nodes 2 and 3 over
 4 instants: Kirchhoff's voltage law caps the plant at 60.
 
+The back-pressure cases (bp, bpres, bppol) and the mesh are also written with
+two carriers, the electricity and the heat (me_<case>_carrier.nc4): the plant
+is a ThermalUnitBlock whose outputs are 1 on the electricity and 1.25 on the
+heat (see UnitBlock::get_output_efficiency()), the boiler and the store are
+on the heat alone, and a unit whose output is -1 on the heat (0 to 1000, at
+no cost) takes the place of the line that dumps it. In bppol the boiler, which
+has no node on the electricity, emits in the zone of its node on the heat.
+The extraction-condensing plant, whose heat is not a fixed share of its
+electricity, has no such form; all the cases, it included, are also written
+with the two carriers and the plant as the ConversionUnitBlock of the unit
+form, whose generators have their output on the electricity and on the heat
+respectively (me_<case>_unitcarrier.nc4).
+
 usage: gen_multi_energy.py <output directory>
 
 The instances are written by ncgen from their CDL, and the reference
@@ -54,13 +67,30 @@ def fmt(v):
                      if not isinstance(x, int) else str(x) for x in v)
 
 
-def thermal(i, pmin, pmax, lin, cst, suc, prho=0.0):
-    o = ["group: UnitBlock_%d {" % i, "variables:", " double MinPower ;",
+def outputs(carriers, eta):
+    """The declarations and the data of the outputs of a unit."""
+    if not carriers:
+        return [], [], []
+    dims = ["dimensions:", " NumberOutputs = %d ;" % len(carriers),
+            " OutputTime = 1 ;"]
+    var = [" string OutputCarrier(NumberOutputs) ;",
+           " double OutputEfficiency(OutputTime, NumberOutputs) ;"]
+    data = [" OutputCarrier = %s ;" % ", ".join('"%s"' % c
+                                                for c in carriers),
+            " OutputEfficiency = %s ;" % fmt(eta)]
+    return dims, var, data
+
+
+def thermal(i, pmin, pmax, lin, cst, suc, prho=0.0, out=((), ())):
+    dims, ovar, odata = outputs(*out)
+    o = ["group: UnitBlock_%d {" % i] + dims + ["variables:",
+                                                " double MinPower ;",
          " double MaxPower ;", " double LinearTerm ;", " double ConstTerm ;",
          " double StartUpCost ;", " double InitialPower ;",
          " int InitUpDownTime ;", " uint MinUpTime ;", " uint MinDownTime ;"]
     if prho > 0:
         o += [" double PrimaryRho ;"]
+    o += ovar
     o += [':type = "ThermalUnitBlock" ;', "data:",
           " MinPower = %r ;" % float(pmin), " MaxPower = %r ;" % float(pmax),
           " LinearTerm = %r ;" % float(lin), " ConstTerm = %r ;" % float(cst),
@@ -69,16 +99,19 @@ def thermal(i, pmin, pmax, lin, cst, suc, prho=0.0):
           " MinUpTime = 1 ;", " MinDownTime = 1 ;"]
     if prho > 0:
         o += [" PrimaryRho = %r ;" % prho]
-    return o + ["}"]
+    return o + odata + ["}"]
 
 
-def battery(i):
-    return ["group: UnitBlock_%d {" % i, "variables:", " double MinPower ;",
-            " double MaxPower ;", " double MaxStorage ;",
-            " double MinStorage ;", " double InitialStorage ;",
-            ':type = "BatteryUnitBlock" ;', "data:", " MinPower = -50.0 ;",
-            " MaxPower = 50.0 ;", " MaxStorage = 100.0 ;",
-            " MinStorage = 0.0 ;", " InitialStorage = 0.0 ;", "}"]
+def battery(i, out=((), ())):
+    dims, ovar, odata = outputs(*out)
+    return (["group: UnitBlock_%d {" % i] + dims +
+            ["variables:", " double MinPower ;",
+             " double MaxPower ;", " double MaxStorage ;",
+             " double MinStorage ;", " double InitialStorage ;"] + ovar +
+            [':type = "BatteryUnitBlock" ;', "data:", " MinPower = -50.0 ;",
+             " MaxPower = 50.0 ;", " MaxStorage = 100.0 ;",
+             " MinStorage = 0.0 ;", " InitialStorage = 0.0 ;"] + odata +
+            ["}"])
 
 
 def conversion(i, ec, res, limits=True):
@@ -236,6 +269,113 @@ def cdl_mesh():
     return "\n".join(o + ["}", "}"]) + "\n"
 
 
+def with_outputs(unit, carriers):
+    """The ConversionUnitBlock unit with one output per generator, on the
+    given carriers, with efficiency 1."""
+    o = list(unit)
+    i = o.index("dimensions:") + 1
+    o[i:i] = [" NumberOutputs = 1 ;", " OutputTime = 1 ;"]
+    i = next(k for k, l in enumerate(o) if l.startswith(":type"))
+    o[i:i] = [" string OutputCarrier(NumberGenerators, NumberOutputs) ;",
+              " double OutputEfficiency(OutputTime, NumberGenerators, "
+              "NumberOutputs) ;"]
+    o[-1:-1] = [" OutputCarrier = %s ;" % ", ".join('"%s"' % c
+                                                    for c in carriers),
+                " OutputEfficiency = %s ;" % fmt([1.0] * len(carriers))]
+    return o
+
+
+def cdl_carrier(name, cub=False):
+    """A back-pressure case, or the mesh, with the electricity and the heat
+    as two carriers; with cub (and also for the extraction-condensing case)
+    the plant is the ConversionUnitBlock of the unit form, whose generators
+    have their outputs on the electricity and on the heat."""
+    res, pol, mesh, ec = (name == "bpres", name == "bppol", name == "mesh",
+                          name == "ec")
+    heat = (["heat"], [1.0])
+    ng = (3 if mesh else 5) + (1 if cub else 0)
+    o = ["netcdf me_%s_%s {" % (name, "unitcarrier" if cub else "carrier"),
+         ":SMS++_file_type = 1 ;",
+         "group: Block_0 {", "dimensions:", " TimeHorizon = %d ;" % T,
+         " NumberUnits = %d ;" % (ng - (1 if cub else 0)),
+         " NumberGenerators = %d ;" % ng,
+         " NumberCarriers = 2 ;", " NumberNodes = %d ;" % (3 if mesh else 1)]
+    if mesh:
+        o += [" NumberLines = 3 ;"]
+    if res:
+        o += [" NumberPrimaryZones = 1 ;"]
+    if pol:
+        o += [" NumberPollutants = 1 ;", " PolOne = 1 ;"]
+    o += ["variables:", " string CarrierName(NumberCarriers) ;",
+          " double ActivePowerDemand(NumberNodes, TimeHorizon) ;",
+          " int GeneratorNode(NumberGenerators, NumberCarriers) ;"]
+    if mesh:
+        o += [" uint StartLine(NumberLines) ;", " uint EndLine(NumberLines) ;",
+              " double LineSusceptance(NumberLines) ;",
+              " double MaxPowerFlow(NumberLines) ;",
+              " double MinPowerFlow(NumberLines) ;"]
+    if res:
+        o += [" double PrimaryDemand(NumberPrimaryZones, TimeHorizon) ;"]
+    if pol:
+        o += [" uint NumberPollutantZones(NumberPollutants) ;",
+              " double PollutantBudget(PolOne) ;",
+              " double PollutantRho(PolOne, NumberPollutants, "
+              "NumberGenerators) ;"]
+    # the plant, the peaker, the boiler, the store and the dump of the heat
+    # on the electricity and on the heat; the mesh has no store and no dump
+    plant_nodes = [0, -1, -1, 0] if cub else [0, 0]
+    if mesh:
+        nodes = plant_nodes + [2, -1, -1, 0]
+    else:
+        nodes = plant_nodes + [0, -1, -1, 0, -1, 0, -1, 0]
+    o += [':type = "UCBlock" ;', "data:",
+          ' CarrierName = "electricity", "heat" ;',
+          " ActivePowerDemand = %s ;" % fmt([0] * 2 * T + [100] * T if mesh
+                                            else DE),
+          " GeneratorNode = %s ;" % fmt(nodes)]
+    if mesh:
+        o += [" StartLine = 0, 1, 0 ;", " EndLine = 1, 2, 2 ;",
+              " LineSusceptance = 5.0, 5.0, 5.0 ;",
+              " MaxPowerFlow = 1000.0, 1000.0, 40.0 ;",
+              " MinPowerFlow = -1000.0, -1000.0, -40.0 ;"]
+    if res:
+        o += [" PrimaryDemand = 5, 5, 5, 5 ;"]
+    if pol:
+        o += [" NumberPollutantZones = 1 ;", " PollutantBudget = 177.0 ;",
+              " PollutantRho = %s ;" % fmt(([0.5, 0.0] if cub else [0.5]) +
+                                           [0.2, 0.25, 0.0, 0.0])]
+    # the heat: one node with its demand, in the only zone of the pollutant
+    o += ["group: Carrier_1 {", "dimensions:", " NumberNodes = 1 ;",
+          "variables:", " double EnergyDemand(NumberNodes, TimeHorizon) ;"]
+    if pol:
+        o += [" uint PollutantZones(NumberPollutants, NumberNodes) ;"]
+    o += ["data:", " EnergyDemand = %s ;" % fmt([100] * T if mesh else DH)]
+    if pol:
+        o += [" PollutantZones = 0 ;"]
+    o += ["}"]
+    plant = (["electricity", "heat"], [1.0, 1.25])
+    if cub:
+        c = conversion(0, ec, res, not mesh)
+        if mesh:
+            # no start-up and no fixed cost: the plant runs at 60
+            c = [l.replace("ConstTerm = 100.0", "ConstTerm = 0.0")
+                  .replace("StartUpCost = 500.0", "StartUpCost = 0.0")
+                 for l in c]
+        o += with_outputs(c, ["electricity", "heat"])
+    elif mesh:
+        # no start-up and no fixed cost: the plant runs at 60 at every instant
+        o += thermal(0, 30, 100, 40, 0, 0, out=plant)
+    else:
+        o += thermal(0, 30, 100, 40, 100, 500, 0.1 if res else 0.0,
+                     out=plant)
+    o += thermal(1, 0, 300, 100, 0, 0, 0.5 if res else 0.0)
+    o += thermal(2, 0, 300, 60, 0, 0, out=heat)
+    if not mesh:
+        o += battery(3, out=heat)
+        o += thermal(4, 0, 1000, 0, 0, 0, out=(["heat"], [-1.0]))
+    return "\n".join(o + ["}", "}"]) + "\n"
+
+
 def write(out, name, text):
     c = out / (name + ".cdl")
     c.write_text(text)
@@ -256,6 +396,12 @@ def main():
             print("REF_OBJ[%s.nc4]=%s" % (nm, REF[name]))
     write(out, "me_mesh_unit", cdl_mesh())
     print("REF_OBJ[me_mesh_unit.nc4]=%s" % REF["mesh"])
+    for name in ("bp", "bpres", "bppol", "mesh"):
+        write(out, "me_%s_carrier" % name, cdl_carrier(name))
+        print("REF_OBJ[me_%s_carrier.nc4]=%s" % (name, REF[name]))
+    for name in ("bp", "bpres", "bppol", "ec", "mesh"):
+        write(out, "me_%s_unitcarrier" % name, cdl_carrier(name, True))
+        print("REF_OBJ[me_%s_unitcarrier.nc4]=%s" % (name, REF[name]))
 
 
 if __name__ == "__main__":

@@ -130,7 +130,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 {
  NetworkData::deserialize( group );
 
- if( ! deserialize_dim( group , "ReferenceNode" , f_reference_node , true ) )
+ if( ! deserialize_local_dim( group , "ReferenceNode" , f_reference_node ,
+			      true ) )
   f_reference_node = 0;
 
  if( f_reference_node >= f_number_nodes )
@@ -143,14 +144,14 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  if( f_number_nodes == 1 )
   return;
 
- deserialize_dim( group , "NumberLines" , f_number_lines , false );
+ deserialize_local_dim( group , "NumberLines" , f_number_lines , false );
 
- if( ! deserialize_dim( group , "NumberBranches" , f_number_branches ,
-			true ) )
+ if( ! deserialize_local_dim( group , "NumberBranches" , f_number_branches ,
+			      true ) )
   f_number_branches = f_number_lines;
 
  Index time_instants = 1;
- deserialize_dim( group , "NumberInstants" , time_instants , true );
+ deserialize_local_dim( group , "NumberInstants" , time_instants , true );
  
  ::deserialize( group , "StartLine" , f_number_branches , v_start_line ,
                 false , false );
@@ -731,7 +732,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  // deal with the DCNetworkData first
 
  Index NumberNodes;
- if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+ if( deserialize_local_dim( group , "NumberNodes" , NumberNodes ) ) {
   // since the dimension "NumberNodes" has been provided, a DCNetworkData
   // is there: deserialize is and mark it as being local
   if( f_local_NetworkData ) {   // if the NetworkData has not been passed
@@ -776,6 +777,9 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
    }
   }
 
+ // the constants of the lines, all 1 if not given [see set_kappa()]
+ ::deserialize( group , "Kappa" , get_number_lines() , v_kappa );
+
  // note: NetworkBlock::deserialize() is called after dealing with the
  //       DCNetworkData, so that it's there when the list of expected stuff
  //       is constructed and checked
@@ -790,6 +794,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 std::vector< std::string > DCNetworkBlock::expected_vars( void ) const {
  auto ret = NetworkBlock::expected_vars();
  ret.push_back( "ActiveDemand" );
+ ret.push_back( "Kappa" );
 
  return( ret );
  }
@@ -1943,6 +1948,13 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                NumberNodes , v_ActiveDemand );
   }
+
+ // the constants of the lines, if one is not 1 [see set_kappa()], over the
+ // dimension "NumberLines" that the DCNetworkData has written
+ if( std::any_of( v_kappa.begin() , v_kappa.end() ,
+                  []( double kappa ) { return( kappa != 1 ); } ) )
+  ::serialize( group , "Kappa" , netCDF::NcDouble() ,
+               group.getDim( "NumberLines" ) , v_kappa );
  }  // end( DCNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/

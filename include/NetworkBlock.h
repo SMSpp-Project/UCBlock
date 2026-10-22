@@ -65,6 +65,33 @@ namespace SMSpp_di_unipi_it
  class NetworkBlockSolution;  // forward definition of NetworkBlockSolution
 
 /*--------------------------------------------------------------------------*/
+/*------------------------------- FUNCTIONS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// reads a dimension of the given group itself, not of those above it
+/** As deserialize_dim() [see SMSnetCDF.h], but the dimension is looked for
+ * in \p group only: netCDF::NcGroup::getDim() would also take it from an
+ * enclosing group, where it may be that of another network, e.g., that of
+ * the carrier 0 of a UCBlock while the group of another carrier is read, or
+ * that of the UCBlock while the group of one of its NetworkBlock is. The
+ * NetworkData and the NetworkBlock read their dimensions with this. */
+
+template< typename T >
+inline bool deserialize_local_dim( const netCDF::NcGroup & group ,
+				   const std::string & name , T & data ,
+				   bool optional = true ) {
+ auto ncDim = group.getDim( name , netCDF::NcGroup::Current );
+ if( ncDim.isNull() ) {
+  if( optional )
+   return( false );
+  throw( std::invalid_argument( "deserialize_local_dim(): " + name +
+                                " not present in group " + group.getName() ) );
+  }
+
+ data = ncDim.getSize();
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/

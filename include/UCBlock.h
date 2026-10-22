@@ -190,11 +190,12 @@ class UCBlock : public Block
   *   to be 1, i.e., the network is a single node (a bus), in which case the
   *   UCBlock has no NetworkBlock (see "NetworkBlock_i" below).
   *
-  * - The dimension "NumberElectricalGenerators" containing the overall number
-  *   of electrical generators for each UnitBlock of the problem. This
-  *   dimension is optional. If it is not provided, it is taken to be the sum
-  *   of the electrical generators of each UnitBlock, so, if each of these
-  *   will have just one electrical generator, i.e., no HydroUnitBlock or
+  * - The dimension "NumberGenerators" containing the overall number of
+  *   generators for each UnitBlock of the problem;
+  *   "NumberElectricalGenerators", its former name, is read if it is not
+  *   there. This dimension is optional. If it is not provided, it is taken
+  *   to be the sum of the generators of each UnitBlock, so, if each of these
+  *   will have just one generator, i.e., no HydroUnitBlock or
   *   HydroSystemUnitBlock will be provided, it is taken to be the same as
   *   "NumberUnits". If it is provided, it must be that sum, otherwise
   *   std::invalid_argument is thrown.
@@ -349,18 +350,31 @@ class UCBlock : public Block
   *     obviously it must be NetworkBlock::get_number_intervals() == 1 (the
   *     default).
   *
-  * - The variable "GeneratorNode", of type netCDF::NcUint and indexed over
-  *   the set { 0 , ... , NumberElectricalGenerators - 1 }; GeneratorNode[ g ]
-  *   tells to which node of the transmission network the specified electrical
-  *   generator g belongs. Note that this means that different electrical
+  * - The variable "GeneratorNode", of type netCDF::NcUint (or
+  *   netCDF::NcInt) and indexed over the set { 0 , ... , NumberGenerators - 1
+  *   }; GeneratorNode[ g ] tells to which node of the transmission network
+  *   the specified generator g belongs. Note that this means that different
   *   generators in the same UnitBlock can belong to different nodes of the
   *   transmission network. This is justified, e.g., by hydro cascade units
   *   where different turbines can be rather far apart geographically, but
-  *   still linked by (long) stretches of rivers. If NumberElectricalGenerators
-  *   == NumberUnits (all UnitBlock have exactly one electrical generator),
-  *   then this variable is indexed over NumberUnits. If NumberNodes == 1
-  *   (say, it is not provided at all), then this variable need not be
-  *   defined, since it is not used.
+  *   still linked by (long) stretches of rivers. If NumberGenerators ==
+  *   NumberUnits (all UnitBlock have exactly one generator), then this
+  *   variable is indexed over NumberUnits. If every carrier has one node
+  *   (say, "NumberNodes" is not provided at all and there is no other
+  *   carrier), or if there is no generator at all, then this variable need
+  *   not be defined, since it is not used.
+  *   With more than one carrier (see "NumberCarriers" below) the variable can
+  *   also be of type netCDF::NcInt and indexed over the generators and over
+  *   "NumberCarriers": GeneratorNode[ g , c ] is the node of generator g on
+  *   carrier c, i.e., among the nodes of that carrier, and -1 if the
+  *   generator has none there. A generator with no node on a carrier gives
+  *   nothing to it, whatever its outputs (see
+  *   UnitBlock::get_output_carrier()), and one with no node on the carrier 0
+  *   is in no zone of the reserves and of the inertia, which are of the
+  *   electricity. The variable must have two dimensions if a carrier other
+  *   than 0 has more than one node; with one dimension it gives the nodes on
+  *   the carrier 0, every generator being at the only node of the other
+  *   carriers.
   *
   * - The dimension "NumberPrimaryZones" tells how many "primary spinning
   *   reserve zones" are there in the problem. The dimension is optional, if it
@@ -556,7 +570,72 @@ class UCBlock : public Block
   *
   * - The variable "NetworkDataClassname", of type netCDF::NcString specifies
   *   the classname of the specific NetworkData to be instantiated, if no one
-  *   is explicitly given in input; the default value is "DCNetworkData". */
+  *   is explicitly given in input; the default value is "DCNetworkData".
+  *
+  * - The dimension "NumberCarriers", the number of energy carriers
+  *   (electricity, heat, gas, hydrogen, ...), each with its own nodes,
+  *   network and demand, and each with the balance of its nodes; it is
+  *   optional, its default being 1, i.e., the electricity alone, which is
+  *   the model of all the data above. The carrier 0 is the electricity, the
+  *   one described by all the data above ("NumberNodes", the NetworkData,
+  *   "ActivePowerDemand", the zones, the "NetworkBlock_i"), whose nodes are
+  *   the "nodes" of the rest of this description; the carriers c > 0 are
+  *   described by the groups "Carrier_c" below. A generator gives to a
+  *   carrier what its outputs on that carrier give, i.e., the sum of their
+  *   efficiencies times its active power (see UnitBlock::get_number_outputs()
+  *   and the rows (1) and (1c) of generate_abstract_constraints()), at its
+  *   node on the carrier (see "GeneratorNode" above).
+  *
+  * - The variable "CarrierName", of type netCDF::NcString and indexed over
+  *   "NumberCarriers": CarrierName[ c ] is the name of carrier c, as the
+  *   outputs of the UnitBlock name it (see UnitBlock::get_output_carrier(),
+  *   whose standard names are UnitBlock::kElectricity, UnitBlock::kHeat,
+  *   UnitBlock::kGas and UnitBlock::kHydrogen). The names must be distinct;
+  *   UnitBlock::kElectricity is the carrier 0 whatever its name here, and it
+  *   cannot name another carrier. An output on a carrier that the UCBlock
+  *   does not have is ignored (the unit is then, e.g., a gas turbine whose
+  *   fuel is only in its cost). The variable is optional with one carrier,
+  *   and mandatory with more.
+  *
+  * - For each carrier c = 1 , ... , NumberCarriers - 1, the group
+  *   "Carrier_c", whose dimensions are those of the group itself, never those
+  *   of the UCBlock group above it (see deserialize_local_dim()); without it
+  *   the carrier has one node and no demand. It contains:
+  *
+  *   - the dimension "NumberNodes", the number of nodes of the carrier,
+  *     numbered 0 , ... , NumberNodes - 1 within it, 1 if it is not there;
+  *
+  *   - with more than one node, the data of the NetworkData of the network
+  *     of the carrier (see NetworkBlock::NetworkData::deserialize()), with
+  *     their own "NumberLines" and so on, and the variables
+  *     "NetworkBlockClassname" and "NetworkDataClassname", with the same
+  *     meaning and defaults as above; the UCBlock builds one NetworkBlock of
+  *     the carrier per time instant, which handles active power only (the
+  *     reactive power is of the electricity);
+  *
+  *   - with more than one node, optionally, the NetworkBlock of the carrier,
+  *     as those of the carrier 0: the dimension "NumberNetworks", their
+  *     number, and the group "NetworkBlock_n" of the n-th, which gets the
+  *     NetworkData of the carrier and covers as many consecutive instants as
+  *     it has intervals; this is how a network whose lines have a design,
+  *     i.e., a DesignNetworkBlock covering the whole horizon, is given. The
+  *     NetworkBlock that are not given, and all of them if neither is there,
+  *     are built by the UCBlock, one per instant, and the demand of the
+  *     NetworkBlock is EnergyDemand below in any case;
+  *
+  *   - the variable "EnergyDemand", of type netCDF::NcDouble and indexed over
+  *     "NumberNodes" and "TimeHorizon": EnergyDemand[ n , t ] is the demand
+  *     of node n of the carrier at time t; it is optional, the demand being
+  *     0 if it is not there;
+  *
+  *   - the variable "PollutantZones", of type netCDF::NcUint and indexed over
+  *     "NumberPollutants" and "NumberNodes", with the same meaning and rules
+  *     as "PollutantZones" above for the nodes of the carrier: the zones of a
+  *     pollutant are shared by all the carriers, and a zone may hold nodes of
+  *     any of them. The emissions of a generator are at its node on the
+  *     carrier 0, or, if it has none, at its node on the first carrier where
+  *     it has one (see get_generator_pollutant_zone()), and the storages of a
+  *     unit are where its first generator is. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -650,26 +729,52 @@ class UCBlock : public Block
   * - Active power node injection constraints. Let \f$ P^{au}_{t,g} \geq 0
   *   \f$ be the power that generator \f$ g \f$ draws when it is off (see
   *   UnitBlock::get_fixed_consumption()), counted only if the generator has
-  *   commitment variables. If get_number_nodes() > 1, for each
+  *   commitment variables, and \f$ \eta_{t,g} \f$ the sum of the
+  *   efficiencies of its outputs on the electricity (see
+  *   UnitBlock::get_output_efficiency()), 1 for a generator with the
+  *   default output only. If get_number_nodes() > 1, for each
   *   \f$ t \in \mathcal{T} \f$ and \f$ n = 0 , \ldots , N - 1 \f$
   *   \f[
-  *     \sum_{ g \in \mathcal{G}_n } \sigma_g \bigl( p^{ac}_{t,g}
+  *     \sum_{ g \in \mathcal{G}_n } \sigma_g \bigl( \eta_{t,g} p^{ac}_{t,g}
   *       - P^{au}_{t,g} ( 1 - u_{t,g} ) \bigr) - S_{t,n} = 0 \; , \tag{1}
   *   \f]
-  *   written as \f$ \sum_g \sigma_g ( p^{ac}_{t,g} + P^{au}_{t,g} u_{t,g} )
-  *   - S_{t,n} = \sum_g \sigma_g P^{au}_{t,g} \f$; \f$ S_{t,n} \f$ is the
+  *   written as \f$ \sum_g \sigma_g ( \eta_{t,g} p^{ac}_{t,g} + P^{au}_{t,g}
+  *   u_{t,g} ) - S_{t,n} = \sum_g \sigma_g P^{au}_{t,g} \f$; \f$ S_{t,n}
+  *   \f$ is the
   *   node injection of the NetworkBlock that covers instant \f$ t \f$, whose
   *   node balances, with the demand \f$ D^{ac}_{t,n} \f$, complete the
   *   balance of active power (see \ref ucbm_link_ac). If the network has a
   *   single node there is no NetworkBlock, and the row is
   *   \f[
-  *     \sum_{ g \in \mathcal{G} } \sigma_g \bigl( p^{ac}_{t,g}
+  *     \sum_{ g \in \mathcal{G} } \sigma_g \bigl( \eta_{t,g} p^{ac}_{t,g}
   *       - P^{au}_{t,g} ( 1 - u_{t,g} ) \bigr) = D^{ac}_{t} \; , \tag{1b}
   *   \f]
   *   \f$ D^{ac}_{t} \f$ being "ActivePowerDemand". The power of a pump or of
   *   a charging battery, being negative, enters as a consumption. The rows
   *   are stored in a boost::multi_array< FRowConstraint , 2 > indexed by
-  *   [ t ][ n ] (see get_node_injection_constraints()).
+  *   [ t ][ n ] (see get_node_injection_constraints()). The sum is over the
+  *   generators with a node on the electricity (see "GeneratorNode" in
+  *   deserialize()).
+  *
+  * - Energy balance constraints of the carriers c > 0 (see "NumberCarriers"
+  *   in deserialize()). With \f$ \mathcal{G}^c_n \f$ the generators at node
+  *   \f$ n \f$ of carrier \f$ c \f$ and \f$ \eta^c_{t,g} \f$ the sum of the
+  *   efficiencies of the outputs of \f$ g \f$ on \f$ c \f$ (0 if none, see
+  *   get_carrier_efficiency()), for each \f$ t \in \mathcal{T} \f$ and
+  *   each node \f$ n \f$ of \f$ c \f$
+  *   \f[
+  *     \sum_{ g \in \mathcal{G}^c_n } \sigma_g \, \eta^c_{t,g} \,
+  *       p^{ac}_{t,g} - S^c_{t,n} = 0 \; , \tag{1c}
+  *   \f]
+  *   \f$ S^c_{t,n} \f$ being the node injection of the NetworkBlock of the
+  *   carrier at \f$ t \f$, or, if the carrier has one node, with the demand
+  *   \f$ D^c_t \f$ of the carrier ("EnergyDemand") on the right-hand side
+  *   in place of the injection. An efficiency may be negative, which is how
+  *   what a unit consumes is written (the gas of a turbine, the electricity
+  *   of an electrolyzer, in (1) as in (1c)); there is no fixed consumption,
+  *   which is an electric power. The rows of carrier c are stored in a
+  *   boost::multi_array< FRowConstraint , 2 > indexed by [ t ][ n ] (see
+  *   get_carrier_balance_constraints()).
   *
   * - Reactive power node injection constraints. If the network has more
   *   than one node and its NetworkBlock handle reactive power (see
@@ -763,7 +868,11 @@ class UCBlock : public Block
   *   by whoever writes the data. The nodes of a zone need not be electric:
   *   the generators on a heat node (a boiler, the heat of a
   *   ConversionUnitBlock) have their own factors, so that a budget over a
-  *   zone that holds the heat nodes counts the emissions due to heat. The
+  *   zone that holds the heat nodes counts the emissions due to heat; with
+  *   more than one carrier a zone may hold nodes of any of them, and the
+  *   node of a generator is its node on the electricity, or, if it has none,
+  *   on the first carrier where it has one (see
+  *   get_generator_pollutant_zone()). The
   *   rows are stored in a std::vector< std::vector< FRowConstraint > > C,
   *   where C[ p ] has get_number_pollutant_zones()[ p ] entries (the
   *   pollutants may have a
@@ -873,14 +982,15 @@ class UCBlock : public Block
   *
   * - bit 0 (& 1): save the Solution of all the UnitBlock;
   *
-  * - bit 1 (& 2): save the Solution of all the NetworkBlock; this bit (and,
-  *   therefore, the next one) is ignored if the network only has one node,
-  *   since then there is no NetworkBlock to be saved;
+  * - bit 1 (& 2): save the Solution of all the NetworkBlock, those of the
+  *   carriers c > 0 too; this bit (and, therefore, the next one) is ignored
+  *   for a carrier that only has one node, since then there is no
+  *   NetworkBlock to be saved;
   *
   * - bit 2 (& 4): save the NetworkBlock in compressed format;
   *
   * - bit 3 (& 8): save the dual values of the node injection constraints
-  *   (1);
+  *   (1), and those of the balance constraints (1c) of the carriers c > 0;
   *
   * - bit 4 (& 16): save the dual values of the primary reserve constraints
   *   (2);
@@ -902,7 +1012,9 @@ class UCBlock : public Block
   * \f$ - y^{ac}_{t,n} \f$ being the marginal cost of the demand of node n at
   * instant t (the locational marginal price), those of (2)-(4) are
   * nonpositive, their opposites being the marginal costs of the
-  * requirements, and that of (5) is nonnegative when the budget is active
+  * requirements, that of (1c) is free as that of (1), \f$ - y_{t,n} \f$
+  * being the marginal cost of the energy of the carrier at node n and
+  * instant t, and that of (5) is nonnegative when the budget is active
   * and nonpositive when the lower bound is; all of them are values per
   * instant, but that of (5), which is per unit of emission over the
   * horizon (see \ref ucbm_dual_sign).
@@ -1045,8 +1157,10 @@ class UCBlock : public Block
 
  bool generator_belongs_to_node( Index generator , Index node_id )
   const {
-  if( ( get_number_nodes() > 1 ) &&
-      ( node_id != v_generator_node[ generator ] ) )
+  const auto node = node_of_generator( generator );
+  if( node == Inf< Index >() )
+   return( false );  // the generator is not on the carrier 0
+  if( ( get_number_nodes() > 1 ) && ( node_id != node ) )
    return( false );
   return( true );
   }
@@ -1334,8 +1448,10 @@ class UCBlock : public Block
  /** This method returns the vector V that indicates to which node of the
   * transmission network each electrical generator belongs, as read from
   * "GeneratorNode" (see deserialize()): V[ g ] is the node of electrical
-  * generator g, for g = 0, ..., NumberElectricalGenerators - 1. V may be
-  * empty in the bus case, where all the generators are at the only node. */
+  * generator g, for g = 0, ..., NumberGenerators - 1. V may be empty in the
+  * bus case, where all the generators are at the only node. V[ g ] is
+  * Inf< Index >() if generator g has no node on the carrier 0 (see
+  * get_generator_node( Index , Index )). */
 
  const std::vector< Index > & get_generator_node( void ) const {
   return( v_generator_node );
@@ -1471,8 +1587,139 @@ class UCBlock : public Block
 
  public:
 
-
 /*--------------------------------------------------------------------------*/
+ /** @name The energy carriers
+  *
+  * The carrier 0 is the electricity, described by the data above (nodes,
+  * NetworkData, NetworkBlock, demands, zones); the carriers 1, 2, ... each
+  * have their own nodes, numbered 0, 1, ... within the carrier, their own
+  * NetworkData and NetworkBlock (one per time instant, if the carrier has
+  * more than one node), their own demand and their own pollutant zones (see
+  * "Carrier_k" in deserialize()), and the balance (1c) of
+  * generate_abstract_constraints().
+  * @{ */
+
+ /// returns the number of carriers, 1 if only the electricity is there
+
+ Index get_number_carriers( void ) const {
+  return( v_carrier_name.empty() ? 1 : v_carrier_name.size() );
+  }
+
+ /// returns the name of carrier c
+
+ std::string get_carrier_name( Index c ) const {
+  return( v_carrier_name.empty() ? std::string( UnitBlock::kElectricity )
+                                 : v_carrier_name[ c ] );
+  }
+
+ /// returns the index of the carrier with the given name
+ /** Returns the index of the carrier with the given name, Inf< Index >() if
+  * the UCBlock has no such carrier; UnitBlock::kElectricity is always the
+  * carrier 0, whatever name "CarrierName" gives to it. */
+
+ Index get_carrier_index( const std::string & name ) const;
+
+ /// returns the number of nodes of carrier c
+
+ Index get_number_nodes( Index c ) const {
+  if( c == 0 )
+   return( get_number_nodes() );
+  return( v_carrier[ c ].f_NetworkData ?
+          v_carrier[ c ].f_NetworkData->get_number_nodes() : 1 );
+  }
+
+ /// returns the node of generator g on carrier c
+ /** Returns the node of generator g on carrier c, Inf< Index >() if the
+  * generator has none (see "GeneratorNode" in deserialize()). */
+
+ Index get_generator_node( Index g , Index c ) const;
+
+ /// returns the efficiency of generator g towards carrier c at time t
+ /** Returns \f$ \eta_{t,g,c} \f$, the sum of the efficiencies of the
+  * outputs of generator g whose carrier is c (see
+  * UnitBlock::get_output_efficiency()), 0 if none is. */
+
+ double get_carrier_efficiency( Index t , Index g , Index c ) const;
+
+ /// returns the NetworkData of carrier c, nullptr if it has one node
+
+ NetworkBlock::NetworkData * get_NetworkData( Index c ) const {
+  return( c == 0 ? f_NetworkData : v_carrier[ c ].f_NetworkData );
+  }
+
+ /// returns the NetworkBlock of carrier c
+ /** Returns the NetworkBlock of carrier c, one per time instant, empty if
+  * the carrier has one node; for c == 0 they are those of
+  * get_network_blocks(). */
+
+ const std::vector< NetworkBlock * > & get_network_blocks( Index c ) const {
+  return( c == 0 ? v_network_blocks : v_carrier[ c ].v_network_blocks );
+  }
+
+ /// returns the energy demand of carrier c > 0
+ /** Returns the matrix D of the energy demand of carrier c > 0, D[ n ][ t ]
+  * being the demand of node n at time t; it is empty if the carrier has
+  * more than one node, the demand being then in its NetworkBlock, or if the
+  * carrier has no demand. */
+
+ const boost::multi_array< double , 2 > & get_energy_demand( Index c )
+  const {
+  return( v_carrier[ c ].v_demand );
+  }
+
+ /// returns the balance constraints (1c) of carrier c > 0
+ /** Returns the boost multi_array C of the balance constraints (1c) of
+  * carrier c > 0 (see generate_abstract_constraints()), C[ t ][ n ] being
+  * that of time t and node n; the dual values follow the convention of
+  * those of (1). For the carrier 0 they are get_node_injection_constraints().
+  */
+
+ boost::multi_array< FRowConstraint , 2 > &
+ get_carrier_balance_constraints( Index c ) {
+  return( v_carrier_balance_Const[ c ] );
+  }
+
+ /// returns the balance constraints (1c) of carrier c > 0, as const
+
+ const boost::multi_array< FRowConstraint , 2 > &
+ get_const_carrier_balance_constraints( Index c ) const {
+  return( v_carrier_balance_Const[ c ] );
+  }
+
+ /// returns the zone of pollutant p where the emissions of generator g are
+ /** Returns the zone of pollutant \p p of the node where the emissions of
+  * generator \p g are counted: its node on the carrier 0, or, if it has
+  * none, its node on the first carrier where it has one (see
+  * deserialize()); a value >= get_number_pollutant_zones()[ p ] if that node
+  * is in no zone of p, or if the generator has no node. */
+
+ Index get_generator_pollutant_zone( Index p , Index g ) const {
+  return( get_pollutant_zone( p , g ) );
+  }
+
+ /// returns the zone of pollutant p where the storages of unit u are
+ /** The storages of a unit are where its first generator is, or at the node
+  * 0 of the carrier 0 if it has no generator; the value is as in
+  * get_generator_pollutant_zone(). */
+
+ Index get_storage_pollutant_zone( Index p , Index u ) const;
+
+ /// visits each term of the given unit in the balances of the carriers
+ /** Calls visit( row , var , factor , constant ) for each term of the
+  * UnitBlock \p unit in the balance rows (1), (1b) and (1c) (in the reactive
+  * rows (1') if \p reactive is true): row is the FRowConstraint, var the
+  * ColVariable, factor its coefficient divided by the scale of the unit, and
+  * constant the part of the right-hand side that the term brings, also
+  * divided by the scale, which is not 0 for the commitment Variable of a
+  * generator with fixed consumption only. A unit whose scale is the design
+  * Variable of an investment then contributes to the linearization the sum
+  * of dual( row ) * ( factor * var - constant ) over the terms (see
+  * InvestmentFunction). */
+
+ template< class F >
+ void for_each_balance_term( Index unit , bool reactive , F && visit );
+
+/** @} ---------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
  /// returns the node injection constraints
@@ -1728,6 +1975,41 @@ class UCBlock : public Block
  void set_active_power_demand( MF_dbl_it values , Range rng = Range( 0 , 1 ) ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// update the energy demand of the carriers
+ /** Updates the demand of the nodes of all the carriers for the entries
+  * specified by \p subset. The nodes of the carriers are numbered one
+  * carrier after the other, those of the carrier 0 first: with N_c the
+  * number of nodes of carrier c (see get_number_nodes( Index )), node n of
+  * carrier c is the node m = N_0 + ... + N_{c-1} + n, and each element of \p
+  * subset is the flattened index
+  *
+  *    index = m * get_time_horizon() + t ,
+  *
+  * node-major as in set_active_power_demand( subset ), with \p values
+  * giving the new demands in the same order. The entries of the carrier 0
+  * are those of set_active_power_demand( subset ), which is called for them;
+  * those of a carrier c > 0 change its demand, which is in its NetworkBlock
+  * if it has more than one node, and otherwise in the right-hand side of its
+  * balance (1c). A UCBlockSbstMod of type eSetEnD with the indices of the
+  * carriers c > 0 that have changed, if any, is issued. */
+
+ void set_energy_demand( MF_dbl_it values , Subset && subset = { 0 } ,
+                         bool ordered = false ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// update the energy demand of the carriers
+ /** As set_energy_demand( subset ), for the flattened indices in the range
+  * \p rng, with the values in increasing order of index; a UCBlockRngdMod of
+  * type eSetEnD with the range of the indices of the carriers c > 0 is
+  * issued, if any of them has changed. */
+
+ void set_energy_demand( MF_dbl_it values , Range rng = Range( 0 , 1 ) ,
+                         ModParam issuePMod = eNoBlck ,
+                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// update the pollutant budget
@@ -2037,7 +2319,65 @@ class UCBlock : public Block
  boost::multi_array< double , 3 > v_pollutant_storage_rho;
 
  /// v_generator_node[ g ] tells to which node generator g belongs
+ /** The node on the carrier 0, Inf< Index >() if the generator has none. */
  std::vector< Index > v_generator_node;
+
+/*-------------------------------- carriers --------------------------------*/
+
+ /// the names of the carriers, empty if the electricity is the only one
+ std::vector< std::string > v_carrier_name;
+
+ /// what describes a carrier other than the carrier 0
+ struct CarrierData {
+  /// the NetworkData, nullptr if the carrier has one node
+  NetworkBlock::NetworkData * f_NetworkData = nullptr;
+
+  /// the classname of its NetworkBlock
+  std::string network_block_classname;
+
+  /// the classname of its NetworkData
+  std::string network_data_classname;
+
+  /// the demand, [ nodes ][ time ]: empty with more than one node
+  boost::multi_array< double , 2 > v_demand;
+
+  /// the pollutant zones of its nodes, [ pollutants or 1 ][ nodes ]
+  boost::multi_array< Index , 2 > v_pollutant_zones;
+
+  /// its NetworkBlock, if it has more than one node
+  /** One per time instant unless they are given in its group, as those of
+   * the carrier 0 (see deserialize()). */
+  std::vector< NetworkBlock * > v_network_blocks;
+
+  /// true if its NetworkBlock are given in its group, which then has them
+  bool f_given_networks = false;
+
+  /// the NetworkBlock covering each time instant and the interval of it
+  std::vector< std::pair< Index , Index > > v_network_of_instant;
+  };
+
+ /// the data of the carriers, v_carrier[ 0 ] being unused
+ /** The carrier 0 is described by the fields above (f_NetworkData,
+  * v_network_blocks, v_active_power_demand, v_pollutant_zones, ...); the
+  * vector has get_number_carriers() entries. */
+ std::vector< CarrierData > v_carrier;
+
+ /// the node of each generator on each carrier, [ generators ][ carriers ]
+ /** Empty with one carrier, otherwise its column 0 is v_generator_node;
+  * Inf< Index >() where the generator has no node. */
+ boost::multi_array< Index , 2 > v_generator_carrier_node;
+
+ /// the unit and the index in the unit of each generator
+ std::vector< std::pair< Index , Index > > v_generator_unit;
+
+ /// the carrier of each output of each generator
+ /** v_output_carrier_index[ g ][ k ] is the carrier of output k of
+  * generator g, Inf< Index >() if the UCBlock does not have it. */
+ std::vector< std::vector< Index > > v_output_carrier_index;
+
+ /// the NetworkBlock of the carrier 0 covering each instant, and the
+ /// interval of it that does
+ std::vector< std::pair< Index , Index > > v_network_of_instant;
 
 /*-------------------------------- variables -------------------------------*/
 
@@ -2062,6 +2402,12 @@ class UCBlock : public Block
  /** v_PollutantBudget_Const[ p ][ z ] is the constraint of zone z of
   * pollutant p. */
  std::vector< std::vector< FRowConstraint > > v_PollutantBudget_Const;
+
+ /// the balance constraints (1c) of each carrier other than the carrier 0
+ /** v_carrier_balance_Const[ c ][ t ][ n ] is that of time t and node n of
+  * carrier c > 0; v_carrier_balance_Const[ 0 ] is unused, the balance of
+  * the carrier 0 being v_node_injection_Const. */
+ std::vector< MAFRC > v_carrier_balance_Const;
 
  FRealObjective objective;  ///< the objective function
 
@@ -2116,9 +2462,62 @@ class UCBlock : public Block
  void deserialize_network_blocks( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
+ /// deserialize the carriers other than the carrier 0
+ /** Reads "NumberCarriers", "CarrierName" and the groups "Carrier_k" (see
+  * deserialize()), save the NetworkBlock of the carriers, which
+  * build_carrier_networks() builds once the units are there. */
+
+ void deserialize_carriers( const netCDF::NcGroup & group );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// builds the NetworkBlock of the carriers with more than one node
+
+ void build_carrier_networks( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// reads "GeneratorNode", in one or in two dimensions
+
+ void deserialize_generator_nodes( const netCDF::NcGroup & group );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// maps each generator to its unit and each of its outputs to its carrier
+
+ void map_generators( void );
+
+/*--------------------------------------------------------------------------*/
+ /// a term of a balance row
+ struct BalanceTerm {
+  ColVariable * var;  ///< the ColVariable
+  double coeff;       ///< its coefficient
+  double constant;    ///< the part of the right-hand side that it brings
+  Index unit;         ///< its unit, Inf< Index >() for a node injection
+  };
+
+ /// the terms and the right-hand side of a balance row
+ /** Gives the terms of the balance row of carrier \p c at time \p t and node
+  * \p node, i.e., (1), (1b) or (1c) (the reactive (1') if \p reactive is
+  * true), in the order in which they are in the row, and its right-hand
+  * side. The node injection of the NetworkBlock comes first, if any, then
+  * the generators of the units in their order; a term whose coefficient is
+  * 0 is not there. */
+
+ void balance_terms( Index c , Index t , Index node , bool reactive ,
+                     std::vector< BalanceTerm > & terms , double & rhs );
+
+/*--------------------------------------------------------------------------*/
  /// generate the node injection constraints (1)
 
  void generate_node_injection_constraints( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// generate the balance constraints (1c) of the carriers other than 0
+
+ void generate_carrier_balance_constraints( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// writes all the balance rows of carrier c, as balance_terms() gives them
+
+ void fill_balance_constraints( MAFRC & rows , Index c , bool reactive );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// generate the reactive node injection constraints (1')
@@ -2324,21 +2723,46 @@ class UCBlock : public Block
                                          double demand );
 
 /*--------------------------------------------------------------------------*/
+ /// updates the balance rows of carrier c for the given units
+ /** Rewrites the coefficients of the terms of the given units, assumed to be
+  * ordered, and the right-hand sides of the balance rows of carrier \p c
+  * ((1), (1b) or (1c), or (1') if \p reactive is true). */
+
+ void update_balance_constraints( Index c ,
+                                  const std::vector< Index > & modified_units ,
+                                  ModParam issueMod , bool reactive = false );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the energy demand of carrier c > 0 at node n and time t
+ /** Changes the demand, in its NetworkBlock if the carrier has more than one
+  * node, otherwise in the right-hand side of its balance row (1c); returns
+  * true if it has changed. */
+
+ bool set_carrier_demand( Index c , Index n , Index t , MF_dbl_it value ,
+                          c_ModParam issuePMod , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// the carrier and the node where the emissions of generator g are
+ /** The carrier 0 if the generator has a node on it, otherwise the first
+  * carrier on which it has one; (Inf< Index >() , Inf< Index >()) if the
+  * generator has no node. */
+
+ std::pair< Index , Index > generator_location( Index g ) const;
+
+/*--------------------------------------------------------------------------*/
  /// returns the primary zone to which the given generator belongs
 
  Index get_primary_zone( Index elc_generator ) const {
   // without the vector all the nodes are in zone 0 [see
   // node_belongs_to_primary_zone()]; the zone returned is
-  // >= get_number_primary_zones() if the node is in no zone
+  // >= get_number_primary_zones() if the node is in no zone, or if the
+  // generator is not on the carrier 0
+  const auto node = node_of_generator( elc_generator );
+  if( node == Inf< Index >() )
+   return( Inf< Index >() );
   if( v_primary_zones.empty() )
    return( 0 );
-
-  // Node to which the given electrical generator belongs
-  Index node = 0;
-  if( get_number_nodes() > 1 )
-   node = v_generator_node[ elc_generator ];
-
-  return( v_primary_zones[ node ] );
+  return( v_primary_zones[ get_number_nodes() > 1 ? node : 0 ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2347,16 +2771,14 @@ class UCBlock : public Block
  Index get_secondary_zone( Index elc_generator ) const {
   // without the vector all the nodes are in zone 0 [see
   // node_belongs_to_secondary_zone()]; the zone returned is
-  // >= get_number_secondary_zones() if the node is in no zone
+  // >= get_number_secondary_zones() if the node is in no zone, or if the
+  // generator is not on the carrier 0
+  const auto node = node_of_generator( elc_generator );
+  if( node == Inf< Index >() )
+   return( Inf< Index >() );
   if( v_secondary_zones.empty() )
    return( 0 );
-
-  // Node to which the given electrical generator belongs
-  Index node = 0;
-  if( get_number_nodes() > 1 )
-   node = v_generator_node[ elc_generator ];
-
-  return( v_secondary_zones[ node ] );
+  return( v_secondary_zones[ get_number_nodes() > 1 ? node : 0 ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2365,16 +2787,14 @@ class UCBlock : public Block
  Index get_inertia_zone( Index elc_generator ) const {
   // without the vector all the nodes are in zone 0 [see
   // node_belongs_to_inertia_zone()]; the zone returned is
-  // >= get_number_inertia_zones() if the node is in no zone
+  // >= get_number_inertia_zones() if the node is in no zone, or if the
+  // generator is not on the carrier 0
+  const auto node = node_of_generator( elc_generator );
+  if( node == Inf< Index >() )
+   return( Inf< Index >() );
   if( v_inertia_zones.empty() )
    return( 0 );
-
-  // Node to which the given electrical generator belongs
-  Index node = 0;
-  if( get_number_nodes() > 1 )
-   node = v_generator_node[ elc_generator ];
-
-  return( v_inertia_zones[ node ] );
+  return( v_inertia_zones[ get_number_nodes() > 1 ? node : 0 ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2390,12 +2810,25 @@ class UCBlock : public Block
  /// returns the zone of pollutant p to which the given generator belongs
 
  Index get_pollutant_zone( Index p , Index elc_generator ) const {
-  // Node to which the given electrical generator belongs
-  Index node = 0;
-  if( get_number_nodes() > 1 )
-   node = v_generator_node[ elc_generator ];
+  // the zone of the node where the emissions of the generator are, see
+  // generator_location(), and no zone if the generator has no node
+  const auto [ c , node ] = generator_location( elc_generator );
+  if( c == Inf< Index >() )
+   return( Inf< Index >() );
+  if( c == 0 )
+   return( get_pollutant_zone_of_node( p , get_number_nodes() > 1 ? node
+                                                                  : 0 ) );
+  const auto & zones = v_carrier[ c ].v_pollutant_zones;
+  if( zones.empty() )
+   return( 0 );  // the unique zone of each pollutant
+  return( zones[ zones.shape()[ 0 ] > 1 ? p : 0 ][ node ] );
+  }
 
-  return( get_pollutant_zone_of_node( p , node ) );
+/*--------------------------------------------------------------------------*/
+ /// returns the node of generator g on the carrier 0, Inf< Index >() if none
+
+ Index node_of_generator( Index g ) const {
+  return( v_generator_node.empty() ? 0 : v_generator_node[ g ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2409,6 +2842,12 @@ class UCBlock : public Block
 
   register_method< UCBlock , MF_dbl_it , Range >(
    "UCBlock::set_active_power_demand" , & UCBlock::set_active_power_demand );
+
+  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+   "UCBlock::set_energy_demand" , & UCBlock::set_energy_demand );
+
+  register_method< UCBlock , MF_dbl_it , Range >(
+   "UCBlock::set_energy_demand" , & UCBlock::set_energy_demand );
 
   register_method< UCBlock , MF_dbl_it , Subset && , bool >(
    "UCBlock::set_pollutant_budget" , & UCBlock::set_pollutant_budget );
@@ -2567,6 +3006,59 @@ class UCBlock : public Block
  };  // end( class( UCBlock ) )
 
 /*--------------------------------------------------------------------------*/
+/*------------------- inline methods of the class UCBlock ------------------*/
+/*--------------------------------------------------------------------------*/
+
+template< class F >
+void UCBlock::for_each_balance_term( Index unit , bool reactive , F && visit )
+{
+ if( ! constraints_generated() )
+  return;
+
+ // the generators of the unit alone, with the same factors as the terms of
+ // the rows [see balance_terms()], each divided by the scale of the unit
+ Index first = 0;
+ for( Index u = 0 ; u < unit ; ++u )
+  first += get_unit_block( u )->get_number_generators();
+ const auto unit_block = get_unit_block( unit );
+
+ const Index nc = reactive ? 1 : get_number_carriers();
+ for( Index c = 0 ; c < nc ; ++c ) {
+  const auto & rows = reactive ? v_reactive_node_injection_Const :
+                      ( c == 0 ? v_node_injection_Const
+                               : v_carrier_balance_Const[ c ] );
+  if( rows.empty() )
+   continue;
+  const bool one_node = ( get_number_nodes( c ) == 1 );
+
+  for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
+   const auto node = get_generator_node( first + g , c );
+   if( node == Inf< Index >() )
+    continue;
+   const Index n = one_node ? 0 : node;
+
+   if( reactive ) {
+    if( auto rp = unit_block->get_reactive_power( g ) )
+     for( Index t = 0 ; t < f_time_horizon ; ++t )
+      visit( rows[ t ][ n ] , &rp[ t ] , 1.0 , 0.0 );
+    continue;
+    }
+
+   const auto ap = unit_block->get_active_power( g );
+   const auto fc = c ? nullptr : unit_block->get_fixed_consumption( g );
+   const auto u = unit_block->get_commitment( g );
+   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
+    if( const auto eta = get_carrier_efficiency( t , first + g , c ) )
+     if( ap )
+      visit( rows[ t ][ n ] , &ap[ t ] , eta , 0.0 );
+    if( fc && fc[ t ] && u )
+     visit( rows[ t ][ n ] , &u[ t ] , fc[ t ] , fc[ t ] );
+    }
+   }
+  }
+ }  // end( UCBlock::for_each_balance_term )
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------- CLASS UCBlockMod ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived class from Modification for modifications to a UCBlock
@@ -2580,7 +3072,8 @@ class UCBlock : public Block
  {
   eSetActD = 0 ,  ///< set active power demand
   eSetPolB ,      ///< set pollutant budget
-  eSetPolMinB     ///< set the lower bound of the pollutant budget
+  eSetPolMinB ,   ///< set the lower bound of the pollutant budget
+  eSetEnD         ///< set the energy demand of a carrier other than 0
   };
 
  /// what a Modification of the given type changes
@@ -2595,6 +3088,7 @@ class UCBlock : public Block
    case( eSetActD ):
    case( eSetPolB ):
    case( eSetPolMinB ):
+   case( eSetEnD ):
     return( ePhysSides );
    default:
     return( eModPhys | eEffAny );
@@ -2630,6 +3124,9 @@ class UCBlock : public Block
     break;
    case( eSetPolMinB ):
     output << "Set pollutant minimum budget";
+    break;
+   case( eSetEnD ):
+    output << "Set energy demand";
     break;
    default:
     output << "Set active power demand";
@@ -2727,7 +3224,11 @@ class UCBlockSbstMod : public UCBlockMod
  *
  * - [optionally] the dual values of the inertia constraints (4);
  *
- * - [optionally] the dual values of the pollutant budget constraints (5),
+ * - [optionally] the dual values of the pollutant budget constraints (5);
+ *
+ * - [optionally] the [:NetworkBlock]Solution of the networks of each carrier
+ *   c > 0 that has more than one node, and the dual values of its balance
+ *   constraints (1c), with those of the carrier 0,
  *
  * the constraints being numbered as in
  * UCBlock::generate_abstract_constraints(), and the dual values following
@@ -2768,6 +3269,9 @@ class UCBlockSolution : public Solution {
    delete ubs;
   for( auto nbs : v_network_Solution )
    delete nbs;
+  for( auto & cns : v_carrier_network_Solution )
+   for( auto nbs : cns )
+    delete nbs;
   }
 
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A UCBlockSolution ---------*/
@@ -2956,6 +3460,13 @@ class UCBlockSolution : public Solution {
 
  std::vector< double > v_pollutant_duals;
  ///< the dual variables for the pollutant budget constraints
+
+ std::vector< std::vector< NetworkBlockSolution * > >
+                                                  v_carrier_network_Solution;
+ ///< the Solution of each NetworkBlock of each carrier c > 0, [ c ][ t ]
+
+ std::vector< boost::multi_array< double , 2 > > v_carrier_duals;
+ ///< the dual variables of the balances (1c) of each carrier c > 0, [ c ]
  /**< The dual variables of the pollutant budget constraints of all the zones
   * of pollutant 0, then of all those of pollutant 1, and so on. */
 

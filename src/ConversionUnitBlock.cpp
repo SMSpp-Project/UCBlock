@@ -2659,6 +2659,16 @@ void ConversionUnitBlock::scale( MF_dbl_it values , Subset && subset ,
  if( subset.empty() || ( f_scale == *values ) )
   return;
 
+ // the scale and a design of more than one module, or more than one module,
+ // are the same replication of the unit, as deserialize() says
+ if( ( *values != 1 ) &&
+     ( ( has_design() && ( std::abs( f_MaxCapacityDesign ) > 1 ) ) ||
+       ( f_Modules > 1 ) ) )
+  throw( std::invalid_argument( "ConversionUnitBlock::scale: Scale != 1 "
+                                "together with |MaxCapacityDesign| > 1 or "
+                                "Modules > 1, which represent the same "
+                                "replication of the unit" ) );
+
  if( not_dry_run( issuePMod ) ) {
   f_scale = *values;
   if( not_dry_run( issueAMod ) && objective_generated() ) {

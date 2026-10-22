@@ -263,8 +263,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `#include` of the headers; it is built with the CMake option
   `SMSpp_BUILD_MODULE`, as the target `SMS++::UCBlock_module`
 
+- the energy carriers of `UCBlock`: "NumberCarriers" and "CarrierName",
+  the carrier 0 being the electricity described by all the data as before,
+  and for each other carrier the group "Carrier_c" with its "NumberNodes",
+  its NetworkData and classnames, its "EnergyDemand" and its
+  "PollutantZones"; a carrier with more than one node has one NetworkBlock
+  per time instant, built by `UCBlock`, unless its group gives them as the
+  carrier 0 does ("NumberNetworks" and "NetworkBlock_n", e.g., one
+  `DesignNetworkBlock` over the horizon for a network whose lines have a
+  design), and each carrier has the balance rows (1c) of its nodes [see
+  `get_carrier_balance_constraints()`]; the UCBlockSolution saves the
+  Solution of their NetworkBlock and the duals of (1c) with those of the
+  carrier 0, in the group "Carrier_c"
+
+- the outputs of the generators of a `UnitBlock`: `get_number_outputs()`,
+  `get_output_carrier()` and `get_output_efficiency()`, by default the
+  output `UnitBlock::kElectricity` with efficiency 1, otherwise read by
+  `UnitBlock::deserialize()` from "NumberOutputs", "OutputCarrier" and
+  "OutputEfficiency" (constant or per instant, the same for all the
+  generators or one per generator, as the generators of a
+  `ConversionUnitBlock`, each on the carrier of its port, need, the number
+  of the generators being checked by `UnitBlock::check_outputs()`): the
+  active power of a generator gives the efficiency of each output times
+  itself to the carrier of the output, at the node of the generator on it,
+  a negative efficiency being what the generator consumes, in (1), (1b) and
+  (1c); the standard names `kElectricity`, `kHeat`, `kGas` and `kHydrogen`
+
+- "GeneratorNode" indexed over the generators and the carriers, with -1
+  where a generator has no node on a carrier (and, as before, not needed
+  by a network with no generator at all); such a generator gives
+  nothing to that carrier, and one with no node on the electricity is in no
+  zone of the reserves and of the inertia; its emissions are counted at its
+  node on the first carrier where it has one [see
+  `get_generator_pollutant_zone()` and `get_storage_pollutant_zone()`]
+
+- `UCBlock::set_energy_demand()`, with a flattened index over the nodes of
+  all the carriers, which also changes the demand of the carriers other
+  than the electricity, and the Modification type `UCBlockMod::eSetEnD`
+
+- `UCBlock::for_each_balance_term()`, the terms of a unit in the balances
+  of all the carriers, each with its coefficient per unit of scale, which
+  is what the linearization of an investment in the unit needs
+
+- "NumberGenerators", the new name of "NumberElectricalGenerators", which
+  is still read
+
+- `deserialize_local_dim()`, which reads a dimension of a group and not of
+  the groups above it
+
+- `data/gen_carriers.py`, the instances with the electricity, the hydrogen,
+  the gas and the heat as carriers made of small PyPSA networks, whose
+  optimum is the reference, and the back-pressure cases and the mesh of
+  `data/gen_multi_energy.py` with the electricity and the heat as two
+  carriers (`me_*_carrier`), also with the plant as the `ConversionUnitBlock`
+  whose generators have their outputs on the electricity and on the heat
+  (`me_*_unitcarrier`, the extraction-condensing case included); and
+  `data/gen_conversion.py --carriers`, which writes the cases of the
+  committable links of pypsa2smspp also with the gas, the electric and the
+  heat buses as three carriers (`conversion/*_carriers.nc4`)
+
+- the unit test of the carriers: the coefficients of (1c), the optimum by
+  hand on one heat node, on a heat network and on a heat network given as
+  one `DesignNetworkBlock`, the duals of (1c) as the prices of the carriers,
+  a Solution without them written back, `set_energy_demand()`, the scale of
+  a unit, the netCDF group and back, the
+  pollutant zones of a unit with no node on the electricity, the outputs
+  per generator of a `ConversionUnitBlock` and back, and the data that
+  cannot be read
+
 ### Changed
 
+- with the energy carriers, `UCBlock::get_replicate_linearization` (also
+  at zero copies) reads the terms of the unit in the balances of all the
+  carriers, active and reactive, from `for_each_balance_term()`, and the
+  rows rewritten after a scaling include the balances of the carriers
+  other than 0; `UCBlock::resize_line` and
+  `UCBlock::get_resize_line_linearization` take the lines numbered one
+  carrier after the other, as the line assets of an `InvestmentFunction`,
+  the lines of a carrier being those of the `DCNetworkData` of its first
+  NetworkBlock, and hand each to all the NetworkBlock of its carrier; with
+  no line at all they throw "this UCBlock has no lines"
 - the exception of `ThermalUnitBlock` when the cost of a Variable that is
   not in its Objective changes says so, and that the reserve variables are
   there only with a nonzero cost or when the objective Configuration of the
@@ -382,8 +460,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variable of the run without scanning all the runs and all the cuts for
   each row (the same rows)
 
+- the NetworkData and the NetworkBlock read their dimensions from their own
+  group only [see `deserialize_local_dim()`]: a "NetworkBlock_i" group
+  with its demand alone no longer takes the "NumberNodes" of the UCBlock
+  for a NetworkData of its own, and the network of a carrier cannot take
+  the "NumberLines" of the electricity
+
+- the balance rows (1), (1b) and (1') are written and updated by one
+  function of their terms [see `UCBlock::balance_terms()`], and a
+  commitment Variable whose fixed consumption is 0 at an instant is no
+  longer in the row of that instant with more than one node
+
 ### Fixed
 
+- `scale()` of `IntermittentUnitBlock`, `BatteryUnitBlock` and
+  `ConversionUnitBlock` refuses a scale other than 1 on a unit whose design
+  has more than one module (or, for the `ConversionUnitBlock`, with more
+  than one module), as `deserialize()` does: the two are the same fleet,
+  which a unit with both counts twice
+- a Block written with `serialize()` and read back with `deserialize()` has
+  all the data it was read with: `DCNetworkBlock` writes `Kappa` (when a
+  constant of a line is not 1), `ThermalUnitBlock` the `ReferenceSchedule`
+  and `FixToMaximum`, `BatteryUnitBlock` and `HydroUnitBlock` the
+  `ReferenceSchedule` and the bounds of the reactive power, and
+  `IntermittentUnitBlock` and `SlackUnitBlock` the bounds of the reactive
+  power; the unit test writes each of them to an image, reads it back and
+  checks that the image of the copy is the same
 - `NuclearUnitBlock` expects the dimension `NumberPowerBands` that its
   `serialize()` writes, and `OTSNetworkData` the variable `SwitchingCost`,
   which the checks of `Block::deserialize()` in Debug reported as
@@ -662,6 +764,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `NuclearUnitExtDPSolver::get_var_solution()` releases the lock of the
   Block likewise: the mutex stayed locked, and any other thread asking for
   the Solver waited forever
+
+- `UnitBlock::serialize()` writes "ChangeIntervals", the name that
+  `UnitBlock::deserialize()` reads, instead of "ChangeInterval"
 
 ## [0.10.0] - 2026-10-09
 

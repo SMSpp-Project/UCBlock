@@ -1815,6 +1815,10 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
  serialize( "Cost" , v_Cost );
  serialize( "Demand" , v_Demand );
 
+ serialize( "MaxReactivePower" , v_MaxReactivePower );
+ serialize( "MinReactivePower" , v_MinReactivePower );
+ serialize( "ReferenceSchedule" , v_RefSchedule );
+
 }  // end( BatteryUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
@@ -2175,6 +2179,16 @@ void BatteryUnitBlock::scale( MF_dbl_it values ,
 
  if( f_scale == *values )
   return;  // The scale factor does not change: nothing to do
+
+ // the scale and a design of more than one module are the same fleet, as
+ // deserialize() says [see check_data_consistency()]
+ if( ( *values != 1 ) && ( ( std::abs( f_BattMaxCapacityDesign ) > 1 ) ||
+                           ( std::abs( f_ConvMaxCapacityDesign ) > 1 ) ) )
+  throw( std::logic_error( "BatteryUnitBlock::scale: cannot combine "
+                           "Scale != 1 with |BatteryMaxCapacityDesign| > 1 "
+                           "or |ConverterMaxCapacityDesign| > 1; they "
+                           "represent the same multi-module fleet and would "
+                           "double-count." ) );
 
  if( not_dry_run( issuePMod ) ) {
   f_scale = *values;  // Update the scale factor

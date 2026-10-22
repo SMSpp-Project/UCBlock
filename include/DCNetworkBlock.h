@@ -1192,9 +1192,12 @@ class DCNetworkData : public NetworkData
   *   NcGroup describing the NetworkBlock to be absent altogether (see
   *   UCBlock::deserialize()).
   *
-  * The constants \f$ \kappa_l \f$ that multiply the flow bounds of the lines
-  * (see generate_abstract_constraints()) are all 1 after deserialize(),
-  * which does not read them: they are changed only by set_kappa(). */
+  * - The variable "Kappa", of type netCDF::NcDouble and indexed over the
+  *   dimension "NumberLines", whose entry l is the constant
+  *   \f$ \kappa_l \f$ that multiplies the flow bounds of line l (see
+  *   generate_abstract_constraints() and set_kappa()). The variable is
+  *   optional; if it is not found, all the constants are 1. serialize()
+  *   writes it only if one of them is not 1. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 

@@ -165,7 +165,7 @@ void NetworkBlock::deserialize( const netCDF::NcGroup & group ) {
 
 void NetworkBlock::NetworkData::deserialize( const netCDF::NcGroup & group )
 {
- if( ! deserialize_dim( group , "NumberNodes" , f_number_nodes ) )
+ if( ! deserialize_local_dim( group , "NumberNodes" , f_number_nodes ) )
   f_number_nodes = 1;
 
  if( f_number_nodes > 1 )
