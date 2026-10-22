@@ -333,6 +333,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `UCBlock::resize_unit` computes the bounds of the node injections once,
+  after the last unit of the subset, as `UCBlock::replicate` does, and not
+  after each unit it resizes
 - with the energy carriers, `UCBlock::get_replicate_linearization` (also
   at zero copies) reads the terms of the unit in the balances of all the
   carriers, active and reactive, from `for_each_balance_term()`, and the

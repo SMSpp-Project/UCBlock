@@ -2123,8 +2123,8 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 
  // the bounds of the node injections given to the NetworkBlocks follow the
  // power range of the units [see set_node_injection_bounds()]; replicate()
- // computes them once, when it is done with the last unit, as it does with
- // the rows
+ // and resize_unit() compute them once, when they are done with the last
+ // unit, as replicate() does with the rows
  if( ( injection || ( ! modified_units.empty() ) ) &&
      ( ! f_defer_scaled_rows ) )
   set_node_injection_bounds();
@@ -3391,11 +3391,39 @@ void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
+void UCBlock::size_deferred( const std::function< void( void ) > & size )
+{
+ v_scaled_units.clear();
+ f_defer_scaled_rows = true;
+
+ const auto rewrite = [ this ]() {
+  f_defer_scaled_rows = false;
+  update_scaled_rows( v_scaled_units );
+  set_node_injection_bounds();
+  };
+
+ try {
+  size();
+  }
+ catch( ... ) {
+  rewrite();
+  throw;
+  }
+
+ rewrite();
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::resize_unit( MF_dbl_it values , Subset && subset , bool ,
                            ModParam issuePMod , ModParam issueAMod )
 {
- size_units( *this , "resize_unit" , "::resize" , values , subset ,
-             issuePMod , issueAMod );
+ // each unit resized would have the bounds of the node injections computed
+ // again [see add_Modification()]: they are computed once, after the last
+ size_deferred( [ & ]() {
+  size_units( *this , "resize_unit" , "::resize" , values , subset ,
+              issuePMod , issueAMod );
+  } );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -3421,16 +3449,20 @@ void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
  ClassMethod< FunctionType< MF_dbl_sp , MF_dbl_sp , Range > >
   method( "resize_unit with two sizes" , "::resize" );
 
- for( Index k = 0 ; k < subset.size() ; ++k ) {
-  const auto u = subset[ k ];
-  if( u >= f_number_units )
-   throw( std::invalid_argument( "UCBlock::resize_unit: there is no unit of "
-                                 "index " + std::to_string( u ) ) );
-  const auto unit = get_unit_block( u );
-  std::invoke( method( unit , "unit" , u ) , unit , values.subspan( k , 1 ) ,
-               second_values.subspan( k , 1 ) , Range( 0 , 1 ) , issuePMod ,
-               issueAMod );
-  }
+ // the bounds of the node injections are computed once, as in the other
+ // resize_unit()
+ size_deferred( [ & ]() {
+  for( Index k = 0 ; k < subset.size() ; ++k ) {
+   const auto u = subset[ k ];
+   if( u >= f_number_units )
+    throw( std::invalid_argument( "UCBlock::resize_unit: there is no unit "
+                                  "of index " + std::to_string( u ) ) );
+   const auto unit = get_unit_block( u );
+   std::invoke( method( unit , "unit" , u ) , unit , values.subspan( k , 1 ) ,
+                second_values.subspan( k , 1 ) , Range( 0 , 1 ) , issuePMod ,
+                issueAMod );
+   }
+  } );
  }
 
 /*--------------------------------------------------------------------------*/
