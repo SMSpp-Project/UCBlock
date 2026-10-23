@@ -12774,6 +12774,63 @@ static void test_injection_bounds_derivative( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* UCBlock::resize_line by name hands the size of a line to every
+ * NetworkBlock of the horizon, each with a Subset of its own: on the three
+ * DCNetworkBlock of write_UC_two_nodes() over three instants, the kappa of
+ * line 0 is 2 in all three after the Subset form, 0.5 after the Range form,
+ * and an empty Subset leaves it at 0.5. A FakeSolver listens, since a
+ * NetworkBlock consumes its Subset only when it issues the Modification
+ * [see DCNetworkBlock::set_kappa()], so that a Subset shared among them
+ * would leave the later ones empty only then. */
+
+static void test_resize_line_by_name( void )
+{
+ auto g = write_UC_two_nodes( 3 , { 10 , 10 , 10 , 60 , 60 , 60 } );
+ std::unique_ptr< UCBlock > b(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ const auto by_subset = Block::get_method_fs< Block::MF_dbl_it ,
+					      Block::Subset && , bool >(
+						      "UCBlock::resize_line" );
+ const auto by_range = Block::get_method_fs< Block::MF_dbl_it ,
+					     Block::Range >(
+						      "UCBlock::resize_line" );
+ if( ( ! ( b && by_subset && by_range ) ) ||
+     ( b->get_number_networks() != 3 ) ) {
+  check( false , "resize_line by name: the UCBlock is not read, it has not "
+	 "three NetworkBlock, or a form of the name is not registered" );
+  return;
+  }
+ generate_all( b.get() );
+ auto fs = new FakeSolver();
+ b->register_Solver( fs );
+
+ const auto all_at = [ & ]( double kappa , const std::string & after ) {
+  for( Index n = 0 ; n < 3 ; ++n ) {
+   const auto nb = dynamic_cast< DCNetworkBlock * >(
+						 b->get_network_block( n ) );
+   check( nb && ( nb->get_kappa( 0 ) == kappa ) , "resize_line by name, " +
+	  after + ": the kappa of line 0 in NetworkBlock " +
+	  std::to_string( n ) + " is " + str( nb ? nb->get_kappa( 0 ) : -1 ) +
+	  ", not " + str( kappa ) );
+   }
+  };
+
+ std::vector< double > v = { 2 };
+ std::invoke( *by_subset , b.get() , v.cbegin() , Block::Subset{ 0 } , true ,
+	      eNoBlck , eNoBlck );
+ all_at( 2 , "the Subset form" );
+ v[ 0 ] = 0.5;
+ std::invoke( *by_range , b.get() , v.cbegin() , Block::Range( 0 , 1 ) ,
+	      eNoBlck , eNoBlck );
+ all_at( 0.5 , "the Range form" );
+ v[ 0 ] = 3;
+ std::invoke( *by_subset , b.get() , v.cbegin() , Block::Subset() , true ,
+	      eNoBlck , eNoBlck );
+ all_at( 0.5 , "an empty Subset" );
+ b->unregister_Solver( fs , true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The derivative of an OTSNetworkBlock with respect to the kappa of a line
  * reads the dual of the row of the switching that OTSNetworkBlock::resize
  * writes, the limit of the switching in the standard formulation and the
@@ -16682,6 +16739,7 @@ int main( int argc , char ** argv )
   test_line_resize_linearization_by_name();
   test_resize_unit_unchanged_bounds();
   test_injection_bounds_derivative();
+  test_resize_line_by_name();
   test_OTS_resize_linearization_by_name();
   test_battery_resize_as_setters();
   test_unit_sizing_names();

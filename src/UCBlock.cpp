@@ -2667,8 +2667,7 @@ void UCBlock::replicate_linking_terms( Index unit , F && term ,
  const auto time_horizon = get_time_horizon();
  const auto num_generators = block->get_number_generators();
 
- const auto number_nodes =
-  f_NetworkData ? f_NetworkData->get_number_nodes() : 1;
+ const auto number_nodes = get_number_nodes();
 
  /* The index, among the electrical generators of this UCBlock, of the first
   * generator of this unit: the generators are numbered consecutively, unit
@@ -3592,16 +3591,14 @@ void UCBlock::resize_line( MF_dbl_it values , Subset && subset , bool ordered ,
   }
 
  for( Index c = 0 ; c < nc ; ++c ) {
+  if( kappa[ c ].empty() )
+   continue;
+  // each NetworkBlock takes a Subset of its own, which the call consumes
   const auto & networks = get_network_blocks( c );
-  for( Index n = 0 ; ( n < networks.size() ) && ( ! kappa[ c ].empty() ) ;
-       ++n ) {
-   // each NetworkBlock takes a Subset of its own, the last one this one
-   auto own = ( n + 1 < networks.size() ) ? lines[ c ]
-                                          : std::move( lines[ c ] );
+  for( Index n = 0 ; n < networks.size() ; ++n )
    std::invoke( resize( networks[ n ] , "NetworkBlock" , n ) , networks[ n ] ,
-                kappa[ c ].cbegin() , std::move( own ) , ordered ,
+                kappa[ c ].cbegin() , Subset( lines[ c ] ) , ordered ,
                 issuePMod , issueAMod );
-   }
   }
  }
 
