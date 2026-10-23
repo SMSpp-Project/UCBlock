@@ -2144,15 +2144,18 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
  // the bounds of the node injections given to the NetworkBlocks follow the
  // power range of the units [see set_node_injection_bounds()]; replicate()
  // and resize_unit() compute them once, when they are done with the last
- // unit, as replicate() does with the rows
- if( ( injection || ( ! modified_units.empty() ) ) &&
-     ( ! f_defer_scaled_rows ) )
-  set_node_injection_bounds();
+ // unit, and only if one has changed [see size_deferred()]
+ if( injection || ( ! modified_units.empty() ) ) {
+  if( f_defer_scaled_rows )
+   f_deferred_injection_bounds = true;
+  else
+   set_node_injection_bounds();
+  }
 
  if( ! modified_units.empty() ) {
   if( f_defer_scaled_rows )
-   // replicate() is scaling a set of units, and rewrites their rows once
-   // when it is done with the last one
+   // a set of units is being sized, and their rows are rewritten once when
+   // the last one is done [see size_deferred()]
    v_scaled_units.insert( v_scaled_units.end() , modified_units.begin() ,
                           modified_units.end() );
   else
@@ -3423,12 +3426,14 @@ void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
 void UCBlock::size_deferred( const std::function< void( void ) > & size )
 {
  v_scaled_units.clear();
+ f_deferred_injection_bounds = false;
  f_defer_scaled_rows = true;
 
  const auto rewrite = [ this ]() {
   f_defer_scaled_rows = false;
   update_scaled_rows( v_scaled_units );
-  set_node_injection_bounds();
+  if( f_deferred_injection_bounds )
+   set_node_injection_bounds();
   };
 
  try {
@@ -3508,31 +3513,13 @@ void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
 void UCBlock::replicate( MF_dbl_it values , Subset && subset , bool ,
                          ModParam issuePMod , ModParam issueAMod )
 {
- /* Each unit, scaled, asks this UCBlock to rewrite the rows that carry its
-  * factor [see add_Modification()]. Those of all the units are rewritten
-  * here, once, after the last one, and so are the bounds of the node
-  * injections [see set_node_injection_bounds()]: also when a unit throws,
-  * since the units scaled before it keep their new factor. */
-
- v_scaled_units.clear();
- f_defer_scaled_rows = true;
-
- try {
+ // each unit scaled would have its rows and the bounds of the node
+ // injections rewritten [see add_Modification()]: they are rewritten once,
+ // after the last
+ size_deferred( [ & ]() {
   size_units( *this , "replicate" , "::replicate" , values , subset ,
               issuePMod , issueAMod );
-  }
- catch( ... ) {
-  f_defer_scaled_rows = false;
-  update_scaled_rows( v_scaled_units );
-  if( ! v_scaled_units.empty() )
-   set_node_injection_bounds();
-  throw;
-  }
-
- f_defer_scaled_rows = false;
- update_scaled_rows( v_scaled_units );
- if( ! v_scaled_units.empty() )
-  set_node_injection_bounds();
+  } );
  }
 
 /*--------------------------------------------------------------------------*/

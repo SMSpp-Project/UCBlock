@@ -2438,15 +2438,19 @@ class UCBlock : public Block
  ///< third bit of AR == 1 if the Objective has been constructed
 
  bool f_defer_scaled_rows = false;
- ///< whether the rows of a scaled unit wait for the end of replicate()
+ ///< whether the rows of a scaled unit wait for the end of size_deferred()
  /**< While true, add_Modification() puts the index of a unit whose scale
   * factor changed in v_scaled_units instead of rewriting the rows that
-  * carry it and the bounds of the node injections: replicate() and
-  * resize_unit() set it, so that both are rewritten once for all the units
-  * they size. */
+  * carry it, and records in f_deferred_injection_bounds a change of the
+  * power range instead of computing the bounds of the node injections:
+  * size_deferred() sets it, so that both are rewritten once for all the
+  * units that replicate() and resize_unit() size. */
 
  std::vector< Index > v_scaled_units;
  ///< the units scaled while f_defer_scaled_rows is true
+
+ bool f_deferred_injection_bounds = false;
+ ///< whether a power range changed while f_defer_scaled_rows is true
 
 /*--------------------------------------------------------------------------*/
 
@@ -2576,8 +2580,9 @@ class UCBlock : public Block
  /// of them would have had rewritten
  /** While \p size runs, add_Modification() leaves the rows of the scaled
   * units and the bounds of the node injections as they are [see
-  * f_defer_scaled_rows]; they are rewritten after it, also when it throws,
-  * since the units sized before keep their new size. */
+  * f_defer_scaled_rows]; they are rewritten after it, the bounds only if a
+  * power range has changed, also when it throws, since the units sized
+  * before keep their new size. */
 
  void size_deferred( const std::function< void( void ) > & size );
 

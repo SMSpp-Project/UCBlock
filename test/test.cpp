@@ -12606,6 +12606,49 @@ static void test_line_resize_linearization_by_name( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* UCBlock::resize_unit computes the bounds of the node injections again
+ * only if a unit has changed its power range: a sentinel written by hand
+ * into the upper bound of the injection at node 0 of write_UC_two_nodes(),
+ * where the IntermittentUnitBlock 0 of power 100 is the only generator,
+ * stays there when the unit is resized by name to the kappa it has, and
+ * gives way to 200 when it is resized to 2. */
+
+static void test_resize_unit_unchanged_bounds( void )
+{
+ auto g = write_UC_two_nodes( 1 , { 10 , 60 } );
+ std::unique_ptr< UCBlock > b(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ const auto resize = Block::get_method_fs< Block::MF_dbl_it ,
+					   Block::Subset && , bool >(
+						      "UCBlock::resize_unit" );
+ if( ( ! b ) || ( ! resize ) ) {
+  check( false , "resize_unit, the bounds of the injections: the UCBlock "
+	 "is not read, or UCBlock::resize_unit is not registered" );
+  return;
+  }
+ generate_all( b.get() );
+ auto net = b->get_network_block( 0 );
+ const auto bound = [ & ]() {
+  const auto mx = net->get_max_node_injection( 0 );
+  return( mx ? mx[ 0 ] : -1 );
+  };
+ check( bound() == 100 , "resize_unit, the bounds of the injections: the "
+	"upper bound at node 0 is " + str( bound() ) + " instead of 100" );
+
+ constexpr double sentinel = 12345;
+ for( const double kappa : { 1.0 , 2.0 } ) {
+  net->set_max_node_injection( sentinel , 0 , 0 );
+  const std::vector< double > k = { kappa };
+  std::invoke( *resize , b.get() , k.cbegin() , Block::Subset{ 0 } , true ,
+	       eNoBlck , eNoBlck );
+  const double expected = ( kappa == 1 ) ? sentinel : 200;
+  check( bound() == expected , "resize_unit to kappa " + str( kappa ) +
+	 ": the upper bound of the injection at node 0 is " +
+	 str( bound() ) + ", not " + str( expected ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -16424,6 +16467,7 @@ int main( int argc , char ** argv )
   test_design_reactive_bounds_linearization();
   test_OTS_resize_by_name();
   test_line_resize_linearization_by_name();
+  test_resize_unit_unchanged_bounds();
   test_battery_resize_as_setters();
   test_unit_sizing_names();
 
