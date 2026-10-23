@@ -229,8 +229,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scaling them one by one rewrites them once per unit. All come in the range
   and the subset form.
 
-- A line of an `ACNetworkBlock` or of an `OTSNetworkBlock` can be sized, as
-  a line of a `DesignNetworkBlock` is designed. Both classes build the power
+- A line of an `ACNetworkBlock` or of an `OTSNetworkBlock` can be sized,
+  which 0.10.0 refused, as a line of a `DesignNetworkBlock` is designed. Both classes build the power
   flow limit rows of `DCNetworkBlock`, and the kappa goes into them as the
   design variable does; nothing else follows it, as nothing else follows the
   design: not the thermal limit, the bounds of the reactive flow or the
@@ -1493,11 +1493,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a fixed consumption moves by 8 to 12%. The formula in the documentation,
   which wrote the consumption as a positive term of the injection, follows
 
-- `DCNetworkBlock::set_kappa()` is virtual, and the method that writes the
-  kappa into the power flow limit rows refuses when there are none, so that
-  a derived class that does not build them is told rather than left to write
-  where there is nothing. An `ACNetworkBlock` and an `OTSNetworkBlock` build
-  them, which is why their lines can be sized [see Added]
+- an `ACNetworkBlock` and an `OTSNetworkBlock` refuse a kappa on one of
+  their lines, `DCNetworkBlock::set_kappa()` being virtual now and their
+  override throwing: they build their own rows and not the power flow limit
+  ones the kappa is written into, so that sizing a line of theirs used to
+  reach rows that are not there. What supporting it would take is written
+  where they refuse it. The method that writes the kappa into the rows
+  refuses as well when there are none, so that any other derived class is
+  told rather than left to write where there is nothing
 
 - the dynamic programming Solvers refuse a unit that has a reference
   schedule, of which they have no term: they used to answer for a unit that
