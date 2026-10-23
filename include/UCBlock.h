@@ -2371,6 +2371,14 @@ class UCBlock : public Block
  /// the unit and the index in the unit of each generator
  std::vector< std::pair< Index , Index > > v_generator_unit;
 
+ /// the index of the first generator of each unit, the number of the
+ /// generators after the last unit
+ std::vector< Index > v_first_generator;
+
+ /// the index of the first storage of each unit among the storages of all
+ /// the units, the number of the storages after the last unit
+ std::vector< Index > v_first_storage;
+
  /// the carrier of each output of each generator
  /** v_output_carrier_index[ g ][ k ] is the carrier of output k of
   * generator g, Inf< Index >() if the UCBlock does not have it. */
@@ -2487,6 +2495,8 @@ class UCBlock : public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// maps each generator to its unit and each of its outputs to its carrier
+ /** It also gives each unit the index of its first generator and of its
+  * first storage [see v_first_generator and v_first_storage]. */
 
  void map_generators( void );
 
@@ -2695,10 +2705,13 @@ class UCBlock : public Block
   * in which they are in the constraints: the active power of each generator
   * of the unit at each time, then the level of each of its storages at each
   * time; \p factor is the one of the data, i.e., not yet multiplied by the
-  * scale of the unit, and the terms with a zero factor are not visited. */
+  * scale of the unit, and the terms with a zero factor are not visited.
+  * If \p unit is the index of a unit, only the terms of that unit are
+  * visited. */
 
  template< class F >
- void for_each_pollutant_term( Index p , F && visit );
+ void for_each_pollutant_term( Index p , F && visit ,
+                               Index unit = Inf< Index >() );
 
 /*--------------------------------------------------------------------------*/
  /// calls term on each Variable of a unit that the rows above it weigh
@@ -3041,9 +3054,7 @@ void UCBlock::for_each_balance_term( Index unit , bool reactive , F && visit )
 
  // the generators of the unit alone, with the same factors as the terms of
  // the rows [see balance_terms()], each divided by the scale of the unit
- Index first = 0;
- for( Index u = 0 ; u < unit ; ++u )
-  first += get_unit_block( u )->get_number_generators();
+ const Index first = v_first_generator[ unit ];
  const auto unit_block = get_unit_block( unit );
 
  const Index nc = reactive ? 1 : get_number_carriers();

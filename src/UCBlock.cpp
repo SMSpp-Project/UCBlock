@@ -46,6 +46,7 @@
 
 #include "Objective.h"
 
+#include <array>
 #include <functional>
 #include <map>
 #include <memory>
@@ -1053,9 +1054,15 @@ void UCBlock::map_generators( void )
  v_generator_unit.reserve( f_number_elc_generators );
  v_output_carrier_index.clear();
  v_output_carrier_index.reserve( f_number_elc_generators );
+ v_first_generator.assign( 1 , 0 );
+ v_first_storage.assign( 1 , 0 );
 
  for( Index u = 0 ; u < f_number_units ; ++u ) {
   const auto unit_block = get_unit_block( u );
+  v_first_generator.push_back( v_first_generator.back() +
+                               unit_block->get_number_generators() );
+  v_first_storage.push_back( v_first_storage.back() +
+                             unit_block->get_number_storages() );
   // the outputs given per generator, over the generators of the unit
   unit_block->check_outputs();
   for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
@@ -1118,11 +1125,8 @@ double UCBlock::get_carrier_efficiency( Index t , Index g , Index c ) const
 
 UCBlock::Index UCBlock::get_storage_pollutant_zone( Index p , Index u ) const
 {
- Index first = 0;
- for( Index i = 0 ; i < u ; ++i )
-  first += get_unit_block( i )->get_number_generators();
  return( get_unit_block( u )->get_number_generators() ?
-         get_pollutant_zone( p , first ) :
+         get_pollutant_zone( p , v_first_generator[ u ] ) :
          get_pollutant_zone_of_node( p , 0 ) );
  }
 
@@ -1627,13 +1631,17 @@ void UCBlock::generate_inertia_demand_constraints( void )
 /*--------------------------------------------------------------------------*/
 
 template< class F >
-void UCBlock::for_each_pollutant_term( Index p , F && visit )
+void UCBlock::for_each_pollutant_term( Index p , F && visit , Index unit )
 {
  const auto number_zones = v_number_pollutant_zones[ p ];
 
- Index elc_generator = 0;
- Index storage = 0;
- for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
+ // all the units, or the given one alone
+ const Index first_unit = ( unit < f_number_units ) ? unit : 0;
+ const Index end_unit = ( unit < f_number_units ) ? unit + 1
+                                                  : f_number_units;
+ Index elc_generator = v_first_generator[ first_unit ];
+ Index storage = v_first_storage[ first_unit ];
+ for( Index unit_id = first_unit ; unit_id < end_unit ; ++unit_id ) {
 
   const auto unit_block = get_unit_block( unit_id );
 
@@ -2667,15 +2675,11 @@ void UCBlock::replicate_linking_terms( Index unit , F && term ,
  const auto time_horizon = get_time_horizon();
  const auto num_generators = block->get_number_generators();
 
- const auto number_nodes = get_number_nodes();
-
  /* The index, among the electrical generators of this UCBlock, of the first
   * generator of this unit: the generators are numbered consecutively, unit
   * after unit. */
 
- Index first_generator = 0;
- for( Index u = 0 ; u < unit ; ++u )
-  first_generator += get_unit_block( u )->get_number_generators();
+ const Index first_generator = v_first_generator[ unit ];
 
  // The balances of the carriers - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -2698,48 +2702,46 @@ void UCBlock::replicate_linking_terms( Index unit , F && term ,
   * and a generator contributes to it only if its node belongs to that zone.
   * What the factor multiplies is the reserve in the first two and the
   * commitment and the active power, weighted by their inertia, in the
-  * third. */
+  * third. The generators of the unit that are in a zone are found once,
+  * and sorted by zone, then node, then generator, so that the terms of an
+  * instant come zone by zone and node by node. */
 
  const auto zone_contribution =
-  [ & ]( const auto & constraints , Index number_zones ,
-         auto belongs_to_zone , auto contribute ) {
+  [ & ]( const auto & constraints , Index number_zones , auto zone_of ,
+         auto contribute ) {
 
    if( constraints.empty() )
     return;
 
+   std::vector< std::array< Index , 3 > > in_zone;
+   for( Index g = 0 ; g < num_generators ; ++g ) {
+    const auto zone = zone_of( first_generator + g );
+    if( zone < number_zones )
+     in_zone.push_back( { zone , node_of_generator( first_generator + g ) ,
+                          g } );
+    }
+   std::sort( in_zone.begin() , in_zone.end() );
+
    for( Index t = 0 ; t < time_horizon ; ++t )
-    for( Index zone = 0 ; zone < number_zones ; ++zone )
-     for( Index node = 0 ; node < number_nodes ; ++node ) {
-
-      if( ! belongs_to_zone( node , zone ) )
-       continue;
-
-      const auto dual = constraints[ t ][ zone ].get_dual();
-
-      for( Index g = 0 ; g < num_generators ; ++g )
-       if( generator_belongs_to_node( first_generator + g , node ) )
-        contribute( g , t , dual );
-      }
+    for( const auto & [ zone , node , g ] : in_zone )
+     contribute( g , t , constraints[ t ][ zone ].get_dual() );
    };
 
  zone_contribution( v_PrimaryDemand_Const , f_number_primary_zones ,
-                    [ this ]( Index node , Index zone ) {
-                     return( node_belongs_to_primary_zone( node , zone ) ); } ,
+                    [ this ]( Index g ) { return( get_primary_zone( g ) ); } ,
                     [ & ]( Index g , Index t , double dual ) {
                      if( auto r = block->get_primary_spinning_reserve( g ) )
                       term( & r[ t ] , dual ); } );
 
  zone_contribution( v_SecondaryDemand_Const , f_number_secondary_zones ,
-                    [ this ]( Index node , Index zone ) {
-                     return( node_belongs_to_secondary_zone( node ,
-                                                             zone ) ); } ,
+                    [ this ]( Index g ) {
+                     return( get_secondary_zone( g ) ); } ,
                     [ & ]( Index g , Index t , double dual ) {
                      if( auto r = block->get_secondary_spinning_reserve( g ) )
                       term( & r[ t ] , dual ); } );
 
  zone_contribution( v_InertiaDemand_Const , f_number_inertia_zones ,
-                    [ this ]( Index node , Index zone ) {
-                     return( node_belongs_to_inertia_zone( node , zone ) ); } ,
+                    [ this ]( Index g ) { return( get_inertia_zone( g ) ); } ,
                     [ & ]( Index g , Index t , double dual ) {
                      const auto u = block->get_commitment( g );
                      const auto iu = block->get_inertia_commitment( g );
@@ -2760,13 +2762,10 @@ void UCBlock::replicate_linking_terms( Index unit , F && term ,
  // generator of the unit and sigma * v for each of its storages [see
  // for_each_pollutant_term()]
  for( Index p = 0 ; p < v_PollutantBudget_Const.size() ; ++p )
-  for_each_pollutant_term( p , [ & ]( Index unit_id , UnitBlock * ,
-                                      Index zone_id , ColVariable * var ,
-                                      double factor ) {
-   if( unit_id == unit )
-    term( var , v_PollutantBudget_Const[ p ][ zone_id ].get_dual() *
-                factor );
-   } );
+  for_each_pollutant_term( p , [ & ]( Index , UnitBlock * , Index zone_id ,
+                                      ColVariable * var , double factor ) {
+   term( var , v_PollutantBudget_Const[ p ][ zone_id ].get_dual() * factor );
+   } , unit );
 
 }  // end( UCBlock::replicate_linking_terms )
 
@@ -2789,9 +2788,7 @@ double UCBlock::injection_bounds_linearization( Index unit ,
                        ( copies ? block->get_kappa() : block->get_scale() );
  const auto obj_sign = ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
- Index first_generator = 0;
- for( Index u = 0 ; u < unit ; ++u )
-  first_generator += get_unit_block( u )->get_number_generators();
+ const Index first_generator = v_first_generator[ unit ];
 
  double linearization = 0;
  const auto add = [ & ]( const BoxConstraint & row , double mn , double mx ) {
