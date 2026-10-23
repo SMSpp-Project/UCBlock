@@ -3191,6 +3191,43 @@ static void test_replicate_without_objective( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The Solver of the copy of a unit with no copies may be named by the extra
+ * Configuration of the BlockConfig of the UCBlock: a name that the factory
+ * does not know makes the call throw, with the unit back at its scale and
+ * nothing built for the copy left behind (which a leak checker sees). */
+
+static void test_zero_copy_unknown_solver( void )
+{
+ auto b = thermal_UC( 0 );
+ if( ! b ) {
+  check( false , "UCBlock, unknown Solver: the UCBlock is not read" );
+  return;
+  }
+ generate_all( b );
+ auto bsc = new BlockSolverConfig();
+ bsc->add_ComputeConfig( "NoSuchSolver" );
+ auto bc = new BlockConfig();
+ bc->f_extra_Configuration = bsc;
+ b->set_BlockConfig( bc );
+
+ bool thrown = false;
+ try {
+  replicate_linearization( b );
+  }
+ catch( std::invalid_argument & ) {
+  thrown = true;
+  }
+ check( thrown , "UCBlock, unknown Solver: the copy of a unit with no "
+	"copies is given a Solver that the factory does not know, and the "
+	"call does not throw" );
+ const auto scale = b->get_unit_block( 0 )->get_scale();
+ check( scale == 0 , "UCBlock, unknown Solver: the unit is left with the "
+	"scale " + str( scale ) + " instead of 0" );
+
+ delete b;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- HYDRO ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* The data of a HydroUnitBlock as the test writes it: an empty vector is
@@ -16037,6 +16074,7 @@ int main( int argc , char ** argv )
   test_setters_UCBlock();
   test_zero_copy_lower_bound();
   test_replicate_without_objective();
+  test_zero_copy_unknown_solver();
 
   test_hydro_delays();
   test_hydro_initial_volume();

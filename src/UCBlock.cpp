@@ -2929,12 +2929,29 @@ double UCBlock::get_zero_copy_linearization( Index unit )
  auto wrapper = new AbstractBlock();
  wrapper->add_nested_Block( copy );
 
- // a Variable of the unit can be in several rows, say the active power in
- // the node injection, an inertia zone and a pollutant budget, while a
- // LinearFunction takes each Variable once: the coefficients are summed
- std::map< ColVariable * , double > coefficients;
+ // what is built for the copy goes when it has been solved, or when
+ // anything throws: the Solver registered for this solution only, which a
+ // cleared BlockSolverConfig removes [see BlockSolverConfig::clear()], the
+ // AbstractBlock with the copy, and its Objective
+ FRealObjective * objective = nullptr;
+ BlockSolverConfig * cbsc = nullptr;
+ const auto cleanup = [ & ]() {
+  if( cbsc ) {
+   cbsc->clear();
+   cbsc->apply( wrapper );
+   delete cbsc;
+   }
+  delete wrapper;   // and the copy it holds
+  delete objective;
+  };
+
  double constant = 0;
+ double value = 0;
  try {
+  // a Variable of the unit can be in several rows, say the active power in
+  // the node injection, an inertia zone and a pollutant budget, while a
+  // LinearFunction takes each Variable once: the coefficients are summed
+  std::map< ColVariable * , double > coefficients;
   replicate_linking_terms( unit ,
                            [ & ]( const ColVariable * var , double coeff ) {
                             if( coeff == 0 )
@@ -2947,43 +2964,25 @@ double UCBlock::get_zero_copy_linearization( Index unit )
                               + " has no copy" ) );
                             coefficients[ cvar ] += coeff; } ,
                            constant );
-  }
- catch( ... ) {
-  delete wrapper;   // and the copy it holds
-  throw;
-  }
 
- auto objective = new FRealObjective( wrapper , new LinearFunction(
-                   LinearFunction::v_coeff_pair( coefficients.begin() ,
-                                                 coefficients.end() ) ) );
- objective->set_sense( copy->get_objective_sense() , eNoMod );
- wrapper->set_objective( objective , eNoMod );
+  objective = new FRealObjective( wrapper , new LinearFunction(
+               LinearFunction::v_coeff_pair( coefficients.begin() ,
+                                             coefficients.end() ) ) );
+  objective->set_sense( copy->get_objective_sense() , eNoMod );
+  wrapper->set_objective( objective , eNoMod );
 
- // registered for this solution only
- auto cbsc = bsc->clone();
- cbsc->apply( wrapper );
- cbsc->clear();
-
- const auto cleanup = [ & ]() {
+  cbsc = bsc->clone();
   cbsc->apply( wrapper );
-  delete cbsc;
-  delete wrapper;
-  delete objective;
-  };
+  if( wrapper->get_registered_solvers().empty() )
+   throw( std::logic_error( "UCBlock::get_replicate_linearization: the "
+                            "BlockSolverConfig of the copy of unit " +
+                            std::to_string( unit ) +
+                            " registers no Solver" ) );
 
- if( wrapper->get_registered_solvers().empty() ) {
-  cleanup();
-  throw( std::logic_error( "UCBlock::get_replicate_linearization: the "
-                           "BlockSolverConfig of the copy of unit " +
-                           std::to_string( unit ) +
-                           " registers no Solver" ) );
-  }
-
- // the value of a solution bounds the minimum only from above, while the
- // cut needs it bounded from below: the lower bound is one also when the
- // solve stopped before the optimum, and is not finite if nothing is proven
- double value = 0;
- try {
+  // the value of a solution bounds the minimum only from above, while the
+  // cut needs it bounded from below: the lower bound is one also when the
+  // solve stopped before the optimum, and is not finite if nothing is
+  // proven
   auto solver = wrapper->get_registered_solvers().front();
   solver->compute();
   value = solver->get_lb();
