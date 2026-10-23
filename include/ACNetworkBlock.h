@@ -1361,8 +1361,8 @@ class ACNetworkData : public DCNetworkData
   * DCNetworkBlock with one casting to ACNetworkBlock, which is wrong on a
   * DCNetworkBlock that is not one, and which of the two survives would
   * depend on the order of the static initialization. This one is defined
-  * all the same so that the factory does not call the inherited one, which
-  * would register the same methods twice.
+  * so that the factory does not call the inherited one, which would
+  * register the same methods twice.
   *
   * What is registered here is the sizing of a line, under names of this
   * class since a consumer looks them up by the exact class of the Block:

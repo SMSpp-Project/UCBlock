@@ -1966,15 +1966,14 @@ class UCBlock : public Block
                    ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
- /// sets the two sizes of the units in \p subset
- /** As resize_unit( subset ), for units that have two sizes: each unit is
-  * handed the value in the same position of \p values and of
+ /// sets the pair of sizes of each unit in \p subset
+ /** As resize_unit( subset ), for units that have a pair of sizes: each
+  * unit is handed the value in the same position of \p values and of
   * \p second_values, through the method that its class registers as
   * "<classname>::resize" with a pair of scalars, which for a
   * BatteryUnitBlock are the storage and the converter [see
-  * BatteryUnitBlock::resize()]. The
-  * derivatives are read back by the name
-  * "UCBlock::get_resize_unit_linearization", with two spans.
+  * BatteryUnitBlock::resize()]. The derivatives are read back by the name
+  * "UCBlock::get_resize_unit_linearization", with a span for each size.
   *
   * @throws std::invalid_argument if an index in \p subset is not that of a
   *         unit or a span is shorter than \p subset, and std::logic_error
@@ -1987,7 +1986,7 @@ class UCBlock : public Block
                    ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
- /// as resize_unit( two values , subset ), for the units in the range \p rng
+ /// as resize_unit( values , second_values , subset ), for the units in \p rng
 
  void resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
                    Range rng = Range( 0 , Inf< Index >() ) ,
@@ -2018,15 +2017,16 @@ class UCBlock : public Block
  /// sets the size of the lines in \p subset, in every NetworkBlock
  /** Sets the size parameter of each transmission line whose index is in
   * \p subset to the value in the same position of \p values, in each of the
-  * NetworkBlock of this UCBlock, a line being the same asset at every time
-  * instant. On each NetworkBlock it calls the method that its class
+  * NetworkBlock of its carrier, a line being the same asset at every time
+  * instant; the lines are numbered carrier after carrier, those of the
+  * carrier 0 first. On each NetworkBlock it calls the method that its class
   * registers as "<classname>::resize". The derivative, summed over the
   * NetworkBlock, is read back by the name
   * "UCBlock::get_resize_line_linearization".
   *
-  * @throws std::logic_error if this UCBlock has no NetworkBlock, that is,
-  *         it is a single bus and has no lines, or if the class of a
-  *         NetworkBlock does not register "<classname>::resize". */
+  * @throws std::logic_error if this UCBlock has no lines, no carrier having
+  *         a NetworkBlock, or if the class of a NetworkBlock does not
+  *         register "<classname>::resize". */
 
  void resize_line( MF_dbl_it values , Subset && subset , bool ordered = false ,
                    ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
@@ -2079,10 +2079,11 @@ class UCBlock : public Block
  /// the derivative of the value of this UCBlock w.r.t. the scale of a unit
  /** The scale factor of a UnitBlock [see UnitBlock::get_scale()] appears in
   * the rows this UCBlock builds on top of its units, and not in the rows of
-  * the unit itself: the coefficient of the active power of the unit in the
-  * node injection balance *is* that factor, and the fixed consumption is
-  * multiplied by it, and the same happens in the reserve and inertia
-  * balances. The derivative of the value of this UCBlock with respect to
+  * the unit itself: in the balance of each carrier the coefficient of the
+  * active power of the unit is that factor times the efficiency towards the
+  * carrier, and the fixed consumption is multiplied by it, and the same
+  * happens in the rows of the reserves, of the inertia and of the pollutant
+  * budgets. The derivative of the value of this UCBlock with respect to
   * that factor is therefore a sum over those rows, of the dual of each row
   * times what the factor multiplies there, and only this UCBlock can compute
   * it, the rows being its own; so are the bounds of the node injections it
@@ -2091,7 +2092,7 @@ class UCBlock : public Block
   *
   * To that sum is added the term of the Objective of the unit, which under
   * the "k copies" reading carries the factor already
-  * [see UnitBlock.h, the comment on the scale factor and the Objective]: if
+  * [see UnitBlock::scale()]: if
   * the Objective of the unit is \f$ k f(x) \f$, its contribution here is
   * \f$ f(x) \f$.
   *
@@ -2142,7 +2143,7 @@ class UCBlock : public Block
   *       each time, even if asked to issue no Modification, and this UCBlock
   *       rewrites the rows that carry the factor and passes the change on to
   *       whoever listens: the rows end as they were found, but its Solvers
-  *       receive two changes that cancel out. */
+  *       receive changes that cancel out. */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /* The supported way in is the name: a consumer that holds a Block it does
@@ -2172,14 +2173,15 @@ class UCBlock : public Block
   const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /// the derivatives with respect to the two sizes of the units in \p units
+ /// the derivatives with respect to the pair of sizes of each unit in \p units
  /** Writes in msp[ k ] and second_msp[ k ] the derivatives of the value of
-  * this UCBlock with respect to the two sizes of the unit units[ k ], as
-  * resize_unit( two values ) sets them: each unit answers through the getter
-  * that its class registers as "<classname>::get_resize_linearization" with
-  * a pair of scalars, which for a BatteryUnitBlock are the storage and the
-  * converter, with what that getter requires and reads. It is reached by
-  * the name "UCBlock::get_resize_unit_linearization", with two spans.
+  * this UCBlock with respect to the pair of sizes of the unit units[ k ], as
+  * resize_unit( values , second_values ) sets them: each unit answers
+  * through the getter that its class registers as
+  * "<classname>::get_resize_linearization" with a pair of scalars, which for
+  * a BatteryUnitBlock are the storage and the converter, with what that
+  * getter requires and reads. It is reached by the name
+  * "UCBlock::get_resize_unit_linearization", with a span for each size.
   *
   * @throws std::invalid_argument if a span is shorter than \p units or an
   *         index is not that of a unit, and std::logic_error if the class of
@@ -2193,15 +2195,16 @@ class UCBlock : public Block
  /// the derivatives with respect to the size of the lines in \p lines
  /** Writes in msp[ k ] the derivative of the value of this UCBlock with
   * respect to the size parameter of the line lines[ k ], as resize_line()
-  * sets it: the sum, over the NetworkBlock, of what the getter that the
-  * class of each registers as "<classname>::get_resize_linearization"
+  * sets it: the sum, over the NetworkBlock of its carrier, of what the getter
+  * that the class of each registers as "<classname>::get_resize_linearization"
   * answers, with what that getter requires and reads [see
   * DCNetworkBlock::get_resize_linearization()]. It is reached by the name
   * "UCBlock::get_resize_line_linearization".
   *
   * @throws std::invalid_argument if \p msp is shorter than \p lines, and
-  *         std::logic_error if this UCBlock has no NetworkBlock or the class
-  *         of one does not register the getter, or that getter throws it. */
+  *         std::logic_error if this UCBlock has no lines or the class of a
+  *         NetworkBlock does not register the getter, or that getter throws
+  *         it. */
 
  void get_resize_line_linearization( MF_dbl_msp msp , c_Subset & lines ,
                                      bool ordered ) const;
@@ -2455,8 +2458,8 @@ class UCBlock : public Block
   * factor changed in v_scaled_units instead of rewriting the rows that
   * carry it, and records in f_deferred_injection_bounds a change of the
   * power range instead of computing the bounds of the node injections:
-  * size_deferred() sets it, so that both are rewritten once for all the
-  * units that replicate() and resize_unit() size. */
+  * size_deferred() sets it, so that rows and bounds are rewritten once for
+  * all the units that replicate() and resize_unit() size. */
 
  std::vector< Index > v_scaled_units;
  ///< the units scaled while f_defer_scaled_rows is true
@@ -2756,7 +2759,7 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// the derivative of the value of this UCBlock w.r.t. the scale of a unit at 0
  /** The case of get_replicate_linearization() in which the scale factor of
-  * the unit is 0 [see]. */
+  * the unit is 0 [see get_replicate_linearization()]. */
 
  double get_zero_copy_linearization( Index unit );
 
@@ -3011,7 +3014,7 @@ class UCBlock : public Block
      ucb->get_resize_unit_linearization( msp , units );
      } ) );
 
-  // ... and with two spans, for the units that have two sizes
+  // ... and with a span for each size, for the units with a pair of sizes
 
   using qry2_sbst = QueryType< MF_dbl_msp , MF_dbl_msp , c_Subset & , bool >;
   using qry2_rngd = QueryType< MF_dbl_msp , MF_dbl_msp , Range >;

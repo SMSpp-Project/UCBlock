@@ -1893,12 +1893,12 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
- /// sets the two sizes of the unit, the storage and the converter
+ /// sets the sizes of the unit, that of the storage and that of the converter
  /** Sets \f$ \kappa \f$ to \p kappa and \f$ \kappa^{cv} \f$ to
   * \p conv_kappa [see get_converter_kappa()]: the storage is resized with its
   * power by the first, and the converter by the second: it is
   * set_converter_kappa() followed by set_kappa(), the first skipped when
-  * the converter follows \f$ \kappa \f$ and the two are equal, the unit
+  * the converter follows \f$ \kappa \f$ and the values are equal, the unit
   * being then resized as a whole. Different values give the converter a
   * size of its own, which lives in the rows (10): if the Constraints have
   * been generated and the battery has none, std::logic_error is thrown,
@@ -1917,21 +1917,24 @@ class BatteryUnitBlock : public UnitBlock
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void resize( double kappa , double conv_kappa , ModParam issuePMod = eNoBlck ,
-              ModParam issueAMod = eNoBlck );
+ void resize( double kappa , double conv_kappa ,
+              c_ModParam issuePMod = eNoBlck ,
+              c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the one size of the unit, the storage and the converter together
  /** resize( kappa , kappa ), registered as "BatteryUnitBlock::resize" with
-  * one scalar. It takes no default ModParam, which would make a call with
-  * two integers ambiguous with the version above. */
+  * one scalar: the converter takes the size of the storage, whatever
+  * "ConverterKappa" the data gave it. It takes no default ModParam, which
+  * would make a call such as resize( 2 , 3 ) ambiguous with the version
+  * above. */
 
  void resize( double kappa , c_ModParam issuePMod , c_ModParam issueAMod ) {
   resize( kappa , kappa , issuePMod , issueAMod );
   }
 
 /*--------------------------------------------------------------------------*/
- /// the derivatives with respect to the two sizes of the unit
+ /// the derivatives with respect to the sizes of storage and converter
  /** Writes in \p g_kappa and \p g_conv_kappa the derivatives of the value
   * with respect to \f$ \kappa \f$ and \f$ \kappa^{cv} \f$, as
   * resize( kappa , conv_kappa ) sets them: \p g_conv_kappa is
@@ -2387,9 +2390,9 @@ class BatteryUnitBlock : public UnitBlock
   // The ways of sizing this Block, each under the name that says which one
   // it is [see UCBlock::replicate() and UCBlock::resize_unit()], with the
   // scalars a unit has: k identical copies of the unit, and the storage and
-  // the converter resized together with one value, apart with two [see
-  // resize()]; then the getters reading the derivatives back, the one with
-  // respect to the one size and the two apart. What the factory adds is that
+  // the converter resized together with one value, apart with a pair [see
+  // resize()]; then the getters reading the derivatives back, with respect
+  // to the one size and to the pair. What the factory adds is that
   // a consumer can reach them without holding a BatteryUnitBlock *, and that
   // a class not answering for one simply does not register its name.
 

@@ -4888,9 +4888,9 @@ static std::vector< double > static_rows( Block * b )
  }
 
 /*--------------------------------------------------------------------------*/
-/* "BatteryUnitBlock::resize" with two sizes leaves the rows, the kappas and
- * whether the converter follows kappa as set_converter_kappa() and
- * set_kappa() leave them: with the converter following and the two sizes
+/* "BatteryUnitBlock::resize" with a pair of sizes leaves the rows, the
+ * kappas and whether the converter follows kappa as set_converter_kappa()
+ * and set_kappa() leave them: with the converter following and the sizes
  * equal, which is set_kappa() alone, following and different, and with a
  * size of its own. */
 

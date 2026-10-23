@@ -128,10 +128,11 @@ template< class F >
 class ClassMethod {
  public:
 
- ClassMethod( const char * caller , const char * suffix )
-  : f_caller( caller ) , f_suffix( suffix ) {}
+ ClassMethod( const char * caller , const char * suffix ,
+              const char * form = "" )
+  : f_caller( caller ) , f_suffix( suffix ) , f_form( form ) {}
 
- /// the method of the class of block, the kind-th sub-Block of that kind
+ /// the method of the class of block, which the message calls the kind i
  F & operator()( const Block * block , const char * kind , Block::Index i ) {
   if( ( ! f_method ) || ( block->classname() != f_class ) ) {
    f_class = block->classname();
@@ -140,7 +141,7 @@ class ClassMethod {
     throw( std::logic_error( std::string( "UCBlock::" ) + f_caller + ": " +
                              kind + " " + std::to_string( i ) + " is a " +
                              f_class + ", which does not register '" +
-                             f_class + f_suffix + "'" ) );
+                             f_class + f_suffix + "'" + f_form ) );
    }
   return( *f_method );
   }
@@ -149,6 +150,7 @@ class ClassMethod {
 
  const char * f_caller;
  const char * f_suffix;
+ const char * f_form;  ///< the signature looked for, if not the plain one
  std::string f_class;
  F * f_method = nullptr;
  };
@@ -2667,10 +2669,6 @@ template< class F >
 void UCBlock::replicate_linking_terms( Index unit , F && term ,
                                        double & constant )
 {
- /* TODO The following does not take into account the heat constraints.
-  * When these constraints are correctly implemented, this method must be
-  * updated. */
-
  const auto block = get_unit_block( unit );
  const auto time_horizon = get_time_horizon();
  const auto num_generators = block->get_number_generators();
@@ -2698,11 +2696,12 @@ void UCBlock::replicate_linking_terms( Index unit , F && term ,
 
  // The reserve and inertia constraints - - - - - - - - - - - - - - - - - - -
 
- /* The three groups have the same shape: a row per zone and time instant,
-  * and a generator contributes to it only if its node belongs to that zone.
-  * What the factor multiplies is the reserve in the first two and the
-  * commitment and the active power, weighted by their inertia, in the
-  * third. The generators of the unit that are in a zone are found once,
+ /* The rows of the primary and secondary reserves and those of the inertia
+  * have the same shape: a row per zone and time instant, and a generator
+  * contributes to it only if its node belongs to that zone. What the factor
+  * multiplies is the reserve in those of the reserves, and the commitment
+  * and the active power, weighted by their inertia, in those of the
+  * inertia. The generators of the unit that are in a zone are found once,
   * and sorted by zone, then node, then generator, so that the terms of an
   * instant come zone by zone and node by node. */
 
@@ -2902,9 +2901,11 @@ double UCBlock::get_zero_copy_linearization( Index unit )
   * AbstractBlock::mirror()], taken while the unit is scaled to 1 so that its
   * Objective is that of one copy, f^1; it then sits in an AbstractBlock whose
   * Objective holds the terms of the rows above the unit on the Variable of
-  * the copy, and the two Objective are summed by the Solver of the
-  * AbstractBlock. The scale is put back with no Modification, as if it had
-  * never changed. Whatever the mirror cannot reproduce is left out of the
+  * the copy, and the Solver of the AbstractBlock sums that Objective and
+  * the one of the copy. The scale is then put back: the unit tells this
+  * UCBlock of each change, and the rows that carry the factor are rewritten
+  * each time [see get_replicate_linearization()]. Whatever the mirror
+  * cannot reproduce is left out of the
   * copy, which is then a relaxation of one copy of the unit: the minimum is
   * not larger than the true one, and since the number of copies cannot
   * decrease below 0 the linearization stays below the value function. */
@@ -3477,7 +3478,7 @@ void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
                                 "than the subset it is asked to write" ) );
 
  ClassMethod< FunctionType< double , double > >
-  method( "resize_unit with two sizes" , "::resize" );
+  method( "resize_unit" , "::resize" , " with a pair of scalars" );
 
  // the bounds of the node injections are computed once, as in the other
  // resize_unit()
@@ -3664,8 +3665,8 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
                                 "to answer for" ) );
 
  ClassMethod< QueryType< double & , double & > >
-  query( "get_resize_unit_linearization with two sizes" ,
-         "::get_resize_linearization" );
+  query( "get_resize_unit_linearization" , "::get_resize_linearization" ,
+         " with a pair of scalars" );
 
  for( Index k = 0 ; k < units.size() ; ++k ) {
   if( units[ k ] >= f_number_units )
@@ -3675,7 +3676,7 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
   const auto unit = get_unit_block( units[ k ] );
   std::invoke( query( unit , "unit" , units[ k ] ) , unit , msp[ k ] ,
                second_msp[ k ] );
-  // the bounds of the node injections, in which only the first kappa is
+  // the bounds of the node injections, which only the first size enters
   msp[ k ] += injection_bounds_linearization( units[ k ] , false );
   }
  }

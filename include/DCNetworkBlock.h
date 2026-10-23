@@ -2329,7 +2329,7 @@ class DCNetworkData : public NetworkData
   * get_resize_linearization() refuses such a line. ACNetworkBlock and
   * OTSNetworkBlock write \f$ \kappa_l \f$ into these same limits, and an
   * OTSNetworkBlock also into the limit of the switching of a switchable line,
-  * whose dual then adds to the subgradient [see OTSNetworkBlock::set_kappa()].
+  * whose dual then adds to the subgradient [see OTSNetworkBlock::resize()].
   *
   * @param values An iterator to a vector containing the kappa constants.
   *
@@ -2571,7 +2571,7 @@ class DCNetworkData : public NetworkData
      \f[ \kappa_l \mathrm{Pmin}_l \leq F_l \leq \kappa_l \mathrm{Pmax}_l \f]
 
   * so the derivative of the value of this Block with respect to \f$
-  * \kappa_l \f$ is minus the dual of whichever of the two bounds is active,
+  * \kappa_l \f$ is minus the dual of whichever bound is active,
   * times that bound. Which one it is, is told by the sign of the dual read
   * against the sense of the Objective.
   *
@@ -2624,7 +2624,7 @@ class DCNetworkData : public NetworkData
   const auto dual = constraints[ line ].get_dual();
 
   /* The bounds read kappa C^v P, with C^v the factor this Block scales its
-   * flow limits by, so the derivative of a bound with respect to the design
+   * flow limits by, so the derivative of a bound with respect to kappa
    * is C^v P: leaving the factor out is right only while it is 1, which is
    * its default but not its only value. */
   const auto scale = get_C_v_scal();
@@ -2825,11 +2825,10 @@ class DCNetworkData : public NetworkData
    & DCNetworkBlock::set_kappa );
 
   // set_kappa is registered again under the name that says which of the ways
-  // of sizing a Block [see Design and scaling of this Block in Block.h] it
-  // implements: a line standing for k times the capacity it was given. There
-  // is no "replicate" here on purpose, k copies of a line being a line of k
-  // times the capacity. The old name is kept: a registered name travels
-  // inside the instances that name it.
+  // of sizing a Block [see UCBlock::resize_line()] it implements: a line
+  // standing for kappa times the capacity it was given. There is no
+  // "replicate" here on purpose, k copies of a line being a line of k times
+  // the capacity.
 
   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
    "DCNetworkBlock::resize" ,

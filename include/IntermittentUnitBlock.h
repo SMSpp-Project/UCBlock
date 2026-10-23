@@ -1211,7 +1211,7 @@ class IntermittentUnitBlock : public UnitBlock
    "IntermittentUnitBlock::resize" , & IntermittentUnitBlock::set_kappa );
 
   // ... and the getter reading the sensitivity back, registered under a name
-  // that says which of the two it answers for. It is the same virtual that
+  // that says which way of sizing it answers for. It is the same virtual that
   // UnitBlock declares; what the factory adds is that a consumer can reach it
   // without holding a UnitBlock *, and that a class not answering for it
   // simply does not register the name. It requires the constraints, and

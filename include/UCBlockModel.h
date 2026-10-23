@@ -855,17 +855,17 @@ is the maximum flow of the line at that instant if the upper bound is the
 active one (\f$ \bar\mu_{t,l} > 0 \f$), its minimum flow otherwise (see
 DCNetworkBlock::set_kappa()); a switchable line of an OTSNetworkBlock adds
 the dual value of the limit \f$ \min\{ 1 , \kappa_l \} \f$ of its switching
-while \f$ \kappa_l < 1 \f$ (see OTSNetworkBlock::set_kappa()). In (9) and
-(10) the minus sign makes the
-subgradient nonpositive when more capacity relaxes an active upper bound, as
-it must for a minimization. A capacity multiplier of a unit or of a line that
-is also in design mode is not covered by these formulae, since there
-\f$ \kappa \f$ multiplies the design variable and the optimal value need not
-be convex in it. Hence, IntermittentUnitBlock::get_kappa_linearization(),
+while \f$ \kappa_l < 1 \f$ (see OTSNetworkBlock::resize()). In (9) and (10)
+the minus sign makes the subgradient nonpositive when more capacity relaxes
+an active upper bound, as it must for a minimization. A capacity multiplier
+of a unit or of a line that is also in design mode is not covered by these
+formulae, since there \f$ \kappa \f$ multiplies the design variable and
+the optimal value need not be convex in it. Hence,
+IntermittentUnitBlock::get_kappa_linearization(),
 BatteryUnitBlock::get_kappa_linearization() and, for a line with a design
 variable, DCNetworkBlock::get_resize_linearization() throw in that case. A
-worst case of \f$ Q \f$ over a
-set \f$ \Upsilon \f$ of alternative futures, i.e., the problem
+worst case of \f$ Q \f$ over a set \f$ \Upsilon \f$ of alternative
+futures, i.e., the problem
 \f[
   \min_x \Bigl\{ \sum_{ i = 1 }^m \bigl( c_i ( x_i - \bar x_i )^+
     + d_i ( \bar x_i - x_i )^+ \bigr) + \max_{ \upsilon \in \Upsilon }

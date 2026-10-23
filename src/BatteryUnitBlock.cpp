@@ -2656,9 +2656,9 @@ void BatteryUnitBlock::set_converter_kappa( MF_dbl_it values ,
 /*--------------------------------------------------------------------------*/
 
 void BatteryUnitBlock::resize( double kappa , double conv_kappa ,
-                               ModParam issuePMod , ModParam issueAMod )
+                               c_ModParam issuePMod , c_ModParam issueAMod )
 {
- // set_kappa() does not check the sign, and both values are checked before
+ // set_kappa() does not check the sign, and the values are checked before
  // anything is written
  if( ! ( ( kappa >= 0 ) && ( conv_kappa >= 0 ) ) )
   throw( std::invalid_argument( "BatteryUnitBlock::resize: the sizes must "
@@ -2666,7 +2666,7 @@ void BatteryUnitBlock::resize( double kappa , double conv_kappa ,
                                 std::to_string( kappa ) + " and " +
                                 std::to_string( conv_kappa ) ) );
 
- // a converter that follows kappa keeps following it when the two sizes are
+ // a converter that follows kappa keeps following it when the sizes are
  // equal, the unit being resized as a whole by kappa alone; otherwise the
  // converter takes its size first, so that set_kappa() rewrites the rows of
  // the storage only. set_converter_kappa() makes all its checks before it
