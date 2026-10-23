@@ -1880,52 +1880,6 @@ class BatteryUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// sets the two sizes of the unit, the storage and the converter
- /** Sets \f$ \kappa \f$ to \p kappa and \f$ \kappa^{cv} \f$ to
-  * \p conv_kappa [see get_converter_kappa()]: the storage is resized with its
-  * power by the first, and the converter by the second: it is
-  * set_converter_kappa() followed by set_kappa(), the first skipped when
-  * the converter follows \f$ \kappa \f$ and the two are equal, the unit
-  * being then resized as a whole. Two different values give the converter a
-  * size of its own, which
-  * lives in the rows (10): if the Constraints have been generated and the
-  * battery has none, std::logic_error is thrown, since a static Constraint
-  * cannot be added then, while before the generation the rows are made to
-  * exist. It is registered in the methods factory as
-  * "BatteryUnitBlock::resize" with two spans (MS_sp_dbl2_S), next to the
-  * form with one value, which is resize( kappa , kappa ). As set_kappa(), it throws std::logic_error for a
-  * unit that follows a reference schedule, and std::invalid_argument for a
-  * negative value.
-  *
-  * @param kappa the size of the storage and of its power
-  *
-  * @param conv_kappa the size of the converter
-  *
-  * @param issuePMod Controls how physical Modifications are issued.
-  *
-  * @param issueAMod Controls how abstract Modifications are issued. */
-
- void resize( double kappa , double conv_kappa , ModParam issuePMod = eNoBlck ,
-              ModParam issueAMod = eNoBlck );
-
-/*--------------------------------------------------------------------------*/
- /// the derivatives with respect to the two sizes of the unit
- /** Writes in \p g_kappa and \p g_conv_kappa the derivatives of the value
-  * with respect to \f$ \kappa \f$ and \f$ \kappa^{cv} \f$, as
-  * resize( kappa , conv_kappa ) sets them: \p g_conv_kappa is
-  * get_converter_kappa_linearization(), and \p g_kappa is
-  * get_kappa_linearization() without the part of the converter, which that
-  * method counts while the converter follows \f$ \kappa \f$. Their sum is
-  * the derivative with respect to the one size of resize( kappa , kappa ).
-  * It is registered in the methods factory as
-  * "BatteryUnitBlock::get_resize_linearization" with two spans
-  * (MS_qry_dbl2_S), next to the form with one, which gives the sum. It
-  * throws std::logic_error if a design variable exists. */
-
- void get_resize_linearization( double & g_kappa , double & g_conv_kappa )
-  const;
-
-/*--------------------------------------------------------------------------*/
 
  // For the Range version, use the default implementation defined in UnitBlock
  using UnitBlock::scale;
@@ -1939,6 +1893,67 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// sets the two sizes of the unit, the storage and the converter
+ /** Sets \f$ \kappa \f$ to \p kappa and \f$ \kappa^{cv} \f$ to
+  * \p conv_kappa [see get_converter_kappa()]: the storage is resized with its
+  * power by the first, and the converter by the second: it is
+  * set_converter_kappa() followed by set_kappa(), the first skipped when
+  * the converter follows \f$ \kappa \f$ and the two are equal, the unit
+  * being then resized as a whole. Different values give the converter a
+  * size of its own, which lives in the rows (10): if the Constraints have
+  * been generated and the battery has none, std::logic_error is thrown,
+  * since a static Constraint cannot be added then, while before the
+  * generation the rows are made to exist. As set_kappa(), it throws
+  * std::logic_error for a unit that follows a reference schedule, and
+  * std::invalid_argument for a negative value. It is registered in the
+  * methods factory as "BatteryUnitBlock::resize" with a pair of scalars
+  * [see static_initialization()].
+  *
+  * @param kappa the size of the storage and of its power
+  *
+  * @param conv_kappa the size of the converter
+  *
+  * @param issuePMod Controls how physical Modifications are issued.
+  *
+  * @param issueAMod Controls how abstract Modifications are issued. */
+
+ void resize( double kappa , double conv_kappa , ModParam issuePMod = eNoBlck ,
+              ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the one size of the unit, the storage and the converter together
+ /** resize( kappa , kappa ), registered as "BatteryUnitBlock::resize" with
+  * one scalar. It takes no default ModParam, which would make a call with
+  * two integers ambiguous with the version above. */
+
+ void resize( double kappa , c_ModParam issuePMod , c_ModParam issueAMod ) {
+  resize( kappa , kappa , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the derivatives with respect to the two sizes of the unit
+ /** Writes in \p g_kappa and \p g_conv_kappa the derivatives of the value
+  * with respect to \f$ \kappa \f$ and \f$ \kappa^{cv} \f$, as
+  * resize( kappa , conv_kappa ) sets them: \p g_conv_kappa is
+  * get_converter_kappa_linearization(), and \p g_kappa is
+  * get_kappa_linearization() without the part of the converter, which that
+  * method counts while the converter follows \f$ \kappa \f$. It is
+  * registered in the methods factory as
+  * "BatteryUnitBlock::get_resize_linearization" with a pair of scalars. It
+  * throws std::logic_error if a design variable exists. */
+
+ void get_resize_linearization( double & g_kappa , double & g_conv_kappa )
+  const;
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative with respect to the one size of resize( kappa )
+ /** Writes in \p g the derivative of the value with respect to the one size
+  * of resize( kappa ): get_kappa_linearization(), which counts the
+  * converter while it follows \f$ \kappa \f$, plus the derivative of the
+  * converter when it does not. It is registered as
+  * "BatteryUnitBlock::get_resize_linearization" with one scalar. */
+
+ void get_resize_linearization( double & g ) const;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -2361,175 +2376,31 @@ class BatteryUnitBlock : public UnitBlock
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
 
-  // The two ways of sizing this Block [see Design and scaling of this Block
-  // in Block.h], each under the name that says which one it is. Note that
-  // scale() was not registered at all until now, so the "k copies" road was
-  // not reachable through the factory for a battery, although the method has
-  // always been there. set_kappa keeps its old name as well: a registered
-  // name travels inside the instances that name it.
+  // The ways of sizing this Block, each under the name that says which one
+  // it is [see UCBlock::replicate() and UCBlock::resize_unit()], with the
+  // scalars a unit has: k identical copies of the unit, and the storage and
+  // the converter resized together with one value, apart with two [see
+  // resize()]; then the getters reading the derivatives back, the one with
+  // respect to the one size and the two apart. What the factory adds is that
+  // a consumer can reach them without holding a BatteryUnitBlock *, and that
+  // a class not answering for one simply does not register its name.
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
-   "BatteryUnitBlock::replicate" ,
-   & BatteryUnitBlock::scale );
+  register_method< BatteryUnitBlock , double >(
+   "BatteryUnitBlock::replicate" , & BatteryUnitBlock::scale );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
-   "BatteryUnitBlock::replicate" ,
-   & BatteryUnitBlock::scale );
+  register_method< BatteryUnitBlock , double >(
+   "BatteryUnitBlock::resize" , & BatteryUnitBlock::resize );
 
-  // resize with one value is the unit resized as a whole, the storage and
-  // the converter together [see resize( double , double )]
+  register_method< BatteryUnitBlock , double , double >(
+   "BatteryUnitBlock::resize" , & BatteryUnitBlock::resize );
 
-  using fun_sbst = FunctionType< MF_dbl_it , Subset && , bool >;
-  using fun_rngd = FunctionType< MF_dbl_it , Range >;
+  register_method< BatteryUnitBlock , double & >(
+   "BatteryUnitBlock::get_resize_linearization" ,
+   & BatteryUnitBlock::get_resize_linearization );
 
-  register_method< fun_sbst >( "BatteryUnitBlock::resize" , new fun_sbst(
-    []( Block * blck , MF_dbl_it values , Subset && subset , bool ,
-        ModParam issuePMod , ModParam issueAMod ) {
-     if( ! subset.empty() )
-      static_cast< BatteryUnitBlock * >( blck )->resize( *values , *values ,
-                                                         issuePMod ,
-                                                         issueAMod );
-     } ) );
-
-  register_method< fun_rngd >( "BatteryUnitBlock::resize" , new fun_rngd(
-    []( Block * blck , MF_dbl_it values , Range rng , ModParam issuePMod ,
-        ModParam issueAMod ) {
-     if( rng.first < rng.second )
-      static_cast< BatteryUnitBlock * >( blck )->resize( *values , *values ,
-                                                         issuePMod ,
-                                                         issueAMod );
-     } ) );
-
-  // ... and with two values the storage and the converter apart, in two
-  // spans, over the one element of the family, of index 0
-
-  using fun2_sbst = FunctionType< MF_dbl_sp , MF_dbl_sp , Subset && , bool >;
-  using fun2_rngd = FunctionType< MF_dbl_sp , MF_dbl_sp , Range >;
-
-  register_method< fun2_sbst >( "BatteryUnitBlock::resize" , new fun2_sbst(
-    []( Block * blck , MF_dbl_sp kappa , MF_dbl_sp conv_kappa ,
-        Subset && subset , bool , ModParam issuePMod , ModParam issueAMod ) {
-     if( ( subset.size() > kappa.size() ) ||
-         ( subset.size() > conv_kappa.size() ) )
-      throw( std::invalid_argument( "BatteryUnitBlock::resize: a span is "
-       "shorter than the subset it is asked to write" ) );
-     for( Index i = 0 ; i < subset.size() ; ++i ) {
-      if( subset[ i ] )
-       throw( std::invalid_argument( "BatteryUnitBlock::resize: a unit has "
-        "one pair of sizes, and there is no index " +
-        std::to_string( subset[ i ] ) ) );
-      static_cast< BatteryUnitBlock * >( blck )->resize( kappa[ i ] ,
-                                                         conv_kappa[ i ] ,
-                                                         issuePMod ,
-                                                         issueAMod );
-      }
-     } ) );
-
-  register_method< fun2_rngd >( "BatteryUnitBlock::resize" , new fun2_rngd(
-    []( Block * blck , MF_dbl_sp kappa , MF_dbl_sp conv_kappa , Range rng ,
-        ModParam issuePMod , ModParam issueAMod ) {
-     rng.second = std::min( rng.second , Index( 1 ) );
-     if( rng.first >= rng.second )
-      return;
-     if( kappa.empty() || conv_kappa.empty() )
-      throw( std::invalid_argument( "BatteryUnitBlock::resize: a span is "
-       "shorter than the range it is asked to write" ) );
-     static_cast< BatteryUnitBlock * >( blck )->resize( kappa[ 0 ] ,
-                                                        conv_kappa[ 0 ] ,
-                                                        issuePMod ,
-                                                        issueAMod );
-     } ) );
-
-  // ... and the getter reading the sensitivity back, registered under a name
-  // that says which of the two it answers for: with one value the derivative
-  // with respect to the one size, the sum of the two that
-  // get_resize_linearization( double & , double & ) gives with two. What the
-  // factory adds is that a consumer can reach it without holding a
-  // BatteryUnitBlock *, and that a class not answering for it simply does not
-  // register the name.
-
-  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
-  using qry_rngd = QueryType< MF_dbl_msp , Range >;
-
-  // the derivative with respect to the one size, the sum of the two:
-  // get_kappa_linearization() already counts the converter while it follows
-  // kappa, and only then the converter is added
-  static const auto whole_resize_linearization = []( const Block * blck ) {
-   const auto unit = static_cast< const BatteryUnitBlock * >( blck );
-   return( unit->converter_follows_kappa() ?
-           unit->get_kappa_linearization() :
-           unit->get_kappa_linearization() +
-           unit->get_converter_kappa_linearization() );
-   };
-
-  register_method< qry_sbst >(
-   "BatteryUnitBlock::get_resize_linearization" , new qry_sbst(
-    []( const Block * blck , MF_dbl_msp msp , c_Subset & idxs , bool ) {
-     // one size parameter, so the only index that exists here is 0
-     if( idxs.size() > msp.size() )
-      throw( std::invalid_argument(
-       "BatteryUnitBlock::get_resize_linearization: the span is shorter "
-       "than the subset it is asked to answer for" ) );
-     for( Index i = 0 ; i < idxs.size() ; ++i ) {
-      if( idxs[ i ] )
-       throw( std::invalid_argument(
-        "BatteryUnitBlock::get_resize_linearization: a unit has one size "
-        "parameter, and there is no index " + std::to_string( idxs[ i ] ) ) );
-      msp[ i ] = whole_resize_linearization( blck );
-      }
-     } ) );
-
-  register_method< qry_rngd >(
-   "BatteryUnitBlock::get_resize_linearization" , new qry_rngd(
-    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
-     // one size parameter: the family has one element, of index 0
-     rng.second = std::min( rng.second , Index( 1 ) );
-     if( rng.first >= rng.second )
-      return;
-     if( msp.empty() )
-      throw( std::invalid_argument(
-       "BatteryUnitBlock::get_resize_linearization: the span is shorter "
-       "than the range it is asked to answer for" ) );
-     msp[ 0 ] = whole_resize_linearization( blck );
-     } ) );
-
-  // ... and the two derivatives apart, in two spans
-
-  using qry2_sbst = QueryType< MF_dbl_msp , MF_dbl_msp , c_Subset & , bool >;
-  using qry2_rngd = QueryType< MF_dbl_msp , MF_dbl_msp , Range >;
-
-  register_method< qry2_sbst >(
-   "BatteryUnitBlock::get_resize_linearization" , new qry2_sbst(
-    []( const Block * blck , MF_dbl_msp msp , MF_dbl_msp conv_msp ,
-        c_Subset & idxs , bool ) {
-     if( ( idxs.size() > msp.size() ) || ( idxs.size() > conv_msp.size() ) )
-      throw( std::invalid_argument(
-       "BatteryUnitBlock::get_resize_linearization: a span is shorter than "
-       "the subset it is asked to answer for" ) );
-     for( Index i = 0 ; i < idxs.size() ; ++i ) {
-      if( idxs[ i ] )
-       throw( std::invalid_argument(
-        "BatteryUnitBlock::get_resize_linearization: a unit has one pair of "
-        "sizes, and there is no index " + std::to_string( idxs[ i ] ) ) );
-      static_cast< const BatteryUnitBlock * >( blck )->
-       get_resize_linearization( msp[ i ] , conv_msp[ i ] );
-      }
-     } ) );
-
-  register_method< qry2_rngd >(
-   "BatteryUnitBlock::get_resize_linearization" , new qry2_rngd(
-    []( const Block * blck , MF_dbl_msp msp , MF_dbl_msp conv_msp ,
-        Range rng ) {
-     rng.second = std::min( rng.second , Index( 1 ) );
-     if( rng.first >= rng.second )
-      return;
-     if( msp.empty() || conv_msp.empty() )
-      throw( std::invalid_argument(
-       "BatteryUnitBlock::get_resize_linearization: a span is shorter than "
-       "the range it is asked to answer for" ) );
-     static_cast< const BatteryUnitBlock * >( blck )->
-      get_resize_linearization( msp[ 0 ] , conv_msp[ 0 ] );
-     } ) );
+  register_method< BatteryUnitBlock , double & , double & >(
+   "BatteryUnitBlock::get_resize_linearization" ,
+   & BatteryUnitBlock::get_resize_linearization );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
    "BatteryUnitBlock::set_converter_kappa" ,

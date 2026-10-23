@@ -154,16 +154,15 @@ class ClassMethod {
 
 /*--------------------------------------------------------------------------*/
 /* Hands each unit in units the value in the same position of values, through
- * the method that its class registers as "<classname>" + suffix, over the
- * range [ 0 , 1 ) of its size parameters [see UCBlock::resize_unit()]. */
+ * the method that its class registers as "<classname>" + suffix, with the
+ * one scalar a unit has [see UCBlock::resize_unit()]. */
 
 static void size_units( UCBlock & ucb , const char * caller ,
                         const char * suffix , Block::MF_dbl_it values ,
                         Block::c_Subset & units , ModParam issuePMod ,
                         ModParam issueAMod )
 {
- ClassMethod< Block::FunctionType< Block::MF_dbl_it , Block::Range > >
-  method( caller , suffix );
+ ClassMethod< Block::FunctionType< double > > method( caller , suffix );
 
  for( const auto u : units ) {
   if( u >= ucb.get_number_units() )
@@ -171,8 +170,8 @@ static void size_units( UCBlock & ucb , const char * caller ,
                                  ": there is no unit of index " +
                                  std::to_string( u ) ) );
   const auto unit = ucb.get_unit_block( u );
-  std::invoke( method( unit , "unit" , u ) , unit , values++ ,
-               Block::Range( 0 , 1 ) , issuePMod , issueAMod );
+  std::invoke( method( unit , "unit" , u ) , unit , *( values++ ) ,
+               issuePMod , issueAMod );
   }
  }
 
@@ -3476,7 +3475,7 @@ void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
   throw( std::invalid_argument( "UCBlock::resize_unit: a span is shorter "
                                 "than the subset it is asked to write" ) );
 
- ClassMethod< FunctionType< MF_dbl_sp , MF_dbl_sp , Range > >
+ ClassMethod< FunctionType< double , double > >
   method( "resize_unit with two sizes" , "::resize" );
 
  // the bounds of the node injections are computed once, as in the other
@@ -3488,9 +3487,8 @@ void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
     throw( std::invalid_argument( "UCBlock::resize_unit: there is no unit "
                                   "of index " + std::to_string( u ) ) );
    const auto unit = get_unit_block( u );
-   std::invoke( method( unit , "unit" , u ) , unit , values.subspan( k , 1 ) ,
-                second_values.subspan( k , 1 ) , Range( 0 , 1 ) , issuePMod ,
-                issueAMod );
+   std::invoke( method( unit , "unit" , u ) , unit , values[ k ] ,
+                second_values[ k ] , issuePMod , issueAMod );
    }
   } );
  }
@@ -3658,7 +3656,7 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
                                 "span is shorter than the subset it is asked "
                                 "to answer for" ) );
 
- ClassMethod< QueryType< MF_dbl_msp , Range > >
+ ClassMethod< QueryType< double & > >
   query( "get_resize_unit_linearization" , "::get_resize_linearization" );
 
  for( Index k = 0 ; k < units.size() ; ++k ) {
@@ -3667,8 +3665,7 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
                                  "there is no unit of index " +
                                  std::to_string( units[ k ] ) ) );
   const auto unit = get_unit_block( units[ k ] );
-  std::invoke( query( unit , "unit" , units[ k ] ) , unit ,
-               msp.subspan( k , 1 ) , Range( 0 , 1 ) );
+  std::invoke( query( unit , "unit" , units[ k ] ) , unit , msp[ k ] );
   // the bounds of the node injections, which the unit does not see
   msp[ k ] += injection_bounds_linearization( units[ k ] , false );
   }
@@ -3685,7 +3682,7 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
                                 "span is shorter than the subset it is asked "
                                 "to answer for" ) );
 
- ClassMethod< QueryType< MF_dbl_msp , MF_dbl_msp , Range > >
+ ClassMethod< QueryType< double & , double & > >
   query( "get_resize_unit_linearization with two sizes" ,
          "::get_resize_linearization" );
 
@@ -3695,9 +3692,8 @@ void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
                                  "there is no unit of index " +
                                  std::to_string( units[ k ] ) ) );
   const auto unit = get_unit_block( units[ k ] );
-  std::invoke( query( unit , "unit" , units[ k ] ) , unit ,
-               msp.subspan( k , 1 ) , second_msp.subspan( k , 1 ) ,
-               Range( 0 , 1 ) );
+  std::invoke( query( unit , "unit" , units[ k ] ) , unit , msp[ k ] ,
+               second_msp[ k ] );
   // the bounds of the node injections, in which only the first kappa is
   msp[ k ] += injection_bounds_linearization( units[ k ] , false );
   }

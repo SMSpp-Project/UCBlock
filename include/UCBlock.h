@@ -1538,8 +1538,8 @@ class UCBlock : public Block
  /** Writes in msp[ k ] the derivative of the value of this UCBlock with
   * respect to the size parameter of the unit units[ k ], as resize_unit()
   * sets it: each unit answers through the getter that its class registers
-  * as "<classname>::get_resize_linearization", the parameter living in the
-  * rows of the unit. It is reached by the name
+  * as "<classname>::get_resize_linearization" with one scalar, the
+  * parameter living in the rows of the unit. It is reached by the name
   * "UCBlock::get_resize_unit_linearization", for the reason given above.
   *
   * @throws std::invalid_argument if \p msp is shorter than \p units or an
@@ -1555,13 +1555,13 @@ class UCBlock : public Block
   * this UCBlock with respect to the two sizes of the unit units[ k ], as
   * resize_unit( two values ) sets them: each unit answers through the getter
   * that its class registers as "<classname>::get_resize_linearization" with
-  * two spans, which for a BatteryUnitBlock are the storage and the
+  * a pair of scalars, which for a BatteryUnitBlock are the storage and the
   * converter. It is reached by the name
   * "UCBlock::get_resize_unit_linearization", with two spans.
   *
   * @throws std::invalid_argument if a span is shorter than \p units or an
   *         index is not that of a unit, and std::logic_error if the class of
-  *         a unit does not register the getter with two spans. */
+  *         a unit does not register the getter with a pair of scalars. */
 
  void get_resize_unit_linearization( MF_dbl_msp msp , MF_dbl_msp second_msp ,
                                      c_Subset & units ) const;
@@ -2075,7 +2075,7 @@ class UCBlock : public Block
   * the value in the same position of \p values. What being resized means is
   * the business of the unit, not of this UCBlock: the value is handed to the
   * method that the class of the unit registers in the methods factory as
-  * "<classname>::resize", over the range [ 0 , 1 ) of its size parameters.
+  * "<classname>::resize", with the one scalar a unit has.
   *
   * This is what a Block holding this UCBlock calls, by the name
   * "UCBlock::resize_unit", to size a unit without knowing its class [see
@@ -2104,15 +2104,16 @@ class UCBlock : public Block
  /** As resize_unit( subset ), for units that have two sizes: each unit is
   * handed the value in the same position of \p values and of
   * \p second_values, through the method that its class registers as
-  * "<classname>::resize" with two spans, which for a BatteryUnitBlock are
-  * the storage and the converter [see BatteryUnitBlock::resize()]. The
+  * "<classname>::resize" with a pair of scalars, which for a
+  * BatteryUnitBlock are the storage and the converter [see
+  * BatteryUnitBlock::resize()]. The
   * derivatives are read back by the name
   * "UCBlock::get_resize_unit_linearization", with two spans.
   *
   * @throws std::invalid_argument if an index in \p subset is not that of a
   *         unit or a span is shorter than \p subset, and std::logic_error
   *         if the class of a unit does not register "<classname>::resize"
-  *         with two spans; the units before
+  *         with a pair of scalars; the units before
   *         it are resized all the same. */
 
  void resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,

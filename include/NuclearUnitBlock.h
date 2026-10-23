@@ -1684,15 +1684,11 @@ private:
    "NuclearUnitBlock::set_deep_decrease_costs" ,
    & NuclearUnitBlock::set_deep_decrease_costs );
 
-  // k identical copies of this unit, as for ThermalUnitBlock, whose scale()
-  // this is [see ThermalUnitBlock::static_initialization()]: without its own
-  // name, a nuclear unit would be sized as a thermal one by whoever falls
-  // back on the class, and refused by whoever asks for the name
+  // k identical copies of this unit, as for ThermalUnitBlock [see
+  // ThermalUnitBlock::static_initialization()], under a name of its own,
+  // since a consumer looks the name up by the exact class of the Block
 
-  register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
-   "NuclearUnitBlock::replicate" , & NuclearUnitBlock::scale );
-
-  register_method< NuclearUnitBlock , MF_dbl_it , Range >(
+  register_method< NuclearUnitBlock , double >(
    "NuclearUnitBlock::replicate" , & NuclearUnitBlock::scale );
  }
 

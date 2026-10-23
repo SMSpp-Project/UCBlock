@@ -3731,17 +3731,11 @@ class ThermalUnitBlock : public UnitBlock
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
    "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
 
-  // scale() again under the name saying which of the ways of sizing a Block
-  // [see Design and scaling of this Block in Block.h] it is: k identical
-  // copies of this unit. There is no "resize" here, and the omission is the
-  // statement: the commitment of a thermal unit is binary, so one unit of k
-  // times the size is not k units, and this class does not offer that road.
-  // The old name is kept, instances naming it still working.
+  // scale() again under the name of the way of sizing a Block it is [see
+  // UCBlock::replicate()]: k identical copies of this unit, the k given as
+  // the one scalar a unit has. There is no "resize": this class has no kappa
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::replicate" , & ThermalUnitBlock::scale );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , double >(
    "ThermalUnitBlock::replicate" , & ThermalUnitBlock::scale );
  }
 

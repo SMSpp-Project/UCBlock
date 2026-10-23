@@ -1977,15 +1977,11 @@ class ConversionUnitBlock : public UnitBlock
    & ConversionUnitBlock::scale );
 
   // scale() again under the name of the way of sizing a Block it is: k
-  // identical copies of this unit, committed together
+  // identical copies of this unit, committed together, the k given as the
+  // one scalar a unit has [see UCBlock::replicate()]
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ConversionUnitBlock::replicate" ,
-   & ConversionUnitBlock::scale );
-
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
-   "ConversionUnitBlock::replicate" ,
-   & ConversionUnitBlock::scale );
+  register_method< ConversionUnitBlock , double >(
+   "ConversionUnitBlock::replicate" , & ConversionUnitBlock::scale );
 
   register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
    "ConversionUnitBlock::set_initial_delayed_power" ,

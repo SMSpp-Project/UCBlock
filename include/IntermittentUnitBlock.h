@@ -1190,10 +1190,10 @@ class IntermittentUnitBlock : public UnitBlock
    "IntermittentUnitBlock::set_kappa" ,
    & IntermittentUnitBlock::set_kappa );
 
-  // The same two methods are registered again under names that say which of
-  // the two ways of sizing a Block [see Design and scaling of this Block in
-  // Block.h] they implement, so that a consumer can pick the operation
-  // without knowing the class:
+  // scale() and set_kappa() are registered again under names that say which
+  // of the ways of sizing a Block they implement [see UCBlock::replicate()
+  // and UCBlock::resize_unit()], with the one scalar a unit has, so that a
+  // consumer can pick the operation without knowing the class:
   //
   // - replicate: this UnitBlock stands for k identical copies of itself. Its
   //   Constraint and Variable keep describing one copy and whoever holds a
@@ -1203,26 +1203,12 @@ class IntermittentUnitBlock : public UnitBlock
   //   given. Its own rows are rewritten, and the UCBlock multiplies its
   //   kappa in the bounds of the node injections only [see
   //   UCBlock::set_node_injection_bounds()].
-  //
-  // The old names are kept so that instances naming them keep working: a
-  // registered name travels inside the instances, and dropping one breaks
-  // them at load time with no diagnostic.
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
-   "IntermittentUnitBlock::replicate" ,
-   & IntermittentUnitBlock::scale );
+  register_method< IntermittentUnitBlock , double >(
+   "IntermittentUnitBlock::replicate" , & IntermittentUnitBlock::scale );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
-   "IntermittentUnitBlock::replicate" ,
-   & IntermittentUnitBlock::scale );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
-   "IntermittentUnitBlock::resize" ,
-   & IntermittentUnitBlock::set_kappa );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
-   "IntermittentUnitBlock::resize" ,
-   & IntermittentUnitBlock::set_kappa );
+  register_method< IntermittentUnitBlock , double >(
+   "IntermittentUnitBlock::resize" , & IntermittentUnitBlock::set_kappa );
 
   // ... and the getter reading the sensitivity back, registered under a name
   // that says which of the two it answers for. It is the same virtual that
@@ -1230,41 +1216,11 @@ class IntermittentUnitBlock : public UnitBlock
   // without holding a UnitBlock *, and that a class not answering for it
   // simply does not register the name.
 
-  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
-  using qry_rngd = QueryType< MF_dbl_msp , Range >;
-
-  register_method< qry_sbst >(
-   "IntermittentUnitBlock::get_resize_linearization" , new qry_sbst(
-    []( const Block * blck , MF_dbl_msp msp , c_Subset & idxs , bool ) {
-     // one size parameter, so the only index that exists here is 0
-     if( idxs.size() > msp.size() )
-      throw( std::invalid_argument(
-       "IntermittentUnitBlock::get_resize_linearization: the span is shorter "
-       "than the subset it is asked to answer for" ) );
-     for( Index i = 0 ; i < idxs.size() ; ++i ) {
-      if( idxs[ i ] )
-       throw( std::invalid_argument(
-        "IntermittentUnitBlock::get_resize_linearization: a unit has one size "
-        "parameter, and there is no index " + std::to_string( idxs[ i ] ) ) );
-      msp[ i ] = static_cast< const IntermittentUnitBlock * >( blck )->
-                 get_kappa_linearization();
-      }
-     } ) );
-
-  register_method< qry_rngd >(
-   "IntermittentUnitBlock::get_resize_linearization" , new qry_rngd(
-    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
-     // one size parameter: the family has one element, of index 0
-     rng.second = std::min( rng.second , Index( 1 ) );
-     if( rng.first >= rng.second )
-      return;
-     if( msp.empty() )
-      throw( std::invalid_argument(
-       "IntermittentUnitBlock::get_resize_linearization: the span is shorter "
-       "than the range it is asked to answer for" ) );
-     msp[ 0 ] = static_cast< const IntermittentUnitBlock * >( blck )->
-                get_kappa_linearization();
-     } ) );
+  register_method< QueryType< double & > >(
+   "IntermittentUnitBlock::get_resize_linearization" ,
+   new QueryType< double & >( []( const Block * blck , double & g ) {
+    g = static_cast< const IntermittentUnitBlock * >( blck )->
+        get_kappa_linearization(); } ) );
  }
 
 };  // end( class( IntermittentUnitBlock ) )

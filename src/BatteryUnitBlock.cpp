@@ -2690,7 +2690,19 @@ void BatteryUnitBlock::get_resize_linearization( double & g_kappa ,
  if( converter_follows_kappa() )
   g_kappa -= g_conv_kappa;
 
-}  // end( BatteryUnitBlock::get_resize_linearization )
+}  // end( BatteryUnitBlock::get_resize_linearization( pair ) )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::get_resize_linearization( double & g ) const
+{
+ // get_kappa_linearization() counts the converter while it follows kappa,
+ // and otherwise the converter is added
+ g = get_kappa_linearization();
+ if( ! converter_follows_kappa() )
+  g += get_converter_kappa_linearization();
+
+}  // end( BatteryUnitBlock::get_resize_linearization( one ) )
 
 /*--------------------------------------------------------------------------*/
 

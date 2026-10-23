@@ -177,14 +177,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The way a Block is sized has a name in the methods factory, so that a
   consumer can write it and read the sensitivity back without knowing which
   class it is holding. `ThermalUnitBlock`, `NuclearUnitBlock`,
-  `IntermittentUnitBlock` and `BatteryUnitBlock` register `scale()` as
-  `<class>::replicate`, which stands for k identical copies of the unit;
-  `IntermittentUnitBlock`, `BatteryUnitBlock`, `DCNetworkBlock` and
+  `IntermittentUnitBlock`, `BatteryUnitBlock` and `ConversionUnitBlock`
+  register `scale()` as `<class>::replicate`, which stands for k identical
+  copies of the unit; `IntermittentUnitBlock` and `BatteryUnitBlock`
+  register their kappa as `<class>::resize`, which stands for one copy of k
+  times the size (for `BatteryUnitBlock`, `resize( k , k )` below). A unit
+  has one such parameter, and its names take it as a scalar, with no slice,
+  in the families of SMS++ for one scalar. `DCNetworkBlock` and
   `ACNetworkBlock` register `set_kappa()` as `<class>::resize`, and
-  `OTSNetworkBlock` its sizing of a line (below), which stands for one copy
-  of k times the size (for `BatteryUnitBlock`, `resize( k , k )` below). The thermal and the nuclear units deliberately do not offer the
-  second road, their commitment being binary. The old names stay registered, a registered name travelling
-  inside the instances that name it.
+  `OTSNetworkBlock` its sizing of a line (below), in the range and the
+  subset form, a network having many lines. The thermal and the nuclear
+  units have no kappa, hence no `<class>::resize`. The old names stay
+  registered, a registered name travelling inside the instances that name
+  it.
 
 - The sensitivity that mirrors each of those names. `<class>::get_resize_
   linearization` gives the derivative of the value with respect to kappa, and
@@ -192,9 +197,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UCBlock::get_replicate_linearization` gives the derivative with respect to
   the number of copies of one of its units, and is answered by the container,
   because that factor lives in the rows the container builds on top of the
-  unit and not in the rows of the unit. Both come in the range and the subset
-  form, both refuse a span shorter than what they are asked for, and both
-  refuse an index that does not exist. The derivative with respect to the
+  unit and not in the rows of the unit. The getter of a unit writes its one
+  scalar, that of a network or of a `UCBlock` comes in the range and the
+  subset form, refusing a span shorter than what it is asked for and an
+  index that does not exist. The derivative with respect to the
   copies sums, row by row, what the factor multiplies there: the power of the
   unit in the active and in the reactive node injection, with the fixed
   consumption of a unit that is off subtracted, its reserves, its inertia,
@@ -253,16 +259,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its power, and the converter apart, and
   `BatteryUnitBlock::get_resize_linearization( g_kappa , g_conv_kappa )`
   gives the two derivatives; they are registered as `BatteryUnitBlock::resize`
-  and `BatteryUnitBlock::get_resize_linearization` with two spans, next to
-  the forms with one value, which are now `resize( k , k )`, the storage and
-  the converter together as the one kappa sized them before the converter
-  had a kappa of its own, and the sum of the two derivatives. The converter
+  and `BatteryUnitBlock::get_resize_linearization` with a pair of scalars,
+  next to the forms with one scalar, which are `resize( k , k )`, the
+  storage and the converter together, and the derivative with respect to
+  that one size. The converter
   sized apart needs its rows, which exist if the data have
   `ConverterMaxPower` or `ConverterKappa`, or if the two sizes are given
   before the Constraints are generated; otherwise the call throws.
   `UCBlock::resize_unit` and `UCBlock::get_resize_unit_linearization`
-  forward the forms with two spans to the units. They use the families of
-  the methods factory with two values per Index of SMS++
+  take two spans and hand each unit its pair of scalars. They use the
+  families of the methods factory of SMS++ with two values per Index, and
+  those for a pair of scalars
 
 - the C++20 module `smspp.ucblock` (`src/UCBlock.cppm`), which exports every
   name that the headers declare at namespace scope and re-exports `smspp`,

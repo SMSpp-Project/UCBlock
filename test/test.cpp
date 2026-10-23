@@ -4900,14 +4900,13 @@ static void test_battery_resize_as_setters( void )
   { { "MinStorage" , { 0 , 0 } } , { "MaxStorage" , { 20 , 20 } } ,
     { "MaxPower" , { 10 , 10 } } , { "MinPower" , { -10 , -10 } } ,
     { "InitialStorage" , { 5 } } , { "ConverterMaxPower" , { 3 , 3 } } };
- const auto resize = Block::get_method_fs< Block::MF_dbl_sp ,
-                                           Block::MF_dbl_sp , Block::Range >(
+ const auto resize = Block::get_method_fs< double , double >(
 						  "BatteryUnitBlock::resize" );
  std::unique_ptr< BatteryUnitBlock > a( new_BU( 2 , data ) );
  std::unique_ptr< BatteryUnitBlock > b( new_BU( 2 , data ) );
  if( ( ! resize ) || ( ! a ) || ( ! b ) ) {
   check( false , "battery, resize as the setters: no BatteryUnitBlock::resize "
-	 "with two spans, or the battery is not read" );
+	 "with a pair of scalars, or the battery is not read" );
   return;
   }
  generate_all( a.get() );
@@ -4916,10 +4915,7 @@ static void test_battery_resize_as_setters( void )
 
  for( const auto & [ k , kc ] : std::vector< std::pair< double , double > >{
 				{ 2 , 2 } , { 2 , 0.5 } , { 1 , 3 } } ) {
-  std::vector< double > vk = { k };
-  std::vector< double > vkc = { kc };
-  std::invoke( *resize , a.get() , Block::MF_dbl_sp( vk ) ,
-	       Block::MF_dbl_sp( vkc ) , Range( 0 , 1 ) , eNoBlck , eNoBlck );
+  std::invoke( *resize , a.get() , k , kc , eNoBlck , eNoBlck );
   if( ! ( b->converter_follows_kappa() && ( kc == k ) ) )
    b->set_converter_kappa( kc );
   b->set_kappa( k );
@@ -4935,6 +4931,78 @@ static void test_battery_resize_as_setters( void )
   check( rows == static_rows( b.get() ) ,
 	 who + ": the rows are not those of the setters" );
   previous = rows;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The names that size a unit take the one scalar a unit has, or the pair of
+ * sizes of a BatteryUnitBlock, with no slice: they are in the families for
+ * one scalar and for a pair, and in none with a Range or a Subset; so are
+ * the getters reading the derivatives back. Called by name, they do what the
+ * methods of the class do: an IntermittentUnitBlock resized to 2 has kappa
+ * 2, a ThermalUnitBlock replicated to 3 has scale 3. */
+
+static netCDF::NcGroup write_UC_two_nodes( Index T ,
+					   const std::vector< double > & demand ,
+					   bool slack_inertia );
+
+static void test_unit_sizing_names( void )
+{
+ for( const std::string name : { "ThermalUnitBlock::replicate" ,
+				  "NuclearUnitBlock::replicate" ,
+				  "IntermittentUnitBlock::replicate" ,
+				  "BatteryUnitBlock::replicate" ,
+				  "ConversionUnitBlock::replicate" ,
+				  "IntermittentUnitBlock::resize" ,
+				  "BatteryUnitBlock::resize" } ) {
+  check( Block::get_method_fs< double >( name ) != nullptr ,
+	 name + ": not registered with one scalar" );
+  check( ( ! Block::get_method_fs< Block::MF_dbl_it , Block::Range >(
+								  name ) ) &&
+	 ( ! Block::get_method_fs< Block::MF_dbl_it , Block::Subset && ,
+				   bool >( name ) ) ,
+	 name + ": still registered with a slice" );
+  }
+ check( Block::get_method_fs< double , double >(
+					      "BatteryUnitBlock::resize" ) &&
+	( ! Block::get_method_fs< Block::MF_dbl_sp , Block::MF_dbl_sp ,
+				  Block::Range >( "BatteryUnitBlock::resize" ) ) ,
+	"BatteryUnitBlock::resize: not registered with a pair of scalars, or "
+	"still with two spans" );
+
+ for( const std::string name :
+	{ "IntermittentUnitBlock::get_resize_linearization" ,
+	  "BatteryUnitBlock::get_resize_linearization" } ) {
+  check( Block::get_query_fs< double & >( name ) != nullptr ,
+	 name + ": not registered with one scalar" );
+  check( ! Block::get_query_fs< Block::MF_dbl_msp , Block::Range >( name ) ,
+	 name + ": still registered with a slice" );
+  }
+ check( Block::get_query_fs< double & , double & >(
+			      "BatteryUnitBlock::get_resize_linearization" ) ,
+	"BatteryUnitBlock::get_resize_linearization: not registered with a "
+	"pair of scalars" );
+
+ auto g = write_UC_two_nodes( 1 , { 10 , 60 } , false );
+ std::unique_ptr< UCBlock > uc(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ const auto resize = Block::get_method_fs< double >(
+					     "IntermittentUnitBlock::resize" );
+ if( uc && resize ) {
+  auto unit = uc->get_unit_block( 0 );
+  std::invoke( *resize , unit , 2.0 , eNoBlck , eNoBlck );
+  check( unit->get_kappa() == 2 , "IntermittentUnitBlock::resize: kappa " +
+	 str( unit->get_kappa() ) + " after resizing to 2 by name" );
+  }
+
+ TUData d;
+ std::unique_ptr< ThermalUnitBlock > tub( new_TU( d ) );
+ const auto replicate = Block::get_method_fs< double >(
+					       "ThermalUnitBlock::replicate" );
+ if( tub && replicate ) {
+  std::invoke( *replicate , tub.get() , 3.0 , eNoBlck , eNoBlck );
+  check( tub->get_scale() == 3 , "ThermalUnitBlock::replicate: scale " +
+	 str( tub->get_scale() ) + " after replicating to 3 by name" );
   }
  }
 
@@ -16272,6 +16340,7 @@ int main( int argc , char ** argv )
   test_design_reactive_bounds_linearization();
   test_OTS_resize_by_name();
   test_battery_resize_as_setters();
+  test_unit_sizing_names();
 
   test_hydro_delays();
   test_hydro_initial_volume();
