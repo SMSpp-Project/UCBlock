@@ -3043,6 +3043,112 @@ static void test_setters_UCBlock( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A Solver with one answer whatever the Block: kOK, with a solution of value
+ * f_value and the lower bound f_lb, as a solve stopped at a feasible solution
+ * worse than the optimum ends. The values are static, since the Solver of
+ * the copy of a unit with no copies is made by name, from the factory. */
+
+class BoundSolver : public Solver {
+ public:
+
+ BoundSolver( void ) : Solver() {}
+
+ int compute( bool changedvars = true ) override { return( kOK ); }
+
+ OFValue get_var_value( void ) override { return( f_value ); }
+
+ OFValue get_lb( void ) override { return( f_lb ); }
+
+ OFValue get_ub( void ) override { return( f_value ); }
+
+ bool has_var_solution( void ) override { return( true ); }
+
+ void get_var_solution( Configuration * solc = nullptr ) override {}
+
+ static double f_value;  ///< the value of the solution found
+
+ static double f_lb;     ///< the lower bound
+
+ private:
+
+ SMSpp_insert_in_factory_h;
+ };
+
+double BoundSolver::f_value = 0;
+double BoundSolver::f_lb = 0;
+
+SMSpp_insert_in_factory_cpp_0( BoundSolver );
+
+/*--------------------------------------------------------------------------*/
+/* The derivative with respect to the copies of a unit that has none is the
+ * minimum over a copy of the unit [see UCBlock::get_replicate_linearization()],
+ * and the cut it gives is valid only if what is read is a lower bound of
+ * that minimum: the value of the solution found bounds it from above. With
+ * no Solver run on the UCBlock its duals are 0, so the derivative is what
+ * the Solver of the copy gives. */
+
+static void test_zero_copy_lower_bound( void )
+{
+ auto g = new_group( "UC" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto T = g.addDim( "TimeHorizon" , 2 );
+ g.addDim( "NumberUnits" , 1 );
+ auto one = g.addDim( "NumberNodes" , 1 );
+ put( g , "ActivePowerDemand" , { one , T } , { 3 , 4 } );
+ TUData d;
+ d.T = 2;
+ d.lin = { 1 , 2 };
+ d.scale = 0;
+ auto u = g.addGroup( "UnitBlock_0" );
+ write_TU( u , d );
+
+ auto b = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+ if( ! b ) {
+  check( false , "UCBlock, no copies: the UCBlock is not read" );
+  return;
+  }
+ generate_all( b );
+ auto bs = new BoundSolver();
+ b->register_Solver( bs );
+
+ const auto query = Block::get_query_fs< Block::MF_dbl_msp , Block::Range >(
+                                       "UCBlock::get_replicate_linearization" );
+ if( ! query ) {
+  check( false , "UCBlock, no copies: get_replicate_linearization is not in "
+	 "the methods factory" );
+  b->unregister_Solver( bs , true );
+  delete b;
+  return;
+  }
+
+ std::vector< double > lin( 1 );
+ const auto read = [ & ]() {
+  std::invoke( *query , b , Block::MF_dbl_msp( lin ) , Range( 0 , 1 ) );
+  };
+
+ BoundSolver::f_value = 5;
+ BoundSolver::f_lb = 3;
+ read();
+ check( close( lin[ 0 ] , 3 ) ,
+	"UCBlock, no copies: the derivative is " + str( lin[ 0 ] ) +
+	", not the lower bound 3 of the copy, whose solution is worth 5" );
+
+ BoundSolver::f_lb = - INF;
+ bool thrown = false;
+ try {
+  read();
+  }
+ catch( std::logic_error & ) {
+  thrown = true;
+  }
+ check( thrown , "UCBlock, no copies: a copy with no finite lower bound "
+	"gives the derivative " + str( lin[ 0 ] ) + " instead of throwing" );
+
+ b->unregister_Solver( bs , true );
+ delete b;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- HYDRO ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* The data of a HydroUnitBlock as the test writes it: an empty vector is
@@ -15887,6 +15993,7 @@ int main( int argc , char ** argv )
   test_setters_thermal( 1 );
   test_setters_thermal( 3 );
   test_setters_UCBlock();
+  test_zero_copy_lower_bound();
 
   test_hydro_delays();
   test_hydro_initial_volume();

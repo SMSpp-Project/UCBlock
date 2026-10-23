@@ -2976,15 +2976,18 @@ double UCBlock::get_zero_copy_linearization( Index unit )
                            " registers no Solver" ) );
   }
 
+ // the value of a solution bounds the minimum only from above, while the
+ // cut needs it bounded from below: the lower bound is one also when the
+ // solve stopped before the optimum, and is not finite if nothing is proven
  double value = 0;
  try {
   auto solver = wrapper->get_registered_solvers().front();
   solver->compute();
-  if( ! solver->has_var_solution() )
+  value = solver->get_lb();
+  if( ! ( std::abs( value ) < Inf< double >() ) )
    throw( std::logic_error( "UCBlock::get_replicate_linearization: the copy "
                             "of unit " + std::to_string( unit ) +
-                            " has no solution" ) );
-  value = solver->get_var_value();
+                            " has no finite lower bound" ) );
   }
  catch( ... ) {
   cleanup();

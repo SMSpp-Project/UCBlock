@@ -204,7 +204,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subgradient of the value function: the derivative is then the minimum, over
   a mirror of one copy of the unit that a Solver minimises, of its Objective
   plus those terms. The mirror is a relaxation, so the minimum is not above
-  the true one and the cut it gives stays valid. The Solver is the one in the
+  the true one, and what is read is the lower bound of the Solver, which
+  stays below the minimum also when the solve stops before the optimum: the
+  cut it gives stays valid, and a lower bound that is not finite makes the
+  call throw. The Solver is the one in the
   extra Configuration of the BlockConfig of the `UCBlock`, if it is a
   `BlockSolverConfig` with a Solver, and otherwise a clone of those
   registered with the `UCBlock`; with neither the call throws.

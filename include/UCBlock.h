@@ -1502,11 +1502,13 @@ class UCBlock : public Block
   * that the cut it gives is valid. The Solver must therefore solve the
   * relaxation: the one given by the BlockSolverConfig in the extra part of
   * the BlockConfig of this UCBlock, if there is one, and otherwise a clone of
-  * the Solver registered with this UCBlock, with their ComputeConfig. A
-  * Solver that returns a value that is not a lower bound of the minimum of
-  * the relaxation, such as a dynamic programming one that works on integer
-  * states, would make the cut invalid and must not be given. If no Solver
-  * can be found the method throws.
+  * the Solver registered with this UCBlock, with their ComputeConfig. What
+  * is read is the lower bound of the Solver [see Solver::get_lb()], which
+  * bounds the minimum also when the solve stopped before the optimum; a
+  * Solver whose lower bound is not one for the relaxation, such as a
+  * dynamic programming one that works on integer states, would make the cut
+  * invalid and must not be given. If no Solver can be found, or its lower
+  * bound is not finite, the method throws.
   *
   * @param unit the index of the UnitBlock, between 0 and
   *        get_number_units() - 1
