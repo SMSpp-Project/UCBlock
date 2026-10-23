@@ -3080,14 +3080,10 @@ double BoundSolver::f_lb = 0;
 SMSpp_insert_in_factory_cpp_0( BoundSolver );
 
 /*--------------------------------------------------------------------------*/
-/* The derivative with respect to the copies of a unit that has none is the
- * minimum over a copy of the unit [see UCBlock::get_replicate_linearization()],
- * and the cut it gives is valid only if what is read is a lower bound of
- * that minimum: the value of the solution found bounds it from above. With
- * no Solver run on the UCBlock its duals are 0, so the derivative is what
- * the Solver of the copy gives. */
+/// a UCBlock of one node and one thermal unit with the given scale factor,
+/// on two instants, nullptr if it is not read
 
-static void test_zero_copy_lower_bound( void )
+static UCBlock * thermal_UC( double scale )
 {
  auto g = new_group( "UC" , true );
  g.putAtt( "type" , "UCBlock" );
@@ -3098,11 +3094,39 @@ static void test_zero_copy_lower_bound( void )
  TUData d;
  d.T = 2;
  d.lin = { 1 , 2 };
- d.scale = 0;
+ d.scale = scale;
  auto u = g.addGroup( "UnitBlock_0" );
  write_TU( u , d );
+ return( dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ }
 
- auto b = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
+/*--------------------------------------------------------------------------*/
+/// the derivative of the value of b with respect to the copies of unit 0,
+/// read by name, as a consumer that does not know the class reads it
+
+static double replicate_linearization( UCBlock * b )
+{
+ const auto query = Block::get_query_fs< Block::MF_dbl_msp , Block::Range >(
+                                       "UCBlock::get_replicate_linearization" );
+ if( ! query )
+  throw( std::logic_error( "UCBlock::get_replicate_linearization is not in "
+			   "the methods factory" ) );
+ std::vector< double > lin( 1 );
+ std::invoke( *query , b , Block::MF_dbl_msp( lin ) , Range( 0 , 1 ) );
+ return( lin[ 0 ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The derivative with respect to the copies of a unit that has none is the
+ * minimum over a copy of the unit [see UCBlock::get_replicate_linearization()],
+ * and the cut it gives is valid only if what is read is a lower bound of
+ * that minimum: the value of the solution found bounds it from above. With
+ * no Solver run on the UCBlock its duals are 0, so the derivative is what
+ * the Solver of the copy gives. */
+
+static void test_zero_copy_lower_bound( void )
+{
+ auto b = thermal_UC( 0 );
  if( ! b ) {
   check( false , "UCBlock, no copies: the UCBlock is not read" );
   return;
@@ -3111,20 +3135,8 @@ static void test_zero_copy_lower_bound( void )
  auto bs = new BoundSolver();
  b->register_Solver( bs );
 
- const auto query = Block::get_query_fs< Block::MF_dbl_msp , Block::Range >(
-                                       "UCBlock::get_replicate_linearization" );
- if( ! query ) {
-  check( false , "UCBlock, no copies: get_replicate_linearization is not in "
-	 "the methods factory" );
-  b->unregister_Solver( bs , true );
-  delete b;
-  return;
-  }
-
  std::vector< double > lin( 1 );
- const auto read = [ & ]() {
-  std::invoke( *query , b , Block::MF_dbl_msp( lin ) , Range( 0 , 1 ) );
-  };
+ const auto read = [ & ]() { lin[ 0 ] = replicate_linearization( b ); };
 
  BoundSolver::f_value = 5;
  BoundSolver::f_lb = 3;
@@ -3145,6 +3157,36 @@ static void test_zero_copy_lower_bound( void )
 	"gives the derivative " + str( lin[ 0 ] ) + " instead of throwing" );
 
  b->unregister_Solver( bs , true );
+ delete b;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The derivative with respect to the copies of a unit counts the cost of one
+ * copy, read off the Objective of the unit: with that Objective not
+ * generated it throws, rather than leaving the cost out. */
+
+static void test_replicate_without_objective( void )
+{
+ auto b = thermal_UC( 1 );
+ if( ! b ) {
+  check( false , "UCBlock, no Objective: the UCBlock is not read" );
+  return;
+  }
+ b->generate_abstract_variables();
+ b->generate_abstract_constraints();
+
+ double lin = 0;
+ bool thrown = false;
+ try {
+  lin = replicate_linearization( b );
+  }
+ catch( std::logic_error & ) {
+  thrown = true;
+  }
+ check( thrown , "UCBlock, no Objective: the derivative with respect to "
+	"the copies of a unit whose Objective is not generated is " +
+	str( lin ) + " instead of throwing" );
+
  delete b;
  }
 
@@ -15994,6 +16036,7 @@ int main( int argc , char ** argv )
   test_setters_thermal( 3 );
   test_setters_UCBlock();
   test_zero_copy_lower_bound();
+  test_replicate_without_objective();
 
   test_hydro_delays();
   test_hydro_initial_volume();

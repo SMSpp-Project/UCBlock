@@ -2858,11 +2858,14 @@ double UCBlock::get_replicate_linearization( Index unit )
   * [see UnitBlock.h], so what it contributes here is f(x), the value divided
   * by k. */
 
- if( const auto objective =
-     dynamic_cast< FRealObjective * >( block->get_objective() ) ) {
-  objective->compute();
-  linearization += objective->value() / scale;
-  }
+ const auto objective =
+  dynamic_cast< FRealObjective * >( block->get_objective() );
+ if( ! objective )
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: unit " +
+                           std::to_string( unit ) + " has no FRealObjective, "
+                           "of which the derivative counts the value" ) );
+ objective->compute();
+ linearization += objective->value() / scale;
 
  return( linearization );
 
