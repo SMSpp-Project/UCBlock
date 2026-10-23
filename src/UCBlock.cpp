@@ -59,6 +59,8 @@
 
 #include "DCNetworkBlock.h"
 
+#include "DesignNetworkBlock.h"
+
 #include "HydroUnitBlock.h"
 
 #include "IntermittentUnitBlock.h"
@@ -183,6 +185,25 @@ static Block::Subset units_in( const UCBlock & ucb , Block::Range rng )
  for( auto u = rng.first ; u < rng.second ; ++u )
   units.push_back( u );
  return( units );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/* The NetworkBlock holding the bounds of the node injections of the
+ * interval i of nb, and the interval in it: a DesignNetworkBlock passes them
+ * on to its sub-network of that interval, as interval 0 [see
+ * DesignNetworkBlock::set_min_node_injection()]; nullptr if it has none. */
+
+using BoundsHolder = std::pair< const NetworkBlock * , Block::Index >;
+
+static BoundsHolder bounds_holder( const NetworkBlock * nb , Block::Index i )
+{
+ if( ! dynamic_cast< const DesignNetworkBlock * >( nb ) )
+  return( BoundsHolder( nb , i ) );
+ if( i >= nb->get_number_nested_Blocks() )
+  return( BoundsHolder( nullptr , 0 ) );
+ return( BoundsHolder(
+          static_cast< const NetworkBlock * >( nb->get_nested_Block( i ) ) ,
+          0 ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2784,7 +2805,10 @@ double UCBlock::injection_bounds_linearization( Index unit ,
                               : v_network_of_instant;
   for( Index t = 0 ; t < of_instant.size() ; ++t ) {
    const auto [ n , i ] = of_instant[ t ];
-   const auto & rows = networks[ n ]->get_node_injection_bounds();
+   const auto [ holder , j ] = bounds_holder( networks[ n ] , i );
+   if( ! holder )
+    continue;
+   const auto & rows = holder->get_node_injection_bounds();
    if( ! rows.num_elements() )
     continue;
    for( Index g = 0 ; g < block->get_number_generators() ; ++g ) {
@@ -2795,20 +2819,21 @@ double UCBlock::injection_bounds_linearization( Index unit ,
     const auto p_mn = eta * block->get_min_power( t , g );
     const auto p_mx = eta * block->get_max_power( t , g );
     const auto fc = c ? nullptr : block->get_fixed_consumption( g );
-    add( rows[ node ][ i ] ,
+    add( rows[ node ][ j ] ,
          std::min( { p_mn , p_mx , fc ? - fc[ t ] : 0 } ) ,
          std::max( { 0.0 , p_mn , p_mx } ) );
     }
    }
   }
 
- // the reactive ones, on the carrier 0, of an ACNetworkBlock
+ // the reactive ones, on the carrier 0, of an ACNetworkBlock, also as the
+ // sub-network of a DesignNetworkBlock
  if( f_has_reactive ) {
   const auto thermal = dynamic_cast< const ThermalUnitBlock * >( block );
   for( Index t = 0 ; t < v_network_of_instant.size() ; ++t ) {
    const auto [ n , i ] = v_network_of_instant[ t ];
    const auto ac = dynamic_cast< const ACNetworkBlock * >(
-                                                     v_network_blocks[ n ] );
+                          bounds_holder( v_network_blocks[ n ] , i ).first );
    if( ( ! ac ) || ac->get_reactive_node_injection_bounds().empty() )
     continue;
    const auto & rows = ac->get_reactive_node_injection_bounds();

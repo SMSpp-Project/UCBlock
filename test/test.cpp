@@ -12260,6 +12260,66 @@ static netCDF::NcGroup write_ac_uc( Index nodes ,
  }
 
 /*--------------------------------------------------------------------------*/
+/* The derivative of the value with respect to the copies of a unit takes in
+ * the dual of the bound of the reactive injection at its node, which a
+ * DesignNetworkBlock keeps in its sub-network of the instant [see
+ * DesignNetworkBlock::set_min_reactive_node_injection()]: with the same dual
+ * on that bound, the thermal unit of write_ac_uc() gives the same
+ * derivative on an ACNetworkBlock and on a DesignNetworkBlock over one. No
+ * Solver has run, so all the other duals are 0. */
+
+static void test_design_reactive_bounds_linearization( void )
+{
+ const auto derivative = []( bool design , double & lin ) {
+  auto g = write_ac_uc( 2 , { { 0 , 1 } } , { 5 , 5 } , 0.5 );
+  if( design ) {
+   g.addDim( "NumberNetworks" , 1 );
+   auto d = g.addGroup( "NetworkBlock_0" );
+   d.putAtt( "type" , "DesignNetworkBlock" );
+   auto DL = d.addDim( "NumberDesignLines" , 1 );
+   d.addDim( "NumberSubNetwork" , 1 );
+   put_int( d , "DesignLines" , DL , { 0 } );
+   put( d , "InvestmentCost" , DL , { 0 } );
+   d.addGroup( "NetworkBlock_0" ).putAtt( "type" , "ACNetworkBlock" );
+   }
+  std::unique_ptr< UCBlock > b(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+  if( ! b )
+   return( false );
+  generate_all( b.get() );
+  Block * net = b->get_network_block( 0 );
+  if( design )
+   net = net->get_nested_Block( 0 );
+  auto rows = net->get_static_constraint_v< BoxConstraint >(
+                                 "Reactive_Node_Injection_Bound_Const_Network" );
+  if( ( ! rows ) || rows->empty() )
+   return( false );
+  ( *rows )[ 0 ].set_dual( 3 );
+  lin = replicate_linearization( b.get() );
+  return( true );
+  };
+
+ double ac = 0;
+ double dn = 0;
+ if( ! derivative( false , ac ) ) {
+  check( false , "UCBlock on an ACNetworkBlock: no bound of the reactive "
+	 "injections" );
+  return;
+  }
+ if( ! derivative( true , dn ) ) {
+  check( false , "UCBlock on a DesignNetworkBlock over AC: no bound of the "
+	 "reactive injections in its sub-network" );
+  return;
+  }
+ check( ac != 0 , "UCBlock on an ACNetworkBlock: the dual of the bound of "
+	"the reactive injection does not enter the derivative with respect to "
+	"the copies" );
+ check( close( ac , dn ) , "UCBlock on a DesignNetworkBlock over AC: the "
+	"derivative with respect to the copies is " + str( dn ) + ", on the "
+	"ACNetworkBlock it is " + str( ac ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -16075,6 +16135,7 @@ int main( int argc , char ** argv )
   test_zero_copy_lower_bound();
   test_replicate_without_objective();
   test_zero_copy_unknown_solver();
+  test_design_reactive_bounds_linearization();
 
   test_hydro_delays();
   test_hydro_initial_volume();
