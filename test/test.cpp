@@ -4866,6 +4866,79 @@ static BatteryUnitBlock * new_BU( Index T ,
  }
 
 /*--------------------------------------------------------------------------*/
+/// the sides of every RowConstraint in the static groups of b, each followed
+/// by its coefficients if it is an FRowConstraint with a LinearFunction
+
+static std::vector< double > static_rows( Block * b )
+{
+ std::vector< double > v;
+ for( const auto & group : b->get_static_constraint_groups() )
+  group->for_each( [ & ]( Constraint & c ) {
+   auto r = dynamic_cast< RowConstraint * >( & c );
+   if( ! r )
+    return;
+   v.push_back( r->get_lhs() );
+   v.push_back( r->get_rhs() );
+   if( auto f = dynamic_cast< FRowConstraint * >( r ) )
+    if( auto lf = dynamic_cast< const LinearFunction * >( f->get_function() ) )
+     for( Index k = 0 ; k < lf->get_num_active_var() ; ++k )
+      v.push_back( lf->get_coefficient( k ) );
+   } );
+ return( v );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* "BatteryUnitBlock::resize" with two sizes leaves the rows, the kappas and
+ * whether the converter follows kappa as set_converter_kappa() and
+ * set_kappa() leave them: with the converter following and the two sizes
+ * equal, which is set_kappa() alone, following and different, and with a
+ * size of its own. */
+
+static void test_battery_resize_as_setters( void )
+{
+ const std::vector< std::pair< std::string , std::vector< double > > > data =
+  { { "MinStorage" , { 0 , 0 } } , { "MaxStorage" , { 20 , 20 } } ,
+    { "MaxPower" , { 10 , 10 } } , { "MinPower" , { -10 , -10 } } ,
+    { "InitialStorage" , { 5 } } , { "ConverterMaxPower" , { 3 , 3 } } };
+ const auto resize = Block::get_method_fs< Block::MF_dbl_sp ,
+                                           Block::MF_dbl_sp , Block::Range >(
+						  "BatteryUnitBlock::resize" );
+ std::unique_ptr< BatteryUnitBlock > a( new_BU( 2 , data ) );
+ std::unique_ptr< BatteryUnitBlock > b( new_BU( 2 , data ) );
+ if( ( ! resize ) || ( ! a ) || ( ! b ) ) {
+  check( false , "battery, resize as the setters: no BatteryUnitBlock::resize "
+	 "with two spans, or the battery is not read" );
+  return;
+  }
+ generate_all( a.get() );
+ generate_all( b.get() );
+ auto previous = static_rows( a.get() );
+
+ for( const auto & [ k , kc ] : std::vector< std::pair< double , double > >{
+				{ 2 , 2 } , { 2 , 0.5 } , { 1 , 3 } } ) {
+  std::vector< double > vk = { k };
+  std::vector< double > vkc = { kc };
+  std::invoke( *resize , a.get() , Block::MF_dbl_sp( vk ) ,
+	       Block::MF_dbl_sp( vkc ) , Range( 0 , 1 ) , eNoBlck , eNoBlck );
+  if( ! ( b->converter_follows_kappa() && ( kc == k ) ) )
+   b->set_converter_kappa( kc );
+  b->set_kappa( k );
+
+  const std::string who = "battery, resize( " + str( k ) + " , " + str( kc ) +
+                          " )";
+  check( ( a->get_kappa() == b->get_kappa() ) &&
+	 ( a->get_converter_kappa() == b->get_converter_kappa() ) &&
+	 ( a->converter_follows_kappa() == b->converter_follows_kappa() ) ,
+	 who + ": the kappas are not those of the setters" );
+  const auto rows = static_rows( a.get() );
+  check( rows != previous , who + ": the rows do not change" );
+  check( rows == static_rows( b.get() ) ,
+	 who + ": the rows are not those of the setters" );
+  previous = rows;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The storage balance with a single efficiency given: the absent one is 1,
  * so that with only "ExtractingBatteryRho" the intake fills the battery
  * with coefficient 1, as with "StoringBatteryRho" = 1 written out, and with
@@ -16198,6 +16271,7 @@ int main( int argc , char ** argv )
   test_zero_copy_unknown_solver();
   test_design_reactive_bounds_linearization();
   test_OTS_resize_by_name();
+  test_battery_resize_as_setters();
 
   test_hydro_delays();
   test_hydro_initial_volume();

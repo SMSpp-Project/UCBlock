@@ -1883,10 +1883,11 @@ class BatteryUnitBlock : public UnitBlock
  /// sets the two sizes of the unit, the storage and the converter
  /** Sets \f$ \kappa \f$ to \p kappa and \f$ \kappa^{cv} \f$ to
   * \p conv_kappa [see get_converter_kappa()]: the storage is resized with its
-  * power by the first, and the converter by the second. With the two equal
-  * the unit is resized as a whole, which while the converter follows
-  * \f$ \kappa \f$ is all that is done, \f$ \kappa \f$ being written
-  * alone. Two different values give the converter a size of its own, which
+  * power by the first, and the converter by the second: it is
+  * set_converter_kappa() followed by set_kappa(), the first skipped when
+  * the converter follows \f$ \kappa \f$ and the two are equal, the unit
+  * being then resized as a whole. Two different values give the converter a
+  * size of its own, which
   * lives in the rows (10): if the Constraints have been generated and the
   * battery has none, std::logic_error is thrown, since a static Constraint
   * cannot be added then, while before the generation the rows are made to
