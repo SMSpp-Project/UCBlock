@@ -1458,140 +1458,6 @@ class UCBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
- /// the derivative of the value of this UCBlock w.r.t. the scale of a unit
- /** The scale factor of a UnitBlock [see UnitBlock::get_scale()] appears in
-  * the rows this UCBlock builds on top of its units, and not in the rows of
-  * the unit itself: the coefficient of the active power of the unit in the
-  * node injection balance *is* that factor, and the fixed consumption is
-  * multiplied by it, and the same happens in the reserve and inertia
-  * balances. The derivative of the value of this UCBlock with respect to
-  * that factor is therefore a sum over those rows, of the dual of each row
-  * times what the factor multiplies there, and only this UCBlock can compute
-  * it, the rows being its own; so are the bounds of the node injections it
-  * gives to its NetworkBlock, which the factor multiplies too [see
-  * injection_bounds_linearization()].
-  *
-  * To that sum is added the term of the Objective of the unit, which under
-  * the "k copies" reading carries the factor already
-  * [see UnitBlock.h, the comment on the scale factor and the Objective]: if
-  * the Objective of the unit is \f$ k f(x) \f$, its contribution here is
-  * \f$ f(x) \f$.
-  *
-  * With one copy or more the duals are read as they are: nothing is solved,
-  * and it is the caller's business to have solved this UCBlock, and as a
-  * continuous relaxation, before asking. It is also the caller's business to
-  * ask only where that solve left the duals: a RowConstraint hands back the
-  * value it has, which before any solve is 0 and after a failed one is the
-  * one the previous solve left, and neither case is distinguishable here from
-  * a fresh optimal dual. What this method does check is the one state it can
-  * see by itself, that the abstract representation exists: it throws if the
-  * Constraint it has to read have not been generated.
-  *
-  * With 0 copies the unit has no power to weigh the duals with, and the sum
-  * above would be 0 whatever the duals are, which is not a subgradient: the
-  * value of this UCBlock is a convex function of the number of copies, and
-  * at 0 its derivative is the least of the derivatives that a copy of the
-  * unit, free to take any feasible operation, gives against the current
-  * duals. So the unit is mirrored [see AbstractBlock::mirror()] as one copy,
-  * and a Solver minimises over the mirror the Objective of the copy plus the
-  * terms of the rows above the unit, each weighed by the dual of its row: the
-  * result is the derivative. What the mirror cannot reproduce is left out
-  * of the copy, which then is a relaxation of one copy of the unit: the
-  * minimum is not larger than the true one, and since the number of copies
-  * cannot go below 0 the linearization stays below the value function, so
-  * that the cut it gives is valid. The Solver must therefore solve the
-  * relaxation: the one given by the BlockSolverConfig in the extra part of
-  * the BlockConfig of this UCBlock, if there is one, and otherwise a clone of
-  * the Solver registered with this UCBlock, with their ComputeConfig. What
-  * is read is the lower bound of the Solver [see Solver::get_lb()], which
-  * bounds the minimum also when the solve stopped before the optimum; a
-  * Solver whose lower bound is not one for the relaxation, such as a
-  * dynamic programming one that works on integer states, would make the cut
-  * invalid and must not be given. If no Solver can be found, or its lower
-  * bound is not finite, the method throws.
-  *
-  * @param unit the index of the UnitBlock, between 0 and
-  *        get_number_units() - 1
-  *
-  * @return the derivative of the value of this UCBlock with respect to the
-  *         scale factor of the given unit
-  *
-  * @note This method is not const because, with 0 copies, the unit is scaled
-  *       to 1 to be mirrored and scaled back. The unit tells this UCBlock
-  *       each time, even if asked to issue no Modification, and this UCBlock
-  *       rewrites the rows that carry the factor and passes the change on to
-  *       whoever listens: the rows end as they were found, but its Solvers
-  *       receive two changes that cancel out. */
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /* The supported way in is the name: a consumer that holds a Block it does
-  * not know asks for "UCBlock::get_replicate_linearization" and finds the
-  * adapter below. The method itself is therefore not public, so that reading
-  * this sensitivity cannot become one more reason to recognise the class. */
-
- protected:
-
- double get_replicate_linearization( Index unit );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /// the derivatives with respect to the size of the units in \p units
- /** Writes in msp[ k ] the derivative of the value of this UCBlock with
-  * respect to the size parameter of the unit units[ k ], as resize_unit()
-  * sets it: each unit answers through the getter that its class registers
-  * as "<classname>::get_resize_linearization" with one scalar, the
-  * parameter living in the rows of the unit. It is reached by the name
-  * "UCBlock::get_resize_unit_linearization", for the reason given above.
-  *
-  * @throws std::invalid_argument if \p msp is shorter than \p units or an
-  *         index is not that of a unit, and std::logic_error if the class of
-  *         a unit does not register the getter. */
-
- void get_resize_unit_linearization( MF_dbl_msp msp , c_Subset & units )
-  const;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /// the derivatives with respect to the two sizes of the units in \p units
- /** Writes in msp[ k ] and second_msp[ k ] the derivatives of the value of
-  * this UCBlock with respect to the two sizes of the unit units[ k ], as
-  * resize_unit( two values ) sets them: each unit answers through the getter
-  * that its class registers as "<classname>::get_resize_linearization" with
-  * a pair of scalars, which for a BatteryUnitBlock are the storage and the
-  * converter. It is reached by the name
-  * "UCBlock::get_resize_unit_linearization", with two spans.
-  *
-  * @throws std::invalid_argument if a span is shorter than \p units or an
-  *         index is not that of a unit, and std::logic_error if the class of
-  *         a unit does not register the getter with a pair of scalars. */
-
- void get_resize_unit_linearization( MF_dbl_msp msp , MF_dbl_msp second_msp ,
-                                     c_Subset & units ) const;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /// the derivatives with respect to the size of the lines in \p lines
- /** Writes in msp[ k ] the derivative of the value of this UCBlock with
-  * respect to the size parameter of the line lines[ k ], as resize_line()
-  * sets it: the sum, over the NetworkBlock, of what the getter that the
-  * class of each registers as "<classname>::get_resize_linearization"
-  * answers. It is reached by the name
-  * "UCBlock::get_resize_line_linearization".
-  *
-  * @throws std::invalid_argument if \p msp is shorter than \p lines, and
-  *         std::logic_error if this UCBlock has no NetworkBlock or the class
-  *         of one does not register the getter. */
-
- void get_resize_line_linearization( MF_dbl_msp msp , c_Subset & lines ,
-                                     bool ordered ) const;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /// as get_resize_line_linearization( subset ), for the lines in \p rng
- /** Each NetworkBlock stops the range at its own number of lines, and only
-  * the first that many entries of \p msp are written. */
-
- void get_resize_line_linearization( MF_dbl_msp msp , Range rng ) const;
-
- public:
-
-/*--------------------------------------------------------------------------*/
  /** @name The energy carriers
   *
   * The carrier 0 is the electricity, described by the data above (nodes,
@@ -2208,6 +2074,136 @@ class UCBlock : public Block
 
  /// indicates whether the Objective of the UCBlock has been generated
  bool objective_generated( void ) const { return( AR & HasObj ); }
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative of the value of this UCBlock w.r.t. the scale of a unit
+ /** The scale factor of a UnitBlock [see UnitBlock::get_scale()] appears in
+  * the rows this UCBlock builds on top of its units, and not in the rows of
+  * the unit itself: the coefficient of the active power of the unit in the
+  * node injection balance *is* that factor, and the fixed consumption is
+  * multiplied by it, and the same happens in the reserve and inertia
+  * balances. The derivative of the value of this UCBlock with respect to
+  * that factor is therefore a sum over those rows, of the dual of each row
+  * times what the factor multiplies there, and only this UCBlock can compute
+  * it, the rows being its own; so are the bounds of the node injections it
+  * gives to its NetworkBlock, which the factor multiplies too [see
+  * injection_bounds_linearization()].
+  *
+  * To that sum is added the term of the Objective of the unit, which under
+  * the "k copies" reading carries the factor already
+  * [see UnitBlock.h, the comment on the scale factor and the Objective]: if
+  * the Objective of the unit is \f$ k f(x) \f$, its contribution here is
+  * \f$ f(x) \f$.
+  *
+  * With one copy or more the duals are read as they are: nothing is solved,
+  * and it is the caller's business to have solved this UCBlock, and as a
+  * continuous relaxation, before asking. It is also the caller's business to
+  * ask only where that solve left the duals: a RowConstraint hands back the
+  * value it has, which before any solve is 0 and after a failed one is the
+  * one the previous solve left, and neither case is distinguishable here from
+  * a fresh optimal dual. What this method does check is the one state it can
+  * see by itself, that the abstract representation exists: it throws if the
+  * Constraint it has to read have not been generated.
+  *
+  * With 0 copies the unit has no power to weigh the duals with, and the sum
+  * above would be 0 whatever the duals are, which is not a subgradient: the
+  * value of this UCBlock is a convex function of the number of copies, and
+  * at 0 its derivative is the least of the derivatives that a copy of the
+  * unit, free to take any feasible operation, gives against the current
+  * duals. So the unit is mirrored [see AbstractBlock::mirror()] as one copy,
+  * and a Solver minimises over the mirror the Objective of the copy plus the
+  * terms of the rows above the unit, each weighed by the dual of its row: the
+  * result is the derivative. What the mirror cannot reproduce is left out
+  * of the copy, which then is a relaxation of one copy of the unit: the
+  * minimum is not larger than the true one, and since the number of copies
+  * cannot go below 0 the linearization stays below the value function, so
+  * that the cut it gives is valid. The Solver must therefore solve the
+  * relaxation: the one given by the BlockSolverConfig in the extra part of
+  * the BlockConfig of this UCBlock, if there is one, and otherwise a clone of
+  * the Solver registered with this UCBlock, with their ComputeConfig. What
+  * is read is the lower bound of the Solver [see Solver::get_lb()], which
+  * bounds the minimum also when the solve stopped before the optimum; a
+  * Solver whose lower bound is not one for the relaxation, such as a
+  * dynamic programming one that works on integer states, would make the cut
+  * invalid and must not be given. If no Solver can be found, or its lower
+  * bound is not finite, the method throws.
+  *
+  * @param unit the index of the UnitBlock, between 0 and
+  *        get_number_units() - 1
+  *
+  * @return the derivative of the value of this UCBlock with respect to the
+  *         scale factor of the given unit
+  *
+  * @note This method is not const because, with 0 copies, the unit is scaled
+  *       to 1 to be mirrored and scaled back. The unit tells this UCBlock
+  *       each time, even if asked to issue no Modification, and this UCBlock
+  *       rewrites the rows that carry the factor and passes the change on to
+  *       whoever listens: the rows end as they were found, but its Solvers
+  *       receive two changes that cancel out. */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /* The supported way in is the name: a consumer that holds a Block it does
+  * not know asks for "UCBlock::get_replicate_linearization" and finds the
+  * adapter below. The method itself is therefore not public, so that reading
+  * this sensitivity cannot become one more reason to recognise the class. */
+
+ double get_replicate_linearization( Index unit );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives with respect to the size of the units in \p units
+ /** Writes in msp[ k ] the derivative of the value of this UCBlock with
+  * respect to the size parameter of the unit units[ k ], as resize_unit()
+  * sets it: each unit answers through the getter that its class registers
+  * as "<classname>::get_resize_linearization" with one scalar, the
+  * parameter living in the rows of the unit. It is reached by the name
+  * "UCBlock::get_resize_unit_linearization", for the reason given above.
+  *
+  * @throws std::invalid_argument if \p msp is shorter than \p units or an
+  *         index is not that of a unit, and std::logic_error if the class of
+  *         a unit does not register the getter. */
+
+ void get_resize_unit_linearization( MF_dbl_msp msp , c_Subset & units )
+  const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives with respect to the two sizes of the units in \p units
+ /** Writes in msp[ k ] and second_msp[ k ] the derivatives of the value of
+  * this UCBlock with respect to the two sizes of the unit units[ k ], as
+  * resize_unit( two values ) sets them: each unit answers through the getter
+  * that its class registers as "<classname>::get_resize_linearization" with
+  * a pair of scalars, which for a BatteryUnitBlock are the storage and the
+  * converter. It is reached by the name
+  * "UCBlock::get_resize_unit_linearization", with two spans.
+  *
+  * @throws std::invalid_argument if a span is shorter than \p units or an
+  *         index is not that of a unit, and std::logic_error if the class of
+  *         a unit does not register the getter with a pair of scalars. */
+
+ void get_resize_unit_linearization( MF_dbl_msp msp , MF_dbl_msp second_msp ,
+                                     c_Subset & units ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives with respect to the size of the lines in \p lines
+ /** Writes in msp[ k ] the derivative of the value of this UCBlock with
+  * respect to the size parameter of the line lines[ k ], as resize_line()
+  * sets it: the sum, over the NetworkBlock, of what the getter that the
+  * class of each registers as "<classname>::get_resize_linearization"
+  * answers. It is reached by the name
+  * "UCBlock::get_resize_line_linearization".
+  *
+  * @throws std::invalid_argument if \p msp is shorter than \p lines, and
+  *         std::logic_error if this UCBlock has no NetworkBlock or the class
+  *         of one does not register the getter. */
+
+ void get_resize_line_linearization( MF_dbl_msp msp , c_Subset & lines ,
+                                     bool ordered ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// as get_resize_line_linearization( subset ), for the lines in \p rng
+ /** Each NetworkBlock stops the range at its own number of lines, and only
+  * the first that many entries of \p msp are written. */
+
+ void get_resize_line_linearization( MF_dbl_msp msp , Range rng ) const;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/

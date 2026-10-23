@@ -1989,96 +1989,6 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
- /// the derivative of the value of this Block w.r.t. the kappa of \p line
- /** The flow limit constraints of a line l are
-
-     \f[ \kappa_l \mathrm{Pmin}_l \leq F_l \leq \kappa_l \mathrm{Pmax}_l \f]
-
-  * so the derivative of the value of this Block with respect to \f$
-  * \kappa_l \f$ is minus the dual of whichever of the two bounds is active,
-  * times that bound. Which one it is, is told by the sign of the dual read
-  * against the sense of the Objective.
-  *
-  * Returns 0 if the constraints have not been generated. This is the same
-  * computation that a consumer holding this Block would otherwise have to do
-  * from outside out of get_power_flow_limit_HVDC_bounds(), get_min_power_flow()
-  * and get_max_power_flow(), together with the sign rule; it is here because
-  * the rows in which \f$ \kappa \f$ appears are this Block's own.
-  *
-  * @param line the index of the line
-  *
-  * @return the derivative of the value of this Block w.r.t. the kappa of the
-  *         given line */
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /* As for the container's one [see UCBlock.h], the supported way in is the
-  * name "DCNetworkBlock::get_resize_linearization": the method is not public,
-  * so that reading this sensitivity cannot become one more reason to
-  * recognise the class. It stays protected, and not private, because a
-  * derived network that resizes its lines the same way can reuse it; it is
-  * virtual, so that one with rows of its own in which kappa appears adds
-  * them [see OTSNetworkBlock::get_resize_linearization()]. */
-
- protected:
-
- virtual double get_resize_linearization( Index line ) const {
-  // a design variable of the line is multiplied by kappa in its limits, a
-  // bilinear term, and the value need not be convex in kappa: the dual
-  // gives no subgradient [see set_kappa()]
-  if( get_design( line ) )
-   throw( std::logic_error( "DCNetworkBlock::get_resize_linearization: "
-                            "line " + std::to_string( line ) + " has a "
-                            "design variable, with which the derivative "
-                            "with respect to its kappa is not defined" ) );
-
-  const auto & constraints = get_power_flow_limit_HVDC_bounds();
-
-  if( constraints.empty() )
-   return( 0 );
-
-  const auto obj_sign =
-   ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
-
-  const auto dual = constraints[ line ].get_dual();
-
-  /* The bounds read kappa C^v P, with C^v the factor this Block scales its
-   * flow limits by, so the derivative of a bound with respect to the design
-   * is C^v P: leaving the factor out is right only while it is 1, which is
-   * its default but not its only value. */
-  const auto scale = get_C_v_scal();
-
-  // The dual is associated with either the lower or the upper bound; the
-  // sign of obj_sign * dual says which one.
-  const auto bound = scale * ( ( obj_sign * dual > 0 )
-			       ? get_min_power_flow( line )
-			       : get_max_power_flow( line ) );
-
-  return( - dual * bound );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /// the derivatives w.r.t. the kappa of the lines in \p lines
- /** Writes in msp[ i ] get_resize_linearization( lines[ i ] ). This is what
-  * the name "<classname>::get_resize_linearization" calls [see
-  * static_initialization()].
-  *
-  * @throws std::invalid_argument if \p msp is shorter than \p lines or an
-  *         index is not that of a line */
-
- void get_resize_linearization( MF_dbl_msp msp , c_Subset & lines ,
-                                bool ordered = false ) const;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /// as get_resize_linearization( subset ), for the lines in \p rng
-
- void get_resize_linearization( MF_dbl_msp msp ,
-                                Range rng = Range( 0 , Inf< Index >() ) )
-  const;
-
- public:
-
-
-/*--------------------------------------------------------------------------*/
  /// returns the flow bounds, as get_power_flow_limit_constraints()
 
  const std::vector< BoxConstraint > &
@@ -2653,6 +2563,91 @@ class DCNetworkData : public NetworkData
  DCNetworkData * get_new_NetworkData( void ) const override {
   return( new DCNetworkData() );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative of the value of this Block w.r.t. the kappa of \p line
+ /** The flow limit constraints of a line l are
+
+     \f[ \kappa_l \mathrm{Pmin}_l \leq F_l \leq \kappa_l \mathrm{Pmax}_l \f]
+
+  * so the derivative of the value of this Block with respect to \f$
+  * \kappa_l \f$ is minus the dual of whichever of the two bounds is active,
+  * times that bound. Which one it is, is told by the sign of the dual read
+  * against the sense of the Objective.
+  *
+  * Returns 0 if the constraints have not been generated. This is the same
+  * computation that a consumer holding this Block would otherwise have to do
+  * from outside out of get_power_flow_limit_HVDC_bounds(), get_min_power_flow()
+  * and get_max_power_flow(), together with the sign rule; it is here because
+  * the rows in which \f$ \kappa \f$ appears are this Block's own.
+  *
+  * @param line the index of the line
+  *
+  * @return the derivative of the value of this Block w.r.t. the kappa of the
+  *         given line */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /* As for the container's one [see UCBlock.h], the supported way in is the
+  * name "DCNetworkBlock::get_resize_linearization": the method is not public,
+  * so that reading this sensitivity cannot become one more reason to
+  * recognise the class. It stays protected, and not private, because a
+  * derived network that resizes its lines the same way can reuse it; it is
+  * virtual, so that one with rows of its own in which kappa appears adds
+  * them [see OTSNetworkBlock::get_resize_linearization()]. */
+
+ virtual double get_resize_linearization( Index line ) const {
+  // a design variable of the line is multiplied by kappa in its limits, a
+  // bilinear term, and the value need not be convex in kappa: the dual
+  // gives no subgradient [see set_kappa()]
+  if( get_design( line ) )
+   throw( std::logic_error( "DCNetworkBlock::get_resize_linearization: "
+                            "line " + std::to_string( line ) + " has a "
+                            "design variable, with which the derivative "
+                            "with respect to its kappa is not defined" ) );
+
+  const auto & constraints = get_power_flow_limit_HVDC_bounds();
+
+  if( constraints.empty() )
+   return( 0 );
+
+  const auto obj_sign =
+   ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+
+  const auto dual = constraints[ line ].get_dual();
+
+  /* The bounds read kappa C^v P, with C^v the factor this Block scales its
+   * flow limits by, so the derivative of a bound with respect to the design
+   * is C^v P: leaving the factor out is right only while it is 1, which is
+   * its default but not its only value. */
+  const auto scale = get_C_v_scal();
+
+  // The dual is associated with either the lower or the upper bound; the
+  // sign of obj_sign * dual says which one.
+  const auto bound = scale * ( ( obj_sign * dual > 0 )
+			       ? get_min_power_flow( line )
+			       : get_max_power_flow( line ) );
+
+  return( - dual * bound );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives w.r.t. the kappa of the lines in \p lines
+ /** Writes in msp[ i ] get_resize_linearization( lines[ i ] ). This is what
+  * the name "<classname>::get_resize_linearization" calls [see
+  * static_initialization()].
+  *
+  * @throws std::invalid_argument if \p msp is shorter than \p lines or an
+  *         index is not that of a line */
+
+ void get_resize_linearization( MF_dbl_msp msp , c_Subset & lines ,
+                                bool ordered = false ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// as get_resize_linearization( subset ), for the lines in \p rng
+
+ void get_resize_linearization( MF_dbl_msp msp ,
+                                Range rng = Range( 0 , Inf< Index >() ) )
+  const;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
