@@ -12919,6 +12919,218 @@ static void test_OTS_resize_linearization_by_name( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* ThermalUnitBlock::replicate by name multiplies every term of the
+ * Objective by the number of copies, in every formulation, with the
+ * perspective cuts and without: on a unit with all the costs of the
+ * Objective and both reserves, after replicating to 3 and then to 0.5 the
+ * Objective has the same Variable in the same order, and each coefficient
+ * is that many times the one at 1, exactly. */
+
+static void test_thermal_replicate_objective( void )
+{
+ const auto replicate = Block::get_method_fs< double >(
+					       "ThermalUnitBlock::replicate" );
+ if( ! replicate ) {
+  check( false , "ThermalUnitBlock::replicate: not registered with one "
+	 "scalar" );
+  return;
+  }
+
+ TUData d;
+ d.T = 4;
+ d.minP = 2;
+ d.maxP = 10;
+ d.ru = d.rd = 4;
+ d.su = d.sd = 6;
+ d.initUD = 3;
+ d.initP = 5;
+ d.minUp = 2;
+ d.lin = { 4 , 3 , -6 , 2 };
+ d.quad = { 0.1 , 0.2 , 0.3 , 0.4 };
+ d.cnst = { 1 , 2 , 3 , 4 };
+ d.suc = { 5 , 6 , 7 , 8 };
+ d.sdc = { 9 , 10 , 11 , 12 };
+ d.prc = { 1 , 1 , 2 , 2 };
+ d.src = { 3 , 3 , 4 , 4 };
+
+ for( int wf = 0 ; wf < 15 ; ++wf ) {
+  if( wf == 7 )
+   continue;
+  const int form = ( wf < 7 ) ? wf : ( wf - 8 ) | 8;
+  const auto tag = "ThermalUnitBlock::replicate, wf " +
+		   std::to_string( form );
+  std::unique_ptr< ThermalUnitBlock > tub( new_TU( d ) );
+  tub->set_reserve_vars( 3 );
+  generate_all_wf( tub.get() , form );
+  const auto f = static_cast< const DQuadFunction * >(
+	  static_cast< FRealObjective * >( tub->get_objective() )->
+							    get_function() );
+
+  // the terms of one copy: Variable, linear and quadratic coefficient
+  std::vector< std::tuple< const Variable * , double , double > > one;
+  for( Index i = 0 ; i < f->get_num_active_var() ; ++i )
+   one.emplace_back( f->get_active_var( i ) ,
+		     f->get_linear_coefficient( i ) ,
+		     f->get_quadratic_coefficient( i ) );
+
+  for( const double k : { 3.0 , 0.5 } ) {
+   std::invoke( *replicate , tub.get() , k , eModBlck , eModBlck );
+   Index i = 0;
+   if( f->get_num_active_var() == one.size() )
+    while( ( i < one.size() ) &&
+	   ( f->get_active_var( i ) == std::get< 0 >( one[ i ] ) ) &&
+	   ( f->get_linear_coefficient( i ) ==
+	     k * std::get< 1 >( one[ i ] ) ) &&
+	   ( f->get_quadratic_coefficient( i ) ==
+	     k * std::get< 2 >( one[ i ] ) ) )
+     ++i;
+   check( i == one.size() , tag + ", " + str( k ) + " copies: the term " +
+	  std::to_string( i ) + " of the " + std::to_string( one.size() ) +
+	  " of the Objective is not " + str( k ) + " times the one of a "
+	  "copy" );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The derivative by copies counts, of the rows of the reserves and of the
+ * pollutant budget, the terms of the unit alone, in the zone of its node:
+ * three nodes on a path with a ThermalUnitBlock each, the nodes 0 and 2 in
+ * the primary zone 0 and the node 1 in the primary zone 1, the nodes 0 and
+ * 1 in the secondary zone 0 and the node 2 in the secondary zone 1, one
+ * pollutant that the unit at node u emits at the rate u + 1, and two
+ * BatteryUnitBlock, at the nodes 1 and 0, whose storages weigh 4 and 5 in
+ * the pollutant row. With the reserves, the power and the storage levels
+ * set by hand, and no Solver having run, so that all the duals are 0, a
+ * dual set by hand on one row moves the derivative by name of each unit
+ * from that with no dual by the dual times the terms of the unit in the
+ * row: on the primary row of zone 0 at instant 1 those of the units 0 and 2
+ * by their primary reserve at 1, on the secondary row of zone 1 at instant
+ * 0 that of the unit 2 by its secondary reserve at 0, on the pollutant row
+ * that of each thermal unit by its rate times its power summed over the
+ * horizon and that of each battery by the weight of its storage times its
+ * level summed over the horizon; the others do not move. */
+
+static void test_replicate_linearization_zones( void )
+{
+ auto g = new_group( "UCZ" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 2 );
+ g.addDim( "NumberUnits" , 5 );
+ auto N = g.addDim( "NumberNodes" , 3 );
+ auto L = g.addDim( "NumberLines" , 2 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 5 );
+ put_int( g , "StartLine" , L , { 0 , 1 } );
+ put_int( g , "EndLine" , L , { 1 , 2 } );
+ put( g , "MinPowerFlow" , L , { -30 , -30 } );
+ put( g , "MaxPowerFlow" , L , { 30 , 30 } );
+ put( g , "ActivePowerDemand" , { N , TH } , { 3 , 3 , 3 , 3 , 3 , 3 } );
+ put_int( g , "GeneratorNode" , G , { 0 , 1 , 2 , 1 , 0 } );
+ auto Zp = g.addDim( "NumberPrimaryZones" , 2 );
+ put_int( g , "PrimaryZones" , N , { 0 , 1 , 0 } );
+ put( g , "PrimaryDemand" , { Zp , TH } , { 1 , 1 , 1 , 1 } );
+ auto Zs = g.addDim( "NumberSecondaryZones" , 2 );
+ put_int( g , "SecondaryZones" , N , { 0 , 0 , 1 } );
+ put( g , "SecondaryDemand" , { Zs , TH } , { 1 , 1 , 1 , 1 } );
+ auto P = g.addDim( "NumberPollutants" , 1 );
+ auto TZ = g.addDim( "TotalNumberPollutantZones" , 1 );
+ put( g , "PollutantBudget" , TZ , { 1000 } );
+ put( g , "PollutantRho" , { TH , P , G } ,
+      { 1 , 2 , 3 , 0 , 0 , 1 , 2 , 3 , 0 , 0 } );
+ auto S = g.addDim( "NumberStorages" , 2 );
+ put( g , "PollutantStorageRho" , { TH , P , S } , { 4 , 5 , 4 , 5 } );
+ for( Index u = 0 ; u < 3 ; ++u ) {
+  TUData d;
+  d.T = 2;
+  d.lin = { 1 , 2 };
+  d.prho = { 1 , 1 };
+  d.srho = { 1 , 1 };
+  auto ug = g.addGroup( "UnitBlock_" + std::to_string( u ) );
+  write_TU( ug , d );
+  }
+ for( Index u = 3 ; u < 5 ; ++u ) {
+  auto ug = g.addGroup( "UnitBlock_" + std::to_string( u ) );
+  ug.putAtt( "type" , "BatteryUnitBlock" );
+  put( ug , "MinStorage" , TH , { 0 , 0 } );
+  put( ug , "MaxStorage" , TH , { 50 , 50 } );
+  put( ug , "MaxPower" , TH , { 10 , 10 } );
+  put( ug , "MinPower" , TH , { -10 , -10 } );
+  }
+
+ std::unique_ptr< UCBlock > uc(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ const auto query = Block::get_query_fs< Block::MF_dbl_msp , Block::Range >(
+				       "UCBlock::get_replicate_linearization" );
+ if( ! ( uc && query ) ) {
+  check( false , "the derivative by copies in the zones: the UCBlock is not "
+	 "read, or UCBlock::get_replicate_linearization is not registered" );
+  return;
+  }
+ generate_all( uc.get() );
+
+ // the primary reserve 10 u + t + 1, the secondary 100 + 10 u + t, the
+ // power u + t + 2 of the thermal unit u at the instant t, the storage
+ // level 10 ( u - 2 ) + t of the battery u
+ for( Index u = 3 ; u < 5 ; ++u ) {
+  const auto v = uc->get_unit_block( u )->get_storage_level( 0 );
+  if( ! v ) {
+   check( false , "the derivative by copies in the zones: battery " +
+	  std::to_string( u ) + " has no storage level" );
+   return;
+   }
+  for( Index t = 0 ; t < 2 ; ++t )
+   v[ t ].set_value( 10 * ( u - 2 ) + t );
+  }
+ for( Index u = 0 ; u < 3 ; ++u ) {
+  const auto unit = uc->get_unit_block( u );
+  const auto r = unit->get_primary_spinning_reserve( 0 );
+  const auto s = unit->get_secondary_spinning_reserve( 0 );
+  const auto p = unit->get_active_power( 0 );
+  if( ! ( r && s && p ) ) {
+   check( false , "the derivative by copies in the zones: unit " +
+	  std::to_string( u ) + " has no reserves or no power" );
+   return;
+   }
+  for( Index t = 0 ; t < 2 ; ++t ) {
+   r[ t ].set_value( 10 * u + t + 1 );
+   s[ t ].set_value( 100 + 10 * u + t );
+   p[ t ].set_value( u + t + 2 );
+   }
+  }
+
+ const auto derivatives = [ & ]() {
+  std::vector< double > lin( 5 , 7 );
+  std::invoke( *query , uc.get() , Block::MF_dbl_msp( lin ) ,
+	       Block::Range( 0 , 5 ) );
+  return( lin );
+  };
+ const auto base = derivatives();
+
+ const auto moves = [ & ]( FRowConstraint & row , double dual ,
+			   const std::vector< double > & expected ,
+			   const std::string & what ) {
+  row.set_dual( dual );
+  const auto lin = derivatives();
+  row.set_dual( 0 );
+  for( Index u = 0 ; u < 5 ; ++u )
+   check( lin[ u ] - base[ u ] == expected[ u ] , "the derivative by "
+	  "copies in the zones, a dual of " + str( dual ) + " on " + what +
+	  ": that of unit " + std::to_string( u ) + " moves by " +
+	  str( lin[ u ] - base[ u ] ) + ", not " + str( expected[ u ] ) );
+  };
+
+ moves( uc->get_primary_demand_constraints()[ 1 ][ 0 ] , 3 ,
+	{ 3 * 2 , 0 , 3 * 22 , 0 , 0 } ,
+	"the primary row of zone 0 at instant 1" );
+ moves( uc->get_secondary_demand_constraints()[ 0 ][ 1 ] , 5 ,
+	{ 0 , 0 , 5 * 120 , 0 , 0 } ,
+	"the secondary row of zone 1 at instant 0" );
+ moves( uc->get_pollutant_constraints()[ 0 ][ 0 ] , 2 ,
+	{ 2 * 1 * 5 , 2 * 2 * 7 , 2 * 3 * 9 , 2 * 4 * 21 , 2 * 5 * 41 } ,
+	"the pollutant row" );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -16741,6 +16953,8 @@ int main( int argc , char ** argv )
   test_injection_bounds_derivative();
   test_resize_line_by_name();
   test_OTS_resize_linearization_by_name();
+  test_thermal_replicate_objective();
+  test_replicate_linearization_zones();
   test_battery_resize_as_setters();
   test_unit_sizing_names();
 
