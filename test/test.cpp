@@ -15857,7 +15857,7 @@ static void test_serialize_round_trip( void )
  {  // a ThermalUnitBlock
   TUData d;
   d.T = T;
-  d.lin = { 1 };
+  d.lin.assign( T , 1 );
   auto g = new_group( "TU" , true );
   write_TU( g , d );
   put( g , "ReferenceSchedule" , g.getDim( "TimeHorizon" ) , sched );
