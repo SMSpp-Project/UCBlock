@@ -2558,6 +2558,42 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
+void DCNetworkBlock::get_resize_linearization( MF_dbl_msp msp ,
+                                               c_Subset & lines , bool ) const
+{
+ if( lines.size() > msp.size() )
+  throw( std::invalid_argument( classname() + "::get_resize_linearization: "
+                                "the span is shorter than the subset it is "
+                                "asked to answer for" ) );
+
+ for( Index i = 0 ; i < lines.size() ; ++i ) {
+  if( lines[ i ] >= get_number_lines() )
+   throw( std::invalid_argument( classname() + "::get_resize_linearization: "
+                                 "there is no line of index " +
+                                 std::to_string( lines[ i ] ) ) );
+  msp[ i ] = get_resize_linearization( lines[ i ] );
+  }
+
+ }  // end( DCNetworkBlock::get_resize_linearization( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::get_resize_linearization( MF_dbl_msp msp ,
+                                               Range rng ) const
+{
+ rng.second = std::min( rng.second , get_number_lines() );
+ if( ( rng.first < rng.second ) && ( msp.size() < rng.second - rng.first ) )
+  throw( std::invalid_argument( classname() + "::get_resize_linearization: "
+                                "the span is shorter than the range it is "
+                                "asked to answer for" ) );
+
+ for( Index l = rng.first ; l < rng.second ; ++l )
+  msp[ l - rng.first ] = get_resize_linearization( l );
+
+ }  // end( DCNetworkBlock::get_resize_linearization( range ) )
+
+/*--------------------------------------------------------------------------*/
+
 void DCNetworkBlock::change_power_flow_limit_constraints(
 			   c_Subset & modified_lines , c_ModParam issueAMod )
 {

@@ -2015,11 +2015,13 @@ class DCNetworkData : public NetworkData
   * name "DCNetworkBlock::get_resize_linearization": the method is not public,
   * so that reading this sensitivity cannot become one more reason to
   * recognise the class. It stays protected, and not private, because a
-  * derived network that resizes its lines the same way can reuse it. */
+  * derived network that resizes its lines the same way can reuse it; it is
+  * virtual, so that one with rows of its own in which kappa appears adds
+  * them [see OTSNetworkBlock::get_resize_linearization()]. */
 
  protected:
 
- double get_resize_linearization( Index line ) const {
+ virtual double get_resize_linearization( Index line ) const {
   // a design variable of the line is multiplied by kappa in its limits, a
   // bilinear term, and the value need not be convex in kappa: the dual
   // gives no subgradient [see set_kappa()]
@@ -2053,6 +2055,25 @@ class DCNetworkData : public NetworkData
 
   return( - dual * bound );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives w.r.t. the kappa of the lines in \p lines
+ /** Writes in msp[ i ] get_resize_linearization( lines[ i ] ). This is what
+  * the name "<classname>::get_resize_linearization" calls [see
+  * static_initialization()].
+  *
+  * @throws std::invalid_argument if \p msp is shorter than \p lines or an
+  *         index is not that of a line */
+
+ void get_resize_linearization( MF_dbl_msp msp , c_Subset & lines ,
+                                bool ordered = false ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// as get_resize_linearization( subset ), for the lines in \p rng
+
+ void get_resize_linearization( MF_dbl_msp msp ,
+                                Range rng = Range( 0 , Inf< Index >() ) )
+  const;
 
  public:
 
@@ -2818,39 +2839,13 @@ class DCNetworkData : public NetworkData
   // pair usable without knowing this class: a consumer writes k through the
   // first name and reads the derivative through the second one.
 
-  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
-  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+  register_method< DCNetworkBlock , MF_dbl_msp , c_Subset & , bool >(
+   "DCNetworkBlock::get_resize_linearization" ,
+   & DCNetworkBlock::get_resize_linearization );
 
-  register_method< qry_sbst >(
-   "DCNetworkBlock::get_resize_linearization" , new qry_sbst(
-    []( const Block * blck , MF_dbl_msp msp , c_Subset & lines , bool ) {
-     const auto dcn = static_cast< const DCNetworkBlock * >( blck );
-     if( lines.size() > msp.size() )
-      throw( std::invalid_argument(
-       "DCNetworkBlock::get_resize_linearization: the span is shorter than "
-       "the subset it is asked to answer for" ) );
-     for( Index i = 0 ; i < lines.size() ; ++i ) {
-      if( lines[ i ] >= dcn->get_number_lines() )
-       throw( std::invalid_argument(
-        "DCNetworkBlock::get_resize_linearization: there is no line of index " +
-        std::to_string( lines[ i ] ) ) );
-      msp[ i ] = dcn->get_resize_linearization( lines[ i ] );
-      }
-     } ) );
-
-  register_method< qry_rngd >(
-   "DCNetworkBlock::get_resize_linearization" , new qry_rngd(
-    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
-     const auto dcn = static_cast< const DCNetworkBlock * >( blck );
-     rng.second = std::min( rng.second , dcn->get_number_lines() );
-     if( ( rng.first < rng.second ) &&
-         ( msp.size() < rng.second - rng.first ) )
-      throw( std::invalid_argument(
-       "DCNetworkBlock::get_resize_linearization: the span is shorter than "
-       "the range it is asked to answer for" ) );
-     for( Index l = rng.first ; l < rng.second ; ++l )
-      msp[ l - rng.first ] = dcn->get_resize_linearization( l );
-     } ) );
+  register_method< DCNetworkBlock , MF_dbl_msp , Range >(
+   "DCNetworkBlock::get_resize_linearization" ,
+   & DCNetworkBlock::get_resize_linearization );
   }
 
 /*--------------------------------------------------------------------------*/

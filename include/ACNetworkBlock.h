@@ -1382,39 +1382,13 @@ class ACNetworkData : public DCNetworkData
   register_method< ACNetworkBlock , MF_dbl_it , Range >(
    "ACNetworkBlock::resize" , & ACNetworkBlock::set_kappa );
 
-  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
-  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+  register_method< ACNetworkBlock , MF_dbl_msp , c_Subset & , bool >(
+   "ACNetworkBlock::get_resize_linearization" ,
+   & ACNetworkBlock::get_resize_linearization );
 
-  register_method< qry_sbst >(
-   "ACNetworkBlock::get_resize_linearization" , new qry_sbst(
-    []( const Block * blck , MF_dbl_msp msp , c_Subset & lines , bool ) {
-     const auto acn = static_cast< const ACNetworkBlock * >( blck );
-     if( lines.size() > msp.size() )
-      throw( std::invalid_argument(
-       "ACNetworkBlock::get_resize_linearization: the span is shorter than "
-       "the subset it is asked to answer for" ) );
-     for( Index i = 0 ; i < lines.size() ; ++i ) {
-      if( lines[ i ] >= acn->get_number_lines() )
-       throw( std::invalid_argument(
-        "ACNetworkBlock::get_resize_linearization: there is no line of index " +
-        std::to_string( lines[ i ] ) ) );
-      msp[ i ] = acn->get_resize_linearization( lines[ i ] );
-      }
-     } ) );
-
-  register_method< qry_rngd >(
-   "ACNetworkBlock::get_resize_linearization" , new qry_rngd(
-    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
-     const auto acn = static_cast< const ACNetworkBlock * >( blck );
-     rng.second = std::min( rng.second , acn->get_number_lines() );
-     if( ( rng.first < rng.second ) &&
-         ( msp.size() < rng.second - rng.first ) )
-      throw( std::invalid_argument(
-       "ACNetworkBlock::get_resize_linearization: the span is shorter than "
-       "the range it is asked to answer for" ) );
-     for( Index l = rng.first ; l < rng.second ; ++l )
-      msp[ l - rng.first ] = acn->get_resize_linearization( l );
-     } ) );
+  register_method< ACNetworkBlock , MF_dbl_msp , Range >(
+   "ACNetworkBlock::get_resize_linearization" ,
+   & ACNetworkBlock::get_resize_linearization );
   }
 
 /*--------------------------------------------------------------------------*/

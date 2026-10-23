@@ -730,11 +730,14 @@ class OTSNetworkData : public DCNetworkData
  /** That of DCNetworkBlock, read off the power flow limit rows, plus, for a
   * switchable line whose kappa is below 1, minus the dual of the limit of
   * its switching, whose right-hand side is the kappa itself; from 1 on that
-  * right-hand side stays at 1, and its derivative is 0. It hides the one of
-  * DCNetworkBlock, which is not virtual: the supported way in is the name
+  * right-hand side stays at 1, and its derivative is 0. It overrides the one
+  * of DCNetworkBlock, so that the forms over a Subset and a Range of
+  * DCNetworkBlock call it: the supported way in is the name
   * "OTSNetworkBlock::get_resize_linearization". */
 
- double get_resize_linearization( Index line ) const;
+ double get_resize_linearization( Index line ) const override;
+
+ using DCNetworkBlock::get_resize_linearization;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -821,39 +824,13 @@ class OTSNetworkData : public DCNetworkData
   register_method< OTSNetworkBlock , MF_dbl_it , Range >(
    "OTSNetworkBlock::resize" , & OTSNetworkBlock::resize );
 
-  using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
-  using qry_rngd = QueryType< MF_dbl_msp , Range >;
+  register_method< OTSNetworkBlock , MF_dbl_msp , c_Subset & , bool >(
+   "OTSNetworkBlock::get_resize_linearization" ,
+   & OTSNetworkBlock::get_resize_linearization );
 
-  register_method< qry_sbst >(
-   "OTSNetworkBlock::get_resize_linearization" , new qry_sbst(
-    []( const Block * blck , MF_dbl_msp msp , c_Subset & lines , bool ) {
-     const auto otsn = static_cast< const OTSNetworkBlock * >( blck );
-     if( lines.size() > msp.size() )
-      throw( std::invalid_argument(
-       "OTSNetworkBlock::get_resize_linearization: the span is shorter than "
-       "the subset it is asked to answer for" ) );
-     for( Index i = 0 ; i < lines.size() ; ++i ) {
-      if( lines[ i ] >= otsn->get_number_lines() )
-       throw( std::invalid_argument(
-        "OTSNetworkBlock::get_resize_linearization: there is no line of "
-        "index " + std::to_string( lines[ i ] ) ) );
-      msp[ i ] = otsn->get_resize_linearization( lines[ i ] );
-      }
-     } ) );
-
-  register_method< qry_rngd >(
-   "OTSNetworkBlock::get_resize_linearization" , new qry_rngd(
-    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
-     const auto otsn = static_cast< const OTSNetworkBlock * >( blck );
-     rng.second = std::min( rng.second , otsn->get_number_lines() );
-     if( ( rng.first < rng.second ) &&
-         ( msp.size() < rng.second - rng.first ) )
-      throw( std::invalid_argument(
-       "OTSNetworkBlock::get_resize_linearization: the span is shorter than "
-       "the range it is asked to answer for" ) );
-     for( Index l = rng.first ; l < rng.second ; ++l )
-      msp[ l - rng.first ] = otsn->get_resize_linearization( l );
-     } ) );
+  register_method< OTSNetworkBlock , MF_dbl_msp , Range >(
+   "OTSNetworkBlock::get_resize_linearization" ,
+   & OTSNetworkBlock::get_resize_linearization );
   }
  
 /*--------------------------------------------------------------------------*/

@@ -3014,20 +3014,13 @@ class UCBlock : public Block
      ucb->get_resize_unit_linearization( msp , second_msp , units );
      } ) );
 
-  register_method< qry_sbst >(
-   "UCBlock::get_resize_line_linearization" , new qry_sbst(
-    []( const Block * blck , MF_dbl_msp msp , c_Subset & lines ,
-        bool ordered ) {
-     static_cast< const UCBlock * >( blck )->
-      get_resize_line_linearization( msp , lines , ordered );
-     } ) );
+  register_method< UCBlock , MF_dbl_msp , c_Subset & , bool >(
+   "UCBlock::get_resize_line_linearization" ,
+   & UCBlock::get_resize_line_linearization );
 
-  register_method< qry_rngd >(
-   "UCBlock::get_resize_line_linearization" , new qry_rngd(
-    []( const Block * blck , MF_dbl_msp msp , Range rng ) {
-     static_cast< const UCBlock * >( blck )->
-      get_resize_line_linearization( msp , rng );
-     } ) );
+  register_method< UCBlock , MF_dbl_msp , Range >(
+   "UCBlock::get_resize_line_linearization" ,
+   & UCBlock::get_resize_line_linearization );
  }
 
 /*--------------------------------------------------------------------------*/
