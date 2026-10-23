@@ -12522,6 +12522,90 @@ static void test_OTS_resize_by_name( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The derivative with respect to the kappa of a line, by the name of the
+ * class of its network and by that of the UCBlock, with a dual set by hand
+ * on the flow limit row of the line, no Solver having run: minus the dual
+ * times the side of the row that the dual is of, per unit of kappa, so that
+ * resizing the line to kappa 2 leaves it the same, and 0 with no dual. In a
+ * minimization the dual of the upper side is the positive one, the sign
+ * that the conformance test checks against finite differences. On the
+ * DCNetworkBlock of write_UC_two_nodes() and on the ACNetworkBlock of
+ * write_ac_uc(), which registers the getter of DCNetworkBlock under a name
+ * of its own. */
+
+static void test_line_resize_linearization_by_name( void )
+{
+ using QrySbst = Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & ,
+				   bool >;
+ using QryRngd = Block::QueryType< Block::MF_dbl_msp , Block::Range >;
+ using SetSbst = Block::FunctionType< Block::MF_dbl_it , Block::Subset && ,
+				      bool >;
+
+ const auto root = Block::get_method< QrySbst >(
+				    "UCBlock::get_resize_line_linearization" );
+
+ for( const bool ac : { false , true } ) {
+  auto g = ac ? write_ac_uc( 2 , { { 0 , 1 } } , { 5 , 5 } , 0.5 )
+	      : write_UC_two_nodes( 1 , { 10 , 60 } );
+  std::unique_ptr< UCBlock > b(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+  const std::string tag = ac ? "ACNetworkBlock" : "DCNetworkBlock";
+  if( ! b ) {
+   check( false , tag + ", the derivative of a line: the UCBlock is not "
+	  "read" );
+   continue;
+   }
+  generate_all( b.get() );
+  auto net = b->get_network_block( 0 );
+  const auto & cls = net->classname();
+  const auto qs = Block::get_method< QrySbst >(
+				     cls + "::get_resize_linearization" );
+  const auto qr = Block::get_method< QryRngd >(
+				     cls + "::get_resize_linearization" );
+  const auto resize = Block::get_method< SetSbst >( cls + "::resize" );
+  auto rows = net->get_static_constraint_v< BoxConstraint >(
+							 "Power_flow_limit" );
+  if( ( cls != tag ) || ( ! ( root && qs && qr && resize && rows ) ) ||
+      ( rows->size() != 1 ) ) {
+   check( false , tag + ", the derivative of a line: a " + cls + ", or a "
+	  "name or the flow limit row missing" );
+   continue;
+   }
+  check( net->get_objective_sense() == Objective::eMin , tag + ", the "
+	 "derivative of a line: the network does not minimize" );
+
+  auto & row = ( *rows )[ 0 ];
+  for( const double kappa : { 1.0 , 2.0 } ) {
+   const std::vector< double > k = { kappa };
+   std::invoke( *resize , net , k.cbegin() , Block::Subset{ 0 } , true ,
+		eNoBlck , eNoBlck );
+   for( const double dual : { 3.0 , -2.0 , 0.0 } ) {
+    row.set_dual( dual );
+    const double expected = - dual * ( ( dual > 0 ) ? row.get_rhs()
+				                     : row.get_lhs() ) / kappa;
+    double by_subset = 7 , by_range = 7 , by_root = 7;
+    std::invoke( *qs , net , Block::MF_dbl_msp( & by_subset , 1 ) ,
+		 Block::Subset{ 0 } , true );
+    std::invoke( *qr , net , Block::MF_dbl_msp( & by_range , 1 ) ,
+		 Block::Range( 0 , 1 ) );
+    std::invoke( *root , b.get() , Block::MF_dbl_msp( & by_root , 1 ) ,
+		 Block::Subset{ 0 } , true );
+    const std::string at = tag + ", kappa " + str( kappa ) + ", dual " +
+                           str( dual ) + ": expected " + str( expected );
+    check( ( dual == 0 ) || ( expected != 0 ) , at + ", the row has no "
+	   "side" );
+    check( by_subset == expected , at + ", by the name of the network " +
+	   str( by_subset ) );
+    check( by_range == expected , at + ", by the name of the network over "
+	   "a Range " + str( by_range ) );
+    check( by_root == expected , at + ", by the name of the UCBlock " +
+	   str( by_root ) );
+    }
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -16339,6 +16423,7 @@ int main( int argc , char ** argv )
   test_zero_copy_unknown_solver();
   test_design_reactive_bounds_linearization();
   test_OTS_resize_by_name();
+  test_line_resize_linearization_by_name();
   test_battery_resize_as_setters();
   test_unit_sizing_names();
 
