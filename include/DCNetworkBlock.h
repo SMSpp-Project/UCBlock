@@ -2575,7 +2575,12 @@ class DCNetworkData : public NetworkData
   * times that bound. Which one it is, is told by the sign of the dual read
   * against the sense of the Objective.
   *
-  * Returns 0 if the constraints have not been generated. This is the same
+  * It requires the constraints, and reads the duals that the last solve
+  * left in them: if they have not been generated it throws
+  * std::logic_error. It reads no value of a Variable, so that after a solve
+  * that ended infeasible, with an unbounded dual direction where the duals
+  * go, it gives the coefficient of the condition that a feasible kappa has
+  * to satisfy. This is the same
   * computation that a consumer holding this Block would otherwise have to do
   * from outside out of get_power_flow_limit_HVDC_bounds(), get_min_power_flow()
   * and get_max_power_flow(), together with the sign rule; it is here because
@@ -2608,7 +2613,10 @@ class DCNetworkData : public NetworkData
   const auto & constraints = get_power_flow_limit_HVDC_bounds();
 
   if( constraints.empty() )
-   return( 0 );
+   throw( std::logic_error( classname() + "::get_resize_linearization: the "
+                            "abstract representation has not been "
+                            "generated, so there are no rows to read the "
+                            "duals of" ) );
 
   const auto obj_sign =
    ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
@@ -2637,7 +2645,8 @@ class DCNetworkData : public NetworkData
   * static_initialization()].
   *
   * @throws std::invalid_argument if \p msp is shorter than \p lines or an
-  *         index is not that of a line */
+  *         index is not that of a line, and std::logic_error as
+  *         get_resize_linearization( line ) does */
 
  void get_resize_linearization( MF_dbl_msp msp , c_Subset & lines ,
                                 bool ordered = false ) const;

@@ -733,7 +733,8 @@ class OTSNetworkData : public DCNetworkData
   * right-hand side stays at 1, and its derivative is 0. It overrides the one
   * of DCNetworkBlock, so that the forms over a Subset and a Range of
   * DCNetworkBlock call it: the supported way in is the name
-  * "OTSNetworkBlock::get_resize_linearization". */
+  * "OTSNetworkBlock::get_resize_linearization". It requires what that of
+  * DCNetworkBlock requires, and like it reads duals and data alone. */
 
  double get_resize_linearization( Index line ) const override;
 

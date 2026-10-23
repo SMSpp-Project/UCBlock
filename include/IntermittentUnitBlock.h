@@ -1214,13 +1214,23 @@ class IntermittentUnitBlock : public UnitBlock
   // that says which of the two it answers for. It is the same virtual that
   // UnitBlock declares; what the factory adds is that a consumer can reach it
   // without holding a UnitBlock *, and that a class not answering for it
-  // simply does not register the name.
+  // simply does not register the name. It requires the constraints, and
+  // throws std::logic_error if they have not been generated; it reads the
+  // duals that the last solve left in them, and no value of a Variable, so
+  // that after a solve that ended infeasible, with an unbounded dual
+  // direction where the duals go, it gives the coefficient of the condition
+  // that a feasible kappa has to satisfy.
 
   register_method< QueryType< double & > >(
    "IntermittentUnitBlock::get_resize_linearization" ,
    new QueryType< double & >( []( const Block * blck , double & g ) {
-    g = static_cast< const IntermittentUnitBlock * >( blck )->
-        get_kappa_linearization(); } ) );
+    const auto unit = static_cast< const IntermittentUnitBlock * >( blck );
+    if( ! unit->constraints_generated() )
+     throw( std::logic_error( "IntermittentUnitBlock::get_resize_"
+                              "linearization: the abstract representation "
+                              "has not been generated, so there are no rows "
+                              "to read the duals of" ) );
+    g = unit->get_kappa_linearization(); } ) );
  }
 
 };  // end( class( IntermittentUnitBlock ) )

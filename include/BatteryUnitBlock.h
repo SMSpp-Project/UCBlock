@@ -1940,7 +1940,14 @@ class BatteryUnitBlock : public UnitBlock
   * method counts while the converter follows \f$ \kappa \f$. It is
   * registered in the methods factory as
   * "BatteryUnitBlock::get_resize_linearization" with a pair of scalars. It
-  * throws std::logic_error if a design variable exists. */
+  * throws std::logic_error if a design variable exists, or if the
+  * constraints have not been generated. It reads the duals that the last
+  * solve left in them, and, only with the binary variables of intake and
+  * outtake, whose coefficients kappa multiplies, the values of those as
+  * well [see get_kappa_linearization()]. Without them, after a solve that
+  * ended infeasible, with an unbounded dual direction where the duals go,
+  * it gives the coefficients of the condition that feasible sizes have to
+  * satisfy; with them it gives none, there being no solution to read. */
 
  void get_resize_linearization( double & g_kappa , double & g_conv_kappa )
   const;
@@ -1951,7 +1958,8 @@ class BatteryUnitBlock : public UnitBlock
   * of resize( kappa ): get_kappa_linearization(), which counts the
   * converter while it follows \f$ \kappa \f$, plus the derivative of the
   * converter when it does not. It is registered as
-  * "BatteryUnitBlock::get_resize_linearization" with one scalar. */
+  * "BatteryUnitBlock::get_resize_linearization" with one scalar, and
+  * requires and reads what the pair of sizes above does. */
 
  void get_resize_linearization( double & g ) const;
 

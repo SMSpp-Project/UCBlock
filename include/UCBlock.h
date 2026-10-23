@@ -2103,7 +2103,10 @@ class UCBlock : public Block
   * one the previous solve left, and neither case is distinguishable here from
   * a fresh optimal dual. What this method does check is the one state it can
   * see by itself, that the abstract representation exists: it throws if the
-  * Constraint it has to read have not been generated.
+  * Constraint it has to read have not been generated. It reads the values of
+  * the Variable of the unit and of its Objective as well, which a solve that
+  * ended infeasible does not give: there it gives no condition on the
+  * copies, and is not to be asked.
   *
   * With 0 copies the unit has no power to weigh the duals with, and the sum
   * above would be 0 whatever the duals are, which is not a subgradient: the
@@ -2155,12 +2158,15 @@ class UCBlock : public Block
   * respect to the size parameter of the unit units[ k ], as resize_unit()
   * sets it: each unit answers through the getter that its class registers
   * as "<classname>::get_resize_linearization" with one scalar, the
-  * parameter living in the rows of the unit. It is reached by the name
-  * "UCBlock::get_resize_unit_linearization", for the reason given above.
+  * parameter living in the rows of the unit, with what that getter
+  * requires and reads; the bounds of the node injections add what their
+  * duals alone give [see injection_bounds_linearization()]. It is reached by
+  * the name "UCBlock::get_resize_unit_linearization", for the reason given
+  * above.
   *
   * @throws std::invalid_argument if \p msp is shorter than \p units or an
   *         index is not that of a unit, and std::logic_error if the class of
-  *         a unit does not register the getter. */
+  *         a unit does not register the getter, or that getter throws it. */
 
  void get_resize_unit_linearization( MF_dbl_msp msp , c_Subset & units )
   const;
@@ -2172,12 +2178,13 @@ class UCBlock : public Block
   * resize_unit( two values ) sets them: each unit answers through the getter
   * that its class registers as "<classname>::get_resize_linearization" with
   * a pair of scalars, which for a BatteryUnitBlock are the storage and the
-  * converter. It is reached by the name
-  * "UCBlock::get_resize_unit_linearization", with two spans.
+  * converter, with what that getter requires and reads. It is reached by
+  * the name "UCBlock::get_resize_unit_linearization", with two spans.
   *
   * @throws std::invalid_argument if a span is shorter than \p units or an
   *         index is not that of a unit, and std::logic_error if the class of
-  *         a unit does not register the getter with a pair of scalars. */
+  *         a unit does not register the getter with a pair of scalars, or
+  *         that getter throws it. */
 
  void get_resize_unit_linearization( MF_dbl_msp msp , MF_dbl_msp second_msp ,
                                      c_Subset & units ) const;
@@ -2188,12 +2195,13 @@ class UCBlock : public Block
   * respect to the size parameter of the line lines[ k ], as resize_line()
   * sets it: the sum, over the NetworkBlock, of what the getter that the
   * class of each registers as "<classname>::get_resize_linearization"
-  * answers. It is reached by the name
+  * answers, with what that getter requires and reads [see
+  * DCNetworkBlock::get_resize_linearization()]. It is reached by the name
   * "UCBlock::get_resize_line_linearization".
   *
   * @throws std::invalid_argument if \p msp is shorter than \p lines, and
   *         std::logic_error if this UCBlock has no NetworkBlock or the class
-  *         of one does not register the getter. */
+  *         of one does not register the getter, or that getter throws it. */
 
  void get_resize_line_linearization( MF_dbl_msp msp , c_Subset & lines ,
                                      bool ordered ) const;

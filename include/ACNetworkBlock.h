@@ -1382,6 +1382,9 @@ class ACNetworkData : public DCNetworkData
   register_method< ACNetworkBlock , MF_dbl_it , Range >(
    "ACNetworkBlock::resize" , & ACNetworkBlock::set_kappa );
 
+  // the getter is that of DCNetworkBlock, with what it requires [see
+  // DCNetworkBlock::get_resize_linearization()]
+
   register_method< ACNetworkBlock , MF_dbl_msp , c_Subset & , bool >(
    "ACNetworkBlock::get_resize_linearization" ,
    & ACNetworkBlock::get_resize_linearization );

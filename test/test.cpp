@@ -13131,6 +13131,127 @@ static void test_replicate_linearization_zones( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A getter of a derivative reads the duals of the rows of the abstract
+ * representation, and with no rows it has nothing to answer with: it
+ * throws, as a getter not finding the state it requires does [see the
+ * methods factory in Block.h]. By name, with nothing generated, all throw
+ * std::logic_error: the derivatives with respect to the kappa of a line of
+ * a DCNetworkBlock, an ACNetworkBlock and an OTSNetworkBlock and that of
+ * UCBlock::get_resize_line_linearization; those with respect to the kappa
+ * of an IntermittentUnitBlock and of a BatteryUnitBlock, with one size and
+ * with two, and those of UCBlock::get_resize_unit_linearization; the
+ * derivative by copies of UCBlock::get_replicate_linearization. */
+
+static void test_getters_refuse_without_rows( void )
+{
+ using Qry = Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & ,
+			       bool >;
+ using Qry2 = Block::QueryType< Block::MF_dbl_msp , Block::MF_dbl_msp ,
+				Block::c_Subset & , bool >;
+
+ const auto refuses = [ & ]( const std::string & what , auto && call ) {
+  bool thrown = false;
+  try {
+   call();
+   }
+  catch( std::logic_error & ) {
+   thrown = true;
+   }
+  check( thrown , what + ": answers with no rows instead of throwing" );
+  };
+
+ std::vector< double > v( 1 , 7 ) , w( 1 , 7 );
+ double d = 7 , e = 7;
+
+ // the forms on a slice, for the index i
+ const auto slice = [ & ]( Block * b , const std::string & name , Index i ,
+			   const std::string & tag = "" ) {
+  const auto q = Block::get_method< Qry >( name );
+  if( ! ( b && q ) ) {
+   check( false , name + ": no Block, or not registered" );
+   return;
+   }
+  refuses( name + tag , [ & ]() {
+   std::invoke( *q , b , Block::MF_dbl_msp( v ) , Block::Subset{ i } ,
+		true ); } );
+  };
+
+ std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+		 Block::new_Block( write_UC_two_nodes( 1 , { 10 , 60 } ) ) ) );
+ if( uc ) {
+  slice( uc->get_network_block( 0 ) ,
+	 "DCNetworkBlock::get_resize_linearization" , 0 );
+  slice( uc.get() , "UCBlock::get_resize_line_linearization" , 0 );
+  slice( uc.get() , "UCBlock::get_resize_unit_linearization" , 0 );
+  slice( uc.get() , "UCBlock::get_replicate_linearization" , 0 );
+  const auto q = Block::get_query_fs< double & >(
+			       "IntermittentUnitBlock::get_resize_linearization" );
+  if( q )
+   refuses( "IntermittentUnitBlock::get_resize_linearization" , [ & ]() {
+    std::invoke( *q , uc->get_unit_block( 0 ) , d ); } );
+  else
+   check( false , "IntermittentUnitBlock::get_resize_linearization: not "
+	  "registered" );
+  }
+ else
+  check( false , "the getters with no rows: the UCBlock is not read" );
+
+ std::unique_ptr< UCBlock > ac( dynamic_cast< UCBlock * >(
+	   Block::new_Block( write_ac_uc( 2 , { { 0 , 1 } } , { 5 , 5 } ,
+					  0.5 ) ) ) );
+ if( ac )
+  slice( ac->get_network_block( 0 ) ,
+	 "ACNetworkBlock::get_resize_linearization" , 0 );
+ else
+  check( false , "the getters with no rows: the AC UCBlock is not read" );
+
+ auto g = new_group( "OTS" , true );
+ g.putAtt( "type" , "OTSNetworkBlock" );
+ auto N = g.addDim( "NumberNodes" , 3 );
+ auto L = g.addDim( "NumberLines" , 2 );
+ put_int( g , "StartLine" , L , { 0 , 1 } );
+ put_int( g , "EndLine" , L , { 1 , 2 } );
+ put( g , "MinPowerFlow" , L , { -5 , -6 } );
+ put( g , "MaxPowerFlow" , L , { 5 , 6 } );
+ put( g , "LineSusceptance" , L , { 0 , 2 } );
+ put( g , "ActiveDemand" , N , { 1 , 2 , 3 } );
+ put( g , "SwitchingCost" , L , { 3 , 4 } );
+ std::unique_ptr< Block > ots( Block::new_Block( g ) );
+ slice( ots.get() , "OTSNetworkBlock::get_resize_linearization" , 1 );
+
+ // the battery is unit 2
+ std::unique_ptr< UCBlock > ub( new_UC_battery_slack(
+		       std::numeric_limits< double >::quiet_NaN() ,
+		       std::numeric_limits< double >::quiet_NaN() , 10 ) );
+ if( ub ) {
+  const auto unit = ub->get_unit_block( 2 );
+  const auto q = Block::get_query_fs< double & >(
+				   "BatteryUnitBlock::get_resize_linearization" );
+  const auto q2 = Block::get_query_fs< double & , double & >(
+				   "BatteryUnitBlock::get_resize_linearization" );
+  const auto root2 = Block::get_method< Qry2 >(
+				     "UCBlock::get_resize_unit_linearization" );
+  if( q && q2 && root2 ) {
+   refuses( "BatteryUnitBlock::get_resize_linearization" , [ & ]() {
+    std::invoke( *q , unit , d ); } );
+   refuses( "BatteryUnitBlock::get_resize_linearization, two sizes" ,
+	    [ & ]() { std::invoke( *q2 , unit , d , e ); } );
+   refuses( "UCBlock::get_resize_unit_linearization, two sizes" , [ & ]() {
+    std::invoke( *root2 , ub.get() , Block::MF_dbl_msp( v ) ,
+		 Block::MF_dbl_msp( w ) , Block::Subset{ 2 } , true ); } );
+   }
+  else
+   check( false , "the getters with no rows: a getter of the battery is not "
+	  "registered" );
+  slice( ub.get() , "UCBlock::get_resize_unit_linearization" , 2 ,
+	 ", battery" );
+  }
+ else
+  check( false , "the getters with no rows: the UCBlock with a battery is "
+	 "not read" );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -16955,6 +17076,7 @@ int main( int argc , char ** argv )
   test_OTS_resize_linearization_by_name();
   test_thermal_replicate_objective();
   test_replicate_linearization_zones();
+  test_getters_refuse_without_rows();
   test_battery_resize_as_setters();
   test_unit_sizing_names();
 
