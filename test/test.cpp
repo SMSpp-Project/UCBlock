@@ -12774,6 +12774,94 @@ static void test_injection_bounds_derivative( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The derivative of an OTSNetworkBlock with respect to the kappa of a line
+ * reads the dual of the row of the switching that OTSNetworkBlock::resize
+ * writes, the limit of the switching in the standard formulation and the
+ * row of the exclusivity in the directional one: on the switchable line 1
+ * of test_OTS_resize_by_name(), resized by name, a dual set by hand on that
+ * row moves the derivative by name by minus the dual for a kappa of 0.5,
+ * whose row has the right-hand side 0.5, and not at all for a kappa of 2,
+ * whose row stays at 1. No Solver has run, so all the other duals are 0. */
+
+static void test_OTS_resize_linearization_by_name( void )
+{
+ using QryRngd = Block::QueryType< Block::MF_dbl_msp , Block::Range >;
+
+ for( const int formulation : { 0 , 1 } ) {
+  const std::string tag = std::string( "OTS, the derivative, " ) +
+                          ( formulation ? "directional" : "standard" );
+  auto g = new_group( "OTS" , true );
+  g.putAtt( "type" , "OTSNetworkBlock" );
+  auto N = g.addDim( "NumberNodes" , 3 );
+  auto L = g.addDim( "NumberLines" , 2 );
+  put_int( g , "StartLine" , L , { 0 , 1 } );
+  put_int( g , "EndLine" , L , { 1 , 2 } );
+  put( g , "MinPowerFlow" , L , { -5 , -6 } );
+  put( g , "MaxPowerFlow" , L , { 5 , 6 } );
+  put( g , "LineSusceptance" , L , { 0 , 2 } );
+  put( g , "ActiveDemand" , N , { 1 , 2 , 3 } );
+  put( g , "SwitchingCost" , L , { 3 , 4 } );
+  std::unique_ptr< DCNetworkBlock > nb(
+		   dynamic_cast< DCNetworkBlock * >( Block::new_Block( g ) ) );
+  if( ! nb ) {
+   check( false , tag + ": the OTSNetworkBlock is not read" );
+   continue;
+   }
+  SimpleConfiguration< int > f( formulation );
+  nb->generate_abstract_variables( & f );
+  nb->generate_abstract_constraints();
+  nb->generate_objective();
+
+  const auto resize = Block::get_method_fs< Block::MF_dbl_it ,
+					    Block::Range >(
+						   "OTSNetworkBlock::resize" );
+  const auto getter = Block::get_method< QryRngd >(
+				 "OTSNetworkBlock::get_resize_linearization" );
+  RowConstraint * row = nullptr;
+  if( formulation ) {
+   const auto rows = nb->get_static_constraint_v< FRowConstraint >(
+							   "OTS_exclusivity" );
+   if( rows && ( rows->size() == 1 ) )
+    row = & ( *rows )[ 0 ];
+   }
+  else {
+   const auto rows = nb->get_static_constraint_v< UBConstraint >(
+						       "OTS_switching_bound" );
+   if( rows && ( rows->size() == 1 ) )
+    row = & ( *rows )[ 0 ];
+   }
+  if( ! ( resize && getter && row ) ) {
+   check( false , tag + ": a name, or the row of the switching of the "
+	  "line, missing" );
+   continue;
+   }
+
+  const auto derivative = [ & ]( double dual ) {
+   row->set_dual( dual );
+   double d = 7;
+   std::invoke( *getter , nb.get() , Block::MF_dbl_msp( & d , 1 ) ,
+		Range( 1 , 2 ) );
+   return( d );
+   };
+  for( const double kappa : { 0.5 , 2.0 } ) {
+   const std::vector< double > k = { kappa };
+   std::invoke( *resize , nb.get() , k.cbegin() , Range( 1 , 2 ) , eNoBlck ,
+		eNoBlck );
+   check( row->get_rhs() == std::min( 1.0 , kappa ) , tag + ", kappa " +
+	  str( kappa ) + ": the row of the switching has the right-hand "
+	  "side " + str( row->get_rhs() ) );
+   const double base = derivative( 0 );
+   const double moved = derivative( 3 ) - base;
+   const double expected = ( kappa < 1 ) ? -3 : 0;
+   check( moved == expected , tag + ", kappa " + str( kappa ) + ": a dual "
+	  "of 3 on the row of the switching moves the derivative by " +
+	  str( moved ) + ", not " + str( expected ) );
+   row->set_dual( 0 );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -16594,6 +16682,7 @@ int main( int argc , char ** argv )
   test_line_resize_linearization_by_name();
   test_resize_unit_unchanged_bounds();
   test_injection_bounds_derivative();
+  test_OTS_resize_linearization_by_name();
   test_battery_resize_as_setters();
   test_unit_sizing_names();
 
