@@ -12649,6 +12649,131 @@ static void test_resize_unit_unchanged_bounds( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The derivative of the value with respect to the size of a unit follows
+ * the bounds of the node injections that set_node_injection_bounds()
+ * writes: with a dual set by hand on the bound of the node where the unit
+ * is the only generator, no Solver having run, the derivative by name
+ * moves from that with no dual by minus the dual times the side of the row
+ * that the dual is of, divided by the factor being sized. In a minimization
+ * the dual of the upper side is the positive one. The active bounds on an
+ * ECNetworkBlock, for the kappa of an IntermittentUnitBlock of power 100
+ * ("UCBlock::get_resize_unit_linearization"); the reactive ones on the
+ * ACNetworkBlock of write_ac_uc(), for the copies of its ThermalUnitBlock
+ * of reactive power in [ -5 , 5 ] ("UCBlock::get_replicate_linearization").
+ * A change of either formula alone breaks the match. */
+
+static void test_injection_bounds_derivative( void )
+{
+ using QrySbst = Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & ,
+				   bool >;
+ using SetSbst = Block::FunctionType< Block::MF_dbl_it , Block::Subset && ,
+				      bool >;
+
+ const auto match = [ & ]( UCBlock * uc , BoxConstraint & row ,
+			   const std::string & set , const std::string & get ,
+			   const std::string & tag ) {
+  const auto setter = Block::get_method< SetSbst >( set );
+  const auto getter = Block::get_method< QrySbst >( get );
+  if( ! ( setter && getter ) ) {
+   check( false , tag + ": " + set + " or " + get + " is not registered" );
+   return;
+   }
+  check( uc->get_objective_sense() == Objective::eMin , tag + ": the "
+	 "UCBlock does not minimize" );
+  const auto derivative = [ & ]( double dual ) {
+   row.set_dual( dual );
+   double d = 7;
+   std::invoke( *getter , uc , Block::MF_dbl_msp( & d , 1 ) ,
+		Block::Subset{ 0 } , true );
+   return( d );
+   };
+  for( const double factor : { 1.0 , 2.0 } ) {
+   const std::vector< double > f = { factor };
+   std::invoke( *setter , uc , f.cbegin() , Block::Subset{ 0 } , true ,
+		eNoBlck , eNoBlck );
+   const double base = derivative( 0 );
+   for( const double dual : { 3.0 , -2.0 } ) {
+    const double side = ( dual > 0 ) ? row.get_rhs() : row.get_lhs();
+    const double expected = - dual * side / factor;
+    const double moved = derivative( dual ) - base;
+    check( close( moved , expected ) , tag + ", factor " + str( factor ) +
+	   ", dual " + str( dual ) + ": the derivative moves by " +
+	   str( moved ) + ", the bound gives " + str( expected ) );
+    }
+   row.set_dual( 0 );
+   }
+  };
+
+ // the active bounds, on an energy community of two nodes
+ {
+  auto g = new_group( "UCEC" , true );
+  g.putAtt( "type" , "UCBlock" );
+  auto TH = g.addDim( "TimeHorizon" , 1 );
+  g.addDim( "NumberUnits" , 1 );
+  auto N = g.addDim( "NumberNodes" , 2 );
+  auto G = g.addDim( "NumberElectricalGenerators" , 1 );
+  g.addDim( "NumberNetworks" , 1 );
+  g.addDim( "NumberIntervals" , 1 );
+  for( const auto & [ name , value ] :
+	 { std::pair< const char * , const char * >( "NetworkBlockClassname" ,
+						     "ECNetworkBlock" ) ,
+	   std::pair< const char * , const char * >( "NetworkDataClassname" ,
+						     "ECNetworkData" ) } )
+   g.addVar( name , netCDF::NcString() ).putVar( & value );
+  put( g , "ActivePowerDemand" , { N , TH } , { 0 , 50 } );
+  put( g , "SellPrice" , 50.0 );
+  put( g , "BuyPrice" , 200.0 );
+  put( g , "RewardPrice" , 100.0 );
+  put( g , "PeakTariff" , 0.0 );
+  put_int( g , "GeneratorNode" , G , { 0 } );
+  auto u = g.addGroup( "UnitBlock_0" );
+  u.putAtt( "type" , "IntermittentUnitBlock" );
+  put( u , "MaxPower" , 100.0 );
+  put( u , "ActivePowerCost" , 0.0 );
+  std::unique_ptr< UCBlock > uc(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+  if( ! uc )
+   check( false , "the derivative of the active injection bounds: the "
+	  "UCBlock is not read" );
+  else {
+   generate_all( uc.get() );
+   auto rows = uc->get_network_block( 0 )->get_static_constraint<
+		BoxConstraint , 2 >( "Node_Injection_Bound_Const_Network" );
+   if( ! rows )
+    check( false , "the derivative of the active injection bounds: the "
+	   "ECNetworkBlock has no rows of the bounds" );
+   else
+    match( uc.get() , ( *rows )[ 0 ][ 0 ] , "UCBlock::resize_unit" ,
+	   "UCBlock::get_resize_unit_linearization" ,
+	   "the derivative of the active injection bounds" );
+   }
+  }
+
+ // the reactive bounds, on an ACNetworkBlock
+ {
+  auto g = write_ac_uc( 2 , { { 0 , 1 } } , { 5 , 5 } , 0.5 );
+  std::unique_ptr< UCBlock > uc(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+  if( ! uc )
+   check( false , "the derivative of the reactive injection bounds: the "
+	  "UCBlock is not read" );
+  else {
+   generate_all( uc.get() );
+   auto rows = uc->get_network_block( 0 )->get_static_constraint_v<
+		BoxConstraint >(
+			 "Reactive_Node_Injection_Bound_Const_Network" );
+   if( ( ! rows ) || rows->empty() )
+    check( false , "the derivative of the reactive injection bounds: the "
+	   "ACNetworkBlock has no rows of the bounds" );
+   else
+    match( uc.get() , ( *rows )[ 0 ] , "UCBlock::replicate" ,
+	   "UCBlock::get_replicate_linearization" ,
+	   "the derivative of the reactive injection bounds" );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -16468,6 +16593,7 @@ int main( int argc , char ** argv )
   test_OTS_resize_by_name();
   test_line_resize_linearization_by_name();
   test_resize_unit_unchanged_bounds();
+  test_injection_bounds_derivative();
   test_battery_resize_as_setters();
   test_unit_sizing_names();
 
