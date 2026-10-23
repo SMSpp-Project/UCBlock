@@ -179,10 +179,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class it is holding. `ThermalUnitBlock`, `NuclearUnitBlock`,
   `IntermittentUnitBlock` and `BatteryUnitBlock` register `scale()` as
   `<class>::replicate`, which stands for k identical copies of the unit;
-  `IntermittentUnitBlock`, `BatteryUnitBlock`, `DCNetworkBlock`,
-  `ACNetworkBlock` and `OTSNetworkBlock` register `set_kappa()` as
-  `<class>::resize`, which stands for one copy of k times the size (for
-  `BatteryUnitBlock`, `resize( k , k )` below). The thermal and the nuclear units deliberately do not offer the
+  `IntermittentUnitBlock`, `BatteryUnitBlock`, `DCNetworkBlock` and
+  `ACNetworkBlock` register `set_kappa()` as `<class>::resize`, and
+  `OTSNetworkBlock` its sizing of a line (below), which stands for one copy
+  of k times the size (for `BatteryUnitBlock`, `resize( k , k )` below). The thermal and the nuclear units deliberately do not offer the
   second road, their commitment being binary. The old names stay registered, a registered name travelling
   inside the instances that name it.
 
@@ -244,7 +244,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   min(1, kappa), as the design variable limits it: through a bound in the
   standard and elastic formulations, through the exclusivity row in the
   directional ones. The sensitivity of an OTS line adds the dual of that
-  limit while kappa is below 1.
+  limit while kappa is below 1. An OTS line is sized only through
+  `OTSNetworkBlock::resize`: its `set_kappa()` still refuses, so that whoever
+  sizes the line through `DCNetworkBlock` and reads the rows of
+  `DCNetworkBlock` alone is told, rather than left without that dual.
 
 - `BatteryUnitBlock::resize( kappa , conv_kappa )` sizes the storage, with
   its power, and the converter apart, and

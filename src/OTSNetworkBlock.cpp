@@ -924,9 +924,9 @@ void OTSNetworkBlock::generate_OTS_switching_bounds( void )
 
 /*--------------------------------------------------------------------------*/
 
-void OTSNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
-                                 bool ordered , c_ModParam issuePMod ,
-                                 c_ModParam issueAMod )
+void OTSNetworkBlock::resize( MF_dbl_it values , Subset && subset ,
+                              bool ordered , c_ModParam issuePMod ,
+                              c_ModParam issueAMod )
 {
  // the parent consumes the Subset, and the lines are needed afterwards
  const Subset lines( subset );
@@ -938,12 +938,12 @@ void OTSNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
      constraints_generated() )
   change_switching_bounds( lines , issueAMod );
 
- }  // end( OTSNetworkBlock::set_kappa( subset ) )
+ }  // end( OTSNetworkBlock::resize( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void OTSNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
-                                 c_ModParam issuePMod , c_ModParam issueAMod )
+void OTSNetworkBlock::resize( MF_dbl_it values , Range rng ,
+                              c_ModParam issuePMod , c_ModParam issueAMod )
 {
  DCNetworkBlock::set_kappa( values , rng , issuePMod , issueAMod );
 
@@ -956,7 +956,7 @@ void OTSNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
  std::iota( lines.begin() , lines.end() , rng.first );
  change_switching_bounds( lines , issueAMod );
 
- }  // end( OTSNetworkBlock::set_kappa( range ) )
+ }  // end( OTSNetworkBlock::resize( range ) )
 
 /*--------------------------------------------------------------------------*/
 

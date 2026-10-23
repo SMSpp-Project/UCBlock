@@ -12320,6 +12320,67 @@ static void test_design_reactive_bounds_linearization( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A line of an OTSNetworkBlock is sized only through the methods factory,
+ * as "OTSNetworkBlock::resize": set_kappa() refuses, as in 0.10.0, since a
+ * consumer that sizes the line through DCNetworkBlock and reads the
+ * sensitivity off the rows of DCNetworkBlock alone would miss the limit of
+ * the switching. The switchable line 1 (susceptance 2) has its switching
+ * limited by min( 1 , kappa ): 0.5 for a kappa of 0.5, 1 for one of 2. */
+
+static void test_OTS_resize_by_name( void )
+{
+ auto g = new_group( "OTS" , true );
+ g.putAtt( "type" , "OTSNetworkBlock" );
+ auto N = g.addDim( "NumberNodes" , 3 );
+ auto L = g.addDim( "NumberLines" , 2 );
+ put_int( g , "StartLine" , L , { 0 , 1 } );
+ put_int( g , "EndLine" , L , { 1 , 2 } );
+ put( g , "MinPowerFlow" , L , { -5 , -6 } );
+ put( g , "MaxPowerFlow" , L , { 5 , 6 } );
+ put( g , "LineSusceptance" , L , { 0 , 2 } );
+ put( g , "ActiveDemand" , N , { 1 , 2 , 3 } );
+ put( g , "SwitchingCost" , L , { 3 , 4 } );
+ std::unique_ptr< DCNetworkBlock > nb(
+		     dynamic_cast< DCNetworkBlock * >( Block::new_Block( g ) ) );
+ if( ! nb ) {
+  check( false , "OTS, resize: the OTSNetworkBlock is not read" );
+  return;
+  }
+ generate_all( nb.get() );
+
+ std::vector< double > k = { 0.5 };
+ bool thrown = false;
+ try {
+  nb->set_kappa( k.cbegin() , Range( 1 , 2 ) );
+  }
+ catch( std::logic_error & ) {
+  thrown = true;
+  }
+ check( thrown , "OTS, resize: set_kappa() sizes a line instead of "
+	"refusing" );
+
+ const auto resize = Block::get_method_fs< Block::MF_dbl_it , Block::Range >(
+						   "OTSNetworkBlock::resize" );
+ const auto bound = nb->get_static_constraint_v< UBConstraint >(
+							"OTS_switching_bound" );
+ if( ( ! resize ) || ( ! bound ) || bound->empty() ) {
+  check( false , "OTS, resize: no OTSNetworkBlock::resize, or no limit of "
+	 "the switching" );
+  return;
+  }
+ for( double kappa : { 0.5 , 2.0 } ) {
+  k[ 0 ] = kappa;
+  std::invoke( *resize , nb.get() , k.cbegin() , Range( 1 , 2 ) , eNoBlck ,
+	       eNoBlck );
+  check( close( nb->get_kappa( 1 ) , kappa ) &&
+	 close( ( *bound )[ 0 ].get_rhs() , std::min( 1.0 , kappa ) ) ,
+	 "OTS, resize: the kappa " + str( nb->get_kappa( 1 ) ) + " and the "
+	 "limit of the switching " + str( ( *bound )[ 0 ].get_rhs() ) +
+	 " after OTSNetworkBlock::resize to " + str( kappa ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -16136,6 +16197,7 @@ int main( int argc , char ** argv )
   test_replicate_without_objective();
   test_zero_copy_unknown_solver();
   test_design_reactive_bounds_linearization();
+  test_OTS_resize_by_name();
 
   test_hydro_delays();
   test_hydro_initial_volume();

@@ -470,30 +470,40 @@ class OTSNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
- /// set the kappa constants for the lines specified by \p subset
- /** As DCNetworkBlock::set_kappa(), which writes the kappa of a line into
-  * the power flow limit rows built by generate_bound_constraints(), and in
-  * addition into the limit of the switching of the line when it is
-  * switchable: \f$ \zeta_l \le \min( 1 , \kappa_l ) \f$, or \f$ \zeta_l^+ +
-  * \zeta_l^- \le \min( 1 , \kappa_l ) \f$ in the directional formulations.
-  * These are the rows, and the only ones, that the design variable of a
+ /// the size of a line of an OTSNetworkBlock is not changed by set_kappa()
+ /** A line of an OTSNetworkBlock is sized through the methods factory, as
+  * "OTSNetworkBlock::resize" [see resize()], which writes its
+  * kappa into the power flow limit rows built by generate_bound_constraints()
+  * and, when the line is switchable, into the limit of its switching:
+  * \f$ \zeta_l \le \min( 1 , \kappa_l ) \f$, or \f$ \zeta_l^+ + \zeta_l^-
+  * \le \min( 1 , \kappa_l ) \f$ in the directional formulations. These are
+  * the rows, and the only ones, that the design variable of a
   * DesignNetworkBlock enters, as \f$ \kappa \f$ in the former and as
   * \f$ \zeta_l \le x_l \f$ [see generate_design_coupling_constraints()], so
   * that a line of kappa k behaves as a designed line whose design is k. The
   * flow bounds coupled with the switching, the big-M of the Kirchhoff rows
-  * and the susceptance do not change, as they do not with the design. */
+  * and the susceptance do not change, as they do not with the design.
+  *
+  * These throw, as they did when a line could not be sized: whoever sizes a
+  * line through DCNetworkBlock may read its sensitivity off the rows of
+  * DCNetworkBlock alone, which misses the dual of the limit of the switching
+  * that "OTSNetworkBlock::get_resize_linearization" adds. */
 
  void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) override;
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "OTSNetworkBlock::set_kappa: sizing a line of an "
+   "OTSNetworkBlock is not supported" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// set the kappa constants for the lines specified by \p rng
- /** As the Subset version above. */
 
  void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) override;
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "OTSNetworkBlock::set_kappa: sizing a line of an "
+   "OTSNetworkBlock is not supported" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the OTSNetworkBlock
@@ -686,8 +696,8 @@ class OTSNetworkData : public DCNetworkData
  /// generate the limit of the switching by the kappa
  /** Generates \f$ z_l \le \min( 1 , \kappa_l ) \f$ for each switchable line
   * (Standard/Elastic); the directional formulations carry it in the
-  * exclusivity rows. It is generated whatever the kappa, since set_kappa()
-  * can change it afterwards. */
+  * exclusivity rows. It is generated whatever the kappa, since resize() can
+  * change it afterwards. */
 
  void generate_OTS_switching_bounds( void );
 
@@ -695,6 +705,25 @@ class OTSNetworkData : public DCNetworkData
  /// write min( 1 , kappa ) into the limit of the switching of \p lines
 
  void change_switching_bounds( c_Subset & lines , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
+ /// size the lines in \p subset, as "OTSNetworkBlock::resize"
+ /** Writes the kappa of the lines into the rows of DCNetworkBlock [see
+  * DCNetworkBlock::set_kappa()] and into the limit of their switching [see
+  * change_switching_bounds()]: the sizing of a line that set_kappa() of this
+  * class refuses [see set_kappa()], registered in the methods factory as
+  * "OTSNetworkBlock::resize" [see static_initialization()]. */
+
+ void resize( MF_dbl_it values , Subset && subset , bool ordered = false ,
+              c_ModParam issuePMod = eNoBlck ,
+              c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// size the lines in \p rng, as the Subset version above
+
+ void resize( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+              c_ModParam issuePMod = eNoBlck ,
+              c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// the derivative of the value of this Block w.r.t. the kappa of \p line
@@ -781,16 +810,16 @@ class OTSNetworkData : public DCNetworkData
  // static_initialization() needs be defined, for otherwise the method of the
  // base class DCNetworkBlock is called, which is private and would register
  // its names again. What is registered here is the sizing of a line [see
- // set_kappa()], under names of this class, since a consumer looks them up
- // by the exact class of the Block
+ // resize()], which set_kappa() refuses, under names of this class, since a
+ // consumer looks them up by the exact class of the Block
 
  static void static_initialization( void )
  {
   register_method< OTSNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "OTSNetworkBlock::resize" , & OTSNetworkBlock::set_kappa );
+   "OTSNetworkBlock::resize" , & OTSNetworkBlock::resize );
 
   register_method< OTSNetworkBlock , MF_dbl_it , Range >(
-   "OTSNetworkBlock::resize" , & OTSNetworkBlock::set_kappa );
+   "OTSNetworkBlock::resize" , & OTSNetworkBlock::resize );
 
   using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
   using qry_rngd = QueryType< MF_dbl_msp , Range >;
