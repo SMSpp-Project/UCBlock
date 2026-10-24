@@ -5752,6 +5752,34 @@ static void test_battery_two_kappas( void )
  check( close( gs , -40 ) && close( gc , 0 ) , "battery, two kappas: at ( "
 	"30 , 40 ) the linearization is ( " + str( gs ) + " , " + str( gc ) +
 	" ) instead of ( -40 , 0 )" );
+
+ // the same through the names that InvestmentFunction calls: the pair of
+ // sizes of the battery, unit 2, written by "UCBlock::resize_unit" and read
+ // back by "UCBlock::get_resize_unit_linearization"
+ const auto set2 = Block::get_method_fs< Block::MF_dbl_sp , Block::MF_dbl_sp ,
+					 Block::Subset && , bool >(
+						      "UCBlock::resize_unit" );
+ const auto get2 = Block::get_method< Block::QueryType< Block::MF_dbl_msp ,
+		    Block::MF_dbl_msp , Block::c_Subset & , bool > >(
+				     "UCBlock::get_resize_unit_linearization" );
+ if( set2 && get2 )
+  for( const auto & p : std::vector< std::vector< double > >{
+	 { 60 , 20 , 0 , -80 } , { 30 , 40 , -40 , 0 } } ) {
+   const std::vector< double > ks = { p[ 0 ] } , kc = { p[ 1 ] };
+   std::invoke( *set2 , uc , Block::MF_dbl_sp( ks ) , Block::MF_dbl_sp( kc ) ,
+		Block::Subset{ 2 } , true , eNoBlck , eNoBlck );
+   lp( uc );
+   double hs = NaN , hc = NaN;
+   std::invoke( *get2 , uc , Block::MF_dbl_msp( & hs , 1 ) ,
+		Block::MF_dbl_msp( & hc , 1 ) , Block::Subset{ 2 } , true );
+   check( close( hs , p[ 2 ] ) && close( hc , p[ 3 ] ) , "battery, two "
+	  "kappas by name: at ( " + str( p[ 0 ] ) + " , " + str( p[ 1 ] ) +
+	  " ) the linearization is ( " + str( hs ) + " , " + str( hc ) +
+	  " ) instead of ( " + str( p[ 2 ] ) + " , " + str( p[ 3 ] ) + " )" );
+   }
+ else
+  check( false , "battery, two kappas: UCBlock::resize_unit or its getter "
+	 "is not registered with a pair of sizes" );
  const double v0 = at( 0 , 0 , gs , gc );
  check( close( v0 , 7000 ) , "battery, two kappas: at ( 0 , 0 ) the value "
 	"is " + str( v0 ) + " instead of 7000" );
@@ -13252,6 +13280,365 @@ static void test_getters_refuse_without_rows( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The names of UCBlock refuse what they cannot do, with no Solver: on
+ * write_UC_two_nodes(), whose units 0 to 2 are IntermittentUnitBlock and 3
+ * a SlackUnitBlock, with one line, std::logic_error from
+ * "UCBlock::resize_unit", "UCBlock::replicate" and
+ * "UCBlock::get_resize_unit_linearization" on the slack, from the form of
+ * "UCBlock::resize_unit" with a pair of sizes on an IntermittentUnitBlock,
+ * which has one size, and from "UCBlock::resize_line" on a UCBlock of one
+ * node; std::invalid_argument for the unit 4 or the line 1, which are not
+ * there, and for a span shorter than the Subset. Each message says what is
+ * refused. */
+
+static void test_sizing_names_refuse( void )
+{
+ using Set = Block::FunctionType< Block::MF_dbl_it , Block::Subset && ,
+				  bool >;
+ using Set2 = Block::FunctionType< Block::MF_dbl_sp , Block::MF_dbl_sp ,
+				   Block::Subset && , bool >;
+ using Qry = Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & ,
+			       bool >;
+
+ // call throws std::invalid_argument if invalid, otherwise a
+ // std::logic_error that is not one, with part in its message
+ const auto refuses = [ & ]( const std::string & what , bool invalid ,
+			     const std::string & part , auto && call ) {
+  std::string got = "nothing thrown";
+  const auto said = [ & ]( const std::exception & e , bool is_invalid ,
+			   const char * type ) {
+   got = ( ( is_invalid == invalid ) &&
+	   ( std::string( e.what() ).find( part ) != std::string::npos ) )
+	 ? "" : std::string( type ) + " '" + e.what() + "'";
+   };
+  try {
+   call();
+   }
+  catch( std::invalid_argument & e ) {
+   said( e , true , "std::invalid_argument" );
+   }
+  catch( std::logic_error & e ) {
+   said( e , false , "std::logic_error" );
+   }
+  catch( std::exception & e ) {
+   got = std::string( "another exception '" ) + e.what() + "'";
+   }
+  check( got.empty() , what + ": " + got + " instead of " +
+	 ( invalid ? "std::invalid_argument" : "std::logic_error" ) +
+	 " saying " + part );
+  };
+
+ std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+		 Block::new_Block( write_UC_two_nodes( 1 , { 10 , 60 } ) ) ) );
+ std::unique_ptr< UCBlock > one( thermal_UC( 1 ) );
+ const auto resize_unit = Block::get_method< Set >( "UCBlock::resize_unit" );
+ const auto replicate = Block::get_method< Set >( "UCBlock::replicate" );
+ const auto resize_line = Block::get_method< Set >( "UCBlock::resize_line" );
+ const auto resize_unit2 = Block::get_method< Set2 >(
+						      "UCBlock::resize_unit" );
+ const auto get_unit = Block::get_method< Qry >(
+				     "UCBlock::get_resize_unit_linearization" );
+ const auto get_line = Block::get_method< Qry >(
+				     "UCBlock::get_resize_line_linearization" );
+ const auto get_copies = Block::get_method< Qry >(
+				       "UCBlock::get_replicate_linearization" );
+ if( ! ( uc && one && resize_unit && replicate && resize_line &&
+	 resize_unit2 && get_unit && get_line && get_copies ) ) {
+  check( false , "the refusals by name: a UCBlock is not read, or a name is "
+	 "not registered" );
+  return;
+  }
+
+ const std::vector< double > k = { 2 , 2 };
+ const auto write = [ & ]( auto f , Block * b , Block::Subset s ) {
+  std::invoke( *f , b , k.cbegin() , std::move( s ) , true , eNoBlck ,
+	       eNoBlck ); };
+ refuses( "UCBlock::resize_unit on the slack" , false ,
+	  "'SlackUnitBlock::resize'" ,
+	  [ & ]() { write( resize_unit , uc.get() , { 3 } ); } );
+ refuses( "UCBlock::replicate on the slack" , false ,
+	  "'SlackUnitBlock::replicate'" ,
+	  [ & ]() { write( replicate , uc.get() , { 3 } ); } );
+ refuses( "UCBlock::resize_unit on unit 4" , true ,
+	  "there is no unit of index 4" ,
+	  [ & ]() { write( resize_unit , uc.get() , { 4 } ); } );
+ refuses( "UCBlock::replicate on unit 4" , true ,
+	  "there is no unit of index 4" ,
+	  [ & ]() { write( replicate , uc.get() , { 4 } ); } );
+ refuses( "UCBlock::resize_line on line 1" , true ,
+	  "there is no line of index 1" ,
+	  [ & ]() { write( resize_line , uc.get() , { 1 } ); } );
+ refuses( "UCBlock::resize_line on one node" , false , "has no lines" ,
+	  [ & ]() { write( resize_line , one.get() , { 0 } ); } );
+
+ const std::vector< double > a = { 2 } , b = { 2 };
+ const auto write2 = [ & ]( Block::Subset s ) {
+  std::invoke( *resize_unit2 , uc.get() , Block::MF_dbl_sp( a ) ,
+	       Block::MF_dbl_sp( b ) , std::move( s ) , true , eNoBlck ,
+	       eNoBlck ); };
+ refuses( "UCBlock::resize_unit with a pair of sizes on unit 0" , false ,
+	  "with a pair of scalars" , [ & ]() { write2( { 0 } ); } );
+ refuses( "UCBlock::resize_unit with a pair of sizes, a short span" , true ,
+	  "span is shorter" , [ & ]() { write2( { 0 , 1 } ); } );
+
+ std::vector< double > g( 1 , 7 );
+ const auto read = [ & ]( auto q , Block::Subset s ) {
+  std::invoke( *q , uc.get() , Block::MF_dbl_msp( g ) , s , true ); };
+ refuses( "UCBlock::get_resize_unit_linearization, a short span" , true ,
+	  "span is shorter" , [ & ]() { read( get_unit , { 0 , 1 } ); } );
+ refuses( "UCBlock::get_resize_unit_linearization on unit 4" , true ,
+	  "there is no unit of index 4" ,
+	  [ & ]() { read( get_unit , { 4 } ); } );
+ refuses( "UCBlock::get_resize_unit_linearization on the slack" , false ,
+	  "'SlackUnitBlock::get_resize_linearization'" ,
+	  [ & ]() { read( get_unit , { 3 } ); } );
+ refuses( "UCBlock::get_resize_line_linearization, a short span" , true ,
+	  "span is shorter" , [ & ]() { read( get_line , { 0 , 0 } ); } );
+ refuses( "UCBlock::get_resize_line_linearization on line 1" , true ,
+	  "there is no line of index 1" ,
+	  [ & ]() { read( get_line , { 1 } ); } );
+ refuses( "UCBlock::get_replicate_linearization, a short span" , true ,
+	  "span is shorter" , [ & ]() { read( get_copies , { 0 , 1 } ); } );
+ refuses( "UCBlock::get_replicate_linearization on unit 4" , true ,
+	  "there is no unit of index 4" ,
+	  [ & ]() { read( get_copies , { 4 } ); } );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The derivative with respect to the size of a line, read by name after a
+ * solve, against the value worked out by hand. On write_UC_two_nodes(),
+ * with the demand 10 at node 0 and 60 at node 1 at every instant, the unit
+ * of cost 10 at node 0 covers its node and sends 30 over the line, which is
+ * then full, and the unit of cost 30 covers the rest of node 1, for
+ * 10 * 40 + 30 * 30 = 1300 per instant: one more unit of capacity saves
+ * 30 - 10 = 20, and the capacity being kappa times 30 the derivative is
+ * -20 * 30 = -600 per instant. At kappa 1.5 the line carries 45 and is
+ * still full, for 10 * 55 + 30 * 15 = 1000 per instant, and the same
+ * derivative. The line resized by name ("UCBlock::resize_line"), on one
+ * instant and on two, the :MILPSolver of the build finds these values, and
+ * "UCBlock::get_resize_line_linearization" these derivatives. Skipped if
+ * there is no :MILPSolver. */
+
+static void test_line_derivative_solved( void )
+{
+ const auto sname = milp_solver();
+ if( sname.empty() ) {
+  std::cout << "the derivative of a line after a solve: no :MILPSolver, "
+	    << "skipped" << std::endl;
+  return;
+  }
+ const auto resize = Block::get_method_fs< Block::MF_dbl_it ,
+					   Block::Subset && , bool >(
+						      "UCBlock::resize_line" );
+ const auto query = Block::get_method< Block::QueryType< Block::MF_dbl_msp ,
+		     Block::c_Subset & , bool > >(
+				     "UCBlock::get_resize_line_linearization" );
+ if( ! ( resize && query ) ) {
+  check( false , "the derivative of a line after a solve: a name is not "
+	 "registered" );
+  return;
+  }
+
+ for( const Index T : { 1 , 2 } ) {
+  std::vector< double > demand( 2 * T , 10 );
+  std::fill( demand.begin() + T , demand.end() , 60 );
+  std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+				 Block::new_Block( write_UC_two_nodes( T ,
+								     demand ) ) ) );
+  if( ! uc ) {
+   check( false , "the derivative of a line after a solve: the UCBlock is "
+	  "not read" );
+   continue;
+   }
+  generate_all( uc.get() );
+  for( const auto & [ kappa , value ] :
+	 std::vector< std::pair< double , double > >{ { 1 , 1300 } ,
+						      { 1.5 , 1000 } } ) {
+   const std::vector< double > k = { kappa };
+   std::invoke( *resize , uc.get() , k.cbegin() , Block::Subset{ 0 } , true ,
+		eNoBlck , eNoBlck );
+   auto slv = dynamic_cast< CDASolver * >( Solver::new_Solver( sname ) );
+   uc->register_Solver( slv );
+   double v = std::nan( "" ) , d = std::nan( "" );
+   if( ( slv->compute() == Solver::kOK ) && slv->has_dual_solution() ) {
+    v = slv->get_var_value();
+    slv->get_dual_solution();
+    std::invoke( *query , uc.get() , Block::MF_dbl_msp( & d , 1 ) ,
+		 Block::Subset{ 0 } , true );
+    }
+   uc->unregister_Solver( slv , true );
+   check( close( v , T * value ) && close( d , - 600.0 * T ) , "the "
+	  "derivative of a line after a solve, " + std::to_string( T ) +
+	  " instant(s), kappa " + str( kappa ) + ": value " + str( v ) +
+	  " and derivative " + str( d ) + " instead of " + str( T * value ) +
+	  " and " + str( - 600.0 * T ) );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The bounds of the node injections follow the size of a BatteryUnitBlock:
+ * a battery of power in [ -10 , 10 ] alone at node 0 of two nodes gives
+ * the injection there the bounds -10 and 10, and kappa times those when it
+ * is resized to kappa, by the names of its class ("BatteryUnitBlock::resize"
+ * with one size and with a pair, which reach the UCBlock through the
+ * Modification of the unit) and by that of UCBlock ("UCBlock::resize_unit",
+ * with one size and with a pair). */
+
+static void test_battery_resize_injection_bounds( void )
+{
+ auto g = new_group( "UCBN" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 1 );
+ g.addDim( "NumberUnits" , 2 );
+ auto N = g.addDim( "NumberNodes" , 2 );
+ auto L = g.addDim( "NumberLines" , 1 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 2 );
+ put_int( g , "StartLine" , L , { 0 } );
+ put_int( g , "EndLine" , L , { 1 } );
+ put( g , "MinPowerFlow" , L , { -30 } );
+ put( g , "MaxPowerFlow" , L , { 30 } );
+ put( g , "ActivePowerDemand" , { N , TH } , { 0 , 10 } );
+ put_int( g , "GeneratorNode" , G , { 0 , 1 } );
+ auto bg = g.addGroup( "UnitBlock_0" );
+ bg.putAtt( "type" , "BatteryUnitBlock" );
+ put( bg , "MinStorage" , TH , { 0 } );
+ put( bg , "MaxStorage" , TH , { 50 } );
+ put( bg , "MaxPower" , TH , { 10 } );
+ put( bg , "MinPower" , TH , { -10 } );
+ auto sg = g.addGroup( "UnitBlock_1" );
+ sg.putAtt( "type" , "SlackUnitBlock" );
+ put( sg , "MaxPower" , 1000.0 );
+ put( sg , "ActivePowerCost" , 1000.0 );
+
+ std::unique_ptr< UCBlock > uc(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ const auto unit1 = Block::get_method_fs< double >(
+					       "BatteryUnitBlock::resize" );
+ const auto unit2 = Block::get_method_fs< double , double >(
+					       "BatteryUnitBlock::resize" );
+ const auto root1 = Block::get_method_fs< Block::MF_dbl_it ,
+					  Block::Subset && , bool >(
+						      "UCBlock::resize_unit" );
+ const auto root2 = Block::get_method_fs< Block::MF_dbl_sp ,
+					  Block::MF_dbl_sp , Block::Subset && ,
+					  bool >( "UCBlock::resize_unit" );
+ if( ! ( uc && unit1 && unit2 && root1 && root2 ) ) {
+  check( false , "the injection bounds of a battery: the UCBlock is not "
+	 "read, or a name is not registered" );
+  return;
+  }
+ generate_all( uc.get() );
+ auto net = uc->get_network_block( 0 );
+ const auto bounds = [ & ]( double kappa , const std::string & how ) {
+  const auto mn = net->get_min_node_injection( 0 );
+  const auto mx = net->get_max_node_injection( 0 );
+  check( mn && mx && ( mn[ 0 ] == - 10 * kappa ) && ( mx[ 0 ] == 10 * kappa ) ,
+	 "the injection bounds of a battery, " + how + ": [ " +
+	 str( mn ? mn[ 0 ] : -1 ) + " , " + str( mx ? mx[ 0 ] : -1 ) +
+	 " ] at node 0 instead of [ " + str( - 10 * kappa ) + " , " +
+	 str( 10 * kappa ) + " ]" );
+  };
+
+ bounds( 1 , "as read" );
+ const auto unit = uc->get_unit_block( 0 );
+ std::invoke( *unit1 , unit , 2.0 , eNoBlck , eNoBlck );
+ bounds( 2 , "after BatteryUnitBlock::resize( 2 )" );
+ std::invoke( *unit2 , unit , 0.5 , 0.5 , eNoBlck , eNoBlck );
+ bounds( 0.5 , "after BatteryUnitBlock::resize( 0.5 , 0.5 )" );
+ const std::vector< double > k = { 3 };
+ std::invoke( *root1 , uc.get() , k.cbegin() , Block::Subset{ 0 } , true ,
+	      eNoBlck , eNoBlck );
+ bounds( 3 , "after UCBlock::resize_unit( 3 )" );
+ const std::vector< double > a = { 4 } , c = { 4 };
+ std::invoke( *root2 , uc.get() , Block::MF_dbl_sp( a ) ,
+	      Block::MF_dbl_sp( c ) , Block::Subset{ 0 } , true , eNoBlck ,
+	      eNoBlck );
+ bounds( 4 , "after UCBlock::resize_unit( 4 , 4 )" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* UCBlock::resize_unit writes the bounds of the node injections once, when
+ * all the units it is given are sized, and not once per unit: on an energy
+ * community of two nodes, whose ECNetworkBlock has the rows of those bounds,
+ * with an IntermittentUnitBlock of power 100 at node 0 and two of power 50
+ * at node 1, resizing the units 1 and 2 by name to 2 and 3 takes the upper
+ * bound at node 1 from 100 to 250 with one change of the side of its row,
+ * the one a FakeSolver receives, and not with two (through 150). */
+
+static void test_resize_unit_bounds_once( void )
+{
+ auto g = new_group( "UCEC2" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto TH = g.addDim( "TimeHorizon" , 1 );
+ g.addDim( "NumberUnits" , 3 );
+ auto N = g.addDim( "NumberNodes" , 2 );
+ auto G = g.addDim( "NumberElectricalGenerators" , 3 );
+ g.addDim( "NumberNetworks" , 1 );
+ g.addDim( "NumberIntervals" , 1 );
+ for( const auto & [ name , value ] :
+	{ std::pair< const char * , const char * >( "NetworkBlockClassname" ,
+						    "ECNetworkBlock" ) ,
+	  std::pair< const char * , const char * >( "NetworkDataClassname" ,
+						    "ECNetworkData" ) } )
+  g.addVar( name , netCDF::NcString() ).putVar( & value );
+ put( g , "ActivePowerDemand" , { N , TH } , { 0 , 50 } );
+ put( g , "SellPrice" , 50.0 );
+ put( g , "BuyPrice" , 200.0 );
+ put( g , "RewardPrice" , 100.0 );
+ put( g , "PeakTariff" , 0.0 );
+ put_int( g , "GeneratorNode" , G , { 0 , 1 , 1 } );
+ for( Index u = 0 ; u < 3 ; ++u ) {
+  auto ug = g.addGroup( "UnitBlock_" + std::to_string( u ) );
+  ug.putAtt( "type" , "IntermittentUnitBlock" );
+  put( ug , "MaxPower" , u ? 50.0 : 100.0 );
+  put( ug , "ActivePowerCost" , 0.0 );
+  }
+
+ std::unique_ptr< UCBlock > uc(
+			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ const auto resize = Block::get_method_fs< Block::MF_dbl_it ,
+					   Block::Subset && , bool >(
+						      "UCBlock::resize_unit" );
+ if( ! ( uc && resize ) ) {
+  check( false , "the bounds written once: the UCBlock is not read, or "
+	 "UCBlock::resize_unit is not registered" );
+  return;
+  }
+ generate_all( uc.get() );
+ auto rows = uc->get_network_block( 0 )->get_static_constraint<
+		BoxConstraint , 2 >( "Node_Injection_Bound_Const_Network" );
+ if( ! rows ) {
+  check( false , "the bounds written once: the ECNetworkBlock has no rows "
+	 "of the bounds" );
+  return;
+  }
+ auto & row = ( *rows )[ 1 ][ 0 ];  // node 1, interval 0
+ check( row.get_rhs() == 100 , "the bounds written once: the upper bound at "
+	"node 1 is " + str( row.get_rhs() ) + " instead of 100" );
+
+ auto fs = new FakeSolver();
+ uc->register_Solver( fs );
+ fs->get_Modification_list().clear();
+ const std::vector< double > k = { 2 , 3 };
+ std::invoke( *resize , uc.get() , k.cbegin() , Block::Subset{ 1 , 2 } ,
+	      true , eNoBlck , eNoBlck );
+ int changes = 0;
+ for( const auto & m : received( fs ) )
+  if( const auto rm =
+       std::dynamic_pointer_cast< const RowConstraintMod >( m ) )
+   if( ( rm->constraint() == & row ) &&
+       ( ( rm->type() == RowConstraintMod::eChgRHS ) ||
+	 ( rm->type() == RowConstraintMod::eChgBTS ) ) )
+    ++changes;
+ check( ( row.get_rhs() == 250 ) && ( changes == 1 ) , "the bounds written "
+	"once: the upper bound at node 1 is " + str( row.get_rhs() ) +
+	", reached with " + std::to_string( changes ) + " change(s) of its "
+	"side, instead of 250 with 1" );
+ uc->unregister_Solver( fs , true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The value that the :MILPSolver sname finds for the UCBlock of g with the
  * ACNetworkBlock in the formulation of the BlockConfig in the file form
  * (NaN if none is found); gap is the largest relative slack
@@ -17077,6 +17464,10 @@ int main( int argc , char ** argv )
   test_thermal_replicate_objective();
   test_replicate_linearization_zones();
   test_getters_refuse_without_rows();
+  test_sizing_names_refuse();
+  test_line_derivative_solved();
+  test_battery_resize_injection_bounds();
+  test_resize_unit_bounds_once();
   test_battery_resize_as_setters();
   test_unit_sizing_names();
 
