@@ -2558,6 +2558,27 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
+void DCNetworkBlock::resize( MF_dbl_it values , Subset && subset ,
+                             bool ordered , c_ModParam issuePMod ,
+                             c_ModParam issueAMod )
+{
+ // not the virtual: that of ACNetworkBlock and of OTSNetworkBlock throws
+ DCNetworkBlock::set_kappa( values , std::move( subset ) , ordered ,
+                            issuePMod , issueAMod );
+
+ }  // end( DCNetworkBlock::resize( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::resize( MF_dbl_it values , Range rng ,
+                             c_ModParam issuePMod , c_ModParam issueAMod )
+{
+ DCNetworkBlock::set_kappa( values , rng , issuePMod , issueAMod );
+
+ }  // end( DCNetworkBlock::resize( range ) )
+
+/*--------------------------------------------------------------------------*/
+
 void DCNetworkBlock::get_resize_linearization( MF_dbl_msp msp ,
                                                c_Subset & lines , bool ) const
 {

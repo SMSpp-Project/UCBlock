@@ -900,6 +900,32 @@ class ACNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
+ /// the size of a line of an ACNetworkBlock is not changed by set_kappa()
+ /** A line of an ACNetworkBlock is sized by resize(), registered in the
+  * methods factory as "ACNetworkBlock::resize" [see
+  * static_initialization()], which writes its kappa into the power flow
+  * limit rows built by generate_bound_constraints() and nowhere else.
+  *
+  * These throw, as they did when a line could not be sized, so that
+  * set_kappa() means for a line of an ACNetworkBlock what it meant then. */
+
+ void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "ACNetworkBlock::set_kappa: sizing a line of an "
+   "ACNetworkBlock is not supported" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+                 c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) override {
+  throw( std::logic_error( "ACNetworkBlock::set_kappa: sizing a line of an "
+   "ACNetworkBlock is not supported" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// change the active balance rows after a change of the active demand
  /** The active demand of node \f$ n \f$ is the right-hand side
   * \f$ - C^v D^{ac}_n \f$ of the active part of the power balance of
@@ -1366,21 +1392,22 @@ class ACNetworkData : public DCNetworkData
   *
   * What is registered here is the sizing of a line, under names of this
   * class since a consumer looks them up by the exact class of the Block:
-  * the kappa of DCNetworkBlock::set_kappa(), which this class inherits,
-  * scales the power flow limit rows built by generate_bound_constraints(),
-  * and nothing else, i.e., not the thermal limit, the bounds of the
-  * reactive flow or the susceptance. These are the rows, and the only
-  * ones, that the design variable of a DesignNetworkBlock scales, so that
-  * a line of kappa k behaves as a designed line whose design is k. The
-  * sensitivity is read off those rows as in DCNetworkBlock. */
+  * the kappa of DCNetworkBlock::resize(), which this class inherits while
+  * its set_kappa() throws, scales the power flow limit rows built by
+  * generate_bound_constraints(), and nothing else, i.e., not the thermal
+  * limit, the bounds of the reactive flow or the susceptance. These are the
+  * rows, and the only ones, that the design variable of a
+  * DesignNetworkBlock scales, so that a line of kappa k behaves as a
+  * designed line whose design is k. The sensitivity is read off those rows
+  * as in DCNetworkBlock. */
 
  static void static_initialization( void )
  {
   register_method< ACNetworkBlock , MF_dbl_it , Subset && , bool >(
-   "ACNetworkBlock::resize" , & ACNetworkBlock::set_kappa );
+   "ACNetworkBlock::resize" , & ACNetworkBlock::resize );
 
   register_method< ACNetworkBlock , MF_dbl_it , Range >(
-   "ACNetworkBlock::resize" , & ACNetworkBlock::set_kappa );
+   "ACNetworkBlock::resize" , & ACNetworkBlock::resize );
 
   // the getter is that of DCNetworkBlock, with what it requires [see
   // DCNetworkBlock::get_resize_linearization()]

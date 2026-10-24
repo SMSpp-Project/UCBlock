@@ -175,12 +175,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `NuclearUnitBlock::is_feasible()`
 
 - `<class>::replicate` and `<class>::resize`, the names under which a Block
-  of unknown class is sized through the methods factory: `replicate`, k
-  identical copies, is `scale()` of `ThermalUnitBlock`, `NuclearUnitBlock`,
-  `IntermittentUnitBlock` and `BatteryUnitBlock`; `resize`, kappa times the
-  size, sizes `IntermittentUnitBlock`, `BatteryUnitBlock` and the lines of
-  `DCNetworkBlock`, `ACNetworkBlock` and `OTSNetworkBlock`. A unit takes a
+  of unknown class is sized through the methods factory, each registered on
+  the protected method of the same name: `replicate()`, k identical copies,
+  is `scale()` of `ThermalUnitBlock`, `NuclearUnitBlock`,
+  `IntermittentUnitBlock`, `BatteryUnitBlock` and `ConversionUnitBlock`;
+  `resize()`, kappa times the size, is `set_kappa()` of
+  `IntermittentUnitBlock` and `DCNetworkBlock`, and sizes `BatteryUnitBlock`
+  and the lines of `ACNetworkBlock` and `OTSNetworkBlock`. A unit takes a
   scalar, or a pair for a battery, a network a range or a subset
+
+- the lines of `ACNetworkBlock` and `OTSNetworkBlock` are sized by
+  `resize()`, their `set_kappa()` refusing as before: kappa scales only the
+  rows of the flow limits, as a design variable does, and limits the
+  switching of an OTS line to min(1, kappa)
 
 - `<class>::get_resize_linearization` and
   `UCBlock::get_replicate_linearization`, the derivatives of the value with
@@ -295,11 +302,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot be read
 
 ### Changed
-
-- the lines of `ACNetworkBlock` and `OTSNetworkBlock` can be sized, which
-  0.10.0 refused: kappa scales only the rows of the flow limits, as a design
-  variable does, and limits the switching of an OTS line to min(1, kappa).
-  An OTS line is sized through `OTSNetworkBlock::resize`
 
 - `ConversionUnitBlock::replicate` takes a scalar, like the other names that
   size a unit, instead of a slice
@@ -731,6 +733,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `UnitBlock::serialize()` writes "ChangeIntervals", the name that
   `UnitBlock::deserialize()` reads, instead of "ChangeInterval"
+
 ## [0.10.0] - 2026-10-09
 
 ### Added

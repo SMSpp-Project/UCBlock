@@ -1893,6 +1893,18 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// k identical copies of this unit, i.e., scale( k )
+ /** Registered in the methods factory as "BatteryUnitBlock::replicate", the
+  * name under which a Block of unknown class is sized by identical copies
+  * [see UCBlock::replicate()]; protected, as the name is the way to reach
+  * it. */
+
+ void replicate( double k , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  scale( k , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// sets the sizes of the unit, that of the storage and that of the converter
  /** Sets \f$ \kappa \f$ to \p kappa and \f$ \kappa^{cv} \f$ to
   * \p conv_kappa [see get_converter_kappa()]: the storage is resized with its
@@ -2396,8 +2408,11 @@ class BatteryUnitBlock : public UnitBlock
   // a consumer can reach them without holding a BatteryUnitBlock *, and that
   // a class not answering for one simply does not register its name.
 
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
   register_method< BatteryUnitBlock , double >(
-   "BatteryUnitBlock::replicate" , & BatteryUnitBlock::scale );
+   "BatteryUnitBlock::replicate" , { & BatteryUnitBlock::replicate } );
 
   register_method< BatteryUnitBlock , double >(
    "BatteryUnitBlock::resize" , & BatteryUnitBlock::resize );

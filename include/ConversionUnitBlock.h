@@ -1637,6 +1637,17 @@ class ConversionUnitBlock : public UnitBlock
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// k identical copies of this unit, i.e., scale( k )
+ /** Registered in the methods factory as "ConversionUnitBlock::replicate",
+  * the name under which a Block of unknown class is sized by identical
+  * copies [see UCBlock::replicate()]; protected, as the name is the way to
+  * reach it. */
+
+ void replicate( double k , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  scale( k , issuePMod , issueAMod );
+  }
+
  /// reads "OperatingMatrix", static or indexed over the instants
  void read_operating_matrix( const netCDF::NcGroup & group ,
                              const std::string & who );
@@ -1976,12 +1987,15 @@ class ConversionUnitBlock : public UnitBlock
    "ConversionUnitBlock::scale" ,
    & ConversionUnitBlock::scale );
 
-  // scale() again under the name of the way of sizing a Block it is: k
-  // identical copies of this unit, committed together, the k given as the
-  // one scalar a unit has [see UCBlock::replicate()]
+  // replicate(), the way of sizing a Block it is: k identical copies of
+  // this unit, committed together, the k given as the one scalar a unit has
+  // [see UCBlock::replicate()]
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
 
   register_method< ConversionUnitBlock , double >(
-   "ConversionUnitBlock::replicate" , & ConversionUnitBlock::scale );
+   "ConversionUnitBlock::replicate" , { & ConversionUnitBlock::replicate } );
 
   register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
    "ConversionUnitBlock::set_initial_delayed_power" ,

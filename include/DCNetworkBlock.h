@@ -2326,10 +2326,12 @@ class DCNetworkData : public NetworkData
   * (2) and (3), a bilinear term, and the optimal value need not be convex in
   * \f$ \kappa_l \f$; its derivative where it exists is the one above times the
   * value of \f$ x_l \f$, but it is not a subgradient in general, and
-  * get_resize_linearization() refuses such a line. ACNetworkBlock and
-  * OTSNetworkBlock write \f$ \kappa_l \f$ into these same limits, and an
-  * OTSNetworkBlock also into the limit of the switching of a switchable line,
-  * whose dual then adds to the subgradient [see OTSNetworkBlock::resize()].
+  * get_resize_linearization() refuses such a line. The set_kappa() of
+  * ACNetworkBlock and of OTSNetworkBlock throws: their lines are sized by
+  * resize(), which writes \f$ \kappa_l \f$ into these same limits, and for
+  * an OTSNetworkBlock also into the limit of the switching of a switchable
+  * line, whose dual then adds to the subgradient [see
+  * OTSNetworkBlock::resize()].
   *
   * @param values An iterator to a vector containing the kappa constants.
   *
@@ -2563,6 +2565,31 @@ class DCNetworkData : public NetworkData
  DCNetworkData * get_new_NetworkData( void ) const override {
   return( new DCNetworkData() );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// kappa times the capacity of the lines in \p subset
+ /** Writes the kappa of the lines as DCNetworkBlock::set_kappa() does,
+  * whatever the class of this Block, registered in the methods factory as
+  * "DCNetworkBlock::resize", the name under which a Block of unknown class
+  * is sized by a kappa [see UCBlock::resize_line()]. The set_kappa() of
+  * ACNetworkBlock and of OTSNetworkBlock throws, and their lines are sized
+  * by this one alone; it is virtual, so that a derived network with rows of
+  * its own in which kappa appears writes them [see
+  * OTSNetworkBlock::resize()], and protected, as the name is the way to
+  * reach it. */
+
+ virtual void resize( MF_dbl_it values , Subset && subset ,
+                      bool ordered = false ,
+                      c_ModParam issuePMod = eNoBlck ,
+                      c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// kappa times the capacity of the lines in \p rng, as the version above
+
+ virtual void resize( MF_dbl_it values ,
+                      Range rng = Range( 0 , Inf< Index >() ) ,
+                      c_ModParam issuePMod = eNoBlck ,
+                      c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// the derivative of the value of this Block w.r.t. the kappa of \p line
@@ -2824,19 +2851,18 @@ class DCNetworkData : public NetworkData
    "DCNetworkBlock::set_kappa" ,
    & DCNetworkBlock::set_kappa );
 
-  // set_kappa is registered again under the name that says which of the ways
-  // of sizing a Block [see UCBlock::resize_line()] it implements: a line
-  // standing for kappa times the capacity it was given. There is no
-  // "replicate" here on purpose, k copies of a line being a line of k times
-  // the capacity.
+  // resize() is registered under the name of the way of sizing a Block [see
+  // UCBlock::resize_line()] it implements: a line standing for kappa times
+  // the capacity it was given. There is no "replicate" here on purpose, k
+  // copies of a line being a line of k times the capacity.
 
   register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
    "DCNetworkBlock::resize" ,
-   & DCNetworkBlock::set_kappa );
+   & DCNetworkBlock::resize );
 
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
    "DCNetworkBlock::resize" ,
-   & DCNetworkBlock::set_kappa );
+   & DCNetworkBlock::resize );
 
   // ... and the getter reading the sensitivity back, which is what makes the
   // pair usable without knowing this class: a consumer writes k through the

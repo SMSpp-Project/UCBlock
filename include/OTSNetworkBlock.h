@@ -106,7 +106,7 @@ namespace SMSpp_di_unipi_it
  *
  * ## Sizing a line
  *
- * The kappa constant \f$ \kappa_l \f$ of a switchable line [see set_kappa()]
+ * The kappa constant \f$ \kappa_l \f$ of a switchable line [see resize()]
  * limits its switching as a design variable does: \f$ \zeta_l \le \min( 1 ,
  * \kappa_l ) \f$ in the Standard and Elastic formulations, and
  * \f$ \min( 1 , \kappa_l ) \f$ in place of 1 in the exclusivity row
@@ -709,21 +709,22 @@ class OTSNetworkData : public DCNetworkData
 /*--------------------------------------------------------------------------*/
  /// size the lines in \p subset, as "OTSNetworkBlock::resize"
  /** Writes the kappa of the lines into the rows of DCNetworkBlock [see
-  * DCNetworkBlock::set_kappa()] and into the limit of their switching [see
-  * change_switching_bounds()]: the sizing of a line that set_kappa() of this
-  * class refuses [see set_kappa()], registered in the methods factory as
-  * "OTSNetworkBlock::resize" [see static_initialization()]. */
+  * DCNetworkBlock::resize(), which this overrides] and into the limit of
+  * their switching [see change_switching_bounds()]: the sizing of a line
+  * that set_kappa() of this class refuses [see set_kappa()], registered in
+  * the methods factory as "OTSNetworkBlock::resize" [see
+  * static_initialization()]. */
 
  void resize( MF_dbl_it values , Subset && subset , bool ordered = false ,
               c_ModParam issuePMod = eNoBlck ,
-              c_ModParam issueAMod = eNoBlck );
+              c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// size the lines in \p rng, as the Subset version above
 
  void resize( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
               c_ModParam issuePMod = eNoBlck ,
-              c_ModParam issueAMod = eNoBlck );
+              c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// the derivative of the value of this Block w.r.t. the kappa of \p line

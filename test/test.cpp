@@ -12494,7 +12494,9 @@ static void test_design_reactive_bounds_linearization( void )
  * consumer that sizes the line through DCNetworkBlock and reads the
  * sensitivity off the rows of DCNetworkBlock alone would miss the limit of
  * the switching. The switchable line 1 (susceptance 2) has its switching
- * limited by min( 1 , kappa ): 0.5 for a kappa of 0.5, 1 for one of 2. */
+ * limited by min( 1 , kappa ): 0.5 for a kappa of 0.5, 1 for one of 2, and
+ * 0.25 for a kappa of 0.25 written by the name of DCNetworkBlock, whose
+ * resize() this class overrides. */
 
 static void test_OTS_resize_by_name( void )
 {
@@ -12547,6 +12549,19 @@ static void test_OTS_resize_by_name( void )
 	 "limit of the switching " + str( ( *bound )[ 0 ].get_rhs() ) +
 	 " after OTSNetworkBlock::resize to " + str( kappa ) );
   }
+
+ const auto dc_resize = Block::get_method_fs< Block::MF_dbl_it ,
+					      Block::Range >(
+						    "DCNetworkBlock::resize" );
+ k[ 0 ] = 0.25;
+ if( dc_resize )
+  std::invoke( *dc_resize , nb.get() , k.cbegin() , Range( 1 , 2 ) ,
+	       eNoBlck , eNoBlck );
+ check( dc_resize && close( nb->get_kappa( 1 ) , 0.25 ) &&
+	close( ( *bound )[ 0 ].get_rhs() , 0.25 ) ,
+	"OTS, resize: the kappa " + str( nb->get_kappa( 1 ) ) + " and the "
+	"limit of the switching " + str( ( *bound )[ 0 ].get_rhs() ) +
+	" after DCNetworkBlock::resize to 0.25" );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -12559,7 +12574,7 @@ static void test_OTS_resize_by_name( void )
  * that the conformance test checks against finite differences. On the
  * DCNetworkBlock of write_UC_two_nodes() and on the ACNetworkBlock of
  * write_ac_uc(), which registers the getter of DCNetworkBlock under a name
- * of its own. */
+ * of its own, and whose set_kappa() refuses. */
 
 static void test_line_resize_linearization_by_name( void )
 {
@@ -12601,6 +12616,19 @@ static void test_line_resize_linearization_by_name( void )
    }
   check( net->get_objective_sense() == Objective::eMin , tag + ", the "
 	 "derivative of a line: the network does not minimize" );
+
+  if( ac ) {  // the line is sized by resize() alone
+   const std::vector< double > k = { 2 };
+   bool thrown = false;
+   try {
+    static_cast< DCNetworkBlock * >( net )->set_kappa( k.cbegin() ,
+						       Range( 0 , 1 ) );
+    }
+   catch( std::logic_error & ) {
+    thrown = true;
+    }
+   check( thrown , tag + ": set_kappa() sizes a line instead of refusing" );
+   }
 
   auto & row = ( *rows )[ 0 ];
   for( const double kappa : { 1.0 , 2.0 } ) {
