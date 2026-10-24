@@ -174,16 +174,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   step at a start-up instant and the tolerance of
   `NuclearUnitBlock::is_feasible()`
 
-- `<class>::replicate` and `<class>::resize`, the names under which a Block
-  of unknown class is sized through the methods factory, each registered on
-  the protected method of the same name: `replicate()`, k identical copies,
-  is `scale()` of `ThermalUnitBlock`, `NuclearUnitBlock`,
-  `IntermittentUnitBlock`, `BatteryUnitBlock` and `ConversionUnitBlock`;
-  `resize()`, kappa times the size, is `set_kappa()` of
-  `IntermittentUnitBlock` and `DCNetworkBlock`, and sizes `BatteryUnitBlock`
-  and the lines of `ACNetworkBlock` and `OTSNetworkBlock`. A unit takes a
-  scalar, or a pair for a battery, a network a span over a range or a
-  subset, and throws if the span is shorter than what it is asked to write
+- `<class>::replicate` and `<class>::resize`, the names under which a Block of
+  unknown class is sized through the methods factory, each registered on the
+  protected method of the same name: `replicate()`, k identical copies, is
+  `scale()` of `ThermalUnitBlock`, `NuclearUnitBlock`, `IntermittentUnitBlock`,
+  `BatteryUnitBlock` and `ConversionUnitBlock`; `resize()`, kappa times the
+  size, is `set_kappa()` of `IntermittentUnitBlock` and `DCNetworkBlock`, and
+  sizes `BatteryUnitBlock` and the lines of `ACNetworkBlock` and
+  `OTSNetworkBlock`. A unit takes a scalar, or a pair for a battery, a network
+  a span over a range or a subset, and throws if the span is shorter than what
+  it is asked to write. The model page (`UCBlockModel.h`) lists which classes
+  register them and when they refuse
 
 - the lines of `ACNetworkBlock` and `OTSNetworkBlock` are sized by
   `resize()`, their `set_kappa()` refusing as before: kappa scales only the
