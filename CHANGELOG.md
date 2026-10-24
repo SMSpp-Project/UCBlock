@@ -174,102 +174,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   step at a start-up instant and the tolerance of
   `NuclearUnitBlock::is_feasible()`
 
-- The way a Block is sized has a name in the methods factory, so that a
-  consumer can write it and read the sensitivity back without knowing which
-  class it is holding. `ThermalUnitBlock`, `NuclearUnitBlock`,
-  `IntermittentUnitBlock`, `BatteryUnitBlock` and `ConversionUnitBlock`
-  register `scale()` as `<class>::replicate`, which stands for k identical
-  copies of the unit; `IntermittentUnitBlock` and `BatteryUnitBlock`
-  register their kappa as `<class>::resize`, which stands for one copy of k
-  times the size (for `BatteryUnitBlock`, `resize( k , k )` below). A unit
-  has one such parameter, and its names take it as a scalar, with no slice,
-  in the families of SMS++ for one scalar. `DCNetworkBlock` and
-  `ACNetworkBlock` register `set_kappa()` as `<class>::resize`, and
-  `OTSNetworkBlock` its sizing of a line (below), in the range and the
-  subset form, a network having many lines. The thermal and the nuclear
-  units have no kappa, hence no `<class>::resize`. The old names stay
-  registered, a registered name travelling inside the instances that name
-  it.
+- `<class>::replicate` and `<class>::resize`, the names under which a Block
+  of unknown class is sized through the methods factory: `replicate`, k
+  identical copies, is `scale()` of `ThermalUnitBlock`, `NuclearUnitBlock`,
+  `IntermittentUnitBlock` and `BatteryUnitBlock`; `resize`, kappa times the
+  size, sizes `IntermittentUnitBlock`, `BatteryUnitBlock` and the lines of
+  `DCNetworkBlock`, `ACNetworkBlock` and `OTSNetworkBlock`. A unit takes a
+  scalar, or a pair for a battery, a network a range or a subset
 
-- The sensitivity that mirrors each of those names. `<class>::get_resize_
-  linearization` gives the derivative of the value with respect to kappa, and
-  is answered by the Block that owns the rows kappa writes into;
-  `UCBlock::get_replicate_linearization` gives the derivative with respect to
-  the number of copies of one of its units, and is answered by the container,
-  because that factor lives in the rows the container builds on top of the
-  unit and not in the rows of the unit. The getter of a unit writes its one
-  scalar, that of a network or of a `UCBlock` comes in the range and the
-  subset form, refusing a span shorter than what it is asked for and an
-  index that does not exist. The derivative with respect to the
-  copies sums, row by row, what the factor multiplies there: the power of the
-  unit in the active and in the reactive node injection, with the fixed
-  consumption of a unit that is off subtracted, its reserves, its inertia,
-  its emissions in the pollutant budget with the levels of its storages, and
-  the cost of one copy, read off the Objective of the unit, without which
-  the call throws. With no copies the unit has no power to weigh the
-  duals with, and that sum would be 0 whatever they are, which is not a
-  subgradient of the value function: the derivative is then the minimum, over
-  a mirror of one copy of the unit that a Solver minimises, of its Objective
-  plus those terms. The mirror is a relaxation, so the minimum is not above
-  the true one, and what is read is the lower bound of the Solver, which
-  stays below the minimum also when the solve stops before the optimum: the
-  cut it gives stays valid, and a lower bound that is not finite makes the
-  call throw. The Solver is the one in the
-  extra Configuration of the BlockConfig of the `UCBlock`, if it is a
-  `BlockSolverConfig` with a Solver, and otherwise a clone of those
-  registered with the `UCBlock`; with neither the call throws.
+- `<class>::get_resize_linearization` and
+  `UCBlock::get_replicate_linearization`, the derivatives of the value with
+  respect to kappa and to the copies of a unit, in the same forms as the
+  setters. They throw if the rows are not generated, on a short span and on
+  a missing index. After an infeasible solve, a derivative with respect to
+  kappa is the coefficient of a feasibility cut; the derivative with respect
+  to the copies, and that of a `BatteryUnitBlock` with binary intake and
+  outtake, read the primal solution and give no cut
 
-- `DCNetworkBlock::get_resize_linearization( line )` and
-  `UCBlock::get_replicate_linearization( unit )`, the two protected methods
-  those sensitivities are read from.
+- `UCBlock::resize_unit`, `UCBlock::replicate` and `UCBlock::resize_line`
+  size by name the units and the lines of a subset or a range, so that a
+  caller never reaches the sub-Block; the lines are numbered carrier after
+  carrier, and the rows and the bounds of the node injections are rewritten
+  once, after the last unit. The derivative of a unit adds the duals of
+  those bounds, and `UCBlock::get_replicate_linearization` sums the duals of
+  the linking rows of the unit, each times what the number of copies
+  multiplies in that row, plus the cost of one copy; at zero copies it is
+  the lower bound that a Solver finds on a mirror of one copy, so that the
+  cut stays valid
 
-- A `UCBlock` sizes its units and its lines by name, so that a Block holding
-  it calls the `UCBlock` alone and never its sub-Blocks.
-  `UCBlock::resize_unit` and `UCBlock::replicate` hand each unit of a subset
-  its value through `<class>::resize` or `<class>::replicate` of the class of
-  that unit; `UCBlock::resize_line` hands the lines of a subset their value
-  through `<class>::resize` of each of its NetworkBlocks, a line being the
-  same asset at every time instant. Their sensitivities are
-  `UCBlock::get_resize_unit_linearization`, which asks each unit,
-  `UCBlock::get_resize_line_linearization`, which sums what the NetworkBlocks
-  answer, and `UCBlock::get_replicate_linearization`. A unit or a
-  NetworkBlock whose class does not register the name makes the call throw,
-  naming it. `replicate` rewrites the rows carrying the factor, and the
-  bounds of the node injections, once for all the units it scales, where
-  scaling them one by one rewrites them once per unit. All come in the range
-  and the subset form.
+- `BatteryUnitBlock::resize( kappa , conv_kappa )` and its derivative size
+  the storage and the converter apart, registered with a pair of scalars and
+  reached from `UCBlock::resize_unit` through spans; the form with one
+  scalar is `resize( k , k )`
 
-- A line of an `ACNetworkBlock` or of an `OTSNetworkBlock` can be sized,
-  which 0.10.0 refused, as a line of a `DesignNetworkBlock` is designed. Both classes build the power
-  flow limit rows of `DCNetworkBlock`, and the kappa goes into them as the
-  design variable does; nothing else follows it, as nothing else follows the
-  design: not the thermal limit, the bounds of the reactive flow or the
-  susceptance of an AC line, not the flow bounds coupled with the switching,
-  the big-M of the Kirchhoff rows or the susceptance of an OTS one. A
-  switchable line of an `OTSNetworkBlock` also has its switching limited by
-  min(1, kappa), as the design variable limits it: through a bound in the
-  standard and elastic formulations, through the exclusivity row in the
-  directional ones. The sensitivity of an OTS line adds the dual of that
-  limit while kappa is below 1. An OTS line is sized only through
-  `OTSNetworkBlock::resize`: its `set_kappa()` still refuses, so that whoever
-  sizes the line through `DCNetworkBlock` and reads the rows of
-  `DCNetworkBlock` alone is told, rather than left without that dual.
+- the methods that the derivatives read:
+  `DCNetworkBlock::get_resize_linearization( line )`, protected and virtual,
+  which a derived network overrides to add the rows of its own that kappa
+  enters, as `OTSNetworkBlock` does, and
+  `NetworkBlock::get_node_injection_bounds()` and
+  `ACNetworkBlock::get_reactive_node_injection_bounds()`, the rows of the
+  bounds of the node injections
 
-- `BatteryUnitBlock::resize( kappa , conv_kappa )` sizes the storage, with
-  its power, and the converter apart, and
-  `BatteryUnitBlock::get_resize_linearization( g_kappa , g_conv_kappa )`
-  gives the two derivatives; they are registered as `BatteryUnitBlock::resize`
-  and `BatteryUnitBlock::get_resize_linearization` with a pair of scalars,
-  next to the forms with one scalar, which are `resize( k , k )`, the
-  storage and the converter together, and the derivative with respect to
-  that one size. The converter
-  sized apart needs its rows, which exist if the data have
-  `ConverterMaxPower` or `ConverterKappa`, or if the two sizes are given
-  before the Constraints are generated; otherwise the call throws.
-  `UCBlock::resize_unit` and `UCBlock::get_resize_unit_linearization`
-  take two spans and hand each unit its pair of scalars. They use the
-  families of the methods factory of SMS++ with two values per Index, and
-  those for a pair of scalars
+- the unit test sizes the units and the lines by name, on DC, AC and OTS
+  networks and on a battery with a pair of sizes, and checks the derivatives
+  against duals set by hand and against a solve, the bounds of the node
+  injections that follow the sizes, written once per call, and the refusals
 
 - the C++20 module `smspp.ucblock` (`src/UCBlock.cppm`), which exports every
   name that the headers declare at namespace scope and re-exports `smspp`,
@@ -347,19 +296,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `UCBlock::resize_unit` computes the bounds of the node injections once,
-  after the last unit of the subset, as `UCBlock::replicate` does, and not
-  after each unit it resizes
-- with the energy carriers, `UCBlock::get_replicate_linearization` (also
-  at zero copies) reads the terms of the unit in the balances of all the
-  carriers, active and reactive, from `for_each_balance_term()`, and the
-  rows rewritten after a scaling include the balances of the carriers
-  other than 0; `UCBlock::resize_line` and
-  `UCBlock::get_resize_line_linearization` take the lines numbered one
-  carrier after the other, as the line assets of an `InvestmentFunction`,
-  the lines of a carrier being those of the `DCNetworkData` of its first
-  NetworkBlock, and hand each to all the NetworkBlock of its carrier; with
-  no line at all they throw "this UCBlock has no lines"
+- the lines of `ACNetworkBlock` and `OTSNetworkBlock` can be sized, which
+  0.10.0 refused: kappa scales only the rows of the flow limits, as a design
+  variable does, and limits the switching of an OTS line to min(1, kappa).
+  An OTS line is sized through `OTSNetworkBlock::resize`
+
+- `ConversionUnitBlock::replicate` takes a scalar, like the other names that
+  size a unit, instead of a slice
+
+- the derivative with respect to the copies of a unit, and the pollutant
+  rows rewritten after a scaling, take a time linear in the units
+
 - the exception of `ThermalUnitBlock` when the cost of a Variable that is
   not in its Objective changes says so, and that the reserve variables are
   there only with a nonzero cost or when the objective Configuration of the
@@ -490,27 +437,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- the derivatives of the value of a UCBlock with respect to the size of a
-  unit, `get_replicate_linearization` (also at zero copies) and
-  `get_resize_unit_linearization`, count the duals of the bounds of the
-  node injections that the UCBlock gives to its NetworkBlock, which the
-  scale and the kappa of the unit multiply: those of an `ECNetworkBlock`,
-  on every carrier, and the reactive ones of an `ACNetworkBlock` (given
-  by `NetworkBlock::get_node_injection_bounds()` and
-  `ACNetworkBlock::get_reactive_node_injection_bounds()`, read in the
-  sub-network of the instant under a `DesignNetworkBlock`, which keeps
-  them there). A unit at its
-  maximum alone at its node shares the dual with the bound of the node,
-  where the solver may put it, and the derivative was then 0 (-30000 on
-  the energy community of the test)
-- a `DesignNetworkBlock` over `ACNetworkBlock` forwards to its sub-networks
-  `handles_reactive()`, the bounds of the reactive node injections, the
-  reactive node injections and the reactive demand, as it does with the
-  active ones: the UCBlock, which asks its first NetworkBlock whether the
-  model has reactive power, left out the reactive balance, the reactive
-  power of the units and the bounds of the sub-networks, and solved a
-  relaxation with no error (on case_2zones_transformer with the design
-  of a line fixed at 1, 4066.29 instead of 4071.3)
+- a `DesignNetworkBlock` over `ACNetworkBlock` forwards the reactive
+  injections, their bounds and the reactive demand to its sub-networks,
+  without which the `UCBlock` left out the reactive balance with no error
+
 - `scale()` of `IntermittentUnitBlock`, `BatteryUnitBlock` and
   `ConversionUnitBlock` refuses a scale other than 1 on a unit whose design
   has more than one module (or, for the `ConversionUnitBlock`, with more
@@ -524,13 +454,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `IntermittentUnitBlock` and `SlackUnitBlock` the bounds of the reactive
   power; the unit test writes each of them to an image, reads it back and
   checks that the image of the copy is the same
-- `NuclearUnitBlock` expects the dimension `NumberPowerBands` that its
-  `serialize()` writes, and `OTSNetworkData` the variable `SwitchingCost`,
-  which the checks of `Block::deserialize()` in Debug reported as
-  unexpected at each read; the round trip of the unit test checks, in
-  Debug, that what `serialize()` writes in the group of a Block is what it
-  expects there, with a nuclear unit with power bands and an
-  `OTSNetworkBlock` among them.
+
+- `NuclearUnitBlock` expects `NumberPowerBands` and `OTSNetworkData` expects
+  `SwitchingCost`, which `serialize()` writes and a read in Debug reported
+  as unexpected. The round trip of the unit test checks that a Block expects
+  what it writes, and writes a `LinearTerm` per instant for the thermal unit
+  instead of reading past the end of a vector of one
+
 - `DCNetworkBlockSolution`, `ACNetworkBlockSolution` and
   `BatteryUnitBlockSolution` read their values indexed over the lines, the
   nodes or the instants whatever their size, and a netCDF scalar gave one
@@ -672,10 +602,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BatteryUnitBlock`, of the data of `ConversionUnitBlock` and `scale()` use
   it, and the unit test checks the bounds also with no Solver attached
 
-- `BatteryUnitBlock::resize` passes its change of kappa through
-  `UnitBlock::issue_unit_mod()` as `set_kappa()` does, so that the bounds of
-  the node injections follow it also when no Solver is listening
-
 - `UCBlock` recomputes the bounds of the node injections after a change of
   `MaxPower` or `MinPower` of a `ConversionUnitBlock`, which left them as
   they were: each `UnitBlockMod` says by `changes_power_range()` whether
@@ -805,7 +731,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `UnitBlock::serialize()` writes "ChangeIntervals", the name that
   `UnitBlock::deserialize()` reads, instead of "ChangeInterval"
-
 ## [0.10.0] - 2026-10-09
 
 ### Added
