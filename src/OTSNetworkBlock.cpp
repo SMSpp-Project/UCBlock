@@ -924,15 +924,15 @@ void OTSNetworkBlock::generate_OTS_switching_bounds( void )
 
 /*--------------------------------------------------------------------------*/
 
-void OTSNetworkBlock::resize( MF_dbl_it values , Subset && subset ,
+void OTSNetworkBlock::resize( MF_dbl_sp values , Subset && subset ,
                               bool ordered , c_ModParam issuePMod ,
                               c_ModParam issueAMod )
 {
  // the parent consumes the Subset, and the lines are needed afterwards
  const Subset lines( subset );
 
- DCNetworkBlock::set_kappa( values , std::move( subset ) , ordered ,
-                            issuePMod , issueAMod );
+ DCNetworkBlock::resize( values , std::move( subset ) , ordered , issuePMod ,
+                         issueAMod );
 
  if( not_dry_run( issuePMod ) && not_dry_run( issueAMod ) &&
      constraints_generated() )
@@ -942,10 +942,10 @@ void OTSNetworkBlock::resize( MF_dbl_it values , Subset && subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void OTSNetworkBlock::resize( MF_dbl_it values , Range rng ,
+void OTSNetworkBlock::resize( MF_dbl_sp values , Range rng ,
                               c_ModParam issuePMod , c_ModParam issueAMod )
 {
- DCNetworkBlock::set_kappa( values , rng , issuePMod , issueAMod );
+ DCNetworkBlock::resize( values , rng , issuePMod , issueAMod );
 
  rng.second = std::min( rng.second , get_number_lines() );
  if( ( rng.second <= rng.first ) || ( ! not_dry_run( issuePMod ) ) ||

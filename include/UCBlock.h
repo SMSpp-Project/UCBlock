@@ -1952,17 +1952,17 @@ class UCBlock : public Block
   * \p subset to the next.
   *
   * @throws std::invalid_argument if an index in \p subset is not that of a
-  *         unit, and std::logic_error if the class of a unit does not
-  *         register "<classname>::resize"; the units before it are resized
-  *         all the same. */
+  *         unit or \p values is shorter than \p subset, and std::logic_error
+  *         if the class of a unit does not register "<classname>::resize";
+  *         the units before it are resized all the same. */
 
- void resize_unit( MF_dbl_it values , Subset && subset , bool ordered = false ,
+ void resize_unit( MF_dbl_sp values , Subset && subset , bool ordered = false ,
                    ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// as resize_unit( subset ), for the units in the range \p rng
 
- void resize_unit( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+ void resize_unit( MF_dbl_sp values , Range rng = Range( 0 , Inf< Index >() ) ,
                    ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -2004,13 +2004,13 @@ class UCBlock : public Block
   * has been scaled, also when one of them throws. The derivative is read
   * back by the name "UCBlock::get_replicate_linearization". */
 
- void replicate( MF_dbl_it values , Subset && subset , bool ordered = false ,
+ void replicate( MF_dbl_sp values , Subset && subset , bool ordered = false ,
                  ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// as replicate( subset ), for the units in the range \p rng
 
- void replicate( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+ void replicate( MF_dbl_sp values , Range rng = Range( 0 , Inf< Index >() ) ,
                  ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -2024,17 +2024,19 @@ class UCBlock : public Block
   * NetworkBlock, is read back by the name
   * "UCBlock::get_resize_line_linearization".
   *
-  * @throws std::logic_error if this UCBlock has no lines, no carrier having
-  *         a NetworkBlock, or if the class of a NetworkBlock does not
-  *         register "<classname>::resize". */
+  * @throws std::invalid_argument if an index in \p subset is not that of a
+  *         line or \p values is shorter than the lines it is asked to
+  *         write, and std::logic_error if this UCBlock has no lines, no
+  *         carrier having a NetworkBlock, or if the class of a NetworkBlock
+  *         does not register "<classname>::resize". */
 
- void resize_line( MF_dbl_it values , Subset && subset , bool ordered = false ,
+ void resize_line( MF_dbl_sp values , Subset && subset , bool ordered = false ,
                    ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// as resize_line( subset ), for the lines in the range \p rng
 
- void resize_line( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+ void resize_line( MF_dbl_sp values , Range rng = Range( 0 , Inf< Index >() ) ,
                    ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
 
 /** @} ---------------------------------------------------------------------*/
@@ -2919,10 +2921,10 @@ class UCBlock : public Block
   // the size of the units and of the lines, by the methods of their classes
   // [see resize_unit(), replicate() and resize_line()]
 
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+  register_method< UCBlock , MF_dbl_sp , Subset && , bool >(
    "UCBlock::resize_unit" , & UCBlock::resize_unit );
 
-  register_method< UCBlock , MF_dbl_it , Range >(
+  register_method< UCBlock , MF_dbl_sp , Range >(
    "UCBlock::resize_unit" , & UCBlock::resize_unit );
 
   register_method< UCBlock , MF_dbl_sp , MF_dbl_sp , Subset && , bool >(
@@ -2931,16 +2933,16 @@ class UCBlock : public Block
   register_method< UCBlock , MF_dbl_sp , MF_dbl_sp , Range >(
    "UCBlock::resize_unit" , & UCBlock::resize_unit );
 
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+  register_method< UCBlock , MF_dbl_sp , Subset && , bool >(
    "UCBlock::replicate" , & UCBlock::replicate );
 
-  register_method< UCBlock , MF_dbl_it , Range >(
+  register_method< UCBlock , MF_dbl_sp , Range >(
    "UCBlock::replicate" , & UCBlock::replicate );
 
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+  register_method< UCBlock , MF_dbl_sp , Subset && , bool >(
    "UCBlock::resize_line" , & UCBlock::resize_line );
 
-  register_method< UCBlock , MF_dbl_it , Range >(
+  register_method< UCBlock , MF_dbl_sp , Range >(
    "UCBlock::resize_line" , & UCBlock::resize_line );
 
   /* The getter reading back the sensitivity to the scale factor of a unit

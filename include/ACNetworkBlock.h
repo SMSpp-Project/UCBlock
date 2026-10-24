@@ -1403,10 +1403,10 @@ class ACNetworkData : public DCNetworkData
 
  static void static_initialization( void )
  {
-  register_method< ACNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ACNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "ACNetworkBlock::resize" , & ACNetworkBlock::resize );
 
-  register_method< ACNetworkBlock , MF_dbl_it , Range >(
+  register_method< ACNetworkBlock , MF_dbl_sp , Range >(
    "ACNetworkBlock::resize" , & ACNetworkBlock::resize );
 
   // the getter is that of DCNetworkBlock, with what it requires [see

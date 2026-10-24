@@ -182,7 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `resize()`, kappa times the size, is `set_kappa()` of
   `IntermittentUnitBlock` and `DCNetworkBlock`, and sizes `BatteryUnitBlock`
   and the lines of `ACNetworkBlock` and `OTSNetworkBlock`. A unit takes a
-  scalar, or a pair for a battery, a network a range or a subset
+  scalar, or a pair for a battery, a network a span over a range or a
+  subset, and throws if the span is shorter than what it is asked to write
 
 - the lines of `ACNetworkBlock` and `OTSNetworkBlock` are sized by
   `resize()`, their `set_kappa()` refusing as before: kappa scales only the
@@ -198,16 +199,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the copies, and that of a `BatteryUnitBlock` with binary intake and
   outtake, read the primal solution and give no cut
 
-- `UCBlock::resize_unit`, `UCBlock::replicate` and `UCBlock::resize_line`
-  size by name the units and the lines of a subset or a range, so that a
-  caller never reaches the sub-Block; the lines are numbered carrier after
-  carrier, and the rows and the bounds of the node injections are rewritten
-  once, after the last unit. The derivative of a unit adds the duals of
-  those bounds, and `UCBlock::get_replicate_linearization` sums the duals of
-  the linking rows of the unit, each times what the number of copies
-  multiplies in that row, plus the cost of one copy; at zero copies it is
-  the lower bound that a Solver finds on a mirror of one copy, so that the
-  cut stays valid
+- `UCBlock::resize_unit`, `UCBlock::replicate` and `UCBlock::resize_line` size
+  by name the units and the lines of a subset or a range, with the values in a
+  span, so that a caller never reaches the sub-Block; the lines are numbered
+  carrier after carrier, and the rows and the bounds of the node injections are
+  rewritten once, after the last unit. The derivative of a unit adds the duals
+  of those bounds, and `UCBlock::get_replicate_linearization` sums the duals of
+  the linking rows of the unit, each times what the number of copies multiplies
+  in that row, plus the cost of one copy; at zero copies it is the lower bound
+  that a Solver finds on a mirror of one copy, so that the cut stays valid
 
 - `BatteryUnitBlock::resize( kappa , conv_kappa )` and its derivative size
   the storage and the converter apart, registered with a pair of scalars and

@@ -2576,9 +2576,11 @@ class DCNetworkData : public NetworkData
   * by this one alone; it is virtual, so that a derived network with rows of
   * its own in which kappa appears writes them [see
   * OTSNetworkBlock::resize()], and protected, as the name is the way to
-  * reach it. */
+  * reach it.
+  *
+  * @throws std::invalid_argument if \p values is shorter than \p subset */
 
- virtual void resize( MF_dbl_it values , Subset && subset ,
+ virtual void resize( MF_dbl_sp values , Subset && subset ,
                       bool ordered = false ,
                       c_ModParam issuePMod = eNoBlck ,
                       c_ModParam issueAMod = eNoBlck );
@@ -2586,7 +2588,7 @@ class DCNetworkData : public NetworkData
 /*--------------------------------------------------------------------------*/
  /// kappa times the capacity of the lines in \p rng, as the version above
 
- virtual void resize( MF_dbl_it values ,
+ virtual void resize( MF_dbl_sp values ,
                       Range rng = Range( 0 , Inf< Index >() ) ,
                       c_ModParam issuePMod = eNoBlck ,
                       c_ModParam issueAMod = eNoBlck );
@@ -2856,11 +2858,11 @@ class DCNetworkData : public NetworkData
   // the capacity it was given. There is no "replicate" here on purpose, k
   // copies of a line being a line of k times the capacity.
 
-  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< DCNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "DCNetworkBlock::resize" ,
    & DCNetworkBlock::resize );
 
-  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+  register_method< DCNetworkBlock , MF_dbl_sp , Range >(
    "DCNetworkBlock::resize" ,
    & DCNetworkBlock::resize );
 

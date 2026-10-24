@@ -12530,7 +12530,7 @@ static void test_OTS_resize_by_name( void )
  check( thrown , "OTS, resize: set_kappa() sizes a line instead of "
 	"refusing" );
 
- const auto resize = Block::get_method_fs< Block::MF_dbl_it , Block::Range >(
+ const auto resize = Block::get_method_fs< Block::MF_dbl_sp , Block::Range >(
 						   "OTSNetworkBlock::resize" );
  const auto bound = nb->get_static_constraint_v< UBConstraint >(
 							"OTS_switching_bound" );
@@ -12541,8 +12541,8 @@ static void test_OTS_resize_by_name( void )
   }
  for( double kappa : { 0.5 , 2.0 } ) {
   k[ 0 ] = kappa;
-  std::invoke( *resize , nb.get() , k.cbegin() , Range( 1 , 2 ) , eNoBlck ,
-	       eNoBlck );
+  std::invoke( *resize , nb.get() , Block::MF_dbl_sp( k ) , Range( 1 , 2 ) ,
+	       eNoBlck , eNoBlck );
   check( close( nb->get_kappa( 1 ) , kappa ) &&
 	 close( ( *bound )[ 0 ].get_rhs() , std::min( 1.0 , kappa ) ) ,
 	 "OTS, resize: the kappa " + str( nb->get_kappa( 1 ) ) + " and the "
@@ -12550,12 +12550,12 @@ static void test_OTS_resize_by_name( void )
 	 " after OTSNetworkBlock::resize to " + str( kappa ) );
   }
 
- const auto dc_resize = Block::get_method_fs< Block::MF_dbl_it ,
+ const auto dc_resize = Block::get_method_fs< Block::MF_dbl_sp ,
 					      Block::Range >(
 						    "DCNetworkBlock::resize" );
  k[ 0 ] = 0.25;
  if( dc_resize )
-  std::invoke( *dc_resize , nb.get() , k.cbegin() , Range( 1 , 2 ) ,
+  std::invoke( *dc_resize , nb.get() , Block::MF_dbl_sp( k ) , Range( 1 , 2 ) ,
 	       eNoBlck , eNoBlck );
  check( dc_resize && close( nb->get_kappa( 1 ) , 0.25 ) &&
 	close( ( *bound )[ 0 ].get_rhs() , 0.25 ) ,
@@ -12581,7 +12581,7 @@ static void test_line_resize_linearization_by_name( void )
  using QrySbst = Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & ,
 				   bool >;
  using QryRngd = Block::QueryType< Block::MF_dbl_msp , Block::Range >;
- using SetSbst = Block::FunctionType< Block::MF_dbl_it , Block::Subset && ,
+ using SetSbst = Block::FunctionType< Block::MF_dbl_sp , Block::Subset && ,
 				      bool >;
 
  const auto root = Block::get_method< QrySbst >(
@@ -12633,8 +12633,8 @@ static void test_line_resize_linearization_by_name( void )
   auto & row = ( *rows )[ 0 ];
   for( const double kappa : { 1.0 , 2.0 } ) {
    const std::vector< double > k = { kappa };
-   std::invoke( *resize , net , k.cbegin() , Block::Subset{ 0 } , true ,
-		eNoBlck , eNoBlck );
+   std::invoke( *resize , net , Block::MF_dbl_sp( k ) , Block::Subset{ 0 } ,
+		true , eNoBlck , eNoBlck );
    for( const double dual : { 3.0 , -2.0 , 0.0 } ) {
     row.set_dual( dual );
     const double expected = - dual * ( ( dual > 0 ) ? row.get_rhs()
@@ -12674,7 +12674,7 @@ static void test_resize_unit_unchanged_bounds( void )
  auto g = write_UC_two_nodes( 1 , { 10 , 60 } );
  std::unique_ptr< UCBlock > b(
 			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
- const auto resize = Block::get_method_fs< Block::MF_dbl_it ,
+ const auto resize = Block::get_method_fs< Block::MF_dbl_sp ,
 					   Block::Subset && , bool >(
 						      "UCBlock::resize_unit" );
  if( ( ! b ) || ( ! resize ) ) {
@@ -12695,8 +12695,8 @@ static void test_resize_unit_unchanged_bounds( void )
  for( const double kappa : { 1.0 , 2.0 } ) {
   net->set_max_node_injection( sentinel , 0 , 0 );
   const std::vector< double > k = { kappa };
-  std::invoke( *resize , b.get() , k.cbegin() , Block::Subset{ 0 } , true ,
-	       eNoBlck , eNoBlck );
+  std::invoke( *resize , b.get() , Block::MF_dbl_sp( k ) , Block::Subset{ 0 } ,
+	       true , eNoBlck , eNoBlck );
   const double expected = ( kappa == 1 ) ? sentinel : 200;
   check( bound() == expected , "resize_unit to kappa " + str( kappa ) +
 	 ": the upper bound of the injection at node 0 is " +
@@ -12722,7 +12722,7 @@ static void test_injection_bounds_derivative( void )
 {
  using QrySbst = Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & ,
 				   bool >;
- using SetSbst = Block::FunctionType< Block::MF_dbl_it , Block::Subset && ,
+ using SetSbst = Block::FunctionType< Block::MF_dbl_sp , Block::Subset && ,
 				      bool >;
 
  const auto match = [ & ]( UCBlock * uc , BoxConstraint & row ,
@@ -12745,8 +12745,8 @@ static void test_injection_bounds_derivative( void )
    };
   for( const double factor : { 1.0 , 2.0 } ) {
    const std::vector< double > f = { factor };
-   std::invoke( *setter , uc , f.cbegin() , Block::Subset{ 0 } , true ,
-		eNoBlck , eNoBlck );
+   std::invoke( *setter , uc , Block::MF_dbl_sp( f ) , Block::Subset{ 0 } ,
+		true , eNoBlck , eNoBlck );
    const double base = derivative( 0 );
    for( const double dual : { 3.0 , -2.0 } ) {
     const double side = ( dual > 0 ) ? row.get_rhs() : row.get_lhs();
@@ -12844,10 +12844,10 @@ static void test_resize_line_by_name( void )
  auto g = write_UC_two_nodes( 3 , { 10 , 10 , 10 , 60 , 60 , 60 } );
  std::unique_ptr< UCBlock > b(
 			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
- const auto by_subset = Block::get_method_fs< Block::MF_dbl_it ,
+ const auto by_subset = Block::get_method_fs< Block::MF_dbl_sp ,
 					      Block::Subset && , bool >(
 						      "UCBlock::resize_line" );
- const auto by_range = Block::get_method_fs< Block::MF_dbl_it ,
+ const auto by_range = Block::get_method_fs< Block::MF_dbl_sp ,
 					     Block::Range >(
 						      "UCBlock::resize_line" );
  if( ( ! ( b && by_subset && by_range ) ) ||
@@ -12872,16 +12872,16 @@ static void test_resize_line_by_name( void )
   };
 
  std::vector< double > v = { 2 };
- std::invoke( *by_subset , b.get() , v.cbegin() , Block::Subset{ 0 } , true ,
-	      eNoBlck , eNoBlck );
+ std::invoke( *by_subset , b.get() , Block::MF_dbl_sp( v ) ,
+	      Block::Subset{ 0 } , true , eNoBlck , eNoBlck );
  all_at( 2 , "the Subset form" );
  v[ 0 ] = 0.5;
- std::invoke( *by_range , b.get() , v.cbegin() , Block::Range( 0 , 1 ) ,
-	      eNoBlck , eNoBlck );
+ std::invoke( *by_range , b.get() , Block::MF_dbl_sp( v ) , Block::Range( 0 ,
+	      1 ) , eNoBlck , eNoBlck );
  all_at( 0.5 , "the Range form" );
  v[ 0 ] = 3;
- std::invoke( *by_subset , b.get() , v.cbegin() , Block::Subset() , true ,
-	      eNoBlck , eNoBlck );
+ std::invoke( *by_subset , b.get() , Block::MF_dbl_sp( v ) , Block::Subset() ,
+	      true , eNoBlck , eNoBlck );
  all_at( 0.5 , "an empty Subset" );
  b->unregister_Solver( fs , true );
  }
@@ -12925,7 +12925,7 @@ static void test_OTS_resize_linearization_by_name( void )
   nb->generate_abstract_constraints();
   nb->generate_objective();
 
-  const auto resize = Block::get_method_fs< Block::MF_dbl_it ,
+  const auto resize = Block::get_method_fs< Block::MF_dbl_sp ,
 					    Block::Range >(
 						   "OTSNetworkBlock::resize" );
   const auto getter = Block::get_method< QryRngd >(
@@ -12958,8 +12958,8 @@ static void test_OTS_resize_linearization_by_name( void )
    };
   for( const double kappa : { 0.5 , 2.0 } ) {
    const std::vector< double > k = { kappa };
-   std::invoke( *resize , nb.get() , k.cbegin() , Range( 1 , 2 ) , eNoBlck ,
-		eNoBlck );
+   std::invoke( *resize , nb.get() , Block::MF_dbl_sp( k ) , Range( 1 , 2 ) ,
+		eNoBlck , eNoBlck );
    check( row->get_rhs() == std::min( 1.0 , kappa ) , tag + ", kappa " +
 	  str( kappa ) + ": the row of the switching has the right-hand "
 	  "side " + str( row->get_rhs() ) );
@@ -13316,12 +13316,13 @@ static void test_getters_refuse_without_rows( void )
  * "UCBlock::resize_unit" with a pair of sizes on an IntermittentUnitBlock,
  * which has one size, and from "UCBlock::resize_line" on a UCBlock of one
  * node; std::invalid_argument for the unit 4 or the line 1, which are not
- * there, and for a span shorter than the Subset. Each message says what is
+ * there, and for a span shorter than the Subset, of the getters and of the
+ * setters, "DCNetworkBlock::resize" included. Each message says what is
  * refused. */
 
 static void test_sizing_names_refuse( void )
 {
- using Set = Block::FunctionType< Block::MF_dbl_it , Block::Subset && ,
+ using Set = Block::FunctionType< Block::MF_dbl_sp , Block::Subset && ,
 				  bool >;
  using Set2 = Block::FunctionType< Block::MF_dbl_sp , Block::MF_dbl_sp ,
 				   Block::Subset && , bool >;
@@ -13362,6 +13363,7 @@ static void test_sizing_names_refuse( void )
  const auto resize_unit = Block::get_method< Set >( "UCBlock::resize_unit" );
  const auto replicate = Block::get_method< Set >( "UCBlock::replicate" );
  const auto resize_line = Block::get_method< Set >( "UCBlock::resize_line" );
+ const auto resize_dc = Block::get_method< Set >( "DCNetworkBlock::resize" );
  const auto resize_unit2 = Block::get_method< Set2 >(
 						      "UCBlock::resize_unit" );
  const auto get_unit = Block::get_method< Qry >(
@@ -13370,7 +13372,7 @@ static void test_sizing_names_refuse( void )
 				     "UCBlock::get_resize_line_linearization" );
  const auto get_copies = Block::get_method< Qry >(
 				       "UCBlock::get_replicate_linearization" );
- if( ! ( uc && one && resize_unit && replicate && resize_line &&
+ if( ! ( uc && one && resize_unit && replicate && resize_line && resize_dc &&
 	 resize_unit2 && get_unit && get_line && get_copies ) ) {
   check( false , "the refusals by name: a UCBlock is not read, or a name is "
 	 "not registered" );
@@ -13379,8 +13381,8 @@ static void test_sizing_names_refuse( void )
 
  const std::vector< double > k = { 2 , 2 };
  const auto write = [ & ]( auto f , Block * b , Block::Subset s ) {
-  std::invoke( *f , b , k.cbegin() , std::move( s ) , true , eNoBlck ,
-	       eNoBlck ); };
+  std::invoke( *f , b , Block::MF_dbl_sp( k ) , std::move( s ) , true ,
+	       eNoBlck , eNoBlck ); };
  refuses( "UCBlock::resize_unit on the slack" , false ,
 	  "'SlackUnitBlock::resize'" ,
 	  [ & ]() { write( resize_unit , uc.get() , { 3 } ); } );
@@ -13398,6 +13400,24 @@ static void test_sizing_names_refuse( void )
 	  [ & ]() { write( resize_line , uc.get() , { 1 } ); } );
  refuses( "UCBlock::resize_line on one node" , false , "has no lines" ,
 	  [ & ]() { write( resize_line , one.get() , { 0 } ); } );
+
+ // a span of one value for a Subset of two
+ const auto write_short = [ & ]( auto f , Block * b , Block::Subset s ) {
+  std::invoke( *f , b , Block::MF_dbl_sp( k.data() , 1 ) , std::move( s ) ,
+	       true , eNoBlck , eNoBlck ); };
+ refuses( "UCBlock::resize_unit with a short span" , true ,
+	  "the span is shorter" ,
+	  [ & ]() { write_short( resize_unit , uc.get() , { 0 , 1 } ); } );
+ refuses( "UCBlock::replicate with a short span" , true ,
+	  "the span is shorter" ,
+	  [ & ]() { write_short( replicate , uc.get() , { 0 , 1 } ); } );
+ refuses( "UCBlock::resize_line with a short span" , true ,
+	  "the span is shorter" ,
+	  [ & ]() { write_short( resize_line , uc.get() , { 0 , 0 } ); } );
+ refuses( "DCNetworkBlock::resize with a short span" , true ,
+	  "the span is shorter" , [ & ]() {
+	   write_short( resize_dc , uc->get_network_block( 0 ) ,
+			{ 0 , 0 } ); } );
 
  const std::vector< double > a = { 2 } , b = { 2 };
  const auto write2 = [ & ]( Block::Subset s ) {
@@ -13455,7 +13475,7 @@ static void test_line_derivative_solved( void )
 	    << "skipped" << std::endl;
   return;
   }
- const auto resize = Block::get_method_fs< Block::MF_dbl_it ,
+ const auto resize = Block::get_method_fs< Block::MF_dbl_sp ,
 					   Block::Subset && , bool >(
 						      "UCBlock::resize_line" );
  const auto query = Block::get_method< Block::QueryType< Block::MF_dbl_msp ,
@@ -13483,8 +13503,8 @@ static void test_line_derivative_solved( void )
 	 std::vector< std::pair< double , double > >{ { 1 , 1300 } ,
 						      { 1.5 , 1000 } } ) {
    const std::vector< double > k = { kappa };
-   std::invoke( *resize , uc.get() , k.cbegin() , Block::Subset{ 0 } , true ,
-		eNoBlck , eNoBlck );
+   std::invoke( *resize , uc.get() , Block::MF_dbl_sp( k ) ,
+		Block::Subset{ 0 } , true , eNoBlck , eNoBlck );
    auto slv = dynamic_cast< CDASolver * >( Solver::new_Solver( sname ) );
    uc->register_Solver( slv );
    double v = std::nan( "" ) , d = std::nan( "" );
@@ -13545,7 +13565,7 @@ static void test_battery_resize_injection_bounds( void )
 					       "BatteryUnitBlock::resize" );
  const auto unit2 = Block::get_method_fs< double , double >(
 					       "BatteryUnitBlock::resize" );
- const auto root1 = Block::get_method_fs< Block::MF_dbl_it ,
+ const auto root1 = Block::get_method_fs< Block::MF_dbl_sp ,
 					  Block::Subset && , bool >(
 						      "UCBlock::resize_unit" );
  const auto root2 = Block::get_method_fs< Block::MF_dbl_sp ,
@@ -13575,8 +13595,8 @@ static void test_battery_resize_injection_bounds( void )
  std::invoke( *unit2 , unit , 0.5 , 0.5 , eNoBlck , eNoBlck );
  bounds( 0.5 , "after BatteryUnitBlock::resize( 0.5 , 0.5 )" );
  const std::vector< double > k = { 3 };
- std::invoke( *root1 , uc.get() , k.cbegin() , Block::Subset{ 0 } , true ,
-	      eNoBlck , eNoBlck );
+ std::invoke( *root1 , uc.get() , Block::MF_dbl_sp( k ) , Block::Subset{ 0 } ,
+	      true , eNoBlck , eNoBlck );
  bounds( 3 , "after UCBlock::resize_unit( 3 )" );
  const std::vector< double > a = { 4 } , c = { 4 };
  std::invoke( *root2 , uc.get() , Block::MF_dbl_sp( a ) ,
@@ -13625,7 +13645,7 @@ static void test_resize_unit_bounds_once( void )
 
  std::unique_ptr< UCBlock > uc(
 			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
- const auto resize = Block::get_method_fs< Block::MF_dbl_it ,
+ const auto resize = Block::get_method_fs< Block::MF_dbl_sp ,
 					   Block::Subset && , bool >(
 						      "UCBlock::resize_unit" );
  if( ! ( uc && resize ) ) {
@@ -13649,8 +13669,8 @@ static void test_resize_unit_bounds_once( void )
  uc->register_Solver( fs );
  fs->get_Modification_list().clear();
  const std::vector< double > k = { 2 , 3 };
- std::invoke( *resize , uc.get() , k.cbegin() , Block::Subset{ 1 , 2 } ,
-	      true , eNoBlck , eNoBlck );
+ std::invoke( *resize , uc.get() , Block::MF_dbl_sp( k ) , Block::Subset{ 1 ,
+	      2 } , true , eNoBlck , eNoBlck );
  int changes = 0;
  for( const auto & m : received( fs ) )
   if( const auto rm =

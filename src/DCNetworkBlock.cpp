@@ -2558,22 +2558,36 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::resize( MF_dbl_it values , Subset && subset ,
+void DCNetworkBlock::resize( MF_dbl_sp values , Subset && subset ,
                              bool ordered , c_ModParam issuePMod ,
                              c_ModParam issueAMod )
 {
- // not the virtual: that of ACNetworkBlock and of OTSNetworkBlock throws
- DCNetworkBlock::set_kappa( values , std::move( subset ) , ordered ,
+ if( subset.size() > values.size() )
+  throw( std::invalid_argument( classname() + "::resize: the span is shorter "
+                                "than the lines it is asked to write" ) );
+
+ // set_kappa() takes an iterator; not the virtual, as that of ACNetworkBlock
+ // and of OTSNetworkBlock throws
+ const std::vector< double > kappa( values.begin() ,
+                                    values.begin() + subset.size() );
+ DCNetworkBlock::set_kappa( kappa.cbegin() , std::move( subset ) , ordered ,
                             issuePMod , issueAMod );
 
  }  // end( DCNetworkBlock::resize( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::resize( MF_dbl_it values , Range rng ,
+void DCNetworkBlock::resize( MF_dbl_sp values , Range rng ,
                              c_ModParam issuePMod , c_ModParam issueAMod )
 {
- DCNetworkBlock::set_kappa( values , rng , issuePMod , issueAMod );
+ const auto end = std::min( rng.second , get_number_lines() );
+ const Index n = ( end > rng.first ) ? end - rng.first : 0;
+ if( n > values.size() )
+  throw( std::invalid_argument( classname() + "::resize: the span is shorter "
+                                "than the lines it is asked to write" ) );
+
+ const std::vector< double > kappa( values.begin() , values.begin() + n );
+ DCNetworkBlock::set_kappa( kappa.cbegin() , rng , issuePMod , issueAMod );
 
  }  // end( DCNetworkBlock::resize( range ) )
 

@@ -715,14 +715,14 @@ class OTSNetworkData : public DCNetworkData
   * the methods factory as "OTSNetworkBlock::resize" [see
   * static_initialization()]. */
 
- void resize( MF_dbl_it values , Subset && subset , bool ordered = false ,
+ void resize( MF_dbl_sp values , Subset && subset , bool ordered = false ,
               c_ModParam issuePMod = eNoBlck ,
               c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// size the lines in \p rng, as the Subset version above
 
- void resize( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+ void resize( MF_dbl_sp values , Range rng = Range( 0 , Inf< Index >() ) ,
               c_ModParam issuePMod = eNoBlck ,
               c_ModParam issueAMod = eNoBlck ) override;
 
@@ -820,10 +820,10 @@ class OTSNetworkData : public DCNetworkData
 
  static void static_initialization( void )
  {
-  register_method< OTSNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< OTSNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "OTSNetworkBlock::resize" , & OTSNetworkBlock::resize );
 
-  register_method< OTSNetworkBlock , MF_dbl_it , Range >(
+  register_method< OTSNetworkBlock , MF_dbl_sp , Range >(
    "OTSNetworkBlock::resize" , & OTSNetworkBlock::resize );
 
   register_method< OTSNetworkBlock , MF_dbl_msp , c_Subset & , bool >(

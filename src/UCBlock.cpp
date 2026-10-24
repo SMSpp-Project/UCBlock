@@ -161,19 +161,25 @@ class ClassMethod {
  * one scalar a unit has [see UCBlock::resize_unit()]. */
 
 static void size_units( UCBlock & ucb , const char * caller ,
-                        const char * suffix , Block::MF_dbl_it values ,
+                        const char * suffix , Block::MF_dbl_sp values ,
                         Block::c_Subset & units , ModParam issuePMod ,
                         ModParam issueAMod )
 {
+ if( units.size() > values.size() )
+  throw( std::invalid_argument( std::string( "UCBlock::" ) + caller +
+                                ": the span is shorter than the units it is "
+                                "asked to write" ) );
+
  ClassMethod< Block::FunctionType< double > > method( caller , suffix );
 
- for( const auto u : units ) {
+ for( Block::Index k = 0 ; k < units.size() ; ++k ) {
+  const auto u = units[ k ];
   if( u >= ucb.get_number_units() )
    throw( std::invalid_argument( std::string( "UCBlock::" ) + caller +
                                  ": there is no unit of index " +
                                  std::to_string( u ) ) );
   const auto unit = ucb.get_unit_block( u );
-  std::invoke( method( unit , "unit" , u ) , unit , *( values++ ) ,
+  std::invoke( method( unit , "unit" , u ) , unit , values[ k ] ,
                issuePMod , issueAMod );
   }
  }
@@ -3446,7 +3452,7 @@ void UCBlock::size_deferred( const std::function< void( void ) > & size )
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::resize_unit( MF_dbl_it values , Subset && subset , bool ,
+void UCBlock::resize_unit( MF_dbl_sp values , Subset && subset , bool ,
                            ModParam issuePMod , ModParam issueAMod )
 {
  // each unit resized would have the bounds of the node injections computed
@@ -3459,7 +3465,7 @@ void UCBlock::resize_unit( MF_dbl_it values , Subset && subset , bool ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::resize_unit( MF_dbl_it values , Range rng ,
+void UCBlock::resize_unit( MF_dbl_sp values , Range rng ,
                            ModParam issuePMod , ModParam issueAMod )
 {
  resize_unit( values , units_in( *this , rng ) , true , issuePMod ,
@@ -3507,7 +3513,7 @@ void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::replicate( MF_dbl_it values , Subset && subset , bool ,
+void UCBlock::replicate( MF_dbl_sp values , Subset && subset , bool ,
                          ModParam issuePMod , ModParam issueAMod )
 {
  // each unit scaled would have its rows and the bounds of the node
@@ -3521,7 +3527,7 @@ void UCBlock::replicate( MF_dbl_it values , Subset && subset , bool ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::replicate( MF_dbl_it values , Range rng ,
+void UCBlock::replicate( MF_dbl_sp values , Range rng ,
                          ModParam issuePMod , ModParam issueAMod )
 {
  replicate( values , units_in( *this , rng ) , true , issuePMod , issueAMod );
@@ -3567,25 +3573,28 @@ static Block::Index carrier_of( const std::vector< Block::Index > & first ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::resize_line( MF_dbl_it values , Subset && subset , bool ordered ,
+void UCBlock::resize_line( MF_dbl_sp values , Subset && subset , bool ordered ,
                            ModParam issuePMod , ModParam issueAMod )
 {
  const auto first = first_lines( *this );
  if( ! first.back() )
   throw( std::logic_error( "UCBlock::resize_line: this UCBlock has no "
                            "lines" ) );
+ if( subset.size() > values.size() )
+  throw( std::invalid_argument( "UCBlock::resize_line: the span is shorter "
+                                "than the lines it is asked to write" ) );
 
- ClassMethod< FunctionType< MF_dbl_it , Subset && , bool > >
+ ClassMethod< FunctionType< MF_dbl_sp , Subset && , bool > >
   resize( "resize_line" , "::resize" );
 
  // the lines of each carrier, numbered within it, and their values
  const auto nc = get_number_carriers();
  std::vector< Subset > lines( nc );
  std::vector< std::vector< double > > kappa( nc );
- for( auto l : subset ) {
-  const auto c = carrier_of( first , l , "resize_line" );
-  lines[ c ].push_back( l - first[ c ] );
-  kappa[ c ].push_back( *(values++) );
+ for( Index k = 0 ; k < subset.size() ; ++k ) {
+  const auto c = carrier_of( first , subset[ k ] , "resize_line" );
+  lines[ c ].push_back( subset[ k ] - first[ c ] );
+  kappa[ c ].push_back( values[ k ] );
   }
 
  for( Index c = 0 ; c < nc ; ++c ) {
@@ -3595,22 +3604,26 @@ void UCBlock::resize_line( MF_dbl_it values , Subset && subset , bool ordered ,
   const auto & networks = get_network_blocks( c );
   for( Index n = 0 ; n < networks.size() ; ++n )
    std::invoke( resize( networks[ n ] , "NetworkBlock" , n ) , networks[ n ] ,
-                kappa[ c ].cbegin() , Subset( lines[ c ] ) , ordered ,
+                MF_dbl_sp( kappa[ c ] ) , Subset( lines[ c ] ) , ordered ,
                 issuePMod , issueAMod );
   }
  }
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::resize_line( MF_dbl_it values , Range rng ,
+void UCBlock::resize_line( MF_dbl_sp values , Range rng ,
                            ModParam issuePMod , ModParam issueAMod )
 {
  const auto first = first_lines( *this );
  if( ! first.back() )
   throw( std::logic_error( "UCBlock::resize_line: this UCBlock has no "
                            "lines" ) );
+ const auto end = std::min( rng.second , first.back() );
+ if( ( end > rng.first ) && ( end - rng.first > values.size() ) )
+  throw( std::invalid_argument( "UCBlock::resize_line: the span is shorter "
+                                "than the lines it is asked to write" ) );
 
- ClassMethod< FunctionType< MF_dbl_it , Range > >
+ ClassMethod< FunctionType< MF_dbl_sp , Range > >
   resize( "resize_line" , "::resize" );
 
  // the part of the range on each carrier, numbered within it
@@ -3622,7 +3635,7 @@ void UCBlock::resize_line( MF_dbl_it values , Range rng ,
   const auto & networks = get_network_blocks( c );
   for( Index n = 0 ; n < networks.size() ; ++n )
    std::invoke( resize( networks[ n ] , "NetworkBlock" , n ) , networks[ n ] ,
-                values + ( lo - rng.first ) ,
+                values.subspan( lo - rng.first , hi - lo ) ,
                 Range( lo - first[ c ] , hi - first[ c ] ) , issuePMod ,
                 issueAMod );
   }
