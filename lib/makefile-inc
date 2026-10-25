@@ -41,6 +41,11 @@ FORCE:
 
 UCBckH =
 
+# the C++20 module smspp.ucblock, made with the library [see
+# makefile-mod of SMS++]
+
+$(eval $(call SMSppMODlib,UCBck,smspp.ucblock))
+
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 clean::
