@@ -254,6 +254,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the pipeline builds the module also with its makefiles, after CMake, and
+  runs on a change of the makefiles too [see `ci/makefile` of the umbrella]
+
 - `SMSpp_BUILD_MODULE` no longer stops the configuration when the C++20
   module cannot be built, i.e., with a CMake older than 3.28, a generator
   other than Ninja or Visual Studio, a compiler other than Clang 16 (with
@@ -390,6 +393,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer in the row of that instant with more than one node
 
 ### Fixed
+
+- `test/makefile` links SMS++, which `lib/makefile-c` leaves out of
+  `UCBckOBJ` for `libUCBck.a`: the test did not link
+
+- a build of the module alone, with `find_package()`, fetches FastFlow,
+  which `ThermalUnitDPSolver.cpp` includes and which an installed SMS++
+  does not carry [see `cmake/FastFlow.cmake` of SMS++]
+
+- `UnitBlock::serialize()` declares the efficiencies of the outputs with
+  one entry per instant as an array, not as a function (the most vexing
+  parse, which Clang 21 rejects)
+
+- the makefiles of the tests and of the tools build also with g++: they
+  take the option that stops at the first error and the one of the
+  debugging information, which clang++ and g++ spell differently
+  (`-ferror-limit=1` and `-glldb` against `-fmax-errors=1` and `-ggdb`),
+  from `SMSppSWERR` and `SMSppSWDBG` of `lib/makefile-OS` of SMS++
 
 - `scale()` of `IntermittentUnitBlock`, `BatteryUnitBlock` and
   `ConversionUnitBlock` refuses a scale other than 1 on a unit whose design

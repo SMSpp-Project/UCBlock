@@ -428,7 +428,7 @@ void UnitBlock::serialize_outputs( netCDF::NcGroup & group ) const
   ::serialize( group , "OutputEfficiency" , netCDF::NcDouble() ,
 	       { TH , NG , NO } , v_output_efficiency , false , true );
  else {
-  MAdouble eff( MAdouble_ext()[ shp[ 0 ] ][ f_number_outputs ] );
+  MAdouble eff( ( MAdouble_ext()[ shp[ 0 ] ][ f_number_outputs ] ) );
   std::copy( v_output_efficiency.data() ,
 	     v_output_efficiency.data() + v_output_efficiency.num_elements() ,
 	     eff.data() );
