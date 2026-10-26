@@ -394,6 +394,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the C++20 module `smspp.ucblock` exports `deserialize_local_dim()` of
+  `NetworkBlock.h`, which it did not since the function was added after the
+  interface was written, and its global module fragment includes only the
+  headers that no other one includes
+
 - `test/makefile` links SMS++, which `lib/makefile-c` leaves out of
   `UCBckOBJ` for `libUCBck.a`: the test did not link
 

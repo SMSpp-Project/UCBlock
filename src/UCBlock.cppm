@@ -48,24 +48,16 @@ module;
 #include "ACNetworkBlock.h"
 #include "BatteryUnitBlock.h"
 #include "ConversionUnitBlock.h"
-#include "DCNetworkBlock.h"
 #include "DesignNetworkBlock.h"
 #include "ECNetworkBlock.h"
 #include "HydroSystemUnitBlock.h"
-#include "HydroUnitBlock.h"
 #include "IntermittentUnitBlock.h"
-#include "NetworkBlock.h"
-#include "NuclearUnitBlock.h"
 #include "NuclearUnitExtDPSolver.h"
 #include "OTSNetworkBlock.h"
 #include "SlackUnitBlock.h"
-#include "ThermalUnitBlock.h"
 #include "ThermalUnitDPSolver.h"
-#include "ThermalUnitDPSolverBase.h"
-#include "ThermalUnitExtDPSolver.h"
 #include "UCBlock.h"
 #include "UCBlockModel.h"
-#include "UnitBlock.h"
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- MODULE PURVIEW -----------------------------*/
@@ -136,6 +128,7 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::NetworkBlockRngdMod;
  using SMSpp_di_unipi_it::NetworkBlockSbstMod;
  using SMSpp_di_unipi_it::NetworkBlockSolution;
+ using SMSpp_di_unipi_it::deserialize_local_dim;
 
  // NuclearUnitBlock.h
  using SMSpp_di_unipi_it::NuclearUnitBlock;
@@ -183,9 +176,6 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::UnitBlock;
  using SMSpp_di_unipi_it::UnitBlockMod;
  using SMSpp_di_unipi_it::UnitBlockSolution;
-}
-
-export namespace ff {
 }
 
 /*--------------------------------------------------------------------------*/
