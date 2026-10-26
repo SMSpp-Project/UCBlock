@@ -331,7 +331,7 @@ class DCNetworkData : public NetworkData
 
  public:
 
-/** @} ---------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /** @name Constructor and Destructor
  * @{ */
 
@@ -1034,7 +1034,7 @@ class DCNetworkData : public NetworkData
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/** @} ---------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
