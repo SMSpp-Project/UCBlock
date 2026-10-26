@@ -503,8 +503,6 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ConversionUnitBlock::expected_dims( void ) const
 {
  static const std::vector< std::string > ed =
@@ -538,8 +536,6 @@ std::vector< std::string > ConversionUnitBlock::expected_vars( void ) const
  ret.insert( ret.end() , ev.begin() , ev.end() );
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CHECKING THE DATA -------------------------------*/

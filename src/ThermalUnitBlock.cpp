@@ -426,8 +426,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 /*
 std::vector< std::string > ThermalUnitBlock::expected_dims( void )
  const {
@@ -463,8 +461,6 @@ std::vector< std::string > ThermalUnitBlock::expected_vars( void )
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

@@ -171,8 +171,6 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > DesignNetworkBlock::expected_dims( void ) const {
  auto ret = NetworkBlock::expected_dims();
  ret.push_back( "NumberDesignLines" );
@@ -193,8 +191,6 @@ std::vector< std::string > DesignNetworkBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

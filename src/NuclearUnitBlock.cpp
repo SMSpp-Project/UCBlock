@@ -277,8 +277,6 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 /*
 std::vector< std::string > NuclearUnitBlock::expected_dims( void )
  const {
@@ -308,8 +306,6 @@ std::vector< std::string > NuclearUnitBlock::expected_vars( void )
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

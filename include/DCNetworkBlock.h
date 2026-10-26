@@ -507,7 +507,6 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends NetworkData::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -516,8 +515,6 @@ class DCNetworkData : public NetworkData
  /// extends NetworkData::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /** @} ------- METHODS FOR READING THE DATA OF THE DCNetworkData -----------*/
 /** @name Reading the data of the DCNetworkData
@@ -1203,7 +1200,6 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends NetworkBlock::expected_dims()
  /* not necessary since DCNetworkBlock does not have any new dims save those
   * of the DCNetworkData that are automatically taken into account.
@@ -1215,8 +1211,6 @@ class DCNetworkData : public NetworkData
  /// extends NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// loads the DCNetworkBlock instance from a stream

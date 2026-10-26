@@ -248,8 +248,6 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > UnitBlock::expected_dims( void ) const {
  auto ret = Block::expected_dims();
  ret.push_back( "TimeHorizon" );
@@ -269,8 +267,6 @@ std::vector< std::string > UnitBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/

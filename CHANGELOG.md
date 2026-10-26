@@ -394,6 +394,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `expected_dims()` and `expected_vars()` of the `UnitBlock`, of the
+  `NetworkBlock` and of their `NetworkData`, and of `UCBlock`, are declared
+  also with `NDEBUG`, as those of `Block` in SMS++, so that the virtual
+  tables do not depend on it
+
 - `test/makefile` links SMS++, which `lib/makefile-c` leaves out of
   `UCBckOBJ` for `libUCBck.a`: the test did not link
 

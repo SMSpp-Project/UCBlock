@@ -172,7 +172,6 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends NetworkData::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -181,8 +180,6 @@ class ECNetworkBlock : public NetworkBlock
  /// extends NetworkData::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /** @} ------- METHODS FOR READING THE DATA OF THE ECNetworkData -----------*/
 /** @name Reading the data of the ECNetworkData
@@ -369,7 +366,6 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends NetworkBlock::expected_dims()
  /* not necessary since ECNetworkBlock does not have any new dims save those
   * of the ECNetworkData that are automatically taken into account.
@@ -381,8 +377,6 @@ class ECNetworkBlock : public NetworkBlock
  /// extends NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// loads the ECNetworkBlock instance from an input standard stream.

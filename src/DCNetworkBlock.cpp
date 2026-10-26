@@ -321,8 +321,6 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > DCNetworkData::expected_dims( void ) const {
  static const std::vector< std::string > ed =
  { "NumberLines" , "NumberBranches" , "ReferenceNode" , "NumberInstants" ,
@@ -346,8 +344,6 @@ std::vector< std::string > DCNetworkData::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -789,8 +785,6 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > DCNetworkBlock::expected_vars( void ) const {
  auto ret = NetworkBlock::expected_vars();
  ret.push_back( "ActiveDemand" );
@@ -798,8 +792,6 @@ std::vector< std::string > DCNetworkBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

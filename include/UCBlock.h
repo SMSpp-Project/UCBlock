@@ -641,7 +641,6 @@ class UCBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends Block::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -650,8 +649,6 @@ class UCBlock : public Block
  /// extends UnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generates the static constraints of the UCBlock

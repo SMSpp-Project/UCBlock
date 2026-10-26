@@ -243,7 +243,6 @@ class UnitBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends Block::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -252,8 +251,6 @@ class UnitBlock : public Block
  /// extends Block::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generates the Variable of the base UnitBlock, i.e., none
