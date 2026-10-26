@@ -484,10 +484,11 @@ class OTSNetworkData : public DCNetworkData
   * flow bounds coupled with the switching, the big-M of the Kirchhoff rows
   * and the susceptance do not change, as they do not with the design.
   *
-  * These throw, as they did when a line could not be sized: whoever sizes a
-  * line through DCNetworkBlock may read its sensitivity off the rows of
-  * DCNetworkBlock alone, which misses the dual of the limit of the switching
-  * that "OTSNetworkBlock::get_resize_linearization" adds. */
+  * set_kappa() throws: a line is sized by resize() alone, which also writes
+  * the limit of the switching. Whoever sizes a line through DCNetworkBlock
+  * may read its sensitivity off the rows of DCNetworkBlock alone, which
+  * misses the dual of that limit, which
+  * "OTSNetworkBlock::get_resize_linearization" adds. */
 
  void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,

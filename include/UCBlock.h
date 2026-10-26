@@ -1948,10 +1948,9 @@ class UCBlock : public Block
   * method that the class of the unit registers in the methods factory as
   * "<classname>::resize", with the one scalar a unit has.
   *
-  * This is what a Block holding this UCBlock calls, by the name
-  * "UCBlock::resize_unit", to size a unit without knowing its class [see
-  * InvestmentFunction]; the derivative of the value of this UCBlock with
-  * respect to the same parameters is read back by the name
+  * A Block holding this UCBlock sizes a unit without knowing its class by
+  * the name "UCBlock::resize_unit"; the derivative of the value of this
+  * UCBlock with respect to the same parameters is read back by the name
   * "UCBlock::get_resize_unit_linearization". The name of the method of a
   * unit is looked up again only when the class changes from one unit of
   * \p subset to the next.
@@ -1962,13 +1961,15 @@ class UCBlock : public Block
   *         the units before it are resized all the same. */
 
  void resize_unit( MF_dbl_sp values , Subset && subset , bool ordered = false ,
-                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+                   ModParam issuePMod = eNoBlck ,
+                   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// as resize_unit( subset ), for the units in the range \p rng
 
  void resize_unit( MF_dbl_sp values , Range rng = Range( 0 , Inf< Index >() ) ,
-                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+                   ModParam issuePMod = eNoBlck ,
+                   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the pair of sizes of each unit in \p subset
@@ -1988,14 +1989,16 @@ class UCBlock : public Block
 
  void resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
                    Subset && subset , bool ordered = false ,
-                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+                   ModParam issuePMod = eNoBlck ,
+                   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// as resize_unit( values , second_values , subset ), for the units in \p rng
 
  void resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
                    Range rng = Range( 0 , Inf< Index >() ) ,
-                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+                   ModParam issuePMod = eNoBlck ,
+                   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// sets the number of copies of the units in \p subset
@@ -2036,13 +2039,15 @@ class UCBlock : public Block
   *         does not register "<classname>::resize". */
 
  void resize_line( MF_dbl_sp values , Subset && subset , bool ordered = false ,
-                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+                   ModParam issuePMod = eNoBlck ,
+                   ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// as resize_line( subset ), for the lines in the range \p rng
 
  void resize_line( MF_dbl_sp values , Range rng = Range( 0 , Inf< Index >() ) ,
-                   ModParam issuePMod = eNoBlck , ModParam issueAMod = eNoBlck );
+                   ModParam issuePMod = eNoBlck ,
+                   ModParam issueAMod = eNoBlck );
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -2220,8 +2225,9 @@ class UCBlock : public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// as get_resize_line_linearization( subset ), for the lines in \p rng
- /** Each NetworkBlock stops the range at its own number of lines, and only
-  * the first that many entries of \p msp are written. */
+ /** The range stops at the number of lines of this UCBlock, those of all
+  * the carriers together: only the first that many entries of \p msp are
+  * written, and those past it stay as they are. */
 
  void get_resize_line_linearization( MF_dbl_msp msp , Range rng ) const;
 

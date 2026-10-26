@@ -3107,7 +3107,7 @@ static UCBlock * thermal_UC( double scale )
 static double replicate_linearization( UCBlock * b )
 {
  const auto query = Block::get_query_fs< Block::MF_dbl_msp , Block::Range >(
-                                       "UCBlock::get_replicate_linearization" );
+			         "UCBlock::get_replicate_linearization" );
  if( ! query )
   throw( std::logic_error( "UCBlock::get_replicate_linearization is not in "
 			   "the methods factory" ) );
@@ -5043,8 +5043,8 @@ static void test_battery_resize_as_setters( void )
  * 2, a ThermalUnitBlock replicated to 3 has scale 3. */
 
 static netCDF::NcGroup write_UC_two_nodes( Index T ,
-					   const std::vector< double > & demand ,
-					   bool slack_inertia );
+                                           const std::vector< double > &
+                                           demand , bool slack_inertia );
 
 static void test_unit_sizing_names( void )
 {
@@ -5066,7 +5066,7 @@ static void test_unit_sizing_names( void )
  check( Block::get_method_fs< double , double >(
 					      "BatteryUnitBlock::resize" ) &&
 	( ! Block::get_method_fs< Block::MF_dbl_sp , Block::MF_dbl_sp ,
-				  Block::Range >( "BatteryUnitBlock::resize" ) ) ,
+			       Block::Range >( "BatteryUnitBlock::resize" ) ) ,
 	"BatteryUnitBlock::resize: not registered with a pair of scalars, or "
 	"still with two spans" );
 
@@ -5853,15 +5853,15 @@ static void test_battery_two_kappas( void )
 	"30 , 40 ) the linearization is ( " + str( gs ) + " , " + str( gc ) +
 	" ) instead of ( -40 , 0 )" );
 
- // the same through the names that InvestmentFunction calls: the pair of
- // sizes of the battery, unit 2, written by "UCBlock::resize_unit" and read
- // back by "UCBlock::get_resize_unit_linearization"
+ // the same through the names that a Block holding the UCBlock calls: the
+ // pair of sizes of the battery, unit 2, written by "UCBlock::resize_unit"
+ // and read back by "UCBlock::get_resize_unit_linearization"
  const auto set2 = Block::get_method_fs< Block::MF_dbl_sp , Block::MF_dbl_sp ,
 					 Block::Subset && , bool >(
 						      "UCBlock::resize_unit" );
  const auto get2 = Block::get_method< Block::QueryType< Block::MF_dbl_msp ,
 		    Block::MF_dbl_msp , Block::c_Subset & , bool > >(
-				     "UCBlock::get_resize_unit_linearization" );
+				    "UCBlock::get_resize_unit_linearization" );
  if( set2 && get2 )
   for( const auto & p : std::vector< std::vector< double > >{
 	 { 60 , 20 , 0 , -80 } , { 30 , 40 , -40 , 0 } } ) {
@@ -12560,7 +12560,7 @@ static void test_design_reactive_bounds_linearization( void )
   if( design )
    net = net->get_nested_Block( 0 );
   auto rows = net->get_static_constraint_v< BoxConstraint >(
-                                 "Reactive_Node_Injection_Bound_Const_Network" );
+			   "Reactive_Node_Injection_Bound_Const_Network" );
   if( ( ! rows ) || rows->empty() )
    return( false );
   ( *rows )[ 0 ].set_dual( 3 );
@@ -12590,7 +12590,7 @@ static void test_design_reactive_bounds_linearization( void )
 
 /*--------------------------------------------------------------------------*/
 /* A line of an OTSNetworkBlock is sized only through the methods factory,
- * as "OTSNetworkBlock::resize": set_kappa() refuses, as in 0.10.0, since a
+ * as "OTSNetworkBlock::resize": set_kappa() throws, since a
  * consumer that sizes the line through DCNetworkBlock and reads the
  * sensitivity off the rows of DCNetworkBlock alone would miss the limit of
  * the switching. The switchable line 1 (susceptance 2) has its switching
@@ -12612,7 +12612,7 @@ static void test_OTS_resize_by_name( void )
  put( g , "ActiveDemand" , N , { 1 , 2 , 3 } );
  put( g , "SwitchingCost" , L , { 3 , 4 } );
  std::unique_ptr< DCNetworkBlock > nb(
-		     dynamic_cast< DCNetworkBlock * >( Block::new_Block( g ) ) );
+		   dynamic_cast< DCNetworkBlock * >( Block::new_Block( g ) ) );
  if( ! nb ) {
   check( false , "OTS, resize: the OTSNetworkBlock is not read" );
   return;
@@ -12633,7 +12633,7 @@ static void test_OTS_resize_by_name( void )
  const auto resize = Block::get_method_fs< Block::MF_dbl_sp , Block::Range >(
 						   "OTSNetworkBlock::resize" );
  const auto bound = nb->get_static_constraint_v< UBConstraint >(
-							"OTS_switching_bound" );
+						       "OTS_switching_bound" );
  if( ( ! resize ) || ( ! bound ) || bound->empty() ) {
   check( false , "OTS, resize: no OTSNetworkBlock::resize, or no limit of "
 	 "the switching" );
@@ -12671,7 +12671,7 @@ static void test_OTS_resize_by_name( void )
  * times the side of the row that the dual is of, per unit of kappa, so that
  * resizing the line to kappa 2 leaves it the same, and 0 with no dual. In a
  * minimization the dual of the upper side is the positive one, the sign
- * that the conformance test checks against finite differences. On the
+ * that a finite difference of the value gives. On the
  * DCNetworkBlock of write_UC_two_nodes() and on the ACNetworkBlock of
  * write_ac_uc(), which registers the getter of DCNetworkBlock under a name
  * of its own, and whose set_kappa() refuses. */
@@ -13216,7 +13216,7 @@ static void test_replicate_linearization_zones( void )
  std::unique_ptr< UCBlock > uc(
 			  dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
  const auto query = Block::get_query_fs< Block::MF_dbl_msp , Block::Range >(
-				       "UCBlock::get_replicate_linearization" );
+				      "UCBlock::get_replicate_linearization" );
  if( ! ( uc && query ) ) {
   check( false , "the derivative by copies in the zones: the UCBlock is not "
 	 "read, or UCBlock::get_replicate_linearization is not registered" );
@@ -13341,7 +13341,7 @@ static void test_getters_refuse_without_rows( void )
   slice( uc.get() , "UCBlock::get_resize_unit_linearization" , 0 );
   slice( uc.get() , "UCBlock::get_replicate_linearization" , 0 );
   const auto q = Block::get_query_fs< double & >(
-			       "IntermittentUnitBlock::get_resize_linearization" );
+			   "IntermittentUnitBlock::get_resize_linearization" );
   if( q )
    refuses( "IntermittentUnitBlock::get_resize_linearization" , [ & ]() {
     std::invoke( *q , uc->get_unit_block( 0 ) , d ); } );
@@ -13382,11 +13382,11 @@ static void test_getters_refuse_without_rows( void )
  if( ub ) {
   const auto unit = ub->get_unit_block( 2 );
   const auto q = Block::get_query_fs< double & >(
-				   "BatteryUnitBlock::get_resize_linearization" );
+				"BatteryUnitBlock::get_resize_linearization" );
   const auto q2 = Block::get_query_fs< double & , double & >(
-				   "BatteryUnitBlock::get_resize_linearization" );
+				"BatteryUnitBlock::get_resize_linearization" );
   const auto root2 = Block::get_method< Qry2 >(
-				     "UCBlock::get_resize_unit_linearization" );
+				    "UCBlock::get_resize_unit_linearization" );
   if( q && q2 && root2 ) {
    refuses( "BatteryUnitBlock::get_resize_linearization" , [ & ]() {
     std::invoke( *q , unit , d ); } );
@@ -13467,11 +13467,11 @@ static void test_sizing_names_refuse( void )
  const auto resize_unit2 = Block::get_method< Set2 >(
 						      "UCBlock::resize_unit" );
  const auto get_unit = Block::get_method< Qry >(
-				     "UCBlock::get_resize_unit_linearization" );
+				    "UCBlock::get_resize_unit_linearization" );
  const auto get_line = Block::get_method< Qry >(
-				     "UCBlock::get_resize_line_linearization" );
+				    "UCBlock::get_resize_line_linearization" );
  const auto get_copies = Block::get_method< Qry >(
-				       "UCBlock::get_replicate_linearization" );
+				      "UCBlock::get_replicate_linearization" );
  if( ! ( uc && one && resize_unit && replicate && resize_line && resize_dc &&
 	 resize_unit2 && get_unit && get_line && get_copies ) ) {
   check( false , "the refusals by name: a UCBlock is not read, or a name is "
@@ -13580,7 +13580,7 @@ static void test_line_derivative_solved( void )
 						      "UCBlock::resize_line" );
  const auto query = Block::get_method< Block::QueryType< Block::MF_dbl_msp ,
 		     Block::c_Subset & , bool > >(
-				     "UCBlock::get_resize_line_linearization" );
+				    "UCBlock::get_resize_line_linearization" );
  if( ! ( resize && query ) ) {
   check( false , "the derivative of a line after a solve: a name is not "
 	 "registered" );
@@ -13592,7 +13592,7 @@ static void test_line_derivative_solved( void )
   std::fill( demand.begin() + T , demand.end() , 60 );
   std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
 				 Block::new_Block( write_UC_two_nodes( T ,
-								     demand ) ) ) );
+								demand ) ) ) );
   if( ! uc ) {
    check( false , "the derivative of a line after a solve: the UCBlock is "
 	  "not read" );

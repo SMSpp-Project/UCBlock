@@ -2609,10 +2609,10 @@ class DCNetworkData : public NetworkData
   * std::logic_error. It reads no value of a Variable, so that after a solve
   * that ended infeasible, with an unbounded dual direction where the duals
   * go, it gives the coefficient of the condition that a feasible kappa has
-  * to satisfy. This is the same
-  * computation that a consumer holding this Block would otherwise have to do
-  * from outside out of get_power_flow_limit_HVDC_bounds(), get_min_power_flow()
-  * and get_max_power_flow(), together with the sign rule; it is here because
+  * to satisfy. This is the same computation that a consumer holding this
+  * Block would otherwise have to do from outside out of
+  * get_power_flow_limit_HVDC_bounds(), get_min_power_flow() and
+  * get_max_power_flow(), together with the sign rule; it is here because
   * the rows in which \f$ \kappa \f$ appears are this Block's own.
   *
   * @param line the index of the line

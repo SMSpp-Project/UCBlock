@@ -3549,10 +3549,9 @@ void UCBlock::replicate( MF_dbl_sp values , Range rng ,
 /*--------------------------------------------------------------------------*/
 
 /* The lines of a UCBlock are numbered carrier after carrier, those of the
- * carrier 0 first, as the lines of the assets of an InvestmentFunction:
- * first[ c ] is the index of the first line of carrier c, first.back() the
- * number of lines. A carrier with one node, hence no NetworkBlock, has none.
- */
+ * carrier 0 first: first[ c ] is the index of the first line of carrier c,
+ * first.back() the number of lines. A carrier with one node, hence no
+ * NetworkBlock, has none. */
 
 static std::vector< Block::Index > first_lines( const UCBlock & ucb )
 {

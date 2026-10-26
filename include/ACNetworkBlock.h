@@ -906,8 +906,7 @@ class ACNetworkData : public DCNetworkData
   * static_initialization()], which writes its kappa into the power flow
   * limit rows built by generate_bound_constraints() and nowhere else.
   *
-  * These throw, as they did when a line could not be sized, so that
-  * set_kappa() means for a line of an ACNetworkBlock what it meant then. */
+  * set_kappa() throws: a line is sized by resize() alone. */
 
  void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
