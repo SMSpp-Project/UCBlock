@@ -732,7 +732,9 @@ class OTSNetworkData : public DCNetworkData
  /** That of DCNetworkBlock, read off the power flow limit rows, plus, for a
   * switchable line whose kappa is below 1, minus the dual of the limit of
   * its switching, whose right-hand side is the kappa itself; from 1 on that
-  * right-hand side stays at 1, and its derivative is 0. It overrides the one
+  * right-hand side stays at 1, and its derivative is 0. At a kappa of
+  * exactly 1, where min( 1 , kappa ) has a kink, the derivative is the one
+  * from the right, without the dual of the limit. It overrides the one
   * of DCNetworkBlock, so that the forms over a Subset and a Range of
   * DCNetworkBlock call it: the supported way in is the name
   * "OTSNetworkBlock::get_resize_linearization". It requires what that of

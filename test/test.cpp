@@ -12989,20 +12989,26 @@ static void test_resize_line_by_name( void )
 /*--------------------------------------------------------------------------*/
 /* The derivative of an OTSNetworkBlock with respect to the kappa of a line
  * reads the dual of the row of the switching that OTSNetworkBlock::resize
- * writes, the limit of the switching in the standard formulation and the
- * row of the exclusivity in the directional one: on the switchable line 1
- * of test_OTS_resize_by_name(), resized by name, a dual set by hand on that
- * row moves the derivative by name by minus the dual for a kappa of 0.5,
- * whose row has the right-hand side 0.5, and not at all for a kappa of 2,
- * whose row stays at 1. No Solver has run, so all the other duals are 0. */
+ * writes, the limit of the switching in the standard and elastic
+ * formulations and the row of the exclusivity in the directional and
+ * elastic directional ones: on the switchable line 1 of
+ * test_OTS_resize_by_name(), resized by name, the row has the right-hand
+ * side min( 1 , kappa ), and a dual set by hand on it moves the derivative
+ * by name by minus the dual for a kappa of 0, whose row pins the switching
+ * to 0, and of 0.5, and not at all for a kappa of 2, whose row stays at 1,
+ * and for a kappa of exactly 1, where the derivative is the one from the
+ * right. No Solver has run, so all the other duals are 0. */
 
 static void test_OTS_resize_linearization_by_name( void )
 {
  using QryRngd = Block::QueryType< Block::MF_dbl_msp , Block::Range >;
 
- for( const int formulation : { 0 , 1 } ) {
+ const char * names[] = { "standard" , "directional" , "elastic" ,
+			  "elastic directional" };
+ for( const int formulation : { 0 , 1 , 2 , 3 } ) {
+  const bool directional = ( formulation & 1 );
   const std::string tag = std::string( "OTS, the derivative, " ) +
-                          ( formulation ? "directional" : "standard" );
+                          names[ formulation ];
   auto g = new_group( "OTS" , true );
   g.putAtt( "type" , "OTSNetworkBlock" );
   auto N = g.addDim( "NumberNodes" , 3 );
@@ -13031,7 +13037,7 @@ static void test_OTS_resize_linearization_by_name( void )
   const auto getter = Block::get_method< QryRngd >(
 				 "OTSNetworkBlock::get_resize_linearization" );
   RowConstraint * row = nullptr;
-  if( formulation ) {
+  if( directional ) {
    const auto rows = nb->get_static_constraint_v< FRowConstraint >(
 							   "OTS_exclusivity" );
    if( rows && ( rows->size() == 1 ) )
@@ -13056,7 +13062,7 @@ static void test_OTS_resize_linearization_by_name( void )
 		Range( 1 , 2 ) );
    return( d );
    };
-  for( const double kappa : { 0.5 , 2.0 } ) {
+  for( const double kappa : { 0.0 , 0.5 , 1.0 , 2.0 } ) {
    const std::vector< double > k = { kappa };
    std::invoke( *resize , nb.get() , Block::MF_dbl_sp( k ) , Range( 1 , 2 ) ,
 		eNoBlck , eNoBlck );
@@ -13631,7 +13637,7 @@ static void test_line_derivative_solved( void )
  * is resized to kappa, by the names of its class ("BatteryUnitBlock::resize"
  * with one size and with a pair, which reach the UCBlock through the
  * Modification of the unit) and by that of UCBlock ("UCBlock::resize_unit",
- * with one size and with a pair). */
+ * with one size and with a pair), down to [ 0 , 0 ] at kappa 0. */
 
 static void test_battery_resize_injection_bounds( void )
 {
@@ -13703,6 +13709,8 @@ static void test_battery_resize_injection_bounds( void )
 	      Block::MF_dbl_sp( c ) , Block::Subset{ 0 } , true , eNoBlck ,
 	      eNoBlck );
  bounds( 4 , "after UCBlock::resize_unit( 4 , 4 )" );
+ std::invoke( *unit2 , unit , 0.0 , 0.0 , eNoBlck , eNoBlck );
+ bounds( 0 , "after BatteryUnitBlock::resize( 0 , 0 )" );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -13784,6 +13792,432 @@ static void test_resize_unit_bounds_once( void )
 	", reached with " + std::to_string( changes ) + " change(s) of its "
 	"side, instead of 250 with 1" );
  uc->unregister_Solver( fs , true );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// whether call throws an exception of type E, whose message has part in it
+
+template< class E , class F >
+static bool throws_with( F && call , const std::string & part = "" )
+{
+ try {
+  call();
+  }
+ catch( E & e ) {
+  return( std::string( e.what() ).find( part ) != std::string::npos );
+  }
+ catch( ... ) {
+  return( false );
+  }
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A unit resized to 0 by name: the IntermittentUnitBlock 0 of power 100 of
+ * write_UC_two_nodes(), alone at node 0, has its bound [ 0 , 0 ] and the
+ * upper bound 0 of the injection at its node, and a dual of 3 on its bound
+ * moves its derivative ("IntermittentUnitBlock::get_resize_linearization")
+ * by minus the dual times the power of one unit, -300, as at kappa 1. The
+ * battery of new_UC_battery_slack(), of power in [ -10 , 10 ], with the
+ * duals 2 on its minimum power row and -3 on its maximum one at instant 0:
+ * at kappa 1 the two rows give 2 * -10 - 3 * 10 = -50, at kappa 0 they are
+ * one equality, and of the two terms the smaller, -30, is taken [see
+ * BatteryUnitBlock::get_kappa_linearization()]. */
+
+static void test_unit_resize_zero( void )
+{
+ const auto resize_unit = Block::get_method_fs< Block::MF_dbl_sp ,
+					        Block::Subset && , bool >(
+						      "UCBlock::resize_unit" );
+ const auto get_iu = Block::get_query_fs< double & >(
+			   "IntermittentUnitBlock::get_resize_linearization" );
+ const auto resize_bu = Block::get_method_fs< double , double >(
+						  "BatteryUnitBlock::resize" );
+ const auto get_bu = Block::get_query_fs< double & >(
+				"BatteryUnitBlock::get_resize_linearization" );
+ if( ! ( resize_unit && get_iu && resize_bu && get_bu ) ) {
+  check( false , "kappa 0: a name is not registered" );
+  return;
+  }
+
+ std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+		 Block::new_Block( write_UC_two_nodes( 1 , { 10 , 60 } ) ) ) );
+ auto iu = uc ? dynamic_cast< IntermittentUnitBlock * >(
+					   uc->get_unit_block( 0 ) ) : nullptr;
+ if( iu ) {
+  generate_all( uc.get() );
+  const std::vector< double > zero = { 0 };
+  std::invoke( *resize_unit , uc.get() , Block::MF_dbl_sp( zero ) ,
+	       Block::Subset{ 0 } , true , eNoBlck , eNoBlck );
+  auto & bound = const_cast< BoxConstraint & >(
+			       iu->get_active_power_bound_constraints()[ 0 ] );
+  const auto mx = uc->get_network_block( 0 )->get_max_node_injection( 0 );
+  check( ( iu->get_kappa() == 0 ) && ( bound.get_lhs() == 0 ) &&
+	 ( bound.get_rhs() == 0 ) && mx && ( mx[ 0 ] == 0 ) ,
+	 "kappa 0, intermittent: kappa " + str( iu->get_kappa() ) +
+	 ", bound [ " + str( bound.get_lhs() ) + " , " +
+	 str( bound.get_rhs() ) + " ], upper bound of the injection " +
+	 str( mx ? mx[ 0 ] : -1 ) + " instead of 0 , [ 0 , 0 ] , 0" );
+  double base = 7 , moved = 7;
+  std::invoke( *get_iu , iu , base );
+  bound.set_dual( 3 );
+  std::invoke( *get_iu , iu , moved );
+  bound.set_dual( 0 );
+  check( close( moved - base , -300 ) , "kappa 0, intermittent: a dual of 3 "
+	 "on the bound moves the derivative by " + str( moved - base ) +
+	 " instead of -300" );
+  }
+ else
+  check( false , "kappa 0: the UCBlock is not read" );
+
+ std::unique_ptr< UCBlock > ub( new_UC_battery_slack(
+			       std::numeric_limits< double >::quiet_NaN() ,
+			   std::numeric_limits< double >::quiet_NaN() , 10 ) );
+ auto bu = ub ? dynamic_cast< BatteryUnitBlock * >( ub->get_unit_block( 2 ) )
+	      : nullptr;
+ if( ! bu ) {
+  check( false , "kappa 0: the UCBlock with a battery is not read" );
+  return;
+  }
+ generate_all( ub.get() );
+ auto mn_row = const_cast< FRowConstraint * >(
+					   bu->get_min_power_constraint( 0 ) );
+ auto mx_row = const_cast< FRowConstraint * >(
+					   bu->get_max_power_constraint( 0 ) );
+ if( ! ( mn_row && mx_row ) ) {
+  check( false , "kappa 0, battery: no rows of the minimum and maximum "
+	 "power" );
+  return;
+  }
+ for( const auto & [ kappa , expected ] :
+	std::vector< std::pair< double , double > >{ { 1 , -50 } ,
+						     { 0 , -30 } } ) {
+  std::invoke( *resize_bu , bu , kappa , kappa , eNoBlck , eNoBlck );
+  double base = 7 , moved = 7;
+  std::invoke( *get_bu , bu , base );
+  mn_row->set_dual( 2 );
+  mx_row->set_dual( -3 );
+  std::invoke( *get_bu , bu , moved );
+  mn_row->set_dual( 0 );
+  mx_row->set_dual( 0 );
+  check( ( bu->get_kappa() == kappa ) &&
+	 ( bu->get_converter_kappa() == kappa ) &&
+	 close( moved - base , expected ) , "kappa 0, battery resized to ( " +
+	 str( kappa ) + " , " + str( kappa ) + " ): the kappas are " +
+	 str( bu->get_kappa() ) + " and " + str( bu->get_converter_kappa() ) +
+	 ", the duals move the derivative by " + str( moved - base ) +
+	 " instead of " + str( expected ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A line resized to 0 by name: the line of write_UC_two_nodes(), of flows in
+ * [ -30 , 30 ], has its flow limit row [ 0 , 0 ], and the derivative by name
+ * ("UCBlock::get_resize_line_linearization") is minus the dual times the
+ * flow of one line on the side the dual is of: -90 for a dual of 3, the
+ * upper side in a minimization, and -60 for one of -2, the lower side. */
+
+static void test_line_resize_zero( void )
+{
+ const auto resize = Block::get_method_fs< Block::MF_dbl_sp ,
+					   Block::Subset && , bool >(
+						      "UCBlock::resize_line" );
+ const auto query = Block::get_method< Block::QueryType< Block::MF_dbl_msp ,
+		     Block::c_Subset & , bool > >(
+				    "UCBlock::get_resize_line_linearization" );
+ std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+		 Block::new_Block( write_UC_two_nodes( 1 , { 10 , 60 } ) ) ) );
+ if( ! ( uc && resize && query ) ) {
+  check( false , "a line at kappa 0: the UCBlock is not read, or a name is "
+	 "not registered" );
+  return;
+  }
+ generate_all( uc.get() );
+ auto rows = uc->get_network_block( 0 )->get_static_constraint_v<
+					 BoxConstraint >( "Power_flow_limit" );
+ if( ( ! rows ) || ( rows->size() != 1 ) ) {
+  check( false , "a line at kappa 0: no flow limit row" );
+  return;
+  }
+ auto & row = ( *rows )[ 0 ];
+ const std::vector< double > zero = { 0 };
+ std::invoke( *resize , uc.get() , Block::MF_dbl_sp( zero ) ,
+	      Block::Subset{ 0 } , true , eNoBlck , eNoBlck );
+ check( ( row.get_lhs() == 0 ) && ( row.get_rhs() == 0 ) , "a line at kappa "
+	"0: the flow limit row is [ " + str( row.get_lhs() ) + " , " +
+	str( row.get_rhs() ) + " ] instead of [ 0 , 0 ]" );
+ for( const auto & [ dual , expected ] :
+	std::vector< std::pair< double , double > >{ { 3 , -90 } ,
+						     { -2 , -60 } } ) {
+  row.set_dual( dual );
+  double d = 7;
+  std::invoke( *query , uc.get() , Block::MF_dbl_msp( & d , 1 ) ,
+	       Block::Subset{ 0 } , true );
+  check( d == expected , "a line at kappa 0, dual " + str( dual ) +
+	 ": the derivative is " + str( d ) + " instead of " +
+	 str( expected ) );
+  }
+ row.set_dual( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The sizing names on what has a design Variable: an IntermittentUnitBlock
+ * with a continuous design of at most 2 modules, resized by name
+ * ("IntermittentUnitBlock::resize") to 2, has its row (1) rewritten as
+ * set_kappa( 2 ) does (the design coefficient -gamma kappa MaxPower = -10),
+ * while "IntermittentUnitBlock::replicate" to 2 throws std::logic_error,
+ * the copies and the modules being the same fleet, and leaves the scale at
+ * 1, and "IntermittentUnitBlock::get_resize_linearization" throws it, the
+ * design making the derivative undefined; a line of a DCNetworkBlock with a
+ * design Variable refuses "DCNetworkBlock::get_resize_linearization" with
+ * std::logic_error. */
+
+static void test_design_sizing_refusals( void )
+{
+ const auto resize = Block::get_method_fs< double >(
+					     "IntermittentUnitBlock::resize" );
+ const auto replicate = Block::get_method_fs< double >(
+					  "IntermittentUnitBlock::replicate" );
+ const auto get_iu = Block::get_query_fs< double & >(
+			   "IntermittentUnitBlock::get_resize_linearization" );
+ const auto get_dc = Block::get_method< Block::QueryType< Block::MF_dbl_msp ,
+		      Block::c_Subset & , bool > >(
+				  "DCNetworkBlock::get_resize_linearization" );
+ if( ! ( resize && replicate && get_iu && get_dc ) ) {
+  check( false , "sizing with a design: a name is not registered" );
+  return;
+  }
+
+ auto g = new_group( "IU" , true );
+ g.putAtt( "type" , "IntermittentUnitBlock" );
+ auto T = g.addDim( "TimeHorizon" , 2 );
+ put( g , "MaxPower" , T , { 10 , 10 } );
+ put( g , "Gamma" , 0.5 );
+ put( g , "InvestmentCost" , 1 );
+ put( g , "MaxCapacityDesign" , 2 );
+ std::unique_ptr< IntermittentUnitBlock > ib(
+	    dynamic_cast< IntermittentUnitBlock * >( Block::new_Block( g ) ) );
+ if( ib ) {
+  ib->set_reserve_vars( 3 );
+  generate_all( ib.get() );
+  const auto & mx = ib->get_max_power_constraints();
+  const auto & x = ib->get_const_design();
+  std::invoke( *resize , ib.get() , 2.0 , eNoBlck , eNoBlck );
+  check( ( ib->get_kappa() == 2 ) && ( mx.size() == 2 ) &&
+	 close( row_coef( mx[ 1 ] , & x ) , -10 ) , "sizing with a design: "
+	 "IntermittentUnitBlock::resize to 2 gives kappa " +
+	 str( ib->get_kappa() ) + " and the design coefficient " +
+	 str( mx.size() == 2 ? row_coef( mx[ 1 ] , & x ) : 0 ) +
+	 " instead of -10" );
+  check( throws_with< std::logic_error >( [ & ]() {
+	  std::invoke( *replicate , ib.get() , 2.0 , eNoBlck , eNoBlck ); } ,
+	  "MaxCapacityDesign" ) && ( ib->get_scale() == 1 ) ,
+	 "sizing with a design: IntermittentUnitBlock::replicate to 2 of a "
+	 "unit of up to 2 modules does not throw, or leaves the scale " +
+	 str( ib->get_scale() ) );
+  double d = 7;
+  check( throws_with< std::logic_error >( [ & ]() {
+	  std::invoke( *get_iu , ib.get() , d ); } , "design" ) ,
+	 "sizing with a design: IntermittentUnitBlock::get_resize_"
+	 "linearization answers " + str( d ) + " instead of throwing" );
+  }
+ else
+  check( false , "sizing with a design: the IntermittentUnitBlock is not "
+	 "read" );
+
+ const auto gn = write_net( "DCNetworkBlock" , 2 , { { 0 , 1 , 0 , -5 , 5 } } ,
+			    { 0 , 1 } );
+ std::unique_ptr< DCNetworkBlock > nb(
+		  dynamic_cast< DCNetworkBlock * >( Block::new_Block( gn ) ) );
+ if( ! nb ) {
+  check( false , "sizing with a design: the DCNetworkBlock is not read" );
+  return;
+  }
+ std::vector< ColVariable > x( 1 );
+ Subset which = { 0 };
+ nb->set_design_variables( & x , & which );
+ std::vector< double > d( 1 , 7 );
+ check( throws_with< std::logic_error >( [ & ]() {
+	 std::invoke( *get_dc , nb.get() , Block::MF_dbl_msp( d ) ,
+		      Block::Subset{ 0 } , true ); } , "design variable" ) ,
+	"sizing with a design: DCNetworkBlock::get_resize_linearization on a "
+	"line with a design Variable answers " + str( d[ 0 ] ) +
+	" instead of throwing" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The forms of the sizing names over a Range stop the range at the number of
+ * units or of lines, and need a span as long as what is left of it: on
+ * thermal_UC( 1 ), of one unit, and on write_UC_two_nodes(), of one line,
+ * Range( 0 , Inf ) is answered with a span of 1, refused with
+ * std::invalid_argument with an empty span, and a range past the end is
+ * answered with an empty span, doing nothing. So for "UCBlock::replicate"
+ * and "UCBlock::resize_unit" (the units), "UCBlock::resize_line" and
+ * "DCNetworkBlock::resize" (the line), and for the getters
+ * "UCBlock::get_replicate_linearization",
+ * "UCBlock::get_resize_unit_linearization",
+ * "UCBlock::get_resize_line_linearization" and
+ * "DCNetworkBlock::get_resize_linearization". */
+
+static void test_sizing_ranges_short_span( void )
+{
+ using Set = Block::FunctionType< Block::MF_dbl_sp , Block::Range >;
+ using Qry = Block::QueryType< Block::MF_dbl_msp , Block::Range >;
+
+ std::unique_ptr< UCBlock > one( thermal_UC( 1 ) );
+ std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+		 Block::new_Block( write_UC_two_nodes( 1 , { 10 , 60 } ) ) ) );
+ if( ! ( one && uc ) ) {
+  check( false , "the Range forms: a UCBlock is not read" );
+  return;
+  }
+ generate_all( one.get() );
+ generate_all( uc.get() );
+ const auto all = Range( 0 , Inf< Index >() );
+ const auto past = Range( 5 , 9 );
+
+ const auto setter = [ & ]( const std::string & name , Block * b ,
+			    double value , auto && after ) {
+  const auto f = Block::get_method< Set >( name );
+  if( ! f ) {
+   check( false , name + ": not registered over a Range" );
+   return;
+   }
+  const std::vector< double > v = { value };
+  bool done = true;
+  try {
+   std::invoke( *f , b , Block::MF_dbl_sp( v ) , all , eNoBlck , eNoBlck );
+   std::invoke( *f , b , Block::MF_dbl_sp() , past , eNoBlck , eNoBlck );
+   }
+  catch( std::exception & e ) {
+   check( false , name + ", a span of 1 for Range( 0 , Inf ), or an empty "
+	  "one past the end: throws " + e.what() );
+   done = false;
+   }
+  if( done )
+   check( after() , name + ", Range( 0 , Inf ) with a span of 1: the value " +
+	  str( value ) + " is not written" );
+  check( throws_with< std::invalid_argument >( [ & ]() {
+	  std::invoke( *f , b , Block::MF_dbl_sp() , all , eNoBlck ,
+		       eNoBlck ); } , "span is shorter" ) ,
+	 name + ", Range( 0 , Inf ) with an empty span: not refused" );
+  };
+
+ const auto getter = [ & ]( const std::string & name , Block * b ) {
+  const auto q = Block::get_method< Qry >( name );
+  if( ! q ) {
+   check( false , name + ": not registered over a Range" );
+   return;
+   }
+  std::vector< double > d( 1 , 7 );
+  try {
+   std::invoke( *q , b , Block::MF_dbl_msp( d ) , all );
+   std::invoke( *q , b , Block::MF_dbl_msp() , past );
+   }
+  catch( std::exception & e ) {
+   check( false , name + ", a span of 1 for Range( 0 , Inf ), or an empty "
+	  "one past the end: throws " + e.what() );
+   }
+  check( throws_with< std::invalid_argument >( [ & ]() {
+	  std::invoke( *q , b , Block::MF_dbl_msp() , all ); } ,
+	  "span is shorter" ) ,
+	 name + ", Range( 0 , Inf ) with an empty span: not refused" );
+  };
+
+ const auto tub = one->get_unit_block( 0 );
+ setter( "UCBlock::replicate" , one.get() , 2 , [ & ]() {
+  return( tub->get_scale() == 2 ); } );
+ const auto net = static_cast< DCNetworkBlock * >(
+					       uc->get_network_block( 0 ) );
+ setter( "UCBlock::resize_line" , uc.get() , 2 , [ & ]() {
+  return( net->get_kappa( 0 ) == 2 ); } );
+ setter( "DCNetworkBlock::resize" , net , 0.5 , [ & ]() {
+  return( net->get_kappa( 0 ) == 0.5 ); } );
+
+ getter( "UCBlock::get_replicate_linearization" , one.get() );
+ getter( "UCBlock::get_resize_line_linearization" , uc.get() );
+ getter( "DCNetworkBlock::get_resize_linearization" , net );
+
+ // the units of write_UC_two_nodes() are 4, the slack being the last: the
+ // range stops at it
+ const auto rsu = Block::get_method< Set >( "UCBlock::resize_unit" );
+ const auto gru = Block::get_method< Qry >(
+				    "UCBlock::get_resize_unit_linearization" );
+ if( ! ( rsu && gru ) ) {
+  check( false , "UCBlock::resize_unit or its getter: not registered over "
+	 "a Range" );
+  return;
+  }
+ const std::vector< double > k = { 2 , 3 };
+ std::invoke( *rsu , uc.get() , Block::MF_dbl_sp( k ) , Range( 1 , 3 ) ,
+	      eNoBlck , eNoBlck );
+ check( ( uc->get_unit_block( 1 )->get_kappa() == 2 ) &&
+	( uc->get_unit_block( 2 )->get_kappa() == 3 ) ,
+	"UCBlock::resize_unit, Range( 1 , 3 ): the kappas are not 2 and 3" );
+ check( throws_with< std::invalid_argument >( [ & ]() {
+	 std::invoke( *rsu , uc.get() , Block::MF_dbl_sp( k.data() , 1 ) ,
+		      Range( 1 , 3 ) , eNoBlck , eNoBlck ); } ,
+	 "span is shorter" ) ,
+	"UCBlock::resize_unit, Range( 1 , 3 ) with a span of 1: not refused" );
+ check( throws_with< std::invalid_argument >( [ & ]() {
+	 std::invoke( *gru , uc.get() , Block::MF_dbl_msp() ,
+		      Range( 0 , 1 ) ); } ,
+	 "span is shorter" ) ,
+	"UCBlock::get_resize_unit_linearization, Range( 0 , 1 ) with an empty "
+	"span: not refused" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A unit that cannot be sized in the middle of a Subset: the units before
+ * it are sized all the same, and the rows and the bounds that carry their
+ * size are rewritten before the exception goes on [see
+ * UCBlock::resize_unit()]. On write_UC_two_nodes(), with the Subset
+ * { 0 , 3 } whose unit 3 is the SlackUnitBlock, which neither resizes nor
+ * replicates: "UCBlock::resize_unit" to 2 throws std::logic_error and
+ * leaves the IntermittentUnitBlock 0 at kappa 2 with the upper bound 200 of
+ * the injection at its node, and "UCBlock::replicate" to 2 throws it and
+ * leaves the unit 0 at scale 2, with the coefficient 2 in the node
+ * injection row (1 after "UCBlock::resize_unit", kappa not being there)
+ * and the upper bound 200 again. */
+
+static void test_sizing_subset_throws_midway( void )
+{
+ using Set = Block::FunctionType< Block::MF_dbl_sp , Block::Subset && ,
+				  bool >;
+
+ for( const std::string name : { "UCBlock::resize_unit" ,
+				  "UCBlock::replicate" } ) {
+  const bool copies = ( name == "UCBlock::replicate" );
+  const auto f = Block::get_method< Set >( name );
+  std::unique_ptr< UCBlock > uc( dynamic_cast< UCBlock * >(
+		 Block::new_Block( write_UC_two_nodes( 1 , { 10 , 60 } ) ) ) );
+  if( ! ( uc && f ) ) {
+   check( false , name + ", a refusal midway: the UCBlock is not read, or "
+	  "the name is not registered" );
+   continue;
+   }
+  generate_all( uc.get() );
+  const std::vector< double > v = { 2 , 2 };
+  check( throws_with< std::logic_error >( [ & ]() {
+	  std::invoke( *f , uc.get() , Block::MF_dbl_sp( v ) ,
+		       Block::Subset{ 0 , 3 } , true , eNoBlck , eNoBlck ); } ,
+	  "SlackUnitBlock" ) , name + ", a refusal midway: the slack in the "
+	 "Subset { 0 , 3 } is sized instead of refusing" );
+
+  const auto unit = uc->get_unit_block( 0 );
+  const double size = copies ? unit->get_scale() : unit->get_kappa();
+  const auto mx = uc->get_network_block( 0 )->get_max_node_injection( 0 );
+  const auto & rows = uc->get_node_injection_constraints();
+  const double coef = rows.empty() ? -1 :
+		      coef_of( uc.get() , rows[ 0 ][ 0 ] , 0 );
+  const double expected = copies ? 2 : 1;
+  check( ( size == 2 ) && mx && ( mx[ 0 ] == 200 ) &&
+	 close( coef , expected ) , name + ", a refusal midway: the unit 0 "
+	 "before the slack has the size " + str( size ) + ", the upper "
+	 "bound " + str( mx ? mx[ 0 ] : -1 ) + " of the injection at its node "
+	 "and the coefficient " + str( coef ) + " in its node injection row "
+	 "instead of 2 , 200 and " + str( expected ) );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -17617,6 +18051,11 @@ int main( int argc , char ** argv )
   test_line_derivative_solved();
   test_battery_resize_injection_bounds();
   test_resize_unit_bounds_once();
+  test_unit_resize_zero();
+  test_line_resize_zero();
+  test_design_sizing_refusals();
+  test_sizing_ranges_short_span();
+  test_sizing_subset_throws_midway();
   test_battery_resize_as_setters();
   test_unit_sizing_names();
 
