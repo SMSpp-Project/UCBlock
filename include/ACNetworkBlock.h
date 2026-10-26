@@ -894,17 +894,13 @@ class ACNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
- /// the size of a line of an ACNetworkBlock is not changed by a kappa
- /** Besides the bounds (1) of DCNetworkBlock, the limit of a line of an
-  * ACNetworkBlock is in rows that a kappa does not reach (the thermal limit
-  * and the bounds of the reactive flow), hence sizing a line this way is not
-  * supported and these throw.
+ /// the size of a line of an ACNetworkBlock is not changed by set_kappa()
+ /** A line of an ACNetworkBlock is sized by resize(), registered in the
+  * methods factory as "ACNetworkBlock::resize" [see
+  * static_initialization()], which writes its kappa into the power flow
+  * limit rows built by generate_bound_constraints() and nowhere else.
   *
-  * Supporting it means saying what the size of such a line is and writing
-  * the kappa into the rows that carry it, i.e., the thermal limit and the
-  * bounds of the reactive flow, and answering whether the susceptance
-  * follows the size, which it does not do linearly: a modelling choice
-  * rather than a translation, left to whoever needs it. */
+  * set_kappa() throws: a line is sized by resize() alone. */
 
  void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -995,6 +991,16 @@ class ACNetworkData : public DCNetworkData
  /// returns true since ACNetworkBlock handles reactive power
 
  bool handles_reactive( void ) const override { return( true ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the bounds of the reactive node injections, one per node
+ /** Returns the rows "Reactive_Node_Injection_Bound_Const_Network" of
+  * generate_abstract_constraints(), empty before they are generated. */
+
+ const std::vector< BoxConstraint > &
+  get_reactive_node_injection_bounds( void ) const {
+  return( reactive_node_injection_bounds_const );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ACNetworkBlock --------*/
@@ -1365,19 +1371,48 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
- /// nothing of its own to register in the methods factory
- /** The methods an ACNetworkBlock can be asked for by name are those of
-  * DCNetworkBlock, registered by DCNetworkBlock::static_initialization():
+ /// register the sizing of a line under the names of this class
+ /** The other methods an ACNetworkBlock can be asked for by name are those
+  * of DCNetworkBlock, registered by DCNetworkBlock::static_initialization():
   * they reach an ACNetworkBlock as well, being called on it as on the
   * DCNetworkBlock it is, and set_active_demand() is virtual. Registering
   * them again here, under the same names, would replace the adapter of
   * DCNetworkBlock with one casting to ACNetworkBlock, which is wrong on a
   * DCNetworkBlock that is not one, and which of the two survives would
   * depend on the order of the static initialization. This one is defined
-  * all the same so that the factory does not call the inherited one, which
-  * would register the same methods twice. */
+  * so that the factory does not call the inherited one, which would
+  * register the same methods twice.
+  *
+  * What is registered here is the sizing of a line, under names of this
+  * class since a consumer looks them up by the exact class of the Block:
+  * the kappa of DCNetworkBlock::resize(), which this class inherits while
+  * its set_kappa() throws, scales the power flow limit rows built by
+  * generate_bound_constraints(), and nothing else, i.e., not the thermal
+  * limit, the bounds of the reactive flow or the susceptance. These are the
+  * rows, and the only ones, that the design variable of a
+  * DesignNetworkBlock scales, so that a line of kappa k behaves as a
+  * designed line whose design is k. The sensitivity is read off those rows
+  * as in DCNetworkBlock. */
 
- static void static_initialization( void ) {}
+ static void static_initialization( void )
+ {
+  register_method< ACNetworkBlock , MF_dbl_sp , Subset && , bool >(
+   "ACNetworkBlock::resize" , & ACNetworkBlock::resize );
+
+  register_method< ACNetworkBlock , MF_dbl_sp , Range >(
+   "ACNetworkBlock::resize" , & ACNetworkBlock::resize );
+
+  // the getter is that of DCNetworkBlock, with what it requires [see
+  // DCNetworkBlock::get_resize_linearization()]
+
+  register_method< ACNetworkBlock , MF_dbl_msp , c_Subset & , bool >(
+   "ACNetworkBlock::get_resize_linearization" ,
+   & ACNetworkBlock::get_resize_linearization );
+
+  register_method< ACNetworkBlock , MF_dbl_msp , Range >(
+   "ACNetworkBlock::get_resize_linearization" ,
+   & ACNetworkBlock::get_resize_linearization );
+  }
 
 /*--------------------------------------------------------------------------*/
 

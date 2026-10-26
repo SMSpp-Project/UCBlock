@@ -36,16 +36,31 @@
 
 #include "BlockInspection.h"
 
+#include "AbstractBlock.h"
+
+#include "BlockSolverConfig.h"
+
+#include "FRealObjective.h"
+
 #include "LinearFunction.h"
 
 #include "Objective.h"
 
+#include <array>
 #include <functional>
+#include <map>
+#include <memory>
 #include <numeric>
 
 #include "UCBlock.h"
 
 #include "BatteryUnitBlock.h"
+
+#include "ACNetworkBlock.h"
+
+#include "DCNetworkBlock.h"
+
+#include "DesignNetworkBlock.h"
 
 #include "HydroUnitBlock.h"
 
@@ -100,6 +115,103 @@ static inline NetworkBlock * NB( Block * b ) {
 
 static inline LinearFunction * LF( Function * f ) {
  return( static_cast< LinearFunction * >( f ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The method that the class of a sub-Block registers in the methods factory
+ * as "<classname>" + suffix, for the methods of UCBlock that hand a size to
+ * the units or to the NetworkBlock [see resize_unit()]. It is looked up again
+ * only when the class changes from one sub-Block to the next, so that a run
+ * of sub-Block of the same class costs one lookup. */
+
+template< class F >
+class ClassMethod {
+ public:
+
+ ClassMethod( const char * caller , const char * suffix ,
+              const char * form = "" )
+  : f_caller( caller ) , f_suffix( suffix ) , f_form( form ) {}
+
+ /// the method of the class of block, which the message calls the kind i
+ F & operator()( const Block * block , const char * kind , Block::Index i ) {
+  if( ( ! f_method ) || ( block->classname() != f_class ) ) {
+   f_class = block->classname();
+   f_method = Block::get_method< F >( f_class + f_suffix );
+   if( ! f_method )
+    throw( std::logic_error( std::string( "UCBlock::" ) + f_caller + ": " +
+                             kind + " " + std::to_string( i ) + " is a " +
+                             f_class + ", which does not register '" +
+                             f_class + f_suffix + "'" + f_form ) );
+   }
+  return( *f_method );
+  }
+
+ private:
+
+ const char * f_caller;
+ const char * f_suffix;
+ const char * f_form;  ///< the signature looked for, if not the plain one
+ std::string f_class;
+ F * f_method = nullptr;
+ };
+
+/*--------------------------------------------------------------------------*/
+/* Hands each unit in units the value in the same position of values, through
+ * the method that its class registers as "<classname>" + suffix, with the
+ * one scalar a unit has [see UCBlock::resize_unit()]. */
+
+static void size_units( UCBlock & ucb , const char * caller ,
+                        const char * suffix , Block::MF_dbl_sp values ,
+                        Block::c_Subset & units , ModParam issuePMod ,
+                        ModParam issueAMod )
+{
+ if( units.size() > values.size() )
+  throw( std::invalid_argument( std::string( "UCBlock::" ) + caller +
+                                ": the span is shorter than the units it is "
+                                "asked to write" ) );
+
+ ClassMethod< Block::FunctionType< double > > method( caller , suffix );
+
+ for( Block::Index k = 0 ; k < units.size() ; ++k ) {
+  const auto u = units[ k ];
+  if( u >= ucb.get_number_units() )
+   throw( std::invalid_argument( std::string( "UCBlock::" ) + caller +
+                                 ": there is no unit of index " +
+                                 std::to_string( u ) ) );
+  const auto unit = ucb.get_unit_block( u );
+  std::invoke( method( unit , "unit" , u ) , unit , values[ k ] ,
+               issuePMod , issueAMod );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static Block::Subset units_in( const UCBlock & ucb , Block::Range rng )
+{
+ rng.second = std::min( rng.second , ucb.get_number_units() );
+ Block::Subset units;
+ for( auto u = rng.first ; u < rng.second ; ++u )
+  units.push_back( u );
+ return( units );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/* The NetworkBlock holding the bounds of the node injections of the
+ * interval i of nb, and the interval in it: a DesignNetworkBlock passes them
+ * on to its sub-network of that interval, as interval 0 [see
+ * DesignNetworkBlock::set_min_node_injection()]; nullptr if it has none. */
+
+using BoundsHolder = std::pair< const NetworkBlock * , Block::Index >;
+
+static BoundsHolder bounds_holder( const NetworkBlock * nb , Block::Index i )
+{
+ if( ! dynamic_cast< const DesignNetworkBlock * >( nb ) )
+  return( BoundsHolder( nb , i ) );
+ if( i >= nb->get_number_nested_Blocks() )
+  return( BoundsHolder( nullptr , 0 ) );
+ return( BoundsHolder(
+          static_cast< const NetworkBlock * >( nb->get_nested_Block( i ) ) ,
+          0 ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -950,9 +1062,15 @@ void UCBlock::map_generators( void )
  v_generator_unit.reserve( f_number_elc_generators );
  v_output_carrier_index.clear();
  v_output_carrier_index.reserve( f_number_elc_generators );
+ v_first_generator.assign( 1 , 0 );
+ v_first_storage.assign( 1 , 0 );
 
  for( Index u = 0 ; u < f_number_units ; ++u ) {
   const auto unit_block = get_unit_block( u );
+  v_first_generator.push_back( v_first_generator.back() +
+                               unit_block->get_number_generators() );
+  v_first_storage.push_back( v_first_storage.back() +
+                             unit_block->get_number_storages() );
   // the outputs given per generator, over the generators of the unit
   unit_block->check_outputs();
   for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g ) {
@@ -1015,11 +1133,8 @@ double UCBlock::get_carrier_efficiency( Index t , Index g , Index c ) const
 
 UCBlock::Index UCBlock::get_storage_pollutant_zone( Index p , Index u ) const
 {
- Index first = 0;
- for( Index i = 0 ; i < u ; ++i )
-  first += get_unit_block( i )->get_number_generators();
  return( get_unit_block( u )->get_number_generators() ?
-         get_pollutant_zone( p , first ) :
+         get_pollutant_zone( p , v_first_generator[ u ] ) :
          get_pollutant_zone_of_node( p , 0 ) );
  }
 
@@ -1520,13 +1635,20 @@ void UCBlock::generate_inertia_demand_constraints( void )
 /*--------------------------------------------------------------------------*/
 
 template< class F >
-void UCBlock::for_each_pollutant_term( Index p , F && visit )
+void UCBlock::for_each_pollutant_term( Index p , F && visit ,
+                                       Index unit ) const
 {
+ assert( ( unit == Inf< Index >() ) || ( unit < f_number_units ) );
+
  const auto number_zones = v_number_pollutant_zones[ p ];
 
- Index elc_generator = 0;
- Index storage = 0;
- for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
+ // all the units, or the given one alone
+ const bool all = ( unit == Inf< Index >() );
+ const Index first_unit = all ? 0 : unit;
+ const Index end_unit = all ? f_number_units : unit + 1;
+ Index elc_generator = v_first_generator[ first_unit ];
+ Index storage = v_first_storage[ first_unit ];
+ for( Index unit_id = first_unit ; unit_id < end_unit ; ++unit_id ) {
 
   const auto unit_block = get_unit_block( unit_id );
 
@@ -1985,6 +2107,14 @@ int UCBlock::get_objective_sense( void ) const { return( Objective::eMin ); }
 
 void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 {
+ // the scale of a unit going to 1 and back in get_zero_copy_linearization()
+ // ends where it started: what the unit says of it is dropped
+ if( const auto rtu = f_round_trip_unit.load() )
+  if( const auto umod = dynamic_cast< const UnitBlockMod * >( mod.get() ) )
+   if( ( umod->type() == UnitBlockMod::eScale ) &&
+       ( umod->get_Block() == rtu ) )
+    return;
+
  std::vector< Index > modified_units;
  std::vector< Index > inertia_units;
  bool injection = false;
@@ -2035,37 +2165,25 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
  collect( mod.get() );
 
  // the bounds of the node injections given to the NetworkBlocks follow the
- // power range of the units [see set_node_injection_bounds()]
- if( injection || ( ! modified_units.empty() ) )
-  set_node_injection_bounds();
+ // power range of the units [see set_node_injection_bounds()]; replicate()
+ // and resize_unit() compute them once, when they are done with the last
+ // unit, and only if one has changed [see size_deferred()]
+ if( injection || ( ! modified_units.empty() ) ) {
+  if( f_defer_scaled_rows )
+   f_deferred_injection_bounds = true;
+  else
+   set_node_injection_bounds();
+  }
 
  if( ! modified_units.empty() ) {
-  // Sort the IDs of the modified units, and name each of them once: a group
-  // can carry more than one scaling of the same unit
-  std::sort( modified_units.begin() , modified_units.end() );
-  modified_units.erase( std::unique( modified_units.begin() ,
-                                     modified_units.end() ) ,
-                        modified_units.end() );
-
-  /* Each of these rewrites one row per time instant, and per node where
-   * there are nodes: the whole reaction to the scaling travels in one
-   * channel, so that a Solver able to write a set of coefficients, or of
-   * sides, in one operation does that once instead of once per instant [see
-   * MILPSolver::process_group_modification()]. */
-  auto chnl = open_channel();
-  const auto upar = make_par( eNoBlck , chnl );
-
-  update_node_injection_constraints( modified_units , upar );
-  update_node_injection_constraints( modified_units , upar , true );
-  for( Index c = 1 ; c < get_number_carriers() ; ++c )
-   update_balance_constraints( c , modified_units , upar );
-  update_primary_demand_constraints( modified_units , upar );
-  update_secondary_demand_constraints( modified_units , upar );
-  update_inertia_demand_constraints( modified_units , upar );
-  update_pollutant_budget_constraints( modified_units , upar );
-
-  close_channel( chnl );
- }
+  if( f_defer_scaled_rows )
+   // a set of units is being sized, and their rows are rewritten once when
+   // the last one is done [see size_deferred()]
+   v_scaled_units.insert( v_scaled_units.end() , modified_units.begin() ,
+                          modified_units.end() );
+  else
+   update_scaled_rows( modified_units );
+  }
 
  if( ! inertia_units.empty() ) {
   std::sort( inertia_units.begin() , inertia_units.end() );
@@ -2080,6 +2198,40 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
   }
 
  Block::add_Modification( mod , chnl );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_scaled_rows( std::vector< Index > & scaled_units )
+{
+ if( scaled_units.empty() )
+  return;
+
+ // Sort the IDs of the modified units, and name each of them once: a group
+ // can carry more than one scaling of the same unit
+ std::sort( scaled_units.begin() , scaled_units.end() );
+ scaled_units.erase( std::unique( scaled_units.begin() ,
+                                  scaled_units.end() ) ,
+                     scaled_units.end() );
+
+ /* Each of these rewrites one row per time instant, and per node where there
+  * are nodes: the whole reaction to the scaling travels in one channel, so
+  * that a Solver able to write a set of coefficients, or of sides, in one
+  * operation does that once instead of once per instant [see
+  * MILPSolver::process_group_modification()]. */
+ auto chnl = open_channel();
+ const auto upar = make_par( eNoBlck , chnl );
+
+ update_node_injection_constraints( scaled_units , upar );
+ update_node_injection_constraints( scaled_units , upar , true );
+ for( Index c = 1 ; c < get_number_carriers() ; ++c )
+  update_balance_constraints( c , scaled_units , upar );
+ update_primary_demand_constraints( scaled_units , upar );
+ update_secondary_demand_constraints( scaled_units , upar );
+ update_inertia_demand_constraints( scaled_units , upar );
+ update_pollutant_budget_constraints( scaled_units , upar );
+
+ close_channel( chnl );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2526,6 +2678,371 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+template< class F >
+void UCBlock::replicate_linking_terms( Index unit , F && term ,
+                                       double & constant ) const
+{
+ const auto block = get_unit_block( unit );
+ const auto time_horizon = get_time_horizon();
+ const auto num_generators = block->get_number_generators();
+
+ /* The index, among the electrical generators of this UCBlock, of the first
+  * generator of this unit: the generators are numbered consecutively, unit
+  * after unit. */
+
+ const Index first_generator = v_first_generator[ unit ];
+
+ // The balances of the carriers - - - - - - - - - - - - - - - - - - - - - - -
+
+ // active and reactive [see for_each_balance_term()]: each term of the unit,
+ // divided by its scale, is factor * var - constant in a row whose dual
+ // value is dual, the factor multiplying the power as it multiplies the
+ // fixed consumption
+ for( const bool reactive : { false , true } )
+  for_each_balance_term( unit , reactive ,
+   [ & ]( const FRowConstraint & row , const ColVariable * var ,
+          double factor , double cst ) {
+    const auto dual = row.get_dual();
+    term( var , dual * factor );
+    constant -= dual * cst;
+    } );
+
+ // The reserve and inertia constraints - - - - - - - - - - - - - - - - - - -
+
+ /* The rows of the primary and secondary reserves and those of the inertia
+  * have the same shape: a row per zone and time instant, and a generator
+  * contributes to it only if its node belongs to that zone. What the factor
+  * multiplies is the reserve in those of the reserves, and the commitment
+  * and the active power, weighted by their inertia, in those of the
+  * inertia. The generators of the unit that are in a zone are found once,
+  * and sorted by zone, then node, then generator, so that the terms of an
+  * instant come zone by zone and node by node. */
+
+ const auto zone_contribution =
+  [ & ]( const auto & constraints , Index number_zones , auto zone_of ,
+         auto contribute ) {
+
+   if( constraints.empty() )
+    return;
+
+   std::vector< std::array< Index , 3 > > in_zone;
+   for( Index g = 0 ; g < num_generators ; ++g ) {
+    const auto zone = zone_of( first_generator + g );
+    if( zone < number_zones )
+     in_zone.push_back( { zone , node_of_generator( first_generator + g ) ,
+                          g } );
+    }
+   std::sort( in_zone.begin() , in_zone.end() );
+
+   for( Index t = 0 ; t < time_horizon ; ++t )
+    for( const auto & [ zone , node , g ] : in_zone )
+     contribute( g , t , constraints[ t ][ zone ].get_dual() );
+   };
+
+ zone_contribution( v_PrimaryDemand_Const , f_number_primary_zones ,
+                    [ this ]( Index g ) { return( get_primary_zone( g ) ); } ,
+                    [ & ]( Index g , Index t , double dual ) {
+                     if( auto r = block->get_primary_spinning_reserve( g ) )
+                      term( & r[ t ] , dual ); } );
+
+ zone_contribution( v_SecondaryDemand_Const , f_number_secondary_zones ,
+                    [ this ]( Index g ) {
+                     return( get_secondary_zone( g ) ); } ,
+                    [ & ]( Index g , Index t , double dual ) {
+                     if( auto r = block->get_secondary_spinning_reserve( g ) )
+                      term( & r[ t ] , dual ); } );
+
+ zone_contribution( v_InertiaDemand_Const , f_number_inertia_zones ,
+                    [ this ]( Index g ) { return( get_inertia_zone( g ) ); } ,
+                    [ & ]( Index g , Index t , double dual ) {
+                     const auto u = block->get_commitment( g );
+                     const auto iu = block->get_inertia_commitment( g );
+                     if( u && iu )
+                      term( & u[ t ] , dual * iu[ t ] );
+                     const auto p = block->get_active_power( g );
+                     const auto ip = block->get_inertia_power( g );
+                     if( p && ip )
+                      term( & p[ t ] , dual * ip[ t ] ); } );
+
+ // The bounds of the node injections - - - - - - - - - - - - - - - - - - - -
+
+ constant += injection_bounds_linearization( unit , true );
+
+ // The pollutant budget constraints - - - - - - - - - - - - - - - - - - - - -
+
+ // in the constraint of each zone the factor multiplies rho * p for each
+ // generator of the unit and sigma * v for each of its storages [see
+ // for_each_pollutant_term()]
+ for( Index p = 0 ; p < v_PollutantBudget_Const.size() ; ++p )
+  for_each_pollutant_term( p , [ & ]( Index , UnitBlock * , Index zone_id ,
+                                      ColVariable * var , double factor ) {
+   term( var , v_PollutantBudget_Const[ p ][ zone_id ].get_dual() * factor );
+   } , unit );
+
+}  // end( UCBlock::replicate_linking_terms )
+
+/*--------------------------------------------------------------------------*/
+
+double UCBlock::injection_bounds_linearization( Index unit ,
+                                                bool copies ) const
+{
+ if( ! constraints_generated() )
+  return( 0 );
+
+ /* A bound of a node injection is the sum, over the generators at the node,
+  * of the scale times the upper bound of the design times the kappa of the
+  * unit times what the generator can inject [see set_node_injection_bounds()]:
+  * its derivative with respect to the scale, or to the kappa, is what
+  * multiplies it there, on the side that the sign of the dual says, as for
+  * the flow limits [see DCNetworkBlock::get_resize_linearization()]. */
+ const auto block = get_unit_block( unit );
+ const double factor = block->get_design_ub() *
+                       ( copies ? block->get_kappa() : block->get_scale() );
+ const auto obj_sign = ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+
+ const Index first_generator = v_first_generator[ unit ];
+
+ double linearization = 0;
+ const auto add = [ & ]( const BoxConstraint & row , double mn , double mx ) {
+  const auto dual = row.get_dual();
+  linearization -= dual * factor * ( ( obj_sign * dual > 0 ) ? mn : mx );
+  };
+
+ for( Index c = 0 ; c < get_number_carriers() ; ++c ) {
+  const auto & networks = c ? v_carrier[ c ].v_network_blocks
+                            : v_network_blocks;
+  const auto & of_instant = c ? v_carrier[ c ].v_network_of_instant
+                              : v_network_of_instant;
+  for( Index t = 0 ; t < of_instant.size() ; ++t ) {
+   const auto [ n , i ] = of_instant[ t ];
+   const auto [ holder , j ] = bounds_holder( networks[ n ] , i );
+   if( ! holder )
+    continue;
+   const auto & rows = holder->get_node_injection_bounds();
+   if( ! rows.num_elements() )
+    continue;
+   for( Index g = 0 ; g < block->get_number_generators() ; ++g ) {
+    const auto node = get_generator_node( first_generator + g , c );
+    if( node == Inf< Index >() )
+     continue;
+    const auto eta = get_carrier_efficiency( t , first_generator + g , c );
+    const auto p_mn = eta * block->get_min_power( t , g );
+    const auto p_mx = eta * block->get_max_power( t , g );
+    const auto fc = c ? nullptr : block->get_fixed_consumption( g );
+    add( rows[ node ][ j ] ,
+         std::min( { p_mn , p_mx , fc ? - fc[ t ] : 0 } ) ,
+         std::max( { 0.0 , p_mn , p_mx } ) );
+    }
+   }
+  }
+
+ // the reactive ones, on the carrier 0, of an ACNetworkBlock, also as the
+ // sub-network of a DesignNetworkBlock
+ if( f_has_reactive ) {
+  const auto thermal = dynamic_cast< const ThermalUnitBlock * >( block );
+  for( Index t = 0 ; t < v_network_of_instant.size() ; ++t ) {
+   const auto [ n , i ] = v_network_of_instant[ t ];
+   const auto ac = dynamic_cast< const ACNetworkBlock * >(
+                          bounds_holder( v_network_blocks[ n ] , i ).first );
+   if( ( ! ac ) || ac->get_reactive_node_injection_bounds().empty() )
+    continue;
+   const auto & rows = ac->get_reactive_node_injection_bounds();
+   for( Index g = 0 ; g < block->get_number_generators() ; ++g ) {
+    const auto node = get_generator_node( first_generator + g , 0 );
+    if( node == Inf< Index >() )
+     continue;
+    double q_mn = block->get_min_reactive_power( t , g );
+    double q_mx = block->get_max_reactive_power( t , g );
+    if( thermal ) {
+     q_mn += std::min( 0.0 , thermal->get_min_reactive_power_on( t , g ) );
+     q_mx += std::max( 0.0 , thermal->get_max_reactive_power_on( t , g ) );
+     }
+    add( rows[ node ] , q_mn , q_mx );
+    }
+   }
+  }
+
+ return( linearization );
+ }  // end( UCBlock::injection_bounds_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+double UCBlock::get_replicate_linearization( Index unit ) const
+{
+ if( ! constraints_generated() )
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: the "
+                           "abstract representation has not been generated, "
+                           "so there are no rows to read the duals of" ) );
+
+ const auto block = get_unit_block( unit );
+ const auto scale = block->get_scale();
+
+ // with no copies the power of the unit is 0 whatever the duals are
+ if( scale == 0 )
+  return( get_zero_copy_linearization( unit ) );
+
+ // the rows above the unit, at the solution
+ double linearization = 0;
+ replicate_linking_terms( unit ,
+                          [ & linearization ]( const ColVariable * var ,
+                                               double coeff ) {
+                           linearization += coeff * var->get_value(); } ,
+                          linearization );
+
+ /* The Objective of a UnitBlock carrying the factor has the form k f(x)
+  * [see UnitBlock.h], so what it contributes here is f(x), the value divided
+  * by k. */
+
+ const auto objective =
+  dynamic_cast< FRealObjective * >( block->get_objective() );
+ if( ! objective )
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: unit " +
+                           std::to_string( unit ) + " has no FRealObjective, "
+                           "of which the derivative counts the value" ) );
+ objective->compute();
+ linearization += objective->value() / scale;
+
+ return( linearization );
+
+} // end( UCBlock::get_replicate_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+double UCBlock::get_zero_copy_linearization( Index unit ) const
+{
+ /* The copy is the mirror of the abstract representation of the unit [see
+  * AbstractBlock::mirror()], taken while the unit is scaled to 1 so that its
+  * Objective is that of one copy, f^1; it then sits in an AbstractBlock whose
+  * Objective holds the terms of the rows above the unit on the Variable of
+  * the copy, and the Solver of the AbstractBlock sums that Objective and
+  * the one of the copy. Whatever the mirror cannot reproduce is left out of
+  * the copy, which is then a relaxation of one copy of the unit: the minimum
+  * is not larger than the true one, and since the number of copies cannot
+  * decrease below 0 the linearization stays below the value function. */
+
+ const auto block = get_unit_block( unit );
+
+ // the Solver of the copy: the one the extra part of the BlockConfig gives
+ BlockSolverConfig * bsc = nullptr;
+ if( f_BlockConfig )
+  bsc = dynamic_cast< BlockSolverConfig * >(
+                                        f_BlockConfig->f_extra_Configuration );
+
+ if( ( ! bsc ) || bsc->get_SolverNames().empty() )
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: unit " +
+                           std::to_string( unit ) + " has no copies, and "
+                           "the derivative is then the minimum over one "
+                           "copy of the unit, for which a Solver is needed: "
+                           "the extra Configuration of the BlockConfig of "
+                           "this UCBlock is not a BlockSolverConfig with a "
+                           "Solver" ) );
+
+ /* The unit is scaled to 1 and back to its scale, 0, which leaves it as it
+  * was found. The unit tells this UCBlock of each of the two changes, even
+  * if asked to issue no Modification [see UnitBlock::issue_unit_mod()]:
+  * add_Modification() drops them while f_round_trip_unit is the unit, so
+  * that the rows that carry the factor and the bounds of the node
+  * injections are not rewritten, and nothing is passed on to the Solver or
+  * the father of this UCBlock. The mutex makes two calls on the same
+  * UCBlock take turns. */
+
+ auto copy = new AbstractBlock();
+ {
+  std::lock_guard< std::mutex > guard( f_round_trip_mutex );
+  f_round_trip_unit = block;
+  const auto scale = block->get_scale();
+  try {
+   block->scale( 1.0 , eNoMod , eNoMod );
+   copy->mirror( block );
+   }
+  catch( ... ) {
+   block->scale( scale , eNoMod , eNoMod );
+   f_round_trip_unit = nullptr;
+   delete copy;
+   throw;
+   }
+  block->scale( scale , eNoMod , eNoMod );
+  f_round_trip_unit = nullptr;
+  }
+
+ auto wrapper = new AbstractBlock();
+ wrapper->add_nested_Block( copy );
+
+ // what is built for the copy goes when it has been solved, or when
+ // anything throws: the Solver registered for this solution only, which a
+ // cleared BlockSolverConfig removes [see BlockSolverConfig::clear()], the
+ // AbstractBlock with the copy, and its Objective
+ FRealObjective * objective = nullptr;
+ BlockSolverConfig * cbsc = nullptr;
+ const auto cleanup = [ & ]() {
+  if( cbsc ) {
+   cbsc->clear();
+   cbsc->apply( wrapper );
+   delete cbsc;
+   }
+  delete wrapper;   // and the copy it holds
+  delete objective;
+  };
+
+ double constant = 0;
+ double value = 0;
+ try {
+  // a Variable of the unit can be in several rows, say the active power in
+  // the node injection, an inertia zone and a pollutant budget, while a
+  // LinearFunction takes each Variable once: the coefficients are summed
+  std::map< ColVariable * , double > coefficients;
+  replicate_linking_terms( unit ,
+                           [ & ]( const ColVariable * var , double coeff ) {
+                            if( coeff == 0 )
+                             return;
+                            auto cvar = copy->mirror_of( var );
+                            if( ! cvar )
+                             throw( std::logic_error(
+                              "UCBlock::get_replicate_linearization: a "
+                              "Variable of the unit " + std::to_string( unit )
+                              + " has no copy" ) );
+                            coefficients[ cvar ] += coeff; } ,
+                           constant );
+
+  objective = new FRealObjective( wrapper , new LinearFunction(
+               LinearFunction::v_coeff_pair( coefficients.begin() ,
+                                             coefficients.end() ) ) );
+  objective->set_sense( copy->get_objective_sense() , eNoMod );
+  wrapper->set_objective( objective , eNoMod );
+
+  cbsc = bsc->clone();
+  cbsc->apply( wrapper );
+  if( wrapper->get_registered_solvers().empty() )
+   throw( std::logic_error( "UCBlock::get_replicate_linearization: the "
+                            "BlockSolverConfig of the copy of unit " +
+                            std::to_string( unit ) +
+                            " registers no Solver" ) );
+
+  // the value of a solution bounds the minimum only from above, while the
+  // cut needs it bounded from below: the lower bound is one also when the
+  // solve stopped before the optimum, and is not finite if nothing is
+  // proven
+  auto solver = wrapper->get_registered_solvers().front();
+  solver->compute();
+  value = solver->get_lb();
+  if( ! ( std::abs( value ) < Inf< double >() ) )
+   throw( std::logic_error( "UCBlock::get_replicate_linearization: the copy "
+                            "of unit " + std::to_string( unit ) +
+                            " has no finite lower bound" ) );
+  }
+ catch( ... ) {
+  cleanup();
+  throw;
+  }
+
+ cleanup();
+
+ return( value + constant );
+
+} // end( UCBlock::get_zero_copy_linearization )
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
@@ -2914,6 +3431,369 @@ void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
                                         c_ModParam issueAMod )
 {
  set_pollutant_bounds( values , rng , true , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::size_deferred( const std::function< void( void ) > & size )
+{
+ v_scaled_units.clear();
+ f_deferred_injection_bounds = false;
+ f_defer_scaled_rows = true;
+
+ const auto rewrite = [ this ]() {
+  f_defer_scaled_rows = false;
+  update_scaled_rows( v_scaled_units );
+  if( f_deferred_injection_bounds )
+   set_node_injection_bounds();
+  };
+
+ try {
+  size();
+  }
+ catch( ... ) {
+  rewrite();
+  throw;
+  }
+
+ rewrite();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_unit( MF_dbl_sp values , Subset && subset , bool ,
+                           ModParam issuePMod , ModParam issueAMod )
+{
+ // each unit resized would have the bounds of the node injections computed
+ // again [see add_Modification()]: they are computed once, after the last
+ size_deferred( [ & ]() {
+  size_units( *this , "resize_unit" , "::resize" , values , subset ,
+              issuePMod , issueAMod );
+  } );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_unit( MF_dbl_sp values , Range rng ,
+                           ModParam issuePMod , ModParam issueAMod )
+{
+ resize_unit( values , units_in( *this , rng ) , true , issuePMod ,
+              issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
+                           Subset && subset , bool , ModParam issuePMod ,
+                           ModParam issueAMod )
+{
+ if( ( subset.size() > values.size() ) ||
+     ( subset.size() > second_values.size() ) )
+  throw( std::invalid_argument( "UCBlock::resize_unit: a span is shorter "
+                                "than the subset it is asked to write" ) );
+
+ ClassMethod< FunctionType< double , double > >
+  method( "resize_unit" , "::resize" , " with a pair of scalars" );
+
+ // the bounds of the node injections are computed once, as in the other
+ // resize_unit()
+ size_deferred( [ & ]() {
+  for( Index k = 0 ; k < subset.size() ; ++k ) {
+   const auto u = subset[ k ];
+   if( u >= f_number_units )
+    throw( std::invalid_argument( "UCBlock::resize_unit: there is no unit "
+                                  "of index " + std::to_string( u ) ) );
+   const auto unit = get_unit_block( u );
+   std::invoke( method( unit , "unit" , u ) , unit , values[ k ] ,
+                second_values[ k ] , issuePMod , issueAMod );
+   }
+  } );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
+                           Range rng , ModParam issuePMod ,
+                           ModParam issueAMod )
+{
+ resize_unit( values , second_values , units_in( *this , rng ) , true ,
+              issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::replicate( MF_dbl_sp values , Subset && subset , bool ,
+                         ModParam issuePMod , ModParam issueAMod )
+{
+ // each unit scaled would have its rows and the bounds of the node
+ // injections rewritten [see add_Modification()]: they are rewritten once,
+ // after the last
+ size_deferred( [ & ]() {
+  size_units( *this , "replicate" , "::replicate" , values , subset ,
+              issuePMod , issueAMod );
+  } );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::replicate( MF_dbl_sp values , Range rng ,
+                         ModParam issuePMod , ModParam issueAMod )
+{
+ replicate( values , units_in( *this , rng ) , true , issuePMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The lines of a UCBlock are numbered carrier after carrier, those of the
+ * carrier 0 first: first[ c ] is the index of the first line of carrier c,
+ * first.back() the number of lines. A carrier with one node, hence no
+ * NetworkBlock, has none. */
+
+static std::vector< Block::Index > first_lines( const UCBlock & ucb )
+{
+ const auto nc = ucb.get_number_carriers();
+ std::vector< Block::Index > first( nc + 1 , 0 );
+ for( Block::Index c = 0 ; c < nc ; ++c ) {
+  // the lines are those of the NetworkData the NetworkBlock share, which a
+  // DesignNetworkBlock has too
+  const auto & networks = ucb.get_network_blocks( c );
+  const auto dc = networks.empty() ? nullptr :
+                  dynamic_cast< const DCNetworkBlock::DCNetworkData * >(
+                                         networks.front()->get_NetworkData() );
+  first[ c + 1 ] = first[ c ] + ( dc ? dc->get_number_lines() : 0 );
+  }
+ return( first );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the carrier of the line l of a UCBlock whose lines start at first
+
+static Block::Index carrier_of( const std::vector< Block::Index > & first ,
+                                Block::Index l , const std::string & who )
+{
+ const Block::Index c = std::upper_bound( first.begin() , first.end() , l ) -
+                        first.begin() - 1;
+ if( c + 1 >= first.size() )
+  throw( std::invalid_argument( "UCBlock::" + who + ": there is no line of "
+                                "index " + std::to_string( l ) ) );
+ return( c );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_line( MF_dbl_sp values , Subset && subset , bool ordered ,
+                           ModParam issuePMod , ModParam issueAMod )
+{
+ const auto first = first_lines( *this );
+ if( ! first.back() )
+  throw( std::logic_error( "UCBlock::resize_line: this UCBlock has no "
+                           "lines" ) );
+ if( subset.size() > values.size() )
+  throw( std::invalid_argument( "UCBlock::resize_line: the span is shorter "
+                                "than the lines it is asked to write" ) );
+
+ ClassMethod< FunctionType< MF_dbl_sp , Subset && , bool > >
+  resize( "resize_line" , "::resize" );
+
+ // the lines of each carrier, numbered within it, and their values
+ const auto nc = get_number_carriers();
+ std::vector< Subset > lines( nc );
+ std::vector< std::vector< double > > kappa( nc );
+ for( Index k = 0 ; k < subset.size() ; ++k ) {
+  const auto c = carrier_of( first , subset[ k ] , "resize_line" );
+  lines[ c ].push_back( subset[ k ] - first[ c ] );
+  kappa[ c ].push_back( values[ k ] );
+  }
+
+ for( Index c = 0 ; c < nc ; ++c ) {
+  if( kappa[ c ].empty() )
+   continue;
+  // each NetworkBlock takes a Subset of its own, which the call consumes
+  const auto & networks = get_network_blocks( c );
+  for( Index n = 0 ; n < networks.size() ; ++n )
+   std::invoke( resize( networks[ n ] , "NetworkBlock" , n ) , networks[ n ] ,
+                MF_dbl_sp( kappa[ c ] ) , Subset( lines[ c ] ) , ordered ,
+                issuePMod , issueAMod );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::resize_line( MF_dbl_sp values , Range rng ,
+                           ModParam issuePMod , ModParam issueAMod )
+{
+ const auto first = first_lines( *this );
+ if( ! first.back() )
+  throw( std::logic_error( "UCBlock::resize_line: this UCBlock has no "
+                           "lines" ) );
+ const auto end = std::min( rng.second , first.back() );
+ if( ( end > rng.first ) && ( end - rng.first > values.size() ) )
+  throw( std::invalid_argument( "UCBlock::resize_line: the span is shorter "
+                                "than the lines it is asked to write" ) );
+
+ ClassMethod< FunctionType< MF_dbl_sp , Range > >
+  resize( "resize_line" , "::resize" );
+
+ // the part of the range on each carrier, numbered within it
+ for( Index c = 0 ; c + 1 < first.size() ; ++c ) {
+  const auto lo = std::max( rng.first , first[ c ] );
+  const auto hi = std::min( rng.second , first[ c + 1 ] );
+  if( lo >= hi )
+   continue;
+  const auto & networks = get_network_blocks( c );
+  for( Index n = 0 ; n < networks.size() ; ++n )
+   std::invoke( resize( networks[ n ] , "NetworkBlock" , n ) , networks[ n ] ,
+                values.subspan( lo - rng.first , hi - lo ) ,
+                Range( lo - first[ c ] , hi - first[ c ] ) , issuePMod ,
+                issueAMod );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
+                                             c_Subset & units ) const
+{
+ if( units.size() > msp.size() )
+  throw( std::invalid_argument( "UCBlock::get_resize_unit_linearization: the "
+                                "span is shorter than the subset it is asked "
+                                "to answer for" ) );
+
+ ClassMethod< QueryType< double & > >
+  query( "get_resize_unit_linearization" , "::get_resize_linearization" );
+
+ for( Index k = 0 ; k < units.size() ; ++k ) {
+  if( units[ k ] >= f_number_units )
+   throw( std::invalid_argument( "UCBlock::get_resize_unit_linearization: "
+                                 "there is no unit of index " +
+                                 std::to_string( units[ k ] ) ) );
+  const auto unit = get_unit_block( units[ k ] );
+  std::invoke( query( unit , "unit" , units[ k ] ) , unit , msp[ k ] );
+  // the bounds of the node injections, which the unit does not see
+  msp[ k ] += injection_bounds_linearization( units[ k ] , false );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::get_resize_unit_linearization( MF_dbl_msp msp ,
+                                             MF_dbl_msp second_msp ,
+                                             c_Subset & units ) const
+{
+ if( ( units.size() > msp.size() ) || ( units.size() > second_msp.size() ) )
+  throw( std::invalid_argument( "UCBlock::get_resize_unit_linearization: a "
+                                "span is shorter than the subset it is asked "
+                                "to answer for" ) );
+
+ ClassMethod< QueryType< double & , double & > >
+  query( "get_resize_unit_linearization" , "::get_resize_linearization" ,
+         " with a pair of scalars" );
+
+ for( Index k = 0 ; k < units.size() ; ++k ) {
+  if( units[ k ] >= f_number_units )
+   throw( std::invalid_argument( "UCBlock::get_resize_unit_linearization: "
+                                 "there is no unit of index " +
+                                 std::to_string( units[ k ] ) ) );
+  const auto unit = get_unit_block( units[ k ] );
+  std::invoke( query( unit , "unit" , units[ k ] ) , unit , msp[ k ] ,
+               second_msp[ k ] );
+  // the bounds of the node injections, which only the first size enters
+  msp[ k ] += injection_bounds_linearization( units[ k ] , false );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::get_resize_line_linearization( MF_dbl_msp msp ,
+                                             c_Subset & lines ,
+                                             bool ordered ) const
+{
+ if( lines.size() > msp.size() )
+  throw( std::invalid_argument( "UCBlock::get_resize_line_linearization: the "
+                                "span is shorter than the subset it is asked "
+                                "to answer for" ) );
+ const auto first = first_lines( *this );
+ if( ! first.back() )
+  throw( std::logic_error( "UCBlock::get_resize_line_linearization: this "
+                           "UCBlock has no lines" ) );
+
+ ClassMethod< QueryType< MF_dbl_msp , c_Subset & , bool > >
+  query( "get_resize_line_linearization" , "::get_resize_linearization" );
+
+ // the lines of each carrier, numbered within it, and where their answers go
+ const auto nc = get_number_carriers();
+ std::vector< Subset > local( nc );
+ std::vector< std::vector< Index > > where( nc );
+ for( Index k = 0 ; k < lines.size() ; ++k ) {
+  const auto c = carrier_of( first , lines[ k ] ,
+                             "get_resize_line_linearization" );
+  local[ c ].push_back( lines[ k ] - first[ c ] );
+  where[ c ].push_back( k );
+  }
+
+ // the answer for the lines of a carrier is the sum of those of its
+ // NetworkBlock
+ std::vector< double > sum;
+ std::vector< double > answer;
+ for( Index c = 0 ; c < nc ; ++c ) {
+  if( local[ c ].empty() )
+   continue;
+  sum.assign( local[ c ].size() , 0.0 );
+  answer.resize( local[ c ].size() );
+  const auto & networks = get_network_blocks( c );
+  for( Index n = 0 ; n < networks.size() ; ++n ) {
+   std::invoke( query( networks[ n ] , "NetworkBlock" , n ) , networks[ n ] ,
+                MF_dbl_msp( answer ) , local[ c ] , ordered );
+   for( Index k = 0 ; k < answer.size() ; ++k )
+    sum[ k ] += answer[ k ];
+   }
+  for( Index k = 0 ; k < sum.size() ; ++k )
+   msp[ where[ c ][ k ] ] = sum[ k ];
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::get_resize_line_linearization( MF_dbl_msp msp , Range rng )
+ const
+{
+ const auto first = first_lines( *this );
+ if( ! first.back() )
+  throw( std::logic_error( "UCBlock::get_resize_line_linearization: this "
+                           "UCBlock has no lines" ) );
+
+ ClassMethod< QueryType< MF_dbl_msp , Range > >
+  query( "get_resize_line_linearization" , "::get_resize_linearization" );
+
+ /* The range stops at the number of lines, and the entries of msp past it
+  * stay as the caller left them; the answer for the lines of a carrier is
+  * the sum of those of its NetworkBlock. */
+ rng.second = std::min( rng.second , first.back() );
+ if( rng.second <= rng.first )
+  return;
+ if( msp.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "UCBlock::get_resize_line_linearization: the "
+                                "span is shorter than the range it is asked "
+                                "to answer for" ) );
+
+ std::vector< double > answer;
+ for( Index c = 0 ; c + 1 < first.size() ; ++c ) {
+  const auto lo = std::max( rng.first , first[ c ] );
+  const auto hi = std::min( rng.second , first[ c + 1 ] );
+  if( lo >= hi )
+   continue;
+  const auto out = msp.subspan( lo - rng.first , hi - lo );
+  std::fill( out.begin() , out.end() , 0.0 );
+  answer.resize( hi - lo );
+  const auto & networks = get_network_blocks( c );
+  for( Index n = 0 ; n < networks.size() ; ++n ) {
+   std::invoke( query( networks[ n ] , "NetworkBlock" , n ) , networks[ n ] ,
+                MF_dbl_msp( answer ) ,
+                Range( lo - first[ c ] , hi - first[ c ] ) );
+   for( Index k = 0 ; k < answer.size() ; ++k )
+    out[ k ] += answer[ k ];
+   }
+  }
  }
 
 /*--------------------------------------------------------------------------*/

@@ -2320,9 +2320,12 @@ class DCNetworkData : public NetworkData
   * (2) and (3), a bilinear term, and the optimal value need not be convex in
   * \f$ \kappa_l \f$; its derivative where it exists is the one above times the
   * value of \f$ x_l \f$, but it is not a subgradient in general, and
-  * InvestmentFunction refuses such a line. The set_kappa() of
-  * ACNetworkBlock and of OTSNetworkBlock throws, since their lines have
-  * limits in other rows as well.
+  * get_resize_linearization() refuses such a line. The set_kappa() of
+  * ACNetworkBlock and of OTSNetworkBlock throws: their lines are sized by
+  * resize(), which writes \f$ \kappa_l \f$ into these same limits, and for
+  * an OTSNetworkBlock also into the limit of the switching of a switchable
+  * line, whose dual then adds to the subgradient [see
+  * OTSNetworkBlock::resize()].
   *
   * @param values An iterator to a vector containing the kappa constants.
   *
@@ -2558,6 +2561,127 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// kappa times the capacity of the lines in \p subset
+ /** Writes the kappa of the lines as DCNetworkBlock::set_kappa() does,
+  * whatever the class of this Block, registered in the methods factory as
+  * "DCNetworkBlock::resize", the name under which a Block of unknown class
+  * is sized by a kappa [see UCBlock::resize_line()]. The set_kappa() of
+  * ACNetworkBlock and of OTSNetworkBlock throws, and their lines are sized
+  * by this one alone; it is virtual, so that a derived network with rows of
+  * its own in which kappa appears writes them [see
+  * OTSNetworkBlock::resize()], and protected, as the name is the way to
+  * reach it.
+  *
+  * @throws std::invalid_argument if \p values is shorter than \p subset */
+
+ virtual void resize( MF_dbl_sp values , Subset && subset ,
+                      bool ordered = false ,
+                      c_ModParam issuePMod = eNoBlck ,
+                      c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// kappa times the capacity of the lines in \p rng, as the version above
+
+ virtual void resize( MF_dbl_sp values ,
+                      Range rng = Range( 0 , Inf< Index >() ) ,
+                      c_ModParam issuePMod = eNoBlck ,
+                      c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative of the value of this Block w.r.t. the kappa of \p line
+ /** The flow limit constraints of a line l are
+
+     \f[ \kappa_l \mathrm{Pmin}_l \leq F_l \leq \kappa_l \mathrm{Pmax}_l \f]
+
+  * so the derivative of the value of this Block with respect to \f$
+  * \kappa_l \f$ is minus the dual of whichever bound is active,
+  * times that bound. Which one it is, is told by the sign of the dual read
+  * against the sense of the Objective.
+  *
+  * It requires the constraints, and reads the duals that the last solve
+  * left in them: if they have not been generated it throws
+  * std::logic_error. It reads no value of a Variable, so that after a solve
+  * that ended infeasible, with an unbounded dual direction where the duals
+  * go, it gives the coefficient of the condition that a feasible kappa has
+  * to satisfy. This is the same computation that a consumer holding this
+  * Block would otherwise have to do from outside out of
+  * get_power_flow_limit_HVDC_bounds(), get_min_power_flow() and
+  * get_max_power_flow(), together with the sign rule; it is here because
+  * the rows in which \f$ \kappa \f$ appears are this Block's own.
+  *
+  * @param line the index of the line
+  *
+  * @return the derivative of the value of this Block w.r.t. the kappa of the
+  *         given line */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /* As for the container's one [see UCBlock.h], the supported way in is the
+  * name "DCNetworkBlock::get_resize_linearization": the method is not public,
+  * so that reading this sensitivity cannot become one more reason to
+  * recognise the class. It stays protected, and not private, because a
+  * derived network that resizes its lines the same way can reuse it; it is
+  * virtual, so that one with rows of its own in which kappa appears adds
+  * them [see OTSNetworkBlock::get_resize_linearization()]. */
+
+ virtual double get_resize_linearization( Index line ) const {
+  // a design variable of the line is multiplied by kappa in its limits, a
+  // bilinear term, and the value need not be convex in kappa: the dual
+  // gives no subgradient [see set_kappa()]
+  if( get_design( line ) )
+   throw( std::logic_error( "DCNetworkBlock::get_resize_linearization: "
+                            "line " + std::to_string( line ) + " has a "
+                            "design variable, with which the derivative "
+                            "with respect to its kappa is not defined" ) );
+
+  const auto & constraints = get_power_flow_limit_HVDC_bounds();
+
+  if( constraints.empty() )
+   throw( std::logic_error( classname() + "::get_resize_linearization: the "
+                            "abstract representation has not been "
+                            "generated, so there are no rows to read the "
+                            "duals of" ) );
+
+  const auto obj_sign =
+   ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+
+  const auto dual = constraints[ line ].get_dual();
+
+  /* The bounds read kappa C^v P, with C^v the factor this Block scales its
+   * flow limits by, so the derivative of a bound with respect to kappa
+   * is C^v P: leaving the factor out is right only while it is 1, which is
+   * its default but not its only value. */
+  const auto scale = get_C_v_scal();
+
+  // The dual is associated with either the lower or the upper bound; the
+  // sign of obj_sign * dual says which one.
+  const auto bound = scale * ( ( obj_sign * dual > 0 )
+			       ? get_min_power_flow( line )
+			       : get_max_power_flow( line ) );
+
+  return( - dual * bound );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives w.r.t. the kappa of the lines in \p lines
+ /** Writes in msp[ i ] get_resize_linearization( lines[ i ] ). This is what
+  * the name "<classname>::get_resize_linearization" calls [see
+  * static_initialization()].
+  *
+  * @throws std::invalid_argument if \p msp is shorter than \p lines or an
+  *         index is not that of a line, and std::logic_error as
+  *         get_resize_linearization( line ) does */
+
+ void get_resize_linearization( MF_dbl_msp msp , c_Subset & lines ,
+                                bool ordered = false ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// as get_resize_linearization( subset ), for the lines in \p rng
+
+ void get_resize_linearization( MF_dbl_msp msp ,
+                                Range rng = Range( 0 , Inf< Index >() ) )
+  const;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2722,6 +2846,31 @@ class DCNetworkData : public NetworkData
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
    "DCNetworkBlock::set_kappa" ,
    & DCNetworkBlock::set_kappa );
+
+  // resize() is registered under the name of the way of sizing a Block [see
+  // UCBlock::resize_line()] it implements: a line standing for kappa times
+  // the capacity it was given. There is no "replicate" here on purpose, k
+  // copies of a line being a line of k times the capacity.
+
+  register_method< DCNetworkBlock , MF_dbl_sp , Subset && , bool >(
+   "DCNetworkBlock::resize" ,
+   & DCNetworkBlock::resize );
+
+  register_method< DCNetworkBlock , MF_dbl_sp , Range >(
+   "DCNetworkBlock::resize" ,
+   & DCNetworkBlock::resize );
+
+  // ... and the getter reading the sensitivity back, which is what makes the
+  // pair usable without knowing this class: a consumer writes k through the
+  // first name and reads the derivative through the second one.
+
+  register_method< DCNetworkBlock , MF_dbl_msp , c_Subset & , bool >(
+   "DCNetworkBlock::get_resize_linearization" ,
+   & DCNetworkBlock::get_resize_linearization );
+
+  register_method< DCNetworkBlock , MF_dbl_msp , Range >(
+   "DCNetworkBlock::get_resize_linearization" ,
+   & DCNetworkBlock::get_resize_linearization );
   }
 
 /*--------------------------------------------------------------------------*/

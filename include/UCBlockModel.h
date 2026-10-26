@@ -732,23 +732,66 @@ model of each one is in the documentation of its class, to which we refer.
 
 In the model, the capacity of the assets enters through two kinds of
 parameters of the sub-Blocks. First, the scale \f$ \sigma_i \f$ of a UnitBlock
-(ThermalUnitBlock, IntermittentUnitBlock, BatteryUnitBlock; see
+(ThermalUnitBlock, NuclearUnitBlock, IntermittentUnitBlock, BatteryUnitBlock,
+ConversionUnitBlock; see
 UnitBlock::scale()) represents a number of identical copies of the unit,
 committed and dispatched together. The Variable are those of one copy, and the
 UnitBlock contributes \f$ \sigma_i f^1_i \f$ to (0) and \f$ \sigma_i g^1_i \f$
 to (1)-(5), where \f$ f^1_i \f$ and \f$ g^1_i \f$ are the cost and the
 contributions of one copy. Second, the capacity multipliers \f$ \kappa \f$ of
 IntermittentUnitBlock and BatteryUnitBlock, and \f$ \kappa_l \f$ of the lines
-of DCNetworkBlock, multiply the power, storage and flow limits of a unit or of
+of DCNetworkBlock, ACNetworkBlock and OTSNetworkBlock, multiply the power,
+storage and flow limits of a unit or of
 a line. For an intermittent unit, with "MaxPower" the production per unit of
 installable capacity times that capacity, \f$ \kappa \in [ 0 , 1 ] \f$ is the
 installed fraction; the initial level of a battery and the energy bounds of an
 intermittent unit are, however, absolute quantities, not multiplied by
 \f$ \kappa \f$. Both kinds of parameters can be changed after the Block is
 built (UnitBlock::scale(), IntermittentUnitBlock::set_kappa(),
-BatteryUnitBlock::set_kappa(), DCNetworkBlock::set_kappa()), and the UCBlock
+BatteryUnitBlock::set_kappa(), DCNetworkBlock::set_kappa(), or by name, see
+\ref ucbm_cap_names), and the UCBlock
 rewrites the coefficients of (1)-(5) when a scale changes. Therefore, one can
 evaluate the optimal cost as a function of the capacities.
+
+\subsection ucbm_cap_names Sizing by name
+
+A Block holding a UCBlock sizes its units and its lines without knowing their
+classes, through the methods factory. The class of a sub-Block registers
+"<classname>::replicate", which sets its scale (a scalar), and
+"<classname>::resize", which sets its capacity multiplier (a scalar for a
+unit, a pair for a BatteryUnitBlock, a span for the lines of a network), each
+on the protected method of the same name, with
+"<classname>::get_resize_linearization" for the derivative (9) or (10). The
+UCBlock registers "UCBlock::replicate", "UCBlock::resize_unit" and
+"UCBlock::resize_line", which hand each value of a span to the name of the
+class of its sub-Block and rewrite the rows of the UCBlock once, after the
+last one, and the derivatives "UCBlock::get_replicate_linearization", which
+is (8) and needs the rows of the UCBlock,
+"UCBlock::get_resize_unit_linearization" and
+"UCBlock::get_resize_line_linearization". The classes that register the names
+are:
+
+- ThermalUnitBlock, NuclearUnitBlock and ConversionUnitBlock, only
+  "::replicate", having no capacity multiplier;
+- IntermittentUnitBlock and BatteryUnitBlock, both, the "::resize" of a
+  BatteryUnitBlock also with a pair, the sizes of the storage and of the
+  converter (see BatteryUnitBlock::resize());
+- DCNetworkBlock, ACNetworkBlock and OTSNetworkBlock, only "::resize", k
+  copies of a line being a line of k times the capacity; the set_kappa() of
+  ACNetworkBlock and of OTSNetworkBlock throws, their lines being sized by
+  "::resize" alone, which writes \f$ \kappa_l \f$ only where the design
+  variable of a DesignNetworkBlock enters, the flow limits and the limit of
+  the switching of an OTS line (see OTSNetworkBlock::resize());
+- none of them HydroUnitBlock, HydroSystemUnitBlock, SlackUnitBlock,
+  ECNetworkBlock and DesignNetworkBlock.
+
+A sub-Block whose class does not register the name makes the names of the
+UCBlock throw std::logic_error, naming the class. A registered name may
+refuse too: the scale() of an IntermittentUnitBlock, a BatteryUnitBlock or a
+ConversionUnitBlock whose design has more than one module throws for a scale
+other than 1, a derivative throws for a unit or a line in design mode (see
+\ref ucbm_cap_sens) and before the rows are generated, and a span shorter
+than what it is asked to write throws std::invalid_argument.
 
 \subsection ucbm_cap_design Design variables
 
@@ -829,7 +872,11 @@ subproblem of one copy at \f$ \bar y \f$. The value \f$ f^1_i( \bar z_i ) +
 \bar y^\top g^1_i( \bar z_i ) \f$ of this minimizer is the slope of the
 function of \f$ \sigma_i \f$ that is active in the dual function. Note that
 the solution of the unit given by the Solver of a convex problem is such a
-minimizer (see UnitBlock::scale() for the argument). A capacity multiplier,
+minimizer (see UnitBlock::scale() for the argument). With
+\f$ \sigma_i = 0 \f$ there is no solution of the unit to evaluate (8) at:
+"UCBlock::get_replicate_linearization" then minimizes the same terms over a
+mirror of one copy of the unit, and takes the lower bound that its Solver
+finds, so that the cut stays valid. A capacity multiplier,
 instead, multiplies the data \f$ b^1_r \f$ in the finite side
 \f$ \kappa b^1_r \f$ of a set \f$ \mathcal{R}_\kappa \f$ of rows of the
 sub-Block (for a two-sided row, the side that the sign of its dual value
@@ -853,15 +900,23 @@ where \f$ \bar\mu_{t,l} \f$ is the dual value of the flow bounds of line
 \f$ l \f$ in the NetworkBlock of instant \f$ t \f$ and \f$ P^{\star}_{t,l} \f$
 is the maximum flow of the line at that instant if the upper bound is the
 active one (\f$ \bar\mu_{t,l} > 0 \f$), its minimum flow otherwise (see
-DCNetworkBlock::set_kappa()). In (9) and (10) the minus sign makes the
-subgradient nonpositive when more capacity relaxes an active upper bound, as
-it must for a minimization. A capacity multiplier of a unit or of a line that
-is also in design mode is not covered by these formulae, since there
-\f$ \kappa \f$ multiplies the design variable and the optimal value need not
-be convex in it. Hence, IntermittentUnitBlock::get_kappa_linearization(),
-BatteryUnitBlock::get_kappa_linearization() and InvestmentFunction (for a line
-with a design variable) throw in that case. A worst case of \f$ Q \f$ over a
-set \f$ \Upsilon \f$ of alternative futures, i.e., the problem
+DCNetworkBlock::set_kappa()); a switchable line of an OTSNetworkBlock adds
+the dual value of the limit \f$ \min\{ 1 , \kappa_l \} \f$ of its switching
+while \f$ \kappa_l < 1 \f$ (see OTSNetworkBlock::resize()). In (9) and (10)
+the minus sign makes the subgradient nonpositive when more capacity relaxes
+an active upper bound, as it must for a minimization. Through the names of the
+UCBlock, the derivative of a unit, with respect to its scale or to its
+capacity multiplier, also counts the dual values of the bounds of the node
+injections, in which both appear
+(see \ref ucbm_link_bounds). A capacity multiplier
+of a unit or of a line that is also in design mode is not covered by these
+formulae, since there \f$ \kappa \f$ multiplies the design variable and
+the optimal value need not be convex in it. Hence,
+IntermittentUnitBlock::get_kappa_linearization(),
+BatteryUnitBlock::get_kappa_linearization() and, for a line with a design
+variable, DCNetworkBlock::get_resize_linearization() throw in that case. A
+worst case of \f$ Q \f$ over a set \f$ \Upsilon \f$ of alternative
+futures, i.e., the problem
 \f[
   \min_x \Bigl\{ \sum_{ i = 1 }^m \bigl( c_i ( x_i - \bar x_i )^+
     + d_i ( \bar x_i - x_i )^+ \bigr) + \max_{ \upsilon \in \Upsilon }

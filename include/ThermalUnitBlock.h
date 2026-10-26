@@ -2709,6 +2709,18 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// k identical copies of this unit, i.e., scale( k )
+ /** Registered in the methods factory as "ThermalUnitBlock::replicate",
+  * the name under which a Block of unknown class is sized by identical
+  * copies [see UCBlock::replicate()]; protected, as the name is the way to
+  * reach it. */
+
+ void replicate( double k , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  scale( k , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// a dynamic group of rows whose number depends on the data
  /** The rows that build_rows() writes with put_dyn_row(), each with the key
   * that identifies it among the rows of the group (the indices of the loops
@@ -3727,6 +3739,16 @@ class ThermalUnitBlock : public UnitBlock
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
    "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
+
+  // replicate(), the way of sizing a Block it is [see UCBlock::replicate()]:
+  // k identical copies of this unit, the k given as the one scalar a unit
+  // has. There is no "resize": this class has no kappa
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< ThermalUnitBlock , double >(
+   "ThermalUnitBlock::replicate" , { & ThermalUnitBlock::replicate } );
  }
 
 /*--------------------------------------------------------------------------*/

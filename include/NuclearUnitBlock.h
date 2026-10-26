@@ -440,11 +440,9 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- /* extends ThermalUnitBlock::expected_dims()
-  * not necessary, no new dimensions
+ /// extends UnitBlock::expected_dims(), not overridden by ThermalUnitBlock
 
  std::vector< std::string > expected_dims( void ) const override;
- */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends ThermalUnitBlock::expected_vars()
@@ -1682,6 +1680,16 @@ private:
   register_method< NuclearUnitBlock , MF_dbl_it , Range >(
    "NuclearUnitBlock::set_deep_decrease_costs" ,
    & NuclearUnitBlock::set_deep_decrease_costs );
+
+  // k identical copies of this unit, as for ThermalUnitBlock [see
+  // ThermalUnitBlock::static_initialization()], under a name of its own,
+  // since a consumer looks the name up by the exact class of the Block
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< NuclearUnitBlock , double >(
+   "NuclearUnitBlock::replicate" , { & NuclearUnitBlock::replicate } );
  }
 
 /*--------------------------------------------------------------------------*/

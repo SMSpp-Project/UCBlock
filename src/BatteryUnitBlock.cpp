@@ -2651,6 +2651,67 @@ void BatteryUnitBlock::set_converter_kappa( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
+void BatteryUnitBlock::resize( double kappa , double conv_kappa ,
+                               c_ModParam issuePMod , c_ModParam issueAMod )
+{
+ // set_kappa() does not check the sign, and the values are checked before
+ // anything is written
+ if( ! ( ( kappa >= 0 ) && ( conv_kappa >= 0 ) ) )
+  throw( std::invalid_argument( "BatteryUnitBlock::resize: the sizes must "
+                                "be nonnegative, but they are " +
+                                std::to_string( kappa ) + " and " +
+                                std::to_string( conv_kappa ) ) );
+
+ // a converter that follows kappa keeps following it when the sizes are
+ // equal, the unit being resized as a whole by kappa alone; otherwise the
+ // converter takes its size first, so that set_kappa() rewrites the rows of
+ // the storage only. set_converter_kappa() makes all its checks before it
+ // writes anything, among them the only one of set_kappa(), the reference
+ // schedule, hence nothing is left half done
+ if( ! ( converter_follows_kappa() && ( conv_kappa == kappa ) ) )
+  set_converter_kappa( conv_kappa , issuePMod , issueAMod );
+ set_kappa( kappa , issuePMod , issueAMod );
+
+}  // end( BatteryUnitBlock::resize )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::get_resize_linearization( double & g_kappa ,
+                                                 double & g_conv_kappa ) const
+{
+ if( ! constraints_generated() )
+  throw( std::logic_error( "BatteryUnitBlock::get_resize_linearization: the "
+                           "abstract representation has not been generated, "
+                           "so there are no rows to read the duals of" ) );
+
+ g_conv_kappa = get_converter_kappa_linearization();
+ g_kappa = get_kappa_linearization();
+
+ // get_kappa_linearization() counts the converter while it follows kappa
+ if( converter_follows_kappa() )
+  g_kappa -= g_conv_kappa;
+
+}  // end( BatteryUnitBlock::get_resize_linearization( pair ) )
+
+/*--------------------------------------------------------------------------*/
+
+void BatteryUnitBlock::get_resize_linearization( double & g ) const
+{
+ if( ! constraints_generated() )
+  throw( std::logic_error( "BatteryUnitBlock::get_resize_linearization: the "
+                           "abstract representation has not been generated, "
+                           "so there are no rows to read the duals of" ) );
+
+ // get_kappa_linearization() counts the converter while it follows kappa,
+ // and otherwise the converter is added
+ g = get_kappa_linearization();
+ if( ! converter_follows_kappa() )
+  g += get_converter_kappa_linearization();
+
+}  // end( BatteryUnitBlock::get_resize_linearization( one ) )
+
+/*--------------------------------------------------------------------------*/
+
 double BatteryUnitBlock::get_kappa_linearization( void ) const {
 
  /* The kappa constant of a BatteryUnitBlock appears in the following

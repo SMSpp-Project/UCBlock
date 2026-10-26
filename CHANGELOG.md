@@ -178,6 +178,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   step at a start-up instant and the tolerance of
   `NuclearUnitBlock::is_feasible()`
 
+- `<class>::replicate` and `<class>::resize`, the names under which a Block of
+  unknown class is sized through the methods factory, each registered on the
+  protected method of the same name: `replicate()`, k identical copies, is
+  `scale()` of `ThermalUnitBlock`, `NuclearUnitBlock`, `IntermittentUnitBlock`,
+  `BatteryUnitBlock` and `ConversionUnitBlock`; `resize()`, kappa times the
+  size, is `set_kappa()` of `IntermittentUnitBlock` and `DCNetworkBlock`, and
+  sizes `BatteryUnitBlock` and the lines of `ACNetworkBlock` and
+  `OTSNetworkBlock`. A unit takes a scalar, or a pair for a battery, a network
+  a span over a range or a subset, and throws if the span is shorter than what
+  it is asked to write. The model page (`UCBlockModel.h`) lists which classes
+  register them and when they refuse
+
+- the lines of `ACNetworkBlock` and `OTSNetworkBlock` are sized by
+  `resize()`, their `set_kappa()` refusing as before: kappa scales only the
+  rows of the flow limits, as a design variable does, and limits the
+  switching of an OTS line to min(1, kappa)
+
+- `<class>::get_resize_linearization` and
+  `UCBlock::get_replicate_linearization`, the derivatives of the value with
+  respect to kappa and to the copies of a unit, in the same forms as the
+  setters. They throw if the rows are not generated, on a short span and on
+  a missing index. After an infeasible solve, a derivative with respect to
+  kappa is the coefficient of a feasibility cut; the derivative with respect
+  to the copies, and that of a `BatteryUnitBlock` with binary intake and
+  outtake, read the primal solution and give no cut
+
+- `UCBlock::resize_unit`, `UCBlock::replicate` and `UCBlock::resize_line` size
+  by name the units and the lines of a subset or a range, with the values in a
+  span, so that a caller never reaches the sub-Block; the lines are numbered
+  carrier after carrier, and the rows and the bounds of the node injections are
+  rewritten once, after the last unit. The derivative of a unit adds the duals
+  of those bounds, and `UCBlock::get_replicate_linearization` sums the duals of
+  the linking rows of the unit, each times what the number of copies multiplies
+  in that row, plus the cost of one copy; at zero copies it is the lower bound
+  that a Solver finds on a mirror of one copy, so that the cut stays valid,
+  the Solver being the one of the BlockSolverConfig in the extra
+  Configuration of the BlockConfig of the UCBlock. The unit is scaled to 1
+  and back to be mirrored, and the UCBlock drops what it says of it: the
+  query changes no row and issues no Modification
+
+- `BatteryUnitBlock::resize( kappa , conv_kappa )` and its derivative size
+  the storage and the converter apart, registered with a pair of scalars and
+  reached from `UCBlock::resize_unit` through spans; the form with one
+  scalar is `resize( k , k )`
+
+- the methods that the derivatives read:
+  `DCNetworkBlock::get_resize_linearization( line )`, protected and virtual,
+  which a derived network overrides to add the rows of its own that kappa
+  enters, as `OTSNetworkBlock` does, and
+  `NetworkBlock::get_node_injection_bounds()` and
+  `ACNetworkBlock::get_reactive_node_injection_bounds()`, the rows of the
+  bounds of the node injections
+
+- the unit test sizes the units and the lines by name, on DC, AC and OTS
+  networks and on a battery with a pair of sizes, and checks the derivatives
+  against duals set by hand and against a solve, the bounds of the node
+  injections that follow the sizes, written once per call, and the refusals
+
 - the C++20 module `smspp.ucblock` (`src/UCBlock.cppm`), which exports every
   name that the headers declare at namespace scope and re-exports `smspp`,
   so that a source file can write `import smspp.ucblock;` in place of the
@@ -254,6 +312,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `OTSNetworkBlock` in the Standard and Elastic formulations generates the
+  group `OTS_switching_bound`, the limit min( 1 , kappa ) of the switching
+  variable of each line, also when every kappa is 1: its abstract
+  representation has one more Constraint per line than in 0.10.0
+
 - the pipeline builds the module also with its makefiles, after CMake, and
   runs on a change of the makefiles too [see `ci/makefile` of the umbrella]
 
@@ -263,6 +326,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `clang-scan-deps`) or MSVC 19.34, or a module it imports that is not
   there: the option is turned off with a warning that says why, and the
   build goes on with the headers [see `cmake/CheckModule.cmake` of SMS++]
+
+- `ConversionUnitBlock::replicate` takes a scalar, like the other names that
+  size a unit, instead of a slice
+
+- the derivative with respect to the copies of a unit, and the pollutant
+  rows rewritten after a scaling, take a time linear in the units
 
 - the exception of `ThermalUnitBlock` when the cost of a Variable that is
   not in its Objective changes says so, and that the reserve variables are
@@ -394,6 +463,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- a `DesignNetworkBlock` over `ACNetworkBlock` forwards the reactive
+  injections, their bounds and the reactive demand to its sub-networks,
+  without which the `UCBlock` left out the reactive balance with no error
+
 - `expected_dims()` and `expected_vars()` of the `UnitBlock`, of the
   `NetworkBlock` and of their `NetworkData`, and of `UCBlock`, are declared
   also with `NDEBUG`, as those of `Block` in SMS++, so that the virtual
@@ -434,6 +507,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `IntermittentUnitBlock` and `SlackUnitBlock` the bounds of the reactive
   power; the unit test writes each of them to an image, reads it back and
   checks that the image of the copy is the same
+
+- `NuclearUnitBlock` expects `NumberPowerBands` and `OTSNetworkData` expects
+  `SwitchingCost`, which `serialize()` writes and a read in Debug reported
+  as unexpected. The round trip of the unit test checks that a Block expects
+  what it writes, and writes a `LinearTerm` per instant for the thermal unit
+  instead of reading past the end of a vector of one
+
 - `DCNetworkBlockSolution`, `ACNetworkBlockSolution` and
   `BatteryUnitBlockSolution` read their values indexed over the lines, the
   nodes or the instants whatever their size, and a netCDF scalar gave one

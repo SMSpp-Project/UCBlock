@@ -1890,6 +1890,90 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// k identical copies of this unit, i.e., scale( k )
+ /** Registered in the methods factory as "BatteryUnitBlock::replicate", the
+  * name under which a Block of unknown class is sized by identical copies
+  * [see UCBlock::replicate()]; protected, as the name is the way to reach
+  * it. */
+
+ void replicate( double k , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  scale( k , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the sizes of the unit, that of the storage and that of the converter
+ /** Sets \f$ \kappa \f$ to \p kappa and \f$ \kappa^{cv} \f$ to
+  * \p conv_kappa [see get_converter_kappa()]: the storage is resized with its
+  * power by the first, and the converter by the second: it is
+  * set_converter_kappa() followed by set_kappa(), the first skipped when
+  * the converter follows \f$ \kappa \f$ and the values are equal, the unit
+  * being then resized as a whole. Different values give the converter a
+  * size of its own, which lives in the rows (10): if the Constraints have
+  * been generated and the battery has none, std::logic_error is thrown,
+  * since a static Constraint cannot be added then, while before the
+  * generation the rows are made to exist. As set_kappa(), it throws
+  * std::logic_error for a unit that follows a reference schedule, and
+  * std::invalid_argument for a negative value. It is registered in the
+  * methods factory as "BatteryUnitBlock::resize" with a pair of scalars
+  * [see static_initialization()].
+  *
+  * @param kappa the size of the storage and of its power
+  *
+  * @param conv_kappa the size of the converter
+  *
+  * @param issuePMod Controls how physical Modifications are issued.
+  *
+  * @param issueAMod Controls how abstract Modifications are issued. */
+
+ void resize( double kappa , double conv_kappa ,
+              c_ModParam issuePMod = eNoBlck ,
+              c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the one size of the unit, the storage and the converter together
+ /** resize( kappa , kappa ), registered as "BatteryUnitBlock::resize" with
+  * one scalar: the converter takes the size of the storage, whatever
+  * "ConverterKappa" the data gave it. It takes no default ModParam, which
+  * would make a call such as resize( 2 , 3 ) ambiguous with the version
+  * above. */
+
+ void resize( double kappa , c_ModParam issuePMod , c_ModParam issueAMod ) {
+  resize( kappa , kappa , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the derivatives with respect to the sizes of storage and converter
+ /** Writes in \p g_kappa and \p g_conv_kappa the derivatives of the value
+  * with respect to \f$ \kappa \f$ and \f$ \kappa^{cv} \f$, as
+  * resize( kappa , conv_kappa ) sets them: \p g_conv_kappa is
+  * get_converter_kappa_linearization(), and \p g_kappa is
+  * get_kappa_linearization() without the part of the converter, which that
+  * method counts while the converter follows \f$ \kappa \f$. It is
+  * registered in the methods factory as
+  * "BatteryUnitBlock::get_resize_linearization" with a pair of scalars. It
+  * throws std::logic_error if a design variable exists, or if the
+  * constraints have not been generated. It reads the duals that the last
+  * solve left in them, and, only with the binary variables of intake and
+  * outtake, whose coefficients kappa multiplies, the values of those as
+  * well [see get_kappa_linearization()]. Without them, after a solve that
+  * ended infeasible, with an unbounded dual direction where the duals go,
+  * it gives the coefficients of the condition that feasible sizes have to
+  * satisfy; with them it gives none, there being no solution to read. */
+
+ void get_resize_linearization( double & g_kappa , double & g_conv_kappa )
+  const;
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative with respect to the one size of resize( kappa )
+ /** Writes in \p g the derivative of the value with respect to the one size
+  * of resize( kappa ): get_kappa_linearization(), which counts the
+  * converter while it follows \f$ \kappa \f$, plus the derivative of the
+  * converter when it does not. It is registered as
+  * "BatteryUnitBlock::get_resize_linearization" with one scalar, and
+  * requires and reads what the pair of sizes above does. */
+
+ void get_resize_linearization( double & g ) const;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -2311,6 +2395,35 @@ class BatteryUnitBlock : public UnitBlock
   register_method< BatteryUnitBlock , MF_dbl_it , Range >(
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
+
+  // The ways of sizing this Block, each under the name that says which one
+  // it is [see UCBlock::replicate() and UCBlock::resize_unit()], with the
+  // scalars a unit has: k identical copies of the unit, and the storage and
+  // the converter resized together with one value, apart with a pair [see
+  // resize()]; then the getters reading the derivatives back, with respect
+  // to the one size and to the pair. What the factory adds is that
+  // a consumer can reach them without holding a BatteryUnitBlock *, and that
+  // a class not answering for one simply does not register its name.
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< BatteryUnitBlock , double >(
+   "BatteryUnitBlock::replicate" , { & BatteryUnitBlock::replicate } );
+
+  register_method< BatteryUnitBlock , double >(
+   "BatteryUnitBlock::resize" , & BatteryUnitBlock::resize );
+
+  register_method< BatteryUnitBlock , double , double >(
+   "BatteryUnitBlock::resize" , & BatteryUnitBlock::resize );
+
+  register_method< BatteryUnitBlock , double & >(
+   "BatteryUnitBlock::get_resize_linearization" ,
+   & BatteryUnitBlock::get_resize_linearization );
+
+  register_method< BatteryUnitBlock , double & , double & >(
+   "BatteryUnitBlock::get_resize_linearization" ,
+   & BatteryUnitBlock::get_resize_linearization );
 
   register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
    "BatteryUnitBlock::set_converter_kappa" ,

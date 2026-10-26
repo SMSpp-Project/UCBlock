@@ -884,6 +884,17 @@ class NetworkBlock : public Block
   return( nullptr );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the bounds of the node injections, by node and interval
+ /** Returns the rows "Node_Injection_Bound_Const_Network" of
+  * generate_abstract_constraints(), empty if this NetworkBlock does not
+  * generate them. */
+
+ const boost::multi_array< BoxConstraint , 2 > &
+  get_node_injection_bounds( void ) const {
+  return( node_injection_bounds_const );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
