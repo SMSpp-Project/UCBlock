@@ -3118,11 +3118,15 @@ static double replicate_linearization( UCBlock * b )
 
 /*--------------------------------------------------------------------------*/
 /* The derivative with respect to the copies of a unit that has none is the
- * minimum over a copy of the unit [see UCBlock::get_replicate_linearization()],
- * and the cut it gives is valid only if what is read is a lower bound of
- * that minimum: the value of the solution found bounds it from above. With
- * no Solver run on the UCBlock its duals are 0, so the derivative is what
- * the Solver of the copy gives. */
+ * minimum over a copy of the unit [see
+ * UCBlock::get_replicate_linearization()], and the cut it gives is valid
+ * only if what is read is a lower bound of that minimum: the value of the
+ * solution found bounds it from above. The Solver of the copy is the one of
+ * the BlockSolverConfig in the extra Configuration of the BlockConfig of the
+ * UCBlock, here the BoundSolver of UCBCfg-copy-bound.txt; with no such
+ * BlockConfig the call throws, even with a Solver registered with the
+ * UCBlock. With no Solver run on the UCBlock its duals are 0, so the
+ * derivative is what the Solver of the copy gives. */
 
 static void test_zero_copy_lower_bound( void )
 {
@@ -3132,11 +3136,33 @@ static void test_zero_copy_lower_bound( void )
   return;
   }
  generate_all( b );
- auto bs = new BoundSolver();
- b->register_Solver( bs );
 
  std::vector< double > lin( 1 );
  const auto read = [ & ]() { lin[ 0 ] = replicate_linearization( b ); };
+
+ auto bs = new BoundSolver();
+ b->register_Solver( bs );
+ bool thrown = false;
+ try {
+  read();
+  }
+ catch( std::logic_error & ) {
+  thrown = true;
+  }
+ check( thrown , "UCBlock, no copies: with no BlockSolverConfig in the "
+	"BlockConfig the derivative is " + str( lin[ 0 ] ) + " instead of "
+	"throwing" );
+ b->unregister_Solver( bs , true );
+
+ auto bc = dynamic_cast< BlockConfig * >(
+				    read_test_cfg( "UCBCfg-copy-bound.txt" ) );
+ if( ! bc ) {
+  check( false , "UCBlock, no copies: UCBCfg-copy-bound.txt is not read" );
+  delete b;
+  return;
+  }
+ bc->apply( b );
+ delete bc;
 
  BoundSolver::f_value = 5;
  BoundSolver::f_lb = 3;
@@ -3146,7 +3172,7 @@ static void test_zero_copy_lower_bound( void )
 	", not the lower bound 3 of the copy, whose solution is worth 5" );
 
  BoundSolver::f_lb = - INF;
- bool thrown = false;
+ thrown = false;
  try {
   read();
   }
@@ -3156,7 +3182,75 @@ static void test_zero_copy_lower_bound( void )
  check( thrown , "UCBlock, no copies: a copy with no finite lower bound "
 	"gives the derivative " + str( lin[ 0 ] ) + " instead of throwing" );
 
- b->unregister_Solver( bs , true );
+ delete b;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The derivative with respect to the copies of a unit that has none scales
+ * the unit to 1 and back to 0, and leaves the UCBlock as it was found: a
+ * FakeSolver registered with the UCBlock receives no Modification, the rows
+ * of the UCBlock keep their sides and coefficients, and the unit its scale
+ * 0 and the coefficients of its Objective. */
+
+static std::vector< double > static_rows( Block * b );
+
+static void test_zero_copy_no_modification( void )
+{
+ auto b = thermal_UC( 0 );
+ auto bc = dynamic_cast< BlockConfig * >(
+				    read_test_cfg( "UCBCfg-copy-bound.txt" ) );
+ if( ! ( b && bc ) ) {
+  check( false , "UCBlock, no copies, no Modification: the UCBlock or "
+	 "UCBCfg-copy-bound.txt is not read" );
+  delete b;
+  delete bc;
+  return;
+  }
+ generate_all( b );
+ bc->apply( b );
+ delete bc;
+
+ const auto unit = b->get_unit_block( 0 );
+ const auto objective = [ & ]() {
+  std::vector< double > v;
+  const auto f = static_cast< const DQuadFunction * >(
+	  static_cast< FRealObjective * >( unit->get_objective() )->
+							    get_function() );
+  for( Index i = 0 ; i < f->get_num_active_var() ; ++i ) {
+   v.push_back( f->get_linear_coefficient( i ) );
+   v.push_back( f->get_quadratic_coefficient( i ) );
+   }
+  return( v );
+  };
+ const auto rows = static_rows( b );
+ const auto cost = objective();
+
+ auto fs = new FakeSolver();
+ b->register_Solver( fs );
+ fs->get_Modification_list().clear();
+ BoundSolver::f_value = 5;
+ BoundSolver::f_lb = 3;
+ double lin = 0;
+ try {
+  lin = replicate_linearization( b );
+  }
+ catch( std::exception & e ) {
+  check( false , std::string( "UCBlock, no copies, no Modification: "
+			      "throws " ) + e.what() );
+  }
+ const auto n = received( fs ).size();
+ b->unregister_Solver( fs , true );
+
+ check( close( lin , 3 ) , "UCBlock, no copies, no Modification: the "
+	"derivative is " + str( lin ) + " instead of 3" );
+ check( n == 0 , "UCBlock, no copies, no Modification: the Solver of the "
+	"UCBlock receives " + std::to_string( n ) + " Modification" );
+ check( static_rows( b ) == rows , "UCBlock, no copies, no Modification: "
+	"the rows of the UCBlock change" );
+ check( ( unit->get_scale() == 0 ) && ( objective() == cost ) ,
+	"UCBlock, no copies, no Modification: the unit has the scale " +
+	str( unit->get_scale() ) + " or its Objective changes" );
+
  delete b;
  }
 
@@ -3191,10 +3285,11 @@ static void test_replicate_without_objective( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/* The Solver of the copy of a unit with no copies may be named by the extra
+/* The Solver of the copy of a unit with no copies is named by the extra
  * Configuration of the BlockConfig of the UCBlock: a name that the factory
- * does not know makes the call throw, with the unit back at its scale and
- * nothing built for the copy left behind (which a leak checker sees). */
+ * does not know [see UCBCfg-copy-unknown.txt] makes the call throw, with
+ * the unit back at its scale and nothing built for the copy left behind
+ * (which a leak checker sees). */
 
 static void test_zero_copy_unknown_solver( void )
 {
@@ -3204,11 +3299,16 @@ static void test_zero_copy_unknown_solver( void )
   return;
   }
  generate_all( b );
- auto bsc = new BlockSolverConfig();
- bsc->add_ComputeConfig( "NoSuchSolver" );
- auto bc = new BlockConfig();
- bc->f_extra_Configuration = bsc;
- b->set_BlockConfig( bc );
+ auto bc = dynamic_cast< BlockConfig * >(
+				  read_test_cfg( "UCBCfg-copy-unknown.txt" ) );
+ if( ! bc ) {
+  check( false , "UCBlock, unknown Solver: UCBCfg-copy-unknown.txt is not "
+	 "read" );
+  delete b;
+  return;
+  }
+ bc->apply( b );
+ delete bc;
 
  bool thrown = false;
  try {
@@ -17500,6 +17600,7 @@ int main( int argc , char ** argv )
   test_setters_thermal( 3 );
   test_setters_UCBlock();
   test_zero_copy_lower_bound();
+  test_zero_copy_no_modification();
   test_replicate_without_objective();
   test_zero_copy_unknown_solver();
   test_design_reactive_bounds_linearization();

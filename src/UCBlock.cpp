@@ -1639,14 +1639,17 @@ void UCBlock::generate_inertia_demand_constraints( void )
 /*--------------------------------------------------------------------------*/
 
 template< class F >
-void UCBlock::for_each_pollutant_term( Index p , F && visit , Index unit )
+void UCBlock::for_each_pollutant_term( Index p , F && visit ,
+                                       Index unit ) const
 {
+ assert( ( unit == Inf< Index >() ) || ( unit < f_number_units ) );
+
  const auto number_zones = v_number_pollutant_zones[ p ];
 
  // all the units, or the given one alone
- const Index first_unit = ( unit < f_number_units ) ? unit : 0;
- const Index end_unit = ( unit < f_number_units ) ? unit + 1
-                                                  : f_number_units;
+ const bool all = ( unit == Inf< Index >() );
+ const Index first_unit = all ? 0 : unit;
+ const Index end_unit = all ? f_number_units : unit + 1;
  Index elc_generator = v_first_generator[ first_unit ];
  Index storage = v_first_storage[ first_unit ];
  for( Index unit_id = first_unit ; unit_id < end_unit ; ++unit_id ) {
@@ -2108,6 +2111,14 @@ int UCBlock::get_objective_sense( void ) const { return( Objective::eMin ); }
 
 void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 {
+ // the scale of a unit going to 1 and back in get_zero_copy_linearization()
+ // ends where it started: what the unit says of it is dropped
+ if( const auto rtu = f_round_trip_unit.load() )
+  if( const auto umod = dynamic_cast< const UnitBlockMod * >( mod.get() ) )
+   if( ( umod->type() == UnitBlockMod::eScale ) &&
+       ( umod->get_Block() == rtu ) )
+    return;
+
  std::vector< Index > modified_units;
  std::vector< Index > inertia_units;
  bool injection = false;
@@ -2673,7 +2684,7 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 
 template< class F >
 void UCBlock::replicate_linking_terms( Index unit , F && term ,
-                                       double & constant )
+                                       double & constant ) const
 {
  const auto block = get_unit_block( unit );
  const auto time_horizon = get_time_horizon();
@@ -2860,12 +2871,12 @@ double UCBlock::injection_bounds_linearization( Index unit ,
 
 /*--------------------------------------------------------------------------*/
 
-double UCBlock::get_replicate_linearization( Index unit )
+double UCBlock::get_replicate_linearization( Index unit ) const
 {
  if( ! constraints_generated() )
-  throw( std::logic_error( "UCBlock::get_replicate_linearization: the abstract "
-                           "representation has not been generated, so there "
-                           "are no rows to read the duals of" ) );
+  throw( std::logic_error( "UCBlock::get_replicate_linearization: the "
+                           "abstract representation has not been generated, "
+                           "so there are no rows to read the duals of" ) );
 
  const auto block = get_unit_block( unit );
  const auto scale = block->get_scale();
@@ -2901,59 +2912,61 @@ double UCBlock::get_replicate_linearization( Index unit )
 
 /*--------------------------------------------------------------------------*/
 
-double UCBlock::get_zero_copy_linearization( Index unit )
+double UCBlock::get_zero_copy_linearization( Index unit ) const
 {
  /* The copy is the mirror of the abstract representation of the unit [see
   * AbstractBlock::mirror()], taken while the unit is scaled to 1 so that its
   * Objective is that of one copy, f^1; it then sits in an AbstractBlock whose
   * Objective holds the terms of the rows above the unit on the Variable of
   * the copy, and the Solver of the AbstractBlock sums that Objective and
-  * the one of the copy. The scale is then put back: the unit tells this
-  * UCBlock of each change, and the rows that carry the factor are rewritten
-  * each time [see get_replicate_linearization()]. Whatever the mirror
-  * cannot reproduce is left out of the
-  * copy, which is then a relaxation of one copy of the unit: the minimum is
-  * not larger than the true one, and since the number of copies cannot
+  * the one of the copy. Whatever the mirror cannot reproduce is left out of
+  * the copy, which is then a relaxation of one copy of the unit: the minimum
+  * is not larger than the true one, and since the number of copies cannot
   * decrease below 0 the linearization stays below the value function. */
 
  const auto block = get_unit_block( unit );
 
  // the Solver of the copy: the one the extra part of the BlockConfig gives
- // (an empty one is none), or else a clone of those registered with this
- // UCBlock
  BlockSolverConfig * bsc = nullptr;
  if( f_BlockConfig )
   bsc = dynamic_cast< BlockSolverConfig * >(
                                         f_BlockConfig->f_extra_Configuration );
 
- std::unique_ptr< BlockSolverConfig > registered;
- if( ( ! bsc ) || bsc->get_SolverNames().empty() ) {
-  registered.reset( new BlockSolverConfig( this ) );
-  bsc = registered.get();
-  }
-
- if( bsc->get_SolverNames().empty() )
+ if( ( ! bsc ) || bsc->get_SolverNames().empty() )
   throw( std::logic_error( "UCBlock::get_replicate_linearization: unit " +
                            std::to_string( unit ) + " has no copies, and "
                            "the derivative is then the minimum over one "
                            "copy of the unit, for which a Solver is needed: "
-                           "none is registered with this UCBlock and the "
-                           "extra Configuration of its BlockConfig is not a "
-                           "BlockSolverConfig with a Solver" ) );
+                           "the extra Configuration of the BlockConfig of "
+                           "this UCBlock is not a BlockSolverConfig with a "
+                           "Solver" ) );
+
+ /* The unit is scaled to 1 and back to its scale, 0, which leaves it as it
+  * was found. The unit tells this UCBlock of each of the two changes, even
+  * if asked to issue no Modification [see UnitBlock::issue_unit_mod()]:
+  * add_Modification() drops them while f_round_trip_unit is the unit, so
+  * that the rows that carry the factor and the bounds of the node
+  * injections are not rewritten, and nothing is passed on to the Solver or
+  * the father of this UCBlock. The mutex makes two calls on the same
+  * UCBlock take turns. */
 
  auto copy = new AbstractBlock();
  {
+  std::lock_guard< std::mutex > guard( f_round_trip_mutex );
+  f_round_trip_unit = block;
   const auto scale = block->get_scale();
-  block->scale( 1.0 , eNoMod , eNoMod );
   try {
+   block->scale( 1.0 , eNoMod , eNoMod );
    copy->mirror( block );
    }
   catch( ... ) {
    block->scale( scale , eNoMod , eNoMod );
+   f_round_trip_unit = nullptr;
    delete copy;
    throw;
    }
   block->scale( scale , eNoMod , eNoMod );
+  f_round_trip_unit = nullptr;
   }
 
  auto wrapper = new AbstractBlock();

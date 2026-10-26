@@ -212,7 +212,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of those bounds, and `UCBlock::get_replicate_linearization` sums the duals of
   the linking rows of the unit, each times what the number of copies multiplies
   in that row, plus the cost of one copy; at zero copies it is the lower bound
-  that a Solver finds on a mirror of one copy, so that the cut stays valid
+  that a Solver finds on a mirror of one copy, so that the cut stays valid,
+  the Solver being the one of the BlockSolverConfig in the extra
+  Configuration of the BlockConfig of the UCBlock. The unit is scaled to 1
+  and back to be mirrored, and the UCBlock drops what it says of it: the
+  query changes no row and issues no Modification
 
 - `BatteryUnitBlock::resize( kappa , conv_kappa )` and its derivative size
   the storage and the converter apart, registered with a pair of scalars and

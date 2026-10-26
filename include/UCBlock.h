@@ -56,6 +56,10 @@
 
 #include "FRealObjective.h"
 
+#include <atomic>
+
+#include <mutex>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1583,11 +1587,12 @@ class UCBlock : public Block
   * divided by the scale, which is not 0 for the commitment Variable of a
   * generator with fixed consumption only. A unit whose scale is the design
   * Variable of an investment then contributes to the linearization the sum
-  * of dual( row ) * ( factor * var - constant ) over the terms (see
-  * InvestmentFunction). */
+  * of dual( row ) * ( factor * var - constant ) over the terms [see
+  * get_replicate_linearization()]. */
 
  template< class F >
- void for_each_balance_term( Index unit , bool reactive , F && visit );
+ void for_each_balance_term( Index unit , bool reactive ,
+                             F && visit ) const;
 
 /** @} ---------------------------------------------------------------------*/
 
@@ -2124,28 +2129,30 @@ class UCBlock : public Block
   * minimum is not larger than the true one, and since the number of copies
   * cannot go below 0 the linearization stays below the value function, so
   * that the cut it gives is valid. The Solver must therefore solve the
-  * relaxation: the one given by the BlockSolverConfig in the extra part of
-  * the BlockConfig of this UCBlock, if there is one, and otherwise a clone of
-  * the Solver registered with this UCBlock, with their ComputeConfig. What
+  * relaxation: it is the one that the BlockSolverConfig in the extra part of
+  * the BlockConfig of this UCBlock gives, with its ComputeConfig. What
   * is read is the lower bound of the Solver [see Solver::get_lb()], which
   * bounds the minimum also when the solve stopped before the optimum; a
   * Solver whose lower bound is not one for the relaxation, such as a
   * dynamic programming one that works on integer states, would make the cut
-  * invalid and must not be given. If no Solver can be found, or its lower
-  * bound is not finite, the method throws.
+  * invalid and must not be given. If the extra part of the BlockConfig is
+  * not a BlockSolverConfig with a Solver, or the lower bound is not finite,
+  * the method throws.
+  *
+  * To be mirrored as one copy the unit is scaled to 1, and then back to 0:
+  * the two changes are dropped by add_Modification() [see
+  * get_zero_copy_linearization()], so that the rows of this UCBlock, the
+  * bounds of the node injections and the Solver registered with this
+  * UCBlock see nothing, and the unit ends as it was found. Two calls on the
+  * same UCBlock take turns over the scaling; nothing else is to change the
+  * unit, or read it, while one of them is under way.
   *
   * @param unit the index of the UnitBlock, between 0 and
   *        get_number_units() - 1
   *
   * @return the derivative of the value of this UCBlock with respect to the
   *         scale factor of the given unit
-  *
-  * @note This method is not const because, with 0 copies, the unit is scaled
-  *       to 1 to be mirrored and scaled back. The unit tells this UCBlock
-  *       each time, even if asked to issue no Modification, and this UCBlock
-  *       rewrites the rows that carry the factor and passes the change on to
-  *       whoever listens: the rows end as they were found, but its Solvers
-  *       receive changes that cancel out. */
+ */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /* The supported way in is the name: a consumer that holds a Block it does
@@ -2153,7 +2160,7 @@ class UCBlock : public Block
   * adapter below. The method itself is therefore not public, so that reading
   * this sensitivity cannot become one more reason to recognise the class. */
 
- double get_replicate_linearization( Index unit );
+ double get_replicate_linearization( Index unit ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// the derivatives with respect to the size of the units in \p units
@@ -2469,6 +2476,16 @@ class UCBlock : public Block
  bool f_deferred_injection_bounds = false;
  ///< whether a power range changed while f_defer_scaled_rows is true
 
+ mutable std::atomic< const Block * > f_round_trip_unit = nullptr;
+ ///< the unit whose scale goes to 1 and back to 0
+ /**< While not nullptr, add_Modification() drops the UnitBlockMod of type
+  * UnitBlockMod::eScale that this unit issues: the scale ends where it
+  * started, and the rows and the bounds that carry it are left as they are
+  * [see get_zero_copy_linearization()]. */
+
+ mutable std::mutex f_round_trip_mutex;
+ ///< makes the calls of get_zero_copy_linearization() take turns
+
 /*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;  ///< registration in the factory
@@ -2719,12 +2736,13 @@ class UCBlock : public Block
   * of the unit at each time, then the level of each of its storages at each
   * time; \p factor is the one of the data, i.e., not yet multiplied by the
   * scale of the unit, and the terms with a zero factor are not visited.
-  * If \p unit is the index of a unit, only the terms of that unit are
-  * visited. */
+  * If \p unit is Inf< Index >() the terms of all the units are visited,
+  * otherwise \p unit must be the index of a unit, between 0 and
+  * get_number_units() - 1, and only the terms of that unit are visited. */
 
  template< class F >
  void for_each_pollutant_term( Index p , F && visit ,
-                               Index unit = Inf< Index >() );
+                               Index unit = Inf< Index >() ) const;
 
 /*--------------------------------------------------------------------------*/
  /// calls term on each Variable of a unit that the rows above it weigh
@@ -2744,7 +2762,8 @@ class UCBlock : public Block
   * injection_bounds_linearization()]. */
 
  template< class F >
- void replicate_linking_terms( Index unit , F && term , double & constant );
+ void replicate_linking_terms( Index unit , F && term ,
+                               double & constant ) const;
 
 /*--------------------------------------------------------------------------*/
  /// the derivative of the bounds of the node injections w.r.t. a unit
@@ -2759,11 +2778,11 @@ class UCBlock : public Block
  double injection_bounds_linearization( Index unit , bool copies ) const;
 
 /*--------------------------------------------------------------------------*/
- /// the derivative of the value of this UCBlock w.r.t. the scale of a unit at 0
+ /// the derivative of the value of this UCBlock w.r.t. a scale factor of 0
  /** The case of get_replicate_linearization() in which the scale factor of
   * the unit is 0 [see get_replicate_linearization()]. */
 
- double get_zero_copy_linearization( Index unit );
+ double get_zero_copy_linearization( Index unit ) const;
 
 /*--------------------------------------------------------------------------*/
  /// updates a node injection constraint for the given demand
@@ -2952,12 +2971,7 @@ class UCBlock : public Block
    * would have to read the rows of its parent, which is what having it here
    * avoids. The index is over the units of this UCBlock, so it is the one
    * that get_unit_block() takes.
-   *
-   * The adapter of a query receives a const Block *, while the method is not
-   * const: with a scale factor of 0 it scales the unit to 1 and back, and
-   * each time the unit has this UCBlock rewrite its rows
-   * [see get_replicate_linearization()]. The const_cast is here, in the
-   * open, and not inside the method, which stays honest about what it does. */
+ */
 
   using qry_sbst = QueryType< MF_dbl_msp , c_Subset & , bool >;
   using qry_rngd = QueryType< MF_dbl_msp , Range >;
@@ -2965,8 +2979,7 @@ class UCBlock : public Block
   register_method< qry_sbst >(
    "UCBlock::get_replicate_linearization" , new qry_sbst(
     []( const Block * blck , MF_dbl_msp msp , c_Subset & units , bool ) {
-     auto ucb = const_cast< UCBlock * >(
-                 static_cast< const UCBlock * >( blck ) );
+     const auto ucb = static_cast< const UCBlock * >( blck );
      if( units.size() > msp.size() )
       throw( std::invalid_argument(
        "UCBlock::get_replicate_linearization: the span is shorter than the "
@@ -2983,8 +2996,7 @@ class UCBlock : public Block
   register_method< qry_rngd >(
    "UCBlock::get_replicate_linearization" , new qry_rngd(
     []( const Block * blck , MF_dbl_msp msp , Range rng ) {
-     auto ucb = const_cast< UCBlock * >(
-                 static_cast< const UCBlock * >( blck ) );
+     const auto ucb = static_cast< const UCBlock * >( blck );
      rng.second = std::min( rng.second , ucb->get_number_units() );
      if( ( rng.first < rng.second ) &&
          ( msp.size() < rng.second - rng.first ) )
@@ -3060,7 +3072,8 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
 
 template< class F >
-void UCBlock::for_each_balance_term( Index unit , bool reactive , F && visit )
+void UCBlock::for_each_balance_term( Index unit , bool reactive ,
+                                     F && visit ) const
 {
  if( ! constraints_generated() )
   return;
