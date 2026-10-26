@@ -96,7 +96,7 @@ class DesignNetworkBlock : public NetworkBlock
 
  public:
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -167,7 +167,6 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends NetworkBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -176,8 +175,6 @@ class DesignNetworkBlock : public NetworkBlock
  /// extends NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// serialize a DesignNetworkBlock into a netCDF::NcGroup

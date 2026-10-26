@@ -317,6 +317,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variable of each line, also when every kappa is 1: its abstract
   representation has one more Constraint per line than in 0.10.0
 
+- the pipeline builds the module also with its makefiles, after CMake, and
+  runs on a change of the makefiles too [see `ci/makefile` of the umbrella]
+
 - `SMSpp_BUILD_MODULE` no longer stops the configuration when the C++20
   module cannot be built, i.e., with a CMake older than 3.28, a generator
   other than Ninja or Visual Studio, a compiler other than Clang 16 (with
@@ -463,6 +466,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - a `DesignNetworkBlock` over `ACNetworkBlock` forwards the reactive
   injections, their bounds and the reactive demand to its sub-networks,
   without which the `UCBlock` left out the reactive balance with no error
+
+- `expected_dims()` and `expected_vars()` of the `UnitBlock`, of the
+  `NetworkBlock` and of their `NetworkData`, and of `UCBlock`, are declared
+  also with `NDEBUG`, as those of `Block` in SMS++, so that the virtual
+  tables do not depend on it
+
+- the C++20 module `smspp.ucblock` exports `deserialize_local_dim()` of
+  `NetworkBlock.h`, which it did not since the function was added after the
+  interface was written, and its global module fragment includes only the
+  headers that no other one includes
+
+- `test/makefile` links SMS++, which `lib/makefile-c` leaves out of
+  `UCBckOBJ` for `libUCBck.a`: the test did not link
+
+- a build of the module alone, with `find_package()`, fetches FastFlow,
+  which `ThermalUnitDPSolver.cpp` includes and which an installed SMS++
+  does not carry [see `cmake/FastFlow.cmake` of SMS++]
+
+- `UnitBlock::serialize()` declares the efficiencies of the outputs with
+  one entry per instant as an array, not as a function (the most vexing
+  parse, which Clang 21 rejects)
+
+- the makefiles of the tests and of the tools build also with g++: they
+  take the option that stops at the first error and the one of the
+  debugging information, which clang++ and g++ spell differently
+  (`-ferror-limit=1` and `-glldb` against `-fmax-errors=1` and `-ggdb`),
+  from `SMSppSWERR` and `SMSppSWDBG` of `lib/makefile-OS` of SMS++
 
 - `scale()` of `IntermittentUnitBlock`, `BatteryUnitBlock` and
   `ConversionUnitBlock` refuses a scale other than 1 on a unit whose design

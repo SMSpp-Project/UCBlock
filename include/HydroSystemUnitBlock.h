@@ -286,7 +286,6 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends UnitBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -297,7 +296,6 @@ class HydroSystemUnitBlock : public UnitBlock
 
  std::vector< std::string > expected_vars( void ) const override;
  */
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the HydroSystemUnitBlock

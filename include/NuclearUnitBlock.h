@@ -440,7 +440,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends UnitBlock::expected_dims(), not overridden by ThermalUnitBlock
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -449,8 +448,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// extends ThermalUnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the NuclearUnitBlock

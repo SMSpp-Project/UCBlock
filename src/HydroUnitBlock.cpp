@@ -221,8 +221,6 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > HydroUnitBlock::expected_dims( void ) const {
  static const std::vector< std::string > ed =
  { "NumberReservoirs" , "NumberArcs" , "TotalNumberPieces" };
@@ -251,8 +249,6 @@ std::vector< std::string > HydroUnitBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

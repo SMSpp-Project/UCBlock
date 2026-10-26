@@ -183,7 +183,7 @@ class ACNetworkData : public DCNetworkData
 
  public:
 
-/** @} ---------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /** @name Constructor and Destructor
  * @{ */
 
@@ -273,7 +273,6 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends [DC]NetworkData::expected_dims()
  /* not necessary since ACNetworkData does not have any new dimensions
 
@@ -284,8 +283,6 @@ class ACNetworkData : public DCNetworkData
  /// extends [DC]NetworkData::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /** @} ------- METHODS FOR READING THE DATA OF THE ACNetworkData -----------*/
 /** @name Reading the data of the ACNetworkData
@@ -485,7 +482,7 @@ class ACNetworkData : public DCNetworkData
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/** @} ---------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
@@ -620,7 +617,6 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends [DC]NetworkBlock::expected_dims()
  /* not necessary since ACNetworkBlock does not have any new dims save those
   * of the ACNetworkData that are automatically taken into account.
@@ -632,8 +628,6 @@ class ACNetworkData : public DCNetworkData
  /// extends [DC]NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the ACNetworkBlock

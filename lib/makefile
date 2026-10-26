@@ -88,7 +88,7 @@ UCBckH = $(UCBckINCdir)/BatteryUnitBlock.h \
 # [see makefile-mod of SMS++]
 
 $(eval $(call SMSppMODrule,UCBck,$(UCBckDIR),UCBlock,smspp.ucblock,\
-	$(SMS++MOD)))
+	SMS++))
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

@@ -1341,8 +1341,6 @@ void UCBlock::fill_balance_constraints( MAFRC & rows , Index c ,
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > UCBlock::expected_dims( void ) const {
  static const std::vector< std::string > ed =
  { "TimeHorizon" , "NumberUnits" ,"NumberNetworks" , "NumberPrimaryZones" ,
@@ -1384,8 +1382,6 @@ std::vector< std::string > UCBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

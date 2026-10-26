@@ -231,8 +231,6 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > BatteryUnitBlock::expected_dims( void ) const {
  auto ret = UnitBlock::expected_dims();
  ret.push_back( "NumberIntervals" );
@@ -262,8 +260,6 @@ std::vector< std::string > BatteryUnitBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

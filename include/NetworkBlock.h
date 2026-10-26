@@ -181,7 +181,7 @@ class NetworkBlock : public Block
 
   public:
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -279,8 +279,6 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
  /// mimic Block::expected_dims()
  /** Like Block::expected_dims(), returns the names of the dimensions that
   * can be expected in the netCDF::NcGroup from where the NetworkData is
@@ -320,8 +318,6 @@ class NetworkBlock : public Block
   return( ev );
   }
 
-#endif
-
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
 /*--------------------------------------------------------------------------*/
@@ -353,7 +349,7 @@ class NetworkBlock : public Block
 
   virtual void serialize( netCDF::NcGroup& group ) const;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -410,7 +406,7 @@ class NetworkBlock : public Block
 
   static void static_initialization( void ) {}
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -489,8 +485,6 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
  /// extends Block::expected_dims()
  /** extends Block::expected_dims() by concatenating the expected dimensions
   * found there (if any) with those of the NetworkData (if any), since the
@@ -522,8 +516,6 @@ class NetworkBlock : public Block
 
   return( ret );
   }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock

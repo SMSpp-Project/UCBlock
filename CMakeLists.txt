@@ -168,6 +168,15 @@ target_include_directories(
 # on this library.
 target_link_libraries(${modName} PUBLIC ${modNamespace}::SMS++)
 
+# FastFlow, which src/ThermalUnitDPSolver.cpp includes: inside the umbrella it
+# comes with the build interface of SMS++, which an installed SMS++ does not
+# carry, so that a build of this module alone fetches it [see FastFlow.cmake of
+# SMS++]
+if (NOT hasParent)
+    smspp_fetch_fastflow()
+    target_include_directories(${modName} PRIVATE ${fastflow_SOURCE_DIR})
+endif ()
+
 # This alias is defined so that executables in this same project can use
 # the library with this notation.
 add_library(${modNamespace}::${modName} ALIAS ${modName})

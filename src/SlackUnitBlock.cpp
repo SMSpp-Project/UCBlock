@@ -120,8 +120,6 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 /*
 std::vector< std::string > SlackUnitBlock::expected_dims( void )
  const {
@@ -148,8 +146,6 @@ std::vector< std::string > SlackUnitBlock::expected_vars( void )
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

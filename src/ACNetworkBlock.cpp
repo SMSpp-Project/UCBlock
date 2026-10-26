@@ -351,7 +351,6 @@ void ACNetworkData::serialize( netCDF::NcGroup & group ) const
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
 /*
 std::vector< std::string > ACNetworkData::expected_dims( void ) const {
  return( DCNetworkData::expected_dims() );
@@ -377,8 +376,6 @@ std::vector< std::string > ACNetworkData::expected_vars( void ) const
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ACNetworkBlock ------------------------*/
@@ -438,16 +435,12 @@ void ACNetworkBlock::serialize( netCDF::NcGroup & group ) const
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ACNetworkBlock::expected_vars( void ) const {
  auto ret = DCNetworkBlock::expected_vars();
  ret.push_back( "ReactiveDemand" );
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 

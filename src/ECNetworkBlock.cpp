@@ -132,8 +132,6 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ECNetworkData::expected_dims( void ) const {
  auto ret = NetworkData::expected_dims();
  ret.push_back( "NumberIntervals" );
@@ -152,8 +150,6 @@ std::vector< std::string > ECNetworkData::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -195,16 +191,12 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ECNetworkBlock::expected_vars( void ) const {
  auto ret = NetworkBlock::expected_vars();
  ret.push_back( "ActiveDemand" );
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
