@@ -312,6 +312,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `OTSNetworkBlock` in the Standard and Elastic formulations generates the
+  group `OTS_switching_bound`, the limit min( 1 , kappa ) of the switching
+  variable of each line, also when every kappa is 1: its abstract
+  representation has one more Constraint per line than in 0.10.0
+
 - `SMSpp_BUILD_MODULE` no longer stops the configuration when the C++20
   module cannot be built, i.e., with a CMake older than 3.28, a generator
   other than Ninja or Visual Studio, a compiler other than Clang 16 (with
