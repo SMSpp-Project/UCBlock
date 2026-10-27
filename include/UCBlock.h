@@ -3159,14 +3159,10 @@ void UCBlock::for_each_balance_term( Index unit , bool reactive ,
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the UCBlock and the type
  UCBlockMod( UCBlock * const fblock , const int type )
-  : f_Block( fblock ) , f_type( type ) {}
+  : Modification( changes_of( type ) ) ,
+    f_Block( fblock ) , f_type( type ) {}
 
  /// destructor, does nothing
  virtual ~UCBlockMod() override = default;

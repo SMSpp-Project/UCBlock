@@ -1759,14 +1759,11 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// Constructor, takes the NuclearUnitBlock and the type
  NuclearUnitBlockMod( NuclearUnitBlock * fblock , int type )
-  : ThermalUnitBlockMod( fblock , type ) {}
+  : ThermalUnitBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  ///< Destructor, does nothing
  virtual ~NuclearUnitBlockMod() override = default;

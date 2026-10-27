@@ -1142,14 +1142,10 @@ class NetworkBlockMod : public Modification
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the NetworkBlock and the type
  NetworkBlockMod( NetworkBlock * const fblock , const int type )
-  : f_Block( fblock ) , f_type( type ) {}
+  : Modification( changes_of( type ) ) ,
+    f_Block( fblock ) , f_type( type ) {}
 
  /// destructor, does nothing
  virtual ~NetworkBlockMod( void ) override = default;

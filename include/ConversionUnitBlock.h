@@ -2086,11 +2086,6 @@ class ConversionUnitBlockMod : public UnitBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// whether the Modification changes the power range of the unit
  /** Of the types of this class, those of the MaxPower and MinPower [see
   * UnitBlockMod::changes_power_range()]. */
@@ -2104,7 +2099,9 @@ class ConversionUnitBlockMod : public UnitBlockMod
  ConversionUnitBlockMod( ConversionUnitBlock * const fblock , const int type ,
                          Block::Index index , Block::Subset && nms )
   : UnitBlockMod( fblock , type ) , f_index( index ) ,
-    f_nms( std::move( nms ) ) {}
+    f_nms( std::move( nms ) ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~ConversionUnitBlockMod() override = default;

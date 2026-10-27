@@ -1300,11 +1300,6 @@ class IntermittentUnitBlockMod : public UnitBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// whether the Modification changes the power range of the unit
  /** Of the types of this class, those of the MaxPower and kappa [see
   * UnitBlockMod::changes_power_range()]. */
@@ -1317,7 +1312,9 @@ class IntermittentUnitBlockMod : public UnitBlockMod
  /// constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
                            const int type )
-  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~IntermittentUnitBlockMod() override = default;

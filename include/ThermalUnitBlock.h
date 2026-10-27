@@ -3818,11 +3818,6 @@ class ThermalUnitBlockMod : public UnitBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// whether the Modification changes the power range of the unit
  /** Of the types of this class, those of the MaxPower [see
   * UnitBlockMod::changes_power_range()]. */
@@ -3834,7 +3829,9 @@ class ThermalUnitBlockMod : public UnitBlockMod
 
  /// constructor, takes the ThermalUnitBlock and the type
  ThermalUnitBlockMod( ThermalUnitBlock * const fblock , const int type )
-  : UnitBlockMod( fblock , type ) {}
+  : UnitBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~ThermalUnitBlockMod() override = default;

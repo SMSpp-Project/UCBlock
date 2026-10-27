@@ -2176,14 +2176,11 @@ class HydroUnitBlockMod : public UnitBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the HydroUnitBlock and the type
  HydroUnitBlockMod( HydroUnitBlock * fblock , int type )
-  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~HydroUnitBlockMod( void ) override = default;

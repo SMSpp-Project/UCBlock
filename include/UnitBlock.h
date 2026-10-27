@@ -1287,11 +1287,6 @@ public:
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// whether the Modification changes the power range of the unit
  /** Whether the Modification changes a datum of the range of the active
   * power that the unit injects at its nodes, i.e., the minimum and maximum
@@ -1308,7 +1303,8 @@ public:
 
  /// constructor, takes the UnitBlock and the type
  UnitBlockMod( UnitBlock * const fblock, const int type )
-  : f_Block( fblock ), f_type( type ) {}
+  : Modification( changes_of( type ) ) ,
+    f_Block( fblock ), f_type( type ) {}
 
  /// destructor, default version
  virtual ~UnitBlockMod() override = default;

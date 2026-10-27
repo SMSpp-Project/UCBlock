@@ -317,6 +317,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variable of each line, also when every kappa is 1: its abstract
   representation has one more Constraint per line than in 0.10.0
 
+- the Modification of the module say what they change to the constructor
+  of `Modification`, since `changes()` is no longer virtual and returns
+  that value, which whoever forwards them can refine with `set_changes()`
+
 - the pipeline builds the module also with its makefiles, after CMake, and
   runs on a change of the makefiles too [see `ci/makefile` of the umbrella]
 

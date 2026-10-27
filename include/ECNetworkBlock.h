@@ -1321,14 +1321,11 @@ class ECNetworkBlockMod : public NetworkBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the ECNetworkBlock and the type
  ECNetworkBlockMod( ECNetworkBlock * const fblock , const int type )
-  : NetworkBlockMod( fblock , type ) {}
+  : NetworkBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~ECNetworkBlockMod() override = default;

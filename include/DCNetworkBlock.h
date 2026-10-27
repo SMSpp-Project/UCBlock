@@ -2914,14 +2914,11 @@ class DCNetworkBlockMod : public NetworkBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the DCNetworkBlock and the type
  DCNetworkBlockMod( DCNetworkBlock * const fblock , int type )
-  : NetworkBlockMod( fblock , type ) {}
+  : NetworkBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~DCNetworkBlockMod() override = default;
