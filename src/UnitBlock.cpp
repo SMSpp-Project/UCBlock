@@ -76,6 +76,22 @@ static void copy_multi_array( boost::multi_array< T , K > & to ,
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void UnitBlock::issue_unit_mod( sp_Mod mod , ModParam issuePMod )
+{
+ if( issue_pmod( issuePMod , mod->changes() ) )
+  Block::add_Modification( std::move( mod ) ,
+                           Observer::par2chnl( issuePMod ) );
+ else
+  if( auto fb = get_f_Block() ) {
+   const auto umod = dynamic_cast< const UnitBlockMod * >( mod.get() );
+   if( umod && umod->changes_power_range() )
+    fb->add_Modification( std::move( mod ) ,
+                          Observer::par2chnl( issuePMod ) );
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void UnitBlock::deserialize_time_horizon( const netCDF::NcGroup & group )
 {
  netCDF::NcDim TimeHorizon = group.getDim( "TimeHorizon" );
@@ -145,22 +161,98 @@ void UnitBlock::deserialize_change_intervals( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
+void UnitBlock::deserialize_outputs( const netCDF::NcGroup & group )
+{
+ static const std::string who = "::deserialize: ";
+
+ f_number_outputs = 0;
+ f_output_generators = 0;
+ v_output_carrier.clear();
+ v_output_efficiency.resize( boost::extents[ 0 ][ 0 ][ 0 ] );
+
+ // without "NumberOutputs", the only output kElectricity, with efficiency 1;
+ // the dimension is that of the group, not of the UCBlock above it
+ Index K = 0;
+ if( ! deserialize_local_dim( group , "NumberOutputs" , K ) )
+  return;
+ if( ! K )
+  throw( std::invalid_argument( classname() + who + "NumberOutputs is 0" ) );
+
+ // OutputCarrier, [ outputs ] or [ generators ][ outputs ]
+ auto oc = group.getVar( "OutputCarrier" );
+ if( oc.isNull() )
+  throw( std::invalid_argument( classname() + who + "OutputCarrier "
+				"mandatory with NumberOutputs" ) );
+ const auto ocd = oc.getDimCount();
+ if( ( ocd < 1 ) || ( ocd > 2 ) || ( oc.getDim( ocd - 1 ).getSize() != K ) )
+  throw( std::invalid_argument( classname() + who + "OutputCarrier must "
+				"be indexed over [ generators , ] "
+				"NumberOutputs" ) );
+ const Index G = ( ocd == 2 ) ? oc.getDim( 0 ).getSize() : 1;
+ if( ! G )
+  throw( std::invalid_argument( classname() + who + "OutputCarrier over 0 "
+				"generators" ) );
+ std::vector< char * > names( G * K );
+ oc.getVar( names.data() );
+ v_output_carrier.assign( names.begin() , names.end() );
+ for( auto n : names )
+  free( n );
+ f_number_outputs = K;
+ f_output_generators = G;
+
+ // OutputEfficiency, [ 1 or time ][ outputs ] or [ 1 or time ][ 1 or
+ // generators ][ outputs ]
+ auto oe = group.getVar( "OutputEfficiency" );
+ if( oe.isNull() )
+  throw( std::invalid_argument( classname() + who + "OutputEfficiency "
+				"mandatory with NumberOutputs" ) );
+ const auto oed = oe.getDimCount();
+ if( ( oed < 2 ) || ( oed > 3 ) || ( oe.getDim( oed - 1 ).getSize() != K ) )
+  throw( std::invalid_argument( classname() + who + "OutputEfficiency must "
+				"be indexed over TimeHorizon , [ generators , ] "
+				"NumberOutputs" ) );
+ const Index Tn = oe.getDim( 0 ).getSize();
+ const Index Gn = ( oed == 3 ) ? oe.getDim( 1 ).getSize() : 1;
+ if( ( ( Tn != 1 ) && ( Tn != f_time_horizon ) ) || ( ! Gn ) )
+  throw( std::invalid_argument( classname() + who + "OutputEfficiency must "
+				"have size [ 1 or TimeHorizon , [ 1 or "
+				"generators , ] NumberOutputs ]" ) );
+ v_output_efficiency.resize( boost::extents[ Tn ][ Gn ][ K ] );
+ oe.getVar( v_output_efficiency.data() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::check_outputs( void ) const
+{
+ const auto G = get_number_generators();
+ if( ( ( f_output_generators > 1 ) && ( f_output_generators != G ) ) ||
+     ( ( ! v_output_efficiency.empty() ) &&
+       ( v_output_efficiency.shape()[ 1 ] > 1 ) &&
+       ( v_output_efficiency.shape()[ 1 ] != G ) ) )
+  throw( std::invalid_argument( classname() + "::deserialize: the outputs "
+				"are given over a number of generators other "
+				"than " + std::to_string( G ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void UnitBlock::deserialize( const netCDF::NcGroup & group )
 {
  Block::deserialize( group );
 
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
+ deserialize_outputs( group );
  }
 
 /*--------------------------------------------------------------------------*/
-
-#ifndef NDEBUG
 
 std::vector< std::string > UnitBlock::expected_dims( void ) const {
  auto ret = Block::expected_dims();
  ret.push_back( "TimeHorizon" );
  ret.push_back( "NumberIntervals" );
+ ret.push_back( "NumberOutputs" );
 
  return( ret );
  }
@@ -170,11 +262,11 @@ std::vector< std::string > UnitBlock::expected_dims( void ) const {
 std::vector< std::string > UnitBlock::expected_vars( void ) const {
  auto ret = Block::expected_vars();
  ret.push_back( "ChangeIntervals" );
+ ret.push_back( "OutputCarrier" );
+ ret.push_back( "OutputEfficiency" );
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
@@ -291,8 +383,53 @@ void UnitBlock::serialize( netCDF::NcGroup & group ) const
      ( f_number_intervals < f_time_horizon ) ) {
   auto NI = group.addDim( "NumberIntervals" , f_number_intervals );
 
-  ::serialize( group , "ChangeInterval" , netCDF::NcUint64() , NI ,
+  ::serialize( group , "ChangeIntervals" , netCDF::NcUint64() , NI ,
                v_change_intervals );
+  }
+
+ serialize_outputs( group );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UnitBlock::serialize_outputs( netCDF::NcGroup & group ) const
+{
+ if( v_output_carrier.empty() )
+  return;  // the only output kElectricity, with efficiency 1
+
+ auto NO = group.addDim( "NumberOutputs" , f_number_outputs );
+ const auto shp = v_output_efficiency.shape();
+
+ // the dimension of the generators, if anything is given per generator
+ netCDF::NcDim NG;
+ if( ( f_output_generators > 1 ) || ( shp[ 1 ] > 1 ) )
+  NG = group.addDim( "NumberOutputGenerators" ,
+		     std::max< Index >( f_output_generators , shp[ 1 ] ) );
+
+ if( f_output_generators > 1 ) {
+  std::vector< const char * > names( v_output_carrier.size() );
+  std::transform( v_output_carrier.begin() , v_output_carrier.end() ,
+		  names.begin() ,
+		  []( const std::string & n ) { return( n.c_str() ); } );
+  group.addVar( "OutputCarrier" , netCDF::NcString() , { NG , NO } ).putVar(
+							       names.data() );
+  }
+ else
+  ::serialize( group , "OutputCarrier" , NO , v_output_carrier );
+
+ // the first dimension is a singleton if the efficiencies do not depend on
+ // time
+ auto TH = group.getDim( "TimeHorizon" );
+ if( shp[ 1 ] > 1 )
+  ::serialize( group , "OutputEfficiency" , netCDF::NcDouble() ,
+	       { TH , NG , NO } , v_output_efficiency , false , true );
+ else {
+  MAdouble eff( ( MAdouble_ext()[ shp[ 0 ] ][ f_number_outputs ] ) );
+  std::copy( v_output_efficiency.data() ,
+	     v_output_efficiency.data() + v_output_efficiency.num_elements() ,
+	     eff.data() );
+  ::serialize( group , "OutputEfficiency" , netCDF::NcDouble() ,
+	       { TH , NO } , eff , false , true );
   }
  }
 
@@ -305,79 +442,36 @@ void UnitBlockSolution::deserialize( const netCDF::NcGroup & group )
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
  deserialize_dim( group , "TimeHorizon" , f_time_horizon , false );
 
+ // with no "NumberGenerators" there is one generator, and the variables
+ // are indexed over the instants only; a scalar gives the same value to
+ // every generator and instant
  if( ! deserialize_dim( group , "NumberGenerators" , f_number_generators ,
-			true ) ) {
+			true ) )
   f_number_generators = 1;
 
-  using index = boost::multi_array< double , 2 >::index;
-  const std::vector< index > empty = { 0 , 0 };
-  const std::vector< index > full = { 1 , f_time_horizon };
+ // deserialize the Active Power - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "ActivePower" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_active_power , true , true );
 
-  auto ncVar = group.getVar( "ActivePower" );
-  if( ncVar.isNull() )
-   v_active_power.resize( empty );
-  else {
-   v_active_power.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_active_power.data() );
-   }
+ ::deserialize< double , 2 >( group , "ReactivePower" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_reactive_power , true , true );
 
-  ncVar = group.getVar( "ReactivePower" );
-  if( ncVar.isNull() )
-   v_reactive_power.resize( empty );
-  else {
-   v_reactive_power.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_reactive_power.data() );
-   }
+ // deserialize the Commitment - - - - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "Commitment" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_commitment , true , true );
 
-  ncVar = group.getVar( "Commitment" );
-  if( ncVar.isNull() )
-   v_commitment.resize( empty );
-  else {
-   v_commitment.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_commitment.data() );
-   }
+ // deserialize the Primary Reserve- - - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "PrimaryReserve" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_primary_reserve , true , true );
 
-  ncVar = group.getVar( "PrimaryReserve" );
-  if( ncVar.isNull() )
-   v_primary_reserve.resize( empty );
-  else {
-   v_primary_reserve.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_primary_reserve.data() );
-   }
-
-  ncVar = group.getVar( "SecondaryReserve" );
-  if( ncVar.isNull() )
-   v_secondary_reserve.resize( empty );
-  else {
-   v_secondary_reserve.resize( full );
-   ncVar.getVar( { 0 } , { f_time_horizon } , v_secondary_reserve.data() );
-   }
-  }
- else {
-  // deserialize the Active Power - - - - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "ActivePower" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_active_power , true , true );
-
-  ::deserialize< double , 2 >( group , "ReactivePower" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_reactive_power , true , true );
-
-  // deserialize the Commitment - - - - - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "Commitment" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_commitment , true , true );
-
-  // deserialize the Primary Reserve- - - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "PrimaryReserve" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_primary_reserve , true , true );
-
-  // deserialize the Secondary Reserve - - - - - - - - - - - - - - - - - - -
-  ::deserialize< double , 2 >( group , "SecondaryReserve" ,
-                               { f_number_generators , f_time_horizon } ,
-                               v_secondary_reserve , true , true );
-  }
+ // deserialize the Secondary Reserve - - - - - - - - - - - - - - - - - - -
+ ::deserialize< double , 2 >( group , "SecondaryReserve" ,
+                              { f_number_generators , f_time_horizon } ,
+                              v_secondary_reserve , true , true );
  }  // end( UnitBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/

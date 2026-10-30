@@ -286,7 +286,6 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /* extends UnitBlock::expected_dims()
   * not necessary, no new dimensions
 
@@ -297,8 +296,6 @@ class IntermittentUnitBlock : public UnitBlock
  /// extends UnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the IntermittentUnitBlock
@@ -961,6 +958,30 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// k identical copies of this unit, i.e., scale( k )
+ /** Registered in the methods factory as "IntermittentUnitBlock::replicate",
+  * the name under which a Block of unknown class is sized by identical
+  * copies [see UCBlock::replicate()]; protected, as the name is the way to
+  * reach it. */
+
+ void replicate( double k , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  scale( k , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// kappa times the size of this unit, i.e., set_kappa( kappa )
+ /** Registered in the methods factory as "IntermittentUnitBlock::resize",
+  * the name under which a Block of unknown class is sized by a kappa [see
+  * UCBlock::resize_unit()]; protected, as the name is the way to reach
+  * it. */
+
+ void resize( double kappa , c_ModParam issuePMod = eNoBlck ,
+              c_ModParam issueAMod = eNoBlck ) {
+  set_kappa( kappa , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  /// refresh the f_scale-aware coefficients in the Objective
  /** Re-applies \f$ \sigma c \f$ to every coefficient in the Objective that
@@ -1189,6 +1210,52 @@ class IntermittentUnitBlock : public UnitBlock
   register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
    "IntermittentUnitBlock::set_kappa" ,
    & IntermittentUnitBlock::set_kappa );
+
+  // replicate() and resize() are registered under the names of the ways of
+  // sizing a Block they implement [see UCBlock::replicate() and
+  // UCBlock::resize_unit()], with the one scalar a unit has, so that a
+  // consumer can pick the operation without knowing the class:
+  //
+  // - replicate: this UnitBlock stands for k identical copies of itself. Its
+  //   Constraint and Variable keep describing one copy and whoever holds a
+  //   coupling multiplies by get_scale(); only its Objective is rewritten;
+  //
+  // - resize: this UnitBlock stands for one unit of k times the size it was
+  //   given. Its own rows are rewritten, and the UCBlock multiplies its
+  //   kappa in the bounds of the node injections only [see
+  //   UCBlock::set_node_injection_bounds()].
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< IntermittentUnitBlock , double >(
+   "IntermittentUnitBlock::replicate" ,
+   { & IntermittentUnitBlock::replicate } );
+
+  register_method< IntermittentUnitBlock , double >(
+   "IntermittentUnitBlock::resize" , { & IntermittentUnitBlock::resize } );
+
+  // ... and the getter reading the sensitivity back, registered under a name
+  // that says which way of sizing it answers for. It is the same virtual that
+  // UnitBlock declares; what the factory adds is that a consumer can reach it
+  // without holding a UnitBlock *, and that a class not answering for it
+  // simply does not register the name. It requires the constraints, and
+  // throws std::logic_error if they have not been generated; it reads the
+  // duals that the last solve left in them, and no value of a Variable, so
+  // that after a solve that ended infeasible, with an unbounded dual
+  // direction where the duals go, it gives the coefficient of the condition
+  // that a feasible kappa has to satisfy.
+
+  register_method< QueryType< double & > >(
+   "IntermittentUnitBlock::get_resize_linearization" ,
+   new QueryType< double & >( []( const Block * blck , double & g ) {
+    const auto unit = static_cast< const IntermittentUnitBlock * >( blck );
+    if( ! unit->constraints_generated() )
+     throw( std::logic_error( "IntermittentUnitBlock::get_resize_"
+                              "linearization: the abstract representation "
+                              "has not been generated, so there are no rows "
+                              "to read the duals of" ) );
+    g = unit->get_kappa_linearization(); } ) );
  }
 
 };  // end( class( IntermittentUnitBlock ) )
@@ -1233,15 +1300,21 @@ class IntermittentUnitBlockMod : public UnitBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
+ /// whether the Modification changes the power range of the unit
+ /** Of the types of this class, those of the MaxPower and kappa [see
+  * UnitBlockMod::changes_power_range()]. */
+
+ [[nodiscard]] bool changes_power_range( void ) const override {
+  return( ( f_type == eSetMaxP ) || ( f_type == eSetKappa ) ||
+          UnitBlockMod::changes_power_range() );
   }
 
  /// constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
                            const int type )
-  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~IntermittentUnitBlockMod() override = default;
@@ -1384,7 +1457,7 @@ class IntermittentUnitBlockSolution : public UnitBlockSolution
  ~IntermittentUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*--- METHODS DESCRIBING THE BEHAVIOR OF A IntermittentUnitBlockSolution --*/
+/*--- METHODS DESCRIBING THE BEHAVIOR OF A IntermittentUnitBlockSolution ---*/
 
  void read( const Block * block ) override final;
 

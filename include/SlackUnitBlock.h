@@ -209,7 +209,6 @@ class SlackUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /* extends UnitBlock::expected_dims()
   * not necessary, no new dimensions
 
@@ -220,8 +219,6 @@ class SlackUnitBlock : public UnitBlock
  /// extends UnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the SlackUnitBlock
@@ -762,14 +759,11 @@ class SlackUnitBlockMod : public UnitBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the SlackUnitBlock and the type
  SlackUnitBlockMod( SlackUnitBlock * const fblock , const int type )
-  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~SlackUnitBlockMod() override = default;

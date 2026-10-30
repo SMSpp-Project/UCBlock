@@ -398,7 +398,8 @@ void NuclearUnitExtDPSolver::prepare_completion_bound(
   const double wu = std::min( ru , f_rules.mod_ramp_up[ s ] );
   const double wd = std::min( rd , f_rules.mod_ramp_down[ s ] );
   // the counter of the labels entering s + 1 is reset if a day begins there
-  const bool newday = ( s + 1 < n ) && ( f_rules.day( s + 1 ) != f_rules.day( s ) );
+  const bool newday = ( s + 1 < n ) &&
+                      ( f_rules.day( s + 1 ) != f_rules.day( s ) );
   auto cnt = [ & ]( Index m ) { return( newday ? Index( 0 ) : m ); };
   auto at = [ & ]( Index k , Index m , Index c ) {
    return( cst[ c ] + H( s , k , cnt( m ) )[ c ] );
@@ -460,7 +461,8 @@ bool NuclearUnitExtDPSolver::completion_bound( Index t , Index lab ,
  const NuclearRules::Label l = f_rules.on_label( lab );
  const Index k = ( l.mode == 0 ) ? l.lk : f_rules.lockout_max() + 1;
  const double * Ht = f_cb_H.data() +
-                     ( std::size_t( t ) * f_cb_nc + k * f_rules.nc + l.c ) * f_cb_g;
+                     ( std::size_t( t ) * f_cb_nc + k * f_rules.nc + l.c ) *
+                     f_cb_g;
  auto cell = [ & ]( double p ) {
   const double f = std::floor( ( p - f_cb_p0 ) / f_cb_h );
   return( f < 0 ? Index( 0 ) : ( f >= f_cb_g ? f_cb_g - 1 : Index( f ) ) );

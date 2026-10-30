@@ -17,12 +17,14 @@ NAME = UCBlock_unit_test
 DIR = .
 
 # common flags
-COMMON_SW = -std=c++20 -ferror-limit=1
+COMMON_SW = -std=c++20 $(SMSppSWERR)
 
 # debug switches
-SW_DEBUG = -g -glldb -fno-inline $(COMMON_SW)
+SW_DEBUG = -g $(SMSppSWDBG) -fno-inline $(COMMON_SW)
 # debug switches with address sanitizer and extra pedantic warning
-SW_DEBUG_ASAN = -g3 -glldb -fno-inline $(COMMON_SW) -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -Wpedantic -Wextra -Wno-unused-parameter
+SW_DEBUG_ASAN = -g3 $(SMSppSWDBG) -fno-inline $(COMMON_SW) \
+	-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer \
+	-Wpedantic -Wextra -Wno-unused-parameter
 # production switches
 SW_RELEASE = -O3 $(COMMON_SW) -DNDEBUG
 
@@ -68,8 +70,9 @@ include $(UCBckDIR)/lib/makefile-c
 
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
 
-# object files
-MOBJ =  $(UCBckOBJ)
+# object files: SMS++ apart, since lib/makefile-c leaves it out of UCBckOBJ
+# [see lib/makefile-lib]
+MOBJ =  $(UCBckOBJ) $(SMS++OBJ)
 
 # libraries
 MLIB =  $(UCBckLIB)

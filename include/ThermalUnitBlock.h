@@ -516,7 +516,6 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /* extends UnitBlock::expected_dims()
   * not necessary, no new dimensions
 
@@ -527,8 +526,6 @@ class ThermalUnitBlock : public UnitBlock
  /// extends UnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the ThermalUnitBlock
@@ -2712,6 +2709,18 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// k identical copies of this unit, i.e., scale( k )
+ /** Registered in the methods factory as "ThermalUnitBlock::replicate",
+  * the name under which a Block of unknown class is sized by identical
+  * copies [see UCBlock::replicate()]; protected, as the name is the way to
+  * reach it. */
+
+ void replicate( double k , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  scale( k , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// a dynamic group of rows whose number depends on the data
  /** The rows that build_rows() writes with put_dyn_row(), each with the key
   * that identifies it among the rows of the group (the indices of the loops
@@ -3730,6 +3739,16 @@ class ThermalUnitBlock : public UnitBlock
 
   register_method< ThermalUnitBlock , MF_dbl_it , Range >(
    "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
+
+  // replicate(), the way of sizing a Block it is [see UCBlock::replicate()]:
+  // k identical copies of this unit, the k given as the one scalar a unit
+  // has. There is no "resize": this class has no kappa
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< ThermalUnitBlock , double >(
+   "ThermalUnitBlock::replicate" , { & ThermalUnitBlock::replicate } );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -3799,14 +3818,20 @@ class ThermalUnitBlockMod : public UnitBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
+ /// whether the Modification changes the power range of the unit
+ /** Of the types of this class, those of the MaxPower [see
+  * UnitBlockMod::changes_power_range()]. */
+
+ [[nodiscard]] bool changes_power_range( void ) const override {
+  return( ( f_type == eSetMaxP ) ||
+          UnitBlockMod::changes_power_range() );
   }
 
  /// constructor, takes the ThermalUnitBlock and the type
  ThermalUnitBlockMod( ThermalUnitBlock * const fblock , const int type )
-  : UnitBlockMod( fblock , type ) {}
+  : UnitBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~ThermalUnitBlockMod() override = default;
@@ -3978,7 +4003,7 @@ class ThermalUnitBlockSolution : public UnitBlockSolution
  ~ThermalUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*----- METHODS DESCRIBING THE BEHAVIOR OF A ThermalUnitBlockSolution -----*/
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A ThermalUnitBlockSolution ------*/
 
  void read( const Block * block ) override;
 

@@ -170,6 +170,9 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
  ::deserialize( group , "ConstantTerm" , f_TotalNumberPieces ,
                 v_ConstTerm , true , true );
 
+ ::deserialize( group , "ExactFlowToPower" , f_NumberArcs ,
+                v_ExactFlowToPower , true , true );
+
  ::deserialize( group , "ActivePowerCost" , f_NumberArcs ,
                 v_ActivePowerCost , true , true );
 
@@ -218,8 +221,6 @@ void HydroUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > HydroUnitBlock::expected_dims( void ) const {
  static const std::vector< std::string > ed =
  { "NumberReservoirs" , "NumberArcs" , "TotalNumberPieces" };
@@ -237,7 +238,8 @@ std::vector< std::string > HydroUnitBlock::expected_vars( void ) const {
  { "StartArc" , "EndArc" , "MinFlow" , "MaxFlow" , "MinVolumetric" ,
    "MaxVolumetric" , "Inflows" , "MinPower" , "MaxPower" , "DeltaRampUp" ,
    "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" , "NumberPieces" ,
-   "LinearTerm" , "ConstantTerm" , "ActivePowerCost" , "InertiaPower" ,
+   "LinearTerm" , "ConstantTerm" , "ExactFlowToPower" , "ActivePowerCost" ,
+   "InertiaPower" ,
    "InitialFlowRate" , "InitialVolumetric" , "UphillFlow" , "DownhillFlow" ,
    "MinReactivePower", "MaxReactivePower", "ReferenceSchedule"
    };
@@ -247,8 +249,6 @@ std::vector< std::string > HydroUnitBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -477,6 +477,19 @@ void HydroUnitBlock::check_data_consistency( void ) const
     "closure by setting InitialVolumetric[" + std::to_string( n ) +
     "] >= 0" ) );
   }
+
+ // ExactFlowToPower - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // the equality is that of the only piece of the arc
+ if( ! v_ExactFlowToPower.empty() )
+  for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
+   if( v_ExactFlowToPower[ arc ] && ( ! v_NumberPieces.empty() ) &&
+       ( v_NumberPieces[ arc ] != 1 ) )
+    throw( std::logic_error( "HydroUnitBlock::check_data_consistency: "
+                             "arc " + std::to_string( arc ) + " has "
+                             "ExactFlowToPower but " +
+                             std::to_string( v_NumberPieces[ arc ] ) +
+                             " pieces, while the equality is that of a "
+                             "single piece" ) );
 
  }  // end( HydroUnitBlock::check_data_consistency )
 
@@ -899,6 +912,12 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
   for( Index arc = 0 ; arc < f_NumberArcs ; ++arc )
    single_piece[ arc ] = ( v_NumberPieces[ arc ] == 1 );
 
+ // the turbines that the data say produce exactly the power of their only
+ // piece [see deserialize()] have the equality whatever the spillways
+ auto exact = [ & ]( Index arc ) {
+  return( ( ! v_ExactFlowToPower.empty() ) && v_ExactFlowToPower[ arc ] );
+  };
+
  // spill_of[ arc ] is the spillage arc of arc, or Inf< Index >() if the row
  // of arc is not an equality
  std::vector< Index > spill_of( f_NumberArcs , Inf< Index >() );
@@ -981,8 +1000,8 @@ void HydroUnitBlock::generate_abstract_constraints( Configuration * stcc )
       const double const_term = v_ConstTerm.empty() ? 0.0
                                                     : v_ConstTerm[ piece ];
 
-      if( spill_of[ arc ] < f_NumberArcs )
-       rows[ j ].set_both( 0.0 );
+      if( ( spill_of[ arc ] < f_NumberArcs ) || exact( arc ) )
+       rows[ j ].set_both( const_term );
       else {
        rows[ j ].set_rhs( const_term );
        rows[ j ].set_lhs( -Inf< double >() );
@@ -1363,6 +1382,9 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
  ::serialize( group , "ConstantTerm" , netCDF::NcDouble() ,
               TotalNumberPieces , v_ConstTerm , false );
 
+ ::serialize( group , "ExactFlowToPower" , netCDF::NcUint() ,
+              NumberArcs , v_ExactFlowToPower , false );
+
  ::serialize( group , "ActivePowerCost" , netCDF::NcDouble() ,
               NumberArcs , v_ActivePowerCost , false );
 
@@ -1415,6 +1437,19 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
 
  ::serialize( group , "InertiaPower" , netCDF::NcDouble() ,
               { NumberArcs , TimeHorizon } , v_InertiaPower );
+
+ // the optional AC data and the reference schedule, when given
+ if( v_MinReactivePower.num_elements() )
+  ::serialize( group , "MinReactivePower" , netCDF::NcDouble() ,
+               { TimeHorizon , NumberArcs } , v_MinReactivePower );
+
+ if( v_MaxReactivePower.num_elements() )
+  ::serialize( group , "MaxReactivePower" , netCDF::NcDouble() ,
+               { TimeHorizon , NumberArcs } , v_MaxReactivePower );
+
+ if( ! v_RefSchedule.empty() )
+  ::serialize( group , "ReferenceSchedule" , netCDF::NcDouble() ,
+               TimeHorizon , v_RefSchedule );
 
 }  // end( HydroUnitBlock::serialize )
 

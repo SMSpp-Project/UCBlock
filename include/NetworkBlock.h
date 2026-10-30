@@ -65,6 +65,33 @@ namespace SMSpp_di_unipi_it
  class NetworkBlockSolution;  // forward definition of NetworkBlockSolution
 
 /*--------------------------------------------------------------------------*/
+/*------------------------------- FUNCTIONS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// reads a dimension of the given group itself, not of those above it
+/** As deserialize_dim() [see SMSnetCDF.h], but the dimension is looked for
+ * in \p group only: netCDF::NcGroup::getDim() would also take it from an
+ * enclosing group, where it may be that of another network, e.g., that of
+ * the carrier 0 of a UCBlock while the group of another carrier is read, or
+ * that of the UCBlock while the group of one of its NetworkBlock is. The
+ * NetworkData and the NetworkBlock read their dimensions with this. */
+
+template< typename T >
+inline bool deserialize_local_dim( const netCDF::NcGroup & group ,
+				   const std::string & name , T & data ,
+				   bool optional = true ) {
+ auto ncDim = group.getDim( name , netCDF::NcGroup::Current );
+ if( ncDim.isNull() ) {
+  if( optional )
+   return( false );
+  throw( std::invalid_argument( "deserialize_local_dim(): " + name +
+                                " not present in group " + group.getName() ) );
+  }
+
+ data = ncDim.getSize();
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS NetworkBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
@@ -154,7 +181,7 @@ class NetworkBlock : public Block
 
   public:
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -252,8 +279,6 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
  /// mimic Block::expected_dims()
  /** Like Block::expected_dims(), returns the names of the dimensions that
   * can be expected in the netCDF::NcGroup from where the NetworkData is
@@ -293,8 +318,6 @@ class NetworkBlock : public Block
   return( ev );
   }
 
-#endif
-
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE NetworkData ------------*/
 /*--------------------------------------------------------------------------*/
@@ -326,7 +349,7 @@ class NetworkBlock : public Block
 
   virtual void serialize( netCDF::NcGroup& group ) const;
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -383,7 +406,7 @@ class NetworkBlock : public Block
 
   static void static_initialization( void ) {}
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -462,8 +485,6 @@ class NetworkBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
  /// extends Block::expected_dims()
  /** extends Block::expected_dims() by concatenating the expected dimensions
   * found there (if any) with those of the NetworkData (if any), since the
@@ -495,8 +516,6 @@ class NetworkBlock : public Block
 
   return( ret );
   }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the static variables of NetworkBlock
@@ -865,6 +884,17 @@ class NetworkBlock : public Block
   return( nullptr );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the bounds of the node injections, by node and interval
+ /** Returns the rows "Node_Injection_Bound_Const_Network" of
+  * generate_abstract_constraints(), empty if this NetworkBlock does not
+  * generate them. */
+
+ const boost::multi_array< BoxConstraint , 2 > &
+  get_node_injection_bounds( void ) const {
+  return( node_injection_bounds_const );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1112,14 +1142,10 @@ class NetworkBlockMod : public Modification
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the NetworkBlock and the type
  NetworkBlockMod( NetworkBlock * const fblock , const int type )
-  : f_Block( fblock ) , f_type( type ) {}
+  : Modification( changes_of( type ) ) ,
+    f_Block( fblock ) , f_type( type ) {}
 
  /// destructor, does nothing
  virtual ~NetworkBlockMod( void ) override = default;
@@ -1430,7 +1456,10 @@ class NetworkBlockSolution : public Solution
   * NetworkBlockSolution to be serialised. Then it and proceeds to
   * serialize the contents of \p sols starting from the given \p idx,
   * which must of course be compatible with the values of the dimensions.
-  * "NumberNodes" is written if \p idx == 0, unless it is already there. */
+  * "NumberNodes" is written if \p idx == 0, unless it is already there.
+  * The format has no way to say that a NetworkBlockSolution is absent: if
+  * an element of \p sols is nullptr, std::invalid_argument is thrown and
+  * \p group is left as it is. */
 
  static void serialize( netCDF::NcGroup & group ,
 			const std::vector< NetworkBlockSolution * > & sols ,

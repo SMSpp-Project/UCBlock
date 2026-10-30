@@ -97,7 +97,7 @@ class ECNetworkBlock : public NetworkBlock
 
   public:
 
-/** @} ---------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /** @name Constructor and Destructor
  * @{ */
 
@@ -172,7 +172,6 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends NetworkData::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -181,8 +180,6 @@ class ECNetworkBlock : public NetworkBlock
  /// extends NetworkData::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /** @} ------- METHODS FOR READING THE DATA OF THE ECNetworkData -----------*/
 /** @name Reading the data of the ECNetworkData
@@ -279,7 +276,7 @@ class ECNetworkBlock : public NetworkBlock
 
   virtual void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/** @} ---------------- PROTECTED PART OF THE CLASS ------------------------*/
 
   protected:
 
@@ -369,7 +366,6 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends NetworkBlock::expected_dims()
  /* not necessary since ECNetworkBlock does not have any new dims save those
   * of the ECNetworkData that are automatically taken into account.
@@ -381,8 +377,6 @@ class ECNetworkBlock : public NetworkBlock
  /// extends NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// loads the ECNetworkBlock instance from an input standard stream.
@@ -1327,14 +1321,11 @@ class ECNetworkBlockMod : public NetworkBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the ECNetworkBlock and the type
  ECNetworkBlockMod( ECNetworkBlock * const fblock , const int type )
-  : NetworkBlockMod( fblock , type ) {}
+  : NetworkBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~ECNetworkBlockMod() override = default;

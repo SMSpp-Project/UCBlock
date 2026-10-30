@@ -357,7 +357,12 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * three families written on the starts, (16), (17) and (19) of
   * generate_abstract_constraints(), are separated instead of being written;
   * the rows of the deep decreases, which are \f$ O( n ) \f$, stay where
-  * they are. */
+  * they are. With F2, F3a and F3b the bit alone separates the rows of the
+  * stability ("ModulationTurnOff_Nuclear") and of the longest modulation
+  * ("ModulationLength_Nuclear"), which are \f$ O( n B ) \f$ and \f$ O( n
+  * L^M ) \f$; these are needed to describe the schedules, hence the
+  * :MILPSolver has to separate them also at its integer solutions, as lazy
+  * constraints, and the continuous relaxation does not have them. */
 
  static constexpr unsigned char TightCuts = NuclearRules::TightCuts;
 
@@ -541,19 +546,14 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
- /* extends ThermalUnitBlock::expected_dims()
-  * not necessary, no new dimensions
+ /// extends UnitBlock::expected_dims(), not overridden by ThermalUnitBlock
 
  std::vector< std::string > expected_dims( void ) const override;
- */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends ThermalUnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the NuclearUnitBlock
@@ -603,16 +603,19 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * the formulation of the thermal part [see ThermalUnitBlock], and the
  * others that of the operating rules [see NuclearRules and
  * generate_abstract_constraints()]: the bits TightRules (32), TightRamp
- * (64) and TightCuts (128) the tight rows of the default formulation, the
- * bits 8-10 (\f$ 256 k \f$) the formulation, \f$ k = 0 \f$ the default
- * one F1, 1 F0, 2 F2, 3 F3a, 4 F4, 5 F5, 6 F6 and 7 F7, and, for F0, F2, F3a
- * and F4, the bits StartUpStabSingle (2048), DeepByF1Rows (4096) and
+ * (64) and TightCuts (128) the tight rows of the default formulation
+ * (TightCuts alone, with F2, F3a and F3b, the rows of the stability and of
+ * the longest modulation separated rather than written), the bits 8-10
+ * (\f$ 256 k \f$) the formulation, \f$ k = 0 \f$ the default one F1, 1
+ * F0, 2 F2, 3 F3a, 4 F4, 5 F5, 6 F6 and 7 F7, and, for F0, F2, F3a and F4,
+ * the bits StartUpStabSingle (2048), DeepByF1Rows (4096) and
  * ReachRows (8192); with every formulation of the rules, the bit RunReach
  * (16384) on the pt, DP, SU, SD and SUSD formulations of the thermal part,
- * the bit RunRules (32768) with F2 on the DP, SU, SD and SUSD ones, and the
- * bit BandPersp (65536) with the Perspective Cuts, each of which throws
- * std::logic_error on any other formulation (BandPersp writes nothing if
- * the output is not banded) [see generate_abstract_constraints()]. In the
+ * the bit RunRules (32768) with F2 on the DP, SU, SD and SUSD ones, the bit
+ * BandPersp (65536) with the Perspective Cuts and the bit BandConfig
+ * (131072, "F3b") with F2, each of which throws std::logic_error on any
+ * other formulation (BandPersp and BandConfig write nothing if the output
+ * is not banded) [see generate_abstract_constraints()]. In the
  * formulations other than the default one the variables \f$ d_t \f$ exist
  * also when the direction does not matter in
  * F0, F2, F3a and F4, whose rows are written by direction (\f$ m^+_t = m_t
@@ -650,6 +653,21 @@ class NuclearUnitBlock : public ThermalUnitBlock
  *   state, and number of steps \f$ k_r \leq L^M \f$ with \f$ e_r = a_r +
  *   k_r - 1 \leq T - 1 \f$, plus, for \f$ e_r = T - 1 \f$ and \f$ k_r
  *   \leq L^M - 1 \f$, the same modulation cut by the horizon;
+ *
+ * - with the bit BandConfig and the bands, the binary configurations \f$
+ *   x^{\mu k}_t \f$ ("band_config_nuclear", in position \f$ ( 3 \mu + k )
+ *   T + t \f$, \f$ \mu = 0 \f$ a stable instant or a start-up, 1 an upward
+ *   step and 2 a downward one, \f$ k = 0 , 1 , 2 \f$ the band of the
+ *   output), which is 1 if the unit is on at \f$ t \f$ in the mode \f$
+ *   \mu \f$ with the output in the band \f$ k \f$, the changes of band at
+ *   a last step \f$ y^{k\uparrow}_t \geq 0 \f$ from the band \f$ k = 0 , 1
+ *   \f$ upwards ("band_up_nuclear", in position \f$ k T + t \f$) and \f$
+ *   y^{k\downarrow}_t \geq 0 \f$ from the band \f$ k = 1 , 2 \f$
+ *   downwards ("band_dn_nuclear", in position \f$ ( k - 1 ) T + t \f$),
+ *   and, for \f$ t \geq t_0 \f$, the band of a start-up \f$ v^k_t \geq 0
+ *   \f$ and of a shut-down \f$ w^k_t \geq 0 \f$ ("band_start_up_nuclear",
+ *   "band_shut_down_nuclear", in position \f$ k ( T - t_0 ) + t - t_0
+ *   \f$), which are integer at every integer point;
  *
  * - in F5, F6 and F7, a binary \f$ y_a \f$ ("arc_nuclear") for each arc
  *   \f$ a \f$ of the label graph [see generate_abstract_constraints()] and,
@@ -966,9 +984,10 @@ class NuclearUnitBlock : public ThermalUnitBlock
  *
  * The rows above are the default formulation F1 of the operating rules,
  * F1T with the bits TightRules, TightRamp and TightCuts, which concern it
- * only. The other formulations replace all of them but the rows (20), (21),
- * (23)-(26) of the bands and, in F0 and with the bit DeepByF1Rows, the rows
- * (29)-(31) of the deep decreases and their daily limit; the variables are
+ * only, save TightCuts with F2, F3a and F3b [see TightCuts]. The other
+ * formulations replace all of them but the rows (20), (21), (23)-(26) of
+ * the bands and, in F0 and with the bit DeepByF1Rows, the rows (29)-(31)
+ * of the deep decreases and their daily limit; the variables are
  * those of generate_abstract_variables(). Let \f$ m^+_t = m_t - d_t \f$ and
  * \f$ m^-_t = d_t \f$ be the upward and downward steps, \f$ \tilde u_t = u_t
  * - v_t \f$ (\f$ u_t \f$ for \f$ t < t_0 \f$) the indicator of an instant in
@@ -1257,6 +1276,50 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * \f$ P \f$. The rows (55) for every \f$ P \f$ describe the convex hull of
  * the disjunction of the epigraphs of the square over the three bands; only
  * the four values above are written.
+ *
+ * With the bit BandConfig (F3b) and the bands, the rows (20) and (21) are
+ * written, the bands being linked to the ends of the modulations by
+ * \f$ e_t = f^+_{t+1} + f^-_{t+1} \f$ ("ModulationEndDef_Nuclear"), while
+ * the rows (23)-(25) are not: for \f$ t \in \mathcal{T} \f$, with \f$ \mu
+ * = S , U , D \f$ for 0, 1, 2 and the bands numbered 1, 2, 3, the modes
+ * ("BandConfigMode_Nuclear") and the bands ("BandConfigBand_Nuclear") of
+ * the configurations are
+ * \f{align*}{
+ *   & \sum_k x^{Sk}_t = u_t - m_t , \quad \sum_k x^{Uk}_t = m^+_t , \quad
+ *     \sum_k x^{Dk}_t = m^-_t , \tag{56} \\
+ *   & b^k_t = x^{Sk}_t + x^{Uk}_t + x^{Dk}_t , \qquad k = 1 , 2 , 3 ,
+ *     \tag{57}
+ * \f}
+ * a step that does not end its modulation keeps the output in the band it
+ * leaves, and the last one lands in the adjacent band
+ * ("BandConfigExt_Nuclear"),
+ * \f[
+ *   x^{U1}_t \leq m^+_t - f^+_{t+1} , \quad x^{U3}_t \leq f^+_{t+1} ,
+ *   \quad x^{D3}_t \leq m^-_t - f^-_{t+1} , \quad x^{D1}_t \leq f^-_{t+1}
+ *   , \tag{58}
+ * \f]
+ * the changes of band sum to the last steps, the start-ups and the
+ * shut-downs ("BandConfigSum_Nuclear"),
+ * \f[
+ *   y^{1\uparrow}_t + y^{2\uparrow}_t = f^+_{t+1} , \quad
+ *   y^{2\downarrow}_t + y^{3\downarrow}_t = f^-_{t+1} , \quad
+ *   \sum_k v^k_t = v_t , \quad \sum_k w^k_t = w_t , \tag{59}
+ * \f]
+ * the last two for \f$ t \geq t_0 \f$, and each band is a flow in time
+ * ("BandConfigFlow_Nuclear"),
+ * \f[
+ *   b^k_t - b^k_{t-1} = y^{(k-1)\uparrow}_t + y^{(k+1)\downarrow}_t
+ *   - y^{k\uparrow}_t - y^{k\downarrow}_t + v^k_t - w^k_t , \qquad
+ *   k = 1 , 2 , 3 , \tag{60}
+ * \f]
+ * the variables that do not exist being 0, and \f$ b^k_{-1} \f$ the
+ * constant indicator of the lowest band that contains \f$ p_{-1} \f$ if
+ * the unit is on before the horizon, 0 otherwise. At an integer point the
+ * configurations give the band of each on instant, which does not change
+ * but at the last step of a modulation, at a start-up (where it is free)
+ * and at a shut-down, and the last step moves it by one band in the
+ * direction of the modulation; also the continuous variables are then
+ * integer.
  *
  * The rows are written by build_rows(), after those of ThermalUnitBlock,
  * and the Configuration parameter is that of
@@ -1870,9 +1933,11 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * if \p end_link, the rows (22) that define the ends \f$ e_t \f$ of the
   * modulations from \f$ m_t \f$; the formulations of the rules other than
   * the default one define \f$ e_t \f$ by the ends of their modulations
-  * instead. */
+  * instead. If not \p keep_move only the rows (20) and (21) are written,
+  * the band being kept and moved by the configurations of F3b [see
+  * NuclearRules::BandConfig]. */
 
- void build_band_rows( bool end_link );
+ void build_band_rows( bool end_link , bool keep_move = true );
 
  /// the rows (29)-(32) of the deep decreases and their daily limit
  void build_deep_rows_f1( const std::vector< std::pair< Index , Index > > &
@@ -2002,7 +2067,11 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * written on the start Variable are separated, each row at most once, and
   * only if the bits TightRules and TightCuts are both on; with TightCuts off
   * they are written by generate_operating_rules() and this method has
-  * nothing of its own to do. */
+  * nothing of its own to do. With F2, F3a and F3b and the bit TightCuts it
+  * separates instead the rows of the stability and of the longest
+  * modulation that the current values violate, each at most once; since
+  * these rows describe the schedules, the :MILPSolver has to call it also
+  * at its integer solutions. */
 
  void generate_dynamic_constraints( Configuration * dycc = nullptr ) override;
 
@@ -2143,6 +2212,17 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// which of the tight rows have been separated already, three per instant
  std::vector< char > v_cut_done;
 
+ /// true if the rows of F2 on the stability and on the longest modulation
+ /// are separated rather than written [see TightCuts]
+ bool f_window_cuts = false;
+
+ /// the rows of F2 on the stability and on the longest modulation, with
+ /// the bit TightCuts: the coefficients and the right-hand side of each
+ /// (all are <= rows), and whether it has been separated already
+ std::vector< std::pair< LinearFunction::v_coeff_pair , double > >
+                                                          v_window_rows;
+ std::vector< char > v_window_done;
+
  /// the formulation of the operating rules [see NuclearRules::FormMsk]
  int f_rules_form = NuclearRules::F1Form;
 
@@ -2168,6 +2248,10 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// true if the perspective cuts are written on the bands [see
  /// NuclearRules::BandPersp]
  bool f_band_persp = false;
+
+ /// true if the bands are written by configurations [see
+ /// NuclearRules::BandConfig]
+ bool f_band_config = false;
 
  /// a copy of the rules [see NuclearRules::RunRules]: the positions in
  /// v_Y_plus of its runs, its first and last instant \p a and \p b (the
@@ -2275,6 +2359,19 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// the modulations \f$ z_r \f$ of F4 [see v_runs]
  std::vector< ColVariable > v_run;
 
+ /// the configurations \f$ x^{\mu k}_t \f$ of F3b, in position
+ /// \f$ ( 3 \mu + k ) T + t \f$, the changes of band at a last step
+ /// upwards from the band \f$ k = 0 , 1 \f$ (position \f$ k T + t \f$)
+ /// and downwards from the band \f$ k = 1 , 2 \f$ (position \f$ ( k - 1 )
+ /// T + t \f$), and the band of a start-up and of a shut-down at \f$ t
+ /// \geq t_0 \f$ (position \f$ k ( T - t_0 ) + t - t_0 \f$) [see
+ /// NuclearRules::BandConfig]
+ std::vector< ColVariable > v_band_cfg;
+ std::vector< ColVariable > v_band_up;
+ std::vector< ColVariable > v_band_dn;
+ std::vector< ColVariable > v_band_su;
+ std::vector< ColVariable > v_band_sd;
+
  /// the Variable of the copies of the rules [see NuclearRules::RunRules],
  /// one per instant of each copy [see RunCopy]: the steps, the starts and
  /// the ends (in position t the end \f$ f_{t+1} \f$) upwards and
@@ -2374,7 +2471,8 @@ class NuclearUnitBlock : public ThermalUnitBlock
  std::vector< std::vector< FRowConstraint > > BandMove;
  std::vector< std::vector< FRowConstraint > > ModulationEndLink;
 
- /// the tight rows that have been separated [see TightCuts]
+ /// the tight rows that have been separated, or the rows of F2 on the
+ /// stability and on the longest modulation [see TightCuts]
  std::list< FRowConstraint > Nuclear_cuts;
 
  /// the groups of rows of the formulations of the rules other than the
@@ -2431,6 +2529,16 @@ private:
   register_method< NuclearUnitBlock , MF_dbl_it , Range >(
    "NuclearUnitBlock::set_deep_decrease_costs" ,
    & NuclearUnitBlock::set_deep_decrease_costs );
+
+  // k identical copies of this unit, as for ThermalUnitBlock [see
+  // ThermalUnitBlock::static_initialization()], under a name of its own,
+  // since a consumer looks the name up by the exact class of the Block
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< NuclearUnitBlock , double >(
+   "NuclearUnitBlock::replicate" , { & NuclearUnitBlock::replicate } );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2500,14 +2608,11 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// Constructor, takes the NuclearUnitBlock and the type
  NuclearUnitBlockMod( NuclearUnitBlock * fblock , int type )
-  : ThermalUnitBlockMod( fblock , type ) {}
+  : ThermalUnitBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  ///< Destructor, does nothing
  virtual ~NuclearUnitBlockMod() override = default;
@@ -2661,7 +2766,7 @@ class NuclearUnitBlockSolution : public ThermalUnitBlockSolution
  ~NuclearUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*----- METHODS DESCRIBING THE BEHAVIOR OF A NuclearUnitBlockSolution -----*/
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A NuclearUnitBlockSolution ------*/
 
  void read( const Block * block ) override final;
 

@@ -300,6 +300,19 @@ void NuclearUnitBlock::generate_form_variables( void )
   make( v_run , v_runs.size() , ColVariable::kBinary , "run_nuclear" );
   }
 
+ // the configurations of the mode and of the band of F3b, and the changes
+ // of band at the last steps, the start-ups and the shut-downs
+ if( f_band_config && has_power_bands() ) {
+  const Index n0 = T - init_t;
+  make( v_band_cfg , 9 * T , ColVariable::kBinary , "band_config_nuclear" );
+  make( v_band_up , 2 * T , ColVariable::kNonNegative , "band_up_nuclear" );
+  make( v_band_dn , 2 * T , ColVariable::kNonNegative , "band_dn_nuclear" );
+  make( v_band_su , 3 * n0 , ColVariable::kNonNegative ,
+        "band_start_up_nuclear" );
+  make( v_band_sd , 3 * n0 , ColVariable::kNonNegative ,
+        "band_shut_down_nuclear" );
+  }
+
  if( form != NuclearRules::F0Form ) {
   // the exact move: the move of a stable instant, the last steps, the
   // output at a start-up and before a shut-down
@@ -416,6 +429,21 @@ void NuclearUnitBlock::build_compact_rows( void )
   return( Ex( & v_active_power[ t ] ) );
   };
 
+ // the rows of the stability and of the longest modulation, written or,
+ // with TightCuts, kept to be separated [see generate_dynamic_constraints()]
+ if( f_window_cuts && generating_rows() )
+  v_window_rows.clear();
+ auto window = [ & ]( StagedRows && g , std::string && name ) {
+  if( ! f_window_cuts ) {
+   add_form_rows( std::move( g ) , std::move( name ) );
+   return;
+   }
+  if( generating_rows() )
+   for( auto & r : g )
+    v_window_rows.emplace_back( std::move( std::get< 0 >( r ) ) ,
+                                std::get< 2 >( r ) );
+  };
+
  // the runs of F4 by their first step, by their end (those not cut), and
  // by the instants they contain
  std::vector< std::vector< Index > > run_start( 2 * T ) , run_end( 2 * T );
@@ -523,7 +551,7 @@ void NuclearUnitBlock::build_compact_rows( void )
     e.add( f( 0 , h ) ).add( f( 1 , h ) );
    row( gs , std::move( e ) , -INF , 1 );
    }
-  add_form_rows( std::move( gs ) , "ModulationTurnOff_Nuclear" );
+  window( std::move( gs ) , "ModulationTurnOff_Nuclear" );
 
   // the longest modulation: each step belongs to a modulation started in
   // the last L^M instants, and one that the horizon cuts has L^M - 1 steps
@@ -540,7 +568,11 @@ void NuclearUnitBlock::build_compact_rows( void )
     e.add( s( d , h ) , -1 );
    row( gl , std::move( e ) , -INF , 0 );
    }
-  add_form_rows( std::move( gl ) , "ModulationLength_Nuclear" );
+  window( std::move( gl ) , "ModulationLength_Nuclear" );
+  if( f_window_cuts && generating_rows() ) {
+   v_window_done.assign( v_window_rows.size() , 0 );
+   add_dynamic_constraint( Nuclear_cuts , "Nuclear_cuts" );
+   }
   }
 
  // the steps only when the unit stays on, upwards or downwards - - - - - -
@@ -784,7 +816,77 @@ void NuclearUnitBlock::build_compact_rows( void )
    row( g , Ex( & v_modulation_end[ t ] ) - f( 0 , t + 1 ) - f( 1 , t + 1 ) ,
         0 , 0 );
   add_form_rows( std::move( g ) , "ModulationEndDef_Nuclear" );
-  build_band_rows( false );
+  build_band_rows( false , ! f_band_config );
+  }
+
+ // the bands by the configurations of F3b - - - - - - - - - - - - - - - - -
+ // the mode of each on instant (0 stable or a start-up, 1 an upward step, 2
+ // a downward one) and the band of its output, the band being a flow in
+ // time that changes at the last steps, the start-ups and the shut-downs
+ if( f_band_config && has_power_bands() ) {
+  const int n0 = iT - it0;
+  const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
+  const int b0 = ( f_InitialPower <= B1 ) ? 0 :
+                 ( ( f_InitialPower <= B2 ) ? 1 : 2 );
+  auto x = [ & ]( int mu , int k , int t ) {
+   return( Ex( & v_band_cfg[ ( 3 * mu + k ) * iT + t ] ) );
+   };
+  auto b = [ & ]( int k , int t ) -> Ex {
+   if( t < 0 )
+    return( Ex().cst( ( ( f_InitUpDownTime > 0 ) && ( k == b0 ) ) ? 1 : 0 ) );
+   return( Ex( & v_band[ k * iT + t ] ) );
+   };
+  auto yu = [ & ]( int k , int t ) -> Ex {
+   return( ( k == 0 ) || ( k == 1 ) ? Ex( & v_band_up[ k * iT + t ] )
+                                    : Ex() );
+   };
+  auto yd = [ & ]( int k , int t ) -> Ex {
+   return( ( k == 1 ) || ( k == 2 ) ? Ex( & v_band_dn[ ( k - 1 ) * iT + t ] )
+                                    : Ex() );
+   };
+  auto vk = [ & ]( int k , int t ) -> Ex {
+   return( t >= it0 ? Ex( & v_band_su[ k * n0 + t - it0 ] ) : Ex() );
+   };
+  auto wk = [ & ]( int k , int t ) -> Ex {
+   return( t >= it0 ? Ex( & v_band_sd[ k * n0 + t - it0 ] ) : Ex() );
+   };
+
+  StagedRows gm , gb , ge , gs , gf;
+  for( int t = 0 ; t < iT ; ++t ) {
+   row( gm , x( 0 , 0 , t ) + x( 0 , 1 , t ) + x( 0 , 2 , t ) - u( t ) +
+             m( t ) , 0 , 0 );
+   row( gm , x( 1 , 0 , t ) + x( 1 , 1 , t ) + x( 1 , 2 , t ) - md( 0 , t ) ,
+        0 , 0 );
+   row( gm , x( 2 , 0 , t ) + x( 2 , 1 , t ) + x( 2 , 2 , t ) - md( 1 , t ) ,
+        0 , 0 );
+   for( int k = 0 ; k < 3 ; ++k )
+    row( gb , b( k , t ) - x( 0 , k , t ) - x( 1 , k , t ) - x( 2 , k , t ) ,
+         0 , 0 );
+
+   // a step that does not end its modulation keeps the output in the band
+   // it leaves, and the last one lands in the adjacent band
+   row( ge , x( 1 , 0 , t ) - md( 0 , t ) + f( 0 , t + 1 ) , -INF , 0 );
+   row( ge , x( 1 , 2 , t ) - f( 0 , t + 1 ) , -INF , 0 );
+   row( ge , x( 2 , 2 , t ) - md( 1 , t ) + f( 1 , t + 1 ) , -INF , 0 );
+   row( ge , x( 2 , 0 , t ) - f( 1 , t + 1 ) , -INF , 0 );
+
+   row( gs , yu( 0 , t ) + yu( 1 , t ) - f( 0 , t + 1 ) , 0 , 0 );
+   row( gs , yd( 1 , t ) + yd( 2 , t ) - f( 1 , t + 1 ) , 0 , 0 );
+   if( t >= it0 ) {
+    row( gs , vk( 0 , t ) + vk( 1 , t ) + vk( 2 , t ) - v( t ) , 0 , 0 );
+    row( gs , wk( 0 , t ) + wk( 1 , t ) + wk( 2 , t ) - w( t ) , 0 , 0 );
+    }
+
+   for( int k = 0 ; k < 3 ; ++k )
+    row( gf , b( k , t ) - b( k , t - 1 ) - yu( k - 1 , t ) -
+              yd( k + 1 , t ) + yu( k , t ) + yd( k , t ) - vk( k , t ) +
+              wk( k , t ) , 0 , 0 );
+   }
+  add_form_rows( std::move( gm ) , "BandConfigMode_Nuclear" );
+  add_form_rows( std::move( gb ) , "BandConfigBand_Nuclear" );
+  add_form_rows( std::move( ge ) , "BandConfigExt_Nuclear" );
+  add_form_rows( std::move( gs ) , "BandConfigSum_Nuclear" );
+  add_form_rows( std::move( gf ) , "BandConfigFlow_Nuclear" );
   }
 
  }  // end( NuclearUnitBlock::build_compact_rows )
@@ -1483,6 +1585,43 @@ void NuclearUnitBlock::set_form_solution( void )
     v_mod_end_up[ t ].set_value( fe[ t ][ 0 ] ? 1 : 0 );
     v_mod_end_dn[ t ].set_value( fe[ t ][ 1 ] ? 1 : 0 );
     }
+  }
+
+ // the configurations of F3b from the bands, the steps and the ends
+ if( ! v_band_cfg.empty() ) {
+  const int n0 = iT - it0;
+  const double B1 = v_power_bands[ 0 ] , B2 = v_power_bands[ 1 ];
+  const int b0 = ( f_InitialPower <= B1 ) ? 0 :
+                 ( ( f_InitialPower <= B2 ) ? 1 : 2 );
+  auto bd = [ & ]( int t ) -> int {
+   if( t < 0 )
+    return( ( f_InitUpDownTime > 0 ) ? b0 : -1 );
+   for( int k = 0 ; k < 3 ; ++k )
+    if( v_band[ k * iT + t ].get_value() > 0.5 )
+     return( k );
+   return( -1 );
+   };
+  for( auto vv : { & v_band_cfg , & v_band_up , & v_band_dn , & v_band_su ,
+                   & v_band_sd } )
+   for( auto & y : *vv )
+    y.set_value( 0 );
+  for( int t = 0 ; t < iT ; ++t ) {
+   const int k = bd( t ) , k1 = bd( t - 1 );
+   if( on( t ) && ( k >= 0 ) ) {
+    const int mu = mx( 0 , t ) ? 1 : ( mx( 1 , t ) ? 2 : 0 );
+    v_band_cfg[ ( 3 * mu + k ) * iT + t ].set_value( 1 );
+    }
+   if( fe[ t ][ 0 ] && ( k1 >= 0 ) && ( k1 < 2 ) )
+    v_band_up[ k1 * iT + t ].set_value( 1 );
+   if( fe[ t ][ 1 ] && ( k1 >= 1 ) )
+    v_band_dn[ ( k1 - 1 ) * iT + t ].set_value( 1 );
+   if( t >= it0 ) {
+    if( on( t ) && ( ! on( t - 1 ) ) && ( k >= 0 ) )
+     v_band_su[ k * n0 + t - it0 ].set_value( 1 );
+    if( ( ! on( t ) ) && on( t - 1 ) && ( k1 >= 0 ) )
+     v_band_sd[ k1 * n0 + t - it0 ].set_value( 1 );
+    }
+   }
   }
 
  if( form == NuclearRules::F0Form )

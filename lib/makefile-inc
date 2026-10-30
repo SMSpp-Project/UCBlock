@@ -13,7 +13,7 @@
 #           $(UCBckLIB) = external libraries + -L< libdirs > for UCBlock     #
 #           $(UCBckOBJ) = the libUCBck library itself                        #
 #                                                                            #
-#   Indeed, the makefile only calls makefile-c and strips away the *H and    #  
+#   Indeed, the makefile only calls makefile-c and strips away the *H and    #
 #   *OBJ macros. This is not even necessary, it is only made for clarity.    #
 #                                                                            #
 #                             Antonio Frangioni                              #
@@ -40,6 +40,11 @@ FORCE:
 # clean-up unrequired things- - - - - - - - - - - - - - - - - - - - - - - - -
 
 UCBckH =
+
+# the C++20 module smspp.ucblock, made with the library [see
+# makefile-mod of SMS++]
+
+$(eval $(call SMSppMODlib,UCBck,smspp.ucblock))
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

@@ -156,11 +156,18 @@ void ACNetworkData::deserialize( const netCDF::NcGroup & group )
   }
 
  if( f_number_nodes > 1 ) {
-  ::deserialize( group , "LineReactance" , f_number_lines ,
-                 v_line_reactance , true , true );
+  // the reactances and the resistances tell the AC lines from the HVDC ones
+  if( ( ! ::deserialize( group , "LineReactance" , f_number_lines ,
+                         v_line_reactance , true , true ) ) &&
+      f_number_lines )
+   throw( std::invalid_argument( "ACNetworkData::deserialize: "
+                                 "LineReactance missing" ) );
 
-  ::deserialize( group , "LineResistance" , f_number_lines ,
-                 v_line_resistance , true , true );
+  if( ( ! ::deserialize( group , "LineResistance" , f_number_lines ,
+                         v_line_resistance , true , true ) ) &&
+      f_number_lines )
+   throw( std::invalid_argument( "ACNetworkData::deserialize: "
+                                 "LineResistance missing" ) );
 
   ::deserialize( group , "LineRatio" , f_number_lines , v_line_ratio ,
                  true , true );
@@ -344,7 +351,6 @@ void ACNetworkData::serialize( netCDF::NcGroup & group ) const
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
 /*
 std::vector< std::string > ACNetworkData::expected_dims( void ) const {
  return( DCNetworkData::expected_dims() );
@@ -370,8 +376,6 @@ std::vector< std::string > ACNetworkData::expected_vars( void ) const
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS OF ACNetworkBlock ------------------------*/
@@ -431,16 +435,12 @@ void ACNetworkBlock::serialize( netCDF::NcGroup & group ) const
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ACNetworkBlock::expected_vars( void ) const {
  auto ret = DCNetworkBlock::expected_vars();
  ret.push_back( "ReactiveDemand" );
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -631,6 +631,21 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  const auto number_lines = get_number_lines();
 
+ // the data that have no default: the thermal limits of the AC lines and
+ // the data of the nodes
+ auto need = [ & ]( const std::vector< double > & v , Index n ,
+                    const std::string & name ) {
+  if( v.size() < n )
+   throw( std::invalid_argument( "ACNetworkBlock::generate_abstract_"
+                                 "constraints: " + name + " missing" ) );
+  };
+ if( ! f_NetworkData->get_DC_lines().empty() )
+  need( ND()->get_line_rate_A() , number_lines , "LineRATEA" );
+ need( ND()->get_node_min_voltage() , number_nodes , "NodeMinVoltage" );
+ need( ND()->get_node_max_voltage() , number_nodes , "NodeMaxVoltage" );
+ need( ND()->get_node_conductance() , number_nodes , "NodeConductance" );
+ need( ND()->get_node_susceptance() , number_nodes , "NodeSusceptance" );
+
  // do not call DCNetworkBlock::generate_abstract_constraints( stcc ) since
  // the class entirely redefines its constraints, but directly call
  // generate_bound_constraints() to have the bound constraints generated
@@ -638,12 +653,15 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
 
  generate_bound_constraints();
 
- // node injection bound constraints- - - - - - - - - - - - - - - - - - - -
+ // node injection bound constraints, free where no bound has been given
+ // (as in a network that is not in a UCBlock) - - - - - - - - - - - - - - -
  reactive_node_injection_bounds_const.resize( number_nodes );
  for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
   reactive_node_injection_bounds_const[ node_id ].set_lhs(
+   v_MinReactiveNodeInjection.empty() ? -Inf< double >() :
    v_MinReactiveNodeInjection[ node_id ] );
   reactive_node_injection_bounds_const[ node_id ].set_rhs(
+   v_MaxReactiveNodeInjection.empty() ? Inf< double >() :
    v_MaxReactiveNodeInjection[ node_id ] );
   reactive_node_injection_bounds_const[ node_id ].set_variable(
    & v_reactive_node_injection[ node_id ] );
@@ -873,8 +891,9 @@ void ACNetworkBlock::generate_abstract_constraints( Configuration * stcc )
     lfunc->add_variable(
      & v_reactive_power_flow[ number_lines + line_id ] , 1.0 );
    }
+  // no "ReactiveDemand" is no reactive demand
   v_power_flow_injection_const[ number_nodes + p ].set_both(
-   -v_ReactiveDemand[ p ] * f_C_v_scal );
+   v_ReactiveDemand.empty() ? 0.0 : -v_ReactiveDemand[ p ] * f_C_v_scal );
   v_power_flow_injection_const[ number_nodes + p ].set_function( lfunc );
   }
 
@@ -1672,16 +1691,22 @@ void ACNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  // call the method of the base class
  DCNetworkBlockSolution::deserialize( group );
 
+ // all optional, as serialize() writes each of them only if it is there;
+ // each is indexed over the nodes or the lines, which read() and write()
+ // run over, and a scalar is refused
+
  // deserialize the (reactive) flow injection - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "NodeInjectionReactive" ,
-                          v_node_injection_reactive , false );
+ ::deserialize( group , "NodeInjectionReactive" , f_number_nodes ,
+                v_node_injection_reactive );
 
  // deserialize the (reactive) flow variables - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "ReactiveFlowFromValue" ,
-                          v_reactive_flow_from , false );
-
- ::deserialize< double >( group , "ReactiveFlowToValue" ,
-                          v_reactive_flow_to , false );
+ // ... but the "to" ones must be there with the "from" ones
+ if( ::deserialize( group , "ReactiveFlowFromValue" , f_number_lines ,
+                    v_reactive_flow_from ) )
+  ::deserialize( group , "ReactiveFlowToValue" , f_number_lines ,
+                 v_reactive_flow_to , false );
+ else
+  v_reactive_flow_to.clear();
  }  // end( ACNetworkBlockSolution::deserialize( NcGroup & ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1718,7 +1743,7 @@ void ACNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
 
   ncVar = group.getVar( "ReactiveFlowToValue" );
   if( ncVar.isNull() )
-   throw( std::logic_error( "DCNetworkBlockSolution::deserialize( idx ): "
+   throw( std::logic_error( "ACNetworkBlockSolution::deserialize( idx ): "
                             "ReactiveFlowFromValue present but "
                             "ReactiveFlowToValue not" ) );
 
@@ -1765,7 +1790,7 @@ void ACNetworkBlockSolution::write( Block * block )
  auto ACNB = dynamic_cast< ACNetworkBlock * >( block );
  if( ! ACNB )
   throw( std::invalid_argument(
-   "ACNetworkBlockSolution::write: block is not a DCNetworkBlock" ) );
+   "ACNetworkBlockSolution::write: block is not an ACNetworkBlock" ) );
 
  if( ! v_node_injection_reactive.empty() ) {
   // write the (reactive) node injection variables- - - - - - - - - - - - -
@@ -1804,7 +1829,7 @@ void ACNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   auto nl = group.getDim( "NumberLines" );
   ::serialize< double >( group , "ReactiveFlowFromValue" ,
                          netCDF::NcDouble() , nl , v_reactive_flow_from );
-  ::serialize< double >( group , "ReactiveFlowTOValue" ,
+  ::serialize< double >( group , "ReactiveFlowToValue" ,
                          netCDF::NcDouble() , nl , v_reactive_flow_to );
   }
  }  // end( ACNetworkBlockSolution::serialize( NcGroup & ) )
@@ -1855,7 +1880,7 @@ void ACNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
 
  std::vector< size_t > strt = { idx , 0 };
 
- if( ! RFFV.isNull() ) {  // reactive power injection has to be serialised
+ if( ! RNI.isNull() ) {  // reactive power injection has to be serialised
   std::vector< size_t > cnt = { 1 , f_number_nodes };
   RNI.putVar( strt , cnt , v_node_injection_reactive.data() );
   }
@@ -1933,6 +1958,7 @@ ACNetworkBlockSolution * ACNetworkBlockSolution::clone( bool empty ) const
   //!! DCNetworkBlockSolution::clone(), better solution needed
   sol->f_number_lines = f_number_lines;
   sol->v_flow = v_flow;
+  sol->v_aux = v_aux;
   sol->v_cost = v_cost;
   //!! end of kludge
 

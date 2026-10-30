@@ -96,8 +96,6 @@ void HydroSystemUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > HydroSystemUnitBlock::expected_dims( void ) const {
  auto ret = UnitBlock::expected_dims();
  ret.push_back( "NumberHydroUnits" );
@@ -116,7 +114,6 @@ std::vector< std::string > HydroSystemUnitBlock::expected_vars( void ) const {
  return( ret );
  }
 */
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -205,10 +202,14 @@ void HydroSystemUnitBlock::deserialize_sub_blocks(
 				 const std::string & sub_group_name_prefix ,
 				 Index num_sub_blocks )
 {
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call
+ const auto sub_groups = group.getGroups();
  for( Index i = 0 ; i < num_sub_blocks ; ++i ) {
   std::string sub_group_name = sub_group_name_prefix + std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
-  auto sub_block = new_Block( sub_group , this );
+  auto it = sub_groups.find( sub_group_name );
+  auto sub_block = ( it == sub_groups.end() ) ? nullptr :
+                   new_Block( it->second , this );
   if( ! sub_block )
    throw( std::invalid_argument( "HydroSystemUnitBlock::deserialize: error "
                                  "when creating Block from group " +
@@ -468,6 +469,11 @@ Solution * HydroSystemUnitBlock::get_Solution( Configuration * csolc ,
   sol->v_innerSol[ i ] = static_cast< HydroUnitBlockSolution * >(
 	    get_hydro_unit_block( Index( i ) )->get_Solution( &iC , true ) );
 
+ // and that of the PolyhedralFunctionBlock, whose Variable are part of the
+ // cost of the HydroSystemUnitBlock
+ if( auto pfb = get_polyhedral_function_block() )
+  sol->f_pfSol = pfb->get_Solution( nullptr , true );
+
  if( ! emptys )
   sol->read( this );
 
@@ -508,6 +514,15 @@ void HydroSystemUnitBlock::serialize( netCDF::NcGroup & group ) const
 /*-------------- METHODS OF HydroSystemUnitBlockSolution -------------------*/
 /*--------------------------------------------------------------------------*/
 
+HydroSystemUnitBlockSolution::~HydroSystemUnitBlockSolution()
+{
+ for( auto sol : v_innerSol )
+  delete sol;
+ delete f_pfSol;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void HydroSystemUnitBlockSolution::deserialize(
 					     const netCDF::NcGroup & group )
 {
@@ -517,13 +532,17 @@ void HydroSystemUnitBlockSolution::deserialize(
  Index n_units;
  deserialize_dim( group , "NumberHydroUnits" , n_units , false );
 
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call
+ const auto sub_groups = group.getGroups();
  v_innerSol.resize( n_units , nullptr );
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i ) {
   std::string sub_group_name = "HydroSystemUnitSolution_" +
                                                         std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
-  auto HSUSi = dynamic_cast< HydroUnitBlockSolution * >(
-				       Solution::new_Solution( sub_group ) );
+  auto it = sub_groups.find( sub_group_name );
+  auto HSUSi = ( it == sub_groups.end() ) ? nullptr :
+               dynamic_cast< HydroUnitBlockSolution * >(
+				       Solution::new_Solution( it->second ) );
   if( ! HSUSi )
    throw( std::invalid_argument(
 		              "HydroSystemUnitBlockSolution::deserialize: " +
@@ -532,6 +551,13 @@ void HydroSystemUnitBlockSolution::deserialize(
 
   v_innerSol[ i ] = HSUSi;
   }
+
+ delete f_pfSol;
+ f_pfSol = nullptr;
+ if( auto it = sub_groups.find( "PolyhedralFunctionBlockSolution" ) ;
+     it != sub_groups.end() )
+  f_pfSol = Solution::new_Solution( it->second );
+
  }  // end( HydroSystemUnitBlockSolution::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -547,6 +573,10 @@ void HydroSystemUnitBlockSolution::read( const Block * block )
 
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
   v_innerSol[ i ]->read( HSUB->get_hydro_unit_block( Index( i ) ) );
+
+ if( f_pfSol )
+  if( auto pfb = HSUB->get_polyhedral_function_block() )
+   f_pfSol->read( pfb );
 
  }  // end( HydroSystemUnitBlockSolution::read )
 
@@ -568,6 +598,10 @@ void HydroSystemUnitBlockSolution::write( Block * block )
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
   v_innerSol[ i ]->write( HSUB->get_hydro_unit_block( Index( i ) ) );
 
+ if( f_pfSol )
+  if( auto pfb = HSUB->get_polyhedral_function_block() )
+   f_pfSol->write( pfb );
+
  }  // end( HydroSystemUnitBlockSolution::write )
 
 /*--------------------------------------------------------------------------*/
@@ -583,6 +617,11 @@ void HydroSystemUnitBlockSolution::serialize( netCDF::NcGroup & group ) const
                                                         std::to_string( i );
   auto sub_group = group.addGroup( sub_group_name );
   v_innerSol[ i ]->serialize( sub_group );
+  }
+
+ if( f_pfSol ) {
+  auto pf_group = group.addGroup( "PolyhedralFunctionBlockSolution" );
+  f_pfSol->serialize( pf_group );
   }
  }  // end( HydroSystemUnitBlockSolution::serialize )
 
@@ -602,6 +641,11 @@ HydroSystemUnitBlockSolution * HydroSystemUnitBlockSolution::scale(
  for( std::size_t i = 0 ; i < sol->v_innerSol.size() ; ++i ) {
   auto inner = sol->v_innerSol[ i ];
   sol->v_innerSol[ i ] = inner->scale( factor );
+  delete inner;
+  }
+
+ if( auto inner = sol->f_pfSol ) {
+  sol->f_pfSol = inner->scale( factor );
   delete inner;
   }
 
@@ -630,6 +674,9 @@ void HydroSystemUnitBlockSolution::sum( const Solution * solution ,
  for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
   v_innerSol[ i ]->sum( HSUBS->v_innerSol[ i ] , multiplier );
 
+ if( f_pfSol && HSUBS->f_pfSol )
+  f_pfSol->sum( HSUBS->f_pfSol , multiplier );
+
  }  // end( HydroSystemUnitBlockSolution::sum )
 
 /*--------------------------------------------------------------------------*/
@@ -645,6 +692,9 @@ HydroSystemUnitBlockSolution * HydroSystemUnitBlockSolution::clone(
   for( std::size_t i = 0 ; i < v_innerSol.size() ; ++i )
    (sol->v_innerSol)[ i ] = v_innerSol[ i ]->clone( false );
   }
+
+ if( f_pfSol )
+  sol->f_pfSol = f_pfSol->clone( empty );
 
  return( sol );
 

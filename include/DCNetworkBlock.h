@@ -331,13 +331,14 @@ class DCNetworkData : public NetworkData
 
  public:
 
-/** @} ---------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /** @name Constructor and Destructor
  * @{ */
 
  /// constructor of DCNetworkData, does nothing
  DCNetworkData( void ) : f_number_lines( 0 ) , f_number_HVDC_lines( 0 ) ,
   f_reference_node( 0 ) , DCDF_was_computed( Inf< Index >() ) ,
+  DCDF_tikhonov_coeff( 0 ) , DCDF_computed( false ) ,
   f_number_branches( 0 ) , cycle_basis_was_computed( false ) ,
   nb_components( 0 ) {}
 
@@ -506,7 +507,6 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends NetworkData::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -515,8 +515,6 @@ class DCNetworkData : public NetworkData
  /// extends NetworkData::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /** @} ------- METHODS FOR READING THE DATA OF THE DCNetworkData -----------*/
 /** @name Reading the data of the DCNetworkData
@@ -802,13 +800,13 @@ class DCNetworkData : public NetworkData
   * \f$ \mathrm{DCDF} = - \Psi I_R^\top ( A^{H} )^\top \f$ of the class
   * notes, whose only nonzero columns are those of the lines in
   * \p HVDC_lines, from the PTDF matrix \p PTDF_matrix given by get_PTDF()
-  * and from the efficiencies of the instant \p time; entry
-  * \f$ ( l , h ) \f$ is the change of the flow of line \f$ l \f$ due to
-  * a unit of flow on the HVDC line \f$ h \f$. The result is read with
-  * get_DCDF(). */
+  * with the Tikhonov coefficient \p tikhonov_coeff and from the
+  * efficiencies of the instant \p time; entry \f$ ( l , h ) \f$ is the
+  * change of the flow of line \f$ l \f$ due to a unit of flow on the HVDC
+  * line \f$ h \f$. The result is read with get_DCDF(). */
 
  void compute_DCDF( c_Subset & HVDC_lines , const SpMat & PTDF_matrix ,
-		    Index time );
+		    Index time , double tikhonov_coeff = 0 );
 
 /*--------------------------------------------------------------------------*/
  /// the matrix computed by the last call to compute_DCDF()
@@ -816,10 +814,17 @@ class DCNetworkData : public NetworkData
  const SpMat & get_DCDF( void ) const { return( DCDF ); }
 
 /*--------------------------------------------------------------------------*/
- /// true if get_DCDF() holds the matrix of instant \p t
+ /// true if get_DCDF() holds the matrix of instant \p t and coefficient
+ /// \p tikhonov_coeff
+ /** True if compute_DCDF() has been called, the last time with \p t and
+  * \p tikhonov_coeff, which are all the matrix depends on besides the
+  * data; the NetworkBlock that share the DCNetworkData may have different
+  * coefficients, and the instant of one that is not in a UCBlock is
+  * Inf< Index >(). */
 
- bool was_DCDF_computed( Index t ) const {
-  return( DCDF_was_computed == t );
+ bool was_DCDF_computed( Index t , double tikhonov_coeff = 0 ) const {
+  return( DCDF_computed && ( DCDF_was_computed == t ) &&
+          ( DCDF_tikhonov_coeff == tikhonov_coeff ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1026,7 +1031,7 @@ class DCNetworkData : public NetworkData
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/** @} ---------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
@@ -1042,6 +1047,12 @@ class DCNetworkData : public NetworkData
 
  /// the instant of the DCDF matrix computed last, to avoid recomputing it
  Index DCDF_was_computed;
+
+ /// the Tikhonov coefficient of the DCDF matrix computed last
+ double DCDF_tikhonov_coeff;
+
+ /// true if the DCDF matrix has been computed at all
+ bool DCDF_computed;
 
  /// A boolean to avoid recomputing the cycle basis algorithm
  bool cycle_basis_was_computed;
@@ -1178,15 +1189,17 @@ class DCNetworkData : public NetworkData
   *   NcGroup describing the NetworkBlock to be absent altogether (see
   *   UCBlock::deserialize()).
   *
-  * The constants \f$ \kappa_l \f$ that multiply the flow bounds of the lines
-  * (see generate_abstract_constraints()) are all 1 after deserialize(),
-  * which does not read them: they are changed only by set_kappa(). */
+  * - The variable "Kappa", of type netCDF::NcDouble and indexed over the
+  *   dimension "NumberLines", whose entry l is the constant
+  *   \f$ \kappa_l \f$ that multiplies the flow bounds of line l (see
+  *   generate_abstract_constraints() and set_kappa()). The variable is
+  *   optional; if it is not found, all the constants are 1. serialize()
+  *   writes it only if one of them is not 1. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends NetworkBlock::expected_dims()
  /* not necessary since DCNetworkBlock does not have any new dims save those
   * of the DCNetworkData that are automatically taken into account.
@@ -1198,8 +1211,6 @@ class DCNetworkData : public NetworkData
  /// extends NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// loads the DCNetworkBlock instance from a stream
@@ -2103,30 +2114,63 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// sets the power flows
+ /** Writes \p pf[ l ] as the value of the power flow variable l [see
+  * get_power_flow()] for each l < \p pf.size(), the others being left as
+  * they are: an ACNetworkBlock has the flows of both ends of each line,
+  * those of the "from" ends first, and a DCNetworkBlockSolution holds one
+  * flow per line. */
 
  void set_power_flow( const std::vector< double > & pf ) {
-  for( Index l = 0 ; l < v_power_flow.size() ; ++l )
+  const auto n = std::min( v_power_flow.size() , pf.size() );
+  for( Index l = 0 ; l < n ; ++l )
    v_power_flow[ l ].set_value( pf[ l ] );
   }
 
 /*--------------------------------------------------------------------------*/
+ /// sets the auxiliary variables of the cost of the flows
+ /** Writes \p av[ l ] as the value of the auxiliary variable \f$ V_l \geq
+  * | F_l | \f$ of line \f$ l \f$ [see get_auxiliary_variable()]; nothing is
+  * written if no line has a cost, and otherwise \p av must have
+  * get_number_lines() elements. */
+
+ void set_auxiliary_variable( const std::vector< double > & av ) {
+  for( Index l = 0 ; l < v_auxiliary_variable.size() ; ++l )
+   v_auxiliary_variable[ l ].set_value( av[ l ] );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// sets the dual prices of power flow limits
- /** Writes \p dp[ l ] as the dual value of the bound (1) of line \f$ l \f$
-  * of generate_abstract_constraints(); nothing is written if no line has
-  * such a bound (every line having the rows (2) and (3)), while the entry
-  * of a line with the rows (2) and (3) is an empty BoxConstraint, whose
-  * dual value is written as well but means nothing. */
+ /** Writes \p dp[ l ] as the dual value \f$ \mu_l \f$ of the flow limits
+  * of line \f$ l \f$, the inverse of get_dual_prices(), which gives it
+  * back. For a line with no design variable it is the dual value of its
+  * bound (1) of generate_abstract_constraints(). For a line with a design
+  * variable it is split by its sign between the two sides of the limit: a
+  * \f$ \mu_l \ge 0 \f$ goes to the upper row (2) and 0 to the lower side,
+  * a \f$ \mu_l < 0 \f$ to the lower side and 0 to the row (2), the lower
+  * side being the row (3) or, if the line has none, the lower half of its
+  * bound (1). Nothing is written for a line whose limits are not there.
+  * \p dp must have get_number_lines() elements. */
 
  void set_dual_prices( const std::vector< double > & dp ) {
-  auto nl = get_number_lines();
-  if( ! nl )
-   return;
+  const auto nl = get_number_lines();
+  for( Index l = 0 ; l < nl ; ++l ) {
+   if( ( l < v_design_row.size() ) &&
+       ( v_design_row[ l ] < Inf< Index >() ) ) {  // design on this line
+    const double up = std::max( dp[ l ] , 0.0 );
+    const double lo = std::min( dp[ l ] , 0.0 );
+    v_power_flow_limit_design_const[ v_design_row[ l ] ].set_dual( up );
+    if( v_design_min_row[ l ] < Inf< Index >() )
+     v_power_flow_limit_design_min_const[ v_design_min_row[ l ]
+                                          ].set_dual( lo );
+    else
+     if( ! v_power_flow_limit_const.empty() )
+      v_power_flow_limit_const[ l ].set_dual( lo );
+    continue;
+    }
 
-  if( v_power_flow_limit_const.size() < nl )
-   return;  // no bound to write the dual price on
-
-  for( Index l = 0 ; l < nl ; ++l )
-   v_power_flow_limit_const[ l ].set_dual( dp[ l ] );
+   if( ! v_power_flow_limit_const.empty() )
+    v_power_flow_limit_const[ l ].set_dual( dp[ l ] );
+   }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2276,9 +2320,12 @@ class DCNetworkData : public NetworkData
   * (2) and (3), a bilinear term, and the optimal value need not be convex in
   * \f$ \kappa_l \f$; its derivative where it exists is the one above times the
   * value of \f$ x_l \f$, but it is not a subgradient in general, and
-  * InvestmentFunction refuses such a line. The set_kappa() of
-  * ACNetworkBlock and of OTSNetworkBlock throws, since their lines have
-  * limits in other rows as well.
+  * get_resize_linearization() refuses such a line. The set_kappa() of
+  * ACNetworkBlock and of OTSNetworkBlock throws: their lines are sized by
+  * resize(), which writes \f$ \kappa_l \f$ into these same limits, and for
+  * an OTSNetworkBlock also into the limit of the switching of a switchable
+  * line, whose dual then adds to the subgradient [see
+  * OTSNetworkBlock::resize()].
   *
   * @param values An iterator to a vector containing the kappa constants.
   *
@@ -2514,6 +2561,127 @@ class DCNetworkData : public NetworkData
   }
 
 /*--------------------------------------------------------------------------*/
+ /// kappa times the capacity of the lines in \p subset
+ /** Writes the kappa of the lines as DCNetworkBlock::set_kappa() does,
+  * whatever the class of this Block, registered in the methods factory as
+  * "DCNetworkBlock::resize", the name under which a Block of unknown class
+  * is sized by a kappa [see UCBlock::resize_line()]. The set_kappa() of
+  * ACNetworkBlock and of OTSNetworkBlock throws, and their lines are sized
+  * by this one alone; it is virtual, so that a derived network with rows of
+  * its own in which kappa appears writes them [see
+  * OTSNetworkBlock::resize()], and protected, as the name is the way to
+  * reach it.
+  *
+  * @throws std::invalid_argument if \p values is shorter than \p subset */
+
+ virtual void resize( MF_dbl_sp values , Subset && subset ,
+                      bool ordered = false ,
+                      c_ModParam issuePMod = eNoBlck ,
+                      c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// kappa times the capacity of the lines in \p rng, as the version above
+
+ virtual void resize( MF_dbl_sp values ,
+                      Range rng = Range( 0 , Inf< Index >() ) ,
+                      c_ModParam issuePMod = eNoBlck ,
+                      c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative of the value of this Block w.r.t. the kappa of \p line
+ /** The flow limit constraints of a line l are
+
+     \f[ \kappa_l \mathrm{Pmin}_l \leq F_l \leq \kappa_l \mathrm{Pmax}_l \f]
+
+  * so the derivative of the value of this Block with respect to \f$
+  * \kappa_l \f$ is minus the dual of whichever bound is active,
+  * times that bound. Which one it is, is told by the sign of the dual read
+  * against the sense of the Objective.
+  *
+  * It requires the constraints, and reads the duals that the last solve
+  * left in them: if they have not been generated it throws
+  * std::logic_error. It reads no value of a Variable, so that after a solve
+  * that ended infeasible, with an unbounded dual direction where the duals
+  * go, it gives the coefficient of the condition that a feasible kappa has
+  * to satisfy. This is the same computation that a consumer holding this
+  * Block would otherwise have to do from outside out of
+  * get_power_flow_limit_HVDC_bounds(), get_min_power_flow() and
+  * get_max_power_flow(), together with the sign rule; it is here because
+  * the rows in which \f$ \kappa \f$ appears are this Block's own.
+  *
+  * @param line the index of the line
+  *
+  * @return the derivative of the value of this Block w.r.t. the kappa of the
+  *         given line */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /* As for the container's one [see UCBlock.h], the supported way in is the
+  * name "DCNetworkBlock::get_resize_linearization": the method is not public,
+  * so that reading this sensitivity cannot become one more reason to
+  * recognise the class. It stays protected, and not private, because a
+  * derived network that resizes its lines the same way can reuse it; it is
+  * virtual, so that one with rows of its own in which kappa appears adds
+  * them [see OTSNetworkBlock::get_resize_linearization()]. */
+
+ virtual double get_resize_linearization( Index line ) const {
+  // a design variable of the line is multiplied by kappa in its limits, a
+  // bilinear term, and the value need not be convex in kappa: the dual
+  // gives no subgradient [see set_kappa()]
+  if( get_design( line ) )
+   throw( std::logic_error( "DCNetworkBlock::get_resize_linearization: "
+                            "line " + std::to_string( line ) + " has a "
+                            "design variable, with which the derivative "
+                            "with respect to its kappa is not defined" ) );
+
+  const auto & constraints = get_power_flow_limit_HVDC_bounds();
+
+  if( constraints.empty() )
+   throw( std::logic_error( classname() + "::get_resize_linearization: the "
+                            "abstract representation has not been "
+                            "generated, so there are no rows to read the "
+                            "duals of" ) );
+
+  const auto obj_sign =
+   ( get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+
+  const auto dual = constraints[ line ].get_dual();
+
+  /* The bounds read kappa C^v P, with C^v the factor this Block scales its
+   * flow limits by, so the derivative of a bound with respect to kappa
+   * is C^v P: leaving the factor out is right only while it is 1, which is
+   * its default but not its only value. */
+  const auto scale = get_C_v_scal();
+
+  // The dual is associated with either the lower or the upper bound; the
+  // sign of obj_sign * dual says which one.
+  const auto bound = scale * ( ( obj_sign * dual > 0 )
+			       ? get_min_power_flow( line )
+			       : get_max_power_flow( line ) );
+
+  return( - dual * bound );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// the derivatives w.r.t. the kappa of the lines in \p lines
+ /** Writes in msp[ i ] get_resize_linearization( lines[ i ] ). This is what
+  * the name "<classname>::get_resize_linearization" calls [see
+  * static_initialization()].
+  *
+  * @throws std::invalid_argument if \p msp is shorter than \p lines or an
+  *         index is not that of a line, and std::logic_error as
+  *         get_resize_linearization( line ) does */
+
+ void get_resize_linearization( MF_dbl_msp msp , c_Subset & lines ,
+                                bool ordered = false ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// as get_resize_linearization( subset ), for the lines in \p rng
+
+ void get_resize_linearization( MF_dbl_msp msp ,
+                                Range rng = Range( 0 , Inf< Index >() ) )
+  const;
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2678,6 +2846,31 @@ class DCNetworkData : public NetworkData
   register_method< DCNetworkBlock , MF_dbl_it , Range >(
    "DCNetworkBlock::set_kappa" ,
    & DCNetworkBlock::set_kappa );
+
+  // resize() is registered under the name of the way of sizing a Block [see
+  // UCBlock::resize_line()] it implements: a line standing for kappa times
+  // the capacity it was given. There is no "replicate" here on purpose, k
+  // copies of a line being a line of k times the capacity.
+
+  register_method< DCNetworkBlock , MF_dbl_sp , Subset && , bool >(
+   "DCNetworkBlock::resize" ,
+   & DCNetworkBlock::resize );
+
+  register_method< DCNetworkBlock , MF_dbl_sp , Range >(
+   "DCNetworkBlock::resize" ,
+   & DCNetworkBlock::resize );
+
+  // ... and the getter reading the sensitivity back, which is what makes the
+  // pair usable without knowing this class: a consumer writes k through the
+  // first name and reads the derivative through the second one.
+
+  register_method< DCNetworkBlock , MF_dbl_msp , c_Subset & , bool >(
+   "DCNetworkBlock::get_resize_linearization" ,
+   & DCNetworkBlock::get_resize_linearization );
+
+  register_method< DCNetworkBlock , MF_dbl_msp , Range >(
+   "DCNetworkBlock::get_resize_linearization" ,
+   & DCNetworkBlock::get_resize_linearization );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2721,14 +2914,11 @@ class DCNetworkBlockMod : public NetworkBlockMod
    }
   }
 
- /// what the Modification changes, as its type says [see changes_of()]
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( changes_of( type() ) );
-  }
-
  /// constructor, takes the DCNetworkBlock and the type
  DCNetworkBlockMod( DCNetworkBlock * const fblock , int type )
-  : NetworkBlockMod( fblock , type ) {}
+  : NetworkBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~DCNetworkBlockMod() override = default;
@@ -2859,6 +3049,9 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize a DCNetworkBlockSolution from a netCDF::NcGroup
+ /** Deserialize a DCNetworkBlockSolution from a netCDF::NcGroup with the
+  * format of serialize(); a variable that is a scalar rather than indexed
+  * over "NumberLines" makes it throw std::invalid_argument. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -2872,7 +3065,7 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  ~DCNetworkBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*------ METHODS DESCRIBING THE BEHAVIOR OF A DCNetworkBlockSolution ------*/
+/*------ METHODS DESCRIBING THE BEHAVIOR OF A DCNetworkBlockSolution -------*/
 
  void read( const Block * block ) override;
 
@@ -2899,6 +3092,13 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   * - The variable "FlowValue", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; FlowValue[ l ] is the optimal value of
   *   the power flow on line l. The variable is optional.
+  *
+  * - The variable "AuxiliaryValue", of type netCDF::NcDouble and indexed
+  *   over the dimension "NumberLines"; AuxiliaryValue[ l ] is the value of
+  *   the auxiliary variable \f$ V_l \geq | F_l | \f$ of line l, which carries
+  *   the cost of its flow [see DCNetworkBlock::get_auxiliary_variable()].
+  *   The variable is optional, and it is present only together with
+  *   "FlowValue" and if some line has a nonzero "NetworkCost".
   *
   * - The variable "DualCost", of type netCDF::NcDouble and indexed over
   *   the dimension "NumberLines"; DualCost[ l ] is the dual price of the
@@ -2940,6 +3140,14 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
   *   "NumberLines"; FlowValue[ idx ][ l ] is the optimal value of
   *   the power flow on line l for this DCNetworkBlock. The variable is
   *   optional.
+  *
+  * - The variable "AuxiliaryValue", of type netCDF::NcDouble and indexed
+  *   both over the dimension "NumberNetworks" and the dimension
+  *   "NumberLines"; AuxiliaryValue[ idx ][ l ] is the value of the
+  *   auxiliary variable \f$ V_l \geq | F_l | \f$ of line l of this
+  *   DCNetworkBlock. The variable is optional, and it is present only
+  *   together with "FlowValue" and if some line has a nonzero
+  *   "NetworkCost".
   *
   * - The variable "DualCost", of type netCDF::NcDouble and indexed both
   *   over the dimension "NumberNetworks" (which is the same as
@@ -2985,6 +3193,14 @@ class DCNetworkBlockSolution : public NetworkBlockSolution
  Index f_number_lines;          ///< the number of lines
 
  std::vector< double > v_flow;  ///< v_flow[ l ] = flow variable on line l
+
+ std::vector< double > v_aux;   /**< v_aux[ l ] = auxiliary variable
+                                 *   \f$ V_l \geq | F_l | \f$ of line l,
+                                 *   which carries the cost of its flow
+                                 *   [see
+                                 *   DCNetworkBlock::get_auxiliary_variable()];
+                                 *   empty if the flows are not held or no
+                                 *   line has a cost */
 
  std::vector< double > v_cost;  /**< v_cost[ l ] = dual price of the flow
                                  *   limits of line l [see

@@ -96,7 +96,7 @@ class DesignNetworkBlock : public NetworkBlock
 
  public:
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
@@ -167,7 +167,6 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends NetworkBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -176,8 +175,6 @@ class DesignNetworkBlock : public NetworkBlock
  /// extends NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// serialize a DesignNetworkBlock into a netCDF::NcGroup
@@ -254,6 +251,31 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
+ ColVariable * get_reactive_node_injection( Index interval = 0 ) override {
+  if( v_Block.empty() )
+   return( nullptr );
+
+  if( interval < v_Block.size() )
+   return( static_cast< NetworkBlock * >(
+		      v_Block[ interval ] )->get_reactive_node_injection() );
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ const ColVariable * get_const_reactive_node_injection( Index interval = 0 )
+ const override {
+  if( v_Block.empty() )
+   return( nullptr );
+
+  if( interval < v_Block.size() )
+   return( static_cast< NetworkBlock * >(
+		v_Block[ interval ] )->get_const_reactive_node_injection() );
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  Index get_number_nodes( void ) const override {
   if( v_Block.empty() )
    return( 0 );
@@ -278,6 +300,16 @@ class DesignNetworkBlock : public NetworkBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// whether the sub-networks handle reactive power, as the first one says
+
+ bool handles_reactive( void ) const override {
+  if( v_Block.empty() )
+   return( false );
+  return( static_cast< NetworkBlock * >(
+				     v_Block.front() )->handles_reactive() );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  const double * get_active_demand( Index interval ) const override {
   if( v_Block.empty() )
@@ -286,6 +318,19 @@ class DesignNetworkBlock : public NetworkBlock
   if( interval < v_Block.size() )
    return( static_cast< NetworkBlock * >(
     v_Block[ interval ] )->get_active_demand( 0 ) );
+
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ const double * get_reactive_demand( Index interval ) const override {
+  if( v_Block.empty() )
+   return( nullptr );
+
+  if( interval < v_Block.size() )
+   return( static_cast< NetworkBlock * >(
+    v_Block[ interval ] )->get_reactive_demand( 0 ) );
 
   return( nullptr );
   }
@@ -554,6 +599,30 @@ class DesignNetworkBlock : public NetworkBlock
     v_Block[ interval ] )->set_max_node_injection( max_injection , node );
   }
 
+/*--------------------------------------------------------------------------*/
+
+ void set_min_reactive_node_injection( double min_injection , Index node ,
+                                       Index interval ) override {
+  if( v_Block.empty() )
+   return;
+
+  if( interval < v_Block.size() )
+   static_cast< NetworkBlock * >( v_Block[ interval ] )->
+    set_min_reactive_node_injection( min_injection , node , 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_max_reactive_node_injection( double max_injection , Index node ,
+                                       Index interval ) override {
+  if( v_Block.empty() )
+   return;
+
+  if( interval < v_Block.size() )
+   static_cast< NetworkBlock * >( v_Block[ interval ] )->
+    set_max_reactive_node_injection( max_injection , node , 0 );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -592,9 +661,9 @@ class DesignNetworkBlock : public NetworkBlock
   *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
-  * - otherwise, it is 15 + 24 = 31 (save everything in compressed format
-  *   and set bit 1 and 2 of the sub-Networks, which corresponds to the
-  *   default value in DCNetworkBlock). */
+  * - otherwise, it is 15 + 16 = 31 (save everything in compressed format
+  *   and set bit 1 of the sub-Networks, i.e., their node injections and
+  *   their flows but not their dual prices). */
 
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
@@ -832,7 +901,7 @@ class DesignNetworkBlockSolution : public NetworkBlockSolution
    delete nbs;
   }
 
-/*---- METHODS DESCRIBING THE BEHAVIOR OF A DesignNetworkBlockSolution ----*/
+/*---- METHODS DESCRIBING THE BEHAVIOR OF A DesignNetworkBlockSolution -----*/
 
  void read( const Block * block ) override final;
 

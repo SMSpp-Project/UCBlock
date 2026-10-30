@@ -183,7 +183,7 @@ class ACNetworkData : public DCNetworkData
 
  public:
 
-/** @} ---------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /** @name Constructor and Destructor
  * @{ */
 
@@ -215,7 +215,8 @@ class ACNetworkData : public DCNetworkData
   *   \f$ x_l \f$ and the resistance \f$ r_l \f$ of each line in per unit,
   *   which are mandatory, since they decide which lines are AC lines (those
   *   with a nonzero susceptance, reactance or resistance) and which are
-  *   HVDC lines (the others);
+  *   HVDC lines (the others): if there are lines and either is missing,
+  *   std::invalid_argument is thrown;
   *
   * - the variables "LineChargingSusceptance", "LineRatio" and
   *   "LineShiftAngle", indexed over "NumberLines", the charging susceptance
@@ -265,13 +266,13 @@ class ACNetworkData : public DCNetworkData
   * optional; those without a default and without a meaning when absent
   * ("LineRATEA" and the data of the nodes) are however used by
   * ACNetworkBlock::generate_abstract_constraints(), and therefore have to
-  * be there if the abstract representation is generated. */
+  * be there if the abstract representation is generated, which throws
+  * std::invalid_argument otherwise. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends [DC]NetworkData::expected_dims()
  /* not necessary since ACNetworkData does not have any new dimensions
 
@@ -282,8 +283,6 @@ class ACNetworkData : public DCNetworkData
  /// extends [DC]NetworkData::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /** @} ------- METHODS FOR READING THE DATA OF THE ACNetworkData -----------*/
 /** @name Reading the data of the ACNetworkData
@@ -483,7 +482,7 @@ class ACNetworkData : public DCNetworkData
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/** @} ---------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
@@ -604,7 +603,7 @@ class ACNetworkData : public DCNetworkData
   * get_new_NetworkData(); hence this method dispatches to
   * DCNetworkBlock::deserialize() and then only reads the optional
   * "ReactiveDemand" variable, which mirrors the (one-dimensional)
-  * "ActiveDemand" one. */
+  * "ActiveDemand" one; if it is not there the reactive demand is 0. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -618,7 +617,6 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends [DC]NetworkBlock::expected_dims()
  /* not necessary since ACNetworkBlock does not have any new dims save those
   * of the ACNetworkData that are automatically taken into account.
@@ -630,8 +628,6 @@ class ACNetworkData : public DCNetworkData
  /// extends [DC]NetworkBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the ACNetworkBlock
@@ -853,7 +849,12 @@ class ACNetworkData : public DCNetworkData
   * DCNetworkBlock::generate_abstract_constraints() on \f$ F^{fr}_l \f$
   * (see DCNetworkBlock::generate_bound_constraints()), and the bounds on
   * \f$ R_n \f$ given by set_min_reactive_node_injection() and
-  * set_max_reactive_node_injection(). If #b_strongSOCP is true, also
+  * set_max_reactive_node_injection(), a bound that has not been given
+  * being infinite (as for a network that is not in a UCBlock). If the
+  * network has AC lines and no "LineRATEA", or no "NodeMinVoltage",
+  * "NodeMaxVoltage", "NodeConductance" or "NodeSusceptance" [see
+  * ACNetworkData::deserialize()], std::invalid_argument is thrown before
+  * anything is generated. If #b_strongSOCP is true, also
   * strengthen_SOCP_relaxation() is called, which adds the bounds of the
   * strengthened relaxation; its McCormick inequalities are separated by
   * generate_dynamic_constraints().
@@ -893,17 +894,13 @@ class ACNetworkData : public DCNetworkData
   override;
 
 /*--------------------------------------------------------------------------*/
- /// the size of a line of an ACNetworkBlock is not changed by a kappa
- /** Besides the bounds (1) of DCNetworkBlock, the limit of a line of an
-  * ACNetworkBlock is in rows that a kappa does not reach (the thermal limit
-  * and the bounds of the reactive flow), hence sizing a line this way is not
-  * supported and these throw.
+ /// the size of a line of an ACNetworkBlock is not changed by set_kappa()
+ /** A line of an ACNetworkBlock is sized by resize(), registered in the
+  * methods factory as "ACNetworkBlock::resize" [see
+  * static_initialization()], which writes its kappa into the power flow
+  * limit rows built by generate_bound_constraints() and nowhere else.
   *
-  * Supporting it means saying what the size of such a line is and writing
-  * the kappa into the rows that carry it, i.e., the thermal limit and the
-  * bounds of the reactive flow, and answering whether the susceptance
-  * follows the size, which it does not do linearly: a modelling choice
-  * rather than a translation, left to whoever needs it. */
+  * set_kappa() throws: a line is sized by resize() alone. */
 
  void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -994,6 +991,16 @@ class ACNetworkData : public DCNetworkData
  /// returns true since ACNetworkBlock handles reactive power
 
  bool handles_reactive( void ) const override { return( true ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the bounds of the reactive node injections, one per node
+ /** Returns the rows "Reactive_Node_Injection_Bound_Const_Network" of
+  * generate_abstract_constraints(), empty before they are generated. */
+
+ const std::vector< BoxConstraint > &
+  get_reactive_node_injection_bounds( void ) const {
+  return( reactive_node_injection_bounds_const );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE Variable OF THE ACNetworkBlock --------*/
@@ -1144,8 +1151,8 @@ class ACNetworkData : public DCNetworkData
 
  void set_min_reactive_node_injection( double min_inj , Index node ,
                                        Index t ) override {
-  if( v_MinReactiveNodeInjection.empty() )
-   v_MinReactiveNodeInjection.resize( get_number_nodes() );
+  if( v_MinReactiveNodeInjection.empty() )  // the others are not bounded
+   v_MinReactiveNodeInjection.resize( get_number_nodes() , -Inf< double >() );
   v_MinReactiveNodeInjection[ node ] = min_inj;
   if( ! reactive_node_injection_bounds_const.empty() )  // the rows are there
    reactive_node_injection_bounds_const[ node ].set_lhs( min_inj );
@@ -1159,8 +1166,8 @@ class ACNetworkData : public DCNetworkData
 
  void set_max_reactive_node_injection( double max_inj , Index node ,
                                        Index t ) override {
-  if( v_MaxReactiveNodeInjection.empty() )
-   v_MaxReactiveNodeInjection.resize( get_number_nodes() );
+  if( v_MaxReactiveNodeInjection.empty() )  // the others are not bounded
+   v_MaxReactiveNodeInjection.resize( get_number_nodes() , Inf< double >() );
   v_MaxReactiveNodeInjection[ node ] = max_inj;
   if( ! reactive_node_injection_bounds_const.empty() )  // the rows are there
    reactive_node_injection_bounds_const[ node ].set_rhs( max_inj );
@@ -1364,19 +1371,48 @@ class ACNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
- /// nothing of its own to register in the methods factory
- /** The methods an ACNetworkBlock can be asked for by name are those of
-  * DCNetworkBlock, registered by DCNetworkBlock::static_initialization():
+ /// register the sizing of a line under the names of this class
+ /** The other methods an ACNetworkBlock can be asked for by name are those
+  * of DCNetworkBlock, registered by DCNetworkBlock::static_initialization():
   * they reach an ACNetworkBlock as well, being called on it as on the
   * DCNetworkBlock it is, and set_active_demand() is virtual. Registering
   * them again here, under the same names, would replace the adapter of
   * DCNetworkBlock with one casting to ACNetworkBlock, which is wrong on a
   * DCNetworkBlock that is not one, and which of the two survives would
   * depend on the order of the static initialization. This one is defined
-  * all the same so that the factory does not call the inherited one, which
-  * would register the same methods twice. */
+  * so that the factory does not call the inherited one, which would
+  * register the same methods twice.
+  *
+  * What is registered here is the sizing of a line, under names of this
+  * class since a consumer looks them up by the exact class of the Block:
+  * the kappa of DCNetworkBlock::resize(), which this class inherits while
+  * its set_kappa() throws, scales the power flow limit rows built by
+  * generate_bound_constraints(), and nothing else, i.e., not the thermal
+  * limit, the bounds of the reactive flow or the susceptance. These are the
+  * rows, and the only ones, that the design variable of a
+  * DesignNetworkBlock scales, so that a line of kappa k behaves as a
+  * designed line whose design is k. The sensitivity is read off those rows
+  * as in DCNetworkBlock. */
 
- static void static_initialization( void ) {}
+ static void static_initialization( void )
+ {
+  register_method< ACNetworkBlock , MF_dbl_sp , Subset && , bool >(
+   "ACNetworkBlock::resize" , & ACNetworkBlock::resize );
+
+  register_method< ACNetworkBlock , MF_dbl_sp , Range >(
+   "ACNetworkBlock::resize" , & ACNetworkBlock::resize );
+
+  // the getter is that of DCNetworkBlock, with what it requires [see
+  // DCNetworkBlock::get_resize_linearization()]
+
+  register_method< ACNetworkBlock , MF_dbl_msp , c_Subset & , bool >(
+   "ACNetworkBlock::get_resize_linearization" ,
+   & ACNetworkBlock::get_resize_linearization );
+
+  register_method< ACNetworkBlock , MF_dbl_msp , Range >(
+   "ACNetworkBlock::get_resize_linearization" ,
+   & ACNetworkBlock::get_resize_linearization );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1418,6 +1454,10 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deserialize an ACNetworkBlockSolution from a netCDF::NcGroup
+ /** Deserialize an ACNetworkBlockSolution from a netCDF::NcGroup with the
+  * format of serialize(); a variable that is a scalar rather than indexed
+  * over "NumberNodes" or "NumberLines" makes it throw
+  * std::invalid_argument. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -1431,7 +1471,7 @@ class ACNetworkBlockSolution : public DCNetworkBlockSolution
  ~ACNetworkBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*------ METHODS DESCRIBING THE BEHAVIOR OF A ACNetworkBlockSolution ------*/
+/*------ METHODS DESCRIBING THE BEHAVIOR OF A ACNetworkBlockSolution -------*/
 
  void read( const Block * block ) override final;
 

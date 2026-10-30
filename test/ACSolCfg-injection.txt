@@ -1,0 +1,16 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - -  ACSolCfg-injection.txt - - - - - - - - - - - - - -
+#
+# The Configuration of the ACNetworkBlockSolution that holds the active and
+# the reactive node injections and the dual prices of the lines, but no
+# flow, neither active nor reactive.
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+SimpleConfiguration<int> # exact type of the Configuration object
+5  # 1 node injections + 4 dual prices, no 2: no flow
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - -  END ACSolCfg-injection.txt - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

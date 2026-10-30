@@ -278,20 +278,17 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
-/*
 std::vector< std::string > NuclearUnitBlock::expected_dims( void )
  const {
- static const std::vector< std::string > ed = { };
+ static const std::vector< std::string > ed = { "NumberPowerBands" };
 
- auto ret = UnitBlock::expected_dims();
+ auto ret = ThermalUnitBlock::expected_dims();
  ret.insert( ret.end() , ed.begin() , ed.end() );
 
  return( ret );
  }
 
-----------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 std::vector< std::string > NuclearUnitBlock::expected_vars( void )
  const {
@@ -309,8 +306,6 @@ std::vector< std::string > NuclearUnitBlock::expected_vars( void )
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -415,6 +410,7 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   f_tight_rules = sci->f_value & TightRules;
   f_tight_ramp = sci->f_value & TightRamp;
   f_tight_cuts = f_tight_rules && ( sci->f_value & TightCuts );
+  f_window_cuts = sci->f_value & TightCuts;
   f_rules_form = sci->f_value & NuclearRules::FormMsk;
   f_stab_single = sci->f_value & NuclearRules::StartUpStabSingle;
   f_deep_f1 = sci->f_value & NuclearRules::DeepByF1Rows;
@@ -422,6 +418,7 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
   f_run_reach = sci->f_value & NuclearRules::RunReach;
   f_run_rules = sci->f_value & NuclearRules::RunRules;
   f_band_persp = sci->f_value & NuclearRules::BandPersp;
+  f_band_config = sci->f_value & NuclearRules::BandConfig;
   }
 
  // the bits of the tight rows only concern the default formulation of the
@@ -431,6 +428,10 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
  const bool compact = ( f_rules_form != NuclearRules::F1Form ) && ( ! graph );
  if( f_rules_form != NuclearRules::F1Form )
   f_tight_rules = f_tight_ramp = f_tight_cuts = false;
+ // TightCuts alone separates the window rows of F2 and F3a (F3b included)
+ if( ( f_rules_form != NuclearRules::F2Form ) &&
+     ( f_rules_form != NuclearRules::F3aForm ) )
+  f_window_cuts = false;
  if( ! compact )
   f_stab_single = f_deep_f1 = f_reach = false;
  if( f_rules_form == NuclearRules::F0Form )
@@ -454,6 +455,8 @@ void NuclearUnitBlock::generate_abstract_variables( Configuration * stvv ) {
                                  "SUSD formulation of the thermal part" ) );
   if( f_band_persp && ( ! has_perspective_cuts() ) )
    throw( std::logic_error( fn + "BandPersp needs the Perspective Cuts" ) );
+  if( f_band_config && ( f_rules_form != NuclearRules::F2Form ) )
+   throw( std::logic_error( fn + "BandConfig needs F2" ) );
   }
 
  // Modulation Variable- - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1110,7 +1113,7 @@ void NuclearUnitBlock::generate_operating_rules( void )
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::build_band_rows( bool end_link )
+void NuclearUnitBlock::build_band_rows( bool end_link , bool keep_move )
 {
  if( ! has_power_bands() )
   return;
@@ -1151,13 +1154,17 @@ void NuclearUnitBlock::build_band_rows( bool end_link )
  // are reserved to their largest size, so that no row moves
  if( end_link )
   ModulationEndLink.resize( T );
- BandKeep.resize( T );
- BandMove.resize( T );
+ if( keep_move ) {
+  BandKeep.resize( T );
+  BandMove.resize( T );
+  }
  for( Index t = 0 ; t < T ; ++t ) {
   if( end_link )
    ModulationEndLink[ t ].reserve( 3 );
-  BandKeep[ t ].reserve( 6 );
-  BandMove[ t ].reserve( 11 );
+  if( keep_move ) {
+   BandKeep[ t ].reserve( 6 );
+   BandMove[ t ].reserve( 11 );
+   }
   }
 
  for( Index t = 0 ; t < T ; ++t ) {
@@ -1211,6 +1218,10 @@ void NuclearUnitBlock::build_band_rows( bool end_link )
          double( L - 1 ) );
     }
    }
+
+  // the configurations of F3b keep and move the band
+  if( ! keep_move )
+   continue;
 
   if( ! t ) {
    // the instant 0 has the (constant) band of the initial power, if the
@@ -1314,8 +1325,10 @@ void NuclearUnitBlock::build_band_rows( bool end_link )
  add_rows( BandPower , "BandPower_Nuclear" );
  if( end_link )
   add_rows( ModulationEndLink , "ModulationEnd_Nuclear" );
- add_rows( BandKeep , "BandKeep_Nuclear" );
- add_rows( BandMove , "BandMove_Nuclear" );
+ if( keep_move ) {
+  add_rows( BandKeep , "BandKeep_Nuclear" );
+  add_rows( BandMove , "BandMove_Nuclear" );
+  }
 
  }  // end( NuclearUnitBlock::build_band_rows )
 
@@ -1422,7 +1435,7 @@ void NuclearUnitBlock::generate_dynamic_constraints( Configuration * dycc )
  // the Perspective Cuts of the thermal part
  ThermalUnitBlock::generate_dynamic_constraints( dycc );
 
- if( ! f_tight_cuts )
+ if( ! ( f_tight_cuts || f_window_cuts ) )
   return;
 
  const Index T = f_time_horizon;
@@ -1439,6 +1452,24 @@ void NuclearUnitBlock::generate_dynamic_constraints( Configuration * dycc )
   one.front().set_function( new LinearFunction( std::move( cf ) ) , eNoMod );
   add_dynamic_constraints( Nuclear_cuts , one , eNoBlck );
   };
+
+ // the rows of F2 on the stability and on the longest modulation
+ if( f_window_cuts ) {
+  for( Index k = 0 ; k < v_window_rows.size() ; ++k ) {
+   if( v_window_done[ k ] )
+    continue;
+   const auto & [ cf , rhs ] = v_window_rows[ k ];
+   double lhs = 0;
+   for( const auto & [ x , a ] : cf )
+    lhs += a * x->get_value();
+   if( lhs > rhs + tol * std::max( 1.0 , std::abs( rhs ) ) ) {
+    auto c = cf;
+    cut( std::move( c ) , rhs );
+    v_window_done[ k ] = 1;
+    }
+   }
+  return;
+  }
 
  for( Index t = 0 ; t < T ; ++t ) {
   // at most one start in any tau^M instants
@@ -2106,6 +2137,11 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
    && ColVariable::is_feasible( v_xi_high , tol )
    && ColVariable::is_feasible( v_xi_small , tol )
    && ColVariable::is_feasible( v_run , tol )
+   && ColVariable::is_feasible( v_band_cfg , tol )
+   && ColVariable::is_feasible( v_band_up , tol )
+   && ColVariable::is_feasible( v_band_dn , tol )
+   && ColVariable::is_feasible( v_band_su , tol )
+   && ColVariable::is_feasible( v_band_sd , tol )
    && ColVariable::is_feasible( v_arc , tol )
    && ColVariable::is_feasible( v_arc_land , tol )
    && ColVariable::is_feasible( v_arc_dep , tol )

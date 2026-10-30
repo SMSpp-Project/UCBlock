@@ -120,8 +120,6 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 /*
 std::vector< std::string > SlackUnitBlock::expected_dims( void )
  const {
@@ -148,8 +146,6 @@ std::vector< std::string > SlackUnitBlock::expected_vars( void )
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -561,6 +557,9 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "PrimaryCost" , v_PrimaryCost );
  serialize( "SecondaryCost" , v_SecondaryCost );
  serialize( "InertiaCost" , v_InertiaCost );
+
+ serialize( "MaxReactivePower" , v_MaxReactivePower );
+ serialize( "MinReactivePower" , v_MinReactivePower );
 
 }  // end( SlackUnitBlock::serialize )
 

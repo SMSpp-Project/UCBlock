@@ -30,9 +30,9 @@ endif ()
 add_executable(${modName}_unit_test test.cpp test_power_limits.cpp)
 
 # test.cpp and test_power_limits.cpp read their configuration files (the
-# BlockConfig of the formulations, TUBCfg-*.txt, NUBCfg-*.txt and
-# ACBCfg-*.txt, and the BlockSolverConfig LPCmp*.txt) from the source
-# directory
+# BlockConfig of the formulations, TUBCfg-*.txt, NUBCfg-*.txt, ACBCfg-*.txt
+# and PFBCfg.txt, the BlockSolverConfig LPCmp*.txt and the Configuration of
+# the Solution *SolCfg-*.txt) from the source directory
 target_compile_definitions(${modName}_unit_test PRIVATE
                            UCBLOCK_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${modName}_unit_test PRIVATE SMS++::UCBlock)

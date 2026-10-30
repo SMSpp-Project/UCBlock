@@ -1,0 +1,29 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - -  CopyBSCfg-bound.txt  - - - - - - - - - - - - - -
+#
+# BlockSolverConfig of the copy of a unit with no copies in the tests of
+# the derivative by copies of a UCBlock [see UCBCfg-copy-bound.txt]: the
+# BoundSolver of the unit test, which answers with the bound it is given
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+BlockSolverConfig     # exact type of the Configuration object
+
+1  # the BlockSolverConfig is a "differential" one
+
+1  # number of (the names of) Solver in this BlockSolverConfig
+
+# now all the names of the Solver - - - - - - - - - - - - - - - - - - - - - -
+BoundSolver           # name of 1st Solver
+
+0  # number of ComputeConfig in this BlockSolverConfig
+
+# now all the ComputeConfig
+# [none]
+
+# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - -  END CopyBSCfg-bound.txt  - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

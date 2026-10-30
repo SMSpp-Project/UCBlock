@@ -410,29 +410,49 @@ of consecutive instants, whose only interface with the units is the vector of
 the node injections \f$ S_{t,n} \f$. When the network has a single node (a
 bus) there is no NetworkBlock (see UCBlock::deserialize()).
 
-The UCBlock has no notion of energy carrier: a node is a balance (1) of
-whatever form of energy its generators and its demand are in, so that a
-system with electricity, heat or gas has one node per carrier and location,
-at least as many nodes as carriers. On a heat node a heat-only unit is a
+The UCBlock knows the energy carriers (electricity, heat, gas, hydrogen,
+...): the carrier 0 is the electricity, whose nodes, network and demand are
+those described so far, while each other carrier \f$ c \f$ has its own nodes,
+numbered within it, its own network (a NetworkBlock per instant, if it has more
+than one node) and its own demand, so that the nodes of two carriers are
+distinct even at the same location, and its own balances (1c) (see
+UCBlock::deserialize()). The active power \f$ p^{ac}_{t,g} \f$ remains the
+only Variable of the energy of a generator, and its outputs say how much of it
+goes to each carrier (see UnitBlock::get_output_efficiency()): output \f$ k
+\f$ gives \f$ \eta_{t,g,k} \, p^{ac}_{t,g} \f$ to its carrier, at the node of
+the generator on that carrier, a negative efficiency being what the generator
+consumes. Hence a gas turbine of efficiency \f$ e \f$ gives 1 to the
+electricity and \f$ - 1 / e \f$ to the gas, a back-pressure combined heat and
+power plant 1 to the electricity and its heat-to-power ratio to the heat, an
+electrolyser 1 to the hydrogen and \f$ - 1 / e \f$ to the electricity, and a
+heat pump 1 to the heat and \f$ - 1 / \mathrm{COP}_t \f$ to the electricity,
+each of them with the commitment and the constraints of its unit (a
+ThermalUnitBlock, say), which bear on its active power alone; this is also the
+coupling of the links of PyPSA, whose outputs are fixed shares of the flow out
+of their first bus. A plant whose outputs are not in fixed ratios, e.g., an
+extraction-condensing plant whose heat and electricity range over a polygon,
+is instead a ConversionUnitBlock, whose generators are on the nodes of their
+carriers and whose operating region couples them. The zones (see \ref
+ucbm_link_zones) decide what counts where: the reserves and the inertia are
+of the electricity, and a pollutant zone may hold nodes of any carrier, the
+emissions of a generator being at its node on the electricity or, if it has
+none, at its node on the first carrier where it has one.
+
+With one carrier the model is that of the electricity alone, and a system with
+heat or gas can still be written within it, with one node of the electric
+network per carrier and location: on a heat node a heat-only unit is a
 ThermalUnitBlock (or an IntermittentUnitBlock for solar heat), a heat store a
 BatteryUnitBlock, the heat demand the demand of the node, a pipe a line with
-an efficiency (which loses a fraction of the heat), and a heat dump a line of
-efficiency 0 to any node; a heat pump or an electric boiler with no
-commitment is a line from an electric node with its coefficient of
-performance as efficiency. A plant with one commitment and several coupled
-outputs or inputs on different nodes (a combined heat and power plant, an
-electrolyser with its heat, a heat pump with commitment) is a
-ConversionUnitBlock, whose generators are on the nodes of their carriers and
-whose operating region couples them; the same coupling with fixed ratios can
-also be written with a hyperarc of the DCNetworkBlock out of a private node
-of the plant, the plant being then a unit on that node, also in a network
-whose other lines obey Kirchhoff's voltage law (see DCNetworkBlock). The
-zones (see \ref ucbm_link_zones) decide what counts where: a heat node in
-no reserve or inertia zone contributes nothing to (2)-(4), and one in a
-pollutant zone contributes the emissions of its generators to (5). Nothing
-in the model checks that the data of a node are consistent with its carrier
-(that a heat node is outside the reserve zones, say), which is left to
-whoever writes them.
+an efficiency (which loses a fraction of the heat), a heat dump a line of
+efficiency 0 to any node, a heat pump with no commitment a line from an
+electric node with its coefficient of performance as efficiency, and a plant
+with fixed ratios between its outputs a unit on a private node with a hyperarc
+of the DCNetworkBlock out of it (see DCNetworkBlock). Nothing in the model
+then checks that the data of a node are consistent with its carrier (that a
+heat node is outside the reserve zones, say), which is left to whoever writes
+them; the carriers make these checks unnecessary, since the reserves only see
+the nodes of the electricity, and they keep the nonlinear networks (AC, gas)
+of a carrier free from the nodes of the others.
 
 \subsection ucbm_obj The objective
 
@@ -518,6 +538,23 @@ rows are written for it,
   \text{ in the bus case,} \tag{1'}
 \f]
 without fixed consumption, which is an active power only.
+
+For a carrier \f$ c > 0 \f$, with \f$ \mathcal{G}^c_n \f$ the generators
+at node \f$ n \f$ of \f$ c \f$ and \f$ \eta^c_{t,g} \f$ the sum of the
+efficiencies of the outputs of \f$ g \f$ on \f$ c \f$ (0 if it has none),
+\f[
+  \sum_{ g \in \mathcal{G}^c_n } \sigma_g \, \eta^c_{t,g} \, p^{ac}_{t,g}
+    - S^c_{t,n} = 0 \; , \qquad \text{or} \qquad
+  \sum_{ g \in \mathcal{G}^c } \sigma_g \, \eta^c_{t,g} \, p^{ac}_{t,g}
+    = D^c_{t} \text{ with one node,} \tag{1c}
+\f]
+the balance of the energy of the carrier, composed with the network of the
+carrier as (1) is with the electric one; there is no fixed consumption, which
+is electric. In (1) and (1b) the active power of a generator is also
+multiplied by \f$ \eta_{t,g} \f$, the sum of the efficiencies of its outputs
+on the electricity, which is 1 for a generator with the default output only
+(see UnitBlock::get_number_outputs()); a generator with no node on the
+electricity is in no sum of (1), (1b), (2), (3) and (4).
 
 \subsubsection ucbm_link_zones Zones
 
@@ -695,23 +732,66 @@ model of each one is in the documentation of its class, to which we refer.
 
 In the model, the capacity of the assets enters through two kinds of
 parameters of the sub-Blocks. First, the scale \f$ \sigma_i \f$ of a UnitBlock
-(ThermalUnitBlock, IntermittentUnitBlock, BatteryUnitBlock; see
+(ThermalUnitBlock, NuclearUnitBlock, IntermittentUnitBlock, BatteryUnitBlock,
+ConversionUnitBlock; see
 UnitBlock::scale()) represents a number of identical copies of the unit,
 committed and dispatched together. The Variable are those of one copy, and the
 UnitBlock contributes \f$ \sigma_i f^1_i \f$ to (0) and \f$ \sigma_i g^1_i \f$
 to (1)-(5), where \f$ f^1_i \f$ and \f$ g^1_i \f$ are the cost and the
 contributions of one copy. Second, the capacity multipliers \f$ \kappa \f$ of
 IntermittentUnitBlock and BatteryUnitBlock, and \f$ \kappa_l \f$ of the lines
-of DCNetworkBlock, multiply the power, storage and flow limits of a unit or of
+of DCNetworkBlock, ACNetworkBlock and OTSNetworkBlock, multiply the power,
+storage and flow limits of a unit or of
 a line. For an intermittent unit, with "MaxPower" the production per unit of
 installable capacity times that capacity, \f$ \kappa \in [ 0 , 1 ] \f$ is the
 installed fraction; the initial level of a battery and the energy bounds of an
 intermittent unit are, however, absolute quantities, not multiplied by
 \f$ \kappa \f$. Both kinds of parameters can be changed after the Block is
 built (UnitBlock::scale(), IntermittentUnitBlock::set_kappa(),
-BatteryUnitBlock::set_kappa(), DCNetworkBlock::set_kappa()), and the UCBlock
+BatteryUnitBlock::set_kappa(), DCNetworkBlock::set_kappa(), or by name, see
+\ref ucbm_cap_names), and the UCBlock
 rewrites the coefficients of (1)-(5) when a scale changes. Therefore, one can
 evaluate the optimal cost as a function of the capacities.
+
+\subsection ucbm_cap_names Sizing by name
+
+A Block holding a UCBlock sizes its units and its lines without knowing their
+classes, through the methods factory. The class of a sub-Block registers
+"<classname>::replicate", which sets its scale (a scalar), and
+"<classname>::resize", which sets its capacity multiplier (a scalar for a
+unit, a pair for a BatteryUnitBlock, a span for the lines of a network), each
+on the protected method of the same name, with
+"<classname>::get_resize_linearization" for the derivative (9) or (10). The
+UCBlock registers "UCBlock::replicate", "UCBlock::resize_unit" and
+"UCBlock::resize_line", which hand each value of a span to the name of the
+class of its sub-Block and rewrite the rows of the UCBlock once, after the
+last one, and the derivatives "UCBlock::get_replicate_linearization", which
+is (8) and needs the rows of the UCBlock,
+"UCBlock::get_resize_unit_linearization" and
+"UCBlock::get_resize_line_linearization". The classes that register the names
+are:
+
+- ThermalUnitBlock, NuclearUnitBlock and ConversionUnitBlock, only
+  "::replicate", having no capacity multiplier;
+- IntermittentUnitBlock and BatteryUnitBlock, both, the "::resize" of a
+  BatteryUnitBlock also with a pair, the sizes of the storage and of the
+  converter (see BatteryUnitBlock::resize());
+- DCNetworkBlock, ACNetworkBlock and OTSNetworkBlock, only "::resize", k
+  copies of a line being a line of k times the capacity; the set_kappa() of
+  ACNetworkBlock and of OTSNetworkBlock throws, their lines being sized by
+  "::resize" alone, which writes \f$ \kappa_l \f$ only where the design
+  variable of a DesignNetworkBlock enters, the flow limits and the limit of
+  the switching of an OTS line (see OTSNetworkBlock::resize());
+- none of them HydroUnitBlock, HydroSystemUnitBlock, SlackUnitBlock,
+  ECNetworkBlock and DesignNetworkBlock.
+
+A sub-Block whose class does not register the name makes the names of the
+UCBlock throw std::logic_error, naming the class. A registered name may
+refuse too: the scale() of an IntermittentUnitBlock, a BatteryUnitBlock or a
+ConversionUnitBlock whose design has more than one module throws for a scale
+other than 1, a derivative throws for a unit or a line in design mode (see
+\ref ucbm_cap_sens) and before the rows are generated, and a span shorter
+than what it is asked to write throws std::invalid_argument.
 
 \subsection ucbm_cap_design Design variables
 
@@ -792,7 +872,11 @@ subproblem of one copy at \f$ \bar y \f$. The value \f$ f^1_i( \bar z_i ) +
 \bar y^\top g^1_i( \bar z_i ) \f$ of this minimizer is the slope of the
 function of \f$ \sigma_i \f$ that is active in the dual function. Note that
 the solution of the unit given by the Solver of a convex problem is such a
-minimizer (see UnitBlock::scale() for the argument). A capacity multiplier,
+minimizer (see UnitBlock::scale() for the argument). With
+\f$ \sigma_i = 0 \f$ there is no solution of the unit to evaluate (8) at:
+"UCBlock::get_replicate_linearization" then minimizes the same terms over a
+mirror of one copy of the unit, and takes the lower bound that its Solver
+finds, so that the cut stays valid. A capacity multiplier,
 instead, multiplies the data \f$ b^1_r \f$ in the finite side
 \f$ \kappa b^1_r \f$ of a set \f$ \mathcal{R}_\kappa \f$ of rows of the
 sub-Block (for a two-sided row, the side that the sign of its dual value
@@ -816,15 +900,23 @@ where \f$ \bar\mu_{t,l} \f$ is the dual value of the flow bounds of line
 \f$ l \f$ in the NetworkBlock of instant \f$ t \f$ and \f$ P^{\star}_{t,l} \f$
 is the maximum flow of the line at that instant if the upper bound is the
 active one (\f$ \bar\mu_{t,l} > 0 \f$), its minimum flow otherwise (see
-DCNetworkBlock::set_kappa()). In (9) and (10) the minus sign makes the
-subgradient nonpositive when more capacity relaxes an active upper bound, as
-it must for a minimization. A capacity multiplier of a unit or of a line that
-is also in design mode is not covered by these formulae, since there
-\f$ \kappa \f$ multiplies the design variable and the optimal value need not
-be convex in it. Hence, IntermittentUnitBlock::get_kappa_linearization(),
-BatteryUnitBlock::get_kappa_linearization() and InvestmentFunction (for a line
-with a design variable) throw in that case. A worst case of \f$ Q \f$ over a
-set \f$ \Upsilon \f$ of alternative futures, i.e., the problem
+DCNetworkBlock::set_kappa()); a switchable line of an OTSNetworkBlock adds
+the dual value of the limit \f$ \min\{ 1 , \kappa_l \} \f$ of its switching
+while \f$ \kappa_l < 1 \f$ (see OTSNetworkBlock::resize()). In (9) and (10)
+the minus sign makes the subgradient nonpositive when more capacity relaxes
+an active upper bound, as it must for a minimization. Through the names of the
+UCBlock, the derivative of a unit, with respect to its scale or to its
+capacity multiplier, also counts the dual values of the bounds of the node
+injections, in which both appear
+(see \ref ucbm_link_bounds). A capacity multiplier
+of a unit or of a line that is also in design mode is not covered by these
+formulae, since there \f$ \kappa \f$ multiplies the design variable and
+the optimal value need not be convex in it. Hence,
+IntermittentUnitBlock::get_kappa_linearization(),
+BatteryUnitBlock::get_kappa_linearization() and, for a line with a design
+variable, DCNetworkBlock::get_resize_linearization() throw in that case. A
+worst case of \f$ Q \f$ over a set \f$ \Upsilon \f$ of alternative
+futures, i.e., the problem
 \f[
   \min_x \Bigl\{ \sum_{ i = 1 }^m \bigl( c_i ( x_i - \bar x_i )^+
     + d_i ( \bar x_i - x_i )^+ \bigr) + \max_{ \upsilon \in \Upsilon }

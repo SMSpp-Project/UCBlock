@@ -105,9 +105,9 @@ class NuclearRules
  static constexpr int TightRamp = 64;
 
  /// bit 7: the tight rows on the start Variable separated rather than
- /// written; with the formulations of the rules other than the default one,
- /// the rows on the stability and on the longest modulation that are not
- /// needed to describe the schedules
+ /// written; with F2, F3a and F3b, the rows on the stability and on the
+ /// longest modulation, as lazy constraints since they are needed to
+ /// describe the schedules
  static constexpr int TightCuts = 128;
 
  /// the mask of bits 8 - 10, the formulation of the rules
@@ -163,6 +163,11 @@ class NuclearRules
  /// bit 16: the perspective cuts of the quadratic cost written on the bands
  /// of the output (with PCuts and the bands)
  static constexpr int BandPersp = 65536;
+
+ /// bit 17: the bands of the output by the configurations of the mode of
+ /// each instant and of the band of its output, in place of the rows that
+ /// keep and move the band ("F3b", with F2 only)
+ static constexpr int BandConfig = 131072;
 
  /// the label that forbids a shut-down or a restart
  static constexpr Index NO_LABEL = Index( -1 );

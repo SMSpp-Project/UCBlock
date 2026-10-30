@@ -25,6 +25,19 @@ group, read back, written and read again: the two groups written by the Block
 have to coincide, and the data read have to be those written, a single
 instant and the optional data left out included.
 
+The Solution of each kind of `NetworkBlock`, of a `DesignNetworkBlock` and
+of a `UCBlock` on three nodes, with every Variable and dual different, is
+written in netCDF in the natural format (a group per `NetworkBlock`) and in
+the compressed one (all of them in a single group), with the `Configuration`
+of the files `*SolCfg-*.txt`, and read back: the one read back has to write
+in the Block what the one written writes, the node injections and the flows
+included, and to write in netCDF what it was read from. The cases are on
+the edges: a horizon of one instant and lines with no cost, hence no
+auxiliary variable, an `ACNetworkBlock` with the reactive injections and no
+flow, an `ECNetworkBlock` of one interval and of two. Values of a Solution
+given as netCDF scalars, which its format does not have, have to be refused,
+but those of a `UnitBlockSolution`, which are the same at every instant.
+
 Finally the setters of the costs and of the scale factor of a
 `ThermalUnitBlock`, and the one of the demand of a `UCBlock`, are called with
 a `FakeSolver` attached: it has to receive the physical Modification, the

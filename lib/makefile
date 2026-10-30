@@ -86,6 +86,12 @@ UCBckH = $(UCBckINCdir)/BatteryUnitBlock.h \
 	$(UCBckINCdir)/UCBlock.h \
 	$(UCBckINCdir)/UnitBlock.h
 
+# the C++20 module smspp.ucblock - - - - - - - - - - - - - - - - - - - - - -
+# [see makefile-mod of SMS++]
+
+$(eval $(call SMSppMODrule,UCBck,$(UCBckDIR),UCBlock,smspp.ucblock,\
+	SMS++))
+
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 clean::

@@ -105,7 +105,8 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- if( ! deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
+ if( ! deserialize_local_dim( group , "NumberIntervals" ,
+			      f_number_intervals ) )
   f_number_intervals = 1;
 
  // Mandatory variables
@@ -131,8 +132,6 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ECNetworkData::expected_dims( void ) const {
  auto ret = NetworkData::expected_dims();
  ret.push_back( "NumberIntervals" );
@@ -152,19 +151,17 @@ std::vector< std::string > ECNetworkData::expected_vars( void ) const {
  return( ret );
  }
 
-#endif
-
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
  // Optional variables
  Index NumberIntervals;
- if( ! deserialize_dim( group , "NumberIntervals" , NumberIntervals ) )
+ if( ! deserialize_local_dim( group , "NumberIntervals" , NumberIntervals ) )
   NumberIntervals = 1;
  
  Index NumberNodes;
- if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+ if( deserialize_local_dim( group , "NumberNodes" , NumberNodes ) ) {
   // since the dimensions "NumberNodes" has been provided, an ECNetworkData
   // is there: deserialize it and mark it as local
   if( f_local_NetworkData ) {  // if the NetworkData has not been passed
@@ -194,16 +191,12 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ECNetworkBlock::expected_vars( void ) const {
  auto ret = NetworkBlock::expected_vars();
  ret.push_back( "ActiveDemand" );
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -1939,11 +1932,13 @@ void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
  size_t start;
  if( has_tni ) {
   auto EI = group.getVar( "EndInstant" );  // base class created it already
-  start = 0;
+  // EndInstant is an NcInt, read in an int and not in the size_t start
+  int si = 0;
   if( idx > 0 ) {
    std::vector< size_t > vidx = { idx - 1 };
-   EI.getVar( vidx , & start );
+   EI.getVar( vidx , & si );
    }
+  start = si;
   }
  else
   start = idx;
