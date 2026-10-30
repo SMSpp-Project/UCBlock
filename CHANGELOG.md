@@ -312,6 +312,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `UCBlockSolution::serialize()` writes the solutions of the units and of
+  the networks (in the standard format) by way of `write_via_memory()`, in a
+  time linear in their number
+
+- `UCBlock::set_active_power_demand()`, when the demand is held by the
+  `NetworkBlock`, makes one call to `NetworkBlock::set_active_demand()` for
+  each `NetworkBlock` with all its entries, rather than one per entry, which
+  for a `DesignNetworkBlock` went through all its sub-Block each time
+
 - `OTSNetworkBlock` in the Standard and Elastic formulations generates the
   group `OTS_switching_bound`, the limit min( 1 , kappa ) of the switching
   variable of each line, also when every kappa is 1: its abstract
@@ -466,6 +475,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer in the row of that instant with more than one node
 
 ### Fixed
+
+- `DesignNetworkBlock::set_active_demand()` with a `Subset` that is not
+  ordered sorted the subset but not the values, which went to the wrong
+  entries; it now sorts them together, and goes through the sub-Block and
+  the subset in one pass
 
 - a `DesignNetworkBlock` over `ACNetworkBlock` forwards the reactive
   injections, their bounds and the reactive demand to its sub-networks,

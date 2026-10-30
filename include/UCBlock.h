@@ -2802,6 +2802,18 @@ class UCBlock : public Block
                                          double demand );
 
 /*--------------------------------------------------------------------------*/
+ /// set the active demand when it is held by the NetworkBlock
+ /** Sets the active demand of the pairs (node, time) whose indices, as in
+  * set_active_power_demand(), are in \p index to the values starting at
+  * \p values, in the NetworkBlock that hold it, with one call to
+  * NetworkBlock::set_active_demand() for each NetworkBlock that has some of
+  * them: the demand of an instant is in the NetworkBlock whose intervals
+  * cover it, whose entries are numbered interval after interval. */
+
+ void set_network_active_demand( MF_dbl_it values , const Subset & index ,
+				 c_ModParam issuePMod , c_ModParam issueAMod );
+
+/*--------------------------------------------------------------------------*/
  /// updates the balance rows of carrier c for the given units
  /** Rewrites the coefficients of the terms of the given units, assumed to be
   * ordered, and the right-hand sides of the balance rows of carrier \p c

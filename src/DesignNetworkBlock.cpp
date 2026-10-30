@@ -20,6 +20,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
 #include <numeric>
 
 #include <utility>
@@ -518,42 +519,51 @@ void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
  if( v_Block.empty() || subset.empty() )
   return;
 
- if( ! ordered )
-  std::sort( subset.begin() , subset.end() );
+ // the values follow the subset: sorting it sorts them too
+ std::vector< double > sorted;
+ if( ! ordered ) {
+  std::vector< Index > perm( subset.size() );
+  std::iota( perm.begin() , perm.end() , 0 );
+  std::ranges::sort( perm , [ & ]( Index a , Index b ) {
+		      return( subset[ a ] < subset[ b ] ); } );
+  Subset sub( subset.size() );
+  sorted.resize( subset.size() );
+  for( Index k = 0 ; k < perm.size() ; ++k ) {
+   sub[ k ] = subset[ perm[ k ] ];
+   sorted[ k ] = *( values + perm[ k ] );
+   }
+  subset = std::move( sub );
+  values = sorted.cbegin();
+  }
 
+ // one pass on the sub-Block and on the subset together
  Index global_offset = 0;
- auto val_it = values;
+ auto it = subset.begin();
 
  for( auto bi : v_Block ) {
+  if( it == subset.end() )
+   break;
+
   auto nbi = static_cast< NetworkBlock * >( bi );
   if( ! nbi )
    continue;
 
-  const Index local_size =
+  const Index block_end = global_offset +
    nbi->get_number_intervals() * nbi->get_number_nodes();
 
+  const auto first = it;
   Subset local_subset;
-  auto first_val_it = val_it;
+  for( ; ( it != subset.end() ) && ( *it < block_end ) ; ++it )
+   local_subset.push_back( *it - global_offset );
 
-  for( auto idx : subset ) {
-   if( ( idx >= global_offset ) && ( idx < global_offset + local_size ) ) {
-    local_subset.push_back( idx - global_offset );
-    ++val_it;
-    }
-   else if( idx >= global_offset + local_size ) {
-    // this element belongs to a later block, do nothing here
-    }
-   }
-
-  if( ! local_subset.empty() ) {
-   nbi->set_active_demand( first_val_it ,
+  if( ! local_subset.empty() )
+   nbi->set_active_demand( values + ( first - subset.begin() ) ,
                            std::move( local_subset ) ,
                            true ,
                            issuePMod ,
                            issueAMod );
-   }
 
-  global_offset += local_size;
+  global_offset = block_end;
   }
  }  // end( DesignNetworkBlock::set_active_demand( subset ) )
 

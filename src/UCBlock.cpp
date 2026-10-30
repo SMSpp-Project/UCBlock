@@ -2590,52 +2590,9 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
   return;
 
  if( ! v_network_blocks.empty() ) {
-  for( auto index : subset ) {
-   const auto node_index = index / f_time_horizon;
-   const auto time = index % f_time_horizon;
-   const auto demand = *values;
-
-   Index rem = time;
-   NetworkBlock * nb = nullptr;
-   Index nb_nodes = 0;
-   Index local_interval = 0;
-
-   for( Index n = 0 ; n < f_number_networks ; ++n ) {
-    auto cand = v_network_blocks[ n ];
-    if( ! cand )
-     continue;
-
-    const auto nint = cand->get_number_intervals();
-    if( rem < nint ) {
-     nb = cand;
-     nb_nodes = cand->get_number_nodes();
-     local_interval = rem;
-     break;
-    }
-
-    rem -= nint;
-   }
-
-   if( ! nb )
-    throw( std::logic_error(
-     "UCBlock::set_active_power_demand(subset): "
-     "time index out of range of NetworkBlocks" ) );
-
-   if( node_index >= nb_nodes )
-    throw( std::out_of_range(
-     "UCBlock::set_active_power_demand: node index out of range "
-     "(node=" + std::to_string( node_index ) +
-     ", nodes=" + std::to_string( nb_nodes ) + ")" ) );
-
-   const Index flat = local_interval * nb_nodes + node_index;
-
-   nb->set_active_demand( values++ ,
-                          Range( flat , flat + 1 ) ,
-                          issuePMod , issueAMod );
-  }
-
+  set_network_active_demand( values , subset , issuePMod , issueAMod );
   return;
- }
+  }
 
  // Update the demand present in this UCBlock
 
@@ -3053,52 +3010,11 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
   return;
 
  if( ! v_network_blocks.empty() ) {
-  for( Index index = rng.first ; index < rng.second ; ++index ) {
-   const auto node_index = index / f_time_horizon;
-   const auto time = index % f_time_horizon;
-   const auto demand = *values;
-
-   Index rem = time;
-   NetworkBlock * nb = nullptr;
-   Index nb_nodes = 0;
-   Index local_interval = 0;
-
-   for( Index n = 0 ; n < f_number_networks ; ++n ) {
-    auto cand = v_network_blocks[ n ];
-    if( ! cand )
-     continue;
-
-    const auto nint = cand->get_number_intervals();
-    if( rem < nint ) {
-     nb = cand;
-     nb_nodes = cand->get_number_nodes();
-     local_interval = rem;
-     break;
-    }
-
-    rem -= nint;
-   }
-
-   if( ! nb )
-    throw( std::logic_error(
-     "UCBlock::set_active_power_demand: time index out of range "
-     "of NetworkBlocks" ) );
-
-   if( node_index >= nb_nodes )
-    throw( std::out_of_range(
-     "UCBlock::set_active_power_demand: node index out of range "
-     "(node=" + std::to_string( node_index ) +
-     ", nodes=" + std::to_string( nb_nodes ) + ")" ) );
-
-   const Index flat = local_interval * nb_nodes + node_index;
-
-   nb->set_active_demand( values++ ,
-                          Range( flat , flat + 1 ) ,
-                          issuePMod , issueAMod );
-  }
-
+  Subset index( rng.second - rng.first );
+  std::iota( index.begin() , index.end() , rng.first );
+  set_network_active_demand( values , index , issuePMod , issueAMod );
   return;
- }
+  }
 
  // Update the demand present in this UCBlock
 
@@ -3136,6 +3052,56 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
                            Observer::par2chnl( issuePMod ) );
 
 }  // end( UCBlock::set_active_power_demand( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::set_network_active_demand( MF_dbl_it values ,
+					 const Subset & index ,
+					 c_ModParam issuePMod ,
+					 c_ModParam issueAMod )
+{
+ // the NetworkBlock covering each instant, and the interval of the instant
+ // in it (f_number_networks if none does)
+ std::vector< std::pair< Index , Index > > where(
+				    f_time_horizon , { f_number_networks , 0 } );
+ for( Index n = 0 , t = 0 ; n < f_number_networks ; ++n ) {
+  auto nb = v_network_blocks[ n ];
+  if( ! nb )
+   continue;
+  const auto ni = nb->get_number_intervals();
+  for( Index i = 0 ; ( i < ni ) && ( t < f_time_horizon ) ; ++i )
+   where[ t++ ] = { n , i };
+  }
+
+ // the entries and the values of each NetworkBlock, in the order of index
+ std::vector< Subset > entries( f_number_networks );
+ std::vector< std::vector< double > > demand( f_number_networks );
+ for( auto idx : index ) {
+  const auto node_index = idx / f_time_horizon;
+  const auto time = idx % f_time_horizon;
+  const auto [ n , i ] = where[ time ];
+  if( n >= f_number_networks )
+   throw( std::logic_error( "UCBlock::set_active_power_demand: time index "
+			    "out of range of NetworkBlocks" ) );
+  auto nb = v_network_blocks[ n ];
+  const auto nb_nodes = nb->get_number_nodes();
+  if( node_index >= nb_nodes )
+   throw( std::out_of_range(
+    "UCBlock::set_active_power_demand: node index out of range (node=" +
+    std::to_string( node_index ) + ", nodes=" + std::to_string( nb_nodes ) +
+    ")" ) );
+
+  entries[ n ].push_back( i * nb_nodes + node_index );
+  demand[ n ].push_back( *( values++ ) );
+  }
+
+ for( Index n = 0 ; n < f_number_networks ; ++n )
+  if( ! entries[ n ].empty() )
+   v_network_blocks[ n ]->set_active_demand( demand[ n ].cbegin() ,
+					     std::move( entries[ n ] ) ,
+					     false , issuePMod , issueAMod );
+
+ }  // end( UCBlock::set_network_active_demand )
 
 /*--------------------------------------------------------------------------*/
 
@@ -4221,11 +4187,12 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
  if( ! v_unit_Solution.empty() ) {
   auto nu = group.addDim( "NumberUnits" , v_unit_Solution.size() );
 
-  for( Index i = 0 ; i < v_unit_Solution.size() ; ++i ) {
-   std::string sub_group_name = "UnitBlock_" + std::to_string( i );
-   auto sub_group = group.addGroup( sub_group_name );
-   v_unit_Solution[ i ]->serialize( sub_group );
-   }
+  std::vector< std::string > names( v_unit_Solution.size() );
+  for( Index i = 0 ; i < names.size() ; ++i )
+   names[ i ] = "UnitBlock_" + std::to_string( i );
+  write_via_memory( group , names ,
+		    [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+		     v_unit_Solution[ i ]->serialize( g ); } );
   }
 
  // serialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - - -
@@ -4236,13 +4203,18 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
    auto sub_group = group.addGroup( "NetworkBlock" );
    NetworkBlockSolution::serialize( sub_group , v_network_Solution );
    }
-  else  // standard format
+  else {  // standard format
+   std::vector< Index > which;
+   std::vector< std::string > names;
    for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
     if( v_network_Solution[ i ] ) {
-     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-     auto sub_group = group.addGroup( sub_group_name );
-     v_network_Solution[ i ]->serialize( sub_group );
+     which.push_back( i );
+     names.push_back( "NetworkBlock_" + std::to_string( i ) );
      }
+   write_via_memory( group , names ,
+		     [ & ]( std::size_t k , netCDF::NcGroup & g ) {
+		      v_network_Solution[ which[ k ] ]->serialize( g ); } );
+   }
   }
 
  // serialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - - -
