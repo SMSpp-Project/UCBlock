@@ -1073,7 +1073,7 @@ class ConversionUnitBlock : public UnitBlock
   }
 
  /// true if the unit has a design variable \f$ x \f$
- bool has_design( void ) const { return( f_has_design ); }
+ bool has_design( void ) const override { return( f_has_design ); }
 
  /// the kind of design: 0 none, 'a' binary, 'b' integer, 'c' continuous
  char design_mode( void ) const {

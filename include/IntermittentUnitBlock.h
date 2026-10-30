@@ -514,6 +514,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
+ /// true if the unit has a design Variable, i.e., a nonzero investment cost
+ bool has_design( void ) const override { return( f_InvestmentCost != 0 ); }
+
  /// returns the upper bound of the design variable ("MaxCapacityDesign")
  double get_max_capacity_design( void ) const {
   return( f_MaxCapacityDesign );

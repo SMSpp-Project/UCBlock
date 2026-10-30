@@ -1515,6 +1515,9 @@ class ThermalUnitBlock : public UnitBlock
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
+ /// true if the unit has a design Variable, i.e., a nonzero investment cost
+ bool has_design( void ) const override { return( f_InvestmentCost != 0 ); }
+
  /// returns the current cost of the design (investment) variable
  /** Returns the current cost of the design (investment) variable, in the same
   * unscaled units as get_investment_cost(): i.e. the variable's Objective

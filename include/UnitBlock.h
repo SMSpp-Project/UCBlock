@@ -760,6 +760,14 @@ class UnitBlock : public Block
  virtual double get_design_ub( void ) const { return( 1 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// tells whether the unit is in design mode
+ /** Returns true if the unit has a design (investment) Variable of its own,
+  * whose cost is in its Objective. UnitBlock provides a default
+  * implementation returning false, for the units that have no design. */
+
+ virtual bool has_design( void ) const { return( false ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the constant kappa that multiplies the bounds of the unit
  /** The default is 1, for the UnitBlock that have no kappa. */
 

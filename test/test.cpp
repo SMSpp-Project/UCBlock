@@ -17896,6 +17896,93 @@ static void test_serialize_round_trip( void )
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
+/// a UCBlock of one node and one instant whose only unit is written by unit
+
+static UCBlock * one_unit_UC( std::function< void( netCDF::NcGroup ) > unit )
+{
+ auto g = new_group( "UC" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto T = g.addDim( "TimeHorizon" , 1 );
+ g.addDim( "NumberUnits" , 1 );
+ put( g , "ActivePowerDemand" , { g.addDim( "NumberNodes" , 1 ) , T } ,
+      { 3 } );
+ unit( g.addGroup( "UnitBlock_0" ) );
+ return( dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// "UCBlock::has_design", read by name as a consumer that does not know the
+/// class reads it: 1 with a unit having an investment cost, whichever cost
+/// it is for a battery, and with a DesignNetworkBlock having a line to be
+/// designed even at no cost, 0 otherwise
+
+static void test_has_design( void )
+{
+ const auto has = Block::get_query_fs< double & >( "UCBlock::has_design" );
+ if( ! has ) {
+  check( false , "has_design: the name is not registered" );
+  return;
+  }
+
+ auto answer = [ & ]( Block * b , const std::string & what ) {
+  if( ! b ) {
+   check( false , "has_design: " + what + " is not read" );
+   return( -1.0 );
+   }
+  double d = -1;
+  std::invoke( * has , b , d );
+  delete b;
+  return( d );
+  };
+
+ TUData d;
+ d.lin = { 1 };
+ check( answer( one_unit_UC( [ & ]( netCDF::NcGroup u ) {
+                 write_TU( u , d ); } ) , "thermal" ) == 0 ,
+        "has_design: a thermal unit with no investment cost" );
+
+ check( answer( one_unit_UC( [ & ]( netCDF::NcGroup u ) {
+                 write_TU( u , d );
+                 put( u , "InvestmentCost" , 5 ); } ) ,
+                "thermal, design" ) == 1 ,
+        "has_design: a thermal unit with an investment cost" );
+
+ check( answer( one_unit_UC( []( netCDF::NcGroup u ) {
+                 u.putAtt( "type" , "IntermittentUnitBlock" );
+                 put( u , "MaxPower" , 2 );
+                 put( u , "InvestmentCost" , 5 );
+                 put( u , "MaxCapacityDesign" , 1 ); } ) ,
+                "intermittent, design" ) == 1 ,
+        "has_design: an intermittent unit with an investment cost" );
+
+ for( const std::string cost : { "" , "BatteryInvestmentCost" ,
+                                 "ConverterInvestmentCost" } )
+  check( answer( one_unit_UC( [ & ]( netCDF::NcGroup u ) {
+                  const auto T = u.getDim( "TimeHorizon" ,
+                                    netCDF::NcGroup::ParentsAndCurrent );
+                  u.putAtt( "type" , "BatteryUnitBlock" );
+                  put( u , "MinStorage" , T , { 0 } );
+                  put( u , "MaxStorage" , T , { 10 } );
+                  put( u , "MaxPower" , T , { 5 } );
+                  if( ! cost.empty() ) {
+                   const auto prefix = cost.substr( 0 , cost.find( "I" ) );
+                   put( u , cost , 2 );
+                   put( u , prefix + "MaxCapacityDesign" , 3 );
+                   } } ) ,
+                 "battery " + cost ) == ( cost.empty() ? 0 : 1 ) ,
+         "has_design: a battery with " +
+         ( cost.empty() ? std::string( "no investment cost" ) : cost ) );
+
+ check( answer( Block::new_Block( write_UC_carriers( true ) ) ,
+                "carriers" ) == 0 ,
+        "has_design: a heat network with no DesignNetworkBlock" );
+
+ check( answer( Block::new_Block( write_UC_carriers( true , false , true ) ) ,
+                "carriers, design" ) == 1 ,
+        "has_design: a DesignNetworkBlock with a line of no cost" );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The scale of a unit and a design of more than one module are the same
  * fleet: scale() refuses the two together, as deserialize() does, and
  * accepts a scale with a design of one module. */
@@ -18152,6 +18239,7 @@ int main( int argc , char ** argv )
   test_conversion_design();
   test_power_range_changes();
   test_conversion_design_ext();
+  test_has_design();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

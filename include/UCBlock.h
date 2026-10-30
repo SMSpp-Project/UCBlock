@@ -2165,6 +2165,16 @@ class UCBlock : public Block
  double get_replicate_linearization( Index unit ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// tells whether this UCBlock is in design mode
+ /** Returns true if any of its units has a design Variable of its own [see
+  * UnitBlock::has_design()], or any of the NetworkBlock of any of its
+  * carriers is a DesignNetworkBlock with some line to be designed. A consumer that does
+  * not know the class asks for "UCBlock::has_design", a getter writing 1 or
+  * 0 in its only argument. */
+
+ bool has_design( void ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// the derivatives with respect to the size of the units in \p units
  /** Writes in msp[ k ] the derivative of the value of this UCBlock with
   * respect to the size parameter of the unit units[ k ], as resize_unit()
@@ -3021,6 +3031,15 @@ class UCBlock : public Block
      for( Index u = rng.first ; u < rng.second ; ++u )
       msp[ u - rng.first ] = ucb->get_replicate_linearization( u );
      } ) );
+
+  // whether the UCBlock is in design mode, 1 or 0 [see has_design()]
+
+  using qry_dbl = QueryType< double & >;
+
+  register_method< qry_dbl >( "UCBlock::has_design" , new qry_dbl(
+   []( const Block * blck , double & answer ) {
+    answer = static_cast< const UCBlock * >( blck )->has_design() ? 1 : 0;
+    } ) );
 
   // ... and the getters going with resize_unit() and resize_line(), which
   // ask the units and the NetworkBlock, the size living in their own rows

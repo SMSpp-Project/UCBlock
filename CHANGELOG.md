@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `UnitBlock::has_design()`, true if the unit has a design Variable of its
+  own (a nonzero investment cost for a `ThermalUnitBlock`, a
+  `NuclearUnitBlock`, an `IntermittentUnitBlock` and a
+  `ConversionUnitBlock`, a battery or converter investment cost for a
+  `BatteryUnitBlock`), and `UCBlock::has_design()`, true if a unit has one or
+  a `DesignNetworkBlock` has a line to be designed, registered in the methods
+  factory as the getter `UCBlock::has_design`, so that a Block holding a
+  `UCBlock` can tell its design mode without knowing the class
+
 - the makefiles build the C++20 module `smspp.ucblock` when `SMSppMOD` is
   not empty (e.g., `make SMSppMOD=1`), with clang++ 16 or later [see
   `lib/makefile-mod` of SMS++]

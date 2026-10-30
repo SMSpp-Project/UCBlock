@@ -1045,6 +1045,11 @@ class BatteryUnitBlock : public UnitBlock
 
  double get_scale( void ) const override { return( f_scale ); }
 
+ /// true if the battery or the converter has a design Variable
+ bool has_design( void ) const override {
+  return( ( f_BattInvestmentCost != 0 ) || ( f_ConvInvestmentCost != 0 ) );
+  }
+
  double get_design_ub( void ) const override {
   // the active power is bounded by (1d)-(2d), which depend on x_b only (a
   // converter design bounds the power further, never beyond them): the

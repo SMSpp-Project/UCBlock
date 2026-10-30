@@ -1596,7 +1596,8 @@ void UCBlock::generate_inertia_demand_constraints( void )
        continue;
 
       auto commitment = unit_block->get_commitment( generator );
-      auto inertia_commitment = unit_block->get_inertia_commitment( generator );
+      auto inertia_commitment =
+                         unit_block->get_inertia_commitment( generator );
 
       if( commitment && inertia_commitment ) {
 
@@ -1776,7 +1777,8 @@ bool UCBlock::is_feasible( bool useabstract , Configuration * fsbc )
    tol = tc->f_value;
    return( true );
   }
-  if( auto tc = dynamic_cast< SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
+  if( auto tc = dynamic_cast<
+          SimpleConfiguration< std::pair< double , int > > * >( c ) ) {
    tol = tc->f_value.first;
    rel_viol = tc->f_value.second;
    return( true );
@@ -1791,13 +1793,14 @@ bool UCBlock::is_feasible( bool useabstract , Configuration * fsbc )
  // the sub-Block are checked with the same tolerance and type of violation,
  // unless they have their own in their BlockConfig
  SimpleConfiguration< std::pair< double , int > > subc(
-                                  std::pair< double , int >( tol , rel_viol ) );
- for( const auto & sbi : this->get_nested_Blocks() )
+                                 std::pair< double , int >( tol , rel_viol ) );
+ for( const auto & sbi : this->get_nested_Blocks() ) {
+  const auto bc = sbi->get_BlockConfig();
   if( ! sbi->is_feasible( useabstract ,
-                          ( sbi->get_BlockConfig() &&
-                            sbi->get_BlockConfig()->f_is_feasible_Configuration )
+                          ( bc && bc->f_is_feasible_Configuration )
                           ? nullptr : & subc ) )
    return( false );
+  }
 
  return(
   // Constraints: notice that the ZOConstraints are not checked, since the
@@ -2545,7 +2548,7 @@ void UCBlock::update_pollutant_budget_constraints(
     assert( next_var_index[ zone_id ] <
             constraints[ zone_id ].get_num_active_var() );
     assert( constraints[ zone_id ].get_active_var(
-                       next_var_index[ zone_id ] )->get_Block() == unit_block );
+                      next_var_index[ zone_id ] )->get_Block() == unit_block );
 
     coefficients[ zone_id ].push_back( unit_block->get_scale() * factor );
     subset[ zone_id ].push_back( next_var_index[ zone_id ] );
@@ -2821,6 +2824,21 @@ double UCBlock::injection_bounds_linearization( Index unit ,
 
  return( linearization );
  }  // end( UCBlock::injection_bounds_linearization )
+
+bool UCBlock::has_design( void ) const
+{
+ for( Index u = 0 ; u < f_number_units ; ++u )
+  if( get_unit_block( u )->has_design() )
+   return( true );
+
+ for( Index c = 0 ; c < get_number_carriers() ; ++c )
+  for( auto nb : get_network_blocks( c ) )
+   if( auto dnb = dynamic_cast< const DesignNetworkBlock * >( nb ) ;
+       dnb && dnb->get_number_design_lines() )
+    return( true );
+
+ return( false );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -3259,7 +3277,8 @@ bool UCBlock::set_pollutant_budget_k( Index k , double budget , bool lower ,
                 "UCBlock::set_pollutant_min_budget: index out of range" :
                 "UCBlock::set_pollutant_budget: index out of range" ) );
 
- auto & current = lower ? v_pollutant_min_budget[ k ] : v_pollutant_budget[ k ];
+ auto & current = lower ? v_pollutant_min_budget[ k ]
+                        : v_pollutant_budget[ k ];
  if( current == budget )
   return( false );
 
@@ -3286,7 +3305,8 @@ bool UCBlock::set_pollutant_budget_k( Index k , double budget , bool lower ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Subset && subset ,
+void UCBlock::set_pollutant_bounds( MF_dbl_it values ,
+                                    Block::Subset && subset ,
                                     bool ordered , bool lower ,
                                     c_ModParam issuePMod ,
                                     c_ModParam issueAMod )
