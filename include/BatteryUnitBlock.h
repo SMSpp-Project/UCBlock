@@ -1102,7 +1102,7 @@ class BatteryUnitBlock : public UnitBlock
   * sides and, in the binary rows (8), as a coefficient of
   * \f$ u^{ch}_t \f$; in the continuous relaxation, the change of variable
   * \f$ w_t = \kappa u^{ch}_t \f$ makes all the rows linear in
-  * \f$ \kappa \f$ and the other variables jointly (see InvestmentFunction),
+  * \f$ \kappa \f$ and the other variables jointly,
   * so that the optimal value of a convex minimization problem containing
   * this unit (e.g., its continuous relaxation) is a convex function of
   * \f$ \kappa \f$, and a subgradient of it is

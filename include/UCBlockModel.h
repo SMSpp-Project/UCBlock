@@ -848,7 +848,7 @@ its right-hand sides. The \f$ \kappa \f$ of a battery also multiplies the
 binary variables \f$ u^{ch}_t \f$ in the rows (8) of BatteryUnitBlock;
 however, in their continuous relaxation the change of variable
 \f$ w_t = \kappa u^{ch}_t \f$ gives rows that are linear in
-\f$ ( p , w , \kappa ) \f$ jointly (see InvestmentFunction), whose optimal
+\f$ ( p , w , \kappa ) \f$ jointly, whose optimal
 value is again convex in \f$ \kappa \f$. None of this holds when a unit or a
 line is also in design mode, where \f$ \kappa \f$ multiplies the design
 variable. For the problem with integer commitments neither convexity nor the

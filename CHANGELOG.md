@@ -340,6 +340,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the comment of `DCNetworkBlock::get_resize_linearization()` writes the
+  factor `C^v` of the flow limits, which the derivative already applies,
+  and says that every formulation of the network has those limits; the
+  comments of `BatteryUnitBlock::get_kappa_linearization()` and of
+  `UCBlockModel.h` no longer refer to InvestmentFunction for the change of
+  variable of the battery
+
 - the README leaves the channels that distribute SMS++ to the
   installation guide of the wiki (Installing-SMS++), keeping the names
   of the packages of the module

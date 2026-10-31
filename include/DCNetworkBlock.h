@@ -2591,12 +2591,16 @@ class DCNetworkData : public NetworkData
  /// the derivative of the value of this Block w.r.t. the kappa of \p line
  /** The flow limit constraints of a line l are
 
-     \f[ \kappa_l \mathrm{Pmin}_l \leq F_l \leq \kappa_l \mathrm{Pmax}_l \f]
+     \f[ \kappa_l C^v \mathrm{Pmin}_l \leq F_l \leq \kappa_l C^v
+         \mathrm{Pmax}_l \f]
 
   * so the derivative of the value of this Block with respect to \f$
   * \kappa_l \f$ is minus the dual of whichever bound is active,
-  * times that bound. Which one it is, is told by the sign of the dual read
-  * against the sense of the Objective.
+  * times \f$ C^v \f$ and the datum of that bound. Which one it is, is told
+  * by the sign of the dual read against the sense of the Objective. Every
+  * formulation of the network has these bounds [see
+  * generate_abstract_constraints()], hence the derivative is the same in
+  * all of them.
   *
   * It requires the constraints, and reads the duals that the last solve
   * left in them: if they have not been generated it throws
