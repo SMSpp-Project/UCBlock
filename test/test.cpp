@@ -7093,7 +7093,8 @@ static void put_carrier_unit( netCDF::NcGroup & g , int i , double pmax ,
 
 static netCDF::NcGroup write_UC_carriers( bool heat_network ,
 					 bool pollutants = false ,
-					 bool heat_design = false )
+					 bool heat_design = false ,
+					 bool per_carrier = false )
 {
  auto g = new_group( "UCcarriers" );
  g.putAtt( "type" , "UCBlock" );
@@ -7157,12 +7158,21 @@ static netCDF::NcGroup write_UC_carriers( bool heat_network ,
   }
 
  // the nodes of the plant, the boiler, the supply and the peaker on the
- // electricity, the heat and the gas, -1 where they have none
+ // electricity, the heat and the gas, -1 where they have none: all at once
+ // in two dimensions, or per_carrier those of the electricity in the
+ // UCBlock and those of the heat in its group, the gas, with one node and
+ // no output of the peaker, having none
  const int hp = heat_network ? 1 : 0;
  std::vector< int > nodes{ 0 , hp , 0 ,  -1 , 0 , 0 ,  -1 , -1 , 0 ,
 			   0 , -1 , -1 };
- g.addVar( "GeneratorNode" , netCDF::NcInt() , { NG , NC } ).putVar(
-							    nodes.data() );
+ if( per_carrier ) {
+  std::vector< int > elec{ 0 , -1 , -1 , 0 } , heat{ hp , 0 , -1 , -1 };
+  g.addVar( "GeneratorNode" , netCDF::NcInt() , NG ).putVar( elec.data() );
+  h.addVar( "GeneratorNode" , netCDF::NcInt() , NG ).putVar( heat.data() );
+  }
+ else
+  g.addVar( "GeneratorNode" , netCDF::NcInt() , { NG , NC } ).putVar(
+							     nodes.data() );
 
  put_carrier_unit( g , 0 , 100 , 10 , { "electricity" , "heat" , "gas" } ,
 		   { 1 , 0.5 , -2 } );
@@ -7236,15 +7246,18 @@ static void test_carriers_UCBlock( void )
   };
 
  // the heat with one node, with a network of one NetworkBlock per instant,
- // and with a network given as one DesignNetworkBlock over the horizon
- for( const int form : { 0 , 1 , 2 } ) {
-  const bool net = form > 0;
-  const bool design = form == 2;
+ // and with a network given as one DesignNetworkBlock over the horizon,
+ // with the nodes of the generators all at once or carrier by carrier
+ for( const int form : { 0 , 1 , 2 , 3 , 4 , 5 } ) {
+  const bool net = ( form % 3 ) > 0;
+  const bool design = ( form % 3 ) == 2;
+  const bool per_carrier = form >= 3;
   const Index networks = net ? ( design ? 1 : 2 ) : 0;
   const std::string what = std::string( "carriers" ) +
                      ( net ? ( design ? ", heat design network" :
-			       ", heat network" ) : "" );
-  auto g = write_UC_carriers( net , false , design );
+			       ", heat network" ) : "" ) +
+                     ( per_carrier ? ", nodes per carrier" : "" );
+  auto g = write_UC_carriers( net , false , design , per_carrier );
   auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
   check( uc && ( uc->get_number_carriers() == 3 ) &&
 	 ( uc->get_number_nodes( 1 ) == ( net ? 2 : 1 ) ) &&
@@ -7366,6 +7379,16 @@ static void test_carriers_UCBlock( void )
 	 ( uc2->get_network_blocks( 1 ).size() == networks ) &&
 	 close( solve( uc2 ) , 3143.75 ) ,
 	 what + ": the UCBlock written and read back is not the same" );
+  // the nodes are written carrier by carrier: the heat, which has a
+  // generator with no node, in its group, the gas, read with no node of
+  // its own (all at its only node), nowhere, and read in two dimensions,
+  // with the -1 of the peaker, in its group
+  check( ( wg.getVar( "GeneratorNode" ).getDimCount() == 1 ) &&
+	 ( ! wg.getGroup( "Carrier_1" ).getVar( "GeneratorNode" ).isNull() )
+	 && ( wg.getGroup( "Carrier_2" ).getVar( "GeneratorNode" ).isNull() ==
+	      per_carrier ) ,
+	 what + ": the nodes of the generators are not written carrier by "
+	 "carrier" );
   delete uc2;
   delete uc;
   }
@@ -7406,8 +7429,9 @@ static void test_carriers_UCBlock( void )
 
  // what cannot be read
  auto refused = []( const std::function< void( netCDF::NcGroup & ) > & spoil ,
-		    bool net , const std::string & what ) {
-  auto g = write_UC_carriers( net );
+		    bool net , const std::string & what ,
+		    bool per_carrier = false ) {
+  auto g = write_UC_carriers( net , false , false , per_carrier );
   spoil( g );
   // new_Block() gives nullptr when the reading throws
   bool thrown = false;
@@ -7432,6 +7456,19 @@ static void test_carriers_UCBlock( void )
   g.addVar( "GeneratorNode" , netCDF::NcUint() ,
 	    g.getDim( "NumberGenerators" ) ).putVar( nodes.data() );
   } , true , "GeneratorNode in one dimension with two heat nodes" );
+
+ refused( []( netCDF::NcGroup & g ) {
+  std::vector< unsigned int > nodes{ 0 , 0 , 0 , 0 };
+  g.getGroup( "Carrier_1" ).addVar( "GeneratorNode" , netCDF::NcUint() ,
+				    g.getDim( "NumberGenerators" ) ).putVar(
+							      nodes.data() );
+  } , true , "GeneratorNode in two dimensions and in Carrier_1" );
+
+ refused( []( netCDF::NcGroup & g ) {
+  std::vector< unsigned int > nodes{ 0 , 2 , 0 , 0 };
+  g.getGroup( "Carrier_1" ).getVar( "GeneratorNode" ).putVar(
+							      nodes.data() );
+  } , true , "a node of Carrier_1 that is not there" , true );
 
  // the lines of the heat cannot be those of the electricity: the dimension
  // is looked for in the group of the carrier alone

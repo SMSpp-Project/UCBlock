@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the tester, for every type of the physical Modification of every class of the
   module
 
+- the nodes of the generators on a carrier c > 0 are the variable
+  `GeneratorNode` of its group `Carrier_c`, indexed over the generators, -1
+  where a generator has none, and can be omitted for a carrier with one
+  node; `GeneratorNode` of the `UCBlock` then gives those of the
+  electricity alone, and its form in two dimensions over the generators
+  and the carriers is still read; `serialize()` writes the nodes carrier by
+  carrier
+
 - `UnitBlock::get_copies( generator )`, the weight of the Variable of a
   generator, which `HydroSystemUnitBlock` multiplies by the copies of the
   generator in its `HydroUnitBlock`: the `UCBlock` multiplies by it the

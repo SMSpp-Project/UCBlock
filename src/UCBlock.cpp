@@ -229,8 +229,8 @@ static bool weighted_feasible( const UCBlock & ucb , FRowConstraint & row ,
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 static bool weighted_feasible( const UCBlock & ucb ,
-                               boost::multi_array< FRowConstraint , 2 > & rows ,
-                               double tol , bool rel )
+                               boost::multi_array< FRowConstraint , 2 >
+                               & rows , double tol , bool rel )
 {
  for( auto row = rows.data() ; row != rows.data() + rows.num_elements() ;
       ++row )
@@ -1047,19 +1047,8 @@ void UCBlock::deserialize_generator_nodes( const netCDF::NcGroup & group )
 {
  const auto nc = get_number_carriers();
  v_generator_node.clear();
- v_generator_carrier_node.resize( boost::extents[ 0 ][ 0 ] );
-
- auto gn_var = group.getVar( "GeneratorNode" );
- if( gn_var.isNull() ) {
-  // every generator is then at the only node of each carrier, which with
-  // no generator at all (a network of demand only) says nothing
-  for( Index c = 0 ; f_number_elc_generators && ( c < nc ) ; ++c )
-   if( get_number_nodes( c ) > 1 )
-    throw( std::invalid_argument( "UCBlock::deserialize: GeneratorNode "
-				  "mandatory if a carrier has more than one "
-				  "node" ) );
-  return;
-  }
+ for( auto & cd : v_carrier )
+  cd.v_generator_node.clear();
 
  // read as signed, the -1 of a generator that has no node on a carrier not
  // fitting an unsigned type
@@ -1067,36 +1056,61 @@ void UCBlock::deserialize_generator_nodes( const netCDF::NcGroup & group )
   return( n < 0 ? Inf< Index >() : Index( n ) );
   };
 
- if( gn_var.getDimCount() <= 1 ) {
-  // the nodes of the carrier 0: the other carriers must have one node, where
-  // every generator is
-  for( Index c = 1 ; c < nc ; ++c )
-   if( get_number_nodes( c ) > 1 )
-    throw( std::invalid_argument( "UCBlock::deserialize: GeneratorNode "
-				  "must be indexed over the carriers too if "
-				  "a carrier other than 0 has more than one "
-				  "node" ) );
-
+ // the nodes of each carrier c > 0 in its group "Carrier_c", if there
+ const auto sub_groups = group.getGroups();
+ bool in_carriers = false;
+ for( Index c = 1 ; c < nc ; ++c ) {
+  auto it = sub_groups.find( "Carrier_" + std::to_string( c ) );
+  if( ( it == sub_groups.end() ) ||
+      it->second.getVar( "GeneratorNode" ).isNull() )
+   continue;
   std::vector< int > gn;
-  ::deserialize( group , "GeneratorNode" , f_number_elc_generators , gn ,
-		 false , true );
-  v_generator_node.resize( gn.size() );
-  std::transform( gn.begin() , gn.end() , v_generator_node.begin() ,
-		  to_node );
+  ::deserialize( it->second , "GeneratorNode" , f_number_elc_generators ,
+		 gn , false , false );
+  auto & cgn = v_carrier[ c ].v_generator_node;
+  cgn.resize( gn.size() );
+  std::transform( gn.begin() , gn.end() , cgn.begin() , to_node );
+  in_carriers = true;
   }
- else {
+
+ auto gn_var = group.getVar( "GeneratorNode" );
+ if( ( ! gn_var.isNull() ) && ( gn_var.getDimCount() > 1 ) ) {
+  // the nodes of all the carriers at once
+  if( in_carriers )
+   throw( std::invalid_argument( "UCBlock::deserialize: GeneratorNode in "
+				 "two dimensions and in a group Carrier_c" ) );
   boost::multi_array< int , 2 > gn;
   ::deserialize( group , "GeneratorNode" , { f_number_elc_generators , nc } ,
 		 gn , false , false );
-  v_generator_carrier_node.resize(
-			  boost::extents[ f_number_elc_generators ][ nc ] );
   v_generator_node.resize( f_number_elc_generators );
-  for( Index g = 0 ; g < f_number_elc_generators ; ++g ) {
-   for( Index c = 0 ; c < nc ; ++c )
-    v_generator_carrier_node[ g ][ c ] = to_node( gn[ g ][ c ] );
-   v_generator_node[ g ] = v_generator_carrier_node[ g ][ 0 ];
+  for( Index g = 0 ; g < f_number_elc_generators ; ++g )
+   v_generator_node[ g ] = to_node( gn[ g ][ 0 ] );
+  for( Index c = 1 ; c < nc ; ++c ) {
+   auto & cgn = v_carrier[ c ].v_generator_node;
+   cgn.resize( f_number_elc_generators );
+   for( Index g = 0 ; g < f_number_elc_generators ; ++g )
+    cgn[ g ] = to_node( gn[ g ][ c ] );
    }
   }
+ else
+  if( ! gn_var.isNull() ) {
+   std::vector< int > gn;
+   ::deserialize( group , "GeneratorNode" , f_number_elc_generators , gn ,
+		  false , true );
+   v_generator_node.resize( gn.size() );
+   std::transform( gn.begin() , gn.end() , v_generator_node.begin() ,
+		   to_node );
+   }
+
+ // a carrier with more than one node needs the nodes of the generators,
+ // which with no generator at all (a network of demand only) say nothing
+ for( Index c = 0 ; f_number_elc_generators && ( c < nc ) ; ++c )
+  if( ( get_number_nodes( c ) > 1 ) &&
+      ( c ? v_carrier[ c ].v_generator_node.empty()
+	  : v_generator_node.empty() ) )
+   throw( std::invalid_argument( "UCBlock::deserialize: GeneratorNode "
+				 "mandatory for carrier " + std::to_string( c )
+				 + ", which has more than one node" ) );
 
  for( Index g = 0 ; g < f_number_elc_generators ; ++g )
   for( Index c = 0 ; c < nc ; ++c ) {
@@ -1163,11 +1177,10 @@ UCBlock::Index UCBlock::get_generator_node( Index g , Index c ) const
 {
  if( c == 0 )
   return( node_of_generator( g ) );
- if( v_generator_carrier_node.num_elements() )
-  return( v_generator_carrier_node[ g ][ c ] );
- // GeneratorNode in one dimension, or not given: the carrier has one node,
- // where every generator is
- return( 0 );
+ const auto & cgn = v_carrier[ c ].v_generator_node;
+ // no GeneratorNode for the carrier: it has one node, where every generator
+ // is
+ return( cgn.empty() ? 0 : cgn[ g ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2063,34 +2076,26 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "NetworkDataClassname" , netCDF::NcString() ,
                network_data_classname );
 
- // GeneratorNode, with -1 where a generator has no node: in two dimensions
- // with more than one carrier, as a NcUint as long as no -1 is there
+ // GeneratorNode of the carrier 0, with -1 where a generator has no node,
+ // as a NcUint as long as no -1 is there; those of the other carriers are
+ // in their groups
  const auto to_int = []( Index n ) {
   return( n == Inf< Index >() ? -1 : int( n ) );
   };
- if( v_generator_carrier_node.num_elements() ) {
-  boost::multi_array< int , 2 > gn( boost::extents[ f_number_elc_generators ]
-				                  [ get_number_carriers() ] );
-  std::transform( v_generator_carrier_node.data() ,
-		  v_generator_carrier_node.data() +
-		  v_generator_carrier_node.num_elements() , gn.data() ,
-		  to_int );
-  ::serialize( group , "GeneratorNode" , netCDF::NcInt() ,
-	       { NumberElectricalGenerators ,
-		 group.getDim( "NumberCarriers" ) } , gn );
-  }
- else
-  if( std::find( v_generator_node.begin() , v_generator_node.end() ,
-		 Inf< Index >() ) != v_generator_node.end() ) {
-   std::vector< int > gn( v_generator_node.size() );
-   std::transform( v_generator_node.begin() , v_generator_node.end() ,
-		   gn.begin() , to_int );
-   ::serialize( group , "GeneratorNode" , netCDF::NcInt() ,
+ const auto serialize_nodes = [ & ]( netCDF::NcGroup & g ,
+				     const std::vector< Index > & nodes ) {
+  if( std::find( nodes.begin() , nodes.end() , Inf< Index >() ) !=
+      nodes.end() ) {
+   std::vector< int > gn( nodes.size() );
+   std::transform( nodes.begin() , nodes.end() , gn.begin() , to_int );
+   ::serialize( g , "GeneratorNode" , netCDF::NcInt() ,
 		NumberElectricalGenerators , gn );
    }
   else
-   ::serialize( group , "GeneratorNode" , netCDF::NcUint() ,
-		NumberElectricalGenerators , v_generator_node );
+   ::serialize( g , "GeneratorNode" , netCDF::NcUint() ,
+		NumberElectricalGenerators , nodes );
+  };
+ serialize_nodes( group , v_generator_node );
 
  // Serialize sub-blocks
 
@@ -2151,6 +2156,13 @@ void UCBlock::serialize( netCDF::NcGroup & group ) const
    ::serialize( cg , "PollutantZones" , netCDF::NcUint() ,
 		{ NumberPollutants , CNumberNodes } , cd.v_pollutant_zones ,
 		false , true );
+
+  // the nodes of the generators, not written if all of them are at the only
+  // node of the carrier
+  if( ( nn > 1 ) ||
+      std::any_of( cd.v_generator_node.begin() , cd.v_generator_node.end() ,
+		   []( Index n ) { return( n != 0 ); } ) )
+   serialize_nodes( cg , cd.v_generator_node );
 
   if( cd.f_given_networks ) {
    cg.addDim( "NumberNetworks" , cd.v_network_blocks.size() );

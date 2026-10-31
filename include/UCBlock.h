@@ -367,18 +367,20 @@ class UCBlock : public Block
   *   (say, "NumberNodes" is not provided at all and there is no other
   *   carrier), or if there is no generator at all, then this variable need
   *   not be defined, since it is not used.
-  *   With more than one carrier (see "NumberCarriers" below) the variable can
-  *   also be of type netCDF::NcInt and indexed over the generators and over
-  *   "NumberCarriers": GeneratorNode[ g , c ] is the node of generator g on
-  *   carrier c, i.e., among the nodes of that carrier, and -1 if the
-  *   generator has none there. A generator with no node on a carrier gives
-  *   nothing to it, whatever its outputs (see
-  *   UnitBlock::get_output_carrier()), and one with no node on the carrier 0
-  *   is in no zone of the reserves and of the inertia, which are of the
-  *   electricity. The variable must have two dimensions if a carrier other
-  *   than 0 has more than one node; with one dimension it gives the nodes on
-  *   the carrier 0, every generator being at the only node of the other
-  *   carriers.
+  *   With more than one carrier (see "NumberCarriers" below) the variable
+  *   gives the nodes on the carrier 0, those on each carrier c > 0 being
+  *   "GeneratorNode" in the group "Carrier_c" (see below), which can be
+  *   omitted for a carrier with one node; it can then be of type
+  *   netCDF::NcInt, -1 meaning that the generator has no node on the carrier
+  *   0. A generator with no node on a carrier gives nothing to it, whatever
+  *   its outputs (see UnitBlock::get_output_carrier()), and one with no node
+  *   on the carrier 0 is in no zone of the reserves and of the inertia,
+  *   which are of the electricity. The nodes of all the carriers can also be
+  *   given here at once: the variable is then of type netCDF::NcInt and
+  *   indexed over the generators and over "NumberCarriers",
+  *   GeneratorNode[ g , c ] being the node of generator g on carrier c,
+  *   i.e., among the nodes of that carrier, and -1 if the generator has none
+  *   there; no group "Carrier_c" may then have its own "GeneratorNode".
   *
   * - The dimension "NumberPrimaryZones" tells how many "primary spinning
   *   reserve zones" are there in the problem. The dimension is optional, if it
@@ -626,6 +628,13 @@ class UCBlock : public Block
   *     NetworkBlock that are not given, and all of them if neither is there,
   *     are built by the UCBlock, one per instant, and the demand of the
   *     NetworkBlock is EnergyDemand below in any case;
+  *
+  *   - the variable "GeneratorNode", of type netCDF::NcUint (or
+  *     netCDF::NcInt) and indexed over "NumberGenerators" of the UCBlock:
+  *     GeneratorNode[ g ] is the node of generator g on the carrier, among
+  *     its nodes, and -1 if the generator has none there; it is mandatory
+  *     with more than one node, unless "GeneratorNode" of the UCBlock has two
+  *     dimensions, and without it every generator is at the only node;
   *
   *   - the variable "EnergyDemand", of type netCDF::NcDouble and indexed over
   *     "NumberNodes" and "TimeHorizon": EnergyDemand[ n , t ] is the demand
@@ -2181,9 +2190,9 @@ class UCBlock : public Block
  /// tells whether this UCBlock is in design mode
  /** Returns true if any of its units has a design Variable of its own [see
   * UnitBlock::has_design()], or any of the NetworkBlock of any of its
-  * carriers is a DesignNetworkBlock with some line to be designed. A consumer that does
-  * not know the class asks for "UCBlock::has_design", a getter writing 1 or
-  * 0 in its only argument. */
+  * carriers is a DesignNetworkBlock with some line to be designed. A
+  * consumer that does not know the class asks for "UCBlock::has_design", a
+  * getter writing 1 or 0 in its only argument. */
 
  bool has_design( void ) const;
 
@@ -2401,6 +2410,11 @@ class UCBlock : public Block
 
   /// the NetworkBlock covering each time instant and the interval of it
   std::vector< std::pair< Index , Index > > v_network_of_instant;
+
+  /// the node of each generator on the carrier, Inf< Index >() if none
+  /** Empty if every generator is at the node 0 of the carrier, which then
+   * has one node (see "GeneratorNode" in deserialize()). */
+  std::vector< Index > v_generator_node;
   };
 
  /// the data of the carriers, v_carrier[ 0 ] being unused
@@ -2408,11 +2422,6 @@ class UCBlock : public Block
   * v_network_blocks, v_active_power_demand, v_pollutant_zones, ...); the
   * vector has get_number_carriers() entries. */
  std::vector< CarrierData > v_carrier;
-
- /// the node of each generator on each carrier, [ generators ][ carriers ]
- /** Empty with one carrier, otherwise its column 0 is v_generator_node;
-  * Inf< Index >() where the generator has no node. */
- boost::multi_array< Index , 2 > v_generator_carrier_node;
 
  /// the unit and the index in the unit of each generator
  std::vector< std::pair< Index , Index > > v_generator_unit;
