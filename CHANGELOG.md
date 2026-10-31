@@ -510,6 +510,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- with the compilers of MinGW (MSYS2) the target asks whoever links it
+  for the symbol that forces the module in, as with MSVC and on macOS:
+  the linker imports a DLL only for the symbols asked for, so that a
+  program that used none had the module left out and its classes
+  missing from the factory
+
 - `UCBlock::get_replicate_linearization()` counts the cost of one copy with
   the weight of the `UCBlock` within the Block whose Solver gave the duals,
   which the duals carry too, and so does the copy of a unit with no copies:
