@@ -510,6 +510,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the unit test solves the Solution of the formulations of a
+  `ThermalUnitBlock`, whose cost is quadratic, with a `:MILPSolver` that
+  solves a quadratic Objective with integer Variable, which HiGHS does not:
+  where HiGHS was the only one (e.g., on macOS) the test stopped there
+
 - `UCBlock::is_feasible()` weighs the Variable of each unit with its copies,
   as the Solver does, the rows holding the coefficients of one copy, and
   checks also the reactive node injection rows and the balances of the

@@ -1794,7 +1794,8 @@ static void test_net_reference( void )
 
  std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
    Block::new_Block( write_net( "DCNetworkBlock" , 2 ,
-				{ { 0 , 1 , 10 , -B , B } } , { 0 , 0 } ) ) ) );
+                                { { 0 , 1 , 10 , -B , B } } ,
+                                { 0 , 0 } ) ) ) );
  auto nd = static_cast< DCNetworkBlock::DCNetworkData * >(
 					       nb->get_NetworkData() );
  auto ptdf = nd->get_PTDF( nd->get_DC_lines() );
@@ -1818,7 +1819,8 @@ static void test_net_ptdf( void )
   std::unique_ptr< DCNetworkBlock > nb( new_net(
 	   write_net( "DCNetworkBlock" , 3 ,
 		      { { 0 , 1 , 1 , -B , B } , { 1 , 2 , 1 , -B , B } ,
-			{ 0 , 2 , -0.5 , -B , B } } , { 0 , 0 , 100 } ) , 0 ) );
+                        { 0 , 2 , -0.5 , -B , B } } ,
+                      { 0 , 0 , 100 } ) , 0 ) );
   }
  catch( std::logic_error & ) { thrown = true; }
  catch( std::exception & ) {}
@@ -2077,7 +2079,7 @@ static void test_net_ac_optional_data( void )
   bool refused = false;
   try {
    std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
-				  Block::new_Block( write_AC_line( { n } ) ) ) );
+                       Block::new_Block( write_AC_line( { n } ) ) ) );
    ab->generate_abstract_variables();
    try {
     ab->generate_abstract_constraints();
@@ -4093,7 +4095,7 @@ static void test_hydro_system_solution( void )
  put( pg , "PolyFunction_b" , nr , { 500 , 300 } );
 
  std::unique_ptr< HydroSystemUnitBlock > b(
-		 dynamic_cast< HydroSystemUnitBlock * >( Block::new_Block( g ) ) );
+       dynamic_cast< HydroSystemUnitBlock * >( Block::new_Block( g ) ) );
  if( ! b ) {
   check( false , "hydro system Solution: not read" );
   return;
@@ -4103,7 +4105,7 @@ static void test_hydro_system_solution( void )
  // value of the future cost [see PFBCfg.txt]
  const auto pfb = b->get_polyhedral_function_block();
  std::unique_ptr< BlockConfig > bc(
-		   dynamic_cast< BlockConfig * >( read_test_cfg( "PFBCfg.txt" ) ) );
+       dynamic_cast< BlockConfig * >( read_test_cfg( "PFBCfg.txt" ) ) );
  if( ! bc ) {
   check( false , "hydro system Solution: PFBCfg.txt not read" );
   return;
@@ -4124,7 +4126,8 @@ static void test_hydro_system_solution( void )
  collect( b.get() );
 
  check( std::any_of( vars.begin() , vars.end() ,
-		     [ pfb ]( const auto & p ) { return( p.second == pfb ); } ) ,
+                     [ pfb ]( const auto & p ) {
+                      return( p.second == pfb ); } ) ,
 	"hydro system Solution: the PolyhedralFunctionBlock has no Variable" );
 
  for( Index i = 0 ; i < vars.size() ; ++i )
@@ -5339,7 +5342,8 @@ static void test_battery_set_cost_unsorted( void )
  bu->set_cost( val.cbegin() , Subset( { 3 , 1 } ) , false );
  check( bu->get_cost() == std::vector< double >( { 1 , 9 , 3 , 7 } ) ,
 	"battery set_cost( { 3 , 1 } , { 7 , 9 } ) gives Cost " +
-	str( bu->get_cost()[ 1 ] ) + " at 1 and " + str( bu->get_cost()[ 3 ] ) +
+        str( bu->get_cost()[ 1 ] ) + " at 1 and " +
+        str( bu->get_cost()[ 3 ] ) +
 	" at 3" );
  auto p = bu->get_active_power( 0 );
  check( close( obj_coef( bu , & p[ 3 ] ) , -7 ) &&
@@ -5360,7 +5364,8 @@ static void test_battery_data_checks( void )
  std::string why;
  auto bu = new_BU( 2 , { { "MinStorage" , { 0 , 0 } } ,
 			 { "MaxStorage" , { 9 , 9 } } ,
-			 { "MaxPower" , { 5 , 5 } } , { "MinPower" , { 0 , 1 } } ,
+                         { "MaxPower" , { 5 , 5 } } ,
+                         { "MinPower" , { 0 , 1 } } ,
 			 { "StoringBatteryRho" , { 0.8 , 0.8 } } } , & why );
  check( ! bu , "battery: split with MinPower 1 accepted" );
  delete bu;
@@ -5538,7 +5543,8 @@ static void test_kappa_linearization_design( void )
   generate_all( ib );
   check( throws( ib ) == design ,
 	 std::string( "kappa linearization, intermittent " ) +
-	 ( design ? "with design: does not throw" : "with no design: throws" ) );
+         ( design ? "with design: does not throw" :
+                    "with no design: throws" ) );
   delete ib;
   }
  }
@@ -5628,7 +5634,7 @@ static void test_intermittent_design_reserve( void )
 /*--------------------------------------------------------------------------*/
 // the :MILPSolver of the build and the value it finds (defined below)
 
-static std::string milp_solver( void );
+static std::string milp_solver( bool miqp = false );
 static double milp_value( Block * b , const std::string & sname );
 
 /*--------------------------------------------------------------------------*/
@@ -6309,7 +6315,8 @@ static void test_battery_design_modules( void )
  check( ( rd.size() == 2 ) && close( row_coef( rd[ 1 ] , & x ) , -4 ) &&
 	( rd[ 1 ].get_rhs() == 0 ) ,
 	"battery modules: no reserve row of the design, or coefficient " +
-	( rd.empty() ? std::string( "-" ) : str( row_coef( rd[ 1 ] , & x ) ) ) );
+        ( rd.empty() ? std::string( "-" ) :
+                       str( row_coef( rd[ 1 ] , & x ) ) ) );
  const auto sname = milp_solver();
  if( ! sname.empty() ) {
   // charge 30 at 0 (3 modules of 10, paid 5 each), store 27, discharge
@@ -6419,7 +6426,8 @@ static void test_slack_unit( void )
 	  + e.what() );
    }
   check( ( sb->get_min_power( 0 ) == -5 ) && ( sb->get_max_power( 0 ) == 0 )
-	 && ( sb->get_min_power( 1 ) == 0 ) && ( sb->get_max_power( 1 ) == 3 ) ,
+         && ( sb->get_min_power( 1 ) == 0 ) &&
+         ( sb->get_max_power( 1 ) == 3 ) ,
 	 "slack: the bounds of a negative and a positive MaxPower" );
   delete sb;
   }
@@ -6445,7 +6453,7 @@ static void test_slack_unit( void )
 /// SlackUnitBlock at node 1; the caller adds the data of the linking rows
 
 static netCDF::NcGroup write_UC_two_nodes( Index T ,
-					   const std::vector< double > & demand ,
+                                const std::vector< double > & demand ,
 					   bool slack_inertia = false )
 {
  auto g = new_group( "UC" , true );
@@ -6749,7 +6757,7 @@ static void test_network_constants_UCBlock( void )
    delete uc;
    }
   if( auto b = dynamic_cast< UCBlock * >( round_trip( g ,
-					   "network constants, one node" ) ) ) {
+                                     "network constants, one node" ) ) ) {
    check( ucb_constant( b ) == 1000 ,
 	  "network constants, one node: the constant read back is " +
 	  str( ucb_constant( b ) ) );
@@ -7141,6 +7149,7 @@ static void test_carriers_UCBlock( void )
   // the coefficients of the rows (1c) at the instant 0
   const auto & heat = uc->get_const_carrier_balance_constraints( 1 );
   const auto & gas = uc->get_const_carrier_balance_constraints( 2 );
+  const auto & elec = uc->get_const_node_injection_constraints();
   auto p = [ & ]( Index u ) -> const ColVariable & {
    return( uc->get_unit_block( u )->get_active_power( 0 )[ 0 ] );
    };
@@ -7150,8 +7159,7 @@ static void test_carriers_UCBlock( void )
 	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) ) , -1.25 ) &&
 	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 2 ) ) , 1 ) &&
 	 ( coefficient_of( gas[ 0 ][ 0 ] , p( 3 ) ) == 0 ) &&
-	 ( coefficient_of( uc->get_const_node_injection_constraints()[ 0 ][ 0 ] ,
-			   p( 1 ) ) == 0 ) ,
+         ( coefficient_of( elec[ 0 ][ 0 ] , p( 1 ) ) == 0 ) ,
 	 what + ": the rows (1c) do not carry the efficiencies" );
 
   if( sname.empty() ) {
@@ -7164,12 +7172,11 @@ static void test_carriers_UCBlock( void )
   if( ! net ) {
    check( close( heat[ 0 ][ 0 ].get_dual() , -36.25 , 1e-5 ) &&
 	  close( gas[ 0 ][ 0 ].get_dual() , -5 , 1e-5 ) &&
-	  close( uc->get_const_node_injection_constraints()[ 0 ][ 0 ].get_dual()
-		 , -1.875 , 1e-5 ) ,
-	  what + ": the duals are " + str( heat[ 0 ][ 0 ].get_dual() ) + " , " +
-	  str( gas[ 0 ][ 0 ].get_dual() ) + " , " +
-	  str( uc->get_const_node_injection_constraints()[ 0 ][ 0 ].get_dual() )
-	  + ", not the prices of the boiler, of the supply and of the plant" );
+          close( elec[ 0 ][ 0 ].get_dual() , -1.875 , 1e-5 ) ,
+          what + ": the duals are " + str( heat[ 0 ][ 0 ].get_dual() ) +
+          " , " + str( gas[ 0 ][ 0 ].get_dual() ) + " , " +
+          str( elec[ 0 ][ 0 ].get_dual() ) + ", not the prices of the "
+          "boiler, of the supply and of the plant" );
 
    // the duals of (1c) in the group of the carrier
    SimpleConfiguration< int > wsol( 8 );
@@ -8198,13 +8205,16 @@ static void test_nuclear_band_rule( void )
 /*--------------------------------------------------------------------------*/
 /*------------- RESERVES, AVAILABILITY AND THE CHANGES OF DATA -------------*/
 /*--------------------------------------------------------------------------*/
-/// the first :MILPSolver of the build, empty if there is none
+/// the first :MILPSolver of the build, empty if there is none; with miqp,
+/// the first that solves a quadratic Objective with integer Variable, which
+/// HiGHS does not
 
-static std::string milp_solver( void )
+static std::string milp_solver( bool miqp )
 {
  for( const auto & name : { "CPXMILPSolver" , "GRBMILPSolver" ,
                             "HiGHSMILPSolver" , "SCIPMILPSolver" } )
-  if( Solver::has_Solver( name ) )
+  if( Solver::has_Solver( name ) &&
+      ( ( ! miqp ) || ( std::string( name ) != "HiGHSMILPSolver" ) ) )
    return( name );
  return( "" );
  }
@@ -10041,10 +10051,10 @@ static void test_thermal_DP_as_rows( void )
 
 static void test_thermal_solution_restore( void )
 {
- const auto sname = milp_solver();
+ const auto sname = milp_solver( true );
  if( sname.empty() ) {
-  std::cout << "no :MILPSolver in this build, the Solution of the "
-            << "formulations is not checked" << std::endl;
+  std::cout << "no :MILPSolver of a MIQP in this build, the Solution of "
+            << "the formulations is not checked" << std::endl;
   return;
   }
 
