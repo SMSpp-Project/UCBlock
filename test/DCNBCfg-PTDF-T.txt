@@ -19,34 +19,35 @@ BlockConfig # exact type of the Configuration object
 
 # static_constraints
 SimpleConfiguration<std::vector<double>>
+
 2    # the number of elements in the vector
 1    # C_v_scal
 10   # the Tikhonov coefficient
 
 # dynamic_constraints
-*    # [none]
+*  # [none]
 
 # static_variables
 SimpleConfiguration<int>
-0    # the PTDF formulation
+0  # the PTDF formulation
 
 # dynamic_variables
-*    # [none]
+*  # [none]
 
 # objective
-*    # [none]
+*  # [none]
 
 # is_feasible
-*    # [none]
+*  # [none]
 
 # is_optimal
-*    # [none]
+*  # [none]
 
 # solution
-*    # [none]
+*  # [none]
 
 # extra
-*    # [none]
+*  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - END DCNBCfg-PTDF-T.txt  - - - - - - - - - - - - - -

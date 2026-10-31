@@ -26,7 +26,7 @@ GRBMILPSolver          # name of 1st Solver
 
 *LPRelaxMILPCfg.txt
 
-# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+# end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - END LPRelaxBSCfg.txt  - - - - - - - - - - - - - -
