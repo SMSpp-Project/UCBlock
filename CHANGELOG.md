@@ -527,6 +527,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the unit test copies the one value of the data of a battery given once
+  before assigning it to both instants: `assign()` was given a reference into
+  the vector itself, which it does not allow, and with the libc++ of macOS
+  the data of the battery with a design were zeros
+
 - on Windows, the executables that copy their DLLs next to themselves
   are linked one at a time (a job pool of Ninja), since two copies of the
   same DLL into one directory collided (e.g., with the clang++ of MSYS2)

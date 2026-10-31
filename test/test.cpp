@@ -9453,8 +9453,10 @@ static void test_storage_infinite_bounds( void )
    data2.push_back( { "BatteryInvestmentCost" , { 3 } } );
   for( auto & dd : data2 )  // the per-instant data over 2 instants
    if( ( dd.second.size() == 1 ) && ( dd.first != "InitialStorage" ) &&
-       ( dd.first != "Kappa" ) && ( dd.first != "BatteryInvestmentCost" ) )
-    dd.second.assign( 2 , dd.second[ 0 ] );
+       ( dd.first != "Kappa" ) && ( dd.first != "BatteryInvestmentCost" ) ) {
+    const double v0 = dd.second[ 0 ];  // assign() takes no reference into it
+    dd.second.assign( 2 , v0 );
+    }
   const auto what = std::string( "battery, MinStorage -inf, " ) +
                     ( design ? "design" : "kappa 0" );
   auto bu = new_BU( 2 , data2 );
