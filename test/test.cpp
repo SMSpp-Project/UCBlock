@@ -3068,6 +3068,120 @@ static void test_setters_UCBlock( void )
  delete b;
  }
 
+
+/*--------------------------------------------------------------------------*/
+/* What each physical Modification of the module says it changes [see
+ * Modification::changes()], for every type of every class, against what
+ * the change does to the model, written down here: the costs are the
+ * Objective, in either direction; the demands, the inflows, the budgets and
+ * the rows of the operating region are sides of the Constraint; the
+ * powers, the initial conditions, the availability and the kappa are in
+ * the coefficients too, and the initial up/down times also fix Variable;
+ * fixing Variable changes their data; each in either direction. The
+ * Modification are built here, so that those which no setter test issues
+ * are checked as well. */
+
+static void test_mod_changes( void )
+{
+ using M = Modification;
+ const auto obj = M::eModPhys | M::eModObj | M::eObjUp | M::eObjDown;
+ const auto sides = M::eModPhys | M::eModCnsSide | M::eRegnShrink |
+                    M::eRegnGrow;
+ const auto cns = sides | M::eModCnsCoef;
+ const auto vars = M::eModPhys | M::eModVarData | M::eRegnShrink |
+                   M::eRegnGrow;
+ const auto any = M::eModPhys | M::eEffAny;
+
+ const auto one = [ & ]( const Modification & mod , M::ModConcern c ,
+			 const std::string & what ) {
+  check( mod.changes() == c , "Modification changes, " + what +
+	 ": it says " + std::to_string( mod.changes() ) + " instead of " +
+	 std::to_string( c ) );
+  };
+
+ using TM = ThermalUnitBlockMod;
+ for( int t : { TM::eSetMaxP , TM::eSetInitP , TM::eSetAv } )
+  one( TM( nullptr , t ) , cns , "ThermalUnitBlock " + std::to_string( t ) );
+ one( TM( nullptr , TM::eSetInitUD ) , cns | vars ,
+      "ThermalUnitBlock eSetInitUD" );
+ for( int t : { TM::eSetSUC , TM::eSetSDC , TM::eSetLinT , TM::eSetQuadT ,
+                TM::eSetConstT , TM::eSetPrSpResCost , TM::eSetSecSpResCost ,
+                TM::eSetReactiveLinT , TM::eSetInvCost } )
+  one( TM( nullptr , t ) , obj , "ThermalUnitBlock " + std::to_string( t ) );
+ one( TM( nullptr , TM::eFixVars ) , vars , "ThermalUnitBlock eFixVars" );
+
+ using NM = NuclearUnitBlockMod;
+ for( int t : { NM::eSetModDP , NM::eSetModDM } )
+  one( NM( nullptr , t ) , cns , "NuclearUnitBlock " + std::to_string( t ) );
+ for( int t : { NM::eSetModCost , NM::eSetDeepCost } )
+  one( NM( nullptr , t ) , obj , "NuclearUnitBlock " + std::to_string( t ) );
+ one( NM( nullptr , TM::eSetMaxP ) , cns ,
+      "NuclearUnitBlock, a type of ThermalUnitBlock" );
+
+ using HM = HydroUnitBlockMod;
+ one( HM( nullptr , HM::eSetInf ) , sides , "HydroUnitBlock eSetInf" );
+ for( int t : { HM::eSetInerP , HM::eSetInitF , HM::eSetInitV } )
+  one( HM( nullptr , t ) , cns , "HydroUnitBlock " + std::to_string( t ) );
+ one( HM( nullptr , HM::eSetActPCost ) , obj ,
+      "HydroUnitBlock eSetActPCost" );
+
+ using BM = BatteryUnitBlockMod;
+ for( int t : { BM::eSetInitS , BM::eSetInitP , BM::eSetKappa ,
+                BM::eSetConvKappa } )
+  one( BM( nullptr , t ) , cns , "BatteryUnitBlock " + std::to_string( t ) );
+ one( BM( nullptr , BM::eSetCost ) , obj , "BatteryUnitBlock eSetCost" );
+
+ using IM = IntermittentUnitBlockMod;
+ for( int t : { IM::eSetMaxP , IM::eSetKappa } )
+  one( IM( nullptr , t ) , cns ,
+       "IntermittentUnitBlock " + std::to_string( t ) );
+ one( IM( nullptr , IM::eSetActPCost ) , obj ,
+      "IntermittentUnitBlock eSetActPCost" );
+
+ using SM = SlackUnitBlockMod;
+ one( SM( nullptr , SM::eSetActPCost ) , obj ,
+      "SlackUnitBlock eSetActPCost" );
+
+ using CM = ConversionUnitBlockMod;
+ for( int t : { CM::eSetLinT , CM::eSetQuadT , CM::eSetPrCost ,
+                CM::eSetScCost , CM::eSetConstT , CM::eSetSUC , CM::eSetSDC ,
+                CM::eSetInvCost } )
+  one( CM( nullptr , t , 0 , Block::Subset() ) , obj ,
+       "ConversionUnitBlock " + std::to_string( t ) );
+ for( int t : { CM::eSetMaxP , CM::eSetMinP , CM::eSetRampUp ,
+                CM::eSetRampDown , CM::eSetInitP , CM::eSetInitDelP } )
+  one( CM( nullptr , t , 0 , Block::Subset() ) , cns ,
+       "ConversionUnitBlock " + std::to_string( t ) );
+ one( CM( nullptr , CM::eSetInitUD , 0 , Block::Subset() ) , cns | vars ,
+      "ConversionUnitBlock eSetInitUD" );
+ for( int t : { CM::eSetOpRHS , CM::eSetOpLHS } )
+  one( CM( nullptr , t , 0 , Block::Subset() ) , sides ,
+       "ConversionUnitBlock " + std::to_string( t ) );
+
+ using NetM = NetworkBlockMod;
+ one( NetM( nullptr , NetM::eSetActD ) , sides , "NetworkBlock eSetActD" );
+
+ using DM = DCNetworkBlockMod;
+ one( DM( nullptr , DM::eSetKappa ) , cns , "DCNetworkBlock eSetKappa" );
+ one( DM( nullptr , DM::eSetNetCost ) , obj , "DCNetworkBlock eSetNetCost" );
+ one( DM( nullptr , NetM::eSetActD ) , sides ,
+      "DCNetworkBlock, a type of NetworkBlock" );
+
+ using EM = ECNetworkBlockMod;
+ for( int t : { EM::eSetBuyP , EM::eSetSellP , EM::eSetPeakT ,
+                EM::eSetConstT , EM::eSetPenaltyP } )
+  one( EM( nullptr , t ) , obj , "ECNetworkBlock " + std::to_string( t ) );
+ one( EM( nullptr , NetM::eSetActD ) , sides ,
+      "ECNetworkBlock, a type of NetworkBlock" );
+
+ using UM = UCBlockMod;
+ for( int t : { UM::eSetActD , UM::eSetPolB , UM::eSetPolMinB ,
+                UM::eSetEnD } )
+  one( UM( nullptr , t ) , sides , "UCBlock " + std::to_string( t ) );
+
+ // a type that the class does not know says it may change anything
+ one( UnitBlockMod( nullptr , 0 ) , any , "UnitBlock" );
+ }
 /*--------------------------------------------------------------------------*/
 /* A Solver with one answer whatever the Block: kOK, with a solution of value
  * f_value and the lower bound f_lb, as a solve stopped at a feasible solution
@@ -18189,6 +18303,7 @@ int main( int argc , char ** argv )
   test_setters_thermal( 1 );
   test_setters_thermal( 3 );
   test_setters_UCBlock();
+  test_mod_changes();
   test_zero_copy_lower_bound();
   test_zero_copy_no_modification();
   test_replicate_without_objective();

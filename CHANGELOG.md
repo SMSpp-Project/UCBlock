@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the tester checks what each physical Modification says it changes
+  (`changes()`) against what the change does to the model, written down in
+  the tester, for every type of the physical Modification of every class of the
+  module
+
 - `UnitBlock::get_copies( generator )`, the weight of the Variable of a
   generator, which `HydroSystemUnitBlock` multiplies by the copies of the
   generator in its `HydroUnitBlock`: the `UCBlock` multiplies by it the
