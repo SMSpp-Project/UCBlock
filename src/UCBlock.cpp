@@ -2689,6 +2689,20 @@ bool UCBlock::has_design( void ) const
 
 /*--------------------------------------------------------------------------*/
 
+/// the Block whose Solver gives the duals that the derivatives read: the
+/// topmost ancestor of \p b, \p b included, below the first one that is a
+/// Function [see Block::set_objective_weight()], the root if there is none
+static const Block * solved_root( const Block * b )
+{
+ for( auto f = b->get_f_Block() ;
+      f && ( ! dynamic_cast< const Function * >( f ) ) ;
+      f = f->get_f_Block() )
+  b = f;
+ return( b );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 double UCBlock::get_replicate_linearization( Index unit ) const
 {
  if( ! constraints_generated() )
@@ -2712,7 +2726,9 @@ double UCBlock::get_replicate_linearization( Index unit ) const
 
  /* The Objective of a UnitBlock is the one of one copy, f(x), the copies
   * being its weight [see UnitBlock::replicate()]: f(x) is what it
-  * contributes here. */
+  * contributes here, with the weight of this UCBlock within the Block whose
+  * Solver gave the duals of the rows above, which the duals carry too
+  * [see solved_root()]. */
 
  const auto objective =
   dynamic_cast< FRealObjective * >( block->get_objective() );
@@ -2721,7 +2737,8 @@ double UCBlock::get_replicate_linearization( Index unit ) const
                            std::to_string( unit ) + " has no FRealObjective, "
                            "of which the derivative counts the value" ) );
  objective->compute();
- linearization += objective->value();
+ linearization += get_objective_weight( solved_root( this ) ) *
+                  objective->value();
 
  return( linearization );
 
@@ -2733,8 +2750,10 @@ double UCBlock::get_zero_copy_linearization( Index unit ) const
 {
  /* The copy is the mirror of the abstract representation of the unit [see
   * AbstractBlock::mirror()], whose Objective is that of one copy, f^1, the
-  * weights of the copy being set to 1 in place of the 0 of the unit [see
-  * UnitBlock::replicate()]; it then sits in an AbstractBlock whose
+  * weight of its Variable being set to 1 in place of the 0 of the unit [see
+  * UnitBlock::replicate()], and that of its Objective to the weight of this
+  * UCBlock within the Block whose Solver gave the duals, which the duals
+  * carry too [see solved_root()]; it then sits in an AbstractBlock whose
   * Objective holds the terms of the rows above the unit on the Variable of
   * the copy, and the Solver of the AbstractBlock sums that Objective and
   * the one of the copy. Whatever the mirror cannot reproduce is left out of
@@ -2762,7 +2781,9 @@ double UCBlock::get_zero_copy_linearization( Index unit ) const
  auto copy = new AbstractBlock();
  try {
   copy->mirror( block );
-  copy->set_weight( 1 , eNoMod );
+  copy->set_variable_weight( 1 , eNoMod );
+  copy->set_objective_weight( get_objective_weight( solved_root( this ) ) ,
+                              eNoMod );
   }
  catch( ... ) {
   delete copy;

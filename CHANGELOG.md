@@ -510,6 +510,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `UCBlock::get_replicate_linearization()` counts the cost of one copy with
+  the weight of the `UCBlock` within the Block whose Solver gave the duals,
+  which the duals carry too, and so does the copy of a unit with no copies:
+  in a `TwoStageStochasticBlock` solved whole the cost was left without the
+  probability of the scenario, and the derivative by copies was wrong
+
 - the unit test solves the Solution of the formulations of a
   `ThermalUnitBlock`, whose cost is quadratic, with a `:MILPSolver` that
   solves a quadratic Objective with integer Variable, which HiGHS does not:
