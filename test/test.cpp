@@ -68,6 +68,7 @@
 #include <memory>
 #include <numbers>
 #include <cmath>
+#include <fstream>
 #include <cstdio>
 #include <functional>
 #include <iostream>
@@ -9480,6 +9481,19 @@ static void test_storage_infinite_bounds( void )
     const auto v = milp_value( bu , sname );
     check( close( v , -497 ) , what + ": " + sname + " gives " + str( v ) +
            " instead of -497" );
+    if( ! close( v , -497 ) ) {  // DEBUG of the CI of macOS, not for develop
+     auto slv = Solver::new_Solver( sname );
+     slv->set_par( slv->str_par_str2idx( "strOutputFile" ) ,
+                   std::string( "battery_design.lp" ) );
+     slv->set_par( slv->int_par_str2idx( "intLogVerb" ) , 1 );
+     bu->register_Solver( slv );
+     const auto st = slv->compute();
+     std::cout << "DEBUG status " << st << " value " << slv->get_var_value()
+               << " lb " << slv->get_lb() << std::endl;
+     std::ifstream lp( "battery_design.lp" );
+     std::cout << "DEBUG lp:" << std::endl << lp.rdbuf() << std::endl;
+     bu->unregister_Solver( slv , true );
+     }
     }
    }
   else {
