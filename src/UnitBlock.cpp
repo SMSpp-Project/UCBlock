@@ -241,6 +241,15 @@ void UnitBlock::deserialize( const netCDF::NcGroup & group )
 {
  Block::deserialize( group );
 
+ // "Scale", the number of copies, is both the weights [see replicate()]
+ double copies;
+ if( ::deserialize( group , copies , "Scale" ) ) {
+  if( ( ! std::isfinite( copies ) ) || ( copies < 0 ) )
+   throw( std::invalid_argument( classname() + "::deserialize: Scale must "
+                                 "be finite and not negative" ) );
+  f_objective_weight = f_variable_weight = copies;
+  }
+
  deserialize_time_horizon( group );
  deserialize_change_intervals( group );
  deserialize_outputs( group );
@@ -272,34 +281,6 @@ std::vector< std::string > UnitBlock::expected_vars( void ) const {
 /*------------------ METHODS FOR MODIFYING THE UnitBlock -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::scale( MF_dbl_it values , Range rng ,
-                       c_ModParam issuePMod , c_ModParam issueAMod )
-{
- if( rng.first >= rng.second )
-  return;  // An empty Range was given: no operation is performed.
-
- Subset subset;
-
- if( rng.second == Inf< Index >() ) {
-  // If we decide to scale the generators individually rather than the whole
-  // unit, then, when rng.second is Inf< Index >(), we could interpret it as
-  // changing the scale factor of all generators and the vector containing the
-  // scale factor would be expected to have size at least equal to the number
-  // of generators. In this case, the subset would have size equal to the
-  // number of generators. Alternatively, we could have scale_generators() and
-  // leave scale() for scaling the whole unit.
-  subset.resize( 1 , 0 );
-  }
- else {
-  subset.resize( rng.second - rng.first );
-  std::iota( subset.begin() , subset.end() , rng.first );
-  }
-
- scale( values , std::move( subset ) , true , issuePMod , issueAMod );
- }
-
-/*--------------------------------------------------------------------------*/
-
 void UnitBlock::generate_abstract_variables( Configuration * stvv )
 {
  if( variables_generated() )  // variables have already been generated
@@ -311,13 +292,28 @@ void UnitBlock::generate_abstract_variables( Configuration * stvv )
 
 /*--------------------------------------------------------------------------*/
 
-void UnitBlock::scale( double scale_factor ,
-                       c_ModParam issuePMod , c_ModParam issueAMod )
+void UnitBlock::set_weight( double k , c_ModParam issueMod )
 {
- Subset subset = { 0 };
- std::vector< double > values = { scale_factor };
- scale( values.cbegin() , std::move( subset ) , true , issuePMod ,
-	issueAMod );
+ const auto copies = get_variable_weight();
+ Block::set_weight( k , issueMod );
+ if( get_variable_weight() == copies )
+  return;
+
+ /* The UCBlock may not be the father: while a LagrangianDualSolver is
+  * attached, the father is the LagBFunction holding the unit alone, whose
+  * father is the UCBlock, and the UnitBlock may be in a unit of the UCBlock
+  * (the HydroUnitBlock of a HydroSystemUnitBlock). What the UCBlock is told
+  * of is its sub-Block that contains this one, a Function holding it not
+  * being one. */
+ const Block * unit = this;
+ for( auto b = get_f_Block() ; b ; b = b->get_f_Block() ) {
+  if( auto ucb = dynamic_cast< UCBlock * >( b ) ) {
+   ucb->weight_changed( unit );
+   break;
+   }
+  if( ! dynamic_cast< const Function * >( b ) )
+   unit = b;
+  }
  }
 
 /*--------------------------------------------------------------------------*/

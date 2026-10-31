@@ -71,7 +71,7 @@ namespace SMSpp_di_unipi_it
  * zone, in which case the unit represents all the capacity of its kind
  * installed in the zone, and the equations are the same in all cases. It has
  * one generator, and its place in the model of the complete system (the node
- * balance, the reserve and inertia rows, the scale factor and the investment)
+ * balance, the reserve and inertia rows, the copies and the investment)
  * is described in \ref ucblock_model.
  *
  * \par Capacity and production
@@ -127,15 +127,16 @@ namespace SMSpp_di_unipi_it
  * \f$ x \f$ ("x_intermittent"), which exists if \f$ c^{inv} \f$
  * ("InvestmentCost") is nonzero, multiplies \f$ \kappa P^{mn}_t \f$ and
  * \f$ \kappa P^{mx}_t \f$ in (1)-(3), which then take the forms (1d)-(3d),
- * and costs \f$ \sigma c^{inv} \f$ per unit. If \f$ \bar{X} \geq 0 \f$ the
+ * and costs \f$ c^{inv} \f$ per unit. If \f$ \bar{X} \geq 0 \f$ the
  * design variable lies in \f$ [ \max\{ 0 , \underline{X} \} , \bar{X} ] \f$,
  * with \f$ \underline{X} \f$ and \f$ \bar{X} \f$ the data "MinCapacityDesign"
  * and "MaxCapacityDesign". If \f$ \bar{X} < 0 \f$ it is integer in \f$ \{
  * \max\{ 0 , \underline{X} \} , \ldots , | \bar{X} | \} \f$ (say, a number of
  * modules), and binary if \f$ \bar{X} = -1 \f$; its bounds are always a row,
  * and therefore with both bounds equal to 1 the unit is built. Finally, the
- * scale factor \f$ \sigma \f$ ("Scale") represents \f$ \sigma \f$ identical
- * copies of the unit that share its Variable (see UnitBlock::scale()).
+ * number of copies \f$ \sigma \f$ ("Scale") represents \f$ \sigma \f$
+ * identical copies of the unit that share its Variable (see
+ * UnitBlock::replicate()).
  *
  * \par Rows and Objective
  * With the terms in \f$ p^{pr}_t \f$ and \f$ p^{sc}_t \f$ present only for
@@ -158,10 +159,11 @@ namespace SMSpp_di_unipi_it
  * \f}
  * and the Objective is
  * \f[
- *   \sigma \Bigl( \sum_{ t \in \mathcal{T} } b_t p^{ac}_t + c^{inv} x
- *   \Bigr) , \tag{5}
+ *   \sum_{ t \in \mathcal{T} } b_t p^{ac}_t + c^{inv} x \; , \tag{5}
  * \f]
- * where the term in \f$ x \f$ is present only if the design variable exists.
+ * where the term in \f$ x \f$ is present only if the design variable exists,
+ * the cost of one copy of the unit (the problem counts it once per copy,
+ * see UnitBlock::replicate()).
  *
  * \par Features not modeled
  * We do not model a contribution to the inertia proportional to the potential
@@ -196,7 +198,7 @@ class IntermittentUnitBlock : public UnitBlock
   */
  explicit IntermittentUnitBlock( Block * f_block = nullptr )
   : UnitBlock( f_block ), f_InvestmentCost( 0 ), f_MinCapacityDesign( 0 ),
-    f_MaxCapacityDesign( 1 ), f_gamma( 0 ), f_kappa( 1 ), f_scale( 1 ),
+    f_MaxCapacityDesign( 1 ), f_gamma( 0 ), f_kappa( 1 ),
     f_max_power_epsilon( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -256,11 +258,11 @@ class IntermittentUnitBlock : public UnitBlock
   * - the scalar variable "Kappa", the nonnegative \f$ \kappa \f$; 1 if
   *   absent;
   *
-  * - the scalar variable "Scale", the scale factor \f$ \sigma \f$ [see
-  *   UnitBlock::scale()], 1 if absent; a value different from 1 is refused
-  *   together with \f$ | \bar{X} | > 1 \f$, since the two represent the same
-  *   replication of the unit (by deserialize() only, scale() not repeating
-  *   this check);
+  * - the scalar variable "Scale", the number of copies \f$ \sigma \f$
+  *   [see UnitBlock::deserialize() and UnitBlock::replicate()], 1 if
+  *   absent; a value different from 1 is refused together with
+  *   \f$ | \bar{X} | > 1 \f$, since the two represent the same replication
+  *   of the unit (also by set_weight());
   *
   * - the scalar variable "InvestmentCost", the investment cost
   *   \f$ c^{inv} \f$ of (5), 0 if absent; a nonzero value creates the design
@@ -364,9 +366,9 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the IntermittentUnitBlock
  /** Generates the Objective (5) of the class description, to be minimized:
-  * a LinearFunction with coefficient \f$ \sigma b_t \f$ on
-  * \f$ p^{ac}_t \f$ and \f$ \sigma c^{inv} \f$ on \f$ x \f$, if the latter
-  * exists. The parameter \p objc is not used. */
+  * a LinearFunction with coefficient \f$ b_t \f$ on \f$ p^{ac}_t \f$ and
+  * \f$ c^{inv} \f$ on \f$ x \f$, if the latter exists. The parameter \p objc
+  * is not used. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -602,10 +604,6 @@ class IntermittentUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the scale factor
-
- double get_scale( void ) const override { return( f_scale ); }
-
  double get_design_ub( void ) const override {
   // f_MaxCapacityDesign < 0: integer design in {0, ..., |MaxCapacityDesign|};
   // f_MaxCapacityDesign >= 0: continuous design in [0, MaxCapacityDesign].
@@ -878,20 +876,12 @@ class IntermittentUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// sets the scale factor
- /** This method sets the scale factor of this IntermittentUnitBlock.
-  *
-  * @param values An iterator to a vector containing the scale factor.
-  * @param subset If non-empty, the scale factor is set to the value pointed
-  *               by \p values. If empty, no operation is performed.
-  * @param ordered This parameter is ignored.
-  * @param issuePMod Controls how physical Modifications are issued.
-  * @param issueAMod Controls how abstract Modifications are issued. */
+ /// sets the number of copies of this IntermittentUnitBlock
+ /** As UnitBlock::set_weight(), after having refused with std::logic_error
+  * a number of copies different from 1 together with \f$ | \bar{X} | > 1
+  * \f$, since the two represent the same replication of the unit. */
 
- void scale( MF_dbl_it values ,
-             Subset && subset , bool ordered = false ,
-             c_ModParam issuePMod = eNoBlck ,
-             c_ModParam issueAMod = eNoBlck ) override;
+ void set_weight( double k , c_ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set the kappa constant
@@ -947,10 +937,6 @@ class IntermittentUnitBlock : public UnitBlock
              issuePMod , issueAMod );
   }
 
-/*--------------------------------------------------------------------------*/
- // For the Range version, use the default implementation defined in UnitBlock
-
- using UnitBlock::scale;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -960,18 +946,6 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
-/*--------------------------------------------------------------------------*/
- /// k identical copies of this unit, i.e., scale( k )
- /** Registered in the methods factory as "IntermittentUnitBlock::replicate",
-  * the name under which a Block of unknown class is sized by identical
-  * copies [see UCBlock::replicate()]; protected, as the name is the way to
-  * reach it. */
-
- void replicate( double k , c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) {
-  scale( k , issuePMod , issueAMod );
-  }
-
 /*--------------------------------------------------------------------------*/
  /// kappa times the size of this unit, i.e., set_kappa( kappa )
  /** Registered in the methods factory as "IntermittentUnitBlock::resize",
@@ -983,19 +957,6 @@ class IntermittentUnitBlock : public UnitBlock
               c_ModParam issueAMod = eNoBlck ) {
   set_kappa( kappa , issuePMod , issueAMod );
   }
-
-/*--------------------------------------------------------------------------*/
-
- /// refresh the f_scale-aware coefficients in the Objective
- /** Re-applies \f$ \sigma c \f$ to every coefficient in the Objective that
-  * is meant to scale with the current scale factor \f$ \sigma \f$ (see
-  * UnitBlock::scale()): the active-power costs and the investment cost on
-  * the design variable. Called by scale() after f_scale changes so the
-  * abstract representation stays in sync.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective( c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -1042,8 +1003,6 @@ class IntermittentUnitBlock : public UnitBlock
  /// the kappa value
  double f_kappa;
 
- /// the scale factor
- double f_scale;
 
  /// value used to replace any zero value in the maximum power
  double f_max_power_epsilon;
@@ -1199,14 +1158,6 @@ class IntermittentUnitBlock : public UnitBlock
    & IntermittentUnitBlock::set_active_power_cost );
 
   register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
-   "IntermittentUnitBlock::scale" ,
-   & IntermittentUnitBlock::scale );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
-   "IntermittentUnitBlock::scale" ,
-   & IntermittentUnitBlock::scale );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
    "IntermittentUnitBlock::set_kappa" ,
    & IntermittentUnitBlock::set_kappa );
 
@@ -1220,8 +1171,8 @@ class IntermittentUnitBlock : public UnitBlock
   // consumer can pick the operation without knowing the class:
   //
   // - replicate: this UnitBlock stands for k identical copies of itself. Its
-  //   Constraint and Variable keep describing one copy and whoever holds a
-  //   coupling multiplies by get_scale(); only its Objective is rewritten;
+  //   Constraint, Variable and Objective keep describing one copy, and the
+  //   copies are its weights [see UnitBlock::replicate()];
   //
   // - resize: this UnitBlock stands for one unit of k times the size it was
   //   given. Its own rows are rewritten, and the UCBlock multiplies its

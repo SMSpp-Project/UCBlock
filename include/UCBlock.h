@@ -124,7 +124,7 @@ namespace SMSpp_di_unipi_it
  * only constraints are the linking ones (see
  * generate_abstract_constraints()), which is the structure that a
  * LagrangianDualSolver exploits. The capacity of the assets enters the model
- * through the scale of the UnitBlock (see UnitBlock::scale()), which
+ * through the weight of the UnitBlock (see UnitBlock::replicate()), which
  * represents a number of identical copies of a unit, and through the capacity
  * multipliers of IntermittentUnitBlock, BatteryUnitBlock and DCNetworkBlock.
  * Since either can be changed after the Block is built, one can evaluate the
@@ -683,9 +683,13 @@ class UCBlock : public Block
   * generators, the set of all electrical generators being
   * \f$ \mathcal{G} \f$, and \f$ \mathcal{G}_n \f$ the set of those
   * connected to node \f$ n \in \mathcal{N} \f$. Let \f$ \sigma_g \f$ be the
-  * scale of the UnitBlock of generator \f$ g \f$ (see UnitBlock::scale()),
-  * which multiplies every term of the generator below, since the Variable
-  * of a scaled unit are those of one copy of it.
+  * number of copies of the UnitBlock of generator \f$ g \f$ (see
+  * UnitBlock::replicate()), which multiplies every term of the generator
+  * below, since the Variable of a replicated unit are those of one copy of
+  * it. The rows hold the coefficients of one copy, \f$ \sigma_g \f$ being
+  * the weight of the Variable of the unit, which the Solver applies (see
+  * Block::set_variable_weight()); the constants that a unit brings, i.e.,
+  * the fixed consumption in (1), are multiplied by it here.
   *
   * The UCBlock does not have any Variable of its own, but it defines
   * Constraint on the Variable of the UnitBlock and of the NetworkBlock, as
@@ -860,17 +864,17 @@ class UCBlock : public Block
   *   \f$ \mathcal{K}_n \f$ of the units at node \f$ n \f$ (see
   *   UnitBlock::get_number_storages(); the storages of a unit are at the
   *   node of its first electrical generator), \f$ \sigma_k \f$ being the
-  *   scale of the unit of storage \f$ k \f$ and \f$ \rho^{v}_{t,p,k} \f$ its
-  *   factor (see get_pollutant_storage_rho()). This is how a limit accounts
-  *   for the change of the level of a storage over the horizon, as that of
-  *   a store of CO2 or of a fuel that emits it, typically with a nonzero
-  *   factor at the last time instant only; the contribution of its initial
-  *   level, which is a constant, is then to be subtracted from both bounds
-  *   by whoever writes the data. The nodes of a zone need not be electric:
-  *   the generators on a heat node (a boiler, the heat of a
-  *   ConversionUnitBlock) have their own factors, so that a budget over a
-  *   zone that holds the heat nodes counts the emissions due to heat; with
-  *   more than one carrier a zone may hold nodes of any of them, and the
+  *   number of copies of the unit of storage \f$ k \f$ and
+  *   \f$ \rho^{v}_{t,p,k} \f$ its factor (see get_pollutant_storage_rho()).
+  *   This is how a limit accounts for the change of the level of a storage
+  *   over the horizon, as that of a store of CO2 or of a fuel that emits it,
+  *   typically with a nonzero factor at the last time instant only; the
+  *   contribution of its initial level, which is a constant, is then to be
+  *   subtracted from both bounds by whoever writes the data. The nodes of a
+  *   zone need not be electric: the generators on a heat node (a boiler, the
+  *   heat of a ConversionUnitBlock) have their own factors, so that a budget
+  *   over a zone that holds the heat nodes counts the emissions due to heat;
+  *   with more than one carrier a zone may hold nodes of any of them, and the
   *   node of a generator is its node on the electricity, or, if it has none,
   *   on the first carrier where it has one (see
   *   get_generator_pollutant_zone()). The
@@ -883,10 +887,9 @@ class UCBlock : public Block
   *   \f$ - \infty < O^{mn}_{z,p} < O_{z,p} < \infty \f$ cannot be relaxed
   *   by a LagrangianDualSolver.
   *
-  * When the scale of a unit changes after the constraints are generated,
-  * the coefficients of its terms, and the right-hand sides of (1) and (1b),
-  * are changed accordingly, those of (1') included (see
-  * add_Modification()). */
+  * When the number of copies of a unit changes after the constraints are
+  * generated, the right-hand sides of (1) are changed accordingly (see
+  * weight_changed()), the coefficients being those of one copy. */
 
  void generate_abstract_constraints( Configuration * stcc = nullptr )
   override;
@@ -904,8 +907,9 @@ class UCBlock : public Block
   *   \sum_{ i \in \mathcal{I} } f_i + \sum_{ k } \Bigl( c^0_k
   *     + \sum_{ l \in \mathcal{L} } c^{net}_l V_{k,l} \Bigr) + c^{U} \; ,
   * \f]
-  * where \f$ f_i \f$ is the cost of UnitBlock \f$ i \f$, already
-  * multiplied by its scale (see UnitBlock::scale()) and, for a
+  * where \f$ f_i \f$ is the cost of UnitBlock \f$ i \f$, the one of a copy
+  * times the number of copies, the weight of its Objective that the Solver
+  * applies (see UnitBlock::replicate()), and, for a
   * HydroSystemUnitBlock, including the future cost of the water left in its
   * reservoirs (see HydroSystemUnitBlock), and the second sum runs over the
   * NetworkBlock \f$ k \f$, \f$ c^0_k \f$ being its constant term and
@@ -1579,10 +1583,10 @@ class UCBlock : public Block
  /** Calls visit( row , var , factor , constant ) for each term of the
   * UnitBlock \p unit in the balance rows (1), (1b) and (1c) (in the reactive
   * rows (1') if \p reactive is true): row is the FRowConstraint, var the
-  * ColVariable, factor its coefficient divided by the scale of the unit, and
-  * constant the part of the right-hand side that the term brings, also
-  * divided by the scale, which is not 0 for the commitment Variable of a
-  * generator with fixed consumption only. A unit whose scale is the design
+  * ColVariable, factor its coefficient, that of one copy of the unit, and
+  * constant the part of the right-hand side that one copy brings, which is
+  * not 0 for the commitment Variable of a generator with fixed consumption
+  * only. A unit whose number of copies is the design
   * Variable of an investment then contributes to the linearization the sum
   * of dual( row ) * ( factor * var - constant ) over the terms [see
   * get_replicate_linearization()]. */
@@ -1765,22 +1769,36 @@ class UCBlock : public Block
   * the "abstract representation" of the UCBlock, and "translate" them into
   * both changes of the actual data structures and corresponding "physical
   * Modification". These Modification(s) are those for which
-  * Modification::concerns_Block() is true. This method handles the
-  * UnitBlockMod of type UnitBlockMod::eScale, also inside a
-  * GroupModification: the coefficients of the terms of the scaled units in
-  * the constraints (1)-(5) and (1') of generate_abstract_constraints(), and
-  * the right-hand sides of (1), are changed to the new scale. It also handles
-  * the change of the inertia power of a HydroUnitBlock (also inside a
-  * HydroSystemUnitBlock), whose coefficients in (4) follow it, a term that
-  * the rows do not have being refused with std::logic_error; and the
-  * changes of the scale, of the kappa and of the maximum power of the units
-  * make it give the NetworkBlock the bounds on the node injections again
-  * (see \ref ucbm_link_bounds and set_node_injection_bounds()). The rows
-  * are rewritten by walking them as they are generated, node by node and
-  * unit by unit, so that a unit with generators at several nodes of a zone
-  * is handled. */
+  * Modification::concerns_Block() is true. This method handles, also
+  * inside a GroupModification, the change of the inertia power of a
+  * HydroUnitBlock (also inside a HydroSystemUnitBlock), whose coefficients
+  * in (4) of generate_abstract_constraints() follow it, a term that the rows
+  * do not have being refused with std::logic_error; the changes of the
+  * kappa and of the maximum power of the units make it give the
+  * NetworkBlock the bounds on the node injections again (see \ref
+  * ucbm_link_bounds and set_node_injection_bounds()). The rows are rewritten
+  * by walking them as they are generated, node by node and unit by unit, so
+  * that a unit with generators at several nodes of a zone is handled. The
+  * change of the weights of a unit is not seen here [see weight_changed()].
+  */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// tells this UCBlock that the weight of the Variable of a unit changed
+ /** Called by UnitBlock::set_weight() on the UCBlock among the ancestors of
+  * the \p unit, whether or not a Modification is issued, since the data
+  * derived from the weight have to follow it even if no Solver is
+  * listening. The coefficients of the Variable of a unit in the rows of
+  * this UCBlock are those of one copy, the Solver applying the weight [see
+  * Block::set_variable_weight()]; the weight multiplies the constants that
+  * the unit brings, i.e., the fixed consumption in the right-hand sides of
+  * (1) of generate_abstract_constraints() and the bounds on the node
+  * injections given to the NetworkBlock [see set_node_injection_bounds()],
+  * which are computed again. std::invalid_argument is thrown if \p unit is
+  * not a unit of this UCBlock. */
+
+ void weight_changed( const Block * unit );
 
 /*--------------------------------------------------------------------------*/
  /// update the active power demand
@@ -2001,12 +2019,13 @@ class UCBlock : public Block
  /// sets the number of copies of the units in \p subset
  /** As resize_unit( subset ), but through the method that the class of each
   * unit registers as "<classname>::replicate": the unit stands for that many
-  * identical copies of itself [see UnitBlock::scale()].
+  * identical copies of itself [see UnitBlock::replicate()].
   *
-  * The factor appears in the rows of this UCBlock, which a unit asks to
-  * rewrite each time its factor changes [see add_Modification()]; here they
-  * are rewritten once, for all the units in \p subset, after the last one
-  * has been scaled, also when one of them throws. The derivative is read
+  * The number of copies is in the right-hand sides of the rows of this
+  * UCBlock and in the bounds of the node injections, which a unit asks to
+  * rewrite each time it changes [see weight_changed()]; here they are
+  * rewritten once, for all the units in \p subset, after the last one has
+  * been replicated, also when one of them throws. The derivative is read
   * back by the name "UCBlock::get_replicate_linearization". */
 
  void replicate( MF_dbl_sp values , Subset && subset , bool ordered = false ,
@@ -2085,11 +2104,12 @@ class UCBlock : public Block
  bool objective_generated( void ) const { return( AR & HasObj ); }
 
 /*--------------------------------------------------------------------------*/
- /// the derivative of the value of this UCBlock w.r.t. the scale of a unit
- /** The scale factor of a UnitBlock [see UnitBlock::get_scale()] appears in
-  * the rows this UCBlock builds on top of its units, and not in the rows of
-  * the unit itself: in the balance of each carrier the coefficient of the
-  * active power of the unit is that factor times the efficiency towards the
+ /// the derivative of the value of this UCBlock w.r.t. the copies of a unit
+ /** The number of copies of a UnitBlock [see UnitBlock::replicate()] is the
+  * weight of its Variable, which multiplies their terms in the rows this
+  * UCBlock builds on top of its units, and not in the rows of the unit
+  * itself: in the balance of each carrier the coefficient of the active
+  * power of the unit is that factor times the efficiency towards the
   * carrier, and the fixed consumption is multiplied by it, and the same
   * happens in the rows of the reserves, of the inertia and of the pollutant
   * budgets. The derivative of the value of this UCBlock with respect to
@@ -2099,11 +2119,9 @@ class UCBlock : public Block
   * gives to its NetworkBlock, which the factor multiplies too [see
   * injection_bounds_linearization()].
   *
-  * To that sum is added the term of the Objective of the unit, which under
-  * the "k copies" reading carries the factor already
-  * [see UnitBlock::scale()]: if
-  * the Objective of the unit is \f$ k f(x) \f$, its contribution here is
-  * \f$ f(x) \f$.
+  * To that sum is added the value \f$ f(x) \f$ of the Objective of the unit,
+  * the cost of one copy, which the factor multiplies as the weight of the
+  * Objective [see UnitBlock::replicate()].
   *
   * With one copy or more the duals are read as they are: nothing is solved,
   * and it is the caller's business to have solved this UCBlock, and as a
@@ -2141,19 +2159,14 @@ class UCBlock : public Block
   * not a BlockSolverConfig with a Solver, or the lower bound is not finite,
   * the method throws.
   *
-  * To be mirrored as one copy the unit is scaled to 1, and then back to 0:
-  * the two changes are dropped by add_Modification() [see
-  * get_zero_copy_linearization()], so that the rows of this UCBlock, the
-  * bounds of the node injections and the Solver registered with this
-  * UCBlock see nothing, and the unit ends as it was found. Two calls on the
-  * same UCBlock take turns over the scaling; nothing else is to change the
-  * unit, or read it, while one of them is under way.
+  * The mirror is one copy of the unit as it is, the weights of the mirror
+  * being set to 1 in place of the 0 of the unit: the unit is not changed.
   *
   * @param unit the index of the UnitBlock, between 0 and
   *        get_number_units() - 1
   *
   * @return the derivative of the value of this UCBlock with respect to the
-  *         scale factor of the given unit
+  *         number of copies of the given unit
  */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -2474,30 +2487,22 @@ class UCBlock : public Block
  static constexpr unsigned char HasObj = 4;
  ///< third bit of AR == 1 if the Objective has been constructed
 
- bool f_defer_scaled_rows = false;
- ///< whether the rows of a scaled unit wait for the end of size_deferred()
- /**< While true, add_Modification() puts the index of a unit whose scale
-  * factor changed in v_scaled_units instead of rewriting the rows that
-  * carry it, and records in f_deferred_injection_bounds a change of the
-  * power range instead of computing the bounds of the node injections:
-  * size_deferred() sets it, so that rows and bounds are rewritten once for
-  * all the units that replicate() and resize_unit() size. */
+ bool f_defer_weighted_rows = false;
+ ///< whether the rows of a replicated unit wait for the end of
+ ///< size_deferred()
+ /**< While true, weight_changed() puts the index of a unit whose weight
+  * changed in v_weighted_units instead of rewriting the right-hand sides
+  * that carry it, and weight_changed() and add_Modification() record in
+  * f_deferred_injection_bounds a change of the power range instead of
+  * computing the bounds of the node injections: size_deferred() sets it,
+  * so that rows and bounds are rewritten once for all the units that
+  * replicate() and resize_unit() size. */
 
- std::vector< Index > v_scaled_units;
- ///< the units scaled while f_defer_scaled_rows is true
+ std::vector< Index > v_weighted_units;
+ ///< the units replicated while f_defer_weighted_rows is true
 
  bool f_deferred_injection_bounds = false;
- ///< whether a power range changed while f_defer_scaled_rows is true
-
- mutable std::atomic< const Block * > f_round_trip_unit = nullptr;
- ///< the unit whose scale goes to 1 and back to 0
- /**< While not nullptr, add_Modification() drops the UnitBlockMod of type
-  * UnitBlockMod::eScale that this unit issues: the scale ends where it
-  * started, and the rows and the bounds that carry it are left as they are
-  * [see get_zero_copy_linearization()]. */
-
- mutable std::mutex f_round_trip_mutex;
- ///< makes the calls of get_zero_copy_linearization() take turns
+ ///< whether a power range changed while f_defer_weighted_rows is true
 
 /*--------------------------------------------------------------------------*/
 
@@ -2604,22 +2609,24 @@ class UCBlock : public Block
  void generate_pollutant_budget_constraints( void );
 
 /*--------------------------------------------------------------------------*/
- /// rewrites the rows that carry the scale factor of the given units
- /** Each of the rows of this UCBlock in which the scale factor of a unit
-  * appears [see add_Modification()] is rewritten for the units in
-  * \p scaled_units, which is sorted, and cleared of repetitions, here. The
-  * whole rewriting travels in one channel. */
+ /// rewrites the right-hand sides that carry the weight of the given units
+ /** The right-hand sides of the node injection rows (1) that the fixed
+  * consumption of the units in \p weighted_units brings, times their weight
+  * [see weight_changed()], are computed again; \p weighted_units is sorted,
+  * and cleared of repetitions, here. The whole rewriting travels in one
+  * channel. */
 
- void update_scaled_rows( std::vector< Index > & scaled_units );
+ void update_weighted_rows( std::vector< Index > & weighted_units );
 
 /*--------------------------------------------------------------------------*/
  /// gives each NetworkBlock the bounds of its node injections
  /** The bounds of the injection at a node are the sums, over the generators
   * at the node, of get_scale() * get_kappa() * get_design_ub() times the
   * minimum (or the opposite of the fixed consumption, if smaller) and the
-  * maximum power; the same for the reactive power, if any. Called by
-  * deserialize() and by add_Modification() whenever one of these data of a
-  * unit changes [see UnitBlockMod::changes_power_range()]; the NetworkBlock
+  * maximum power, get_scale() being the number of copies of the unit; the
+  * same for the reactive power, if any. Called by deserialize(), by
+  * weight_changed() and by add_Modification() whenever one of these data of
+  * a unit changes [see UnitBlockMod::changes_power_range()]; the NetworkBlock
   * rewrite the rows of the bounds, if they have them. */
 
  void set_node_injection_bounds( void );
@@ -2627,67 +2634,18 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// calls \p size, which sizes some units, and then rewrites once what each
  /// of them would have had rewritten
- /** While \p size runs, add_Modification() leaves the rows of the scaled
-  * units and the bounds of the node injections as they are [see
-  * f_defer_scaled_rows]; they are rewritten after it, the bounds only if a
-  * power range has changed, also when it throws, since the units sized
-  * before keep their new size. */
+ /** While \p size runs, weight_changed() and add_Modification() leave the
+  * right-hand sides of the replicated units and the bounds of the node
+  * injections as they are [see f_defer_weighted_rows]; they are rewritten
+  * after it, the bounds only if a power range has changed, also when it
+  * throws, since the units sized before keep their new size. */
 
  void size_deferred( const std::function< void( void ) > & size );
 
 /*--------------------------------------------------------------------------*/
- /// updates the node injection constraints
- /** This function updates the node injection constraints considering that the
-  * scale factors of the given units may have been modified. The vector \p
-  * modified_units is assumed to be ordered.
-  *
-  * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered.
-  *
-  * @param issueMod How the Modification of the rows are issued.
-  *
-  * @param reactive If true, the reactive node injection constraints are
-  *        updated instead of the active ones. */
-
- void update_node_injection_constraints(
-			       const std::vector< Index > & modified_units ,
-			       ModParam issueMod = eNoBlck ,
-			       bool reactive = false );
-
-/*--------------------------------------------------------------------------*/
- /// updates the primary demand constraints
- /** This function updates the primary demand constraints considering that the
-  * scale factors of the given units may have been modified. The vector \p
-  * modified_units is assumed to be ordered.
-  *
-  * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered.
-  *
-  * @param issueMod How the Modification of the rows are issued. */
-
- void update_primary_demand_constraints(
-			       const std::vector< Index > & modified_units ,
-			       ModParam issueMod = eNoBlck );
-
-/*--------------------------------------------------------------------------*/
- /// updates the secondary demand constraints
- /** This function updates the secondary demand constraints considering that
-  * the scale factors of the given units may have been modified. The vector
-  * \p modified_units is assumed to be ordered.
-  *
-  * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered.
-  *
-  * @param issueMod How the Modification of the rows are issued. */
-
- void update_secondary_demand_constraints(
-			       const std::vector< Index > & modified_units ,
-			       ModParam issueMod = eNoBlck );
-
-/*--------------------------------------------------------------------------*/
  /// updates the inertia demand constraints
  /** This function updates the inertia demand constraints considering that
-  * the scale factors of the given units may have been modified. The vector
+  * the inertia power of the given units may have been modified. The vector
   * \p modified_units is assumed to be ordered.
   *
   * @param modified_units The indices of the UnitBlocks that may have been
@@ -2696,21 +2654,6 @@ class UCBlock : public Block
   * @param issueMod How the Modification of the rows are issued. */
 
  void update_inertia_demand_constraints(
-			       const std::vector< Index > & modified_units ,
-			       ModParam issueMod = eNoBlck );
-
-/*--------------------------------------------------------------------------*/
- /// updates the pollutant budget constraints
- /** This function updates the pollutant budget constraints considering that
-  * the scale factors of the given units may have been modified. The vector
-  * \p modified_units is assumed to be ordered.
-  *
-  * @param modified_units The indices of the UnitBlocks that may have been
-  *        modified. This vector is assumed to be ordered.
-  *
-  * @param issueMod How the Modification of the rows are issued. */
-
- void update_pollutant_budget_constraints(
 			       const std::vector< Index > & modified_units ,
 			       ModParam issueMod = eNoBlck );
 
@@ -2747,8 +2690,8 @@ class UCBlock : public Block
   * term of the constraints of pollutant \p p, unit by unit and in the order
   * in which they are in the constraints: the active power of each generator
   * of the unit at each time, then the level of each of its storages at each
-  * time; \p factor is the one of the data, i.e., not yet multiplied by the
-  * scale of the unit, and the terms with a zero factor are not visited.
+  * time; \p factor is the one of the data, i.e., that of one copy of the
+  * unit, and the terms with a zero factor are not visited.
   * If \p unit is Inf< Index >() the terms of all the units are visited,
   * otherwise \p unit must be the index of a unit, between 0 and
   * get_number_units() - 1, and only the terms of that unit are visited. */
@@ -2760,18 +2703,19 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// calls term on each Variable of a unit that the rows above it weigh
  /** Calls term( var , coeff ) for each Variable of the unit \p unit that
-  * appears in the rows this UCBlock builds on top of its units with the scale
-  * factor of the unit, where coeff is the dual of the row times what the
-  * factor multiplies there (the power in the node injections, the reserves in
-  * their balances, the inertia, the emissions), and adds to \p constant the
-  * terms that do not depend on a Variable of the unit (the fixed consumption
-  * of a unit that is off is the constant -dual * fc plus dual * fc times the
-  * commitment). The sum of coeff times the value of var, plus the constant,
-  * is the part of the derivative of get_replicate_linearization() that comes
-  * from those rows. The same terms are evaluated at the current solution
-  * with one copy or more, and minimised over a mirror of the unit with 0
-  * copies [see get_zero_copy_linearization()]. The bounds of the node
-  * injections of the NetworkBlock add their part to \p constant [see
+  * appears in the rows this UCBlock builds on top of its units with the
+  * number of copies of the unit as weight, where coeff is the dual of the
+  * row times what the factor multiplies there (the power in the node
+  * injections, the reserves in their balances, the inertia, the emissions),
+  * and adds to \p constant the terms that do not depend on a Variable of the
+  * unit (the fixed consumption of a unit that is off is the constant -dual *
+  * fc plus dual * fc times the commitment). The sum of coeff times the value
+  * of var, plus the constant, is the part of the derivative of
+  * get_replicate_linearization() that comes from those rows. The same terms
+  * are evaluated at the current solution with one copy or more, and minimised
+  * over a mirror of the unit with 0 copies [see
+  * get_zero_copy_linearization()]. The bounds of the node injections of the
+  * NetworkBlock add their part to \p constant [see
   * injection_bounds_linearization()]. */
 
  template< class F >
@@ -2784,16 +2728,16 @@ class UCBlock : public Block
   * the NetworkBlock of all the carriers and over those of the reactive ones
   * of an ACNetworkBlock [see set_node_injection_bounds()], of minus the dual
   * of each row times the derivative of its side, the one the sign of the
-  * dual says, with respect to the scale of the unit \p unit if \p copies,
+  * dual says, with respect to the copies of the unit \p unit if \p copies,
   * to its kappa otherwise: a unit at its bound shares the dual with the
   * bound of its node, which the solver may take instead. */
 
  double injection_bounds_linearization( Index unit , bool copies ) const;
 
 /*--------------------------------------------------------------------------*/
- /// the derivative of the value of this UCBlock w.r.t. a scale factor of 0
- /** The case of get_replicate_linearization() in which the scale factor of
-  * the unit is 0 [see get_replicate_linearization()]. */
+ /// the derivative of the value of this UCBlock w.r.t. 0 copies of a unit
+ /** The case of get_replicate_linearization() in which the unit has 0
+  * copies [see get_replicate_linearization()]. */
 
  double get_zero_copy_linearization( Index unit ) const;
 
@@ -2822,16 +2766,6 @@ class UCBlock : public Block
 
  void set_network_active_demand( MF_dbl_it values , const Subset & index ,
 				 c_ModParam issuePMod , c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// updates the balance rows of carrier c for the given units
- /** Rewrites the coefficients of the terms of the given units, assumed to be
-  * ordered, and the right-hand sides of the balance rows of carrier \p c
-  * ((1), (1b) or (1c), or (1') if \p reactive is true). */
-
- void update_balance_constraints( Index c ,
-                                  const std::vector< Index > & modified_units ,
-                                  ModParam issueMod , bool reactive = false );
 
 /*--------------------------------------------------------------------------*/
  /// sets the energy demand of carrier c > 0 at node n and time t
@@ -2989,7 +2923,7 @@ class UCBlock : public Block
   register_method< UCBlock , MF_dbl_sp , Range >(
    "UCBlock::resize_line" , & UCBlock::resize_line );
 
-  /* The getter reading back the sensitivity to the scale factor of a unit
+  /* The getter reading back the sensitivity to the copies of a unit
    * [see get_replicate_linearization()]. It is registered here, on the
    * container, and not on the unit, because the rows in which that factor
    * appears are this UCBlock's own: a UnitBlock asked the same question
@@ -3113,7 +3047,7 @@ void UCBlock::for_each_balance_term( Index unit , bool reactive ,
   return;
 
  // the generators of the unit alone, with the same factors as the terms of
- // the rows [see balance_terms()], each divided by the scale of the unit
+ // the rows [see balance_terms()], those of one copy of the unit
  const Index first = v_first_generator[ unit ];
  const auto unit_block = get_unit_block( unit );
 

@@ -98,8 +98,6 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
   }
 
- ::deserialize( group , f_scale , "Scale" );
-
  if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
                       true , true , v_change_intervals ) )
   v_MinPower.resize( f_time_horizon );
@@ -163,7 +161,7 @@ std::vector< std::string > IntermittentUnitBlock::expected_vars( void )
  const {
  static const std::vector< std::string > ev =
  { "InvestmentCost" , "MinCapacityDesign" , "MaxCapacityDesign" ,
-   "MaxCapacity" , "Scale" , "MinPower" , "MaxPower" , "InertiaPower" ,
+   "MaxCapacity" , "MinPower" , "MaxPower" , "InertiaPower" ,
    "ActivePowerCost", "Gamma" , "Kappa", "MinReactivePower",
    "MaxReactivePower", "MaxGeneration", "MinGeneration"
    };
@@ -203,7 +201,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
 
  // Scale and design granularity are two equivalent ways to model multiple
  // identical modules; combining them with both > 1 over-counts the fleet.
- if( ( f_scale != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
+ if( ( get_scale() != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                            "cannot combine Scale != 1 with "
                            "|MaxCapacityDesign| > 1; they represent the "
@@ -607,12 +605,12 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc )
  auto lf = new LinearFunction();
 
  if( f_InvestmentCost != 0 )
-  lf->add_variable( &design , f_scale * f_InvestmentCost );
+  lf->add_variable( &design , f_InvestmentCost );
 
  if( ! v_ActivePowerCost.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    lf->add_variable( &v_active_power[ t ] ,
-		     f_scale * v_ActivePowerCost[ t ] );
+		     v_ActivePowerCost[ t ] );
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
@@ -710,8 +708,6 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
                 f_MaxCapacityDesign );
  }
 
- if( f_scale != 1 )
-  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  ::serialize( group , "Gamma" , netCDF::NcDouble() , f_gamma );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
@@ -1095,9 +1091,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
       "IntermittentUnitBlock::set_active_power_cost: expected Variable not "
       "found in objective." ) );
 
-    lf->modify_coefficient( idx ,
-                            f_scale * v_ActivePowerCost[ t ] ,
-                            nAM );
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , nAM );
 
     close_channel( par2chnl( nAM ) );
    }
@@ -1166,9 +1160,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
       "IntermittentUnitBlock::set_active_power_cost: expected Variable not "
       "found in objective." ) );
 
-    lf->modify_coefficient( idx ,
-                            f_scale * v_ActivePowerCost[ t ] ,
-                            nAM );
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , nAM );
 
     close_channel( par2chnl( nAM ) );
    }
@@ -1186,77 +1178,19 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::scale( MF_dbl_it values ,
-                                   Subset && subset , bool ordered ,
-                                   c_ModParam issuePMod ,
-                                   c_ModParam issueAMod )
+void IntermittentUnitBlock::set_weight( double k , c_ModParam issueMod )
 {
- if( subset.empty() )
-  return;  // Since the given Subset is empty, no operation is performed
-
- if( f_scale == *values )  // the scale factor does not change: nothing to do
-  return;
-
- // the scale and a design of more than one module are the same fleet, as
+ // the copies and a design of more than one module are the same fleet, as
  // deserialize() says [see check_data_consistency()]
- if( ( *values != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
-  throw( std::logic_error( "IntermittentUnitBlock::scale: cannot combine "
-                           "Scale != 1 with |MaxCapacityDesign| > 1; they "
-                           "represent the same multi-module fleet and would "
-                           "double-count." ) );
+ if( ( k != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
+  throw( std::logic_error( "IntermittentUnitBlock::set_weight: cannot "
+                           "combine Scale != 1 with |MaxCapacityDesign| > 1; "
+                           "they represent the same multi-module fleet and "
+                           "would double-count." ) );
 
- if( not_dry_run( issuePMod ) ) {
-  f_scale = *values;  // Update the scale factor
+ UnitBlock::set_weight( k , issueMod );
 
-  if( not_dry_run( issueAMod ) && objective_generated() )
-   // refresh the f_scale-aware coefficients in the Objective
-   update_objective( issueAMod );
- }
-
- // issue a Physical Modification
- // issue a Physical Modification, which the father sees anyway: it rewrites
- // the rows that carry the scale factor even if no Solver is listening
- issue_unit_mod( std::make_shared< UnitBlockMod >( this ,
-                                                  UnitBlockMod::eScale ) ,
-                 issuePMod );
-
- }  // end( IntermittentUnitBlock::scale )
-
-/*--------------------------------------------------------------------------*/
-
-void IntermittentUnitBlock::update_objective( c_ModParam issueAMod )
-{
- if( ! objective_generated() )
-  return;  // the Objective has not been generated: nothing to be done
-
- auto function = static_cast< LinearFunction * >( objective.get_function() );
-
- // one coefficient of the Objective per instant, plus the one of the design:
- // they all go into a single GroupModification, so that a Solver able to
- // write a whole set of them in one operation does that instead of one call
- // per instant [see MILPSolver::process_group_modification()]
- auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                   open_channel( par2chnl( issueAMod ) ) ) );
-
- // refresh the active-power operating costs (when present)
- if( ! v_ActivePowerCost.empty() )
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   const auto idx = function->is_active( & v_active_power[ t ] );
-   assert( idx < function->get_num_active_var() );
-   function->modify_coefficient( idx ,
-                                 f_scale * v_ActivePowerCost[ t ] , nAM );
-  }
-
- // refresh the scale-aware investment cost on the design variable
- if( f_InvestmentCost != 0 ) {
-  const auto idx = function->is_active( & design );
-  assert( idx < function->get_num_active_var() );
-  function->modify_coefficient( idx , f_scale * f_InvestmentCost , nAM );
- }
-
- close_channel( par2chnl( nAM ) );
-
-}  // end( IntermittentUnitBlock::update_objective )
+ }  // end( IntermittentUnitBlock::set_weight )
 
 /*--------------------------------------------------------------------------*/
 

@@ -1582,13 +1582,13 @@ void NuclearUnitBlock::generate_objective( Configuration * objc )
  v_obj_tail.clear();
  if( ( ! v_modulation_down.empty() ) && ( ! v_down_modulation_cost.empty() ) )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   v_obj_tail.push_back( f_scale * v_down_modulation_cost[ t ] );
+   v_obj_tail.push_back( v_down_modulation_cost[ t ] );
    vars.push_back( std::make_tuple( & v_modulation_down[ t ] ,
                                     v_obj_tail.back() , 0.0 ) );
    }
  if( ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() ) )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   v_obj_tail.push_back( f_scale * v_deep_cost[ t ] );
+   v_obj_tail.push_back( v_deep_cost[ t ] );
    vars.push_back( std::make_tuple( & v_deep[ t ] , v_obj_tail.back() ,
                                     0.0 ) );
    }
@@ -1697,7 +1697,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
 
   if( pos < v_obj_tail.size() )
    for( Index t = rng.first ; t < rng.second ; ++t )
-    v_obj_tail[ pos + t ] = f_scale * cost[ t ];
+    v_obj_tail[ pos + t ] = cost[ t ];
   }
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
@@ -1708,7 +1708,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
    DQuadFunction::Vec_FunctionValue tmpv( sz );
    auto vit = values;
    for( Index i = 0 ; i < sz ; ++i )
-    tmpv[ i ] = f_scale * *( vit++ );
+    tmpv[ i ] = *( vit++ );
    qf->modify_linear_coefficients( std::move( tmpv ) ,
                                    Range( base + rng.first ,
                                           base + rng.second ) ,
@@ -1765,7 +1765,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
 
   if( pos < v_obj_tail.size() )
    for( auto t : subset )
-    v_obj_tail[ pos + t ] = f_scale * cost[ t ];
+    v_obj_tail[ pos + t ] = cost[ t ];
   }
 
  if( not_dry_run( issueAMod ) && objective_generated() &&
@@ -1779,7 +1779,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
   DQuadFunction::Vec_FunctionValue tmpv( subset.size() );
   auto vit = values;
   for( Index i = 0 ; i < subset.size() ; ++i )
-   tmpv[ i ] = f_scale * *( vit++ );
+   tmpv[ i ] = *( vit++ );
   qf->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                   true , un_ModBlock( issueAMod ) );
   }
@@ -1825,8 +1825,7 @@ void NuclearUnitBlock::objective_tail_change( const DQuadFunction * qf ,
 
   std::vector< double > nv( r - l );
   for( Index i = l ; i < r ; ++i )
-   nv[ i - l ] = f_scale ? qf->get_linear_coefficient( base + i ) / f_scale
-                         : qf->get_linear_coefficient( base + i );
+   nv[ i - l ] = qf->get_linear_coefficient( base + i );
 
   // the abstract representation has been changed already, the physical one
   // has not
@@ -1842,41 +1841,6 @@ void NuclearUnitBlock::objective_tail_change( const DQuadFunction * qf ,
            & NuclearUnitBlock::set_deep_decrease_costs );
 
  }  // end( NuclearUnitBlock::objective_tail_change )
-
-/*--------------------------------------------------------------------------*/
-
-void NuclearUnitBlock::update_objective_tail( const Subset & subset ,
-                                             c_ModParam issueAMod )
-{
- if( ( ! objective_generated() ) || v_obj_tail.empty() )
-  return;
-
- // the two sections, in the order of generate_objective(), each of them
- // present only if the unit has both the variables and a cost of its own
- std::vector< const std::vector< double > * > sections;
- if( ( ! v_modulation_down.empty() ) && ( ! v_down_modulation_cost.empty() ) )
-  sections.push_back( & v_down_modulation_cost );
- if( ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() ) )
-  sections.push_back( & v_deep_cost );
-
- auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
- const Index base = qf->get_num_active_var() - v_obj_tail.size();
-
- Subset nms;
- DQuadFunction::Vec_FunctionValue coeff;
- for( Index k = 0 ; k < sections.size() ; ++k )
-  for( auto t : subset ) {
-   const Index pos = k * f_time_horizon + t;
-   v_obj_tail[ pos ] = f_scale * ( *sections[ k ] )[ t ];
-   nms.push_back( base + pos );
-   coeff.push_back( v_obj_tail[ pos ] );
-   }
-
- if( ! nms.empty() )
-  qf->modify_linear_coefficients( std::move( coeff ) , std::move( nms ) ,
-                                  true , un_ModBlock( issueAMod ) );
-
- }  // end( NuclearUnitBlock::update_objective_tail )
 
 /*--------------------------------------------------------------------------*/
 

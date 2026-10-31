@@ -237,7 +237,14 @@ class UnitBlock : public Block
   *   one of the generators, in which case it is the same for all of them. It
   *   is mandatory if "NumberOutputs" is there. The number of the generators
   *   is checked by the UCBlock, once the unit is read (see check_outputs()).
-  *   */
+  *
+  * - The optional scalar variable "Scale", of type netCDF::NcDouble, finite
+  *   and not negative: the number of identical copies of the unit (see
+  *   replicate()), which sets both the weights of the Block in place of the
+  *   attributes "ObjectiveWeight" and "VariableWeight" of
+  *   Block::deserialize(); if it is not there, the weights are those of the
+  *   attributes, 1 if they are not there either. The weights are written as
+  *   the attributes [see Block::serialize()]. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -726,16 +733,26 @@ class UnitBlock : public Block
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the scale factor of this UnitBlock
- /** This method returns the scale factor of this UnitBlock. Since not every
-  * UnitBlock may support the notion of scaling, this method has a default
-  * implementation that returns 1. Derived classes that support scaling must
-  * override this method. See UnitBlock::scale() for more details about the
-  * scaling of a UnitBlock.
-  *
-  * @return The scaling factor number of this UnitBlock. */
+ /// returns the number of identical copies of this UnitBlock
+ /** The number of copies is the weight of the Variable of the Block, that
+  * of its Objective being the same [see replicate()]. */
 
- virtual double get_scale( void ) const { return( 1 ); }
+ double get_scale( void ) const { return( get_variable_weight() ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the number of copies of the given generator
+ /** The weight of the Variable of the given generator in this UnitBlock,
+  * i.e., the product of the weights of the Variable from the Block the
+  * generator is in up to this UnitBlock, this one included [see
+  * Block::get_variable_weight()]: what the UCBlock multiplies the constants
+  * of the generator by, as the Solver multiplies its Variable. The default
+  * is get_scale(), for a UnitBlock whose generators are its own; a
+  * :UnitBlock whose generators are in its sub-Block multiplies it by the
+  * copies of the generator in the sub-Block. */
+
+ virtual double get_copies( Index generator = 0 ) const {
+  return( get_scale() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the upper bound of the design variable
@@ -937,7 +954,7 @@ class UnitBlock : public Block
   }
 
 /*--------------------------------------------------------------------------*/
- /// sets the scale factor of this UnitBlock
+ /// sets the number of identical copies of this UnitBlock
  /** Some situations may require the presence of multiple identical units. By
   * identical units we mean units that represent the exactly same mathematical
   * model: they have the same type, data, variables, constraints, etc. In
@@ -947,39 +964,42 @@ class UnitBlock : public Block
   * be possible to have a compact and computational efficient representation
   * of this set of identical units. One of these cases occurs when all units
   * behave exactly as each other, as if they were synchronized and performing
-  * the same tasks simultaneously. This case is implemented by stating that a
-  * UnitBlock can be scaled.
+  * the same tasks simultaneously. This case is implemented by giving the
+  * UnitBlock \p k copies, i.e., setting both its weights to \p k [see
+  * set_weight() and Block::set_weight()].
   *
-  * A scaled UnitBlock must be interpreted as follows. The Variable of the
-  * UnitBlock (active and reactive power, commitment, primary and secondary
-  * spinning reserves, storage levels) represent what happens to one copy of
-  * the unit, independently of the scale factor \f$ \sigma \f$. For
+  * A replicated UnitBlock must be interpreted as follows. The Variable of
+  * the UnitBlock (active and reactive power, commitment, primary and
+  * secondary spinning reserves, storage levels) represent what happens to
+  * one copy of the unit, independently of the number of copies
+  * \f$ \sigma \f$. For
   * instance, if \f$ p^{ac}_{t,g} \f$ is the value of the Variable
   * representing the active power produced by generator g at time t (see
   * get_active_power()), then the g-th generator of this UnitBlock is to be
   * interpreted as producing \f$ \sigma p^{ac}_{t,g} \f$ at time t: the
-  * scale factor does not affect the values of the Variable, and any other
-  * object that uses them must explicitly multiply them by \f$ \sigma \f$
-  * to obtain the amount produced by the whole set of copies, as the
-  * UCBlock does in all its linking constraints (see
-  * UCBlock::generate_abstract_constraints()). The same holds for the
+  * number of copies does not affect the values of the Variable, and it is
+  * the weight of the Variable that multiplies their coefficients in the
+  * Constraint outside of the UnitBlock, which a Solver applies (see
+  * Block::set_variable_weight()), as in all the linking constraints of the
+  * UCBlock (see UCBlock::generate_abstract_constraints()), whose rows hold
+  * the coefficients of one copy. The same holds for the
   * reserves and the storage levels. The commitment variables keep their
   * values in \f$ \{ 0 , 1 \} \f$, since they indicate whether each
   * generator of the unit (that is, all its copies) is committed, while
   * their terms in the linking constraints (the fixed consumption and the
   * inertia) are multiplied by \f$ \sigma \f$ as the others.
   *
-  * The Objective of the UnitBlock, on the other hand, already takes into
-  * account the scale factor, so that no action is required on the part of
-  * an object that uses it: if the cost of one copy of the unit is, say,
+  * The Objective of the UnitBlock is that of one copy as well, say
   * \f$ \sum_{ t , g } b_{t,g} p^{ac}_{t,g} \f$, with \f$ b_{t,g} \f$ the
-  * cost of one unit of power of generator g at time t, then the Objective
-  * of the UnitBlock is \f$ \sigma \sum_{ t , g } b_{t,g} p^{ac}_{t,g} \f$.
+  * cost of one unit of power of generator g at time t: it is the weight of
+  * the Objective, \f$ \sigma \f$, by which a Solver of a Block that
+  * contains the UnitBlock multiplies it (see Block::set_objective_weight()),
+  * while a Solver attached to the UnitBlock itself solves one copy.
   *
-  * The scale is how an investment in a number of identical copies of a
-  * unit is represented (see \ref ucbm_cap). Let \f$ Z \f$ be the feasible
-  * set of one copy, \f$ f^1( z ) \f$ its cost and \f$ g^1( z ) \f$ the
-  * vector of its contributions to the linking constraints of the enclosing
+  * The number of copies is how an investment in a number of identical
+  * copies of a unit is represented (see \ref ucbm_cap). Let \f$ Z \f$ be the
+  * feasible set of one copy, \f$ f^1( z ) \f$ its cost and \f$ g^1( z ) \f$
+  * the vector of its contributions to the linking constraints of the enclosing
   * UCBlock (node injection, reserve, inertia and pollutant rows). Since the
   * copies share the same Variable, the UnitBlock contributes
   * \f$ \sigma f^1( z ) \f$ to the objective and \f$ \sigma g^1( z ) \f$ to
@@ -1011,74 +1031,36 @@ class UnitBlock : public Block
   * problem with integer commitments it is a restriction, since all the
   * copies take the same decisions at every instant.
   *
-  * Since not every UnitBlock may support the notion of scaling, this method
-  * has a default empty implementation. Derived classes that support scaling
-  * must override this method.
-  *
-  * If the UnitBlock is really modified, a UnitBlockMod with type
-  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
-  *
-  * @param values An iterator to a vector containing the scale factor.
-  *
-  * @param subset If non-empty, the scale factor must be set to the value
-  *               pointed by \p values. If empty, no operation must be
-  *               performed.
-  *
-  * @param ordered This parameter is ignored.
-  *
-  * @param issuePMod Controls how physical Modification are issued.
-  *
-  * @param issueAMod Controls how abstract Modification are issued. */
+  * Any UnitBlock can be replicated; replicate( k ) is set_weight( k ),
+  * under the name that the methods factory registers for each :UnitBlock as
+  * "<classname>::replicate" [see UCBlock::replicate()]. The BlockWeightMod
+  * is issued according to \p issuePMod, the weights being data of the
+  * Block, and \p issueAMod is not used, nothing of the abstract
+  * representation of the UnitBlock changing. */
 
- virtual void scale( MF_dbl_it values ,
-                     Subset && subset ,
-                     const bool ordered = false ,
-                     c_ModParam issuePMod = eNoBlck ,
-                     c_ModParam issueAMod = eNoBlck ) { }
+ void replicate( double k , c_ModParam issuePMod = eNoBlck ,
+                 c_ModParam issueAMod = eNoBlck ) {
+  set_weight( k , issuePMod );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// sets the scale factor of this UnitBlock
- /** This method sets the scale factor of this UnitBlock. A default
-  * implementation is provided which simply call the Subset version of this
-  * method. See UnitBlock::scale() for the semantics of scaling a
-  * UnitBlock. If the UnitBlock is really modified, a UnitBlockMod with type
-  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
-  *
-  * @param values An iterator to a vector containing the scale factor.
-  *
-  * @param rng If non-empty, the scale factor is set to the value pointed by
-  *            \p values. If empty, no operation is performed.
-  *
-  * @param issuePMod Controls how physical Modification are issued.
-  *
-  * @param issueAMod Controls how abstract Modification are issued. */
+ /// sets both the weights of this UnitBlock, i.e., its number of copies
+ /** As Block::set_weight(), and then, if the weight of the Variable has
+  * changed, it tells the UCBlock among the ancestors of this UnitBlock, if
+  * any [see UCBlock::weight_changed()], whether or not a Modification is
+  * issued, since the right-hand sides and the bounds that the UCBlock
+  * derives from the number of copies have to follow it even if no Solver is
+  * listening. The number of copies is to be changed by this method (or
+  * replicate()): changing the weight of the Variable alone [see
+  * Block::set_variable_weight()] is not a number of copies, and the UCBlock
+  * is not told of it. */
 
- virtual void scale( MF_dbl_it values ,
-                     Range rng = Range( 0, Inf< Index >() ) ,
-                     c_ModParam issuePMod = eNoBlck ,
-                     c_ModParam issueAMod = eNoBlck );
-
-/*--------------------------------------------------------------------------*/
- /// sets the scale factor of this UnitBlock
- /** This method sets the scale factor of this UnitBlock. A default
-  * implementation is provided which simply call the Subset version of this
-  * method. See UnitBlock::scale() for the semantics of scaling a
-  * UnitBlock. If the UnitBlock is really modified, a UnitBlockMod with type
-  * UnitBlockMod::eScale is issued depending on the value of \p issuePMod.
-  *
-  * @param scale_factor The factor by which this UnitBlock should be scaled.
-  *
-  * @param issuePMod Controls how physical Modification are issued.
-  *
-  * @param issueAMod Controls how abstract Modification are issued. */
-
- virtual void scale( double scale_factor , c_ModParam issuePMod = eNoBlck ,
-                     c_ModParam issueAMod = eNoBlck );
+ void set_weight( double k , c_ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the linearization coefficient of the kappa-parametrized objective
  /** When the investment in this UnitBlock is represented by its capacity
-  * multiplier \f$ \kappa \f$ (rather than by its scale factor), and the
+  * multiplier \f$ \kappa \f$ (rather than by its number of copies), and the
   * unit is not in design mode, \f$ \kappa \f$ multiplies the data
   * \f$ b^1_r \f$ in the finite side \f$ \kappa b^1_r \f$ of a set
   * \f$ \mathcal{R}_\kappa \f$ of the UnitBlock's own Constraints (in a
@@ -1157,7 +1139,7 @@ class UnitBlock : public Block
   * Otherwise, if \p mod changes the power range of the unit [see
   * UnitBlockMod::changes_power_range()], it is passed to the father alone,
   * which derives data from that range (the bounds of the node injections
-  * and the rows that carry the scale factor of a UCBlock, see
+  * of a UCBlock, see
   * UCBlock::add_Modification()) and has to keep them in step even if no
   * Solver is listening, the Modification going no further [see
   * Block::add_Modification()]. */
@@ -1271,10 +1253,7 @@ public:
 
  /// public enum for the types of UnitBlockMod
  enum UB_mod_type {
-  eScale = 0 ,    ///< set the scale factor
-                  /**< This indicates that the scale factor of the UnitBlock
-                   * has been modified. See UnitBlock::scale(). */
-  eUBModLastParam ///< first allowed parameter value for derived classes
+  eUBModLastParam = 0 ///< first allowed parameter value for derived classes
                   /**< Convenience value to easily allow derived classes to
                    * extend the set of types of UnitBlockMod. */
  };
@@ -1286,27 +1265,22 @@ public:
   * When it is not known for sure that a datum only enters the sides of the
   * Constraint, its change is said to be one of the Constraint. */
 
- static ModConcern changes_of( int type ) {
-  switch( type ) {
-   case( eScale ):
-    return( ePhysCns | ePhysObj );
-   default:
-    return( eModPhys | eEffAny );
-   }
+ static ModConcern changes_of( int ) {
+  return( eModPhys | eEffAny );
   }
 
  /// whether the Modification changes the power range of the unit
  /** Whether the Modification changes a datum of the range of the active
   * power that the unit injects at its nodes, i.e., the minimum and maximum
-  * power, the fixed consumption, the kappa, the scale or the upper bound of
-  * the design [see get_design_ub()], from which the embedding UCBlock
-  * computes the bounds of the node injections [see
-  * UCBlock::set_node_injection_bounds()]. The base class says it of eScale;
-  * each derived class that has a setter of one of these data says it of the
-  * type of that setter. */
+  * power, the fixed consumption, the kappa or the upper bound of the design
+  * [see get_design_ub()], from which the embedding UCBlock computes the
+  * bounds of the node injections [see UCBlock::set_node_injection_bounds()]
+  * (the number of copies is told to the UCBlock otherwise, see
+  * set_weight()). The base class has no such type; each derived class that
+  * has a setter of one of these data says it of the type of that setter. */
 
  [[nodiscard]] virtual bool changes_power_range( void ) const {
-  return( f_type == eScale );
+  return( false );
   }
 
  /// constructor, takes the UnitBlock and the type
@@ -1328,12 +1302,6 @@ public:
  /// prints the UnitBlockMod
  void print( std::ostream & output ) const override {
   output << "UnitBlockMod[" << this << "]: ";
-  switch( f_type ) {
-   case( eScale ):
-    output << "Set the scale factor";
-    break;
-   default:;
-  }
  }
 
  /// pointer to the Block to which the Modification refers

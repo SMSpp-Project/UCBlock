@@ -17,7 +17,7 @@
  * up and down times that the initial state or the end of the horizon cuts,
  * the ramps with the limits of the start-up and of the shut-down, the
  * commitment fixed ON or OFF in some instants (infeasibility included), the
- * scale factor, and the operating rules of a nuclear unit that modulates.
+ * number of copies, and the operating rules of a nuclear unit that modulates.
  *
  * Then every UnitBlock and NetworkBlock of the module, and a UCBlock with
  * no unit or with one unit of each kind on two nodes, is written in a
@@ -29,7 +29,7 @@
  * Finally the setters of the data of a ThermalUnitBlock and of a UCBlock
  * are called with a FakeSolver attached, which has to receive the
  * physical Modification, while the abstract representation has to follow
- * the change, the scale factor included; the DP Solver attached to the
+ * the change, the number of copies included; the DP Solver attached to the
  * unit has to follow it, too.
  *
  * The linking rows of a UCBlock are checked on two nodes: the zones of the
@@ -142,6 +142,24 @@ static std::mt19937 rg( 20260926 );  // fixed seed
 
 static const std::vector< std::string > THERMAL_DP = {
  "ThermalUnitDPSolver" , "ThermalUnitExtDPSolver" };
+
+/*--------------------------------------------------------------------------*/
+/// a FakeSolver that takes the weights of the units
+/** The FakeSolver of the core handles no weight, so that the refusal of a
+ * change can be checked with it; the units of these tests are replicated
+ * with it attached, and it only records the Modification. */
+
+class WeightFakeSolver : public FakeSolver {
+ public:
+
+ [[nodiscard]] bool handles_weight_change( void ) const override {
+  return( true );
+  }
+
+ [[nodiscard]] bool handles_variable_weight( void ) const override {
+  return( true );
+  }
+ };
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
@@ -266,7 +284,7 @@ struct TUData {
  std::vector< double > cnst;  // constant term
  std::vector< double > suc;   // start-up cost
  std::vector< double > sdc;   // shut-down cost
- double scale = 1;            // scale factor
+ double scale = 1;            // number of copies
  std::vector< double > prho;  // PrimaryRho
  std::vector< double > srho;  // SecondaryRho
  std::vector< double > prc;   // PrimarySpinningReserveCost
@@ -464,7 +482,7 @@ static double brute_force( const TUData & d , const std::vector< int > & fix )
    best = std::min( best , v );
   }
 
- return( best * d.scale );
+ return( best );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -603,7 +621,7 @@ static void test_DP_one_instant( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/// ramps binding a quadratic cost, and the scale factor
+/// ramps binding a quadratic cost, and the copies of the unit
 
 static void test_DP_ramps( void )
 {
@@ -620,14 +638,16 @@ static void test_DP_ramps( void )
  check_all_DP( tub , -59 , "ramps" );
  delete tub;
 
+ // the DP solves one copy, whatever the number of copies, which is the
+ // weight that a Solver of a Block holding the unit applies
  d.scale = 3;
  tub = new_TU( d );
- check_all_DP( tub , -177 , "ramps, scale 3" );
+ check_all_DP( tub , -59 , "ramps, 3 copies" );
  delete tub;
 
  d.scale = 0;
  tub = new_TU( d );
- check_all_DP( tub , 0 , "ramps, scale 0" );
+ check_all_DP( tub , -59 , "ramps, 0 copies" );
  delete tub;
  }
 
@@ -2816,10 +2836,9 @@ static double quad_coef( ThermalUnitBlock * tub , const ColVariable * v )
 /*--------------------------------------------------------------------------*/
 /* The cost setters of a ThermalUnitBlock, both in the Range and in the
  * Subset form: the FakeSolver receives the physical Modification, the data
- * change, and so does the Objective, which carries the scale factor times
- * the cost. An unchanged value issues nothing, eNoMod changes without
- * issuing and eDryRun does not change. The DP Solver attached to the unit
- * follows every change. */
+ * change, and so does the Objective, which carries the cost of one copy. An
+ * unchanged value issues nothing, eNoMod changes without issuing and eDryRun
+ * does not change. The DP Solver attached to the unit follows every change. */
 
 static void test_setters_thermal( double scale )
 {
@@ -2837,7 +2856,7 @@ static void test_setters_thermal( double scale )
  auto tub = new_TU( d );
  generate_all( tub );
 
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  tub->register_Solver( fs );
  auto dp = Solver::new_Solver( "ThermalUnitExtDPSolver" );
  tub->register_Solver( dp );
@@ -2865,11 +2884,11 @@ static void test_setters_thermal( double scale )
 	what + ": set_linear_term( Range ) issues no eSetLinT" );
  check( tub->get_linear_term( 2 ) == 4 ,
 	what + ": set_linear_term( Range ) does not change the data" );
- check( close( lin_coef( tub , & p[ 1 ] ) , scale * 3 ) &&
-	close( lin_coef( tub , & p[ 2 ] ) , scale * 4 ) ,
+ check( close( lin_coef( tub , & p[ 1 ] ) , 3 ) &&
+	close( lin_coef( tub , & p[ 2 ] ) , 4 ) ,
 	what + ": set_linear_term( Range ) puts " +
 	str( lin_coef( tub , & p[ 2 ] ) ) + " in the Objective, not " +
-	str( scale * 4 ) );
+	str( 4 ) );
  resolve( "linear term changed" );
  fs->get_Modification_list().clear();
 
@@ -2884,7 +2903,7 @@ static void test_setters_thermal( double scale )
  d.lin[ 0 ] = -7;
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetLinT ) == 1 ,
 	what + ": set_linear_term( Subset ) issues no eSetLinT" );
- check( close( lin_coef( tub , & p[ 0 ] ) , scale * -7 ) ,
+ check( close( lin_coef( tub , & p[ 0 ] ) , -7 ) ,
 	what + ": set_linear_term( Subset ) puts " +
 	str( lin_coef( tub , & p[ 0 ] ) ) + " in the Objective" );
  resolve( "linear term changed by Subset" );
@@ -2904,7 +2923,7 @@ static void test_setters_thermal( double scale )
   }
  check( tub->get_linear_term( 0 ) == -8 ,
 	what + ": eNoMod does not change the data" );
- check( close( lin_coef( tub , & p[ 0 ] ) , scale * -8 ) ,
+ check( close( lin_coef( tub , & p[ 0 ] ) , -8 ) ,
 	what + ": eNoMod does not change the Objective" );
  d.lin[ 0 ] = -8;
 
@@ -2913,7 +2932,7 @@ static void test_setters_thermal( double scale )
  tub->set_linear_term( val.begin() , Range( 0 , 1 ) , eDryRun , eDryRun );
  check( tub->get_linear_term( 0 ) == -8 ,
 	what + ": eDryRun changes the data" );
- check( close( lin_coef( tub , & p[ 0 ] ) , scale * -8 ) ,
+ check( close( lin_coef( tub , & p[ 0 ] ) , -8 ) ,
 	what + ": eDryRun changes the Objective" );
  // the DP was not told of the eNoMod change: it is reloaded
  tub->unregister_Solver( dp , true );
@@ -2928,7 +2947,7 @@ static void test_setters_thermal( double scale )
  d.cnst = { 5 , 6 , 1 };
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetConstT ) == 1 ,
 	what + ": set_const_term issues no eSetConstT" );
- check( close( lin_coef( tub , & u[ 1 ] ) , scale * 6 ) ,
+ check( close( lin_coef( tub , & u[ 1 ] ) , 6 ) ,
 	what + ": set_const_term puts " + str( lin_coef( tub , & u[ 1 ] ) ) +
 	" in the Objective" );
  resolve( "constant term changed" );
@@ -2940,7 +2959,7 @@ static void test_setters_thermal( double scale )
  d.suc = { 2 , 2 , 9 };
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetSUC ) == 1 ,
 	what + ": set_startup_costs issues no eSetSUC" );
- check( v && close( lin_coef( tub , & v[ 2 ] ) , scale * 9 ) ,
+ check( v && close( lin_coef( tub , & v[ 2 ] ) , 9 ) ,
 	what + ": set_startup_costs puts " +
 	( v ? str( lin_coef( tub , & v[ 2 ] ) ) : "nothing" ) +
 	" in the Objective" );
@@ -2953,7 +2972,7 @@ static void test_setters_thermal( double scale )
  d.sdc = { 3 , 3 , 3 };
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetSDC ) == 1 ,
 	what + ": set_shutdown_costs issues no eSetSDC" );
- check( w && close( lin_coef( tub , & w[ 1 ] ) , scale * 3 ) ,
+ check( w && close( lin_coef( tub , & w[ 1 ] ) , 3 ) ,
 	what + ": set_shutdown_costs puts " +
 	( w ? str( lin_coef( tub , & w[ 1 ] ) ) : "nothing" ) +
 	" in the Objective" );
@@ -2965,10 +2984,10 @@ static void test_setters_thermal( double scale )
  tub->set_quad_term( val.begin() , Range( 1 , 2 ) );
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetQuadT ) == 1 ,
 	what + ": set_quad_term issues no eSetQuadT" );
- check( close( quad_coef( tub , & p[ 1 ] ) , scale * 0.5 ) ,
+ check( close( quad_coef( tub , & p[ 1 ] ) , 0.5 ) ,
 	what + ": set_quad_term puts " + str( quad_coef( tub , & p[ 1 ] ) ) +
 	" in the Objective" );
- check( close( lin_coef( tub , & p[ 1 ] ) , scale * 3 ) ,
+ check( close( lin_coef( tub , & p[ 1 ] ) , 3 ) ,
 	what + ": set_quad_term changes the linear coefficient to " +
 	str( lin_coef( tub , & p[ 1 ] ) ) );
  val = { 0 };  // back, so that the brute force stays exact
@@ -2976,18 +2995,23 @@ static void test_setters_thermal( double scale )
  resolve( "quadratic term changed back" );
  fs->get_Modification_list().clear();
 
- // the scale factor itself
- val = { 2 * scale + 1 };
- tub->scale( val.begin() , Subset( { 0 } ) );
- check( count_TUB_mods( fs , UnitBlockMod::eScale ) == 1 ,
-	what + ": scale() issues no eScale" );
- check( tub->get_scale() == 2 * scale + 1 ,
-	what + ": scale() does not change the scale factor" );
- check( close( lin_coef( tub , & p[ 2 ] ) , ( 2 * scale + 1 ) * 4 ) ,
-	what + ": scale() puts " + str( lin_coef( tub , & p[ 2 ] ) ) +
+ // the copies themselves: the weights of the unit, while its Objective
+ // keeps the cost of one copy
+ tub->replicate( 2 * scale + 1 , eModBlck );
+ int nw = 0;
+ for( const auto & m : received( fs ) )
+  if( std::dynamic_pointer_cast< const BlockWeightMod >( m ) )
+   ++nw;
+ check( nw == 1 , what + ": replicate() issues " + std::to_string( nw ) +
+	" BlockWeightMod" );
+ check( ( tub->get_scale() == 2 * scale + 1 ) &&
+	( tub->get_objective_weight() == 2 * scale + 1 ) ,
+	what + ": replicate() does not change the weights" );
+ check( close( lin_coef( tub , & p[ 2 ] ) , 4 ) ,
+	what + ": replicate() puts " + str( lin_coef( tub , & p[ 2 ] ) ) +
 	" in the Objective" );
  d.scale = 2 * scale + 1;
- resolve( "scale changed" );
+ resolve( "copies changed" );
 
  tub->unregister_Solver( dp , true );
  tub->unregister_Solver( fs , true );
@@ -3017,7 +3041,7 @@ static void test_setters_UCBlock( void )
   return;
   }
  generate_all( b );
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  b->register_Solver( fs );
  fs->get_Modification_list().clear();
 
@@ -3064,6 +3088,9 @@ class BoundSolver : public Solver {
  bool has_var_solution( void ) override { return( true ); }
 
  void get_var_solution( Configuration * solc = nullptr ) override {}
+
+ // it solves nothing, hence whatever weight a sub-Block has is no matter
+ bool handles_variable_weight( void ) const override { return( true ); }
 
  static double f_value;  ///< the value of the solution found
 
@@ -3225,7 +3252,7 @@ static void test_zero_copy_no_modification( void )
  const auto rows = static_rows( b );
  const auto cost = objective();
 
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  b->register_Solver( fs );
  fs->get_Modification_list().clear();
  BoundSolver::f_value = 5;
@@ -3910,7 +3937,7 @@ static void test_hydro_inertia( void )
    delete b;
    continue;
    }
-  auto fs = new FakeSolver();
+  auto fs = new WeightFakeSolver();
   b->register_Solver( fs );
   const auto p = hub->get_active_power( 0 , 0 );
   check( close( inertia_coef( b , p ) , 1 ) ,
@@ -3921,6 +3948,25 @@ static void test_hydro_inertia( void )
   check( close( inertia_coef( b , p ) , 2 ) ,
 	 what + ": coefficient " + str( inertia_coef( b , p ) ) +
 	 " after set_inertia_power( 2 )" );
+
+  // the copies of the HydroUnitBlock, also inside the HydroSystemUnitBlock,
+  // which reach the UCBlock through the unit that holds it, and multiply
+  // those of the unit; the rows keep the coefficients of one copy
+  try {
+   hub->set_weight( 3 );
+   if( sys )
+    b->get_unit_block( 0 )->set_weight( 2 );
+   const double copies = sys ? 6 : 3;
+   check( close( b->get_unit_block( 0 )->get_copies( 0 ) , copies ) ,
+	  what + ": " + str( b->get_unit_block( 0 )->get_copies( 0 ) ) +
+	  " copies of the generator instead of " + str( copies ) );
+   check( close( inertia_coef( b , p ) , 2 ) ,
+	  what + ": coefficient " + str( inertia_coef( b , p ) ) +
+	  " after the copies" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": the copies throw " + e.what() );
+   }
   b->unregister_Solver( fs , true );
   delete b;
   }
@@ -3932,7 +3978,7 @@ static void test_hydro_inertia( void )
   return;
   }
  generate_all( b );
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  b->register_Solver( fs );
  bool thrown = false;
  try {
@@ -5040,7 +5086,7 @@ static void test_battery_resize_as_setters( void )
  * one scalar and for a pair, and in none with a Range or a Subset; so are
  * the getters reading the derivatives back. Called by name, they do what the
  * methods of the class do: an IntermittentUnitBlock resized to 2 has kappa
- * 2, a ThermalUnitBlock replicated to 3 has scale 3. */
+ * 2, a ThermalUnitBlock replicated to 3 has 3 copies. */
 
 static netCDF::NcGroup write_UC_two_nodes( Index T ,
                                            const std::vector< double > &
@@ -6195,7 +6241,7 @@ static void test_battery_free_rows_resolve( void )
 
    const auto s0 = slv->compute();
    const double v0 = ( s0 == Solver::kOK ) ? slv->get_var_value() : NaN;
-   uc->get_unit_block( 0 )->scale( 0.5 , eModBlck , eModBlck );
+   uc->get_unit_block( 0 )->replicate( 0.5 , eModBlck , eModBlck );
    const auto s1 = slv->compute();
    const double v1 = ( s1 == Solver::kOK ) ? slv->get_var_value() : NaN;
    const double fresh = milp_value( uc , sname );
@@ -6553,7 +6599,7 @@ static void test_zones_UCBlock( void )
   check( uc , "zones, node in no zone: the UCBlock is not read" );
   if( uc ) {
    generate_all( uc );
-   auto fs = new FakeSolver();
+   auto fs = new WeightFakeSolver();
    uc->register_Solver( fs );
    const auto & rows = uc->get_const_primary_demand_constraints();
    check( ( units_in( uc , rows[ 0 ][ 0 ] ) ==
@@ -6561,7 +6607,7 @@ static void test_zones_UCBlock( void )
 	  units_in( uc , rows[ 0 ][ 1 ] ).empty() ,
 	  "zones, node in no zone: the rows do not hold unit 0 alone" );
 
-   uc->get_unit_block( 1 )->scale( 0.5 , eModBlck , eModBlck );
+   uc->get_unit_block( 1 )->replicate( 0.5 , eModBlck , eModBlck );
    check( ( units_in( uc , rows[ 0 ][ 0 ] ) ==
 	    std::vector< Index >( { 0 } ) ) &&
 	  units_in( uc , rows[ 0 ][ 1 ] ).empty() &&
@@ -6569,11 +6615,13 @@ static void test_zones_UCBlock( void )
 	  "zones, node in no zone: scaling a unit in no zone changes the "
 	  "rows" );
 
-   uc->get_unit_block( 0 )->scale( 3 , eModBlck , eModBlck );
-   check( close( coef_of( uc , rows[ 0 ][ 0 ] , 0 ) , 3 ) ,
-	  "zones, node in no zone: scaling unit 0 puts " +
+   // the copies are the weight of the unit, the row keeps one copy
+   uc->get_unit_block( 0 )->replicate( 3 , eModBlck , eModBlck );
+   check( close( coef_of( uc , rows[ 0 ][ 0 ] , 0 ) , 1 ) &&
+	  ( uc->get_unit_block( 0 )->get_variable_weight() == 3 ) ,
+	  "zones, node in no zone: 3 copies of unit 0 put " +
 	  str( coef_of( uc , rows[ 0 ][ 0 ] , 0 ) ) +
-	  " in its primary row, not 3" );
+	  " in its primary row, not 1, or are not its weight" );
 
    uc->unregister_Solver( fs , true );
    delete uc;
@@ -7018,19 +7066,20 @@ static double coefficient_of( const FRowConstraint & row ,
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /* The rows (1c) of the heat and of the gas carry the efficiencies of the
- * outputs times the scale, the units without a node on a carrier are not
- * in its rows, and the optimum is the one by hand, in the three forms of
- * the heat (one node, a network of one NetworkBlock per instant, a network
- * given in its group as one DesignNetworkBlock whose line has a design of
- * no cost); the duals are the prices of the boiler (heat at the instant 0), of
- * the supply (gas) and of the plant net of its heat (electricity at the
- * instant 0). Then the demand of the heat changes through
- * set_energy_demand(), the scale of the boiler through UnitBlock::scale(),
- * which the rows (1c) follow, the UCBlockSolution writes the duals of (1c) in
- * the group of the carrier, the UCBlock goes through its netCDF group and
- * back with the same optimum, the pollutant zones of the units without a
- * node on the electricity are those of their first carrier, and the data
- * that cannot be read are refused. */
+ * outputs, those of one copy of the unit, the units without a node on a
+ * carrier are not in its rows, and the optimum is the one by hand, in the
+ * three forms of the heat (one node, a network of one NetworkBlock per
+ * instant, a network given in its group as one DesignNetworkBlock whose line
+ * has a design of no cost); the duals are the prices of the boiler (heat at
+ * the instant 0), of the supply (gas) and of the plant net of its heat
+ * (electricity at the instant 0). Then the demand of the heat changes through
+ * set_energy_demand(), the copies of the boiler through
+ * UnitBlock::replicate(), which leave the rows (1c) as they are and which
+ * the Solver applies as the weight of the boiler, the UCBlockSolution writes
+ * the duals of (1c) in the group of the carrier, the UCBlock goes through its
+ * netCDF group and back with the same optimum, the pollutant zones of the
+ * units without a node on the electricity are those of their first carrier,
+ * and the data that cannot be read are refused. */
 
 static void test_carriers_UCBlock( void )
 {
@@ -7172,15 +7221,17 @@ static void test_carriers_UCBlock( void )
   d[ 0 ] = 40;
   uc->set_energy_demand( d.begin() , Block::Subset{ index } , true );
 
-  // the boiler scaled by 2: the coefficients follow, the optimum does not
-  // change
-  std::vector< double > sc{ 2 };
-  uc->get_unit_block( 1 )->scale( sc.begin() , Block::Range( 0 , 1 ) );
-  check( close( coefficient_of( heat[ 0 ][ 0 ] , p( 1 ) ) , 2 ) &&
-	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) ) , -2.5 ) ,
-	 what + ": the rows (1c) do not follow the scale" );
-  check( close( solve( uc ) , 3143.75 ) , what + ": with the boiler scaled "
-	 "the optimum is not 3143.75" );
+  // 2 copies of the boiler: the coefficients stay those of one copy, the
+  // Solver applies the weight, and the optimum does not change
+  const auto heat_coef = coefficient_of( heat[ 0 ][ 0 ] , p( 1 ) );
+  const auto gas_coef = coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) );
+  uc->get_unit_block( 1 )->replicate( 2 );
+  check( close( coefficient_of( heat[ 0 ][ 0 ] , p( 1 ) ) , heat_coef ) &&
+	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) ) , gas_coef ) &&
+	 ( uc->get_unit_block( 1 )->get_variable_weight() == 2 ) ,
+	 what + ": the rows (1c) change with the copies" );
+  check( close( solve( uc ) , 3143.75 ) , what + ": with 2 copies of the "
+	 "boiler the optimum is not 3143.75" );
 
   // the UCBlock through its netCDF group and back
   auto wg = new_group( "UCcarriersRT" );
@@ -8035,7 +8086,7 @@ static double brute_force_bands( const TUData & d , unsigned int L ,
  double best = INF;
  for( auto v : f )
   best = std::min( best , v );
- return( best * d.scale );
+ return( best );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -9047,14 +9098,14 @@ static void test_node_injection_bounds( void )
  check( uc , "node injection bounds: the UCBlock is not read" );
  if( uc ) {
   generate_all( uc );
-  auto fs = new FakeSolver();
+  auto fs = new WeightFakeSolver();
   uc->register_Solver( fs );
   auto nb = uc->get_network_block( 0 );
   // node 0: unit 0 (100); node 1: units 1 and 2 (100) and the slack (1000)
   check( close( nb->get_max_node_injection( 0 )[ 0 ] , 100 ) &&
          close( nb->get_max_node_injection( 0 )[ 1 ] , 1200 ) ,
          "node injection bounds: not 100 and 1200 at load" );
-  uc->get_unit_block( 0 )->scale( 3 , eModBlck , eModBlck );
+  uc->get_unit_block( 0 )->replicate( 3 , eModBlck , eModBlck );
   check( close( nb->get_max_node_injection( 0 )[ 0 ] , 300 ) ,
          "node injection bounds: node 0 has " +
          str( nb->get_max_node_injection( 0 )[ 0 ] ) +
@@ -9146,7 +9197,7 @@ static void test_zone_rows_two_nodes( void )
  check( uc , "zone rows, two nodes: the UCBlock is not read" );
  if( uc ) {
   generate_all( uc );
-  auto fs = new FakeSolver();
+  auto fs = new WeightFakeSolver();
   uc->register_Solver( fs );
   auto hub = static_cast< HydroUnitBlock * >( uc->get_unit_block( 0 ) );
   std::vector< double > val = { 5 , 7 };
@@ -9170,16 +9221,19 @@ static void test_zone_rows_two_nodes( void )
  check( us , "zone rows, secondary: the UCBlock is not read" );
  if( us ) {
   generate_all( us );
-  auto fs = new FakeSolver();
+  auto fs = new WeightFakeSolver();
   us->register_Solver( fs );
   const auto & row = us->get_const_secondary_demand_constraints()[ 0 ][ 0 ];
-  us->get_unit_block( 1 )->scale( 0.5 , eModBlck , eModBlck );
-  us->get_unit_block( 0 )->scale( 3 , eModBlck , eModBlck );
-  check( close( coef_of( us , row , 0 ) , 3 ) &&
-         close( coef_of( us , row , 1 ) , 0.5 ) ,
+  us->get_unit_block( 1 )->replicate( 0.5 , eModBlck , eModBlck );
+  us->get_unit_block( 0 )->replicate( 3 , eModBlck , eModBlck );
+  check( close( coef_of( us , row , 0 ) , 1 ) &&
+         close( coef_of( us , row , 1 ) , 1 ) &&
+         ( us->get_unit_block( 0 )->get_variable_weight() == 3 ) &&
+         ( us->get_unit_block( 1 )->get_variable_weight() == 0.5 ) ,
          "zone rows, secondary: coefficients " +
          str( coef_of( us , row , 0 ) ) + " and " +
-         str( coef_of( us , row , 1 ) ) + " instead of 3 and 0.5" );
+         str( coef_of( us , row , 1 ) ) + " instead of 1 and 1 (one copy), "
+         "or weights other than 3 and 0.5" );
   us->unregister_Solver( fs , true );
   delete us;
   }
@@ -10302,7 +10356,7 @@ static void test_nuclear_modulation_ramps_change( void )
 
    auto nub = new_ramp_NU( L , base , base , false );
    generate_all_wf( nub , wf );
-   auto fs = new FakeSolver();
+   auto fs = new WeightFakeSolver();
    nub->register_Solver( fs );
    auto dp = Solver::new_Solver( "NuclearUnitExtDPSolver" );
    nub->register_Solver( dp );
@@ -12957,7 +13011,7 @@ static void test_resize_line_by_name( void )
   return;
   }
  generate_all( b.get() );
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  b->register_Solver( fs );
 
  const auto all_at = [ & ]( double kappa , const std::string & after ) {
@@ -13081,12 +13135,12 @@ static void test_OTS_resize_linearization_by_name( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/* ThermalUnitBlock::replicate by name multiplies every term of the
- * Objective by the number of copies, in every formulation, with the
- * perspective cuts and without: on a unit with all the costs of the
- * Objective and both reserves, after replicating to 3 and then to 0.5 the
- * Objective has the same Variable in the same order, and each coefficient
- * is that many times the one at 1, exactly. */
+/* ThermalUnitBlock::replicate by name sets the weights of the unit to the
+ * number of copies and leaves its Objective as it is, the one of one copy,
+ * in every formulation, with the perspective cuts and without: on a unit
+ * with all the costs of the Objective and both reserves, after replicating
+ * to 3 and then to 0.5 the weights are the copies and the Objective has the
+ * same Variable in the same order, each coefficient exactly the one at 1. */
 
 static void test_thermal_replicate_objective( void )
 {
@@ -13141,15 +13195,15 @@ static void test_thermal_replicate_objective( void )
    if( f->get_num_active_var() == one.size() )
     while( ( i < one.size() ) &&
 	   ( f->get_active_var( i ) == std::get< 0 >( one[ i ] ) ) &&
-	   ( f->get_linear_coefficient( i ) ==
-	     k * std::get< 1 >( one[ i ] ) ) &&
-	   ( f->get_quadratic_coefficient( i ) ==
-	     k * std::get< 2 >( one[ i ] ) ) )
+	   ( f->get_linear_coefficient( i ) == std::get< 1 >( one[ i ] ) ) &&
+	   ( f->get_quadratic_coefficient( i ) == std::get< 2 >( one[ i ] ) ) )
      ++i;
    check( i == one.size() , tag + ", " + str( k ) + " copies: the term " +
 	  std::to_string( i ) + " of the " + std::to_string( one.size() ) +
-	  " of the Objective is not " + str( k ) + " times the one of a "
-	  "copy" );
+	  " of the Objective is not the one of a copy" );
+   check( ( tub->get_objective_weight() == k ) &&
+	  ( tub->get_variable_weight() == k ) ,
+	  tag + ", " + str( k ) + " copies: the weights are not the copies" );
    }
   }
  }
@@ -13773,7 +13827,7 @@ static void test_resize_unit_bounds_once( void )
  check( row.get_rhs() == 100 , "the bounds written once: the upper bound at "
 	"node 1 is " + str( row.get_rhs() ) + " instead of 100" );
 
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  uc->register_Solver( fs );
  fs->get_Modification_list().clear();
  const std::vector< double > k = { 2 , 3 };
@@ -14176,9 +14230,9 @@ static void test_sizing_ranges_short_span( void )
  * replicates: "UCBlock::resize_unit" to 2 throws std::logic_error and
  * leaves the IntermittentUnitBlock 0 at kappa 2 with the upper bound 200 of
  * the injection at its node, and "UCBlock::replicate" to 2 throws it and
- * leaves the unit 0 at scale 2, with the coefficient 2 in the node
- * injection row (1 after "UCBlock::resize_unit", kappa not being there)
- * and the upper bound 200 again. */
+ * leaves the unit 0 with 2 copies, the upper bound 200 again and the
+ * coefficient 1 of one copy in the node injection row, as after
+ * "UCBlock::resize_unit", kappa not being there. */
 
 static void test_sizing_subset_throws_midway( void )
 {
@@ -14210,7 +14264,7 @@ static void test_sizing_subset_throws_midway( void )
   const auto & rows = uc->get_node_injection_constraints();
   const double coef = rows.empty() ? -1 :
 		      coef_of( uc.get() , rows[ 0 ][ 0 ] , 0 );
-  const double expected = copies ? 2 : 1;
+  const double expected = 1;
   check( ( size == 2 ) && mx && ( mx[ 0 ] == 200 ) &&
 	 close( coef , expected ) , name + ", a refusal midway: the unit 0 "
 	 "before the slack has the size " + str( size ) + ", the upper "
@@ -16381,7 +16435,7 @@ static void test_conversion_setters( void )
  auto a = new_CU( d );
  a->set_reserve_vars( 1 );
  generate_all( a );
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  a->register_Solver( fs );
  fs->get_Modification_list().clear();
 
@@ -16428,7 +16482,7 @@ static void test_conversion_setters( void )
  a->set_init_updown_time( iv.cbegin() , Range( 0 , 1 ) , eModBlck ,
                           eModBlck );
  d.initUD = 1;
- a->scale( 2.0 , eModBlck , eModBlck );
+ a->replicate( 2.0 , eModBlck , eModBlck );
  d.scale = 2;
 
  int nmods = 0;
@@ -16437,8 +16491,12 @@ static void test_conversion_setters( void )
    ++nmods;
  check( nmods == 9 , "conversion setters: " + std::to_string( nmods ) +
         " ConversionUnitBlockMod received instead of 9" );
- check( count_TUB_mods( fs , UnitBlockMod::eScale ) == 1 ,
-        "conversion setters: the scale issues no UnitBlockMod" );
+ int nw = 0;
+ for( const auto & m : received( fs ) )
+  if( std::dynamic_pointer_cast< const BlockWeightMod >( m ) )
+   ++nw;
+ check( nw == 1 , "conversion setters: the copies issue " +
+        std::to_string( nw ) + " BlockWeightMod" );
 
  auto b = new_CU( d );
  b->set_reserve_vars( 1 );
@@ -17528,7 +17586,7 @@ static void test_power_range_changes( void )
   if( a && b ) {
    generate_all( a );
    generate_all( b );
-   auto fs = solver ? new FakeSolver() : nullptr;
+   auto fs = solver ? new WeightFakeSolver() : nullptr;
    if( fs )
     a->register_Solver( fs );
    change( a );
@@ -17612,7 +17670,7 @@ static void test_power_range_changes( void )
  p = PRData();
  p.cuScale = 2;
  run( "scale of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
-  uc->get_unit_block( 0 )->scale( 2 , eModBlck , eModBlck );
+  uc->get_unit_block( 0 )->replicate( 2 , eModBlck , eModBlck );
   } );
  }
 
@@ -17983,9 +18041,9 @@ static void test_has_design( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/* The scale of a unit and a design of more than one module are the same
- * fleet: scale() refuses the two together, as deserialize() does, and
- * accepts a scale with a design of one module. */
+/* The copies of a unit and a design of more than one module are the same
+ * fleet: replicate() refuses the two together, as deserialize() does, and
+ * accepts copies with a design of one module. */
 
 static void test_scale_design_guard( void )
 {
@@ -18002,7 +18060,7 @@ static void test_scale_design_guard( void )
 						    Block::new_Block( g ) ) );
   bool refused = false;
   try {
-   u->scale( 2 );
+   u->replicate( 2 );
    }
   catch( std::logic_error & ) { refused = true; }
   check( refused == ( std::abs( design ) > 1 ) ,
@@ -18022,7 +18080,7 @@ static void test_scale_design_guard( void )
  std::string msg;
  try {
   if( bu )
-   bu->scale( 2 );
+   bu->replicate( 2 );
   }
  catch( std::logic_error & e ) { refused = true; }
  catch( std::exception & e ) { msg = e.what(); }

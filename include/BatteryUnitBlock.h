@@ -82,7 +82,7 @@ namespace SMSpp_di_unipi_it
  * them obey the equations below and differ only in their data, as detailed in
  * the special cases at the end of this description. The unit has one
  * generator, and its place in the model of the complete system (the node
- * balance, the reserve and inertia rows, the scale factor and the investment)
+ * balance, the reserve and inertia rows, the copies and the investment)
  * is described in \ref ucblock_model.
  *
  * \par Time and sign
@@ -191,15 +191,16 @@ namespace SMSpp_di_unipi_it
  *
  * \par Price of the energy
  * In the Objective, the datum \f$ b_t \f$ ("Cost") is a price on the net
- * injection: the Objective contains \f$ - \sigma b_t p^{ac}_t = \sigma b_t (
+ * injection: the Objective contains \f$ - b_t p^{ac}_t = b_t (
  * p^-_t - p^+_t ) \f$ (see (12)), i.e., \f$ b_t \f$ is paid for the energy
- * drawn and earned for the energy delivered at instant \f$ t \f$, where
- * \f$ \sigma \f$ is the scale factor. A cost \f$ c_t \geq 0 \f$ per unit of
+ * drawn and earned for the energy delivered at instant \f$ t \f$ by one
+ * copy of the unit (the problem counts the Objective once per copy, see
+ * UnitBlock::replicate()). A cost \f$ c_t \geq 0 \f$ per unit of
  * energy delivered by a unit that never draws (e.g., the cost of curtailing a
  * load) is therefore given as \f$ b_t = - c_t \f$. If a reference schedule
  * \f$ \hat{p}_t \f$ ("ReferenceSchedule") is given, the term in \f$ b_t \f$
- * is dropped, and the Objective contains instead the deviation \f$ \sigma
- * \sum_t | p^{ac}_t - \hat{p}_t | \f$, linearized by (11).
+ * is dropped, and the Objective contains instead the deviation
+ * \f$ \sum_t | p^{ac}_t - \hat{p}_t | \f$, linearized by (11).
  *
  * \par Reserves and inertia
  * The primary and secondary reserves \f$ p^{pr}_t , p^{sc}_t \geq 0 \f$
@@ -212,7 +213,7 @@ namespace SMSpp_di_unipi_it
  * inertia rows of UCBlock (get_inertia_commitment() and get_inertia_power()
  * return nullptr) and has no fixed consumption.
  *
- * \par Capacity: kappa, scale and design
+ * \par Capacity: kappa, copies and design
  * The datum \f$ \kappa \geq 0 \f$ ("Kappa", 1 by default) multiplies
  * \f$ P^{mn}_t \f$, \f$ P^{mx}_t \f$, \f$ P^{pr}_t \f$, \f$ P^{sc}_t \f$,
  * \f$ V^{mn}_t \f$ and \f$ V^{mx}_t \f$ wherever they appear, i.e., it
@@ -231,17 +232,17 @@ namespace SMSpp_di_unipi_it
  * forces a discharge at \f$ t = 0 \f$, and the instance is infeasible if
  * not even the largest discharge that (1), (5) and (10) allow at
  * \f$ t = 0 \f$ brings the level within \f$ \kappa V^{mx}_0 \f$. The
- * scale factor \f$ \sigma \f$ ("Scale") represents \f$ \sigma \f$
+ * number of copies \f$ \sigma \f$ ("Scale") represents \f$ \sigma \f$
  * identical copies of the unit that share its Variable (see
- * UnitBlock::scale()). If \f$ c^{inv}_b \f$
+ * UnitBlock::replicate()). If \f$ c^{inv}_b \f$
  * ("BatteryInvestmentCost") is nonzero, a design variable \f$ x_b \f$
  * ("x_battery") multiplies the data of the storage and of the power in (1),
  * (2), (5) and (7), which take the forms (1d), (2d), (5d) and (7d) below.
  * Likewise, if \f$ c^{inv}_c \f$ ("ConverterInvestmentCost") is nonzero a
  * design variable \f$ x_c \f$ ("x_converter") multiplies \f$ P^{cv}_t \f$ in
- * (10), and the Objective contains \f$ \sigma ( c^{inv}_b x_b + c^{inv}_c x_c
- * ) \f$ for the design variables that exist. A design variable lies in \f$ [
- * \max\{ 0 , \underline{X} \} , \bar{X} ] \f$ if \f$ \bar{X} \geq 0 \f$,
+ * (10), and the Objective contains \f$ c^{inv}_b x_b + c^{inv}_c x_c \f$ for
+ * the design variables that exist. A design variable lies in
+ * \f$ [ \max\{ 0 , \underline{X} \} , \bar{X} ] \f$ if \f$ \bar{X} \geq 0 \f$,
  * where \f$ \underline{X} \f$ and \f$ \bar{X} \f$ are the "MinCapacityDesign"
  * and "MaxCapacityDesign" data of the battery or of the converter. If
  * \f$ \bar{X} < 0 \f$ it is integer in \f$ \{ \max\{ 0 , \underline{X} \} ,
@@ -348,8 +349,8 @@ namespace SMSpp_di_unipi_it
  * \f$ P^{mn}_t = - \infty \f$, and no row of its power has a term in
  * \f$ x_b \f$. The Objective is
  * \f[
- *   \sum_{ t \in \mathcal{T} } \sigma \bigl( b_t ( p^-_t - p^+_t ) \bigr) +
- *   \sigma ( c^{inv}_b x_b + c^{inv}_c x_c ) \tag{12}
+ *   \sum_{ t \in \mathcal{T} } b_t ( p^-_t - p^+_t ) +
+ *   c^{inv}_b x_b + c^{inv}_c x_c \tag{12}
  * \f]
  * with \f$ - b_t p^{ac}_t \f$ in place of \f$ b_t ( p^-_t - p^+_t ) \f$
  * without the split, \f$ \delta^{rs}_t \f$ in place of it if
@@ -477,7 +478,7 @@ class BatteryUnitBlock : public UnitBlock
   f_ConvMinCapacityDesign( 0 ), f_ConvMaxCapacityDesign( 1 ),
   f_InitialStorage( 0 ), f_InitialPower( 0 ), f_MaxCRateCharge( 1 ),
   f_MaxCRateDischarge( 1 ), f_kappa( 1 ),
-  f_conv_kappa( std::numeric_limits< double >::quiet_NaN() ), f_scale( 1 ),
+  f_conv_kappa( std::numeric_limits< double >::quiet_NaN() ), 
   f_conv_max_power_given( false ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -582,7 +583,7 @@ class BatteryUnitBlock : public UnitBlock
   * - the time-indexed variable "ReferenceSchedule", the active power
   *   \f$ \hat{p}_t \f$ the unit is asked to follow: if given, (11) is
   *   generated and the Objective (12) contains
-  *   \f$ \sigma \sum_t \delta^{rs}_t \f$ instead of the term in "Cost", and
+  *   \f$ \sum_t \delta^{rs}_t \f$ instead of the term in "Cost", and
   *   set_kappa() refuses to resize the unit;
   *
   * - the time-indexed variables "MaxPrimaryPower" and "MaxSecondaryPower",
@@ -601,11 +602,11 @@ class BatteryUnitBlock : public UnitBlock
   *   exist also with no "ConverterMaxPower" and no design variable (with
   *   \f$ P^{cv}_t = P^{mx}_t \f$), and serialize() writes it;
   *
-  * - the scalar variable "Scale", the scale factor \f$ \sigma \f$ [see
-  *   UnitBlock::scale()]; 1 if absent. A value different from 1 is refused
-  *   together with \f$ | \bar{X} | > 1 \f$ for the battery or the
-  *   converter, since the two represent the same replication of the unit
-  *   (by deserialize() only, scale() not repeating this check);
+  * - the scalar variable "Scale", the number of copies \f$ \sigma \f$
+  *   [see UnitBlock::deserialize() and UnitBlock::replicate()]; 1 if
+  *   absent. A value different from 1 is refused together with
+  *   \f$ | \bar{X} | > 1 \f$ for the battery or the converter, since the
+  *   two represent the same replication of the unit (also by set_weight());
   *
   * - the scalar variables "BatteryInvestmentCost" and
   *   "ConverterInvestmentCost", the investment costs \f$ c^{inv}_b \f$ and
@@ -772,13 +773,13 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the BatteryUnitBlock
  /** Generates the Objective (12) of the class description, to be minimized:
-  * a LinearFunction with \f$ \sigma b_t \f$ on the intake and
-  * \f$ - \sigma b_t \f$ on the outtake, or \f$ - \sigma b_t \f$ on the
-  * active power when the split is not generated, unless "ReferenceSchedule"
-  * is given, in which case these terms are absent and the deviations
-  * \f$ \delta^{rs}_t \f$ have coefficient \f$ \sigma \f$; plus
-  * \f$ \sigma c^{inv}_b \f$ on \f$ x_b \f$ and \f$ \sigma c^{inv}_c \f$ on
-  * \f$ x_c \f$ if they exist. "Cost" is thus a price on the net injection,
+  * a LinearFunction with \f$ b_t \f$ on the intake and \f$ - b_t \f$ on
+  * the outtake, or \f$ - b_t \f$ on the active power when the split is not
+  * generated, unless "ReferenceSchedule" is given, in which case these terms
+  * are absent and the deviations \f$ \delta^{rs}_t \f$ have coefficient 1;
+  * plus \f$ c^{inv}_b \f$ on \f$ x_b \f$ and \f$ c^{inv}_c \f$ on
+  * \f$ x_c \f$ if they exist, all of one copy of the unit [see
+  * UnitBlock::replicate()]. "Cost" is thus a price on the net injection,
   * not a cost of wear charged in both directions. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
@@ -968,7 +969,7 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the reference schedule of the unit, if it has one
  /** Returns the vector of the active power \f$ \hat{p}_t \f$ the unit is
   * asked to follow ("ReferenceSchedule"), empty if it has none; the
-  * deviation from it, weighed with the scale factor, replaces the term in
+  * deviation from it replaces the term in
   * "Cost" in the Objective [see generate_objective()]. */
 
  const std::vector< double > & get_reference_schedule( void ) const {
@@ -1041,10 +1042,6 @@ class BatteryUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the scale factor of this BatteryUnitBlock
-
- double get_scale( void ) const override { return( f_scale ); }
-
  /// true if the battery or the converter has a design Variable
  bool has_design( void ) const override {
   return( ( f_BattInvestmentCost != 0 ) || ( f_ConvInvestmentCost != 0 ) );
@@ -1725,25 +1722,13 @@ class BatteryUnitBlock : public UnitBlock
  }
 
 /*--------------------------------------------------------------------------*/
- /// sets the scale factor of this BatteryUnitBlock
- /** This method sets the scale factor of this BatteryUnitBlock.
-  *
-  * @param values An iterator to a vector containing the scale factor.
-  *
-  * @param subset If non-empty, the scale factor is set to the value pointed
-  *               by \p values. If empty, no operation is performed.
-  *
-  * @param ordered This parameter is ignored.
-  *
-  * @param issuePMod Controls how physical Modifications are issued.
-  *
-  * @param issueAMod Controls how abstract Modifications are issued. */
+ /// sets the number of copies of this BatteryUnitBlock
+ /** As UnitBlock::set_weight(), after having refused with std::logic_error
+  * a number of copies different from 1 together with \f$ | \bar{X} | > 1
+  * \f$ for the battery or the converter, since the two represent the same
+  * replication of the unit. */
 
- void scale( MF_dbl_it values ,
-             Subset && subset ,
-             const bool ordered = false ,
-             c_ModParam issuePMod = eNoBlck ,
-             c_ModParam issueAMod = eNoBlck ) override;
+ void set_weight( double k , c_ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set the kappa constant
@@ -1881,10 +1866,6 @@ class BatteryUnitBlock : public UnitBlock
                        issuePMod , issueAMod );
   }
 
-/*--------------------------------------------------------------------------*/
-
- // For the Range version, use the default implementation defined in UnitBlock
- using UnitBlock::scale;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1894,18 +1875,6 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
-/*--------------------------------------------------------------------------*/
- /// k identical copies of this unit, i.e., scale( k )
- /** Registered in the methods factory as "BatteryUnitBlock::replicate", the
-  * name under which a Block of unknown class is sized by identical copies
-  * [see UCBlock::replicate()]; protected, as the name is the way to reach
-  * it. */
-
- void replicate( double k , c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) {
-  scale( k , issuePMod , issueAMod );
-  }
-
 /*--------------------------------------------------------------------------*/
  /// sets the sizes of the unit, that of the storage and that of the converter
  /** Sets \f$ \kappa \f$ to \p kappa and \f$ \kappa^{cv} \f$ to
@@ -2073,9 +2042,6 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the kappa of the converter, NaN if it follows f_kappa
  double f_conv_kappa;
-
- /// the scale factor
- double f_scale;
 
  /// true if "ConverterMaxPower" was in the data
  bool f_conv_max_power_given;

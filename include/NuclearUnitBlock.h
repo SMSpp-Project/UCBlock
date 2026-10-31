@@ -795,10 +795,10 @@ class NuclearUnitBlock : public ThermalUnitBlock
 /// generate the Objective of the NuclearUnitBlock
 /** The Objective is that of ThermalUnitBlock [see
  * ThermalUnitBlock::generate_objective()], plus the costs of the downward
- * modulation steps and of the deep decreases, scaled as all the others by
- * the scale factor \f$ \sigma \f$ of the unit:
+ * modulation steps and of the deep decreases, all of one copy of the unit
+ * as the others (see UnitBlock::replicate()):
  * \f[
- *   \sigma \sum_{ t \in \mathcal{T} } ( c^-_t d_t + c^{dd}_t \delta_t ) ,
+ *   \sum_{ t \in \mathcal{T} } ( c^-_t d_t + c^{dd}_t \delta_t ) ,
  *   \tag{33}
  * \f]
  * each of the two sums being there only if the corresponding cost is
@@ -807,7 +807,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * ThermalUnitBlock::objective_tail()], in this order. Their coefficients
  * are changed by set_down_modulation_costs() and set_deep_decrease_costs(),
  * or via the abstract representation, in which case the new linear
- * coefficients, divided by \f$ \sigma \f$, become the costs of the
+ * coefficients become the costs of the
  * physical representation [see objective_tail_change()]; a quadratic term
  * on these Variable is refused with std::invalid_argument. */
 
@@ -1400,10 +1400,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /// from [see set_down_modulation_costs()]
  void objective_tail_change( const DQuadFunction * qf , Index first ,
                              Index last ) override;
-
- /// makes the appended coefficients follow the scale factor
- void update_objective_tail( const Subset & subset ,
-                             c_ModParam issueAMod ) override;
 
 /*--------------------------------------------------------------------------*/
  /// changes one of the two costs of the operating rules

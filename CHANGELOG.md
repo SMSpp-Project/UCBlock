@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `UnitBlock::get_copies( generator )`, the weight of the Variable of a
+  generator, which `HydroSystemUnitBlock` multiplies by the copies of the
+  generator in its `HydroUnitBlock`: the `UCBlock` multiplies by it the
+  fixed consumption in the right-hand sides of the node injection rows and
+  the bounds of the node injections
+
 - `UnitBlock::has_design()`, true if the unit has a design Variable of its
   own (a nonzero investment cost for a `ThermalUnitBlock`, a
   `NuclearUnitBlock`, an `IntermittentUnitBlock` and a
@@ -321,6 +327,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the copies of a unit are the weights of its Block [see
+  `Block::set_weight()`] instead of a scale factor of each class:
+  `UnitBlock::replicate( k )`, which the methods factory reaches as
+  `<classname>::replicate` as before, is `set_weight( k )`, and
+  `UnitBlock::set_weight()` tells the `UCBlock` among the ancestors of the
+  unit [see `UCBlock::weight_changed()`]. The Objective, the Variable and
+  the rows of a unit are those of one copy, the Solver applying the weights,
+  and the `UCBlock` multiplies by them only the constants the unit brings
+  (the fixed consumption in the right-hand sides of the node injection rows
+  and the bounds of the node injections); `UnitBlock::get_scale()` is the
+  weight of the Variable, and "Scale" is still read, as both the weights,
+  while `serialize()` writes the weights as the attributes of `Block`. The
+  methods `scale()` of `UnitBlock` and of the units, their registrations
+  `<classname>::scale`, `UnitBlockMod::eScale` and the rewriting of the
+  coefficients of the rows of `UCBlock` and of the Objective of the units
+  are gone; the DP Solvers of a `ThermalUnitBlock` report the value of one
+  copy, and `UCBlock::get_replicate_linearization()` with 0 copies mirrors
+  the unit as it is, with weights 1, instead of scaling it to 1 and back
+
 - `UCBlockSolution::serialize()` writes the solutions of the units and of
   the networks (in the standard format) by way of `write_via_memory()`, in a
   time linear in their number
@@ -484,6 +509,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer in the row of that instant with more than one node
 
 ### Fixed
+
+- `UCBlock::is_feasible()` weighs the Variable of each unit with its copies,
+  as the Solver does, the rows holding the coefficients of one copy, and
+  checks also the reactive node injection rows and the balances of the
+  carriers other than the electricity, which it did not
+
+- `ThermalUnitBlock` takes the `BlockWeightMod` of its copies, which it
+  refused as a `BlockMod` it did not know
 
 - `DesignNetworkBlock::set_active_demand()` with a `Subset` that is not
   ordered sorted the subset but not the values, which went to the wrong

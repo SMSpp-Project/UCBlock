@@ -117,8 +117,9 @@ scaling constant, calligraphic letters denote sets.
 <caption>Data and variables of the linking constraints</caption>
 <tr><th>Symbol</th><th>Meaning</th><th>Data or method</th></tr>
 <tr><td>\f$ \sigma_i \f$, \f$ \sigma_g := \sigma_{i(g)} \f$</td>
-    <td>the scale of a UnitBlock (number of identical copies)</td>
-    <td>"Scale", UnitBlock::get_scale()</td></tr>
+    <td>the number of identical copies of a UnitBlock, the weight of its
+        Objective and of its Variable</td>
+    <td>"Scale", UnitBlock::get_scale(), UnitBlock::replicate()</td></tr>
 <tr><td>\f$ p^{ac}_{t,g} \f$, \f$ p^{rc}_{t,g} \f$</td>
     <td>active and reactive power of a generator</td>
     <td>UnitBlock::get_active_power(), UnitBlock::get_reactive_power()</td>
@@ -306,9 +307,9 @@ scaling constant, calligraphic letters denote sets.
         the investment</td>
     <td>InvestmentFunction</td></tr>
 <tr><td>\f$ f^1_i \f$, \f$ g^1_i \f$, \f$ \bar z_i \f$</td>
-    <td>the cost of one copy of a scaled unit, its contributions to the
+    <td>the cost of one copy of a replicated unit, its contributions to the
         linking constraints, and a solution of it</td>
-    <td>UnitBlock::scale()</td></tr>
+    <td>UnitBlock::replicate()</td></tr>
 <tr><td>\f$ \upsilon \in \Upsilon \f$</td>
     <td>alternative models of the uncertainty (meta-scenarios), not
         modeled</td>
@@ -382,9 +383,12 @@ is a minimization.
 \subsection ucbm_conv_scale Scaling factors
 
 Four kinds of factors multiply the data or the variables of the sub-Blocks.
-First, the scale \f$ \sigma_i \geq 0 \f$ of a UnitBlock multiplies its cost
-and its terms in the linking constraints (the Variable of the UnitBlock are
-those of one copy of the unit). Second, the capacity multipliers
+First, the number of copies \f$ \sigma_i \geq 0 \f$ of a UnitBlock multiplies
+its cost and its terms in the linking constraints (the Variable, the
+Constraint and the Objective of the UnitBlock are those of one copy of the
+unit, \f$ \sigma_i \f$ being the weight of its Objective and of its
+Variable, which the Solver applies, see Block::set_weight()). Second, the
+capacity multipliers
 \f$ \kappa \f$ of an IntermittentUnitBlock or of a BatteryUnitBlock, and
 \f$ \kappa_l \f$ of a line, multiply the power, storage and flow limits (see
 \ref ucbm_cap). Third, DCNetworkBlock applies a factor \f$ C^{v} \f$ (1 by
@@ -463,8 +467,9 @@ UCBlock, which is a constant (cf. UCBlock::generate_objective()):
      + \sum_{ k } \Bigl( c^{0}_k + \sum_{ l \in \mathcal{L} } c^{net}_l
        V_{k,l} \Bigr) + c^{U} \tag{0}
 \f]
-where \f$ f_i \f$ is the cost of UnitBlock \f$ i \f$, already multiplied by
-\f$ \sigma_i \f$, which for a HydroSystemUnitBlock includes the future cost of
+where \f$ f_i \f$ is the cost of UnitBlock \f$ i \f$, \f$ \sigma_i \f$ times
+its Objective, the cost of one copy, which for a HydroSystemUnitBlock
+includes the future cost of
 the water left in its reservoirs (a convex polyhedral function of the final
 volumes, see HydroSystemUnitBlock). In the second sum, \f$ k \f$ runs over the
 NetworkBlock, \f$ c^0_k \f$ is its constant term and \f$ c^{net}_l V_{k,l} \f$
@@ -484,7 +489,9 @@ UCBlock::generate_abstract_constraints(), i.e., the node injection rows (1)
 primary and secondary reserve requirements (2) and (3), the inertia
 requirements (4) and the pollutant budgets (5). These are the only constraints
 of the UCBlock, which has no Variable. In all of them, each term of a
-generator, or of a storage, is multiplied by the scale of its unit, and a term
+generator, or of a storage, is multiplied by the number of copies of its unit
+(the weight of its Variable, which the Solver applies, the rows of the
+UCBlock holding the coefficients of one copy), and a term
 is absent when the unit does not have the corresponding Variable or datum
 (e.g., a unit without commitment variables, which is always on, has no fixed
 consumption).
@@ -522,7 +529,7 @@ the usual balance of active power at node \f$ n \f$:
 \f]
 i.e., the net production at the node minus its demand equals the net flow
 leaving it. Note that the only differences from the lossless balance are the
-fixed consumption of the units that are off, the scale of the units and the
+fixed consumption of the units that are off, the copies of the units and the
 efficiencies of the HVDC lines. We intend the demand of a node to include the
 reference consumption profile of any load-shifting flexibility connected to
 it, whose deviation from that profile is the active power of the
@@ -621,7 +628,8 @@ For \f$ p \in \mathcal{P} \f$ and \f$ z \in \mathcal{Z}^{p} \f$
     + \sum_{ k \in \mathcal{K}_n } \sigma_k \, \rho^{v}_{t,p,k} \,
       v^{sl}_{t,k} \Bigr) \leq O_{z,p} \tag{5}
 \f]
-where \f$ \sigma_k \f$ is the scale of the unit of storage \f$ k \f$,
+where \f$ \sigma_k \f$ is the number of copies of the unit of storage
+\f$ k \f$,
 \f$ O^{mn}_{z,p} = - \infty \f$ if "PollutantMinBudget" is not given, and
 \f$ O^{mn}_{z,p} = O_{z,p} \f$ is allowed (a limit the emission has to match).
 With the term of the storage levels we account for the change over the horizon
@@ -655,7 +663,7 @@ and UnitBlock::get_kappa()). The same holds on the reactive injections
 on or off (for a ThermalUnitBlock, \f$ Q^{mn}_t + \min\{ 0 , Q^{mn,on}_t \} \f$
 and \f$ Q^{mx}_t + \max\{ 0 , Q^{mx,on}_t \} \f$). All of these bounds are
 implied by the constraints of the units, and they are computed when the
-UCBlock is read and again whenever the scale or the kappa of a unit, or the
+UCBlock is read and again whenever the copies or the kappa of a unit, or the
 maximum power of a ThermalUnitBlock or of an IntermittentUnitBlock, changes
 [see UCBlock::set_node_injection_bounds()]. Only ECNetworkBlock imposes the
 active ones as constraints, and ACNetworkBlock the reactive ones, while
@@ -679,7 +687,7 @@ model of each one is in the documentation of its class, to which we refer.
   power, of the fixed, start-up and shut-down costs, of the costs of the
   reserves (0 when the data do not give them), possibly of an investment term,
   of the deviation from a reference schedule and of a price of the reactive
-  power, all multiplied by \f$ \sigma \f$.
+  power, all of one copy of the unit.
 - ConversionUnitBlock: one commitment \f$ u_t \f$, with start-up and
   shut-down, minimum up and down times and the initial state as a
   ThermalUnitBlock, and several generators, each on its own node, whose
@@ -728,14 +736,15 @@ model of each one is in the documentation of its class, to which we refer.
 
 \section ucbm_cap Capacities and investment
 
-\subsection ucbm_cap_param Scale and capacity multipliers
+\subsection ucbm_cap_param Copies and capacity multipliers
 
 In the model, the capacity of the assets enters through two kinds of
-parameters of the sub-Blocks. First, the scale \f$ \sigma_i \f$ of a UnitBlock
+parameters of the sub-Blocks. First, the number of copies \f$ \sigma_i \f$ of
+a UnitBlock
 (ThermalUnitBlock, NuclearUnitBlock, IntermittentUnitBlock, BatteryUnitBlock,
 ConversionUnitBlock; see
-UnitBlock::scale()) represents a number of identical copies of the unit,
-committed and dispatched together. The Variable are those of one copy, and the
+UnitBlock::replicate()) represents identical copies of the unit, committed
+and dispatched together. The Variable are those of one copy, and the
 UnitBlock contributes \f$ \sigma_i f^1_i \f$ to (0) and \f$ \sigma_i g^1_i \f$
 to (1)-(5), where \f$ f^1_i \f$ and \f$ g^1_i \f$ are the cost and the
 contributions of one copy. Second, the capacity multipliers \f$ \kappa \f$ of
@@ -747,20 +756,22 @@ installable capacity times that capacity, \f$ \kappa \in [ 0 , 1 ] \f$ is the
 installed fraction; the initial level of a battery and the energy bounds of an
 intermittent unit are, however, absolute quantities, not multiplied by
 \f$ \kappa \f$. Both kinds of parameters can be changed after the Block is
-built (UnitBlock::scale(), IntermittentUnitBlock::set_kappa(),
+built (UnitBlock::replicate(), IntermittentUnitBlock::set_kappa(),
 BatteryUnitBlock::set_kappa(), DCNetworkBlock::set_kappa(), or by name, see
 \ref ucbm_cap_names), and the UCBlock
-rewrites the coefficients of (1)-(5) when a scale changes. Therefore, one can
+rewrites the right-hand sides of (1) and the bounds of the node injections
+when a number of copies changes, the coefficients being those of one copy.
+Therefore, one can
 evaluate the optimal cost as a function of the capacities.
 
 \subsection ucbm_cap_names Sizing by name
 
 A Block holding a UCBlock sizes its units and its lines without knowing their
 classes, through the methods factory. The class of a sub-Block registers
-"<classname>::replicate", which sets its scale (a scalar), and
+"<classname>::replicate", which sets its number of copies (a scalar), and
 "<classname>::resize", which sets its capacity multiplier (a scalar for a
 unit, a pair for a BatteryUnitBlock, a span for the lines of a network), each
-on the protected method of the same name, with
+on the method of the same name, with
 "<classname>::get_resize_linearization" for the derivative (9) or (10). The
 UCBlock registers "UCBlock::replicate", "UCBlock::resize_unit" and
 "UCBlock::resize_line", which hand each value of a span to the name of the
@@ -787,9 +798,10 @@ are:
 
 A sub-Block whose class does not register the name makes the names of the
 UCBlock throw std::logic_error, naming the class. A registered name may
-refuse too: the scale() of an IntermittentUnitBlock, a BatteryUnitBlock or a
-ConversionUnitBlock whose design has more than one module throws for a scale
-other than 1, a derivative throws for a unit or a line in design mode (see
+refuse too: the replicate() of an IntermittentUnitBlock, a BatteryUnitBlock or
+a ConversionUnitBlock whose design has more than one module throws for a
+number of copies other than 1, a derivative throws for a unit or a line in
+design mode (see
 \ref ucbm_cap_sens) and before the rows are generated, and a span shorter
 than what it is asked to write throws std::invalid_argument.
 
@@ -803,7 +815,7 @@ has a design variable \f$ x \f$ (continuous or integer between
 A BatteryUnitBlock has design variables \f$ x_b \f$ and \f$ x_c \f$ for the
 storage and the converter, and a DesignNetworkBlock adds a design variable
 \f$ x_l \f$ that multiplies the flow bounds of a line. In this case the
-investment cost \f$ \sigma c^{inv} x \f$ (and its analogues) is part of the
+investment cost \f$ c^{inv} x \f$ (and its analogues) is part of the
 cost of the sub-Block, and the problem (investment included) is a single
 mixed-integer program.
 
@@ -821,15 +833,15 @@ function is
 \f]
 where \f$ Q( x ) \f$ is the operational cost computed by the Solver of the
 inner Block (a UCBlock, or a stochastic Block whose scenarios are UCBlock)
-once the investment has been written into it. For an asset represented by a
-scale, \f$ x_i \f$ is the scale \f$ \sigma \f$ of the unit, i.e., its number
-of copies; for one represented by a capacity multiplier, \f$ x_i = \kappa \f$
+once the investment has been written into it. For an asset represented by
+copies, \f$ x_i \f$ is the number \f$ \sigma \f$ of copies of the unit; for
+one represented by a capacity multiplier, \f$ x_i = \kappa \f$
 (or \f$ \kappa_l \f$, on the NetworkBlock of each instant). Note that the
 investment term is convex if \f$ c_i + d_i \geq 0 \f$ for all \f$ i \f$. The
 optimal value of a convex model of the problem (its continuous relaxation, or
 its Lagrangian dual, see \ref ucbm_dual) is a convex function of the
 capacities. Indeed, \f$ \sigma \f$ multiplies the complete contribution of a
-unit (see UnitBlock::scale()), while the \f$ \kappa \f$ of an intermittent
+unit (see UnitBlock::replicate()), while the \f$ \kappa \f$ of an intermittent
 unit and the \f$ \kappa_l \f$ of a line only appear in right-hand sides of
 linear rows, and the optimal value of a convex problem is a convex function of
 its right-hand sides. The \f$ \kappa \f$ of a battery also multiplies the
@@ -856,7 +868,7 @@ Let the inner problem be solved as a convex problem, with optimal dual
 values \f$ \bar y \f$ of its constraints, which follow the convention of
 RowConstraint (see \ref ucbm_dual_sign): the derivative of the optimal
 value with respect to the finite side \f$ b \f$ of a row is
-\f$ - \bar y \f$. For a unit represented by a scale, the Lagrangian
+\f$ - \bar y \f$. For a unit represented by copies, the Lagrangian
 contribution of the unit is \f$ \sigma_i \f$ times that of one copy, and
 therefore
 \f[
@@ -872,7 +884,7 @@ subproblem of one copy at \f$ \bar y \f$. The value \f$ f^1_i( \bar z_i ) +
 \bar y^\top g^1_i( \bar z_i ) \f$ of this minimizer is the slope of the
 function of \f$ \sigma_i \f$ that is active in the dual function. Note that
 the solution of the unit given by the Solver of a convex problem is such a
-minimizer (see UnitBlock::scale() for the argument). With
+minimizer (see UnitBlock::replicate() for the argument). With
 \f$ \sigma_i = 0 \f$ there is no solution of the unit to evaluate (8) at:
 "UCBlock::get_replicate_linearization" then minimizes the same terms over a
 mirror of one copy of the unit, and takes the lower bound that its Solver
@@ -905,7 +917,7 @@ the dual value of the limit \f$ \min\{ 1 , \kappa_l \} \f$ of its switching
 while \f$ \kappa_l < 1 \f$ (see OTSNetworkBlock::resize()). In (9) and (10)
 the minus sign makes the subgradient nonpositive when more capacity relaxes
 an active upper bound, as it must for a minimization. Through the names of the
-UCBlock, the derivative of a unit, with respect to its scale or to its
+UCBlock, the derivative of a unit, with respect to its copies or to its
 capacity multiplier, also counts the dual values of the bounds of the node
 injections, in which both appear
 (see \ref ucbm_link_bounds). A capacity multiplier
@@ -979,7 +991,7 @@ runs over the instants that \f$ k \f$ covers. The constant \f$ - y^{ac}_{t,n}
 UCBlock writes the row (1) with \f$ \sum_g \sigma_g P^{au}_{t,g} \f$ in its
 right-hand side, and therefore LagrangianDualSolver counts it in the constant
 of the dual function; of course, the sum \f$ \Theta \f$ is the same. Since the
-scale multiplies the complete contribution of a unit, \f$ \Theta_i \f$ is
+copies multiply the complete contribution of a unit, \f$ \Theta_i \f$ is
 \f$ \sigma_i \f$ times the Lagrangian value of one copy, which is how the dual
 handles \f$ \sigma_i \f$ identical units without approximation. The dual
 problem maximizes \f$ \Theta \f$ with \f$ y^{ac} \f$ and \f$ y^{rc} \f$ free,

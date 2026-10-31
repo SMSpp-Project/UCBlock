@@ -186,6 +186,61 @@ static void size_units( UCBlock & ucb , const char * caller ,
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
+/* Whether the linear row is within its sides up to tol, the relative
+ * violation if rel, as RowConstraint::is_feasible() checks it, with the
+ * Variable of the units weighed by their weight in ucb, which a Solver
+ * applies [see UnitBlock::replicate()]: the coefficients of the row are
+ * those of one copy. */
+
+static bool weighted_feasible( const UCBlock & ucb , FRowConstraint & row ,
+                               double tol , bool rel )
+{
+ if( row.is_relaxed() )
+  return( true );
+ const auto lf = dynamic_cast< const LinearFunction * >( row.get_function() );
+ if( ! lf )
+  return( RowConstraint::is_feasible( row , tol , rel ) );
+
+ // the weight of a Variable is the product of the weights of the Block up
+ // to ucb, which a Solver holding a unit in a Function of its own (say, a
+ // Lagrangian one) may have taken out of the tree of ucb for a while: the
+ // walk then ends where the chain of the fathers does
+ double value = lf->get_constant_term();
+ for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+  double weight = 1;
+  for( const Block * b = var->get_Block() ; b && ( b != & ucb ) ;
+       b = b->get_f_Block() )
+   weight *= b->get_variable_weight();
+  value += coeff * var->get_value() * weight;
+  }
+
+ const auto viol = [ rel ]( double gap , double side ) {
+  return( rel ? gap / std::max( 1.0 , std::abs( side ) ) : gap );
+  };
+ if( const auto lhs = row.get_lhs() ; lhs > - Inf< double >() )
+  if( viol( lhs - value , lhs ) > tol )
+   return( false );
+ if( const auto rhs = row.get_rhs() ; rhs < Inf< double >() )
+  if( viol( value - rhs , rhs ) > tol )
+   return( false );
+ return( true );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static bool weighted_feasible( const UCBlock & ucb ,
+                               boost::multi_array< FRowConstraint , 2 > & rows ,
+                               double tol , bool rel )
+{
+ for( auto row = rows.data() ; row != rows.data() + rows.num_elements() ;
+      ++row )
+  if( ! weighted_feasible( ucb , *row , tol , rel ) )
+   return( false );
+ return( true );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
 static Block::Subset units_in( const UCBlock & ucb , Block::Range rng )
 {
  rng.second = std::min( rng.second , ucb.get_number_units() );
@@ -1171,9 +1226,10 @@ void UCBlock::set_node_injection_bounds( void )
     continue;
    const auto [ unit , generator ] = v_generator_unit[ g ];
    const auto ub = get_unit_block( unit );
-   // multiplier for fleet-level node injection bound: scale times kappa
+   // multiplier for fleet-level node injection bound: copies times kappa
    // times the upper bound of the design variable (1 if binary)
-   const auto mult = ub->get_scale() * ub->get_design_ub() * ub->get_kappa();
+   const auto mult = ub->get_copies( generator ) * ub->get_design_ub() *
+                     ub->get_kappa();
    const auto eta = get_carrier_efficiency( t , g , c );
    const auto p_mn = eta * ub->get_min_power( t , generator );
    const auto p_mx = eta * ub->get_max_power( t , generator );
@@ -1219,7 +1275,7 @@ void UCBlock::set_node_injection_bounds( void )
      continue;
     const auto [ unit , generator ] = v_generator_unit[ g ];
     const auto ub = get_unit_block( unit );
-    const auto mult = ub->get_scale() * ub->get_design_ub() *
+    const auto mult = ub->get_copies( generator ) * ub->get_design_ub() *
                       ub->get_kappa();
     // the reactive power of a thermal unit lies in [ Q^mn , Q^mx ] when it
     // is off, and the bounds move by Q^{mn,on}, Q^{mx,on} when it is on: the
@@ -1288,31 +1344,36 @@ void UCBlock::balance_terms( Index c , Index t , Index node , bool reactive ,
 
   const auto [ unit , generator ] = v_generator_unit[ g ];
   const auto unit_block = get_unit_block( unit );
-  const auto scale = unit_block->get_scale();
+
+  /* The Variable of the unit enter the row with the coefficients of one
+   * copy: the copies of the unit are the weight of its Variable [see
+   * UnitBlock::replicate()], which the Solver applies. The weight multiplies
+   * the right-hand side that the fixed consumption brings, a constant, here
+   * instead, and the row changes when the weight does [see
+   * add_Modification()]. */
 
   if( reactive ) {
    // the reactive power alone, the fixed consumption being an active power
    if( auto rp = unit_block->get_reactive_power( generator ) )
-    terms.push_back( { &rp[ t ] , scale , 0 , unit } );
+    terms.push_back( { &rp[ t ] , 1 , 0 , unit } );
    continue;
    }
 
   // the active power, times the efficiency towards the carrier
   if( const auto eta = get_carrier_efficiency( t , g , c ) )
    if( auto ap = unit_block->get_active_power( generator ) )
-    terms.push_back( { &ap[ t ] , scale * eta , 0 , unit } );
+    terms.push_back( { &ap[ t ] , eta , 0 , unit } );
 
   // the fixed consumption fc[ t ] * ( 1 - u[ t ] ) of a generator that is off,
   // an electric power: fc[ t ] * u[ t ] on the left and fc[ t ] on the right
-  // (a generator without commitment variables is always on)
+  // (a generator without commitment variables is always on), the latter
+  // times the copies of the unit
   if( c == 0 )
    if( auto fc = unit_block->get_fixed_consumption( generator ) )
     if( fc[ t ] )
      if( auto u = unit_block->get_commitment( generator ) ) {
-      const auto fixed_consumption = scale * fc[ t ];
-      terms.push_back( { &u[ t ] , fixed_consumption , fixed_consumption ,
-			 unit } );
-      rhs += fixed_consumption;
+      terms.push_back( { &u[ t ] , fc[ t ] , fc[ t ] , unit } );
+      rhs += unit_block->get_copies( generator ) * fc[ t ];
       }
   }
  }  // end( UCBlock::balance_terms )
@@ -1466,7 +1527,6 @@ void UCBlock::generate_primary_demand_constraints( void )
     for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
      const auto unit_block = get_unit_block( unit_id );
-     const auto scale = unit_block->get_scale();
 
      for( Index generator = 0 ;
           generator < unit_block->get_number_generators() ;
@@ -1479,7 +1539,7 @@ void UCBlock::generate_primary_demand_constraints( void )
        unit_block->get_primary_spinning_reserve( generator ) ) {
        // Now we add the primary reserve variable to the LinearFunction.
        auto primary_spinning_reserve = &primary_s_r[ t ];
-       lf->add_variable( primary_spinning_reserve , scale );
+       lf->add_variable( primary_spinning_reserve , 1 );
       }
 
      }  // end( for( generator ) )
@@ -1526,7 +1586,6 @@ void UCBlock::generate_secondary_demand_constraints( void )
     for( Index unit_id = 0 ; unit_id < f_number_units ; unit_id++ ) {
 
      const auto unit_block = get_unit_block( unit_id );
-     const auto scale = unit_block->get_scale();
 
      for( Index generator = 0 ;
           generator < unit_block->get_number_generators() ;
@@ -1539,7 +1598,7 @@ void UCBlock::generate_secondary_demand_constraints( void )
        unit_block->get_secondary_spinning_reserve( generator ) ) {
        // Now we add the secondary reserve variable to the LinearFunction.
        auto secondary_spinning_reserve = &secondary_s_r[ t ];
-       lf->add_variable( secondary_spinning_reserve , scale );
+       lf->add_variable( secondary_spinning_reserve , 1 );
       }
 
      }  // end( for( generator ) )
@@ -1586,7 +1645,6 @@ void UCBlock::generate_inertia_demand_constraints( void )
     for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
 
      const auto unit_block = get_unit_block( unit_id );
-     const auto scale = unit_block->get_scale();
 
      for( Index generator = 0 ;
           generator < unit_block->get_number_generators() ;
@@ -1603,7 +1661,7 @@ void UCBlock::generate_inertia_demand_constraints( void )
 
 
        auto commitment_t = &commitment[ t ];
-       auto coefficient = scale * inertia_commitment[ t ];
+       auto coefficient = inertia_commitment[ t ];
        lf->add_variable( commitment_t , coefficient );
       }
 
@@ -1613,7 +1671,7 @@ void UCBlock::generate_inertia_demand_constraints( void )
       if( active_power && inertia_power ) {
 
        auto active_power_t = &active_power[ t ];
-       auto coefficient = scale * inertia_power[ t ];
+       auto coefficient = inertia_power[ t ];
        lf->add_variable( active_power_t , coefficient );
       }
 
@@ -1705,17 +1763,13 @@ void UCBlock::generate_pollutant_budget_constraints( void )
   const auto number_zones = v_number_pollutant_zones[ p ];
   v_PollutantBudget_Const[ p ].resize( number_zones );
 
-  // the terms of the constraint of each zone of pollutant p: those of a
-  // unit are consecutive, which is what update_pollutant_budget_constraints()
-  // relies upon
+  // the terms of the constraint of each zone of pollutant p
   std::vector< LinearFunction::v_coeff_pair > vcp( number_zones );
 
   for_each_pollutant_term( p , [ & ]( Index , UnitBlock * unit_block ,
                                       Index zone_id , ColVariable * var ,
                                       double factor ) {
-   vcp[ zone_id ].push_back( std::make_pair( var ,
-                                             unit_block->get_scale() *
-                                             factor ) );
+   vcp[ zone_id ].push_back( std::make_pair( var , factor ) );
    } );
 
   for( Index zone_id = 0 ; zone_id < number_zones ; ++zone_id ) {
@@ -1802,15 +1856,26 @@ bool UCBlock::is_feasible( bool useabstract , Configuration * fsbc )
    return( false );
   }
 
- return(
-  // Constraints: notice that the ZOConstraints are not checked, since the
-  // corresponding check is made on the ColVariable
-  RowConstraint::is_feasible( v_node_injection_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_PrimaryDemand_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_SecondaryDemand_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_InertiaDemand_Const , tol , rel_viol )
-  && RowConstraint::is_feasible( v_PollutantBudget_Const , tol , rel_viol )
-);
+ // the rows, with the Variable of each unit weighed by its copies; the
+ // ZOConstraints are not checked, since the corresponding check is made on
+ // the ColVariable
+ for( auto rows : { & v_node_injection_Const ,
+                    & v_reactive_node_injection_Const ,
+                    & v_PrimaryDemand_Const , & v_SecondaryDemand_Const ,
+                    & v_InertiaDemand_Const } )
+  if( ! weighted_feasible( *this , *rows , tol , rel_viol ) )
+   return( false );
+
+ for( auto & rows : v_carrier_balance_Const )
+  if( ! weighted_feasible( *this , rows , tol , rel_viol ) )
+   return( false );
+
+ for( auto & zones : v_PollutantBudget_Const )
+  for( auto & row : zones )
+   if( ! weighted_feasible( *this , row , tol , rel_viol ) )
+    return( false );
+
+ return( true );
 
 }  // end( UClUnitBlock::is_feasible )
 
@@ -2110,23 +2175,14 @@ int UCBlock::get_objective_sense( void ) const { return( Objective::eMin ); }
 
 void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 {
- // the scale of a unit going to 1 and back in get_zero_copy_linearization()
- // ends where it started: what the unit says of it is dropped
- if( const auto rtu = f_round_trip_unit.load() )
-  if( const auto umod = dynamic_cast< const UnitBlockMod * >( mod.get() ) )
-   if( ( umod->type() == UnitBlockMod::eScale ) &&
-       ( umod->get_Block() == rtu ) )
-    return;
-
- std::vector< Index > modified_units;
  std::vector< Index > inertia_units;
  bool injection = false;
 
- /* A scaled UnitBlock has its Variable multiplied by the scale wherever this
-  * Block uses them [see UnitBlock::scale()], hence the rows that use them
-  * have to be rewritten. The scaling of several units can arrive inside one
-  * GroupModification, which is why the walk goes into the groups: looking
-  * only at the top level would leave the rows of those units untouched. */
+ /* The changes of several units can arrive inside one GroupModification,
+  * which is why the walk goes into the groups: looking only at the top
+  * level would leave the rows of those units untouched. The weights of a
+  * unit are not among them: a unit tells this UCBlock of their change
+  * directly [see weight_changed()]. */
 
  std::function< void( const Modification * ) > collect =
   [ & ]( const Modification * m ) {
@@ -2148,19 +2204,18 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
     // units, whatever their class [see UnitBlockMod::changes_power_range()]
     if( tmod->changes_power_range() )
      injection = true;
-    if( ( tmod->type() == UnitBlockMod::eScale ) || inertia ) {
+    if( inertia ) {
      /* The index is looked up among the units of this UCBlock rather than
       * among the sub-Block of the father of the unit: while a
       * LagrangianDualSolver is attached, that father is the LagBFunction
       * holding the unit alone, where the unit is always the 0-th. */
      const auto units_end = v_Block.begin() + f_number_units;
      auto it = std::find( v_Block.begin() , units_end , tmod->get_Block() );
-     if( inertia && ( it == units_end ) && tmod->get_Block() )
+     if( ( it == units_end ) && tmod->get_Block() )
       it = std::find( v_Block.begin() , units_end ,
                       tmod->get_Block()->get_f_Block() );
      if( it != units_end )
-      ( inertia ? inertia_units : modified_units ).push_back(
-                                      std::distance( v_Block.begin() , it ) );
+      inertia_units.push_back( std::distance( v_Block.begin() , it ) );
      }
     }
    };
@@ -2171,21 +2226,11 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
  // power range of the units [see set_node_injection_bounds()]; replicate()
  // and resize_unit() compute them once, when they are done with the last
  // unit, and only if one has changed [see size_deferred()]
- if( injection || ( ! modified_units.empty() ) ) {
-  if( f_defer_scaled_rows )
+ if( injection ) {
+  if( f_defer_weighted_rows )
    f_deferred_injection_bounds = true;
   else
    set_node_injection_bounds();
-  }
-
- if( ! modified_units.empty() ) {
-  if( f_defer_scaled_rows )
-   // a set of units is being sized, and their rows are rewritten once when
-   // the last one is done [see size_deferred()]
-   v_scaled_units.insert( v_scaled_units.end() , modified_units.begin() ,
-                          modified_units.end() );
-  else
-   update_scaled_rows( modified_units );
   }
 
  if( ! inertia_units.empty() ) {
@@ -2205,228 +2250,81 @@ void UCBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::update_scaled_rows( std::vector< Index > & scaled_units )
+void UCBlock::weight_changed( const Block * unit )
 {
- if( scaled_units.empty() )
+ const auto units_end = v_Block.begin() + f_number_units;
+ const auto it = std::find( v_Block.begin() , units_end , unit );
+ if( it == units_end )
+  throw( std::invalid_argument( "UCBlock::weight_changed: the Block is not "
+                                "a unit of this UCBlock" ) );
+
+ // the bounds of the node injections carry the weight as the right-hand
+ // sides do; replicate() rewrites both once, after the last unit [see
+ // size_deferred()]
+ if( f_defer_weighted_rows ) {
+  v_weighted_units.push_back( std::distance( v_Block.begin() , it ) );
+  f_deferred_injection_bounds = true;
+  return;
+  }
+
+ std::vector< Index > units = { Index( std::distance( v_Block.begin() ,
+                                                      it ) ) };
+ update_weighted_rows( units );
+ set_node_injection_bounds();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void UCBlock::update_weighted_rows( std::vector< Index > & weighted_units )
+{
+ if( weighted_units.empty() || ( ! constraints_generated() ) ||
+     v_node_injection_Const.empty() )
   return;
 
  // Sort the IDs of the modified units, and name each of them once: a group
- // can carry more than one scaling of the same unit
- std::sort( scaled_units.begin() , scaled_units.end() );
- scaled_units.erase( std::unique( scaled_units.begin() ,
-                                  scaled_units.end() ) ,
-                     scaled_units.end() );
+ // can carry more than one change of the same unit
+ std::sort( weighted_units.begin() , weighted_units.end() );
+ weighted_units.erase( std::unique( weighted_units.begin() ,
+                                    weighted_units.end() ) ,
+                       weighted_units.end() );
 
- /* Each of these rewrites one row per time instant, and per node where there
-  * are nodes: the whole reaction to the scaling travels in one channel, so
-  * that a Solver able to write a set of coefficients, or of sides, in one
-  * operation does that once instead of once per instant [see
-  * MILPSolver::process_group_modification()]. */
+ /* The weight of a unit is in the right-hand side of the node injection
+  * rows alone, through the fixed consumption of its generators [see
+  * balance_terms()]: the coefficients of its Variable are those of one copy
+  * in every row. Only the rows at the nodes of the generators of the units
+  * that have a fixed consumption are rewritten, all in one channel, so that
+  * a Solver able to write a set of sides in one operation does that once
+  * [see MILPSolver::process_group_modification()]. */
+
+ const auto nodes = v_node_injection_Const.shape()[ 1 ];
+ std::vector< bool > node_changed( nodes , false );
+ for( const auto unit : weighted_units ) {
+  const auto unit_block = get_unit_block( unit );
+  for( Index g = 0 ; g < unit_block->get_number_generators() ; ++g )
+   if( unit_block->get_fixed_consumption( g ) ) {
+    const auto node = get_generator_node( v_first_generator[ unit ] + g ,
+                                          0 );
+    if( node != Inf< Index >() )
+     node_changed[ nodes > 1 ? node : 0 ] = true;
+    }
+  }
+
  auto chnl = open_channel();
  const auto upar = make_par( eNoBlck , chnl );
 
- update_node_injection_constraints( scaled_units , upar );
- update_node_injection_constraints( scaled_units , upar , true );
- for( Index c = 1 ; c < get_number_carriers() ; ++c )
-  update_balance_constraints( c , scaled_units , upar );
- update_primary_demand_constraints( scaled_units , upar );
- update_secondary_demand_constraints( scaled_units , upar );
- update_inertia_demand_constraints( scaled_units , upar );
- update_pollutant_budget_constraints( scaled_units , upar );
-
- close_channel( chnl );
-}
-
-/*--------------------------------------------------------------------------*/
-
-void UCBlock::update_node_injection_constraints(
- const std::vector< Index > & modified_units , ModParam issueMod ,
- bool reactive )
-{
- update_balance_constraints( 0 , modified_units , issueMod , reactive );
- }  // end( UCBlock::update_node_injection_constraints )
-
-/*--------------------------------------------------------------------------*/
-
-void UCBlock::update_balance_constraints(
-			      Index c , const std::vector< Index > & modified_units ,
-			      ModParam issueMod , bool reactive )
-{
- auto & rows = reactive ? v_reactive_node_injection_Const :
-               ( c == 0 ? v_node_injection_Const
-                        : v_carrier_balance_Const[ c ] );
-
- if( ( ! constraints_generated() ) || rows.empty() || modified_units.empty() )
-  return;
-
- // the terms are those of the rows, in the same order [see
- // fill_balance_constraints()]: the coefficients of those of the modified
- // units are written again, and so is the right-hand side, which the fixed
- // consumption of a scaled unit changes
  std::vector< BalanceTerm > terms;
  double rhs;
- for( Index t = 0 ; t < rows.shape()[ 0 ] ; ++t )
-  for( Index n = 0 ; n < rows.shape()[ 1 ] ; ++n ) {
-   auto & constraint = rows[ t ][ n ];
-   balance_terms( c , t , n , reactive , terms , rhs );
+ for( Index t = 0 ; t < v_node_injection_Const.shape()[ 0 ] ; ++t )
+  for( Index n = 0 ; n < nodes ; ++n )
+   if( node_changed[ n ] ) {
+    balance_terms( 0 , t , n , false , terms , rhs );
+    auto & constraint = v_node_injection_Const[ t ][ n ];
+    if( constraint.get_rhs() != rhs )
+     constraint.set_both( rhs , upar );
+    }
 
-   LinearFunction::Vec_FunctionValue coefficients;
-   Subset subset;
-   for( Index i = 0 ; i < terms.size() ; ++i )
-    if( ( terms[ i ].unit != Inf< Index >() ) &&
-        std::binary_search( modified_units.begin() , modified_units.end() ,
-                            terms[ i ].unit ) ) {
-     assert( i < constraint.get_num_active_var() );
-     assert( constraint.get_active_var( i ) == terms[ i ].var );
-     coefficients.push_back( terms[ i ].coeff );
-     subset.push_back( i );
-     }
-
-   // the (abstract) Modifications that this issues do not concern this
-   // UCBlock
-   constraint.set_both( rhs , issueMod );
-   if( ! subset.empty() )
-    LF( constraint.get_function() )->modify_coefficients(
-                std::move( coefficients ) , std::move( subset ) , true ,
-                issueMod );
-   }
- }  // end( UCBlock::update_balance_constraints )
-
-/*--------------------------------------------------------------------------*/
-
-void UCBlock::update_primary_demand_constraints(
-                               const std::vector< Index > & modified_units ,
-                               ModParam issueMod )
-{
- if( ( ! constraints_generated() ) || ( v_PrimaryDemand_Const.empty() ) ||
-     modified_units.empty() )
-  return;  // there is nothing to be updated
-
- const auto number_nodes = get_number_nodes();
-
- /* The walk is the one of generate_primary_demand_constraints(), so that
-  * the active Variable of each row are met in the order they have been
-  * added: node by node, and within a node unit by unit. The Variable of a
-  * unit with generators at several nodes of a zone are therefore not
-  * consecutive, and the position of each one is counted along the walk. */
-
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  for( Index zone_id = 0 ; zone_id < f_number_primary_zones ; ++zone_id ) {
-
-   auto & constraint = v_PrimaryDemand_Const[ t ][ zone_id ];
-   LinearFunction::Vec_FunctionValue coefficients;
-   Subset subset;
-   Index pos = 0;  // position of the next active Variable of the row
-
-   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-    if( ! node_belongs_to_primary_zone( node_id , zone_id ) )
-     continue;
-
-    Index elc_generator = 0;
-    for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-     const auto unit_block = get_unit_block( unit_id );
-     const bool modified = std::binary_search( modified_units.begin() ,
-                                               modified_units.end() ,
-                                               unit_id );
-
-     for( Index generator = 0 ;
-          generator < unit_block->get_number_generators() ;
-          ++generator , ++elc_generator ) {
-
-      if( ! generator_belongs_to_node( elc_generator , node_id ) )
-       continue;
-
-      if( auto primary_s_r =
-           unit_block->get_primary_spinning_reserve( generator ) ) {
-       assert( ( pos < constraint.get_num_active_var() ) &&
-               ( constraint.get_active_var( pos ) == &primary_s_r[ t ] ) );
-       if( modified ) {
-        coefficients.push_back( unit_block->get_scale() );
-        subset.push_back( pos );
-        }
-       ++pos;
-       }
-      }  // end( for( generator ) )
-     }  // end( for( unit_id ) )
-    }  // end( for( node_id ) )
-
-   if( ! subset.empty() )
-    LF( constraint.get_function() )->modify_coefficients(
-                std::move( coefficients ) , std::move( subset ) , true ,
-                issueMod );
-
-   }  // end( for( zone_id ) )
- }  // end( UCBlock::update_primary_demand_constraints )
-
-/*--------------------------------------------------------------------------*/
-
-void UCBlock::update_secondary_demand_constraints(
-                               const std::vector< Index > & modified_units ,
-                               ModParam issueMod )
-{
- if( ( ! constraints_generated() ) || ( v_SecondaryDemand_Const.empty() ) ||
-     modified_units.empty() )
-  return;  // there is nothing to be updated
-
- const auto number_nodes = get_number_nodes();
-
- /* The walk is the one of generate_secondary_demand_constraints(), so that
-  * the active Variable of each row are met in the order they have been
-  * added: node by node, and within a node unit by unit. The Variable of a
-  * unit with generators at several nodes of a zone are therefore not
-  * consecutive, and the position of each one is counted along the walk. */
-
- for( Index t = 0 ; t < f_time_horizon ; ++t )
-  for( Index zone_id = 0 ; zone_id < f_number_secondary_zones ; ++zone_id ) {
-
-   auto & constraint = v_SecondaryDemand_Const[ t ][ zone_id ];
-   LinearFunction::Vec_FunctionValue coefficients;
-   Subset subset;
-   Index pos = 0;  // position of the next active Variable of the row
-
-   for( Index node_id = 0 ; node_id < number_nodes ; ++node_id ) {
-
-    if( ! node_belongs_to_secondary_zone( node_id , zone_id ) )
-     continue;
-
-    Index elc_generator = 0;
-    for( Index unit_id = 0 ; unit_id < f_number_units ; ++unit_id ) {
-
-     const auto unit_block = get_unit_block( unit_id );
-     const bool modified = std::binary_search( modified_units.begin() ,
-                                               modified_units.end() ,
-                                               unit_id );
-
-     for( Index generator = 0 ;
-          generator < unit_block->get_number_generators() ;
-          ++generator , ++elc_generator ) {
-
-      if( ! generator_belongs_to_node( elc_generator , node_id ) )
-       continue;
-
-      if( auto secondary_s_r =
-           unit_block->get_secondary_spinning_reserve( generator ) ) {
-       assert( ( pos < constraint.get_num_active_var() ) &&
-               ( constraint.get_active_var( pos ) == &secondary_s_r[ t ] ) );
-       if( modified ) {
-        coefficients.push_back( unit_block->get_scale() );
-        subset.push_back( pos );
-        }
-       ++pos;
-       }
-      }  // end( for( generator ) )
-     }  // end( for( unit_id ) )
-    }  // end( for( node_id ) )
-
-   if( ! subset.empty() )
-    LF( constraint.get_function() )->modify_coefficients(
-                std::move( coefficients ) , std::move( subset ) , true ,
-                issueMod );
-
-   }  // end( for( zone_id ) )
- }  // end( UCBlock::update_secondary_demand_constraints )
+ close_channel( chnl );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2483,8 +2381,6 @@ void UCBlock::update_inertia_demand_constraints(
      const bool modified = std::binary_search( modified_units.begin() ,
                                                modified_units.end() ,
                                                unit_id );
-     const auto scale = unit_block->get_scale();
-
      for( Index generator = 0 ;
           generator < unit_block->get_number_generators() ;
           ++generator , ++elc_generator ) {
@@ -2497,13 +2393,13 @@ void UCBlock::update_inertia_demand_constraints(
                               unit_block->get_inertia_commitment( generator );
       if( commitment && inertia_commitment )
        term( &commitment[ t ] , unit_id , modified ,
-             scale * inertia_commitment[ t ] );
+             inertia_commitment[ t ] );
 
       const auto active_power = unit_block->get_active_power( generator );
       const auto inertia_power = unit_block->get_inertia_power( generator );
       if( active_power && inertia_power )
        term( &active_power[ t ] , unit_id , modified ,
-             scale * inertia_power[ t ] );
+             inertia_power[ t ] );
 
       }  // end( for( generator ) )
      }  // end( for( unit_id ) )
@@ -2516,55 +2412,6 @@ void UCBlock::update_inertia_demand_constraints(
 
    }  // end( for( zone_id ) )
  }  // end( UCBlock::update_inertia_demand_constraints )
-
-/*--------------------------------------------------------------------------*/
-
-void UCBlock::update_pollutant_budget_constraints(
-			        const std::vector< Index > & modified_units ,
-			        ModParam issueMod )
-{
- if( ( ! constraints_generated() ) || v_PollutantBudget_Const.empty() ||
-     modified_units.empty() )
-  return;  // there is nothing to be updated
-
- for( Index p = 0 ; p < f_number_pollutants ; ++p ) {
-  const auto number_zones = v_number_pollutant_zones[ p ];
-  auto & constraints = v_PollutantBudget_Const[ p ];
-
-  // for the constraint of each zone of pollutant p, the index of its next
-  // active Variable and the coefficients that change, with their indices
-  std::vector< Index > next_var_index( number_zones , 0 );
-  std::vector< LinearFunction::Vec_FunctionValue > coefficients(
-							     number_zones );
-  std::vector< Subset > subset( number_zones );
-
-  // the walk is the one of generate_pollutant_budget_constraints(), so that
-  // the active Variables are met in the order they have been added
-  for_each_pollutant_term( p , [ & ]( Index unit_id , UnitBlock * unit_block ,
-                                      Index zone_id , ColVariable * ,
-                                      double factor ) {
-   if( std::binary_search( modified_units.begin() , modified_units.end() ,
-                           unit_id ) ) {
-    assert( next_var_index[ zone_id ] <
-            constraints[ zone_id ].get_num_active_var() );
-    assert( constraints[ zone_id ].get_active_var(
-                      next_var_index[ zone_id ] )->get_Block() == unit_block );
-
-    coefficients[ zone_id ].push_back( unit_block->get_scale() * factor );
-    subset[ zone_id ].push_back( next_var_index[ zone_id ] );
-    }
-
-   ++next_var_index[ zone_id ];
-   } );
-
-  for( Index zone_id = 0 ; zone_id < number_zones ; ++zone_id )
-   if( ! subset[ zone_id ].empty() )
-    LF( constraints[ zone_id ].get_function() )->
-     modify_coefficients( std::move( coefficients[ zone_id ] ) ,
-                          std::move( subset[ zone_id ] ) , true , issueMod );
-  }  // end( for( p ) )
-
- }  // end( UCBlock::update_pollutant_budget_constraints )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2850,10 +2697,9 @@ double UCBlock::get_replicate_linearization( Index unit ) const
                            "so there are no rows to read the duals of" ) );
 
  const auto block = get_unit_block( unit );
- const auto scale = block->get_scale();
 
  // with no copies the power of the unit is 0 whatever the duals are
- if( scale == 0 )
+ if( block->get_variable_weight() == 0 )
   return( get_zero_copy_linearization( unit ) );
 
  // the rows above the unit, at the solution
@@ -2864,9 +2710,9 @@ double UCBlock::get_replicate_linearization( Index unit ) const
                            linearization += coeff * var->get_value(); } ,
                           linearization );
 
- /* The Objective of a UnitBlock carrying the factor has the form k f(x)
-  * [see UnitBlock.h], so what it contributes here is f(x), the value divided
-  * by k. */
+ /* The Objective of a UnitBlock is the one of one copy, f(x), the copies
+  * being its weight [see UnitBlock::replicate()]: f(x) is what it
+  * contributes here. */
 
  const auto objective =
   dynamic_cast< FRealObjective * >( block->get_objective() );
@@ -2875,7 +2721,7 @@ double UCBlock::get_replicate_linearization( Index unit ) const
                            std::to_string( unit ) + " has no FRealObjective, "
                            "of which the derivative counts the value" ) );
  objective->compute();
- linearization += objective->value() / scale;
+ linearization += objective->value();
 
  return( linearization );
 
@@ -2886,8 +2732,9 @@ double UCBlock::get_replicate_linearization( Index unit ) const
 double UCBlock::get_zero_copy_linearization( Index unit ) const
 {
  /* The copy is the mirror of the abstract representation of the unit [see
-  * AbstractBlock::mirror()], taken while the unit is scaled to 1 so that its
-  * Objective is that of one copy, f^1; it then sits in an AbstractBlock whose
+  * AbstractBlock::mirror()], whose Objective is that of one copy, f^1, the
+  * weights of the copy being set to 1 in place of the 0 of the unit [see
+  * UnitBlock::replicate()]; it then sits in an AbstractBlock whose
   * Objective holds the terms of the rows above the unit on the Variable of
   * the copy, and the Solver of the AbstractBlock sums that Objective and
   * the one of the copy. Whatever the mirror cannot reproduce is left out of
@@ -2912,32 +2759,14 @@ double UCBlock::get_zero_copy_linearization( Index unit ) const
                            "this UCBlock is not a BlockSolverConfig with a "
                            "Solver" ) );
 
- /* The unit is scaled to 1 and back to its scale, 0, which leaves it as it
-  * was found. The unit tells this UCBlock of each of the two changes, even
-  * if asked to issue no Modification [see UnitBlock::issue_unit_mod()]:
-  * add_Modification() drops them while f_round_trip_unit is the unit, so
-  * that the rows that carry the factor and the bounds of the node
-  * injections are not rewritten, and nothing is passed on to the Solver or
-  * the father of this UCBlock. The mutex makes two calls on the same
-  * UCBlock take turns. */
-
  auto copy = new AbstractBlock();
- {
-  std::lock_guard< std::mutex > guard( f_round_trip_mutex );
-  f_round_trip_unit = block;
-  const auto scale = block->get_scale();
-  try {
-   block->scale( 1.0 , eNoMod , eNoMod );
-   copy->mirror( block );
-   }
-  catch( ... ) {
-   block->scale( scale , eNoMod , eNoMod );
-   f_round_trip_unit = nullptr;
-   delete copy;
-   throw;
-   }
-  block->scale( scale , eNoMod , eNoMod );
-  f_round_trip_unit = nullptr;
+ try {
+  copy->mirror( block );
+  copy->set_weight( 1 , eNoMod );
+  }
+ catch( ... ) {
+  delete copy;
+  throw;
   }
 
  auto wrapper = new AbstractBlock();
@@ -3423,13 +3252,13 @@ void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
 
 void UCBlock::size_deferred( const std::function< void( void ) > & size )
 {
- v_scaled_units.clear();
+ v_weighted_units.clear();
  f_deferred_injection_bounds = false;
- f_defer_scaled_rows = true;
+ f_defer_weighted_rows = true;
 
  const auto rewrite = [ this ]() {
-  f_defer_scaled_rows = false;
-  update_scaled_rows( v_scaled_units );
+  f_defer_weighted_rows = false;
+  update_weighted_rows( v_weighted_units );
   if( f_deferred_injection_bounds )
    set_node_injection_bounds();
   };
@@ -3511,9 +3340,9 @@ void UCBlock::resize_unit( MF_dbl_sp values , MF_dbl_sp second_values ,
 void UCBlock::replicate( MF_dbl_sp values , Subset && subset , bool ,
                          ModParam issuePMod , ModParam issueAMod )
 {
- // each unit scaled would have its rows and the bounds of the node
- // injections rewritten [see add_Modification()]: they are rewritten once,
- // after the last
+ // each unit replicated would have the right-hand sides and the bounds of
+ // the node injections rewritten [see weight_changed()]: they are rewritten
+ // once, after the last
  size_deferred( [ & ]() {
   size_units( *this , "replicate" , "::replicate" , values , subset ,
               issuePMod , issueAMod );

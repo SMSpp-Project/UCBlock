@@ -130,8 +130,9 @@
  * (3) keep the ramp of the step: a change of the output due to the reserve is
  * not a modulation.
  *
- * Furthermore, the values reported by the solvers are multiplied by the scale
- * factor \f$ \sigma \f$ of the unit [see scaled_value()]. The solvers find
+ * The values reported by the solvers are those of one copy of the unit,
+ * whose number of copies is the weight that a Solver of a Block containing
+ * it applies [see UnitBlock::replicate()]. The solvers find
  * the optimum of the model above, i.e., of the rows of ThermalUnitBlock, with
  * the following exceptions:
  *
@@ -213,23 +214,6 @@ class ThermalUnitDPSolverBase : public Solver
 /*--------------------------------------------------------------------------*/
 
  protected:
-
-/*--------------------------------------------------------------------------*/
- /// the value of \p v for all the copies of the unit
- /** The DP works on the data of one copy of the unit, while its Objective
-  * is the scale factor \f$ \sigma \f$ times the cost of one copy [see
-  * UnitBlock::scale()]: the values it reports are \f$ \sigma v \f$. A unit
-  * with \f$ \sigma = 0 \f$ costs nothing, unless it is infeasible. */
-
- OFValue scaled_value( OFValue v ) const {
-  const auto scale = f_Block ?
-   static_cast< const UnitBlock * >( f_Block )->get_scale() : 1.0;
-  if( scale == 1 )
-   return( v );
-  if( scale == 0 )
-   return( std::isinf( v ) ? v : 0 );
-  return( scale * v );
-  }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- PROTECTED TYPES --------------------------------*/

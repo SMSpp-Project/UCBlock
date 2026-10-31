@@ -228,8 +228,6 @@ void ThermalUnitBlock::deserialize( const netCDF::NcGroup & group )
 
  ::deserialize( group , f_Capacity , "Capacity" );
 
- ::deserialize( group , f_scale , "Scale" );
-
  if( ::deserialize( group , f_MinUpTime , "MinUpTime" ) )
   f_MinUpTime = std::max( f_MinUpTime , static_cast< Index >( 1 ) );
 
@@ -442,7 +440,7 @@ std::vector< std::string > ThermalUnitBlock::expected_dims( void )
 std::vector< std::string > ThermalUnitBlock::expected_vars( void )
  const {
  static const std::vector< std::string > ev =
-  { "InvestmentCost" , "Capacity" , "Scale" , "MinPower" , "MaxPower" ,
+  { "InvestmentCost" , "Capacity" , "MinPower" , "MaxPower" ,
     "DeltaRampUp" , "DeltaRampDown" , "PrimaryRho" , "SecondaryRho" ,
     "PrimarySpinningReserveCost" , "SecondarySpinningReserveCost" ,
     "ReactiveLinearTerm" ,
@@ -4122,14 +4120,14 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  //if( ( AR & FormMsk ) == tbinForm || ( AR & FormMsk ) == TForm )
  for( Index t = init_t ; t < f_time_horizon ; ++t )
   vars.push_back( std::make_tuple( & v_start_up[ t - init_t ] ,
-                                   f_scale * v_StartUpCost[ t ] , 0 ) );
+                                   v_StartUpCost[ t ] , 0 ) );
 
  // add the shut-down variables, if the unit pays anything to shut down - - -
  f_shut_down_in_obj = ! v_ShutDownCost.empty();
  if( f_shut_down_in_obj )
   for( Index t = init_t ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple( & v_shut_down[ t - init_t ] ,
-                                    f_scale * v_ShutDownCost[ t ] , 0 ) );
+                                    v_ShutDownCost[ t ] , 0 ) );
  // add start-up variables for pt, DP, SU, SD and SUSD formulations
  /*
  if( ( AR & FormMsk ) == ptForm || ( AR & FormMsk ) == DPForm ||
@@ -4138,7 +4136,6 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
    for( Index j = 0 ; j < v_Y_minus.size() ; ++j )
    if( v_Y_minus[ j ].second != f_time_horizon + 1 )
     vars.push_back( std::make_tuple( &v_commitment_minus[ j ] ,
-                                     f_scale *
                                      v_StartUpCost[ v_Y_minus[ j ].second - 1 ] ,
                                      0.0 ) );
  */
@@ -4146,21 +4143,20 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  // add the active power variables- - - - - - - - - - - - - - - - - - - - - -
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   vars.push_back( std::make_tuple( & v_active_power[ t ] ,
-                                   f_scale * v_LinearTerm[ t ] ,
-                                   AR & PCuts ? 0 : f_scale * v_QuadTerm[ t ] ) );
+                                   v_LinearTerm[ t ] ,
+                                   AR & PCuts ? 0 : v_QuadTerm[ t ] ) );
 
  // add the commitment variables- - - - - - - - - - - - - - - - - - - - - - -
  for( Index t = 0 ; t < f_time_horizon ; ++t )
   vars.push_back( std::make_tuple( &v_commitment[ t ] ,
-                                   f_scale * v_ConstTerm[ t ] , 0 ) );
+                                   v_ConstTerm[ t ] , 0 ) );
 
  // the schedule is that of one unit, from which each of the copies deviates
- // on its own, so that the deviation costs the scale factor times what one
- // copy pays [see UnitBlock::scale()]
+ // on its own, so that the deviation costs the copies times what one copy
+ // pays, the weight of the Objective [see UnitBlock::replicate()]
  if ( ! v_RefSchedule.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   vars.push_back( std::make_tuple( & v_abs_ref_schedule[ t ] , f_scale ,
-                                    0 ) );
+   vars.push_back( std::make_tuple( & v_abs_ref_schedule[ t ] , 1 , 0 ) );
 
  // the reserve terms: a reserve enters the Objective if its Variable exist
  // and either its cost is nonzero at some instant or the Configuration of
@@ -4202,8 +4198,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple( &v_primary_spinning_reserve[ t ] ,
                                     v_PrimarySpinningReserveCost.empty() ?
-                                    0.0 : f_scale *
-                                    v_PrimarySpinningReserveCost[ t ] ,
+                                    0.0 : v_PrimarySpinningReserveCost[ t ] ,
                                     0.0 ) );
   }
 
@@ -4217,8 +4212,7 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple( &v_secondary_spinning_reserve[ t ] ,
                                     v_SecondarySpinningReserveCost.empty() ?
-                                    0.0 : f_scale *
-                                    v_SecondarySpinningReserveCost[ t ] ,
+                                    0.0 : v_SecondarySpinningReserveCost[ t ] ,
                                     0.0 ) );
   }
 
@@ -4229,30 +4223,29 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
    ( AR & FormMsk ) == ptForm )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_cut[ t ] ,
-                                     f_scale * v_QuadTerm[ t ] , 0.0 ) );
+                                     v_QuadTerm[ t ] , 0.0 ) );
   // DP formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == DPForm )
    for( Index i = 0 ; i < v_Z_h_k.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_h_k[ i ] ,
-                                     f_scale *
                                      v_QuadTerm[ v_Z_h_k[ i ].first ] , 0.0 ) );
   // SU formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SUForm )
    for( Index i = 0 ; i < v_Z_h.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_h[ i ] ,
-                                     f_scale * v_QuadTerm[ v_Z_h[ i ].first ] ,
+                                     v_QuadTerm[ v_Z_h[ i ].first ] ,
                                      0.0 ) );
   // SD formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SDForm )
    for( Index i = 0 ; i < v_Z_k.size() ; ++i )
     vars.push_back( std::make_tuple( &v_cut_k[ i ] ,
-                                     f_scale * v_QuadTerm[ v_Z_k[ i ].first ] ,
+                                     v_QuadTerm[ v_Z_k[ i ].first ] ,
                                      0.0 ) );
   // SUSD formulation - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   if( ( AR & FormMsk ) == SUSDForm )
    for( Index t = 0 ; t < f_time_horizon ; ++t )
     vars.push_back( std::make_tuple( &v_cut_teta[ t ] ,
-                                     f_scale * v_QuadTerm[ t ] , 0.0 ) );
+                                     v_QuadTerm[ t ] , 0.0 ) );
   }
 
  // add the reactive power variables LAST - - - - - - - - - - - - - - - - - -
@@ -4265,11 +4258,11 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    vars.push_back( std::make_tuple(
     & v_reactive_power[ t ] ,
-    f_scale * ( v_ReactiveLinearTerm.empty() ? 0.0 : v_ReactiveLinearTerm[ t ] ) ,
+    ( v_ReactiveLinearTerm.empty() ? 0.0 : v_ReactiveLinearTerm[ t ] ) ,
     0.0 ) );
 
  // add the design (investment) variable LAST - - - - - - - - - - - - - - - -
- // x carries the (per-module, scaled) investment cost; a dualizing Solver may
+ // x carries the (per-module) investment cost; a dualizing Solver may
  // change this coefficient (e.g. the non-anticipativity multiplier in a nested
  // Lagrangian). Keeping it as the trailing, single-variable block lets
  // handle_objective_change() recognise a design-coefficient change as the last
@@ -4279,11 +4272,12 @@ void ThermalUnitBlock::generate_objective( Configuration * objc )
  // sections that may precede it.
  if( f_InvestmentCost != 0 ) {
   vars.push_back( std::make_tuple( & design ,
-                                   f_scale * f_InvestmentCost , 0 ) );
+                                   f_InvestmentCost , 0 ) );
   // seed the change-detection cache with the initial design cost, so that the
   // first (no-op) rewrite of the coefficient vector by a dualizing Solver does
   // not issue a useless eSetInvCost (the DP Solvers read the initial value
-  // directly at setup via get_design_cost()); unscaled, to match get_design_cost()
+  // directly at setup via get_design_cost()), the cost of one copy as
+  // get_design_cost()
   f_last_design_cost = f_InvestmentCost;
   }
 
@@ -4402,11 +4396,10 @@ bool ThermalUnitBlock::is_sol_feasible_physical( void ) const
  /* The check of is_sol_feasible() reads the schedule of the unit and tests it
   * against the data of the unit, the Variable of the schedule that are fixed
   * included: a unit that carries something the schedule does not answer for,
-  * i.e. a dimensioning variable, the reactive power, a reference schedule, a
-  * scale of its own or a fixed Variable of a formulation that the schedule
-  * only implies, is left to the check of the base class, which goes through
-  * the Variable. */
- if( ( f_scale != 1 ) || ( f_InvestmentCost != 0 ) || ( f_Capacity != 0 ) ||
+  * i.e. a dimensioning variable, the reactive power, a reference schedule or
+  * a fixed Variable of a formulation that the schedule only implies, is left
+  * to the check of the base class, which goes through the Variable. */
+ if( ( f_InvestmentCost != 0 ) || ( f_Capacity != 0 ) ||
      ( ! v_RefSchedule.empty() ) ||
      ( ! v_MinReactivePower.empty() ) || ( ! v_MaxReactivePower.empty() ) ||
      ( ! v_MinReactivePowerOn.empty() ) || ( ! v_MaxReactivePowerOn.empty() ) )
@@ -4660,8 +4653,6 @@ void ThermalUnitBlock::serialize( netCDF::NcGroup & group ) const
  if( f_Capacity != 0 )
   ::serialize( group , "Capacity" , netCDF::NcDouble() , f_Capacity );
 
- if( f_scale != 1 )
-  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  ::serialize( group , "InitialPower" , netCDF::NcDouble() , f_InitialPower );
  ::serialize( group , "MinUpTime" , netCDF::NcUint() , f_MinUpTime );
@@ -5293,8 +5284,6 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
   // Change the abstract representation
   Subset tmps = subset_sbtrct( subset , init_t );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5357,8 +5346,6 @@ void ThermalUnitBlock::set_startup_costs( MF_dbl_it values ,
  if( not_dry_run( issueAMod ) && objective_generated() ) {
   // Change the abstract representation
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first - init_t ,
@@ -5434,8 +5421,6 @@ void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
   Subset tmps = subset_sbtrct( subset , 2 * init_t );
   tmps = subset_add( tmps , f_time_horizon );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5502,8 +5487,6 @@ void ThermalUnitBlock::set_shutdown_costs( MF_dbl_it values ,
   // Change the abstract representation
   c_Index shift = f_time_horizon - 2 * init_t;
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + shift ,
@@ -5573,8 +5556,6 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5638,8 +5619,6 @@ void ThermalUnitBlock::set_const_term( MF_dbl_it values ,
   const Index dpos = 2 * f_time_horizon - init_t + shut_down_offset();
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
@@ -5707,8 +5686,6 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -5768,8 +5745,6 @@ void ThermalUnitBlock::set_linear_term( MF_dbl_it values ,
   const Index dpos = f_time_horizon - init_t + shut_down_offset();
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
@@ -5830,8 +5805,6 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
   const Index dpos = reactive_objective_start( qf );
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   qf->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                   true , un_ModBlock( issueAMod ) );
  }
@@ -5877,8 +5850,6 @@ void ThermalUnitBlock::set_reactive_linear_term( MF_dbl_it values ,
   auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
   const Index dpos = reactive_objective_start( qf );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   qf->modify_linear_coefficients( std::move( tmpv ) ,
                                   Range( rng.first + dpos , rng.second + dpos ) ,
                                   un_ModBlock( issueAMod ) );
@@ -5929,10 +5900,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   assign( v_QuadTerm , subset , values );
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
-  // the Objective carries f_scale times the cost
   DQuadFunction::Vec_FunctionValue svalues( values , values + subset.size() );
-  for( auto & c : svalues )
-   c *= f_scale;
+
 
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
@@ -5961,7 +5930,7 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
    if( ! v_LinearTerm.empty() ) {
     auto tmplvit = tmplv.begin();
     for( auto t : subset )
-     *( tmplvit++ ) = f_scale * v_LinearTerm[ t ];
+     *( tmplvit++ ) = v_LinearTerm[ t ];
    }
 
    static_cast< DQuadFunction * >( objective.get_function()
@@ -6053,10 +6022,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
   std::copy( values , values + sz , v_QuadTerm.begin() + rng.first );
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
-  // the Objective carries f_scale times the cost
   DQuadFunction::Vec_FunctionValue svalues( values , values + sz );
-  for( auto & c : svalues )
-   c *= f_scale;
+
 
   // Change the abstract representation
   // the order of the variables in the Objective Function is:
@@ -6082,9 +6049,8 @@ void ThermalUnitBlock::set_quad_term( MF_dbl_it values ,
    const Index dpos = f_time_horizon - init_t + shut_down_offset();
    DQuadFunction::Vec_FunctionValue tmplv( sz , 0 );
    if( ! v_LinearTerm.empty() )
-    std::transform( v_LinearTerm.begin() + rng.first ,
-                    v_LinearTerm.begin() + rng.second , tmplv.begin() ,
-                    [ this ]( double c ) { return( f_scale * c ); } );
+    std::copy( v_LinearTerm.begin() + rng.first ,
+               v_LinearTerm.begin() + rng.second , tmplv.begin() );
 
    static_cast< DQuadFunction * >( objective.get_function()
    )->modify_terms( svalues.begin() , tmplv.begin() ,
@@ -6201,8 +6167,6 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -6274,8 +6238,6 @@ void ThermalUnitBlock::set_primary_spinning_reserve_cost( MF_dbl_it values ,
   const Index dpos = reserve_section_start( false );
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
@@ -6350,8 +6312,6 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
 
   Subset tmps = subset_add( subset , dpos );
   DQuadFunction::Vec_FunctionValue tmpv( values , values + subset.size() );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                  true , un_ModBlock( issueAMod ) );
@@ -6423,8 +6383,6 @@ void ThermalUnitBlock::set_secondary_spinning_reserve_cost( MF_dbl_it values ,
   const Index dpos = reserve_section_start( true );
 
   DQuadFunction::Vec_FunctionValue tmpv( values , values + sz );
-  for( auto & c : tmpv )  // the Objective carries f_scale times the cost
-   c *= f_scale;
   static_cast< DQuadFunction * >( objective.get_function()
   )->modify_linear_coefficients( std::move( tmpv ) ,
                                  Range( rng.first + dpos ,
@@ -6590,39 +6548,6 @@ void ThermalUnitBlock::set_min_up_down_time( Index min_up_time ,
 
 /*--------------------------------------------------------------------------*/
 
-void ThermalUnitBlock::scale( MF_dbl_it values ,
-                              Subset && subset ,
-                              const bool ordered ,
-                              c_ModParam issuePMod ,
-                              c_ModParam issueAMod )
-{
- if( subset.empty() )
-  return;  // Since the given Subset is empty, no operation is performed
-
- if( f_scale == *values )
-  return;  // The scale factor does not change: nothing to do
-
- if( not_dry_run( issuePMod ) ) {
-  f_scale = *values;  // Update the scale factor
-
-  if( not_dry_run( issueAMod ) ) {
-   // Update the abstract representation
-   if( objective_generated() )
-    // Update the Objective
-    update_objective( Range( 0 , Inf< Index >() ) , issuePMod , issueAMod );
-  }
- }
-
- // Issue a Physical Modification, which the father sees anyway: it rewrites
- // the rows that carry the scale factor even if no Solver is listening
- issue_unit_mod( std::make_shared< UnitBlockMod >( this ,
-                                                  UnitBlockMod::eScale ) ,
-                 issuePMod );
-
-}  // end( ThermalUnitBlock::scale )
-
-/*--------------------------------------------------------------------------*/
-
 void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
                                                   c_ModParam issueAMod ) const
 {
@@ -6641,7 +6566,7 @@ void ThermalUnitBlock::update_objective_start_up( const Subset & subset ,
   auto var_index = function->is_active( &v_start_up[ t - init_t ] );
   assert( var_index < function->get_num_active_var() );
   function->modify_linear_coefficient( var_index ,
-                                       f_scale * v_StartUpCost[ t ] ,
+                                       v_StartUpCost[ t ] ,
                                        un_ModBlock( issueAMod ) );
  }
 }  // end( ThermalUnitBlock::update_objective_start_up )
@@ -6670,8 +6595,8 @@ void ThermalUnitBlock::update_objective_active_power( const Subset & subset ,
   auto var_index = function->is_active( &v_active_power[ t ] );
   assert( var_index < function->get_num_active_var() );
   function->modify_term( var_index ,
-                         f_scale * v_LinearTerm[ t ] ,
-                         AR & PCuts ? 0.0 : f_scale * v_QuadTerm[ t ] ,
+                         v_LinearTerm[ t ] ,
+                         AR & PCuts ? 0.0 : v_QuadTerm[ t ] ,
                          nAM );
  }
 
@@ -6695,7 +6620,7 @@ void ThermalUnitBlock::update_objective_commitment( const Subset & subset ,
   auto var_index = function->is_active( &v_commitment[ t ] );
   assert( var_index < function->get_num_active_var() );
   function->modify_linear_coefficient( var_index ,
-                                       f_scale * v_ConstTerm[ t ] ,
+                                       v_ConstTerm[ t ] ,
                                        un_ModBlock( issueAMod ) );
  }
 }  // end( ThermalUnitBlock::update_objective_commitment )
@@ -6712,10 +6637,9 @@ double ThermalUnitBlock::get_design_cost( void ) const
                                                   objective.get_function() ) ) {
    auto var_index = function->is_active( & design );
    if( var_index < function->get_num_active_var() )
-    // the current (possibly dualized) coefficient of the design variable;
-    // the Objective stores f_scale * cost, so divide it out to return the
-    // cost in the same unscaled units as get_investment_cost()
-    return( function->get_linear_coefficient( var_index ) / f_scale );
+    // the current (possibly dualized) coefficient of the design variable,
+    // the cost of one copy as get_investment_cost()
+    return( function->get_linear_coefficient( var_index ) );
    }
 
  // the Objective is not available: fall back to the "original" cost
@@ -6743,7 +6667,7 @@ void ThermalUnitBlock::update_objective_investment( ModParam issuePMod ,
   auto var_index = function->is_active( & design );
   assert( var_index < function->get_num_active_var() );
   function->modify_linear_coefficient( var_index ,
-                                       f_scale * f_InvestmentCost ,
+                                       f_InvestmentCost ,
                                        un_ModBlock( issueAMod ) );
   }
 
@@ -6770,115 +6694,6 @@ void ThermalUnitBlock::update_objective_investment( ModParam issuePMod ,
   }
 
 }  // end( ThermalUnitBlock::update_objective_investment )
-
-/*--------------------------------------------------------------------------*/
-
-void ThermalUnitBlock::update_objective( const Subset & subset ,
-                                         ModParam issuePMod ,
-                                         c_ModParam issueAMod ) {
- update_objective_investment( issuePMod , issueAMod );
- update_objective_start_up( subset , issueAMod );
- update_objective_active_power( subset , issueAMod );
- update_objective_commitment( subset , issueAMod );
- update_objective_other_terms( subset , issueAMod );
- update_objective_tail( subset , issueAMod );
-}  // end( ThermalUnitBlock::update_objective( subset ) )
-
-/*--------------------------------------------------------------------------*/
-
-void ThermalUnitBlock::update_objective_other_terms( const Subset & subset ,
-                                                     c_ModParam issueAMod )
-{
- if( ! objective_generated() )
-  return;  // the Objective has not been generated: nothing to be done
-
- auto function = dynamic_cast< DQuadFunction * >( objective.get_function() );
-
- if( ! function )
-  return;
-
- // the shut-down, reserve, perspective-cut and reactive power terms, each
- // f_scale times the cost of one copy as in generate_objective(): they all
- // go into a single Modification
- Subset nms;
- DQuadFunction::Vec_FunctionValue coeff;
- auto add = [ & ]( const ColVariable & var , double cost ) {
-  const auto idx = function->is_active( & var );
-  assert( idx < function->get_num_active_var() );
-  nms.push_back( idx );
-  coeff.push_back( f_scale * cost );
-  };
-
- if( f_shut_down_in_obj )
-  for( auto t : subset )
-   if( t >= init_t )
-    add( v_shut_down[ t - init_t ] , v_ShutDownCost[ t ] );
-
- if( f_primary_in_obj && ( ! v_PrimarySpinningReserveCost.empty() ) )
-  for( auto t : subset )
-   add( v_primary_spinning_reserve[ t ] , v_PrimarySpinningReserveCost[ t ] );
-
- if( f_secondary_in_obj && ( ! v_SecondarySpinningReserveCost.empty() ) )
-  for( auto t : subset )
-   add( v_secondary_spinning_reserve[ t ] ,
-        v_SecondarySpinningReserveCost[ t ] );
-
- if( AR & PCuts ) {
-  const auto form = AR & FormMsk;
-  if( ( form == tbinForm ) || ( form == TForm ) || ( form == ptForm ) )
-   for( auto t : subset )
-    add( v_cut[ t ] , v_QuadTerm[ t ] );
-  else
-   if( form == SUSDForm )
-    for( auto t : subset )
-     add( v_cut_teta[ t ] , v_QuadTerm[ t ] );
-   else {
-    // arc-indexed cut variables, each carrying the quadratic term of the
-    // time instant of its arc
-    auto arcs = [ & ]( const auto & Z , const std::vector< ColVariable > & cut ) {
-     for( Index i = 0 ; i < Z.size() ; ++i )
-      if( std::binary_search( subset.begin() , subset.end() , Z[ i ].first ) )
-       add( cut[ i ] , v_QuadTerm[ Z[ i ].first ] );
-     };
-    if( form == DPForm )
-     arcs( v_Z_h_k , v_cut_h_k );
-    else
-     if( form == SUForm )
-      arcs( v_Z_h , v_cut_h );
-     else
-      if( form == SDForm )
-       arcs( v_Z_k , v_cut_k );
-    }
-  }
-
- if( ! v_RefSchedule.empty() )
-  for( auto t : subset )
-   add( v_abs_ref_schedule[ t ] , 1 );
-
- if( f_reactive_power && ( ! v_ReactiveLinearTerm.empty() ) )
-  for( auto t : subset )
-   add( v_reactive_power[ t ] , v_ReactiveLinearTerm[ t ] );
-
- if( ! nms.empty() )
-  function->modify_linear_coefficients( std::move( coeff ) , std::move( nms ) ,
-                                        false , un_ModBlock( issueAMod ) );
-
-}  // end( ThermalUnitBlock::update_objective_other_terms )
-
-/*--------------------------------------------------------------------------*/
-
-void ThermalUnitBlock::update_objective( Range rng ,
-                                         ModParam issuePMod ,
-                                         c_ModParam issueAMod ) {
- rng.second = std::min( rng.second , f_time_horizon );
- if( rng.second <= rng.first )
-  return;
-
- Subset subset( rng.second - rng.first );
- std::iota( subset.begin() , subset.end() , rng.first );
-
- update_objective( subset , issuePMod , issueAMod );
-}  // end( ThermalUnitBlock::update_objective( range ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -6923,6 +6738,11 @@ void ThermalUnitBlock::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 			     this , ThermalUnitBlockMod::eFixVars ) , chnl );
   return;
  }
+
+ // BlockWeightMod - the copies of the unit [see UnitBlock::replicate()],
+ // which change nothing of the unit itself, the Solver applying them
+ if( dynamic_cast< BlockWeightMod * >( mod ) )
+  return;
 
  // BlockMod - Generic modification - - - - - - - - - - - - - - - - - - - - -
  if( const auto tmod = dynamic_cast< BlockMod * >( mod ) ) {
@@ -7191,18 +7011,13 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
  // abstract representation has been changed already)
  Index th = f_time_horizon;
 
- // the Objective carries f_scale times the cost of one copy of the unit
- // [see UnitBlock::scale()], the physical representation the cost of one
- // copy, hence the coefficients are divided back before being stored; with
- // a zero scale the Objective tells nothing of the cost of a copy, which is
- // then kept as it is
- if( f_scale == 0 )
-  return;
- auto coef = [ qf , this ]( Index i ) {
-  return( qf->get_linear_coefficient( i ) / f_scale );
+ // the Objective and the physical representation both carry the cost of
+ // one copy of the unit [see UnitBlock::replicate()]
+ auto coef = [ qf ]( Index i ) {
+  return( qf->get_linear_coefficient( i ) );
   };
- auto qcoef = [ qf , this ]( Index i ) {
-  return( qf->get_quadratic_coefficient( i ) / f_scale );
+ auto qcoef = [ qf ]( Index i ) {
+  return( qf->get_quadratic_coefficient( i ) );
   };
 
  // C05FunctionModLinRngd / DQuadFunctionModRngd - - - - - - - - - - - - - - -
@@ -7370,12 +7185,12 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    gr += th;
 
    if( l < gr ) {
-    // their coefficient is the scale factor: a Modification whose range
+    // their coefficient is 1: a Modification whose range
     // crosses this section is fine as long as it leaves it there, which is
     // what a restore of the original costs does
     Index r2 = std::min( r , gr );
     for( Index i = l ; i < r2 ; ++i )
-     if( ( qf->get_linear_coefficient( i ) != f_scale ) ||
+     if( ( qf->get_linear_coefficient( i ) != 1 ) ||
 	 ( with_quad && ( qf->get_quadratic_coefficient( i ) != 0 ) ) )
       throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
        "coefficients of the schedule-deviation variables cannot change" ) );
@@ -7665,12 +7480,12 @@ void ThermalUnitBlock::handle_objective_change( FunctionMod * mod ,
    gr += th;
 
    if( *l < gr ) {
-    // their coefficient is the scale factor [see the ranged case]
+    // their coefficient is 1 [see the ranged case]
     auto r = l;
     for( ++r ; ( r != sbs->end() ) && ( *r < gr ) ; )
      ++r;
     while( l != r ) {
-     if( ( qf->get_linear_coefficient( *l ) != f_scale ) ||
+     if( ( qf->get_linear_coefficient( *l ) != 1 ) ||
 	 ( with_quad && ( qf->get_quadratic_coefficient( *l ) != 0 ) ) )
       throw( std::invalid_argument( "ThermalUnitBlock::add_Modification: the "
        "coefficients of the schedule-deviation variables cannot change" ) );

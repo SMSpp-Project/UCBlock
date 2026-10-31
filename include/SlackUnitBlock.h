@@ -101,8 +101,8 @@ namespace SMSpp_di_unipi_it
  *   c^{sc}_t p^{sc}_t + c^u_t h^u_t u_t + C^q b_t a^q_t \bigr) , \tag{5}
  * \f]
  * where the reactive power costs the constant fraction \f$ C^q = 0.7 \f$
- * (REACTIVE_COST_FACTOR) of the price of the active power, and it is not
- * multiplied by a scale factor (the unit has none, i.e., its scale is 1).
+ * (REACTIVE_COST_FACTOR) of the price of the active power, the cost of one
+ * copy of the unit (see UnitBlock::replicate()).
  * Note that the term \f$ b_t p^{ac}_t \f$ is a cost of the power injected if
  * \f$ b_t > 0 \f$ and \f$ P^{mx}_t \geq 0 \f$. For a dump unit
  * (\f$ P^{mx}_t < 0 \f$, hence \f$ p^{ac}_t \leq 0 \f$), instead, the power

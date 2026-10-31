@@ -96,7 +96,7 @@ namespace SMSpp_di_unipi_it
  * they refuse, and the parts of their recursion that they compute by
  * interpolation). How the unit is composed with the other
  * Blocks of a UCBlock (balance of the injections, reserve, inertia and
- * pollutant requirements, scale and design of the unit) is described in
+ * pollutant requirements, copies and design of the unit) is described in
  * \ref ucblock_model.
  *
  * The rows come from the literature, one family of formulations at a time.
@@ -465,7 +465,7 @@ class ThermalUnitBlock : public UnitBlock
   *
   * - The variable "ReferenceSchedule", an active power \f$ \hat{p}_t \f$
   *   the unit is asked to follow; if it is given, the Objective has the
-  *   term \f$ \sigma \sum_{ t \in \mathcal{T} } | p^{ac}_t - \hat{p}_t | \f$
+  *   term \f$ \sum_{ t \in \mathcal{T} } | p^{ac}_t - \hat{p}_t | \f$
   *   (see generate_objective()). Optional.
   *
   * - The scalar variable "FixToMaximum", of type netCDF::NcInt: if it is
@@ -485,7 +485,7 @@ class ThermalUnitBlock : public UnitBlock
   *   building the unit: if it is nonzero, the unit has a binary design
   *   variable \f$ x \f$, it can be on only if it is built
   *   (\f$ u_t \leq x \f$), and the Objective has the term
-  *   \f$ \sigma c^{inv} x \f$. Optional with default 0. A continuous
+  *   \f$ c^{inv} x \f$. Optional with default 0. A continuous
   *   design, "MaxCapacityDesign" or "MinCapacityDesign", is rejected with an
   *   exception, since it would multiply the binary commitment in the
   *   maximum power rows: a unit that may be built is described by
@@ -497,13 +497,14 @@ class ThermalUnitBlock : public UnitBlock
   *   which is stored and returned by get_capacity() and is not used in any
   *   row. Optional with default 0.
   *
-  * - The scalar variable "Scale", the scale factor \f$ \sigma \f$ of the
-  *   unit (see UnitBlock::scale()); optional with default 1. A unit
-  *   with \f$ \sigma = N \f$ is a fleet of \f$ N \f$ identical modules,
-  *   whose data (powers, ramps, limits, costs, InvestmentCost) are those of
-  *   one module: every coefficient of the Objective is multiplied by
-  *   \f$ \sigma \f$, and the UCBlock multiplies by \f$ \sigma \f$ the terms
-  *   of the unit in its linking rows (see \ref ucblock_model). The
+  * - The scalar variable "Scale", the number of copies \f$ \sigma \f$ of
+  *   the unit (see UnitBlock::deserialize() and UnitBlock::replicate());
+  *   optional with default 1. A unit with \f$ \sigma = N \f$ is a fleet of
+  *   \f$ N \f$ identical modules, whose data (powers, ramps, limits, costs,
+  *   InvestmentCost) are those of one module: \f$ \sigma \f$ is the weight
+  *   of the Objective and of the Variable of the unit, which multiplies its
+  *   Objective and its terms in the linking rows of the UCBlock (see \ref
+  *   ucblock_model). The
   *   commitment, start-up and shut-down variables are those of one module
   *   and are shared by the \f$ N \f$ modules, which are therefore all on or
   *   all off at every instant.
@@ -1332,21 +1333,22 @@ class ThermalUnitBlock : public UnitBlock
  /** Generates the Objective of the ThermalUnitBlock, a DQuadFunction to be
   * minimized, which in the notation of generate_abstract_variables() is
   * \f{align*}{
-  *   \sigma \Bigl( & \sum_{ t = t_0 }^{ T - 1 } ( c^{su}_t v_t
+  *   & \sum_{ t = t_0 }^{ T - 1 } ( c^{su}_t v_t
   *     + c^{sd}_t w_t ) + \sum_{ t \in \mathcal{T} } \bigl( a_t
   *     ( p^{ac}_t )^2 + b_t p^{ac}_t + c_t u_t \bigr) \\
   *   & + \sum_{ t \in \mathcal{T} } \bigl( c^{pr}_t p^{pr}_t
   *     + c^{sc}_t p^{sc}_t + a^{ref}_t + b^q_t q_t \bigr)
-  *     + c^{inv} x \Bigr) \; , \tag{34}
+  *     + c^{inv} x \; , \tag{34}
   * \f}
-  * where \f$ \sigma \f$ is the scale factor, \f$ a_t \f$, \f$ b_t \f$,
+  * the cost of one copy of the unit (see UnitBlock::replicate()), where
+  * \f$ a_t \f$, \f$ b_t \f$,
   * \f$ c_t \f$, \f$ c^{su}_t \f$, \f$ c^{sd}_t \f$, \f$ c^{pr}_t \f$,
   * \f$ c^{sc}_t \f$, \f$ b^q_t \f$ and \f$ c^{inv} \f$ are the data of
   * deserialize(), and every term whose variables do not exist is absent:
   * the shut-down term if ShutDownCost is absent or zero, the reserve terms
   * if the reserve variables do not exist, the term
   * \f$ a^{ref}_t \geq | p^{ac}_t - \hat{p}_t | \f$ (the variable
-  * "v_abs_refschd", with coefficient \f$ \sigma \f$) if there is no
+  * "v_abs_refschd", with coefficient 1) if there is no
   * ReferenceSchedule, the reactive term if the UCBlock has no reactive
   * power, and the investment term if InvestmentCost is zero. The costs
   * \f$ c^{pr}_t \f$ and \f$ c^{sc}_t \f$ are 0 when they are not given,
@@ -1478,7 +1480,7 @@ class ThermalUnitBlock : public UnitBlock
  /** Returns true if is_sol_feasible() checks the schedule against the data of
   * the unit, which it does unless the unit carries something that the
   * schedule does not answer for: a dimensioning variable, the reactive
-  * power, a reference schedule, a scale of its own or a fixed Variable of a
+  * power, a reference schedule or a fixed Variable of a
   * formulation that the schedule only implies. In those cases the check goes
   * through the abstract representation, and therefore through the Variable,
   * as the base class does it. A :ThermalUnitBlock with constraints of its
@@ -1520,8 +1522,8 @@ class ThermalUnitBlock : public UnitBlock
 
  /// returns the current cost of the design (investment) variable
  /** Returns the current cost of the design (investment) variable, in the same
-  * unscaled units as get_investment_cost(): i.e. the variable's Objective
-  * coefficient divided by the scale factor. This equals f_InvestmentCost when
+  * units as get_investment_cost(), those of one copy: i.e. the variable's
+  * Objective coefficient. This equals f_InvestmentCost when
   * the Objective is in its "original" state, but it may differ if a dualizing
   * Solver has changed the coefficient (e.g. the non-anticipativity multiplier
   * in a nested Lagrangian); Solvers that consume the structural data (the DP
@@ -1931,8 +1933,8 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// returns the reference schedule of the unit, if it has one
  /** Returns the vector of the power the unit is asked to follow, empty if it
-  * has none; the deviation from it is a term of the Objective, weighed with
-  * the scale factor [see generate_objective()]. */
+  * has none; the deviation from it is a term of the Objective [see
+  * generate_objective()]. */
 
  const std::vector< double > & get_reference_schedule( void ) const {
   return( v_RefSchedule );
@@ -1996,9 +1998,6 @@ class ThermalUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the scale factor
-
- double get_scale( void ) const override { return( f_scale ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR READING THE Variable OF THE ThermalUnitBlock -------*/
@@ -2418,7 +2417,7 @@ class ThermalUnitBlock : public UnitBlock
   * without the shut-down term (ShutDownCost absent or zero, see
   * generate_objective()) only zero costs are accepted, and a nonzero one is
   * refused with std::logic_error before anything changes; otherwise the
-  * coefficients of the Objective, \f$ \sigma c^{sd}_t \f$, follow. The same
+  * coefficients of the Objective, \f$ c^{sd}_t \f$, follow. The same
   * rules hold for the Range version. */
 
  void set_shutdown_costs( MF_dbl_it values ,
@@ -2507,7 +2506,7 @@ class ThermalUnitBlock : public UnitBlock
   * Objective is generated without the primary reserve term [see
   * generate_objective()] only zero costs are accepted, and a nonzero one is
   * refused with std::logic_error before anything changes; otherwise the
-  * coefficients of the Objective, \f$ \sigma c^{pr}_t \f$, follow. The same
+  * coefficients of the Objective, \f$ c^{pr}_t \f$, follow. The same
   * rules hold for the Range version and for the secondary reserve. */
 
  void set_primary_spinning_reserve_cost( MF_dbl_it values ,
@@ -2677,32 +2676,6 @@ class ThermalUnitBlock : public UnitBlock
  void set_min_up_down_time( Index min_up_time , Index min_down_time ,
                             ModParam issuePMod = eNoBlck );
 
-/*--------------------------------------------------------------------------*/
- /// sets the scale factor
- /** This method sets the scale factor.
-  *
-  * @param values An iterator to a vector containing the scale factor.
-  *
-  * @param subset If non-empty, the scale factor is set to the value pointed
-  *               by \p values. If empty, no operation is performed.
-  *
-  * @param ordered This parameter is ignored.
-  *
-  * @param issuePMod Controls how physical Modification are issued.
-  *
-  * @param issueAMod Controls how abstract Modification are issued. */
-
- void scale( MF_dbl_it values ,
-             Subset && subset ,
-             const bool ordered = false ,
-             c_ModParam issuePMod = eNoBlck ,
-             c_ModParam issueAMod = eNoBlck ) override;
-
-/*--------------------------------------------------------------------------*/
-
- // For the Range version, use the default implementation defined in UnitBlock
- using UnitBlock::scale;
-
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2711,18 +2684,6 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
-/*--------------------------------------------------------------------------*/
- /// k identical copies of this unit, i.e., scale( k )
- /** Registered in the methods factory as "ThermalUnitBlock::replicate",
-  * the name under which a Block of unknown class is sized by identical
-  * copies [see UCBlock::replicate()]; protected, as the name is the way to
-  * reach it. */
-
- void replicate( double k , c_ModParam issuePMod = eNoBlck ,
-                 c_ModParam issueAMod = eNoBlck ) {
-  scale( k , issuePMod , issueAMod );
-  }
-
 /*--------------------------------------------------------------------------*/
  /// a dynamic group of rows whose number depends on the data
  /** The rows that build_rows() writes with put_dyn_row(), each with the key
@@ -3063,39 +3024,10 @@ class ThermalUnitBlock : public UnitBlock
                                    c_ModParam issueAMod ) const;
 
 /*--------------------------------------------------------------------------*/
- /// updates the remaining terms of the Objective that carry the scale
- /** This method updates the terms of the Objective associated with the
-  * shut-down, the primary and secondary spinning reserves, the perspective
-  * cuts and the reactive power, each being \f$ \sigma \f$ times the cost of
-  * one copy of the unit (see UnitBlock::scale()).
-  *
-  * @param subset A set of time instants at which the terms must be updated.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective_other_terms( const Subset & subset ,
-                                    c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// updates the coefficients of the Variable appended by a derived class
- /** Called by update_objective() after the scale factor has changed, so
-  * that the coefficients of the Variable appended to the Objective by a
-  * derived class [see objective_tail()] follow it at the time instants in
-  * \p subset. The default does nothing, as the ThermalUnitBlock has no such
-  * Variable. */
-
- virtual void update_objective_tail( const Subset & subset ,
-                                     c_ModParam issueAMod ) { }
-
-/*--------------------------------------------------------------------------*/
  /// updates the term of the Objective associated with the investment cost
  /** This method updates the coefficient of the design variable in the
-  * Objective, i.e., the term \f$ \sigma c^{inv} x \f$, where \f$ \sigma \f$
-  * is the current scale factor (see UnitBlock::scale()), \f$ c^{inv} \f$ the
-  * investment cost of one module and \f$ x \f$ the design variable. It
-  * is meant to be called after f_scale has been modified, so that the
-  * Objective coefficient stays in sync with the scaled cost convention
-  * used by the other update_objective_* helpers.
+  * Objective, i.e., the term \f$ c^{inv} x \f$, where \f$ c^{inv} \f$ is
+  * the investment cost of one module and \f$ x \f$ the design variable.
   *
   * Besides changing the abstract representation (when issueAMod allows it), it
   * issues a eSetInvCost ThermalUnitBlockMod (when issuePMod allows it) so that
@@ -3107,34 +3039,6 @@ class ThermalUnitBlock : public UnitBlock
   * @param issueAMod controls how abstract Modification are issued. */
 
  void update_objective_investment( ModParam issuePMod , ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// updates the coefficients of the Objective
- /** This method updates the coefficients of the Objective.
-  *
-  * @param subset A set of time instants at which the coefficients must be
-  *        updated.
-  *
-  * @param issuePMod controls how physical Modification are issued.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective( const Subset & subset , ModParam issuePMod ,
-                        c_ModParam issueAMod );
-
-/*--------------------------------------------------------------------------*/
- /// updates the coefficients of the Objective
- /** This method updates the coefficients of the Objective.
-  *
-  * @param rng The Range of time instants at which the coefficients must be
-  *        updated.
-  *
-  * @param issuePMod controls how physical Modification are issued.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective( Range rng , ModParam issuePMod ,
-                        c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// verify whether the data in this ThermalUnitBlock is consistent
@@ -3433,8 +3337,6 @@ class ThermalUnitBlock : public UnitBlock
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
 
- /// the scale factor
- double f_scale = 1;
 
  /// "FixToMaximum": if positive, p_t >= the operational maximum power
  int f_fixToMax = 0;
@@ -3736,12 +3638,6 @@ class ThermalUnitBlock : public UnitBlock
   register_method< ThermalUnitBlock , MF_int_it , Range >(
    "ThermalUnitBlock::set_init_updown_time" ,
    & ThermalUnitBlock::set_init_updown_time );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
-   "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
-
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
-   "ThermalUnitBlock::scale" , & ThermalUnitBlock::scale );
 
   // replicate(), the way of sizing a Block it is [see UCBlock::replicate()]:
   // k identical copies of this unit, the k given as the one scalar a unit

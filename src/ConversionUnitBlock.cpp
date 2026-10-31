@@ -442,9 +442,6 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
  f_MinDownTime = clamp_min_time( f_MinDownTime , T , f_InitUpDownTime ,
                                  false );
 
- f_scale = 1;
- ::deserialize( group , f_scale , "Scale" );
-
  // the modules- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  f_Modules = 1;
@@ -482,12 +479,12 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
    throw( std::invalid_argument( who + ": a continuous design "
                                  "(MaxCapacityDesign >= 0) with more than "
                                  "one module" ) );
-  if( ( f_scale != 1 ) && ( std::abs( X ) > 1 ) )
+  if( ( get_scale() != 1 ) && ( std::abs( X ) > 1 ) )
    throw( std::invalid_argument( who + ": Scale != 1 together with "
                                  "|MaxCapacityDesign| > 1, which represent "
                                  "the same replication of the unit" ) );
   }
- if( ( f_scale != 1 ) && ( f_Modules > 1 ) )
+ if( ( get_scale() != 1 ) && ( f_Modules > 1 ) )
   throw( std::invalid_argument( who + ": Scale != 1 together with Modules > "
                                 "1, which represent the same replication of "
                                 "the unit" ) );
@@ -527,7 +524,7 @@ std::vector< std::string > ConversionUnitBlock::expected_vars( void ) const
     "SecondarySpinningReserveCost" , "LinearTerm" , "QuadTerm" ,
     "ConstTerm" , "StartUpCost" , "ShutDownCost" , "FixedConsumption" ,
     "InertiaCommitment" , "InertiaPower" , "InitialPower" ,
-    "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Scale" , "Delay" ,
+    "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Delay" ,
     "CyclicDelay" , "InitialDelayedPower" , "Modules" ,
     "InitialCommitment" , "InvestmentCost" , "MinCapacityDesign" ,
     "MaxCapacityDesign" };
@@ -1820,29 +1817,29 @@ void ConversionUnitBlock::generate_objective( Configuration * objc )
 
  for( Index t = 0 ; t < T ; ++t )
   vars.push_back( std::make_tuple( & v_start_up[ t ] ,
-                                   f_scale * get_start_up_cost( t ) , 0 ) );
+                                   get_start_up_cost( t ) , 0 ) );
  for( Index t = 0 ; t < T ; ++t )
   vars.push_back( std::make_tuple( & v_shut_down[ t ] ,
-                                   f_scale * get_shut_down_cost( t ) , 0 ) );
+                                   get_shut_down_cost( t ) , 0 ) );
  for( Index t = 0 ; t < T ; ++t )
   vars.push_back( std::make_tuple( & v_commitment[ t ] ,
-                                   f_scale * get_const_term( t ) , 0 ) );
+                                   get_const_term( t ) , 0 ) );
  for( Index g = 0 ; g < f_G ; ++g )
   for( Index t = 0 ; t < T ; ++t )
    vars.push_back( std::make_tuple( & op( g , t ) ,
-                                    f_scale * get_linear_term( t , g ) ,
-                                    f_scale * get_quad_term( t , g ) ) );
+                                    get_linear_term( t , g ) ,
+                                    get_quad_term( t , g ) ) );
  auto reserve = [ & ]( std::vector< std::vector< ColVariable > > & r ,
                        const MAdbl & cost ) {
   for( Index g = 0 ; g < r.size() ; ++g )
    for( Index t = 0 ; t < r[ g ].size() ; ++t )
     vars.push_back( std::make_tuple( & r[ g ][ t ] , absent( cost ) ? 0 :
-                                     f_scale * cost[ t ][ g ] , 0 ) );
+                                     cost[ t ][ g ] , 0 ) );
   };
  reserve( v_primary_reserve , v_PrimaryCost );
  reserve( v_secondary_reserve , v_SecondaryCost );
  if( has_design() )  // the design last
-  vars.push_back( std::make_tuple( & design , f_scale * f_InvestmentCost ,
+  vars.push_back( std::make_tuple( & design , f_InvestmentCost ,
                                    0 ) );
 
  objective.set_function( new DQuadFunction( std::move( vars ) ) );
@@ -1870,12 +1867,12 @@ void ConversionUnitBlock::update_objective( const Subset & instants ,
   };
 
  for( auto t : instants ) {
-  put( t , f_scale * get_start_up_cost( t ) , 0 );
-  put( T + t , f_scale * get_shut_down_cost( t ) , 0 );
-  put( 2 * T + t , f_scale * get_const_term( t ) , 0 );
+  put( t , get_start_up_cost( t ) , 0 );
+  put( T + t , get_shut_down_cost( t ) , 0 );
+  put( 2 * T + t , get_const_term( t ) , 0 );
   for( Index g = 0 ; g < f_G ; ++g )
-   put( ( 3 + g ) * T + t , f_scale * get_linear_term( t , g ) ,
-        f_scale * get_quad_term( t , g ) );
+   put( ( 3 + g ) * T + t , get_linear_term( t , g ) ,
+        get_quad_term( t , g ) );
   }
  Index off = ( 3 + f_G ) * T;
  for( const auto * rv : { & v_primary_reserve , & v_secondary_reserve } ) {
@@ -1885,7 +1882,7 @@ void ConversionUnitBlock::update_objective( const Subset & instants ,
    if( ( * rv )[ g ].empty() )
     continue;
    for( auto t : instants )
-    put( off + t , absent( cost ) ? 0 : f_scale * cost[ t ][ g ] , 0 );
+    put( off + t , absent( cost ) ? 0 : cost[ t ][ g ] , 0 );
    off += T;
    }
   }
@@ -1902,7 +1899,7 @@ void ConversionUnitBlock::update_design_cost( ModParam issueAMod )
  if( ( ! objective_generated() ) || ( ! has_design() ) )
   return;
  auto f = static_cast< DQuadFunction * >( objective.get_function() );
- f->modify_term( f->get_num_active_var() - 1 , f_scale * f_InvestmentCost ,
+ f->modify_term( f->get_num_active_var() - 1 , f_InvestmentCost ,
                  0 , un_ModBlock( issueAMod ) );
  }
 
@@ -2067,8 +2064,6 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
    ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
                 f_MaxCapacityDesign );
   }
- if( f_scale != 1 )
-  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  if( ! v_Delay.empty() ) {
   std::vector< unsigned int > d( v_Delay.begin() , v_Delay.end() );
@@ -2647,36 +2642,19 @@ void ConversionUnitBlock::set_investment_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::scale( MF_dbl_it values , Subset && subset ,
-                                 const bool ordered ,
-                                 c_ModParam issuePMod ,
-                                 c_ModParam issueAMod )
+void ConversionUnitBlock::set_weight( double k , c_ModParam issueMod )
 {
- if( subset.empty() || ( f_scale == *values ) )
-  return;
-
- // the scale and a design of more than one module, or more than one module,
- // are the same replication of the unit, as deserialize() says
- if( ( *values != 1 ) &&
+ // the copies and a design of more than one module, or more than one
+ // module, are the same replication of the unit, as deserialize() says
+ if( ( k != 1 ) &&
      ( ( has_design() && ( std::abs( f_MaxCapacityDesign ) > 1 ) ) ||
        ( f_Modules > 1 ) ) )
-  throw( std::invalid_argument( "ConversionUnitBlock::scale: Scale != 1 "
-                                "together with |MaxCapacityDesign| > 1 or "
+  throw( std::invalid_argument( "ConversionUnitBlock::set_weight: Scale != "
+                                "1 together with |MaxCapacityDesign| > 1 or "
                                 "Modules > 1, which represent the same "
                                 "replication of the unit" ) );
 
- if( not_dry_run( issuePMod ) ) {
-  f_scale = *values;
-  if( not_dry_run( issueAMod ) && objective_generated() ) {
-   update_objective( range_subset( Range( 0 , f_time_horizon ) ,
-                                   f_time_horizon ) , issueAMod );
-   update_design_cost( issueAMod );
-   }
-  }
-
- issue_unit_mod( std::make_shared< UnitBlockMod >( this ,
-                                                  UnitBlockMod::eScale ) ,
-                 issuePMod );
+ UnitBlock::set_weight( k , issueMod );
  }
 
 /*--------------------------------------------------------------------------*/

@@ -98,8 +98,8 @@ namespace SMSpp_di_unipi_it
  * largest change of the flow between two consecutive instants, in the same
  * unit, and a delay is an integer number of instants (a travel time of
  * \f$ d \f$ hours is given as \f$ \lceil d / \Delta t \rceil \f$ instants).
- * HydroUnitBlock does not implement the scale factor of UnitBlock, i.e.,
- * get_scale() is 1.
+ * HydroUnitBlock registers no "HydroUnitBlock::replicate", i.e., it is not
+ * meant to be replicated [see UnitBlock::replicate()].
  *
  * Some features of a valley are represented through the data alone. A
  * reservoir without storage (a channel) has

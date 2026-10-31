@@ -72,8 +72,9 @@ namespace SMSpp_di_unipi_it
  *
  * Note that the HydroSystemUnitBlock has no Variable and no Constraint
  * outside its sub-Block, its Objective is identically zero, and therefore its
- * cost is the sum of the Objective of its sub-Block, while the scale factor
- * of UnitBlock is not implemented, i.e., get_scale() is 1.
+ * cost is the sum of the Objective of its sub-Block, while it registers no
+ * "HydroSystemUnitBlock::replicate", i.e., it is not meant to be replicated
+ * [see UnitBlock::replicate()].
  *
  * Future cost of the water. If \f$ v^{f} \f$ is the vector of the final
  * volumes \f$ v^{hy}_{n,T-1} \f$ of all the reservoirs of all the
@@ -413,6 +414,14 @@ class HydroSystemUnitBlock : public UnitBlock
  /// returns the maximum power of the generator in its HydroUnitBlock
 
  double get_max_power( Index t , Index generator = 0 ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the copies of the generator, those of its HydroUnitBlock too
+ /** The weight of the Variable of this HydroSystemUnitBlock times the
+  * copies of the generator in its HydroUnitBlock [see
+  * UnitBlock::get_copies()]. */
+
+ double get_copies( Index generator = 0 ) const override;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
