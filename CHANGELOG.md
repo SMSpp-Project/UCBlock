@@ -517,9 +517,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probability of the scenario, and the derivative by copies was wrong
 
 - the unit test solves the Solution of the formulations of a
-  `ThermalUnitBlock`, whose cost is quadratic, with a `:MILPSolver` that
-  solves a quadratic Objective with integer Variable, which HiGHS does not:
-  where HiGHS was the only one (e.g., on macOS) the test stopped there
+  `ThermalUnitBlock`, whose cost is quadratic, and the `UCBlock` on an
+  `ACNetworkBlock` with and without the bounds of the angles, whose
+  Constraint are quadratic, with a `:MILPSolver` that solves them, which
+  HiGHS does not: where HiGHS was the only one (e.g., on macOS) the test
+  stopped at the first and failed the others
 
 - `UCBlock::is_feasible()` weighs the Variable of each unit with its copies,
   as the Solver does, the rows holding the coefficients of one copy, and

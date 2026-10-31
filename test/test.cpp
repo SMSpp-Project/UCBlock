@@ -5634,7 +5634,7 @@ static void test_intermittent_design_reserve( void )
 /*--------------------------------------------------------------------------*/
 // the :MILPSolver of the build and the value it finds (defined below)
 
-static std::string milp_solver( bool miqp = false );
+static std::string milp_solver( bool quadratic = false );
 static double milp_value( Block * b , const std::string & sname );
 
 /*--------------------------------------------------------------------------*/
@@ -8205,16 +8205,16 @@ static void test_nuclear_band_rule( void )
 /*--------------------------------------------------------------------------*/
 /*------------- RESERVES, AVAILABILITY AND THE CHANGES OF DATA -------------*/
 /*--------------------------------------------------------------------------*/
-/// the first :MILPSolver of the build, empty if there is none; with miqp,
-/// the first that solves a quadratic Objective with integer Variable, which
-/// HiGHS does not
+/// the first :MILPSolver of the build, empty if there is none; with
+/// quadratic, the first that solves a quadratic Objective with integer
+/// Variable and quadratic Constraint, which HiGHS does not
 
-static std::string milp_solver( bool miqp )
+static std::string milp_solver( bool quadratic )
 {
  for( const auto & name : { "CPXMILPSolver" , "GRBMILPSolver" ,
                             "HiGHSMILPSolver" , "SCIPMILPSolver" } )
   if( Solver::has_Solver( name ) &&
-      ( ( ! miqp ) || ( std::string( name ) != "HiGHSMILPSolver" ) ) )
+      ( ( ! quadratic ) || ( std::string( name ) != "HiGHSMILPSolver" ) ) )
    return( name );
  return( "" );
  }
@@ -11171,9 +11171,9 @@ static void test_ac_no_angle_bounds( void )
   }
 
  // the UCBlock, with and without the bounds
- const auto sname = milp_solver();
+ const auto sname = milp_solver( true );
  if( sname.empty() ) {
-  std::cout << "AC angles absent: no :MILPSolver, solve skipped"
+  std::cout << "AC angles absent: no :MILPSolver of a QCP, solve skipped"
             << std::endl;
   return;
   }
@@ -11647,9 +11647,10 @@ static void test_ac_angle_bounds_unbounded( void )
   check( refused , "AC angles [ 20 , 10 ]: accepted" );
   }
 
- const auto sname = milp_solver();
+ const auto sname = milp_solver( true );
  if( sname.empty() ) {
-  std::cout << "AC angles, unbounded: no :MILPSolver, solve skipped"
+  std::cout << "AC angles, unbounded: no :MILPSolver of a QCP, solve "
+            << "skipped"
             << std::endl;
   return;
   }
