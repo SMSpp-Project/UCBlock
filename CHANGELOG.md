@@ -340,6 +340,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the README leaves the channels that distribute SMS++ to the
+  installation guide of the wiki (Installing-SMS++), keeping the names
+  of the packages of the module
+
 - the copies of a unit are the weights of its Block [see
   `Block::set_weight()`] instead of a scale factor of each class:
   `UnitBlock::replicate( k )`, which the methods factory reaches as
