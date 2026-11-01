@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `"BatteryUnitBlock::has_resize_feasibility_cut"` in the methods factory,
+  a getter writing 1 if, after a solve that ended infeasible, the getters
+  of the derivatives with respect to the sizes give the coefficients of the
+  condition that feasible sizes have to satisfy, and 0 with the binary
+  variables of intake and outtake, whose values they read
+
 - the tester checks what each physical Modification says it changes
   (`changes()`) against what the change does to the model, written down in
   the tester, for every type of the physical Modification of every class of the

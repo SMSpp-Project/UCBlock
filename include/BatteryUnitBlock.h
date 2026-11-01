@@ -1938,7 +1938,8 @@ class BatteryUnitBlock : public UnitBlock
   * well [see get_kappa_linearization()]. Without them, after a solve that
   * ended infeasible, with an unbounded dual direction where the duals go,
   * it gives the coefficients of the condition that feasible sizes have to
-  * satisfy; with them it gives none, there being no solution to read. */
+  * satisfy; with them it gives none, there being no solution to read, as
+  * "BatteryUnitBlock::has_resize_feasibility_cut" answers. */
 
  void get_resize_linearization( double & g_kappa , double & g_conv_kappa )
   const;
@@ -2400,6 +2401,19 @@ class BatteryUnitBlock : public UnitBlock
   register_method< BatteryUnitBlock , double & , double & >(
    "BatteryUnitBlock::get_resize_linearization" ,
    & BatteryUnitBlock::get_resize_linearization );
+
+  // whether, after a solve that ended infeasible, the getters above give
+  // the coefficients of the condition that feasible sizes have to satisfy,
+  // 1 or 0: not with the binary variables of intake and outtake, whose
+  // values they read [see get_resize_linearization()]; it is asked once
+  // the Variable are generated
+
+  register_method< QueryType< double & > >(
+   "BatteryUnitBlock::has_resize_feasibility_cut" ,
+   new QueryType< double & >( []( const Block * blck , double & answer ) {
+    answer = static_cast< const BatteryUnitBlock * >( blck )->
+              get_intake_outtake_binary_variables().empty() ? 1 : 0;
+    } ) );
 
   register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_converter_kappa" ,
