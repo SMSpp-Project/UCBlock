@@ -1335,120 +1335,120 @@ class ConversionUnitBlock : public UnitBlock
  * @{ */
 
  /// sets the linear cost \f$ b_{t,g} \f$ of a generator
- void set_linear_term( MF_dbl_it values , Index generator ,
+ void set_linear_term( MF_dbl_sp values , Index generator ,
                        Subset && subset , const bool ordered = false ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
  /// sets the linear cost \f$ b_{t,g} \f$ of a generator, range version
- void set_linear_term( MF_dbl_it values , Index generator ,
+ void set_linear_term( MF_dbl_sp values , Index generator ,
                        Range rng = INFRange ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
  /// sets the quadratic cost \f$ a_{t,g} \geq 0 \f$ of a generator
- void set_quad_term( MF_dbl_it values , Index generator ,
+ void set_quad_term( MF_dbl_sp values , Index generator ,
                      Subset && subset , const bool ordered = false ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
 
  /// sets the quadratic cost of a generator, range version
- void set_quad_term( MF_dbl_it values , Index generator ,
+ void set_quad_term( MF_dbl_sp values , Index generator ,
                      Range rng = INFRange ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
 
  /// sets the primary reserve cost \f$ c^{pr}_{t,g} \f$ of a generator
- void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_primary_spinning_reserve_cost( MF_dbl_sp values ,
                                          Index generator ,
                                          Range rng = INFRange ,
                                          ModParam issuePMod = eNoBlck ,
                                          ModParam issueAMod = eNoBlck );
 
  /// sets the secondary reserve cost \f$ c^{sc}_{t,g} \f$ of a generator
- void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_secondary_spinning_reserve_cost( MF_dbl_sp values ,
                                            Index generator ,
                                            Range rng = INFRange ,
                                            ModParam issuePMod = eNoBlck ,
                                            ModParam issueAMod = eNoBlck );
 
  /// sets the cost \f$ c_t \f$ of being on
- void set_const_term( MF_dbl_it values , Subset && subset ,
+ void set_const_term( MF_dbl_sp values , Subset && subset ,
                       const bool ordered = false ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
 
  /// sets the cost \f$ c_t \f$ of being on, range version
- void set_const_term( MF_dbl_it values , Range rng = INFRange ,
+ void set_const_term( MF_dbl_sp values , Range rng = INFRange ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
 
  /// sets the start-up cost \f$ c^{su}_t \f$
- void set_startup_costs( MF_dbl_it values , Subset && subset ,
+ void set_startup_costs( MF_dbl_sp values , Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the start-up cost \f$ c^{su}_t \f$, range version
- void set_startup_costs( MF_dbl_it values , Range rng = INFRange ,
+ void set_startup_costs( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the shut-down cost \f$ c^{sd}_t \f$
- void set_shutdown_costs( MF_dbl_it values , Subset && subset ,
+ void set_shutdown_costs( MF_dbl_sp values , Subset && subset ,
                           const bool ordered = false ,
                           ModParam issuePMod = eNoBlck ,
                           ModParam issueAMod = eNoBlck );
 
  /// sets the shut-down cost \f$ c^{sd}_t \f$, range version
- void set_shutdown_costs( MF_dbl_it values , Range rng = INFRange ,
+ void set_shutdown_costs( MF_dbl_sp values , Range rng = INFRange ,
                           ModParam issuePMod = eNoBlck ,
                           ModParam issueAMod = eNoBlck );
 
  /// sets the maximum power \f$ P^{mx}_{t,g} \f$ of a generator
- void set_maximum_power( MF_dbl_it values , Index generator ,
+ void set_maximum_power( MF_dbl_sp values , Index generator ,
                          Subset && subset , const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the maximum power of a generator, range version
- void set_maximum_power( MF_dbl_it values , Index generator ,
+ void set_maximum_power( MF_dbl_sp values , Index generator ,
                          Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the minimum power \f$ P^{mn}_{t,g} \f$ of a generator
- void set_minimum_power( MF_dbl_it values , Index generator ,
+ void set_minimum_power( MF_dbl_sp values , Index generator ,
                          Subset && subset , const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the minimum power of a generator, range version
- void set_minimum_power( MF_dbl_it values , Index generator ,
+ void set_minimum_power( MF_dbl_sp values , Index generator ,
                          Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the right-hand side \f$ \bar{b}_{t,m} \f$ of an operating row
- void set_operating_rhs( MF_dbl_it values , Index row ,
+ void set_operating_rhs( MF_dbl_sp values , Index row ,
                          Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the left-hand side \f$ \underline{b}_{t,m} \f$ of an operating row
- void set_operating_lhs( MF_dbl_it values , Index row ,
+ void set_operating_lhs( MF_dbl_sp values , Index row ,
                          Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the ramp-up limit \f$ \Delta^+_{t,k} \f$ of a combination
- void set_delta_ramp_up( MF_dbl_it values , Index ramp ,
+ void set_delta_ramp_up( MF_dbl_sp values , Index ramp ,
                          Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the ramp-down limit \f$ \Delta^-_{t,k} \f$ of a combination
- void set_delta_ramp_down( MF_dbl_it values , Index ramp ,
+ void set_delta_ramp_down( MF_dbl_sp values , Index ramp ,
                            Range rng = INFRange ,
                            ModParam issuePMod = eNoBlck ,
                            ModParam issueAMod = eNoBlck );
@@ -1456,7 +1456,7 @@ class ConversionUnitBlock : public UnitBlock
  /// sets the initial powers \f$ p_{-1,g} \f$ of the generators in rng
  /** Here \p rng is a range of generators, not of instants. */
 
- void set_initial_power( MF_dbl_it values , Range rng = INFRange ,
+ void set_initial_power( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -1467,142 +1467,144 @@ class ConversionUnitBlock : public UnitBlock
   * \f$ being ignored; they are the bounds of the delivered powers of those
   * instants. */
 
- void set_initial_delayed_power( MF_dbl_it values , Index generator ,
+ void set_initial_delayed_power( MF_dbl_sp values , Index generator ,
                                  Range rng = INFRange ,
                                  ModParam issuePMod = eNoBlck ,
                                  ModParam issueAMod = eNoBlck );
 
  /// sets the initial up/down time \f$ \tau_0 \f$
- /** Sets \f$ \tau_0 \f$ to *values, \p rng being ignored unless it is
-  * empty. The change moves the bounds of \f$ u \f$ and \f$ w_0 \f$ and the
-  * constants of the rows at the instant 0; the minimum up and down times
-  * are not clamped anew, since their clamping only matters for the
-  * Variable, which do not depend on it. */
+ /** Sets \f$ \tau_0 \f$ to the first element of \p values, which cannot
+  * be empty (std::invalid_argument is thrown if it is), \p rng being
+  * ignored unless it is empty. The change moves the bounds of \f$ u \f$
+  * and \f$ w_0 \f$ and the constants of the rows at the instant 0; the
+  * minimum up and down times are not clamped anew, since their clamping
+  * only matters for the Variable, which do not depend on it. */
 
- void set_init_updown_time( MF_int_it values , Range rng = INFRange ,
+ void set_init_updown_time( MF_int_sp values , Range rng = INFRange ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
 
 
  /// the forms of the setters over the entries [ g ][ t ] (see above)
 
- void set_linear_term( MF_dbl_it values , Subset && subset ,
+ void set_linear_term( MF_dbl_sp values , Subset && subset ,
                        const bool ordered = false ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
- void set_linear_term( MF_dbl_it values , Range rng = INFRange ,
+ void set_linear_term( MF_dbl_sp values , Range rng = INFRange ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
- void set_quad_term( MF_dbl_it values , Subset && subset ,
+ void set_quad_term( MF_dbl_sp values , Subset && subset ,
                      const bool ordered = false ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
- void set_quad_term( MF_dbl_it values , Range rng = INFRange ,
+ void set_quad_term( MF_dbl_sp values , Range rng = INFRange ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
 
- void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_primary_spinning_reserve_cost( MF_dbl_sp values ,
                                          Subset && subset ,
                                          const bool ordered = false ,
                                          ModParam issuePMod = eNoBlck ,
                                          ModParam issueAMod = eNoBlck );
- void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_primary_spinning_reserve_cost( MF_dbl_sp values ,
                                          Range rng = INFRange ,
                                          ModParam issuePMod = eNoBlck ,
                                          ModParam issueAMod = eNoBlck );
 
- void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_secondary_spinning_reserve_cost( MF_dbl_sp values ,
                                            Subset && subset ,
                                            const bool ordered = false ,
                                            ModParam issuePMod = eNoBlck ,
                                            ModParam issueAMod = eNoBlck );
- void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_secondary_spinning_reserve_cost( MF_dbl_sp values ,
                                            Range rng = INFRange ,
                                            ModParam issuePMod = eNoBlck ,
                                            ModParam issueAMod = eNoBlck );
 
- void set_maximum_power( MF_dbl_it values , Subset && subset ,
+ void set_maximum_power( MF_dbl_sp values , Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
- void set_maximum_power( MF_dbl_it values , Range rng = INFRange ,
+ void set_maximum_power( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- void set_minimum_power( MF_dbl_it values , Subset && subset ,
+ void set_minimum_power( MF_dbl_sp values , Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
- void set_minimum_power( MF_dbl_it values , Range rng = INFRange ,
+ void set_minimum_power( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- void set_operating_rhs( MF_dbl_it values , Subset && subset ,
+ void set_operating_rhs( MF_dbl_sp values , Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
- void set_operating_rhs( MF_dbl_it values , Range rng = INFRange ,
+ void set_operating_rhs( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- void set_operating_lhs( MF_dbl_it values , Subset && subset ,
+ void set_operating_lhs( MF_dbl_sp values , Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
- void set_operating_lhs( MF_dbl_it values , Range rng = INFRange ,
+ void set_operating_lhs( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- void set_delta_ramp_up( MF_dbl_it values , Subset && subset ,
+ void set_delta_ramp_up( MF_dbl_sp values , Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
- void set_delta_ramp_up( MF_dbl_it values , Range rng = INFRange ,
+ void set_delta_ramp_up( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
- void set_delta_ramp_down( MF_dbl_it values , Subset && subset ,
+ void set_delta_ramp_down( MF_dbl_sp values , Subset && subset ,
                            const bool ordered = false ,
                            ModParam issuePMod = eNoBlck ,
                            ModParam issueAMod = eNoBlck );
- void set_delta_ramp_down( MF_dbl_it values , Range rng = INFRange ,
+ void set_delta_ramp_down( MF_dbl_sp values , Range rng = INFRange ,
                            ModParam issuePMod = eNoBlck ,
                            ModParam issueAMod = eNoBlck );
 
  /// sets the initial powers \f$ p_{-1,g} \f$ of the generators in subset
- void set_initial_power( MF_dbl_it values , Subset && subset ,
+ void set_initial_power( MF_dbl_sp values , Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
  /// sets the powers delivered from before the horizon, entries [ g ][ s ]
- void set_initial_delayed_power( MF_dbl_it values , Subset && subset ,
+ void set_initial_delayed_power( MF_dbl_sp values , Subset && subset ,
                                  const bool ordered = false ,
                                  ModParam issuePMod = eNoBlck ,
                                  ModParam issueAMod = eNoBlck );
- void set_initial_delayed_power( MF_dbl_it values , Range rng = INFRange ,
+ void set_initial_delayed_power( MF_dbl_sp values , Range rng = INFRange ,
                                  ModParam issuePMod = eNoBlck ,
                                  ModParam issueAMod = eNoBlck );
 
- /// sets \f$ \tau_0 \f$ to *values if \p subset is not empty
- void set_init_updown_time( MF_int_it values , Subset && subset ,
+ /// sets \f$ \tau_0 \f$ to values[ 0 ] if \p subset is not empty
+ void set_init_updown_time( MF_int_sp values , Subset && subset ,
                             const bool ordered = false ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
 
- /// sets the investment cost \f$ c^{inv} \f$ to *values
- /** Sets \f$ c^{inv} \f$ to *values, \p rng being ignored unless it is
-  * empty; refused if the unit has no design variable. A zero cost keeps
-  * the design variable, which then costs nothing (a unit with a zero
-  * InvestmentCost written and read back has none). */
+ /// sets the investment cost \f$ c^{inv} \f$ to values[ 0 ]
+ /** Sets \f$ c^{inv} \f$ to the first element of \p values, which cannot
+  * be empty (std::invalid_argument is thrown if it is), \p rng being
+  * ignored unless it is empty; refused if the unit has no design variable.
+  * A zero cost keeps the design variable, which then costs nothing (a unit
+  * with a zero InvestmentCost written and read back has none). */
 
- void set_investment_cost( MF_dbl_it values , Range rng = INFRange ,
+ void set_investment_cost( MF_dbl_sp values , Range rng = INFRange ,
                            ModParam issuePMod = eNoBlck ,
                            ModParam issueAMod = eNoBlck );
 
- /// sets \f$ c^{inv} \f$ to *values if \p subset is not empty
- void set_investment_cost( MF_dbl_it values , Subset && subset ,
+ /// sets \f$ c^{inv} \f$ to values[ 0 ] if \p subset is not empty
+ void set_investment_cost( MF_dbl_sp values , Subset && subset ,
                            const bool ordered = false ,
                            ModParam issuePMod = eNoBlck ,
                            ModParam issueAMod = eNoBlck );
@@ -1708,19 +1710,19 @@ class ConversionUnitBlock : public UnitBlock
 
  /// the common part of the setters of a datum indexed over [ T ][ col ]
  void guts_of_set( MAdbl & data , double dflt , int type , Index col ,
-                   MF_dbl_it values , Subset && subset , bool ordered ,
+                   MF_dbl_sp values , Subset && subset , bool ordered ,
                    ModParam issuePMod , ModParam issueAMod ,
                    bool rows , const std::string & who );
 
  /// the setters over the entries [ col ][ t ], column after column
  void flat_set( MAdbl & data , double dflt , int type , Index ncol ,
-                MF_dbl_it values , Subset && subset , bool ordered ,
+                MF_dbl_sp values , Subset && subset , bool ordered ,
                 ModParam issuePMod , ModParam issueAMod , bool rows ,
                 const std::string & who );
 
  /// the common part of the setters of a datum indexed over [ T ]
  void guts_of_set( std::vector< double > & data , int type ,
-                   MF_dbl_it values , Subset && subset , bool ordered ,
+                   MF_dbl_sp values , Subset && subset , bool ordered ,
                    ModParam issuePMod , ModParam issueAMod ,
                    const std::string & who );
 
@@ -1843,123 +1845,123 @@ class ConversionUnitBlock : public UnitBlock
  /// registers the setters in the methods factory
  static void static_initialization( void )
  {
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_linear_term" ,
    & ConversionUnitBlock::set_linear_term );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_linear_term" ,
    & ConversionUnitBlock::set_linear_term );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_quad_term" ,
    & ConversionUnitBlock::set_quad_term );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_quad_term" ,
    & ConversionUnitBlock::set_quad_term );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_primary_spinning_reserve_cost" ,
    & ConversionUnitBlock::set_primary_spinning_reserve_cost );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_primary_spinning_reserve_cost" ,
    & ConversionUnitBlock::set_primary_spinning_reserve_cost );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_secondary_spinning_reserve_cost" ,
    & ConversionUnitBlock::set_secondary_spinning_reserve_cost );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_secondary_spinning_reserve_cost" ,
    & ConversionUnitBlock::set_secondary_spinning_reserve_cost );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_maximum_power" ,
    & ConversionUnitBlock::set_maximum_power );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_maximum_power" ,
    & ConversionUnitBlock::set_maximum_power );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_minimum_power" ,
    & ConversionUnitBlock::set_minimum_power );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_minimum_power" ,
    & ConversionUnitBlock::set_minimum_power );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_operating_rhs" ,
    & ConversionUnitBlock::set_operating_rhs );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_operating_rhs" ,
    & ConversionUnitBlock::set_operating_rhs );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_operating_lhs" ,
    & ConversionUnitBlock::set_operating_lhs );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_operating_lhs" ,
    & ConversionUnitBlock::set_operating_lhs );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_delta_ramp_up" ,
    & ConversionUnitBlock::set_delta_ramp_up );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_delta_ramp_up" ,
    & ConversionUnitBlock::set_delta_ramp_up );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_delta_ramp_down" ,
    & ConversionUnitBlock::set_delta_ramp_down );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_delta_ramp_down" ,
    & ConversionUnitBlock::set_delta_ramp_down );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_const_term" ,
    & ConversionUnitBlock::set_const_term );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_const_term" ,
    & ConversionUnitBlock::set_const_term );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_startup_costs" ,
    & ConversionUnitBlock::set_startup_costs );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_startup_costs" ,
    & ConversionUnitBlock::set_startup_costs );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_shutdown_costs" ,
    & ConversionUnitBlock::set_shutdown_costs );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_shutdown_costs" ,
    & ConversionUnitBlock::set_shutdown_costs );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_initial_power" ,
    & ConversionUnitBlock::set_initial_power );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_initial_power" ,
    & ConversionUnitBlock::set_initial_power );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_investment_cost" ,
    & ConversionUnitBlock::set_investment_cost );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_investment_cost" ,
    & ConversionUnitBlock::set_investment_cost );
 
@@ -1973,19 +1975,19 @@ class ConversionUnitBlock : public UnitBlock
   register_method< ConversionUnitBlock , double >(
    "ConversionUnitBlock::replicate" , { & ConversionUnitBlock::replicate } );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ConversionUnitBlock::set_initial_delayed_power" ,
    & ConversionUnitBlock::set_initial_delayed_power );
 
-  register_method< ConversionUnitBlock , MF_dbl_it , Range >(
+  register_method< ConversionUnitBlock , MF_dbl_sp , Range >(
    "ConversionUnitBlock::set_initial_delayed_power" ,
    & ConversionUnitBlock::set_initial_delayed_power );
 
-  register_method< ConversionUnitBlock , MF_int_it , Subset && , bool >(
+  register_method< ConversionUnitBlock , MF_int_sp , Subset && , bool >(
    "ConversionUnitBlock::set_init_updown_time" ,
    & ConversionUnitBlock::set_init_updown_time );
 
-  register_method< ConversionUnitBlock , MF_int_it , Range >(
+  register_method< ConversionUnitBlock , MF_int_sp , Range >(
    "ConversionUnitBlock::set_init_updown_time" ,
    & ConversionUnitBlock::set_init_updown_time );
   }

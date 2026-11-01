@@ -318,27 +318,27 @@ void apply_block( ThermalUnitBlock * u , const Step & s )
  switch( s.kind ) {
   case( eMaxP ):
    if( s.sub )
-    u->set_maximum_power( s.val.cbegin() , Subset( s.idx ) );
+    u->set_maximum_power( Block::MF_dbl_sp( s.val ) , Subset( s.idx ) );
    else
-    u->set_maximum_power( s.val.cbegin() , r );
+    u->set_maximum_power( Block::MF_dbl_sp( s.val ) , r );
    break;
   case( eAv ):
    if( s.sub )
-    u->set_availability( s.val.cbegin() , Subset( s.idx ) );
+    u->set_availability( Block::MF_dbl_sp( s.val ) , Subset( s.idx ) );
    else
-    u->set_availability( s.val.cbegin() , r );
+    u->set_availability( Block::MF_dbl_sp( s.val ) , r );
    break;
   case( eInitP ):
    if( s.sub )
-    u->set_initial_power( s.val.cbegin() , Subset( s.idx ) );
+    u->set_initial_power( Block::MF_dbl_sp( s.val ) , Subset( s.idx ) );
    else
-    u->set_initial_power( s.val.cbegin() , r );
+    u->set_initial_power( Block::MF_dbl_sp( s.val ) , r );
    break;
   case( eInitUD ):
    if( s.sub )
-    u->set_init_updown_time( iv.cbegin() , Subset( s.idx ) );
+    u->set_init_updown_time( Block::MF_int_sp( iv ) , Subset( s.idx ) );
    else
-    u->set_init_updown_time( iv.cbegin() , r );
+    u->set_init_updown_time( Block::MF_int_sp( iv ) , r );
    break;
   }
  }

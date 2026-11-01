@@ -2313,12 +2313,11 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// update the availability of the unit
  /** This method updates the availability of the unit. The \p subset parameter
-  * contains a list of time instants and \p values contains the availability
-  * of the unit at those time instants. The availability of the unit at time
-  * subset[ i ] is given by std::next( values , i ) for each i in {0, ...,
-  * subset.size() - 1}, also if \p subset is not ordered (\p ordered being
-  * false), and an instant given more than once takes the last of its
-  * values.
+  * contains a list of time instants and \p values contains the availability of
+  * the unit at those time instants. The availability of the unit at time
+  * subset[ i ] is given by values[ i ] for each i in {0, ..., subset.size() -
+  * 1}, also if \p subset is not ordered (\p ordered being false), and an
+  * instant given more than once takes the last of its values.
   *
   * The new values are checked before anything changes, as deserialize()
   * checks the data [see check_power_limits()]: each has to be between 0
@@ -2347,7 +2346,7 @@ class ThermalUnitBlock : public UnitBlock
   * is thrown and the data are restored as they were. The physical
   * Modification is issued last, according to \p issuePMod. */
 
- void set_availability( MF_dbl_it values ,
+ void set_availability( MF_dbl_sp values ,
                         Subset && subset ,
                         const bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
@@ -2358,30 +2357,29 @@ class ThermalUnitBlock : public UnitBlock
  /** This method updates the availability of the unit. The \p rng parameter
   * contains a range of time instants and \p values contains the availability
   * of the unit at those time instants. The availability of the unit at time
-  * rng.first + i is given by std::next( values , i ) for each i in {0, ...,
-  * ( std::min( rng.second, get_time_horizon() ) - rng.first - 1 )}. The
-  * checks, the default limits and the changes of the abstract
-  * representation are those of the Subset version. */
+  * rng.first + i is given by values[ i ] for each i in {0, ..., ( std::min(
+  * rng.second, get_time_horizon() ) - rng.first - 1 )}. The checks, the
+  * default limits and the changes of the abstract representation are those of
+  * the Subset version. */
 
- void set_availability( MF_dbl_it values , Range rng = INFRange ,
+ void set_availability( MF_dbl_sp values , Range rng = INFRange ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// update the maximum power of the unit
- /** Sets MaxPower[ t ] for the instants t in \p subset to the values
-  * pointed by \p values, in the order of \p subset also if it is not
-  * ordered (\p ordered being false). The new values are checked before
-  * anything changes [see check_power_limits()]: each has to be at least
-  * MinPower[ t ], and a StartUpLimit or ShutDownLimit given in the data has
-  * to lie between the operational bounds it gives; std::logic_error is
-  * thrown otherwise. The numbers of ramp steps of the SUSD formulation are
-  * computed again [see compute_ramp_steps()], and once the Constraint are
-  * generated the abstract representation of every formulation follows, as
-  * for the availability [see set_availability()], the data being restored
-  * if it cannot. */
+ /** Sets MaxPower[ t ] for the instants t in \p subset to the values in \p
+  * values, in the order of \p subset also if it is not ordered (\p ordered
+  * being false). The new values are checked before anything changes [see
+  * check_power_limits()]: each has to be at least MinPower[ t ], and a
+  * StartUpLimit or ShutDownLimit given in the data has to lie between the
+  * operational bounds it gives; std::logic_error is thrown otherwise. The
+  * numbers of ramp steps of the SUSD formulation are computed again [see
+  * compute_ramp_steps()], and once the Constraint are generated the abstract
+  * representation of every formulation follows, as for the availability [see
+  * set_availability()], the data being restored if it cannot. */
 
- void set_maximum_power( MF_dbl_it values ,
+ void set_maximum_power( MF_dbl_sp values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
@@ -2391,13 +2389,13 @@ class ThermalUnitBlock : public UnitBlock
  /// update the maximum power of the unit
  /** As the Subset version, for the instants in \p rng. */
 
- void set_maximum_power( MF_dbl_it values , Range rng = INFRange ,
+ void set_maximum_power( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_startup_costs( MF_dbl_it values ,
+ void set_startup_costs( MF_dbl_sp values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
@@ -2405,7 +2403,7 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_startup_costs( MF_dbl_it values , Range rng = INFRange ,
+ void set_startup_costs( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -2420,7 +2418,7 @@ class ThermalUnitBlock : public UnitBlock
   * coefficients of the Objective, \f$ c^{sd}_t \f$, follow. The same
   * rules hold for the Range version. */
 
- void set_shutdown_costs( MF_dbl_it values ,
+ void set_shutdown_costs( MF_dbl_sp values ,
                           Subset && subset ,
                           const bool ordered = false ,
                           ModParam issuePMod = eNoBlck ,
@@ -2428,13 +2426,13 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_shutdown_costs( MF_dbl_it values , Range rng = INFRange ,
+ void set_shutdown_costs( MF_dbl_sp values , Range rng = INFRange ,
                           ModParam issuePMod = eNoBlck ,
                           ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_const_term( MF_dbl_it values ,
+ void set_const_term( MF_dbl_sp values ,
                       Subset && subset ,
                       const bool ordered = false ,
                       ModParam issuePMod = eNoBlck ,
@@ -2442,13 +2440,13 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_const_term( MF_dbl_it values , Range rng = INFRange ,
+ void set_const_term( MF_dbl_sp values , Range rng = INFRange ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_linear_term( MF_dbl_it values ,
+ void set_linear_term( MF_dbl_sp values ,
                        Subset && subset ,
                        const bool ordered = false ,
                        ModParam issuePMod = eNoBlck ,
@@ -2456,13 +2454,13 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_linear_term( MF_dbl_it values , Range rng = INFRange ,
+ void set_linear_term( MF_dbl_sp values , Range rng = INFRange ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_quad_term( MF_dbl_it values ,
+ void set_quad_term( MF_dbl_sp values ,
                      Subset && subset ,
                      const bool ordered = false ,
                      ModParam issuePMod = eNoBlck ,
@@ -2470,7 +2468,7 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_quad_term( MF_dbl_it values , Range rng = INFRange ,
+ void set_quad_term( MF_dbl_sp values , Range rng = INFRange ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
 
@@ -2484,7 +2482,7 @@ class ThermalUnitBlock : public UnitBlock
  * solvers can price q[t] over its [Qmin,Qmax] box; they are the reactive
  * counterpart of set_linear_term(). */
 
- void set_reactive_linear_term( MF_dbl_it values ,
+ void set_reactive_linear_term( MF_dbl_sp values ,
                                 Subset && subset ,
                                 const bool ordered = false ,
                                 ModParam issuePMod = eNoBlck ,
@@ -2492,7 +2490,7 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_reactive_linear_term( MF_dbl_it values , Range rng = INFRange ,
+ void set_reactive_linear_term( MF_dbl_sp values , Range rng = INFRange ,
                                 ModParam issuePMod = eNoBlck ,
                                 ModParam issueAMod = eNoBlck );
 
@@ -2509,7 +2507,7 @@ class ThermalUnitBlock : public UnitBlock
   * coefficients of the Objective, \f$ c^{pr}_t \f$, follow. The same
   * rules hold for the Range version and for the secondary reserve. */
 
- void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_primary_spinning_reserve_cost( MF_dbl_sp values ,
                                          Subset && subset ,
                                          const bool ordered = false ,
                                          ModParam issuePMod = eNoBlck ,
@@ -2517,14 +2515,14 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_primary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_primary_spinning_reserve_cost( MF_dbl_sp values ,
                                          Range rng = INFRange ,
                                          ModParam issuePMod = eNoBlck ,
                                          ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_secondary_spinning_reserve_cost( MF_dbl_sp values ,
                                            Subset && subset ,
                                            const bool ordered = false ,
                                            ModParam issuePMod = eNoBlck ,
@@ -2532,7 +2530,7 @@ class ThermalUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_secondary_spinning_reserve_cost( MF_dbl_it values ,
+ void set_secondary_spinning_reserve_cost( MF_dbl_sp values ,
                                            Range rng = INFRange ,
                                            ModParam issuePMod = eNoBlck ,
                                            ModParam issueAMod = eNoBlck );
@@ -2543,8 +2541,9 @@ class ThermalUnitBlock : public UnitBlock
   * initial power. If the given \p subset does not contain the index 0, this
   * function does nothing. Since \p subset can have multiple zeros, only the
   * last one is considered, which means that the value for the initial power
-  * will be that in the vector pointed by \p it associated with this last
-  * zero.
+  * will be that in \p values associated with this last zero, \p values
+  * being at least as long as \p subset (std::invalid_argument is thrown if
+  * it is shorter).
   *
   * The initial power enters the abstract representation only if the unit
   * is on before the horizon, and then the rows that contain it follow
@@ -2568,7 +2567,7 @@ class ThermalUnitBlock : public UnitBlock
   * \f$ p_{-1} < \hat P^{mn}_0 \f$ the formulations and the dynamic
   * programming Solvers would not agree on the shut-down at 0. */
 
- void set_initial_power( MF_dbl_it values ,
+ void set_initial_power( MF_dbl_sp values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
@@ -2577,11 +2576,9 @@ class ThermalUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
  /** If the given Range \p rng contains 0, this function sets the initial
-  * power. In this case, if the first element of \p rng is 0, the initial
-  * power will be set to the value pointed by the given iterator. In general,
-  * the initial power will be the one found at position -rng.first in the
-  * vector pointed by \p it if this Range contains the 0 index. If the given
-  * Range \p rng does not contain the 0 index, this function does nothing.
+  * power to the first element of \p values, which cannot be empty
+  * (std::invalid_argument is thrown if it is). If the given Range \p rng
+  * does not contain the 0 index, this function does nothing.
   *
   * The initial power enters the abstract representation only if the unit
   * is on before the horizon, and then the rows that contain it follow
@@ -2605,7 +2602,7 @@ class ThermalUnitBlock : public UnitBlock
   * \f$ p_{-1} < \hat P^{mn}_0 \f$ the formulations and the dynamic
   * programming Solvers would not agree on the shut-down at 0. */
 
- void set_initial_power( MF_dbl_it values , Range rng = INFRange ,
+ void set_initial_power( MF_dbl_sp values , Range rng = INFRange ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -2643,7 +2640,7 @@ class ThermalUnitBlock : public UnitBlock
   * deserialize() are not computed again. A dry run of \p issuePMod changes
   * nothing, one of \p issueAMod the data only. */
 
- void set_init_updown_time( MF_int_it values ,
+ void set_init_updown_time( MF_int_sp values ,
                             Subset && subset ,
                             const bool ordered = false ,
                             ModParam issuePMod = eNoBlck ,
@@ -2654,7 +2651,7 @@ class ThermalUnitBlock : public UnitBlock
  /** As the Subset version, the value being the one at the position
   * -rng.first of \p values if \p rng contains 0. */
 
- void set_init_updown_time( MF_int_it values , Range rng = INFRange ,
+ void set_init_updown_time( MF_int_sp values , Range rng = INFRange ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
 
@@ -2736,7 +2733,7 @@ class ThermalUnitBlock : public UnitBlock
   * nothing changes, true otherwise. */
 
  bool guts_of_set_power_limits( const std::string & who , bool availability ,
-                                const Subset & ts , MF_dbl_it values ,
+                                const Subset & ts , MF_dbl_sp values ,
                                 ModParam issuePMod , ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
@@ -3551,91 +3548,91 @@ class ThermalUnitBlock : public UnitBlock
 
  static void static_initialization( void )
  {
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_availability" ,
    & ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_availability" ,
    & ThermalUnitBlock::set_availability );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_maximum_power" ,
    & ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_maximum_power" ,
    & ThermalUnitBlock::set_maximum_power );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_startup_costs" ,
    & ThermalUnitBlock::set_startup_costs );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_startup_costs" ,
    & ThermalUnitBlock::set_startup_costs );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_shutdown_costs" ,
    & ThermalUnitBlock::set_shutdown_costs );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_shutdown_costs" ,
    & ThermalUnitBlock::set_shutdown_costs );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_const_term" ,
    & ThermalUnitBlock::set_const_term );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_const_term" ,
    & ThermalUnitBlock::set_const_term );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_linear_term" ,
    & ThermalUnitBlock::set_linear_term );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_linear_term" ,
    & ThermalUnitBlock::set_linear_term );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_quad_term" ,
    & ThermalUnitBlock::set_quad_term );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_quad_term" ,
    & ThermalUnitBlock::set_quad_term );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_primary_spinning_reserve_cost" ,
    & ThermalUnitBlock::set_primary_spinning_reserve_cost );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_primary_spinning_reserve_cost" ,
    & ThermalUnitBlock::set_primary_spinning_reserve_cost );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_secondary_spinning_reserve_cost" ,
    & ThermalUnitBlock::set_secondary_spinning_reserve_cost );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_secondary_spinning_reserve_cost" ,
    & ThermalUnitBlock::set_secondary_spinning_reserve_cost );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Subset && , bool >(
    "ThermalUnitBlock::set_initial_power" ,
    & ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock , MF_dbl_it , Range >(
+  register_method< ThermalUnitBlock , MF_dbl_sp , Range >(
    "ThermalUnitBlock::set_initial_power" ,
    & ThermalUnitBlock::set_initial_power );
 
-  register_method< ThermalUnitBlock , MF_int_it , Subset && , bool >(
+  register_method< ThermalUnitBlock , MF_int_sp , Subset && , bool >(
    "ThermalUnitBlock::set_init_updown_time" ,
    & ThermalUnitBlock::set_init_updown_time );
 
-  register_method< ThermalUnitBlock , MF_int_it , Range >(
+  register_method< ThermalUnitBlock , MF_int_sp , Range >(
    "ThermalUnitBlock::set_init_updown_time" ,
    & ThermalUnitBlock::set_init_updown_time );
 

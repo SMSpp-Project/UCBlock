@@ -490,7 +490,7 @@ class OTSNetworkData : public DCNetworkData
   * misses the dual of that limit, which
   * "OTSNetworkBlock::get_resize_linearization" adds. */
 
- void set_kappa( MF_dbl_it values , Subset && subset , bool ordered = false ,
+ void set_kappa( MF_dbl_sp values , Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck ) override {
   throw( std::logic_error( "OTSNetworkBlock::set_kappa: sizing a line of an "
@@ -499,7 +499,7 @@ class OTSNetworkData : public DCNetworkData
 
 /*--------------------------------------------------------------------------*/
 
- void set_kappa( MF_dbl_it values , Range rng = Range( 0 , Inf< Index >() ) ,
+ void set_kappa( MF_dbl_sp values , Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck ) override {
   throw( std::logic_error( "OTSNetworkBlock::set_kappa: sizing a line of an "

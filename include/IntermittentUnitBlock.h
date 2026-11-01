@@ -783,16 +783,18 @@ class IntermittentUnitBlock : public UnitBlock
   * accordingly; a zero is replaced by the \f$ \varepsilon \f$ of
   * set_BlockConfig(), if positive.
   *
-  * @param values  Iterator to a vector containing the maximum power values.
+  * @param values  A span containing the maximum power values, at least as long
+  *                as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
   * @param subset  If non-empty, the maximum power values corresponding to the
-  *                indices in \p subset are set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  *                indices in \p subset are set to the values in \p values. If
+  *                empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_maximum_power( MF_dbl_it values ,
+ void set_maximum_power( MF_dbl_sp values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
@@ -806,15 +808,17 @@ class IntermittentUnitBlock : public UnitBlock
   * accordingly; a zero is replaced by the \f$ \varepsilon \f$ of
   * set_BlockConfig(), if positive.
   *
-  * @param values Iterator to a vector containing the maximum power values.
+  * @param values A span containing the maximum power values, at least as long
+  *               as what is left of \p rng (std::invalid_argument is thrown if
+  *               it is shorter).
   * @param rng    If non-empty, the maximum power values corresponding to the
-  *               indices in \p rng are set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  *               indices in \p rng are set to the values in \p values. If
+  *               empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_maximum_power( MF_dbl_it values ,
+ void set_maximum_power( MF_dbl_sp values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -824,16 +828,17 @@ class IntermittentUnitBlock : public UnitBlock
  /** This function sets the active power cost values of this
   * IntermittentUnitBlock.
   *
-  * @param values  Iterator to a vector containing the active power cost
-  *                values.
-  * @param subset  If non-empty, the active power cost values corresponding
-  *                to the indices in \p subset are set to the values pointed
-  *                by \p values. If empty, no operation is performed.
+  * @param values  A span containing the active power cost values, at least as
+  *                long as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
+  * @param subset  If non-empty, the active power cost values corresponding to
+  *                the indices in \p subset are set to the values in \p values.
+  *                If empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Subset && subset ,
                              bool ordered = false ,
                              c_ModParam issuePMod = eNoBlck ,
@@ -844,15 +849,16 @@ class IntermittentUnitBlock : public UnitBlock
  /** This function sets the active power cost values of this
   * IntermittentUnitBlock.
   *
-  * @param values Iterator to a vector containing the active power cost
-  *               values.
-  * @param rng    If non-empty, the active power cost values corresponding
-  *               to the indices in \p rng are set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  * @param values A span containing the active power cost values, at least as
+  *               long as what is left of \p rng (std::invalid_argument is
+  *               thrown if it is shorter).
+  * @param rng    If non-empty, the active power cost values corresponding to
+  *               the indices in \p rng are set to the values in \p values. If
+  *               empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Range rng = Range( 0 , Inf< Index >() ) ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck );
@@ -870,7 +876,7 @@ class IntermittentUnitBlock : public UnitBlock
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector( get_time_horizon() , value );
-  set_active_power_cost( vector.cbegin() ,
+  set_active_power_cost( MF_dbl_sp( vector ) ,
                          Range( 0 , Inf< Index >() ) ,
                          issuePMod , issueAMod );
  }
@@ -889,15 +895,16 @@ class IntermittentUnitBlock : public UnitBlock
   * and \f$ P^{mx}_t \f$ in the rows (1)-(3) of the class description, or,
   * with the design variable, in its coefficients in (1d)-(3d).
   *
-  * @param values  Iterator to a vector containing the kappa constants.
-  * @param subset  If non-empty, the kappa constant corresponding to the
-  *                indices in \p subset is set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  * @param values  A span whose first element is the new kappa constant,
+  *                not empty (std::invalid_argument is thrown if it is empty).
+  * @param subset  If non-empty, the kappa constant is set to the first
+  *                element of \p values. If empty, no operation is
+  *                performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_kappa( MF_dbl_it values ,
+ void set_kappa( MF_dbl_sp values ,
                  Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
@@ -908,14 +915,14 @@ class IntermittentUnitBlock : public UnitBlock
   * and \f$ P^{mx}_t \f$ in the rows (1)-(3) of the class description, or,
   * with the design variable, in its coefficients in (1d)-(3d).
   *
-  * @param values Iterator to a vector containing the kappa constants.
-  * @param rng    If non-empty, the kappa constant corresponding to the
-  *               indices in \p rng is set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  * @param values A span whose first element is the new kappa constant, not
+  *               empty (std::invalid_argument is thrown if it is empty).
+  * @param rng    If non-empty, the kappa constant is set to the first
+  *               element of \p values. If empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_kappa( MF_dbl_it values ,
+ void set_kappa( MF_dbl_sp values ,
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
@@ -933,7 +940,7 @@ class IntermittentUnitBlock : public UnitBlock
  void set_kappa( double value , c_ModParam issuePMod = eNoBlck ,
                                 c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
-  set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+  set_kappa( MF_dbl_sp( vector ) , Range( 0 , Inf< Index >() ) ,
              issuePMod , issueAMod );
   }
 
@@ -1141,27 +1148,27 @@ class IntermittentUnitBlock : public UnitBlock
 
  static void static_initialization( void )
  {
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Subset && , bool >(
    "IntermittentUnitBlock::set_maximum_power" ,
    & IntermittentUnitBlock::set_maximum_power );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Range >(
    "IntermittentUnitBlock::set_maximum_power" ,
    & IntermittentUnitBlock::set_maximum_power );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Subset && , bool >(
    "IntermittentUnitBlock::set_active_power_cost" ,
    & IntermittentUnitBlock::set_active_power_cost );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Range >(
    "IntermittentUnitBlock::set_active_power_cost" ,
    & IntermittentUnitBlock::set_active_power_cost );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Subset && , bool >(
    "IntermittentUnitBlock::set_kappa" ,
    & IntermittentUnitBlock::set_kappa );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Range >(
    "IntermittentUnitBlock::set_kappa" ,
    & IntermittentUnitBlock::set_kappa );
 

@@ -1815,9 +1815,9 @@ class UCBlock : public Block
   *
   * The active power demand is conceptually stored as a matrix
   * ActivePowerDemand[ n ][ t ], where n is the node index and t is the time
-  * instant. The iterator \p values must therefore provide the new demand
-  * values in the same order as the entries identified by \p subset, where
-  * each element of \p subset is interpreted as the flattened index
+  * instant. The span \p values must therefore provide the new demand values in
+  * the same order as the entries identified by \p subset, where each element
+  * of \p subset is interpreted as the flattened index
   *
   *    index = n * get_time_horizon() + t .
   *
@@ -1839,7 +1839,7 @@ class UCBlock : public Block
   * forwards each updated entry to the corresponding NetworkBlock covering the
   * associated time interval. */
 
- void set_active_power_demand( MF_dbl_it values , Subset && subset = { 0 } ,
+ void set_active_power_demand( MF_dbl_sp values , Subset && subset = { 0 } ,
                                bool ordered = false ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
@@ -1850,9 +1850,9 @@ class UCBlock : public Block
   *
   * The active power demand is conceptually stored as a matrix
   * ActivePowerDemand[ n ][ t ], where n is the node index and t is the time
-  * instant. The iterator \p values must provide one value for each flattened
-  * entry in the half-open range [ rng.first , rng.second ), in increasing
-  * index order, with each flattened index interpreted as
+  * instant. The span \p values must provide one value for each flattened entry
+  * in the half-open range [ rng.first , rng.second ), in increasing index
+  * order, with each flattened index interpreted as
   *
   *    index = n * get_time_horizon() + t .
   *
@@ -1871,7 +1871,7 @@ class UCBlock : public Block
   * If NetworkBlock-s are present, each updated entry is forwarded to the
   * corresponding NetworkBlock covering the associated time interval. */
 
- void set_active_power_demand( MF_dbl_it values , Range rng = Range( 0 , 1 ) ,
+ void set_active_power_demand( MF_dbl_sp values , Range rng = Range( 0 , 1 ) ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
 
@@ -1894,7 +1894,7 @@ class UCBlock : public Block
   * balance (1c). A UCBlockSbstMod of type eSetEnD with the indices of the
   * carriers c > 0 that have changed, if any, is issued. */
 
- void set_energy_demand( MF_dbl_it values , Subset && subset = { 0 } ,
+ void set_energy_demand( MF_dbl_sp values , Subset && subset = { 0 } ,
                          bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
@@ -1906,7 +1906,7 @@ class UCBlock : public Block
   * type eSetEnD with the range of the indices of the carriers c > 0 is
   * issued, if any of them has changed. */
 
- void set_energy_demand( MF_dbl_it values , Range rng = Range( 0 , 1 ) ,
+ void set_energy_demand( MF_dbl_sp values , Range rng = Range( 0 , 1 ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
 
@@ -1922,24 +1922,24 @@ class UCBlock : public Block
   *    k = NumberPollutantZones[ 0 ] + ... + NumberPollutantZones[ p - 1 ]
   *        + z .
   *
-  * The iterator \p values must provide one value for each element of
-  * \p subset, in the same order. If \p ordered is true, \p subset is assumed
-  * to be already sorted in increasing order; otherwise it may be reordered
-  * internally before issuing the corresponding Modification. */
+  * The span \p values must provide one value for each element of \p subset, in
+  * the same order. If \p ordered is true, \p subset is assumed to be already
+  * sorted in increasing order; otherwise it may be reordered internally before
+  * issuing the corresponding Modification. */
 
- void set_pollutant_budget( MF_dbl_it values , Subset && subset ,
+ void set_pollutant_budget( MF_dbl_sp values , Subset && subset ,
                             bool ordered = false ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// update the pollutant budget
- /** Updates the pollutant budget for the (flattened) indices in the
-  * half-open range [ rng.first , rng.second ), with the same flattening as
-  * set_pollutant_budget( subset ). The iterator \p values must provide one
-  * value for each index in the range, in increasing index order. */
+ /** Updates the pollutant budget for the (flattened) indices in the half-open
+  * range [ rng.first , rng.second ), with the same flattening as
+  * set_pollutant_budget( subset ). The span \p values must provide one value
+  * for each index in the range, in increasing index order. */
 
- void set_pollutant_budget( MF_dbl_it values ,
+ void set_pollutant_budget( MF_dbl_sp values ,
                             Range rng = Range( 0 , Inf< Index >() ) ,
                             ModParam issuePMod = eNoBlck ,
                             ModParam issueAMod = eNoBlck );
@@ -1949,7 +1949,7 @@ class UCBlock : public Block
  /** As set_pollutant_budget( subset ), but for the lower bounds of the
   * emissions [see get_pollutant_min_budget()]. */
 
- void set_pollutant_min_budget( MF_dbl_it values , Subset && subset ,
+ void set_pollutant_min_budget( MF_dbl_sp values , Subset && subset ,
                                 bool ordered = false ,
                                 ModParam issuePMod = eNoBlck ,
                                 ModParam issueAMod = eNoBlck );
@@ -1959,7 +1959,7 @@ class UCBlock : public Block
  /** As set_pollutant_budget( range ), but for the lower bounds of the
   * emissions [see get_pollutant_min_budget()]. */
 
- void set_pollutant_min_budget( MF_dbl_it values ,
+ void set_pollutant_min_budget( MF_dbl_sp values ,
                                 Range rng = Range( 0 , Inf< Index >() ) ,
                                 ModParam issuePMod = eNoBlck ,
                                 ModParam issueAMod = eNoBlck );
@@ -2681,7 +2681,7 @@ class UCBlock : public Block
  /** Does what set_pollutant_budget( subset ) does, or
   * set_pollutant_min_budget( subset ) if \p lower is true. */
 
- void set_pollutant_bounds( MF_dbl_it values , Subset && subset ,
+ void set_pollutant_bounds( MF_dbl_sp values , Subset && subset ,
                             bool ordered , bool lower ,
                             c_ModParam issuePMod , c_ModParam issueAMod );
 
@@ -2690,7 +2690,7 @@ class UCBlock : public Block
  /** Does what set_pollutant_budget( range ) does, or
   * set_pollutant_min_budget( range ) if \p lower is true. */
 
- void set_pollutant_bounds( MF_dbl_it values , Range rng , bool lower ,
+ void set_pollutant_bounds( MF_dbl_sp values , Range rng , bool lower ,
                             c_ModParam issuePMod , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
@@ -2767,22 +2767,23 @@ class UCBlock : public Block
 /*--------------------------------------------------------------------------*/
  /// set the active demand when it is held by the NetworkBlock
  /** Sets the active demand of the pairs (node, time) whose indices, as in
-  * set_active_power_demand(), are in \p index to the values starting at
-  * \p values, in the NetworkBlock that hold it, with one call to
+  * set_active_power_demand(), are in \p index to the values in \p values, the
+  * h-th for the h-th index, in the NetworkBlock that hold it, with one call to
   * NetworkBlock::set_active_demand() for each NetworkBlock that has some of
-  * them: the demand of an instant is in the NetworkBlock whose intervals
-  * cover it, whose entries are numbered interval after interval. */
+  * them: the demand of an instant is in the NetworkBlock whose intervals cover
+  * it, whose entries are numbered interval after interval. \p values is at
+  * least as long as \p index. */
 
- void set_network_active_demand( MF_dbl_it values , const Subset & index ,
+ void set_network_active_demand( MF_dbl_sp values , const Subset & index ,
 				 c_ModParam issuePMod , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
  /// sets the energy demand of carrier c > 0 at node n and time t
- /** Changes the demand, in its NetworkBlock if the carrier has more than one
-  * node, otherwise in the right-hand side of its balance row (1c); returns
-  * true if it has changed. */
+ /** Changes the demand to \p value, in its NetworkBlock if the carrier has
+  * more than one node, otherwise in the right-hand side of its balance row
+  * (1c); returns true if it has changed. */
 
- bool set_carrier_demand( Index c , Index n , Index t , MF_dbl_it value ,
+ bool set_carrier_demand( Index c , Index n , Index t , double value ,
                           c_ModParam issuePMod , c_ModParam issueAMod );
 
 /*--------------------------------------------------------------------------*/
@@ -2881,28 +2882,28 @@ class UCBlock : public Block
 
  static void static_initialization( void )
  {
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+  register_method< UCBlock , MF_dbl_sp , Subset && , bool >(
    "UCBlock::set_active_power_demand" , & UCBlock::set_active_power_demand );
 
-  register_method< UCBlock , MF_dbl_it , Range >(
+  register_method< UCBlock , MF_dbl_sp , Range >(
    "UCBlock::set_active_power_demand" , & UCBlock::set_active_power_demand );
 
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+  register_method< UCBlock , MF_dbl_sp , Subset && , bool >(
    "UCBlock::set_energy_demand" , & UCBlock::set_energy_demand );
 
-  register_method< UCBlock , MF_dbl_it , Range >(
+  register_method< UCBlock , MF_dbl_sp , Range >(
    "UCBlock::set_energy_demand" , & UCBlock::set_energy_demand );
 
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+  register_method< UCBlock , MF_dbl_sp , Subset && , bool >(
    "UCBlock::set_pollutant_budget" , & UCBlock::set_pollutant_budget );
 
-  register_method< UCBlock , MF_dbl_it , Range >(
+  register_method< UCBlock , MF_dbl_sp , Range >(
    "UCBlock::set_pollutant_budget" , & UCBlock::set_pollutant_budget );
 
-  register_method< UCBlock , MF_dbl_it , Subset && , bool >(
+  register_method< UCBlock , MF_dbl_sp , Subset && , bool >(
    "UCBlock::set_pollutant_min_budget" , & UCBlock::set_pollutant_min_budget );
 
-  register_method< UCBlock , MF_dbl_it , Range >(
+  register_method< UCBlock , MF_dbl_sp , Range >(
    "UCBlock::set_pollutant_min_budget" , & UCBlock::set_pollutant_min_budget );
 
   // the size of the units and of the lines, by the methods of their classes

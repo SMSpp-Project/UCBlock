@@ -560,14 +560,14 @@ class SlackUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 /// set the active power cost values (Subset overload)
-/** Update v_ActivePowerCost at the time indices in @p subset to the values
- *  pointed by @p values. If the objective has already been generated, the
- *  affected LinearFunction coefficients (the active-power coefficient at the
- *  matching @p t, and the reactive-power-abs coefficient if reactive power
- *  is enabled) are updated in sync. Issues a SlackUnitBlockSbstMod with type
+/** Update v_ActivePowerCost at the time indices in @p subset to the values in
+ *  @p values. If the objective has already been generated, the affected
+ *  LinearFunction coefficients (the active-power coefficient at the matching
+ *  @p t, and the reactive-power-abs coefficient if reactive power is enabled)
+ *  are updated in sync. Issues a SlackUnitBlockSbstMod with type
  *  SlackUnitBlockMod::eSetActPCost depending on @p issuePMod. */
 
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Subset && subset ,
                              bool ordered = false ,
                              c_ModParam issuePMod = eNoBlck ,
@@ -575,11 +575,11 @@ class SlackUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 /// set the active power cost values (Range overload)
-/** Update v_ActivePowerCost at the time indices in @p rng to the values
- *  pointed by @p values. Same Modification dispatch as the Subset overload,
- *  but issues a SlackUnitBlockRngdMod instead. */
+/** Update v_ActivePowerCost at the time indices in @p rng to the values in @p
+ *  values. Same Modification dispatch as the Subset overload, but issues a
+ *  SlackUnitBlockRngdMod instead. */
 
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Range rng = Range( 0 , Inf< Index >() ) ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck );
@@ -591,7 +591,7 @@ class SlackUnitBlock : public UnitBlock
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector( get_time_horizon() , value );
-  set_active_power_cost( vector.cbegin() ,
+  set_active_power_cost( MF_dbl_sp( vector ) ,
                          Range( 0 , Inf< Index >() ) ,
                          issuePMod , issueAMod );
   }
@@ -600,11 +600,11 @@ class SlackUnitBlock : public UnitBlock
 
  static void static_initialization( void )
  {
-  register_method< SlackUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< SlackUnitBlock , MF_dbl_sp , Subset && , bool >(
    "SlackUnitBlock::set_active_power_cost" ,
    & SlackUnitBlock::set_active_power_cost );
 
-  register_method< SlackUnitBlock , MF_dbl_it , Range >(
+  register_method< SlackUnitBlock , MF_dbl_sp , Range >(
    "SlackUnitBlock::set_active_power_cost" ,
    & SlackUnitBlock::set_active_power_cost );
   }

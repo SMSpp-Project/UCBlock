@@ -2442,7 +2442,7 @@ void UCBlock::update_node_injection_constraints( Index time ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand( MF_dbl_it values ,
+void UCBlock::set_active_power_demand( MF_dbl_sp values ,
                                        Block::Subset && subset ,
                                        bool ordered ,
                                        c_ModParam issuePMod ,
@@ -2450,6 +2450,10 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 {
  if( subset.empty() )
   return;
+
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "UCBlock::set_active_power_demand: the "
+                                "span is shorter than the Subset" ) );
 
  if( ! v_network_blocks.empty() ) {
   set_network_active_demand( values , subset , issuePMod , issueAMod );
@@ -2462,10 +2466,11 @@ void UCBlock::set_active_power_demand( MF_dbl_it values ,
 
  bool changed = false;
 
+ auto values_it = values.begin();
  for( auto index : subset ) {
   const auto node_index = index / f_time_horizon;
   const auto time = index % f_time_horizon;
-  const auto demand = *( values++ );
+  const auto demand = *( values_it++ );
 
   if( v_active_power_demand[ node_index ][ time ] != demand ) {
    changed = true;
@@ -2880,7 +2885,7 @@ double UCBlock::get_zero_copy_linearization( Index unit ) const
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
+void UCBlock::set_active_power_demand( MF_dbl_sp values , Block::Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
 {
@@ -2888,6 +2893,10 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
 
  if( rng.first >= rng.second )
   return;
+
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "UCBlock::set_active_power_demand: the "
+                                "span is shorter than the Range" ) );
 
  if( ! v_network_blocks.empty() ) {
   Subset index( rng.second - rng.first );
@@ -2905,7 +2914,7 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
  for( Index index = rng.first ; index < rng.second ; ++index ) {
   const auto node_index = index / f_time_horizon;
   const auto time = index % f_time_horizon;
-  const auto demand = *( values++ );
+  const auto demand = values[ index - rng.first ];
 
   if( v_active_power_demand[ node_index ][ time ] != demand ) {
    changed = true;
@@ -2935,7 +2944,7 @@ void UCBlock::set_active_power_demand( MF_dbl_it values , Block::Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_network_active_demand( MF_dbl_it values ,
+void UCBlock::set_network_active_demand( MF_dbl_sp values ,
 					 const Subset & index ,
 					 c_ModParam issuePMod ,
 					 c_ModParam issueAMod )
@@ -2956,6 +2965,7 @@ void UCBlock::set_network_active_demand( MF_dbl_it values ,
  // the entries and the values of each NetworkBlock, in the order of index
  std::vector< Subset > entries( f_number_networks );
  std::vector< std::vector< double > > demand( f_number_networks );
+ auto values_it = values.begin();
  for( auto idx : index ) {
   const auto node_index = idx / f_time_horizon;
   const auto time = idx % f_time_horizon;
@@ -2972,12 +2982,12 @@ void UCBlock::set_network_active_demand( MF_dbl_it values ,
     ")" ) );
 
   entries[ n ].push_back( i * nb_nodes + node_index );
-  demand[ n ].push_back( *( values++ ) );
+  demand[ n ].push_back( *( values_it++ ) );
   }
 
  for( Index n = 0 ; n < f_number_networks ; ++n )
   if( ! entries[ n ].empty() )
-   v_network_blocks[ n ]->set_active_demand( demand[ n ].cbegin() ,
+   v_network_blocks[ n ]->set_active_demand( MF_dbl_sp( demand[ n ] ) ,
 					     std::move( entries[ n ] ) ,
 					     false , issuePMod , issueAMod );
 
@@ -2986,7 +2996,7 @@ void UCBlock::set_network_active_demand( MF_dbl_it values ,
 /*--------------------------------------------------------------------------*/
 
 bool UCBlock::set_carrier_demand( Index c , Index n , Index t ,
-				  MF_dbl_it value , c_ModParam issuePMod ,
+				  double value , c_ModParam issuePMod ,
 				  c_ModParam issueAMod )
 {
  auto & cd = v_carrier[ c ];
@@ -2999,27 +3009,27 @@ bool UCBlock::set_carrier_demand( Index c , Index n , Index t ,
   auto nbi = cd.v_network_blocks[ nw ];
   const auto old = nbi->get_active_demand( i ) ?
                    nbi->get_active_demand( i )[ n ] : 0;
-  if( old == *value )
+  if( old == value )
    return( false );
   const auto flat = i * nbi->get_number_nodes() + n;
-  nbi->set_active_demand( value , Range( flat , flat + 1 ) , issuePMod ,
-			  issueAMod );
+  nbi->set_active_demand( MF_dbl_sp( & value , 1 ) , Range( flat , flat + 1 ) ,
+			  issuePMod , issueAMod );
   return( true );
   }
 
  // one node: the demand is the right-hand side of the balance (1c)
  if( cd.v_demand.empty() ) {
-  if( *value == 0 )
+  if( value == 0 )
    return( false );
   cd.v_demand.resize( boost::extents[ 1 ][ f_time_horizon ] );
   std::fill_n( cd.v_demand.data() , f_time_horizon , 0.0 );
   }
 
- if( cd.v_demand[ 0 ][ t ] == *value )
+ if( cd.v_demand[ 0 ][ t ] == value )
   return( false );
 
  if( not_dry_run( issuePMod ) ) {
-  cd.v_demand[ 0 ][ t ] = *value;
+  cd.v_demand[ 0 ][ t ] = value;
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
    std::vector< BalanceTerm > terms;
@@ -3034,23 +3044,28 @@ bool UCBlock::set_carrier_demand( Index c , Index n , Index t ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_energy_demand( MF_dbl_it values , Block::Subset && subset ,
+void UCBlock::set_energy_demand( MF_dbl_sp values , Block::Subset && subset ,
 				 bool ordered , c_ModParam issuePMod ,
 				 c_ModParam issueAMod )
 {
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "UCBlock::set_energy_demand: the span is "
+                                "shorter than the Subset" ) );
+
  // the indices of the carrier 0 are those of set_active_power_demand(),
  // which is called for them; those of the other carriers are handled here
  const Index first = get_number_nodes() * f_time_horizon;
  Subset active , others;
  std::vector< double > active_values;
- for( auto index : subset ) {
-  const auto value = values++;
+ for( Index h = 0 ; h < subset.size() ; ++h ) {
+  const auto index = subset[ h ];
+  const auto value = values[ h ];
   if( index < first ) {
    active.push_back( index );
-   active_values.push_back( *value );
+   active_values.push_back( value );
    continue;
    }
 
@@ -3069,7 +3084,7 @@ void UCBlock::set_energy_demand( MF_dbl_it values , Block::Subset && subset ,
   }
 
  if( ! active.empty() )
-  set_active_power_demand( active_values.begin() , std::move( active ) ,
+  set_active_power_demand( MF_dbl_sp( active_values ) , std::move( active ) ,
 			   ordered , issuePMod , issueAMod );
 
  if( others.empty() )
@@ -3088,7 +3103,7 @@ void UCBlock::set_energy_demand( MF_dbl_it values , Block::Subset && subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_energy_demand( MF_dbl_it values , Block::Range rng ,
+void UCBlock::set_energy_demand( MF_dbl_sp values , Block::Range rng ,
 				 c_ModParam issuePMod ,
 				 c_ModParam issueAMod )
 {
@@ -3101,13 +3116,17 @@ void UCBlock::set_energy_demand( MF_dbl_it values , Block::Range rng ,
  if( rng.first >= rng.second )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "UCBlock::set_energy_demand: the span is "
+                                "shorter than the Range" ) );
+
  // the part of the carrier 0, if any, goes to set_active_power_demand()
  const Index first = get_number_nodes() * f_time_horizon;
  if( rng.first < first ) {
   const auto last = std::min( rng.second , first );
   set_active_power_demand( values , Range( rng.first , last ) ,
 			   issuePMod , issueAMod );
-  values += last - rng.first;
+  values = values.subspan( last - rng.first );
   rng.first = last;
   }
 
@@ -3117,8 +3136,9 @@ void UCBlock::set_energy_demand( MF_dbl_it values , Block::Range rng ,
   Index c = 1;
   while( m >= get_number_nodes( c ) )
    m -= get_number_nodes( c++ );
-  if( set_carrier_demand( c , m , index % f_time_horizon , values++ ,
-			  issuePMod , issueAMod ) )
+  if( set_carrier_demand( c , m , index % f_time_horizon ,
+			  values[ index - rng.first ] , issuePMod ,
+			  issueAMod ) )
    changed = true;
   }
 
@@ -3167,7 +3187,7 @@ bool UCBlock::set_pollutant_budget_k( Index k , double budget , bool lower ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_bounds( MF_dbl_it values ,
+void UCBlock::set_pollutant_bounds( MF_dbl_sp values ,
                                     Block::Subset && subset ,
                                     bool ordered , bool lower ,
                                     c_ModParam issuePMod ,
@@ -3175,6 +3195,10 @@ void UCBlock::set_pollutant_bounds( MF_dbl_it values ,
 {
  if( subset.empty() )
   return;
+
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "UCBlock::set_pollutant_bounds: the span "
+                                "is shorter than the Subset" ) );
 
  // the abstract representation is changed right here, and all the changes
  // of the sides travel together in one channel
@@ -3185,8 +3209,9 @@ void UCBlock::set_pollutant_bounds( MF_dbl_it values ,
   amod = make_par( par2mod( amod ) , open_channel( par2chnl( amod ) ) );
 
  bool changed = false;
- for( auto k : subset )
-  if( set_pollutant_budget_k( k , *( values++ ) , lower , issuePMod , amod ) )
+ for( Index h = 0 ; h < subset.size() ; ++h )
+  if( set_pollutant_budget_k( subset[ h ] , values[ h ] , lower , issuePMod ,
+                              amod ) )
    changed = true;
 
  if( grouped )
@@ -3207,13 +3232,17 @@ void UCBlock::set_pollutant_bounds( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Range rng ,
+void UCBlock::set_pollutant_bounds( MF_dbl_sp values , Block::Range rng ,
                                     bool lower , c_ModParam issuePMod ,
                                     c_ModParam issueAMod )
 {
  rng.second = std::min( rng.second , f_total_number_pollutant_zones );
  if( rng.first >= rng.second )
   return;
+
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "UCBlock::set_pollutant_bounds: the span "
+                                "is shorter than the Range" ) );
 
  // the abstract representation is changed right here, and all the changes
  // of the sides travel together in one channel
@@ -3225,7 +3254,8 @@ void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Range rng ,
 
  bool changed = false;
  for( Index k = rng.first ; k < rng.second ; ++k )
-  if( set_pollutant_budget_k( k , *( values++ ) , lower , issuePMod , amod ) )
+  if( set_pollutant_budget_k( k , values[ k - rng.first ] , lower ,
+                              issuePMod , amod ) )
    changed = true;
 
  if( grouped )
@@ -3242,7 +3272,7 @@ void UCBlock::set_pollutant_bounds( MF_dbl_it values , Block::Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_budget( MF_dbl_it values ,
+void UCBlock::set_pollutant_budget( MF_dbl_sp values ,
                                     Block::Subset && subset , bool ordered ,
                                     c_ModParam issuePMod ,
                                     c_ModParam issueAMod )
@@ -3253,7 +3283,7 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
+void UCBlock::set_pollutant_budget( MF_dbl_sp values , Block::Range rng ,
                                     c_ModParam issuePMod ,
                                     c_ModParam issueAMod )
 {
@@ -3262,7 +3292,7 @@ void UCBlock::set_pollutant_budget( MF_dbl_it values , Block::Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_min_budget( MF_dbl_it values ,
+void UCBlock::set_pollutant_min_budget( MF_dbl_sp values ,
                                         Block::Subset && subset ,
                                         bool ordered ,
                                         c_ModParam issuePMod ,
@@ -3274,7 +3304,7 @@ void UCBlock::set_pollutant_min_budget( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void UCBlock::set_pollutant_min_budget( MF_dbl_it values , Block::Range rng ,
+void UCBlock::set_pollutant_min_budget( MF_dbl_sp values , Block::Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
 {

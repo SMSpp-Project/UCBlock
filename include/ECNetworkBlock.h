@@ -860,13 +860,14 @@ class ECNetworkBlock : public NetworkBlock
  *  @{ */
 
  /// set the active demand at the nodes specified by \p subset
- /** This function sets the active demand at each node in the given \p
-  * subset. The active demand at the node whose index is specified by the i-th
-  * element in \p subset is given by the i-th element of the vector pointed by
-  * \p values, i.e., it is given by the value pointed by (values + i). The
-  * parameter \p ordered indicates whether the \p subset is ordered.
+ /** This function sets the active demand at each node in the given \p subset.
+  * The active demand at the node whose index is specified by the i-th element
+  * in \p subset is values[ i ], \p values being at least as long as \p subset
+  * (std::invalid_argument is thrown if it is shorter). The parameter
+  * \p ordered indicates whether the \p subset is ordered.
   *
-  * @param values An iterator to a vector containing the active demand.
+  * @param values A span containing the active demand, at least as long as
+  *               \p subset (std::invalid_argument is thrown if it is shorter).
   *
   * @param subset The indices of the nodes at which the active demand is being
   *               modified.
@@ -877,7 +878,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_active_demand( MF_dbl_it values ,
+ void set_active_demand( MF_dbl_sp values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
@@ -885,13 +886,15 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p rng
- /** This function sets the active demand at each node in the given Range \p
-  * rng. For each i in the given Range (up to the number of nodes minus 1),
-  * the active demand at node i is given by the element of the vector pointed
-  * by \p values whose index is (i - rng.first), i.e., it is given by the
-  * value pointed by (values + i - rng.first).
+ /** This function sets the active demand at each node in the given Range
+  * \p rng. For each i in the given Range (up to the number of nodes minus 1),
+  * the active demand at node i is values[ i - rng.first ], \p values being at
+  * least as long as what is left of \p rng (std::invalid_argument is thrown if
+  * it is shorter).
   *
-  * @param values An iterator to a vector containing the active demand.
+  * @param values A span containing the active demand, at least as long as what
+  *               is left of \p rng (std::invalid_argument is thrown if it is
+  *               shorter).
   *
   * @param rng A Range containing the indices of the nodes at which the active
   *        demand is being modified.
@@ -900,7 +903,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_active_demand( MF_dbl_it values ,
+ void set_active_demand( MF_dbl_sp values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
@@ -909,12 +912,12 @@ class ECNetworkBlock : public NetworkBlock
  /// set the buy price at the time intervals specified by \p subset
  /** This function sets the buy price at each time interval in the given
   * \p subset. The buy price at the time interval whose index is specified by
-  * the i-th element in \p subset is given by the i-th element of the vector
-  * pointed by \p values, i.e., it is given by the value pointed by
-  * (values + i). The parameter \p ordered indicates whether the \p subset is
-  * ordered.
+  * the i-th element in \p subset is values[ i ], \p values being at least as
+  * long as \p subset (std::invalid_argument is thrown if it is shorter). The
+  * parameter \p ordered indicates whether the \p subset is ordered.
   *
-  * @param values An iterator to a vector containing the buy prices.
+  * @param values A span containing the buy prices, at least as long as
+  *               \p subset (std::invalid_argument is thrown if it is shorter).
   *
   * @param subset The indices of the time intervals at which the buy price is
   *               being modified.
@@ -925,7 +928,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_buy_price( MF_dbl_it values ,
+ void set_buy_price( MF_dbl_sp values ,
                      Subset && subset ,
                      const bool ordered = false ,
                      ModParam issuePMod = eNoBlck ,
@@ -933,13 +936,15 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the buy price at the time intervals specified by \p rng
- /** This function sets the buy price at each time interval in the given
-  * Range \p rng. For each i in the given Range (up to the number of
-  * intervals minus 1), the buy price at interval i is given by the element
-  * of the vector pointed by \p values whose index is (i - rng.first), i.e.,
-  * it is given by the value pointed by (values + i - rng.first).
+ /** This function sets the buy price at each time interval in the given Range
+  * \p rng. For each i in the given Range (up to the number of intervals minus
+  * 1), the buy price at interval i is values[ i - rng.first ], \p values being
+  * at least as long as what is left of \p rng (std::invalid_argument is thrown
+  * if it is shorter).
   *
-  * @param values An iterator to a vector containing the buy prices.
+  * @param values A span containing the buy prices, at least as long as what is
+  *               left of \p rng (std::invalid_argument is thrown if it is
+  *               shorter).
   *
   * @param rng A Range containing the indices of the time intervals at which
   *        the buy price is being modified.
@@ -948,7 +953,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_buy_price( MF_dbl_it values ,
+ void set_buy_price( MF_dbl_sp values ,
                      Range rng = Range( 0 , Inf< Index >() ) ,
                      ModParam issuePMod = eNoBlck ,
                      ModParam issueAMod = eNoBlck );
@@ -957,12 +962,12 @@ class ECNetworkBlock : public NetworkBlock
  /// set the sell price at the time intervals specified by \p subset
  /** This function sets the sell price at each time interval in the given
   * \p subset. The sell price at the time interval whose index is specified by
-  * the i-th element in \p subset is given by the i-th element of the vector
-  * pointed by \p values, i.e., it is given by the value pointed by
-  * (values + i). The parameter \p ordered indicates whether the \p subset is
-  * ordered.
+  * the i-th element in \p subset is values[ i ], \p values being at least as
+  * long as \p subset (std::invalid_argument is thrown if it is shorter). The
+  * parameter \p ordered indicates whether the \p subset is ordered.
   *
-  * @param values An iterator to a vector containing the sell prices.
+  * @param values A span containing the sell prices, at least as long as
+  *               \p subset (std::invalid_argument is thrown if it is shorter).
   *
   * @param subset The indices of the time intervals at which the sell price is
   *               being modified.
@@ -973,7 +978,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_sell_price( MF_dbl_it values ,
+ void set_sell_price( MF_dbl_sp values ,
                       Subset && subset ,
                       const bool ordered = false ,
                       ModParam issuePMod = eNoBlck ,
@@ -981,13 +986,15 @@ class ECNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
  /// set the sell price at the time intervals specified by \p rng
- /** This function sets the sell price at each time interval in the given
-  * Range \p rng. For each i in the given Range (up to the number of
-  * intervals minus 1), the sell price at interval i is given by the element
-  * of the vector pointed by \p values whose index is (i - rng.first), i.e.,
-  * it is given by the value pointed by (values + i - rng.first).
+ /** This function sets the sell price at each time interval in the given Range
+  * \p rng. For each i in the given Range (up to the number of intervals minus
+  * 1), the sell price at interval i is values[ i - rng.first ], \p values
+  * being at least as long as what is left of \p rng (std::invalid_argument is
+  * thrown if it is shorter).
   *
-  * @param values An iterator to a vector containing the sell prices.
+  * @param values A span containing the sell prices, at least as long as what
+  *               is left of \p rng (std::invalid_argument is thrown if it is
+  *               shorter).
   *
   * @param rng A Range containing the indices of the time intervals at which
   *        the sell price is being modified.
@@ -996,7 +1003,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_sell_price( MF_dbl_it values ,
+ void set_sell_price( MF_dbl_sp values ,
                       Range rng = Range( 0 , Inf< Index >() ) ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
@@ -1007,8 +1014,8 @@ class ECNetworkBlock : public NetworkBlock
   * since PeakTariff is a single value: \p subset must contain 0, otherwise
   * an exception is thrown.
   *
-  * @param values An iterator to a vector whose first element is the new
-  *        peak tariff.
+  * @param values A span whose first element is the new peak tariff, not
+  *               empty (std::invalid_argument is thrown if it is empty).
   *
   * @param subset Must contain only the index 0.
   *
@@ -1018,7 +1025,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_peak_tariff( MF_dbl_it values ,
+ void set_peak_tariff( MF_dbl_sp values ,
                        Subset && subset ,
                        const bool ordered = false ,
                        ModParam issuePMod = eNoBlck ,
@@ -1030,8 +1037,8 @@ class ECNetworkBlock : public NetworkBlock
   * value, so only the index 0 is meaningful: the Range \p rng must include
   * 0, and any value outside [ 0 , 1 ) is ignored.
   *
-  * @param values An iterator to a vector whose first element is the new
-  *        peak tariff.
+  * @param values A span whose first element is the new peak tariff, not
+  *               empty (std::invalid_argument is thrown if it is empty).
   *
   * @param rng A Range that must include the index 0.
   *
@@ -1039,7 +1046,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_peak_tariff( MF_dbl_it values ,
+ void set_peak_tariff( MF_dbl_sp values ,
                        Range rng = Range( 0 , Inf< Index >() ) ,
                        ModParam issuePMod = eNoBlck ,
                        ModParam issueAMod = eNoBlck );
@@ -1050,8 +1057,8 @@ class ECNetworkBlock : public NetworkBlock
   * function of this ECNetworkBlock. Only index 0 is meaningful: \p subset
   * must contain 0, otherwise an exception is thrown.
   *
-  * @param values An iterator to a vector whose first element is the new
-  *        constant term.
+  * @param values A span whose first element is the new constant term, not
+  *               empty (std::invalid_argument is thrown if it is empty).
   *
   * @param subset Must contain only the index 0.
   *
@@ -1061,7 +1068,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_const_term( MF_dbl_it values ,
+ void set_const_term( MF_dbl_sp values ,
                       Subset && subset ,
                       const bool ordered = false ,
                       ModParam issuePMod = eNoBlck ,
@@ -1074,8 +1081,8 @@ class ECNetworkBlock : public NetworkBlock
   * the index 0 is meaningful: the Range \p rng must include 0, and any
   * value outside [ 0 , 1 ) is ignored.
   *
-  * @param values An iterator to a vector whose first element is the new
-  *        constant term.
+  * @param values A span whose first element is the new constant term, not
+  *               empty (std::invalid_argument is thrown if it is empty).
   *
   * @param rng A Range that must include the index 0.
   *
@@ -1083,7 +1090,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_const_term( MF_dbl_it values ,
+ void set_const_term( MF_dbl_sp values ,
                       Range rng = Range( 0 , Inf< Index >() ) ,
                       ModParam issuePMod = eNoBlck ,
                       ModParam issueAMod = eNoBlck );
@@ -1092,12 +1099,12 @@ class ECNetworkBlock : public NetworkBlock
  /// set the penalty price at the time intervals specified by \p subset
  /** This function sets the penalty price at each time interval in the given
   * \p subset. The penalty price at the time interval whose index is specified
-  * by the i-th element in \p subset is given by the i-th element of the
-  * vector pointed by \p values, i.e., it is given by the value pointed by
-  * (values + i). The parameter \p ordered indicates whether the \p subset is
-  * ordered.
+  * by the i-th element in \p subset is values[ i ], \p values being at least
+  * as long as \p subset (std::invalid_argument is thrown if it is shorter).
+  * The parameter \p ordered indicates whether the \p subset is ordered.
   *
-  * @param values An iterator to a vector containing the penalty prices.
+  * @param values A span containing the penalty prices, at least as long as
+  *               \p subset (std::invalid_argument is thrown if it is shorter).
   *
   * @param subset The indices of the time intervals at which the penalty
   *               price is being modified.
@@ -1108,7 +1115,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_penalty_price( MF_dbl_it values ,
+ void set_penalty_price( MF_dbl_sp values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          ModParam issuePMod = eNoBlck ,
@@ -1117,13 +1124,14 @@ class ECNetworkBlock : public NetworkBlock
 /*--------------------------------------------------------------------------*/
  /// set the penalty price at the time intervals specified by \p rng
  /** This function sets the penalty price at each time interval in the given
-  * Range \p rng. For each i in the given Range (up to the number of
-  * intervals minus 1), the penalty price at interval i is given by the
-  * element of the vector pointed by \p values whose index is
-  * (i - rng.first), i.e., it is given by the value pointed by
-  * (values + i - rng.first).
+  * Range \p rng. For each i in the given Range (up to the number of intervals
+  * minus 1), the penalty price at interval i is values[ i - rng.first ],
+  * \p values being at least as long as what is left of \p rng
+  * (std::invalid_argument is thrown if it is shorter).
   *
-  * @param values An iterator to a vector containing the penalty prices.
+  * @param values A span containing the penalty prices, at least as long as
+  *               what is left of \p rng (std::invalid_argument is thrown if it
+  *               is shorter).
   *
   * @param rng A Range containing the indices of the time intervals at which
   *        the penalty price is being modified.
@@ -1132,7 +1140,7 @@ class ECNetworkBlock : public NetworkBlock
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_penalty_price( MF_dbl_it values ,
+ void set_penalty_price( MF_dbl_sp values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck );
@@ -1237,40 +1245,40 @@ class ECNetworkBlock : public NetworkBlock
 
  static void static_initialization( void )
  {
-  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "ECNetworkBlock::set_active_demand" , & ECNetworkBlock::set_active_demand );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Range >(
    "ECNetworkBlock::set_active_demand" , & ECNetworkBlock::set_active_demand );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "ECNetworkBlock::set_buy_price" , & ECNetworkBlock::set_buy_price );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Range >(
    "ECNetworkBlock::set_buy_price" , & ECNetworkBlock::set_buy_price );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "ECNetworkBlock::set_sell_price" , & ECNetworkBlock::set_sell_price );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Range >(
    "ECNetworkBlock::set_sell_price" , & ECNetworkBlock::set_sell_price );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "ECNetworkBlock::set_peak_tariff" , & ECNetworkBlock::set_peak_tariff );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Range >(
    "ECNetworkBlock::set_peak_tariff" , & ECNetworkBlock::set_peak_tariff );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "ECNetworkBlock::set_const_term" , & ECNetworkBlock::set_const_term );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Range >(
    "ECNetworkBlock::set_const_term" , & ECNetworkBlock::set_const_term );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "ECNetworkBlock::set_penalty_price" , & ECNetworkBlock::set_penalty_price );
 
-  register_method< ECNetworkBlock , MF_dbl_it , Range >(
+  register_method< ECNetworkBlock , MF_dbl_sp , Range >(
    "ECNetworkBlock::set_penalty_price" , & ECNetworkBlock::set_penalty_price );
  }
 

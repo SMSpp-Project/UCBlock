@@ -1620,7 +1620,7 @@ class BatteryUnitBlock : public UnitBlock
   * Constraints are generated a value of the other sign than the current
   * one cannot be represented, and std::logic_error is thrown. */
 
- void set_initial_storage( MF_dbl_it it ,
+ void set_initial_storage( MF_dbl_sp it ,
                            Subset && subset ,
                            const bool ordered = false ,
                            c_ModParam issuePMod = eNoBlck ,
@@ -1628,12 +1628,11 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// sets the initial storage ("InitialStorage")
- /** As the Subset version; the value is the element of the vector pointed
-  * by \p it in the position opposite to \p rng.first (which is at most
-  * 0 when \p rng contains 0), and nothing is done if \p rng does not
-  * contain 0. */
+ /** As the Subset version; the value is the first element of \p it, which
+  * cannot be empty when \p rng contains 0 (std::invalid_argument is thrown
+  * if it is), and nothing is done if \p rng does not contain 0. */
 
- void set_initial_storage( MF_dbl_it it ,
+ void set_initial_storage( MF_dbl_sp it ,
                            Range rng = Range( 0 , Inf< Index >() ) ,
                            c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
@@ -1644,10 +1643,11 @@ class BatteryUnitBlock : public UnitBlock
   * initial power. If the given \p subset does not contain the index 0, this
   * function does nothing. Since \p subset can have multiple zeros, only the
   * last one is considered, which means that the value for the initial power
-  * will be that in the vector pointed by \p it associated with this last
-  * zero. */
+  * will be that in \p it associated with this last zero, \p it being at
+  * least as long as \p subset (std::invalid_argument is thrown if it is
+  * shorter). */
 
- void set_initial_power( MF_dbl_it it ,
+ void set_initial_power( MF_dbl_sp it ,
                          Subset && subset ,
                          const bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
@@ -1656,13 +1656,11 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
  /** If the given Range \p rng contains 0, this function sets the initial
-  * power. In this case, if the first element of \p rng is 0, the initial
-  * power will be set to the value pointed by the given iterator. In general,
-  * the initial power will be the one found at position -rng.first in the
-  * vector pointed by \p it if this Range contains the 0 index. If the given
-  * Range \p rng does not contain the 0 index, this function does nothing. */
+  * power to the first element of \p it, which cannot be empty
+  * (std::invalid_argument is thrown if it is). If the given Range \p rng
+  * does not contain the 0 index, this function does nothing. */
 
- void set_initial_power( MF_dbl_it it ,
+ void set_initial_power( MF_dbl_sp it ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -1672,16 +1670,17 @@ class BatteryUnitBlock : public UnitBlock
  /** This function sets the prices \f$ b_t \f$ ("Cost") of this
   * BatteryUnitBlock, and the Objective with them [see generate_objective()].
   *
-  * @param values  Iterator to a vector containing the cost values.
-  * @param subset  If non-empty, the cost value of the instant
-  *                \p subset[ i ] is set to the i-th value pointed by
-  *                \p values, in the order \p subset gives, which need not be
-  *                sorted. If empty, no operation is performed.
+  * @param values  A span containing the cost values, at least as long as
+  *                \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
+  * @param subset  If non-empty, the cost value of the instant \p subset[ i ]
+  *                is set to values[ i ], in the order \p subset gives, which
+  *                need not be sorted. If empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_cost( MF_dbl_it values ,
+ void set_cost( MF_dbl_sp values ,
                 Subset && subset ,
                 bool ordered = false ,
                 c_ModParam issuePMod = eNoBlck ,
@@ -1691,14 +1690,16 @@ class BatteryUnitBlock : public UnitBlock
  /// set the cost values
  /** This function sets the cost values of this BatteryUnitBlock.
   *
-  * @param values Iterator to a vector containing the cost values.
-  * @param rng    If non-empty, the cost values corresponding to the indices
-  *               in \p rng are set to the values pointed by \p values. If
-  *               empty, no operation is performed.
+  * @param values A span containing the cost values, at least as long as what
+  *               is left of \p rng (std::invalid_argument is thrown if it is
+  *               shorter).
+  * @param rng    If non-empty, the cost values corresponding to the indices in
+  *               \p rng are set to the values in \p values. If empty, no
+  *               operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_cost( MF_dbl_it values ,
+ void set_cost( MF_dbl_sp values ,
                 Range rng = Range( 0 , Inf< Index >() ) ,
                 c_ModParam issuePMod = eNoBlck ,
                 c_ModParam issueAMod = eNoBlck );
@@ -1716,7 +1717,7 @@ class BatteryUnitBlock : public UnitBlock
                 c_ModParam issuePMod = eNoBlck ,
                 c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector( get_time_horizon() , value );
-  set_cost( vector.cbegin() ,
+  set_cost( MF_dbl_sp( vector ) ,
             Range( 0 , Inf< Index >() ) ,
             issuePMod , issueAMod );
  }
@@ -1741,10 +1742,11 @@ class BatteryUnitBlock : public UnitBlock
   * unit is the same one in absolute terms or one resized with it is not
   * decided by the data.
   *
-  * @param values An iterator to a vector containing the kappa constants.
+  * @param values A span whose first element is the new kappa constant, not
+  *        empty (std::invalid_argument is thrown if it is empty).
   *
-  * @param subset If non-empty, the kappa constant is set to the value pointed
-  *        by \p values. If empty, no operation is performed.
+  * @param subset If non-empty, the kappa constant is set to the first
+  *        element of \p values. If empty, no operation is performed.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *
@@ -1752,7 +1754,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_kappa( MF_dbl_it values ,
+ void set_kappa( MF_dbl_sp values ,
                  Subset && subset ,
                  const bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -1769,16 +1771,17 @@ class BatteryUnitBlock : public UnitBlock
   * unit is the same one in absolute terms or one resized with it is not
   * decided by the data.
   *
-  * @param values An iterator to a vector containing the kappa constants.
+  * @param values A span whose first element is the new kappa constant, not
+  *        empty (std::invalid_argument is thrown if it is empty).
   *
-  * @param rng If non-empty, the kappa constant is set to the value pointed by
-  *        \p values. If empty, no operation is performed.
+  * @param rng If non-empty, the kappa constant is set to the first element
+  *        of \p values. If empty, no operation is performed.
   *
   * @param issuePMod Controls how physical Modifications are issued.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_kappa( MF_dbl_it values ,
+ void set_kappa( MF_dbl_sp values ,
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
@@ -1796,7 +1799,7 @@ class BatteryUnitBlock : public UnitBlock
  void set_kappa( double value , c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
-  set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+  set_kappa( MF_dbl_sp( vector ) , Range( 0 , Inf< Index >() ) ,
              issuePMod , issueAMod );
   }
 
@@ -1814,10 +1817,11 @@ class BatteryUnitBlock : public UnitBlock
   * std::logic_error for a unit that follows a reference schedule, and
   * std::invalid_argument for a negative value.
   *
-  * @param values An iterator to a vector containing the multiplier.
+  * @param values A span whose first element is the new multiplier, not
+  *        empty (std::invalid_argument is thrown if it is empty).
   *
-  * @param subset If non-empty, the multiplier is set to the value pointed
-  *        by \p values. If empty, no operation is performed.
+  * @param subset If non-empty, the multiplier is set to the first element
+  *        of \p values. If empty, no operation is performed.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *
@@ -1825,7 +1829,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_converter_kappa( MF_dbl_it values ,
+ void set_converter_kappa( MF_dbl_sp values ,
                            Subset && subset ,
                            const bool ordered = false ,
                            c_ModParam issuePMod = eNoBlck ,
@@ -1835,16 +1839,17 @@ class BatteryUnitBlock : public UnitBlock
  /// set the capacity multiplier of the converter
  /** This function sets \f$ \kappa^{cv} \f$, see the other versions.
   *
-  * @param values An iterator to a vector containing the multiplier.
+  * @param values A span whose first element is the new multiplier, not
+  *        empty (std::invalid_argument is thrown if it is empty).
   *
-  * @param rng If non-empty, the multiplier is set to the value pointed by
+  * @param rng If non-empty, the multiplier is set to the first element of
   *        \p values. If empty, no operation is performed.
   *
   * @param issuePMod Controls how physical Modifications are issued.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_converter_kappa( MF_dbl_it values ,
+ void set_converter_kappa( MF_dbl_sp values ,
                            Range rng = Range( 0 , Inf< Index >() ) ,
                            c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
@@ -1862,7 +1867,7 @@ class BatteryUnitBlock : public UnitBlock
  void set_converter_kappa( double value , c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
-  set_converter_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+  set_converter_kappa( MF_dbl_sp( vector ) , Range( 0 , Inf< Index >() ) ,
                        issuePMod , issueAMod );
   }
 
@@ -2335,35 +2340,35 @@ class BatteryUnitBlock : public UnitBlock
 
  static void static_initialization( void )
  {
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_initial_storage" ,
    & BatteryUnitBlock::set_initial_storage );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_initial_storage" ,
    & BatteryUnitBlock::set_initial_storage );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_initial_power" ,
    & BatteryUnitBlock::set_initial_power );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_initial_power" ,
    & BatteryUnitBlock::set_initial_power );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_cost" ,
    & BatteryUnitBlock::set_cost );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_cost" ,
    & BatteryUnitBlock::set_cost );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
 
@@ -2396,11 +2401,11 @@ class BatteryUnitBlock : public UnitBlock
    "BatteryUnitBlock::get_resize_linearization" ,
    & BatteryUnitBlock::get_resize_linearization );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_converter_kappa" ,
    & BatteryUnitBlock::set_converter_kappa );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_converter_kappa" ,
    & BatteryUnitBlock::set_converter_kappa );
   }

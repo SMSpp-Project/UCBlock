@@ -956,13 +956,14 @@ class NetworkBlock : public Block
  *  @{ */
 
  /// set the active demand at the nodes specified by \p subset
- /** This function sets the active demand at each node in the given \p
-  * subset. The active demand at the node whose index is specified by the i-th
-  * element in \p subset is given by the i-th element of the vector pointed by
-  * \p values, i.e., it is given by the value pointed by (values + i). The
-  * parameter \p ordered indicates whether the \p subset is ordered.
+ /** This function sets the active demand at each node in the given \p subset.
+  * The active demand at the node whose index is specified by the i-th element
+  * in \p subset is values[ i ], \p values being at least as long as \p subset
+  * (std::invalid_argument is thrown if it is shorter). The parameter
+  * \p ordered indicates whether the \p subset is ordered.
   *
-  * @param values An iterator to a vector containing the active demand.
+  * @param values A span containing the active demand, at least as long as
+  *               \p subset (std::invalid_argument is thrown if it is shorter).
   *
   * @param subset The indices of the nodes at which the active demand is being
   *               modified.
@@ -973,19 +974,21 @@ class NetworkBlock : public Block
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- virtual void set_active_demand( MF_dbl_it values , Subset && subset ,
+ virtual void set_active_demand( MF_dbl_sp values , Subset && subset ,
                                  bool ordered , ModParam issuePMod ,
                                  ModParam issueAMod ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p rng
- /** This function sets the active demand at each node in the given Range \p
-  * rng. For each i in the given Range (up to the number of nodes minus 1),
-  * the active demand at node i is given by the element of the vector pointed
-  * by \p values whose index is (i - rng.first), i.e., it is given by the
-  * value pointed by (values + i - rng.first).
+ /** This function sets the active demand at each node in the given Range
+  * \p rng. For each i in the given Range (up to the number of nodes minus 1),
+  * the active demand at node i is values[ i - rng.first ], \p values being at
+  * least as long as what is left of \p rng (std::invalid_argument is thrown if
+  * it is shorter).
   *
-  * @param values An iterator to a vector containing the active demand.
+  * @param values A span containing the active demand, at least as long as what
+  *               is left of \p rng (std::invalid_argument is thrown if it is
+  *               shorter).
   *
   * @param rng A Range containing the indices of the nodes at which the active
   *            demand is being modified.
@@ -994,7 +997,7 @@ class NetworkBlock : public Block
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- virtual void set_active_demand( MF_dbl_it values , Range rng ,
+ virtual void set_active_demand( MF_dbl_sp values , Range rng ,
                                  ModParam issuePMod ,
                                  ModParam issueAMod ) = 0;
 

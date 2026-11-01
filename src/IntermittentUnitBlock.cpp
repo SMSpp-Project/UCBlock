@@ -907,7 +907,7 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
+void IntermittentUnitBlock::set_maximum_power( MF_dbl_sp values ,
                                                Subset && subset ,
                                                bool ordered ,
                                                c_ModParam issuePMod ,
@@ -916,9 +916,13 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power: "
+                                "the span is shorter than the Subset" ) );
+
  if( v_MaxPower.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -930,7 +934,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    throw( std::invalid_argument(
     "IntermittentUnitBlock::set_maximum_power: invalid value in subset." ) );
 
- auto values_it = values;
+ auto values_it = values.begin();
 
  bool identical = true;
  for( auto t : subset ) {
@@ -948,7 +952,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto t : subset ) {
    double max_power = *( values_it++ );
    if( ( f_max_power_epsilon > 0 ) && ( max_power == 0.0 ) )
@@ -973,7 +977,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
+void IntermittentUnitBlock::set_maximum_power( MF_dbl_sp values ,
                                                Range rng ,
                                                c_ModParam issuePMod ,
                                                c_ModParam issueAMod )
@@ -982,11 +986,15 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power: "
+                                "the span is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  if( v_MaxPower.empty() ) {
-  if( std::all_of( values ,
-                   values + sz ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -994,7 +1002,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  }
 
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( Index t = rng.first ; t < rng.second ; ++t ) {
   double max_power = *( values_it++ );
   if( ( f_max_power_epsilon > 0 ) && ( max_power == 0.0 ) )
@@ -1010,7 +1018,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( Index t = rng.first ; t < rng.second ; ++t ) {
    double max_power = *( values_it++ );
    if( ( f_max_power_epsilon > 0 ) && ( max_power == 0.0 ) )
@@ -1032,7 +1040,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
+void IntermittentUnitBlock::set_active_power_cost( MF_dbl_sp values ,
                                                    Subset && subset ,
                                                    bool ordered ,
                                                    c_ModParam issuePMod ,
@@ -1041,9 +1049,14 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "IntermittentUnitBlock::"
+                                "set_active_power_cost: the span is "
+                                "shorter than the Subset" ) );
+
  if( v_ActivePowerCost.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1055,7 +1068,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
    throw( std::invalid_argument(
     "IntermittentUnitBlock::set_active_power_cost: invalid index in subset." ) );
 
- auto values_it = values;
+ auto values_it = values.begin();
 
  bool identical = true;
  for( auto t : subset ) {
@@ -1069,7 +1082,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto t : subset )
    v_ActivePowerCost[ t ] = *( values_it++ );
 
@@ -1112,7 +1125,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
+void IntermittentUnitBlock::set_active_power_cost( MF_dbl_sp values ,
                                                    Range rng ,
                                                    c_ModParam issuePMod ,
                                                    c_ModParam issueAMod )
@@ -1121,25 +1134,30 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "IntermittentUnitBlock::"
+                                "set_active_power_cost: the span is "
+                                "shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  if( v_ActivePowerCost.empty() ) {
-  if( std::all_of( values ,
-                   values + sz ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_ActivePowerCost.assign( f_time_horizon , 0.0 );
  }
 
- if( std::equal( values ,
-                 values + sz ,
+ if( std::equal( values.begin() ,
+                 values.begin() + sz ,
                  v_ActivePowerCost.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values ,
-             values + sz ,
+  std::copy( values.begin() ,
+             values.begin() + sz ,
              v_ActivePowerCost.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
@@ -1194,7 +1212,7 @@ void IntermittentUnitBlock::set_weight( double k , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
+void IntermittentUnitBlock::set_kappa( MF_dbl_sp values ,
                                        Subset && subset , bool ordered ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
@@ -1202,11 +1220,15 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
  if( subset.empty() )
   return;  // Since the given Subset is empty, no operation is performed
 
- if( f_kappa == *values )
+ if( values.empty() )
+  throw( std::invalid_argument( "IntermittentUnitBlock::set_kappa: no value "
+                                "in the span" ) );
+
+ if( f_kappa == values.front() )
   return;  // The kappa constant does not change: nothing to do
 
  if( not_dry_run( issuePMod ) ) {
-  f_kappa = *values;  // Update the kappa constant
+  f_kappa = values.front();  // Update the kappa constant
 
   if( not_dry_run( issueAMod ) ) {
    // Update the abstract representation
@@ -1285,7 +1307,7 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_kappa( MF_dbl_it values , Range rng ,
+void IntermittentUnitBlock::set_kappa( MF_dbl_sp values , Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
 {

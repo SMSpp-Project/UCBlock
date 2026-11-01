@@ -340,6 +340,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- every setter of the data of the module takes them as a `MF_dbl_sp`
+  (`MF_int_sp` for `set_init_updown_time()`), and is registered in the
+  methods factory only in that form: the Range and Subset versions throw
+  `std::invalid_argument` if the span is shorter than what is left of the
+  Range or than the Subset, those of a single datum (the kappa constants,
+  the initial powers and storages, the peak tariff, the investment cost) if
+  it is empty; `UCBlock::set_carrier_demand()` takes the one value as a
+  `double`
+
 - the comment of `DCNetworkBlock::get_resize_linearization()` writes the
   factor `C^v` of the flow limits, which the derivative already applies,
   and says that every formulation of the network has those limits; the
@@ -533,6 +542,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer in the row of that instant with more than one node
 
 ### Fixed
+
+- the Subset version of `DesignNetworkBlock::set_network_cost()` sorted an
+  unordered Subset without the values, which then went to the wrong lines,
+  and the Range versions of `set_active_demand()` and `set_network_cost()`
+  of `DesignNetworkBlock` did not restrict the Range to the nodes and the
+  lines there are
 
 - the unit test copies the one value of the data of a battery given once
   before assigning it to both instants: `assign()` was given a reference into
