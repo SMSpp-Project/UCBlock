@@ -16,8 +16,11 @@
 # on throughout and the commitment is not in question; the family e7 adds a
 # trough of the load-following target below MinPower, a start-up cost reduced
 # to 2% and 3 instants of stability after a start-up, so that the unit has to
-# shut down at night and start up again, and a deep decrease threshold at 75%
-# of the range, so that the rules that a start-up brings into play are exercised too.
+# shut down at night and start up again, and a deep decrease threshold at
+# about 75% of the range, so that the rules that a start-up brings into play
+# are exercised too. The deep decrease thresholds are moved, if needed, to at
+# least a tenth of a ramp from any whole number of ramps from MinPower and
+# from MaxPower (see off_ramp in json2nc4.jl).
 #
 # Like gen-all-nc4 this only runs the (deterministic) JSON -> netCDF
 # conversion of json2nc4.jl.

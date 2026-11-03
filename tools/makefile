@@ -20,7 +20,7 @@ DIR = .
 COMMON_SW = -std=c++20
 
 # debug switches
-SW_DEBUG = -g -glldb -fno-inline $(COMMON_SW)
+SW_DEBUG = -g $(SMSppSWDBG) -fno-inline $(COMMON_SW)
 # production switches
 SW_RELEASE = -O3 $(COMMON_SW) -DNDEBUG
 

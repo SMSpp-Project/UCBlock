@@ -20,6 +20,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
 #include <numeric>
 
 #include <utility>
@@ -71,13 +72,16 @@ void DesignNetworkBlock::deserialize_network_blocks(
  v_Block.clear();
  Index found = 0;
 
+ // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+ // each call
+ const auto sub_groups = group.getGroups();
  for( Index i = 0 ; i < f_number_subnetworks ; ++i ) {
   std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-  auto sub_group = group.getGroup( sub_group_name );
-  if( sub_group.isNull() )
+  auto it = sub_groups.find( sub_group_name );
+  if( it == sub_groups.end() )
    break;
 
-  auto res = almost_new_Block( sub_group , this );
+  auto res = almost_new_Block( it->second , this );
   if( auto nbi = dynamic_cast< NetworkBlock * >( res.second ) ) {
    nbi->set_NetworkData( f_NetworkData );
    nbi->deserialize( res.first );
@@ -168,8 +172,6 @@ void DesignNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > DesignNetworkBlock::expected_dims( void ) const {
  auto ret = NetworkBlock::expected_dims();
  ret.push_back( "NumberDesignLines" );
@@ -190,8 +192,6 @@ std::vector< std::string > DesignNetworkBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -372,8 +372,9 @@ Solution * DesignNetworkBlock::get_Solution( Configuration * csolc ,
 
  if( wsol & 4 ) {
   sol->v_network_Solution.resize( v_Block.size() );
-  int swsol = wsol & 1;  // copy the first bit of wsol
-  swsol |= wsol >> 3;    // copy the bits 4 - ... shifted by 3
+  // bit 0 of wsol, and its bits 4 - ... as bits 1 - ...: bit 3 (the
+  // compressed format) is not one of them
+  int swsol = ( wsol & 1 ) | ( ( wsol >> 3 ) & ~ 1 );
   SimpleConfiguration< int > snc;
   snc.f_value = swsol;
   for( Index i = 0 ; i < v_Block.size() ; ++i ) {
@@ -509,7 +510,7 @@ void DesignNetworkBlock::serialize( netCDF::NcGroup & group ) const
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
+void DesignNetworkBlock::set_active_demand( MF_dbl_sp values ,
                                             Subset && subset ,
                                             bool ordered ,
                                             c_ModParam issuePMod ,
@@ -518,60 +519,79 @@ void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
  if( v_Block.empty() || subset.empty() )
   return;
 
- if( ! ordered )
-  std::sort( subset.begin() , subset.end() );
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "DesignNetworkBlock::set_active_demand: "
+                                "the span is shorter than the Subset" ) );
 
+ // the values follow the subset: sorting it sorts them too
+ std::vector< double > sorted;
+ if( ! ordered ) {
+  std::vector< Index > perm( subset.size() );
+  std::iota( perm.begin() , perm.end() , 0 );
+  std::ranges::sort( perm , [ & ]( Index a , Index b ) {
+		      return( subset[ a ] < subset[ b ] ); } );
+  Subset sub( subset.size() );
+  sorted.resize( subset.size() );
+  for( Index k = 0 ; k < perm.size() ; ++k ) {
+   sub[ k ] = subset[ perm[ k ] ];
+   sorted[ k ] = values[ perm[ k ] ];
+   }
+  subset = std::move( sub );
+  values = sorted;
+  }
+
+ // one pass on the sub-Block and on the subset together
  Index global_offset = 0;
- auto val_it = values;
+ auto it = subset.begin();
 
  for( auto bi : v_Block ) {
+  if( it == subset.end() )
+   break;
+
   auto nbi = static_cast< NetworkBlock * >( bi );
   if( ! nbi )
    continue;
 
-  const Index local_size =
+  const Index block_end = global_offset +
    nbi->get_number_intervals() * nbi->get_number_nodes();
 
+  const auto first = it;
   Subset local_subset;
-  auto first_val_it = val_it;
+  for( ; ( it != subset.end() ) && ( *it < block_end ) ; ++it )
+   local_subset.push_back( *it - global_offset );
 
-  for( auto idx : subset ) {
-   if( ( idx >= global_offset ) && ( idx < global_offset + local_size ) ) {
-    local_subset.push_back( idx - global_offset );
-    ++val_it;
-    }
-   else if( idx >= global_offset + local_size ) {
-    // this element belongs to a later block, do nothing here
-    }
-   }
-
-  if( ! local_subset.empty() ) {
-   nbi->set_active_demand( first_val_it ,
+  if( ! local_subset.empty() )
+   nbi->set_active_demand( values.subspan( first - subset.begin() ) ,
                            std::move( local_subset ) ,
                            true ,
                            issuePMod ,
                            issueAMod );
-   }
 
-  global_offset += local_size;
+  global_offset = block_end;
   }
  }  // end( DesignNetworkBlock::set_active_demand( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
+void DesignNetworkBlock::set_active_demand( MF_dbl_sp values ,
                                             Range rng ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
 {
- if( v_Block.empty() )
-  return;
+ Index size = 0;  // the demands of all the sub-Block, one after the other
+ for( auto bi : v_Block )
+  if( auto nbi = static_cast< NetworkBlock * >( bi ) )
+   size += nbi->get_number_intervals() * nbi->get_number_nodes();
 
+ rng.second = std::min( rng.second , size );
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "DesignNetworkBlock::set_active_demand: "
+                                "the span is shorter than the Range" ) );
+
  Index global_offset = 0;
- auto val_it = values;
 
  for( auto bi : v_Block ) {
   auto nbi = static_cast< NetworkBlock * >( bi );
@@ -591,12 +611,10 @@ void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
    const Range local_rng( overlap_begin - block_begin ,
                           overlap_end   - block_begin );
 
-   nbi->set_active_demand( val_it ,
+   nbi->set_active_demand( values.subspan( overlap_begin - rng.first ) ,
                            local_rng ,
                            issuePMod ,
                            issueAMod );
-
-   std::advance( val_it , overlap_end - overlap_begin );
    }
 
   global_offset += local_size;
@@ -605,7 +623,7 @@ void DesignNetworkBlock::set_active_demand( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void DesignNetworkBlock::set_network_cost( MF_dbl_it values ,
+void DesignNetworkBlock::set_network_cost( MF_dbl_sp values ,
                                            Subset && subset ,
                                            bool ordered ,
                                            c_ModParam issuePMod ,
@@ -614,59 +632,78 @@ void DesignNetworkBlock::set_network_cost( MF_dbl_it values ,
  if( v_Block.empty() || subset.empty() )
   return;
 
- if( ! ordered )
-  std::sort( subset.begin() , subset.end() );
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "DesignNetworkBlock::set_network_cost: "
+                                "the span is shorter than the Subset" ) );
 
+ // the values follow the subset: sorting it sorts them too
+ std::vector< double > sorted;
+ if( ! ordered ) {
+  std::vector< Index > perm( subset.size() );
+  std::iota( perm.begin() , perm.end() , 0 );
+  std::ranges::stable_sort( perm , [ & ]( Index a , Index b ) {
+			     return( subset[ a ] < subset[ b ] ); } );
+  Subset sub( subset.size() );
+  sorted.resize( subset.size() );
+  for( Index k = 0 ; k < perm.size() ; ++k ) {
+   sub[ k ] = subset[ perm[ k ] ];
+   sorted[ k ] = values[ perm[ k ] ];
+   }
+  subset = std::move( sub );
+  values = sorted;
+  }
+
+ // one pass on the sub-Block and on the subset together
  Index global_offset = 0;
- auto val_it = values;
+ auto it = subset.begin();
 
  for( auto bi : v_Block ) {
+  if( it == subset.end() )
+   break;
+
   auto dcnb = dynamic_cast< DCNetworkBlock * >( bi );
   if( ! dcnb )
    continue;
 
-  const Index local_size = dcnb->get_number_lines();
+  const Index block_end = global_offset + dcnb->get_number_lines();
 
+  const auto first = it;
   Subset local_subset;
-  auto first_val_it = val_it;
+  for( ; ( it != subset.end() ) && ( *it < block_end ) ; ++it )
+   local_subset.push_back( *it - global_offset );
 
-  for( auto idx : subset ) {
-   if( ( idx >= global_offset ) && ( idx < global_offset + local_size ) ) {
-    local_subset.push_back( idx - global_offset );
-    ++val_it;
-   }
-   else if( idx >= global_offset + local_size ) {
-    // this element belongs to a later block, do nothing here
-   }
-  }
-
-  if( ! local_subset.empty() ) {
-   dcnb->set_network_cost( first_val_it ,
+  if( ! local_subset.empty() )
+   dcnb->set_network_cost( values.subspan( first - subset.begin() ) ,
                            std::move( local_subset ) ,
                            true ,
                            issuePMod ,
                            issueAMod );
-  }
 
-  global_offset += local_size;
- }
-}  // end( DesignNetworkBlock::set_network_cost( subset ) )
+  global_offset = block_end;
+  }
+ }  // end( DesignNetworkBlock::set_network_cost( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void DesignNetworkBlock::set_network_cost( MF_dbl_it values ,
+void DesignNetworkBlock::set_network_cost( MF_dbl_sp values ,
                                            Range rng ,
                                            c_ModParam issuePMod ,
                                            c_ModParam issueAMod )
 {
- if( v_Block.empty() )
-  return;
+ Index size = 0;  // the lines of all the sub-Block, one after the other
+ for( auto bi : v_Block )
+  if( auto dcnb = dynamic_cast< DCNetworkBlock * >( bi ) )
+   size += dcnb->get_number_lines();
 
+ rng.second = std::min( rng.second , size );
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "DesignNetworkBlock::set_network_cost: "
+                                "the span is shorter than the Range" ) );
+
  Index global_offset = 0;
- auto val_it = values;
 
  for( auto bi : v_Block ) {
   auto dcnb = dynamic_cast< DCNetworkBlock * >( bi );
@@ -685,17 +722,15 @@ void DesignNetworkBlock::set_network_cost( MF_dbl_it values ,
    const Range local_rng( overlap_begin - block_begin ,
                           overlap_end   - block_begin );
 
-   dcnb->set_network_cost( val_it ,
+   dcnb->set_network_cost( values.subspan( overlap_begin - rng.first ) ,
                            local_rng ,
                            issuePMod ,
                            issueAMod );
-
-   std::advance( val_it , overlap_end - overlap_begin );
-  }
+   }
 
   global_offset += local_size;
- }
-}  // end( DesignNetworkBlock::set_network_cost( range ) )
+  }
+ }  // end( DesignNetworkBlock::set_network_cost( range ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------- METHODS OF DesignNetworkBlockSolution -------------------*/
@@ -703,8 +738,25 @@ void DesignNetworkBlock::set_network_cost( MF_dbl_it values ,
 
 void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
 {
- // call the method of the base class
- NetworkBlockSolution::deserialize( group );
+ // check if compressed or standard format: if compressed (and not empty)
+ // then "NBSType" must be defined
+ auto gtype = group.getAtt( "NBSType" );
+ f_compressed = ! gtype.isNull();
+
+ if( f_compressed ) {
+  // the "NodeInjection" in group is that of the sub-NetworkBlockSolution,
+  // indexed over all their instants, and the node injections are never
+  // held here [see DesignNetworkBlock::get_Solution()]: only the
+  // dimensions are read
+  deserialize_dim( group , "NumberNodes" , f_number_nodes , false );
+  if( ! deserialize_dim( group , "NumberInstants" , f_number_intervals ,
+                         true ) )
+   f_number_intervals = 1;
+  std::vector< MAdouble::index > sizes( 2 , 0 );
+  v_node_injection.resize( sizes );
+  }
+ else  // call the method of the base class
+  NetworkBlockSolution::deserialize( group );
 
  // "NumberDesignLines" - - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto NDL = group.getDim( "NumberDesignLines" );
@@ -718,11 +770,6 @@ void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
   }
 
  // deserialize the sub-NetworkBlockSolution - - - - - - - - - - - - - - - - -
- // check if compressed or standard format: if compressed (and not empty)
- // then "NBSType" must be defined
- auto gtype = group.getAtt( "NBSType" );
- f_compressed = ! gtype.isNull();
-
  if( f_compressed ) {  // compressed format- - - - - - - - - - - - - - - - - -
   auto NN = group.getDim( "NumberNetworks" );
   if( NN.isNull() ) {
@@ -746,13 +793,16 @@ void DesignNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
   else {
    Index nsn = NSN.getSize();
    v_network_Solution.resize( nsn );
+   // the sub-groups are listed once: NcGroup::getGroup() lists them all at
+   // each call
+   const auto sub_groups = group.getGroups();
    for( Index i = 0 ; i < nsn ; ++i ) {
     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
-    auto sub_group = group.getGroup( sub_group_name );
-    if( sub_group.isNull() )
+    auto it = sub_groups.find( sub_group_name );
+    if( it == sub_groups.end() )
      throw( std::invalid_argument( "DesignNetworkBlockSolution::deserialize: "
            + sub_group_name + " missing" ) );
-    auto Si = Solution::new_Solution( sub_group );
+    auto Si = Solution::new_Solution( it->second );
     if( auto NSi = dynamic_cast< NetworkBlockSolution * >( Si ) )
      v_network_Solution[ i ] = NSi;
     else

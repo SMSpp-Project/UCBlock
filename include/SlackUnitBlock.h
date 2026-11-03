@@ -101,8 +101,8 @@ namespace SMSpp_di_unipi_it
  *   c^{sc}_t p^{sc}_t + c^u_t h^u_t u_t + C^q b_t a^q_t \bigr) , \tag{5}
  * \f]
  * where the reactive power costs the constant fraction \f$ C^q = 0.7 \f$
- * (REACTIVE_COST_FACTOR) of the price of the active power, and it is not
- * multiplied by a scale factor (the unit has none, i.e., its scale is 1).
+ * (REACTIVE_COST_FACTOR) of the price of the active power, the cost of one
+ * copy of the unit (see UnitBlock::replicate()).
  * Note that the term \f$ b_t p^{ac}_t \f$ is a cost of the power injected if
  * \f$ b_t > 0 \f$ and \f$ P^{mx}_t \geq 0 \f$. For a dump unit
  * (\f$ P^{mx}_t < 0 \f$, hence \f$ p^{ac}_t \leq 0 \f$), instead, the power
@@ -209,7 +209,6 @@ class SlackUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /* extends UnitBlock::expected_dims()
   * not necessary, no new dimensions
 
@@ -220,8 +219,6 @@ class SlackUnitBlock : public UnitBlock
  /// extends UnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the SlackUnitBlock
@@ -563,14 +560,14 @@ class SlackUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 /// set the active power cost values (Subset overload)
-/** Update v_ActivePowerCost at the time indices in @p subset to the values
- *  pointed by @p values. If the objective has already been generated, the
- *  affected LinearFunction coefficients (the active-power coefficient at the
- *  matching @p t, and the reactive-power-abs coefficient if reactive power
- *  is enabled) are updated in sync. Issues a SlackUnitBlockSbstMod with type
+/** Update v_ActivePowerCost at the time indices in @p subset to the values in
+ *  @p values. If the objective has already been generated, the affected
+ *  LinearFunction coefficients (the active-power coefficient at the matching
+ *  @p t, and the reactive-power-abs coefficient if reactive power is enabled)
+ *  are updated in sync. Issues a SlackUnitBlockSbstMod with type
  *  SlackUnitBlockMod::eSetActPCost depending on @p issuePMod. */
 
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Subset && subset ,
                              bool ordered = false ,
                              c_ModParam issuePMod = eNoBlck ,
@@ -578,11 +575,11 @@ class SlackUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 /// set the active power cost values (Range overload)
-/** Update v_ActivePowerCost at the time indices in @p rng to the values
- *  pointed by @p values. Same Modification dispatch as the Subset overload,
- *  but issues a SlackUnitBlockRngdMod instead. */
+/** Update v_ActivePowerCost at the time indices in @p rng to the values in @p
+ *  values. Same Modification dispatch as the Subset overload, but issues a
+ *  SlackUnitBlockRngdMod instead. */
 
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Range rng = Range( 0 , Inf< Index >() ) ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck );
@@ -594,7 +591,7 @@ class SlackUnitBlock : public UnitBlock
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector( get_time_horizon() , value );
-  set_active_power_cost( vector.cbegin() ,
+  set_active_power_cost( MF_dbl_sp( vector ) ,
                          Range( 0 , Inf< Index >() ) ,
                          issuePMod , issueAMod );
   }
@@ -603,11 +600,11 @@ class SlackUnitBlock : public UnitBlock
 
  static void static_initialization( void )
  {
-  register_method< SlackUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< SlackUnitBlock , MF_dbl_sp , Subset && , bool >(
    "SlackUnitBlock::set_active_power_cost" ,
    & SlackUnitBlock::set_active_power_cost );
 
-  register_method< SlackUnitBlock , MF_dbl_it , Range >(
+  register_method< SlackUnitBlock , MF_dbl_sp , Range >(
    "SlackUnitBlock::set_active_power_cost" ,
    & SlackUnitBlock::set_active_power_cost );
   }
@@ -746,9 +743,27 @@ class SlackUnitBlockMod : public UnitBlockMod
   eSUBModLastParam  ///< first allowed parameter for derived classes
   };
 
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetActPCost ):
+    return( ePhysObj );
+   default:
+    return( UnitBlockMod::changes_of( type ) );
+   }
+  }
+
  /// constructor, takes the SlackUnitBlock and the type
  SlackUnitBlockMod( SlackUnitBlock * const fblock , const int type )
-  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~SlackUnitBlockMod() override = default;

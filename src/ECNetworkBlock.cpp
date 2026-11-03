@@ -105,7 +105,8 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
  // Optional variables
 
- if( ! deserialize_dim( group , "NumberIntervals" , f_number_intervals ) )
+ if( ! deserialize_local_dim( group , "NumberIntervals" ,
+			      f_number_intervals ) )
   f_number_intervals = 1;
 
  // Mandatory variables
@@ -131,8 +132,6 @@ void ECNetworkData::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ECNetworkData::expected_dims( void ) const {
  auto ret = NetworkData::expected_dims();
  ret.push_back( "NumberIntervals" );
@@ -152,19 +151,17 @@ std::vector< std::string > ECNetworkData::expected_vars( void ) const {
  return( ret );
  }
 
-#endif
-
 /*--------------------------------------------------------------------------*/
 
 void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
 {
  // Optional variables
  Index NumberIntervals;
- if( ! deserialize_dim( group , "NumberIntervals" , NumberIntervals ) )
+ if( ! deserialize_local_dim( group , "NumberIntervals" , NumberIntervals ) )
   NumberIntervals = 1;
  
  Index NumberNodes;
- if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+ if( deserialize_local_dim( group , "NumberNodes" , NumberNodes ) ) {
   // since the dimensions "NumberNodes" has been provided, an ECNetworkData
   // is there: deserialize it and mark it as local
   if( f_local_NetworkData ) {  // if the NetworkData has not been passed
@@ -194,16 +191,12 @@ void ECNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > ECNetworkBlock::expected_vars( void ) const {
  auto ret = NetworkBlock::expected_vars();
  ret.push_back( "ActiveDemand" );
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -640,7 +633,7 @@ void ECNetworkBlock::serialize( netCDF::NcGroup & group ) const
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
+void ECNetworkBlock::set_active_demand( MF_dbl_sp values ,
                                         Block::Subset && subset ,
                                         const bool ordered ,
                                         c_ModParam issuePMod ,
@@ -649,9 +642,13 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "ECNetworkBlock::set_active_demand: the "
+                                "span is shorter than the Subset" ) );
+
  if( v_ActiveDemand.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -660,12 +657,13 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
  }
 
  bool identical = true;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= v_ActiveDemand.num_elements() )
    throw( std::invalid_argument( "ECNetworkBlock::set_active_demand: "
                                  "invalid value in subset." ) );
 
-  auto demand = *( values++ );
+  auto demand = *( values_it++ );
   if( *( v_ActiveDemand.data() + i ) != demand ) {
    identical = false;
 
@@ -700,7 +698,8 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
       close_channel( par2chnl( nAM ) );
      }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetActD ) ) ) {
   // Issue a Physical Modification
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
@@ -714,7 +713,7 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
+void ECNetworkBlock::set_active_demand( MF_dbl_sp values ,
                                         Block::Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
@@ -723,9 +722,13 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "ECNetworkBlock::set_active_demand: the "
+                                "span is shorter than the Range" ) );
+
  if( v_ActiveDemand.empty() ) {
-  if( std::all_of( values ,
-                   values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -734,15 +737,15 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
  }
 
  // If nothing changes, return
- if( std::equal( values ,
-                 values + ( rng.second - rng.first ) ,
+ if( std::equal( values.begin() ,
+                 values.begin() + ( rng.second - rng.first ) ,
                  v_ActiveDemand.data() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values ,
-             values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() ,
+             values.begin() + ( rng.second - rng.first ) ,
              v_ActiveDemand.data() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
@@ -766,7 +769,8 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetActD ) ) )
   // Issue a Physical Modification
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetActD , rng ) ,
@@ -776,7 +780,7 @@ void ECNetworkBlock::set_active_demand( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
+void ECNetworkBlock::set_buy_price( MF_dbl_sp values ,
                                     Block::Subset && subset ,
                                     const bool ordered ,
                                     c_ModParam issuePMod ,
@@ -785,18 +789,22 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "ECNetworkBlock::set_buy_price: the span "
+                                "is shorter than the Subset" ) );
+
  auto & buy_price = f_NetworkData->get_buy_price();
  const auto T = get_number_intervals();
 
  if( buy_price.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
   buy_price.assign( T , 0.0 );
  }
 
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= T )
    throw( std::invalid_argument(
@@ -812,7 +820,7 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto i : subset )
    buy_price[ i ] = *( values_it++ );
 
@@ -839,7 +847,8 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetBuyP ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -851,7 +860,7 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
+void ECNetworkBlock::set_buy_price( MF_dbl_sp values ,
                                     Block::Range rng ,
                                     c_ModParam issuePMod ,
                                     c_ModParam issueAMod )
@@ -861,21 +870,27 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "ECNetworkBlock::set_buy_price: the span "
+                                "is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
  auto & buy_price = f_NetworkData->get_buy_price();
 
  if( buy_price.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values.begin() , values.begin() + sz ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
   buy_price.assign( T , 0.0 );
  }
 
- if( std::equal( values , values + sz , buy_price.begin() + rng.first ) )
+ if( std::equal( values.begin() , values.begin() + sz ,
+                 buy_price.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values , values + sz , buy_price.begin() + rng.first );
+  std::copy( values.begin() , values.begin() + sz ,
+             buy_price.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    // the whole cascade is one group, so that a Solver can change every
@@ -900,7 +915,8 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetBuyP ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetBuyP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -908,7 +924,7 @@ void ECNetworkBlock::set_buy_price( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
+void ECNetworkBlock::set_sell_price( MF_dbl_sp values ,
                                      Block::Subset && subset ,
                                      const bool ordered ,
                                      c_ModParam issuePMod ,
@@ -917,18 +933,22 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "ECNetworkBlock::set_sell_price: the "
+                                "span is shorter than the Subset" ) );
+
  auto & sell_price = f_NetworkData->get_sell_price();
  const auto T = get_number_intervals();
 
  if( sell_price.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
   sell_price.assign( T , 0.0 );
  }
 
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= T )
    throw( std::invalid_argument(
@@ -944,7 +964,7 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto i : subset )
    sell_price[ i ] = *( values_it++ );
 
@@ -971,7 +991,8 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetSellP ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -983,7 +1004,7 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
+void ECNetworkBlock::set_sell_price( MF_dbl_sp values ,
                                      Block::Range rng ,
                                      c_ModParam issuePMod ,
                                      c_ModParam issueAMod )
@@ -993,21 +1014,27 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "ECNetworkBlock::set_sell_price: the "
+                                "span is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
  auto & sell_price = f_NetworkData->get_sell_price();
 
  if( sell_price.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values.begin() , values.begin() + sz ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
   sell_price.assign( T , 0.0 );
  }
 
- if( std::equal( values , values + sz , sell_price.begin() + rng.first ) )
+ if( std::equal( values.begin() , values.begin() + sz ,
+                 sell_price.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values , values + sz , sell_price.begin() + rng.first );
+  std::copy( values.begin() , values.begin() + sz ,
+             sell_price.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    // the whole cascade is one group, so that a Solver can change every
@@ -1032,7 +1059,8 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetSellP ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetSellP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -1040,7 +1068,7 @@ void ECNetworkBlock::set_sell_price( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
+void ECNetworkBlock::set_peak_tariff( MF_dbl_sp values ,
                                       Block::Subset && subset ,
                                       const bool ordered ,
                                       c_ModParam issuePMod ,
@@ -1048,12 +1076,17 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
 {
  if( subset.empty() )
   return;
+
+ if( values.empty() )
+  throw( std::invalid_argument( "ECNetworkBlock::set_peak_tariff: no value in "
+                                "the span" ) );
+
  if( subset.front() != 0 )
   throw( std::invalid_argument( "ECNetworkBlock::set_peak_tariff: PeakTariff "
                                 "is a scalar, only index 0 is allowed." ) );
 
  auto & peak_tariff = f_NetworkData->get_peak_tariff();
- const auto v = *values;
+ const auto v = values.front();
  if( peak_tariff == v )
   return;
 
@@ -1082,7 +1115,8 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetPeakT ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -1094,7 +1128,7 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
+void ECNetworkBlock::set_peak_tariff( MF_dbl_sp values ,
                                       Block::Range rng ,
                                       c_ModParam issuePMod ,
                                       c_ModParam issueAMod )
@@ -1102,8 +1136,12 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
  if( rng.first > 0 || rng.second <= 0 )
   return;
 
+ if( values.empty() )
+  throw( std::invalid_argument( "ECNetworkBlock::set_peak_tariff: no value in "
+                                "the span" ) );
+
  auto & peak_tariff = f_NetworkData->get_peak_tariff();
- const auto v = *values;
+ const auto v = values.front();
  if( peak_tariff == v )
   return;
 
@@ -1132,7 +1170,8 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetPeakT ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetPeakT ,
                             Range( 0 , 1 ) ) ,
@@ -1141,7 +1180,7 @@ void ECNetworkBlock::set_peak_tariff( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_const_term( MF_dbl_it values ,
+void ECNetworkBlock::set_const_term( MF_dbl_sp values ,
                                      Block::Subset && subset ,
                                      const bool ordered ,
                                      c_ModParam issuePMod ,
@@ -1149,11 +1188,16 @@ void ECNetworkBlock::set_const_term( MF_dbl_it values ,
 {
  if( subset.empty() )
   return;
+
+ if( values.empty() )
+  throw( std::invalid_argument( "ECNetworkBlock::set_const_term: no value in "
+                                "the span" ) );
+
  if( subset.front() != 0 )
   throw( std::invalid_argument( "ECNetworkBlock::set_const_term: ConstTerm "
                                 "is a scalar, only index 0 is allowed." ) );
 
- const auto v = *values;
+ const auto v = values.front();
  if( get_const_term() == v )
   return;
 
@@ -1165,7 +1209,8 @@ void ECNetworkBlock::set_const_term( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetConstT ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -1177,7 +1222,7 @@ void ECNetworkBlock::set_const_term( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_const_term( MF_dbl_it values ,
+void ECNetworkBlock::set_const_term( MF_dbl_sp values ,
                                      Block::Range rng ,
                                      c_ModParam issuePMod ,
                                      c_ModParam issueAMod )
@@ -1185,7 +1230,11 @@ void ECNetworkBlock::set_const_term( MF_dbl_it values ,
  if( rng.first > 0 || rng.second <= 0 )
   return;
 
- const auto v = *values;
+ if( values.empty() )
+  throw( std::invalid_argument( "ECNetworkBlock::set_const_term: no value in "
+                                "the span" ) );
+
+ const auto v = values.front();
  if( get_const_term() == v )
   return;
 
@@ -1197,7 +1246,8 @@ void ECNetworkBlock::set_const_term( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetConstT ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetConstT ,
                             Range( 0 , 1 ) ) ,
@@ -1206,7 +1256,7 @@ void ECNetworkBlock::set_const_term( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
+void ECNetworkBlock::set_penalty_price( MF_dbl_sp values ,
                                         Block::Subset && subset ,
                                         const bool ordered ,
                                         c_ModParam issuePMod ,
@@ -1215,18 +1265,22 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "ECNetworkBlock::set_penalty_price: the "
+                                "span is shorter than the Subset" ) );
+
  auto & penalty_price = f_NetworkData->get_penalty_price();
  const auto T = get_number_intervals();
 
  if( penalty_price.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
   penalty_price.assign( T , 0.0 );
  }
 
  bool changed = false;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= T )
    throw( std::invalid_argument(
@@ -1268,7 +1322,8 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
       close_channel( par2chnl( nAM ) );
      }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetPenaltyP ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
   Block::add_Modification( std::make_shared< ECNetworkBlockSbstMod >(
@@ -1280,7 +1335,7 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
+void ECNetworkBlock::set_penalty_price( MF_dbl_sp values ,
                                         Block::Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
@@ -1290,22 +1345,27 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "ECNetworkBlock::set_penalty_price: the "
+                                "span is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
  auto & penalty_price = f_NetworkData->get_penalty_price();
 
  if( penalty_price.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values.begin() , values.begin() + sz ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
   penalty_price.assign( T , 0.0 );
  }
 
- if( std::equal( values , values + sz ,
+ if( std::equal( values.begin() , values.begin() + sz ,
                  penalty_price.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values , values + sz , penalty_price.begin() + rng.first );
+  std::copy( values.begin() , values.begin() + sz ,
+             penalty_price.begin() + rng.first );
 
   // the squilibrium variables exist only when "PenaltyPrice" is provided,
   // so guard the coefficient update accordingly
@@ -1333,7 +1393,8 @@ void ECNetworkBlock::set_penalty_price( MF_dbl_it values ,
       }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ECNetworkBlockMod::changes_of(
+                 ECNetworkBlockMod::eSetPenaltyP ) ) )
   Block::add_Modification( std::make_shared< ECNetworkBlockRngdMod >(
                             this , ECNetworkBlockMod::eSetPenaltyP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -1927,11 +1988,13 @@ void ECNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
  size_t start;
  if( has_tni ) {
   auto EI = group.getVar( "EndInstant" );  // base class created it already
-  start = 0;
+  // EndInstant is an NcInt, read in an int and not in the size_t start
+  int si = 0;
   if( idx > 0 ) {
    std::vector< size_t > vidx = { idx - 1 };
-   EI.getVar( vidx , & start );
+   EI.getVar( vidx , & si );
    }
+  start = si;
   }
  else
   start = idx;

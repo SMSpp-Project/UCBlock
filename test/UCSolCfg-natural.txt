@@ -1,0 +1,16 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - UCSolCfg-natural.txt  - - - - - - - - - - - - - -
+#
+# The Configuration of the UCBlockSolution that holds the Solution of the
+# units, that of each NetworkBlock in a group of its own (the natural
+# format) and the duals of the node injection constraints.
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+SimpleConfiguration<int> # exact type of the Configuration object
+11  # 1 units + 2 networks + 8 node duals, no 4: not compressed
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - END UCSolCfg-natural.txt  - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

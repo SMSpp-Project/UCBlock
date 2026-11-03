@@ -7,6 +7,940 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-03
+
+### Added
+
+- the bit `ThermalUnitBlock::TRes` (262144) of the formulation, only with
+  the T formulation, puts the spinning reserves in the rows of the T
+  formulation that bound the active power (the ramps, the minimum power
+  and the maximum power rows (22)-(25)), which tightens the continuous
+  relaxation with the same optimum; `has_reserves_in_T()` tells whether it
+  is on
+
+- `"BatteryUnitBlock::has_resize_feasibility_cut"` in the methods factory,
+  a getter writing 1 if, after a solve that ended infeasible, the getters
+  of the derivatives with respect to the sizes give the coefficients of the
+  condition that feasible sizes have to satisfy, and 0 with the binary
+  variables of intake and outtake, whose values they read
+
+- the tester checks what each physical Modification says it changes
+  (`changes()`) against what the change does to the model, written down in
+  the tester, for every type of the physical Modification of every class of the
+  module
+
+- the nodes of the generators on a carrier c > 0 are the variable
+  `GeneratorNode` of its group `Carrier_c`, indexed over the generators, -1
+  where a generator has none, and can be omitted for a carrier with one
+  node; `GeneratorNode` of the `UCBlock` then gives those of the
+  electricity alone, and its form in two dimensions over the generators
+  and the carriers is still read; `serialize()` writes the nodes carrier by
+  carrier
+
+- `UnitBlock::get_copies( generator )`, the weight of the Variable of a
+  generator, which `HydroSystemUnitBlock` multiplies by the copies of the
+  generator in its `HydroUnitBlock`: the `UCBlock` multiplies by it the
+  fixed consumption in the right-hand sides of the node injection rows and
+  the bounds of the node injections
+
+- `UnitBlock::has_design()`, true if the unit has a design Variable of its
+  own (a nonzero investment cost for a `ThermalUnitBlock`, a
+  `NuclearUnitBlock`, an `IntermittentUnitBlock` and a
+  `ConversionUnitBlock`, a battery or converter investment cost for a
+  `BatteryUnitBlock`), and `UCBlock::has_design()`, true if a unit has one or
+  a `DesignNetworkBlock` has a line to be designed, registered in the methods
+  factory as the getter `UCBlock::has_design`, so that a Block holding a
+  `UCBlock` can tell its design mode without knowing the class
+
+- the makefiles build the C++20 module `smspp.ucblock` when `SMSppMOD` is
+  not empty (e.g., `make SMSppMOD=1`), with clang++ 16 or later [see
+  `lib/makefile-mod` of SMS++]
+
+- the unit test writes in netCDF the Solution of each kind of
+  `NetworkBlock`, of a `DesignNetworkBlock` and of a `UCBlock` on three
+  nodes, in the natural format and in the compressed one, with the
+  `Configuration` of the files `*SolCfg-*.txt`, and reads it back: the
+  Solution read back has to write in the Block what the one written writes
+  and to write in netCDF what it was read from, on a horizon of one instant
+  and of four, with lines with and without a cost, an `ACNetworkBlock` with
+  no flow and an `ECNetworkBlock` of one interval and of two
+
+- `ConversionUnitBlock`: a continuous design ("MaxCapacityDesign" >= 0)
+  takes ramps and start-up and shut-down limits, written per unit of design
+  with big-M terms in the commitment and in the start-up and shut-down
+  indicators, as the extendable units with commitment of the energy-system
+  models; and a unit with a design may be on before the horizon, being
+  then built (the binary design is 1, the integer one at least the modules
+  on before it) and, with a continuous design, of a capacity that covers
+  its InitialPower
+
+- `BatteryUnitBlock` takes an infinite `MaxPower` or `MinPower` also with a
+  battery design: the rows of the power stay free on that side with no term
+  in the design, as those of an infinite level already did, and an infinite
+  `ConverterMaxPower` is no converter limit; a Store of PyPSA, whose power is
+  only bounded by its levels and by its lines, is written so
+
+- `HydroUnitBlock` reads the optional `ExactFlowToPower`, one entry per arc:
+  a single-piece turbine whose entry is nonzero produces exactly the power
+  of its piece, its row being the equality whatever the spillways, as for
+  the hydro storage of PyPSA, where the water released without producing
+  is a flow of its own
+
+- `ConversionUnitBlock` registers `scale()` in the methods factory also as
+  `ConversionUnitBlock::replicate`, the name under which a Block is sized
+  by identical copies
+
+- the unit test checks the boxes of the infeasible arcs on a unit whose
+  run from before the horizon cannot pass a low availability, read with it
+  and given it, and back, by `set_availability()`
+
+- the unit test checks the caps (27) through the maximum powers of a run on
+  two units with a varying availability, read with it and given it by
+  `set_availability()`, whose continuous relaxation in the pt, DP, SU, SD
+  and SUSD formulations is the integer optimum
+
+- `ThermalUnitExtDPSolver::get_dp_stats()` returns what the last run of
+  the dynamic program did: the on-states built, split by the trimming, kept
+  and their pieces, the largest number kept at an instant, the pairs of
+  states compared for the domination and how many of them removed a state
+  or a part of its domain; these counters do not depend on the machine
+
+- the documentation of `ACNetworkBlock` says which relaxation each value of
+  the static variables `Configuration` gives: with 0 the SOCP relaxation of
+  the bus injection model, a convex QCP whose quadratic rows are second-order
+  cones; by default its strengthening, whose static rows do not restrict
+  the voltage products, so that a solve that does not separate its McCormick
+  inequalities (a continuous relaxation by a `:MILPSolver` with
+  `intRelaxIntVars` 1) has the value of the SOCP relaxation
+
+- the unit test solves a `UCBlock` on an `ACNetworkBlock` in the two
+  relaxations, read from `test/ACBCfg-SOCP.txt` and `test/ACBCfg-QC.txt`,
+  with a `:MILPSolver` that solves a convex QCP (GUROBI or CPLEX): two
+  nodes and no line (each node an island, the known value), a line and a
+  chain (radial, the cones tight at the optimum and the two values equal)
+  and a triangle (the SOCP value not above the strengthened one)
+
+- `DCNetworkBlock` accepts hyperarcs together with lines of nonzero
+  susceptance, in the KIRCHHOFF, PTDF and CYCLE formulations: a hyperarc,
+  whose susceptance must be zero, is a controllable flow that enters the
+  network as injections at its start and end nodes, so that a meshed grid
+  obeying the voltage law and the hyperarcs of a multi-energy system (say,
+  a back-pressure CHP feeding an electric and a heat node) can be written
+  in one network; the model of a network without hyperarcs, or with
+  hyperarcs and no susceptance, is the same as before
+
+- the unit test checks a meshed electric network with a congested line and
+  a heat node fed by a hyperarc in the three formulations against an
+  independent optimum
+
+- `ConversionUnitBlock`, a unit with one commitment and several generators,
+  each on its own node, coupled by an operating region given by bounds and
+  rows proportional to the commitment: plants that convert energy among
+  several carriers (combined heat and power, electrolysers, heat pumps with
+  commitment), inputs being generators of negative power, with minimum up
+  and down times, start-up and shut-down limits, ramps on combinations of
+  the powers, spinning reserves deployed along directions given by the
+  data, its netCDF format, setters with Modification and its Solution
+
+- `ConversionUnitBlock`: the coefficients of the operating rows may change
+  with the instant ("OperatingMatrix" with a first dimension indexed over the
+  instants, as the other data), e.g., the coefficient of performance of a
+  heat pump; a file with the matrix of old reads and behaves as before
+
+- `ConversionUnitBlock`: a generator may deliver its power with a delay of
+  some instants ("Delay"), the rows being written at the instant of
+  operation; the power delivered at the first instants comes from the
+  operation before the horizon ("InitialDelayedPower", 0 by default) and the
+  power of the last instants of operation is delivered after it, unless the
+  delay wraps around the horizon ("CyclicDelay"); the Solution saves the
+  powers delivered after the horizon
+
+- `ConversionUnitBlock`: a unit of N identical modules committed one by
+  one ("Modules"), the commitment, start-ups and shut-downs being the
+  numbers of modules, integer in 0..N, with the data of one module, the
+  minimum down time rows written with N - u and the modules on before the
+  horizon given by "InitialCommitment"; with N = 1 the rows are those of
+  before
+
+- `ConversionUnitBlock`: the design variable of the other units
+  ("InvestmentCost", "MinCapacityDesign", "MaxCapacityDesign", with their
+  sign convention): binary (the unit built or not, u <= N x), integer (the
+  number of modules built, each committed by itself, u <= x and the
+  minimum down time rows with x - u, exact and linear) or continuous (the
+  capacity, the data being per unit of it, with the big-M relaxation of
+  the product with the commitment on the largest capacity, documented as
+  weak); its cost in the Objective, its setter and its value in the
+  Solution
+
+- `data/gen_multi_energy.py` writes the multi-energy instances (a combined
+  heat and power plant as a `ConversionUnitBlock` and with hyperarcs, a
+  meshed network with a heat node) and prints their known optima; they are
+  in `multi-energy/` of the archive of `data/` from version 2026-10-12
+
+- `data/gen_constant.py` writes two bus `UCBlock` whose own `Objective` has
+  the constant term of the network (+1000 and -1000) and prints their
+  optima by hand; they are in `constant/` of the archive of `data/` from
+  version 2026-10-13, which is that of 2026-10-12 plus this folder
+
+- `data/gen_conversion.py` writes the instances that pypsa2smspp makes of
+  the committable links of its test networks, each a `ConversionUnitBlock`
+  (a combined heat and power plant with ramps, a store, a meshed network, a
+  heat pump whose COP changes over time, delays, modules, the modules built
+  and a continuous design), and prints the optimum of PyPSA; they are in
+  `conversion/` of the archive of `data/` from version 2026-10-14, which is
+  that of 2026-10-13 plus this folder; version 2026-10-15 adds four of them,
+  with a continuous design with ramps and start-up and shut-down limits,
+  with a continuous design and with modules built on before the horizon,
+  and with modules built for the InvestmentBlock form
+
+- the commitment of a unit whose generators share it is exposed through one
+  generator only, and the documentation of `UnitBlock::get_commitment()`
+  says so
+
+- the unit test checks `ConversionUnitBlock` against `ThermalUnitBlock` with
+  one generator, against the multi-energy instances written with hyperarcs,
+  on a meshed network with a heat node in the three formulations, its
+  continuous relaxation against the optimum, its setters against a unit
+  read afresh, its refused data and its round trip
+
+- `json2nc4.jl` accepts `--nuclear-share` and `--bands-reserve` with
+  `--nuclear-single`, which then writes the nuclear units of the fleet of
+  `--nuclear --nuclear-share`, with the reserve participation of the data
+  and bands as wide as that reserve, i.e., the units of the fleet as
+  standalone files; the output of the other options does not change
+
+- the unit test checks the continuous relaxations of the pt, SU, SD and SUSD
+  formulations against the integer optimum on units on and off before the
+  horizon, with both ramps, one or none, and the MILP of every formulation
+  of a `NuclearUnitBlock`, with and without bands, against
+  `NuclearUnitExtDPSolver`
+
+- the unit test checks that a `compute()` of `NuclearUnitExtDPSolver` that
+  throws leaves the Solver usable, its value after a change of
+  `InitialPower` against a fresh unit, the rows that forbid a modulation
+  step at a start-up instant and the tolerance of
+  `NuclearUnitBlock::is_feasible()`
+
+- `<class>::replicate` and `<class>::resize`, the names under which a Block of
+  unknown class is sized through the methods factory, each registered on the
+  protected method of the same name: `replicate()`, k identical copies, is
+  `scale()` of `ThermalUnitBlock`, `NuclearUnitBlock`, `IntermittentUnitBlock`,
+  `BatteryUnitBlock` and `ConversionUnitBlock`; `resize()`, kappa times the
+  size, is `set_kappa()` of `IntermittentUnitBlock` and `DCNetworkBlock`, and
+  sizes `BatteryUnitBlock` and the lines of `ACNetworkBlock` and
+  `OTSNetworkBlock`. A unit takes a scalar, or a pair for a battery, a network
+  a span over a range or a subset, and throws if the span is shorter than what
+  it is asked to write. The model page (`UCBlockModel.h`) lists which classes
+  register them and when they refuse
+
+- the lines of `ACNetworkBlock` and `OTSNetworkBlock` are sized by
+  `resize()`, their `set_kappa()` refusing as before: kappa scales only the
+  rows of the flow limits, as a design variable does, and limits the
+  switching of an OTS line to min(1, kappa)
+
+- `<class>::get_resize_linearization` and
+  `UCBlock::get_replicate_linearization`, the derivatives of the value with
+  respect to kappa and to the copies of a unit, in the same forms as the
+  setters. They throw if the rows are not generated, on a short span and on
+  a missing index. After an infeasible solve, a derivative with respect to
+  kappa is the coefficient of a feasibility cut; the derivative with respect
+  to the copies, and that of a `BatteryUnitBlock` with binary intake and
+  outtake, read the primal solution and give no cut
+
+- `UCBlock::resize_unit`, `UCBlock::replicate` and `UCBlock::resize_line` size
+  by name the units and the lines of a subset or a range, with the values in a
+  span, so that a caller never reaches the sub-Block; the lines are numbered
+  carrier after carrier, and the rows and the bounds of the node injections are
+  rewritten once, after the last unit. The derivative of a unit adds the duals
+  of those bounds, and `UCBlock::get_replicate_linearization` sums the duals of
+  the linking rows of the unit, each times what the number of copies multiplies
+  in that row, plus the cost of one copy; at zero copies it is the lower bound
+  that a Solver finds on a mirror of one copy, so that the cut stays valid,
+  the Solver being the one of the BlockSolverConfig in the extra
+  Configuration of the BlockConfig of the UCBlock. The unit is scaled to 1
+  and back to be mirrored, and the UCBlock drops what it says of it: the
+  query changes no row and issues no Modification
+
+- `BatteryUnitBlock::resize( kappa , conv_kappa )` and its derivative size
+  the storage and the converter apart, registered with a pair of scalars and
+  reached from `UCBlock::resize_unit` through spans; the form with one
+  scalar is `resize( k , k )`
+
+- the methods that the derivatives read:
+  `DCNetworkBlock::get_resize_linearization( line )`, protected and virtual,
+  which a derived network overrides to add the rows of its own that kappa
+  enters, as `OTSNetworkBlock` does, and
+  `NetworkBlock::get_node_injection_bounds()` and
+  `ACNetworkBlock::get_reactive_node_injection_bounds()`, the rows of the
+  bounds of the node injections
+
+- the unit test sizes the units and the lines by name, on DC, AC and OTS
+  networks and on a battery with a pair of sizes, and checks the derivatives
+  against duals set by hand and against a solve, the bounds of the node
+  injections that follow the sizes, written once per call, and the refusals
+
+- the C++20 module `smspp.ucblock` (`src/UCBlock.cppm`), which exports every
+  name that the headers declare at namespace scope and re-exports `smspp`,
+  so that a source file can write `import smspp.ucblock;` in place of the
+  `#include` of the headers; it is built with the CMake option
+  `SMSpp_BUILD_MODULE`, as the target `SMS++::UCBlock_module`
+
+- the energy carriers of `UCBlock`: "NumberCarriers" and "CarrierName",
+  the carrier 0 being the electricity described by all the data as before,
+  and for each other carrier the group "Carrier_c" with its "NumberNodes",
+  its NetworkData and classnames, its "EnergyDemand" and its
+  "PollutantZones"; a carrier with more than one node has one NetworkBlock
+  per time instant, built by `UCBlock`, unless its group gives them as the
+  carrier 0 does ("NumberNetworks" and "NetworkBlock_n", e.g., one
+  `DesignNetworkBlock` over the horizon for a network whose lines have a
+  design), and each carrier has the balance rows (1c) of its nodes [see
+  `get_carrier_balance_constraints()`]; the UCBlockSolution saves the
+  Solution of their NetworkBlock and the duals of (1c) with those of the
+  carrier 0, in the group "Carrier_c"
+
+- the outputs of the generators of a `UnitBlock`: `get_number_outputs()`,
+  `get_output_carrier()` and `get_output_efficiency()`, by default the
+  output `UnitBlock::kElectricity` with efficiency 1, otherwise read by
+  `UnitBlock::deserialize()` from "NumberOutputs", "OutputCarrier" and
+  "OutputEfficiency" (constant or per instant, the same for all the
+  generators or one per generator, as the generators of a
+  `ConversionUnitBlock`, each on the carrier of its port, need, the number
+  of the generators being checked by `UnitBlock::check_outputs()`): the
+  active power of a generator gives the efficiency of each output times
+  itself to the carrier of the output, at the node of the generator on it,
+  a negative efficiency being what the generator consumes, in (1), (1b) and
+  (1c); the standard names `kElectricity`, `kHeat`, `kGas` and `kHydrogen`
+
+- "GeneratorNode" indexed over the generators and the carriers, with -1
+  where a generator has no node on a carrier (and, as before, not needed
+  by a network with no generator at all); such a generator gives
+  nothing to that carrier, and one with no node on the electricity is in no
+  zone of the reserves and of the inertia; its emissions are counted at its
+  node on the first carrier where it has one [see
+  `get_generator_pollutant_zone()` and `get_storage_pollutant_zone()`]
+
+- `UCBlock::set_energy_demand()`, with a flattened index over the nodes of
+  all the carriers, which also changes the demand of the carriers other
+  than the electricity, and the Modification type `UCBlockMod::eSetEnD`
+
+- `UCBlock::for_each_balance_term()`, the terms of a unit in the balances
+  of all the carriers, each with its coefficient per unit of scale, which
+  is what the linearization of an investment in the unit needs
+
+- "NumberGenerators", the new name of "NumberElectricalGenerators", which
+  is still read
+
+- `deserialize_local_dim()`, which reads a dimension of a group and not of
+  the groups above it
+
+- `data/gen_carriers.py`, the instances with the electricity, the hydrogen,
+  the gas and the heat as carriers made of small PyPSA networks, whose
+  optimum is the reference, and the back-pressure cases and the mesh of
+  `data/gen_multi_energy.py` with the electricity and the heat as two
+  carriers (`me_*_carrier`), also with the plant as the `ConversionUnitBlock`
+  whose generators have their outputs on the electricity and on the heat
+  (`me_*_unitcarrier`, the extraction-condensing case included); and
+  `data/gen_conversion.py --carriers`, which writes the cases of the
+  committable links of pypsa2smspp also with the gas, the electric and the
+  heat buses as three carriers (`conversion/*_carriers.nc4`)
+
+- the unit test of the carriers: the coefficients of (1c), the optimum by
+  hand on one heat node, on a heat network and on a heat network given as
+  one `DesignNetworkBlock`, the duals of (1c) as the prices of the carriers,
+  a Solution without them written back, `set_energy_demand()`, the scale of
+  a unit, the netCDF group and back, the
+  pollutant zones of a unit with no node on the electricity, the outputs
+  per generator of a `ConversionUnitBlock` and back, and the data that
+  cannot be read
+
+### Changed
+
+- every setter of the data of the module takes them as a `MF_dbl_sp`
+  (`MF_int_sp` for `set_init_updown_time()`), and is registered in the
+  methods factory only in that form: the Range and Subset versions throw
+  `std::invalid_argument` if the span is shorter than what is left of the
+  Range or than the Subset, those of a single datum (the kappa constants,
+  the initial powers and storages, the peak tariff, the investment cost) if
+  it is empty; `UCBlock::set_carrier_demand()` takes the one value as a
+  `double`
+
+- the comment of `DCNetworkBlock::get_resize_linearization()` writes the
+  factor `C^v` of the flow limits, which the derivative already applies,
+  and says that every formulation of the network has those limits; the
+  comments of `BatteryUnitBlock::get_kappa_linearization()` and of
+  `UCBlockModel.h` no longer refer to InvestmentFunction for the change of
+  variable of the battery
+
+- the README leaves the channels that distribute SMS++ to the
+  installation guide of the wiki (Installing-SMS++), keeping the names
+  of the packages of the module
+
+- the copies of a unit are the weights of its Block [see
+  `Block::set_weight()`] instead of a scale factor of each class:
+  `UnitBlock::replicate( k )`, which the methods factory reaches as
+  `<classname>::replicate` as before, is `set_weight( k )`, and
+  `UnitBlock::set_weight()` tells the `UCBlock` among the ancestors of the
+  unit [see `UCBlock::weight_changed()`]. The Objective, the Variable and
+  the rows of a unit are those of one copy, the Solver applying the weights,
+  and the `UCBlock` multiplies by them only the constants the unit brings
+  (the fixed consumption in the right-hand sides of the node injection rows
+  and the bounds of the node injections); `UnitBlock::get_scale()` is the
+  weight of the Variable, and "Scale" is still read, as both the weights,
+  while `serialize()` writes the weights as the attributes of `Block`. The
+  methods `scale()` of `UnitBlock` and of the units, their registrations
+  `<classname>::scale`, `UnitBlockMod::eScale` and the rewriting of the
+  coefficients of the rows of `UCBlock` and of the Objective of the units
+  are gone; the DP Solvers of a `ThermalUnitBlock` report the value of one
+  copy, and `UCBlock::get_replicate_linearization()` with 0 copies mirrors
+  the unit as it is, with weights 1, instead of scaling it to 1 and back
+
+- `UCBlockSolution::serialize()` writes the solutions of the units and of
+  the networks (in the standard format) by way of `write_via_memory()`, in a
+  time linear in their number
+
+- `UCBlock::set_active_power_demand()`, when the demand is held by the
+  `NetworkBlock`, makes one call to `NetworkBlock::set_active_demand()` for
+  each `NetworkBlock` with all its entries, rather than one per entry, which
+  for a `DesignNetworkBlock` went through all its sub-Block each time
+
+- `OTSNetworkBlock` in the Standard and Elastic formulations generates the
+  group `OTS_switching_bound`, the limit min( 1 , kappa ) of the switching
+  variable of each line, also when every kappa is 1: its abstract
+  representation has one more Constraint per line than in 0.10.0
+
+- the Modification of the module say what they change to the constructor
+  of `Modification`, since `changes()` is no longer virtual and returns
+  that value, which whoever forwards them can refine with `set_changes()`
+
+- the pipeline builds the module also with its makefiles, after CMake, and
+  runs on a change of the makefiles too [see `ci/makefile` of the umbrella]
+
+- `SMSpp_BUILD_MODULE` no longer stops the configuration when the C++20
+  module cannot be built, i.e., with a CMake older than 3.28, a generator
+  other than Ninja or Visual Studio, a compiler other than Clang 16 (with
+  `clang-scan-deps`) or MSVC 19.34, or a module it imports that is not
+  there: the option is turned off with a warning that says why, and the
+  build goes on with the headers [see `cmake/CheckModule.cmake` of SMS++]
+
+- `ConversionUnitBlock::replicate` takes a scalar, like the other names that
+  size a unit, instead of a slice
+
+- the derivative with respect to the copies of a unit, and the pollutant
+  rows rewritten after a scaling, take a time linear in the units
+
+- the exception of `ThermalUnitBlock` when the cost of a Variable that is
+  not in its Objective changes says so, and that the reserve variables are
+  there only with a nonzero cost or when the objective Configuration of the
+  BlockConfig asks for them, as a `LagrangianDualSolver` needs
+- in the pt, SU, SD and SUSD formulations of `ThermalUnitBlock` (and of
+  `NuclearUnitBlock`) the arc of a run that no power satisfies (its bounds,
+  start-up and shut-down limits and ramps leave an empty interval at some
+  instant, the runs whose economic dispatch the DP Solvers find
+  infeasible) is fixed to 0 by its box "ArcBound_Const_Thermal", which
+  update_rows() changes with the data; before, such a run could carry a
+  fractional flow in these formulations, whose relaxation could then be
+  below that of the DP one also with the SUSD formulation
+
+- the maximum power rows (27) of the pt, SU, SD and SUSD formulations of
+  `ThermalUnitBlock` (and of `NuclearUnitBlock`, which inherits them) carry
+  by the ramps every maximum power met along a run, not only the start-up
+  and shut-down limits: the cap of an instant is the least of the maximum
+  powers of the instants of the run plus the ramps from them to it, which
+  is tighter when the maximum power changes in time, e.g., with the
+  availability, and the same as before with constant data; on 1312 random
+  units with a varying availability the continuous relaxation of SU is
+  below the integer optimum on 48 instead of 99, that of pt on 74 instead
+  of 129
+
+- the documentation of `ThermalUnitBlock` cites the SD and SUSD
+  formulations from their published version (AIRO Springer Series 5, 2021)
+  in place of the technical report R. 20-01 of IASI-CNR, whose rows have
+  the same numbers in the two
+
+- the bounding of `ThermalUnitExtDPSolver` may use a bound of a derived unit
+  that depends on the label and on the output (`completion_bound()`, built
+  by `prepare_completion_bound()` once more than 256 states are kept at an
+  instant); `NuclearUnitExtDPSolver` gives the cost-to-go of a relaxation of
+  its rules, computed backwards on a grid of the output, which keeps the
+  stability, the lockout and the counter of the modulations of the day: the
+  values are the same to the last digit, and on the subproblems of the
+  Lagrangian duals without bands the dynamic program takes about half of
+  the instructions it took
+
+- `ThermalUnitExtDPSolver` prunes the on-states by bounds, as a
+  branch-and-bound does: a state whose least value plus a lower bound on
+  the cost of the instants that follow (each at least the smaller of 0 and
+  the least cost of being on there) exceeds the cost of a feasible schedule
+  already met (one that stays off from an off-state, or that keeps the
+  output of an on-state to the end) is removed, which leaves the optimal
+  value unchanged, and on the instances of the tests the value of each
+  solve is the same to the last digit; the new virtual methods `min_move_cost()` and
+  `can_hold()` give the derived units the cost of their moves and whether a
+  label can keep its output, which `NuclearUnitExtDPSolver` implements. On
+  the subproblems of a Lagrangian dual in which a nuclear unit stays off,
+  the dynamic program keeps a few states instead of thousands at an instant
+
+- the unit test checks the bounding on a nuclear unit with long modulations
+  at prices at which it stays off: the value is 0 and no on-state is kept
+
+- the domination of `ThermalUnitExtDPSolver` compares a state only with the
+  states whose label dominates its own and whose domain meets its own, the
+  answers of `label_dominates()` being asked once per pair of labels, and
+  kept until the parameters are loaded again: the states kept and their value functions are those of before,
+  and the cost of the pruning is no longer that of all the pairs of states
+  (on a unit with long modulations, the domination took 96% of the time and
+  the decoding of the labels alone 43%)
+
+- the documentation of `UCBlock` and of the model describes nodes of any
+  carrier (heat, gas) with their units, lines, zones and pollutant budgets,
+  instead of saying that units producing heat are not modelled
+
+- in a network with hyperarcs and lines of nonzero susceptance,
+  `DCNetworkData::get_end_line()` holds the (first) end node of every line,
+  and `DCNetworkData::get_line_efficiency()` returns 1 for a line of nonzero
+  susceptance instead of throwing; a hyperarc with nonzero susceptance is
+  refused by `DCNetworkData::deserialize()`
+
+- the instances of `data/` are downloaded and extracted by the targets
+  `download_uc_<fmt>` and `extract_uc_<fmt>`, written as in every module
+  that keeps its instances in the Package Registry, and the marker of the
+  extraction carries the format in its name, so that a tree extracted
+  before extracts once more
+
+- the single-bus thermal instances (`tools/json2netCDF/instances_singlebus`
+  and the `UC_singlebus` data) start from an initial state
+  consistent with the demand and the reserve at instant 0: the units are
+  committed in merit order while their minimum powers fit the lowest load net
+  of the reserve of the first day, each holds an output with one ramp of room
+  on both sides, and the others are off long enough to start at once; with the
+  reserve, the secondary requirement is capped so that the reserve plus the
+  change of the load in one instant fit within 0.7 times the one-instant ramp
+  of the fleet; every thermal instance with the reserve is feasible over its
+  horizon
+
+- the nuclear single-bus fleets (`UC_singlebus-nuclear`, built by
+  `gen-nuclear-uc`) are made of nuclear and thermal units: the largest units,
+  whose capacity is at least 45% of the fleet's, are `NuclearUnitBlock` and
+  the others `ThermalUnitBlock`, which balance the load around the nuclear
+  output; the low and the high band of a nuclear unit are as wide as the
+  primary plus secondary reserve it offers at full output, rather than 30% of
+  its range, and its longest modulation no longer binds (it was 8 instants),
+  the length of a modulation being set by the ramps and the bands; every
+  instance of a day is feasible. `json2nc4.jl` has the options
+  `--nuclear-share`, `--bands-reserve` and `--mod-length 0` for this
+
+- `json2nc4.jl` keeps the band breakpoints and the deep-decrease threshold of
+  a `NuclearUnitBlock` at least a tenth of a ramp away from a whole number of
+  ramps from the minimum and the maximum power, and the standalone units it
+  writes enter the horizon on at their minimum power whatever the initial
+  state of the fleet they are taken from, so that the standalone units of
+  `1UC_Data/nuclear` differ from the previous ones only in those thresholds
+
+- the ramp rows of the DP formulation of `ThermalUnitBlock` find the power
+  of the previous instant of the run and the commitment of the run without
+  scanning all the powers and all the runs for each row (the same rows)
+
+- the minimum power, maximum power and initial perspective cut rows of the
+  DP formulation of `ThermalUnitBlock` find the commitment and the cut
+  variable of the run without scanning all the runs and all the cuts for
+  each row (the same rows)
+
+- the NetworkData and the NetworkBlock read their dimensions from their own
+  group only [see `deserialize_local_dim()`]: a "NetworkBlock_i" group
+  with its demand alone no longer takes the "NumberNodes" of the UCBlock
+  for a NetworkData of its own, and the network of a carrier cannot take
+  the "NumberLines" of the electricity
+
+- the balance rows (1), (1b) and (1') are written and updated by one
+  function of their terms [see `UCBlock::balance_terms()`], and a
+  commitment Variable whose fixed consumption is 0 at an instant is no
+  longer in the row of that instant with more than one node
+
+- `UCBlockSolution::serialize()` writes the solutions of the units stacked
+  in the group `UnitBlock`, one stack per type of unit, and those of the
+  networks in the standard format stacked in the group `NetworkBlock` when
+  all of them are there [see `write_stacked()` of SMS++], which
+  `deserialize()` tells apart from the compressed format; the groups
+  `UnitBlock_i` and `NetworkBlock_t` are still read
+
+### Fixed
+
+- the dynamic programming Solvers added nothing of a piecewise function to
+  a point at the right end of its domain, so that the shut-down cap of the
+  reserves was lost when the output at the last instant before a shut-down
+  could only be that cap, as from InitialPower with the window of the
+  modulation of a NuclearUnitBlock: NuclearUnitExtDPSolver then counted a
+  reserve that the unit cannot hold
+
+- the Subset version of `DesignNetworkBlock::set_network_cost()` sorted an
+  unordered Subset without the values, which then went to the wrong lines,
+  and the Range versions of `set_active_demand()` and `set_network_cost()`
+  of `DesignNetworkBlock` did not restrict the Range to the nodes and the
+  lines there are
+
+- the unit test copies the one value of the data of a battery given once
+  before assigning it to both instants: `assign()` was given a reference into
+  the vector itself, which it does not allow, and with the libc++ of macOS
+  the data of the battery with a design were zeros
+
+- on Windows, the executables that copy their DLLs next to themselves
+  are linked one at a time (a job pool of Ninja), since two copies of the
+  same DLL into one directory collided (e.g., with the clang++ of MSYS2)
+
+- with the compilers of MinGW (MSYS2) the target asks whoever links it
+  for the symbol that forces the module in, as with MSVC and on macOS:
+  the linker imports a DLL only for the symbols asked for, so that a
+  program that used none had the module left out and its classes
+  missing from the factory
+
+- `UCBlock::get_replicate_linearization()` counts the cost of one copy with
+  the weight of the `UCBlock` within the Block whose Solver gave the duals,
+  which the duals carry too, and so does the copy of a unit with no copies:
+  in a `TwoStageStochasticBlock` solved whole the cost was left without the
+  probability of the scenario, and the derivative by copies was wrong
+
+- the unit test solves the Solution of the formulations of a
+  `ThermalUnitBlock`, whose cost is quadratic, and the `UCBlock` on an
+  `ACNetworkBlock` with and without the bounds of the angles, whose
+  Constraint are quadratic, with a `:MILPSolver` that solves them, which
+  HiGHS does not: where HiGHS was the only one (e.g., on macOS) the test
+  stopped at the first and failed the others
+
+- `UCBlock::is_feasible()` weighs the Variable of each unit with its copies,
+  as the Solver does, the rows holding the coefficients of one copy, and
+  checks also the reactive node injection rows and the balances of the
+  carriers other than the electricity, which it did not
+
+- `ThermalUnitBlock` takes the `BlockWeightMod` of its copies, which it
+  refused as a `BlockMod` it did not know
+
+- `DesignNetworkBlock::set_active_demand()` with a `Subset` that is not
+  ordered sorted the subset but not the values, which went to the wrong
+  entries; it now sorts them together, and goes through the sub-Block and
+  the subset in one pass
+
+- a `DesignNetworkBlock` over `ACNetworkBlock` forwards the reactive
+  injections, their bounds and the reactive demand to its sub-networks,
+  without which the `UCBlock` left out the reactive balance with no error
+
+- `expected_dims()` and `expected_vars()` of the `UnitBlock`, of the
+  `NetworkBlock` and of their `NetworkData`, and of `UCBlock`, are declared
+  also with `NDEBUG`, as those of `Block` in SMS++, so that the virtual
+  tables do not depend on it
+
+- the C++20 module `smspp.ucblock` exports `deserialize_local_dim()` of
+  `NetworkBlock.h`, which it did not since the function was added after the
+  interface was written, and its global module fragment includes only the
+  headers that no other one includes
+
+- `test/makefile` links SMS++, which `lib/makefile-c` leaves out of
+  `UCBckOBJ` for `libUCBck.a`: the test did not link
+
+- a build of the module alone, with `find_package()`, fetches FastFlow,
+  which `ThermalUnitDPSolver.cpp` includes and which an installed SMS++
+  does not carry [see `cmake/FastFlow.cmake` of SMS++]
+
+- `UnitBlock::serialize()` declares the efficiencies of the outputs with
+  one entry per instant as an array, not as a function (the most vexing
+  parse, which Clang 21 rejects)
+
+- the makefiles of the tests and of the tools build also with g++: they
+  take the option that stops at the first error and the one of the
+  debugging information, which clang++ and g++ spell differently
+  (`-ferror-limit=1` and `-glldb` against `-fmax-errors=1` and `-ggdb`),
+  from `SMSppSWERR` and `SMSppSWDBG` of `lib/makefile-OS` of SMS++
+
+- `scale()` of `IntermittentUnitBlock`, `BatteryUnitBlock` and
+  `ConversionUnitBlock` refuses a scale other than 1 on a unit whose design
+  has more than one module (or, for the `ConversionUnitBlock`, with more
+  than one module), as `deserialize()` does: the two are the same fleet,
+  which a unit with both counts twice
+- a Block written with `serialize()` and read back with `deserialize()` has
+  all the data it was read with: `DCNetworkBlock` writes `Kappa` (when a
+  constant of a line is not 1), `ThermalUnitBlock` the `ReferenceSchedule`
+  and `FixToMaximum`, `BatteryUnitBlock` and `HydroUnitBlock` the
+  `ReferenceSchedule` and the bounds of the reactive power, and
+  `IntermittentUnitBlock` and `SlackUnitBlock` the bounds of the reactive
+  power; the unit test writes each of them to an image, reads it back and
+  checks that the image of the copy is the same
+
+- `NuclearUnitBlock` expects `NumberPowerBands` and `OTSNetworkData` expects
+  `SwitchingCost`, which `serialize()` writes and a read in Debug reported
+  as unexpected. The round trip of the unit test checks that a Block expects
+  what it writes, and writes a `LinearTerm` per instant for the thermal unit
+  instead of reading past the end of a vector of one
+
+- `DCNetworkBlockSolution`, `ACNetworkBlockSolution` and
+  `BatteryUnitBlockSolution` read their values indexed over the lines, the
+  nodes or the instants whatever their size, and a netCDF scalar gave one
+  value, past which `read()` and `write()` went, running over the lines,
+  the nodes or the instants of the Block: a scalar, which their format
+  does not have, is refused by `deserialize()` with
+  `std::invalid_argument`. A `UnitBlockSolution` with no
+  "NumberGenerators" read a scalar into the first instant only, and the
+  others were 0: it gives the same value to every instant, as it already
+  did with "NumberGenerators". The data of the Blocks that are netCDF
+  scalars were already the same for every line, node or instant; the unit
+  test checks them on the networks, and that each of these values of the
+  Solution is refused, or read, as a scalar
+
+- the distribution factors of the HVDC lines that a `DCNetworkData` keeps
+  were those of the instant only, and a `DCNetworkBlock` sharing it with
+  another of the same instant (as those not in a `UCBlock`, all at the
+  instant `Inf< Index >()`) but with another Tikhonov coefficient got the
+  factors of that coefficient: the coefficient is part of what they are
+  kept for (`DCNetworkData::was_DCDF_computed()` and `compute_DCDF()`
+  take it, 0 by default), and the unit test checks the factor of each
+  coefficient on a `DCNetworkData` shared in both orders
+
+- an `ACNetworkBlock` with no "ReactiveDemand", or with no bound given on
+  its reactive injections (as one that is not in a `UCBlock`), read past
+  empty vectors when generating its constraints: the reactive demand is 0
+  and the bounds not given are infinite, also on the other side of a bound
+  given afterwards. The data with no default are refused with
+  `std::invalid_argument` where they read past them before:
+  "LineReactance" and "LineResistance", mandatory as documented, by
+  `ACNetworkData::deserialize()` when there are lines, "LineRATEA" (with
+  AC lines) and the data of the nodes by
+  `ACNetworkBlock::generate_abstract_constraints()`, before generating
+  anything; "LineMinAngle" and "LineMaxAngle" remain optional
+
+- `HydroSystemUnitBlock::deserialize()` and
+  `HydroSystemUnitBlockSolution::deserialize()` looked up each sub-group with
+  `NcGroup::getGroup()`, which lists all the sub-groups at each call: they
+  list them once, as `UCBlock` does
+
+- the compressed format of the `NetworkBlockSolution` of several networks
+  (that of a `UCBlockSolution` and of a `DesignNetworkBlockSolution`)
+  dereferenced an absent (nullptr) Solution, which the natural format
+  skips; the compressed format has no way to say that a Solution is
+  absent, and `NetworkBlockSolution::serialize()` throws
+  `std::invalid_argument` before writing anything
+
+- `DesignNetworkBlock::get_Solution()` passed to its sub-Solution bit 0
+  of its own `Configuration` and its bits from 3 upward shifted by 3, so
+  that bit 3 (its compressed format) became bit 0 of the sub-Solution and
+  they held their node injections also when bit 0 did not ask for them;
+  only the bits from 4 upward are passed, as documented, and the default
+  31 is documented as what it is (15 + 16, the sub-Solution with their node
+  injections and their flows)
+
+- `DCNetworkBlock::set_dual_prices()` was not the inverse of
+  `get_dual_prices()` on a line with a design variable: the latter gives
+  the sum of the dual values of the two sides of its flow limit (the upper
+  row, and the lower row or the lower half of the bound), the former wrote
+  the whole price on the bound, which a line with a lower row does not use,
+  so that a `DCNetworkBlockSolution` written in the network did not read
+  back its prices; the price now goes by its sign to the side that it
+  belongs to, the upper row if it is nonnegative and the lower side
+  otherwise, with 0 on the other side
+
+- `DCNetworkBlock`, PTDF formulation of a network with lines with
+  susceptance and HVDC lines that is not in a `UCBlock`: its instant is
+  `Inf< Index >()`, the value that marks the distribution factors of the
+  HVDC lines as never computed, hence they were never computed and the rows
+  of the flows read an empty matrix (an Eigen assertion in Debug, undefined
+  behaviour otherwise); the matrix, which has a row and a column per line,
+  is read where it is instead of being copied for each line
+
+- `NetworkBlockSolution::serialize()` wrote the node injections of a
+  Solution of one instant, as that of each `DCNetworkBlock` of a `UCBlock`,
+  out of the column of the instant instead of its row, reading past the
+  array for every node but 0: the natural format of a `UCBlockSolution`
+  held garbage, now it holds the injections
+
+- `DCNetworkBlockSolution::deserialize()` wanted "FlowValue",
+  "AuxiliaryValue" and "DualCost", which `serialize()` writes only when the
+  Solution holds them: a Solution with no auxiliary variable (no line with
+  a nonzero `NetworkCost`) or with no flow could not be read back in the
+  natural format, and `UCBlockSolution::deserialize()` lost its
+  `NetworkBlock` without a word; they are optional, as documented, a
+  missing "NetworkBlock_<t>" group is a missing `NetworkBlock` as for
+  `serialize()`, and one that is not a `NetworkBlockSolution` an error
+
+- `ACNetworkBlockSolution`: the natural format wrote "ReactiveFlowTOValue"
+  in place of "ReactiveFlowToValue" and read its three variables as
+  mandatory; the compressed one wrote the reactive injections only with the
+  reactive flows, and with the flows and no injection wrote on a null
+  variable; `clone()` (and so `scale()`) lost the auxiliary variables
+
+- `DCNetworkBlock::set_power_flow()` read past its argument on an
+  `ACNetworkBlock`, whose flows are two per line (the "from" ones first)
+  while a `DCNetworkBlockSolution` holds one per line: it writes the first
+  `pf.size()` flows
+
+- the compressed `DesignNetworkBlockSolution` read the node injections of
+  its sub-Solution as its own, and once read could not be written again
+  ("NodeInjection" defined twice)
+
+- "EndInstant", an `NcInt`, was read in a `size_t` through `void *` by
+  `NetworkBlockSolution` and `ECNetworkBlockSolution`, which is right only
+  on a little-endian machine; it is read in an `int`
+
+- reading a `UCBlockSolution` in the natural format was quadratic in the
+  number of `NetworkBlock`, 301400 calls of `nc_inq_grpname()` for 548
+  instants, since `NcGroup::getGroup()` lists all the sub-groups at each
+  call: `UCBlockSolution::deserialize()`, `UCBlock::deserialize()` and the
+  two of `DesignNetworkBlock` list them once, and the calls are 550
+
+- `BatteryUnitBlock::get_converter_kappa_linearization()`, and with it
+  `get_kappa_linearization()` when the converter follows the kappa, was NaN
+  with an infinite `ConverterMaxPower`, the zero dual value of the free
+  converter row being multiplied by the infinite power; the converter rows
+  (10) of a battery with no design variable now exist only at the instants
+  where the converter power is positive and finite, the second index of
+  `get_converter_bounds()` running over these instants, so that no free
+  row is handed to the Solver, and the two linearizations skip the other
+  instants
+
+- an infinite `MaxPrimaryPower` or `MaxSecondaryPower` of a
+  `BatteryUnitBlock` gave the reserve bound (9) the right-hand side NaN at
+  kappa 0 (0 times +inf), a row (9d) with an infinite coefficient of the
+  design variable, and a NaN `get_kappa_linearization()` (the zero dual of
+  the free bound times +inf): the bound is now +inf whatever kappa is, the
+  row (9d) is free with no term in the design, and the zero dual gives no
+  term, as for the other infinite bounds of the unit
+
+- the bounds of the node injections of `UCBlock` follow a change of the
+  power range of a unit also when no Solver is listening, a Solver attached
+  later reading them stale otherwise: `UnitBlock::issue_unit_mod()` issues
+  the Modification of a unit as usual if anyone reads it and passes it to
+  the father alone otherwise, if it changes the power range, as `scale()`
+  already did; the setters of `MaxPower` of `ThermalUnitBlock` and
+  `IntermittentUnitBlock`, of the kappa of `IntermittentUnitBlock` and
+  `BatteryUnitBlock`, of the data of `ConversionUnitBlock` and `scale()` use
+  it, and the unit test checks the bounds also with no Solver attached
+
+- `UCBlock` recomputes the bounds of the node injections after a change of
+  `MaxPower` or `MinPower` of a `ConversionUnitBlock`, which left them as
+  they were: each `UnitBlockMod` says by `changes_power_range()` whether
+  its type changes a datum of those bounds, and `UCBlock::add_Modification()`
+  asks that of every unit instead of listing the types of some classes; the
+  unit test compares the bounds after each such change with those of the
+  `UCBlock` read afresh from the changed data
+
+- the Solution of a `DCNetworkBlock` holds the auxiliary Variable
+  V_l >= | F_l | of the lines, which carry the cost of the flows
+  when some line has a `NetworkCost`: without them, writing the Solution left
+  those Variable at whatever value they had, so that a Solver keeping its
+  solutions as Solution (e.g., `PrimalProximalHeur`) wrote back a point whose
+  cost was not the one it reported; they are read, written, scaled, summed,
+  cloned and serialized with the flows (the optional "AuxiliaryValue"), and
+  `DCNetworkBlock::set_auxiliary_variable()` writes them
+
+- the Solution of a `HydroSystemUnitBlock` holds that of its
+  `PolyhedralFunctionBlock`, whose epigraph Variable carries the future cost
+  of the water in the linearized representation: without it, writing the
+  Solution left that Variable at whatever value it had, so that a Solver
+  keeping its solutions as Solution (e.g., `PrimalProximalHeur`) wrote back
+  a point whose cost was not the one it reported; the Solution is also
+  deleted with its inner ones, and serialized in the optional group
+  "PolyhedralFunctionBlockSolution"
+
+- `ThermalUnitBlock` (and so `NuclearUnitBlock`) separated a perspective
+  cut every time the point violated it, also when the same cut, on the same
+  variable and at the same \check{p}, was in the Block already: in the
+  callback of a multithreaded MILP a point comes back many times, and on a
+  unit commitment of 10 units the 71461 cuts of a solve were 31175 distinct
+  ones. A cut is now added only if it is not there already, the
+  solver that has dropped it being the one that gives it again; and the
+  group "PC_cuts_Thermal" is registered once, by
+  `generate_abstract_constraints()`, where `generate_dynamic_constraints()`
+  added one more group viewing the same list at each call, so that a
+  solver reading the Block anew found each cut once per call made
+
+- `DCNetworkBlock` and `ACNetworkBlock` accept a network of several nodes
+  with no line (`NumberLines` 0, with none of the variables of the lines),
+  e.g., nodes of different carriers coupled only by a
+  `ConversionUnitBlock`, where they refused to generate their rows: every
+  node is then an island balanced by its own units, in the PTDF, CYCLE and
+  KIRCHHOFF formulations as in the AC one (the PTDF formulation writes then
+  the node balances of a pure HVDC network, which it wrote only when some
+  line had zero susceptance, while a change of the demand already looked
+  for them); a network with lines gives the same model as before
+
+- `ThermalUnitExtDPSolver` (and so `NuclearUnitExtDPSolver`) prunes a
+  state whose domain is narrower than 1e-9 by comparing the values at that
+  point: the steps of exactly the ramp that end at a bound of the output
+  left there states of equal value up to the rounding, which the test piece
+  by piece kept all, and whose number grew at each instant (more than 12 h
+  on 5 of the 25 week-long e7 units of `1UC_Data/nuclear` with no reserve
+  price); the optimal values are unchanged
+
+- the maximum power rows of the pt, SU, SD and SUSD formulations of
+  `ThermalUnitBlock` (and so of `NuclearUnitBlock`) cap every instant of a
+  run by the start-up limit plus the ramps up from the start-up and by the
+  shut-down limit plus the ramps down to the shut-down, the first and the
+  last instant included, where only the limits were used: the two arcs of a
+  run that reaches the end of the horizon, which describe the same schedule,
+  had different caps at its last instant, and the continuous relaxations of
+  the pt, SU and SD formulations could be weaker than that of the DP one; a
+  cap below the minimum power is no longer raised to it, so that a run that
+  the limits and the ramps make impossible at an instant is excluded there
+
+- `ACNetworkBlock` without `LineMinAngle` and `LineMaxAngle` no longer reads
+  out of empty vectors when its rows are generated: the angle differences
+  are then not bounded, there are no rows `AC_angle_bounds_limit` and
+  `AC_elem_bounds`, and the strengthened relaxation, which needs the
+  bounds, is not generated unless a Configuration asks for it, in which
+  case it is refused; one of the two variables without the other is refused
+  when read (`ACNetworkData::has_angle_bounds()` tells whether they are
+  there)
+
+- `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver` compute again the
+  ramps they take for a unit without `DeltaRampUp` or `DeltaRampDown` when
+  `InitialPower` changes, so that the move from a new `InitialPower` above
+  every `MaxPower` is free, as in the rows
+
+- `ACNetworkBlock` reads `LineMinAngle` and `LineMaxAngle` as MATPOWER
+  does: a value at most -360 (respectively at least 360), or NaN, leaves
+  that side of the angle difference unbounded, and 0 for both leaves it
+  unbounded altogether (`ACNetworkData::get_angle_difference_bounds()`);
+  the bounds of +-360 of the MATPOWER instances made the rows
+  `AC_angle_bounds_limit` force the imaginary part of the voltage product
+  to 0 and `AC_elem_bounds` its real part above the product of the minimum
+  voltages, and 0 / 0 made the angle difference 0. A line with an unbounded
+  side, or with a range of a whole turn, now has neither group, and one
+  with a range wider than 180 degrees has no `AC_angle_bounds_limit` (no
+  such row is valid there); two finite bounds in the wrong order are
+  refused when read
+
+- the bounds `AC_elem_bounds` of `ACNetworkBlock` are the exact ranges of
+  the real and imaginary parts of the voltage product over the bounds of
+  the angle difference and of the voltages: the bound
+  `sin( max - min )` of the imaginary part cut feasible points for
+  symmetric bounds wider than +-45 degrees, and the lower bound of the real
+  part was wrong for bounds beyond +-90; the rows `AC_angle_bounds_limit`
+  of a bound beyond +-60 degrees are written as
+  `cos( phi ) s - sin( phi ) c`, valid beyond +-90 too
+
+- the strengthened relaxation of `ACNetworkBlock` covers the AC lines whose
+  bounds on the angle difference are both within +-90 degrees, where its
+  envelopes are valid, and leaves out the others, instead of using the
+  envelopes of any range for every line
+
+- the elementary check of the flows of `ACNetworkBlock` no longer reads the
+  name of a line out of an empty vector when the data have no `LineName`
+
+- the row of `NuclearUnitBlock` that forbids a modulation step at a start-up
+  instant (`NoStartUpModulation_Nuclear`) is `m_t + v_t <= 1`, as documented,
+  and no longer the void `m_t - v_t <= 1`, which let the MILP take a step at
+  a start-up that the dynamic program does not admit
+
+- `NuclearUnitBlock::is_feasible()` checks the part of `ThermalUnitBlock`
+  with the tolerance it is given, and no longer with the default one of
+  `Block`
+
+- `compute()` of `ThermalUnitDPSolver` and `ThermalUnitExtDPSolver` (and so
+  of `NuclearUnitExtDPSolver`) releases the mutex of the Solver also when it
+  throws, e.g., on a fixed Variable whose value the dynamic program refuses,
+  and `NuclearUnitExtDPSolver::get_var_solution()` releases the lock of the
+  Block likewise: the mutex stayed locked, and any other thread asking for
+  the Solver waited forever
+
+- `UnitBlock::serialize()` writes "ChangeIntervals", the name that
+  `UnitBlock::deserialize()` reads, instead of "ChangeInterval"
+
 ## [0.10.0] - 2026-10-09
 
 ### Added
@@ -1233,7 +2167,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.10.0...develop
+[Unreleased]: https://gitlab.com/smspp/ucblock/-/compare/0.11.0...develop
+[0.11.0]: https://gitlab.com/smspp/ucblock/-/compare/0.10.0...0.11.0
 [0.10.0]: https://gitlab.com/smspp/ucblock/-/compare/0.9.0...0.10.0
 [0.9.0]: https://gitlab.com/smspp/ucblock/-/compare/0.8.0...0.9.0
 [0.8.0]: https://gitlab.com/smspp/ucblock/-/compare/0.7.0...0.8.0

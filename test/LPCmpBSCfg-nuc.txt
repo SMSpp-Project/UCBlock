@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - LPCmpBSCfg-nuc.txt - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - LPCmpBSCfg-nuc.txt  - - - - - - - - - - - - - - -
 #
 # BlockSolverConfig of a NuclearUnitBlock in the test of the power limits
 # (test_power_limits.cpp): the :MILPSolver first, which writes the model it
@@ -28,8 +28,8 @@ NuclearUnitExtDPSolver # name of 2nd Solver
 
 *LPCmpMILPCfg.txt
 
-# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+# end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - END LPCmpBSCfg-nuc.txt - - - - - - - - - - - - - -
+# - - - - - - - - - - - - END LPCmpBSCfg-nuc.txt  - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -1,0 +1,50 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - -  UCBCfg-copy-bound.txt  - - - - - - - - - - - - - -
+#
+# The BlockConfig of a UCBlock whose extra Configuration gives the Solver
+# of the copy of a unit with no copies [see
+# UCBlock::get_replicate_linearization()]: the BoundSolver of the unit test
+# [see CopyBSCfg-bound.txt]
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+BlockConfig # exact type of the Configuration object
+
+1  # the BlockConfig is a "differential" one
+
+2  # version of the BlockConfig format
+
+# the Configuration for the structure, i.e., the tree of sub-Block
+*  # [none]
+
+# static_constraints
+*  # [none]
+
+# dynamic_constraints
+*  # [none]
+
+# static_variables
+*  # [none]
+
+# dynamic_variables
+*  # [none]
+
+# objective
+*  # [none]
+
+# is_feasible
+*  # [none]
+
+# is_optimal
+*  # [none]
+
+# solution
+*  # [none]
+
+# extra: the BlockSolverConfig of the copy of a unit with no copies
+*CopyBSCfg-bound.txt
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - -  END UCBCfg-copy-bound.txt  - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

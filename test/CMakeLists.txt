@@ -29,9 +29,10 @@ endif ()
 # ----- UCBlock_unit_test --------------------------------------------------- #
 add_executable(${modName}_unit_test test.cpp test_power_limits.cpp)
 
-# test_power_limits.cpp reads its configuration files (the BlockConfig of
-# the formulations, TUBCfg-*.txt and NUBCfg-*.txt, and the BlockSolverConfig
-# LPCmp*.txt) from the source directory
+# test.cpp and test_power_limits.cpp read their configuration files (the
+# BlockConfig of the formulations, TUBCfg-*.txt, NUBCfg-*.txt, ACBCfg-*.txt
+# and PFBCfg.txt, the BlockSolverConfig LPCmp*.txt and the Configuration of
+# the Solution *SolCfg-*.txt) from the source directory
 target_compile_definitions(${modName}_unit_test PRIVATE
                            UCBLOCK_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(${modName}_unit_test PRIVATE SMS++::UCBlock)
@@ -54,6 +55,14 @@ if (WIN32 AND BUILD_SHARED_LIBS AND NOT DEFINED ENV{CONDA_BUILD})
             $<TARGET_FILE_DIR:${modName}_unit_test>
             COMMAND_EXPAND_LISTS
             COMMENT "Copying runtime DLLs next to ${modName}_unit_test.exe")
+    # one link at a time, since two copies of the same DLL into a
+    # directory collide, and Ninja links in parallel
+    get_property(_pools GLOBAL PROPERTY JOB_POOLS)
+    if (NOT _pools MATCHES "smspp_runtime_dlls=")
+        set_property(GLOBAL APPEND PROPERTY JOB_POOLS smspp_runtime_dlls=1)
+    endif ()
+    set_property(TARGET ${modName}_unit_test
+                 PROPERTY JOB_POOL_LINK smspp_runtime_dlls)
 endif ()
 
 # The tester builds its instances in memory and needs no data; it writes its

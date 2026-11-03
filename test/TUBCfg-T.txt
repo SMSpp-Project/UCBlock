@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - - TUBCfg-T.txt- - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - TUBCfg-T.txt  - - - - - - - - - - - - - - - -
 #
 # The BlockConfig of a ThermalUnitBlock, or of a NuclearUnitBlock without its
 # tightening bits, that selects the T formulation without the Perspective
@@ -47,5 +47,5 @@ SimpleConfiguration<int>
 *  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - END TUBCfg-T.txt- - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - END TUBCfg-T.txt  - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

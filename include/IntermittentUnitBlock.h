@@ -71,7 +71,7 @@ namespace SMSpp_di_unipi_it
  * zone, in which case the unit represents all the capacity of its kind
  * installed in the zone, and the equations are the same in all cases. It has
  * one generator, and its place in the model of the complete system (the node
- * balance, the reserve and inertia rows, the scale factor and the investment)
+ * balance, the reserve and inertia rows, the copies and the investment)
  * is described in \ref ucblock_model.
  *
  * \par Capacity and production
@@ -127,15 +127,16 @@ namespace SMSpp_di_unipi_it
  * \f$ x \f$ ("x_intermittent"), which exists if \f$ c^{inv} \f$
  * ("InvestmentCost") is nonzero, multiplies \f$ \kappa P^{mn}_t \f$ and
  * \f$ \kappa P^{mx}_t \f$ in (1)-(3), which then take the forms (1d)-(3d),
- * and costs \f$ \sigma c^{inv} \f$ per unit. If \f$ \bar{X} \geq 0 \f$ the
+ * and costs \f$ c^{inv} \f$ per unit. If \f$ \bar{X} \geq 0 \f$ the
  * design variable lies in \f$ [ \max\{ 0 , \underline{X} \} , \bar{X} ] \f$,
  * with \f$ \underline{X} \f$ and \f$ \bar{X} \f$ the data "MinCapacityDesign"
  * and "MaxCapacityDesign". If \f$ \bar{X} < 0 \f$ it is integer in \f$ \{
  * \max\{ 0 , \underline{X} \} , \ldots , | \bar{X} | \} \f$ (say, a number of
  * modules), and binary if \f$ \bar{X} = -1 \f$; its bounds are always a row,
  * and therefore with both bounds equal to 1 the unit is built. Finally, the
- * scale factor \f$ \sigma \f$ ("Scale") represents \f$ \sigma \f$ identical
- * copies of the unit that share its Variable (see UnitBlock::scale()).
+ * number of copies \f$ \sigma \f$ ("Scale") represents \f$ \sigma \f$
+ * identical copies of the unit that share its Variable (see
+ * UnitBlock::replicate()).
  *
  * \par Rows and Objective
  * With the terms in \f$ p^{pr}_t \f$ and \f$ p^{sc}_t \f$ present only for
@@ -158,10 +159,11 @@ namespace SMSpp_di_unipi_it
  * \f}
  * and the Objective is
  * \f[
- *   \sigma \Bigl( \sum_{ t \in \mathcal{T} } b_t p^{ac}_t + c^{inv} x
- *   \Bigr) , \tag{5}
+ *   \sum_{ t \in \mathcal{T} } b_t p^{ac}_t + c^{inv} x \; , \tag{5}
  * \f]
- * where the term in \f$ x \f$ is present only if the design variable exists.
+ * where the term in \f$ x \f$ is present only if the design variable exists,
+ * the cost of one copy of the unit (the problem counts it once per copy,
+ * see UnitBlock::replicate()).
  *
  * \par Features not modeled
  * We do not model a contribution to the inertia proportional to the potential
@@ -196,7 +198,7 @@ class IntermittentUnitBlock : public UnitBlock
   */
  explicit IntermittentUnitBlock( Block * f_block = nullptr )
   : UnitBlock( f_block ), f_InvestmentCost( 0 ), f_MinCapacityDesign( 0 ),
-    f_MaxCapacityDesign( 1 ), f_gamma( 0 ), f_kappa( 1 ), f_scale( 1 ),
+    f_MaxCapacityDesign( 1 ), f_gamma( 0 ), f_kappa( 1 ),
     f_max_power_epsilon( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -256,11 +258,11 @@ class IntermittentUnitBlock : public UnitBlock
   * - the scalar variable "Kappa", the nonnegative \f$ \kappa \f$; 1 if
   *   absent;
   *
-  * - the scalar variable "Scale", the scale factor \f$ \sigma \f$ [see
-  *   UnitBlock::scale()], 1 if absent; a value different from 1 is refused
-  *   together with \f$ | \bar{X} | > 1 \f$, since the two represent the same
-  *   replication of the unit (by deserialize() only, scale() not repeating
-  *   this check);
+  * - the scalar variable "Scale", the number of copies \f$ \sigma \f$
+  *   [see UnitBlock::deserialize() and UnitBlock::replicate()], 1 if
+  *   absent; a value different from 1 is refused together with
+  *   \f$ | \bar{X} | > 1 \f$, since the two represent the same replication
+  *   of the unit (also by set_weight());
   *
   * - the scalar variable "InvestmentCost", the investment cost
   *   \f$ c^{inv} \f$ of (5), 0 if absent; a nonzero value creates the design
@@ -286,7 +288,6 @@ class IntermittentUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /* extends UnitBlock::expected_dims()
   * not necessary, no new dimensions
 
@@ -297,8 +298,6 @@ class IntermittentUnitBlock : public UnitBlock
  /// extends UnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the IntermittentUnitBlock
@@ -367,9 +366,9 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the IntermittentUnitBlock
  /** Generates the Objective (5) of the class description, to be minimized:
-  * a LinearFunction with coefficient \f$ \sigma b_t \f$ on
-  * \f$ p^{ac}_t \f$ and \f$ \sigma c^{inv} \f$ on \f$ x \f$, if the latter
-  * exists. The parameter \p objc is not used. */
+  * a LinearFunction with coefficient \f$ b_t \f$ on \f$ p^{ac}_t \f$ and
+  * \f$ c^{inv} \f$ on \f$ x \f$, if the latter exists. The parameter \p objc
+  * is not used. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
 
@@ -517,6 +516,9 @@ class IntermittentUnitBlock : public UnitBlock
  /// returns the investment cost
  double get_investment_cost( void ) const { return( f_InvestmentCost ); }
 
+ /// true if the unit has a design Variable, i.e., a nonzero investment cost
+ bool has_design( void ) const override { return( f_InvestmentCost != 0 ); }
+
  /// returns the upper bound of the design variable ("MaxCapacityDesign")
  double get_max_capacity_design( void ) const {
   return( f_MaxCapacityDesign );
@@ -602,10 +604,6 @@ class IntermittentUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the scale factor
-
- double get_scale( void ) const override { return( f_scale ); }
-
  double get_design_ub( void ) const override {
   // f_MaxCapacityDesign < 0: integer design in {0, ..., |MaxCapacityDesign|};
   // f_MaxCapacityDesign >= 0: continuous design in [0, MaxCapacityDesign].
@@ -785,16 +783,18 @@ class IntermittentUnitBlock : public UnitBlock
   * accordingly; a zero is replaced by the \f$ \varepsilon \f$ of
   * set_BlockConfig(), if positive.
   *
-  * @param values  Iterator to a vector containing the maximum power values.
+  * @param values  A span containing the maximum power values, at least as long
+  *                as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
   * @param subset  If non-empty, the maximum power values corresponding to the
-  *                indices in \p subset are set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  *                indices in \p subset are set to the values in \p values. If
+  *                empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_maximum_power( MF_dbl_it values ,
+ void set_maximum_power( MF_dbl_sp values ,
                          Subset && subset ,
                          const bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
@@ -808,15 +808,17 @@ class IntermittentUnitBlock : public UnitBlock
   * accordingly; a zero is replaced by the \f$ \varepsilon \f$ of
   * set_BlockConfig(), if positive.
   *
-  * @param values Iterator to a vector containing the maximum power values.
+  * @param values A span containing the maximum power values, at least as long
+  *               as what is left of \p rng (std::invalid_argument is thrown if
+  *               it is shorter).
   * @param rng    If non-empty, the maximum power values corresponding to the
-  *               indices in \p rng are set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  *               indices in \p rng are set to the values in \p values. If
+  *               empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_maximum_power( MF_dbl_it values ,
+ void set_maximum_power( MF_dbl_sp values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -826,16 +828,17 @@ class IntermittentUnitBlock : public UnitBlock
  /** This function sets the active power cost values of this
   * IntermittentUnitBlock.
   *
-  * @param values  Iterator to a vector containing the active power cost
-  *                values.
-  * @param subset  If non-empty, the active power cost values corresponding
-  *                to the indices in \p subset are set to the values pointed
-  *                by \p values. If empty, no operation is performed.
+  * @param values  A span containing the active power cost values, at least as
+  *                long as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
+  * @param subset  If non-empty, the active power cost values corresponding to
+  *                the indices in \p subset are set to the values in \p values.
+  *                If empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Subset && subset ,
                              bool ordered = false ,
                              c_ModParam issuePMod = eNoBlck ,
@@ -846,15 +849,16 @@ class IntermittentUnitBlock : public UnitBlock
  /** This function sets the active power cost values of this
   * IntermittentUnitBlock.
   *
-  * @param values Iterator to a vector containing the active power cost
-  *               values.
-  * @param rng    If non-empty, the active power cost values corresponding
-  *               to the indices in \p rng are set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  * @param values A span containing the active power cost values, at least as
+  *               long as what is left of \p rng (std::invalid_argument is
+  *               thrown if it is shorter).
+  * @param rng    If non-empty, the active power cost values corresponding to
+  *               the indices in \p rng are set to the values in \p values. If
+  *               empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Range rng = Range( 0 , Inf< Index >() ) ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck );
@@ -872,26 +876,18 @@ class IntermittentUnitBlock : public UnitBlock
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector( get_time_horizon() , value );
-  set_active_power_cost( vector.cbegin() ,
+  set_active_power_cost( MF_dbl_sp( vector ) ,
                          Range( 0 , Inf< Index >() ) ,
                          issuePMod , issueAMod );
  }
 
 /*--------------------------------------------------------------------------*/
- /// sets the scale factor
- /** This method sets the scale factor of this IntermittentUnitBlock.
-  *
-  * @param values An iterator to a vector containing the scale factor.
-  * @param subset If non-empty, the scale factor is set to the value pointed
-  *               by \p values. If empty, no operation is performed.
-  * @param ordered This parameter is ignored.
-  * @param issuePMod Controls how physical Modifications are issued.
-  * @param issueAMod Controls how abstract Modifications are issued. */
+ /// sets the number of copies of this IntermittentUnitBlock
+ /** As UnitBlock::set_weight(), after having refused with std::logic_error
+  * a number of copies different from 1 together with \f$ | \bar{X} | > 1
+  * \f$, since the two represent the same replication of the unit. */
 
- void scale( MF_dbl_it values ,
-             Subset && subset , bool ordered = false ,
-             c_ModParam issuePMod = eNoBlck ,
-             c_ModParam issueAMod = eNoBlck ) override;
+ void set_weight( double k , c_ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set the kappa constant
@@ -899,15 +895,16 @@ class IntermittentUnitBlock : public UnitBlock
   * and \f$ P^{mx}_t \f$ in the rows (1)-(3) of the class description, or,
   * with the design variable, in its coefficients in (1d)-(3d).
   *
-  * @param values  Iterator to a vector containing the kappa constants.
-  * @param subset  If non-empty, the kappa constant corresponding to the
-  *                indices in \p subset is set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  * @param values  A span whose first element is the new kappa constant,
+  *                not empty (std::invalid_argument is thrown if it is empty).
+  * @param subset  If non-empty, the kappa constant is set to the first
+  *                element of \p values. If empty, no operation is
+  *                performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_kappa( MF_dbl_it values ,
+ void set_kappa( MF_dbl_sp values ,
                  Subset && subset , bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
@@ -918,14 +915,14 @@ class IntermittentUnitBlock : public UnitBlock
   * and \f$ P^{mx}_t \f$ in the rows (1)-(3) of the class description, or,
   * with the design variable, in its coefficients in (1d)-(3d).
   *
-  * @param values Iterator to a vector containing the kappa constants.
-  * @param rng    If non-empty, the kappa constant corresponding to the
-  *               indices in \p rng is set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  * @param values A span whose first element is the new kappa constant, not
+  *               empty (std::invalid_argument is thrown if it is empty).
+  * @param rng    If non-empty, the kappa constant is set to the first
+  *               element of \p values. If empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_kappa( MF_dbl_it values ,
+ void set_kappa( MF_dbl_sp values ,
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
@@ -943,14 +940,10 @@ class IntermittentUnitBlock : public UnitBlock
  void set_kappa( double value , c_ModParam issuePMod = eNoBlck ,
                                 c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
-  set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+  set_kappa( MF_dbl_sp( vector ) , Range( 0 , Inf< Index >() ) ,
              issuePMod , issueAMod );
   }
 
-/*--------------------------------------------------------------------------*/
- // For the Range version, use the default implementation defined in UnitBlock
-
- using UnitBlock::scale;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -961,17 +954,16 @@ class IntermittentUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// kappa times the size of this unit, i.e., set_kappa( kappa )
+ /** Registered in the methods factory as "IntermittentUnitBlock::resize",
+  * the name under which a Block of unknown class is sized by a kappa [see
+  * UCBlock::resize_unit()]; protected, as the name is the way to reach
+  * it. */
 
- /// refresh the f_scale-aware coefficients in the Objective
- /** Re-applies \f$ \sigma c \f$ to every coefficient in the Objective that
-  * is meant to scale with the current scale factor \f$ \sigma \f$ (see
-  * UnitBlock::scale()): the active-power costs and the investment cost on
-  * the design variable. Called by scale() after f_scale changes so the
-  * abstract representation stays in sync.
-  *
-  * @param issueAMod controls how abstract Modification are issued. */
-
- void update_objective( c_ModParam issueAMod );
+ void resize( double kappa , c_ModParam issuePMod = eNoBlck ,
+              c_ModParam issueAMod = eNoBlck ) {
+  set_kappa( kappa , issuePMod , issueAMod );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -1018,8 +1010,6 @@ class IntermittentUnitBlock : public UnitBlock
  /// the kappa value
  double f_kappa;
 
- /// the scale factor
- double f_scale;
 
  /// value used to replace any zero value in the maximum power
  double f_max_power_epsilon;
@@ -1158,37 +1148,75 @@ class IntermittentUnitBlock : public UnitBlock
 
  static void static_initialization( void )
  {
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Subset && , bool >(
    "IntermittentUnitBlock::set_maximum_power" ,
    & IntermittentUnitBlock::set_maximum_power );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Range >(
    "IntermittentUnitBlock::set_maximum_power" ,
    & IntermittentUnitBlock::set_maximum_power );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Subset && , bool >(
    "IntermittentUnitBlock::set_active_power_cost" ,
    & IntermittentUnitBlock::set_active_power_cost );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Range >(
    "IntermittentUnitBlock::set_active_power_cost" ,
    & IntermittentUnitBlock::set_active_power_cost );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
-   "IntermittentUnitBlock::scale" ,
-   & IntermittentUnitBlock::scale );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
-   "IntermittentUnitBlock::scale" ,
-   & IntermittentUnitBlock::scale );
-
-  register_method< IntermittentUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Subset && , bool >(
    "IntermittentUnitBlock::set_kappa" ,
    & IntermittentUnitBlock::set_kappa );
 
-  register_method< IntermittentUnitBlock , MF_dbl_it , Range >(
+  register_method< IntermittentUnitBlock , MF_dbl_sp , Range >(
    "IntermittentUnitBlock::set_kappa" ,
    & IntermittentUnitBlock::set_kappa );
+
+  // replicate() and resize() are registered under the names of the ways of
+  // sizing a Block they implement [see UCBlock::replicate() and
+  // UCBlock::resize_unit()], with the one scalar a unit has, so that a
+  // consumer can pick the operation without knowing the class:
+  //
+  // - replicate: this UnitBlock stands for k identical copies of itself. Its
+  //   Constraint, Variable and Objective keep describing one copy, and the
+  //   copies are its weights [see UnitBlock::replicate()];
+  //
+  // - resize: this UnitBlock stands for one unit of k times the size it was
+  //   given. Its own rows are rewritten, and the UCBlock multiplies its
+  //   kappa in the bounds of the node injections only [see
+  //   UCBlock::set_node_injection_bounds()].
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< IntermittentUnitBlock , double >(
+   "IntermittentUnitBlock::replicate" ,
+   { & IntermittentUnitBlock::replicate } );
+
+  register_method< IntermittentUnitBlock , double >(
+   "IntermittentUnitBlock::resize" , { & IntermittentUnitBlock::resize } );
+
+  // ... and the getter reading the sensitivity back, registered under a name
+  // that says which way of sizing it answers for. It is the same virtual that
+  // UnitBlock declares; what the factory adds is that a consumer can reach it
+  // without holding a UnitBlock *, and that a class not answering for it
+  // simply does not register the name. It requires the constraints, and
+  // throws std::logic_error if they have not been generated; it reads the
+  // duals that the last solve left in them, and no value of a Variable, so
+  // that after a solve that ended infeasible, with an unbounded dual
+  // direction where the duals go, it gives the coefficient of the condition
+  // that a feasible kappa has to satisfy.
+
+  register_method< QueryType< double & > >(
+   "IntermittentUnitBlock::get_resize_linearization" ,
+   new QueryType< double & >( []( const Block * blck , double & g ) {
+    const auto unit = static_cast< const IntermittentUnitBlock * >( blck );
+    if( ! unit->constraints_generated() )
+     throw( std::logic_error( "IntermittentUnitBlock::get_resize_"
+                              "linearization: the abstract representation "
+                              "has not been generated, so there are no rows "
+                              "to read the duals of" ) );
+    g = unit->get_kappa_linearization(); } ) );
  }
 
 };  // end( class( IntermittentUnitBlock ) )
@@ -1214,10 +1242,40 @@ class IntermittentUnitBlockMod : public UnitBlockMod
    * of types of IntermittentUnitBlockMod. */
   };
 
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetMaxP ):
+   case( eSetKappa ):
+    return( ePhysCns );
+   case( eSetActPCost ):
+    return( ePhysObj );
+   default:
+    return( UnitBlockMod::changes_of( type ) );
+   }
+  }
+
+ /// whether the Modification changes the power range of the unit
+ /** Of the types of this class, those of the MaxPower and kappa [see
+  * UnitBlockMod::changes_power_range()]. */
+
+ [[nodiscard]] bool changes_power_range( void ) const override {
+  return( ( f_type == eSetMaxP ) || ( f_type == eSetKappa ) ||
+          UnitBlockMod::changes_power_range() );
+  }
+
  /// constructor, takes the IntermittentUnitBlock and the type
  IntermittentUnitBlockMod( IntermittentUnitBlock * const fblock ,
                            const int type )
-  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~IntermittentUnitBlockMod() override = default;
@@ -1360,7 +1418,7 @@ class IntermittentUnitBlockSolution : public UnitBlockSolution
  ~IntermittentUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*--- METHODS DESCRIBING THE BEHAVIOR OF A IntermittentUnitBlockSolution --*/
+/*--- METHODS DESCRIBING THE BEHAVIOR OF A IntermittentUnitBlockSolution ---*/
 
  void read( const Block * block ) override final;
 

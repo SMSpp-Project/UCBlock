@@ -98,8 +98,8 @@ namespace SMSpp_di_unipi_it
  * largest change of the flow between two consecutive instants, in the same
  * unit, and a delay is an integer number of instants (a travel time of
  * \f$ d \f$ hours is given as \f$ \lceil d / \Delta t \rceil \f$ instants).
- * HydroUnitBlock does not implement the scale factor of UnitBlock, i.e.,
- * get_scale() is 1.
+ * HydroUnitBlock registers no "HydroUnitBlock::replicate", i.e., it is not
+ * meant to be replicated [see UnitBlock::replicate()].
  *
  * Some features of a valley are represented through the data alone. A
  * reservoir without storage (a channel) has
@@ -320,6 +320,16 @@ class HydroUnitBlock : public UnitBlock
  *   \f$ P^{hy}_j = P_j - \rho_j \bar f_j \f$, with \f$ \rho_j \f$ and
  *   \f$ \bar f_j \f$ converted to the unit of the flows.
  *
+ * - The variable "ExactFlowToPower", of type netCDF::NcUint and indexed over
+ *   the dimension "NumberArcs": a nonzero entry says that arc \f$ l \f$, a
+ *   turbine with a single piece, produces exactly \f$ \rho^{hy}_j f_{t,l} +
+ *   P^{hy}_j \f$, i.e., that the water it passes always gives power, as in
+ *   a model whose turbines have a fixed efficiency (e.g., the hydro storage
+ *   of PyPSA, where the water released without producing is the spillage,
+ *   a flow of its own); its row is then the equality of (7) of
+ *   generate_abstract_constraints() whatever the spillways. The variable is
+ *   optional, and 0 if not provided.
+ *
  * - The variable "ActivePowerCost", of type netCDF::NcDouble and indexed
  *   over the dimension "NumberArcs": the cost \f$ b_l \f$ of one unit of
  *   active power of arc \f$ l \f$ during one instant. The variable is
@@ -421,7 +431,6 @@ class HydroUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends UnitBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -430,8 +439,6 @@ class HydroUnitBlock : public UnitBlock
  /// extends UnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the HydroUnitBlock
@@ -568,7 +575,10 @@ class HydroUnitBlock : public UnitBlock
   *   than its power bounds the flow of the turbine, and (iii) at every
   *   instant \f$ F^{mx}_{t,k} \f$ is at least the sum of the
   *   \f$ F^{mx}_{t,l} \f$ of the turbines whose spillway is \f$ k \f$
-  *   (otherwise none of them has the equality). Even then the equality
+  *   (otherwise none of them has the equality); an arc whose entry of
+  *   "ExactFlowToPower" is nonzero has the equality in any case, since then
+  *   the data say that the turbine cannot pass water without producing (see
+  *   deserialize()). Even then the equality
   *   restricts the feasible set, since the spillway carries its own flow as
   *   well: a solution of (7) is excluded if at some instant the water that
   *   the turbines and their spillway release exceeds the maximum flow of the
@@ -1043,6 +1053,16 @@ class HydroUnitBlock : public UnitBlock
 
  const std::vector< double > & get_const_term( void ) const {
   return( v_ConstTerm );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of ExactFlowToPower
+ /** The returned vector V says which turbines produce exactly the power of
+  * their only piece (see deserialize()): either V is empty, and none does,
+  * or V has one entry per arc, nonzero for those that do. */
+
+ const std::vector< Index > & get_exact_flow_to_power( void ) const {
+  return( v_ExactFlowToPower );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1560,16 +1580,18 @@ class HydroUnitBlock : public UnitBlock
   * of instant 0 is \f$ V^0_n + A_{n,0} \f$, and \f$ A_{n,0} \f$ alone for a
   * reservoir under the cyclic closure (\f$ V^0_n < 0 \f$).
   *
-  * @param values  Iterator to a vector containing the inflow values.
-  * @param subset  If non-empty, the inflow values corresponding to the
-  *                indices in \p subset are set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  * @param values  A span containing the inflow values, at least as long as
+  *                \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
+  * @param subset  If non-empty, the inflow values corresponding to the indices
+  *                in \p subset are set to the values in \p values. If empty,
+  *                no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_inflow( MF_dbl_it values ,
+ void set_inflow( MF_dbl_sp values ,
                   Subset && subset , bool ordered = false ,
                   c_ModParam issuePMod = eNoBlck ,
                   c_ModParam issueAMod = eNoBlck );
@@ -1583,15 +1605,17 @@ class HydroUnitBlock : public UnitBlock
   * of instant 0 is \f$ V^0_n + A_{n,0} \f$, and \f$ A_{n,0} \f$ alone for a
   * reservoir under the cyclic closure (\f$ V^0_n < 0 \f$).
   *
-  * @param values Iterator to a vector containing the inflow values.
-  * @param rng    If non-empty, the inflow values corresponding to the
-  *               indices in \p rng are set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  * @param values A span containing the inflow values, at least as long as what
+  *               is left of \p rng (std::invalid_argument is thrown if it is
+  *               shorter).
+  * @param rng    If non-empty, the inflow values corresponding to the indices
+  *               in \p rng are set to the values in \p values. If empty, no
+  *               operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_inflow( MF_dbl_it values ,
+ void set_inflow( MF_dbl_sp values ,
                   Range rng = Range( 0 , Inf< Index >() ) ,
                   c_ModParam issuePMod = eNoBlck ,
                   c_ModParam issueAMod = eNoBlck );
@@ -1607,16 +1631,18 @@ class HydroUnitBlock : public UnitBlock
   * generated, i.e., setting an inertia power for a unit that had none then
   * makes the UCBlock throw std::logic_error.
   *
-  * @param values  Iterator to a vector containing the inertia power values.
+  * @param values  A span containing the inertia power values, at least as long
+  *                as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
   * @param subset  If non-empty, the inertia power values corresponding to the
-  *                indices in \p subset are set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  *                indices in \p subset are set to the values in \p values. If
+  *                empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_inertia_power( MF_dbl_it values ,
+ void set_inertia_power( MF_dbl_sp values ,
                          Subset && subset , bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -1632,15 +1658,17 @@ class HydroUnitBlock : public UnitBlock
   * generated, i.e., setting an inertia power for a unit that had none then
   * makes the UCBlock throw std::logic_error.
   *
-  * @param values Iterator to a vector containing the inertia power values.
+  * @param values A span containing the inertia power values, at least as long
+  *               as what is left of \p rng (std::invalid_argument is thrown if
+  *               it is shorter).
   * @param rng    If non-empty, the inertia power values corresponding to the
-  *               indices in \p rng are set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  *               indices in \p rng are set to the values in \p values. If
+  *               empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_inertia_power( MF_dbl_it values ,
+ void set_inertia_power( MF_dbl_sp values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -1654,16 +1682,18 @@ class HydroUnitBlock : public UnitBlock
   * once they are, a value whose sign differs from that of the current one
   * makes the method throw std::invalid_argument.
   *
-  * @param values  Iterator to a vector containing the initial volume values.
+  * @param values  A span containing the initial volume values, at least as
+  *                long as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
   * @param subset  If non-empty, the initial volume corresponding to the
-  *                indices in \p subset is set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  *                indices in \p subset is set to the values in \p values. If
+  *                empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_initial_volume( MF_dbl_it values ,
+ void set_initial_volume( MF_dbl_sp values ,
                           Subset && subset , bool ordered = false ,
                           c_ModParam issuePMod = eNoBlck ,
                           c_ModParam issueAMod = eNoBlck );
@@ -1677,15 +1707,17 @@ class HydroUnitBlock : public UnitBlock
   * once they are, a value whose sign differs from that of the current one
   * makes the method throw std::invalid_argument.
   *
-  * @param values Iterator to a vector containing the initial volume values.
-  * @param rng    If non-empty, the initial volume corresponding to the
-  *               indices in \p rng is set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  * @param values A span containing the initial volume values, at least as long
+  *               as what is left of \p rng (std::invalid_argument is thrown if
+  *               it is shorter).
+  * @param rng    If non-empty, the initial volume corresponding to the indices
+  *               in \p rng is set to the values in \p values. If empty, no
+  *               operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_initial_volume( MF_dbl_it values ,
+ void set_initial_volume( MF_dbl_sp values ,
                           Range rng = Range( 0 , Inf< Index >() ) ,
                           c_ModParam issuePMod = eNoBlck ,
                           c_ModParam issueAMod = eNoBlck );
@@ -1698,17 +1730,18 @@ class HydroUnitBlock : public UnitBlock
   * exist. If "InitialFlowRate" is absent, it is first given one entry per
   * arc, all 0.
   *
-  * @param values  Iterator to a vector containing the initial flow rate
-  *                values.
+  * @param values  A span containing the initial flow rate values, at least as
+  *                long as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
   * @param subset  If non-empty, the initial flow rate corresponding to the
-  *                indices in \p subset is set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  *                indices in \p subset is set to the values in \p values. If
+  *                empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_initial_flow_rate( MF_dbl_it values ,
+ void set_initial_flow_rate( MF_dbl_sp values ,
                              Subset && subset , bool ordered = false ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck );
@@ -1721,15 +1754,17 @@ class HydroUnitBlock : public UnitBlock
   * exist. If "InitialFlowRate" is absent, it is first given one entry per
   * arc, all 0.
   *
-  * @param values Iterator to a vector containing the initial flow rate values.
+  * @param values A span containing the initial flow rate values, at least as
+  *               long as what is left of \p rng (std::invalid_argument is
+  *               thrown if it is shorter).
   * @param rng    If non-empty, the initial flow rate corresponding to the
-  *               indices in \p rng is set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  *               indices in \p rng is set to the values in \p values. If
+  *               empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
 
- void set_initial_flow_rate( MF_dbl_it values ,
+ void set_initial_flow_rate( MF_dbl_sp values ,
                              Range rng = Range( 0 , Inf< Index >() ) ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck );
@@ -1741,16 +1776,17 @@ class HydroUnitBlock : public UnitBlock
   * without terms in the active power, the terms of the arcs whose cost is
   * set are added to it.
   *
-  * @param values  Iterator to a vector containing the active power cost
-  *                values.
-  * @param subset  If non-empty, the active power cost values corresponding
-  *                to the indices in \p subset are set to the values pointed
-  *                by \p values. If empty, no operation is performed.
+  * @param values  A span containing the active power cost values, at least as
+  *                long as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
+  * @param subset  If non-empty, the active power cost values corresponding to
+  *                the indices in \p subset are set to the values in \p values.
+  *                If empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Subset && subset ,
                              bool ordered = false ,
                              c_ModParam issuePMod = eNoBlck ,
@@ -1763,15 +1799,16 @@ class HydroUnitBlock : public UnitBlock
   * without terms in the active power, the terms of the arcs whose cost is
   * set are added to it.
   *
-  * @param values Iterator to a vector containing the active power cost
-  *               values.
-  * @param rng    If non-empty, the active power cost values corresponding
-  *               to the indices in \p rng are set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  * @param values A span containing the active power cost values, at least as
+  *               long as what is left of \p rng (std::invalid_argument is
+  *               thrown if it is shorter).
+  * @param rng    If non-empty, the active power cost values corresponding to
+  *               the indices in \p rng are set to the values in \p values. If
+  *               empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_active_power_cost( MF_dbl_it values ,
+ void set_active_power_cost( MF_dbl_sp values ,
                              Range rng = Range( 0 , Inf< Index >() ) ,
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck );
@@ -1789,7 +1826,7 @@ class HydroUnitBlock : public UnitBlock
                              c_ModParam issuePMod = eNoBlck ,
                              c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector( get_number_generators() , value );
-  set_active_power_cost( vector.cbegin() ,
+  set_active_power_cost( MF_dbl_sp( vector ) ,
                          Range( 0 , Inf< Index >() ) ,
                          issuePMod , issueAMod );
  }
@@ -1881,6 +1918,9 @@ class HydroUnitBlock : public UnitBlock
 
  /// the vector of ConstTerm
  std::vector< double > v_ConstTerm;
+
+ /// the vector of ExactFlowToPower
+ std::vector< Index > v_ExactFlowToPower;
 
  /// the vector of ActivePowerCost
  std::vector< double > v_ActivePowerCost;
@@ -2067,41 +2107,41 @@ class HydroUnitBlock : public UnitBlock
 
  static void static_initialization( void )
  {
-  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Subset && , bool >(
    "HydroUnitBlock::set_inflow" , & HydroUnitBlock::set_inflow );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Range >(
    "HydroUnitBlock::set_inflow" , & HydroUnitBlock::set_inflow );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Subset && , bool >(
    "HydroUnitBlock::set_inertia_power" ,
    & HydroUnitBlock::set_inertia_power );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Range >(
    "HydroUnitBlock::set_inertia_power" ,
    & HydroUnitBlock::set_inertia_power );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Subset && , bool >(
    "HydroUnitBlock::set_initial_volume" ,
    & HydroUnitBlock::set_initial_volume );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Range >(
    "HydroUnitBlock::set_initial_volume" ,
    & HydroUnitBlock::set_initial_volume );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Subset && , bool >(
    "HydroUnitBlock::set_initial_flow_rate" ,
    & HydroUnitBlock::set_initial_flow_rate );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Range >(
    "HydroUnitBlock::set_initial_flow_rate" ,
    & HydroUnitBlock::set_initial_flow_rate );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Subset && , bool >(
    "HydroUnitBlock::set_active_power_cost" ,
    & HydroUnitBlock::set_active_power_cost );
 
-  register_method< HydroUnitBlock , MF_dbl_it , Range >(
+  register_method< HydroUnitBlock , MF_dbl_sp , Range >(
    "HydroUnitBlock::set_active_power_cost" ,
    & HydroUnitBlock::set_active_power_cost );
  }
@@ -2131,9 +2171,33 @@ class HydroUnitBlockMod : public UnitBlockMod
    * of types of HydroUnitBlockMod. */
   };
 
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetInf ):
+    return( ePhysSides );
+   case( eSetInerP ):
+   case( eSetInitF ):
+   case( eSetInitV ):
+    return( ePhysCns );
+   case( eSetActPCost ):
+    return( ePhysObj );
+   default:
+    return( UnitBlockMod::changes_of( type ) );
+   }
+  }
+
  /// constructor, takes the HydroUnitBlock and the type
  HydroUnitBlockMod( HydroUnitBlock * fblock , int type )
-  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~HydroUnitBlockMod( void ) override = default;
@@ -2263,7 +2327,7 @@ class HydroUnitBlockSolution : public UnitBlockSolution
 
  friend HydroUnitBlock;  ///< make HydroUnitBlock friend
 
-/*--------- CONSTRUCTING AND DESTRUCTING HydroUnitBlockSolution ----------*/
+/*--------- CONSTRUCTING AND DESTRUCTING HydroUnitBlockSolution ------------*/
 
  /// constructor, it has nothing to do
  explicit HydroUnitBlockSolution( void )
@@ -2278,7 +2342,7 @@ class HydroUnitBlockSolution : public UnitBlockSolution
  ~HydroUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*----- METHODS DESCRIBING THE BEHAVIOR OF A HydroUnitBlockSolution -----*/
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A HydroUnitBlockSolution --------*/
 
  void read( const Block * block ) override final;
 

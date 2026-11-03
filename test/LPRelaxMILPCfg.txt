@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - LPRelaxMILPCfg.txt - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - LPRelaxMILPCfg.txt  - - - - - - - - - - - - - - -
 #
 # ComputeConfig of the :MILPSolver of LPRelaxBSCfg.txt: that of
 # LPCmpMILPCfg.txt, with the continuous relaxation solved in place of the
@@ -47,5 +47,5 @@ intRelaxIntVars  1    # nonzero if the continuous relaxation is solved
 *  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - END LPRelaxMILPCfg.txt - - - - - - - - - - - - -
+# - - - - - - - - - - - - END LPRelaxMILPCfg.txt  - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

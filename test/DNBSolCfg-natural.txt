@@ -1,0 +1,16 @@
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - DNBSolCfg-natural.txt - - - - - - - - - - - - - -
+#
+# The Configuration of the DesignNetworkBlockSolution that holds the design
+# variables and the Solution of each sub-NetworkBlock in a group of its own
+# (the natural format), each with the node injections and the flows.
+#
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+SimpleConfiguration<int> # exact type of the Configuration object
+23  # 2 design + 4 sub-networks + 16 their flows, 1 their injections
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - END DNBSolCfg-natural.txt - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

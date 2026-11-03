@@ -120,8 +120,6 @@ void SlackUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 /*
 std::vector< std::string > SlackUnitBlock::expected_dims( void )
  const {
@@ -148,8 +146,6 @@ std::vector< std::string > SlackUnitBlock::expected_vars( void )
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -562,11 +558,14 @@ void SlackUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "SecondaryCost" , v_SecondaryCost );
  serialize( "InertiaCost" , v_InertiaCost );
 
+ serialize( "MaxReactivePower" , v_MaxReactivePower );
+ serialize( "MinReactivePower" , v_MinReactivePower );
+
 }  // end( SlackUnitBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
+void SlackUnitBlock::set_active_power_cost( MF_dbl_sp values ,
                                             Subset && subset ,
                                             bool ordered ,
                                             c_ModParam issuePMod ,
@@ -575,9 +574,13 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "SlackUnitBlock::set_active_power_cost: "
+                                "the span is shorter than the Subset" ) );
+
  if( v_ActivePowerCost.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -589,7 +592,7 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
    throw( std::invalid_argument(
     "SlackUnitBlock::set_active_power_cost: invalid index in subset." ) );
 
- auto values_it = values;
+ auto values_it = values.begin();
 
  bool identical = true;
  for( auto t : subset ) {
@@ -603,7 +606,7 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto t : subset )
    v_ActivePowerCost[ t ] = *( values_it++ );
 
@@ -644,7 +647,8 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , SlackUnitBlockMod::changes_of(
+                 SlackUnitBlockMod::eSetActPCost ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -658,7 +662,7 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
+void SlackUnitBlock::set_active_power_cost( MF_dbl_sp values ,
                                             Range rng ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
@@ -667,24 +671,29 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "SlackUnitBlock::set_active_power_cost: "
+                                "the span is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  if( v_ActivePowerCost.empty() ) {
-  if( std::all_of( values ,
-                   values + sz ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_ActivePowerCost.assign( f_time_horizon , 0.0 );
   }
 
- if( std::equal( values ,
-                 values + sz ,
+ if( std::equal( values.begin() ,
+                 values.begin() + sz ,
                  v_ActivePowerCost.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values , values + sz , v_ActivePowerCost.begin() + rng.first );
+  std::copy( values.begin() , values.begin() + sz ,
+             v_ActivePowerCost.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
    auto * lf = static_cast< LinearFunction * >( objective.get_function() );
@@ -723,7 +732,8 @@ void SlackUnitBlock::set_active_power_cost( MF_dbl_it values ,
    }
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , SlackUnitBlockMod::changes_of(
+                 SlackUnitBlockMod::eSetActPCost ) ) )
   Block::add_Modification(
    std::make_shared< SlackUnitBlockRngdMod >(
     this , SlackUnitBlockMod::eSetActPCost , rng ) ,

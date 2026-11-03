@@ -82,7 +82,7 @@ namespace SMSpp_di_unipi_it
  * them obey the equations below and differ only in their data, as detailed in
  * the special cases at the end of this description. The unit has one
  * generator, and its place in the model of the complete system (the node
- * balance, the reserve and inertia rows, the scale factor and the investment)
+ * balance, the reserve and inertia rows, the copies and the investment)
  * is described in \ref ucblock_model.
  *
  * \par Time and sign
@@ -186,19 +186,21 @@ namespace SMSpp_di_unipi_it
  * (10) the sum \f$ p^-_t + p^+_t \f$ of the power through it in the two
  * directions, or \f$ | p^{ac}_t | \f$ when the split is not generated (the
  * two coincide unless the unit charges and discharges at the same instant); a
- * nonpositive \f$ P^{cv}_t \f$ means no converter limit at \f$ t \f$.
+ * nonpositive or infinite \f$ P^{cv}_t \f$ means no converter limit at
+ * \f$ t \f$.
  *
  * \par Price of the energy
  * In the Objective, the datum \f$ b_t \f$ ("Cost") is a price on the net
- * injection: the Objective contains \f$ - \sigma b_t p^{ac}_t = \sigma b_t (
+ * injection: the Objective contains \f$ - b_t p^{ac}_t = b_t (
  * p^-_t - p^+_t ) \f$ (see (12)), i.e., \f$ b_t \f$ is paid for the energy
- * drawn and earned for the energy delivered at instant \f$ t \f$, where
- * \f$ \sigma \f$ is the scale factor. A cost \f$ c_t \geq 0 \f$ per unit of
+ * drawn and earned for the energy delivered at instant \f$ t \f$ by one
+ * copy of the unit (the problem counts the Objective once per copy, see
+ * UnitBlock::replicate()). A cost \f$ c_t \geq 0 \f$ per unit of
  * energy delivered by a unit that never draws (e.g., the cost of curtailing a
  * load) is therefore given as \f$ b_t = - c_t \f$. If a reference schedule
  * \f$ \hat{p}_t \f$ ("ReferenceSchedule") is given, the term in \f$ b_t \f$
- * is dropped, and the Objective contains instead the deviation \f$ \sigma
- * \sum_t | p^{ac}_t - \hat{p}_t | \f$, linearized by (11).
+ * is dropped, and the Objective contains instead the deviation
+ * \f$ \sum_t | p^{ac}_t - \hat{p}_t | \f$, linearized by (11).
  *
  * \par Reserves and inertia
  * The primary and secondary reserves \f$ p^{pr}_t , p^{sc}_t \geq 0 \f$
@@ -211,7 +213,7 @@ namespace SMSpp_di_unipi_it
  * inertia rows of UCBlock (get_inertia_commitment() and get_inertia_power()
  * return nullptr) and has no fixed consumption.
  *
- * \par Capacity: kappa, scale and design
+ * \par Capacity: kappa, copies and design
  * The datum \f$ \kappa \geq 0 \f$ ("Kappa", 1 by default) multiplies
  * \f$ P^{mn}_t \f$, \f$ P^{mx}_t \f$, \f$ P^{pr}_t \f$, \f$ P^{sc}_t \f$,
  * \f$ V^{mn}_t \f$ and \f$ V^{mx}_t \f$ wherever they appear, i.e., it
@@ -230,17 +232,17 @@ namespace SMSpp_di_unipi_it
  * forces a discharge at \f$ t = 0 \f$, and the instance is infeasible if
  * not even the largest discharge that (1), (5) and (10) allow at
  * \f$ t = 0 \f$ brings the level within \f$ \kappa V^{mx}_0 \f$. The
- * scale factor \f$ \sigma \f$ ("Scale") represents \f$ \sigma \f$
+ * number of copies \f$ \sigma \f$ ("Scale") represents \f$ \sigma \f$
  * identical copies of the unit that share its Variable (see
- * UnitBlock::scale()). If \f$ c^{inv}_b \f$
+ * UnitBlock::replicate()). If \f$ c^{inv}_b \f$
  * ("BatteryInvestmentCost") is nonzero, a design variable \f$ x_b \f$
  * ("x_battery") multiplies the data of the storage and of the power in (1),
  * (2), (5) and (7), which take the forms (1d), (2d), (5d) and (7d) below.
  * Likewise, if \f$ c^{inv}_c \f$ ("ConverterInvestmentCost") is nonzero a
  * design variable \f$ x_c \f$ ("x_converter") multiplies \f$ P^{cv}_t \f$ in
- * (10), and the Objective contains \f$ \sigma ( c^{inv}_b x_b + c^{inv}_c x_c
- * ) \f$ for the design variables that exist. A design variable lies in \f$ [
- * \max\{ 0 , \underline{X} \} , \bar{X} ] \f$ if \f$ \bar{X} \geq 0 \f$,
+ * (10), and the Objective contains \f$ c^{inv}_b x_b + c^{inv}_c x_c \f$ for
+ * the design variables that exist. A design variable lies in
+ * \f$ [ \max\{ 0 , \underline{X} \} , \bar{X} ] \f$ if \f$ \bar{X} \geq 0 \f$,
  * where \f$ \underline{X} \f$ and \f$ \bar{X} \f$ are the "MinCapacityDesign"
  * and "MaxCapacityDesign" data of the battery or of the converter. If
  * \f$ \bar{X} < 0 \f$ it is integer in \f$ \{ \max\{ 0 , \underline{X} \} ,
@@ -310,7 +312,7 @@ namespace SMSpp_di_unipi_it
  * "ConverterKappa" is given (the latter also by set_converter_kappa()
  * before the rows are generated) or a design variable exists (with
  * \f$ P^{cv}_t = P^{mx}_t \f$ by default), and only at the instants where
- * \f$ P^{cv}_t > 0 \f$. Finally, (11), with
+ * \f$ P^{cv}_t \f$ is positive and finite. Finally, (11), with
  * \f$ \delta^{rs}_t \geq 0 \f$ ("v_absb_refschd"), exists only if
  * "ReferenceSchedule" is given. Note that the levels \f$ v^{ba}_t \f$ and the
  * active power are free variables, whose sign is given by (7) and (1)-(2)
@@ -337,10 +339,18 @@ namespace SMSpp_di_unipi_it
  * "ConverterMaxPower" is not given. An
  * infinite bound of the level stays infinite whatever \f$ \kappa \f$ is (also
  * 0), and the side of (7d) that it would give has no term in \f$ x_b \f$, and
- * the row is free on that side. The Objective is
+ * the row is free on that side. The same holds for an infinite
+ * \f$ P^{mx}_t \f$ or \f$ P^{mn}_t \f$ in (1), (2), (5) and (8) and in their
+ * forms (1d), (2d), (5d) and (8d), and for an infinite \f$ P^{pr}_t \f$ or
+ * \f$ P^{sc}_t \f$ in (9) and (9d), and an infinite \f$ P^{cv}_t \f$ is no
+ * converter limit, as a nonpositive one: e.g., a storage whose power is
+ * only bounded by its levels and by the lines that connect it, as the Store
+ * of PyPSA, has \f$ P^{mx}_t = + \infty \f$ and
+ * \f$ P^{mn}_t = - \infty \f$, and no row of its power has a term in
+ * \f$ x_b \f$. The Objective is
  * \f[
- *   \sum_{ t \in \mathcal{T} } \sigma \bigl( b_t ( p^-_t - p^+_t ) \bigr) +
- *   \sigma ( c^{inv}_b x_b + c^{inv}_c x_c ) \tag{12}
+ *   \sum_{ t \in \mathcal{T} } b_t ( p^-_t - p^+_t ) +
+ *   c^{inv}_b x_b + c^{inv}_c x_c \tag{12}
  * \f]
  * with \f$ - b_t p^{ac}_t \f$ in place of \f$ b_t ( p^-_t - p^+_t ) \f$
  * without the split, \f$ \delta^{rs}_t \f$ in place of it if
@@ -468,7 +478,7 @@ class BatteryUnitBlock : public UnitBlock
   f_ConvMinCapacityDesign( 0 ), f_ConvMaxCapacityDesign( 1 ),
   f_InitialStorage( 0 ), f_InitialPower( 0 ), f_MaxCRateCharge( 1 ),
   f_MaxCRateDischarge( 1 ), f_kappa( 1 ),
-  f_conv_kappa( std::numeric_limits< double >::quiet_NaN() ), f_scale( 1 ),
+  f_conv_kappa( std::numeric_limits< double >::quiet_NaN() ), 
   f_conv_max_power_given( false ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -529,8 +539,8 @@ class BatteryUnitBlock : public UnitBlock
   *   absent, in which case
   *   a battery with a design variable and a converter without one has a
   *   converter per module, i.e., (10d) with \f$ x_b \f$; a nonpositive
-  *   \f$ P^{cv}_t \f$ means no converter limit at \f$ t \f$. The default is
-  *   not written by serialize();
+  *   or infinite \f$ P^{cv}_t \f$ means no converter limit at \f$ t \f$.
+  *   The default is not written by serialize();
   *
   * - the scalar variable "InitialStorage", the datum \f$ V^0 \f$ (0 if
   *   absent): if \f$ V^0 \geq 0 \f$ it is the level at the start of the
@@ -573,7 +583,7 @@ class BatteryUnitBlock : public UnitBlock
   * - the time-indexed variable "ReferenceSchedule", the active power
   *   \f$ \hat{p}_t \f$ the unit is asked to follow: if given, (11) is
   *   generated and the Objective (12) contains
-  *   \f$ \sigma \sum_t \delta^{rs}_t \f$ instead of the term in "Cost", and
+  *   \f$ \sum_t \delta^{rs}_t \f$ instead of the term in "Cost", and
   *   set_kappa() refuses to resize the unit;
   *
   * - the time-indexed variables "MaxPrimaryPower" and "MaxSecondaryPower",
@@ -592,11 +602,11 @@ class BatteryUnitBlock : public UnitBlock
   *   exist also with no "ConverterMaxPower" and no design variable (with
   *   \f$ P^{cv}_t = P^{mx}_t \f$), and serialize() writes it;
   *
-  * - the scalar variable "Scale", the scale factor \f$ \sigma \f$ [see
-  *   UnitBlock::scale()]; 1 if absent. A value different from 1 is refused
-  *   together with \f$ | \bar{X} | > 1 \f$ for the battery or the
-  *   converter, since the two represent the same replication of the unit
-  *   (by deserialize() only, scale() not repeating this check);
+  * - the scalar variable "Scale", the number of copies \f$ \sigma \f$
+  *   [see UnitBlock::deserialize() and UnitBlock::replicate()]; 1 if
+  *   absent. A value different from 1 is refused together with
+  *   \f$ | \bar{X} | > 1 \f$ for the battery or the converter, since the
+  *   two represent the same replication of the unit (also by set_weight());
   *
   * - the scalar variables "BatteryInvestmentCost" and
   *   "ConverterInvestmentCost", the investment costs \f$ c^{inv}_b \f$ and
@@ -623,7 +633,6 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  // extends UnitBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -632,8 +641,6 @@ class BatteryUnitBlock : public UnitBlock
  /// extends UnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the BatteryUnitBlock
@@ -723,18 +730,19 @@ class BatteryUnitBlock : public UnitBlock
   *   two vectors of LB0Constraint;
   *
   * - (10) is, with no battery design variable, "Converter_Battery", a
-  *   multi_array of FRowConstraint with one row per instant on the intake
-  *   plus the outtake, or two (on \f$ p^{ac}_t \f$ and on
-  *   \f$ - p^{ac}_t \f$) when the split is not generated [see
-  *   get_converter_bounds()]; with a battery design variable it is the row 2
-  *   of "IntakeOuttake_Design_Battery", or its rows 2 and 3 on
-  *   \f$ \pm p^{ac}_t \f$ when the split is not generated and (10d) holds
-  *   (a converter design variable, or none and no "ConverterMaxPower"), or,
-  *   when the split is not generated and the converter power is the
-  *   constant "ConverterMaxPower", the bound on \f$ p^{ac}_t \f$ in
-  *   "IntakeOuttake_Battery" (present if \f$ P^{cv}_t > 0 \f$ at some
-  *   instant); at the instants where \f$ P^{cv}_t \leq 0 \f$ these rows
-  *   are present and non-binding;
+  *   multi_array of FRowConstraint with one row on the intake plus the
+  *   outtake, or two (on \f$ p^{ac}_t \f$ and on \f$ - p^{ac}_t \f$) when
+  *   the split is not generated, per instant where \f$ P^{cv}_t \f$ is
+  *   positive and finite [see get_converter_bounds()]; with a battery
+  *   design variable it is the row 2 of "IntakeOuttake_Design_Battery", or
+  *   its rows 2 and 3 on \f$ \pm p^{ac}_t \f$ when the split is not
+  *   generated and (10d) holds (a converter design variable, or none and no
+  *   "ConverterMaxPower"), or, when the split is not generated and the
+  *   converter power is the constant "ConverterMaxPower", the bound on
+  *   \f$ p^{ac}_t \f$ in "IntakeOuttake_Battery" (present if
+  *   \f$ P^{cv}_t \f$ is positive and finite at some instant); at the
+  *   instants where \f$ P^{cv}_t \f$ is not positive and finite the rows of
+  *   the design are present and free;
   *
   * - (11) is "Norm1B_Reference_Schedule", a vector of 2 T FRowConstraint,
   *   the upper sides first;
@@ -765,13 +773,13 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// generate the objective of the BatteryUnitBlock
  /** Generates the Objective (12) of the class description, to be minimized:
-  * a LinearFunction with \f$ \sigma b_t \f$ on the intake and
-  * \f$ - \sigma b_t \f$ on the outtake, or \f$ - \sigma b_t \f$ on the
-  * active power when the split is not generated, unless "ReferenceSchedule"
-  * is given, in which case these terms are absent and the deviations
-  * \f$ \delta^{rs}_t \f$ have coefficient \f$ \sigma \f$; plus
-  * \f$ \sigma c^{inv}_b \f$ on \f$ x_b \f$ and \f$ \sigma c^{inv}_c \f$ on
-  * \f$ x_c \f$ if they exist. "Cost" is thus a price on the net injection,
+  * a LinearFunction with \f$ b_t \f$ on the intake and \f$ - b_t \f$ on
+  * the outtake, or \f$ - b_t \f$ on the active power when the split is not
+  * generated, unless "ReferenceSchedule" is given, in which case these terms
+  * are absent and the deviations \f$ \delta^{rs}_t \f$ have coefficient 1;
+  * plus \f$ c^{inv}_b \f$ on \f$ x_b \f$ and \f$ c^{inv}_c \f$ on
+  * \f$ x_c \f$ if they exist, all of one copy of the unit [see
+  * UnitBlock::replicate()]. "Cost" is thus a price on the net injection,
   * not a cost of wear charged in both directions. */
 
  void generate_objective( Configuration * objc = nullptr ) override;
@@ -961,7 +969,7 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the reference schedule of the unit, if it has one
  /** Returns the vector of the active power \f$ \hat{p}_t \f$ the unit is
   * asked to follow ("ReferenceSchedule"), empty if it has none; the
-  * deviation from it, weighed with the scale factor, replaces the term in
+  * deviation from it replaces the term in
   * "Cost" in the Objective [see generate_objective()]. */
 
  const std::vector< double > & get_reference_schedule( void ) const {
@@ -1034,9 +1042,10 @@ class BatteryUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the scale factor of this BatteryUnitBlock
-
- double get_scale( void ) const override { return( f_scale ); }
+ /// true if the battery or the converter has a design Variable
+ bool has_design( void ) const override {
+  return( ( f_BattInvestmentCost != 0 ) || ( f_ConvInvestmentCost != 0 ) );
+  }
 
  double get_design_ub( void ) const override {
   // the active power is bounded by (1d)-(2d), which depend on x_b only (a
@@ -1093,7 +1102,7 @@ class BatteryUnitBlock : public UnitBlock
   * sides and, in the binary rows (8), as a coefficient of
   * \f$ u^{ch}_t \f$; in the continuous relaxation, the change of variable
   * \f$ w_t = \kappa u^{ch}_t \f$ makes all the rows linear in
-  * \f$ \kappa \f$ and the other variables jointly (see InvestmentFunction),
+  * \f$ \kappa \f$ and the other variables jointly,
   * so that the optimal value of a convex minimization problem containing
   * this unit (e.g., its continuous relaxation) is a convex function of
   * \f$ \kappa \f$, and a subgradient of it is
@@ -1143,14 +1152,14 @@ class BatteryUnitBlock : public UnitBlock
   * \f]
   * where \f$ \mu^{(10)}_t \geq 0 \f$ is the sum of the absolute values of
   * the dual values of the rows (10) of instant \f$ t \f$ (one row with the
-  * split, two without it), 0 where \f$ P^{cv}_t \leq 0 \f$ or if the rows
-  * do not exist. Where \f$ \kappa^{cv} = 0 \f$ the two folded rows meet
-  * on what is one equality, and their net dual value is taken, as in
-  * get_kappa_linearization(). The value is the derivative with respect to
-  * \f$ \kappa^{cv} \f$ also when the converter follows \f$ \kappa \f$, in
-  * which case it is the part of get_kappa_linearization() due to the
-  * converter. If the battery or the converter has a design variable the
-  * method throws std::logic_error. */
+  * split, two without it), 0 where \f$ P^{cv}_t \f$ is not positive and
+  * finite or if the rows do not exist. Where \f$ \kappa^{cv} = 0 \f$ the
+  * two folded rows meet on what is one equality, and their net dual value
+  * is taken, as in get_kappa_linearization(). The value is the derivative
+  * with respect to \f$ \kappa^{cv} \f$ also when the converter follows
+  * \f$ \kappa \f$, in which case it is the part of
+  * get_kappa_linearization() due to the converter. If the battery or the
+  * converter has a design variable the method throws std::logic_error. */
 
  double get_converter_kappa_linearization( void ) const;
 
@@ -1506,8 +1515,10 @@ class BatteryUnitBlock : public UnitBlock
  /// returns the converter bound constraints of a battery with no design
  /** The rows (10) of a battery with no design Variable, empty if there are
   * none: the first index is 0 for the row on intake plus outtake, and 0 and
-  * 1 for the two rows on the active power when the pair is folded onto it
-  * [see generate_abstract_constraints()]. */
+  * 1 for the two rows on the active power when the pair is folded onto it,
+  * and the second index k is the k-th instant where \f$ P^{cv}_t \f$ is
+  * positive and finite, the only ones that have rows [see
+  * converter_binds() and generate_abstract_constraints()]. */
 
  const boost::multi_array< FRowConstraint , 2 > &
  get_converter_bounds( void ) const {
@@ -1609,7 +1620,7 @@ class BatteryUnitBlock : public UnitBlock
   * Constraints are generated a value of the other sign than the current
   * one cannot be represented, and std::logic_error is thrown. */
 
- void set_initial_storage( MF_dbl_it it ,
+ void set_initial_storage( MF_dbl_sp it ,
                            Subset && subset ,
                            const bool ordered = false ,
                            c_ModParam issuePMod = eNoBlck ,
@@ -1617,12 +1628,11 @@ class BatteryUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// sets the initial storage ("InitialStorage")
- /** As the Subset version; the value is the element of the vector pointed
-  * by \p it in the position opposite to \p rng.first (which is at most
-  * 0 when \p rng contains 0), and nothing is done if \p rng does not
-  * contain 0. */
+ /** As the Subset version; the value is the first element of \p it, which
+  * cannot be empty when \p rng contains 0 (std::invalid_argument is thrown
+  * if it is), and nothing is done if \p rng does not contain 0. */
 
- void set_initial_storage( MF_dbl_it it ,
+ void set_initial_storage( MF_dbl_sp it ,
                            Range rng = Range( 0 , Inf< Index >() ) ,
                            c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
@@ -1633,10 +1643,11 @@ class BatteryUnitBlock : public UnitBlock
   * initial power. If the given \p subset does not contain the index 0, this
   * function does nothing. Since \p subset can have multiple zeros, only the
   * last one is considered, which means that the value for the initial power
-  * will be that in the vector pointed by \p it associated with this last
-  * zero. */
+  * will be that in \p it associated with this last zero, \p it being at
+  * least as long as \p subset (std::invalid_argument is thrown if it is
+  * shorter). */
 
- void set_initial_power( MF_dbl_it it ,
+ void set_initial_power( MF_dbl_sp it ,
                          Subset && subset ,
                          const bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
@@ -1645,13 +1656,11 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
  /// sets the initial power
  /** If the given Range \p rng contains 0, this function sets the initial
-  * power. In this case, if the first element of \p rng is 0, the initial
-  * power will be set to the value pointed by the given iterator. In general,
-  * the initial power will be the one found at position -rng.first in the
-  * vector pointed by \p it if this Range contains the 0 index. If the given
-  * Range \p rng does not contain the 0 index, this function does nothing. */
+  * power to the first element of \p it, which cannot be empty
+  * (std::invalid_argument is thrown if it is). If the given Range \p rng
+  * does not contain the 0 index, this function does nothing. */
 
- void set_initial_power( MF_dbl_it it ,
+ void set_initial_power( MF_dbl_sp it ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -1661,16 +1670,17 @@ class BatteryUnitBlock : public UnitBlock
  /** This function sets the prices \f$ b_t \f$ ("Cost") of this
   * BatteryUnitBlock, and the Objective with them [see generate_objective()].
   *
-  * @param values  Iterator to a vector containing the cost values.
-  * @param subset  If non-empty, the cost value of the instant
-  *                \p subset[ i ] is set to the i-th value pointed by
-  *                \p values, in the order \p subset gives, which need not be
-  *                sorted. If empty, no operation is performed.
+  * @param values  A span containing the cost values, at least as long as
+  *                \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
+  * @param subset  If non-empty, the cost value of the instant \p subset[ i ]
+  *                is set to values[ i ], in the order \p subset gives, which
+  *                need not be sorted. If empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_cost( MF_dbl_it values ,
+ void set_cost( MF_dbl_sp values ,
                 Subset && subset ,
                 bool ordered = false ,
                 c_ModParam issuePMod = eNoBlck ,
@@ -1680,14 +1690,16 @@ class BatteryUnitBlock : public UnitBlock
  /// set the cost values
  /** This function sets the cost values of this BatteryUnitBlock.
   *
-  * @param values Iterator to a vector containing the cost values.
-  * @param rng    If non-empty, the cost values corresponding to the indices
-  *               in \p rng are set to the values pointed by \p values. If
-  *               empty, no operation is performed.
+  * @param values A span containing the cost values, at least as long as what
+  *               is left of \p rng (std::invalid_argument is thrown if it is
+  *               shorter).
+  * @param rng    If non-empty, the cost values corresponding to the indices in
+  *               \p rng are set to the values in \p values. If empty, no
+  *               operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued.
   */
- void set_cost( MF_dbl_it values ,
+ void set_cost( MF_dbl_sp values ,
                 Range rng = Range( 0 , Inf< Index >() ) ,
                 c_ModParam issuePMod = eNoBlck ,
                 c_ModParam issueAMod = eNoBlck );
@@ -1705,31 +1717,19 @@ class BatteryUnitBlock : public UnitBlock
                 c_ModParam issuePMod = eNoBlck ,
                 c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector( get_time_horizon() , value );
-  set_cost( vector.cbegin() ,
+  set_cost( MF_dbl_sp( vector ) ,
             Range( 0 , Inf< Index >() ) ,
             issuePMod , issueAMod );
  }
 
 /*--------------------------------------------------------------------------*/
- /// sets the scale factor of this BatteryUnitBlock
- /** This method sets the scale factor of this BatteryUnitBlock.
-  *
-  * @param values An iterator to a vector containing the scale factor.
-  *
-  * @param subset If non-empty, the scale factor is set to the value pointed
-  *               by \p values. If empty, no operation is performed.
-  *
-  * @param ordered This parameter is ignored.
-  *
-  * @param issuePMod Controls how physical Modifications are issued.
-  *
-  * @param issueAMod Controls how abstract Modifications are issued. */
+ /// sets the number of copies of this BatteryUnitBlock
+ /** As UnitBlock::set_weight(), after having refused with std::logic_error
+  * a number of copies different from 1 together with \f$ | \bar{X} | > 1
+  * \f$ for the battery or the converter, since the two represent the same
+  * replication of the unit. */
 
- void scale( MF_dbl_it values ,
-             Subset && subset ,
-             const bool ordered = false ,
-             c_ModParam issuePMod = eNoBlck ,
-             c_ModParam issueAMod = eNoBlck ) override;
+ void set_weight( double k , c_ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set the kappa constant
@@ -1742,10 +1742,11 @@ class BatteryUnitBlock : public UnitBlock
   * unit is the same one in absolute terms or one resized with it is not
   * decided by the data.
   *
-  * @param values An iterator to a vector containing the kappa constants.
+  * @param values A span whose first element is the new kappa constant, not
+  *        empty (std::invalid_argument is thrown if it is empty).
   *
-  * @param subset If non-empty, the kappa constant is set to the value pointed
-  *        by \p values. If empty, no operation is performed.
+  * @param subset If non-empty, the kappa constant is set to the first
+  *        element of \p values. If empty, no operation is performed.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *
@@ -1753,7 +1754,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_kappa( MF_dbl_it values ,
+ void set_kappa( MF_dbl_sp values ,
                  Subset && subset ,
                  const bool ordered = false ,
                  c_ModParam issuePMod = eNoBlck ,
@@ -1770,16 +1771,17 @@ class BatteryUnitBlock : public UnitBlock
   * unit is the same one in absolute terms or one resized with it is not
   * decided by the data.
   *
-  * @param values An iterator to a vector containing the kappa constants.
+  * @param values A span whose first element is the new kappa constant, not
+  *        empty (std::invalid_argument is thrown if it is empty).
   *
-  * @param rng If non-empty, the kappa constant is set to the value pointed by
-  *        \p values. If empty, no operation is performed.
+  * @param rng If non-empty, the kappa constant is set to the first element
+  *        of \p values. If empty, no operation is performed.
   *
   * @param issuePMod Controls how physical Modifications are issued.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_kappa( MF_dbl_it values ,
+ void set_kappa( MF_dbl_sp values ,
                  Range rng = Range( 0 , Inf< Index >() ) ,
                  c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck );
@@ -1797,7 +1799,7 @@ class BatteryUnitBlock : public UnitBlock
  void set_kappa( double value , c_ModParam issuePMod = eNoBlck ,
                  c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
-  set_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+  set_kappa( MF_dbl_sp( vector ) , Range( 0 , Inf< Index >() ) ,
              issuePMod , issueAMod );
   }
 
@@ -1815,10 +1817,11 @@ class BatteryUnitBlock : public UnitBlock
   * std::logic_error for a unit that follows a reference schedule, and
   * std::invalid_argument for a negative value.
   *
-  * @param values An iterator to a vector containing the multiplier.
+  * @param values A span whose first element is the new multiplier, not
+  *        empty (std::invalid_argument is thrown if it is empty).
   *
-  * @param subset If non-empty, the multiplier is set to the value pointed
-  *        by \p values. If empty, no operation is performed.
+  * @param subset If non-empty, the multiplier is set to the first element
+  *        of \p values. If empty, no operation is performed.
   *
   * @param ordered It indicates whether \p subset is ordered.
   *
@@ -1826,7 +1829,7 @@ class BatteryUnitBlock : public UnitBlock
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_converter_kappa( MF_dbl_it values ,
+ void set_converter_kappa( MF_dbl_sp values ,
                            Subset && subset ,
                            const bool ordered = false ,
                            c_ModParam issuePMod = eNoBlck ,
@@ -1836,16 +1839,17 @@ class BatteryUnitBlock : public UnitBlock
  /// set the capacity multiplier of the converter
  /** This function sets \f$ \kappa^{cv} \f$, see the other versions.
   *
-  * @param values An iterator to a vector containing the multiplier.
+  * @param values A span whose first element is the new multiplier, not
+  *        empty (std::invalid_argument is thrown if it is empty).
   *
-  * @param rng If non-empty, the multiplier is set to the value pointed by
+  * @param rng If non-empty, the multiplier is set to the first element of
   *        \p values. If empty, no operation is performed.
   *
   * @param issuePMod Controls how physical Modifications are issued.
   *
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_converter_kappa( MF_dbl_it values ,
+ void set_converter_kappa( MF_dbl_sp values ,
                            Range rng = Range( 0 , Inf< Index >() ) ,
                            c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck );
@@ -1863,14 +1867,10 @@ class BatteryUnitBlock : public UnitBlock
  void set_converter_kappa( double value , c_ModParam issuePMod = eNoBlck ,
                            c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
-  set_converter_kappa( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+  set_converter_kappa( MF_dbl_sp( vector ) , Range( 0 , Inf< Index >() ) ,
                        issuePMod , issueAMod );
   }
 
-/*--------------------------------------------------------------------------*/
-
- // For the Range version, use the default implementation defined in UnitBlock
- using UnitBlock::scale;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1881,6 +1881,79 @@ class BatteryUnitBlock : public UnitBlock
 /*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED METHODS OF THE CLASS ---------------------*/
 /*--------------------------------------------------------------------------*/
+ /// sets the sizes of the unit, that of the storage and that of the converter
+ /** Sets \f$ \kappa \f$ to \p kappa and \f$ \kappa^{cv} \f$ to
+  * \p conv_kappa [see get_converter_kappa()]: the storage is resized with its
+  * power by the first, and the converter by the second: it is
+  * set_converter_kappa() followed by set_kappa(), the first skipped when
+  * the converter follows \f$ \kappa \f$ and the values are equal, the unit
+  * being then resized as a whole. Different values give the converter a
+  * size of its own, which lives in the rows (10): if the Constraints have
+  * been generated and the battery has none, std::logic_error is thrown,
+  * since a static Constraint cannot be added then, while before the
+  * generation the rows are made to exist. As set_kappa(), it throws
+  * std::logic_error for a unit that follows a reference schedule, and
+  * std::invalid_argument for a negative value. It is registered in the
+  * methods factory as "BatteryUnitBlock::resize" with a pair of scalars
+  * [see static_initialization()].
+  *
+  * @param kappa the size of the storage and of its power
+  *
+  * @param conv_kappa the size of the converter
+  *
+  * @param issuePMod Controls how physical Modifications are issued.
+  *
+  * @param issueAMod Controls how abstract Modifications are issued. */
+
+ void resize( double kappa , double conv_kappa ,
+              c_ModParam issuePMod = eNoBlck ,
+              c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the one size of the unit, the storage and the converter together
+ /** resize( kappa , kappa ), registered as "BatteryUnitBlock::resize" with
+  * one scalar: the converter takes the size of the storage, whatever
+  * "ConverterKappa" the data gave it. It takes no default ModParam, which
+  * would make a call such as resize( 2 , 3 ) ambiguous with the version
+  * above. */
+
+ void resize( double kappa , c_ModParam issuePMod , c_ModParam issueAMod ) {
+  resize( kappa , kappa , issuePMod , issueAMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the derivatives with respect to the sizes of storage and converter
+ /** Writes in \p g_kappa and \p g_conv_kappa the derivatives of the value
+  * with respect to \f$ \kappa \f$ and \f$ \kappa^{cv} \f$, as
+  * resize( kappa , conv_kappa ) sets them: \p g_conv_kappa is
+  * get_converter_kappa_linearization(), and \p g_kappa is
+  * get_kappa_linearization() without the part of the converter, which that
+  * method counts while the converter follows \f$ \kappa \f$. It is
+  * registered in the methods factory as
+  * "BatteryUnitBlock::get_resize_linearization" with a pair of scalars. It
+  * throws std::logic_error if a design variable exists, or if the
+  * constraints have not been generated. It reads the duals that the last
+  * solve left in them, and, only with the binary variables of intake and
+  * outtake, whose coefficients kappa multiplies, the values of those as
+  * well [see get_kappa_linearization()]. Without them, after a solve that
+  * ended infeasible, with an unbounded dual direction where the duals go,
+  * it gives the coefficients of the condition that feasible sizes have to
+  * satisfy; with them it gives none, there being no solution to read, as
+  * "BatteryUnitBlock::has_resize_feasibility_cut" answers. */
+
+ void get_resize_linearization( double & g_kappa , double & g_conv_kappa )
+  const;
+
+/*--------------------------------------------------------------------------*/
+ /// the derivative with respect to the one size of resize( kappa )
+ /** Writes in \p g the derivative of the value with respect to the one size
+  * of resize( kappa ): get_kappa_linearization(), which counts the
+  * converter while it follows \f$ \kappa \f$, plus the derivative of the
+  * converter when it does not. It is registered as
+  * "BatteryUnitBlock::get_resize_linearization" with one scalar, and
+  * requires and reads what the pair of sizes above does. */
+
+ void get_resize_linearization( double & g ) const;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
@@ -1975,9 +2048,6 @@ class BatteryUnitBlock : public UnitBlock
 
  /// the kappa of the converter, NaN if it follows f_kappa
  double f_conv_kappa;
-
- /// the scale factor
- double f_scale;
 
  /// true if "ConverterMaxPower" was in the data
  bool f_conv_max_power_given;
@@ -2191,6 +2261,17 @@ class BatteryUnitBlock : public UnitBlock
   }
 
 /*--------------------------------------------------------------------------*/
+ /// tells whether the converter limits the power at the instant t
+ /** True if \f$ P^{cv}_t \f$ is positive and finite: a nonpositive or an
+  * infinite converter power is no limit, and with no battery design
+  * variable the rows (10) exist only at the instants where this holds. */
+
+ bool converter_binds( Index t ) const {
+  return( ( t < v_ConvMaxPower.size() ) && ( v_ConvMaxPower[ t ] > 0 ) &&
+          ( ! std::isinf( v_ConvMaxPower[ t ] ) ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// updates the coefficients of the Objective
  /** This method updates the coefficients of the Objective.
   *
@@ -2260,43 +2341,85 @@ class BatteryUnitBlock : public UnitBlock
 
  static void static_initialization( void )
  {
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_initial_storage" ,
    & BatteryUnitBlock::set_initial_storage );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_initial_storage" ,
    & BatteryUnitBlock::set_initial_storage );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_initial_power" ,
    & BatteryUnitBlock::set_initial_power );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_initial_power" ,
    & BatteryUnitBlock::set_initial_power );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_cost" ,
    & BatteryUnitBlock::set_cost );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_cost" ,
    & BatteryUnitBlock::set_cost );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_kappa" ,
    & BatteryUnitBlock::set_kappa );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Subset && , bool >(
+  // The ways of sizing this Block, each under the name that says which one
+  // it is [see UCBlock::replicate() and UCBlock::resize_unit()], with the
+  // scalars a unit has: k identical copies of the unit, and the storage and
+  // the converter resized together with one value, apart with a pair [see
+  // resize()]; then the getters reading the derivatives back, with respect
+  // to the one size and to the pair. What the factory adds is that
+  // a consumer can reach them without holding a BatteryUnitBlock *, and that
+  // a class not answering for one simply does not register its name.
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< BatteryUnitBlock , double >(
+   "BatteryUnitBlock::replicate" , { & BatteryUnitBlock::replicate } );
+
+  register_method< BatteryUnitBlock , double >(
+   "BatteryUnitBlock::resize" , & BatteryUnitBlock::resize );
+
+  register_method< BatteryUnitBlock , double , double >(
+   "BatteryUnitBlock::resize" , & BatteryUnitBlock::resize );
+
+  register_method< BatteryUnitBlock , double & >(
+   "BatteryUnitBlock::get_resize_linearization" ,
+   & BatteryUnitBlock::get_resize_linearization );
+
+  register_method< BatteryUnitBlock , double & , double & >(
+   "BatteryUnitBlock::get_resize_linearization" ,
+   & BatteryUnitBlock::get_resize_linearization );
+
+  // whether, after a solve that ended infeasible, the getters above give
+  // the coefficients of the condition that feasible sizes have to satisfy,
+  // 1 or 0: not with the binary variables of intake and outtake, whose
+  // values they read [see get_resize_linearization()]; it is asked once
+  // the Variable are generated
+
+  register_method< QueryType< double & > >(
+   "BatteryUnitBlock::has_resize_feasibility_cut" ,
+   new QueryType< double & >( []( const Block * blck , double & answer ) {
+    answer = static_cast< const BatteryUnitBlock * >( blck )->
+              get_intake_outtake_binary_variables().empty() ? 1 : 0;
+    } ) );
+
+  register_method< BatteryUnitBlock , MF_dbl_sp , Subset && , bool >(
    "BatteryUnitBlock::set_converter_kappa" ,
    & BatteryUnitBlock::set_converter_kappa );
 
-  register_method< BatteryUnitBlock , MF_dbl_it , Range >(
+  register_method< BatteryUnitBlock , MF_dbl_sp , Range >(
    "BatteryUnitBlock::set_converter_kappa" ,
    & BatteryUnitBlock::set_converter_kappa );
   }
@@ -2326,9 +2449,41 @@ class BatteryUnitBlockMod : public UnitBlockMod
    * types of BatteryUnitBlockMod. */
   };
 
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetInitS ):
+   case( eSetInitP ):
+   case( eSetKappa ):
+   case( eSetConvKappa ):
+    return( ePhysCns );
+   case( eSetCost ):
+    return( ePhysObj );
+   default:
+    return( UnitBlockMod::changes_of( type ) );
+   }
+  }
+
+ /// whether the Modification changes the power range of the unit
+ /** Of the types of this class, those of the kappa [see
+  * UnitBlockMod::changes_power_range()]. */
+
+ [[nodiscard]] bool changes_power_range( void ) const override {
+  return( ( f_type == eSetKappa ) ||
+          UnitBlockMod::changes_power_range() );
+  }
+
  /// constructor, takes the BatteryUnitBlock and the type
  BatteryUnitBlockMod( BatteryUnitBlock * const fblock , const int type )
-  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {}
+  : UnitBlockMod( fblock , type ) , f_Block( fblock ) {
+  set_changes( changes_of( type ) );
+  }
 
  /// destructor, does nothing
  virtual ~BatteryUnitBlockMod() override = default;
@@ -2480,6 +2635,11 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
   f_b_design( dNaN ) , f_c_design( dNaN ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deserialize a BatteryUnitBlockSolution from a netCDF::NcGroup
+ /** Deserialize a BatteryUnitBlockSolution from a netCDF::NcGroup with the
+  * format of serialize(); "StorageLevel" or "InOutTake" that is a scalar
+  * rather than indexed over "TimeHorizon" makes it throw
+  * std::invalid_argument. */
 
  void deserialize( const netCDF::NcGroup & group ) override final;
 
@@ -2488,7 +2648,7 @@ class BatteryUnitBlockSolution : public UnitBlockSolution
  ~BatteryUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*----- METHODS DESCRIBING THE BEHAVIOR OF A BatteryUnitBlockSolution -----*/
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A BatteryUnitBlockSolution ------*/
 
  void read( const Block * block ) override final;
 

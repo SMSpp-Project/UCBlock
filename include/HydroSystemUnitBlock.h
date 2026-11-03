@@ -72,8 +72,9 @@ namespace SMSpp_di_unipi_it
  *
  * Note that the HydroSystemUnitBlock has no Variable and no Constraint
  * outside its sub-Block, its Objective is identically zero, and therefore its
- * cost is the sum of the Objective of its sub-Block, while the scale factor
- * of UnitBlock is not implemented, i.e., get_scale() is 1.
+ * cost is the sum of the Objective of its sub-Block, while it registers no
+ * "HydroSystemUnitBlock::replicate", i.e., it is not meant to be replicated
+ * [see UnitBlock::replicate()].
  *
  * Future cost of the water. If \f$ v^{f} \f$ is the vector of the final
  * volumes \f$ v^{hy}_{n,T-1} \f$ of all the reservoirs of all the
@@ -286,7 +287,6 @@ class HydroSystemUnitBlock : public UnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends UnitBlock::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -297,7 +297,6 @@ class HydroSystemUnitBlock : public UnitBlock
 
  std::vector< std::string > expected_vars( void ) const override;
  */
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// generate the abstract variables of the HydroSystemUnitBlock
@@ -415,6 +414,14 @@ class HydroSystemUnitBlock : public UnitBlock
  /// returns the maximum power of the generator in its HydroUnitBlock
 
  double get_max_power( Index t , Index generator = 0 ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the copies of the generator, those of its HydroUnitBlock too
+ /** The weight of the Variable of this HydroSystemUnitBlock times the
+  * copies of the generator in its HydroUnitBlock [see
+  * UnitBlock::get_copies()]. */
+
+ double get_copies( Index generator = 0 ) const override;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -617,6 +624,10 @@ class HydroSystemUnitBlock : public UnitBlock
  * - one HydroUnitBlockSolution for each of the "inner" HydroUnitBlock of
  *   the HydroSystemUnitBlock
  *
+ * - the Solution of the PolyhedralFunctionBlock, if any, whose Variable
+ *   (e.g., the epigraph one of its linearized representation) carry the
+ *   future cost of the water
+ *
  * Note, however, that since the "root" UnitBlockSolution contains (if so
  * required) all the "standard" information, the same is not duplicated in
  * the "inner" HydroUnitBlockSolution */
@@ -645,10 +656,10 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- ~HydroSystemUnitBlockSolution() override = default;
- ///< destructor: it is virtual, and empty
+ ~HydroSystemUnitBlockSolution() override;
+ ///< destructor: it deletes the "inner" Solution
 
-/*--- METHODS DESCRIBING THE BEHAVIOR OF A HydroSystemUnitBlockSolution ---*/
+/*--- METHODS DESCRIBING THE BEHAVIOR OF A HydroSystemUnitBlockSolution ----*/
 
  void read( const Block * block ) override final;
 
@@ -667,6 +678,9 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
   * - The groups "HydroUnitBlockSolution_0", "HydroUnitBlockSolution_1", ...,
   *   "HydroUnitBlockSolution_(n-1)", with n == NumberHydroUnits, containing
   *   each one HydroUnitBlock.
+  *
+  * - The optional group "PolyhedralFunctionBlockSolution", containing the
+  *   Solution of the PolyhedralFunctionBlock, if there is one.
   *
   * Note, however, that since the "root" UnitBlockSolution contains (if so
   * required) all the "standard" information, the same is not duplicated in
@@ -700,6 +714,9 @@ class HydroSystemUnitBlockSolution : public UnitBlockSolution
 
  std::vector< HydroUnitBlockSolution * > v_innerSol;
  ///< v_innerSol[ i ] = HydroUnitBlockSolution of inner Block i
+
+ Solution * f_pfSol = nullptr;
+ ///< Solution of the PolyhedralFunctionBlock, nullptr if there is none
 
 /*--------------------------------------------------------------------------*/
 

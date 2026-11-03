@@ -69,12 +69,12 @@ static LinearFunction * LF( Function * f )
 
 template< typename T >
 static bool identical( std::vector< T > & vec , const Block::Subset sbst ,
-           typename std::vector< T >::const_iterator it )
+           std::span< const T > values )
 {
  // returns true if the sub-vector of vec[] corresponding to the indices
- // in sbst is identical to the vector starting at it
- for( auto t : sbst )
-  if( vec[ t ] != *( it++ ) )
+ // in sbst is identical to values
+ for( Block::Index h = 0 ; h < sbst.size() ; ++h )
+  if( vec[ sbst[ h ] ] != values[ h ] )
    return( false );
 
  return( true );
@@ -84,28 +84,28 @@ static bool identical( std::vector< T > & vec , const Block::Subset sbst ,
 
 template< typename T >
 static void assign( std::vector< T > & vec , const Block::Subset sbst ,
-        typename std::vector< T >::const_iterator it )
+        std::span< const T > values )
 {
  // assign to the sub-vector of vec[] corresponding to the indices in sbst
- // the values found in vector starting at it
- for( auto t : sbst )
-  vec[ t ] = *( it++ );
+ // the values in values
+ for( Block::Index h = 0 ; h < sbst.size() ; ++h )
+  vec[ sbst[ h ] ] = values[ h ];
  }
 
 /*--------------------------------------------------------------------------*/
 /* Sorts the indices of a Subset that the caller gives unordered, together
  * with the values that go with them: the values are copied, in the new
- * order, in sorted, and values is set to its beginning. The sort is
+ * order, in sorted, and values is set to view it. The sort is
  * stable, so that an index given more than once takes its last value as it
  * would unsorted. */
 
 static void sort_by_index( Block::Subset & subset ,
-                           std::vector< double >::const_iterator & values ,
+                           Block::MF_dbl_sp & values ,
                            std::vector< double > & sorted )
 {
  std::vector< std::pair< Block::Index , double > > iv( subset.size() );
  for( Block::Index i = 0 ; i < subset.size() ; ++i )
-  iv[ i ] = std::make_pair( subset[ i ] , *( values + i ) );
+  iv[ i ] = std::make_pair( subset[ i ] , values[ i ] );
  std::stable_sort( iv.begin() , iv.end() ,
                    []( const auto & a , const auto & b ) {
                     return( a.first < b.first ); } );
@@ -114,24 +114,24 @@ static void sort_by_index( Block::Subset & subset ,
   subset[ i ] = iv[ i ].first;
   sorted[ i ] = iv[ i ].second;
   }
- values = sorted.cbegin();
+ values = sorted;
  }
 
 /*--------------------------------------------------------------------------*/
 /* Throws std::logic_error, the message beginning with fn, if a new
- * modulation ramp (up or down, as in dir) at the instants of ts, the values
- * starting at values, is negative or larger than the ramp delta of its
- * instant. */
+ * modulation ramp (up or down, as in dir) at the instants of ts, the h-th
+ * of values for the h-th of ts, is negative or larger than the ramp delta
+ * of its instant. */
 
 static void check_modulation_ramps( const std::string & fn ,
                                     const char * dir ,
                                     const Block::Subset & ts ,
-                                    std::vector< double >::const_iterator
-                                                                     values ,
+                                    Block::MF_dbl_sp values ,
                                     const std::vector< double > & delta )
 {
- for( auto t : ts ) {
-  const auto mr = *( values++ );
+ for( Block::Index h = 0 ; h < ts.size() ; ++h ) {
+  const auto t = ts[ h ];
+  const auto mr = values[ h ];
   if( ( mr < 0 ) || ( mr > delta[ t ] ) )
    throw( std::logic_error( fn + ": new modulation ramp " + dir +
                             " at time " + std::to_string( t ) + " is " +
@@ -277,20 +277,17 @@ void NuclearUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
-/*
 std::vector< std::string > NuclearUnitBlock::expected_dims( void )
  const {
- static const std::vector< std::string > ed = { };
+ static const std::vector< std::string > ed = { "NumberPowerBands" };
 
- auto ret = UnitBlock::expected_dims();
+ auto ret = ThermalUnitBlock::expected_dims();
  ret.insert( ret.end() , ed.begin() , ed.end() );
 
  return( ret );
  }
 
-----------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 std::vector< std::string > NuclearUnitBlock::expected_vars( void )
  const {
@@ -308,8 +305,6 @@ std::vector< std::string > NuclearUnitBlock::expected_vars( void )
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -683,7 +678,7 @@ void NuclearUnitBlock::build_rows( bool generate_ZOConstraints )
   LinearFunction::v_coeff_pair cf( 2 );
 
   cf[ 0 ] = coeff_pair( & v_modulation[ t ] , 1.0 );
-  cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , -1.0 );
+  cf[ 1 ] = coeff_pair( & v_start_up[ t - init_t ] , 1.0 );
 
   put_row( NoStartUpModulation , t - init_t , std::move( cf ) ,
            - Inf< double >() , 1.0 );
@@ -1587,13 +1582,13 @@ void NuclearUnitBlock::generate_objective( Configuration * objc )
  v_obj_tail.clear();
  if( ( ! v_modulation_down.empty() ) && ( ! v_down_modulation_cost.empty() ) )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   v_obj_tail.push_back( f_scale * v_down_modulation_cost[ t ] );
+   v_obj_tail.push_back( v_down_modulation_cost[ t ] );
    vars.push_back( std::make_tuple( & v_modulation_down[ t ] ,
                                     v_obj_tail.back() , 0.0 ) );
    }
  if( ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() ) )
   for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   v_obj_tail.push_back( f_scale * v_deep_cost[ t ] );
+   v_obj_tail.push_back( v_deep_cost[ t ] );
    vars.push_back( std::make_tuple( & v_deep[ t ] , v_obj_tail.back() ,
                                     0.0 ) );
    }
@@ -1605,7 +1600,7 @@ void NuclearUnitBlock::generate_objective( Configuration * objc )
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_it values ,
+void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_sp values ,
                                                   Subset && subset ,
                                                   const bool ordered ,
                                                   ModParam issuePMod ,
@@ -1624,7 +1619,7 @@ void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_it values ,
+void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_sp values ,
                                                   Range rng ,
                                                   ModParam issuePMod ,
                                                   ModParam issueAMod )
@@ -1642,7 +1637,7 @@ void NuclearUnitBlock::set_down_modulation_costs( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::set_deep_decrease_costs( MF_dbl_it values ,
+void NuclearUnitBlock::set_deep_decrease_costs( MF_dbl_sp values ,
                                                 Subset && subset ,
                                                 const bool ordered ,
                                                 ModParam issuePMod ,
@@ -1662,7 +1657,7 @@ void NuclearUnitBlock::set_deep_decrease_costs( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::set_deep_decrease_costs( MF_dbl_it values , Range rng ,
+void NuclearUnitBlock::set_deep_decrease_costs( MF_dbl_sp values , Range rng ,
                                                 ModParam issuePMod ,
                                                 ModParam issueAMod )
 {
@@ -1681,7 +1676,7 @@ void NuclearUnitBlock::set_deep_decrease_costs( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
+void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_sp values , Range rng ,
                                                std::vector< double > & cost ,
                                                Index pos , int type ,
                                                ModParam issuePMod ,
@@ -1691,18 +1686,23 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
  if( ( rng.second <= rng.first ) || cost.empty() )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "NuclearUnitBlock::set_rule_costs: the span "
+                                "is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
- if( std::equal( values , values + sz , cost.begin() + rng.first ) )
+ if( std::equal( values.begin() , values.begin() + sz ,
+                 cost.begin() + rng.first ) )
   return;                                       // if nothing changes, return
 
  if( not_dry_run( issuePMod ) ) {
   // change the physical representation, and with it the copy of the
   // coefficients of the Objective [see objective_tail_change()]
-  std::copy( values , values + sz , cost.begin() + rng.first );
+  std::copy( values.begin() , values.begin() + sz , cost.begin() + rng.first );
 
   if( pos < v_obj_tail.size() )
    for( Index t = rng.first ; t < rng.second ; ++t )
-    v_obj_tail[ pos + t ] = f_scale * cost[ t ];
+    v_obj_tail[ pos + t ] = cost[ t ];
   }
 
  if( not_dry_run( issueAMod ) && objective_generated() ) {
@@ -1711,9 +1711,9 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
    auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
    const Index base = qf->get_num_active_var() - v_obj_tail.size() + pos;
    DQuadFunction::Vec_FunctionValue tmpv( sz );
-   auto vit = values;
+   auto vit = values.begin();
    for( Index i = 0 ; i < sz ; ++i )
-    tmpv[ i ] = f_scale * *( vit++ );
+    tmpv[ i ] = *( vit++ );
    qf->modify_linear_coefficients( std::move( tmpv ) ,
                                    Range( base + rng.first ,
                                           base + rng.second ) ,
@@ -1721,7 +1721,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
    }
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of( type ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockRngdMod >(
                             this , type , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -1730,7 +1730,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
+void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_sp values ,
                                                Subset && subset ,
                                                bool ordered ,
                                                std::vector< double > & cost ,
@@ -1741,6 +1741,10 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
  if( subset.empty() || cost.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "NuclearUnitBlock::set_rule_costs: the span "
+                                "is shorter than the Subset" ) );
+
  std::vector< double > sorted;  // the values in the order of the subset
  if( ! ordered )
   sort_by_index( subset , values , sorted );
@@ -1750,7 +1754,7 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
                                 "index in subset" ) );
 
  {   // if nothing changes, return
-  auto vit = values;
+  auto vit = values.begin();
   bool same = true;
   for( auto t : subset )
    if( cost[ t ] != *( vit++ ) ) {
@@ -1764,13 +1768,13 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
  if( not_dry_run( issuePMod ) ) {
   // change the physical representation, and with it the copy of the
   // coefficients of the Objective [see objective_tail_change()]
-  auto vit = values;
+  auto vit = values.begin();
   for( auto t : subset )
    cost[ t ] = *( vit++ );
 
   if( pos < v_obj_tail.size() )
    for( auto t : subset )
-    v_obj_tail[ pos + t ] = f_scale * cost[ t ];
+    v_obj_tail[ pos + t ] = cost[ t ];
   }
 
  if( not_dry_run( issueAMod ) && objective_generated() &&
@@ -1782,14 +1786,14 @@ void NuclearUnitBlock::guts_of_set_rule_costs( MF_dbl_it values ,
   for( Index i = 0 ; i < subset.size() ; ++i )
    tmps[ i ] = subset[ i ] + base;
   DQuadFunction::Vec_FunctionValue tmpv( subset.size() );
-  auto vit = values;
+  auto vit = values.begin();
   for( Index i = 0 ; i < subset.size() ; ++i )
-   tmpv[ i ] = f_scale * *( vit++ );
+   tmpv[ i ] = *( vit++ );
   qf->modify_linear_coefficients( std::move( tmpv ) , std::move( tmps ) ,
                                   true , un_ModBlock( issueAMod ) );
   }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , ThermalUnitBlockMod::changes_of( type ) ) )
   Block::add_Modification( std::make_shared< ThermalUnitBlockSbstMod >(
                             this , type , std::move( subset ) ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -1822,7 +1826,7 @@ void NuclearUnitBlock::objective_tail_change( const DQuadFunction * qf ,
 
  auto section = [ & ]( Index pos , std::vector< double > & cost ,
                        void ( NuclearUnitBlock::*setter )
-                        ( MF_dbl_it , Range , ModParam , ModParam ) ) {
+                        ( MF_dbl_sp , Range , ModParam , ModParam ) ) {
   const Index l = std::max( first , pos );
   const Index r = std::min( last , pos + f_time_horizon );
   if( l >= r )
@@ -1830,12 +1834,11 @@ void NuclearUnitBlock::objective_tail_change( const DQuadFunction * qf ,
 
   std::vector< double > nv( r - l );
   for( Index i = l ; i < r ; ++i )
-   nv[ i - l ] = f_scale ? qf->get_linear_coefficient( base + i ) / f_scale
-                         : qf->get_linear_coefficient( base + i );
+   nv[ i - l ] = qf->get_linear_coefficient( base + i );
 
   // the abstract representation has been changed already, the physical one
   // has not
-  ( this->*setter )( nv.begin() , Range( l - pos , r - pos ) , eNoBlck ,
+  ( this->*setter )( MF_dbl_sp( nv ) , Range( l - pos , r - pos ) , eNoBlck ,
                      eDryRun );
   };
 
@@ -1847,41 +1850,6 @@ void NuclearUnitBlock::objective_tail_change( const DQuadFunction * qf ,
            & NuclearUnitBlock::set_deep_decrease_costs );
 
  }  // end( NuclearUnitBlock::objective_tail_change )
-
-/*--------------------------------------------------------------------------*/
-
-void NuclearUnitBlock::update_objective_tail( const Subset & subset ,
-                                             c_ModParam issueAMod )
-{
- if( ( ! objective_generated() ) || v_obj_tail.empty() )
-  return;
-
- // the two sections, in the order of generate_objective(), each of them
- // present only if the unit has both the variables and a cost of its own
- std::vector< const std::vector< double > * > sections;
- if( ( ! v_modulation_down.empty() ) && ( ! v_down_modulation_cost.empty() ) )
-  sections.push_back( & v_down_modulation_cost );
- if( ( ! v_deep.empty() ) && ( ! v_deep_cost.empty() ) )
-  sections.push_back( & v_deep_cost );
-
- auto * qf = static_cast< DQuadFunction * >( objective.get_function() );
- const Index base = qf->get_num_active_var() - v_obj_tail.size();
-
- Subset nms;
- DQuadFunction::Vec_FunctionValue coeff;
- for( Index k = 0 ; k < sections.size() ; ++k )
-  for( auto t : subset ) {
-   const Index pos = k * f_time_horizon + t;
-   v_obj_tail[ pos ] = f_scale * ( *sections[ k ] )[ t ];
-   nms.push_back( base + pos );
-   coeff.push_back( v_obj_tail[ pos ] );
-   }
-
- if( ! nms.empty() )
-  qf->modify_linear_coefficients( std::move( coeff ) , std::move( nms ) ,
-                                  true , un_ModBlock( issueAMod ) );
-
- }  // end( NuclearUnitBlock::update_objective_tail )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1913,12 +1881,14 @@ bool NuclearUnitBlock::is_feasible( bool useabstract , Configuration * fsbc )
   // if the given Configuration is not valid, try the one from the BlockConfig
   extract_parameters( f_BlockConfig->f_is_feasible_Configuration );
 
- return( ThermalUnitBlock::is_feasible( useabstract )
+ return( ThermalUnitBlock::is_feasible( useabstract , fsbc )
    // Variable
    && ColVariable::is_feasible( v_modulation , tol )
    // Constraints
-   && RowConstraint::is_feasible( Modulation_RampUp_Constraints , tol , rel_viol )
-   && RowConstraint::is_feasible( Modulation_RampDown_Constraints , tol , rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampUp_Constraints , tol ,
+                                  rel_viol )
+   && RowConstraint::is_feasible( Modulation_RampDown_Constraints , tol ,
+                                  rel_viol )
    && RowConstraint::is_feasible( NoDownModulation , tol , rel_viol )
    && RowConstraint::is_feasible( NoStartUpModulation , tol , rel_viol )
    && RowConstraint::is_feasible( ModulationConst , tol , rel_viol )
@@ -1988,8 +1958,10 @@ Solution * NuclearUnitBlock::get_Solution( Configuration * csolc ,
  // where it is not needed, and a Solution has to say which
  if( ( wsol & 2 ) && get_deep_decrease() ) {
   sol->v_deep.resize( get_time_horizon() );
-  sol->v_deep_drop.resize( get_time_horizon() );
-  sol->v_deep_low.resize( get_time_horizon() );
+  if( get_deep_drop() ) {
+   sol->v_deep_drop.resize( get_time_horizon() );
+   sol->v_deep_low.resize( get_time_horizon() );
+   }
   }
 
  if( ! emptys )
@@ -2102,7 +2074,7 @@ void NuclearUnitBlock::add_Modification( sp_Mod mod, ChnlName chnl )
 
 ----------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
+void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_sp values ,
                  Subset && subset ,
                  bool ordered ,
                  ModParam issuePMod ,
@@ -2112,6 +2084,10 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
 
  if( subset.empty() )
   return;
+
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "NuclearUnitBlock::set_modulation_ramp_up: "
+                                "the span is shorter than the Subset" ) );
 
  std::vector< double > sorted;  // the values in the order of the subset
  if( ! ordered )
@@ -2143,7 +2119,9 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )  // issue a physical Modification
+ // issue a physical Modification
+ if( issue_pmod( issuePMod , NuclearUnitBlockMod::changes_of(
+                 NuclearUnitBlockMod::eSetModDP ) ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockSbstMod >( this ,
                                               NuclearUnitBlockMod::eSetModDP ,
                                               std::move( subset ) ) ,
@@ -2153,7 +2131,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
+void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_sp values , Range rng ,
                  ModParam issuePMod ,
                  ModParam issueAMod )
 {
@@ -2162,6 +2140,10 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
+
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "NuclearUnitBlock::set_modulation_ramp_up: "
+                                "the span is shorter than the Range" ) );
 
  Subset ts( rng.second - rng.first );
  std::iota( ts.begin() , ts.end() , rng.first );
@@ -2188,7 +2170,8 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , NuclearUnitBlockMod::changes_of(
+                 NuclearUnitBlockMod::eSetModDP ) ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockRngdMod >( this ,
                                       NuclearUnitBlockMod::eSetModDP , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2197,7 +2180,7 @@ void NuclearUnitBlock::set_modulation_ramp_up( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
+void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_sp values ,
              Subset && subset ,
              bool ordered ,
              ModParam issuePMod ,
@@ -2207,6 +2190,10 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
 
  if( subset.empty() )
   return;
+
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "NuclearUnitBlock::set_modulation_ramp_down: "
+                                "the span is shorter than the Subset" ) );
 
  std::vector< double > sorted;  // the values in the order of the subset
  if( ! ordered )
@@ -2238,7 +2225,9 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )  // issue a physical Modification
+ // issue a physical Modification
+ if( issue_pmod( issuePMod , NuclearUnitBlockMod::changes_of(
+                 NuclearUnitBlockMod::eSetModDM ) ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockSbstMod >( this ,
                                               NuclearUnitBlockMod::eSetModDM ,
                                               std::move( subset ) ) ,
@@ -2248,7 +2237,7 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
+void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_sp values ,
              Range rng ,
              ModParam issuePMod ,
              ModParam issueAMod )
@@ -2258,6 +2247,10 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
  rng.second = std::min( rng.second , f_time_horizon );
  if( rng.second <= rng.first )
   return;
+
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "NuclearUnitBlock::set_modulation_ramp_down: "
+                                "the span is shorter than the Range" ) );
 
  Subset ts( rng.second - rng.first );
  std::iota( ts.begin() , ts.end() , rng.first );
@@ -2284,7 +2277,8 @@ void NuclearUnitBlock::set_modulation_ramp_down( MF_dbl_it values ,
    throw;
    }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , NuclearUnitBlockMod::changes_of(
+                 NuclearUnitBlockMod::eSetModDM ) ) )
   Block::add_Modification( std::make_shared< NuclearUnitBlockRngdMod >( this ,
                                       NuclearUnitBlockMod::eSetModDM , rng ) ,
                            Observer::par2chnl( issuePMod ) );

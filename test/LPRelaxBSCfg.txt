@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - LPRelaxBSCfg.txt - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - LPRelaxBSCfg.txt  - - - - - - - - - - - - - - -
 #
 # BlockSolverConfig of a ThermalUnitBlock in the tests that compare the
 # continuous relaxations of its formulations: the :MILPSolver alone, which
@@ -26,8 +26,8 @@ GRBMILPSolver          # name of 1st Solver
 
 *LPRelaxMILPCfg.txt
 
-# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+# end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - END LPRelaxBSCfg.txt - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - END LPRelaxBSCfg.txt  - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

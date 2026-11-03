@@ -130,7 +130,8 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
 {
  NetworkData::deserialize( group );
 
- if( ! deserialize_dim( group , "ReferenceNode" , f_reference_node , true ) )
+ if( ! deserialize_local_dim( group , "ReferenceNode" , f_reference_node ,
+			      true ) )
   f_reference_node = 0;
 
  if( f_reference_node >= f_number_nodes )
@@ -143,14 +144,14 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  if( f_number_nodes == 1 )
   return;
 
- deserialize_dim( group , "NumberLines" , f_number_lines , false );
+ deserialize_local_dim( group , "NumberLines" , f_number_lines , false );
 
- if( ! deserialize_dim( group , "NumberBranches" , f_number_branches ,
-			true ) )
+ if( ! deserialize_local_dim( group , "NumberBranches" , f_number_branches ,
+			      true ) )
   f_number_branches = f_number_lines;
 
  Index time_instants = 1;
- deserialize_dim( group , "NumberInstants" , time_instants , true );
+ deserialize_local_dim( group , "NumberInstants" , time_instants , true );
  
  ::deserialize( group , "StartLine" , f_number_branches , v_start_line ,
                 false , false );
@@ -272,12 +273,15 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
   for( Index t = 0 ; t < time_instants ; ++t )
    v_h_efficiency[ t ].resize( f_number_lines );
 
-  // the formulations index the end node of a line with a nonzero
-  // susceptance in get_end_line(), which is empty in a hypergraph
+  // a line with a nonzero susceptance obeys the voltage law between its
+  // two ends, hence it has a single branch; a hyperarc is a controllable
+  // flow, independent of the angles, whose susceptance must be zero
   if( ! v_line_susceptance.empty() )
-   throw( std::invalid_argument( "DCNetworkData::deserialize: a network "
-				 "with hyperarcs cannot have lines with "
-				 "nonzero susceptance" ) );
+   for( Index i = 0 ; i < f_number_lines ; ++i )
+    if( ( v_line_susceptance[ i ] != 0 ) && ( tmp[ i ].size() > 1 ) )
+     throw( std::invalid_argument( "DCNetworkData::deserialize: hyperarc " +
+				   std::to_string( i ) + " has nonzero "
+				   "susceptance" ) );
 
   for( Index i = 0 ; i < f_number_lines ; ++i ) {
    v_end_lines[ i ].resize( tmp[ i ].size() );
@@ -290,6 +294,15 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
      v_h_efficiency[ t ][ i ][ j ] =
                         v_efficiency[ std::get< 2 >( tmp[ i ][ j ] ) ][ t ];
     }
+   }
+
+  // the formulations read the two ends of a line with a nonzero
+  // susceptance in get_end_line(), which then holds the (first) end node
+  // of every line; with no such line it stays empty
+  if( ! v_line_susceptance.empty() ) {
+   v_end_line.resize( f_number_lines );
+   for( Index i = 0 ; i < f_number_lines ; ++i )
+    v_end_line[ i ] = v_end_lines[ i ].front();
    }
 
   // clear v_efficiency
@@ -307,8 +320,6 @@ void DCNetworkData::deserialize( const netCDF::NcGroup & group )
  }  // end( DCNetworkData::deserialize )
 
 /*--------------------------------------------------------------------------*/
-
-#ifndef NDEBUG
 
 std::vector< std::string > DCNetworkData::expected_dims( void ) const {
  static const std::vector< std::string > ed =
@@ -333,8 +344,6 @@ std::vector< std::string > DCNetworkData::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -409,7 +418,8 @@ void DCNetworkData::identify_connected_components( void )
 /*--------------------------------------------------------------------------*/
 
 void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
-                                  const SpMat & PTDF_matrix , Index time )
+                                  const SpMat & PTDF_matrix , Index time ,
+                                  double tikhonov_coeff )
 {
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
@@ -449,6 +459,8 @@ void DCNetworkData::compute_DCDF( c_Subset & HVDC_lines ,
   }
  DCDF = -PTDF_matrix * A_DC_transpose;
  DCDF_was_computed = time;
+ DCDF_tikhonov_coeff = tikhonov_coeff;
+ DCDF_computed = true;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -458,10 +470,6 @@ SpMat DCNetworkData::get_PTDF( c_Subset & DC_lines , double tikhonov_coeff )
  // get data
  const auto number_nodes = get_number_nodes();
  const auto number_lines = get_number_lines();
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-    				                   "number of lines of DCNetworkBlock is not set" ) );
-
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
 
@@ -593,12 +601,6 @@ void DCNetworkData::compute_cycle_basis( void ) {
   return;
 
  const Index number_nodes = get_number_nodes();
- const Index number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw std::logic_error(
-   "DCNetworkData::compute_cycle_basis: number of lines not set"
-  );
 
  const auto & start_line = get_start_line();
  const auto & end_line = get_end_line();
@@ -726,7 +728,7 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
  // deal with the DCNetworkData first
 
  Index NumberNodes;
- if( deserialize_dim( group , "NumberNodes" , NumberNodes ) ) {
+ if( deserialize_local_dim( group , "NumberNodes" , NumberNodes ) ) {
   // since the dimension "NumberNodes" has been provided, a DCNetworkData
   // is there: deserialize is and mark it as being local
   if( f_local_NetworkData ) {   // if the NetworkData has not been passed
@@ -771,6 +773,9 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
    }
   }
 
+ // the constants of the lines, all 1 if not given [see set_kappa()]
+ ::deserialize( group , "Kappa" , get_number_lines() , v_kappa );
+
  // note: NetworkBlock::deserialize() is called after dealing with the
  //       DCNetworkData, so that it's there when the list of expected stuff
  //       is constructed and checked
@@ -780,16 +785,13 @@ void DCNetworkBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > DCNetworkBlock::expected_vars( void ) const {
  auto ret = NetworkBlock::expected_vars();
  ret.push_back( "ActiveDemand" );
+ ret.push_back( "Kappa" );
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -963,12 +965,6 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  if( number_nodes <= 1 )
   return;
 
- const auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
-
  // ----- First step: compute the cycle basis and spanning tree
  // cycle incidence matrices C_{lc} in the paper
  auto basis = f_NetworkData->get_lines_in_cycles();
@@ -988,9 +984,9 @@ void DCNetworkBlock::generate_CYCLE_constraints( Configuration * stcc ) {
  const auto & start_line = f_NetworkData->get_start_line();
  const auto & end_line = f_NetworkData->get_end_line();
 
- /*--------------------------------------------------------------*/
- /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c      */
- /*--------------------------------------------------------------*/
+ /*--------------------------------------------------------------------------*/
+ /* build constraints f_l = Σ_i T_{li} p_i + Σ_c C_{lc} h_c                  */
+ /*--------------------------------------------------------------------------*/
  auto & DC_lines = f_NetworkData->get_DC_lines();
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
  int nb_dc_lines = DC_lines.size();
@@ -1169,12 +1165,6 @@ void DCNetworkBlock::generate_KIRCHHOFF_constraints( Configuration * stcc )
  const auto number_nodes = get_number_nodes();
  if( number_nodes <= 1 )
   return;
-
- const auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_KIRCHHOFF_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
 
  LinearFunction::v_coeff_pair vars;
 
@@ -1417,12 +1407,6 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  if( number_nodes <= 1 )
   return;
 
- auto number_lines = get_number_lines();
-
- if( number_lines <= 0 )
-  throw( std::logic_error( "DCNetworkBlock::generate_abstract_constraints: "
-                           "number of lines of DCNetworkBlock is not set" ) );
-
  LinearFunction::v_coeff_pair vars;
 
  const auto & start_line = f_NetworkData->get_start_line();
@@ -1433,49 +1417,43 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
  auto & DC_lines = f_NetworkData->get_DC_lines();
  auto & HVDC_lines = f_NetworkData->get_HVDC_lines();
 
- // constraints on the HVDC part- - - - - - - - - - - - - - - - - - - - - - -
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ! f_NetworkData->is_DC() ) {  // ... if any
+ // pure HVDC network, or no line at all: the balance of every node
+ if( f_NetworkData->is_HVDC() ) {
+  v_power_flow_injection_const.resize( number_nodes );
 
-  // power flow node injection constraints for pure HVDC- - - - - - - - - - -
-  if( f_NetworkData->is_HVDC() ) {
-   v_power_flow_injection_const.resize( number_nodes );
+  for( Index n = 0 ; n < number_nodes ; ++n ) {
+   vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
+   double eta = 1.0;
+   for( auto & line_id : HVDC_lines ) {
+    // start node
+    if( start_line[ line_id ] == n )
+     vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
 
-   for( Index n = 0 ; n < number_nodes ; ++n ) {
-    vars.push_back( std::make_pair( &v_node_injection[ 0 ][ n ] , -1.0 ) );
-    double eta = 1.0;
-    for( auto & line_id : HVDC_lines ) {
-     // start node
-     if( start_line[ line_id ] == n )
-      vars.push_back( std::make_pair( &v_power_flow[ line_id ] , 1.0 ) );
-
-     if( ! f_NetworkData->is_hypergraph() ) {
-      // if no hyperarch -> normal behavior from get_line_efficiency
-      eta = get_line_efficiency( line_id );
-      // efficiency of the HVDC line
-      if( end_line[ line_id ] == n )
+    if( ! f_NetworkData->is_hypergraph() ) {
+     // if no hyperarch -> normal behavior from get_line_efficiency
+     eta = get_line_efficiency( line_id );
+     // efficiency of the HVDC line
+     if( end_line[ line_id ] == n )
+      vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
+     }
+    else { // if hyperarch -> loop over v_end_lines and get_line_efficiencies
+     auto & end_lines = f_NetworkData->get_end_lines()[ line_id ];
+     for( Index i = 0 ; i < end_lines.size() ; ++i ) {
+      if( end_lines[ i ] == n ) {
+       eta = get_line_efficiencies( line_id )[ i ];
        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-      }
-     else { // if hyperarch -> loop over v_end_lines and get_line_efficiencies
-      auto & end_lines = f_NetworkData->get_end_lines()[ line_id ];
-      for( Index i = 0 ; i < end_lines.size() ; ++i ) {
-       if( end_lines[ i ] == n ) {
-        eta = get_line_efficiencies( line_id )[ i ];
-        vars.push_back( std::make_pair( &v_power_flow[ line_id ] , -eta ) );
-        }
        }
       }
      }
-
-    v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
-    v_power_flow_injection_const[ n ].set_function(
-				   new LinearFunction( std::move( vars ) ) );
     }
 
-   add_static_constraint( v_power_flow_injection_const ,
-			  "HVDC_power_flow_injection" );
+   v_power_flow_injection_const[ n ].set_both( -v_ActiveDemand[ n ] );
+   v_power_flow_injection_const[ n ].set_function(
+				   new LinearFunction( std::move( vars ) ) );
    }
 
+  add_static_constraint( v_power_flow_injection_const ,
+			  "HVDC_power_flow_injection" );
  }
 
  // the nodal balances at the ends of the HVDC lines and at the references
@@ -1490,8 +1468,10 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
   // compute PTDF and, if necessary, DCDF
   SpMat PTDF_matrix = f_NetworkData->get_PTDF( DC_lines , f_tikhonov_coeff);
   if( f_NetworkData->is_DC_HVDC() )
-   if( ! f_NetworkData->was_DCDF_computed( f_time_instant ) )
-    f_NetworkData->compute_DCDF( HVDC_lines , PTDF_matrix , f_time_instant );
+   if( ! f_NetworkData->was_DCDF_computed( f_time_instant ,
+                                           f_tikhonov_coeff ) )
+    f_NetworkData->compute_DCDF( HVDC_lines , PTDF_matrix , f_time_instant ,
+                                 f_tikhonov_coeff );
 
   // Flow limit constraints
   // one row per DC line, in the order of DC_lines: the HVDC lines have none
@@ -1523,10 +1503,11 @@ void DCNetworkBlock::generate_PTDF_constraints( Configuration * stcc )
     }  // for each node
 
    if( f_NetworkData->is_DC_HVDC() ) {
-    SpMat DCDF_ = f_NetworkData->get_DCDF();
+    // DCDF has a row and a column per line, the HVDC ones included
+    const auto & DCDF = f_NetworkData->get_DCDF();
     // TODO : Also only loop over the non zero entries of DCDF only ...
     for( auto & dc_line_id : HVDC_lines ) {
-     double coeff = round_to( DCDF_.coeff( line_id , dc_line_id ) ,
+     double coeff = round_to( DCDF.coeff( line_id , dc_line_id ) ,
                               f_ptdf_round );
      vars.push_back( std::make_pair( &v_power_flow[ dc_line_id ] , coeff ) );
      }
@@ -1586,15 +1567,15 @@ LinearFunction * DCNetworkBlock::overall_balance_function(
 
 void DCNetworkBlock::generate_bound_constraints( void )
 {
- /*-----------------------------------------------------------------------*/
- /*-------------------- flow limits with/without design ------------------*/
- /*-----------------------------------------------------------------------*/
+ /*--------------------------------------------------------------------------*/
+ /*-------------------- flow limits with/without design ---------------------*/
+ /*--------------------------------------------------------------------------*/
 
  LinearFunction::v_coeff_pair vars;
 
  const auto number_lines = get_number_lines();
 
- /*-------------------------- with design --------------------------------*/
+ /*-------------------------- with design -----------------------------------*/
  /** For lines having a design variable x_l (get_design( l ) != nullptr),
   *  impose:
   *
@@ -1662,7 +1643,7 @@ void DCNetworkBlock::generate_bound_constraints( void )
 			  "Power_flow_limit_design_min" );
   }
 
- /*------------------------- without design -------------------------------*/
+ /*------------------------- without design ---------------------------------*/
  /** For lines with no design variable (get_design( l ) == nullptr),
   *  impose the standard box:
   *
@@ -1959,13 +1940,20 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
   ::serialize( group , "ActiveDemand" , netCDF::NcDouble() ,
                NumberNodes , v_ActiveDemand );
   }
+
+ // the constants of the lines, if one is not 1 [see set_kappa()], over the
+ // dimension "NumberLines" that the DCNetworkData has written
+ if( std::any_of( v_kappa.begin() , v_kappa.end() ,
+                  []( double kappa ) { return( kappa != 1 ); } ) )
+  ::serialize( group , "Kappa" , netCDF::NcDouble() ,
+               group.getDim( "NumberLines" ) , v_kappa );
  }  // end( DCNetworkBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
+void DCNetworkBlock::set_active_demand( MF_dbl_sp values , Subset && subset ,
                                         bool ordered ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
@@ -1973,8 +1961,12 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: the "
+                                "span is shorter than the Subset" ) );
+
  if( v_ActiveDemand.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1982,12 +1974,13 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
   }
 
  bool identical = true;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= v_ActiveDemand.size() )
    throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
                                  "invalid value in subset" ) );
 
-  auto demand = *( values++ );
+  auto demand = *( values_it++ );
   if( v_ActiveDemand[ i ] != demand ) {
    identical = false;
 
@@ -2005,7 +1998,9 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
   change_active_demand_constraints( modified_nodes , issueAMod );
   }
 
- if( issue_pmod( issuePMod ) ) {  // Issue a Physical Modification
+ // Issue a Physical Modification
+ if( issue_pmod( issuePMod , NetworkBlockMod::changes_of(
+                 NetworkBlockMod::eSetActD ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2018,7 +2013,7 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
+void DCNetworkBlock::set_active_demand( MF_dbl_sp values , Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
 {
@@ -2026,8 +2021,13 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: the "
+                                "span is shorter than the Range" ) );
+
  if( v_ActiveDemand.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -2035,13 +2035,13 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
   }
 
  // If nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
+ if( std::equal( values.begin() , values.begin() + ( rng.second - rng.first ) ,
                  v_ActiveDemand.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() , values.begin() + ( rng.second - rng.first ) ,
              v_ActiveDemand.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
@@ -2051,7 +2051,9 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , NetworkBlockMod::changes_of(
+                 NetworkBlockMod::eSetActD ) ) )
   Block::add_Modification( std::make_shared< NetworkBlockRngdMod >( this ,
                             NetworkBlockMod::eSetActD , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2273,7 +2275,7 @@ void DCNetworkBlock::change_DC_HVDC_power_flow_injection_constraints(
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
+void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
                                        Subset && subset ,
                                        bool ordered ,
                                        c_ModParam issuePMod ,
@@ -2282,8 +2284,12 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "DCNetworkBlock::set_network_cost: the "
+                                "span is shorter than the Subset" ) );
+
  // a negative cost makes V_l >= | F_l | unbounded above in the objective
- if( std::any_of( values , values + subset.size() ,
+ if( std::any_of( values.begin() , values.begin() + subset.size() ,
                   []( double cst ) { return( cst < 0.0 ); } ) )
   throw( std::invalid_argument( "DCNetworkBlock::set_network_cost: a "
                                 "negative cost makes the problem "
@@ -2292,7 +2298,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  auto & network_cost = f_NetworkData->get_network_cost();
 
  if( network_cost.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
 
@@ -2302,7 +2308,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  // pricing a line the abstract representation was built without has no
  // auxiliary Variable to hang the cost on
  if( variables_generated() && v_auxiliary_variable.empty() &&
-     std::any_of( values , values + subset.size() ,
+     std::any_of( values.begin() , values.begin() + subset.size() ,
                   []( double cst ) { return( cst != 0.0 ); } ) )
   throw( std::logic_error(
    "DCNetworkBlock::set_network_cost: the abstract representation has been "
@@ -2310,7 +2316,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
    "linearise the flow cost with" ) );
 
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= network_cost.size() )
    throw( std::invalid_argument(
@@ -2327,7 +2333,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto i : subset )
    network_cost[ i ] = *( values_it++ );
 
@@ -2358,7 +2364,8 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
    }
   }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetNetCost ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2371,7 +2378,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
+void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
                                        Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
@@ -2380,10 +2387,14 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "DCNetworkBlock::set_network_cost: the "
+                                "span is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  // a negative cost makes V_l >= | F_l | unbounded above in the objective
- if( std::any_of( values , values + sz ,
+ if( std::any_of( values.begin() , values.begin() + sz ,
                   []( double cst ) { return( cst < 0.0 ); } ) )
   throw( std::invalid_argument( "DCNetworkBlock::set_network_cost: a "
                                 "negative cost makes the problem "
@@ -2392,7 +2403,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  auto & network_cost = f_NetworkData->get_network_cost();
 
  if( network_cost.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values.begin() , values.begin() + sz ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
 
@@ -2402,21 +2413,21 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  // pricing a line the abstract representation was built without has no
  // auxiliary Variable to hang the cost on
  if( variables_generated() && v_auxiliary_variable.empty() &&
-     std::any_of( values , values + sz ,
+     std::any_of( values.begin() , values.begin() + sz ,
                   []( double cst ) { return( cst != 0.0 ); } ) )
   throw( std::logic_error(
    "DCNetworkBlock::set_network_cost: the abstract representation has been "
    "generated with no priced line, hence it has no auxiliary Variable to "
    "linearise the flow cost with" ) );
 
- if( std::equal( values ,
-                 values + sz ,
+ if( std::equal( values.begin() ,
+                 values.begin() + sz ,
                  network_cost.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values ,
-             values + sz ,
+  std::copy( values.begin() ,
+             values.begin() + sz ,
              network_cost.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
@@ -2446,7 +2457,8 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetNetCost ) ) )
   Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >(
                             this , DCNetworkBlockMod::eSetNetCost , rng ) ,
                            Observer::par2chnl( issuePMod ) );
@@ -2455,7 +2467,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
+void DCNetworkBlock::set_kappa( MF_dbl_sp values , Subset && subset ,
 				bool ordered ,
                                 c_ModParam issuePMod ,
                                 c_ModParam issueAMod )
@@ -2463,8 +2475,12 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "DCNetworkBlock::set_kappa: the span is "
+                                "shorter than the Subset" ) );
+
  if( v_kappa.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 1 ); } ) )
    return;
 
@@ -2472,12 +2488,13 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
   }
 
  bool identical = true;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= v_kappa.size() )
    throw( std::invalid_argument( "DCNetworkBlock::set_kappa: invalid value in"
                                  " subset: " + std::to_string( i ) ) );
 
-  const auto kappa = *( values++ );
+  const auto kappa = *( values_it++ );
   if( v_kappa[ i ] != kappa ) {
    identical = false;
    if( not_dry_run( issuePMod ) )
@@ -2498,7 +2515,9 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
   // kappa only appears in limit constraints
   }
 
- if( issue_pmod( issuePMod ) ) {  // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetKappa ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -2510,15 +2529,20 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
+void DCNetworkBlock::set_kappa( MF_dbl_sp values , Range rng ,
                                 c_ModParam issuePMod , c_ModParam issueAMod )
 {
  rng.second = std::min( rng.second , get_number_lines() );
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "DCNetworkBlock::set_kappa: the span is "
+                                "shorter than the Range" ) );
+
  if( v_kappa.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 1 ); } ) )
    return;
 
@@ -2526,13 +2550,13 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
   }
 
  // If nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
+ if( std::equal( values.begin() , values.begin() + ( rng.second - rng.first ) ,
                  v_kappa.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() , values.begin() + ( rng.second - rng.first ) ,
              v_kappa.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
@@ -2543,12 +2567,86 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
    }
   }
 
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
+ // issue a Physical Modification
+ if( issue_pmod( issuePMod , DCNetworkBlockMod::changes_of(
+                 DCNetworkBlockMod::eSetKappa ) ) )
   Block::add_Modification( std::make_shared< DCNetworkBlockRngdMod >( this ,
                DCNetworkBlockMod::eSetKappa , rng ) ,
                            Observer::par2chnl( issuePMod ) );
 
  }  // end( DCNetworkBlock::set_kappa( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::resize( MF_dbl_sp values , Subset && subset ,
+                             bool ordered , c_ModParam issuePMod ,
+                             c_ModParam issueAMod )
+{
+ if( subset.size() > values.size() )
+  throw( std::invalid_argument( classname() + "::resize: the span is shorter "
+                                "than the lines it is asked to write" ) );
+
+ // set_kappa() takes an iterator; not the virtual, as that of ACNetworkBlock
+ // and of OTSNetworkBlock throws
+ const std::vector< double > kappa( values.begin() ,
+                                    values.begin() + subset.size() );
+ DCNetworkBlock::set_kappa( MF_dbl_sp( kappa ) , std::move( subset ) ,
+                            ordered ,
+                            issuePMod , issueAMod );
+
+ }  // end( DCNetworkBlock::resize( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::resize( MF_dbl_sp values , Range rng ,
+                             c_ModParam issuePMod , c_ModParam issueAMod )
+{
+ const auto end = std::min( rng.second , get_number_lines() );
+ const Index n = ( end > rng.first ) ? end - rng.first : 0;
+ if( n > values.size() )
+  throw( std::invalid_argument( classname() + "::resize: the span is shorter "
+                                "than the lines it is asked to write" ) );
+
+ const std::vector< double > kappa( values.begin() , values.begin() + n );
+ DCNetworkBlock::set_kappa( MF_dbl_sp( kappa ) , rng , issuePMod , issueAMod );
+
+ }  // end( DCNetworkBlock::resize( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::get_resize_linearization( MF_dbl_msp msp ,
+                                               c_Subset & lines , bool ) const
+{
+ if( lines.size() > msp.size() )
+  throw( std::invalid_argument( classname() + "::get_resize_linearization: "
+                                "the span is shorter than the subset it is "
+                                "asked to answer for" ) );
+
+ for( Index i = 0 ; i < lines.size() ; ++i ) {
+  if( lines[ i ] >= get_number_lines() )
+   throw( std::invalid_argument( classname() + "::get_resize_linearization: "
+                                 "there is no line of index " +
+                                 std::to_string( lines[ i ] ) ) );
+  msp[ i ] = get_resize_linearization( lines[ i ] );
+  }
+
+ }  // end( DCNetworkBlock::get_resize_linearization( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+void DCNetworkBlock::get_resize_linearization( MF_dbl_msp msp ,
+                                               Range rng ) const
+{
+ rng.second = std::min( rng.second , get_number_lines() );
+ if( ( rng.first < rng.second ) && ( msp.size() < rng.second - rng.first ) )
+  throw( std::invalid_argument( classname() + "::get_resize_linearization: "
+                                "the span is shorter than the range it is "
+                                "asked to answer for" ) );
+
+ for( Index l = rng.first ; l < rng.second ; ++l )
+  msp[ l - rng.first ] = get_resize_linearization( l );
+
+ }  // end( DCNetworkBlock::get_resize_linearization( range ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2631,11 +2729,19 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group )
  if( get_number_nodes() > 1 )
   deserialize_dim( group , "NumberLines" , f_number_lines , false );
 
+ // all optional, as serialize() writes each of them only if it is there:
+ // the Solution may not hold them, and the auxiliary Variable exist only
+ // if some line has a nonzero NetworkCost; each is indexed over the lines,
+ // which read() and write() run over, and a scalar is refused
+
  // deserialize the Flow Variables- - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "FlowValue" , v_flow , false );
+ ::deserialize( group , "FlowValue" , f_number_lines , v_flow );
+
+ // deserialize the Auxiliary Variables of the cost of the flows- - - - - - -
+ ::deserialize( group , "AuxiliaryValue" , f_number_lines , v_aux );
 
  // deserialize the Dual Prices - - - - - - - - - - - - - - - - - - - - - - -
- ::deserialize< double >( group , "DualCost" , v_cost , false );
+ ::deserialize( group , "DualCost" , f_number_lines , v_cost );
 
  }  // end( DCNetworkBlockSolution::deserialize( NcGroup & ) )
 
@@ -2661,6 +2767,15 @@ void DCNetworkBlockSolution::deserialize( const netCDF::NcGroup & group ,
  else {
   v_flow.resize( f_number_lines );
   ncVar.getVar( strt , cnt , v_flow.data() );
+  }
+
+ // deserialize the Auxiliary Variables of the cost of the flows- - - - - - -
+ ncVar = group.getVar( "AuxiliaryValue" );
+ if( ncVar.isNull() )
+  v_aux.clear();
+ else {
+  v_aux.resize( f_number_lines );
+  ncVar.getVar( strt , cnt , v_aux.data() );
   }
 
  // deserialize the Dual Prices- - - - - - - - - - - - - - - - - - - - - - -
@@ -2692,6 +2807,14 @@ void DCNetworkBlockSolution::read( const Block * block )
   auto Fl = DCNB->get_power_flow();
   for( Index l = 0 ; l < f_number_lines ; ++l )
    v_flow[ l ] = Fl[ l ].get_value();
+
+  // the auxiliary variables V_l >= | F_l | carry the cost of the flows, and
+  // a Solution without them would give back the flows with whatever value
+  // they had before, hence another cost
+  const auto & V = DCNB->get_auxiliary_variable();
+  v_aux.resize( V.size() );
+  for( Index l = 0 ; l < V.size() ; ++l )
+   v_aux[ l ] = V[ l ].get_value();
   }
 
  if( ! v_cost.empty() )
@@ -2720,6 +2843,14 @@ void DCNetworkBlockSolution::write( Block * block )
  if( ! v_flow.empty() )
   DCNB->set_power_flow( v_flow );
 
+ // write the auxiliary variables of the cost of the flows- - - - - - - - - -
+ if( ! v_aux.empty() ) {
+  if( DCNB->get_auxiliary_variable().size() != v_aux.size() )
+   throw( std::invalid_argument( "DCNetworkBlockSolution::write: "
+                                 "inconsistent auxiliary variables" ) );
+  DCNB->set_auxiliary_variable( v_aux );
+  }
+
  // write the dual prices- - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_cost.empty() )
   DCNB->set_dual_prices( v_cost );
@@ -2741,6 +2872,11 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ) const
   ::serialize< double >( group , "FlowValue" , netCDF::NcDouble() , nl ,
        v_flow );
 
+ // serialize the Auxiliary Variables of the cost of the flows- - - - - - - -
+ if( ! v_aux.empty() )
+  ::serialize< double >( group , "AuxiliaryValue" , netCDF::NcDouble() , nl ,
+       v_aux );
+
  // serialize the Dual Prices - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! v_cost.empty() )
   ::serialize< double >( group , "DualCost" , netCDF::NcDouble() , nl ,
@@ -2758,6 +2894,7 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
  // now serialize the data structures - - - - - - - - - - - - - - - - - - - -
 
  netCDF::NcVar FV;  // FlowValue
+ netCDF::NcVar AV;  // AuxiliaryValue
  netCDF::NcVar DC;  // DualCost
 
  if( idx == 0 ) {  // first call, have to initialize everything
@@ -2770,12 +2907,18 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
   if( ! v_flow.empty() )
    FV = group.addVar( "FlowValue" , netCDF::NcDouble() , { nnw , nl } );
 
+  if( ! v_aux.empty() )
+   AV = group.addVar( "AuxiliaryValue" , netCDF::NcDouble() , { nnw , nl } );
+
   if( ! v_cost.empty() )
    DC = group.addVar( "DualCost" , netCDF::NcDouble() , { nnw , nl } );
   }
  else {  // subsequent call, read what is supposedly already there
   if( ! v_flow.empty() )
    FV = group.getVar( "FlowValue" );
+
+  if( ! v_aux.empty() )
+   AV = group.getVar( "AuxiliaryValue" );
 
   if( ! v_cost.empty() )
    DC = group.getVar( "DualCost" );
@@ -2786,6 +2929,9 @@ void DCNetworkBlockSolution::serialize( netCDF::NcGroup & group ,
 
  if( ! FV.isNull() )  // if power flows have to be serialised
   FV.putVar( strt , cnt , v_flow.data() );
+
+ if( ! AV.isNull() )  // if the auxiliary variables have to be serialised
+  AV.putVar( strt , cnt , v_aux.data() );
 
  if( ! DC.isNull() )  // if Flow Variables have to be serialised
   DC.putVar( strt , cnt , v_cost.data() );
@@ -2808,6 +2954,9 @@ DCNetworkBlockSolution * DCNetworkBlockSolution::scale( double factor ) const
  if( ! v_flow.empty() )
   for( Index l = 0 ; l < f_number_lines ; ++l )
    sol->v_flow[ l ] *= factor;
+
+ for( auto & v : sol->v_aux )
+  v *= factor;
 
  if( ! v_cost.empty() )
   for( Index l = 0 ; l < f_number_lines ; ++l )
@@ -2838,6 +2987,12 @@ void DCNetworkBlockSolution::sum( const Solution * solution ,
   for( Index l = 0 ; l < f_number_lines ; ++l )
    v_flow[ l ] += DCNBS->v_flow[ l ] * multiplier;
 
+ if( v_aux.size() != DCNBS->v_aux.size() )
+  throw( std::invalid_argument(
+    "DCNetworkBlockSolution::sum: inconsistent auxiliary variables" ) );
+ for( Index l = 0 ; l < v_aux.size() ; ++l )
+  v_aux[ l ] += DCNBS->v_aux[ l ] * multiplier;
+
  if( ! v_cost.empty() )
   for( Index l = 0 ; l < f_number_lines ; ++l )
    v_cost[ l ] += DCNBS->v_cost[ l ] * multiplier;
@@ -2855,6 +3010,7 @@ DCNetworkBlockSolution * DCNetworkBlockSolution::clone( bool empty ) const
 
   sol->f_number_lines = f_number_lines;
   sol->v_flow = v_flow;
+  sol->v_aux = v_aux;
   sol->v_cost = v_cost;
   }
 

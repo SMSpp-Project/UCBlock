@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - LPCmpBSCfg.txt - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - LPCmpBSCfg.txt  - - - - - - - - - - - - - - - -
 #
 # BlockSolverConfig of a ThermalUnitBlock in the test of the power limits
 # (test_power_limits.cpp): the :MILPSolver first, which writes the model it
@@ -29,8 +29,8 @@ ThermalUnitExtDPSolver # name of 3rd Solver
 
 *LPCmpMILPCfg.txt
 
-# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+# end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - END LPCmpBSCfg.txt - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - END LPCmpBSCfg.txt  - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

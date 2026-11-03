@@ -98,8 +98,6 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , f_MaxCapacityDesign , "MaxCapacityDesign" );
   }
 
- ::deserialize( group , f_scale , "Scale" );
-
  if( ! ::deserialize( group , "MinPower" , f_time_horizon , v_MinPower ,
                       true , true , v_change_intervals ) )
   v_MinPower.resize( f_time_horizon );
@@ -146,8 +144,6 @@ void IntermittentUnitBlock::deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 /*
 std::vector< std::string > IntermittentUnitBlock::expected_dims( void )
  const {
@@ -165,7 +161,7 @@ std::vector< std::string > IntermittentUnitBlock::expected_vars( void )
  const {
  static const std::vector< std::string > ev =
  { "InvestmentCost" , "MinCapacityDesign" , "MaxCapacityDesign" ,
-   "MaxCapacity" , "Scale" , "MinPower" , "MaxPower" , "InertiaPower" ,
+   "MaxCapacity" , "MinPower" , "MaxPower" , "InertiaPower" ,
    "ActivePowerCost", "Gamma" , "Kappa", "MinReactivePower",
    "MaxReactivePower", "MaxGeneration", "MinGeneration"
    };
@@ -175,8 +171,6 @@ std::vector< std::string > IntermittentUnitBlock::expected_vars( void )
 
  return( ret );
  }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -207,7 +201,7 @@ void IntermittentUnitBlock::check_data_consistency( void ) const
 
  // Scale and design granularity are two equivalent ways to model multiple
  // identical modules; combining them with both > 1 over-counts the fleet.
- if( ( f_scale != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
+ if( ( get_scale() != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
   throw( std::logic_error( "IntermittentUnitBlock::check_data_consistency: "
                            "cannot combine Scale != 1 with "
                            "|MaxCapacityDesign| > 1; they represent the "
@@ -611,12 +605,12 @@ void IntermittentUnitBlock::generate_objective( Configuration * objc )
  auto lf = new LinearFunction();
 
  if( f_InvestmentCost != 0 )
-  lf->add_variable( &design , f_scale * f_InvestmentCost );
+  lf->add_variable( &design , f_InvestmentCost );
 
  if( ! v_ActivePowerCost.empty() )
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    lf->add_variable( &v_active_power[ t ] ,
-		     f_scale * v_ActivePowerCost[ t ] );
+		     v_ActivePowerCost[ t ] );
 
  objective.set_function( lf );
  objective.set_sense( Objective::eMin );
@@ -714,8 +708,6 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
                 f_MaxCapacityDesign );
  }
 
- if( f_scale != 1 )
-  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  ::serialize( group , "Gamma" , netCDF::NcDouble() , f_gamma );
  ::serialize( group , "Kappa" , netCDF::NcDouble() , f_kappa );
@@ -759,6 +751,8 @@ void IntermittentUnitBlock::serialize( netCDF::NcGroup & group ) const
  serialize( "MaxPower" , v_MaxPower );
  serialize( "InertiaPower" , v_InertiaPower );
  serialize( "ActivePowerCost" , v_ActivePowerCost );
+ serialize( "MaxReactivePower" , v_MaxReactivePower );
+ serialize( "MinReactivePower" , v_MinReactivePower );
 
  }  // end( IntermittentUnitBlock::serialize )
 
@@ -913,7 +907,7 @@ void IntermittentUnitBlock::update_max_power_in_cnstrs( const Range & time ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
+void IntermittentUnitBlock::set_maximum_power( MF_dbl_sp values ,
                                                Subset && subset ,
                                                bool ordered ,
                                                c_ModParam issuePMod ,
@@ -922,9 +916,13 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power: "
+                                "the span is shorter than the Subset" ) );
+
  if( v_MaxPower.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -936,7 +934,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    throw( std::invalid_argument(
     "IntermittentUnitBlock::set_maximum_power: invalid value in subset." ) );
 
- auto values_it = values;
+ auto values_it = values.begin();
 
  bool identical = true;
  for( auto t : subset ) {
@@ -954,7 +952,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto t : subset ) {
    double max_power = *( values_it++ );
    if( ( f_max_power_epsilon > 0 ) && ( max_power == 0.0 ) )
@@ -967,21 +965,19 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    update_max_power_in_cnstrs( subset , issueAMod );
  }
 
- if( issue_pmod( issuePMod ) ) {
-  if( ! ordered )
-   std::sort( subset.begin() , subset.end() );
+ if( ! ordered )
+  std::sort( subset.begin() , subset.end() );
 
-  Block::add_Modification(
-   std::make_shared< IntermittentUnitBlockSbstMod >(
-    this , IntermittentUnitBlockMod::eSetMaxP , std::move( subset ) ) ,
-   Observer::par2chnl( issuePMod ) );
- }
+ // issue a Physical Modification, which the father sees anyway
+ issue_unit_mod( std::make_shared< IntermittentUnitBlockSbstMod >(
+                  this , IntermittentUnitBlockMod::eSetMaxP ,
+                  std::move( subset ) ) , issuePMod );
 
 }  // end( IntermittentUnitBlock::set_maximum_power( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
+void IntermittentUnitBlock::set_maximum_power( MF_dbl_sp values ,
                                                Range rng ,
                                                c_ModParam issuePMod ,
                                                c_ModParam issueAMod )
@@ -990,11 +986,15 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "IntermittentUnitBlock::set_maximum_power: "
+                                "the span is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  if( v_MaxPower.empty() ) {
-  if( std::all_of( values ,
-                   values + sz ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1002,7 +1002,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
  }
 
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( Index t = rng.first ; t < rng.second ; ++t ) {
   double max_power = *( values_it++ );
   if( ( f_max_power_epsilon > 0 ) && ( max_power == 0.0 ) )
@@ -1018,7 +1018,7 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( Index t = rng.first ; t < rng.second ; ++t ) {
    double max_power = *( values_it++ );
    if( ( f_max_power_epsilon > 0 ) && ( max_power == 0.0 ) )
@@ -1031,17 +1031,16 @@ void IntermittentUnitBlock::set_maximum_power( MF_dbl_it values ,
    update_max_power_in_cnstrs( rng , issueAMod );
  }
 
- if( issue_pmod( issuePMod ) )
-  Block::add_Modification(
-   std::make_shared< IntermittentUnitBlockRngdMod >(
-    this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
-   Observer::par2chnl( issuePMod ) );
+ // issue a Physical Modification, which the father sees anyway
+ issue_unit_mod( std::make_shared< IntermittentUnitBlockRngdMod >(
+                  this , IntermittentUnitBlockMod::eSetMaxP , rng ) ,
+                 issuePMod );
 
 }  // end( IntermittentUnitBlock::set_maximum_power( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
+void IntermittentUnitBlock::set_active_power_cost( MF_dbl_sp values ,
                                                    Subset && subset ,
                                                    bool ordered ,
                                                    c_ModParam issuePMod ,
@@ -1050,9 +1049,14 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "IntermittentUnitBlock::"
+                                "set_active_power_cost: the span is "
+                                "shorter than the Subset" ) );
+
  if( v_ActivePowerCost.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1064,7 +1068,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
    throw( std::invalid_argument(
     "IntermittentUnitBlock::set_active_power_cost: invalid index in subset." ) );
 
- auto values_it = values;
+ auto values_it = values.begin();
 
  bool identical = true;
  for( auto t : subset ) {
@@ -1078,7 +1082,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto t : subset )
    v_ActivePowerCost[ t ] = *( values_it++ );
 
@@ -1100,16 +1104,15 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
       "IntermittentUnitBlock::set_active_power_cost: expected Variable not "
       "found in objective." ) );
 
-    lf->modify_coefficient( idx ,
-                            f_scale * v_ActivePowerCost[ t ] ,
-                            nAM );
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , nAM );
 
     close_channel( par2chnl( nAM ) );
    }
   }
  }
 
- if( issue_pmod( issuePMod ) ) {
+ if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
+                 IntermittentUnitBlockMod::eSetActPCost ) ) ) {
   if( ! ordered )
    std::sort( subset.begin() , subset.end() );
 
@@ -1122,7 +1125,7 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
+void IntermittentUnitBlock::set_active_power_cost( MF_dbl_sp values ,
                                                    Range rng ,
                                                    c_ModParam issuePMod ,
                                                    c_ModParam issueAMod )
@@ -1131,25 +1134,30 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "IntermittentUnitBlock::"
+                                "set_active_power_cost: the span is "
+                                "shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  if( v_ActivePowerCost.empty() ) {
-  if( std::all_of( values ,
-                   values + sz ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_ActivePowerCost.assign( f_time_horizon , 0.0 );
  }
 
- if( std::equal( values ,
-                 values + sz ,
+ if( std::equal( values.begin() ,
+                 values.begin() + sz ,
                  v_ActivePowerCost.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values ,
-             values + sz ,
+  std::copy( values.begin() ,
+             values.begin() + sz ,
              v_ActivePowerCost.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
@@ -1170,16 +1178,15 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
       "IntermittentUnitBlock::set_active_power_cost: expected Variable not "
       "found in objective." ) );
 
-    lf->modify_coefficient( idx ,
-                            f_scale * v_ActivePowerCost[ t ] ,
-                            nAM );
+    lf->modify_coefficient( idx , v_ActivePowerCost[ t ] , nAM );
 
     close_channel( par2chnl( nAM ) );
    }
   }
  }
 
- if( issue_pmod( issuePMod ) )
+ if( issue_pmod( issuePMod , IntermittentUnitBlockMod::changes_of(
+                 IntermittentUnitBlockMod::eSetActPCost ) ) )
   Block::add_Modification(
    std::make_shared< IntermittentUnitBlockRngdMod >(
     this , IntermittentUnitBlockMod::eSetActPCost , rng ) ,
@@ -1189,77 +1196,23 @@ void IntermittentUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::scale( MF_dbl_it values ,
-                                   Subset && subset , bool ordered ,
-                                   c_ModParam issuePMod ,
-                                   c_ModParam issueAMod )
+void IntermittentUnitBlock::set_weight( double k , c_ModParam issueMod )
 {
- if( subset.empty() )
-  return;  // Since the given Subset is empty, no operation is performed
+ // the copies and a design of more than one module are the same fleet, as
+ // deserialize() says [see check_data_consistency()]
+ if( ( k != 1 ) && ( std::abs( f_MaxCapacityDesign ) > 1 ) )
+  throw( std::logic_error( "IntermittentUnitBlock::set_weight: cannot "
+                           "combine Scale != 1 with |MaxCapacityDesign| > 1; "
+                           "they represent the same multi-module fleet and "
+                           "would double-count." ) );
 
- if( f_scale == *values )  // the scale factor does not change: nothing to do
-  return;
+ UnitBlock::set_weight( k , issueMod );
 
- if( not_dry_run( issuePMod ) ) {
-  f_scale = *values;  // Update the scale factor
-
-  if( not_dry_run( issueAMod ) && objective_generated() )
-   // refresh the f_scale-aware coefficients in the Objective
-   update_objective( issueAMod );
- }
-
- if( issue_pmod( issuePMod ) )  // issue a Physical Modification
-  Block::add_Modification( std::make_shared< UnitBlockMod >(
-                                           this , UnitBlockMod::eScale ) ,
-                                           Observer::par2chnl( issuePMod ) );
- else if( auto f_Block = get_f_Block() )
-  // the father rewrites the rows that carry the scale factor even if no
-  // Solver is listening
-  f_Block->add_Modification( std::make_shared< UnitBlockMod >(
-                              this , UnitBlockMod::eScale ) ,
-                             Observer::par2chnl( issuePMod ) );
-
- }  // end( IntermittentUnitBlock::scale )
+ }  // end( IntermittentUnitBlock::set_weight )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::update_objective( c_ModParam issueAMod )
-{
- if( ! objective_generated() )
-  return;  // the Objective has not been generated: nothing to be done
-
- auto function = static_cast< LinearFunction * >( objective.get_function() );
-
- // one coefficient of the Objective per instant, plus the one of the design:
- // they all go into a single GroupModification, so that a Solver able to
- // write a whole set of them in one operation does that instead of one call
- // per instant [see MILPSolver::process_group_modification()]
- auto nAM = un_ModBlock( make_par( par2mod( issueAMod ) ,
-                                   open_channel( par2chnl( issueAMod ) ) ) );
-
- // refresh the active-power operating costs (when present)
- if( ! v_ActivePowerCost.empty() )
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   const auto idx = function->is_active( & v_active_power[ t ] );
-   assert( idx < function->get_num_active_var() );
-   function->modify_coefficient( idx ,
-                                 f_scale * v_ActivePowerCost[ t ] , nAM );
-  }
-
- // refresh the scale-aware investment cost on the design variable
- if( f_InvestmentCost != 0 ) {
-  const auto idx = function->is_active( & design );
-  assert( idx < function->get_num_active_var() );
-  function->modify_coefficient( idx , f_scale * f_InvestmentCost , nAM );
- }
-
- close_channel( par2chnl( nAM ) );
-
-}  // end( IntermittentUnitBlock::update_objective )
-
-/*--------------------------------------------------------------------------*/
-
-void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
+void IntermittentUnitBlock::set_kappa( MF_dbl_sp values ,
                                        Subset && subset , bool ordered ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
@@ -1267,11 +1220,15 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
  if( subset.empty() )
   return;  // Since the given Subset is empty, no operation is performed
 
- if( f_kappa == *values )
+ if( values.empty() )
+  throw( std::invalid_argument( "IntermittentUnitBlock::set_kappa: no value "
+                                "in the span" ) );
+
+ if( f_kappa == values.front() )
   return;  // The kappa constant does not change: nothing to do
 
  if( not_dry_run( issuePMod ) ) {
-  f_kappa = *values;  // Update the kappa constant
+  f_kappa = values.front();  // Update the kappa constant
 
   if( not_dry_run( issueAMod ) ) {
    // Update the abstract representation
@@ -1342,16 +1299,15 @@ void IntermittentUnitBlock::set_kappa( MF_dbl_it values ,
   }  // end( if( not_dry_run( issueAMod ) )
  }  // end( if( not_dry_run( issuePMod ) )
 
- if( issue_pmod( issuePMod ) )  // Issue a Physical Modification
-  Block::add_Modification( std::make_shared< IntermittentUnitBlockMod >(
-                            this , IntermittentUnitBlockMod::eSetKappa ) ,
-                           Observer::par2chnl( issuePMod ) );
+ // Issue a Physical Modification, which the father sees anyway
+ issue_unit_mod( std::make_shared< IntermittentUnitBlockMod >(
+                  this , IntermittentUnitBlockMod::eSetKappa ) , issuePMod );
 
  }  // end( IntermittentUnitBlock::set_kappa( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void IntermittentUnitBlock::set_kappa( MF_dbl_it values , Range rng ,
+void IntermittentUnitBlock::set_kappa( MF_dbl_sp values , Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
 {

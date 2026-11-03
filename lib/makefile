@@ -43,6 +43,7 @@ UCBckOdir = $(UCBckDIR)/obj
 
 UCBckOBJ = $(UCBckOdir)/ACNetworkBlock.o \
 	$(UCBckOdir)/BatteryUnitBlock.o \
+	$(UCBckOdir)/ConversionUnitBlock.o \
 	$(UCBckOdir)/DesignNetworkBlock.o \
 	$(UCBckOdir)/DCNetworkBlock.o \
 	$(UCBckOdir)/ECNetworkBlock.o \
@@ -64,6 +65,7 @@ UCBckOBJ = $(UCBckOdir)/ACNetworkBlock.o \
 UCBckINC = -I$(UCBckINCdir)/
 
 UCBckH = $(UCBckINCdir)/BatteryUnitBlock.h \
+	$(UCBckINCdir)/ConversionUnitBlock.h \
 	$(UCBckINCdir)/DesignNetworkBlock.h \
 	$(UCBckINCdir)/DCNetworkBlock.h \
 	$(UCBckINCdir)/ECNetworkBlock.h \
@@ -81,6 +83,12 @@ UCBckH = $(UCBckINCdir)/BatteryUnitBlock.h \
 	$(UCBckINCdir)/NuclearUnitExtDPSolver.h \
 	$(UCBckINCdir)/UCBlock.h \
 	$(UCBckINCdir)/UnitBlock.h
+
+# the C++20 module smspp.ucblock - - - - - - - - - - - - - - - - - - - - - -
+# [see makefile-mod of SMS++]
+
+$(eval $(call SMSppMODrule,UCBck,$(UCBckDIR),UCBlock,smspp.ucblock,\
+	SMS++))
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -157,6 +165,12 @@ $(UCBckOdir)/OTSNetworkBlock.o: $(UCBckSRCdir)/OTSNetworkBlock.cpp \
 	$(UCBckINCdir)/UCBlock.h $(UCBckINCdir)/NetworkBlock.h $(SMS++OBJ)
 	$(CC) -c $(UCBckSRCdir)/OTSNetworkBlock.cpp -o $@ $(SMS++INC) \
 	$(UCBckINC) $(SW)
+
+$(UCBckOdir)/ConversionUnitBlock.o: $(UCBckSRCdir)/ConversionUnitBlock.cpp \
+	$(UCBckINCdir)/ConversionUnitBlock.h $(UCBckINCdir)/UnitBlock.h \
+	$(SMS++OBJ) 
+	$(CC) -c $(UCBckSRCdir)/ConversionUnitBlock.cpp -o $@ \
+	$(SMS++INC) $(UCBckINC) $(SW)
 
 $(UCBckOdir)/SlackUnitBlock.o: $(UCBckSRCdir)/SlackUnitBlock.cpp \
 	$(UCBckINCdir)/SlackUnitBlock.h $(UCBckINCdir)/UnitBlock.h \

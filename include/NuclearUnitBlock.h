@@ -440,19 +440,14 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
- /* extends ThermalUnitBlock::expected_dims()
-  * not necessary, no new dimensions
+ /// extends UnitBlock::expected_dims(), not overridden by ThermalUnitBlock
 
  std::vector< std::string > expected_dims( void ) const override;
- */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends ThermalUnitBlock::expected_vars()
 
  std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 /// generate the abstract variables of the NuclearUnitBlock
@@ -800,10 +795,10 @@ class NuclearUnitBlock : public ThermalUnitBlock
 /// generate the Objective of the NuclearUnitBlock
 /** The Objective is that of ThermalUnitBlock [see
  * ThermalUnitBlock::generate_objective()], plus the costs of the downward
- * modulation steps and of the deep decreases, scaled as all the others by
- * the scale factor \f$ \sigma \f$ of the unit:
+ * modulation steps and of the deep decreases, all of one copy of the unit
+ * as the others (see UnitBlock::replicate()):
  * \f[
- *   \sigma \sum_{ t \in \mathcal{T} } ( c^-_t d_t + c^{dd}_t \delta_t ) ,
+ *   \sum_{ t \in \mathcal{T} } ( c^-_t d_t + c^{dd}_t \delta_t ) ,
  *   \tag{33}
  * \f]
  * each of the two sums being there only if the corresponding cost is
@@ -812,7 +807,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
  * ThermalUnitBlock::objective_tail()], in this order. Their coefficients
  * are changed by set_down_modulation_costs() and set_deep_decrease_costs(),
  * or via the abstract representation, in which case the new linear
- * coefficients, divided by \f$ \sigma \f$, become the costs of the
+ * coefficients become the costs of the
  * physical representation [see objective_tail_change()]; a quadratic term
  * on these Variable is refused with std::invalid_argument. */
 
@@ -1167,10 +1162,30 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
 /*--------------------------------------------------------------------------*/
  /// changes the modulation ramp up at a subset of the instants
- /** Sets the modulation ramp up \f$ \Delta^{M+}_t \f$ at the instant
-  * subset[ i ] to std::next( values , i ), for i = 0, ..., subset.size() - 1;
-  * if \p ordered is false the instants are sorted together with their values,
-  * an instant given more than once taking its last value. Each new value has
+ /** Sets the modulation ramp up \f$ \Delta^{M+}_t \f$ at the instant subset[ i
+  * ] to values[ i ], for i = 0, ..., subset.size() - 1, \p values being at
+  * least as long as \p subset (std::invalid_argument is thrown if it is
+  * shorter); if \p ordered is false the instants are sorted together with
+  * their values, an instant given more than once taking its last value. Each
+  * new value has to be between 0 and DeltaRampUp at its instant, otherwise
+  * std::logic_error is thrown and nothing changes. If the Constraint are
+  * generated, every row is written anew from the changed data and those that
+  * differ change [see ThermalUnitBlock::update_rows()], i.e., (1) or (3) and,
+  * with TightRamp, (13); if this cannot be done in place, the data are
+  * restored and std::logic_error is thrown. A dry run of \p issuePMod changes
+  * nothing, one of \p issueAMod the data only. */
+
+ void set_modulation_ramp_up( MF_dbl_sp values ,
+			      Subset && subset , bool ordered = false ,
+			      ModParam issuePMod = eNoBlck ,
+			      ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// changes the modulation ramp up at the instants of a Range
+ /** Sets the modulation ramp up \f$ \Delta^{M+}_t \f$ at the instant rng.first
+  * + i to values[ i ], for i = 0, ..., std::min( rng.second ,
+  * get_time_horizon() ) - rng.first - 1, \p values being at least as long as
+  * that (std::invalid_argument is thrown if it is shorter). Each new value has
   * to be between 0 and DeltaRampUp at its instant, otherwise std::logic_error
   * is thrown and nothing changes. If the Constraint are generated, every row
   * is written anew from the changed data and those that differ change [see
@@ -1179,46 +1194,29 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * std::logic_error is thrown. A dry run of \p issuePMod changes nothing, one
   * of \p issueAMod the data only. */
 
- void set_modulation_ramp_up( MF_dbl_it values ,
-			      Subset && subset , bool ordered = false ,
-			      ModParam issuePMod = eNoBlck ,
-			      ModParam issueAMod = eNoBlck );
-
-/*--------------------------------------------------------------------------*/
- /// changes the modulation ramp up at the instants of a Range
- /** Sets the modulation ramp up \f$ \Delta^{M+}_t \f$ at the instant
-  * rng.first + i to std::next( values , i ), for i = 0, ...,
-  * std::min( rng.second , get_time_horizon() ) - rng.first - 1. Each new value
-  * has to be between 0 and DeltaRampUp at its instant, otherwise
-  * std::logic_error is thrown and nothing changes. If the Constraint are
-  * generated, every row is written anew from the changed data and those that
-  * differ change [see ThermalUnitBlock::update_rows()], i.e., (1) or (3)
-  * and, with TightRamp, (13); if this cannot be done in place, the data are
-  * restored and std::logic_error is thrown. A dry run of \p issuePMod changes
-  * nothing, one of \p issueAMod the data only. */
-
- void set_modulation_ramp_up( MF_dbl_it values , Range rng = INFRange ,
+ void set_modulation_ramp_up( MF_dbl_sp values , Range rng = INFRange ,
 			      ModParam issuePMod = eNoBlck ,
 			      ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// changes the modulation ramp down at a subset of the instants
- /** Sets the modulation ramp down \f$ \Delta^{M-}_t \f$ at the instant
-  * subset[ i ] to std::next( values , i ), for i = 0, ..., subset.size() - 1;
-  * if \p ordered is false the instants are sorted together with their values,
-  * an instant given more than once taking its last value. Each new value has
-  * to be between 0 and DeltaRampDown at its instant, otherwise
+ /** Sets the modulation ramp down \f$ \Delta^{M-}_t \f$ at the instant subset[
+  * i ] to values[ i ], for i = 0, ..., subset.size() - 1, \p values being at
+  * least as long as \p subset (std::invalid_argument is thrown if it is
+  * shorter); if \p ordered is false the instants are sorted together with
+  * their values, an instant given more than once taking its last value. Each
+  * new value has to be between 0 and DeltaRampDown at its instant, otherwise
   * std::logic_error is thrown and nothing changes. If the Constraint are
   * generated, every row is written anew from the changed data and those that
-  * differ change [see ThermalUnitBlock::update_rows()], i.e., (2) or (4)
-  * and, with TightRamp, (12); if this cannot be done in place, the data are
+  * differ change [see ThermalUnitBlock::update_rows()], i.e., (2) or (4) and,
+  * with TightRamp, (12); if this cannot be done in place, the data are
   * restored and std::logic_error is thrown. With TightRules the ramp also
   * decides at which instants the rows (32) exist (those where the
   * deep-decrease gradient is larger than it): a change that adds or removes
   * some of them is refused in the same way. A dry run of \p issuePMod changes
   * nothing, one of \p issueAMod the data only. */
 
- void set_modulation_ramp_down( MF_dbl_it values ,
+ void set_modulation_ramp_down( MF_dbl_sp values ,
 				Subset && subset , bool ordered = false ,
 				ModParam issuePMod = eNoBlck ,
 				ModParam issueAMod = eNoBlck );
@@ -1226,20 +1224,21 @@ class NuclearUnitBlock : public ThermalUnitBlock
 /*--------------------------------------------------------------------------*/
  /// changes the modulation ramp down at the instants of a Range
  /** Sets the modulation ramp down \f$ \Delta^{M-}_t \f$ at the instant
-  * rng.first + i to std::next( values , i ), for i = 0, ...,
-  * std::min( rng.second , get_time_horizon() ) - rng.first - 1. Each new value
-  * has to be between 0 and DeltaRampDown at its instant, otherwise
+  * rng.first + i to values[ i ], for i = 0, ..., std::min( rng.second ,
+  * get_time_horizon() ) - rng.first - 1, \p values being at least as long as
+  * that (std::invalid_argument is thrown if it is shorter). Each new value has
+  * to be between 0 and DeltaRampDown at its instant, otherwise
   * std::logic_error is thrown and nothing changes. If the Constraint are
   * generated, every row is written anew from the changed data and those that
-  * differ change [see ThermalUnitBlock::update_rows()], i.e., (2) or (4)
-  * and, with TightRamp, (12); if this cannot be done in place, the data are
+  * differ change [see ThermalUnitBlock::update_rows()], i.e., (2) or (4) and,
+  * with TightRamp, (12); if this cannot be done in place, the data are
   * restored and std::logic_error is thrown. With TightRules the ramp also
   * decides at which instants the rows (32) exist (those where the
   * deep-decrease gradient is larger than it): a change that adds or removes
   * some of them is refused in the same way. A dry run of \p issuePMod changes
   * nothing, one of \p issueAMod the data only. */
 
- void set_modulation_ramp_down( MF_dbl_it values , Range rng = INFRange ,
+ void set_modulation_ramp_down( MF_dbl_sp values , Range rng = INFRange ,
 				ModParam issuePMod = eNoBlck ,
 				ModParam issueAMod = eNoBlck );
 
@@ -1251,7 +1250,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * generate_objective()]: for a unit that pays nothing (DownModulationCost
   * absent or all 0) the call does nothing. */
 
- void set_down_modulation_costs( MF_dbl_it values ,
+ void set_down_modulation_costs( MF_dbl_sp values ,
                                  Subset && subset ,
                                  const bool ordered = false ,
                                  ModParam issuePMod = eNoBlck ,
@@ -1259,7 +1258,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_down_modulation_costs( MF_dbl_it values , Range rng = INFRange ,
+ void set_down_modulation_costs( MF_dbl_sp values , Range rng = INFRange ,
                                  ModParam issuePMod = eNoBlck ,
                                  ModParam issueAMod = eNoBlck );
 
@@ -1268,7 +1267,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /** Changes the cost the unit pays for a deep decrease at each instant of
   * \p rng, with the same proviso of set_down_modulation_costs(). */
 
- void set_deep_decrease_costs( MF_dbl_it values ,
+ void set_deep_decrease_costs( MF_dbl_sp values ,
                                Subset && subset ,
                                const bool ordered = false ,
                                ModParam issuePMod = eNoBlck ,
@@ -1276,7 +1275,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_deep_decrease_costs( MF_dbl_it values , Range rng = INFRange ,
+ void set_deep_decrease_costs( MF_dbl_sp values , Range rng = INFRange ,
                                ModParam issuePMod = eNoBlck ,
                                ModParam issueAMod = eNoBlck );
 
@@ -1406,10 +1405,6 @@ class NuclearUnitBlock : public ThermalUnitBlock
  void objective_tail_change( const DQuadFunction * qf , Index first ,
                              Index last ) override;
 
- /// makes the appended coefficients follow the scale factor
- void update_objective_tail( const Subset & subset ,
-                             c_ModParam issueAMod ) override;
-
 /*--------------------------------------------------------------------------*/
  /// changes one of the two costs of the operating rules
  /** The common guts of set_down_modulation_costs() and of
@@ -1418,7 +1413,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
   * (v_obj_tail.size() if the unit has no such term), and \p type the type of
   * the Modification to issue. */
 
- void guts_of_set_rule_costs( MF_dbl_it values , Range rng ,
+ void guts_of_set_rule_costs( MF_dbl_sp values , Range rng ,
                               std::vector< double > & cost , Index pos ,
                               int type , ModParam issuePMod ,
                               ModParam issueAMod );
@@ -1428,7 +1423,7 @@ class NuclearUnitBlock : public ThermalUnitBlock
  /** The Subset version of guts_of_set_rule_costs(), with the same
   * parameters. */
 
- void guts_of_set_rule_costs( MF_dbl_it values , Subset && subset ,
+ void guts_of_set_rule_costs( MF_dbl_sp values , Subset && subset ,
                               bool ordered , std::vector< double > & cost ,
                               Index pos , int type , ModParam issuePMod ,
                               ModParam issueAMod );
@@ -1654,37 +1649,47 @@ private:
 
  static void static_initialization( void )
  {
-  register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< NuclearUnitBlock , MF_dbl_sp , Subset && , bool >(
    "NuclearUnitBlock::set_modulation_ramp_up" ,
    & NuclearUnitBlock::set_modulation_ramp_up );
 
-  register_method< NuclearUnitBlock , MF_dbl_it , Range >(
+  register_method< NuclearUnitBlock , MF_dbl_sp , Range >(
    "NuclearUnitBlock::set_modulation_ramp_up" ,
    & NuclearUnitBlock::set_modulation_ramp_up );
 
-  register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< NuclearUnitBlock , MF_dbl_sp , Subset && , bool >(
    "NuclearUnitBlock::set_modulation_ramp_down" ,
    & NuclearUnitBlock::set_modulation_ramp_down );
 
-  register_method< NuclearUnitBlock , MF_dbl_it , Range >(
+  register_method< NuclearUnitBlock , MF_dbl_sp , Range >(
    "NuclearUnitBlock::set_modulation_ramp_down" ,
    & NuclearUnitBlock::set_modulation_ramp_down );
 
-  register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< NuclearUnitBlock , MF_dbl_sp , Subset && , bool >(
    "NuclearUnitBlock::set_down_modulation_costs" ,
    & NuclearUnitBlock::set_down_modulation_costs );
 
-  register_method< NuclearUnitBlock , MF_dbl_it , Range >(
+  register_method< NuclearUnitBlock , MF_dbl_sp , Range >(
    "NuclearUnitBlock::set_down_modulation_costs" ,
    & NuclearUnitBlock::set_down_modulation_costs );
 
-  register_method< NuclearUnitBlock , MF_dbl_it , Subset && , bool >(
+  register_method< NuclearUnitBlock , MF_dbl_sp , Subset && , bool >(
    "NuclearUnitBlock::set_deep_decrease_costs" ,
    & NuclearUnitBlock::set_deep_decrease_costs );
 
-  register_method< NuclearUnitBlock , MF_dbl_it , Range >(
+  register_method< NuclearUnitBlock , MF_dbl_sp , Range >(
    "NuclearUnitBlock::set_deep_decrease_costs" ,
    & NuclearUnitBlock::set_deep_decrease_costs );
+
+  // k identical copies of this unit, as for ThermalUnitBlock [see
+  // ThermalUnitBlock::static_initialization()], under a name of its own,
+  // since a consumer looks the name up by the exact class of the Block
+
+  // the braces stop g++ from deducing the types of the arguments from a
+  // member with one signature, which it fails to do [see register_method()]
+
+  register_method< NuclearUnitBlock , double >(
+   "NuclearUnitBlock::replicate" , { & NuclearUnitBlock::replicate } );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1734,9 +1739,31 @@ class NuclearUnitBlockMod : public ThermalUnitBlockMod {
    * types of NuclearUnitBlockMod. */
   };
 
+ /// what a Modification of the given type changes
+ /** What a Modification of the given type changes of the model [see
+  * Modification::ModConcern], which is what changes() says and what the
+  * methods that issue it ask before issuing it [see Observer::issue_pmod()].
+  * When it is not known for sure that a datum only enters the sides of the
+  * Constraint, its change is said to be one of the Constraint. */
+
+ static ModConcern changes_of( int type ) {
+  switch( type ) {
+   case( eSetModDP ):
+   case( eSetModDM ):
+    return( ePhysCns );
+   case( eSetModCost ):
+   case( eSetDeepCost ):
+    return( ePhysObj );
+   default:
+    return( ThermalUnitBlockMod::changes_of( type ) );
+   }
+  }
+
  /// Constructor, takes the NuclearUnitBlock and the type
  NuclearUnitBlockMod( NuclearUnitBlock * fblock , int type )
-  : ThermalUnitBlockMod( fblock , type ) {}
+  : ThermalUnitBlockMod( fblock , type ) {
+  set_changes( changes_of( type ) );
+  }
 
  ///< Destructor, does nothing
  virtual ~NuclearUnitBlockMod() override = default;
@@ -1890,7 +1917,7 @@ class NuclearUnitBlockSolution : public ThermalUnitBlockSolution
  ~NuclearUnitBlockSolution() override = default;
  ///< destructor: it is virtual, and empty
 
-/*----- METHODS DESCRIBING THE BEHAVIOR OF A NuclearUnitBlockSolution -----*/
+/*----- METHODS DESCRIBING THE BEHAVIOR OF A NuclearUnitBlockSolution ------*/
 
  void read( const Block * block ) override final;
 

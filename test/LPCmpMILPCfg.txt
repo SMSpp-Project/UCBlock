@@ -1,5 +1,5 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - - LPCmpMILPCfg.txt - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - LPCmpMILPCfg.txt  - - - - - - - - - - - - - - -
 #
 # ComputeConfig of the :MILPSolver of LPCmpBSCfg.txt and LPCmpBSCfg-nuc.txt,
 # the reference of the test of the power limits (test_power_limits.cpp):
@@ -11,7 +11,7 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-ComputeConfig         # exact type of the ComputeConfig object
+ComputeConfig # exact type of the ComputeConfig object
 
 1  # f_diff == 0 ==> all non-provided parameters are set to the default value
    # f_diff == 1 ==> all non-provided parameters are not changed
@@ -54,5 +54,5 @@ strOutputFile    lp_compare.lp # the model written at each compute()
 *  # [none]
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# - - - - - - - - - - - - - END LPCmpMILPCfg.txt - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - END LPCmpMILPCfg.txt  - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
