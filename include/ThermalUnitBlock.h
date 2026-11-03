@@ -264,6 +264,11 @@ class ThermalUnitBlock : public UnitBlock
  /// mask for the 5th bit of AR, == 1 if v_t and w_t are continuous
  static constexpr unsigned char ZWCont = 16;
 
+ /// bit of the formulation int that puts the reserves in the rows of the T
+ /// formulation; it is not kept in AR, and it is above the bits that the
+ /// derived classes read from the same int
+ static constexpr int TRes = 262144;
+
  /// the "three binaries" (3bin) formulation is used
  static constexpr unsigned char tbinForm = 0;
 
@@ -561,8 +566,12 @@ class ThermalUnitBlock : public UnitBlock
   * the bit 16 (ZWCont) declares the start-up and shut-down variables
   * continuous in \f$ [ 0 , 1 ] \f$ instead of binary, which does not change
   * the optimum (the rows force them to be integer when the commitment is)
-  * but may change the behavior of a Solver. The rows of each formulation
-  * are given in generate_abstract_constraints().
+  * but may change the behavior of a Solver; the bit 262144 (TRes), allowed
+  * only with the T formulation (an exception is thrown otherwise), puts
+  * the spinning reserves in the rows of the T formulation that bound the
+  * active power, which tightens the continuous relaxation and does not
+  * change the optimum. The rows of each formulation are given in
+  * generate_abstract_constraints().
   *
   * Let \f$ \tau_0 \f$, \f$ \tau^+ \f$ and \f$ \tau^- \f$ be InitUpDownTime,
   * MinUpTime and MinDownTime (see deserialize()). The first instant
@@ -1216,6 +1225,29 @@ class ThermalUnitBlock : public UnitBlock
   * that the plain band does not have. These rows use only \f$ u \f$, \f$ v
   * \f$, \f$ w \f$ and \f$ p^{ac} \f$, hence the reserve model is the same in
   * all the formulations, and it is the one the DP Solvers implement.
+  *
+  * <b>Reserves in the T formulation</b>, with TRes. The rows (12), (13),
+  * (19) and (22)-(25) of the T formulation are written on
+  * \f$ p^{ac}_t + r_t \f$ in place of \f$ p^{ac}_t \f$, except (19),
+  * which is written on \f$ p^{ac}_t - r_t \f$, i.e.,
+  * \f[
+  *   p^{ac}_t + r_t - p^{ac}_{t-1} \leq \ldots \; \text{(12)} \; , \quad
+  *   p^{ac}_{t-1} - p^{ac}_t + r_t \leq \ldots \; \text{(13)} \; , \quad
+  *   P^{mn}_t u_t \leq p^{ac}_t - r_t \; \text{(19)} \; , \quad
+  *   p^{ac}_t + r_t \leq \ldots \; \text{(22)-(25)} \; ,
+  * \f]
+  * with the same right-hand sides. These rows are valid for every integer
+  * point that satisfies (28)-(32): with \f$ p^{ac}_t + r_t \f$ in place of
+  * \f$ p^{ac}_t \f$, (12) is (31) when the unit is on at \f$ t - 1 \f$
+  * and \f$ t \f$ and the cap \f$ P^{su}_t \f$ of (30) at a start-up,
+  * (13) is (32) and, at a start-up, (29), and a unit started at
+  * \f$ t - s \f$ has \f$ p^{ac}_t + r_t \leq p^{ac}_{t-1} + \Delta^+_t
+  * \leq P^{su}_{t-s} + \sum_{ r = t - s + 1 }^{ t } \Delta^+_r \f$ by (31)
+  * and (24) at \f$ t - 1 \f$, which is what (24) and (25) say of
+  * \f$ p^{ac}_t + r_t \f$. The rows (26) are not changed: their terms in
+  * \f$ w_{t+1+s} \f$, \f$ s \geq 1 \f$, bound the output at \f$ t \f$
+  * by a shut-down that comes later, and nothing bounds \f$ r_t \f$ by the
+  * output after \f$ t \f$. The rows (28)-(32) are still written.
   *
   * <b>Perspective reformulation</b> ("Init_PC_Const_Thermal",
   * "Max_SUSD_PC_Const_Thermal", "Eq_PC_Const_Thermal"), with PCuts. For
@@ -2183,6 +2215,9 @@ class ThermalUnitBlock : public UnitBlock
  /// returns true iff the formulation uses perspective cuts (PCuts bit)
 
  bool has_perspective_cuts( void ) const { return( AR & PCuts ); }
+
+ /// returns true iff the reserves are in the rows of the T formulation
+ bool has_reserves_in_T( void ) const { return( f_res_in_T ); }
 
 /*--------------------------------------------------------------------------*/
  /// completes a schedule given by the commitment and the active power
@@ -3333,6 +3368,9 @@ class ThermalUnitBlock : public UnitBlock
 
  /// variable denoting the time-steps unit is subjected to initial conditions
  Index init_t{};
+
+ /// true if the reserves are in the rows of the T formulation (TRes)
+ bool f_res_in_T = false;
 
 
  /// "FixToMaximum": if positive, p_t >= the operational maximum power

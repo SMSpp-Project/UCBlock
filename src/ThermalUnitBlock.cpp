@@ -740,6 +740,15 @@ void ThermalUnitBlock::generate_abstract_variables( Configuration * stvv )
 
  bool f_cuts = wf & PCuts;
 
+ // the reserves in the rows of the T formulation, only with it
+ if( wf & TRes ) {
+  if( ( wf & FormMsk ) != TForm )
+   throw( std::invalid_argument( "ThermalUnitBlock::generate_abstract_"
+                                 "variables: TRes requires the T "
+                                 "formulation" ) );
+  f_res_in_T = true;
+  }
+
  // Prospective Cuts Variables- - - - - - - - - - - - - - - - - - - - - - - -
 
  if( f_cuts ) {
@@ -1018,6 +1027,18 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
   generate_ZOConstraints = false;
 
  LinearFunction::v_coeff_pair vars;
+
+ // with TRes, the reserve variables of t with coefficient c, appended to
+ // the row of the T formulation being written
+ auto add_res_T = [ & ]( Index t , double c ) {
+  if( ! f_res_in_T )
+   return;
+  if( ! v_primary_spinning_reserve.empty() )
+   vars.push_back( std::make_pair( &v_primary_spinning_reserve[ t ] , c ) );
+  if( ! v_secondary_spinning_reserve.empty() )
+   vars.push_back( std::make_pair( &v_secondary_spinning_reserve[ t ] ,
+                                   c ) );
+  };
 
  // commitment design binary variable constraints - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1582,6 +1603,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
     vars.push_back( std::make_pair( &v_commitment[ t ] ,
                                     -( v_DeltaRampUp[ t ] +
                                        get_operational_min_power( t ) ) ) );
+    add_res_T( t , 1.0 );
 
     put_row( RampUp_Const , t , std::move( vars ) , -Inf< double >() ,
              ( ( t == 0 ) && ( f_InitUpDownTime > 0 ) ) ?
@@ -1913,6 +1935,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
 
     vars.push_back( std::make_pair( &v_commitment[ t ] ,
                                     get_operational_min_power( t ) ) );
+    add_res_T( t , 1.0 );
 
     put_row( RampDown_Const , t , std::move( vars ) , -Inf< double >() ,
              ( ( t == 0 ) && ( f_InitUpDownTime > 0 ) ) ?
@@ -2201,8 +2224,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
    vars.push_back( std::make_pair( &v_commitment[ t ] ,
                                    -get_operational_min_power( t ) ) );
    vars.push_back( std::make_pair( &v_active_power[ t ] , 1.0 ) );
-
-
+   add_res_T( t , -1.0 );
 
    put_row( MinPower_Const , t , std::move( vars ) , 0.0 , Inf< double >() );
   }
@@ -2466,6 +2488,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
     vars.push_back( std::make_pair( &v_shut_down[ 0 ] , sd_cap( t ) -
                                     get_operational_max_power( t ) ) );
 
+   add_res_T( t , -1.0 );
    put_row( MaxPower_Const , cnstr_idx , std::move( vars ) ,
             0.0 , Inf< double >() );
   }
@@ -2491,6 +2514,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
                                          sd_cap( t ) ) ) );
     }
 
+    add_res_T( t , -1.0 );
     put_row( MaxPower_Const , cnstr_idx , std::move( vars ) ,
              0.0 , Inf< double >() );
    }
@@ -2523,6 +2547,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
       }
     }
 
+    add_res_T( t , -1.0 );
     put_row( MaxPower_Const , cnstr_idx , std::move( vars ) ,
              0.0 , Inf< double >() );
    }
@@ -2550,6 +2575,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
       }
     }
 
+    add_res_T( t , -1.0 );
     put_row( MaxPower_Const , cnstr_idx , std::move( vars ) ,
              0.0 , Inf< double >() );
    }
@@ -2589,6 +2615,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
                          ramp_up_sum( t - s + 1 , t ) ) ) );
     }
 
+    add_res_T( t , -1.0 );
     put_row( MaxPower_Const , cnstr_idx , std::move( vars ) ,
              0.0 , Inf< double >() );
    }
@@ -2616,6 +2643,7 @@ void ThermalUnitBlock::build_rows( bool generate_ZOConstraints )
                           ramp_up_sum( t - s + 1 , t ) ) ) );
      }
 
+     add_res_T( t , -1.0 );
      put_dyn_row( MaxPower5_Const , { int( t ) } , std::move( vars ) ,
                   0.0 , Inf< double >() );
     }

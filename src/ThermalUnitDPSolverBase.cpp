@@ -515,6 +515,11 @@ void ThermalUnitDPSolverBase::add_pwq( PQFun & F , const PQFun & G )
     gb = G[ gi ].beta;
     gc = G[ gi ].gamma;
     }
+   else  // the piece of G that ends at p, skipped above, still covers it
+    if( ( gi > 0 ) && ( G[ gi - 1 ].right >= p - tol ) ) {
+     gb = G[ gi - 1 ].beta;
+     gc = G[ gi - 1 ].gamma;
+     }
    out.push_back( { fp.alfa , fp.beta + gb , fp.gamma + gc ,
                     fp.left , fp.right } );
    continue;

@@ -5752,6 +5752,7 @@ static void test_intermittent_design_reserve( void )
 
 static std::string milp_solver( bool quadratic = false );
 static double milp_value( Block * b , const std::string & sname );
+static double relaxation_value( ThermalUnitBlock * tub );
 
 /*--------------------------------------------------------------------------*/
 /* A design variable whose two bounds are 1 is fixed to 1, i.e., the asset
@@ -8757,9 +8758,12 @@ static TUData reserve_TU( int i )
  * the same value to the :MILPSolver in the seven formulations and to the
  * dynamic programming Solvers, whose schedule satisfies the rows; a unit
  * that shuts down at 0 leaves the row slack; the rows at 0 follow a
- * change of InitialPower; and a NuclearUnitBlock with reserves gives the
- * same value to the :MILPSolver and to NuclearUnitExtDPSolver when its
- * primary reserve is rewarded. */
+ * change of InitialPower; with the reserves in the rows of the T
+ * formulation (TRes, with and without PCuts) the random instances have the
+ * same optimum as with the T formulation, and a continuous relaxation that
+ * is not weaker; and a NuclearUnitBlock with reserves gives the same value
+ * to the :MILPSolver and to NuclearUnitExtDPSolver when its primary reserve
+ * is rewarded. */
 
 static void test_thermal_reserve_t0( void )
 {
@@ -8882,6 +8886,51 @@ static void test_thermal_reserve_t0( void )
    }
   }
 
+ // the reserves in the rows of the T formulation: the same optimum, a
+ // relaxation not weaker - - - - - - - - - - - - - - - - - - - - - - - - - -
+ for( int i = 1 ; i <= 60 ; ++i ) {
+  const auto d = reserve_TU( i );
+  auto ref = make( d , ThermalUnitBlock::TForm );
+  const auto vr = milp_value( ref , sname );
+  const auto lr = relaxation_value( ref );
+  delete ref;
+  for( int wf : { ThermalUnitBlock::TForm + ThermalUnitBlock::TRes ,
+                  ThermalUnitBlock::TForm + ThermalUnitBlock::PCuts +
+                  ThermalUnitBlock::TRes } ) {
+   auto tub = make( d , wf );
+   const auto what = "reserves in the T rows, random " + std::to_string( i ) +
+                     ", wf " + std::to_string( wf ) + " (" + describe( d ) +
+                     ")";
+   check( tub->has_reserves_in_T() , what + ": TRes not set" );
+   const auto v = milp_value( tub , sname );
+   check( close( v , vr ) , what + ": " + sname + " gives " + str( v ) +
+          " instead of " + str( vr ) );
+   if( wf == ThermalUnitBlock::TForm + ThermalUnitBlock::TRes ) {
+    const auto l = relaxation_value( tub );
+    if( ( ! std::isnan( l ) ) && ( ! std::isnan( lr ) ) )
+     check( l >= lr - 1e-6 * std::max( 1.0 , std::abs( lr ) ) ,
+            what + ": relaxation " + str( l ) + " below " + str( lr ) +
+            " of the T formulation" );
+    }
+   check_all_DP_wf( tub , vr , what , ThermalUnitBlock::TForm );
+   delete tub;
+   }
+  }
+
+ // TRes with another formulation is rejected- - - - - - - - - - - - - - - -
+ {
+  bool thrown = false;
+  auto tub = new_TU( reserve_TU( 1 ) );
+  tub->set_reserve_vars( 3 );
+  try {
+   generate_all_wf( tub , ThermalUnitBlock::tbinForm +
+                          ThermalUnitBlock::TRes );
+   }
+  catch( std::invalid_argument & ) { thrown = true; }
+  delete tub;
+  check( thrown , "TRes with the 3bin formulation: no exception" );
+  }
+
  // a NuclearUnitBlock with reserves, on before the horizon - - - - - - - - -
  for( int i = 0 ; i < 10 ; ++i ) {
   auto d = reserve_TU( i + 1 );
@@ -8918,8 +8967,13 @@ static void test_thermal_reserve_t0( void )
  * (ordering swapped), with the primary reserve alone (rho^pr = 0.51 at 1, cost
  * -2.2: 7 - 19.95 - 2.2 * 12.5 = -40.45), and for a NuclearUnitBlock with
  * the modulation window of the ramps and a narrower one (-50.395, the move
- * being 0.5); then random instances whose rewarded reserves are often
- * above one half of the output, against the :MILPSolver. */
+ * being 0.5); a unit on before the horizon that shuts down at 1 with its
+ * output at 0 on the shut-down limit, which is the lowest output that the
+ * window of the ramp-down allows from InitialPower (the shut-down cap then
+ * leaves no reserve at 0, a nuclear unit with the narrower window of the
+ * modulation, -100.5, and a thermal unit with the same ramp-down); then
+ * random instances whose rewarded reserves are often above one half of the
+ * output, against the :MILPSolver. */
 
 static void test_thermal_DP_two_rewarded_reserves( void )
 {
@@ -9002,6 +9056,40 @@ static void test_thermal_DP_two_rewarded_reserves( void )
   run( d , -50.395 , "two rewarded reserves, nuclear" , wf );
   d.mrd = 6;
   run( d , -50.395 , "two rewarded reserves, nuclear, window 6" , wf );
+  }
+
+ // on at 49 before the horizon, shut down at 1 with p_0 = 45, the shut-down
+ // limit and the lowest output the ramp-down window allows from 49
+ {
+  TUData d;
+  d.T = 4;
+  d.minP = 10;
+  d.maxP = 53;
+  d.ru = 12;
+  d.rd = 8;
+  d.su = 10;
+  d.sd = 45;
+  d.initP = 49;
+  d.initUD = 3;
+  d.minDown = 2;
+  d.lin = { -2.3 , 1.3 , 0.4 , 0.7 };
+  d.cnst = { 3 , 5 , 3 , 1 };
+  d.suc = { 15 , 18 , 2 , 20 };
+  d.prho = { 0.31 , 0.59 , 0.23 , 0.59 };
+  d.srho = { 0.31 , 0.28 , 0.05 , 0.27 };
+  d.prc = { -1.8 , -0.5 , -1.7 , -2.5 };
+  d.src = { -1.6 , -2 , -0.8 , -2.8 };
+  d.nuclear = true;
+  d.modT = 2;
+  d.initMod = 2;
+  d.mru = 12;
+  d.mrd = 4;
+  run( d , -100.5 , "two rewarded reserves, nuclear, shut-down cap at the "
+       "edge of the window" , int( ThermalUnitBlock::TForm ) );
+  d.nuclear = false;
+  d.rd = 4;
+  run( d , std::nan( "" ) , "two rewarded reserves, shut-down cap at the "
+       "edge of the window" , int( ThermalUnitBlock::TForm ) );
   }
 
  if( sname.empty() ) {

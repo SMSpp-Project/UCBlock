@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the bit `ThermalUnitBlock::TRes` (262144) of the formulation, only with
+  the T formulation, puts the spinning reserves in the rows of the T
+  formulation that bound the active power (the ramps, the minimum power
+  and the maximum power rows (22)-(25)), which tightens the continuous
+  relaxation with the same optimum; `has_reserves_in_T()` tells whether it
+  is on
+
 - `"BatteryUnitBlock::has_resize_feasibility_cut"` in the methods factory,
   a getter writing 1 if, after a solve that ended infeasible, the getters
   of the derivatives with respect to the sizes give the coefficients of the
@@ -548,6 +555,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer in the row of that instant with more than one node
 
 ### Fixed
+
+- the dynamic programming Solvers added nothing of a piecewise function to
+  a point at the right end of its domain, so that the shut-down cap of the
+  reserves was lost when the output at the last instant before a shut-down
+  could only be that cap, as from InitialPower with the window of the
+  modulation of a NuclearUnitBlock: NuclearUnitExtDPSolver then counted a
+  reserve that the unit cannot hold
 
 - the Subset version of `DesignNetworkBlock::set_network_cost()` sorted an
   unordered Subset without the values, which then went to the wrong lines,
