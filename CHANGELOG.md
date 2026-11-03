@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `NuclearUnitBlock` has seven more formulations of its operating rules,
+  selected by bits 8-10 of the int `Configuration` that selects the
+  formulation of the thermal part (`NuclearRules::FormMsk`): the one by the
+  indicators of the states of the modulations (F0), the
+  modulation-commitment one with the exact move of the output (F2) and its
+  variant with the ends projected out (F3a), the one by the runs of the
+  modulations (F4), and the flows on the label graph of the dynamic program
+  without (F5) and with (F6) the counters of the day and with the output
+  restricted to a finite set (F7); for F0, F2, F3a and F4 the bits
+  `StartUpStabSingle`, `DeepByF1Rows` and `ReachRows` select the stability
+  after a start-up by single instants, the deep decreases by the rows of the
+  default formulation and the rows of the reach of the output from a
+  start-up and towards a shut-down; every formulation is written on top of
+  any formulation of `ThermalUnitBlock` and is kept up to date by its
+  setters, or refuses the change
+
+- `NuclearUnitBlock` has three more bits of the formulation of its operating
+  rules: `RunReach`, the caps of the output of every run of the pt, DP, SU,
+  SD and SUSD formulations of the thermal part by what the rules let it
+  reach from the start-up of the run and towards its shut-down, with any
+  formulation of the rules; `RunRules`, the rows of F2 written once more on
+  the private outputs of the DP (each run), SU (the runs of each start-up),
+  SD (the runs of each shut-down) and SUSD (both) formulations; and
+  `BandPersp`, the perspective cuts of the quadratic cost written on the
+  bands of the output, with the Perspective Cuts
+
+- the formulation F3b of the operating rules of `NuclearUnitBlock`, the bit
+  `BandConfig` of its formulation together with F2: the bands of the output
+  by the binary configurations of the mode of each instant (stable, upward
+  or downward step) and of the band of its output, and by the changes of
+  band at the last steps, at the start-ups and at the shut-downs, which are
+  continuous and integer at every integer point, in place of the rows that
+  keep and move the band (`NUBCfg-T-F3b.txt` in the unit test)
+
+- with F2, F3a and F3b the bit `TightCuts` of `NuclearUnitBlock` alone
+  separates the rows of the stability and of the longest modulation rather
+  than writing them, as lazy constraints, since they describe the schedules
+  (`NUBCfg-T-F2-WC.txt` and `LPCmpBSCfg-nuc-cuts.txt` in the unit test)
+
+- the unit test checks Theorem F8 on the small random units, the relaxation
+  of F2 with the copies on the runs of the DP formulation being the minimum
+  over all the commitments of that of F2 at a fixed commitment, measures the
+  perspective cuts on the bands against the Perspective Cuts separated until
+  none is violated (`LPRelaxBSCfg-cuts.txt`), and with `NUMIP_STATS` prints
+  how often the relaxations differ and how much of the gap they close
+
+- `NuclearRules.h`: the codes of the formulations of the operating rules,
+  their data, the labels of the states and the moves out of them, which
+  `NuclearUnitExtDPSolver` and the flows on the label graph share
+
+- the unit test checks every formulation of the operating rules against
+  `NuclearUnitExtDPSolver` (the edge cases of the rules and random data),
+  the chain of their continuous relaxations, the convex hull of the move of
+  F2 and the setters after the generation (`NUBCfg-T-F*.txt`,
+  `NUBCfg-T-TR-TM.txt`), also with the bits `RunReach`, `RunRules` and
+  `BandPersp` on the network formulations of the thermal part
+  (`NUBCfg-<base>-F2*.txt`, `NUBCfg-pt-RC.txt`, `NUBCfg-T-PC-F2*.txt`)
+
+### Changed
+
+- the caps of the runs of `NuclearUnitBlock` (bit RunReach) carry every
+  maximum power met along a run to its other instants, by the largest
+  increase that the rules allow from an on-state with any label and by the
+  largest decrease towards the instant, as the caps (27) of
+  `ThermalUnitBlock` do with the full ramps
+
+- `NuclearUnitExtDPSolver` takes the labels of its states and the moves out
+  of them from `NuclearRules` (the same values and schedules as before); the
+  bands and the deep decreases of `NuclearUnitBlock` are written by
+  `build_band_rows()` and `build_deep_rows_f1()`, which the formulations of
+  the rules share
+
 ## [0.11.0] - 2026-11-03
 
 ### Added
@@ -215,64 +289,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of a `NuclearUnitBlock`, with and without bands, against
   `NuclearUnitExtDPSolver`
 
-- `NuclearUnitBlock` has seven more formulations of its operating rules,
-  selected by bits 8-10 of the int `Configuration` that selects the
-  formulation of the thermal part (`NuclearRules::FormMsk`): the one by the
-  indicators of the states of the modulations (F0), the
-  modulation-commitment one with the exact move of the output (F2) and its
-  variant with the ends projected out (F3a), the one by the runs of the
-  modulations (F4), and the flows on the label graph of the dynamic program
-  without (F5) and with (F6) the counters of the day and with the output
-  restricted to a finite set (F7); for F0, F2, F3a and F4 the bits
-  `StartUpStabSingle`, `DeepByF1Rows` and `ReachRows` select the stability
-  after a start-up by single instants, the deep decreases by the rows of the
-  default formulation and the rows of the reach of the output from a
-  start-up and towards a shut-down; every formulation is written on top of
-  any formulation of `ThermalUnitBlock` and is kept up to date by its
-  setters, or refuses the change
-
-- `NuclearUnitBlock` has three more bits of the formulation of its operating
-  rules: `RunReach`, the caps of the output of every run of the pt, DP, SU,
-  SD and SUSD formulations of the thermal part by what the rules let it
-  reach from the start-up of the run and towards its shut-down, with any
-  formulation of the rules; `RunRules`, the rows of F2 written once more on
-  the private outputs of the DP (each run), SU (the runs of each start-up),
-  SD (the runs of each shut-down) and SUSD (both) formulations; and
-  `BandPersp`, the perspective cuts of the quadratic cost written on the
-  bands of the output, with the Perspective Cuts
-
-- the formulation F3b of the operating rules of `NuclearUnitBlock`, the bit
-  `BandConfig` of its formulation together with F2: the bands of the output
-  by the binary configurations of the mode of each instant (stable, upward
-  or downward step) and of the band of its output, and by the changes of
-  band at the last steps, at the start-ups and at the shut-downs, which are
-  continuous and integer at every integer point, in place of the rows that
-  keep and move the band (`NUBCfg-T-F3b.txt` in the unit test)
-
-- with F2, F3a and F3b the bit `TightCuts` of `NuclearUnitBlock` alone
-  separates the rows of the stability and of the longest modulation rather
-  than writing them, as lazy constraints, since they describe the schedules
-  (`NUBCfg-T-F2-WC.txt` and `LPCmpBSCfg-nuc-cuts.txt` in the unit test)
-
-- the unit test checks Theorem F8 on the small random units, the relaxation
-  of F2 with the copies on the runs of the DP formulation being the minimum
-  over all the commitments of that of F2 at a fixed commitment, measures the
-  perspective cuts on the bands against the Perspective Cuts separated until
-  none is violated (`LPRelaxBSCfg-cuts.txt`), and with `NUMIP_STATS` prints
-  how often the relaxations differ and how much of the gap they close
-
-- `NuclearRules.h`: the codes of the formulations of the operating rules,
-  their data, the labels of the states and the moves out of them, which
-  `NuclearUnitExtDPSolver` and the flows on the label graph share
-
-- the unit test checks every formulation of the operating rules against
-  `NuclearUnitExtDPSolver` (the edge cases of the rules and random data),
-  the chain of their continuous relaxations, the convex hull of the move of
-  F2 and the setters after the generation (`NUBCfg-T-F*.txt`,
-  `NUBCfg-T-TR-TM.txt`), also with the bits `RunReach`, `RunRules` and
-  `BandPersp` on the network formulations of the thermal part
-  (`NUBCfg-<base>-F2*.txt`, `NUBCfg-pt-RC.txt`, `NUBCfg-T-PC-F2*.txt`)
-
 - the unit test checks that a `compute()` of `NuclearUnitExtDPSolver` that
   throws leaves the Solver usable, its value after a change of
   `InitialPower` against a fresh unit, the rows that forbid a modulation
@@ -413,17 +429,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- the caps of the runs of `NuclearUnitBlock` (bit RunReach) carry every
-  maximum power met along a run to its other instants, by the largest
-  increase that the rules allow from an on-state with any label and by the
-  largest decrease towards the instant, as the caps (27) of
-  `ThermalUnitBlock` do with the full ramps
-
-- `NuclearUnitExtDPSolver` takes the labels of its states and the moves out
-  of them from `NuclearRules` (the same values and schedules as before); the
-  bands and the deep decreases of `NuclearUnitBlock` are written by
-  `build_band_rows()` and `build_deep_rows_f1()`, which the formulations of
-  the rules share
 - every setter of the data of the module takes them as a `MF_dbl_sp`
   (`MF_int_sp` for `set_init_updown_time()`), and is registered in the
   methods factory only in that form: the Range and Subset versions throw
