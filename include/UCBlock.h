@@ -3331,8 +3331,10 @@ class UCBlockSolution : public Solution {
   *
   * - The groups "UnitBlock_0", "UnitBlock_1", ..., "UnitBlock_n" with n ==
   *   NumberUnits - 1, containing each the UnitBlockSolution corresponding
-  *   to that electrical generator. If NumberUnits is present, it is an error
-  *   if the corresponding groups are not there.
+  *   to that electrical generator, or the group "UnitBlock" in which they
+  *   are stacked [see write_stacked() in SMSnetCDF.h], one stack per type
+  *   of unit, which is what serialize() writes. If NumberUnits is present,
+  *   it is an error if neither is there.
   *
   * - The dimension "NumberNetworks" containing the number of networks
   *   (NetworkBlock) in the problem; the dimension is optional, if it is
@@ -3348,7 +3350,11 @@ class UCBlockSolution : public Solution {
   *     of time instants t. This is the most flexible case, as it allows to
   *     have different types of :NetworkBlock for each t. However, since T
   *     may be large, this may create performance problems since netCDF does
-  *     not like to have many groups.
+  *     not like to have many groups. Hence, when all the NetworkBlockSolution
+  *     are there, serialize() writes them stacked in the group
+  *     "NetworkBlock" [see write_stacked() in SMSnetCDF.h], one stack per
+  *     type of :NetworkBlock, which stacked_size() tells apart from the
+  *     compressed format below.
   *
   *   - The single group "NetworkBlock" that contains all the data of all the
   *     NetworkBlockSolution corresponding to all the time instants t in

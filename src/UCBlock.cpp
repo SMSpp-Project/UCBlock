@@ -3678,6 +3678,72 @@ void UCBlock::get_resize_line_linearization( MF_dbl_msp msp , Range rng )
 /*--------------------- METHODS OF UCBlockSolution -------------------------*/
 /*--------------------------------------------------------------------------*/
 
+// the NetworkBlockSolution sols, one per time instant, in the standard
+// format: stacked in the group "NetworkBlock" if all of them are there,
+// otherwise in the groups "NetworkBlock_t"
+
+static void serialize_networks( netCDF::NcGroup & group ,
+				const std::vector< NetworkBlockSolution * > &
+				sols )
+{
+ std::vector< Index > which;
+ std::vector< std::string > names;
+ for( Index t = 0 ; t < sols.size() ; ++t )
+  if( sols[ t ] ) {
+   which.push_back( t );
+   names.push_back( "NetworkBlock_" + std::to_string( t ) );
+   }
+ auto write = [ & ]( std::size_t k , netCDF::NcGroup & g ) {
+  sols[ which[ k ] ]->serialize( g ); };
+ if( which.size() == sols.size() )
+  write_stacked( group , "NetworkBlock" , names , write );
+ else
+  write_via_memory( group , names , write );
+ }
+
+/*--------------------------------------------------------------------------*/
+// the Solution in the group g as a NetworkBlockSolution, what naming it in
+// the exception thrown if it is not one
+
+static NetworkBlockSolution * network_solution( const netCDF::NcGroup & g ,
+						const std::string & what )
+{
+ auto Si = Solution::new_Solution( g );
+ auto NSi = dynamic_cast< NetworkBlockSolution * >( Si );
+ if( ! NSi ) {
+  delete Si;
+  throw( std::invalid_argument( "UCBlockSolution::deserialize: " + what +
+				" not a valid NetworkBlockSolution" ) );
+  }
+ return( NSi );
+ }
+
+/*--------------------------------------------------------------------------*/
+// read in sols the NetworkBlockSolution in the group "NetworkBlock" of a
+// group, stacked or compressed, where says where it is in the exceptions
+
+static void deserialize_networks( const netCDF::NcGroup & nb ,
+				  std::vector< NetworkBlockSolution * > & sols ,
+				  const std::string & where )
+{
+ if( ! stacked_size( nb ) ) {  // compressed format
+  NetworkBlockSolution::deserialize( nb , sols );
+  return;
+  }
+ if( stacked_size( nb ) != sols.size() )
+  throw( std::invalid_argument( "UCBlockSolution::deserialize: " + where +
+				"NetworkBlock stacks " +
+				std::to_string( stacked_size( nb ) ) +
+				" Solution instead of " +
+				std::to_string( sols.size() ) ) );
+ for( Index t = 0 ; t < sols.size() ; ++t )
+  read_stacked( nb , t , [ & ]( const netCDF::NcGroup & g ) {
+   sols[ t ] = network_solution( g , where + "NetworkBlock_" +
+				 std::to_string( t ) ); } );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
 {
  // "TimeHorizon" is mandatory- - - - - - - - - - - - - - - - - - - - - - - -
@@ -3694,17 +3760,34 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
  // deserialize the UnitBlockSolution - - - - - - - - - - - - - - - - - - - -
  Index number_units = 0;
  if( deserialize_dim( group , "NumberUnits" , number_units ) ) {
-  v_unit_Solution.resize( number_units );
-  for( Index i = 0 ; i < number_units ; ++i ) {
-   std::string sub_group_name = "UnitBlock_" + std::to_string( i );
-   auto USi = dynamic_cast< UnitBlockSolution * >(
-		       Solution::new_Solution( sub_group( sub_group_name ) ) );
-   if( ! USi )
+  v_unit_Solution.assign( number_units , nullptr );
+  auto unit = [ & ]( Index i , const netCDF::NcGroup & g ) {
+   auto Si = Solution::new_Solution( g );
+   auto USi = dynamic_cast< UnitBlockSolution * >( Si );
+   if( ! USi ) {
+    delete Si;
     throw( std::invalid_argument( "UCBlockSolution::deserialize: UnitBlock_"
 				  + std::to_string( i ) +
 				  " not a valid UnitBlockSolution" ) );
+    }
    v_unit_Solution[ i ] = USi;
+   };
+
+  // stacked [see write_stacked()] or one group per unit
+  if( auto stack = sub_group( "UnitBlock" ) ; ! stack.isNull() ) {
+   if( stacked_size( stack ) != number_units )
+    throw( std::invalid_argument( "UCBlockSolution::deserialize: UnitBlock "
+				  "stacks " +
+				  std::to_string( stacked_size( stack ) ) +
+				  " Solution instead of " +
+				  std::to_string( number_units ) ) );
+   for( Index i = 0 ; i < number_units ; ++i )
+    read_stacked( stack , i , [ & ]( const netCDF::NcGroup & g ) {
+     unit( i , g ); } );
    }
+  else
+   for( Index i = 0 ; i < number_units ; ++i )
+    unit( i , sub_group( "UnitBlock_" + std::to_string( i ) ) );
   }
 
  // deserialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - -
@@ -3713,12 +3796,14 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
  if( number_networks ) {
   v_network_Solution.resize( number_networks );
 
-  // differently handle the standard format from the compressed one
+  // differently handle the standard format, stacked or in one group per
+  // network, from the compressed one
   auto nb_group = sub_group( "NetworkBlock" );
-  f_compressed_network = ! nb_group.isNull();
-  if( f_compressed_network )  // compressed format
-   NetworkBlockSolution::deserialize( nb_group , v_network_Solution );
-  else  // standard format
+  f_compressed_network = ( ! nb_group.isNull() ) &&
+                         ( ! stacked_size( nb_group ) );
+  if( ! nb_group.isNull() )
+   deserialize_networks( nb_group , v_network_Solution , "" );
+  else
    for( Index i = 0 ; i < number_networks ; ++i ) {
     std::string sub_group_name = "NetworkBlock_" + std::to_string( i );
     auto NBi = sub_group( sub_group_name );
@@ -3726,15 +3811,7 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
      v_network_Solution[ i ] = nullptr;
      continue;
      }
-    auto Si = Solution::new_Solution( NBi );
-    auto NSi = dynamic_cast< NetworkBlockSolution * >( Si );
-    if( ! NSi ) {
-     delete Si;
-     throw( std::invalid_argument( "UCBlockSolution::deserialize: " +
-				   sub_group_name +
-				   " not a valid NetworkBlockSolution" ) );
-     }
-    v_network_Solution[ i ] = NSi;
+    v_network_Solution[ i ] = network_solution( NBi , sub_group_name );
     }
   }
 
@@ -3800,24 +3877,16 @@ void UCBlockSolution::deserialize( const netCDF::NcGroup & group )
     auto & cns = v_carrier_network_Solution[ c ];
     cns.resize( cnw , nullptr );
     const auto cg_groups = cg.getGroups();
+    const auto where = "Carrier_" + std::to_string( c ) + "/";
     auto it = cg_groups.find( "NetworkBlock" );
-    if( it != cg_groups.end() )  // compressed format
-     NetworkBlockSolution::deserialize( it->second , cns );
+    if( it != cg_groups.end() )  // compressed or stacked format
+     deserialize_networks( it->second , cns , where );
     else
      for( Index t = 0 ; t < cnw ; ++t ) {
       auto jt = cg_groups.find( "NetworkBlock_" + std::to_string( t ) );
-      if( jt == cg_groups.end() )
-       continue;
-      auto Si = Solution::new_Solution( jt->second );
-      auto NSi = dynamic_cast< NetworkBlockSolution * >( Si );
-      if( ! NSi ) {
-       delete Si;
-       throw( std::invalid_argument( "UCBlockSolution::deserialize: "
-				     "Carrier_" + std::to_string( c ) +
-				     "/NetworkBlock_" + std::to_string( t ) +
-				     " not a valid NetworkBlockSolution" ) );
-       }
-      cns[ t ] = NSi;
+      if( jt != cg_groups.end() )
+       cns[ t ] = network_solution( jt->second , where + "NetworkBlock_" +
+				    std::to_string( t ) );
       }
     }
 
@@ -4102,9 +4171,9 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
   std::vector< std::string > names( v_unit_Solution.size() );
   for( Index i = 0 ; i < names.size() ; ++i )
    names[ i ] = "UnitBlock_" + std::to_string( i );
-  write_via_memory( group , names ,
-		    [ & ]( std::size_t i , netCDF::NcGroup & g ) {
-		     v_unit_Solution[ i ]->serialize( g ); } );
+  write_stacked( group , "UnitBlock" , names ,
+		 [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+		  v_unit_Solution[ i ]->serialize( g ); } );
   }
 
  // serialize the NetworkBlockSolution- - - - - - - - - - - - - - - - - - - -
@@ -4115,18 +4184,8 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
    auto sub_group = group.addGroup( "NetworkBlock" );
    NetworkBlockSolution::serialize( sub_group , v_network_Solution );
    }
-  else {  // standard format
-   std::vector< Index > which;
-   std::vector< std::string > names;
-   for( Index i = 0 ; i < v_network_Solution.size() ; ++i )
-    if( v_network_Solution[ i ] ) {
-     which.push_back( i );
-     names.push_back( "NetworkBlock_" + std::to_string( i ) );
-     }
-   write_via_memory( group , names ,
-		     [ & ]( std::size_t k , netCDF::NcGroup & g ) {
-		      v_network_Solution[ which[ k ] ]->serialize( g ); } );
-   }
+  else  // standard format
+   serialize_networks( group , v_network_Solution );
   }
 
  // serialize the ActivePowerDuals- - - - - - - - - - - - - - - - - - - - - -
@@ -4189,11 +4248,7 @@ void UCBlockSolution::serialize( netCDF::NcGroup & group ) const
      NetworkBlockSolution::serialize( sub_group , cns );
      }
     else
-     for( Index t = 0 ; t < cns.size() ; ++t )
-      if( cns[ t ] ) {
-       auto sub_group = cg.addGroup( "NetworkBlock_" + std::to_string( t ) );
-       cns[ t ]->serialize( sub_group );
-       }
+     serialize_networks( cg , cns );
     }
 
    if( ( c < v_carrier_duals.size() ) && ( ! v_carrier_duals[ c ].empty() ) ) {

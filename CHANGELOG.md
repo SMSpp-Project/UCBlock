@@ -554,6 +554,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commitment Variable whose fixed consumption is 0 at an instant is no
   longer in the row of that instant with more than one node
 
+- `UCBlockSolution::serialize()` writes the solutions of the units stacked
+  in the group `UnitBlock`, one stack per type of unit, and those of the
+  networks in the standard format stacked in the group `NetworkBlock` when
+  all of them are there [see `write_stacked()` of SMS++], which
+  `deserialize()` tells apart from the compressed format; the groups
+  `UnitBlock_i` and `NetworkBlock_t` are still read
+
 ### Fixed
 
 - the dynamic programming Solvers added nothing of a piecewise function to
