@@ -17,7 +17,7 @@
  * up and down times that the initial state or the end of the horizon cuts,
  * the ramps with the limits of the start-up and of the shut-down, the
  * commitment fixed ON or OFF in some instants (infeasibility included), the
- * scale factor, and the operating rules of a nuclear unit that modulates.
+ * number of copies, and the operating rules of a nuclear unit that modulates.
  *
  * Then every UnitBlock and NetworkBlock of the module, and a UCBlock with
  * no unit or with one unit of each kind on two nodes, is written in a
@@ -29,7 +29,7 @@
  * Finally the setters of the data of a ThermalUnitBlock and of a UCBlock
  * are called with a FakeSolver attached, which has to receive the
  * physical Modification, while the abstract representation has to follow
- * the change, the scale factor included; the DP Solver attached to the
+ * the change, the number of copies included; the DP Solver attached to the
  * unit has to follow it, too.
  *
  * The linking rows of a UCBlock are checked on two nodes: the zones of the
@@ -144,6 +144,24 @@ static std::mt19937 rg( 20260926 );  // fixed seed
 
 static const std::vector< std::string > THERMAL_DP = {
  "ThermalUnitDPSolver" , "ThermalUnitExtDPSolver" };
+
+/*--------------------------------------------------------------------------*/
+/// a FakeSolver that takes the weights of the units
+/** The FakeSolver of the core handles no weight, so that the refusal of a
+ * change can be checked with it; the units of these tests are replicated
+ * with it attached, and it only records the Modification. */
+
+class WeightFakeSolver : public FakeSolver {
+ public:
+
+ [[nodiscard]] bool handles_weight_change( void ) const override {
+  return( true );
+  }
+
+ [[nodiscard]] bool handles_variable_weight( void ) const override {
+  return( true );
+  }
+ };
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
@@ -268,7 +286,7 @@ struct TUData {
  std::vector< double > cnst;  // constant term
  std::vector< double > suc;   // start-up cost
  std::vector< double > sdc;   // shut-down cost
- double scale = 1;            // scale factor
+ double scale = 1;            // number of copies
  std::vector< double > prho;  // PrimaryRho
  std::vector< double > srho;  // SecondaryRho
  std::vector< double > prc;   // PrimarySpinningReserveCost
@@ -466,7 +484,7 @@ static double brute_force( const TUData & d , const std::vector< int > & fix )
    best = std::min( best , v );
   }
 
- return( best * d.scale );
+ return( best );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -605,7 +623,7 @@ static void test_DP_one_instant( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/// ramps binding a quadratic cost, and the scale factor
+/// ramps binding a quadratic cost, and the copies of the unit
 
 static void test_DP_ramps( void )
 {
@@ -622,14 +640,16 @@ static void test_DP_ramps( void )
  check_all_DP( tub , -59 , "ramps" );
  delete tub;
 
+ // the DP solves one copy, whatever the number of copies, which is the
+ // weight that a Solver of a Block holding the unit applies
  d.scale = 3;
  tub = new_TU( d );
- check_all_DP( tub , -177 , "ramps, scale 3" );
+ check_all_DP( tub , -59 , "ramps, 3 copies" );
  delete tub;
 
  d.scale = 0;
  tub = new_TU( d );
- check_all_DP( tub , 0 , "ramps, scale 0" );
+ check_all_DP( tub , -59 , "ramps, 0 copies" );
  delete tub;
  }
 
@@ -1776,7 +1796,8 @@ static void test_net_reference( void )
 
  std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
    Block::new_Block( write_net( "DCNetworkBlock" , 2 ,
-				{ { 0 , 1 , 10 , -B , B } } , { 0 , 0 } ) ) ) );
+                                { { 0 , 1 , 10 , -B , B } } ,
+                                { 0 , 0 } ) ) ) );
  auto nd = static_cast< DCNetworkBlock::DCNetworkData * >(
 					       nb->get_NetworkData() );
  auto ptdf = nd->get_PTDF( nd->get_DC_lines() );
@@ -1800,7 +1821,8 @@ static void test_net_ptdf( void )
   std::unique_ptr< DCNetworkBlock > nb( new_net(
 	   write_net( "DCNetworkBlock" , 3 ,
 		      { { 0 , 1 , 1 , -B , B } , { 1 , 2 , 1 , -B , B } ,
-			{ 0 , 2 , -0.5 , -B , B } } , { 0 , 0 , 100 } ) , 0 ) );
+                        { 0 , 2 , -0.5 , -B , B } } ,
+                      { 0 , 0 , 100 } ) , 0 ) );
   }
  catch( std::logic_error & ) { thrown = true; }
  catch( std::exception & ) {}
@@ -1885,7 +1907,7 @@ static void test_net_demand_change( void )
 	      write_net( "DCNetworkBlock" , 2 , { { 0 , 1 , 0 , -B , B } } ,
 			 { 0 , 100 } ) , wf ) );
    std::vector< double > d = { 50 };
-   nb->set_active_demand( d.cbegin() , Subset( { 1 } ) , true );
+   nb->set_active_demand( Block::MF_dbl_sp( d ) , Subset( { 1 } ) , true );
    set_net_point( nb.get() , { 50 , 0 } , { 50 } );
    check( nb->is_feasible() , what + ": the new demand is not met" );
    set_net_point( nb.get() , { 100 , 0 } , { 100 } );
@@ -1902,7 +1924,7 @@ static void test_net_demand_change( void )
 			 { { 0 , 1 , 10 , -B , B } , { 0 , 2 , 0 , -B , B } } ,
 			 { 0 , 100 , 0 } ) , wf ) );
    std::vector< double > d = { 10 };
-   nb->set_active_demand( d.cbegin() , Range( 2 , 3 ) );
+   nb->set_active_demand( Block::MF_dbl_sp( d ) , Range( 2 , 3 ) );
    set_net_point( nb.get() , { 110 , 0 , 0 } , { 100 , 10 } ,
 		  { 0 , -10 , 0 } );
    check( nb->is_feasible() , what + ": the new demand is not met" );
@@ -1946,7 +1968,7 @@ static void test_net_demand_change( void )
   ab->generate_abstract_variables();
   ab->generate_abstract_constraints();
   std::vector< double > d = { 7 };
-  ab->set_active_demand( d.cbegin() , Subset( { 1 } ) , true );
+  ab->set_active_demand( Block::MF_dbl_sp( d ) , Subset( { 1 } ) , true );
   auto rows = ab->get_static_constraint_v< FRowConstraint >(
 						   "AC_power_flow_injection" );
   check( rows && ( rows->size() == 6 ) &&
@@ -2059,7 +2081,7 @@ static void test_net_ac_optional_data( void )
   bool refused = false;
   try {
    std::unique_ptr< ACNetworkBlock > ab( dynamic_cast< ACNetworkBlock * >(
-				  Block::new_Block( write_AC_line( { n } ) ) ) );
+                       Block::new_Block( write_AC_line( { n } ) ) ) );
    ab->generate_abstract_variables();
    try {
     ab->generate_abstract_constraints();
@@ -2235,14 +2257,14 @@ static void test_net_negative_cost( void )
   return( false );
   };
  std::vector< double > val = { -1 };
- check( throws( [ & ]() { nb->set_network_cost( val.cbegin() ,
+ check( throws( [ & ]() { nb->set_network_cost( Block::MF_dbl_sp( val ) ,
 						Range( 1 , 2 ) ); } ) ,
 	"network cost: set_network_cost( range ) accepts -1" );
- check( throws( [ & ]() { nb->set_network_cost( val.cbegin() ,
+ check( throws( [ & ]() { nb->set_network_cost( Block::MF_dbl_sp( val ) ,
 						Subset( { 1 } ) ); } ) ,
 	"network cost: set_network_cost( subset ) accepts -1" );
  val = { 4 };
- check( ! throws( [ & ]() { nb->set_network_cost( val.cbegin() ,
+ check( ! throws( [ & ]() { nb->set_network_cost( Block::MF_dbl_sp( val ) ,
 						  Range( 1 , 2 ) ); } ) ,
 	"network cost: set_network_cost( range ) refuses 4" );
  delete nb;
@@ -2339,7 +2361,7 @@ static void test_net_no_lines( void )
     check( ! nb->is_feasible() , what + ": an injection with no demand" );
 
     std::vector< double > d = { 5 };
-    nb->set_active_demand( d.cbegin() , Subset( { 1 } ) , true );
+    nb->set_active_demand( Block::MF_dbl_sp( d ) , Subset( { 1 } ) , true );
     set_net_point( nb.get() , { 10 , 5 , 0 } , { } );
     check( nb->is_feasible() , what + ": the new demand is not met" );
     set_net_point( nb.get() , { 10 , 20 , 0 } , { } );
@@ -2818,10 +2840,9 @@ static double quad_coef( ThermalUnitBlock * tub , const ColVariable * v )
 /*--------------------------------------------------------------------------*/
 /* The cost setters of a ThermalUnitBlock, both in the Range and in the
  * Subset form: the FakeSolver receives the physical Modification, the data
- * change, and so does the Objective, which carries the scale factor times
- * the cost. An unchanged value issues nothing, eNoMod changes without
- * issuing and eDryRun does not change. The DP Solver attached to the unit
- * follows every change. */
+ * change, and so does the Objective, which carries the cost of one copy. An
+ * unchanged value issues nothing, eNoMod changes without issuing and eDryRun
+ * does not change. The DP Solver attached to the unit follows every change. */
 
 static void test_setters_thermal( double scale )
 {
@@ -2839,7 +2860,7 @@ static void test_setters_thermal( double scale )
  auto tub = new_TU( d );
  generate_all( tub );
 
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  tub->register_Solver( fs );
  auto dp = Solver::new_Solver( "ThermalUnitExtDPSolver" );
  tub->register_Solver( dp );
@@ -2861,39 +2882,40 @@ static void test_setters_thermal( double scale )
 
  // linear term, Range
  std::vector< double > val = { 3 , 4 };
- tub->set_linear_term( val.begin() , Range( 1 , 3 ) );
+ tub->set_linear_term( Block::MF_dbl_sp( val ) , Range( 1 , 3 ) );
  d.lin = { -10 , 3 , 4 };
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetLinT ) == 1 ,
 	what + ": set_linear_term( Range ) issues no eSetLinT" );
  check( tub->get_linear_term( 2 ) == 4 ,
 	what + ": set_linear_term( Range ) does not change the data" );
- check( close( lin_coef( tub , & p[ 1 ] ) , scale * 3 ) &&
-	close( lin_coef( tub , & p[ 2 ] ) , scale * 4 ) ,
+ check( close( lin_coef( tub , & p[ 1 ] ) , 3 ) &&
+	close( lin_coef( tub , & p[ 2 ] ) , 4 ) ,
 	what + ": set_linear_term( Range ) puts " +
 	str( lin_coef( tub , & p[ 2 ] ) ) + " in the Objective, not " +
-	str( scale * 4 ) );
+	str( 4 ) );
  resolve( "linear term changed" );
  fs->get_Modification_list().clear();
 
  // the same values again: nothing
- tub->set_linear_term( val.begin() , Range( 1 , 3 ) );
+ tub->set_linear_term( Block::MF_dbl_sp( val ) , Range( 1 , 3 ) );
  check( fs->get_Modification_list().empty() ,
 	what + ": an unchanged linear term issues a Modification" );
 
  // linear term, Subset
  val = { -7 };
- tub->set_linear_term( val.begin() , Subset( { 0 } ) );
+ tub->set_linear_term( Block::MF_dbl_sp( val ) , Subset( { 0 } ) );
  d.lin[ 0 ] = -7;
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetLinT ) == 1 ,
 	what + ": set_linear_term( Subset ) issues no eSetLinT" );
- check( close( lin_coef( tub , & p[ 0 ] ) , scale * -7 ) ,
+ check( close( lin_coef( tub , & p[ 0 ] ) , -7 ) ,
 	what + ": set_linear_term( Subset ) puts " +
 	str( lin_coef( tub , & p[ 0 ] ) ) + " in the Objective" );
  resolve( "linear term changed by Subset" );
  fs->get_Modification_list().clear();
 
  val = { -8 };
- tub->set_linear_term( val.begin() , Range( 0 , 1 ) , eNoMod , eNoMod );
+ tub->set_linear_term( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) , eNoMod ,
+                       eNoMod );
  // eNoMod: the data and the Objective change, and the Objective issues no
  // Modification
  {
@@ -2906,16 +2928,17 @@ static void test_setters_thermal( double scale )
   }
  check( tub->get_linear_term( 0 ) == -8 ,
 	what + ": eNoMod does not change the data" );
- check( close( lin_coef( tub , & p[ 0 ] ) , scale * -8 ) ,
+ check( close( lin_coef( tub , & p[ 0 ] ) , -8 ) ,
 	what + ": eNoMod does not change the Objective" );
  d.lin[ 0 ] = -8;
 
  // eDryRun: nothing changes
  val = { -9 };
- tub->set_linear_term( val.begin() , Range( 0 , 1 ) , eDryRun , eDryRun );
+ tub->set_linear_term( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) , eDryRun ,
+                       eDryRun );
  check( tub->get_linear_term( 0 ) == -8 ,
 	what + ": eDryRun changes the data" );
- check( close( lin_coef( tub , & p[ 0 ] ) , scale * -8 ) ,
+ check( close( lin_coef( tub , & p[ 0 ] ) , -8 ) ,
 	what + ": eDryRun changes the Objective" );
  // the DP was not told of the eNoMod change: it is reloaded
  tub->unregister_Solver( dp , true );
@@ -2926,11 +2949,11 @@ static void test_setters_thermal( double scale )
 
  // constant term
  val = { 5 , 6 };
- tub->set_const_term( val.begin() , Range( 0 , 2 ) );
+ tub->set_const_term( Block::MF_dbl_sp( val ) , Range( 0 , 2 ) );
  d.cnst = { 5 , 6 , 1 };
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetConstT ) == 1 ,
 	what + ": set_const_term issues no eSetConstT" );
- check( close( lin_coef( tub , & u[ 1 ] ) , scale * 6 ) ,
+ check( close( lin_coef( tub , & u[ 1 ] ) , 6 ) ,
 	what + ": set_const_term puts " + str( lin_coef( tub , & u[ 1 ] ) ) +
 	" in the Objective" );
  resolve( "constant term changed" );
@@ -2938,11 +2961,11 @@ static void test_setters_thermal( double scale )
 
  // start-up cost; the unit is off since long, so every v_t is there
  val = { 9 };
- tub->set_startup_costs( val.begin() , Subset( { 2 } ) );
+ tub->set_startup_costs( Block::MF_dbl_sp( val ) , Subset( { 2 } ) );
  d.suc = { 2 , 2 , 9 };
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetSUC ) == 1 ,
 	what + ": set_startup_costs issues no eSetSUC" );
- check( v && close( lin_coef( tub , & v[ 2 ] ) , scale * 9 ) ,
+ check( v && close( lin_coef( tub , & v[ 2 ] ) , 9 ) ,
 	what + ": set_startup_costs puts " +
 	( v ? str( lin_coef( tub , & v[ 2 ] ) ) : "nothing" ) +
 	" in the Objective" );
@@ -2951,11 +2974,11 @@ static void test_setters_thermal( double scale )
 
  // shut-down cost
  val = { 3 , 3 , 3 };
- tub->set_shutdown_costs( val.begin() , Range( 0 , 3 ) );
+ tub->set_shutdown_costs( Block::MF_dbl_sp( val ) , Range( 0 , 3 ) );
  d.sdc = { 3 , 3 , 3 };
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetSDC ) == 1 ,
 	what + ": set_shutdown_costs issues no eSetSDC" );
- check( w && close( lin_coef( tub , & w[ 1 ] ) , scale * 3 ) ,
+ check( w && close( lin_coef( tub , & w[ 1 ] ) , 3 ) ,
 	what + ": set_shutdown_costs puts " +
 	( w ? str( lin_coef( tub , & w[ 1 ] ) ) : "nothing" ) +
 	" in the Objective" );
@@ -2964,32 +2987,37 @@ static void test_setters_thermal( double scale )
 
  // quadratic term: the linear coefficient of p_t stays
  val = { 0.5 };
- tub->set_quad_term( val.begin() , Range( 1 , 2 ) );
+ tub->set_quad_term( Block::MF_dbl_sp( val ) , Range( 1 , 2 ) );
  check( count_TUB_mods( fs , ThermalUnitBlockMod::eSetQuadT ) == 1 ,
 	what + ": set_quad_term issues no eSetQuadT" );
- check( close( quad_coef( tub , & p[ 1 ] ) , scale * 0.5 ) ,
+ check( close( quad_coef( tub , & p[ 1 ] ) , 0.5 ) ,
 	what + ": set_quad_term puts " + str( quad_coef( tub , & p[ 1 ] ) ) +
 	" in the Objective" );
- check( close( lin_coef( tub , & p[ 1 ] ) , scale * 3 ) ,
+ check( close( lin_coef( tub , & p[ 1 ] ) , 3 ) ,
 	what + ": set_quad_term changes the linear coefficient to " +
 	str( lin_coef( tub , & p[ 1 ] ) ) );
  val = { 0 };  // back, so that the brute force stays exact
- tub->set_quad_term( val.begin() , Range( 1 , 2 ) );
+ tub->set_quad_term( Block::MF_dbl_sp( val ) , Range( 1 , 2 ) );
  resolve( "quadratic term changed back" );
  fs->get_Modification_list().clear();
 
- // the scale factor itself
- val = { 2 * scale + 1 };
- tub->scale( val.begin() , Subset( { 0 } ) );
- check( count_TUB_mods( fs , UnitBlockMod::eScale ) == 1 ,
-	what + ": scale() issues no eScale" );
- check( tub->get_scale() == 2 * scale + 1 ,
-	what + ": scale() does not change the scale factor" );
- check( close( lin_coef( tub , & p[ 2 ] ) , ( 2 * scale + 1 ) * 4 ) ,
-	what + ": scale() puts " + str( lin_coef( tub , & p[ 2 ] ) ) +
+ // the copies themselves: the weights of the unit, while its Objective
+ // keeps the cost of one copy
+ tub->replicate( 2 * scale + 1 , eModBlck );
+ int nw = 0;
+ for( const auto & m : received( fs ) )
+  if( std::dynamic_pointer_cast< const BlockWeightMod >( m ) )
+   ++nw;
+ check( nw == 1 , what + ": replicate() issues " + std::to_string( nw ) +
+	" BlockWeightMod" );
+ check( ( tub->get_scale() == 2 * scale + 1 ) &&
+	( tub->get_objective_weight() == 2 * scale + 1 ) ,
+	what + ": replicate() does not change the weights" );
+ check( close( lin_coef( tub , & p[ 2 ] ) , 4 ) ,
+	what + ": replicate() puts " + str( lin_coef( tub , & p[ 2 ] ) ) +
 	" in the Objective" );
  d.scale = 2 * scale + 1;
- resolve( "scale changed" );
+ resolve( "copies changed" );
 
  tub->unregister_Solver( dp , true );
  tub->unregister_Solver( fs , true );
@@ -3019,12 +3047,12 @@ static void test_setters_UCBlock( void )
   return;
   }
  generate_all( b );
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  b->register_Solver( fs );
  fs->get_Modification_list().clear();
 
  std::vector< double > val = { 7 };
- b->set_active_power_demand( val.begin() , Range( 1 , 2 ) );
+ b->set_active_power_demand( Block::MF_dbl_sp( val ) , Range( 1 , 2 ) );
  int n = 0;
  for( const auto & m : received( fs ) )
   if( auto um = std::dynamic_pointer_cast< const UCBlockMod >( m ) )
@@ -3044,6 +3072,120 @@ static void test_setters_UCBlock( void )
  delete b;
  }
 
+
+/*--------------------------------------------------------------------------*/
+/* What each physical Modification of the module says it changes [see
+ * Modification::changes()], for every type of every class, against what
+ * the change does to the model, written down here: the costs are the
+ * Objective, in either direction; the demands, the inflows, the budgets and
+ * the rows of the operating region are sides of the Constraint; the
+ * powers, the initial conditions, the availability and the kappa are in
+ * the coefficients too, and the initial up/down times also fix Variable;
+ * fixing Variable changes their data; each in either direction. The
+ * Modification are built here, so that those which no setter test issues
+ * are checked as well. */
+
+static void test_mod_changes( void )
+{
+ using M = Modification;
+ const auto obj = M::eModPhys | M::eModObj | M::eObjUp | M::eObjDown;
+ const auto sides = M::eModPhys | M::eModCnsSide | M::eRegnShrink |
+                    M::eRegnGrow;
+ const auto cns = sides | M::eModCnsCoef;
+ const auto vars = M::eModPhys | M::eModVarData | M::eRegnShrink |
+                   M::eRegnGrow;
+ const auto any = M::eModPhys | M::eEffAny;
+
+ const auto one = [ & ]( const Modification & mod , M::ModConcern c ,
+			 const std::string & what ) {
+  check( mod.changes() == c , "Modification changes, " + what +
+	 ": it says " + std::to_string( mod.changes() ) + " instead of " +
+	 std::to_string( c ) );
+  };
+
+ using TM = ThermalUnitBlockMod;
+ for( int t : { TM::eSetMaxP , TM::eSetInitP , TM::eSetAv } )
+  one( TM( nullptr , t ) , cns , "ThermalUnitBlock " + std::to_string( t ) );
+ one( TM( nullptr , TM::eSetInitUD ) , cns | vars ,
+      "ThermalUnitBlock eSetInitUD" );
+ for( int t : { TM::eSetSUC , TM::eSetSDC , TM::eSetLinT , TM::eSetQuadT ,
+                TM::eSetConstT , TM::eSetPrSpResCost , TM::eSetSecSpResCost ,
+                TM::eSetReactiveLinT , TM::eSetInvCost } )
+  one( TM( nullptr , t ) , obj , "ThermalUnitBlock " + std::to_string( t ) );
+ one( TM( nullptr , TM::eFixVars ) , vars , "ThermalUnitBlock eFixVars" );
+
+ using NM = NuclearUnitBlockMod;
+ for( int t : { NM::eSetModDP , NM::eSetModDM } )
+  one( NM( nullptr , t ) , cns , "NuclearUnitBlock " + std::to_string( t ) );
+ for( int t : { NM::eSetModCost , NM::eSetDeepCost } )
+  one( NM( nullptr , t ) , obj , "NuclearUnitBlock " + std::to_string( t ) );
+ one( NM( nullptr , TM::eSetMaxP ) , cns ,
+      "NuclearUnitBlock, a type of ThermalUnitBlock" );
+
+ using HM = HydroUnitBlockMod;
+ one( HM( nullptr , HM::eSetInf ) , sides , "HydroUnitBlock eSetInf" );
+ for( int t : { HM::eSetInerP , HM::eSetInitF , HM::eSetInitV } )
+  one( HM( nullptr , t ) , cns , "HydroUnitBlock " + std::to_string( t ) );
+ one( HM( nullptr , HM::eSetActPCost ) , obj ,
+      "HydroUnitBlock eSetActPCost" );
+
+ using BM = BatteryUnitBlockMod;
+ for( int t : { BM::eSetInitS , BM::eSetInitP , BM::eSetKappa ,
+                BM::eSetConvKappa } )
+  one( BM( nullptr , t ) , cns , "BatteryUnitBlock " + std::to_string( t ) );
+ one( BM( nullptr , BM::eSetCost ) , obj , "BatteryUnitBlock eSetCost" );
+
+ using IM = IntermittentUnitBlockMod;
+ for( int t : { IM::eSetMaxP , IM::eSetKappa } )
+  one( IM( nullptr , t ) , cns ,
+       "IntermittentUnitBlock " + std::to_string( t ) );
+ one( IM( nullptr , IM::eSetActPCost ) , obj ,
+      "IntermittentUnitBlock eSetActPCost" );
+
+ using SM = SlackUnitBlockMod;
+ one( SM( nullptr , SM::eSetActPCost ) , obj ,
+      "SlackUnitBlock eSetActPCost" );
+
+ using CM = ConversionUnitBlockMod;
+ for( int t : { CM::eSetLinT , CM::eSetQuadT , CM::eSetPrCost ,
+                CM::eSetScCost , CM::eSetConstT , CM::eSetSUC , CM::eSetSDC ,
+                CM::eSetInvCost } )
+  one( CM( nullptr , t , 0 , Block::Subset() ) , obj ,
+       "ConversionUnitBlock " + std::to_string( t ) );
+ for( int t : { CM::eSetMaxP , CM::eSetMinP , CM::eSetRampUp ,
+                CM::eSetRampDown , CM::eSetInitP , CM::eSetInitDelP } )
+  one( CM( nullptr , t , 0 , Block::Subset() ) , cns ,
+       "ConversionUnitBlock " + std::to_string( t ) );
+ one( CM( nullptr , CM::eSetInitUD , 0 , Block::Subset() ) , cns | vars ,
+      "ConversionUnitBlock eSetInitUD" );
+ for( int t : { CM::eSetOpRHS , CM::eSetOpLHS } )
+  one( CM( nullptr , t , 0 , Block::Subset() ) , sides ,
+       "ConversionUnitBlock " + std::to_string( t ) );
+
+ using NetM = NetworkBlockMod;
+ one( NetM( nullptr , NetM::eSetActD ) , sides , "NetworkBlock eSetActD" );
+
+ using DM = DCNetworkBlockMod;
+ one( DM( nullptr , DM::eSetKappa ) , cns , "DCNetworkBlock eSetKappa" );
+ one( DM( nullptr , DM::eSetNetCost ) , obj , "DCNetworkBlock eSetNetCost" );
+ one( DM( nullptr , NetM::eSetActD ) , sides ,
+      "DCNetworkBlock, a type of NetworkBlock" );
+
+ using EM = ECNetworkBlockMod;
+ for( int t : { EM::eSetBuyP , EM::eSetSellP , EM::eSetPeakT ,
+                EM::eSetConstT , EM::eSetPenaltyP } )
+  one( EM( nullptr , t ) , obj , "ECNetworkBlock " + std::to_string( t ) );
+ one( EM( nullptr , NetM::eSetActD ) , sides ,
+      "ECNetworkBlock, a type of NetworkBlock" );
+
+ using UM = UCBlockMod;
+ for( int t : { UM::eSetActD , UM::eSetPolB , UM::eSetPolMinB ,
+                UM::eSetEnD } )
+  one( UM( nullptr , t ) , sides , "UCBlock " + std::to_string( t ) );
+
+ // a type that the class does not know says it may change anything
+ one( UnitBlockMod( nullptr , 0 ) , any , "UnitBlock" );
+ }
 /*--------------------------------------------------------------------------*/
 /* A Solver with one answer whatever the Block: kOK, with a solution of value
  * f_value and the lower bound f_lb, as a solve stopped at a feasible solution
@@ -3066,6 +3208,9 @@ class BoundSolver : public Solver {
  bool has_var_solution( void ) override { return( true ); }
 
  void get_var_solution( Configuration * solc = nullptr ) override {}
+
+ // it solves nothing, hence whatever weight a sub-Block has is no matter
+ bool handles_variable_weight( void ) const override { return( true ); }
 
  static double f_value;  ///< the value of the solution found
 
@@ -3227,7 +3372,7 @@ static void test_zero_copy_no_modification( void )
  const auto rows = static_rows( b );
  const auto cost = objective();
 
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  b->register_Solver( fs );
  fs->get_Modification_list().clear();
  BoundSolver::f_value = 5;
@@ -3520,13 +3665,13 @@ static void test_hydro_initial_volume( void )
   }
  generate_all( b );
  std::vector< double > val = { 3 };
- b->set_initial_volume( val.begin() , Range( 0 , 1 ) );
+ b->set_initial_volume( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
  check( hydro_point( b , { { 0 , 0 } } , { { 0 , 0 } } , { { 3 , 3 } } ) ,
 	"hydro initial volume: the change to 3 is not in the balance" );
  bool thrown = false;
  try {
   val = { -1 };
-  b->set_initial_volume( val.begin() , Range( 0 , 1 ) );
+  b->set_initial_volume( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
   }
  catch( std::invalid_argument & ) {
   thrown = true;
@@ -3562,7 +3707,7 @@ static void test_hydro_cyclic( void )
 
  // set_inflow( range ) at instant 0: the row is v_0 - v_2 + f_0 = 12
  std::vector< double > val = { 12 };
- b->set_inflow( val.begin() , Range( 0 , 1 ) );
+ b->set_inflow( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
  check( hydro_point( b , { { 6 , 6 , 6 } } , { { 6 , 6 , 6 } } ,
 		     { { 6 , 3 , 0 } } ) ,
 	"hydro cyclic, set_inflow( range ): the initial volume is in the "
@@ -3570,7 +3715,7 @@ static void test_hydro_cyclic( void )
 
  // set_inflow( subset ) at instant 0: back to 9
  val = { 9 };
- b->set_inflow( val.begin() , Subset( { 0 } ) , true );
+ b->set_inflow( Block::MF_dbl_sp( val ) , Subset( { 0 } ) , true );
  check( hydro_point( b , { { 5 , 5 , 5 } } , { { 5 , 5 , 5 } } ,
 		     { { 4 , 2 , 0 } } ) ,
 	"hydro cyclic, set_inflow( subset ): the initial volume is in the "
@@ -3578,13 +3723,13 @@ static void test_hydro_cyclic( void )
 
  // a new negative initial volume keeps the closure: nothing moves
  val = { -7 };
- b->set_initial_volume( val.begin() , Range( 0 , 1 ) );
+ b->set_initial_volume( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
  check( hydro_point( b , { { 5 , 5 , 5 } } , { { 5 , 5 , 5 } } ,
 		     { { 4 , 2 , 0 } } ) ,
 	"hydro cyclic, set_initial_volume( range ): the initial volume is in "
 	"the balance of instant 0" );
  val = { -3 };
- b->set_initial_volume( val.begin() , Subset( { 0 } ) , true );
+ b->set_initial_volume( Block::MF_dbl_sp( val ) , Subset( { 0 } ) , true );
  check( hydro_point( b , { { 5 , 5 , 5 } } , { { 5 , 5 , 5 } } ,
 		     { { 4 , 2 , 0 } } ) ,
 	"hydro cyclic, set_initial_volume( subset ): the initial volume is "
@@ -3912,17 +4057,36 @@ static void test_hydro_inertia( void )
    delete b;
    continue;
    }
-  auto fs = new FakeSolver();
+  auto fs = new WeightFakeSolver();
   b->register_Solver( fs );
   const auto p = hub->get_active_power( 0 , 0 );
   check( close( inertia_coef( b , p ) , 1 ) ,
 	 what + ": coefficient " + str( inertia_coef( b , p ) ) +
 	 " instead of 1" );
   std::vector< double > val = { 2 };
-  hub->set_inertia_power( val.begin() , Range( 0 , 1 ) );
+  hub->set_inertia_power( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
   check( close( inertia_coef( b , p ) , 2 ) ,
 	 what + ": coefficient " + str( inertia_coef( b , p ) ) +
 	 " after set_inertia_power( 2 )" );
+
+  // the copies of the HydroUnitBlock, also inside the HydroSystemUnitBlock,
+  // which reach the UCBlock through the unit that holds it, and multiply
+  // those of the unit; the rows keep the coefficients of one copy
+  try {
+   hub->set_weight( 3 );
+   if( sys )
+    b->get_unit_block( 0 )->set_weight( 2 );
+   const double copies = sys ? 6 : 3;
+   check( close( b->get_unit_block( 0 )->get_copies( 0 ) , copies ) ,
+	  what + ": " + str( b->get_unit_block( 0 )->get_copies( 0 ) ) +
+	  " copies of the generator instead of " + str( copies ) );
+   check( close( inertia_coef( b , p ) , 2 ) ,
+	  what + ": coefficient " + str( inertia_coef( b , p ) ) +
+	  " after the copies" );
+   }
+  catch( std::exception & e ) {
+   check( false , what + ": the copies throw " + e.what() );
+   }
   b->unregister_Solver( fs , true );
   delete b;
   }
@@ -3934,13 +4098,13 @@ static void test_hydro_inertia( void )
   return;
   }
  generate_all( b );
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  b->register_Solver( fs );
  bool thrown = false;
  try {
   std::vector< double > val = { 2 };
   static_cast< HydroUnitBlock * >( b->get_unit_block( 0 ) )->
-   set_inertia_power( val.begin() , Range( 0 , 1 ) );
+   set_inertia_power( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
   }
  catch( std::logic_error & ) {
   thrown = true;
@@ -4049,7 +4213,7 @@ static void test_hydro_system_solution( void )
  put( pg , "PolyFunction_b" , nr , { 500 , 300 } );
 
  std::unique_ptr< HydroSystemUnitBlock > b(
-		 dynamic_cast< HydroSystemUnitBlock * >( Block::new_Block( g ) ) );
+       dynamic_cast< HydroSystemUnitBlock * >( Block::new_Block( g ) ) );
  if( ! b ) {
   check( false , "hydro system Solution: not read" );
   return;
@@ -4059,7 +4223,7 @@ static void test_hydro_system_solution( void )
  // value of the future cost [see PFBCfg.txt]
  const auto pfb = b->get_polyhedral_function_block();
  std::unique_ptr< BlockConfig > bc(
-		   dynamic_cast< BlockConfig * >( read_test_cfg( "PFBCfg.txt" ) ) );
+       dynamic_cast< BlockConfig * >( read_test_cfg( "PFBCfg.txt" ) ) );
  if( ! bc ) {
   check( false , "hydro system Solution: PFBCfg.txt not read" );
   return;
@@ -4080,7 +4244,8 @@ static void test_hydro_system_solution( void )
  collect( b.get() );
 
  check( std::any_of( vars.begin() , vars.end() ,
-		     [ pfb ]( const auto & p ) { return( p.second == pfb ); } ) ,
+                     [ pfb ]( const auto & p ) {
+                      return( p.second == pfb ); } ) ,
 	"hydro system Solution: the PolyhedralFunctionBlock has no Variable" );
 
  for( Index i = 0 ; i < vars.size() ; ++i )
@@ -5042,7 +5207,7 @@ static void test_battery_resize_as_setters( void )
  * one scalar and for a pair, and in none with a Range or a Subset; so are
  * the getters reading the derivatives back. Called by name, they do what the
  * methods of the class do: an IntermittentUnitBlock resized to 2 has kappa
- * 2, a ThermalUnitBlock replicated to 3 has scale 3. */
+ * 2, a ThermalUnitBlock replicated to 3 has 3 copies. */
 
 static netCDF::NcGroup write_UC_two_nodes( Index T ,
                                            const std::vector< double > &
@@ -5059,9 +5224,9 @@ static void test_unit_sizing_names( void )
 				  "BatteryUnitBlock::resize" } ) {
   check( Block::get_method_fs< double >( name ) != nullptr ,
 	 name + ": not registered with one scalar" );
-  check( ( ! Block::get_method_fs< Block::MF_dbl_it , Block::Range >(
+  check( ( ! Block::get_method_fs< Block::MF_dbl_sp , Block::Range >(
 								  name ) ) &&
-	 ( ! Block::get_method_fs< Block::MF_dbl_it , Block::Subset && ,
+	 ( ! Block::get_method_fs< Block::MF_dbl_sp , Block::Subset && ,
 				   bool >( name ) ) ,
 	 name + ": still registered with a slice" );
   }
@@ -5212,7 +5377,7 @@ static void test_battery_initial_storage_sign( void )
  auto throws = [ & ]( BatteryUnitBlock * bu , double v ) {
   std::vector< double > val = { v };
   try {
-   bu->set_initial_storage( val.cbegin() , Range( 0 , 1 ) );
+   bu->set_initial_storage( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
    }
   catch( std::logic_error & ) {
    return( true );
@@ -5233,7 +5398,7 @@ static void test_battery_initial_storage_sign( void )
   std::vector< double > val = { -2 };
   bool thrown = false;
   try {
-   bu->set_initial_storage( val.cbegin() , Subset( { 0 } ) );
+   bu->set_initial_storage( Block::MF_dbl_sp( val ) , Subset( { 0 } ) );
    }
   catch( std::logic_error & ) {
    thrown = true;
@@ -5292,10 +5457,11 @@ static void test_battery_set_cost_unsorted( void )
   }
  generate_all( bu );
  std::vector< double > val = { 7 , 9 };
- bu->set_cost( val.cbegin() , Subset( { 3 , 1 } ) , false );
+ bu->set_cost( Block::MF_dbl_sp( val ) , Subset( { 3 , 1 } ) , false );
  check( bu->get_cost() == std::vector< double >( { 1 , 9 , 3 , 7 } ) ,
 	"battery set_cost( { 3 , 1 } , { 7 , 9 } ) gives Cost " +
-	str( bu->get_cost()[ 1 ] ) + " at 1 and " + str( bu->get_cost()[ 3 ] ) +
+        str( bu->get_cost()[ 1 ] ) + " at 1 and " +
+        str( bu->get_cost()[ 3 ] ) +
 	" at 3" );
  auto p = bu->get_active_power( 0 );
  check( close( obj_coef( bu , & p[ 3 ] ) , -7 ) &&
@@ -5316,7 +5482,8 @@ static void test_battery_data_checks( void )
  std::string why;
  auto bu = new_BU( 2 , { { "MinStorage" , { 0 , 0 } } ,
 			 { "MaxStorage" , { 9 , 9 } } ,
-			 { "MaxPower" , { 5 , 5 } } , { "MinPower" , { 0 , 1 } } ,
+                         { "MaxPower" , { 5 , 5 } } ,
+                         { "MinPower" , { 0 , 1 } } ,
 			 { "StoringBatteryRho" , { 0.8 , 0.8 } } } , & why );
  check( ! bu , "battery: split with MinPower 1 accepted" );
  delete bu;
@@ -5494,7 +5661,8 @@ static void test_kappa_linearization_design( void )
   generate_all( ib );
   check( throws( ib ) == design ,
 	 std::string( "kappa linearization, intermittent " ) +
-	 ( design ? "with design: does not throw" : "with no design: throws" ) );
+         ( design ? "with design: does not throw" :
+                    "with no design: throws" ) );
   delete ib;
   }
  }
@@ -5555,7 +5723,7 @@ static void test_intermittent_design_reserve( void )
 	  "intermittent, design: set_kappa( 2 ) gives " +
 	  str( row_coef( mx[ 1 ] , & x ) ) + " in (1)" );
    std::vector< double > val = { 4 };
-   ib->set_maximum_power( val.cbegin() , Subset( { 1 } ) );
+   ib->set_maximum_power( Block::MF_dbl_sp( val ) , Subset( { 1 } ) );
    check( close( row_coef( mx[ 1 ] , & x ) , -4 ) ,
 	  "intermittent, design: set_maximum_power gives " +
 	  str( row_coef( mx[ 1 ] , & x ) ) + " in (1) instead of -4" );
@@ -5584,8 +5752,10 @@ static void test_intermittent_design_reserve( void )
 /*--------------------------------------------------------------------------*/
 // the :MILPSolver of the build and the value it finds (defined below)
 
-static std::string milp_solver( void );
+static std::string milp_solver( bool quadratic = false );
 static double milp_value( Block * b , const std::string & sname );
+static double relaxation_value( ThermalUnitBlock * tub ,
+                                const char * bscf = "LPRelaxBSCfg.txt" );
 
 /*--------------------------------------------------------------------------*/
 /* A design variable whose two bounds are 1 is fixed to 1, i.e., the asset
@@ -6197,7 +6367,7 @@ static void test_battery_free_rows_resolve( void )
 
    const auto s0 = slv->compute();
    const double v0 = ( s0 == Solver::kOK ) ? slv->get_var_value() : NaN;
-   uc->get_unit_block( 0 )->scale( 0.5 , eModBlck , eModBlck );
+   uc->get_unit_block( 0 )->replicate( 0.5 , eModBlck , eModBlck );
    const auto s1 = slv->compute();
    const double v1 = ( s1 == Solver::kOK ) ? slv->get_var_value() : NaN;
    const double fresh = milp_value( uc , sname );
@@ -6265,7 +6435,8 @@ static void test_battery_design_modules( void )
  check( ( rd.size() == 2 ) && close( row_coef( rd[ 1 ] , & x ) , -4 ) &&
 	( rd[ 1 ].get_rhs() == 0 ) ,
 	"battery modules: no reserve row of the design, or coefficient " +
-	( rd.empty() ? std::string( "-" ) : str( row_coef( rd[ 1 ] , & x ) ) ) );
+        ( rd.empty() ? std::string( "-" ) :
+                       str( row_coef( rd[ 1 ] , & x ) ) ) );
  const auto sname = milp_solver();
  if( ! sname.empty() ) {
   // charge 30 at 0 (3 modules of 10, paid 5 each), store 27, discharge
@@ -6375,7 +6546,8 @@ static void test_slack_unit( void )
 	  + e.what() );
    }
   check( ( sb->get_min_power( 0 ) == -5 ) && ( sb->get_max_power( 0 ) == 0 )
-	 && ( sb->get_min_power( 1 ) == 0 ) && ( sb->get_max_power( 1 ) == 3 ) ,
+         && ( sb->get_min_power( 1 ) == 0 ) &&
+         ( sb->get_max_power( 1 ) == 3 ) ,
 	 "slack: the bounds of a negative and a positive MaxPower" );
   delete sb;
   }
@@ -6401,7 +6573,7 @@ static void test_slack_unit( void )
 /// SlackUnitBlock at node 1; the caller adds the data of the linking rows
 
 static netCDF::NcGroup write_UC_two_nodes( Index T ,
-					   const std::vector< double > & demand ,
+                                const std::vector< double > & demand ,
 					   bool slack_inertia = false )
 {
  auto g = new_group( "UC" , true );
@@ -6555,7 +6727,7 @@ static void test_zones_UCBlock( void )
   check( uc , "zones, node in no zone: the UCBlock is not read" );
   if( uc ) {
    generate_all( uc );
-   auto fs = new FakeSolver();
+   auto fs = new WeightFakeSolver();
    uc->register_Solver( fs );
    const auto & rows = uc->get_const_primary_demand_constraints();
    check( ( units_in( uc , rows[ 0 ][ 0 ] ) ==
@@ -6563,7 +6735,7 @@ static void test_zones_UCBlock( void )
 	  units_in( uc , rows[ 0 ][ 1 ] ).empty() ,
 	  "zones, node in no zone: the rows do not hold unit 0 alone" );
 
-   uc->get_unit_block( 1 )->scale( 0.5 , eModBlck , eModBlck );
+   uc->get_unit_block( 1 )->replicate( 0.5 , eModBlck , eModBlck );
    check( ( units_in( uc , rows[ 0 ][ 0 ] ) ==
 	    std::vector< Index >( { 0 } ) ) &&
 	  units_in( uc , rows[ 0 ][ 1 ] ).empty() &&
@@ -6571,11 +6743,13 @@ static void test_zones_UCBlock( void )
 	  "zones, node in no zone: scaling a unit in no zone changes the "
 	  "rows" );
 
-   uc->get_unit_block( 0 )->scale( 3 , eModBlck , eModBlck );
-   check( close( coef_of( uc , rows[ 0 ][ 0 ] , 0 ) , 3 ) ,
-	  "zones, node in no zone: scaling unit 0 puts " +
+   // the copies are the weight of the unit, the row keeps one copy
+   uc->get_unit_block( 0 )->replicate( 3 , eModBlck , eModBlck );
+   check( close( coef_of( uc , rows[ 0 ][ 0 ] , 0 ) , 1 ) &&
+	  ( uc->get_unit_block( 0 )->get_variable_weight() == 3 ) ,
+	  "zones, node in no zone: 3 copies of unit 0 put " +
 	  str( coef_of( uc , rows[ 0 ][ 0 ] , 0 ) ) +
-	  " in its primary row, not 3" );
+	  " in its primary row, not 1, or are not its weight" );
 
    uc->unregister_Solver( fs , true );
    delete uc;
@@ -6703,7 +6877,7 @@ static void test_network_constants_UCBlock( void )
    delete uc;
    }
   if( auto b = dynamic_cast< UCBlock * >( round_trip( g ,
-					   "network constants, one node" ) ) ) {
+                                     "network constants, one node" ) ) ) {
    check( ucb_constant( b ) == 1000 ,
 	  "network constants, one node: the constant read back is " +
 	  str( ucb_constant( b ) ) );
@@ -6925,7 +7099,8 @@ static void put_carrier_unit( netCDF::NcGroup & g , int i , double pmax ,
 
 static netCDF::NcGroup write_UC_carriers( bool heat_network ,
 					 bool pollutants = false ,
-					 bool heat_design = false )
+					 bool heat_design = false ,
+					 bool per_carrier = false )
 {
  auto g = new_group( "UCcarriers" );
  g.putAtt( "type" , "UCBlock" );
@@ -6989,12 +7164,21 @@ static netCDF::NcGroup write_UC_carriers( bool heat_network ,
   }
 
  // the nodes of the plant, the boiler, the supply and the peaker on the
- // electricity, the heat and the gas, -1 where they have none
+ // electricity, the heat and the gas, -1 where they have none: all at once
+ // in two dimensions, or per_carrier those of the electricity in the
+ // UCBlock and those of the heat in its group, the gas, with one node and
+ // no output of the peaker, having none
  const int hp = heat_network ? 1 : 0;
  std::vector< int > nodes{ 0 , hp , 0 ,  -1 , 0 , 0 ,  -1 , -1 , 0 ,
 			   0 , -1 , -1 };
- g.addVar( "GeneratorNode" , netCDF::NcInt() , { NG , NC } ).putVar(
-							    nodes.data() );
+ if( per_carrier ) {
+  std::vector< int > elec{ 0 , -1 , -1 , 0 } , heat{ hp , 0 , -1 , -1 };
+  g.addVar( "GeneratorNode" , netCDF::NcInt() , NG ).putVar( elec.data() );
+  h.addVar( "GeneratorNode" , netCDF::NcInt() , NG ).putVar( heat.data() );
+  }
+ else
+  g.addVar( "GeneratorNode" , netCDF::NcInt() , { NG , NC } ).putVar(
+							     nodes.data() );
 
  put_carrier_unit( g , 0 , 100 , 10 , { "electricity" , "heat" , "gas" } ,
 		   { 1 , 0.5 , -2 } );
@@ -7020,19 +7204,20 @@ static double coefficient_of( const FRowConstraint & row ,
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /* The rows (1c) of the heat and of the gas carry the efficiencies of the
- * outputs times the scale, the units without a node on a carrier are not
- * in its rows, and the optimum is the one by hand, in the three forms of
- * the heat (one node, a network of one NetworkBlock per instant, a network
- * given in its group as one DesignNetworkBlock whose line has a design of
- * no cost); the duals are the prices of the boiler (heat at the instant 0), of
- * the supply (gas) and of the plant net of its heat (electricity at the
- * instant 0). Then the demand of the heat changes through
- * set_energy_demand(), the scale of the boiler through UnitBlock::scale(),
- * which the rows (1c) follow, the UCBlockSolution writes the duals of (1c) in
- * the group of the carrier, the UCBlock goes through its netCDF group and
- * back with the same optimum, the pollutant zones of the units without a
- * node on the electricity are those of their first carrier, and the data
- * that cannot be read are refused. */
+ * outputs, those of one copy of the unit, the units without a node on a
+ * carrier are not in its rows, and the optimum is the one by hand, in the
+ * three forms of the heat (one node, a network of one NetworkBlock per
+ * instant, a network given in its group as one DesignNetworkBlock whose line
+ * has a design of no cost); the duals are the prices of the boiler (heat at
+ * the instant 0), of the supply (gas) and of the plant net of its heat
+ * (electricity at the instant 0). Then the demand of the heat changes through
+ * set_energy_demand(), the copies of the boiler through
+ * UnitBlock::replicate(), which leave the rows (1c) as they are and which
+ * the Solver applies as the weight of the boiler, the UCBlockSolution writes
+ * the duals of (1c) in the group of the carrier, the UCBlock goes through its
+ * netCDF group and back with the same optimum, the pollutant zones of the
+ * units without a node on the electricity are those of their first carrier,
+ * and the data that cannot be read are refused. */
 
 static void test_carriers_UCBlock( void )
 {
@@ -7067,15 +7252,18 @@ static void test_carriers_UCBlock( void )
   };
 
  // the heat with one node, with a network of one NetworkBlock per instant,
- // and with a network given as one DesignNetworkBlock over the horizon
- for( const int form : { 0 , 1 , 2 } ) {
-  const bool net = form > 0;
-  const bool design = form == 2;
+ // and with a network given as one DesignNetworkBlock over the horizon,
+ // with the nodes of the generators all at once or carrier by carrier
+ for( const int form : { 0 , 1 , 2 , 3 , 4 , 5 } ) {
+  const bool net = ( form % 3 ) > 0;
+  const bool design = ( form % 3 ) == 2;
+  const bool per_carrier = form >= 3;
   const Index networks = net ? ( design ? 1 : 2 ) : 0;
   const std::string what = std::string( "carriers" ) +
                      ( net ? ( design ? ", heat design network" :
-			       ", heat network" ) : "" );
-  auto g = write_UC_carriers( net , false , design );
+			       ", heat network" ) : "" ) +
+                     ( per_carrier ? ", nodes per carrier" : "" );
+  auto g = write_UC_carriers( net , false , design , per_carrier );
   auto uc = dynamic_cast< UCBlock * >( Block::new_Block( g ) );
   check( uc && ( uc->get_number_carriers() == 3 ) &&
 	 ( uc->get_number_nodes( 1 ) == ( net ? 2 : 1 ) ) &&
@@ -7094,6 +7282,7 @@ static void test_carriers_UCBlock( void )
   // the coefficients of the rows (1c) at the instant 0
   const auto & heat = uc->get_const_carrier_balance_constraints( 1 );
   const auto & gas = uc->get_const_carrier_balance_constraints( 2 );
+  const auto & elec = uc->get_const_node_injection_constraints();
   auto p = [ & ]( Index u ) -> const ColVariable & {
    return( uc->get_unit_block( u )->get_active_power( 0 )[ 0 ] );
    };
@@ -7103,8 +7292,7 @@ static void test_carriers_UCBlock( void )
 	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) ) , -1.25 ) &&
 	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 2 ) ) , 1 ) &&
 	 ( coefficient_of( gas[ 0 ][ 0 ] , p( 3 ) ) == 0 ) &&
-	 ( coefficient_of( uc->get_const_node_injection_constraints()[ 0 ][ 0 ] ,
-			   p( 1 ) ) == 0 ) ,
+         ( coefficient_of( elec[ 0 ][ 0 ] , p( 1 ) ) == 0 ) ,
 	 what + ": the rows (1c) do not carry the efficiencies" );
 
   if( sname.empty() ) {
@@ -7117,12 +7305,11 @@ static void test_carriers_UCBlock( void )
   if( ! net ) {
    check( close( heat[ 0 ][ 0 ].get_dual() , -36.25 , 1e-5 ) &&
 	  close( gas[ 0 ][ 0 ].get_dual() , -5 , 1e-5 ) &&
-	  close( uc->get_const_node_injection_constraints()[ 0 ][ 0 ].get_dual()
-		 , -1.875 , 1e-5 ) ,
-	  what + ": the duals are " + str( heat[ 0 ][ 0 ].get_dual() ) + " , " +
-	  str( gas[ 0 ][ 0 ].get_dual() ) + " , " +
-	  str( uc->get_const_node_injection_constraints()[ 0 ][ 0 ].get_dual() )
-	  + ", not the prices of the boiler, of the supply and of the plant" );
+          close( elec[ 0 ][ 0 ].get_dual() , -1.875 , 1e-5 ) ,
+          what + ": the duals are " + str( heat[ 0 ][ 0 ].get_dual() ) +
+          " , " + str( gas[ 0 ][ 0 ].get_dual() ) + " , " +
+          str( elec[ 0 ][ 0 ].get_dual() ) + ", not the prices of the "
+          "boiler, of the supply and of the plant" );
 
    // the duals of (1c) in the group of the carrier
    SimpleConfiguration< int > wsol( 8 );
@@ -7168,21 +7355,25 @@ static void test_carriers_UCBlock( void )
   // the demand of the heat at the instant 0 down to 25: no boiler
   std::vector< double > d{ 25 };
   const Index index = ( net ? 2 : 1 ) * 2;  // the demand node of the heat
-  uc->set_energy_demand( d.begin() , Block::Subset{ index } , true );
+  uc->set_energy_demand( Block::MF_dbl_sp( d ) , Block::Subset{ index } ,
+                         true );
   check( close( solve( uc ) , 2600 ) , what + ": after set_energy_demand() "
 	 "the optimum is not 2600" );
   d[ 0 ] = 40;
-  uc->set_energy_demand( d.begin() , Block::Subset{ index } , true );
+  uc->set_energy_demand( Block::MF_dbl_sp( d ) , Block::Subset{ index } ,
+                         true );
 
-  // the boiler scaled by 2: the coefficients follow, the optimum does not
-  // change
-  std::vector< double > sc{ 2 };
-  uc->get_unit_block( 1 )->scale( sc.begin() , Block::Range( 0 , 1 ) );
-  check( close( coefficient_of( heat[ 0 ][ 0 ] , p( 1 ) ) , 2 ) &&
-	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) ) , -2.5 ) ,
-	 what + ": the rows (1c) do not follow the scale" );
-  check( close( solve( uc ) , 3143.75 ) , what + ": with the boiler scaled "
-	 "the optimum is not 3143.75" );
+  // 2 copies of the boiler: the coefficients stay those of one copy, the
+  // Solver applies the weight, and the optimum does not change
+  const auto heat_coef = coefficient_of( heat[ 0 ][ 0 ] , p( 1 ) );
+  const auto gas_coef = coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) );
+  uc->get_unit_block( 1 )->replicate( 2 );
+  check( close( coefficient_of( heat[ 0 ][ 0 ] , p( 1 ) ) , heat_coef ) &&
+	 close( coefficient_of( gas[ 0 ][ 0 ] , p( 1 ) ) , gas_coef ) &&
+	 ( uc->get_unit_block( 1 )->get_variable_weight() == 2 ) ,
+	 what + ": the rows (1c) change with the copies" );
+  check( close( solve( uc ) , 3143.75 ) , what + ": with 2 copies of the "
+	 "boiler the optimum is not 3143.75" );
 
   // the UCBlock through its netCDF group and back
   auto wg = new_group( "UCcarriersRT" );
@@ -7196,6 +7387,16 @@ static void test_carriers_UCBlock( void )
 	 ( uc2->get_network_blocks( 1 ).size() == networks ) &&
 	 close( solve( uc2 ) , 3143.75 ) ,
 	 what + ": the UCBlock written and read back is not the same" );
+  // the nodes are written carrier by carrier: the heat, which has a
+  // generator with no node, in its group, the gas, read with no node of
+  // its own (all at its only node), nowhere, and read in two dimensions,
+  // with the -1 of the peaker, in its group
+  check( ( wg.getVar( "GeneratorNode" ).getDimCount() == 1 ) &&
+	 ( ! wg.getGroup( "Carrier_1" ).getVar( "GeneratorNode" ).isNull() )
+	 && ( wg.getGroup( "Carrier_2" ).getVar( "GeneratorNode" ).isNull() ==
+	      per_carrier ) ,
+	 what + ": the nodes of the generators are not written carrier by "
+	 "carrier" );
   delete uc2;
   delete uc;
   }
@@ -7236,8 +7437,9 @@ static void test_carriers_UCBlock( void )
 
  // what cannot be read
  auto refused = []( const std::function< void( netCDF::NcGroup & ) > & spoil ,
-		    bool net , const std::string & what ) {
-  auto g = write_UC_carriers( net );
+		    bool net , const std::string & what ,
+		    bool per_carrier = false ) {
+  auto g = write_UC_carriers( net , false , false , per_carrier );
   spoil( g );
   // new_Block() gives nullptr when the reading throws
   bool thrown = false;
@@ -7262,6 +7464,19 @@ static void test_carriers_UCBlock( void )
   g.addVar( "GeneratorNode" , netCDF::NcUint() ,
 	    g.getDim( "NumberGenerators" ) ).putVar( nodes.data() );
   } , true , "GeneratorNode in one dimension with two heat nodes" );
+
+ refused( []( netCDF::NcGroup & g ) {
+  std::vector< unsigned int > nodes{ 0 , 0 , 0 , 0 };
+  g.getGroup( "Carrier_1" ).addVar( "GeneratorNode" , netCDF::NcUint() ,
+				    g.getDim( "NumberGenerators" ) ).putVar(
+							      nodes.data() );
+  } , true , "GeneratorNode in two dimensions and in Carrier_1" );
+
+ refused( []( netCDF::NcGroup & g ) {
+  std::vector< unsigned int > nodes{ 0 , 2 , 0 , 0 };
+  g.getGroup( "Carrier_1" ).getVar( "GeneratorNode" ).putVar(
+							      nodes.data() );
+  } , true , "a node of Carrier_1 that is not there" , true );
 
  // the lines of the heat cannot be those of the electricity: the dimension
  // is looked for in the group of the carrier alone
@@ -7626,7 +7841,7 @@ static void test_thermal_initial_power_change( void )
     generate_all_wf( tub , wf );
     std::vector< double > val = { ip };
     try {
-     tub->set_initial_power( val.begin() , Range( 0 , 1 ) );
+     tub->set_initial_power( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
      }
     catch( std::exception & e ) {
      check( false , what + ": throws " + e.what() );
@@ -7653,7 +7868,7 @@ static void test_thermal_initial_power_change( void )
   std::vector< int > ud = { -2 };
   bool thrown = false;
   try {
-   tub->set_init_updown_time( ud.begin() , Range( 0 , 1 ) );
+   tub->set_init_updown_time( Block::MF_int_sp( ud ) , Range( 0 , 1 ) );
    }
   catch( std::logic_error & ) {
    thrown = true;
@@ -7684,16 +7899,16 @@ static void test_thermal_initial_power_change( void )
   std::string what;
   if( c == 0 ) {  // off -> on before the horizon
    std::vector< int > ud = { 3 };
-   tub->set_init_updown_time( ud.begin() , Range( 0 , 1 ) );
+   tub->set_init_updown_time( Block::MF_int_sp( ud ) , Range( 0 , 1 ) );
    std::vector< double > val = { 50 };
-   tub->set_initial_power( val.begin() , Range( 0 , 1 ) );
+   tub->set_initial_power( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
    d.initUD = 3;
    d.initP = 50;
    what = "SUSD, InitUpDownTime -1 -> 3 before the generation";
    }
   else {
    std::vector< double > val = { c == 1 ? 90.0 : 20.0 };
-   tub->set_initial_power( val.begin() , Range( 0 , 1 ) );
+   tub->set_initial_power( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
    d.initP = val[ 0 ];
    what = "SUSD, InitialPower " + str( c == 1 ? 20 : 90 ) + " -> " +
           str( val[ 0 ] ) + " before the generation";
@@ -7902,7 +8117,7 @@ static void test_nuclear_band_initial_power( void )
  std::vector< double > ip = { 45 };
  bool thrown = false;
  try {
-  nub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+  nub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
   }
  catch( std::logic_error & ) { thrown = true; }
  check( ! thrown , "nuclear bands: set_initial_power() in the same band "
@@ -7923,7 +8138,7 @@ static void test_nuclear_band_initial_power( void )
  ip = { 30 };
  thrown = false;
  try {
-  nub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+  nub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
   }
  catch( std::logic_error & ) { thrown = true; }
  check( thrown , "nuclear bands: set_initial_power() to another band does "
@@ -8037,7 +8252,7 @@ static double brute_force_bands( const TUData & d , unsigned int L ,
  double best = INF;
  for( auto v : f )
   best = std::min( best , v );
- return( best * d.scale );
+ return( best );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -8149,13 +8364,16 @@ static void test_nuclear_band_rule( void )
 /*--------------------------------------------------------------------------*/
 /*------------- RESERVES, AVAILABILITY AND THE CHANGES OF DATA -------------*/
 /*--------------------------------------------------------------------------*/
-/// the first :MILPSolver of the build, empty if there is none
+/// the first :MILPSolver of the build, empty if there is none; with
+/// quadratic, the first that solves a quadratic Objective with integer
+/// Variable and quadratic Constraint, which HiGHS does not
 
-static std::string milp_solver( void )
+static std::string milp_solver( bool quadratic )
 {
  for( const auto & name : { "CPXMILPSolver" , "GRBMILPSolver" ,
                             "HiGHSMILPSolver" , "SCIPMILPSolver" } )
-  if( Solver::has_Solver( name ) )
+  if( Solver::has_Solver( name ) &&
+      ( ( ! quadratic ) || ( std::string( name ) != "HiGHSMILPSolver" ) ) )
    return( name );
  return( "" );
  }
@@ -8372,7 +8590,8 @@ static void test_thermal_reserve_cost( void )
   std::vector< double > z( T , 0 ) , c( T , 2 );
   bool thrown = false;
   try {
-   tub->set_primary_spinning_reserve_cost( z.begin() , Range( 0 , T ) );
+   tub->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( z ) ,
+                                           Range( 0 , T ) );
    }
   catch( std::exception & ) {
    thrown = true;
@@ -8380,7 +8599,8 @@ static void test_thermal_reserve_cost( void )
   check( ! thrown , "reserve cost, no term: zeros are refused" );
   thrown = false;
   try {
-   tub->set_primary_spinning_reserve_cost( c.begin() , Range( 0 , T ) );
+   tub->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( c ) ,
+                                           Range( 0 , T ) );
    }
   catch( std::logic_error & ) {
    thrown = true;
@@ -8408,8 +8628,10 @@ static void test_thermal_reserve_cost( void )
   if( bits == 3 ) {
    // the secondary cost after the shut-down and the primary sections
    std::vector< double > c2( T , 4 ) , c1 = { 0 , 2 , 0 };
-   tub->set_secondary_spinning_reserve_cost( c2.begin() , Range( 0 , T ) );
-   tub->set_primary_spinning_reserve_cost( c1.begin() , Range( 0 , T ) );
+   tub->set_secondary_spinning_reserve_cost( Block::MF_dbl_sp( c2 ) ,
+                                             Range( 0 , T ) );
+   tub->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( c1 ) ,
+                                           Range( 0 , T ) );
    const auto pr2 = coefs( tub , tub->get_primary_spinning_reserve( 0 ) );
    const auto sr2 = coefs( tub , tub->get_secondary_spinning_reserve( 0 ) );
    const auto sd = coefs( tub , tub->get_shut_down() );
@@ -8462,10 +8684,12 @@ static void test_thermal_reserve_cost( void )
    SimpleConfiguration< int > objc( 1 );
    std::vector< double > z( T , 0 );
    if( ! after )
-    tub->set_primary_spinning_reserve_cost( z.begin() , Range( 0 , T ) );
+    tub->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( z ) ,
+                                            Range( 0 , T ) );
    tub->generate_objective( & objc );
    if( after )
-    tub->set_primary_spinning_reserve_cost( z.begin() , Range( 0 , T ) );
+    tub->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( z ) ,
+                                            Range( 0 , T ) );
    got.push_back( coefs( tub , tub->get_primary_spinning_reserve( 0 ) ) );
    delete tub;
    }
@@ -8537,9 +8761,12 @@ static TUData reserve_TU( int i )
  * the same value to the :MILPSolver in the seven formulations and to the
  * dynamic programming Solvers, whose schedule satisfies the rows; a unit
  * that shuts down at 0 leaves the row slack; the rows at 0 follow a
- * change of InitialPower; and a NuclearUnitBlock with reserves gives the
- * same value to the :MILPSolver and to NuclearUnitExtDPSolver when its
- * primary reserve is rewarded. */
+ * change of InitialPower; with the reserves in the rows of the T
+ * formulation (TRes, with and without PCuts) the random instances have the
+ * same optimum as with the T formulation, and a continuous relaxation that
+ * is not weaker; and a NuclearUnitBlock with reserves gives the same value
+ * to the :MILPSolver and to NuclearUnitExtDPSolver when its primary reserve
+ * is rewarded. */
 
 static void test_thermal_reserve_t0( void )
 {
@@ -8609,7 +8836,7 @@ static void test_thermal_reserve_t0( void )
   auto d = reserve_TU( 0 );
   auto tub = make( d , wf );
   std::vector< double > ip = { 30 };
-  tub->set_initial_power( ip.begin() , Range( 0 , 1 ) );
+  tub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
   const auto what = "reserve at 0, InitialPower 20 -> 30, wf " +
                     std::to_string( wf );
   auto r = rows( tub );
@@ -8662,6 +8889,51 @@ static void test_thermal_reserve_t0( void )
    }
   }
 
+ // the reserves in the rows of the T formulation: the same optimum, a
+ // relaxation not weaker - - - - - - - - - - - - - - - - - - - - - - - - - -
+ for( int i = 1 ; i <= 60 ; ++i ) {
+  const auto d = reserve_TU( i );
+  auto ref = make( d , ThermalUnitBlock::TForm );
+  const auto vr = milp_value( ref , sname );
+  const auto lr = relaxation_value( ref );
+  delete ref;
+  for( int wf : { ThermalUnitBlock::TForm + ThermalUnitBlock::TRes ,
+                  ThermalUnitBlock::TForm + ThermalUnitBlock::PCuts +
+                  ThermalUnitBlock::TRes } ) {
+   auto tub = make( d , wf );
+   const auto what = "reserves in the T rows, random " + std::to_string( i ) +
+                     ", wf " + std::to_string( wf ) + " (" + describe( d ) +
+                     ")";
+   check( tub->has_reserves_in_T() , what + ": TRes not set" );
+   const auto v = milp_value( tub , sname );
+   check( close( v , vr ) , what + ": " + sname + " gives " + str( v ) +
+          " instead of " + str( vr ) );
+   if( wf == ThermalUnitBlock::TForm + ThermalUnitBlock::TRes ) {
+    const auto l = relaxation_value( tub );
+    if( ( ! std::isnan( l ) ) && ( ! std::isnan( lr ) ) )
+     check( l >= lr - 1e-6 * std::max( 1.0 , std::abs( lr ) ) ,
+            what + ": relaxation " + str( l ) + " below " + str( lr ) +
+            " of the T formulation" );
+    }
+   check_all_DP_wf( tub , vr , what , ThermalUnitBlock::TForm );
+   delete tub;
+   }
+  }
+
+ // TRes with another formulation is rejected- - - - - - - - - - - - - - - -
+ {
+  bool thrown = false;
+  auto tub = new_TU( reserve_TU( 1 ) );
+  tub->set_reserve_vars( 3 );
+  try {
+   generate_all_wf( tub , ThermalUnitBlock::tbinForm +
+                          ThermalUnitBlock::TRes );
+   }
+  catch( std::invalid_argument & ) { thrown = true; }
+  delete tub;
+  check( thrown , "TRes with the 3bin formulation: no exception" );
+  }
+
  // a NuclearUnitBlock with reserves, on before the horizon - - - - - - - - -
  for( int i = 0 ; i < 10 ; ++i ) {
   auto d = reserve_TU( i + 1 );
@@ -8698,8 +8970,13 @@ static void test_thermal_reserve_t0( void )
  * (ordering swapped), with the primary reserve alone (rho^pr = 0.51 at 1, cost
  * -2.2: 7 - 19.95 - 2.2 * 12.5 = -40.45), and for a NuclearUnitBlock with
  * the modulation window of the ramps and a narrower one (-50.395, the move
- * being 0.5); then random instances whose rewarded reserves are often
- * above one half of the output, against the :MILPSolver. */
+ * being 0.5); a unit on before the horizon that shuts down at 1 with its
+ * output at 0 on the shut-down limit, which is the lowest output that the
+ * window of the ramp-down allows from InitialPower (the shut-down cap then
+ * leaves no reserve at 0, a nuclear unit with the narrower window of the
+ * modulation, -100.5, and a thermal unit with the same ramp-down); then
+ * random instances whose rewarded reserves are often above one half of the
+ * output, against the :MILPSolver. */
 
 static void test_thermal_DP_two_rewarded_reserves( void )
 {
@@ -8782,6 +9059,40 @@ static void test_thermal_DP_two_rewarded_reserves( void )
   run( d , -50.395 , "two rewarded reserves, nuclear" , wf );
   d.mrd = 6;
   run( d , -50.395 , "two rewarded reserves, nuclear, window 6" , wf );
+  }
+
+ // on at 49 before the horizon, shut down at 1 with p_0 = 45, the shut-down
+ // limit and the lowest output the ramp-down window allows from 49
+ {
+  TUData d;
+  d.T = 4;
+  d.minP = 10;
+  d.maxP = 53;
+  d.ru = 12;
+  d.rd = 8;
+  d.su = 10;
+  d.sd = 45;
+  d.initP = 49;
+  d.initUD = 3;
+  d.minDown = 2;
+  d.lin = { -2.3 , 1.3 , 0.4 , 0.7 };
+  d.cnst = { 3 , 5 , 3 , 1 };
+  d.suc = { 15 , 18 , 2 , 20 };
+  d.prho = { 0.31 , 0.59 , 0.23 , 0.59 };
+  d.srho = { 0.31 , 0.28 , 0.05 , 0.27 };
+  d.prc = { -1.8 , -0.5 , -1.7 , -2.5 };
+  d.src = { -1.6 , -2 , -0.8 , -2.8 };
+  d.nuclear = true;
+  d.modT = 2;
+  d.initMod = 2;
+  d.mru = 12;
+  d.mrd = 4;
+  run( d , -100.5 , "two rewarded reserves, nuclear, shut-down cap at the "
+       "edge of the window" , int( ThermalUnitBlock::TForm ) );
+  d.nuclear = false;
+  d.rd = 4;
+  run( d , std::nan( "" ) , "two rewarded reserves, shut-down cap at the "
+       "edge of the window" , int( ThermalUnitBlock::TForm ) );
   }
 
  if( sname.empty() ) {
@@ -8872,7 +9183,8 @@ static void test_thermal_DP_availability( void )
  generate_all_wf( tub , ThermalUnitBlock::TForm );
  check_all_DP( tub , -3800 , "availability set by a dry run, before" );
  std::vector< double > av = { 0.6 };
- tub->set_availability( av.begin() , Range( 1 , 2 ) , eModBlck , eDryRun );
+ tub->set_availability( Block::MF_dbl_sp( av ) , Range( 1 , 2 ) , eModBlck ,
+                        eDryRun );
  check_all_DP( tub , -3300 , "availability set by a dry run" );
  delete tub;
  }
@@ -8909,7 +9221,7 @@ static void test_thermal_power_limits_change( void )
 
    // 150 at 1: the ramps let it reach 130 only
    std::vector< double > mp = { 150 } , av = { 0.6 } , bad = { 5 };
-   tub->set_maximum_power( mp.begin() , Range( 1 , 2 ) );
+   tub->set_maximum_power( Block::MF_dbl_sp( mp ) , Range( 1 , 2 ) );
    check( tub->get_max_power()[ 1 ] == 150 ,
           what + ": MaxPower not changed after the generation" );
    check_all_DP_wf( tub , ramps ? -4300 : -4500 , what , wf );
@@ -8917,7 +9229,7 @@ static void test_thermal_power_limits_change( void )
    // below the minimum power: refused
    bool thrown = false;
    try {
-    tub->set_maximum_power( bad.begin() , Range( 2 , 3 ) );
+    tub->set_maximum_power( Block::MF_dbl_sp( bad ) , Range( 2 , 3 ) );
     }
    catch( std::logic_error & ) {
     thrown = true;
@@ -8928,7 +9240,7 @@ static void test_thermal_power_limits_change( void )
    // the availability 0.6 at 1, i.e., 90 there, without ramps (with them
    // the unit can neither go down to 90 nor shut down there)
    if( ! ramps ) {
-    tub->set_availability( av.begin() , Range( 1 , 2 ) );
+    tub->set_availability( Block::MF_dbl_sp( av ) , Range( 1 , 2 ) );
     check( ( ! tub->get_availability().empty() ) &&
            ( tub->get_availability()[ 1 ] == 0.6 ) ,
            what + ": Availability not changed after the generation" );
@@ -8937,7 +9249,7 @@ static void test_thermal_power_limits_change( void )
    std::vector< double > av_bad = { 1.5 };
    thrown = false;
    try {
-    tub->set_availability( av_bad.begin() , Range( 2 , 3 ) );
+    tub->set_availability( Block::MF_dbl_sp( av_bad ) , Range( 2 , 3 ) );
     }
    catch( std::logic_error & ) {
     thrown = true;
@@ -8950,7 +9262,8 @@ static void test_thermal_power_limits_change( void )
     // the rows are those of the old MaxPower, which a dry run leaves:
     // the value alone
     std::vector< double > mp2 = { 200 };
-    tub->set_maximum_power( mp2.begin() , Range( 2 , 3 ) , eModBlck ,
+    tub->set_maximum_power( Block::MF_dbl_sp( mp2 ) , Range( 2 , 3 ) ,
+                            eModBlck ,
                             eDryRun );
     check( tub->get_max_power()[ 2 ] == 200 ,
            what + ": MaxPower not changed by a dry run" );
@@ -9009,7 +9322,7 @@ static void test_thermal_reactive_bounds( void )
    tub->set_reactive_power( true );
    generate_all_wf( tub , wf );
    std::vector< double > rt( 3 , given ? 1 : -1 );
-   tub->set_reactive_linear_term( rt.begin() , Range( 0 , 3 ) );
+   tub->set_reactive_linear_term( Block::MF_dbl_sp( rt ) , Range( 0 , 3 ) );
    const double value = given ? -3060 : -3000;
    const auto what = std::string( "reactive power, " ) +
                      ( given ? "bounds -20 and 30" : "no bounds" ) +
@@ -9049,14 +9362,14 @@ static void test_node_injection_bounds( void )
  check( uc , "node injection bounds: the UCBlock is not read" );
  if( uc ) {
   generate_all( uc );
-  auto fs = new FakeSolver();
+  auto fs = new WeightFakeSolver();
   uc->register_Solver( fs );
   auto nb = uc->get_network_block( 0 );
   // node 0: unit 0 (100); node 1: units 1 and 2 (100) and the slack (1000)
   check( close( nb->get_max_node_injection( 0 )[ 0 ] , 100 ) &&
          close( nb->get_max_node_injection( 0 )[ 1 ] , 1200 ) ,
          "node injection bounds: not 100 and 1200 at load" );
-  uc->get_unit_block( 0 )->scale( 3 , eModBlck , eModBlck );
+  uc->get_unit_block( 0 )->replicate( 3 , eModBlck , eModBlck );
   check( close( nb->get_max_node_injection( 0 )[ 0 ] , 300 ) ,
          "node injection bounds: node 0 has " +
          str( nb->get_max_node_injection( 0 )[ 0 ] ) +
@@ -9148,11 +9461,11 @@ static void test_zone_rows_two_nodes( void )
  check( uc , "zone rows, two nodes: the UCBlock is not read" );
  if( uc ) {
   generate_all( uc );
-  auto fs = new FakeSolver();
+  auto fs = new WeightFakeSolver();
   uc->register_Solver( fs );
   auto hub = static_cast< HydroUnitBlock * >( uc->get_unit_block( 0 ) );
   std::vector< double > val = { 5 , 7 };
-  hub->set_inertia_power( val.begin() , Range( 0 , 2 ) );
+  hub->set_inertia_power( Block::MF_dbl_sp( val ) , Range( 0 , 2 ) );
   auto ub = static_cast< UnitBlock * >( hub );
   const auto c0 = inertia_coef( uc , ub->get_active_power( 0 ) );
   const auto c1 = inertia_coef( uc , ub->get_active_power( 1 ) );
@@ -9172,16 +9485,19 @@ static void test_zone_rows_two_nodes( void )
  check( us , "zone rows, secondary: the UCBlock is not read" );
  if( us ) {
   generate_all( us );
-  auto fs = new FakeSolver();
+  auto fs = new WeightFakeSolver();
   us->register_Solver( fs );
   const auto & row = us->get_const_secondary_demand_constraints()[ 0 ][ 0 ];
-  us->get_unit_block( 1 )->scale( 0.5 , eModBlck , eModBlck );
-  us->get_unit_block( 0 )->scale( 3 , eModBlck , eModBlck );
-  check( close( coef_of( us , row , 0 ) , 3 ) &&
-         close( coef_of( us , row , 1 ) , 0.5 ) ,
+  us->get_unit_block( 1 )->replicate( 0.5 , eModBlck , eModBlck );
+  us->get_unit_block( 0 )->replicate( 3 , eModBlck , eModBlck );
+  check( close( coef_of( us , row , 0 ) , 1 ) &&
+         close( coef_of( us , row , 1 ) , 1 ) &&
+         ( us->get_unit_block( 0 )->get_variable_weight() == 3 ) &&
+         ( us->get_unit_block( 1 )->get_variable_weight() == 0.5 ) ,
          "zone rows, secondary: coefficients " +
          str( coef_of( us , row , 0 ) ) + " and " +
-         str( coef_of( us , row , 1 ) ) + " instead of 3 and 0.5" );
+         str( coef_of( us , row , 1 ) ) + " instead of 1 and 1 (one copy), "
+         "or weights other than 3 and 0.5" );
   us->unregister_Solver( fs , true );
   delete us;
   }
@@ -9240,8 +9556,10 @@ static void test_storage_infinite_bounds( void )
    data2.push_back( { "BatteryInvestmentCost" , { 3 } } );
   for( auto & dd : data2 )  // the per-instant data over 2 instants
    if( ( dd.second.size() == 1 ) && ( dd.first != "InitialStorage" ) &&
-       ( dd.first != "Kappa" ) && ( dd.first != "BatteryInvestmentCost" ) )
-    dd.second.assign( 2 , dd.second[ 0 ] );
+       ( dd.first != "Kappa" ) && ( dd.first != "BatteryInvestmentCost" ) ) {
+    const double v0 = dd.second[ 0 ];  // assign() takes no reference into it
+    dd.second.assign( 2 , v0 );
+    }
   const auto what = std::string( "battery, MinStorage -inf, " ) +
                     ( design ? "design" : "kappa 0" );
   auto bu = new_BU( 2 , data2 );
@@ -9537,7 +9855,7 @@ static void test_thermal_initial_power_no_ramps( void )
    std::vector< double > ip = { 45 };
    bool thrown = false;
    try {
-    tub->set_initial_power( ip.begin() , Range( 0 , 1 ) );
+    tub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
     }
    catch( std::logic_error & ) {
     thrown = true;
@@ -9549,7 +9867,7 @@ static void test_thermal_initial_power_no_ramps( void )
    ip = { 60 };
    thrown = false;
    try {
-    tub->set_initial_power( ip.begin() , Range( 0 , 1 ) );
+    tub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
     }
    catch( std::logic_error & ) {
     thrown = true;
@@ -9579,7 +9897,7 @@ static void test_thermal_initial_power_no_ramps( void )
  std::vector< double > ip = { 45 };
  bool thrown = false;
  try {
-  nub->set_initial_power( ip.begin() , Range( 0 , 1 ) );
+  nub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
   }
  catch( std::exception & ) {
   thrown = true;
@@ -9688,7 +10006,7 @@ static void test_thermal_initial_power_above_max_change( void )
           what + ", at 40: status " + std::to_string( status ) +
           ", value " + str( slv->get_ub() ) + " instead of 100" );
    std::vector< double > val = { 80 };
-   tub->set_initial_power( val.begin() , Range( 0 , 1 ) );
+   tub->set_initial_power( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
    status = slv->compute();
    check( ( status == Solver::kOK ) && close( slv->get_ub() , 100 ) ,
           what + ", at 80: status " + std::to_string( status ) +
@@ -9730,7 +10048,7 @@ static void test_thermal_unordered_subset( void )
                           { } , { { "InitUpDownTime" , -1 } } ,
                           { { "MinUpTime" , 1 } , { "MinDownTime" , 1 } } );
 
- using Setter = std::function< void( Block::MF_dbl_it , Subset && ) >;
+ using Setter = std::function< void( Block::MF_dbl_sp , Subset && ) >;
  using Getter = std::function< const std::vector< double > & ( void ) >;
  struct S {
   const char * name;
@@ -9740,59 +10058,59 @@ static void test_thermal_unordered_subset( void )
   };
  std::vector< S > setters = {
   { "MaxPower" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_maximum_power( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_max_power() ); } , { 60 , 140 } } ,
   { "Availability" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_availability( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_availability() ); } , { 0.5 , 0.8 } } ,
   { "StartUpCost" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_startup_costs( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_start_up_cost() ); } , { 11 , 13 } } ,
   { "ShutDownCost" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_shutdown_costs( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_shut_down_cost() ); } , { 4 , 6 } } ,
   { "ConstTerm" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_const_term( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_const_term() ); } , { 8 , 9 } } ,
   { "LinearTerm" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_linear_term( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_linear_term() ); } , { -2 , 3 } } ,
   { "ReactiveLinearTerm" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_reactive_linear_term( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_reactive_linear_term() ); } , { -4 , 5 } } ,
   { "QuadTerm" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_quad_term( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_quad_term() ); } , { 0.2 , 0.3 } } ,
   { "PrimarySpinningReserveCost" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_primary_spinning_reserve_cost( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_primary_spinning_reserve_cost() ); } , { 2 , 4 } } ,
   { "SecondarySpinningReserveCost" ,
-    [ & ]( Block::MF_dbl_it v , Subset && s ) {
+    [ & ]( Block::MF_dbl_sp v , Subset && s ) {
      tub->set_secondary_spinning_reserve_cost( v , std::move( s ) ); } ,
     [ & ]() -> const std::vector< double > & {
      return( tub->get_secondary_spinning_reserve_cost() ); } ,
     { 6 , 8 } } };
 
  for( auto & st : setters ) {
-  st.set( st.val.cbegin() , Subset( { 4 , 1 } ) );
+  st.set( Block::MF_dbl_sp( st.val ) , Subset( { 4 , 1 } ) );
   const auto & v = st.get();
   check( ( v.size() == T ) && ( v[ 4 ] == st.val[ 0 ] ) &&
          ( v[ 1 ] == st.val[ 1 ] ) ,
@@ -9826,8 +10144,10 @@ static void test_thermal_cost_order( void )
 
  auto tub = make();
  std::vector< double > c = { -3 , -4 };
- tub->set_primary_spinning_reserve_cost( c.begin() , Range( 0 , 2 ) );
- tub->set_secondary_spinning_reserve_cost( c.begin() , Range( 0 , 2 ) );
+ tub->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( c ) ,
+                                         Range( 0 , 2 ) );
+ tub->set_secondary_spinning_reserve_cost( Block::MF_dbl_sp( c ) ,
+                                           Range( 0 , 2 ) );
  tub->set_reserve_vars( 3 );
  generate_all( tub );
  auto pr = tub->get_primary_spinning_reserve( 0 );
@@ -9842,7 +10162,8 @@ static void test_thermal_cost_order( void )
  generate_all( tub );
  bool thrown = false;
  try {
-  tub->set_primary_spinning_reserve_cost( c.begin() , Range( 0 , 2 ) );
+  tub->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( c ) ,
+                                          Range( 0 , 2 ) );
   }
  catch( std::exception & ) {
   thrown = true;
@@ -9852,7 +10173,7 @@ static void test_thermal_cost_order( void )
 
  thrown = false;  // no ShutDownCost: a nonzero one refused, nothing kept
  try {
-  tub->set_shutdown_costs( c.begin() , Range( 0 , 2 ) );
+  tub->set_shutdown_costs( Block::MF_dbl_sp( c ) , Range( 0 , 2 ) );
   }
  catch( std::logic_error & ) {
   thrown = true;
@@ -9863,7 +10184,7 @@ static void test_thermal_cost_order( void )
  std::vector< double > z = { 0 , 0 };
  thrown = false;
  try {
-  tub->set_shutdown_costs( z.begin() , Range( 0 , 2 ) );
+  tub->set_shutdown_costs( Block::MF_dbl_sp( z ) , Range( 0 , 2 ) );
   }
  catch( std::exception & ) {
   thrown = true;
@@ -9989,10 +10310,10 @@ static void test_thermal_DP_as_rows( void )
 
 static void test_thermal_solution_restore( void )
 {
- const auto sname = milp_solver();
+ const auto sname = milp_solver( true );
  if( sname.empty() ) {
-  std::cout << "no :MILPSolver in this build, the Solution of the "
-            << "formulations is not checked" << std::endl;
+  std::cout << "no :MILPSolver of a MIQP in this build, the Solution of "
+            << "the formulations is not checked" << std::endl;
   return;
   }
 
@@ -10304,7 +10625,7 @@ static void test_nuclear_modulation_ramps_change( void )
 
    auto nub = new_ramp_NU( L , base , base , false );
    generate_all_wf( nub , wf );
-   auto fs = new FakeSolver();
+   auto fs = new WeightFakeSolver();
    nub->register_Solver( fs );
    auto dp = Solver::new_Solver( "NuclearUnitExtDPSolver" );
    nub->register_Solver( dp );
@@ -10315,9 +10636,10 @@ static void test_nuclear_modulation_ramps_change( void )
    fs->get_Modification_list().clear();
 
    std::vector< double > up = { 8 , 2 } , down = { 12 , 0 , 7 };
-   nub->set_modulation_ramp_up( up.cbegin() , Block::Subset{ 3 , 0 } ,
+   nub->set_modulation_ramp_up( Block::MF_dbl_sp( up ) , Block::Subset{ 3 ,
+                                0 } ,
                                 false );
-   nub->set_modulation_ramp_down( down.cbegin() , Range( 1 , 4 ) );
+   nub->set_modulation_ramp_down( Block::MF_dbl_sp( down ) , Range( 1 , 4 ) );
    check( ( nub->get_modulation_ramp_up() == mru1 ) &&
           ( nub->get_modulation_ramp_down() == mrd1 ) ,
           what + ": the ramps are not the new ones" );
@@ -10345,7 +10667,7 @@ static void test_nuclear_modulation_ramps_change( void )
    std::vector< double > bad = { 25 };
    bool thrown = false;
    try {
-    nub->set_modulation_ramp_down( bad.cbegin() , Range( 2 , 3 ) );
+    nub->set_modulation_ramp_down( Block::MF_dbl_sp( bad ) , Range( 2 , 3 ) );
     }
    catch( std::logic_error & ) {
     thrown = true;
@@ -10360,7 +10682,8 @@ static void test_nuclear_modulation_ramps_change( void )
 
    // a dry run of the abstract part: the datum alone
    std::vector< double > up0 = { 5 };
-   nub->set_modulation_ramp_up( up0.cbegin() , Range( 0 , 1 ) , eModBlck ,
+   nub->set_modulation_ramp_up( Block::MF_dbl_sp( up0 ) , Range( 0 , 1 ) ,
+                                eModBlck ,
                                 eDryRun );
    check( nub->get_modulation_ramp_up()[ 0 ] == 5 ,
           what + ": the ramp up not changed by a dry run" );
@@ -10388,7 +10711,7 @@ static void test_nuclear_modulation_ramps_change( void )
    const auto before = nub->get_modulation_ramp_down();
    bool thrown = false;
    try {
-    nub->set_modulation_ramp_down( v.cbegin() , rng );
+    nub->set_modulation_ramp_down( Block::MF_dbl_sp( v ) , rng );
     }
    catch( std::logic_error & ) {
     thrown = true;
@@ -10406,7 +10729,7 @@ static void test_nuclear_modulation_ramps_change( void )
 
   // the same instants: done
   std::vector< double > v2 = { 4 };
-  nub->set_modulation_ramp_down( v2.cbegin() , Range( 2 , 3 ) );
+  nub->set_modulation_ramp_down( Block::MF_dbl_sp( v2 ) , Range( 2 , 3 ) );
   auto ref_unit = new_ramp_NU( 1 , base , nub->get_modulation_ramp_down() ,
                                true );
   generate_all_wf( ref_unit , wf );
@@ -10540,7 +10863,7 @@ static void test_thermal_update_rows_groups( void )
    rhs.push_back( r.get_rhs() );
   bool thrown = false;
   try {
-   tub.set_maximum_power( mp.begin() , rng );
+   tub.set_maximum_power( Block::MF_dbl_sp( mp ) , rng );
    }
   catch( std::logic_error & ) {
    thrown = true;
@@ -10554,7 +10877,7 @@ static void test_thermal_update_rows_groups( void )
   };
 
  std::vector< double > mp = { 70 };
- tub.set_maximum_power( mp.begin() , Range( 1 , 2 ) );
+ tub.set_maximum_power( Block::MF_dbl_sp( mp ) , Range( 1 , 2 ) );
  check( ( tub.pushed.size() == 2 ) && ( tub.pushed[ 1 ].get_rhs() == 65 ) &&
         ( tub.pushed[ 0 ].get_rhs() == 55 ) ,
         "derived rows: MaxPower 70 at 1 does not give the rhs 65 there" );
@@ -10612,7 +10935,7 @@ static void test_thermal_init_updown_change( void )
    std::vector< int > v = { c.to };
    bool thrown = false;
    try {
-    tub->set_init_updown_time( v.cbegin() , Range( 0 , 1 ) );
+    tub->set_init_updown_time( Block::MF_int_sp( v ) , Range( 0 , 1 ) );
     }
    catch( std::logic_error & ) {
     thrown = true;
@@ -10648,7 +10971,8 @@ static void test_thermal_init_updown_change( void )
 
    // a dry run of the abstract part: the datum alone
    if( ( wf == 0 ) && ( ! c.done ) ) {
-    tub->set_init_updown_time( v.cbegin() , Range( 0 , 1 ) , eModBlck ,
+    tub->set_init_updown_time( Block::MF_int_sp( v ) , Range( 0 , 1 ) ,
+                               eModBlck ,
                                eDryRun );
     check( tub->get_init_up_down_time() == c.to ,
            what + ": not changed by a dry run of the abstract part" );
@@ -10700,11 +11024,11 @@ static void test_thermal_DP_cost_change( void )
 
    const std::vector< double > c( d.T , sd ? 100 : 200 );
    if( sd ) {
-    tub->set_shutdown_costs( c.cbegin() );
+    tub->set_shutdown_costs( Block::MF_dbl_sp( c ) );
     d.sdc = c;
     }
    else {
-    tub->set_startup_costs( c.cbegin() );
+    tub->set_startup_costs( Block::MF_dbl_sp( c ) );
     d.suc = c;
     }
    const double expected = brute_force( d , nofix );
@@ -10808,7 +11132,7 @@ static void test_thermal_initial_power_refused( void )
    auto refused = [ & ]( double v ) {
     std::vector< double > val = { v };
     try {
-     tub->set_initial_power( val.cbegin() );
+     tub->set_initial_power( Block::MF_dbl_sp( val ) );
      }
     catch( std::logic_error & ) {
      return( true );
@@ -10891,7 +11215,8 @@ static void test_nuclear_rule_costs_unordered( void )
  if( ! nub )
   return;
  const std::vector< double > val = { 7 , 3 };
- nub->set_down_modulation_costs( val.cbegin() , Block::Subset{ 3 , 0 } ,
+ nub->set_down_modulation_costs( Block::MF_dbl_sp( val ) , Block::Subset{ 3 ,
+                                 0 } ,
                                  false );
  const auto & c = nub->get_down_modulation_cost();
  check( ( c.size() == 4 ) && ( c[ 0 ] == 3 ) && ( c[ 3 ] == 7 ) &&
@@ -11109,9 +11434,9 @@ static void test_ac_no_angle_bounds( void )
   }
 
  // the UCBlock, with and without the bounds
- const auto sname = milp_solver();
+ const auto sname = milp_solver( true );
  if( sname.empty() ) {
-  std::cout << "AC angles absent: no :MILPSolver, solve skipped"
+  std::cout << "AC angles absent: no :MILPSolver of a QCP, solve skipped"
             << std::endl;
   return;
   }
@@ -11585,9 +11910,10 @@ static void test_ac_angle_bounds_unbounded( void )
   check( refused , "AC angles [ 20 , 10 ]: accepted" );
   }
 
- const auto sname = milp_solver();
+ const auto sname = milp_solver( true );
  if( sname.empty() ) {
-  std::cout << "AC angles, unbounded: no :MILPSolver, solve skipped"
+  std::cout << "AC angles, unbounded: no :MILPSolver of a QCP, solve "
+            << "skipped"
             << std::endl;
   return;
   }
@@ -11875,7 +12201,7 @@ static void test_hydro_set_inflow_subset( void )
  generate_all( b );
  std::vector< double > val = { 4 };
  try {
-  b->set_inflow( val.cbegin() , Subset( { 2 } ) );
+  b->set_inflow( Block::MF_dbl_sp( val ) , Subset( { 2 } ) );
   check( b->get_inflows()[ 0 ][ 2 ] == 4 ,
 	 "hydro set_inflow( { 2 } ): inflow at 2 is " +
 	 str( b->get_inflows()[ 0 ][ 2 ] ) + " instead of 4" );
@@ -11890,7 +12216,7 @@ static void test_hydro_set_inflow_subset( void )
   }
  bool thrown = false;
  try {
-  b->set_inflow( val.cbegin() , Subset( { 3 } ) );
+  b->set_inflow( Block::MF_dbl_sp( val ) , Subset( { 3 } ) );
   }
  catch( std::invalid_argument & ) {
   thrown = true;
@@ -11923,7 +12249,7 @@ static void test_hydro_initial_flow_absent( void )
   return;
   }
  std::vector< double > val = { 2 };
- b->set_initial_flow_rate( val.cbegin() , Subset( { 0 } ) );
+ b->set_initial_flow_rate( Block::MF_dbl_sp( val ) , Subset( { 0 } ) );
  check( ( b->get_initial_flow_rate( 0 ) == 2 ) &&
 	( b->get_initial_flow_rate( 1 ) == 0 ) &&
 	( b->get_initial_flow_rate( 2 ) == 0 ) ,
@@ -11935,7 +12261,7 @@ static void test_hydro_initial_flow_absent( void )
 
  b = new_HU( d , why );
  val = { 1 , 3 };
- b->set_initial_flow_rate( val.cbegin() , Range( 0 , 2 ) );
+ b->set_initial_flow_rate( Block::MF_dbl_sp( val ) , Range( 0 , 2 ) );
  check( ( b->get_initial_flow_rate( 0 ) == 1 ) &&
 	( b->get_initial_flow_rate( 1 ) == 3 ) &&
 	( b->get_initial_flow_rate( 2 ) == 0 ) ,
@@ -11963,9 +12289,9 @@ static void test_hydro_cost_without_datum( void )
   std::vector< double > val = { 7 };
   try {
    if( range )
-    b->set_active_power_cost( val.cbegin() , Range( 0 , 1 ) );
+    b->set_active_power_cost( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
    else
-    b->set_active_power_cost( val.cbegin() , Subset( { 0 } ) );
+    b->set_active_power_cost( Block::MF_dbl_sp( val ) , Subset( { 0 } ) );
    check( close( obj_coef( b , b->get_active_power( 0 , 0 ) ) , 7 ) &&
 	  close( obj_coef( b , b->get_active_power( 0 , 1 ) ) , 7 ) ,
 	  "hydro set_active_power_cost" + w + " without the datum: "
@@ -11974,9 +12300,9 @@ static void test_hydro_cost_without_datum( void )
 	  " instead of 7" );
    val = { 2 };
    if( range )
-    b->set_active_power_cost( val.cbegin() , Range( 0 , 1 ) );
+    b->set_active_power_cost( Block::MF_dbl_sp( val ) , Range( 0 , 1 ) );
    else
-    b->set_active_power_cost( val.cbegin() , Subset( { 0 } ) );
+    b->set_active_power_cost( Block::MF_dbl_sp( val ) , Subset( { 0 } ) );
    check( close( obj_coef( b , b->get_active_power( 0 , 1 ) ) , 2 ) ,
 	  "hydro set_active_power_cost" + w + ", second change: "
 	  "coefficient " + str( obj_coef( b , b->get_active_power( 0 , 1 ) ) )
@@ -12411,7 +12737,7 @@ static bool generate_from_file( ThermalUnitBlock * tub ,
 /// value, INF if the relaxation is infeasible
 
 static double relaxation_value( ThermalUnitBlock * tub ,
-                                const char * bscf = "LPRelaxBSCfg.txt" )
+                                const char * bscf )
 {
  auto bsc = dynamic_cast< BlockSolverConfig * >( read_test_cfg( bscf ) );
  if( ! bsc )
@@ -12626,7 +12952,7 @@ static void test_OTS_resize_by_name( void )
  std::vector< double > k = { 0.5 };
  bool thrown = false;
  try {
-  nb->set_kappa( k.cbegin() , Range( 1 , 2 ) );
+  nb->set_kappa( Block::MF_dbl_sp( k ) , Range( 1 , 2 ) );
   }
  catch( std::logic_error & ) {
   thrown = true;
@@ -12725,7 +13051,7 @@ static void test_line_resize_linearization_by_name( void )
    const std::vector< double > k = { 2 };
    bool thrown = false;
    try {
-    static_cast< DCNetworkBlock * >( net )->set_kappa( k.cbegin() ,
+    static_cast< DCNetworkBlock * >( net )->set_kappa( Block::MF_dbl_sp( k ) ,
 						       Range( 0 , 1 ) );
     }
    catch( std::logic_error & ) {
@@ -12961,7 +13287,7 @@ static void test_resize_line_by_name( void )
   return;
   }
  generate_all( b.get() );
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  b->register_Solver( fs );
 
  const auto all_at = [ & ]( double kappa , const std::string & after ) {
@@ -13085,12 +13411,12 @@ static void test_OTS_resize_linearization_by_name( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/* ThermalUnitBlock::replicate by name multiplies every term of the
- * Objective by the number of copies, in every formulation, with the
- * perspective cuts and without: on a unit with all the costs of the
- * Objective and both reserves, after replicating to 3 and then to 0.5 the
- * Objective has the same Variable in the same order, and each coefficient
- * is that many times the one at 1, exactly. */
+/* ThermalUnitBlock::replicate by name sets the weights of the unit to the
+ * number of copies and leaves its Objective as it is, the one of one copy,
+ * in every formulation, with the perspective cuts and without: on a unit
+ * with all the costs of the Objective and both reserves, after replicating
+ * to 3 and then to 0.5 the weights are the copies and the Objective has the
+ * same Variable in the same order, each coefficient exactly the one at 1. */
 
 static void test_thermal_replicate_objective( void )
 {
@@ -13145,15 +13471,15 @@ static void test_thermal_replicate_objective( void )
    if( f->get_num_active_var() == one.size() )
     while( ( i < one.size() ) &&
 	   ( f->get_active_var( i ) == std::get< 0 >( one[ i ] ) ) &&
-	   ( f->get_linear_coefficient( i ) ==
-	     k * std::get< 1 >( one[ i ] ) ) &&
-	   ( f->get_quadratic_coefficient( i ) ==
-	     k * std::get< 2 >( one[ i ] ) ) )
+	   ( f->get_linear_coefficient( i ) == std::get< 1 >( one[ i ] ) ) &&
+	   ( f->get_quadratic_coefficient( i ) == std::get< 2 >( one[ i ] ) ) )
      ++i;
    check( i == one.size() , tag + ", " + str( k ) + " copies: the term " +
 	  std::to_string( i ) + " of the " + std::to_string( one.size() ) +
-	  " of the Objective is not " + str( k ) + " times the one of a "
-	  "copy" );
+	  " of the Objective is not the one of a copy" );
+   check( ( tub->get_objective_weight() == k ) &&
+	  ( tub->get_variable_weight() == k ) ,
+	  tag + ", " + str( k ) + " copies: the weights are not the copies" );
    }
   }
  }
@@ -13777,7 +14103,7 @@ static void test_resize_unit_bounds_once( void )
  check( row.get_rhs() == 100 , "the bounds written once: the upper bound at "
 	"node 1 is " + str( row.get_rhs() ) + " instead of 100" );
 
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  uc->register_Solver( fs );
  fs->get_Modification_list().clear();
  const std::vector< double > k = { 2 , 3 };
@@ -14180,9 +14506,9 @@ static void test_sizing_ranges_short_span( void )
  * replicates: "UCBlock::resize_unit" to 2 throws std::logic_error and
  * leaves the IntermittentUnitBlock 0 at kappa 2 with the upper bound 200 of
  * the injection at its node, and "UCBlock::replicate" to 2 throws it and
- * leaves the unit 0 at scale 2, with the coefficient 2 in the node
- * injection row (1 after "UCBlock::resize_unit", kappa not being there)
- * and the upper bound 200 again. */
+ * leaves the unit 0 with 2 copies, the upper bound 200 again and the
+ * coefficient 1 of one copy in the node injection row, as after
+ * "UCBlock::resize_unit", kappa not being there. */
 
 static void test_sizing_subset_throws_midway( void )
 {
@@ -14214,7 +14540,7 @@ static void test_sizing_subset_throws_midway( void )
   const auto & rows = uc->get_node_injection_constraints();
   const double coef = rows.empty() ? -1 :
 		      coef_of( uc.get() , rows[ 0 ][ 0 ] , 0 );
-  const double expected = copies ? 2 : 1;
+  const double expected = 1;
   check( ( size == 2 ) && mx && ( mx[ 0 ] == 200 ) &&
 	 close( coef , expected ) , name + ", a refusal midway: the unit 0 "
 	 "before the slack has the size " + str( size ) + ", the upper "
@@ -14454,7 +14780,7 @@ static void test_thermal_SUSD_ramp_rows( void )
  generate_from_file( tub , "TUBCfg-SUSD.txt" );
  std::vector< double > ip = { 50 };
  try {
-  tub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+  tub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
   auto ref = make( 50 , 5 );
   generate_from_file( ref , "TUBCfg-SUSD.txt" );
   const auto v = relaxation_value( tub );
@@ -14669,7 +14995,7 @@ static void test_thermal_psi_first_last( void )
   generate_from_file( ref , form );
   std::vector< double > ip = { 30 };
   try {
-   tub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+   tub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
    const auto v = relaxation_value( tub );
    const auto r = relaxation_value( ref );
    check( ( std::isnan( v ) && std::isnan( r ) ) || close( v , r ) ,
@@ -14770,7 +15096,7 @@ static void test_thermal_psi_propagation( void )
      continue;
      }
     if( later )
-     tub->set_availability( c.av.begin() );
+     tub->set_availability( Block::MF_dbl_sp( c.av ) );
     const auto v = relaxation_value( tub );
     const auto what = who + ", " + form + ( later ? ", set_availability()"
                                                   : "" );
@@ -14870,13 +15196,13 @@ static void test_thermal_infeasible_arcs( void )
   // the availability changed to 0.3 at 3 and back to 1
   auto tub = make( av_hi );
   generate_from_file( tub , form );
-  tub->set_availability( av_lo.begin() );
+  tub->set_availability( Block::MF_dbl_sp( av_lo ) );
   check( zeros( tub ) == 4 , what + ": set_availability() to 0.3 leaves " +
          std::to_string( zeros( tub ) ) + " arcs fixed to 0" );
   double v = relaxation_value( tub );
   check( close( v , v_lo ) , what + ": after set_availability() to 0.3 the "
          "relaxation is " + str( v ) + " instead of " + str( v_lo ) );
-  tub->set_availability( av_hi.begin() );
+  tub->set_availability( Block::MF_dbl_sp( av_hi ) );
   check( zeros( tub ) == 1 , what + ": set_availability() back to 1 "
          "leaves " + std::to_string( zeros( tub ) ) + " arcs fixed to 0" );
   v = relaxation_value( tub );
@@ -15897,14 +16223,14 @@ static void test_nuclear_forms_setters( void )
    }
 
   try {
-   nub->set_maximum_power( mp.cbegin() , Range( 2 , 3 ) );
-   nub->set_availability( avl.cbegin() , Range( 4 , 5 ) );
-   nub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
-   nub->set_modulation_ramp_up( mru.cbegin() , Range( 1 , 2 ) );
-   nub->set_modulation_ramp_down( mrd.cbegin() , Range( 3 , 4 ) );
-   nub->set_down_modulation_costs( dc.cbegin() , Range( 0 , 1 ) );
-   nub->set_deep_decrease_costs( ddc.cbegin() , Range( 5 , 6 ) );
-   nub->set_linear_term( lin.cbegin() , Range( 2 , 3 ) );
+   nub->set_maximum_power( Block::MF_dbl_sp( mp ) , Range( 2 , 3 ) );
+   nub->set_availability( Block::MF_dbl_sp( avl ) , Range( 4 , 5 ) );
+   nub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
+   nub->set_modulation_ramp_up( Block::MF_dbl_sp( mru ) , Range( 1 , 2 ) );
+   nub->set_modulation_ramp_down( Block::MF_dbl_sp( mrd ) , Range( 3 , 4 ) );
+   nub->set_down_modulation_costs( Block::MF_dbl_sp( dc ) , Range( 0 , 1 ) );
+   nub->set_deep_decrease_costs( Block::MF_dbl_sp( ddc ) , Range( 5 , 6 ) );
+   nub->set_linear_term( Block::MF_dbl_sp( lin ) , Range( 2 , 3 ) );
    }
   catch( std::exception & e ) {
    check( false , what + ": a change throws " + e.what() );
@@ -15922,14 +16248,14 @@ static void test_nuclear_forms_setters( void )
    MRD[ 3 ] = 1;
    DC[ 0 ] = 2;
    DDC[ 5 ] = 3;
-   ref->set_maximum_power( MP.cbegin() , Range( 0 , d.T ) );
-   ref->set_availability( AV.cbegin() , Range( 0 , d.T ) );
-   ref->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
-   ref->set_modulation_ramp_up( MRU.cbegin() , Range( 0 , d.T ) );
-   ref->set_modulation_ramp_down( MRD.cbegin() , Range( 0 , d.T ) );
-   ref->set_down_modulation_costs( DC.cbegin() , Range( 0 , d.T ) );
-   ref->set_deep_decrease_costs( DDC.cbegin() , Range( 0 , d.T ) );
-   ref->set_linear_term( lin.cbegin() , Range( 2 , 3 ) );
+   ref->set_maximum_power( Block::MF_dbl_sp( MP ) , Range( 0 , d.T ) );
+   ref->set_availability( Block::MF_dbl_sp( AV ) , Range( 0 , d.T ) );
+   ref->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
+   ref->set_modulation_ramp_up( Block::MF_dbl_sp( MRU ) , Range( 0 , d.T ) );
+   ref->set_modulation_ramp_down( Block::MF_dbl_sp( MRD ) , Range( 0 , d.T ) );
+   ref->set_down_modulation_costs( Block::MF_dbl_sp( DC ) , Range( 0 , d.T ) );
+   ref->set_deep_decrease_costs( Block::MF_dbl_sp( DDC ) , Range( 0 , d.T ) );
+   ref->set_linear_term( Block::MF_dbl_sp( lin ) , Range( 2 , 3 ) );
    }
   generate_from_file( ref , f.second );
   const auto diff = rows_differ( nub , ref );
@@ -15970,7 +16296,7 @@ static void test_nuclear_forms_setters( void )
  if( built ) {
   bool thrown = false;
   try {
-   nub->set_maximum_power( mp.cbegin() , Range( 2 , 3 ) );
+   nub->set_maximum_power( Block::MF_dbl_sp( mp ) , Range( 2 , 3 ) );
    }
   catch( std::logic_error & ) {
    thrown = true;
@@ -16088,7 +16414,7 @@ static void test_nuclear_DP_initial_power_reload( void )
   try {
    slv->compute();
    std::vector< double > ip = { c.ip };
-   nub->set_initial_power( ip.cbegin() , Range( 0 , 1 ) );
+   nub->set_initial_power( Block::MF_dbl_sp( ip ) , Range( 0 , 1 ) );
    const auto st = slv->compute();
    if( st == Solver::kOK ) {
     v = slv->get_ub();
@@ -17037,7 +17363,7 @@ static void test_conversion_no_lines( void )
   if( dh1 >= 0 ) {
    std::vector< double > dh = { dh1 };
    for( auto nb : uc->get_network_blocks() )
-    nb->set_active_demand( dh.cbegin() , Range( 1 , 2 ) , eNoBlck ,
+    nb->set_active_demand( Block::MF_dbl_sp( dh ) , Range( 1 , 2 ) , eNoBlck ,
                            eNoBlck );
    }
   return( conv_milp( uc ) );
@@ -17317,54 +17643,60 @@ static void test_conversion_setters( void )
  auto a = new_CU( d );
  a->set_reserve_vars( 1 );
  generate_all( a );
- auto fs = new FakeSolver();
+ auto fs = new WeightFakeSolver();
  a->register_Solver( fs );
  fs->get_Modification_list().clear();
 
  std::vector< double > v;
  v = { 70 , 60 };  // MaxPower of generator 1 at 3 and 1
- a->set_maximum_power( v.cbegin() , 1 , Subset{ 3 , 1 } , false , eModBlck ,
+ a->set_maximum_power( Block::MF_dbl_sp( v ) , 1 , Subset{ 3 , 1 } , false ,
+                       eModBlck ,
                        eModBlck );
  d.maxP[ 3 * 2 + 1 ] = 70;
  d.maxP[ 1 * 2 + 1 ] = 60;
  v = { -5 , 7 };  // through the methods factory, over the entries [ g ][ t ]
- auto mthd = Block::get_method_fs< Block::MF_dbl_it , Range >(
+ auto mthd = Block::get_method_fs< Block::MF_dbl_sp , Range >(
                                       "ConversionUnitBlock::set_linear_term" );
  check( mthd != nullptr , "conversion setters: set_linear_term is not in "
         "the methods factory" );
  if( mthd )
-  std::invoke( * mthd , a , v.cbegin() , Range( 1 , 3 ) , eModBlck ,
+  std::invoke( * mthd , a , Block::MF_dbl_sp( v ) , Range( 1 , 3 ) , eModBlck ,
                eModBlck );
  d.lin[ 1 * 2 ] = -5;
  d.lin[ 2 * 2 ] = 7;
  v = { 95 , 90 };  // over the entries [ m ][ t ], an unordered Subset
- a->set_operating_rhs( v.cbegin() , Subset{ 1 , 0 } , false , eModBlck ,
+ a->set_operating_rhs( Block::MF_dbl_sp( v ) , Subset{ 1 , 0 } , false ,
+                       eModBlck ,
                        eModBlck );
  d.rhs[ 0 ] = 90;
  d.rhs[ 1 ] = 95;
  v = { 25 };
- a->set_delta_ramp_up( v.cbegin() , 1 , Range( 2 , 3 ) , eModBlck ,
+ a->set_delta_ramp_up( Block::MF_dbl_sp( v ) , 1 , Range( 2 , 3 ) , eModBlck ,
                        eModBlck );
  d.rup[ 2 * 2 + 1 ] = 25;
  v = { 50 , 10 };
- a->set_initial_power( v.cbegin() , Range( 0 , 2 ) , eModBlck , eModBlck );
+ a->set_initial_power( Block::MF_dbl_sp( v ) , Range( 0 , 2 ) , eModBlck ,
+                       eModBlck );
  d.initP = { 50 , 10 };
  v = { 33 , 34 };
- a->set_const_term( v.cbegin() , Subset{ 2 , 0 } , false , eModBlck ,
+ a->set_const_term( Block::MF_dbl_sp( v ) , Subset{ 2 , 0 } , false ,
+                    eModBlck ,
                     eModBlck );
  d.cnst[ 2 ] = 33;
  d.cnst[ 0 ] = 34;
  v = { 60 };
- a->set_startup_costs( v.cbegin() , Range( 3 , 4 ) , eModBlck , eModBlck );
+ a->set_startup_costs( Block::MF_dbl_sp( v ) , Range( 3 , 4 ) , eModBlck ,
+                       eModBlck );
  d.suc[ 3 ] = 60;
  v = { -1 , -2 , -3 , -4 };
- a->set_primary_spinning_reserve_cost( v.cbegin() , 0 , Range( 0 , 4 ) ,
+ a->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( v ) , 0 , Range( 0 ,
+                                                                          4 ) ,
                                        eModBlck , eModBlck );
  std::vector< int > iv = { 1 };
- a->set_init_updown_time( iv.cbegin() , Range( 0 , 1 ) , eModBlck ,
+ a->set_init_updown_time( Block::MF_int_sp( iv ) , Range( 0 , 1 ) , eModBlck ,
                           eModBlck );
  d.initUD = 1;
- a->scale( 2.0 , eModBlck , eModBlck );
+ a->replicate( 2.0 , eModBlck , eModBlck );
  d.scale = 2;
 
  int nmods = 0;
@@ -17373,14 +17705,19 @@ static void test_conversion_setters( void )
    ++nmods;
  check( nmods == 9 , "conversion setters: " + std::to_string( nmods ) +
         " ConversionUnitBlockMod received instead of 9" );
- check( count_TUB_mods( fs , UnitBlockMod::eScale ) == 1 ,
-        "conversion setters: the scale issues no UnitBlockMod" );
+ int nw = 0;
+ for( const auto & m : received( fs ) )
+  if( std::dynamic_pointer_cast< const BlockWeightMod >( m ) )
+   ++nw;
+ check( nw == 1 , "conversion setters: the copies issue " +
+        std::to_string( nw ) + " BlockWeightMod" );
 
  auto b = new_CU( d );
  b->set_reserve_vars( 1 );
  generate_all( b );
  // the reserve cost is not in the data written: set it on the fresh unit
- b->set_primary_spinning_reserve_cost( v.cbegin() , 0 , Range( 0 , 4 ) );
+ b->set_primary_spinning_reserve_cost( Block::MF_dbl_sp( v ) , 0 ,
+                                      Range( 0 , 4 ) );
  const auto why = rows_differ( a , b );
  check( why.empty() , "conversion setters: the rows differ from those of "
         "the changed data, " + why );
@@ -17404,20 +17741,22 @@ static void test_conversion_setters( void )
   check( thrown , "conversion setters: " + what + " is not refused" );
   };
  v = { INF };
- refused( [ & ]() { a->set_operating_rhs( v.cbegin() , 0 , Range( 1 , 2 ) ,
+ refused( [ & ]() { a->set_operating_rhs( Block::MF_dbl_sp( v ) , 0 ,
+                                          Range( 1 , 2 ) ,
                                           eModBlck , eModBlck ); } ,
           "an infinite right-hand side" );
  check( a->get_operating_rhs( 1 , 0 ) == 95 , "conversion setters: a "
         "refused right-hand side changes the data" );
  v = { 200 };
- refused( [ & ]() { a->set_minimum_power( v.cbegin() , 0 , Range( 0 , 1 ) ,
+ refused( [ & ]() { a->set_minimum_power( Block::MF_dbl_sp( v ) , 0 ,
+                                          Range( 0 , 1 ) ,
                                           eModBlck , eModBlck ); } ,
           "a minimum power above the maximum" );
  check( a->get_min_power( 0 , 0 ) == 10 , "conversion setters: a refused "
         "minimum power changes the data" );
  v = { 1 };
  refused( [ & ]() { a->set_primary_spinning_reserve_cost(
-                     v.cbegin() , 1 , Range( 0 , 1 ) ); } ,
+                     Block::MF_dbl_sp( v ) , 1 , Range( 0 , 1 ) ); } ,
           "a reserve cost of a generator with no reserve" );
  check( rows_differ( a , b ).empty() , "conversion setters: a refused "
         "change changes the rows" );
@@ -17432,7 +17771,8 @@ static void test_conversion_setters( void )
  auto c = new_CU( e );
  generate_all( c );
  v = { 10 };
- refused( [ & ]() { c->set_delta_ramp_up( v.cbegin() , 0 , Range( 0 , 1 ) ,
+ refused( [ & ]() { c->set_delta_ramp_up( Block::MF_dbl_sp( v ) , 0 ,
+                                          Range( 0 , 1 ) ,
                                           eModBlck , eModBlck ); } ,
           "a ramp of a unit with no ramps" );
  delete c;
@@ -17883,7 +18223,8 @@ static void test_conversion_delays( void )
     auto cub = dynamic_cast< ConversionUnitBlock * >(
                                                 uc->get_unit_block( 0 ) );
     std::vector< double > p = { 5 , 5 };
-    cub->set_initial_delayed_power( p.cbegin() , 1 , Range( 0 , 2 ) ,
+    cub->set_initial_delayed_power( Block::MF_dbl_sp( p ) , 1 , Range( 0 ,
+                                                                       2 ) ,
                                     eModBlck , eModBlck );
     const double w = conv_milp( uc.get() );
     check( close( w , 722.222222222 ) , what + ", powers set after the "
@@ -18311,7 +18652,8 @@ static void test_conversion_design( void )
   std::unique_ptr< UCBlock > z( design_UC( { dz } ) );
   std::vector< double > zero = { 0 };
   dynamic_cast< ConversionUnitBlock * >( z->get_unit_block( 0 )
-                    )->set_investment_cost( zero.cbegin() , Range( 0 , 1 ) ,
+                    )->set_investment_cost( Block::MF_dbl_sp( zero ) ,
+                                            Range( 0 , 1 ) ,
                                             eModBlck , eModBlck );
   auto d150 = module_CU( 1 , -2 , 0 , false );
   d150.minP = rep( 6 , { -375 , 0 } );
@@ -18464,7 +18806,7 @@ static void test_power_range_changes( void )
   if( a && b ) {
    generate_all( a );
    generate_all( b );
-   auto fs = solver ? new FakeSolver() : nullptr;
+   auto fs = solver ? new WeightFakeSolver() : nullptr;
    if( fs )
     a->register_Solver( fs );
    change( a );
@@ -18502,7 +18844,7 @@ static void test_power_range_changes( void )
  run( "MaxPower of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
   std::vector< double > v = { 150 };
   static_cast< ConversionUnitBlock * >( uc->get_unit_block( 0 ) )->
-   set_maximum_power( v.cbegin() , 0 , Range( 1 , 2 ) , eModBlck ,
+   set_maximum_power( Block::MF_dbl_sp( v ) , 0 , Range( 1 , 2 ) , eModBlck ,
                       eModBlck );
   } );
 
@@ -18511,7 +18853,7 @@ static void test_power_range_changes( void )
  run( "MinPower of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
   std::vector< double > v = { -40 };
   static_cast< ConversionUnitBlock * >( uc->get_unit_block( 0 ) )->
-   set_minimum_power( v.cbegin() , 0 , Range( 0 , 1 ) , eModBlck ,
+   set_minimum_power( Block::MF_dbl_sp( v ) , 0 , Range( 0 , 1 ) , eModBlck ,
                       eModBlck );
   } );
 
@@ -18520,7 +18862,8 @@ static void test_power_range_changes( void )
  run( "MaxPower of the ThermalUnitBlock" , p , []( UCBlock * uc ) {
   std::vector< double > v = { 250 , 250 };
   static_cast< ThermalUnitBlock * >( uc->get_unit_block( 1 ) )->
-   set_maximum_power( v.cbegin() , Range( 0 , 2 ) , eModBlck , eModBlck );
+   set_maximum_power( Block::MF_dbl_sp( v ) , Range( 0 , 2 ) , eModBlck ,
+                      eModBlck );
   } );
 
  p = PRData();
@@ -18528,7 +18871,8 @@ static void test_power_range_changes( void )
  run( "MaxPower of the IntermittentUnitBlock" , p , []( UCBlock * uc ) {
   std::vector< double > v = { 80 };
   static_cast< IntermittentUnitBlock * >( uc->get_unit_block( 2 ) )->
-   set_maximum_power( v.cbegin() , Range( 1 , 2 ) , eModBlck , eModBlck );
+   set_maximum_power( Block::MF_dbl_sp( v ) , Range( 1 , 2 ) , eModBlck ,
+                      eModBlck );
   } );
 
  p = PRData();
@@ -18548,7 +18892,7 @@ static void test_power_range_changes( void )
  p = PRData();
  p.cuScale = 2;
  run( "scale of the ConversionUnitBlock" , p , []( UCBlock * uc ) {
-  uc->get_unit_block( 0 )->scale( 2 , eModBlck , eModBlck );
+  uc->get_unit_block( 0 )->replicate( 2 , eModBlck , eModBlck );
   } );
  }
 
@@ -18824,7 +19168,7 @@ static void test_serialize_round_trip( void )
 				  { 1 , 2 , 1 , -10 , 10 } } ,
 				{ 0 , 0 , 5 } ) ) ) );
   std::vector< double > k = { 2 };
-  nb->set_kappa( k.begin() , Range( 1 , 2 ) );
+  nb->set_kappa( Block::MF_dbl_sp( k ) , Range( 1 , 2 ) );
   round_trip( nb.get() , "DCNetworkBlock round trip" , { "Kappa" } );
   }
  }
@@ -18832,9 +19176,96 @@ static void test_serialize_round_trip( void )
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
-/* The scale of a unit and a design of more than one module are the same
- * fleet: scale() refuses the two together, as deserialize() does, and
- * accepts a scale with a design of one module. */
+/// a UCBlock of one node and one instant whose only unit is written by unit
+
+static UCBlock * one_unit_UC( std::function< void( netCDF::NcGroup ) > unit )
+{
+ auto g = new_group( "UC" , true );
+ g.putAtt( "type" , "UCBlock" );
+ auto T = g.addDim( "TimeHorizon" , 1 );
+ g.addDim( "NumberUnits" , 1 );
+ put( g , "ActivePowerDemand" , { g.addDim( "NumberNodes" , 1 ) , T } ,
+      { 3 } );
+ unit( g.addGroup( "UnitBlock_0" ) );
+ return( dynamic_cast< UCBlock * >( Block::new_Block( g ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// "UCBlock::has_design", read by name as a consumer that does not know the
+/// class reads it: 1 with a unit having an investment cost, whichever cost
+/// it is for a battery, and with a DesignNetworkBlock having a line to be
+/// designed even at no cost, 0 otherwise
+
+static void test_has_design( void )
+{
+ const auto has = Block::get_query_fs< double & >( "UCBlock::has_design" );
+ if( ! has ) {
+  check( false , "has_design: the name is not registered" );
+  return;
+  }
+
+ auto answer = [ & ]( Block * b , const std::string & what ) {
+  if( ! b ) {
+   check( false , "has_design: " + what + " is not read" );
+   return( -1.0 );
+   }
+  double d = -1;
+  std::invoke( * has , b , d );
+  delete b;
+  return( d );
+  };
+
+ TUData d;
+ d.lin = { 1 };
+ check( answer( one_unit_UC( [ & ]( netCDF::NcGroup u ) {
+                 write_TU( u , d ); } ) , "thermal" ) == 0 ,
+        "has_design: a thermal unit with no investment cost" );
+
+ check( answer( one_unit_UC( [ & ]( netCDF::NcGroup u ) {
+                 write_TU( u , d );
+                 put( u , "InvestmentCost" , 5 ); } ) ,
+                "thermal, design" ) == 1 ,
+        "has_design: a thermal unit with an investment cost" );
+
+ check( answer( one_unit_UC( []( netCDF::NcGroup u ) {
+                 u.putAtt( "type" , "IntermittentUnitBlock" );
+                 put( u , "MaxPower" , 2 );
+                 put( u , "InvestmentCost" , 5 );
+                 put( u , "MaxCapacityDesign" , 1 ); } ) ,
+                "intermittent, design" ) == 1 ,
+        "has_design: an intermittent unit with an investment cost" );
+
+ for( const std::string cost : { "" , "BatteryInvestmentCost" ,
+                                 "ConverterInvestmentCost" } )
+  check( answer( one_unit_UC( [ & ]( netCDF::NcGroup u ) {
+                  const auto T = u.getDim( "TimeHorizon" ,
+                                    netCDF::NcGroup::ParentsAndCurrent );
+                  u.putAtt( "type" , "BatteryUnitBlock" );
+                  put( u , "MinStorage" , T , { 0 } );
+                  put( u , "MaxStorage" , T , { 10 } );
+                  put( u , "MaxPower" , T , { 5 } );
+                  if( ! cost.empty() ) {
+                   const auto prefix = cost.substr( 0 , cost.find( "I" ) );
+                   put( u , cost , 2 );
+                   put( u , prefix + "MaxCapacityDesign" , 3 );
+                   } } ) ,
+                 "battery " + cost ) == ( cost.empty() ? 0 : 1 ) ,
+         "has_design: a battery with " +
+         ( cost.empty() ? std::string( "no investment cost" ) : cost ) );
+
+ check( answer( Block::new_Block( write_UC_carriers( true ) ) ,
+                "carriers" ) == 0 ,
+        "has_design: a heat network with no DesignNetworkBlock" );
+
+ check( answer( Block::new_Block( write_UC_carriers( true , false , true ) ) ,
+                "carriers, design" ) == 1 ,
+        "has_design: a DesignNetworkBlock with a line of no cost" );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The copies of a unit and a design of more than one module are the same
+ * fleet: replicate() refuses the two together, as deserialize() does, and
+ * accepts copies with a design of one module. */
 
 static void test_scale_design_guard( void )
 {
@@ -18851,7 +19282,7 @@ static void test_scale_design_guard( void )
 						    Block::new_Block( g ) ) );
   bool refused = false;
   try {
-   u->scale( 2 );
+   u->replicate( 2 );
    }
   catch( std::logic_error & ) { refused = true; }
   check( refused == ( std::abs( design ) > 1 ) ,
@@ -18871,7 +19302,7 @@ static void test_scale_design_guard( void )
  std::string msg;
  try {
   if( bu )
-   bu->scale( 2 );
+   bu->replicate( 2 );
   }
  catch( std::logic_error & e ) { refused = true; }
  catch( std::exception & e ) { msg = e.what(); }
@@ -18969,6 +19400,7 @@ int main( int argc , char ** argv )
   test_setters_thermal( 1 );
   test_setters_thermal( 3 );
   test_setters_UCBlock();
+  test_mod_changes();
   test_zero_copy_lower_bound();
   test_zero_copy_no_modification();
   test_replicate_without_objective();
@@ -19093,6 +19525,7 @@ int main( int argc , char ** argv )
   test_conversion_design();
   test_power_range_changes();
   test_conversion_design_ext();
+  test_has_design();
   }
  catch( std::exception & e ) {
   std::cout << "uncaught exception: " << e.what() << std::endl;

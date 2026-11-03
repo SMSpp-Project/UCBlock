@@ -544,21 +544,21 @@ class DesignNetworkBlock : public NetworkBlock
 
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( MF_dbl_it , Subset && , bool , ModParam , ModParam )
+ void set_active_demand( MF_dbl_sp , Subset && , bool , ModParam , ModParam )
   override final;
 
 /*--------------------------------------------------------------------------*/
 
- void set_active_demand( MF_dbl_it , Range , ModParam , ModParam )
+ void set_active_demand( MF_dbl_sp , Range , ModParam , ModParam )
   override final;
 
 /*--------------------------------------------------------------------------*/
 
- void set_network_cost( MF_dbl_it , Subset && , bool , ModParam , ModParam );
+ void set_network_cost( MF_dbl_sp , Subset && , bool , ModParam , ModParam );
 
 /*--------------------------------------------------------------------------*/
 
- void set_network_cost( MF_dbl_it , Range , ModParam , ModParam );
+ void set_network_cost( MF_dbl_sp , Range , ModParam , ModParam );
 
 /*--------------------------------------------------------------------------*/
 

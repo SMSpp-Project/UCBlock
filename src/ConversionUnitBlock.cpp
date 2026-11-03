@@ -72,15 +72,15 @@ static void copy_into( boost::multi_array< double , 2 > & a ,
 /*--------------------------------------------------------------------------*/
 /* Sorts the indices of a Subset given unordered, together with the values
  * that go with them, as in ThermalUnitBlock: the values are copied, in the
- * new order, in sorted, and values is set to its beginning. */
+ * new order, in sorted, and values is set to view it. */
 
 static void sort_by_index( Subset & subset ,
-                           std::vector< double >::const_iterator & values ,
+                           Block::MF_dbl_sp & values ,
                            std::vector< double > & sorted )
 {
  std::vector< std::pair< Index , double > > iv( subset.size() );
  for( Index i = 0 ; i < subset.size() ; ++i )
-  iv[ i ] = std::make_pair( subset[ i ] , *( values + i ) );
+  iv[ i ] = std::make_pair( subset[ i ] , values[ i ] );
  std::stable_sort( iv.begin() , iv.end() ,
                    []( const auto & a , const auto & b ) {
                     return( a.first < b.first ); } );
@@ -89,7 +89,7 @@ static void sort_by_index( Subset & subset ,
   subset[ i ] = iv[ i ].first;
   sorted[ i ] = iv[ i ].second;
   }
- values = sorted.cbegin();
+ values = sorted;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -442,9 +442,6 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
  f_MinDownTime = clamp_min_time( f_MinDownTime , T , f_InitUpDownTime ,
                                  false );
 
- f_scale = 1;
- ::deserialize( group , f_scale , "Scale" );
-
  // the modules- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  f_Modules = 1;
@@ -482,12 +479,12 @@ void ConversionUnitBlock::deserialize( const netCDF::NcGroup & group )
    throw( std::invalid_argument( who + ": a continuous design "
                                  "(MaxCapacityDesign >= 0) with more than "
                                  "one module" ) );
-  if( ( f_scale != 1 ) && ( std::abs( X ) > 1 ) )
+  if( ( get_scale() != 1 ) && ( std::abs( X ) > 1 ) )
    throw( std::invalid_argument( who + ": Scale != 1 together with "
                                  "|MaxCapacityDesign| > 1, which represent "
                                  "the same replication of the unit" ) );
   }
- if( ( f_scale != 1 ) && ( f_Modules > 1 ) )
+ if( ( get_scale() != 1 ) && ( f_Modules > 1 ) )
   throw( std::invalid_argument( who + ": Scale != 1 together with Modules > "
                                 "1, which represent the same replication of "
                                 "the unit" ) );
@@ -527,7 +524,7 @@ std::vector< std::string > ConversionUnitBlock::expected_vars( void ) const
     "SecondarySpinningReserveCost" , "LinearTerm" , "QuadTerm" ,
     "ConstTerm" , "StartUpCost" , "ShutDownCost" , "FixedConsumption" ,
     "InertiaCommitment" , "InertiaPower" , "InitialPower" ,
-    "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Scale" , "Delay" ,
+    "InitUpDownTime" , "MinUpTime" , "MinDownTime" , "Delay" ,
     "CyclicDelay" , "InitialDelayedPower" , "Modules" ,
     "InitialCommitment" , "InvestmentCost" , "MinCapacityDesign" ,
     "MaxCapacityDesign" };
@@ -1820,29 +1817,29 @@ void ConversionUnitBlock::generate_objective( Configuration * objc )
 
  for( Index t = 0 ; t < T ; ++t )
   vars.push_back( std::make_tuple( & v_start_up[ t ] ,
-                                   f_scale * get_start_up_cost( t ) , 0 ) );
+                                   get_start_up_cost( t ) , 0 ) );
  for( Index t = 0 ; t < T ; ++t )
   vars.push_back( std::make_tuple( & v_shut_down[ t ] ,
-                                   f_scale * get_shut_down_cost( t ) , 0 ) );
+                                   get_shut_down_cost( t ) , 0 ) );
  for( Index t = 0 ; t < T ; ++t )
   vars.push_back( std::make_tuple( & v_commitment[ t ] ,
-                                   f_scale * get_const_term( t ) , 0 ) );
+                                   get_const_term( t ) , 0 ) );
  for( Index g = 0 ; g < f_G ; ++g )
   for( Index t = 0 ; t < T ; ++t )
    vars.push_back( std::make_tuple( & op( g , t ) ,
-                                    f_scale * get_linear_term( t , g ) ,
-                                    f_scale * get_quad_term( t , g ) ) );
+                                    get_linear_term( t , g ) ,
+                                    get_quad_term( t , g ) ) );
  auto reserve = [ & ]( std::vector< std::vector< ColVariable > > & r ,
                        const MAdbl & cost ) {
   for( Index g = 0 ; g < r.size() ; ++g )
    for( Index t = 0 ; t < r[ g ].size() ; ++t )
     vars.push_back( std::make_tuple( & r[ g ][ t ] , absent( cost ) ? 0 :
-                                     f_scale * cost[ t ][ g ] , 0 ) );
+                                     cost[ t ][ g ] , 0 ) );
   };
  reserve( v_primary_reserve , v_PrimaryCost );
  reserve( v_secondary_reserve , v_SecondaryCost );
  if( has_design() )  // the design last
-  vars.push_back( std::make_tuple( & design , f_scale * f_InvestmentCost ,
+  vars.push_back( std::make_tuple( & design , f_InvestmentCost ,
                                    0 ) );
 
  objective.set_function( new DQuadFunction( std::move( vars ) ) );
@@ -1870,12 +1867,12 @@ void ConversionUnitBlock::update_objective( const Subset & instants ,
   };
 
  for( auto t : instants ) {
-  put( t , f_scale * get_start_up_cost( t ) , 0 );
-  put( T + t , f_scale * get_shut_down_cost( t ) , 0 );
-  put( 2 * T + t , f_scale * get_const_term( t ) , 0 );
+  put( t , get_start_up_cost( t ) , 0 );
+  put( T + t , get_shut_down_cost( t ) , 0 );
+  put( 2 * T + t , get_const_term( t ) , 0 );
   for( Index g = 0 ; g < f_G ; ++g )
-   put( ( 3 + g ) * T + t , f_scale * get_linear_term( t , g ) ,
-        f_scale * get_quad_term( t , g ) );
+   put( ( 3 + g ) * T + t , get_linear_term( t , g ) ,
+        get_quad_term( t , g ) );
   }
  Index off = ( 3 + f_G ) * T;
  for( const auto * rv : { & v_primary_reserve , & v_secondary_reserve } ) {
@@ -1885,7 +1882,7 @@ void ConversionUnitBlock::update_objective( const Subset & instants ,
    if( ( * rv )[ g ].empty() )
     continue;
    for( auto t : instants )
-    put( off + t , absent( cost ) ? 0 : f_scale * cost[ t ][ g ] , 0 );
+    put( off + t , absent( cost ) ? 0 : cost[ t ][ g ] , 0 );
    off += T;
    }
   }
@@ -1902,7 +1899,7 @@ void ConversionUnitBlock::update_design_cost( ModParam issueAMod )
  if( ( ! objective_generated() ) || ( ! has_design() ) )
   return;
  auto f = static_cast< DQuadFunction * >( objective.get_function() );
- f->modify_term( f->get_num_active_var() - 1 , f_scale * f_InvestmentCost ,
+ f->modify_term( f->get_num_active_var() - 1 , f_InvestmentCost ,
                  0 , un_ModBlock( issueAMod ) );
  }
 
@@ -2067,8 +2064,6 @@ void ConversionUnitBlock::serialize( netCDF::NcGroup & group ) const
    ::serialize( group , "MaxCapacityDesign" , netCDF::NcDouble() ,
                 f_MaxCapacityDesign );
   }
- if( f_scale != 1 )
-  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  if( ! v_Delay.empty() ) {
   std::vector< unsigned int > d( v_Delay.begin() , v_Delay.end() );
@@ -2098,7 +2093,7 @@ void ConversionUnitBlock::issue_mod( int type , Index index ,
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::guts_of_set( MAdbl & data , double dflt , int type ,
-                                       Index col , MF_dbl_it values ,
+                                       Index col , MF_dbl_sp values ,
                                        Subset && subset , bool ordered ,
                                        ModParam issuePMod ,
                                        ModParam issueAMod , bool rows ,
@@ -2106,6 +2101,10 @@ void ConversionUnitBlock::guts_of_set( MAdbl & data , double dflt , int type ,
 {
  if( subset.empty() )
   return;
+
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( who + ": the span is shorter than the "
+                                "Subset" ) );
 
  std::vector< double > sorted;
  if( ! ordered )
@@ -2127,7 +2126,7 @@ void ConversionUnitBlock::guts_of_set( MAdbl & data , double dflt , int type ,
                                 std::to_string( col ) ) );
 
  if( absent( data ) ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    [ dflt ]( double v ) { return( v == dflt ); } ) )
    return;
   if( ( type == ConversionUnitBlockMod::eSetRampUp ) ||
@@ -2136,7 +2135,7 @@ void ConversionUnitBlock::guts_of_set( MAdbl & data , double dflt , int type ,
   }
  else {
   bool same = true;
-  auto it = values;
+  auto it = values.begin();
   for( auto t : subset )
    same &= ( data[ t ][ col ] == *( it++ ) );
   if( same )
@@ -2160,7 +2159,7 @@ void ConversionUnitBlock::guts_of_set( MAdbl & data , double dflt , int type ,
    data.resize( boost::extents[ f_time_horizon ][ ncol ] );
    std::fill( data.data() , data.data() + data.num_elements() , dflt );
    }
-  auto it = values;
+  auto it = values.begin();
   for( auto t : subset )
    data[ t ][ col ] = *( it++ );
 
@@ -2184,7 +2183,7 @@ void ConversionUnitBlock::guts_of_set( MAdbl & data , double dflt , int type ,
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::guts_of_set( std::vector< double > & data ,
-                                       int type , MF_dbl_it values ,
+                                       int type , MF_dbl_sp values ,
                                        Subset && subset , bool ordered ,
                                        ModParam issuePMod ,
                                        ModParam issueAMod ,
@@ -2192,6 +2191,10 @@ void ConversionUnitBlock::guts_of_set( std::vector< double > & data ,
 {
  if( subset.empty() )
   return;
+
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( who + ": the span is shorter than the "
+                                "Subset" ) );
 
  std::vector< double > sorted;
  if( ! ordered )
@@ -2201,13 +2204,13 @@ void ConversionUnitBlock::guts_of_set( std::vector< double > & data ,
   throw( std::invalid_argument( who + ": invalid instant in the subset" ) );
 
  if( data.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double v ) { return( v == 0 ); } ) )
    return;
   }
  else {
   bool same = true;
-  auto it = values;
+  auto it = values.begin();
   for( auto t : subset )
    same &= ( data[ t ] == *( it++ ) );
   if( same )
@@ -2217,7 +2220,7 @@ void ConversionUnitBlock::guts_of_set( std::vector< double > & data ,
  if( not_dry_run( issuePMod ) ) {
   if( data.empty() )
    data.assign( f_time_horizon , 0 );
-  auto it = values;
+  auto it = values.begin();
   for( auto t : subset )
    data[ t ] = *( it++ );
   if( not_dry_run( issueAMod ) )
@@ -2241,7 +2244,7 @@ static Subset range_subset( Block::Range rng , Index T )
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_linear_term( MF_dbl_it values , Index g ,
+void ConversionUnitBlock::set_linear_term( MF_dbl_sp values , Index g ,
                                            Subset && subset ,
                                            const bool ordered ,
                                            ModParam issuePMod ,
@@ -2252,7 +2255,7 @@ void ConversionUnitBlock::set_linear_term( MF_dbl_it values , Index g ,
               issueAMod , false , "ConversionUnitBlock::set_linear_term" );
  }
 
-void ConversionUnitBlock::set_linear_term( MF_dbl_it values , Index g ,
+void ConversionUnitBlock::set_linear_term( MF_dbl_sp values , Index g ,
                                            Range rng , ModParam issuePMod ,
                                            ModParam issueAMod )
 {
@@ -2262,7 +2265,7 @@ void ConversionUnitBlock::set_linear_term( MF_dbl_it values , Index g ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_quad_term( MF_dbl_it values , Index g ,
+void ConversionUnitBlock::set_quad_term( MF_dbl_sp values , Index g ,
                                          Subset && subset ,
                                          const bool ordered ,
                                          ModParam issuePMod ,
@@ -2273,7 +2276,7 @@ void ConversionUnitBlock::set_quad_term( MF_dbl_it values , Index g ,
               issueAMod , false , "ConversionUnitBlock::set_quad_term" );
  }
 
-void ConversionUnitBlock::set_quad_term( MF_dbl_it values , Index g ,
+void ConversionUnitBlock::set_quad_term( MF_dbl_sp values , Index g ,
                                          Range rng , ModParam issuePMod ,
                                          ModParam issueAMod )
 {
@@ -2284,7 +2287,7 @@ void ConversionUnitBlock::set_quad_term( MF_dbl_it values , Index g ,
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_primary_spinning_reserve_cost(
-                         MF_dbl_it values , Index g , Range rng ,
+                         MF_dbl_sp values , Index g , Range rng ,
                          ModParam issuePMod , ModParam issueAMod )
 {
  guts_of_set( v_PrimaryCost , 0 , ConversionUnitBlockMod::eSetPrCost , g ,
@@ -2296,7 +2299,7 @@ void ConversionUnitBlock::set_primary_spinning_reserve_cost(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_secondary_spinning_reserve_cost(
-                         MF_dbl_it values , Index g , Range rng ,
+                         MF_dbl_sp values , Index g , Range rng ,
                          ModParam issuePMod , ModParam issueAMod )
 {
  guts_of_set( v_SecondaryCost , 0 , ConversionUnitBlockMod::eSetScCost , g ,
@@ -2307,7 +2310,7 @@ void ConversionUnitBlock::set_secondary_spinning_reserve_cost(
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_const_term( MF_dbl_it values ,
+void ConversionUnitBlock::set_const_term( MF_dbl_sp values ,
                                           Subset && subset ,
                                           const bool ordered ,
                                           ModParam issuePMod ,
@@ -2318,7 +2321,7 @@ void ConversionUnitBlock::set_const_term( MF_dbl_it values ,
               "ConversionUnitBlock::set_const_term" );
  }
 
-void ConversionUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
+void ConversionUnitBlock::set_const_term( MF_dbl_sp values , Range rng ,
                                           ModParam issuePMod ,
                                           ModParam issueAMod )
 {
@@ -2328,7 +2331,7 @@ void ConversionUnitBlock::set_const_term( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_startup_costs( MF_dbl_it values ,
+void ConversionUnitBlock::set_startup_costs( MF_dbl_sp values ,
                                              Subset && subset ,
                                              const bool ordered ,
                                              ModParam issuePMod ,
@@ -2339,7 +2342,7 @@ void ConversionUnitBlock::set_startup_costs( MF_dbl_it values ,
               "ConversionUnitBlock::set_startup_costs" );
  }
 
-void ConversionUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
+void ConversionUnitBlock::set_startup_costs( MF_dbl_sp values , Range rng ,
                                              ModParam issuePMod ,
                                              ModParam issueAMod )
 {
@@ -2349,7 +2352,7 @@ void ConversionUnitBlock::set_startup_costs( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_shutdown_costs( MF_dbl_it values ,
+void ConversionUnitBlock::set_shutdown_costs( MF_dbl_sp values ,
                                               Subset && subset ,
                                               const bool ordered ,
                                               ModParam issuePMod ,
@@ -2360,7 +2363,7 @@ void ConversionUnitBlock::set_shutdown_costs( MF_dbl_it values ,
               "ConversionUnitBlock::set_shutdown_costs" );
  }
 
-void ConversionUnitBlock::set_shutdown_costs( MF_dbl_it values , Range rng ,
+void ConversionUnitBlock::set_shutdown_costs( MF_dbl_sp values , Range rng ,
                                               ModParam issuePMod ,
                                               ModParam issueAMod )
 {
@@ -2370,7 +2373,7 @@ void ConversionUnitBlock::set_shutdown_costs( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_maximum_power( MF_dbl_it values , Index g ,
+void ConversionUnitBlock::set_maximum_power( MF_dbl_sp values , Index g ,
                                              Subset && subset ,
                                              const bool ordered ,
                                              ModParam issuePMod ,
@@ -2381,7 +2384,7 @@ void ConversionUnitBlock::set_maximum_power( MF_dbl_it values , Index g ,
               issueAMod , true , "ConversionUnitBlock::set_maximum_power" );
  }
 
-void ConversionUnitBlock::set_maximum_power( MF_dbl_it values , Index g ,
+void ConversionUnitBlock::set_maximum_power( MF_dbl_sp values , Index g ,
                                              Range rng , ModParam issuePMod ,
                                              ModParam issueAMod )
 {
@@ -2391,7 +2394,7 @@ void ConversionUnitBlock::set_maximum_power( MF_dbl_it values , Index g ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_minimum_power( MF_dbl_it values , Index g ,
+void ConversionUnitBlock::set_minimum_power( MF_dbl_sp values , Index g ,
                                              Subset && subset ,
                                              const bool ordered ,
                                              ModParam issuePMod ,
@@ -2402,7 +2405,7 @@ void ConversionUnitBlock::set_minimum_power( MF_dbl_it values , Index g ,
               issueAMod , true , "ConversionUnitBlock::set_minimum_power" );
  }
 
-void ConversionUnitBlock::set_minimum_power( MF_dbl_it values , Index g ,
+void ConversionUnitBlock::set_minimum_power( MF_dbl_sp values , Index g ,
                                              Range rng , ModParam issuePMod ,
                                              ModParam issueAMod )
 {
@@ -2412,7 +2415,7 @@ void ConversionUnitBlock::set_minimum_power( MF_dbl_it values , Index g ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_operating_rhs( MF_dbl_it values , Index m ,
+void ConversionUnitBlock::set_operating_rhs( MF_dbl_sp values , Index m ,
                                              Range rng , ModParam issuePMod ,
                                              ModParam issueAMod )
 {
@@ -2424,7 +2427,7 @@ void ConversionUnitBlock::set_operating_rhs( MF_dbl_it values , Index m ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_operating_lhs( MF_dbl_it values , Index m ,
+void ConversionUnitBlock::set_operating_lhs( MF_dbl_sp values , Index m ,
                                              Range rng , ModParam issuePMod ,
                                              ModParam issueAMod )
 {
@@ -2436,7 +2439,7 @@ void ConversionUnitBlock::set_operating_lhs( MF_dbl_it values , Index m ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_delta_ramp_up( MF_dbl_it values , Index k ,
+void ConversionUnitBlock::set_delta_ramp_up( MF_dbl_sp values , Index k ,
                                              Range rng , ModParam issuePMod ,
                                              ModParam issueAMod )
 {
@@ -2448,7 +2451,7 @@ void ConversionUnitBlock::set_delta_ramp_up( MF_dbl_it values , Index k ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_delta_ramp_down( MF_dbl_it values , Index k ,
+void ConversionUnitBlock::set_delta_ramp_down( MF_dbl_sp values , Index k ,
                                                Range rng ,
                                                ModParam issuePMod ,
                                                ModParam issueAMod )
@@ -2461,7 +2464,7 @@ void ConversionUnitBlock::set_delta_ramp_down( MF_dbl_it values , Index k ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
+void ConversionUnitBlock::set_initial_power( MF_dbl_sp values , Range rng ,
                                              ModParam issuePMod ,
                                              ModParam issueAMod )
 {
@@ -2469,13 +2472,18 @@ void ConversionUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
  rng.second = std::min( rng.second , f_G );
  if( rng.second <= rng.first )
   return;
- if( std::equal( values , values + ( rng.second - rng.first ) ,
+
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( who + ": the span is shorter than the "
+                                "Range" ) );
+
+ if( std::equal( values.begin() , values.begin() + ( rng.second - rng.first ) ,
                  v_InitialPower.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   const auto old = v_InitialPower;
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() , values.begin() + ( rng.second - rng.first ) ,
              v_InitialPower.begin() + rng.first );
   try {
    check_data( who );
@@ -2497,7 +2505,7 @@ void ConversionUnitBlock::set_initial_power( MF_dbl_it values , Range rng ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_sp values ,
                                                      Index g , Range rng ,
                                                      ModParam issuePMod ,
                                                      ModParam issueAMod )
@@ -2511,8 +2519,12 @@ void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( who + ": the span is shorter than the "
+                                "Range" ) );
+
  bool same = true;
- auto it = values;
+ auto it = values.begin();
  for( Index s = rng.first ; s < rng.second ; ++s )
   same &= ( get_initial_delayed_power( s , g ) == *( it++ ) );
  if( same )
@@ -2529,7 +2541,7 @@ void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
    std::fill( v_InitialDelayedPower.data() , v_InitialDelayedPower.data() +
               v_InitialDelayedPower.num_elements() , 0.0 );
    }
-  it = values;
+  it = values.begin();
   for( Index s = rng.first ; s < rng.second ; ++s )
    v_InitialDelayedPower[ s ][ g ] = *( it++ );
   try {
@@ -2548,20 +2560,26 @@ void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_sp values ,
                                                      Subset && subset ,
                                                      const bool ordered ,
                                                      ModParam issuePMod ,
                                                      ModParam issueAMod )
 {
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "ConversionUnitBlock::"
+                                "set_initial_delayed_power: the span is "
+                                "shorter than the Subset" ) );
+
  // one change per entry [ g ][ s ], of index g T + s
  const Index T = f_time_horizon;
- for( auto i : subset ) {
+ for( Index h = 0 ; h < subset.size() ; ++h ) {
+  const auto i = subset[ h ];
   if( ( ! T ) || ( i >= f_G * T ) )
    throw( std::invalid_argument( "ConversionUnitBlock::"
                                  "set_initial_delayed_power: invalid index " +
                                  std::to_string( i ) ) );
-  set_initial_delayed_power( values++ , i / T ,
+  set_initial_delayed_power( values.subspan( h , 1 ) , i / T ,
                              Range( i % T , i % T + 1 ) , issuePMod ,
                              issueAMod );
   }
@@ -2569,7 +2587,7 @@ void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
+void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_sp values ,
                                                      Range rng ,
                                                      ModParam issuePMod ,
                                                      ModParam issueAMod )
@@ -2581,7 +2599,7 @@ void ConversionUnitBlock::set_initial_delayed_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_init_updown_time( MF_int_it values ,
+void ConversionUnitBlock::set_init_updown_time( MF_int_sp values ,
                                                 Range rng ,
                                                 ModParam issuePMod ,
                                                 ModParam issueAMod )
@@ -2589,12 +2607,16 @@ void ConversionUnitBlock::set_init_updown_time( MF_int_it values ,
  static const std::string who = "ConversionUnitBlock::set_init_updown_time";
  if( rng.second <= rng.first )
   return;
- if( *values == f_InitUpDownTime )
+
+ if( values.empty() )
+  throw( std::invalid_argument( who + ": no value in the span" ) );
+
+ if( values.front() == f_InitUpDownTime )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   const auto old = f_InitUpDownTime;
-  f_InitUpDownTime = *values;
+  f_InitUpDownTime = values.front();
   try {
    check_data( who );
    if( not_dry_run( issueAMod ) )
@@ -2612,19 +2634,24 @@ void ConversionUnitBlock::set_init_updown_time( MF_int_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_investment_cost( MF_dbl_it values ,
+void ConversionUnitBlock::set_investment_cost( MF_dbl_sp values ,
                                                Range rng ,
                                                ModParam issuePMod ,
                                                ModParam issueAMod )
 {
- if( ( rng.second <= rng.first ) || ( *values == f_InvestmentCost ) )
+ if( rng.second <= rng.first )
+  return;
+ if( values.empty() )
+  throw( std::invalid_argument( "ConversionUnitBlock::set_investment_cost: "
+                                "no value in the span" ) );
+ if( values.front() == f_InvestmentCost )
   return;
  if( ! has_design() )
   throw( std::invalid_argument( "ConversionUnitBlock::set_investment_cost: "
                                 "the unit has no design variable" ) );
 
  if( not_dry_run( issuePMod ) ) {
-  f_InvestmentCost = *values;
+  f_InvestmentCost = values.front();
   if( not_dry_run( issueAMod ) )
    update_design_cost( issueAMod );
   }
@@ -2635,7 +2662,7 @@ void ConversionUnitBlock::set_investment_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_investment_cost( MF_dbl_it values ,
+void ConversionUnitBlock::set_investment_cost( MF_dbl_sp values ,
                                                Subset && subset ,
                                                const bool ordered ,
                                                ModParam issuePMod ,
@@ -2647,36 +2674,19 @@ void ConversionUnitBlock::set_investment_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::scale( MF_dbl_it values , Subset && subset ,
-                                 const bool ordered ,
-                                 c_ModParam issuePMod ,
-                                 c_ModParam issueAMod )
+void ConversionUnitBlock::set_weight( double k , c_ModParam issueMod )
 {
- if( subset.empty() || ( f_scale == *values ) )
-  return;
-
- // the scale and a design of more than one module, or more than one module,
- // are the same replication of the unit, as deserialize() says
- if( ( *values != 1 ) &&
+ // the copies and a design of more than one module, or more than one
+ // module, are the same replication of the unit, as deserialize() says
+ if( ( k != 1 ) &&
      ( ( has_design() && ( std::abs( f_MaxCapacityDesign ) > 1 ) ) ||
        ( f_Modules > 1 ) ) )
-  throw( std::invalid_argument( "ConversionUnitBlock::scale: Scale != 1 "
-                                "together with |MaxCapacityDesign| > 1 or "
+  throw( std::invalid_argument( "ConversionUnitBlock::set_weight: Scale != "
+                                "1 together with |MaxCapacityDesign| > 1 or "
                                 "Modules > 1, which represent the same "
                                 "replication of the unit" ) );
 
- if( not_dry_run( issuePMod ) ) {
-  f_scale = *values;
-  if( not_dry_run( issueAMod ) && objective_generated() ) {
-   update_objective( range_subset( Range( 0 , f_time_horizon ) ,
-                                   f_time_horizon ) , issueAMod );
-   update_design_cost( issueAMod );
-   }
-  }
-
- issue_unit_mod( std::make_shared< UnitBlockMod >( this ,
-                                                  UnitBlockMod::eScale ) ,
-                 issuePMod );
+ UnitBlock::set_weight( k , issueMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2684,24 +2694,29 @@ void ConversionUnitBlock::scale( MF_dbl_it values , Subset && subset ,
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::flat_set( MAdbl & data , double dflt , int type ,
-                                    Index ncol , MF_dbl_it values ,
+                                    Index ncol , MF_dbl_sp values ,
                                     Subset && subset , bool ordered ,
                                     ModParam issuePMod , ModParam issueAMod ,
                                     bool rows , const std::string & who )
 {
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( who + ": the span is shorter than the "
+                                "Subset" ) );
+
  const Index T = f_time_horizon;
  // the instants and the values of each column, in the order given
  std::map< Index , std::pair< Subset , std::vector< double > > > cols;
- for( auto i : subset ) {
+ for( Index h = 0 ; h < subset.size() ; ++h ) {
+  const auto i = subset[ h ];
   if( ( ! T ) || ( i >= ncol * T ) )
    throw( std::invalid_argument( who + ": invalid index " +
                                  std::to_string( i ) + " in the subset" ) );
   auto & c = cols[ i / T ];
   c.first.push_back( i % T );
-  c.second.push_back( *( values++ ) );
+  c.second.push_back( values[ h ] );
   }
  for( auto & [ col , c ] : cols )
-  guts_of_set( data , dflt , type , col , c.second.cbegin() ,
+  guts_of_set( data , dflt , type , col , MF_dbl_sp( c.second ) ,
                std::move( c.first ) , ordered , issuePMod , issueAMod ,
                rows , who );
  }
@@ -2709,7 +2724,7 @@ void ConversionUnitBlock::flat_set( MAdbl & data , double dflt , int type ,
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_linear_term(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_LinearTerm , 0 , ConversionUnitBlockMod::eSetLinT , f_G ,
@@ -2718,7 +2733,7 @@ void ConversionUnitBlock::set_linear_term(
  }
 
 void ConversionUnitBlock::set_linear_term(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_linear_term( values , range_subset( rng , f_G * f_time_horizon ) ,
   true , issuePMod , issueAMod );
@@ -2726,7 +2741,7 @@ void ConversionUnitBlock::set_linear_term(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_quad_term(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_QuadTerm , 0 , ConversionUnitBlockMod::eSetQuadT , f_G ,
@@ -2735,7 +2750,7 @@ void ConversionUnitBlock::set_quad_term(
  }
 
 void ConversionUnitBlock::set_quad_term(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_quad_term( values , range_subset( rng , f_G * f_time_horizon ) ,
   true , issuePMod , issueAMod );
@@ -2743,7 +2758,7 @@ void ConversionUnitBlock::set_quad_term(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_primary_spinning_reserve_cost(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_PrimaryCost , 0 , ConversionUnitBlockMod::eSetPrCost , f_G ,
@@ -2752,7 +2767,7 @@ void ConversionUnitBlock::set_primary_spinning_reserve_cost(
  }
 
 void ConversionUnitBlock::set_primary_spinning_reserve_cost(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_primary_spinning_reserve_cost( values ,
   range_subset( rng , f_G * f_time_horizon ) , true , issuePMod ,
@@ -2761,7 +2776,7 @@ void ConversionUnitBlock::set_primary_spinning_reserve_cost(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_secondary_spinning_reserve_cost(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_SecondaryCost , 0 , ConversionUnitBlockMod::eSetScCost , f_G ,
@@ -2771,7 +2786,7 @@ void ConversionUnitBlock::set_secondary_spinning_reserve_cost(
  }
 
 void ConversionUnitBlock::set_secondary_spinning_reserve_cost(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_secondary_spinning_reserve_cost( values ,
   range_subset( rng , f_G * f_time_horizon ) , true , issuePMod ,
@@ -2780,7 +2795,7 @@ void ConversionUnitBlock::set_secondary_spinning_reserve_cost(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_maximum_power(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_MaxPower , 0 , ConversionUnitBlockMod::eSetMaxP , f_G ,
@@ -2789,7 +2804,7 @@ void ConversionUnitBlock::set_maximum_power(
  }
 
 void ConversionUnitBlock::set_maximum_power(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_maximum_power( values , range_subset( rng , f_G * f_time_horizon ) ,
   true , issuePMod , issueAMod );
@@ -2797,7 +2812,7 @@ void ConversionUnitBlock::set_maximum_power(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_minimum_power(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_MinPower , 0 , ConversionUnitBlockMod::eSetMinP , f_G ,
@@ -2806,7 +2821,7 @@ void ConversionUnitBlock::set_minimum_power(
  }
 
 void ConversionUnitBlock::set_minimum_power(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_minimum_power( values , range_subset( rng , f_G * f_time_horizon ) ,
   true , issuePMod , issueAMod );
@@ -2814,7 +2829,7 @@ void ConversionUnitBlock::set_minimum_power(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_operating_rhs(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_OperatingRHS , INF , ConversionUnitBlockMod::eSetOpRHS , f_M ,
@@ -2823,7 +2838,7 @@ void ConversionUnitBlock::set_operating_rhs(
  }
 
 void ConversionUnitBlock::set_operating_rhs(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_operating_rhs( values , range_subset( rng , f_M * f_time_horizon ) ,
   true , issuePMod , issueAMod );
@@ -2831,7 +2846,7 @@ void ConversionUnitBlock::set_operating_rhs(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_operating_lhs(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_OperatingLHS , - INF , ConversionUnitBlockMod::eSetOpLHS , f_M ,
@@ -2840,7 +2855,7 @@ void ConversionUnitBlock::set_operating_lhs(
  }
 
 void ConversionUnitBlock::set_operating_lhs(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_operating_lhs( values , range_subset( rng , f_M * f_time_horizon ) ,
   true , issuePMod , issueAMod );
@@ -2848,7 +2863,7 @@ void ConversionUnitBlock::set_operating_lhs(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_delta_ramp_up(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_DeltaRampUp , 0 , ConversionUnitBlockMod::eSetRampUp , f_K ,
@@ -2857,7 +2872,7 @@ void ConversionUnitBlock::set_delta_ramp_up(
  }
 
 void ConversionUnitBlock::set_delta_ramp_up(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_delta_ramp_up( values , range_subset( rng , f_K * f_time_horizon ) ,
   true , issuePMod , issueAMod );
@@ -2865,7 +2880,7 @@ void ConversionUnitBlock::set_delta_ramp_up(
 /*--------------------------------------------------------------------------*/
 
 void ConversionUnitBlock::set_delta_ramp_down(
- MF_dbl_it values , Subset && subset , const bool ordered ,
+ MF_dbl_sp values , Subset && subset , const bool ordered ,
  ModParam issuePMod , ModParam issueAMod )
 {
  flat_set( v_DeltaRampDown , 0 , ConversionUnitBlockMod::eSetRampDown , f_K ,
@@ -2874,33 +2889,38 @@ void ConversionUnitBlock::set_delta_ramp_down(
  }
 
 void ConversionUnitBlock::set_delta_ramp_down(
- MF_dbl_it values , Range rng , ModParam issuePMod , ModParam issueAMod )
+ MF_dbl_sp values , Range rng , ModParam issuePMod , ModParam issueAMod )
 {
  set_delta_ramp_down( values , range_subset( rng , f_K * f_time_horizon ) ,
   true , issuePMod , issueAMod );
  }
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_initial_power( MF_dbl_it values ,
+void ConversionUnitBlock::set_initial_power( MF_dbl_sp values ,
                                              Subset && subset ,
                                              const bool ordered ,
                                              ModParam issuePMod ,
                                              ModParam issueAMod )
 {
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "ConversionUnitBlock::set_initial_power: "
+                                "the span is shorter than the Subset" ) );
+
  // one change per generator, so that a refused one leaves the others
- for( auto g : subset ) {
+ for( Index h = 0 ; h < subset.size() ; ++h ) {
+  const auto g = subset[ h ];
   if( g >= f_G )
    throw( std::invalid_argument( "ConversionUnitBlock::set_initial_power: "
                                  "invalid generator " +
                                  std::to_string( g ) ) );
-  set_initial_power( values++ , Range( g , g + 1 ) , issuePMod ,
-                     issueAMod );
+  set_initial_power( values.subspan( h , 1 ) , Range( g , g + 1 ) ,
+                     issuePMod , issueAMod );
   }
  }
 
 /*--------------------------------------------------------------------------*/
 
-void ConversionUnitBlock::set_init_updown_time( MF_int_it values ,
+void ConversionUnitBlock::set_init_updown_time( MF_int_sp values ,
                                                 Subset && subset ,
                                                 const bool ordered ,
                                                 ModParam issuePMod ,

@@ -28,7 +28,7 @@ NuclearUnitExtDPSolver # name of 2nd Solver
 
 *LPCmpMILPCfg.txt
 
-# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+# end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - END LPCmpBSCfg-nuc.txt  - - - - - - - - - - - - - -

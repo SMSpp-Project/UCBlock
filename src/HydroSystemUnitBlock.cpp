@@ -400,6 +400,17 @@ double HydroSystemUnitBlock::get_max_power( Index t , Index generator )
  }
 
 /*--------------------------------------------------------------------------*/
+
+double HydroSystemUnitBlock::get_copies( Index generator ) const
+{
+ if( generator >= v_gen_map.size() )
+  return( get_scale() );
+ return( get_scale() * get_hydro_unit_block( v_gen_map[ generator ].first
+					     )->get_copies(
+					   v_gen_map[ generator ].second ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 

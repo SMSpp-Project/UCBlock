@@ -2244,15 +2244,17 @@ class DCNetworkData : public NetworkData
  /// set the network cost values
  /** This function sets the network cost values of this DCNetworkBlock.
   *
-  * @param values  Iterator to a vector containing the network cost values.
+  * @param values  A span containing the network cost values, at least as long
+  *                as \p subset (std::invalid_argument is thrown if it is
+  *                shorter).
   * @param subset  If non-empty, the network cost values corresponding to the
-  *                indices in \p subset are set to the values pointed by
-  *                \p values. If empty, no operation is performed.
+  *                indices in \p subset are set to the values in \p values. If
+  *                empty, no operation is performed.
   * @param ordered It indicates whether \p subset is ordered.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued. */
  
- void set_network_cost( MF_dbl_it values ,
+ void set_network_cost( MF_dbl_sp values ,
                         Subset && subset , bool ordered = false ,
                         c_ModParam issuePMod = eNoBlck ,
                         c_ModParam issueAMod = eNoBlck );
@@ -2261,14 +2263,16 @@ class DCNetworkData : public NetworkData
  /// set the network cost values
  /** This function sets the network cost values of this DCNetworkBlock.
   *
-  * @param values Iterator to a vector containing the network cost values.
+  * @param values A span containing the network cost values, at least as long
+  *               as what is left of \p rng (std::invalid_argument is thrown if
+  *               it is shorter).
   * @param rng    If non-empty, the network cost values corresponding to the
-  *               indices in \p rng are set to the values pointed by
-  *               \p values. If empty, no operation is performed.
+  *               indices in \p rng are set to the values in \p values. If
+  *               empty, no operation is performed.
   * @param issuePMod Controls how physical Modifications are issued.
   * @param issueAMod Controls how abstract Modifications are issued. */
 
- void set_network_cost( MF_dbl_it values ,
+ void set_network_cost( MF_dbl_sp values ,
                         Range rng = Range( 0 , Inf< Index >() ) ,
                         c_ModParam issuePMod = eNoBlck ,
                         c_ModParam issueAMod = eNoBlck );
@@ -2284,17 +2288,17 @@ class DCNetworkData : public NetworkData
  void set_network_cost( double value , c_ModParam issuePMod = eNoBlck ,
                                        c_ModParam issueAMod = eNoBlck ) {
   std::vector< double > vector = { value };
-  set_network_cost( vector.cbegin() , Range( 0 , Inf< Index >() ) ,
+  set_network_cost( MF_dbl_sp( vector ) , Range( 0 , Inf< Index >() ) ,
                     issuePMod , issueAMod );
   }
 
 /*--------------------------------------------------------------------------*/
  /// set the kappa constants for the lines specified by \p subset
- /** This function sets the kappa constant of each line in the given \p
-  * subset. The kappa constant of each line whose index is specified by the
-  * i-th element in \p subset is given by the i-th element of the vector
-  * pointed by \p values, i.e., it is given by the value pointed by (values +
-  * i). The parameter \p ordered indicates whether the \p subset is ordered.
+ /** This function sets the kappa constant of each line in the given \p subset.
+  * The kappa constant of each line whose index is specified by the i-th
+  * element in \p subset is values[ i ], \p values being at least as long as
+  * \p subset (std::invalid_argument is thrown if it is shorter). The parameter
+  * \p ordered indicates whether the \p subset is ordered.
   *
   * The constant \f$ \kappa_l \f$ multiplies both flow limits of line
   * \f$ l \f$, \f$ \kappa_l C^v P^{mn}_l \le F_l \le \kappa_l C^v
@@ -2327,7 +2331,8 @@ class DCNetworkData : public NetworkData
   * line, whose dual then adds to the subgradient [see
   * OTSNetworkBlock::resize()].
   *
-  * @param values An iterator to a vector containing the kappa constants.
+  * @param values A span containing the kappa constants, at least as long as
+  *               \p subset (std::invalid_argument is thrown if it is shorter).
   *
   * @param subset The indices of the lines whose kappa constants are being
   *        modified.
@@ -2338,7 +2343,7 @@ class DCNetworkData : public NetworkData
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- virtual void set_kappa( MF_dbl_it values , Subset && subset ,
+ virtual void set_kappa( MF_dbl_sp values , Subset && subset ,
                          bool ordered = false ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -2347,11 +2352,13 @@ class DCNetworkData : public NetworkData
  /// set the kappa constants for the lines specified by \p rng
  /** This function sets the kappa constants for the lines in the given Range
   * \p rng. For each i in the given Range (up to the number of lines minus 1),
-  * the kappa constant for line i is given by the element of the vector
-  * pointed by \p values whose index is (i - rng.first), i.e., it is given by
-  * the value pointed by (values + i - rng.first).
+  * the kappa constant for line i is values[ i - rng.first ], \p values being
+  * at least as long as what is left of \p rng (std::invalid_argument is thrown
+  * if it is shorter).
   *
-  * @param values An iterator to a vector containing the kappa constants.
+  * @param values A span containing the kappa constants, at least as long as
+  *               what is left of \p rng (std::invalid_argument is thrown if it
+  *               is shorter).
   *
   * @param rng A Range containing the indices of the lines whose kappa
   *        constants are being modified.
@@ -2360,7 +2367,7 @@ class DCNetworkData : public NetworkData
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- virtual void set_kappa( MF_dbl_it values ,
+ virtual void set_kappa( MF_dbl_sp values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          c_ModParam issuePMod = eNoBlck ,
                          c_ModParam issueAMod = eNoBlck );
@@ -2395,16 +2402,17 @@ class DCNetworkData : public NetworkData
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p subset
- /** This function sets the active demand at each node in the given \p
-  * subset. The active demand at the node whose index is specified by the i-th
-  * element in \p subset is given by the i-th element of the vector pointed by
-  * \p values, i.e., it is given by the value pointed by (values + i). The
-  * parameter \p ordered indicates whether the \p subset is ordered. If the
-  * abstract representation has been generated, the rows that hold the
-  * demand are changed by change_active_demand_constraints(), which a
-  * derived class with rows of its own redefines.
+ /** This function sets the active demand at each node in the given \p subset.
+  * The active demand at the node whose index is specified by the i-th element
+  * in \p subset is values[ i ], \p values being at least as long as \p subset
+  * (std::invalid_argument is thrown if it is shorter). The parameter
+  * \p ordered indicates whether the \p subset is ordered. If the abstract
+  * representation has been generated, the rows that hold the demand are
+  * changed by change_active_demand_constraints(), which a derived class with
+  * rows of its own redefines.
   *
-  * @param values An iterator to a vector containing the active demand.
+  * @param values A span containing the active demand, at least as long as
+  *               \p subset (std::invalid_argument is thrown if it is shorter).
   *
   * @param subset The indices of the nodes at which the active demand is being
   *        modified.
@@ -2415,20 +2423,22 @@ class DCNetworkData : public NetworkData
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_active_demand( MF_dbl_it values , Subset && subset ,
+ void set_active_demand( MF_dbl_sp values , Subset && subset ,
                          bool ordered = false ,
 			 ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// set the active demand at the nodes specified by \p rng
- /** This function sets the active demand at each node in the given Range \p
-  * rng. For each i in the given Range (up to the number of nodes minus 1),
-  * the active demand at node i is given by the element of the vector pointed
-  * by \p values whose index is (i - rng.first), i.e., it is given by the
-  * value pointed by (values + i - rng.first).
+ /** This function sets the active demand at each node in the given Range
+  * \p rng. For each i in the given Range (up to the number of nodes minus 1),
+  * the active demand at node i is values[ i - rng.first ], \p values being at
+  * least as long as what is left of \p rng (std::invalid_argument is thrown if
+  * it is shorter).
   *
-  * @param values An iterator to a vector containing the active demand.
+  * @param values A span containing the active demand, at least as long as what
+  *               is left of \p rng (std::invalid_argument is thrown if it is
+  *               shorter).
   *
   * @param rng A Range containing the indices of the nodes at which the active
   *        demand is being modified.
@@ -2437,7 +2447,7 @@ class DCNetworkData : public NetworkData
   *
   * @param issueAMod It controls how abstract Modification are issued. */
 
- void set_active_demand( MF_dbl_it values ,
+ void set_active_demand( MF_dbl_sp values ,
                          Range rng = Range( 0 , Inf< Index >() ) ,
                          ModParam issuePMod = eNoBlck ,
                          ModParam issueAMod = eNoBlck ) override final;
@@ -2591,12 +2601,16 @@ class DCNetworkData : public NetworkData
  /// the derivative of the value of this Block w.r.t. the kappa of \p line
  /** The flow limit constraints of a line l are
 
-     \f[ \kappa_l \mathrm{Pmin}_l \leq F_l \leq \kappa_l \mathrm{Pmax}_l \f]
+     \f[ \kappa_l C^v \mathrm{Pmin}_l \leq F_l \leq \kappa_l C^v
+         \mathrm{Pmax}_l \f]
 
   * so the derivative of the value of this Block with respect to \f$
   * \kappa_l \f$ is minus the dual of whichever bound is active,
-  * times that bound. Which one it is, is told by the sign of the dual read
-  * against the sense of the Objective.
+  * times \f$ C^v \f$ and the datum of that bound. Which one it is, is told
+  * by the sign of the dual read against the sense of the Objective. Every
+  * formulation of the network has these bounds [see
+  * generate_abstract_constraints()], hence the derivative is the same in
+  * all of them.
   *
   * It requires the constraints, and reads the duals that the last solve
   * left in them: if they have not been generated it throws
@@ -2823,27 +2837,27 @@ class DCNetworkData : public NetworkData
 
  static void static_initialization( void )
  {
-  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< DCNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "DCNetworkBlock::set_network_cost" ,
    & DCNetworkBlock::set_network_cost );
 
-  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+  register_method< DCNetworkBlock , MF_dbl_sp , Range >(
    "DCNetworkBlock::set_network_cost" ,
    & DCNetworkBlock::set_network_cost );
 
-  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< DCNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "DCNetworkBlock::set_active_demand" ,
    & DCNetworkBlock::set_active_demand );
 
-  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+  register_method< DCNetworkBlock , MF_dbl_sp , Range >(
    "DCNetworkBlock::set_active_demand" ,
    & DCNetworkBlock::set_active_demand );
 
-  register_method< DCNetworkBlock , MF_dbl_it , Subset && , bool >(
+  register_method< DCNetworkBlock , MF_dbl_sp , Subset && , bool >(
    "DCNetworkBlock::set_kappa" ,
    & DCNetworkBlock::set_kappa );
 
-  register_method< DCNetworkBlock , MF_dbl_it , Range >(
+  register_method< DCNetworkBlock , MF_dbl_sp , Range >(
    "DCNetworkBlock::set_kappa" ,
    & DCNetworkBlock::set_kappa );
 

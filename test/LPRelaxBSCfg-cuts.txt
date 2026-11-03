@@ -62,7 +62,7 @@ intRelaxIntVars  2    # the relaxation, separating the rows of the Block
 # pointer to the "extra" Configuration
 *  # [none]
 
-# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+# end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - END LPRelaxBSCfg-cuts.txt - - - - - - - - - - - - -

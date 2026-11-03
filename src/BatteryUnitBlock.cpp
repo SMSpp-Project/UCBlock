@@ -208,8 +208,6 @@ void BatteryUnitBlock::deserialize( const netCDF::NcGroup & group )
   ::deserialize( group , f_ConvMaxCapacityDesign , "ConverterMaxCapacityDesign" );
  }
 
- ::deserialize( group , f_scale , "Scale" );
-
  // variables for AC elements
  if( ::deserialize( group , "MaxReactivePower" , f_time_horizon ,
 		    v_MaxReactivePower , true , true , v_change_intervals )
@@ -253,7 +251,7 @@ std::vector< std::string > BatteryUnitBlock::expected_vars( void ) const {
    "ConverterInvestmentCost" , "BatteryMinCapacityDesign" ,
    "ConverterMinCapacityDesign" , "BatteryMaxCapacityDesign" ,
    "ConverterMaxCapacityDesign" , "MinReactivePower", "MaxReactivePower",
-   "ReferenceSchedule" , "Scale" };
+   "ReferenceSchedule" };
 
  auto ret = UnitBlock::expected_vars();
  ret.insert( ret.end() , ev.begin() , ev.end() );
@@ -302,7 +300,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const
 
  // Scale and design granularity are two equivalent ways to model multiple
  // identical modules; combining them with both > 1 over-counts the fleet.
- if( ( f_scale != 1 ) && ( std::abs( f_BattMaxCapacityDesign ) > 1 ) )
+ if( ( get_scale() != 1 ) && ( std::abs( f_BattMaxCapacityDesign ) > 1 ) )
   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: "
                            "cannot combine Scale != 1 with "
                            "|BatteryMaxCapacityDesign| > 1; they represent "
@@ -334,7 +332,7 @@ void BatteryUnitBlock::check_data_consistency( void ) const
                            "design)." ) );
 
  // Same Scale-vs-design exclusion as the battery (see note above).
- if( ( f_scale != 1 ) && ( std::abs( f_ConvMaxCapacityDesign ) > 1 ) )
+ if( ( get_scale() != 1 ) && ( std::abs( f_ConvMaxCapacityDesign ) > 1 ) )
   throw( std::logic_error( "BatteryUnitBlock::check_data_consistency: "
                            "cannot combine Scale != 1 with "
                            "|ConverterMaxCapacityDesign| > 1; they represent "
@@ -1608,28 +1606,27 @@ void BatteryUnitBlock::generate_objective( Configuration *objc )
  if( v_RefSchedule.empty() ) {
   if( ! v_intake_level.empty() )
    for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-    lf->add_variable( &v_intake_level[ t ] , f_scale * v_Cost[ t ] , eNoMod );
-    lf->add_variable( &v_outtake_level[ t ] , -f_scale * v_Cost[ t ] ,
-                      eNoMod );
+    lf->add_variable( &v_intake_level[ t ] , v_Cost[ t ] , eNoMod );
+    lf->add_variable( &v_outtake_level[ t ] , -v_Cost[ t ] , eNoMod );
     }
   else
    for( Index t = 0 ; t < f_time_horizon ; ++t )
-    lf->add_variable( &v_active_power[ t ] , -f_scale * v_Cost[ t ] , eNoMod );
+    lf->add_variable( &v_active_power[ t ] , -v_Cost[ t ] , eNoMod );
   }
 
 
  if( f_BattInvestmentCost != 0 )
-  lf->add_variable( &batt_design , f_scale * f_BattInvestmentCost );
+  lf->add_variable( &batt_design , f_BattInvestmentCost );
 
  if( f_ConvInvestmentCost != 0 )
-  lf->add_variable( &conv_design , f_scale * f_ConvInvestmentCost );
+  lf->add_variable( &conv_design , f_ConvInvestmentCost );
 
  // the schedule is that of one unit, from which each of the copies deviates
- // on its own, so that the deviation costs the scale factor times what one
- // copy pays [see UnitBlock::scale()]
+ // on its own, so that the deviation costs the copies times what one copy
+ // pays, the weight of the Objective [see UnitBlock::replicate()]
  if( ! v_RefSchedule.empty() ) {
   for( Index t = 0 ; t < f_time_horizon ; ++t )
-   lf->add_variable( &v_abs_ref_schedule[ t ] , f_scale );
+   lf->add_variable( &v_abs_ref_schedule[ t ] , 1 );
  }
 
  objective.set_function( lf );
@@ -1750,8 +1747,6 @@ void BatteryUnitBlock::serialize( netCDF::NcGroup & group ) const {
                 f_ConvMaxCapacityDesign );
  }
 
- if( f_scale != 1 )
-  ::serialize( group , "Scale" , netCDF::NcDouble() , f_scale );
 
  if( f_MaxCRateCharge != 1 )
   ::serialize( group , "MaxCRateCharge" , netCDF::NcDouble() ,
@@ -1891,7 +1886,7 @@ void BatteryUnitBlock::check_initial_storage_sign( double value ) const
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
+void BatteryUnitBlock::set_initial_storage( MF_dbl_sp values ,
                                             Subset && subset ,
                                             const bool ordered ,
                                             c_ModParam issuePMod ,
@@ -1900,22 +1895,26 @@ void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "BatteryUnitBlock::set_initial_storage: "
+                                "the span is shorter than the Subset" ) );
+
  // Find the last index 0
  auto index_it = std::find( subset.rbegin() , subset.rend() , 0 );
 
  if( index_it == subset.rend() )
   return;  // 0 is not in subset; return
 
- std::advance( values , std::distance( index_it , subset.rend() ) - 1 );
+ values = values.subspan( std::distance( index_it , subset.rend() ) - 1 );
 
- if( f_InitialStorage == *values )
+ if( f_InitialStorage == values.front() )
   return;
 
- check_initial_storage_sign( *values );
+ check_initial_storage_sign( values.front() );
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  f_InitialStorage = *values;
+  f_InitialStorage = values.front();
 
   if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
@@ -1933,7 +1932,7 @@ void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
+void BatteryUnitBlock::set_initial_storage( MF_dbl_sp values ,
                                             Range rng ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
@@ -1942,16 +1941,18 @@ void BatteryUnitBlock::set_initial_storage( MF_dbl_it values ,
  if( ! ( ( rng.first <= 0 ) && ( 0 < rng.second ) ) )
   return;  // 0 does not belong to the range; return
 
- std::advance( values , -rng.first );
+ if( values.empty() )
+  throw( std::invalid_argument( "BatteryUnitBlock::set_initial_storage: "
+                                "the span is shorter than the Range" ) );
 
- if( f_InitialStorage == *values )
+ if( f_InitialStorage == values.front() )
   return;  // nothing changes; return
 
- check_initial_storage_sign( *values );
+ check_initial_storage_sign( values.front() );
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  f_InitialStorage = *values;
+  f_InitialStorage = values.front();
 
   if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
@@ -1983,7 +1984,7 @@ void BatteryUnitBlock::update_initial_power_in_cnstrs( c_ModParam issueAMod )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
+void BatteryUnitBlock::set_initial_power( MF_dbl_sp values ,
                                           Subset && subset ,
                                           const bool ordered ,
                                           c_ModParam issuePMod ,
@@ -1992,20 +1993,24 @@ void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "BatteryUnitBlock::set_initial_power: "
+                                "the span is shorter than the Subset" ) );
+
  // Find the last index 0
  auto index_it = std::find( subset.rbegin() , subset.rend() , 0 );
 
  if( index_it == subset.rend() )
   return;  // 0 is not in subset; return
 
- std::advance( values , std::distance( index_it , subset.rend() ) - 1 );
+ values = values.subspan( std::distance( index_it , subset.rend() ) - 1 );
 
- if( f_InitialPower == *values )
+ if( f_InitialPower == values.front() )
   return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  f_InitialPower = *values;
+  f_InitialPower = values.front();
 
   if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
@@ -2023,7 +2028,7 @@ void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
+void BatteryUnitBlock::set_initial_power( MF_dbl_sp values ,
                                           Range rng ,
                                           c_ModParam issuePMod ,
                                           c_ModParam issueAMod )
@@ -2032,14 +2037,16 @@ void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
  if( ! ( ( rng.first <= 0 ) && ( 0 < rng.second ) ) )
   return;  // 0 does not belong to the range; return
 
- std::advance( values , -rng.first );
+ if( values.empty() )
+  throw( std::invalid_argument( "BatteryUnitBlock::set_initial_power: "
+                                "the span is shorter than the Range" ) );
 
- if( f_InitialPower == *values )
+ if( f_InitialPower == values.front() )
   return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  f_InitialPower = *values;
+  f_InitialPower = values.front();
 
   if( not_dry_run( issueAMod ) && constraints_generated() )
    // Change the abstract representation
@@ -2057,7 +2064,7 @@ void BatteryUnitBlock::set_initial_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_cost( MF_dbl_it values ,
+void BatteryUnitBlock::set_cost( MF_dbl_sp values ,
                                  Subset && subset ,
                                  const bool ordered ,
                                  ModParam issuePMod ,
@@ -2066,9 +2073,13 @@ void BatteryUnitBlock::set_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;  // Since the given Subset is empty, no operation is performed
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "BatteryUnitBlock::set_cost: the span is "
+                                "shorter than the Subset" ) );
+
  if( v_Cost.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -2082,7 +2093,7 @@ void BatteryUnitBlock::set_cost( MF_dbl_it values ,
    throw( std::invalid_argument(
     "BatteryUnitBlock::set_cost: invalid index in subset." ) );
 
- auto values_it = values;
+ auto values_it = values.begin();
  bool identical = true;
  for( auto t : subset ) {
   if( v_Cost[ t ] != *( values_it++ ) ) {
@@ -2095,7 +2106,7 @@ void BatteryUnitBlock::set_cost( MF_dbl_it values ,
   return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto t : subset )
    v_Cost[ t ] = *( values_it++ );
 
@@ -2119,7 +2130,7 @@ void BatteryUnitBlock::set_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_cost( MF_dbl_it values ,
+void BatteryUnitBlock::set_cost( MF_dbl_sp values ,
                                  Range rng ,
                                  ModParam issuePMod ,
                                  ModParam issueAMod )
@@ -2128,24 +2139,29 @@ void BatteryUnitBlock::set_cost( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;  // An empty Range was given: no operation is performed.
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "BatteryUnitBlock::set_cost: the span is "
+                                "shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  if( v_Cost.empty() ) {
-  if( std::all_of( values ,
-                   values + sz ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + sz ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
   v_Cost.assign( f_time_horizon , 0.0 );
  }
 
- if( std::equal( values , values + sz , v_Cost.begin() + rng.first ) )
+ if( std::equal( values.begin() , values.begin() + sz ,
+                 v_Cost.begin() + rng.first ) )
   return;  // nothing changes; return
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values ,
-             values + sz ,
+  std::copy( values.begin() ,
+             values.begin() + sz ,
              v_Cost.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() )
@@ -2164,46 +2180,21 @@ void BatteryUnitBlock::set_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::scale( MF_dbl_it values ,
-                              Subset && subset ,
-                              const bool ordered ,
-                              c_ModParam issuePMod ,
-                              c_ModParam issueAMod )
+void BatteryUnitBlock::set_weight( double k , c_ModParam issueMod )
 {
- if( subset.empty() )
-  return;  // Since the given Subset is empty, no operation is performed
-
- if( f_scale == *values )
-  return;  // The scale factor does not change: nothing to do
-
- // the scale and a design of more than one module are the same fleet, as
+ // the copies and a design of more than one module are the same fleet, as
  // deserialize() says [see check_data_consistency()]
- if( ( *values != 1 ) && ( ( std::abs( f_BattMaxCapacityDesign ) > 1 ) ||
-                           ( std::abs( f_ConvMaxCapacityDesign ) > 1 ) ) )
-  throw( std::logic_error( "BatteryUnitBlock::scale: cannot combine "
+ if( ( k != 1 ) && ( ( std::abs( f_BattMaxCapacityDesign ) > 1 ) ||
+                     ( std::abs( f_ConvMaxCapacityDesign ) > 1 ) ) )
+  throw( std::logic_error( "BatteryUnitBlock::set_weight: cannot combine "
                            "Scale != 1 with |BatteryMaxCapacityDesign| > 1 "
                            "or |ConverterMaxCapacityDesign| > 1; they "
                            "represent the same multi-module fleet and would "
                            "double-count." ) );
 
- if( not_dry_run( issuePMod ) ) {
-  f_scale = *values;  // Update the scale factor
+ UnitBlock::set_weight( k , issueMod );
 
-  if( not_dry_run( issueAMod ) ) {
-   // Update the abstract representation
-   if( objective_generated() )
-    // Update the Objective
-    update_objective( issueAMod );
-  }
- }
-
- // Issue a Physical Modification, which the father sees anyway: it rewrites
- // the rows that carry the scale factor even if no Solver is listening
- issue_unit_mod( std::make_shared< UnitBlockMod >( this ,
-                                                  UnitBlockMod::eScale ) ,
-                 issuePMod );
-
-}  // end( BatteryUnitBlock::scale )
+}  // end( BatteryUnitBlock::set_weight )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2525,7 +2516,7 @@ void BatteryUnitBlock::update_conv_kappa_rows( ModParam nAM )
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
+void BatteryUnitBlock::set_kappa( MF_dbl_sp values ,
                                   Subset && subset ,
                                   const bool ordered ,
                                   ModParam issuePMod ,
@@ -2534,7 +2525,11 @@ void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
  if( subset.empty() )
   return;  // Since the given Subset is empty, no operation is performed
 
- if( f_kappa == *values )
+ if( values.empty() )
+  throw( std::invalid_argument( "BatteryUnitBlock::set_kappa: no value in "
+                                "the span" ) );
+
+ if( f_kappa == values.front() )
   return;  // The kappa constant does not change: nothing to do
 
  // a kappa changes the size of the unit, and whether the profile a resized
@@ -2547,7 +2542,7 @@ void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
    "to be resized with it or not" ) );
 
  if( not_dry_run( issuePMod ) ) {
-  f_kappa = *values;  // Update the kappa constant
+  f_kappa = values.front();  // Update the kappa constant
 
   if( not_dry_run( issueAMod ) )
    // Update the abstract representation
@@ -2564,7 +2559,7 @@ void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
+void BatteryUnitBlock::set_kappa( MF_dbl_sp values ,
                                   Range rng ,
                                   ModParam issuePMod ,
                                   ModParam issueAMod )
@@ -2580,7 +2575,7 @@ void BatteryUnitBlock::set_kappa( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_converter_kappa( MF_dbl_it values ,
+void BatteryUnitBlock::set_converter_kappa( MF_dbl_sp values ,
                                             Subset && subset ,
                                             const bool ordered ,
                                             ModParam issuePMod ,
@@ -2589,7 +2584,11 @@ void BatteryUnitBlock::set_converter_kappa( MF_dbl_it values ,
  if( subset.empty() )
   return;  // Since the given Subset is empty, no operation is performed
 
- const double value = *values;
+ if( values.empty() )
+  throw( std::invalid_argument( "BatteryUnitBlock::set_converter_kappa: no "
+                                "value in the span" ) );
+
+ const double value = values.front();
 
  if( ( ! converter_follows_kappa() ) && ( f_conv_kappa == value ) )
   return;  // the multiplier does not change: nothing to do
@@ -2634,7 +2633,7 @@ void BatteryUnitBlock::set_converter_kappa( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void BatteryUnitBlock::set_converter_kappa( MF_dbl_it values ,
+void BatteryUnitBlock::set_converter_kappa( MF_dbl_sp values ,
                                             Range rng ,
                                             ModParam issuePMod ,
                                             ModParam issueAMod )
@@ -3010,41 +3009,15 @@ void BatteryUnitBlock::update_objective( c_ModParam issueAMod ) const {
 
   for( Index t = 0 ; t < f_time_horizon ; ++t )
    if( split ) {
-    coefficients.push_back( f_scale * v_Cost[ t ] );
-    coefficients.push_back( -f_scale * v_Cost[ t ] );
+    coefficients.push_back( v_Cost[ t ] );
+    coefficients.push_back( - v_Cost[ t ] );
     }
    else
-    coefficients.push_back( -f_scale * v_Cost[ t ] );
+    coefficients.push_back( - v_Cost[ t ] );
 
   function->modify_coefficients( std::move( coefficients ) ,
                                  Range( 0 , terms ) ,
                                  issueAMod );
- }
-
- // the deviations from the reference schedule, which the scale factor
- // weighs as it does the operating costs
- if( ! v_RefSchedule.empty() )
-  for( Index t = 0 ; t < f_time_horizon ; ++t ) {
-   const auto idx = function->is_active( & v_abs_ref_schedule[ t ] );
-   assert( idx < function->get_num_active_var() );
-   function->modify_coefficient( idx , f_scale , issueAMod );
-   }
-
- // refresh the scale-aware design coefficients (battery / converter)
- if( f_BattInvestmentCost != 0 ) {
-  const auto idx = function->is_active( & batt_design );
-  assert( idx < function->get_num_active_var() );
-  function->modify_coefficient( idx ,
-                                f_scale * f_BattInvestmentCost ,
-                                issueAMod );
- }
-
- if( f_ConvInvestmentCost != 0 ) {
-  const auto idx = function->is_active( & conv_design );
-  assert( idx < function->get_num_active_var() );
-  function->modify_coefficient( idx ,
-                                f_scale * f_ConvInvestmentCost ,
-                                issueAMod );
  }
 
 }  // end( BatteryUnitBlock::update_objective )

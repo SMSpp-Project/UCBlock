@@ -29,7 +29,7 @@ ThermalUnitExtDPSolver # name of 3rd Solver
 
 *LPCmpMILPCfg.txt
 
-# end of BlockSolverConfig- - - - - - - - - - - - - - - - - - - - - - - - - -
+# end of BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # - - - - - - - - - - - - - END LPCmpBSCfg.txt  - - - - - - - - - - - - - - -

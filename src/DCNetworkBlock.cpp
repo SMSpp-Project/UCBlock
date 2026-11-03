@@ -1953,7 +1953,7 @@ void DCNetworkBlock::serialize( netCDF::NcGroup & group ) const
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
+void DCNetworkBlock::set_active_demand( MF_dbl_sp values , Subset && subset ,
                                         bool ordered ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
@@ -1961,8 +1961,12 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: the "
+                                "span is shorter than the Subset" ) );
+
  if( v_ActiveDemand.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1970,12 +1974,13 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
   }
 
  bool identical = true;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= v_ActiveDemand.size() )
    throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: "
                                  "invalid value in subset" ) );
 
-  auto demand = *( values++ );
+  auto demand = *( values_it++ );
   if( v_ActiveDemand[ i ] != demand ) {
    identical = false;
 
@@ -2008,7 +2013,7 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Subset && subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
+void DCNetworkBlock::set_active_demand( MF_dbl_sp values , Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
 {
@@ -2016,8 +2021,13 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "DCNetworkBlock::set_active_demand: the "
+                                "span is shorter than the Range" ) );
+
  if( v_ActiveDemand.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -2025,13 +2035,13 @@ void DCNetworkBlock::set_active_demand( MF_dbl_it values , Range rng ,
   }
 
  // If nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
+ if( std::equal( values.begin() , values.begin() + ( rng.second - rng.first ) ,
                  v_ActiveDemand.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() , values.begin() + ( rng.second - rng.first ) ,
              v_ActiveDemand.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
@@ -2265,7 +2275,7 @@ void DCNetworkBlock::change_DC_HVDC_power_flow_injection_constraints(
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
+void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
                                        Subset && subset ,
                                        bool ordered ,
                                        c_ModParam issuePMod ,
@@ -2274,8 +2284,12 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "DCNetworkBlock::set_network_cost: the "
+                                "span is shorter than the Subset" ) );
+
  // a negative cost makes V_l >= | F_l | unbounded above in the objective
- if( std::any_of( values , values + subset.size() ,
+ if( std::any_of( values.begin() , values.begin() + subset.size() ,
                   []( double cst ) { return( cst < 0.0 ); } ) )
   throw( std::invalid_argument( "DCNetworkBlock::set_network_cost: a "
                                 "negative cost makes the problem "
@@ -2284,7 +2298,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  auto & network_cost = f_NetworkData->get_network_cost();
 
  if( network_cost.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
 
@@ -2294,7 +2308,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  // pricing a line the abstract representation was built without has no
  // auxiliary Variable to hang the cost on
  if( variables_generated() && v_auxiliary_variable.empty() &&
-     std::any_of( values , values + subset.size() ,
+     std::any_of( values.begin() , values.begin() + subset.size() ,
                   []( double cst ) { return( cst != 0.0 ); } ) )
   throw( std::logic_error(
    "DCNetworkBlock::set_network_cost: the abstract representation has been "
@@ -2302,7 +2316,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
    "linearise the flow cost with" ) );
 
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= network_cost.size() )
    throw( std::invalid_argument(
@@ -2319,7 +2333,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto i : subset )
    network_cost[ i ] = *( values_it++ );
 
@@ -2364,7 +2378,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
+void DCNetworkBlock::set_network_cost( MF_dbl_sp values ,
                                        Range rng ,
                                        c_ModParam issuePMod ,
                                        c_ModParam issueAMod )
@@ -2373,10 +2387,14 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "DCNetworkBlock::set_network_cost: the "
+                                "span is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  // a negative cost makes V_l >= | F_l | unbounded above in the objective
- if( std::any_of( values , values + sz ,
+ if( std::any_of( values.begin() , values.begin() + sz ,
                   []( double cst ) { return( cst < 0.0 ); } ) )
   throw( std::invalid_argument( "DCNetworkBlock::set_network_cost: a "
                                 "negative cost makes the problem "
@@ -2385,7 +2403,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  auto & network_cost = f_NetworkData->get_network_cost();
 
  if( network_cost.empty() ) {
-  if( std::all_of( values , values + sz ,
+  if( std::all_of( values.begin() , values.begin() + sz ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
 
@@ -2395,21 +2413,21 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
  // pricing a line the abstract representation was built without has no
  // auxiliary Variable to hang the cost on
  if( variables_generated() && v_auxiliary_variable.empty() &&
-     std::any_of( values , values + sz ,
+     std::any_of( values.begin() , values.begin() + sz ,
                   []( double cst ) { return( cst != 0.0 ); } ) )
   throw( std::logic_error(
    "DCNetworkBlock::set_network_cost: the abstract representation has been "
    "generated with no priced line, hence it has no auxiliary Variable to "
    "linearise the flow cost with" ) );
 
- if( std::equal( values ,
-                 values + sz ,
+ if( std::equal( values.begin() ,
+                 values.begin() + sz ,
                  network_cost.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values ,
-             values + sz ,
+  std::copy( values.begin() ,
+             values.begin() + sz ,
              network_cost.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {
@@ -2449,7 +2467,7 @@ void DCNetworkBlock::set_network_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
+void DCNetworkBlock::set_kappa( MF_dbl_sp values , Subset && subset ,
 				bool ordered ,
                                 c_ModParam issuePMod ,
                                 c_ModParam issueAMod )
@@ -2457,8 +2475,12 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "DCNetworkBlock::set_kappa: the span is "
+                                "shorter than the Subset" ) );
+
  if( v_kappa.empty() ) {
-  if( std::all_of( values , values + subset.size() ,
+  if( std::all_of( values.begin() , values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 1 ); } ) )
    return;
 
@@ -2466,12 +2488,13 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
   }
 
  bool identical = true;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= v_kappa.size() )
    throw( std::invalid_argument( "DCNetworkBlock::set_kappa: invalid value in"
                                  " subset: " + std::to_string( i ) ) );
 
-  const auto kappa = *( values++ );
+  const auto kappa = *( values_it++ );
   if( v_kappa[ i ] != kappa ) {
    identical = false;
    if( not_dry_run( issuePMod ) )
@@ -2506,15 +2529,20 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Subset && subset ,
 
 /*--------------------------------------------------------------------------*/
 
-void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
+void DCNetworkBlock::set_kappa( MF_dbl_sp values , Range rng ,
                                 c_ModParam issuePMod , c_ModParam issueAMod )
 {
  rng.second = std::min( rng.second , get_number_lines() );
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "DCNetworkBlock::set_kappa: the span is "
+                                "shorter than the Range" ) );
+
  if( v_kappa.empty() ) {
-  if( std::all_of( values , values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 1 ); } ) )
    return;
 
@@ -2522,13 +2550,13 @@ void DCNetworkBlock::set_kappa( MF_dbl_it values , Range rng ,
   }
 
  // If nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
+ if( std::equal( values.begin() , values.begin() + ( rng.second - rng.first ) ,
                  v_kappa.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values , values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() , values.begin() + ( rng.second - rng.first ) ,
              v_kappa.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
@@ -2562,7 +2590,8 @@ void DCNetworkBlock::resize( MF_dbl_sp values , Subset && subset ,
  // and of OTSNetworkBlock throws
  const std::vector< double > kappa( values.begin() ,
                                     values.begin() + subset.size() );
- DCNetworkBlock::set_kappa( kappa.cbegin() , std::move( subset ) , ordered ,
+ DCNetworkBlock::set_kappa( MF_dbl_sp( kappa ) , std::move( subset ) ,
+                            ordered ,
                             issuePMod , issueAMod );
 
  }  // end( DCNetworkBlock::resize( subset ) )
@@ -2579,7 +2608,7 @@ void DCNetworkBlock::resize( MF_dbl_sp values , Range rng ,
                                 "than the lines it is asked to write" ) );
 
  const std::vector< double > kappa( values.begin() , values.begin() + n );
- DCNetworkBlock::set_kappa( kappa.cbegin() , rng , issuePMod , issueAMod );
+ DCNetworkBlock::set_kappa( MF_dbl_sp( kappa ) , rng , issuePMod , issueAMod );
 
  }  // end( DCNetworkBlock::resize( range ) )
 

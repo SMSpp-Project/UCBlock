@@ -1457,7 +1457,7 @@ void HydroUnitBlock::serialize( netCDF::NcGroup & group ) const
 /*------------------------ METHODS FOR CHANGING DATA -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inflow( MF_dbl_it values ,
+void HydroUnitBlock::set_inflow( MF_dbl_sp values ,
                                  Block::Subset && subset ,
                                  const bool ordered ,
                                  c_ModParam issuePMod ,
@@ -1466,9 +1466,13 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "HydroUnitBlock::set_inflow: the span is "
+                                "shorter than the Subset" ) );
+
  if( v_inflows.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1477,7 +1481,7 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
 
  // If nothing changes, return
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= v_inflows.num_elements() )
    throw( std::invalid_argument( "HydroUnitBlock::set_inflow: "
@@ -1492,7 +1496,7 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  values_it = values;
+  values_it = values.begin();
   for( auto i : subset ) {
    Index t = i % f_time_horizon;
    Index r = i / f_time_horizon;
@@ -1543,7 +1547,7 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inflow( MF_dbl_it values ,
+void HydroUnitBlock::set_inflow( MF_dbl_sp values ,
                                  Block::Range rng ,
                                  c_ModParam issuePMod ,
                                  c_ModParam issueAMod )
@@ -1553,9 +1557,13 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "HydroUnitBlock::set_inflow: the span is "
+                                "shorter than the Range" ) );
+
  if( v_inflows.empty() ) {
-  if( std::all_of( values ,
-                   values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1563,15 +1571,15 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
  }
 
  // If nothing changes, return
- if( std::equal( values ,
-                 values + ( rng.second - rng.first ) ,
+ if( std::equal( values.begin() ,
+                 values.begin() + ( rng.second - rng.first ) ,
                  v_inflows.data() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values ,
-             values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() ,
+             values.begin() + ( rng.second - rng.first ) ,
              v_inflows.data() + rng.first );
 
   if( constraints_generated() ) {
@@ -1613,7 +1621,7 @@ void HydroUnitBlock::set_inflow( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
+void HydroUnitBlock::set_inertia_power( MF_dbl_sp values ,
                                         Subset && subset ,
                                         const bool ordered ,
                                         c_ModParam issuePMod ,
@@ -1622,9 +1630,13 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "HydroUnitBlock::set_inertia_power: the "
+                                "span is shorter than the Subset" ) );
+
  if( v_InertiaPower.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1633,7 +1645,7 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
 
  // If nothing changes, return
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= f_NumberArcs * f_time_horizon )
    throw( std::invalid_argument( "HydroUnitBlock::set_inertia_power: "
@@ -1651,7 +1663,7 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  values_it = values;
+  values_it = values.begin();
   for( auto i : subset ) {
    Index a = i / f_time_horizon;
    Index t = i % f_time_horizon;
@@ -1678,7 +1690,7 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
+void HydroUnitBlock::set_inertia_power( MF_dbl_sp values ,
                                         Block::Range rng ,
                                         c_ModParam issuePMod ,
                                         c_ModParam issueAMod )
@@ -1687,9 +1699,13 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "HydroUnitBlock::set_inertia_power: the "
+                                "span is shorter than the Range" ) );
+
  if( v_InertiaPower.empty() ) {
-  if( std::all_of( values ,
-                   values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1698,7 +1714,7 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
 
  // If nothing changes, return
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( Index i = rng.first ; i < rng.second ; ++i ) {
   Index a = i / f_time_horizon;
   Index t = i % f_time_horizon;
@@ -1714,7 +1730,7 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  values_it = values;
+  values_it = values.begin();
   for( Index i = rng.first ; i < rng.second ; ++i ) {
    Index a = i / f_time_horizon;
    Index t = i % f_time_horizon;
@@ -1737,7 +1753,7 @@ void HydroUnitBlock::set_inertia_power( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
+void HydroUnitBlock::set_initial_volume( MF_dbl_sp values ,
                                          Block::Subset && subset ,
                                          const bool ordered ,
                                          c_ModParam issuePMod ,
@@ -1746,10 +1762,14 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: the "
+                                "span is shorter than the Subset" ) );
+
  if( v_InitialVolumetric.empty() ) {
   // The initial volumes are currently zero.
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    // The initial volumes are still zero. There is nothing to be updated.
    return;
@@ -1761,7 +1781,7 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
                               v_InitialVolumetric.front() );
 
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto r : subset ) {
   if( r >= v_InitialVolumetric.size() )
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: invalid "
@@ -1779,7 +1799,7 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
  // a negative value means the cyclic closure, which shapes the rows of
  // instant 0 when they are generated: it cannot come or go afterwards
  if( constraints_generated() ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto r : subset )
    if( ( v_InitialVolumetric[ r ] < 0 ) != ( *( values_it++ ) < 0 ) )
     throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: the "
@@ -1790,7 +1810,7 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  values_it = values;
+  values_it = values.begin();
   for( auto r : subset )
    v_InitialVolumetric[ r ] = *( values_it++ );
 
@@ -1822,7 +1842,7 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
+void HydroUnitBlock::set_initial_volume( MF_dbl_sp values ,
                                          Block::Range rng ,
                                          c_ModParam issuePMod ,
                                          c_ModParam issueAMod )
@@ -1831,10 +1851,14 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "HydroUnitBlock::set_initial_volume: the "
+                                "span is shorter than the Range" ) );
+
  if( v_InitialVolumetric.empty() ) {
   // The initial volumes are currently zero.
-  if( std::all_of( values ,
-                   values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    // The initial volumes are still zero. There is nothing to be updated.
     return;
@@ -1846,7 +1870,7 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
                               v_InitialVolumetric.front() );
 
  // If nothing changes, return
- if( std::equal( values , values + ( rng.second - rng.first ) ,
+ if( std::equal( values.begin() , values.begin() + ( rng.second - rng.first ) ,
                  v_InitialVolumetric.begin() + rng.first ) )
   return;
 
@@ -1862,8 +1886,8 @@ void HydroUnitBlock::set_initial_volume( MF_dbl_it values ,
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values ,
-             values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() ,
+             values.begin() + ( rng.second - rng.first ) ,
              v_InitialVolumetric.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() ) {
@@ -1958,7 +1982,7 @@ void HydroUnitBlock::update_initial_flow_rate_in_cnstrs( Block::Range arcs ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
+void HydroUnitBlock::set_initial_flow_rate( MF_dbl_sp values ,
                                             Block::Subset && subset ,
                                             const bool ordered ,
                                             c_ModParam issuePMod ,
@@ -1967,9 +1991,13 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "HydroUnitBlock::set_initial_flow_rate: "
+                                "the span is shorter than the Subset" ) );
+
  if( v_InitialFlowRate.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -1982,7 +2010,7 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
                             v_InitialFlowRate.front() );
 
  bool identical = true;
- auto values_it = values;
+ auto values_it = values.begin();
  for( auto i : subset ) {
   if( i >= v_InitialFlowRate.size() )
    throw( std::invalid_argument( "HydroUnitBlock::set_initial_flow_rate: "
@@ -1995,7 +2023,7 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto i : subset )
    v_InitialFlowRate[ i ] = *( values_it++ );
 
@@ -2017,7 +2045,7 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
+void HydroUnitBlock::set_initial_flow_rate( MF_dbl_sp values ,
                                             Block::Range rng ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
@@ -2026,9 +2054,13 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "HydroUnitBlock::set_initial_flow_rate: "
+                                "the span is shorter than the Range" ) );
+
  if( v_InitialFlowRate.empty() ) {
-  if( std::all_of( values ,
-                   values + ( rng.second - rng.first ) ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + ( rng.second - rng.first ) ,
                    []( double cst ) { return( cst == 0 ); } ) )
    return;
 
@@ -2042,15 +2074,16 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
                              v_InitialFlowRate.front() );
 
   // If nothing changes, return
-  if( std::equal( values , values + ( rng.second - rng.first ) ,
+  if( std::equal( values.begin() ,
+                  values.begin() + ( rng.second - rng.first ) ,
                   v_InitialFlowRate.begin() + rng.first ) )
    return;
   }
 
  if( not_dry_run( issuePMod ) ) {
   // Change the physical representation
-  std::copy( values ,
-             values + ( rng.second - rng.first ) ,
+  std::copy( values.begin() ,
+             values.begin() + ( rng.second - rng.first ) ,
              v_InitialFlowRate.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && constraints_generated() )
@@ -2069,7 +2102,7 @@ void HydroUnitBlock::set_initial_flow_rate( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
+void HydroUnitBlock::set_active_power_cost( MF_dbl_sp values ,
                                             Subset && subset ,
                                             bool ordered ,
                                             c_ModParam issuePMod ,
@@ -2078,9 +2111,13 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
  if( subset.empty() )
   return;
 
+ if( values.size() < subset.size() )
+  throw( std::invalid_argument( "HydroUnitBlock::set_active_power_cost: "
+                                "the span is shorter than the Subset" ) );
+
  if( v_ActivePowerCost.empty() ) {
-  if( std::all_of( values ,
-                   values + subset.size() ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + subset.size() ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
 
@@ -2092,7 +2129,7 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
    throw( std::invalid_argument(
     "HydroUnitBlock::set_active_power_cost: invalid index in subset." ) );
 
- auto values_it = values;
+ auto values_it = values.begin();
 
  bool identical = true;
  for( auto arc : subset ) {
@@ -2106,7 +2143,7 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  values_it = values;
+  values_it = values.begin();
   for( auto arc : subset )
    v_ActivePowerCost[ arc ] = *( values_it++ );
 
@@ -2161,7 +2198,7 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
 
 /*--------------------------------------------------------------------------*/
 
-void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
+void HydroUnitBlock::set_active_power_cost( MF_dbl_sp values ,
                                             Range rng ,
                                             c_ModParam issuePMod ,
                                             c_ModParam issueAMod )
@@ -2170,25 +2207,29 @@ void HydroUnitBlock::set_active_power_cost( MF_dbl_it values ,
  if( rng.second <= rng.first )
   return;
 
+ if( values.size() < rng.second - rng.first )
+  throw( std::invalid_argument( "HydroUnitBlock::set_active_power_cost: "
+                                "the span is shorter than the Range" ) );
+
  c_Index sz = rng.second - rng.first;
 
  if( v_ActivePowerCost.empty() ) {
-  if( std::all_of( values ,
-                   values + sz ,
+  if( std::all_of( values.begin() ,
+                   values.begin() + sz ,
                    []( double cst ) { return( cst == 0.0 ); } ) )
    return;
 
   v_ActivePowerCost.assign( f_NumberArcs , 0.0 );
  }
 
- if( std::equal( values ,
-                 values + sz ,
+ if( std::equal( values.begin() ,
+                 values.begin() + sz ,
                  v_ActivePowerCost.begin() + rng.first ) )
   return;
 
  if( not_dry_run( issuePMod ) ) {
-  std::copy( values ,
-             values + sz ,
+  std::copy( values.begin() ,
+             values.begin() + sz ,
              v_ActivePowerCost.begin() + rng.first );
 
   if( not_dry_run( issueAMod ) && objective_generated() ) {

@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the bit `ThermalUnitBlock::TRes` (262144) of the formulation, only with
+  the T formulation, puts the spinning reserves in the rows of the T
+  formulation that bound the active power (the ramps, the minimum power
+  and the maximum power rows (22)-(25)), which tightens the continuous
+  relaxation with the same optimum; `has_reserves_in_T()` tells whether it
+  is on
+
+- `"BatteryUnitBlock::has_resize_feasibility_cut"` in the methods factory,
+  a getter writing 1 if, after a solve that ended infeasible, the getters
+  of the derivatives with respect to the sizes give the coefficients of the
+  condition that feasible sizes have to satisfy, and 0 with the binary
+  variables of intake and outtake, whose values they read
+
+- the tester checks what each physical Modification says it changes
+  (`changes()`) against what the change does to the model, written down in
+  the tester, for every type of the physical Modification of every class of the
+  module
+
+- the nodes of the generators on a carrier c > 0 are the variable
+  `GeneratorNode` of its group `Carrier_c`, indexed over the generators, -1
+  where a generator has none, and can be omitted for a carrier with one
+  node; `GeneratorNode` of the `UCBlock` then gives those of the
+  electricity alone, and its form in two dimensions over the generators
+  and the carriers is still read; `serialize()` writes the nodes carrier by
+  carrier
+
+- `UnitBlock::get_copies( generator )`, the weight of the Variable of a
+  generator, which `HydroSystemUnitBlock` multiplies by the copies of the
+  generator in its `HydroUnitBlock`: the `UCBlock` multiplies by it the
+  fixed consumption in the right-hand sides of the node injection rows and
+  the bounds of the node injections
+
+- `UnitBlock::has_design()`, true if the unit has a design Variable of its
+  own (a nonzero investment cost for a `ThermalUnitBlock`, a
+  `NuclearUnitBlock`, an `IntermittentUnitBlock` and a
+  `ConversionUnitBlock`, a battery or converter investment cost for a
+  `BatteryUnitBlock`), and `UCBlock::has_design()`, true if a unit has one or
+  a `DesignNetworkBlock` has a line to be designed, registered in the methods
+  factory as the getter `UCBlock::has_design`, so that a Block holding a
+  `UCBlock` can tell its design mode without knowing the class
+
 - the makefiles build the C++20 module `smspp.ucblock` when `SMSppMOD` is
   not empty (e.g., `make SMSppMOD=1`), with clang++ 16 or later [see
   `lib/makefile-mod` of SMS++]
@@ -381,6 +422,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bands and the deep decreases of `NuclearUnitBlock` are written by
   `build_band_rows()` and `build_deep_rows_f1()`, which the formulations of
   the rules share
+- every setter of the data of the module takes them as a `MF_dbl_sp`
+  (`MF_int_sp` for `set_init_updown_time()`), and is registered in the
+  methods factory only in that form: the Range and Subset versions throw
+  `std::invalid_argument` if the span is shorter than what is left of the
+  Range or than the Subset, those of a single datum (the kappa constants,
+  the initial powers and storages, the peak tariff, the investment cost) if
+  it is empty; `UCBlock::set_carrier_demand()` takes the one value as a
+  `double`
+
+- the comment of `DCNetworkBlock::get_resize_linearization()` writes the
+  factor `C^v` of the flow limits, which the derivative already applies,
+  and says that every formulation of the network has those limits; the
+  comments of `BatteryUnitBlock::get_kappa_linearization()` and of
+  `UCBlockModel.h` no longer refer to InvestmentFunction for the change of
+  variable of the battery
+
+- the README leaves the channels that distribute SMS++ to the
+  installation guide of the wiki (Installing-SMS++), keeping the names
+  of the packages of the module
+
+- the copies of a unit are the weights of its Block [see
+  `Block::set_weight()`] instead of a scale factor of each class:
+  `UnitBlock::replicate( k )`, which the methods factory reaches as
+  `<classname>::replicate` as before, is `set_weight( k )`, and
+  `UnitBlock::set_weight()` tells the `UCBlock` among the ancestors of the
+  unit [see `UCBlock::weight_changed()`]. The Objective, the Variable and
+  the rows of a unit are those of one copy, the Solver applying the weights,
+  and the `UCBlock` multiplies by them only the constants the unit brings
+  (the fixed consumption in the right-hand sides of the node injection rows
+  and the bounds of the node injections); `UnitBlock::get_scale()` is the
+  weight of the Variable, and "Scale" is still read, as both the weights,
+  while `serialize()` writes the weights as the attributes of `Block`. The
+  methods `scale()` of `UnitBlock` and of the units, their registrations
+  `<classname>::scale`, `UnitBlockMod::eScale` and the rewriting of the
+  coefficients of the rows of `UCBlock` and of the Objective of the units
+  are gone; the DP Solvers of a `ThermalUnitBlock` report the value of one
+  copy, and `UCBlock::get_replicate_linearization()` with 0 copies mirrors
+  the unit as it is, with weights 1, instead of scaling it to 1 and back
+
+- `UCBlockSolution::serialize()` writes the solutions of the units and of
+  the networks (in the standard format) by way of `write_via_memory()`, in a
+  time linear in their number
+
+- `UCBlock::set_active_power_demand()`, when the demand is held by the
+  `NetworkBlock`, makes one call to `NetworkBlock::set_active_demand()` for
+  each `NetworkBlock` with all its entries, rather than one per entry, which
+  for a `DesignNetworkBlock` went through all its sub-Block each time
 
 - `OTSNetworkBlock` in the Standard and Elastic formulations generates the
   group `OTS_switching_bound`, the limit min( 1 , kappa ) of the switching
@@ -536,7 +624,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commitment Variable whose fixed consumption is 0 at an instant is no
   longer in the row of that instant with more than one node
 
+- `UCBlockSolution::serialize()` writes the solutions of the units stacked
+  in the group `UnitBlock`, one stack per type of unit, and those of the
+  networks in the standard format stacked in the group `NetworkBlock` when
+  all of them are there [see `write_stacked()` of SMS++], which
+  `deserialize()` tells apart from the compressed format; the groups
+  `UnitBlock_i` and `NetworkBlock_t` are still read
+
 ### Fixed
+
+- the dynamic programming Solvers added nothing of a piecewise function to
+  a point at the right end of its domain, so that the shut-down cap of the
+  reserves was lost when the output at the last instant before a shut-down
+  could only be that cap, as from InitialPower with the window of the
+  modulation of a NuclearUnitBlock: NuclearUnitExtDPSolver then counted a
+  reserve that the unit cannot hold
+
+- the Subset version of `DesignNetworkBlock::set_network_cost()` sorted an
+  unordered Subset without the values, which then went to the wrong lines,
+  and the Range versions of `set_active_demand()` and `set_network_cost()`
+  of `DesignNetworkBlock` did not restrict the Range to the nodes and the
+  lines there are
+
+- the unit test copies the one value of the data of a battery given once
+  before assigning it to both instants: `assign()` was given a reference into
+  the vector itself, which it does not allow, and with the libc++ of macOS
+  the data of the battery with a design were zeros
+
+- on Windows, the executables that copy their DLLs next to themselves
+  are linked one at a time (a job pool of Ninja), since two copies of the
+  same DLL into one directory collided (e.g., with the clang++ of MSYS2)
+
+- with the compilers of MinGW (MSYS2) the target asks whoever links it
+  for the symbol that forces the module in, as with MSVC and on macOS:
+  the linker imports a DLL only for the symbols asked for, so that a
+  program that used none had the module left out and its classes
+  missing from the factory
+
+- `UCBlock::get_replicate_linearization()` counts the cost of one copy with
+  the weight of the `UCBlock` within the Block whose Solver gave the duals,
+  which the duals carry too, and so does the copy of a unit with no copies:
+  in a `TwoStageStochasticBlock` solved whole the cost was left without the
+  probability of the scenario, and the derivative by copies was wrong
+
+- the unit test solves the Solution of the formulations of a
+  `ThermalUnitBlock`, whose cost is quadratic, and the `UCBlock` on an
+  `ACNetworkBlock` with and without the bounds of the angles, whose
+  Constraint are quadratic, with a `:MILPSolver` that solves them, which
+  HiGHS does not: where HiGHS was the only one (e.g., on macOS) the test
+  stopped at the first and failed the others
+
+- `UCBlock::is_feasible()` weighs the Variable of each unit with its copies,
+  as the Solver does, the rows holding the coefficients of one copy, and
+  checks also the reactive node injection rows and the balances of the
+  carriers other than the electricity, which it did not
+
+- `ThermalUnitBlock` takes the `BlockWeightMod` of its copies, which it
+  refused as a `BlockMod` it did not know
+
+- `DesignNetworkBlock::set_active_demand()` with a `Subset` that is not
+  ordered sorted the subset but not the values, which went to the wrong
+  entries; it now sorts them together, and goes through the sub-Block and
+  the subset in one pass
 
 - a `DesignNetworkBlock` over `ACNetworkBlock` forwards the reactive
   injections, their bounds and the reactive demand to its sub-networks,
