@@ -5054,8 +5054,12 @@ static void test_UC_solution_formats( void )
      std::unique_ptr< Solution > s( uc->get_Solution( c.get() , false ) );
      auto sg = new_group( "SOL" );
      s->serialize( sg );
-     check( ( sg.getGroup( "NetworkBlock_0" ).isNull() != natural ) &&
-	    ( sg.getGroup( "NetworkBlock" ).isNull() == natural ) ,
+     // both formats in the group "NetworkBlock", the natural one stacked
+     // [see write_stacked()] and the compressed one not
+     const auto nb = sg.getGroup( "NetworkBlock" );
+     check( ( ! nb.isNull() ) && sg.getGroup( "NetworkBlock_0" ).isNull() &&
+	    ( stacked_size( nb ) ==
+	      ( natural ? uc->get_number_networks() : 0 ) ) ,
 	    who + ": the NetworkBlock are not in the format of the "
 	    "Configuration" );
      std::unique_ptr< Solution > r( Solution::new_Solution( sg ) );
