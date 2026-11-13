@@ -2155,8 +2155,8 @@ static void test_net_cost_solution( double min0 , double min1 )
  const double B = 1000;
  auto g =
    write_net( "DCNetworkBlock" , 3 ,
-	      { { 0 , 1 , 0 , min0 , B } , { 1 , 2 , 0 , min1 , B } } , { 0 ,
-	 0 , 1 } );
+	      { { 0 , 1 , 0 , min0 , B } , { 1 , 2 , 0 , min1 , B } } ,
+	      { 0 , 0 , 1 } );
  put( g , "NetworkCost" , g.getDim( "NumberLines" ) , { 2 , 3 } );
  const std::string what =
    "network cost Solution, minimum flows " + str( min0 ) + " , " + str( min1 );
@@ -2243,8 +2243,8 @@ static void test_net_unpriced_cost( void )
  auto make = [ & ]( double min0 ) {
   std::unique_ptr< DCNetworkBlock > nb( dynamic_cast< DCNetworkBlock * >(
     Block::new_Block( write_net( "DCNetworkBlock" , 3 ,
-				 { { 0 , 1 , 0 , min0 , B } , { 1 , 2 , 0 , 0 ,
-       B } } ,
+				 { { 0 , 1 , 0 , min0 , B } ,
+				   { 1 , 2 , 0 , 0 , B } } ,
 				 { 0 , 0 , 1 } ) ) ) );
   nb->generate_abstract_variables();
   return( nb );
